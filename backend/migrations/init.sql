@@ -1,0 +1,3 @@
+-- PostgreSQL will auto-create database and user from environment variables
+-- No manual initialization needed
+-- SQLAlchemy will create the schema on backend startup

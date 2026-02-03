@@ -1,0 +1,159 @@
+"""Dive CRUD endpoints"""
+
+from typing import List, Optional
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.dive import Dive
+from app.models.session import Session as SessionModel
+from app.schemas.dive import DiveCreate, DiveUpdate
+
+router = APIRouter()
+
+
+@router.get("")
+async def list_dives(
+    db: Session = Depends(get_db),
+    session_id: Optional[int] = Query(None, description="Filter by session ID"),
+    dive_code: Optional[str] = Query(None, description="Filter by dive code"),
+    height: Optional[str] = Query(None, description="Filter by height"),
+    performance: Optional[str] = Query(None, description="Filter by performance"),
+    date_from: Optional[datetime] = Query(None, description="Filter dives from date"),
+    date_to: Optional[datetime] = Query(None, description="Filter dives until date"),
+    exclude_lineup: bool = Query(False, description="Exclude lineup dives"),
+    exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
+    limit: int = Query(100, description="Limit results"),
+    offset: int = Query(0, description="Offset for pagination"),
+):
+    """
+    List dives with optional filters
+    """
+    query = db.query(Dive)
+
+    # Apply filters
+    if session_id is not None:
+        query = query.filter(Dive.session_id == session_id)
+
+    if dive_code:
+        query = query.filter(Dive.dive_code == dive_code)
+
+    if height:
+        query = query.filter(Dive.height == height)
+
+    if performance:
+        query = query.filter(Dive.performance == performance)
+
+    if date_from:
+        query = query.filter(Dive.dive_datetime >= date_from)
+
+    if date_to:
+        query = query.filter(Dive.dive_datetime <= date_to)
+
+    if exclude_lineup:
+        query = query.filter(Dive.is_lineup == False)
+
+    if exclude_personal:
+        query = query.filter(Dive.is_lineup == True)
+
+    # Order by date descending
+    dives = query.order_by(Dive.dive_datetime.desc()).offset(offset).limit(limit).all()
+    return dives
+
+
+@router.post("", status_code=201)
+async def create_dive(
+    dive: DiveCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new dive record
+    """
+    # Verify session exists
+    session = db.query(SessionModel).filter(SessionModel.id == dive.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {dive.session_id} not found")
+
+    # Create dive
+    db_dive = Dive(
+        session_id=dive.session_id,
+        dive_code=dive.dive_code,
+        dive_number=dive.dive_number,
+        position=dive.position,
+        direction=dive.direction,
+        performance=dive.performance,
+        performance_numeric=dive.performance_numeric,
+        height=dive.height,
+        platform_type=dive.platform_type,
+        is_lineup=dive.is_lineup,
+        is_sync=dive.is_sync,
+        is_smack=dive.is_smack,
+        raw_caption=dive.raw_caption,
+        person_name=dive.person_name,
+        notes=dive.notes,
+        video_uuid=dive.video_uuid,
+        video_filename=dive.video_filename,
+        video_path=dive.video_path,
+        dive_datetime=dive.dive_datetime,
+    )
+
+    db.add(db_dive)
+    db.commit()
+    db.refresh(db_dive)
+    return db_dive
+
+
+@router.get("/{dive_id}")
+async def get_dive(
+    dive_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get a specific dive by ID
+    """
+    dive = db.query(Dive).filter(Dive.id == dive_id).first()
+    if not dive:
+        raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
+    return dive
+
+
+@router.put("/{dive_id}")
+async def update_dive(
+    dive_id: int,
+    dive_update: DiveUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Update a dive record
+    """
+    dive = db.query(Dive).filter(Dive.id == dive_id).first()
+    if not dive:
+        raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
+
+    # Update only provided fields
+    update_data = dive_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(dive, field, value)
+
+    db.add(dive)
+    db.commit()
+    db.refresh(dive)
+    return dive
+
+
+@router.delete("/{dive_id}", status_code=204)
+async def delete_dive(
+    dive_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a dive record
+    """
+    dive = db.query(Dive).filter(Dive.id == dive_id).first()
+    if not dive:
+        raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
+
+    db.delete(dive)
+    db.commit()
+    return None
