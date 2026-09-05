@@ -1,0 +1,265 @@
+{
+  "label": "BASELINE_A_ERROR_TAXONOMY_V1",
+  "created": "2026-09-05",
+  "basis": "BASELINE_A_EVALUATION_V1.json + TEMPORAL_LANDMARK_GROUND_TRUTH_V1.json",
+  "n_dives": 20,
+  "n_evaluable_landmarks": 51,
+  "failure_mode_definitions": {
+    "TRAJECTORY_COLLAPSE": {
+      "short": "Two or more predicted landmarks assigned the same frame",
+      "cause": "The vertical centroid trajectory saturates at a stable value; the peak-finding logic picks identical frames for distinct events.",
+      "detection_criterion": "frame_err[X] == 0 for at least two landmarks, or |auto_frame_X - auto_frame_Y| <= 2"
+    },
+    "EARLY_TRIGGER": {
+      "short": "Auto prediction fires significantly before the true event",
+      "cause": "MOG2 foreground mask is activated by background clutter (pool surface, lane lines, camera movement, non-diver athletes) before the diver enters the frame or initiates the dive.",
+      "detection_criterion": "auto_frame < human_frame AND frame_error > 40"
+    },
+    "LATE_FIRE": {
+      "short": "Auto prediction fires significantly after the true event",
+      "cause": "Foreground detector is slow to activate; diver centroid is dominated by other foreground regions until the diver is fully in frame.",
+      "detection_criterion": "auto_frame > human_frame AND frame_error > 40"
+    },
+    "WATER_CONTACT_RUNAWAY": {
+      "short": "Water contact predicted hundreds of frames after true entry",
+      "cause": "The algorithm detects post-entry motion (swimmer underwater, turbulence, coach movement) as the water contact event because the diver's submerged silhouette and turbulence continue to produce foreground pixels.",
+      "detection_criterion": "landmark == water_contact AND frame_error > 500"
+    },
+    "MARGINAL_NEAR_MISS": {
+      "short": "Prediction is close but still outside the \u22645/\u22648/\u22645 frame tolerance",
+      "cause": "Algorithm identifies approximately the correct temporal region but is off by a few seconds due to signal noise or suboptimal threshold.",
+      "detection_criterion": "frame_error between 6 and 19 for takeoff/water_contact, or 9 and 25 for apex"
+    }
+  },
+  "per_dive_taxonomy": {
+    "dive_133": {
+      "takeoff": "MARGINAL_NEAR_MISS",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "MARGINAL_NEAR_MISS"
+    },
+    "dive_160": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "MARGINAL_NEAR_MISS"
+    },
+    "dive_169": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "MARGINAL_NEAR_MISS"
+    },
+    "dive_191": {
+      "takeoff": "LATE_FIRE",
+      "apex": "LATE_FIRE",
+      "water_contact": "LATE_FIRE"
+    },
+    "dive_192": {
+      "takeoff": "TRAJECTORY_COLLAPSE+LATE_FIRE",
+      "apex": "TRAJECTORY_COLLAPSE+LATE_FIRE",
+      "water_contact": "WATER_CONTACT_RUNAWAY"
+    },
+    "dive_311": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "NOT_APPLICABLE",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_524": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_676": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_848": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "LATE_FIRE"
+    },
+    "dive_1040": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "TRAJECTORY_COLLAPSE",
+      "water_contact": "TRAJECTORY_COLLAPSE"
+    },
+    "dive_2169": {
+      "takeoff": "LATE_FIRE",
+      "apex": "LATE_FIRE",
+      "water_contact": "LATE_FIRE"
+    },
+    "dive_2281": {
+      "takeoff": "LATE_FIRE",
+      "apex": "LATE_FIRE",
+      "water_contact": "WATER_CONTACT_RUNAWAY"
+    },
+    "dive_2341": {
+      "takeoff": "TRAJECTORY_COLLAPSE",
+      "apex": "TRAJECTORY_COLLAPSE",
+      "water_contact": "TRAJECTORY_COLLAPSE"
+    },
+    "dive_2353": {
+      "takeoff": "TRAJECTORY_COLLAPSE",
+      "apex": "TRAJECTORY_COLLAPSE",
+      "water_contact": "TRAJECTORY_COLLAPSE"
+    },
+    "dive_2387": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_2541": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "EARLY_TRIGGER",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_2555": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "TRAJECTORY_COLLAPSE",
+      "water_contact": "LATE_FIRE"
+    },
+    "dive_2625": {
+      "takeoff": "NOT_APPLICABLE",
+      "apex": "LATE_FIRE",
+      "water_contact": "LATE_FIRE"
+    },
+    "dive_2661": {
+      "takeoff": "EARLY_TRIGGER",
+      "apex": "NOT_APPLICABLE",
+      "water_contact": "EARLY_TRIGGER"
+    },
+    "dive_2680": {
+      "takeoff": "LATE_FIRE",
+      "apex": "NOT_APPLICABLE",
+      "water_contact": "LATE_FIRE"
+    }
+  },
+  "frequency_analysis": {
+    "TRAJECTORY_COLLAPSE": {
+      "count_primary": 8,
+      "note": "dives 1040/2341/2353/2555 apex+wc, dive 192 t+a"
+    },
+    "EARLY_TRIGGER": {
+      "count_primary": 23,
+      "note": "dominant mode; most DEV dives"
+    },
+    "LATE_FIRE": {
+      "count_primary": 14,
+      "note": "some EVAL dives; 2169/2281/2625/2680"
+    },
+    "WATER_CONTACT_RUNAWAY": {
+      "count_primary": 2,
+      "note": "dives 192 and 2281; +1000 frame errors"
+    },
+    "MARGINAL_NEAR_MISS": {
+      "count_primary": 6,
+      "note": "closest failures; still outside tolerance"
+    },
+    "NOT_APPLICABLE": {
+      "count_primary": 3,
+      "note": "human labels are None; auto prediction present but unevaluable"
+    }
+  },
+  "root_causes": [
+    {
+      "id": "RC-1",
+      "name": "Whole-frame foreground centroid",
+      "description": "Baseline A computes the vertical centroid of ALL foreground pixels, not of the diver alone. Any foreground region \u2014 pool turbulence, a coach walking, a lane line oscillating \u2014 shifts the centroid away from the diver's true position, corrupting the trajectory signal. This is the primary cause of EARLY_TRIGGER and LATE_FIRE.",
+      "dives_affected": [
+        133,
+        160,
+        169,
+        191,
+        192,
+        311,
+        524,
+        676,
+        848,
+        2169,
+        2281,
+        2341,
+        2387,
+        2541,
+        2555,
+        2625,
+        2661,
+        2680
+      ]
+    },
+    {
+      "id": "RC-2",
+      "name": "Peak detection on a saturated trajectory",
+      "description": "When the centroid trajectory is dominated by a non-diver foreground region that is stationary or slowly changing, the signal saturates at a fixed value. The peak-finder then assigns multiple events (takeoff, apex, water_contact) to the same or adjacent frames. This is the cause of TRAJECTORY_COLLAPSE.",
+      "dives_affected": [
+        192,
+        1040,
+        2341,
+        2353,
+        2555
+      ]
+    },
+    {
+      "id": "RC-3",
+      "name": "No temporal model of dive phase order",
+      "description": "Baseline A uses a fixed ordering (T < A < W) but imposes no minimum inter-landmark gap, allows identical frames, and has no model of how long each phase lasts. A correct dive at 30fps has takeoff-to-apex of 30\u2013120 frames and apex-to-water of 20\u201380 frames; Baseline A ignores these priors entirely.",
+      "dives_affected": "all"
+    },
+    {
+      "id": "RC-4",
+      "name": "Post-entry turbulence activates water_contact late",
+      "description": "After a diver enters the water, pool turbulence and underwater movement continue to generate foreground pixels. If the algorithm's primary signal (centroid) is momentarily suppressed at actual entry (e.g., the diver dives headfirst and is thin in frame), then the water contact event is assigned to a much later frame when turbulence peaks. Causes WATER_CONTACT_RUNAWAY.",
+      "dives_affected": [
+        192,
+        2281
+      ]
+    }
+  ],
+  "failure_impact_by_metric": {
+    "takeoff": {
+      "n_evaluable": 18,
+      "n_within_tolerance": 0,
+      "n_serious": 18,
+      "within_tolerance_threshold_frames": 5,
+      "serious_threshold_frames": 15,
+      "median_frame_error": 94,
+      "iqr_frame_error": [
+        57,
+        211
+      ],
+      "dominant_mode": "EARLY_TRIGGER"
+    },
+    "apex": {
+      "n_evaluable": 14,
+      "n_within_tolerance": 0,
+      "n_serious": 14,
+      "within_tolerance_threshold_frames": 8,
+      "serious_threshold_frames": 20,
+      "median_frame_error": 89,
+      "iqr_frame_error": [
+        61,
+        140
+      ],
+      "dominant_mode": "EARLY_TRIGGER + TRAJECTORY_COLLAPSE"
+    },
+    "water_contact": {
+      "n_evaluable": 19,
+      "n_within_tolerance": 0,
+      "n_serious": 19,
+      "within_tolerance_threshold_frames": 5,
+      "serious_threshold_frames": 15,
+      "median_frame_error": 85,
+      "iqr_frame_error": [
+        67,
+        256
+      ],
+      "dominant_mode": "EARLY_TRIGGER; two RUNAWAY outliers (192: 1397f, 2281: 782f)"
+    }
+  },
+  "conclusions": [
+    "Baseline A fails primarily because it tracks the aggregate foreground centroid rather than the diver specifically.",
+    "No amount of threshold tuning can fix the TRAJECTORY_COLLAPSE or WATER_CONTACT_RUNAWAY modes without architectural change.",
+    "EARLY_TRIGGER could be partially mitigated by requiring the diver to be in frame for N consecutive frames before declaring takeoff, but this requires diver isolation first.",
+    "The errors are systematic (not random): they reflect consistent algorithmic biases, not stochastic failures.",
+    "A diver-isolation step (person detection or blob tracking of the primary foreground agent) is the necessary fix.",
+    "Post-isolation, takeoff detection from trajectory inflection points and water_contact from blob disappearance are both viable."
+  ]
+}

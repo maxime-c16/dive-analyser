@@ -1,0 +1,103 @@
+{
+  "label": "BASELINE_B_DESIGN_V1",
+  "created": "2026-09-05",
+  "addresses_failure_modes": ["TRAJECTORY_COLLAPSE", "EARLY_TRIGGER", "WATER_CONTACT_RUNAWAY"],
+  "does_not_address": ["LATE_FIRE (marginal benefit from diver isolation)"],
+  
+  "approach": "Diver-Isolated Blob Tracking (DIBT)",
+  "rationale": "Baseline A fails because it tracks the aggregate foreground centroid rather than the diver specifically. Baseline B isolates the primary foreground agent (the diver) before trajectory analysis.",
+  
+  "algorithm_stages": [
+    {
+      "stage": 1,
+      "name": "Background subtraction",
+      "method": "MOG2 (same as Baseline A, identical parameters)",
+      "output": "foreground_mask per frame"
+    },
+    {
+      "stage": 2,
+      "name": "Connected component isolation",
+      "method": "cv2.connectedComponentsWithStats on morphologically-cleaned foreground mask. Select the LARGEST component by area at each frame.",
+      "output": "diver_blob: bounding box (x, y, w, h) + centroid (cx, cy) per frame",
+      "rationale_vs_A": "Replaces whole-frame centroid with largest-blob centroid. Pool turbulence and background agents produce smaller blobs and are excluded."
+    },
+    {
+      "stage": 3,
+      "name": "Diver presence detection",
+      "method": "Diver is present in frame when: (a) largest component area > MIN_DIVER_AREA_PX, (b) component present for at least MIN_PRESENCE_FRAMES consecutive frames.",
+      "output": "presence_mask: boolean per frame",
+      "parameters": {
+        "MIN_DIVER_AREA_PX": 200,
+        "MIN_PRESENCE_FRAMES": 5
+      },
+      "rationale_vs_A": "Eliminates early spurious foreground activations from noise or background clutter that activate fewer than 5 consecutive frames."
+    },
+    {
+      "stage": 4,
+      "name": "Trajectory extraction",
+      "method": "Extract y_centroid of diver blob for all presence_mask=True frames. Invert y so that higher in frame = higher value (y_norm = (frame_height - y_centroid) / frame_height).",
+      "output": "trajectory: array of (frame_idx, y_norm) for diver-present frames"
+    },
+    {
+      "stage": 5,
+      "name": "Trajectory smoothing",
+      "method": "Savitzky-Golay filter (window=11, poly=3) on y_norm, same as Baseline A.",
+      "output": "trajectory_smooth"
+    },
+    {
+      "stage": 6,
+      "name": "Landmark event detection",
+      "events": {
+        "takeoff": {
+          "definition": "First frame in the diver-present window where the smoothed y_norm exceeds TAKEOFF_THRESHOLD and the diver is moving upward (dy/dt > 0).",
+          "parameter": "TAKEOFF_THRESHOLD = 0.35 (diver must be above 35% of frame height, normalized)",
+          "rationale": "Diver starts below board/platform level; takeoff is the first upward movement from the board."
+        },
+        "apex": {
+          "definition": "Frame of maximum y_norm (highest vertical position) in the diver-present window, located after takeoff.",
+          "rationale": "Apex is simply the peak of the trajectory; no ambiguity after diver isolation."
+        },
+        "water_contact": {
+          "definition": "Last frame where diver_blob is detected (presence ends), OR the frame where y_norm drops most steeply below WATER_LEVEL_THRESHOLD after apex.",
+          "parameter": "WATER_LEVEL_THRESHOLD = 0.15",
+          "rationale": "Once the diver submerges, the largest blob disappears or drops below the waterline. Post-entry turbulence is a smaller blob and does not trigger the primary tracker."
+        }
+      }
+    }
+  ],
+  
+  "parameters_to_freeze": {
+    "MIN_DIVER_AREA_PX": 200,
+    "MIN_PRESENCE_FRAMES": 5,
+    "TAKEOFF_THRESHOLD": 0.35,
+    "WATER_LEVEL_THRESHOLD": 0.15,
+    "SG_WINDOW": 11,
+    "SG_POLY": 3,
+    "MOG2_HISTORY": 100,
+    "MOG2_VAR_THRESHOLD": 50,
+    "MORPH_KERNEL_SIZE": 5
+  },
+  
+  "training_constraint": "Parameters selected by inspection of DEVELOPMENT_DESIGN dives only. INTERNAL_EVAL dives must not be used for parameter selection.",
+  
+  "implementation": {
+    "file": "experiments/landmark_pilot/proposer_baseline_b.py",
+    "language": "Python 3.11",
+    "dependencies": ["cv2 (opencv-python-headless 4.10.0)", "numpy", "scipy"],
+    "freeze_artifact": "BASELINE_B_FREEZE_V1.json"
+  },
+  
+  "expected_improvements_vs_A": [
+    "TRAJECTORY_COLLAPSE: eliminated by using largest-blob centroid instead of whole-frame centroid",
+    "EARLY_TRIGGER: reduced by MIN_PRESENCE_FRAMES gate and TAKEOFF_THRESHOLD height requirement",
+    "WATER_CONTACT_RUNAWAY: addressed by tracking blob disappearance rather than signal peaks",
+    "LATE_FIRE: partially addressed; diver isolation may sharpen the onset signal"
+  ],
+  
+  "limitations": [
+    "Still relies on MOG2 for foreground detection; poor performance with very slow-moving divers or static backgrounds",
+    "Largest-blob heuristic may fail if a coach or another athlete is closer to the camera than the diver",
+    "No person class verification (not a person detector); blob could be a large lane-line or equipment element",
+    "Platform height prior (TAKEOFF_THRESHOLD) is a single value; may not generalise across pool setups"
+  ]
+}

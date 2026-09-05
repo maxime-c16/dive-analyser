@@ -1,10 +1,10 @@
 # PROJECT_STATE.md - Dive Analyser / DiveSensei
 
-Last verified: **2026-09-05**, after Layer-2 Analysis Foundation implementation (Phases A–V).
+Last verified: **2026-09-05**, after Temporal Landmark Pilot V1 complete (Phases A–T).
 Latest audit: `docs/audits/FOUNDATION_HARDENING_AND_LAYER2_READINESS_2026-09-05.md`.
 Layer-2 architecture: `docs/design/ANALYSIS_LAYER_2_ARCHITECTURE_V1.md`.
-Pilot report: `docs/science/TEMPORAL_LANDMARK_PILOT_V1_REPORT.md`.
-Supervisor gate: `SUPERVISOR_REVIEW_AFTER_LAYER2_FOUNDATION_PILOT_V1`.
+Pilot report: `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
+Supervisor gate: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`.
 
 ## Canonical Repository
 
@@ -81,14 +81,16 @@ Journey/fear/plateau heuristics, media readiness, representative-media workflows
 - Pairwise comparison: 66 pairs computed and stored.
 - Annotation tool: `experiments/landmark_pilot/annotate.py` (web UI, port 8765).
 
-**Baseline A failure rate: 40%** — not suitable for production. Requires Baseline B
-design iteration and human annotation of UNCERTAIN dives.
+**Temporal Landmark Pilot V1 COMPLETE.**
 
-**Pending:**
-- Human annotation of 8 UNCERTAIN dives (via `annotate.py`)
-- Proxy-vs-original canary (Phase P): requires original files from Mac source vault
-- Baseline B algorithm design (address failure modes)
-- Test suite (Phase T: partially deferred)
+**Baseline A:** 0% within-tolerance on all 3 landmarks (all 20 dives). Architectural failure.
+See docs/science/BASELINE_A_EVALUATION_V1.json + BASELINE_A_ERROR_TAXONOMY_V1.json.
+
+**Baseline B (DIBT):** 5.6%/15.4%/5.3% within-tol (takeoff/apex/water_contact, all-20).
+INTERNAL_EVAL: 16.7%/33.3%/0%. NOT ADOPTED — does not meet ≥50% production bar.
+See docs/science/BASELINE_B_EVALUATION_V1.json + BASELINE_B_FREEZE_V1.json.
+
+**Full pilot report:** `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
 
 ## Production Data Authority
 
@@ -120,22 +122,21 @@ analysis_comparison_metrics 264  (4 per comparison)
 ## Remaining Engineering Debt
 
 1. Layer-2 test suite not yet written.
-2. Baseline A failure rate (40%); Baseline B design deferred.
-3. Human annotation of 8 UNCERTAIN pilot dives deferred (needs user time with annotate.py).
-4. Proxy-vs-original canary deferred (needs Mac originals access).
-5. Migration-system consolidation remains deferred.
-6. DB role privileges remain broad; rotation preserved current architecture.
-7. Browser/system trust for the local CA is not installed.
-8. Frontend image should be rebuilt on next user-facing frontend source change.
+2. Baseline C not yet implemented (Baseline A+B both fail production bar).
+3. Proxy-vs-original canary deferred (originals are iCloud-only; Phase G scientifically low priority at current error magnitudes).
+4. Migration-system consolidation remains deferred.
+5. DB role privileges remain broad; rotation preserved current architecture.
+6. Browser/system trust for the local CA is not installed.
+7. Frontend image should be rebuilt on next user-facing frontend source change.
+8. Layer-2 temporal landmark results not yet surfaced in the web UI.
 
 ## Current Gate
 
-`SUPERVISOR_REVIEW_AFTER_LAYER2_FOUNDATION_PILOT_V1`
+`SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`
 
 **What the supervisor should review:**
-1. Baseline A result quality (60% success rate) — acceptable for research phase?
-2. Annotation workflow: allocate time to annotate 8 UNCERTAIN dives with `annotate.py`
-3. Proxy-vs-original canary: authorize Mac originals access for ≤6 canary dives
-4. Baseline B design: commission Baseline B or accept Baseline A as the only method
-5. Test suite: decide priority and scope for Phase T
-6. Off-host backup: confirm Mac mirror refresh after this commit
+1. Commission Baseline C: YOLO person detection + temporal priors (PyTorch 2.10 on server)
+2. Write Layer-2 test suite (0 automated tests for Layer-2 logic currently)
+3. Phase G: decide whether to recall iCloud originals for proxy-vs-original canary
+4. Off-host backup: refresh Mac mirror after this commit
+5. UI layer: decide when to surface temporal landmark results in the frontend

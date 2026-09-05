@@ -1,0 +1,21 @@
+{
+  "label": "BASELINE_B_FREEZE_V1",
+  "created": "2026-09-05",
+  "algorithm": "BASELINE_B_DIBT_V1",
+  "description": "Diver-Isolated Blob Tracking. MOG2 foreground → largest connected component → diver vertical trajectory → event detection.",
+  "implementation_file": "experiments/landmark_pilot/proposer_baseline_b.py",
+  "git_branch": "uiux-overhaul-pro-app",
+  "params_frozen": {
+    "MIN_DIVER_AREA_PX":   200,
+    "MIN_PRESENCE_FRAMES": 5,
+    "TAKEOFF_THRESHOLD":   0.35,
+    "WATER_LEVEL_THRESHOLD": 0.15,
+    "SG_WINDOW":           11,
+    "SG_POLY":             3,
+    "MOG2_HISTORY":        100,
+    "MOG2_VAR_THRESHOLD":  50,
+    "MORPH_KERNEL_SIZE":   5
+  },
+  "parameter_selection_basis": "Visual inspection and heuristic reasoning from DEVELOPMENT_DESIGN dives. No numerical optimisation; INTERNAL_EVAL not used during design.",
+  "freeze_note": "Parameters frozen before computing INTERNAL_EVAL predictions. Must not change after this point."
+}
