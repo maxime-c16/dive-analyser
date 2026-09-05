@@ -123,8 +123,21 @@ def _load_annotation_yaml(dive_id: int) -> dict | None:
     p = _annotation_yaml_path(dive_id)
     if not p.exists():
         return None
-    with open(p) as f:
-        return yaml.safe_load(f)
+    try:
+        with open(p) as f:
+            return yaml.safe_load(f)
+    except Exception:
+        return None  # corrupt/stale file; treat as unreviewed
+
+
+def _to_float(v):
+    """Convert Decimal or None to float or None — safe for YAML serialization."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _write_annotation_yaml(
@@ -147,16 +160,15 @@ def _write_annotation_yaml(
         else:
             fi_h = human.get("frame_index") if human else auto.get("frame_index")
             ts_h = human.get("timestamp_seconds") if human else auto.get("timestamp_seconds")
+        auto_ts = _to_float(auto.get("timestamp_seconds"))
+        auto_conf = _to_float(auto.get("confidence"))
         landmarks_out[lk] = {
             "state": state,
-            "frame_index": fi_h,
-            "timestamp_seconds": round(ts_h, 6) if ts_h is not None else None,
-            "auto_frame_index": auto.get("frame_index"),
-            "auto_timestamp_seconds": (
-                round(auto["timestamp_seconds"], 6)
-                if auto.get("timestamp_seconds") is not None else None
-            ),
-            "auto_confidence": auto.get("confidence"),
+            "frame_index": int(fi_h) if fi_h is not None else None,
+            "timestamp_seconds": round(_to_float(ts_h), 6) if ts_h is not None else None,
+            "auto_frame_index": int(auto["frame_index"]) if auto.get("frame_index") is not None else None,
+            "auto_timestamp_seconds": round(auto_ts, 6) if auto_ts is not None else None,
+            "auto_confidence": round(auto_conf, 4) if auto_conf is not None else None,
             "auto_applicability": auto.get("applicability"),
         }
     doc = {
@@ -508,11 +520,20 @@ const lmRows = document.getElementById('lm-rows');
 const statusMsg = document.getElementById('status-msg');
 
 async function loadDives() {
-  const r = await fetch('/api/dives');
-  dives = await r.json();
-  updateReviewedCount();
-  renderSidebar();
-  if (dives.length > 0) selectDive(0);
+  try {
+    const r = await fetch('/api/dives');
+    const data = await r.json();
+    if (!Array.isArray(data)) {
+      document.getElementById('dive-list').textContent = 'Error: ' + JSON.stringify(data);
+      return;
+    }
+    dives = data;
+    updateReviewedCount();
+    renderSidebar();
+    if (dives.length > 0) selectDive(0);
+  } catch(e) {
+    document.getElementById('dive-list').textContent = 'Failed to load: ' + e.message;
+  }
 }
 
 function reviewStatusBadge(d) {
@@ -545,6 +566,7 @@ function renderSidebar() {
 }
 
 async function selectDive(idx) {
+  if (idx < 0 || idx >= dives.length) return;
   currentDiveIdx = idx;
   pendingCorrections = {};
   notApplicableKeys = new Set();
@@ -552,8 +574,9 @@ async function selectDive(idx) {
   renderSidebar();
 
   const d = dives[idx];
+  if (!d) { console.error('dive not found at idx', idx); return; }
   document.getElementById('dive-title').textContent =
-    `#${d.dive_id} — ${d.dive_code} ${d.height} (${d.session_date})`;
+    `#${d.dive_id} — ${d.dive_code} ${d.height} (${d.session_date || '?'})`;
 
   if (d.proxy_available) {
     vid.src = `/video/${d.dive_id}`;
@@ -745,11 +768,18 @@ async function _afterSave(result) {
     pendingCorrections = {};
     notApplicableKeys = new Set();
     ambiguousKeys = new Set();
-    const refresh = await fetch('/api/dives');
-    dives = await refresh.json();
-    updateReviewedCount();
-    renderSidebar();
-    renderLandmarks(dives[currentDiveIdx]);
+    try {
+      const refresh = await fetch('/api/dives');
+      const data = await refresh.json();
+      if (Array.isArray(data)) {
+        dives = data;
+        updateReviewedCount();
+        renderSidebar();
+        if (dives[currentDiveIdx]) renderLandmarks(dives[currentDiveIdx]);
+      }
+    } catch(e) {
+      console.error('refresh failed:', e);
+    }
   } else {
     statusMsg.textContent = 'Error: ' + (result.error || 'unknown');
     statusMsg.style.color = '#f44';
@@ -765,16 +795,20 @@ function nextDive() {
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
+  // Prevent all arrow/space defaults to stop browser video controls interfering
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) {
+    e.preventDefault();
+  }
   if (e.key === 'ArrowLeft') stepFrame(e.shiftKey ? -10 : -1);
   else if (e.key === 'ArrowRight') stepFrame(e.shiftKey ? 10 : 1);
-  else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === ' ') togglePlay();
   else if (e.key === 't' || e.key === 'T') setLandmark('takeoff');
   else if (e.key === 'a' || e.key === 'A') setLandmark('apex');
   else if (e.key === 'w' || e.key === 'W') setLandmark('water_contact');
   else if (e.key === 's' || e.key === 'S') saveLandmarks();
   else if (e.key === 'Enter') acceptAll();
-  else if (e.key === 'ArrowUp') { e.preventDefault(); prevDive(); }
-  else if (e.key === 'ArrowDown') { e.preventDefault(); nextDive(); }
+  else if (e.key === 'ArrowUp') prevDive();
+  else if (e.key === 'ArrowDown') nextDive();
 });
 
 loadDives();
