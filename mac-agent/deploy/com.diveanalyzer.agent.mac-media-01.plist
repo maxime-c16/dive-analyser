@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.diveanalyzer.agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/Shared/services/data/diveanalyzer/venv/bin/python</string>
+    <string>-m</string>
+    <string>src.main</string>
+    <string>--config</string>
+    <string>/Users/Shared/services/data/diveanalyzer/state/config.yaml</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/Shared/services/data/diveanalyzer/code</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/Shared/services/logs/diveanalyzer/agent.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/Shared/services/logs/diveanalyzer/agent.error.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/Shared/services/data/diveanalyzer/bin:/Users/Shared/services/data/diveanalyzer/venv/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONPATH</key>
+    <string>/Users/Shared/services/data/diveanalyzer/code</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>
