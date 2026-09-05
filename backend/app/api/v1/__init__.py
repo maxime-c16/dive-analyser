@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 # Import route modules
-from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value
+from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis
 
 # Create v1 router
 v1_router = APIRouter(prefix="/api/v1")
@@ -26,3 +26,4 @@ v1_router.include_router(ws_sync.router, tags=["websocket"])
 v1_router.include_router(dive_codes.router, tags=["dive-codes"])
 v1_router.include_router(dd_operations.router, tags=["dd"])
 v1_router.include_router(execution.router, tags=["execution"])
+v1_router.include_router(analysis.router)

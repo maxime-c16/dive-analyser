@@ -1,0 +1,9 @@
+# Isolated landmark pilot experiment environment
+# Do NOT install these in the production backend container.
+# Pinned versions for reproducibility.
+opencv-python-headless==4.10.0.84
+numpy==2.4.6
+scipy==1.17.1
+# Note: PyYAML, json, csv are stdlib or already available system-wide
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.12

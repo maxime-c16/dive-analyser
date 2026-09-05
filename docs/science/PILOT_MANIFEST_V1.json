@@ -1,0 +1,33 @@
+{
+  "pilot_label": "TEMPORAL_LANDMARK_DEVELOPMENT_PILOT_V1",
+  "description": "22-dive (actual: 20) development pilot for temporal landmark proposer. No holdout set. No generalization claim.",
+  "created": "2026-09-05",
+  "media_rendition": "proxy_360p",
+  "max_authorized": 24,
+  "selection_rationale": "Stratified by dive group (0-5), execution position (A/B/C/D), height (1m/3m/5m/platform), and session spread (7 sessions from 2025-02-22 to 2026-07-05). One representative per (group x position) cell, largest proxy file preferred for video quality.",
+  "exclusion_criteria": ["is_sync=true", "size_bytes < 80000", "proxy_status != ready"],
+  "dives": [
+    {"dive_id": 2661, "dive_code": "010B", "position": "B", "height": "3m", "platform": "springboard", "group": "0", "session": 156, "session_date": "2026-06-09", "media_key": "23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184", "size_bytes": 552054, "photos_asset_id": 2657},
+    {"dive_id": 2680, "dive_code": "010C", "position": "C", "height": "5m", "platform": "springboard", "group": "0", "session": 164, "session_date": "2026-06-08", "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1", "size_bytes": 189367, "photos_asset_id": 2676},
+    {"dive_id": 2353, "dive_code": "101A", "position": "A", "height": "1m", "platform": "springboard", "group": "1", "session": 155, "session_date": "2026-07-05", "media_key": "66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542", "size_bytes": 465648, "modifier": "drill", "photos_asset_id": 2404},
+    {"dive_id": 2281, "dive_code": "104B", "position": "B", "height": "1m", "platform": "springboard", "group": "1", "session": 138, "session_date": "2026-06-30", "media_key": "18b49c7499289a740b92321a04e154f882f97cce32385616545a5eef7851e98e", "size_bytes": 424321, "photos_asset_id": 2344},
+    {"dive_id": 2341, "dive_code": "101B", "position": "B", "height": "1m", "platform": "springboard", "group": "1", "session": 148, "session_date": "2026-05-27", "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc", "size_bytes": 258931, "photos_asset_id": 1705},
+    {"dive_id": 524,  "dive_code": "103B", "position": "B", "height": "3m", "platform": "springboard", "group": "1", "session": 39,  "session_date": "2025-04-12", "media_key": "552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f", "size_bytes": 323763, "photos_asset_id": 226},
+    {"dive_id": 2625, "dive_code": "103B", "position": "B", "height": "5m", "platform": "springboard", "group": "1", "session": 160, "session_date": "2026-07-17", "media_key": "4dc9064e1692518c412a4e6e55f67f92d26959d2bfecb3147617e914da3d84fd", "size_bytes": 131296, "photos_asset_id": 2621},
+    {"dive_id": 2169, "dive_code": "101B", "position": "B", "height": "5m", "platform": "platform", "group": "1", "session": 134, "session_date": "2026-04-25", "media_key": "85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0", "size_bytes": 342292, "photos_asset_id": 14},
+    {"dive_id": 1040, "dive_code": "102C", "position": "C", "height": "1m", "platform": "springboard", "group": "1", "session": 66,  "session_date": "2025-09-20", "media_key": "9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e", "size_bytes": 415747, "photos_asset_id": 501},
+    {"dive_id": 160,  "dive_code": "202A", "position": "A", "height": "1m", "platform": "springboard", "group": "2", "session": 26,  "session_date": "2025-02-23", "media_key": "6418171e758b4bdadafe13356028c9b3430c412321a1005ee460e5e15a8ca7de", "size_bytes": 335144, "photos_asset_id": 447},
+    {"dive_id": 191,  "dive_code": "202B", "position": "B", "height": "1m", "platform": "springboard", "group": "2", "session": 26,  "session_date": "2025-02-23", "media_key": "3c19108922214751a9dd55238a4b6bebce3baf2353d3a9a9b81f545a4c067407", "size_bytes": 221555, "photos_asset_id": 297},
+    {"dive_id": 192,  "dive_code": "203C", "position": "C", "height": "1m", "platform": "springboard", "group": "2", "session": 26,  "session_date": "2025-02-23", "media_key": "f52ad7906a20758544d8563fe422ba7ef6dffdf16ac5643a50d6dc46d8228aab", "size_bytes": 1363218, "photos_asset_id": 2409},
+    {"dive_id": 676,  "dive_code": "301A", "position": "A", "height": "3m", "platform": "springboard", "group": "3", "session": 46,  "session_date": "2025-05-10", "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6", "size_bytes": 143832, "photos_asset_id": 1526},
+    {"dive_id": 133,  "dive_code": "301B", "position": "B", "height": "3mp", "platform": "springboard", "group": "3", "session": 25,  "session_date": "2025-02-22", "media_key": "c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb", "size_bytes": 139981, "photos_asset_id": 622},
+    {"dive_id": 848,  "dive_code": "302C", "position": "C", "height": "1m", "platform": "springboard", "group": "3", "session": 51,  "session_date": "2025-05-27", "media_key": "ef194c0d9cc778a5454bede084f418fc8a2312c02f2f6e7bbfee32e559bbc382", "size_bytes": 182489, "photos_asset_id": 1405},
+    {"dive_id": 311,  "dive_code": "401C", "position": "C", "height": "3mp", "platform": "springboard", "group": "4", "session": 32,  "session_date": "2025-03-25", "media_key": "dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c", "size_bytes": 505861, "photos_asset_id": 287},
+    {"dive_id": 169,  "dive_code": "5222A", "position": "A", "height": "1m", "platform": "springboard", "group": "5", "session": 26,  "session_date": "2025-02-23", "media_key": "1a5f7cc52a64f885b3e4ef9b5fcd71d0f576e725684426f0a044203636541a13", "size_bytes": 390642, "photos_asset_id": 385},
+    {"dive_id": 2541, "dive_code": "5111B", "position": "B", "height": "1m", "platform": "springboard", "group": "5", "session": 144, "session_date": "2026-06-23", "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358", "size_bytes": 643434, "photos_asset_id": 2384},
+    {"dive_id": 2387, "dive_code": "5411C", "position": "C", "height": "1m", "platform": "springboard", "group": "5", "session": 144, "session_date": "2026-06-23", "media_key": "e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a", "size_bytes": 578340, "photos_asset_id": 956},
+    {"dive_id": 2555, "dive_code": "5132D", "position": "D", "height": "3m", "platform": "springboard", "group": "5", "session": 155, "session_date": "2026-07-05", "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44", "size_bytes": 518641, "photos_asset_id": 2551}
+  ],
+  "proxy_canary_dives": [2661, 2169, 192, 311, 2555, 2387],
+  "note": "proxy_canary_dives: subset to test proxy vs original timing difference (max 6)."
+}

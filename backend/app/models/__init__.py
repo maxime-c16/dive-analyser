@@ -88,3 +88,14 @@ __all__ = [
     "DiverAlias",
     "TrainingPeriod",
 ]
+from app.models.analysis import (
+    AnalysisRun,
+    AnalysisJob,
+    AnalysisLandmark,
+    AnalysisPhase,
+    AnalysisMetric,
+    AnalysisArtifact,
+    AnalysisComparison,
+    AnalysisComparisonArtifact,
+    AnalysisComparisonMetric,
+)

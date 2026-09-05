@@ -42,11 +42,13 @@ services:
       - ./logs:/app/logs
       - ./media/videos:/videos:ro
       - ./media/cache:/app/media-cache
+      - ./media/analysis-artifacts:/app/analysis-artifacts
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-diving}:${POSTGRES_PASSWORD:-CHANGE_ME_USE_RUNTIME_ENV}@postgres:5432/${POSTGRES_DB:-diving_analyzer_db}
       PYTHONUNBUFFERED: 1
       LEGACY_MODE: "true"
       MEDIA_CACHE_ROOT: /app/media-cache
+      ANALYSIS_ARTIFACT_ROOT: /app/analysis-artifacts
       API_TITLE: Diving Analytics API
       API_VERSION: 1.0.0
       PRIMARY_DIVER_NAME: ${PRIMARY_DIVER_NAME:-Maxime}

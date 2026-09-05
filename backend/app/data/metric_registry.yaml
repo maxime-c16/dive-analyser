@@ -1,0 +1,196 @@
+# Metric Registry — Dive Analyser Layer 2
+# Authoritative Git-versioned metric definitions for Layer-2 outputs.
+#
+# Each entry defines the stable semantic contract for one metric.
+# Code, API consumers, and frontend components must reference metrics by their
+# `key` + `version`.  Never redefine a versioned key; bump the version instead.
+#
+# Fields:
+#   key            — stable snake_case identifier used in DB and API
+#   version        — semver-like string; bump on semantic change
+#   label          — short human label (< 40 chars)
+#   description    — what is measured
+#   unit           — SI or descriptive unit string ('' if dimensionless)
+#   value_type     — numeric | text | json | boolean
+#   directionality — higher_better | lower_better | neutral | not_applicable
+#   valid_range    — [min, max] inclusive, null entries mean unbounded
+#   phase          — which phase this metric applies to (null = whole dive)
+#   interpretation — brief guidance for display
+#   definition_version — when this registry entry was last changed
+
+metrics:
+
+  # ================================================================
+  # TEMPORAL LANDMARK METRICS
+  # ================================================================
+
+  - key: flight_duration_seconds
+    version: v1
+    label: Flight Duration
+    description: >
+      Total elapsed time from takeoff landmark to water-contact landmark,
+      in seconds.  Computed directly from timestamp_seconds values.
+      Does not imply physical height; calibration required for that.
+    unit: s
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.1, 10.0]
+    phase: flight
+    interpretation: >
+      Longer durations generally indicate higher takeoff or slower fall;
+      do not interpret as absolute height without pixel-calibration.
+    definition_version: "2026-09-05"
+
+  - key: ascent_duration_seconds
+    version: v1
+    label: Ascent Duration
+    description: >
+      Elapsed time from takeoff to apex landmark, in seconds.
+    unit: s
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.05, 5.0]
+    phase: flight_ascent
+    interpretation: >
+      Time from board leave to peak height.
+    definition_version: "2026-09-05"
+
+  - key: descent_duration_seconds
+    version: v1
+    label: Descent Duration
+    description: >
+      Elapsed time from apex landmark to water-contact landmark, in seconds.
+    unit: s
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.05, 5.0]
+    phase: flight_descent
+    interpretation: >
+      Time from peak height to water contact.
+    definition_version: "2026-09-05"
+
+  - key: takeoff_frame_normalized
+    version: v1
+    label: Takeoff Frame (Normalized)
+    description: >
+      Takeoff landmark frame index divided by total clip frame count.
+      Range [0, 1].  Used to compare clip-relative timing across dives
+      with different trimming.
+    unit: ""
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Useful for comparing how far into the clip the diver leaves the board.
+    definition_version: "2026-09-05"
+
+  - key: apex_frame_normalized
+    version: v1
+    label: Apex Frame (Normalized)
+    description: >
+      Apex landmark frame index divided by total clip frame count.
+    unit: ""
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Clip-relative position of peak height.
+    definition_version: "2026-09-05"
+
+  - key: water_contact_frame_normalized
+    version: v1
+    label: Water Contact Frame (Normalized)
+    description: >
+      Water-contact landmark frame index divided by total clip frame count.
+    unit: ""
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Clip-relative position of entry.
+    definition_version: "2026-09-05"
+
+  # ================================================================
+  # PIPELINE DIAGNOSTIC METRICS (status, not scientific results)
+  # ================================================================
+
+  - key: landmark_proposer_confidence_takeoff
+    version: v1
+    label: Takeoff Proposal Confidence
+    description: >
+      Algorithm confidence [0, 1] for the takeoff landmark proposal.
+      AUTO source only; not meaningful for HUMAN labels.
+    unit: ""
+    value_type: numeric
+    directionality: higher_better
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Low confidence indicates the algorithm was uncertain; human review recommended.
+    definition_version: "2026-09-05"
+
+  - key: landmark_proposer_confidence_apex
+    version: v1
+    label: Apex Proposal Confidence
+    description: >
+      Algorithm confidence [0, 1] for the apex landmark proposal.
+    unit: ""
+    value_type: numeric
+    directionality: higher_better
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Low confidence indicates uncertain peak detection; human review recommended.
+    definition_version: "2026-09-05"
+
+  - key: landmark_proposer_confidence_water_contact
+    version: v1
+    label: Water Contact Proposal Confidence
+    description: >
+      Algorithm confidence [0, 1] for the water-contact landmark proposal.
+    unit: ""
+    value_type: numeric
+    directionality: higher_better
+    valid_range: [0.0, 1.0]
+    phase: null
+    interpretation: >
+      Low confidence indicates uncertain entry detection; human review recommended.
+    definition_version: "2026-09-05"
+
+  # ================================================================
+  # COMPARISON METRICS
+  # ================================================================
+
+  - key: flight_duration_delta_seconds
+    version: v1
+    label: Flight Duration Δ
+    description: >
+      Difference in flight duration between target and reference dive
+      (target - reference), in seconds.  Positive means target had longer flight.
+    unit: s
+    value_type: numeric
+    directionality: neutral
+    valid_range: [-5.0, 5.0]
+    phase: flight
+    interpretation: >
+      Small differences may reflect natural variation rather than meaningful change.
+    definition_version: "2026-09-05"
+
+  - key: ascent_fraction
+    version: v1
+    label: Ascent Fraction of Flight
+    description: >
+      ascent_duration / flight_duration.  Values near 0.5 indicate
+      symmetric parabolic trajectory.  Higher values indicate early apex.
+    unit: ""
+    value_type: numeric
+    directionality: neutral
+    valid_range: [0.1, 0.9]
+    phase: flight
+    interpretation: >
+      Not a quality score.  Useful for comparing takeoff style across dives.
+    definition_version: "2026-09-05"
+

@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     reports_dir: str = os.getenv("REPORTS_DIR", "/app/reports")
     logs_dir: str = os.getenv("LOGS_DIR", "/app/logs")
     media_cache_root: str = os.getenv("MEDIA_CACHE_ROOT", "/app/media-cache")
+    analysis_artifact_root: str = os.getenv("ANALYSIS_ARTIFACT_ROOT", "/app/analysis-artifacts")
     media_transform_version: str = os.getenv("MEDIA_TRANSFORM_VERSION", "ffmpeg-h264-v1")
     media_export_policy_version: str = os.getenv("MEDIA_EXPORT_POLICY_VERSION", "photos-export-v1")
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))

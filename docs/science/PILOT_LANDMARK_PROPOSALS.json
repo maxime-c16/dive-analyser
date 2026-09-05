@@ -1,0 +1,270 @@
+{
+  "run_date": "2026-09-05T17:01:51.297202",
+  "pipeline_key": "temporal_landmarks_baseline_a_v1",
+  "pipeline_version": "1.0.0",
+  "n_dives": 20,
+  "n_succeeded": 20,
+  "n_ordering_valid": 12,
+  "dives": [
+    {
+      "dive_id": 2661,
+      "status": "succeeded",
+      "run_uuid": "c2672b9f-9d00-47cd-82aa-db75ac718788",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 608,
+        "apex": 768,
+        "water_contact": 800
+      },
+      "fps": 59.94005994005994,
+      "duration": 25.025
+    },
+    {
+      "dive_id": 2680,
+      "status": "succeeded",
+      "run_uuid": "93d8d7cb-7955-46f0-baa5-e7c0cc386165",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 264,
+        "apex": 304,
+        "water_contact": 308
+      },
+      "fps": 59.908256880733944,
+      "duration": 10.9
+    },
+    {
+      "dive_id": 2353,
+      "status": "succeeded",
+      "run_uuid": "f66afc70-0aca-4114-a327-50a29cc3834e",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 288,
+        "apex": 288,
+        "water_contact": 288
+      },
+      "fps": 59.94005994005994,
+      "duration": 23.974
+    },
+    {
+      "dive_id": 2281,
+      "status": "succeeded",
+      "run_uuid": "de7db99e-f19f-4dc9-999d-efed4344188f",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 296,
+        "apex": 328,
+        "water_contact": 1064
+      },
+      "fps": 59.945155393053014,
+      "duration": 18.2333
+    },
+    {
+      "dive_id": 2341,
+      "status": "succeeded",
+      "run_uuid": "09bb1be6-14d8-4a58-9c27-970c8acd33ef",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 120,
+        "apex": 120,
+        "water_contact": 120
+      },
+      "fps": 60.0,
+      "duration": 10.1167
+    },
+    {
+      "dive_id": 524,
+      "status": "succeeded",
+      "run_uuid": "f3a50729-a3e7-4b04-9c18-7414dd4cbbfe",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 468,
+        "apex": 520,
+        "water_contact": 520
+      },
+      "fps": 60.0,
+      "duration": 11.9333
+    },
+    {
+      "dive_id": 2625,
+      "status": "succeeded",
+      "run_uuid": "1b550528-39c0-4348-bf96-41dbc9618dd6",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 176,
+        "apex": 188,
+        "water_contact": 188
+      },
+      "fps": 59.94005994005994,
+      "duration": 6.0894
+    },
+    {
+      "dive_id": 2169,
+      "status": "succeeded",
+      "run_uuid": "b4a54604-178a-4d62-99b7-4768e167da68",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 484,
+        "apex": 524,
+        "water_contact": 528
+      },
+      "fps": 59.94005994005994,
+      "duration": 17.9846
+    },
+    {
+      "dive_id": 1040,
+      "status": "succeeded",
+      "run_uuid": "4fd32fbc-0845-4578-88e2-c862d0d8b1dd",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 184,
+        "apex": 268,
+        "water_contact": 268
+      },
+      "fps": 29.97002997002997,
+      "duration": 11.0777
+    },
+    {
+      "dive_id": 160,
+      "status": "succeeded",
+      "run_uuid": "2f86687a-b5f5-46b2-92a1-018f2685707b",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 140,
+        "apex": 508,
+        "water_contact": 556
+      },
+      "fps": 59.94005994005994,
+      "duration": 11.8118
+    },
+    {
+      "dive_id": 191,
+      "status": "succeeded",
+      "run_uuid": "7a21f3c9-9a82-4c57-a95a-8baecb85141e",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 212,
+        "apex": 228,
+        "water_contact": 256
+      },
+      "fps": 59.94005994005994,
+      "duration": 5.372
+    },
+    {
+      "dive_id": 192,
+      "status": "succeeded",
+      "run_uuid": "7667bc46-fdfd-470b-bc38-cc5e05f1ad98",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 1128,
+        "apex": 1172,
+        "water_contact": 2396
+      },
+      "fps": 59.94005994005994,
+      "duration": 42.0921
+    },
+    {
+      "dive_id": 676,
+      "status": "succeeded",
+      "run_uuid": "908d7cde-c9ed-4cd5-addf-0603abe96f32",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 56,
+        "apex": 172,
+        "water_contact": 220
+      },
+      "fps": 29.97002997002997,
+      "duration": 7.4074
+    },
+    {
+      "dive_id": 133,
+      "status": "succeeded",
+      "run_uuid": "3d184d80-2d07-42a3-86bc-b2bd877195a2",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 116,
+        "apex": 160,
+        "water_contact": 164
+      },
+      "fps": 29.97002997002997,
+      "duration": 5.9393
+    },
+    {
+      "dive_id": 848,
+      "status": "succeeded",
+      "run_uuid": "82e61b74-46aa-4e86-b13a-88f689b5eb1c",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 108,
+        "apex": 108,
+        "water_contact": 508
+      },
+      "fps": 60.0,
+      "duration": 9.1667
+    },
+    {
+      "dive_id": 311,
+      "status": "succeeded",
+      "run_uuid": "65506a9f-a4cb-4bd1-8952-f0be1d3e106d",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 380,
+        "apex": 428,
+        "water_contact": 428
+      },
+      "fps": 29.97002997002997,
+      "duration": 19.2526
+    },
+    {
+      "dive_id": 169,
+      "status": "succeeded",
+      "run_uuid": "b0ccb985-155a-4cdd-858f-c12b89d9b2bb",
+      "ordering_valid": false,
+      "landmarks": {
+        "takeoff": 152,
+        "apex": 152,
+        "water_contact": 604
+      },
+      "fps": 59.92248062015504,
+      "duration": 12.9
+    },
+    {
+      "dive_id": 2541,
+      "status": "succeeded",
+      "run_uuid": "519eb0a4-aef3-40c7-a4fb-3ffc9cd81a99",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 580,
+        "apex": 620,
+        "water_contact": 624
+      },
+      "fps": 29.97002997002997,
+      "duration": 32.5325
+    },
+    {
+      "dive_id": 2387,
+      "status": "succeeded",
+      "run_uuid": "c8b45f4c-06ab-48b1-bad2-78e4ed1b8af3",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 212,
+        "apex": 224,
+        "water_contact": 248
+      },
+      "fps": 29.97002997002997,
+      "duration": 24.9583
+    },
+    {
+      "dive_id": 2555,
+      "status": "succeeded",
+      "run_uuid": "6ad4298a-3857-414d-af2d-de1ec3f3877c",
+      "ordering_valid": true,
+      "landmarks": {
+        "takeoff": 220,
+        "apex": 564,
+        "water_contact": 664
+      },
+      "fps": 59.261285909712726,
+      "duration": 12.1833
+    }
+  ]
+}
