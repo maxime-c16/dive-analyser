@@ -71,7 +71,7 @@ Deployed source identity: entrypoint `src.main:main` (`-m src.main`); config loa
 | SOURCE | 9 updated modules (`config, main, media_exporter, media_jobs, media_materializer, photos_reader, source_vault, sync_client` + `tests/test_media_safety.py`); 10 new src modules; 5 new test files; conftest; build/deploy files; docs tree |
 | CONFIG_TEMPLATE | `config.example.yaml` (already identical); both plists (path templates) |
 | RUNTIME_CONFIG | `state/config.yaml` — key names inventoried only (`server.url/api_key`, `agent.*`, `photos.*`, `sync.*`, `media.*` incl. `source_vault.*` quotas, `logging.*`); values never copied |
-| SECRET | `docs/archive/DEPLOYMENT_READY.md` contains a hardcoded credential → excluded from Git; `config.example.yaml` and `tests/conftest.py` contain placeholders only |
+| SECRET | The server DB credential appears in **5 deployed docs**: `docs/archive/DEPLOYMENT_READY.md` (excluded from Git entirely) and `docs/DEVELOPMENT.md`, `docs/archive/{DEPLOYMENT_COMPLETE_DOCKER,DEPLOYMENT_STATUS,GO_LIVE_STATUS}.md` (committed, then redacted to `REDACTED-CREDENTIAL` in a corrective commit); `config.example.yaml` and `tests/conftest.py` contain placeholders only |
 | GENERATED | `__pycache__`, `.pytest_cache`, `*.egg-info`, `logs/`, `.DS_Store`, `._*` — excluded |
 | VENDORED_DEPENDENCY | `bin/ffmpeg`, `bin/ffprobe` (8.1.2-tessus), `uv` — NOT committed; represented by version notes + requirements pinning |
 | DATA | Photos library, source vault, sync state, media, DB — never touched |
@@ -86,14 +86,24 @@ repo copy's 14 files are all represented (9 updated, 5 byte-identical).
 ## 8. Files intentionally excluded
 
 - `docs/archive/DEPLOYMENT_READY.md` — embedded credential (see §9).
+- Credential-bearing portions of `docs/DEVELOPMENT.md`,
+  `docs/archive/DEPLOYMENT_COMPLETE_DOCKER.md`, `docs/archive/DEPLOYMENT_STATUS.md`,
+  `docs/archive/GO_LIVE_STATUS.md` — committed initially, then redacted
+  (`REDACTED-HISTORICAL-DB-CREDENTIAL` → `REDACTED-CREDENTIAL`) in the corrective commit; deployed Mac
+  copies remain untouched.
 - All GENERATED/VENDORED/DATA items in §6.
 - Stray duplicate `code/mac-agent/…` (documented, not copied).
 
 ## 9. Secrets / runtime-state handling
 
 - Candidate files scanned for keys/passwords/tokens/private keys before staging.
-- Only real finding: `DEPLOYMENT_READY.md` credential → excluded from commit; runtime
-  file untouched on the Mac; key NAME documented, value not reproduced here.
+- First scan caught `DEPLOYMENT_READY.md` (excluded), but the final repository-level
+  scan of the actual commit diff caught the same server DB credential in **4 more
+  committed archive/dev docs** — redacted in a corrective commit. Lesson: scan the
+  commit diff itself, not only the staging area.
+- **Residual risk:** the credential remains discoverable in local Git history
+  (commit `a243fad`). Repo has no remotes and a single operator; supervisor should
+  decide on credential rotation and/or an authorized history scrub.
 - `state/config.yaml` read only to inventory structure; values redacted at source of analysis.
 
 ## 10. Source-parity result
@@ -108,7 +118,8 @@ repo `mac-agent/` (md5-verified per file). The 15 stale-test failures are confin
 
 Intentional non-parity: runtime config (`state/config.yaml`), vendored binaries
 (`bin/`), venv, `__pycache__`/caches/logs, `.DS_Store`/`._*`, egg-info, stray duplicate
-`code/mac-agent/…`, and `docs/archive/DEPLOYMENT_READY.md` (in Mac only, credential).
+`code/mac-agent/…`, `docs/archive/DEPLOYMENT_READY.md` (in Mac only, credential), and
+credential redactions inside `docs/DEVELOPMENT.md` + 3 archive docs (Git copies only).
 
 ## 12. Testing
 
@@ -119,12 +130,11 @@ Intentional non-parity: runtime config (`state/config.yaml`), vendored binaries
 
 ## 13. Resulting Git state
 
-- Branch `uiux-overhaul-pro-app`; one new commit created 2026-09-05 containing only:
-  `mac-agent/**` (96 files), `docs/PROJECT_STATE.md`,
-  `docs/audits/REPOSITORY_CARTOGRAPHY_2026-09-05.md` (+ addendum),
-  `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`.
-- Path-limited commit used so the pre-existing staged/uncommitted backend+frontend
-  work remains untouched and uncommitted. Exact SHA in `git log` / LOCAL_AGENT_REPORT.
+- Branch `uiux-overhaul-pro-app`; commit `a243fad` (canonicalization, 119 files),
+  corrective commit `ee68f34` (remove py_compile pycache artifacts), and a second
+  corrective commit redacting the credential + updating this audit. All path-limited;
+  pre-existing staged/uncommitted work remains untouched and uncommitted.
+  Exact SHAs in `git log` / LOCAL_AGENT_REPORT.
 - Commit not deployed anywhere; runtime untouched.
 
 ## 14. Remaining risks
@@ -132,7 +142,8 @@ Intentional non-parity: runtime config (`state/config.yaml`), vendored binaries
 - Backend/frontend live code exists only as uncommitted working tree in the canonical
   repo (single-commit HEAD is months stale). Biggest durability gap remaining.
 - Repo hygiene: AppleDouble `._` files tracked in HEAD; DB dump + backups inside repo dir.
-- Stale `test_sync_client.py`; `DEPLOYMENT_READY.md` credential still on the Mac.
+- Stale `test_sync_client.py`; DB credential present in Mac docs and in local Git
+  history (rotation recommended).
 - Security items (stub API-key auth, HTTP, CORS, Adminer/Postgres exposure) unchanged —
   explicitly out of scope.
 
@@ -141,6 +152,7 @@ Intentional non-parity: runtime config (`state/config.yaml`), vendored binaries
 1. Commit (or otherwise durable-ize) the pre-existing uncommitted backend/frontend work.
 2. Approve a hygiene pass: untrack `._*` AppleDouble files, move DB dump/backups out of the repo tree.
 3. Approve refreshing/removing stale `tests/test_sync_client.py`.
-4. Approve scrubbing the credential from `docs/archive/DEPLOYMENT_READY.md` on the Mac.
+4. Approve DB credential rotation and decide on an authorized history scrub for the
+   local repo (credential persists in commit `a243fad`).
 5. Whether vendored ffmpeg/ffprobe should get a reproducible download/install script.
 6. Security remediation sequencing (auth, TLS, exposure) — separate gate.

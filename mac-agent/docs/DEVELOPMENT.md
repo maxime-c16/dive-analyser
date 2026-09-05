@@ -124,7 +124,7 @@ alembic history
 docker-compose exec postgres psql -U diving diving_analyzer_db
 
 # Direct connection
-psql postgresql://diving:REDACTED-HISTORICAL-DB-CREDENTIAL@localhost:6432/diving_analyzer_db
+psql postgresql://diving:REDACTED-CREDENTIAL@localhost:6432/diving_analyzer_db
 ```
 
 ---

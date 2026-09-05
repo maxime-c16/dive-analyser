@@ -122,7 +122,7 @@ The journey summary shows:
 
 ### 5. Sample Data Loading ✅
 - **Issue**: Direct psql couldn't authenticate with peer auth
-- **Fix**: Used password auth over TCP: `PGPASSWORD=REDACTED-HISTORICAL-DB-CREDENTIAL psql -h localhost`
+- **Fix**: Used password auth over TCP: `PGPASSWORD=REDACTED-CREDENTIAL psql -h localhost`
 - **Status**: Sample data loaded successfully
 
 ---
@@ -278,7 +278,7 @@ ssh mcauchy@192.168.1.57 "tail -50 /var/www/diving-analyser/backend.log"
 ```bash
 # Test database
 export SSHPASS="root"
-sshpass -e ssh mcauchy@192.168.1.57 "PGPASSWORD=REDACTED-HISTORICAL-DB-CREDENTIAL psql -h localhost -U diving -d diving_analyzer_db -c 'SELECT COUNT(*) FROM dives;'"
+sshpass -e ssh mcauchy@192.168.1.57 "PGPASSWORD=REDACTED-CREDENTIAL psql -h localhost -U diving -d diving_analyzer_db -c 'SELECT COUNT(*) FROM dives;'"
 ```
 
 ---

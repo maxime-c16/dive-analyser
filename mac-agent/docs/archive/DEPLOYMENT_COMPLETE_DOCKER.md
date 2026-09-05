@@ -71,7 +71,7 @@ diving-analyser-nginx-1      nginx:alpine               ✅ Up
 
 **Host**: postgres (Docker) or localhost:6432 (external)
 **Username**: diving
-**Password**: REDACTED-HISTORICAL-DB-CREDENTIAL
+**Password**: REDACTED-CREDENTIAL
 **Database**: diving_analyzer_db
 **Port**: 6432 (on host) / 5432 (in container)
 
@@ -220,7 +220,7 @@ docker-compose up -d
 
 ### Configuration
 - **Ports**: 6001-6443 (all available)
-- **Database**: diving_analyzer_db with diving/REDACTED-HISTORICAL-DB-CREDENTIAL
+- **Database**: diving_analyzer_db with diving/REDACTED-CREDENTIAL
 - **Network**: diving_network (Docker bridge)
 - **Volumes**: postgres_data (persistent)
 

@@ -193,7 +193,7 @@ All tests validate:
 
 - **Host**: postgres (Docker) or localhost:6432 (external)
 - **Username**: diving
-- **Password**: REDACTED-HISTORICAL-DB-CREDENTIAL
+- **Password**: REDACTED-CREDENTIAL
 - **Database**: diving_analyzer_db
 
 ---
