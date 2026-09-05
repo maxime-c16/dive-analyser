@@ -19,20 +19,23 @@ from .config import ServerConfig
 logger = logging.getLogger(__name__)
 
 
-def _curl_post(url: str, data: dict, api_key: str, timeout: float) -> tuple:
+def _curl_post(url: str, data: dict, api_key: str, timeout: float, ca_cert_path: str = "") -> tuple:
     """Blocking HTTP POST via curl. Returns (status_code, body_str)."""
     body_json = json.dumps(data)
+    cmd = [
+        "curl", "-s",
+        "-X", "POST",
+        "-H", "Content-Type: application/json",
+        "-H", f"X-API-Key: {api_key}",
+        "-d", body_json,
+        "-w", "\n%{http_code}",
+        "--max-time", str(int(timeout)),
+    ]
+    if ca_cert_path:
+        cmd.extend(["--cacert", ca_cert_path])
+    cmd.append(url)
     result = subprocess.run(
-        [
-            "curl", "-s",
-            "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-H", f"X-API-Key: {api_key}",
-            "-d", body_json,
-            "-w", "\n%{http_code}",
-            "--max-time", str(int(timeout)),
-            url,
-        ],
+        cmd,
         capture_output=True,
         text=True,
         timeout=timeout + 5,
@@ -54,7 +57,7 @@ def _curl_post(url: str, data: dict, api_key: str, timeout: float) -> tuple:
     return status_code, body_str
 
 
-def _curl_multipart_post(url: str, fields: dict, file_path: str, api_key: str, timeout: float) -> tuple:
+def _curl_multipart_post(url: str, fields: dict, file_path: str, api_key: str, timeout: float, ca_cert_path: str = "") -> tuple:
     """Blocking multipart POST via curl. Returns (status_code, body_str)."""
     cmd = [
         "curl", "-s",
@@ -67,8 +70,10 @@ def _curl_multipart_post(url: str, fields: dict, file_path: str, api_key: str, t
         "-F", f"file=@{file_path}",
         "-w", "\n%{http_code}",
         "--max-time", str(int(timeout)),
-        url,
     ])
+    if ca_cert_path:
+        cmd.extend(["--cacert", ca_cert_path])
+    cmd.append(url)
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -255,7 +260,7 @@ class SyncClient:
         timeout = self.server_config.timeout_seconds or 30.0
 
         status, body = await asyncio.to_thread(
-            _curl_post, label_url, label_data, api_key, timeout,
+            _curl_post, label_url, label_data, api_key, timeout, self.server_config.ca_cert_path,
         )
 
         if status == 0:
@@ -338,7 +343,7 @@ class SyncClient:
 
             # Run curl in thread to avoid blocking the event loop
             status, body = await asyncio.to_thread(
-                _curl_post, sync_url, video_data, api_key, timeout,
+                _curl_post, sync_url, video_data, api_key, timeout, self.server_config.ca_cert_path,
             )
 
             logger.debug(f"Response {status} for {video_uuid[:8]}: {body[:100]}")
@@ -573,6 +578,7 @@ class SyncClient:
             payload,
             self.server_config.api_key or "",
             self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -595,6 +601,7 @@ class SyncClient:
             payload,
             self.server_config.api_key or "",
             self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -617,6 +624,7 @@ class SyncClient:
             payload,
             self.server_config.api_key or "",
             self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
         )
         ok, data, response_error = _parse_response(status, body)
         if not ok:
@@ -643,6 +651,7 @@ class SyncClient:
             str(artifact.path),
             self.server_config.api_key or "",
             self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -669,6 +678,7 @@ class SyncClient:
             payload,
             self.server_config.api_key or "",
             self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -678,7 +688,7 @@ class SyncClient:
     async def heartbeat_media_agent(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/agents/heartbeat"
         status, body = await asyncio.to_thread(
-            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -688,7 +698,7 @@ class SyncClient:
     async def report_recalled_source(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/agents/sources/report"
         status, body = await asyncio.to_thread(
-            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -698,7 +708,7 @@ class SyncClient:
     async def lease_catalog_run(self, agent_id: str) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/catalog/runs/lease"
         status, body = await asyncio.to_thread(
-            _curl_post, url, {"agent_id": agent_id}, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0
+            _curl_post, url, {"agent_id": agent_id}, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -709,7 +719,7 @@ class SyncClient:
         url = f"{self.server_config.url}/api/v1/media/catalog/runs/{run_id}/chunks"
         payload = {"agent_id": agent_id, "checkpoint": checkpoint, "records": records}
         status, body = await asyncio.to_thread(
-            _curl_post, url, payload, self.server_config.api_key or "", max(self.server_config.timeout_seconds or 30.0, 120.0)
+            _curl_post, url, payload, self.server_config.api_key or "", max(self.server_config.timeout_seconds or 30.0, 120.0), self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -719,7 +729,7 @@ class SyncClient:
     async def complete_catalog_run(self, run_id: int, payload: dict) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/catalog/runs/{run_id}/complete"
         status, body = await asyncio.to_thread(
-            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:
@@ -730,7 +740,7 @@ class SyncClient:
         url = f"{self.server_config.url}/api/v1/media/catalog/runs/{run_id}/fail"
         payload = {"agent_id": agent_id, "error": error_value[:2000], "paused": paused}
         status, body = await asyncio.to_thread(
-            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )
         ok, data, error = _parse_response(status, body)
         if not ok:

@@ -13,7 +13,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: 'http://192.168.1.57:6090',
+    baseURL: 'https://192.168.1.57:6443',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

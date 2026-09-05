@@ -5,6 +5,7 @@ import os
 from contextlib import asynccontextmanager
 from time import perf_counter
 from fastapi import FastAPI
+from sqlalchemy.engine import make_url
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -75,7 +76,8 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Diving Analytics API")
     init_db()
-    logger.info(f"Connected to database: {settings.database_url}")
+    db_url = make_url(settings.database_url)
+    logger.info("Connected to database: %s", db_url.render_as_string(hide_password=True))
 
     # Auto-import data on startup
     run_auto_import()
@@ -97,7 +99,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

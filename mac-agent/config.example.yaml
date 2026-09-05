@@ -15,6 +15,7 @@ server:
   # Default: 30 seconds
   # Increase if server is slow or network is unreliable
   timeout_seconds: 30
+  ca_cert_path: "/Users/Shared/services/data/diveanalyzer/state/diveanalyzer-ca.pem"
 
 agent:
   id: "mac-media-01"

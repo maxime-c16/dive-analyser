@@ -34,6 +34,7 @@ class ServerConfig:
     url: str
     api_key: str
     timeout_seconds: int = 30
+    ca_cert_path: str = ""
 
 
 @dataclass
@@ -163,10 +164,12 @@ class Config:
             if not server_data.get('api_key'):
                 raise ValueError("server.api_key is required")
 
+            ca_cert_path = server_data.get('ca_cert_path', '')
             server = ServerConfig(
                 url=server_data['url'],
                 api_key=server_data['api_key'],
-                timeout_seconds=server_data.get('timeout_seconds', 30)
+                timeout_seconds=server_data.get('timeout_seconds', 30),
+                ca_cert_path=str(Path(ca_cert_path).expanduser()) if ca_cert_path else "",
             )
 
             agent_data = data.get('agent', {})
@@ -289,8 +292,9 @@ class Config:
         # API key validation
         try:
             self._validate_api_key(self.server.api_key)
+            self._validate_ca_cert_path(self.server.ca_cert_path)
         except ValueError as e:
-            errors.append(f"server.api_key: {e}")
+            errors.append(f"server: {e}")
 
         # Photos library validation
         try:
@@ -335,6 +339,10 @@ class Config:
 
         if not parsed.hostname:
             raise ValueError("URL must include hostname or IP address")
+
+    def _validate_ca_cert_path(self, path: str) -> None:
+        if path and not Path(path).is_file():
+            raise ValueError(f"CA certificate file not found: {path}")
 
     def _validate_api_key(self, key: str) -> None:
         """Validate API key strength and format."""

@@ -1,117 +1,82 @@
-# PROJECT_STATE.md — Dive Analyser / DiveSensei
+# PROJECT_STATE.md - Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-05** (canonical runtime source baseline, P0.5).
-> Latest audit: `docs/audits/CANONICAL_RUNTIME_SOURCE_BASELINE_2026-09-05.md`
-> Previous: `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`, `docs/audits/REPOSITORY_CARTOGRAPHY_2026-09-05.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_CANONICAL_RUNTIME_SOURCE_BASELINE`**
->
-> **WARNING: Repository history currently contains historical live credential
-> material. Do not create or push a remote until P0.6 secret rotation and history
-> sanitization are complete.**
+Last verified: 2026-09-05, after foundation hardening and Layer-2 readiness design.
+Latest audit: `docs/audits/FOUNDATION_HARDENING_AND_LAYER2_READINESS_2026-09-05.md`.
+Layer-2 design: `docs/design/ANALYSIS_LAYER_2_FOUNDATION_PROPOSAL_2026-09-05.md`.
+Supervisor gate: `SUPERVISOR_REVIEW_AFTER_FOUNDATION_HARDENING_AND_LAYER2_DESIGN`.
 
-## Canonical repository
+## Canonical Repository
 
-- **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. No remotes.
-- HEAD: **`178c68e`** (2026-09-05, "Canonical baseline of server application source
-  currently running (P0.5)"). History: `7ae8b01` (Feb-2026 squashed restructure) →
-  Mac-agent source-authority commits (`a243fad`, `ee68f34`, `20fafa0`, `a155019`) →
-  `178c68e` (server app source baseline).
-- **Working tree is CLEAN** (`git status --short` empty; 19k+ paths intentionally
-  ignored via `.gitignore`). Pre-existing staged state was fully classified and
-  reconciled — see the P0.5 audit; the raw pre-reconciliation status is archived in
-  `docs/audits/evidence-2026-09-05-preflight/`.
-- Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a
-  partial reference slice; never treat it as canonical.
-- SSH (passwordless from Maxime's MacBook Air): aliases `diveanalyzer-server`
-  (= `mcauchy@192.168.1.57`), `diveanalyzer-mac` (= `divesensei@192.168.1.19`).
+Canonical source is `mcauchy@192.168.1.57:~/dive-analyser` on host `deb-serv`, branch `uiux-overhaul-pro-app`. History was rewritten on 2026-09-05 to remove historical live DB credential material and tracked `.env`. The expected post-rewrite pre-final-commit HEAD was `42e8f82814ccb2a381d0cfd98ae54d10ab97d9f6`; verify current HEAD with `git rev-parse HEAD` because the final hardening commit occurs after this file is edited.
 
-## Exact canonical HEAD
+The Mac local workspace `/Users/maximecauchy/.perso/diveanalyzer` is not a Git repository and is not source authority.
 
-`178c68e` — verify with `git rev-parse HEAD` on the server; if it has moved, read
-`git log` and the latest audit before trusting this file.
+## Backup Authority
 
-## Mac-agent authority
+A sanitized off-host bare mirror exists on the Mac at `/Users/Shared/services/data/diveanalyzer-source-backups/dive-analyser-2026-09-05.git`. It is source-only, outside the deployed Mac-agent tree, mode 0700, and must have HEAD equal to the canonical repository after each final commit.
 
-- Git: `mac-agent/` (byte-identical to deployed; 37 source/config files md5-verified
-  in the 2026-09-05 reconciliation). Runtime: `/Users/Shared/services/data/diveanalyzer/`
-  on Machine B (`code/`, `state/config.yaml` secrets, `bin/` vendored ffmpeg, `venv/`).
-- Parity: **PASS** (unchanged by P0.5). Known stale test: `tests/test_sync_client.py`
-  (15 failures, pre-rewrite API; 54 other tests pass).
-- Do NOT reopen reconciliation or deploy to the Mac without new contradictory evidence.
+## Runtime Topology
 
-## Backend authority
+Debian server `192.168.1.57` runs Docker Compose: PostgreSQL 16, FastAPI backend, React/Vite frontend image, nginx, and Adminer. Mac `192.168.1.19` runs launchd `com.diveanalyzer.agent` from `/Users/Shared/services/data/diveanalyzer/`.
 
-- Git: `backend/` @ `178c68e` — PASS. The backend container bind-mounts
-  `./backend:/app`, so the committed working tree **is** the running code
-  (FastAPI, 18 routers, 60+ services, 22 SQL migrations, tests, Dockerfile).
-- Verified: all 154 Python files parse (0 syntax errors); removed-before-this-task
-  DD-component files are recorded as deletions and are absent from the router registry.
+nginx is the LAN entrypoint: `http://192.168.1.57:6090` and `https://192.168.1.57:6443`. The Mac agent uses verified HTTPS on 6443 with `/Users/Shared/services/data/diveanalyzer/state/diveanalyzer-ca.pem`. The SSH login banner also lists `https://192.168.1.57:6443`.
 
-## Frontend authority
+Direct service bindings are loopback-only: Postgres `127.0.0.1:5433`, backend `127.0.0.1:6002`, frontend `127.0.0.1:6001`, Adminer `127.0.0.1:8080`. Use SSH tunnels for direct DB/Adminer access. The three old v2/mac-media candidate containers were removed.
 
-- Git: `frontend/` @ `178c68e` — PASS. Deployed artifact: baked image
-  `dive-analyser-frontend:latest` (`0d5288564a3c`, built 2026-08-12 via
-  `frontend/Dockerfile.deploy`).
-- **Deployed-build parity PROVEN**: rebuilding from the committed tree reproduces the
-  served bundle byte-for-byte (`index-w_MhTRQ8.js`, `index-CzED_XRX.css`,
-  `index.html` md5-identical; sourcemap differs only by embedded paths).
+## Runtime Configuration Authority
 
-## Infra authority
+Server runtime secrets live in `/home/mcauchy/dive-analyser/.env` and are ignored. This file now contains the rotated PostgreSQL credential, the dedicated Mac machine API key, and explicit CORS origins. nginx TLS private key material lives under ignored `nginx/ssl/` on the server. The public CA certificate is copied to the Mac state directory.
 
-- Git: `docker-compose.yml`, `nginx/nginx.conf`, `nginx/conf.d/default.conf`
-  (bind-mounted into the nginx container = running config), backend/frontend
-  Dockerfiles, `frontend/nginx.conf`, `ops/icloud-video-sync.sh` +
-  `icloud-video-cache-prune.sh` + env template. PASS.
-- Known debt: compose defaults differ from live DB names (harmless while `.env`
-  supplies values); dead macOS Photos bind mount; `frontend/Dockerfile` is a
-  dev-server variant superseded by `Dockerfile.deploy`.
+Mac runtime config is `/Users/Shared/services/data/diveanalyzer/state/config.yaml` (0600). It contains the Mac machine API key, HTTPS server URL, and CA certificate path. Deployed Mac code is `/Users/Shared/services/data/diveanalyzer/code`.
 
-## Runtime configuration authority
+## Source Authorities
 
-- Server: `/home/mcauchy/dive-analyser/.env` (POSTGRES_*; contains the live DB
-  password) and `ops/icloud-video-sync.env`. **Not in Git** (`.env` untracked +
-  ignored in P0.5; runtime file preserved untouched). Template: `backend/.env.example`
-  (sanitized) and `ops/icloud-video-sync.env.example`.
-- Mac agent: `state/config.yaml` on Machine B (0600). Template: `mac-agent/config.example.yaml`.
-- `nginx/ssl/` TLS material: host-only, ignored.
+- backend: Git `backend/`; runtime bind mount `/app`; PASS.
+- frontend: Git `frontend/`; deployed image must be rebuilt for application source changes. This hardening changed test/config files only; runtime app remains served through nginx.
+- infra: Git `docker-compose.yml`, `nginx/`; nginx config is bind-mounted; PASS.
+- Mac agent: Git `mac-agent/` plus deployed Mac code. CA-supporting `config.py`, `sync_client.py`, and repaired `test_sync_client.py` were deployed to the Mac runtime during hardening; keep parity when committing.
 
-## Production data authority
+## Security Status
 
-| Concern | Location | In Git? |
-|---|---|---|
-| Metadata (2803 dives / 168 sessions) | Postgres 16 volume on Machine A | never |
-| Media originals (legacy, 82 real + 94 zero-byte stubs) | `~/dive-analyser/media/videos` on A | never (ignored) |
-| Rendition cache (~840 MB) | `~/dive-analyser/media/cache` on A | never (ignored) |
-| Originals (new dives) + source vault | Mac B Photos + `/Users/Shared/services/data/media-node/` | never |
-| DB dumps / backups | `~/dive-analyser/backups/`, `divesensei-pre-media-rollout.dump` | never (ignored; archival relocation is a future chore) |
-| Import data | `~/dive-analyser/reports/` (bind-mounted, AUTO_IMPORT) | never (ignored) |
+- DB credential rotation: PASS. Existing DB role `diving` was rotated; production counts preserved.
+- Git sanitization: PASS. Reachable history no longer contains tracked `.env` or the obsolete DB credential; `git fsck --strict` passed after rewrite.
+- Machine API auth: PASS. `verify_api_key` validates runtime configured keys with secure comparison and fails closed. Media-agent DB allow-list still enforces per-agent hash/capabilities for media routes.
+- TLS: PASS for Mac agent. Local CA/server certificate covers `192.168.1.57`, `127.0.0.1`, `deb-serv`, `deb-serv.local`, and `diveanalyzer-server`. Browser trust is not installed globally.
+- CORS: explicit runtime origin list, no wildcard with credentials.
+- LAN exposure: direct DB/Adminer/backend/frontend ports are loopback-only; nginx remains LAN-facing.
 
-## Current analysis capabilities
+## Production Data Authority
 
-Unchanged (see cartography audit for depth):
-- A. User-authored: caption grammar → structured dive metadata; notes; emotional states; judge scores.
-- B. Deterministic: DD engine + provenance, session aggregates (SQL trigger), personal dive value V1, FINA scoring.
-- C. Heuristic (no pixels): fear/plateau, milestones, journey, execution fault detector over supplied metrics.
-- D. ML/CV: none. `execution_analyzer.py` remains a stub. Analysis Layer 2 intentionally not introduced.
+PostgreSQL Docker volume remains the production metadata authority. Server `media/videos` holds legacy originals/stubs; `media/cache` holds derived renditions. Mac Photos and `/Users/Shared/services/data/media-node/` remain the authority for new originals/source vault. No production DB rows, media originals, or Photos assets were deleted by hardening.
 
-## Known security debt
+## Tests And Validation
 
-1. **Live DB credential persists in Git history** (and in three on-disk session-report
-   MDs, `backend/migrations/00_init_user_and_db.sql.bak`, and the Mac's
-   `docs/archive/DEPLOYMENT_READY.md`). Current HEAD tree is clean; rotation +
-   history scrub = **P0.6**. No remote until then.
-2. API-key auth is a stub (any header ≥ 10 chars accepted); LAN-exposed API effectively unauthenticated.
-3. Plain HTTP Mac→server; CORS `allow_origins=["*"]`.
-4. Postgres :5433 and Adminer :8080 LAN-exposed.
-5. Weak/legacy password defaults remain visible in old compose versions in history.
+Focused backend security/sync/media tests: 21 passed. Frontend MediaRecall: 3 passed after stale duplicate-text assertion repair. Mac deployed SyncClient: 5 passed. Backend/frontend/nginx/Postgres health checks passed after restarts. HTTPS verification from Mac succeeded with CA and failed without CA.
 
-## Most recent audit/report
+Server-host Mac-agent async tests skip unless `pytest-asyncio` dev dependency is installed; deployed Mac venv has the dependency and passes.
 
-- `docs/audits/CANONICAL_RUNTIME_SOURCE_BASELINE_2026-09-05.md` (canonical, P0.5).
-- `docs/audits/evidence-2026-09-05-preflight/` (raw pre-reconciliation git status).
-- `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`, `docs/audits/REPOSITORY_CARTOGRAPHY_2026-09-05.md` (previous).
+## Current Analysis Capabilities
 
-## Current supervisor gate
+Current analysis remains user-authored metadata plus deterministic/statistical/heuristic backend logic: caption parsing, DD lookup/provenance, session aggregates, two-phase self ratings, Personal Dive Value V1, Journey/fear/plateau heuristics, media readiness, and representative-media workflows. No CV/ML/pose/trajectory/entry detector has been implemented.
 
-`SUPERVISOR_REVIEW_AFTER_CANONICAL_RUNTIME_SOURCE_BASELINE`
+## Layer-2 Design Status
+
+Layer-2 is design-only. The proposal recommends new versioned analysis entities, separate `analysis_jobs`, artifact metadata in PostgreSQL, heavy artifacts on local filesystem, a shared metric registry, first-class comparison outputs, and a first-slice order of temporal segmentation, pairwise alignment, takeoff/trajectory feasibility, entry detection, then pose/keypoints.
+
+## Remaining Engineering Debt
+
+1. Migration-system consolidation remains deferred.
+2. DB role privileges remain broad; rotation preserved current architecture.
+3. Browser/system trust for the local CA is not installed; Mac agent trust is explicit.
+4. No private GitHub/GitLab remote is proven; Mac mirror is the current off-host backup.
+5. Frontend image should be rebuilt on the next user-facing frontend source change.
+6. Historical ignored archives still exist outside the repo and should remain local/private.
+7. PostgreSQL/Adminer direct access now requires SSH tunneling.
+
+## Supervisor Decisions Required
+
+See `docs/design/ANALYSIS_LAYER_2_FOUNDATION_PROPOSAL_2026-09-05.md`, section 18.
+
+## Current Gate
+
+`SUPERVISOR_REVIEW_AFTER_FOUNDATION_HARDENING_AND_LAYER2_DESIGN`

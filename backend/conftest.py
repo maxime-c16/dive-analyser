@@ -20,6 +20,14 @@ from fastapi.testclient import TestClient
 # Override environment to use test database
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["AUTO_IMPORT"] = "false"
+os.environ["MAC_AGENT_API_KEYS"] = ",".join([
+    "test-api-key-1234567890abcdef",
+    "test-api-key-perf-testing",
+    "personal-value-test-key",
+    "test-api-key-long-enough",
+    "test-api-key-integration-testing",
+    "k" * 48,
+])
 
 from app.main import app
 from app.database import Base, get_db

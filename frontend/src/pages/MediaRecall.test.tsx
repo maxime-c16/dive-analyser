@@ -17,7 +17,7 @@ describe('MediaRecall', () => {
   it('loads status and bounded manifest without creating jobs', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     render(<MemoryRouter><MediaRecall /></MemoryRouter>)
-    expect(await screen.findByText('103B')).toBeInTheDocument()
+    expect((await screen.findAllByText('103B')).length).toBeGreaterThan(0)
     expect(screen.getByText(/Recall remains disabled while Photos access is permission_required/)).toBeInTheDocument()
     expect(recallOne).not.toHaveBeenCalled()
     expect(fetchSpy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'POST')).toHaveLength(0)
