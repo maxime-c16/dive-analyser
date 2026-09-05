@@ -89,7 +89,7 @@ repo copy's 14 files are all represented (9 updated, 5 byte-identical).
 - Credential-bearing portions of `docs/DEVELOPMENT.md`,
   `docs/archive/DEPLOYMENT_COMPLETE_DOCKER.md`, `docs/archive/DEPLOYMENT_STATUS.md`,
   `docs/archive/GO_LIVE_STATUS.md` — committed initially, then redacted
-  (`REDACTED-HISTORICAL-DB-CREDENTIAL` → `REDACTED-CREDENTIAL`) in the corrective commit; deployed Mac
+  (credential → `REDACTED-CREDENTIAL`) in the corrective commit; deployed Mac
   copies remain untouched.
 - All GENERATED/VENDORED/DATA items in §6.
 - Stray duplicate `code/mac-agent/…` (documented, not copied).
