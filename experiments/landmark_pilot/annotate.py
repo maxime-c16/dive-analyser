@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-"""Minimal landmark annotation / correction tool.
+"""Landmark annotation / correction tool — v2.
 
 Serves a local web UI on port 8765 for reviewing and correcting Baseline-A
 landmark proposals from the pilot run.
+
+v2 additions over v1:
+  - All 20 pilot dives accessible (not only the 8 UNCERTAIN ones)
+  - Explicit Accept (unchanged) action — marks AUTO landmarks as HUMAN_ACCEPTED
+  - AMBIGUOUS marking per landmark
+  - YAML ground-truth files written to docs/science/pilot_annotations/
+  - Sidebar shows reviewed/accepted/corrected/ambiguous/unreviewed state
+  - Annotation schema version v1
 
 Usage (from server):
     cd ~/dive-analyser/experiments/landmark_pilot
@@ -12,7 +20,19 @@ Usage (from server):
 Then on Mac:
     ssh -i ~/.ssh/qwokka -L 8765:localhost:8765 mcauchy@192.168.1.57 -N &
     open http://localhost:8765
+
+Keyboard shortcuts (in browser):
+    Space          — play/pause
+    ← / →          — step 1 frame (Shift: 10 frames)
+    ↑ / ↓          — prev/next dive
+    T              — set takeoff to current frame
+    A              — set apex to current frame
+    W              — set water contact to current frame
+    B              — toggle AMBIGUOUS for focused landmark
+    S              — save / finalize review
+    Enter          — accept all unchanged
 """
+import datetime
 import http.server
 import json
 import os
@@ -24,6 +44,7 @@ from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
+import yaml
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -31,9 +52,13 @@ import psycopg2.extras
 REPO_ROOT = Path(__file__).parent.parent.parent  # ~/dive-analyser
 MEDIA_CACHE_ROOT = REPO_ROOT / "media" / "cache"
 MANIFEST_PATH = REPO_ROOT / "docs" / "science" / "PILOT_MANIFEST_V1.json"
+PILOT_ANNOTATIONS_DIR = REPO_ROOT / "docs" / "science" / "pilot_annotations"
+ANNOTATION_SCHEMA_VERSION = "v1"
+ANNOTATOR = "maxime"
 PIPELINE_KEY = "temporal_landmarks_baseline_a_v1"
-WORKER_ID = "annotate_tool_v1"
+WORKER_ID = "annotate_tool_v2"
 PORT = 8765
+LM_KEYS = ["takeoff", "apex", "water_contact"]
 
 # ---------------------------------------------------------------------------
 # DB helpers
@@ -78,6 +103,87 @@ def _proxy_path(media_key: str) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
+# YAML ground-truth helpers
+# ---------------------------------------------------------------------------
+
+def _annotation_yaml_path(dive_id: int) -> Path:
+    return PILOT_ANNOTATIONS_DIR / f"dive_{dive_id}.yaml"
+
+
+def _load_annotation_yaml(dive_id: int) -> dict | None:
+    p = _annotation_yaml_path(dive_id)
+    if not p.exists():
+        return None
+    with open(p) as f:
+        return yaml.safe_load(f)
+
+
+def _write_annotation_yaml(
+    dive_id: int,
+    lm_states: dict,          # landmark_key -> "HUMAN_ACCEPTED"|"HUMAN_CORRECTED"|"NOT_APPLICABLE"|"AMBIGUOUS"
+    lm_frames: dict,          # landmark_key -> {frame_index, timestamp_seconds} for human value (None for N/A)
+    auto_landmarks: dict,     # landmark_key -> {frame_index, timestamp_seconds, confidence, applicability}
+    run_uuid: str,
+) -> Path:
+    """Write canonical YAML ground-truth annotation for a dive."""
+    PILOT_ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
+    info = MANIFEST.get(dive_id, {})
+    landmarks_out = {}
+    for lk in LM_KEYS:
+        state = lm_states.get(lk, "HUMAN_ACCEPTED")
+        auto = auto_landmarks.get(lk, {})
+        human = lm_frames.get(lk, {})
+        if state == "NOT_APPLICABLE":
+            fi_h, ts_h = None, None
+        else:
+            fi_h = human.get("frame_index") if human else auto.get("frame_index")
+            ts_h = human.get("timestamp_seconds") if human else auto.get("timestamp_seconds")
+        landmarks_out[lk] = {
+            "state": state,
+            "frame_index": fi_h,
+            "timestamp_seconds": round(ts_h, 6) if ts_h is not None else None,
+            "auto_frame_index": auto.get("frame_index"),
+            "auto_timestamp_seconds": (
+                round(auto["timestamp_seconds"], 6)
+                if auto.get("timestamp_seconds") is not None else None
+            ),
+            "auto_confidence": auto.get("confidence"),
+            "auto_applicability": auto.get("applicability"),
+        }
+    doc = {
+        "dive_id": dive_id,
+        "annotation_schema_version": ANNOTATION_SCHEMA_VERSION,
+        "annotator": ANNOTATOR,
+        "annotation_timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "run_uuid": run_uuid,
+        "media_checksum_sha256": info.get("media_key", ""),
+        "landmarks": landmarks_out,
+    }
+    p = _annotation_yaml_path(dive_id)
+    with open(p, "w") as f:
+        yaml.dump(doc, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    return p
+
+
+def _yaml_review_status(dive_id: int) -> str:
+    """
+    Returns one of: 'unreviewed', 'accepted', 'corrected', 'ambiguous', 'partial'.
+    """
+    ann = _load_annotation_yaml(dive_id)
+    if ann is None:
+        return "unreviewed"
+    lms = ann.get("landmarks", {})
+    states = {lk: lms.get(lk, {}).get("state", "unreviewed") for lk in LM_KEYS}
+    if any(s == "AMBIGUOUS" for s in states.values()):
+        return "ambiguous"
+    if any(s == "HUMAN_CORRECTED" for s in states.values()):
+        return "corrected"
+    if all(s in ("HUMAN_ACCEPTED", "NOT_APPLICABLE") for s in states.values()):
+        return "accepted"
+    return "partial"
+
+
+# ---------------------------------------------------------------------------
 # DB queries
 # ---------------------------------------------------------------------------
 
@@ -94,38 +200,31 @@ def _latest_run_for_dive(cur, dive_id: int):
     return cur.fetchone()
 
 
-def _landmarks_for_run(cur, run_id):
+def _landmarks_for_run(cur, run_id) -> dict:
     cur.execute("""
         SELECT landmark_key, frame_index, timestamp_seconds,
                confidence, applicability, source,
-               algorithm_key, algorithm_version
+               algorithm_key, algorithm_version, uncertainty_window_frames
         FROM analysis_landmarks
         WHERE run_id = %s
-        ORDER BY
-            CASE landmark_key
-                WHEN 'takeoff'       THEN 1
-                WHEN 'apex'          THEN 2
-                WHEN 'water_contact' THEN 3
-                ELSE 4
-            END
+        ORDER BY landmark_key
     """, (run_id,))
-    rows = cur.fetchall()
-    result = {}
-    for row in rows:
-        result[row[0]] = {
-            "landmark_key": row[0],
+    out = {}
+    for row in cur.fetchall():
+        out[row[0]] = {
             "frame_index": row[1],
-            "timestamp_seconds": float(row[2]) if row[2] is not None else None,
+            "timestamp_seconds": row[2],
             "confidence": float(row[3]) if row[3] is not None else None,
             "applicability": row[4],
             "source": row[5],
             "algorithm_key": row[6],
             "algorithm_version": row[7],
+            "uncertainty_window_frames": row[8],
         }
-    return result
+    return out
 
 
-def _get_all_pilot_data():
+def _get_all_pilot_data() -> list:
     conn = _connect()
     try:
         with conn.cursor() as cur:
@@ -133,6 +232,7 @@ def _get_all_pilot_data():
             for dive_id, info in MANIFEST.items():
                 run_row = _latest_run_for_dive(cur, dive_id)
                 proxy = _proxy_path(info["media_key"])
+                review_status = _yaml_review_status(dive_id)
                 entry = {
                     "dive_id": dive_id,
                     "dive_code": info.get("dive_code", ""),
@@ -144,6 +244,7 @@ def _get_all_pilot_data():
                     "run_status": None,
                     "landmarks": {},
                     "ordering_valid": False,
+                    "review_status": review_status,
                 }
                 if run_row:
                     entry["run_uuid"] = str(run_row[0])
@@ -156,13 +257,13 @@ def _get_all_pilot_data():
                     if t is not None and a is not None and w is not None:
                         entry["ordering_valid"] = (t < a < w)
                 dives.append(entry)
-            dives.sort(key=lambda d: d["group"])
+            dives.sort(key=lambda d: (d["group"], d["dive_id"]))
             return dives
     finally:
         conn.close()
 
 
-def _get_dive_data(dive_id: int):
+def _get_dive_data(dive_id: int) -> dict | None:
     conn = _connect()
     try:
         with conn.cursor() as cur:
@@ -175,22 +276,25 @@ def _get_dive_data(dive_id: int):
             proxy = _proxy_path(info.get("media_key", ""))
             return {
                 "dive_id": dive_id,
-                "dive_code": info.get("dive_code", ""),
-                "height": info.get("height", ""),
-                "session_date": info.get("session_date", ""),
                 "run_uuid": run_uuid,
-                "proxy_available": proxy is not None,
                 "landmarks": landmarks,
+                "proxy_available": proxy is not None,
+                "review_status": _yaml_review_status(dive_id),
             }
     finally:
         conn.close()
 
 
-def _save_landmarks(dive_id: int, corrections: dict, not_applicable_keys: list):
+def _save_and_annotate(
+    dive_id: int,
+    corrections: dict,         # landmark_key -> {frame_index, timestamp_seconds}
+    not_applicable_keys: list, # landmark_keys to mark NOT_APPLICABLE
+    ambiguous_keys: list,      # landmark_keys to mark AMBIGUOUS (no DB change)
+) -> dict:
     """
-    corrections: dict landmark_key -> {frame_index, timestamp_seconds}
-    not_applicable_keys: list of landmark_keys to mark NOT_APPLICABLE
-    Inserts new HUMAN rows; existing rows are deleted for those keys first.
+    Saves corrections/N/A to DB, writes YAML for all 3 landmarks.
+    Non-corrected, non-N/A, non-ambiguous landmarks are marked HUMAN_ACCEPTED.
+    Returns {"ok": True} or {"error": ...}.
     """
     conn = _connect()
     try:
@@ -199,13 +303,19 @@ def _save_landmarks(dive_id: int, corrections: dict, not_applicable_keys: list):
             if not run_row:
                 return {"error": "no run found for dive"}
             run_id = run_row[0]
+            run_uuid = str(run_id)
 
+            # Read current auto landmarks before any modifications
+            auto_lms = _landmarks_for_run(cur, run_id)
+
+            # DB: delete rows for corrected + N/A keys
             for lk in list(corrections.keys()) + list(not_applicable_keys):
                 cur.execute(
                     "DELETE FROM analysis_landmarks WHERE run_id=%s AND landmark_key=%s",
                     (run_id, lk)
                 )
 
+            # DB: insert corrected landmarks
             for lk, vals in corrections.items():
                 fi = vals.get("frame_index")
                 ts = vals.get("timestamp_seconds")
@@ -215,9 +325,10 @@ def _save_landmarks(dive_id: int, corrections: dict, not_applicable_keys: list):
                          confidence, applicability, source,
                          algorithm_key, algorithm_version, uncertainty_window_frames)
                     VALUES (%s, %s, %s, %s, 1.0, 'APPLICABLE', 'HUMAN',
-                            'annotate_tool', 'v1', 0)
+                            'annotate_tool', 'v2', 0)
                 """, (run_id, lk, fi, ts))
 
+            # DB: insert NOT_APPLICABLE landmarks
             for lk in not_applicable_keys:
                 cur.execute("""
                     INSERT INTO analysis_landmarks
@@ -225,10 +336,30 @@ def _save_landmarks(dive_id: int, corrections: dict, not_applicable_keys: list):
                          confidence, applicability, source,
                          algorithm_key, algorithm_version, uncertainty_window_frames)
                     VALUES (%s, %s, NULL, NULL, 1.0, 'NOT_APPLICABLE', 'HUMAN',
-                            'annotate_tool', 'v1', 0)
+                            'annotate_tool', 'v2', 0)
                 """, (run_id, lk))
 
-        conn.commit()
+            conn.commit()
+
+            # Determine YAML state for all 3 landmarks
+            lm_states = {}
+            lm_frames = {}
+            for lk in LM_KEYS:
+                if lk in corrections:
+                    lm_states[lk] = "HUMAN_CORRECTED"
+                    lm_frames[lk] = corrections[lk]
+                elif lk in not_applicable_keys:
+                    lm_states[lk] = "NOT_APPLICABLE"
+                    lm_frames[lk] = {}
+                elif lk in ambiguous_keys:
+                    lm_states[lk] = "AMBIGUOUS"
+                    lm_frames[lk] = {}
+                else:
+                    lm_states[lk] = "HUMAN_ACCEPTED"
+                    lm_frames[lk] = {}   # will use auto value in writer
+
+            _write_annotation_yaml(dive_id, lm_states, lm_frames, auto_lms, run_uuid)
+
         return {"ok": True}
     except Exception as e:
         conn.rollback()
@@ -246,27 +377,28 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Landmark Annotator — Baseline A Pilot</title>
+<title>Landmark Annotator v2 — Baseline A Pilot</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#111;color:#eee;display:flex;height:100vh;overflow:hidden}
-#sidebar{width:260px;min-width:200px;overflow-y:auto;background:#1a1a1a;border-right:1px solid #333;padding:8px}
+#sidebar{width:270px;min-width:200px;overflow-y:auto;background:#1a1a1a;border-right:1px solid #333;padding:8px}
 #sidebar h2{font-size:13px;color:#888;padding:4px 0 8px;text-transform:uppercase;letter-spacing:.05em}
 .dive-item{padding:6px 8px;border-radius:5px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:2px}
 .dive-item:hover{background:#2a2a2a}
 .dive-item.active{background:#2d4d6e}
-.badge{font-size:11px;padding:2px 5px;border-radius:3px;font-weight:600}
-.badge-ok{background:#1a4a1a;color:#4f4}
-.badge-uncertain{background:#4a2200;color:#f84}
-.badge-na{background:#333;color:#888}
-.badge-human{background:#1a3a4a;color:#4af}
+.badge{font-size:11px;padding:2px 5px;border-radius:3px;font-weight:600;white-space:nowrap}
+.badge-unreviewed{background:#4a2200;color:#f84}
+.badge-accepted{background:#1a4a1a;color:#4f4}
+.badge-corrected{background:#1a3a4a;color:#4af}
+.badge-ambiguous{background:#3a2a1a;color:#fa8}
+.badge-partial{background:#4a3a00;color:#fd4}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #toolbar{background:#1e1e1e;border-bottom:1px solid #333;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #toolbar h1{font-size:15px;margin-right:auto}
 #toolbar button{background:#2a2a2a;border:1px solid #444;color:#eee;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:13px}
 #toolbar button:hover{background:#3a3a3a}
-#toolbar button.primary{background:#1a5a9e;border-color:#2a7ad0;color:#fff}
-#toolbar button.danger{background:#6e1a1a;border-color:#c02020}
+#accept-btn{background:#1a5a1a;border-color:#2a8a2a;color:#fff}
+#accept-btn:hover{background:#226a22}
 #content{display:flex;flex:1;overflow:hidden}
 #video-panel{flex:1;display:flex;flex-direction:column;padding:10px;gap:8px;overflow-y:auto}
 video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:contain}
@@ -278,7 +410,7 @@ video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:co
 .lm-btn.takeoff{border-left-color:#f90!important}
 .lm-btn.apex{border-left-color:#4af!important}
 .lm-btn.water_contact{border-left-color:#4f8!important}
-#lm-panel{width:310px;min-width:260px;background:#1a1a1a;border-left:1px solid #333;padding:12px;overflow-y:auto}
+#lm-panel{width:330px;min-width:270px;background:#1a1a1a;border-left:1px solid #333;padding:12px;overflow-y:auto}
 #lm-panel h2{font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
 .lm-row{margin-bottom:14px;padding:10px;background:#222;border-radius:6px}
 .lm-row h3{font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
@@ -293,19 +425,23 @@ video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:co
 .lm-badge.UNCERTAIN{background:#4a2200;color:#f84}
 .lm-badge.NOT_APPLICABLE{background:#333;color:#888}
 .lm-badge.HUMAN{background:#1a3a4a;color:#4af}
-.lm-set-btn{font-size:11px;padding:3px 8px;background:#2d4d6e;border:1px solid #3a6a9e;color:#cdf;border-radius:3px;cursor:pointer;margin-top:4px}
-.lm-na-btn{font-size:11px;padding:3px 8px;background:#3a1a1a;border:1px solid #6a3030;color:#fcc;border-radius:3px;cursor:pointer;margin-top:4px}
+.lm-badge.AMBIGUOUS{background:#3a2a1a;color:#fa8}
+.lm-set-btn{font-size:11px;padding:3px 8px;background:#2d4d6e;border:1px solid #3a6a9e;color:#cdf;border-radius:3px;cursor:pointer;margin-top:4px;margin-right:4px}
+.lm-na-btn{font-size:11px;padding:3px 8px;background:#3a1a1a;border:1px solid #6a3030;color:#fcc;border-radius:3px;cursor:pointer;margin-top:4px;margin-right:4px}
+.lm-amb-btn{font-size:11px;padding:3px 8px;background:#3a2a1a;border:1px solid #6a5030;color:#fda;border-radius:3px;cursor:pointer;margin-top:4px;margin-right:4px}
+.lm-amb-btn.active{background:#5a3a10;border-color:#9a7030;color:#ffcc44}
 #save-bar{padding:10px 12px;border-top:1px solid #333;background:#181818}
-#save-bar button{width:100%;padding:8px;font-size:14px;border-radius:5px;cursor:pointer;border:none}
-#save-btn{background:#1a5a1a;color:#fff}
-#save-btn:hover{background:#256a25}
+#save-bar button{width:100%;padding:8px;font-size:14px;border-radius:5px;cursor:pointer;border:none;margin-bottom:6px}
+#save-btn{background:#1a5a9e;color:#fff}
+#save-btn:hover{background:#256ab0}
 #status-msg{font-size:12px;color:#8f8;margin-top:6px;text-align:center;min-height:16px}
 .speed-btn{font-size:11px!important;padding:3px 7px!important}
+#progress-bar{padding:4px 8px;font-size:11px;color:#888;border-top:1px solid #222;background:#161616}
 </style>
 </head>
 <body>
 <div id="sidebar">
-  <h2>Pilot Dives</h2>
+  <h2>Pilot Dives (<span id="reviewed-count">0</span>/20 reviewed)</h2>
   <div id="dive-list"></div>
 </div>
 <div id="main">
@@ -313,6 +449,7 @@ video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:co
     <h1 id="dive-title">Select a dive</h1>
     <button onclick="prevDive()">← Prev</button>
     <button onclick="nextDive()">Next →</button>
+    <button id="accept-btn" onclick="acceptAll()" title="Mark all auto landmarks as accepted (Enter)">✓ Accept All [↵]</button>
   </div>
   <div id="content">
     <div id="video-panel">
@@ -339,18 +476,22 @@ video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:co
       <h2>Landmarks</h2>
       <div id="lm-rows"></div>
       <div id="save-bar">
-        <button id="save-btn" onclick="saveLandmarks()">💾 Save Corrections</button>
+        <button id="save-btn" onclick="saveLandmarks()">💾 Save Corrections [S]</button>
         <div id="status-msg"></div>
       </div>
     </div>
+  </div>
+  <div id="progress-bar">
+    YAML annotation written to docs/science/pilot_annotations/ on each save/accept.
   </div>
 </div>
 <script>
 let dives = [];
 let currentDiveIdx = -1;
 let fps = 30;
-let pendingCorrections = {};  // landmark_key -> {frame_index, timestamp_seconds}
+let pendingCorrections = {};   // landmark_key -> {frame_index, timestamp_seconds}
 let notApplicableKeys = new Set();
+let ambiguousKeys = new Set();
 
 const vid = document.getElementById('vid');
 const frameInfo = document.getElementById('frame-info');
@@ -360,8 +501,26 @@ const statusMsg = document.getElementById('status-msg');
 async function loadDives() {
   const r = await fetch('/api/dives');
   dives = await r.json();
+  updateReviewedCount();
   renderSidebar();
   if (dives.length > 0) selectDive(0);
+}
+
+function reviewStatusBadge(d) {
+  const s = d.review_status;
+  if (s === 'accepted') return '<span class="badge badge-accepted">✓ accepted</span>';
+  if (s === 'corrected') return '<span class="badge badge-corrected">✎ corrected</span>';
+  if (s === 'ambiguous') return '<span class="badge badge-ambiguous">~ ambiguous</span>';
+  if (s === 'partial')   return '<span class="badge badge-partial">⊘ partial</span>';
+  // unreviewed
+  const allValid = d.ordering_valid;
+  if (allValid) return '<span class="badge badge-unreviewed">! auto-ok</span>';
+  return '<span class="badge badge-unreviewed">! unreviewed</span>';
+}
+
+function updateReviewedCount() {
+  const done = dives.filter(d => ['accepted','corrected','ambiguous','partial'].includes(d.review_status)).length;
+  document.getElementById('reviewed-count').textContent = done;
 }
 
 function renderSidebar() {
@@ -371,13 +530,7 @@ function renderSidebar() {
     const div = document.createElement('div');
     div.className = 'dive-item' + (i === currentDiveIdx ? ' active' : '');
     div.onclick = () => selectDive(i);
-    const hasHuman = Object.values(d.landmarks||{}).some(l => l.source === 'HUMAN');
-    const allValid = d.ordering_valid;
-    let badge = '';
-    if (hasHuman) badge = '<span class="badge badge-human">✎</span>';
-    else if (allValid) badge = '<span class="badge badge-ok">✓</span>';
-    else badge = '<span class="badge badge-uncertain">!</span>';
-    div.innerHTML = `${badge}<span>#${d.dive_id} ${d.dive_code} <small style="color:#777">${d.height}</small></span>`;
+    div.innerHTML = `${reviewStatusBadge(d)}<span>#${d.dive_id} ${d.dive_code} <small style="color:#777">${d.height}</small></span>`;
     el.appendChild(div);
   });
 }
@@ -386,6 +539,7 @@ async function selectDive(idx) {
   currentDiveIdx = idx;
   pendingCorrections = {};
   notApplicableKeys = new Set();
+  ambiguousKeys = new Set();
   renderSidebar();
 
   const d = dives[idx];
@@ -395,7 +549,6 @@ async function selectDive(idx) {
   if (d.proxy_available) {
     vid.src = `/video/${d.dive_id}`;
     vid.load();
-    // detect fps when metadata loads
     vid.onloadedmetadata = () => {
       fps = detectFps(d);
       updateFrameInfo();
@@ -410,9 +563,8 @@ async function selectDive(idx) {
 }
 
 function detectFps(d) {
-  // infer from known frames or default 60
-  const lms = d.landmarks || {};
-  return 60; // default; will be overridden if the video metadata provides it
+  // Use stored FPS hint from landmarks, default 60
+  return 60;
 }
 
 vid.addEventListener('timeupdate', updateFrameInfo);
@@ -421,7 +573,7 @@ vid.addEventListener('seeked', updateFrameInfo);
 function updateFrameInfo() {
   const t = vid.currentTime;
   const f = Math.round(t * fps);
-  frameInfo.textContent = `Frame ~${f}  |  Time ${t.toFixed(4)}s  |  FPS assumed ${fps}`;
+  frameInfo.textContent = `Frame ~${f}  |  Time ${t.toFixed(4)}s  |  FPS ${fps}`;
 }
 
 function currentFrame() {
@@ -451,6 +603,7 @@ function setLandmark(key) {
   const ts = vid.currentTime;
   pendingCorrections[key] = {frame_index: f, timestamp_seconds: ts};
   notApplicableKeys.delete(key);
+  ambiguousKeys.delete(key);
   renderLandmarks(dives[currentDiveIdx]);
   statusMsg.textContent = `Set ${key} → frame ${f} (unsaved)`;
   statusMsg.style.color = '#fa4';
@@ -458,15 +611,29 @@ function setLandmark(key) {
 
 function markNotApplicable(key) {
   notApplicableKeys.add(key);
+  ambiguousKeys.delete(key);
   delete pendingCorrections[key];
   renderLandmarks(dives[currentDiveIdx]);
   statusMsg.textContent = `Marked ${key} NOT_APPLICABLE (unsaved)`;
   statusMsg.style.color = '#fa4';
 }
 
+function toggleAmbiguous(key) {
+  if (ambiguousKeys.has(key)) {
+    ambiguousKeys.delete(key);
+    statusMsg.textContent = `Cleared AMBIGUOUS for ${key}`;
+  } else {
+    ambiguousKeys.add(key);
+    notApplicableKeys.delete(key);
+    delete pendingCorrections[key];
+    statusMsg.textContent = `Marked ${key} AMBIGUOUS (unsaved)`;
+  }
+  statusMsg.style.color = '#fa8';
+  renderLandmarks(dives[currentDiveIdx]);
+}
+
 function renderLandmarks(d) {
   const LM_KEYS = ['takeoff', 'apex', 'water_contact'];
-  const COLORS = {takeoff:'#f90', apex:'#4af', water_contact:'#4f8'};
   const db = d.landmarks || {};
   lmRows.innerHTML = '';
 
@@ -474,45 +641,54 @@ function renderLandmarks(d) {
     const orig = db[key] || {};
     const pending = pendingCorrections[key];
     const isNa = notApplicableKeys.has(key);
-    const display = isNa ? null : (pending || orig);
+    const isAmb = ambiguousKeys.has(key);
+    const display = isNa ? null : (isAmb ? orig : (pending || orig));
 
     const row = document.createElement('div');
     row.className = 'lm-row';
 
-    const source = isNa ? 'HUMAN' : (pending ? 'HUMAN' : (orig.source || '—'));
-    const applicability = isNa ? 'NOT_APPLICABLE' : (pending ? 'APPLICABLE' : (orig.applicability || '—'));
+    let stateLabel = orig.applicability || '—';
+    let sourceLabel = orig.source || '—';
+    let modifiedNote = '';
+
+    if (pending) { stateLabel = 'APPLICABLE'; sourceLabel = 'HUMAN'; modifiedNote = '● unsaved correction'; }
+    if (isNa)   { stateLabel = 'NOT_APPLICABLE'; sourceLabel = 'HUMAN'; modifiedNote = '● unsaved N/A'; }
+    if (isAmb)  { stateLabel = 'AMBIGUOUS'; sourceLabel = 'HUMAN'; modifiedNote = '● unsaved ambiguous'; }
+
     const fi = display ? display.frame_index : null;
     const ts = display ? display.timestamp_seconds : null;
-    const modified = isNa || !!pending;
 
     row.innerHTML = `
       <h3>
         <span class="lm-dot dot-${key}"></span>
-        ${key.replace('_', ' ')}
-        ${modified ? '<small style="color:#fa4">● unsaved</small>' : ''}
+        ${key.replace(/_/g, ' ')}
+        ${modifiedNote ? `<small style="color:#fa4">${modifiedNote}</small>` : ''}
       </h3>
       <div class="lm-fields">
         Frame: <input type="number" id="fi-${key}" value="${fi !== null ? fi : ''}"
-          onchange="manualEdit('${key}', 'frame_index', this.value)">
+          onchange="manualEdit('${key}', this.value)">
         &nbsp;Time: ${ts !== null ? ts.toFixed(3)+'s' : '—'}
         <br>
-        <span class="lm-badge ${applicability}">${applicability}</span>
-        <span class="lm-badge" style="background:#1c1c1c;color:#888">${source}</span>
+        <span class="lm-badge ${stateLabel}">${stateLabel}</span>
+        <span class="lm-badge" style="background:#1c1c1c;color:#888">${sourceLabel}</span>
         ${orig.confidence !== undefined && orig.confidence !== null ? `<span style="color:#777;font-size:11px"> conf:${orig.confidence.toFixed(2)}</span>` : ''}
         <br>
         <button class="lm-set-btn" onclick="setLandmark('${key}')">Set to current frame</button>
         ${fi !== null ? `<button class="lm-set-btn" onclick="goToFrame(${fi})" style="background:#333;border-color:#555;color:#ccc">Go to frame</button>` : ''}
+        <br>
         <button class="lm-na-btn" onclick="markNotApplicable('${key}')">NOT_APPLICABLE</button>
+        <button class="lm-amb-btn ${isAmb ? 'active' : ''}" onclick="toggleAmbiguous('${key}')">AMBIGUOUS</button>
       </div>`;
 
     lmRows.appendChild(row);
   });
 }
 
-function manualEdit(key, field, value) {
+function manualEdit(key, value) {
   const f = parseInt(value);
   if (isNaN(f)) return;
   notApplicableKeys.delete(key);
+  ambiguousKeys.delete(key);
   if (!pendingCorrections[key]) pendingCorrections[key] = {};
   pendingCorrections[key].frame_index = f;
   pendingCorrections[key].timestamp_seconds = f / fps;
@@ -523,29 +699,46 @@ function manualEdit(key, field, value) {
 async function saveLandmarks() {
   if (currentDiveIdx < 0) return;
   const d = dives[currentDiveIdx];
-  if (Object.keys(pendingCorrections).length === 0 && notApplicableKeys.size === 0) {
-    statusMsg.textContent = 'Nothing to save.';
-    statusMsg.style.color = '#888';
-    return;
-  }
   const payload = {
     corrections: pendingCorrections,
     not_applicable: Array.from(notApplicableKeys),
+    ambiguous: Array.from(ambiguousKeys),
   };
+  statusMsg.textContent = 'Saving…';
+  statusMsg.style.color = '#888';
   const r = await fetch(`/api/landmarks/${d.dive_id}`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload),
   });
   const result = await r.json();
+  await _afterSave(result);
+}
+
+async function acceptAll() {
+  if (currentDiveIdx < 0) return;
+  const d = dives[currentDiveIdx];
+  statusMsg.textContent = 'Accepting…';
+  statusMsg.style.color = '#888';
+  const r = await fetch(`/api/landmarks/${d.dive_id}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ corrections: {}, not_applicable: [], ambiguous: [] }),
+  });
+  const result = await r.json();
+  await _afterSave(result);
+}
+
+async function _afterSave(result) {
   if (result.ok) {
-    statusMsg.textContent = '✓ Saved successfully';
+    statusMsg.textContent = '✓ Saved — YAML written';
     statusMsg.style.color = '#4f4';
     pendingCorrections = {};
     notApplicableKeys = new Set();
-    // refresh dive data
+    ambiguousKeys = new Set();
     const refresh = await fetch('/api/dives');
     dives = await refresh.json();
+    updateReviewedCount();
     renderSidebar();
     renderLandmarks(dives[currentDiveIdx]);
   } else {
@@ -570,8 +763,9 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'a' || e.key === 'A') setLandmark('apex');
   else if (e.key === 'w' || e.key === 'W') setLandmark('water_contact');
   else if (e.key === 's' || e.key === 'S') saveLandmarks();
-  else if (e.key === 'ArrowUp') prevDive();
-  else if (e.key === 'ArrowDown') nextDive();
+  else if (e.key === 'Enter') acceptAll();
+  else if (e.key === 'ArrowUp') { e.preventDefault(); prevDive(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); nextDive(); }
 });
 
 loadDives();
@@ -623,7 +817,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         m = re.match(r"^/api/landmarks/(\d+)$", path)
-        if m and self.command == "GET":
+        if m:
             dive_id = int(m.group(1))
             try:
                 data = _get_dive_data(dive_id)
@@ -661,7 +855,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 payload = json.loads(body)
                 corrections = payload.get("corrections", {})
                 not_applicable = payload.get("not_applicable", [])
-                result = _save_landmarks(dive_id, corrections, not_applicable)
+                ambiguous = payload.get("ambiguous", [])
+                result = _save_and_annotate(dive_id, corrections, not_applicable, ambiguous)
                 self.send_json(result)
             except Exception as e:
                 self.send_json({"error": str(e)}, 500)
@@ -671,7 +866,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _stream_file(self, path: Path, content_type: str):
         size = path.stat().st_size
-        # Support partial content for seeking
         range_header = self.headers.get("Range")
         if range_header:
             m = re.match(r"bytes=(\d+)-(\d*)", range_header)
@@ -714,12 +908,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print(f"Landmark Annotation Tool")
+    PILOT_ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"Landmark Annotation Tool v2")
     print(f"  Loaded {len(MANIFEST)} dives from {MANIFEST_PATH.name}")
+    print(f"  YAML output: {PILOT_ANNOTATIONS_DIR}")
     print(f"  Listening on http://localhost:{PORT}")
     print(f"")
-    print(f"  From Mac: ssh -i ~/.ssh/qwokka -L {PORT}:localhost:{PORT} mcauchy@192.168.1.57 -N")
-    print(f"  Then open: http://localhost:{PORT}")
+    print(f"  From Mac:")
+    print(f"    ssh -i ~/.ssh/qwokka -L {PORT}:localhost:{PORT} mcauchy@192.168.1.57 -N &")
+    print(f"    open http://localhost:{PORT}")
     print(f"")
     print(f"  Keyboard shortcuts (in browser):")
     print(f"    Space          — play/pause")
@@ -728,7 +925,18 @@ if __name__ == "__main__":
     print(f"    T              — set takeoff to current frame")
     print(f"    A              — set apex to current frame")
     print(f"    W              — set water contact to current frame")
-    print(f"    S              — save corrections")
+    print(f"    S              — save corrections + write YAML")
+    print(f"    Enter          — accept all (unchanged) + write YAML")
+    print(f"")
+    review_counts = {"unreviewed": 0, "accepted": 0, "corrected": 0, "ambiguous": 0, "partial": 0}
+    for did in MANIFEST:
+        s = _yaml_review_status(did)
+        review_counts[s] = review_counts.get(s, 0) + 1
+    reviewed = sum(v for k, v in review_counts.items() if k != "unreviewed")
+    print(f"  Review progress: {reviewed}/{len(MANIFEST)} dives reviewed")
+    for k, v in review_counts.items():
+        if v > 0:
+            print(f"    {k}: {v}")
     print(f"")
     server = http.server.HTTPServer(("127.0.0.1", PORT), Handler)
     try:
