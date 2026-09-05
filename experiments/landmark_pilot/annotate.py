@@ -33,6 +33,7 @@ Keyboard shortcuts (in browser):
     Enter          — accept all unchanged
 """
 import datetime
+import decimal
 import http.server
 import json
 import os
@@ -45,6 +46,14 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 import yaml
+
+
+# Custom JSON encoder: converts Decimal → float so psycopg2 numeric fields serialize cleanly
+class _DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super().default(o)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -786,7 +795,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass  # silence default apache-style logs
 
     def send_json(self, data, status=200):
-        body = json.dumps(data).encode()
+        body = json.dumps(data, cls=_DecimalEncoder).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
