@@ -49,8 +49,11 @@ class FINAValidator:
     }
 
     # Valid DD range
-    DD_MIN = Decimal("1.2")
-    DD_MAX = Decimal("4.1")
+    # Compatibility validation only. Official values come from the versioned
+    # component formula and must not be constrained by the former lookup
+    # table's 4.1 ceiling.
+    DD_MIN = Decimal("1.0")
+    DD_MAX = Decimal("6.0")
 
     def __init__(self, db: Session):
         """Initialize validator with database session"""

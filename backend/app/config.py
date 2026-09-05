@@ -31,6 +31,18 @@ class Settings(BaseSettings):
     data_dir: str = os.getenv("DATA_DIR", "/app/data")
     reports_dir: str = os.getenv("REPORTS_DIR", "/app/reports")
     logs_dir: str = os.getenv("LOGS_DIR", "/app/logs")
+    media_cache_root: str = os.getenv("MEDIA_CACHE_ROOT", "/app/media-cache")
+    media_transform_version: str = os.getenv("MEDIA_TRANSFORM_VERSION", "ffmpeg-h264-v1")
+    media_export_policy_version: str = os.getenv("MEDIA_EXPORT_POLICY_VERSION", "photos-export-v1")
+    media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
+    primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
+    dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))
+    personal_dive_value_enabled: bool = os.getenv("PERSONAL_DIVE_VALUE_ENABLED", "false").lower() == "true"
+    personal_dive_value_cache_ttl_seconds: int = int(os.getenv("PERSONAL_DIVE_VALUE_CACHE_TTL_SECONDS", "120"))
+    database_pool_size: int = int(os.getenv("DATABASE_POOL_SIZE", "5"))
+    database_max_overflow: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "2"))
+    slow_query_log_ms: int = int(os.getenv("SLOW_QUERY_LOG_MS", "250"))
+    slow_request_log_ms: int = int(os.getenv("SLOW_REQUEST_LOG_MS", "500"))
 
     # Cache settings
     cache_ttl_seconds: int = 3600  # 1 hour default

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../services/api'
-import { ArrowLeft } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Diamond, X, XCircle, type LucideIcon } from 'lucide-react'
 
 interface Chapter {
   number: number
@@ -44,15 +44,15 @@ const getPerformanceColor = (result: string): string => {
   return colors[result] || 'text-gray-400 bg-gray-500/10'
 }
 
-const getPerformanceEmoji = (result: string): string => {
-  const emojis: { [key: string]: string } = {
-    'Failed': '❌',
-    'Bad': '⚠️',
-    'Medium': '➡️',
-    'Good': '✅',
-    'Perfect': '💎',
+const getPerformanceIcon = (result: string): LucideIcon => {
+  const icons: { [key: string]: LucideIcon } = {
+    Failed: XCircle,
+    Bad: AlertTriangle,
+    Medium: ArrowRight,
+    Good: CheckCircle2,
+    Perfect: Diamond,
   }
-  return emojis[result] || '•'
+  return icons[result] || ArrowRight
 }
 
 function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
@@ -132,7 +132,7 @@ function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
             onClick={onClose}
             className="p-2 hover:bg-gray-800 rounded transition text-gray-400 hover:text-white"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -168,7 +168,9 @@ function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
           {/* Chapters */}
           <div className="space-y-3">
             <h3 className="text-lg font-bold mb-4">Your Journey</h3>
-            {data.chapters.map((chapter) => (
+            {data.chapters.map((chapter) => {
+              const ResultIcon = getPerformanceIcon(chapter.result)
+              return (
               <div
                 key={chapter.number}
                 className="border border-gray-700 rounded-lg overflow-hidden hover:border-gray-600 transition bg-gray-900/50"
@@ -183,7 +185,7 @@ function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-sm font-bold text-gray-400 w-8">#{chapter.number}</span>
                       <span className={`px-2 py-1 rounded text-xs font-bold ${getPerformanceColor(chapter.result)}`}>
-                        {getPerformanceEmoji(chapter.result)} {chapter.result}
+                        <ResultIcon className="mr-1 inline-block h-3.5 w-3.5" aria-hidden="true" />{chapter.result}
                       </span>
                     </div>
                     <div className="flex-1">
@@ -192,7 +194,7 @@ function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
                     </div>
                   </div>
                   <div className={`transform transition ${expandedChapter === chapter.number ? 'rotate-180' : ''}`}>
-                    <span className="text-gray-400">▼</span>
+                    <ChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
                   </div>
                 </button>
 
@@ -202,7 +204,7 @@ function DiveStory({ diveCode, height, onClose }: DiveStoryProps) {
                   </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
 
           {/* Closing */}

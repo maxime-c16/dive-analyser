@@ -1,0 +1,574 @@
+MM .env
+ D BOOTSTRAP.md
+A  DD_DYNAMIC_CALCULATION_PLAN.md
+A  DD_IMPLEMENTATION_DELIVERY.md
+A  DD_IMPLEMENTATION_INDEX.md
+A  DD_IMPLEMENTATION_QUICK_REF.md
+A  DD_IMPLEMENTATION_SUMMARY.md
+A  DD_PROGRESSION_FIX_COMPLETE.md
+A  DEPLOYMENT_SUCCESS.md
+A  EXECUTION_SUMMARY.md
+A  FIXES_APPLIED.md
+A  FRONTEND_FIXES.md
+A  HEIGHT_NORMALIZATION_ANSWER.md
+A  HEIGHT_NORMALIZATION_EXPLAINED.md
+A  HEIGHT_NORMALIZATION_FLOW_DIAGRAM.md
+A  PHASE_1_2_COMPLETE_SUMMARY.md
+A  PHASE_1_2_DELIVERY.md
+A  PHASE_1_COMPLETE_AWAITING_NEXT_PHASE.md
+A  PHASE_1_TICKET_1_COMPLETE.md
+A  PSYCHOLOGY_TAB_ANALYSIS.md
+A  PSYCHOLOGY_TAB_FINAL_FIX_REPORT.md
+A  PSYCHOLOGY_TAB_FIXES_COMPLETE.md
+A  ROOT_CAUSE_ANALYSIS.md
+A  TICKETS_2_TO_9_COMPLETE.md
+A  TICKET_1_COMPLETE.md
+A  TICKET_1_LOAD_COMPONENTS.md
+A  TICKET_1_READY_FOR_TICKET_2.md
+A  TROUBLESHOOTING.md
+ D backend/._.env.example
+ D backend/._Dockerfile
+ D backend/._PERFORMANCE_TESTING.md
+ D backend/._app
+ D backend/._conftest.py
+ D backend/._legacy_scripts
+ D backend/._logs
+ D backend/._migrations
+ D backend/._reports
+ D backend/._requirements.txt
+ D backend/._scripts
+ D backend/._test_api_integration.py
+ D backend/._test_journey_api.py
+ D backend/._test_milestones.py
+ D backend/._tests
+MM backend/.env.example
+ M backend/Dockerfile
+ M backend/__pycache__/conftest.cpython-311-pytest-7.2.1.pyc
+M  backend/__pycache__/conftest.cpython-311-pytest-7.4.3.pyc
+ D backend/app/.___init__.py
+ D backend/app/.___pycache__
+ D backend/app/._api
+ D backend/app/._config.py
+ D backend/app/._data
+ D backend/app/._database.py
+ D backend/app/._main.py
+ D backend/app/._models
+ D backend/app/._schemas
+ D backend/app/._security
+ D backend/app/._security.py
+ D backend/app/._services
+MM backend/app/__pycache__/__init__.cpython-311.pyc
+MM backend/app/__pycache__/config.cpython-311.pyc
+MM backend/app/__pycache__/database.cpython-311.pyc
+MM backend/app/__pycache__/main.cpython-311.pyc
+MM backend/app/__pycache__/security.cpython-311.pyc
+ D backend/app/api/.___init__.py
+ D backend/app/api/.___pycache__
+ D backend/app/api/._v1
+MM backend/app/api/__pycache__/__init__.cpython-311.pyc
+ D backend/app/api/v1/.___init__.py
+ D backend/app/api/v1/.___pycache__
+ D backend/app/api/v1/._analytics.py
+ D backend/app/api/v1/._dd_operations.py
+ D backend/app/api/v1/._dive_codes.py
+ D backend/app/api/v1/._execution.py
+ D backend/app/api/v1/._health.py
+ D backend/app/api/v1/._import_data.py
+ D backend/app/api/v1/._journey.py
+ D backend/app/api/v1/._psychology.py
+ D backend/app/api/v1/._scoring.py
+ D backend/app/api/v1/._videos.py
+ D backend/app/api/v1/._ws_sync.py
+MM backend/app/api/v1/__init__.py
+MM backend/app/api/v1/__pycache__/__init__.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/analytics.cpython-311.pyc
+A  backend/app/api/v1/__pycache__/dd_calc.cpython-311.pyc
+A  backend/app/api/v1/__pycache__/dd_components.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/dd_operations.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/dive_codes.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/dives.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/execution.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/health.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/import_data.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/journey.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/psychology.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/sessions.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/videos.cpython-311.pyc
+MM backend/app/api/v1/__pycache__/ws_sync.cpython-311.pyc
+ M backend/app/api/v1/analytics.py
+AD backend/app/api/v1/dd_calc.py
+AD backend/app/api/v1/dd_components.py
+ M backend/app/api/v1/dd_operations.py
+ M backend/app/api/v1/dives.py
+ M backend/app/api/v1/health.py
+ M backend/app/api/v1/journey.py
+ M backend/app/api/v1/sessions.py
+ M backend/app/api/v1/videos.py
+ M backend/app/config.py
+ D backend/app/data/._fina_official_dive_codes.json
+AD backend/app/data/diving_dd_components.json
+ M backend/app/database.py
+ M backend/app/main.py
+AD backend/app/migrations/versions/dd_component_001_add_dd_component_reference_table.py
+ D backend/app/models/.___init__.py
+ D backend/app/models/.___pycache__
+ D backend/app/models/._audit.py
+ D backend/app/models/._cache.py
+ D backend/app/models/._competition_event.py
+ D backend/app/models/._dd_lookup.py
+ D backend/app/models/._dive.py
+ D backend/app/models/._dive_code.py
+ D backend/app/models/._emotional_state.py
+ D backend/app/models/._execution_fault.py
+ D backend/app/models/._fina_dive_code.py
+ D backend/app/models/._fina_scoring_rule.py
+ D backend/app/models/._job.py
+ D backend/app/models/._journey.py
+ D backend/app/models/._judge_score.py
+ D backend/app/models/._migration_log.py
+ D backend/app/models/._session.py
+MM backend/app/models/__init__.py
+MM backend/app/models/__pycache__/__init__.cpython-311.pyc
+MM backend/app/models/__pycache__/audit.cpython-311.pyc
+MM backend/app/models/__pycache__/cache.cpython-311.pyc
+MM backend/app/models/__pycache__/competition_event.cpython-311.pyc
+A  backend/app/models/__pycache__/dd_component_reference.cpython-311.pyc
+MM backend/app/models/__pycache__/dd_lookup.cpython-311.pyc
+MM backend/app/models/__pycache__/dive.cpython-311.pyc
+MM backend/app/models/__pycache__/dive_code.cpython-311.pyc
+MM backend/app/models/__pycache__/emotional_state.cpython-311.pyc
+MM backend/app/models/__pycache__/execution_fault.cpython-311.pyc
+MM backend/app/models/__pycache__/fina_dive_code.cpython-311.pyc
+MM backend/app/models/__pycache__/fina_scoring_rule.cpython-311.pyc
+MM backend/app/models/__pycache__/job.cpython-311.pyc
+MM backend/app/models/__pycache__/journey.cpython-311.pyc
+MM backend/app/models/__pycache__/judge_score.cpython-311.pyc
+MM backend/app/models/__pycache__/migration_log.cpython-311.pyc
+MM backend/app/models/__pycache__/session.cpython-311.pyc
+AD backend/app/models/dd_component_reference.py
+ M backend/app/models/dive.py
+ M backend/app/models/session.py
+ D backend/app/schemas/.___init__.py
+ D backend/app/schemas/.___pycache__
+ D backend/app/schemas/._dd_calculation.py
+ D backend/app/schemas/._dive.py
+ D backend/app/schemas/._dive_code.py
+ D backend/app/schemas/._job.py
+ D backend/app/schemas/._session.py
+ D backend/app/schemas/._video_sync.py
+MM backend/app/schemas/__pycache__/__init__.cpython-311.pyc
+A  backend/app/schemas/__pycache__/dd_components.cpython-311.pyc
+MM backend/app/schemas/__pycache__/dive.cpython-311.pyc
+MM backend/app/schemas/__pycache__/dive_code.cpython-311.pyc
+MM backend/app/schemas/__pycache__/session.cpython-311.pyc
+MM backend/app/schemas/__pycache__/video_sync.cpython-311.pyc
+AD backend/app/schemas/dd_components.py
+ M backend/app/schemas/video_sync.py
+ D backend/app/security/._validators.py
+ D backend/app/services/.___init__.py
+ D backend/app/services/.___pycache__
+ D backend/app/services/._audit_log.py
+ D backend/app/services/._data_integrity_validator.py
+ D backend/app/services/._dd_auto_assign.py
+ D backend/app/services/._dd_calculator.py
+ D backend/app/services/._dd_lookup_manager.py
+ D backend/app/services/._dive_code_parser.py
+ D backend/app/services/._dive_code_validator.py
+ D backend/app/services/._event_manager.py
+ D backend/app/services/._execution_analyzer.py
+ D backend/app/services/._execution_fault_detector.py
+ D backend/app/services/._fear_analyzer.py
+ D backend/app/services/._fina_validator.py
+ D backend/app/services/._import_service.py
+ D backend/app/services/._journey_service.py
+ D backend/app/services/._migration_service.py
+ D backend/app/services/._milestones.py
+ D backend/app/services/._performance_scorer.py
+ D backend/app/services/._phase_validator.py
+ D backend/app/services/._results_aggregator.py
+ D backend/app/services/._sync_status.py
+ D backend/app/services/._ws_client.py
+MM backend/app/services/__pycache__/__init__.cpython-311.pyc
+MM backend/app/services/__pycache__/analytics_service.cpython-311.pyc
+MM backend/app/services/__pycache__/audit_log.cpython-311.pyc
+M  backend/app/services/__pycache__/data_integrity_validator.cpython-311.pyc
+MM backend/app/services/__pycache__/dd_auto_assign.cpython-311.pyc
+MM backend/app/services/__pycache__/dd_calculator.cpython-311.pyc
+A  backend/app/services/__pycache__/dd_component_loader.cpython-311.pyc
+MM backend/app/services/__pycache__/dd_lookup_manager.cpython-311.pyc
+MM backend/app/services/__pycache__/dive_code_parser.cpython-311.pyc
+MM backend/app/services/__pycache__/dive_code_validator.cpython-311.pyc
+ M backend/app/services/__pycache__/execution_analyzer.cpython-311.pyc
+MM backend/app/services/__pycache__/execution_fault_detector.cpython-311.pyc
+MM backend/app/services/__pycache__/fear_analyzer.cpython-311.pyc
+MM backend/app/services/__pycache__/fina_validator.cpython-311.pyc
+MM backend/app/services/__pycache__/import_service.cpython-311.pyc
+MM backend/app/services/__pycache__/journey_service.cpython-311.pyc
+M  backend/app/services/__pycache__/migration_service.cpython-311.pyc
+MM backend/app/services/__pycache__/milestones.cpython-311.pyc
+MM backend/app/services/__pycache__/phase_validator.cpython-311.pyc
+MM backend/app/services/__pycache__/sync_status.cpython-311.pyc
+ M backend/app/services/analytics_service.py
+ M backend/app/services/dd_auto_assign.py
+MM backend/app/services/dd_calculator.py
+AD backend/app/services/dd_component_loader.py
+MM backend/app/services/dive_code_parser.py
+ M backend/app/services/execution_fault_detector.py
+ M backend/app/services/fear_analyzer.py
+ M backend/app/services/fina_validator.py
+ M backend/app/services/import_service.py
+ M backend/app/services/milestones.py
+ M backend/app/services/performance_scorer.py
+ M backend/conftest.py
+ D backend/logs/._audit
+ D backend/logs/audit/._audit_20260131.jsonl
+ D backend/migrations/._add_fina_integration_sprint1.sql
+ D backend/migrations/._add_journey_tables.sql
+ D backend/migrations/._add_phase_performance_columns.sql
+ D backend/migrations/._add_sync_tracking.sql
+ D backend/migrations/._init.sql
+ D backend/migrations/._sample_data.sql
+ D backend/migrations/00_init_user_and_db.sql
+ M backend/migrations/init.sql
+ D backend/scripts/._README.md
+ D backend/scripts/._SEED_COMPETITION_DATA.md
+ D backend/scripts/.___pycache__
+ D backend/scripts/._migrate_dd_values.py
+ D backend/scripts/._seed_competition_data.py
+ D backend/scripts/._test_competition_queries.py
+AD backend/scripts/init_dd_components.py
+AD backend/scripts/populate_dd_lookups.py
+AD backend/scripts/populate_fina_codes.py
+ D backend/tests/.___init__.py
+ D backend/tests/._fixtures.py
+ D backend/tests/._mock_server.py
+ D backend/tests/._test_data_integrity.py
+ D backend/tests/._test_e2e_sync_to_ui.py
+ D backend/tests/._test_fina_sprint1_foundation.py
+ D backend/tests/._test_fina_sprint2_dive_codes.py
+ D backend/tests/._test_fina_sprint3_dd.py
+ D backend/tests/._test_fina_sprint4_scoring.py
+ D backend/tests/._test_fina_sprint5_execution.py
+ D backend/tests/._test_fina_sprint6_migration.py
+ D backend/tests/._test_fina_sprint7_events.py
+ D backend/tests/._test_fina_sprint8_results.py
+ D backend/tests/._test_integration_mac_agent_sync.py
+ D backend/tests/._test_load_concurrent.py
+ D backend/tests/._test_milestone_two_phase.py
+ D backend/tests/._test_performance_sync.py
+ D backend/tests/._test_video_sync.py
+ D backend/tests/._test_websocket_sync.py
+ M backend/tests/fixtures.py
+AD backend/tests/test_dd_calculator_tickets_2_to_9.py
+AD backend/tests/test_dd_component_loader.py
+AD backend/tests/test_dd_components_endpoint.py
+ M backend/tests/test_fina_sprint2_dive_codes.py
+ M backend/tests/test_fina_sprint3_dd.py
+ M backend/tests/test_fina_sprint4_scoring.py
+ M backend/tests/test_fina_sprint5_execution.py
+ M backend/tests/test_fina_sprint6_migration.py
+ M backend/tests/test_integration_mac_agent_sync.py
+ M backend/tests/test_video_sync.py
+A  diagnostics.sh
+MM docker-compose.yml
+MM frontend/Dockerfile
+ D frontend/capture-errors.js
+ D frontend/e2e/console-errors.spec.ts
+ D frontend/index.css
+ M frontend/package-lock.json
+ M frontend/package.json
+ M frontend/src/App.css
+ M frontend/src/components/AvoidedDives.tsx
+ D frontend/src/components/CompetitionEventSetup.tsx
+ D frontend/src/components/CompetitionResults.tsx
+ D frontend/src/components/CompetitionScoring.tsx
+ D frontend/src/components/ComplianceDashboard.tsx
+ M frontend/src/components/DDProgressionChart.tsx
+ D frontend/src/components/DegreeOfDifficultyDisplay.tsx
+ D frontend/src/components/DiveCodeInfo.tsx
+ M frontend/src/components/DiveStory.tsx
+ M frontend/src/components/DiveVideoPlayer.tsx
+AD frontend/src/components/EmotionTrackingModal.tsx
+ M frontend/src/components/EmotionalStateCapture.tsx
+ M frontend/src/components/JourneyNarrative.tsx
+ M frontend/src/components/JourneyTimeline.tsx
+ M frontend/src/components/JourneyWithSync.tsx
+MD frontend/src/components/MentalBlockAnalysis.tsx
+MM frontend/src/components/MentalBlockIndicator.tsx
+ M frontend/src/components/RecentProgress.tsx
+ D frontend/src/components/RecoveryPlanDisplay.tsx
+ M frontend/src/components/SessionDetail.tsx
+ M frontend/src/components/SessionDirectionIndicator.tsx
+ M frontend/src/contexts/SyncStatusContext.tsx
+ M frontend/src/hooks/useSyncStatus.ts
+ M frontend/src/index.css
+ M frontend/src/pages/Analytics.tsx
+ D frontend/src/pages/CompetitionHub.tsx
+ M frontend/src/pages/Dashboard.tsx
+ M frontend/src/pages/Dives.tsx
+MM frontend/src/pages/Journey.tsx
+ M frontend/src/pages/Sessions.tsx
+ M frontend/src/router.tsx
+MM frontend/vite.config.ts
+A  health-check.sh
+ M nginx/conf.d/default.conf
+ M nginx/nginx.conf
+A  playwright-psychology-test.spec.ts
+A  reports/dive_metadata_20260126.json
+A  test-fixes.sh
+A  test-psychology-tab.js
+A  test-results/.last-run.json
+?? ._docker-compose.yml
+?? ._frontend
+?? .codex-backup-20260812-1129/
+?? .codex-backup-20260812-1134/
+?? ACCURATE_WIRING_STATUS.md
+?? BUG_REPRODUCTION_REPORT.md
+?? BUG_TESTING_REPORT.md
+?? BUG_TESTING_SUMMARY.md
+?? COMPLETE_FEATURE_MATRIX.md
+?? COMPLETE_TOUR_WHERE_TO_FIND.md
+?? COMPLETE_WORKFLOW_GUIDE.md
+?? COMPLETION_CHECKLIST.md
+?? CSS_SAFETY_AUDIT.md
+?? DD_UI_TOUR_AND_ACCESS_GUIDE.md
+?? DELIVERY_SUMMARY.md
+?? DEMO_AND_COOLNESS_FACTOR.md
+?? DOCUMENTATION_INDEX.md
+?? EVENT_TYPE_LOCKING.md
+?? FINAL_PROJECT_STATUS.md
+?? FINAL_STATUS_COMPLETE.md
+?? FINAL_STATUS_RECOVERED.md
+?? FINAL_STATUS_REPORT.md
+?? FINAL_SYSTEM_STATUS.md
+?? FINAL_WIRING_ASSESSMENT.md
+?? HMR_RESOLUTION.md
+?? IMPLEMENTATION_ROADMAP.md
+?? IMPROVED_DIVE_SELECTION.md
+?? MASTER_COMPLETION_REPORT.md
+?? MASTER_IMPLEMENTATION_SUMMARY.md
+?? PHASE_2_3_4_DETAILED_GUIDE.md
+?? POLISH_COMPLETE_FINAL_STATUS.md
+?? PROJECT_COMPLETE.txt
+?? PROJECT_COMPLETION_SUMMARY.md
+?? QUICK_REFERENCE_P3_P4.md
+?? QUICK_TOUR.md
+?? README_DD_ENGINE.md
+?? README_PROJECT_COMPLETE.md
+?? SCORING_FIX_VERIFIED.md
+?? SCORING_TAB_FIX.md
+?? SYSTEM_STATUS_AND_ACCESS.md
+?? TESTING_DOCUMENTATION_INDEX.md
+?? UI_DATA_MISMATCH_REPORT.md
+?? WIRING_ASSESSMENT_SUMMARY.txt
+?? WIRING_GUIDE_3_FEATURES.md
+?? WIRING_STATUS_REPORT.md
+?? WORKFLOW_ERROR_TESTING_REPORT.md
+?? WORKFLOW_FIX_COMPLETE.md
+?? WORKFLOW_FIX_SUMMARY.md
+?? backend/.DS_Store
+?? backend/add_media_resolution_upgrade_runs.sql
+?? backend/app/api/v1/._media.py
+?? backend/app/api/v1/__pycache__/admin.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/dive_analysis.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/divers.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/events.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/media.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/personal_dive_value.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/scoring.cpython-311.pyc
+?? backend/app/api/v1/__pycache__/training_periods.cpython-311.pyc
+?? backend/app/api/v1/dive_analysis.py
+?? backend/app/api/v1/divers.py
+?? backend/app/api/v1/media.py
+?? backend/app/api/v1/personal_dive_value.py
+?? backend/app/api/v1/training_periods.py
+?? backend/app/migrations/versions/__pycache__/
+?? backend/app/models/__pycache__/dive_modifier.cpython-311.pyc
+?? backend/app/models/__pycache__/diver.cpython-311.pyc
+?? backend/app/models/__pycache__/media.cpython-311.pyc
+?? backend/app/models/__pycache__/media_catalog.cpython-311.pyc
+?? backend/app/models/__pycache__/photos_asset.cpython-311.pyc
+?? backend/app/models/__pycache__/quick_event.cpython-311.pyc
+?? backend/app/models/__pycache__/training_period.cpython-311.pyc
+?? backend/app/models/__pycache__/video_label.cpython-311.pyc
+?? backend/app/models/dive_modifier.py
+?? backend/app/models/diver.py
+?? backend/app/models/media.py
+?? backend/app/models/media_catalog.py
+?? backend/app/models/photos_asset.py
+?? backend/app/models/training_period.py
+?? backend/app/models/video_label.py
+?? backend/app/schemas/__pycache__/dd_calculation.cpython-311.pyc
+?? backend/app/schemas/__pycache__/job.cpython-311.pyc
+?? backend/app/schemas/__pycache__/media.cpython-311.pyc
+?? backend/app/schemas/media.py
+?? backend/app/security/__pycache__/
+?? backend/app/services/._difficulty_adjustment.py
+?? backend/app/services/._dive_analysis_cache.py
+?? backend/app/services/._dive_analysis_service.py
+?? backend/app/services/._media_jobs.py
+?? backend/app/services/__pycache__/dd_assignment.cpython-311.pyc
+?? backend/app/services/__pycache__/dd_overview_service.cpython-311.pyc
+?? backend/app/services/__pycache__/difficulty_adjustment.cpython-311.pyc
+?? backend/app/services/__pycache__/dive_analysis_cache.cpython-311.pyc
+?? backend/app/services/__pycache__/dive_analysis_service.cpython-311.pyc
+?? backend/app/services/__pycache__/dive_eligibility.cpython-311.pyc
+?? backend/app/services/__pycache__/diver_identity.cpython-311.pyc
+?? backend/app/services/__pycache__/event_manager.cpython-311.pyc
+?? backend/app/services/__pycache__/media_agents.cpython-311.pyc
+?? backend/app/services/__pycache__/media_cache.cpython-311.pyc
+?? backend/app/services/__pycache__/media_catalog.cpython-311.pyc
+?? backend/app/services/__pycache__/media_jobs.cpython-311.pyc
+?? backend/app/services/__pycache__/media_keys.cpython-311.pyc
+?? backend/app/services/__pycache__/media_recall.cpython-311.pyc
+?? backend/app/services/__pycache__/media_resolution_upgrade.cpython-311.pyc
+?? backend/app/services/__pycache__/operations_status.cpython-311.pyc
+?? backend/app/services/__pycache__/performance_scorer.cpython-311.pyc
+?? backend/app/services/__pycache__/performance_scoring.cpython-311.pyc
+?? backend/app/services/__pycache__/person_identity.cpython-311.pyc
+?? backend/app/services/__pycache__/personal_dive_value.cpython-311.pyc
+?? backend/app/services/__pycache__/representative_media.cpython-311.pyc
+?? backend/app/services/__pycache__/representative_population.cpython-311.pyc
+?? backend/app/services/__pycache__/results_aggregator.cpython-311.pyc
+?? backend/app/services/__pycache__/session_stats.cpython-311.pyc
+?? backend/app/services/__pycache__/world_aquatics_dd.cpython-311.pyc
+?? backend/app/services/__pycache__/ws_client.cpython-311.pyc
+?? backend/app/services/dd_overview_service.py
+?? backend/app/services/difficulty_adjustment.py
+?? backend/app/services/dive_analysis_cache.py
+?? backend/app/services/dive_analysis_service.py
+?? backend/app/services/dive_eligibility.py
+?? backend/app/services/diver_identity.py
+?? backend/app/services/media_agents.py
+?? backend/app/services/media_cache.py
+?? backend/app/services/media_catalog.py
+?? backend/app/services/media_jobs.py
+?? backend/app/services/media_keys.py
+?? backend/app/services/media_recall.py
+?? backend/app/services/media_resolution_upgrade.py
+?? backend/app/services/operations_status.py
+?? backend/app/services/performance_scoring.py
+?? backend/app/services/personal_dive_value.py
+?? backend/app/services/representative_media.py
+?? backend/app/services/representative_population.py
+?? backend/app/services/world_aquatics_dd.py
+?? backend/media_cache.py
+?? backend/media_resolution_upgrade.py
+?? backend/migrations/00_init_user_and_db.sql.bak
+?? backend/migrations/add_captioned_media_catalog.sql
+?? backend/migrations/add_divers_and_training_periods.sql
+?? backend/migrations/add_internal_media_storage_status.sql
+?? backend/migrations/add_media_agents_and_recalled_sources.sql
+?? backend/migrations/add_media_cache_and_jobs.sql
+?? backend/migrations/add_media_population_runs.sql
+?? backend/migrations/add_media_resolution_upgrade_runs.sql
+?? backend/migrations/add_official_dd_provenance.sql
+?? backend/migrations/add_photos_asset_agent_identities.sql
+?? backend/migrations/add_photos_assets_and_dive_modifiers.sql
+?? backend/migrations/add_representative_media_selections.sql
+?? backend/migrations/add_video_labels.sql
+?? backend/migrations/alter_media_resolution_upgrade_items_allow_direct_720.sql
+?? backend/migrations/backfill_dive_positions_from_code.sql
+?? backend/migrations/backfill_photos_assets_from_dives.sql
+?? backend/scripts/__pycache__/repair_dive_metadata.cpython-311.pyc
+?? backend/scripts/backfill_formula_dd.py
+?? backend/scripts/reconcile_official_dd.py
+?? backend/tests/._test_dive_analysis_api.py
+?? backend/tests/._test_dive_analysis_service.py
+?? backend/tests/._test_session_diver_scope.py
+?? backend/tests/test_dive_analysis_api.py
+?? backend/tests/test_dive_analysis_service.py
+?? backend/tests/test_divers.py
+?? backend/tests/test_emotional_state.py
+?? backend/tests/test_fear_analyzer.py
+?? backend/tests/test_media_catalog.py
+?? backend/tests/test_media_deployment_blockers.py
+?? backend/tests/test_media_node.py
+?? backend/tests/test_personal_dive_value.py
+?? backend/tests/test_recovery_plans.py
+?? backend/tests/test_representative_media.py
+?? backend/tests/test_representative_population.py
+?? backend/tests/test_session_diver_scope.py
+?? backend/tests/test_training_periods.py
+?? backups/
+?? comprehensive_bug_report.py
+?? divesensei-pre-media-rollout.dump
+?? docs/._PER_DIVE_INTELLIGENCE_V2.md
+?? docs/._degree-of-difficulty.md
+?? docs/PER_DIVE_INTELLIGENCE_V2.md
+?? docs/captioned-media-catalog.md
+?? docs/degree-of-difficulty.md
+?? docs/full-media-population-run.md
+?? docs/internal-ssd-media-policy.md
+?? docs/internal-ssd-stress-operation.md
+?? docs/mac-media-node-cutover.md
+?? docs/mac-media-node-operations.md
+?? docs/mac-media-node-rollback.md
+?? docs/mac-media-node.md
+?? docs/media-population-recovery.md
+?? docs/media-source-retention.md
+?? docs/media-source-vault.md
+?? docs/new-video-auto-ingestion.md
+?? docs/selective-media-recall.md
+?? frontend/.DS_Store
+?? frontend/.codex-desktop.mjs
+?? frontend/.codex-ui-capture.mjs
+?? frontend/.dockerignore
+?? frontend/Dockerfile.deploy
+?? frontend/dist/
+?? frontend/e2e/fixtures/
+?? frontend/e2e/helpers/
+?? frontend/e2e/tests/
+?? frontend/nginx.conf
+?? frontend/node_modules/
+?? frontend/playwright-report/
+?? frontend/src/components/._AvoidedDives.tsx
+?? frontend/src/components/._DiveStory.tsx
+?? frontend/src/components/._EmotionalStateCapture.tsx
+?? frontend/src/components/._JourneyNarrative.tsx
+?? frontend/src/components/._MentalBlockIndicator.tsx
+?? frontend/src/components/._RecentProgress.tsx
+?? frontend/src/components/._SessionDetail.tsx
+?? frontend/src/components/._SessionDirectionIndicator.tsx
+?? frontend/src/components/DDWorkspace.tsx
+?? frontend/src/components/DiveVideoPlayer.test.tsx
+?? frontend/src/components/PersonalDiveValuePanel.test.tsx
+?? frontend/src/components/PersonalDiveValuePanel.tsx
+?? frontend/src/hooks/usePreservedSearchParams.ts
+?? frontend/src/hooks/useSyncStatus.test.tsx
+?? frontend/src/pages/._Analytics.tsx
+?? frontend/src/pages/._Dashboard.tsx
+?? frontend/src/pages/._DiveAnalysis.test.tsx
+?? frontend/src/pages/._DiveAnalysis.tsx
+?? frontend/src/pages/._Dives.tsx
+?? frontend/src/pages/._Journey.tsx
+?? frontend/src/pages/._Sessions.tsx
+?? frontend/src/pages/Admin.tsx
+?? frontend/src/pages/DiveAnalysis.test.tsx
+?? frontend/src/pages/DiveAnalysis.tsx
+?? frontend/src/pages/Dives.test.tsx
+?? frontend/src/pages/MediaRecall.test.tsx
+?? frontend/src/pages/MediaRecall.tsx
+?? frontend/src/pages/RepresentativeMedia.test.tsx
+?? frontend/src/pages/RepresentativeMedia.tsx
+?? frontend/src/pages/index.css.transfer-check
+?? frontend/src/services/._diveAnalysisApi.ts
+?? frontend/src/services/ddApi.ts
+?? frontend/src/services/diveAnalysisApi.ts
+?? frontend/src/services/mediaApi.ts
+?? frontend/src/services/mediaRecallApi.ts
+?? frontend/src/services/operationsApi.ts
+?? frontend/src/services/personalDiveValueApi.ts
+?? frontend/src/services/representativeMediaApi.ts
+?? frontend/src/test/
+?? frontend/src/utils/divePosition.ts
+?? frontend/src/utils/performanceScoring.ts
+?? frontend/test-results/
+?? frontend/tests/
+?? logs/
+?? media/
+?? memory/
+?? nginx-pre-media-rollout.txt
+?? ops/
+?? test_bugs.sh
+?? test_bugs_api.py

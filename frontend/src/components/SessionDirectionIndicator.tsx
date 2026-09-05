@@ -3,6 +3,7 @@ import { api } from '../services/api'
 
 interface SessionDirectionIndicatorProps {
   sessionId: number
+  diverScope: 'self' | 'all'
 }
 
 const DIRECTION_NAMES: { [key: number]: string } = {
@@ -29,18 +30,18 @@ const DIRECTION_SHORT: { [key: number]: string } = {
   5: 'Twis.',
 }
 
-function SessionDirectionIndicator({ sessionId }: SessionDirectionIndicatorProps) {
+function SessionDirectionIndicator({ sessionId, diverScope }: SessionDirectionIndicatorProps) {
   const [directions, setDirections] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchDirections()
-  }, [sessionId])
+  }, [sessionId, diverScope])
 
   const fetchDirections = async () => {
     try {
       const response = await api.get('/api/v1/dives', {
-        params: { session_id: sessionId, limit: 100 },
+        params: { session_id: sessionId, limit: 100, diver_scope: diverScope },
       })
       const dives = response.data || []
       const uniqueDirections = Array.from(new Set(dives.map((d: any) => d.direction).filter((d: any) => d !== null)))

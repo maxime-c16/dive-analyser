@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../services/api'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface MentalBlock {
   type: 'dd_plateau' | 'repeated_failure' | 'avoided_dive'
@@ -22,7 +23,7 @@ function MentalBlockIndicator() {
   const fetchMentalBlocks = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/v1/psychology/mental-blocks')
+      const response = await api.get('/api/v1/journey/mental-blocks')
       setBlocks(response.data.blocks || [])
       setError(null)
     } catch (err) {
@@ -43,7 +44,7 @@ function MentalBlockIndicator() {
   if (blocks.length === 0) {
     return (
       <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-        <div className="text-green-400 font-bold">✅ No Mental Blocks Detected</div>
+        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />No Mental Blocks Detected</div>
         <p className="text-green-300 text-sm mt-1">
           You're progressing smoothly! Keep challenging yourself.
         </p>
@@ -68,7 +69,7 @@ function MentalBlockIndicator() {
             >
               <div className="text-left">
                 <div className="text-yellow-400 font-bold flex items-center gap-2">
-                  <span>⚠️</span>
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   {block.type === 'dd_plateau' && 'Difficulty Plateau'}
                   {block.type === 'repeated_failure' && 'Repeated Failure Pattern'}
                   {block.type === 'avoided_dive' && 'Avoided Dive'}
@@ -80,7 +81,7 @@ function MentalBlockIndicator() {
                 </div>
               </div>
               <div className="text-xl text-yellow-400 ml-4">
-                {isExpanded ? '▼' : '▶'}
+                {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
               </div>
             </button>
 
@@ -121,7 +122,7 @@ function MentalBlockIndicator() {
                 <div className="bg-green-500/10 border border-green-500/30 rounded p-3">
                   <p className="text-green-300 text-sm">
                     <strong>Remember:</strong> Mental blocks are natural and temporary. Every breakthrough starts with
-                    facing a challenge. You've overcome obstacles before—you can do this too! 💪
+                    facing a challenge. You've overcome obstacles before; you can do this too.
                   </p>
                 </div>
 

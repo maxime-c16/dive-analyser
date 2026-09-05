@@ -89,8 +89,8 @@ class TestMacAgentSingleVideoSync:
         assert data["dive_id"] is not None
         assert "synced successfully" in data["message"]
 
-    def test_sync_duplicate_video_returns_409(self, client, db):
-        """Test that syncing same video twice returns 409 (duplicate)."""
+    def test_sync_duplicate_video_updates_idempotently(self, client, db):
+        """Test that syncing same video twice updates idempotently."""
         request_data = {
             "video_uuid": "uuid-duplicate-1234567890abcdefg",
             "dive_code": "201C",
@@ -105,13 +105,12 @@ class TestMacAgentSingleVideoSync:
         response1 = client.post("/api/v1/videos/sync", json=request_data)
         assert response1.status_code == 201
 
-        # Second sync with same UUID
+        # Second sync with same UUID.
         response2 = client.post("/api/v1/videos/sync", json=request_data)
-        # Per the endpoint, duplicates return 200 (idempotent) not 409
         assert response2.status_code == 201
         data = response2.json()
         assert data["created"] is False
-        assert "duplicate" in data["message"].lower()
+        assert "up to date" in data["message"].lower() or "updated" in data["message"].lower()
 
     def test_sync_with_two_phase_scoring(self, client, db):
         """Test sync with two-phase performance scoring."""
@@ -251,8 +250,8 @@ class TestMacAgentBatchSync:
         # One should succeed, one should fail validation
         assert data["failed"] > 0
 
-    def test_batch_with_duplicates(self, client, db):
-        """Test batch with duplicate videos."""
+    def test_batch_with_duplicates_updates_idempotently(self, client, db):
+        """Test batch duplicate UUIDs are idempotent updates."""
         video_uuid = "uuid-dup-batch-1234567890abcdefghijk"
         request_data = {
             "videos": [
@@ -264,7 +263,7 @@ class TestMacAgentBatchSync:
                     "date": "2026-01-31T12:00:00",
                 },
                 {
-                    "video_uuid": video_uuid,  # Duplicate
+                    "video_uuid": video_uuid,  # Existing UUID updates in place.
                     "dive_code": "101B",
                     "performance": "G",
                     "height": "1m",
@@ -278,8 +277,8 @@ class TestMacAgentBatchSync:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
-        # First succeeds, second should be duplicate
-        assert data["failed"] >= 1
+        assert data["succeeded"] == 2
+        assert data["failed"] == 0
 
     def test_batch_large_size(self, client, db):
         """Test batch sync with near-max size (100+ videos)."""

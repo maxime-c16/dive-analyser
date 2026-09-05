@@ -24,6 +24,8 @@ from enum import Enum
 from collections import defaultdict
 import statistics
 
+from app.services.performance_scoring import athlete_score_10, attempt_score_10, is_excellent, is_success
+
 
 class MilestoneType(Enum):
     """Types of meaningful moments in a diver's journey."""
@@ -126,21 +128,21 @@ class DiveAttempt:
     phase2_performance: Optional[str] = None  # Opening + Entry
 
     @property
-    def performance_value(self) -> int:
-        return {'F': 0, 'B': 1, 'M': 2, 'G': 3, 'P': 4}.get(self.performance, 0)
+    def performance_value(self) -> float:
+        return attempt_score_10(self.performance, self.phase1_performance, self.phase2_performance)
 
     @property
-    def phase1_value(self) -> Optional[int]:
+    def phase1_value(self) -> Optional[float]:
         """Numeric value for Phase 1 (hurdle + flight)."""
         if self.phase1_performance:
-            return {'F': 0, 'B': 1, 'M': 2, 'G': 3, 'P': 4}.get(self.phase1_performance, 0)
+            return athlete_score_10(self.phase1_performance)
         return None
 
     @property
-    def phase2_value(self) -> Optional[int]:
+    def phase2_value(self) -> Optional[float]:
         """Numeric value for Phase 2 (opening + entry)."""
         if self.phase2_performance:
-            return {'F': 0, 'B': 1, 'M': 2, 'G': 3, 'P': 4}.get(self.phase2_performance, 0)
+            return athlete_score_10(self.phase2_performance)
         return None
 
     @property
@@ -151,15 +153,15 @@ class DiveAttempt:
     @property
     def is_success(self) -> bool:
         """M or better is a success."""
-        return self.performance_value >= 2
+        return is_success(self.performance)
 
     @property
     def is_good(self) -> bool:
-        return self.performance_value >= 3
+        return is_excellent(self.performance)
 
     @property
     def is_perfect(self) -> bool:
-        return self.performance_value == 4
+        return self.performance == "P"
 
     @property
     def phase1_description(self) -> str:
@@ -226,51 +228,51 @@ class MilestoneDetector:
         if not attempt.is_two_phase:
             return None
 
-        phase1_val = attempt.phase1_value
-        phase2_val = attempt.phase2_value
+        phase1 = attempt.phase1_performance
+        phase2 = attempt.phase2_performance
 
         # P/P: Perfect execution
-        if phase1_val == 4 and phase2_val == 4:
+        if phase1 == "P" and phase2 == "P":
             return "💎 Perfect execution: Both phases flawless. This is competition-ready."
 
         # P/G: Strong flight, good entry
-        elif phase1_val == 4 and phase2_val == 3:
+        elif phase1 == "P" and phase2 == "G":
             return "✈️ Excellent flight, solid entry. Minor adjustments to entry could achieve perfect."
 
         # P/M: Strong flight, medium entry
-        elif phase1_val == 4 and phase2_val == 2:
+        elif phase1 == "P" and phase2 == "M":
             return "🎯 Flight is perfect; focus on entry control and body awareness on entry."
 
         # P/B or P/F: Good flight but entry needs work
-        elif phase1_val == 4 and phase2_val <= 1:
+        elif phase1 == "P" and phase2 in {"B", "F"}:
             return "🎯 Your takeoff is excellent, but entry control needs development. Practice water entry positioning."
 
         # G/P: Solid flight, great recovery
-        elif phase1_val == 3 and phase2_val == 4:
+        elif phase1 == "G" and phase2 == "P":
             return "🦾 Resilient execution: Good flight but excellent recovery shows great adaptability."
 
         # G/G: Consistent, reliable
-        elif phase1_val == 3 and phase2_val == 3:
+        elif phase1 == "G" and phase2 == "G":
             return "📊 Consistent execution: Both phases solid. Continue building refinement."
 
         # G/M or G/B: Good flight, inconsistent entry
-        elif phase1_val == 3 and phase2_val <= 2:
+        elif phase1 == "G" and phase2 in {"M", "B", "F"}:
             return "📊 Flight is solid. Entry consistency needs work—focus on timing and body position."
 
         # M/P: Weak flight, great recovery
-        elif phase1_val == 2 and phase2_val == 4:
+        elif phase1 == "M" and phase2 == "P":
             return "🦾 Remarkable recovery: Despite weak flight, excellent entry shows advanced adaptability."
 
         # M/M: Both need work
-        elif phase1_val == 2 and phase2_val == 2:
+        elif phase1 == "M" and phase2 == "M":
             return "🔧 Both phases show room for improvement. Target flight mechanics and entry control."
 
         # M/G or M/F: Weak flight, decent entry
-        elif phase1_val == 2 and phase2_val in [1, 3]:
+        elif phase1 == "M" and phase2 in {"B", "G"}:
             return "🔧 Flight needs development. Your entry timing is good—strengthen the takeoff."
 
         # F: Failed phase
-        elif phase1_val == 0 or phase2_val == 0:
+        elif phase1 == "F" or phase2 == "F":
             return "💪 One phase challenging. Identify which phase and focus training there."
 
         return None
@@ -614,8 +616,8 @@ class MilestoneDetector:
             avg = statistics.mean(perfs)
             std = statistics.stdev(perfs) if len(perfs) > 1 else 0
 
-            # CONSISTENCY_ACHIEVED: Low variance, high mean
-            if std < 0.8 and avg >= 3.0:  # Std < 0.8 and avg Good or better
+            # CONSISTENCY_ACHIEVED: Low variance, high mean on the calibrated /10 scale.
+            if std < 2.0 and avg >= 7.0:
                 milestones.append(Milestone(
                     type=MilestoneType.CONSISTENCY_ACHIEVED,
                     dive_code=code,
@@ -690,12 +692,12 @@ class MilestoneDetector:
         }.get(perf, perf)
 
     def _performance_name_from_value(self, value: float) -> str:
-        """Convert numeric performance to approximate name."""
-        if value >= 3.5:
+        """Convert calibrated /10 performance to approximate name."""
+        if value >= 8.5:
             return "Good-Perfect"
-        elif value >= 2.5:
+        elif value >= 5.75:
             return "Medium-Good"
-        elif value >= 1.5:
+        elif value >= 3.25:
             return "Bad-Medium"
         else:
             return "struggling"

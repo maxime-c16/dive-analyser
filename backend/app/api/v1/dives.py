@@ -3,14 +3,32 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.schemas.dive import DiveCreate, DiveUpdate
+from app.services.diver_identity import get_primary_diver, invalidate_analysis_cache, resolve_diver
+from app.services.difficulty_adjustment import formula_dd
+from app.services.world_aquatics_dd import REFERENCE_ID
 
 router = APIRouter()
+
+
+def _public_dive(dive: Dive) -> dict:
+    """Serialize a dive with formula DD as the live display source of truth.
+
+    ``dives.official_dd`` is retained as a migration/audit column and can be
+    null for older imports. Returning it directly made the library disagree
+    with analytics, which already uses the versioned rulebook calculation.
+    """
+    payload = {column.key: getattr(dive, column.key) for column in Dive.__table__.columns}
+    live_dd = formula_dd(dive)
+    payload["official_dd"] = live_dd
+    payload["official_dd_source"] = REFERENCE_ID if live_dd is not None else None
+    return payload
 
 
 @router.get("")
@@ -24,6 +42,7 @@ async def list_dives(
     date_to: Optional[datetime] = Query(None, description="Filter dives until date"),
     exclude_lineup: bool = Query(False, description="Exclude lineup dives"),
     exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
+    diver_scope: str = Query("self", pattern="^(self|all)$", description="Default to the primary diver; use all only intentionally"),
     limit: int = Query(100, description="Limit results"),
     offset: int = Query(0, description="Offset for pagination"),
 ):
@@ -31,6 +50,10 @@ async def list_dives(
     List dives with optional filters
     """
     query = db.query(Dive)
+
+    if diver_scope == "self":
+        primary = get_primary_diver(db)
+        query = query.filter(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
 
     # Apply filters
     if session_id is not None:
@@ -57,9 +80,10 @@ async def list_dives(
     if exclude_personal:
         query = query.filter(Dive.is_lineup == True)
 
-    # Order by date descending
-    dives = query.order_by(Dive.dive_datetime.desc()).offset(offset).limit(limit).all()
-    return dives
+    # Order by date and id descending. Many Photos videos can share the same
+    # second-level timestamp, so id gives deterministic newest-first ties.
+    dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
+    return [_public_dive(dive) for dive in dives]
 
 
 @router.post("", status_code=201)
@@ -76,6 +100,7 @@ async def create_dive(
         raise HTTPException(status_code=404, detail=f"Session {dive.session_id} not found")
 
     # Create dive
+    diver_record = resolve_diver(db, dive.person_name)
     db_dive = Dive(
         session_id=dive.session_id,
         dive_code=dive.dive_code,
@@ -91,6 +116,7 @@ async def create_dive(
         is_smack=dive.is_smack,
         raw_caption=dive.raw_caption,
         person_name=dive.person_name,
+        diver_id=diver_record.id if diver_record else None,
         notes=dive.notes,
         video_uuid=dive.video_uuid,
         video_filename=dive.video_filename,
@@ -99,9 +125,10 @@ async def create_dive(
     )
 
     db.add(db_dive)
+    invalidate_analysis_cache(db)
     db.commit()
     db.refresh(db_dive)
-    return db_dive
+    return _public_dive(db_dive)
 
 
 @router.get("/{dive_id}")
@@ -115,7 +142,7 @@ async def get_dive(
     dive = db.query(Dive).filter(Dive.id == dive_id).first()
     if not dive:
         raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
-    return dive
+    return _public_dive(dive)
 
 
 @router.put("/{dive_id}")
@@ -135,11 +162,15 @@ async def update_dive(
     update_data = dive_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(dive, field, value)
+    if "person_name" in update_data:
+        diver_record = resolve_diver(db, dive.person_name)
+        dive.diver_id = diver_record.id if diver_record else None
 
     db.add(dive)
+    invalidate_analysis_cache(db)
     db.commit()
     db.refresh(dive)
-    return dive
+    return _public_dive(dive)
 
 
 @router.delete("/{dive_id}", status_code=204)
@@ -155,5 +186,6 @@ async def delete_dive(
         raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
 
     db.delete(dive)
+    invalidate_analysis_cache(db)
     db.commit()
     return None

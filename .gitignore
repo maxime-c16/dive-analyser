@@ -1,0 +1,70 @@
+# ============================================================================
+# .gitignore — canonical runtime source baseline (2026-09-05, task P0.5)
+# Runtime secrets, databases, media, caches, backups and generated files stay
+# on the host but OUTSIDE source control. See
+# docs/audits/CANONICAL_RUNTIME_SOURCE_BASELINE_2026-09-05.md for rationale.
+# ============================================================================
+
+# ---- Runtime secrets (never commit; runtime file stays on disk) ----
+.env
+.env.local
+.env.*.local
+
+# ---- macOS metadata ----
+.DS_Store
+._*
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# ---- Node / frontend build output (reproducible via frontend/Dockerfile.deploy) ----
+node_modules/
+/frontend/dist/
+frontend/test-results/
+playwright-report/
+
+# ---- Logs / runtime state ----
+/logs/
+*.log
+
+# ---- Data: dumps, backups, media, import data (runtime data, never source) ----
+/backups/
+/media/
+/reports/
+/memory/
+*.dump
+*.bak
+
+# ---- Test artifacts ----
+/test-results/
+
+# ---- Editor / agent backups, stray copies ----
+.codex-backup-*/
+*.transfer-check
+/backend/media_cache.py
+/backend/media_resolution_upgrade.py
+
+# ---- nginx TLS material (keys/certs live on host only) ----
+/nginx/ssl/
+
+# ---- Root-level session-report debris (Feb-2026 agent-session era).
+# Kept on disk for the operator; intentionally not source authority.
+/*.md
+/*.txt
+/test-*.sh
+/test-*.py
+/test-*.js
+/*.spec.ts
+/comprehensive_bug_report.py
+
+# ---- Additional exclusions (P0.5 reconciliation) ----
+/ops/*.env
+/frontend/.codex-*
+/backend/add_media_resolution_upgrade_runs.sql
+/test_*

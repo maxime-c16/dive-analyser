@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../services/api'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface AvoidedDive {
   dive_code: string
@@ -99,7 +99,7 @@ function AvoidedDives() {
   if (!data || data.total_avoided === 0) {
     return (
       <div className="text-center py-12 bg-gray-900/50 border border-gray-700 rounded-lg">
-        <div className="text-gray-400 mb-4">✅</div>
+        <CheckCircle2 className="mx-auto mb-4 h-7 w-7 text-green-400" aria-hidden="true" />
         <p className="text-gray-300 mb-2 font-semibold">No avoided dives detected</p>
         <p className="text-gray-500 text-sm">You're keeping up with your dives. That's consistency.</p>
       </div>

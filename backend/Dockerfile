@@ -24,6 +24,6 @@ USER diver
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD python -c "import requests; response = requests.get('http://localhost:8000/health', timeout=2); response.raise_for_status()" || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.models.session import Session as SessionModel
 from app.models.dive import Dive
+from app.models.fina_dive_code import FINADiveCode
+import json
+import os
 
 
 def seed_test_database(db: Session, num_sessions: int = 5, dives_per_session: int = 10) -> dict:
@@ -47,15 +50,13 @@ def seed_test_database(db: Session, num_sessions: int = 5, dives_per_session: in
         session_date = datetime.now().date() - timedelta(days=num_sessions - session_idx - 1)
 
         session = SessionModel(
-            session_date=session_date,
+            date=session_date,
             location="Pool" if session_idx % 2 == 0 else "Springboard",
-            height_primary=heights[session_idx % len(heights)],
             notes=f"Test session {session_idx + 1}",
-            platform_count=0,
-            springboard_count=dives_per_session,
             total_dives=dives_per_session,
-            successful_dives=int(dives_per_session * 0.75),
-            successful_rate=0.75,
+            total_personal_dives=int(dives_per_session * 0.75),
+            avg_performance=3.0,
+            success_rate=0.75,
         )
         sessions.append(session)
         db.add(session)
@@ -181,3 +182,56 @@ def get_test_dive_metadata(
         data["phase2_performance"] = phase2
 
     return data
+
+
+def seed_fina_dive_codes(db: Session) -> int:
+    """
+    Load official FINA dive codes from JSON and seed the database.
+
+    Args:
+        db: SQLAlchemy session
+
+    Returns:
+        Number of dive codes loaded
+    """
+    # Find the JSON file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(current_dir, "..", "app", "data", "fina_official_dive_codes.json")
+
+    if not os.path.exists(json_path):
+        # Fallback to alternative path
+        json_path = os.path.join(current_dir, "..", "app", "data", "fina_official_dive_codes.json")
+
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"FINA dive codes JSON not found at {json_path}")
+
+    with open(json_path, "r") as f:
+        dives_data = json.load(f)
+
+    count = 0
+    for dive_data in dives_data:
+        # Check if dive already exists
+        existing = db.query(FINADiveCode).filter_by(dive_code=dive_data["dive_code"]).first()
+        if existing:
+            continue
+
+        # Create new FINADiveCode record
+        fina_dive = FINADiveCode(
+            dive_code=dive_data["dive_code"],
+            group=dive_data["group"],
+            direction=dive_data["direction"],
+            position=dive_data["position"],
+            rotations=dive_data["rotations"],
+            twists=dive_data["twists"],
+            group_name=dive_data.get("group_name"),
+            position_name=dive_data.get("position_name"),
+            official_name=dive_data.get("official_name"),
+            is_twisting=dive_data.get("is_twisting", False),
+            is_flying=dive_data.get("is_flying", False),
+            is_armstand=dive_data.get("is_armstand", False),
+        )
+        db.add(fina_dive)
+        count += 1
+
+    db.commit()
+    return count

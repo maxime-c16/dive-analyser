@@ -12,6 +12,8 @@ interface MonthlyStats {
   total_dives: number
   avg_performance: number
   success_rate: number
+  average_dd?: number | null
+  dd_coverage_rate?: number | null
 }
 
 interface HeightStats {
@@ -19,6 +21,8 @@ interface HeightStats {
     total_dives: number
     avg_performance: number
     success_rate: number
+    average_dd?: number | null
+    dd_coverage_rate?: number | null
   }
 }
 
@@ -27,6 +31,8 @@ interface DirectionStats {
     total_dives: number
     avg_performance: number
     success_rate: number
+    average_dd?: number | null
+    dd_coverage_rate?: number | null
   }
 }
 
@@ -106,6 +112,8 @@ function Analytics() {
     name: height,
     dives: data.total_dives,
     performance: data.avg_performance,
+    averageDd: data.average_dd,
+    ddCoverage: data.dd_coverage_rate,
     successRate: data.success_rate,
   })).sort((a, b) => {
     const order = ['1M', '3M', '5M', '7M', '10M']
@@ -117,6 +125,8 @@ function Analytics() {
     fullMark: 4,
     dives: data.total_dives,
     performance: data.avg_performance,
+    averageDd: data.average_dd,
+    ddCoverage: data.dd_coverage_rate,
     successRate: data.success_rate,
   }))
 
@@ -124,13 +134,16 @@ function Analytics() {
     ...m,
     monthLabel: format(parseISO(m.month + '-01'), 'MMM yy'),
   }))
+  const performanceKey = 'avg_performance'
+  const performanceName = 'Average execution /10'
+  const groupPerformanceKey = 'performance'
 
   // Calculate averages for comparison
   const avgPerformance = monthlyChartData.reduce((acc, m) => acc + m.avg_performance, 0) / monthlyChartData.length || 0
   const avgSuccessRate = monthlyChartData.reduce((acc, m) => acc + m.success_rate, 0) / monthlyChartData.length || 0
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">Detailed Analytics</h1>
@@ -138,9 +151,9 @@ function Analytics() {
       </div>
 
       {/* Performance Over Time */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h2 className="text-xl font-semibold text-white mb-4">Performance Over Time</h2>
-        <ResponsiveContainer width="100%" height={350}>
+      <div className="app-panel">
+        <div className="mb-4"><h2 className="text-xl font-semibold text-white">Performance Over Time</h2><p className="mt-1 text-sm text-gray-400">Execution remains on its calibrated 0–10 scale. Difficulty is shown separately as official DD context.</p></div>
+        <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={monthlyChartData}>
             <defs>
               <linearGradient id="colorPerf" x1="0" y1="0" x2="0" y2="1">
@@ -150,7 +163,7 @@ function Analytics() {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="monthLabel" stroke="#9ca3af" />
-            <YAxis yAxisId="left" stroke="#9ca3af" domain={[0, 4]} />
+            <YAxis yAxisId="left" stroke="#9ca3af" domain={[0, 10]} />
             <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" domain={[0, 100]} />
             <Tooltip
               contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
@@ -160,10 +173,10 @@ function Analytics() {
             <Area
               yAxisId="left"
               type="monotone"
-              dataKey="avg_performance"
+              dataKey={performanceKey}
               stroke={COLORS.primary}
               fill="url(#colorPerf)"
-              name="Avg Performance"
+              name={performanceName}
             />
             <Line
               yAxisId="right"
@@ -174,44 +187,36 @@ function Analytics() {
               dot={{ fill: COLORS.success }}
               name="Success Rate %"
             />
-            <Bar
-              yAxisId="left"
-              dataKey="total_dives"
-              fill={COLORS.purple}
-              opacity={0.3}
-              name="Total Dives"
-              barSize={20}
-            />
           </ComposedChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></div>
       </div>
 
       {/* Height Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">Performance by Height</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="app-panel">
+          <h2 className="text-xl font-semibold text-white mb-1">Performance by Height</h2><p className="mb-4 text-sm text-gray-400">{performanceName}; tooltip includes average DD and coverage.</p>
+          <div className="app-chart"><ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="name" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" domain={[0, 4]} />
+              <YAxis stroke="#9ca3af" domain={[0, 10]} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                 formatter={(value: number) => value.toFixed(2)}
               />
               <Legend />
-              <Bar dataKey="performance" name="Avg Performance" radius={[4, 4, 0, 0]}>
+              <Bar dataKey={groupPerformanceKey} name={performanceName} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={HEIGHT_COLORS[entry.name] || COLORS.primary} />
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="app-panel">
           <h2 className="text-xl font-semibold text-white mb-4">Success Rate by Height</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <div className="app-chart"><ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="name" stroke="#9ca3af" />
@@ -230,22 +235,22 @@ function Analytics() {
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         </div>
       </div>
 
       {/* Direction Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">Direction Radar</h2>
-          <ResponsiveContainer width="100%" height={350}>
+        <div className="app-panel">
+          <h2 className="text-xl font-semibold text-white mb-1">Direction comparison</h2><p className="mb-4 text-sm text-gray-400">{performanceName}</p>
+          <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={directionChartData}>
               <PolarGrid stroke="#374151" />
               <PolarAngleAxis dataKey="name" stroke="#9ca3af" />
-              <PolarRadiusAxis angle={30} domain={[0, 4]} stroke="#9ca3af" />
+              <PolarRadiusAxis angle={30} domain={[0, 10]} stroke="#9ca3af" />
               <Radar
-                name="Performance"
-                dataKey="performance"
+                name={performanceName}
+                dataKey={groupPerformanceKey}
                 stroke={COLORS.primary}
                 fill={COLORS.primary}
                 fillOpacity={0.5}
@@ -255,12 +260,12 @@ function Analytics() {
               />
               <Legend />
             </RadarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="app-panel">
           <h2 className="text-xl font-semibold text-white mb-4">Volume by Direction</h2>
-          <ResponsiveContainer width="100%" height={350}>
+          <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
             <BarChart data={directionChartData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis type="number" stroke="#9ca3af" />
@@ -270,18 +275,18 @@ function Analytics() {
               />
               <Bar dataKey="dives" fill={COLORS.purple} radius={[0, 4, 4, 0]} name="Total Dives" />
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         </div>
       </div>
 
       {/* Trending Dives */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div className="app-panel">
         <h2 className="text-xl font-semibold text-white mb-4">Trending Dives (Biggest Improvements)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {trendingDives.slice(0, 5).map((dive, index) => (
             <div
               key={dive.dive_code}
-              className={`p-4 rounded-lg border ${
+              className={`min-w-0 border p-4 ${
                 dive.improvement > 0
                   ? 'border-green-500/30 bg-green-500/5'
                   : 'border-red-500/30 bg-red-500/5'
@@ -312,18 +317,18 @@ function Analytics() {
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 rounded-xl p-6 border border-cyan-500/30">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="app-panel">
           <h3 className="text-gray-400 text-sm mb-1">Average Performance</h3>
           <p className="text-3xl font-bold text-cyan-400">{avgPerformance.toFixed(2)}</p>
-          <p className="text-gray-500 text-sm mt-1">Across all months</p>
+          <p className="text-gray-500 text-sm mt-1">Calibrated 0-10 scale</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500/20 to-green-500/5 rounded-xl p-6 border border-green-500/30">
+        <div className="app-panel">
           <h3 className="text-gray-400 text-sm mb-1">Average Success Rate</h3>
           <p className="text-3xl font-bold text-green-400">{avgSuccessRate.toFixed(1)}%</p>
           <p className="text-gray-500 text-sm mt-1">Medium or better</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-xl p-6 border border-purple-500/30">
+        <div className="app-panel">
           <h3 className="text-gray-400 text-sm mb-1">Heights Trained</h3>
           <p className="text-3xl font-bold text-purple-400">{Object.keys(heightStats).length}</p>
           <p className="text-gray-500 text-sm mt-1">Different platforms</p>

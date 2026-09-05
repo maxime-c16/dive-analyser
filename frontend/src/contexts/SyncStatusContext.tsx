@@ -156,7 +156,7 @@ export const SyncStatusProvider: React.FC<{ children: React.ReactNode }> = ({
               // Add to history
               if (currentSync && currentSync.sync_id === message.sync_id) {
                 setSyncHistory((prev) => {
-                  const updated = [...prev, { ...currentSync, status: 'complete' }]
+                  const updated = [...prev, { ...currentSync, status: 'complete' as const }]
                   return updated.slice(-maxHistorySize)
                 })
               }

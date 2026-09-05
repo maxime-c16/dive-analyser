@@ -21,6 +21,28 @@ from app.models.competition_event import (
     CompetitionDiveEntry,
 )
 from app.models.emotional_state import EmotionalState, RecoveryPlan
+from app.models.video_label import VideoLabel
+from app.models.photos_asset import PhotosAsset, PhotosAssetAgentIdentity
+from app.models.dive_modifier import DiveModifier
+from app.models.media import (
+    MediaCacheEntry,
+    MediaJob,
+    MediaPopulationRun,
+    MediaPopulationRunItem,
+    RepresentativeMediaSelection,
+    MediaAgent,
+    RecalledMediaSource,
+)
+from app.models.media_catalog import (
+    CaptionedMediaCatalog,
+    MediaCatalogRun,
+    MediaCatalogPopulationRun,
+    MediaCatalogPopulationItem,
+    MediaResolutionUpgradeRun,
+    MediaResolutionUpgradeItem,
+)
+from app.models.diver import Diver, DiverAlias
+from app.models.training_period import TrainingPeriod
 
 __all__ = [
     "Session",
@@ -45,4 +67,24 @@ __all__ = [
     "CompetitionDiveEntry",
     "EmotionalState",
     "RecoveryPlan",
+    "VideoLabel",
+    "PhotosAsset",
+    "PhotosAssetAgentIdentity",
+    "DiveModifier",
+    "MediaCacheEntry",
+    "MediaJob",
+    "MediaPopulationRun",
+    "MediaPopulationRunItem",
+    "CaptionedMediaCatalog",
+    "MediaCatalogRun",
+    "MediaCatalogPopulationRun",
+    "MediaCatalogPopulationItem",
+    "MediaResolutionUpgradeRun",
+    "MediaResolutionUpgradeItem",
+    "RepresentativeMediaSelection",
+    "MediaAgent",
+    "RecalledMediaSource",
+    "Diver",
+    "DiverAlias",
+    "TrainingPeriod",
 ]

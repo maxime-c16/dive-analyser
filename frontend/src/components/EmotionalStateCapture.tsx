@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { api } from '../services/api'
+import { Brain, CheckCircle2, Frown, Heart, ShieldAlert, Smile, Sparkles, ThumbsUp, type LucideIcon } from 'lucide-react'
 
 interface EmotionalStateProps {
   diveId: number
@@ -7,20 +8,20 @@ interface EmotionalStateProps {
   onSubmitted?: () => void
 }
 
-const EMOTIONS_BEFORE = [
-  { value: 'confident', label: '😎 Confident', icon: '😎' },
-  { value: 'nervous', label: '😰 Nervous', icon: '😰' },
-  { value: 'excited', label: '🤩 Excited', icon: '🤩' },
-  { value: 'fearful', label: '😨 Fearful', icon: '😨' },
-  { value: 'anxious', label: '😟 Anxious', icon: '😟' },
+const EMOTIONS_BEFORE: Array<{ value: string; label: string; icon: LucideIcon }> = [
+  { value: 'confident', label: 'Confident', icon: ThumbsUp },
+  { value: 'nervous', label: 'Nervous', icon: Frown },
+  { value: 'excited', label: 'Excited', icon: Sparkles },
+  { value: 'fearful', label: 'Fearful', icon: ShieldAlert },
+  { value: 'anxious', label: 'Anxious', icon: Brain },
 ]
 
-const EMOTIONS_AFTER = [
-  { value: 'satisfied', label: '😊 Satisfied', icon: '😊' },
-  { value: 'frustrated', label: '😤 Frustrated', icon: '😤' },
-  { value: 'proud', label: '😍 Proud', icon: '😍' },
-  { value: 'disappointed', label: '😞 Disappointed', icon: '😞' },
-  { value: 'relieved', label: '😌 Relieved', icon: '😌' },
+const EMOTIONS_AFTER: Array<{ value: string; label: string; icon: LucideIcon }> = [
+  { value: 'satisfied', label: 'Satisfied', icon: Smile },
+  { value: 'frustrated', label: 'Frustrated', icon: Frown },
+  { value: 'proud', label: 'Proud', icon: Heart },
+  { value: 'disappointed', label: 'Disappointed', icon: Frown },
+  { value: 'relieved', label: 'Relieved', icon: CheckCircle2 },
 ]
 
 function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalStateProps) {
@@ -67,7 +68,7 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
   if (submitted) {
     return (
       <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-center">
-        <div className="text-green-400 font-bold">✅ Emotions saved!</div>
+        <div className="flex items-center justify-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Emotions saved</div>
         <p className="text-green-300 text-sm mt-1">Thank you for tracking your emotions.</p>
       </div>
     )
@@ -76,7 +77,7 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-purple-400 mb-2">🎭 How did you feel about dive {diveCode}?</h3>
+        <h3 className="mb-2 flex items-center gap-2 text-lg font-bold text-purple-400"><Brain className="h-5 w-5" aria-hidden="true" />How did you feel about dive {diveCode}?</h3>
         <p className="text-gray-400 text-sm">Your emotions help us understand your confidence journey.</p>
       </div>
 
@@ -90,7 +91,9 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
       <div className="mb-6">
         <label className="block text-sm font-medium text-cyan-400 mb-3">Before the dive:</label>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-          {EMOTIONS_BEFORE.map((emotion) => (
+          {EMOTIONS_BEFORE.map((emotion) => {
+            const Icon = emotion.icon
+            return (
             <button
               key={emotion.value}
               onClick={() => setPreEmotion(emotion.value)}
@@ -101,10 +104,10 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
               }`}
               disabled={loading}
             >
-              <div className="text-2xl mb-1">{emotion.icon}</div>
-              <div className="text-xs font-medium">{emotion.label.split(' ')[0]}</div>
+              <Icon className="mx-auto mb-1 h-5 w-5" aria-hidden="true" />
+              <div className="text-xs font-medium">{emotion.label}</div>
             </button>
-          ))}
+          )})}
         </div>
       </div>
 
@@ -112,7 +115,9 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
       <div className="mb-6">
         <label className="block text-sm font-medium text-green-400 mb-3">After the dive:</label>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-          {EMOTIONS_AFTER.map((emotion) => (
+          {EMOTIONS_AFTER.map((emotion) => {
+            const Icon = emotion.icon
+            return (
             <button
               key={emotion.value}
               onClick={() => setPostEmotion(emotion.value)}
@@ -123,10 +128,10 @@ function EmotionalStateCapture({ diveId, diveCode, onSubmitted }: EmotionalState
               }`}
               disabled={loading}
             >
-              <div className="text-2xl mb-1">{emotion.icon}</div>
-              <div className="text-xs font-medium">{emotion.label.split(' ')[0]}</div>
+              <Icon className="mx-auto mb-1 h-5 w-5" aria-hidden="true" />
+              <div className="text-xs font-medium">{emotion.label}</div>
             </button>
-          ))}
+          )})}
         </div>
       </div>
 

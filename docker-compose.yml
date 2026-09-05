@@ -41,19 +41,30 @@ services:
       - ./reports:/app/reports
       - ./logs:/app/logs
       - ./media/videos:/videos:ro
+      - ./media/cache:/app/media-cache
       - "/Users/mcauchy/Pictures/Photos Library.photoslibrary:/photos_library"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-diver}:${POSTGRES_PASSWORD:-diving_secure_2024}@postgres:5432/${POSTGRES_DB:-diving_analytics}
       PYTHONUNBUFFERED: 1
       LEGACY_MODE: "true"
       PHOTOS_LIBRARY_PATH: /photos_library
+      MEDIA_CACHE_ROOT: /app/media-cache
       API_TITLE: Diving Analytics API
       API_VERSION: 1.0.0
+      PRIMARY_DIVER_NAME: ${PRIMARY_DIVER_NAME:-Maxime}
+      DIVE_ANALYSIS_CACHE_TTL_SECONDS: ${DIVE_ANALYSIS_CACHE_TTL_SECONDS:-60}
+      PERSONAL_DIVE_VALUE_ENABLED: "${PERSONAL_DIVE_VALUE_ENABLED:-true}"
+      PERSONAL_DIVE_VALUE_CACHE_TTL_SECONDS: "${PERSONAL_DIVE_VALUE_CACHE_TTL_SECONDS:-120}"
+      DATABASE_POOL_SIZE: "${DATABASE_POOL_SIZE:-5}"
+      DATABASE_MAX_OVERFLOW: "${DATABASE_MAX_OVERFLOW:-2}"
+      SLOW_QUERY_LOG_MS: "${SLOW_QUERY_LOG_MS:-250}"
+      SLOW_REQUEST_LOG_MS: "${SLOW_REQUEST_LOG_MS:-500}"
       AUTO_IMPORT: "true"
+      NEW_VIDEO_AUTO_MEDIA_ENABLED: "${NEW_VIDEO_AUTO_MEDIA_ENABLED:-false}"
     depends_on:
       postgres:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     deploy:
       resources:
         limits:
@@ -65,22 +76,12 @@ services:
 
   # React Frontend
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: dive-analyser-frontend:latest
     restart: unless-stopped
     ports:
-      - "6001:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      VITE_API_URL: /api
-      VITE_WS_URL: /api/v1/ws
-      PROXY_TARGET: http://backend:8000
+      - "6001:80"
     depends_on:
       - backend
-    command: npm run dev
     deploy:
       resources:
         limits:

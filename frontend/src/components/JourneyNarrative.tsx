@@ -1,6 +1,6 @@
 import React from 'react'
 import { format, parseISO } from 'date-fns'
-import { TrendingUp } from 'lucide-react'
+import { BarChart3, Timer, TrendingUp } from 'lucide-react'
 
 interface JourneyData {
   overview: {
@@ -128,14 +128,14 @@ function JourneyNarrative({ data }: JourneyNarrativeProps) {
       {/* Insight Cards */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-          <div className="text-blue-400 font-bold mb-2">📊 Total Attempts</div>
+          <div className="mb-2 flex items-center gap-2 font-bold text-blue-400"><BarChart3 className="h-4 w-4" aria-hidden="true" />Total Attempts</div>
           <p className="text-gray-300">
             You've completed <span className="font-bold text-cyan-400">{data.overview.total_dives}</span> total dive attempts across <span className="font-bold text-cyan-400">{data.overview.unique_dive_combinations}</span> different dives.
           </p>
         </div>
 
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
-          <div className="text-amber-400 font-bold mb-2">⏱️ Training Duration</div>
+          <div className="mb-2 flex items-center gap-2 font-bold text-amber-400"><Timer className="h-4 w-4" aria-hidden="true" />Training Duration</div>
           <p className="text-gray-300">
             You've been training for <span className="font-bold text-cyan-400">{Math.floor(data.overview.days_of_training / 30)} months</span> and <span className="font-bold text-cyan-400">{data.overview.days_of_training % 30} days</span>.
           </p>

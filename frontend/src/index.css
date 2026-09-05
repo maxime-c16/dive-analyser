@@ -1,51 +1,310 @@
-@import './styles/sync.css';
+@import "./styles/sync.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
+  --app-bg: #0d1113;
+  --app-panel: #15191c;
+  --app-panel-elevated: #191f23;
+  --app-border: rgba(82, 96, 105, 0.45);
+  --app-border-strong: rgba(126, 146, 156, 0.7);
+  --app-text: #edf2f4;
+  --app-muted: #98a2aa;
+  --app-accent: #54beab;
 }
 
 a {
-  font-weight: 500;
-  color: #646cff;
+  color: var(--app-accent);
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #535bf2;
+  color: #8bd8c9;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: transparent;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-
-button:hover {
-  border-color: #646cff;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    color 0.2s;
 }
 
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 3px solid var(--app-accent);
+  outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: light) {
-  a:visited {
-    color: #747bff;
+@keyframes ops-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ops-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(84, 190, 171, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(84, 190, 171, 0.12);
+  }
+}
+
+@keyframes ops-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ops-workspace > * {
+    animation: ops-reveal 360ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  }
+  .ops-workspace > :nth-child(2) {
+    animation-delay: 35ms;
+  }
+  .ops-workspace > :nth-child(3) {
+    animation-delay: 70ms;
+  }
+  .ops-workspace > :nth-child(4) {
+    animation-delay: 105ms;
+  }
+  .ops-workspace > :nth-child(5) {
+    animation-delay: 140ms;
+  }
+  .ops-workspace > :nth-child(6) {
+    animation-delay: 175ms;
+  }
+  .ops-workspace [data-ops-active="true"] {
+    animation: ops-pulse 2.4s ease-in-out infinite;
+  }
+  .ops-running-icon {
+    animation: ops-spin 1.2s linear infinite;
+  }
+}
+
+html,
+body,
+#root {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+button,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+select {
+  min-height: 2.75rem;
+}
+
+@media (max-width: 639px) {
+  /* Recharts otherwise retains desktop tick and outside-label density on phones. */
+  .recharts-cartesian-axis-tick-value,
+  .recharts-polar-angle-axis-tick-value {
+    font-size: 10px;
+  }
+
+  .recharts-legend-wrapper {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .recharts-pie-label-text {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .bg-app {
+    background: var(--app-bg);
+  }
+
+  .bg-app-panel {
+    background-color: var(--app-panel);
+  }
+
+  .bg-app-panel-elevated {
+    background-color: var(--app-panel-elevated);
+  }
+
+  .bg-app-border {
+    background-color: var(--app-border);
+  }
+
+  .border-app {
+    border-color: var(--app-border);
+  }
+
+  .border-app-strong {
+    border-color: var(--app-border-strong);
+  }
+
+  .text-app-text {
+    color: var(--app-text);
+  }
+
+  .text-app-muted {
+    color: var(--app-muted);
+  }
+
+  .text-app-accent {
+    color: var(--app-accent);
+  }
+
+  .border-app-accent {
+    border-color: var(--app-accent);
+  }
+
+  .app-input {
+    border: 1px solid var(--app-border);
+    border-radius: 0.75rem;
+    background: var(--app-panel);
+    color: var(--app-text);
+    padding: 0.625rem 0.75rem;
+  }
+
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .mobile-scroll-region {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* Legacy pages still use Tailwind's gray/cyan palette. Keep their semantics
+     while rendering them in the same workspace system as newer pages. */
+  .bg-gray-950,
+  .bg-gray-900 {
+    background-color: var(--app-bg);
+  }
+  .bg-gray-800 {
+    background-color: var(--app-panel);
+  }
+  .bg-gray-700,
+  .bg-gray-700\/50 {
+    background-color: var(--app-panel-elevated);
+  }
+  .border-gray-800,
+  .border-gray-700,
+  .border-gray-600 {
+    border-color: var(--app-border);
+  }
+  .text-white,
+  .text-gray-100 {
+    color: var(--app-text);
+  }
+  .text-gray-300,
+  .text-gray-400,
+  .text-gray-500 {
+    color: var(--app-muted);
+  }
+  .text-cyan-300,
+  .text-cyan-400,
+  .text-cyan-500,
+  .text-green-300,
+  .text-green-400 {
+    color: var(--app-accent);
+  }
+  .bg-cyan-500\/10,
+  .bg-cyan-500\/20,
+  .bg-green-500\/10,
+  .bg-green-500\/20 {
+    background-color: rgba(84, 190, 171, 0.12);
+  }
+  .border-cyan-500,
+  .border-cyan-500\/30,
+  .border-cyan-500\/50,
+  .border-green-500\/30 {
+    border-color: var(--app-accent);
+  }
+  .focus\:border-cyan-500:focus {
+    border-color: var(--app-accent);
+  }
+  .focus\:ring-cyan-500:focus {
+    --tw-ring-color: var(--app-accent);
+  }
+}
+
+@layer components {
+  .app-page {
+    @apply space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-8;
+  }
+
+  .app-panel {
+    @apply min-w-0 border border-app bg-app-panel p-4 sm:p-5;
+  }
+
+  .app-panel-header {
+    @apply mb-4 flex flex-wrap items-start justify-between gap-3;
+  }
+
+  .app-section-title {
+    @apply text-xl font-semibold leading-7 text-app-text;
+  }
+
+  .app-section-copy {
+    @apply mt-1 text-sm leading-6 text-app-muted;
+  }
+
+  .app-kpi-value {
+    @apply font-semibold tabular-nums;
+  }
+
+  .app-chart {
+    @apply min-w-0 overflow-hidden;
+  }
+
+  .app-table-scroll {
+    @apply mobile-scroll-region overflow-x-auto;
+  }
+
+  .app-table-scroll > table {
+    @apply min-w-[40rem];
+  }
+}
+
+@media (max-width: 639px) {
+  button,
+  select,
+  input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 2.75rem;
+  }
+
   button {
-    background-color: #f9f9f9;
+    line-height: 1.15;
+  }
+
+  .app-input {
+    border-radius: 0.5rem;
   }
 }

@@ -86,6 +86,34 @@ class VideoSyncRequest(BaseModel):
         None,
         description="Name of training partner (if synced dive)"
     )
+    modifiers: List[str] = Field(
+        default_factory=list,
+        description="Caption-derived drill/modifier codes such as DB, SD, HU"
+    )
+    raw_caption: Optional[str] = Field(
+        None,
+        description="Original Photos caption"
+    )
+    caption_hash: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="Stable hash of the Photos caption used for idempotent updates"
+    )
+    filename: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Photos filename"
+    )
+    photos_path: Optional[str] = Field(
+        None,
+        description="Mac-local Photos path when available"
+    )
+    local_available: Optional[bool] = Field(
+        None,
+        description="Whether the Mac reports a local file path for the asset"
+    )
+    agent_id: Optional[str] = Field(None, min_length=1, max_length=100)
+    cloud_guid: Optional[str] = Field(None, min_length=8, max_length=100)
 
     @validator('dive_code')
     def validate_dive_code(cls, v):
@@ -127,6 +155,22 @@ class VideoSyncRequest(BaseModel):
             raise ValueError(f"Invalid performance: {v}")
         return v.upper()
 
+    @validator('modifiers')
+    def normalize_modifiers(cls, v):
+        normalized = []
+        seen = set()
+        for item in v or []:
+            code = item.strip().upper()
+            if not code:
+                continue
+            if code in {"SYNC", "SYNCHRO"}:
+                # SYNC is modeled separately as is_sync, not as a drill modifier.
+                continue
+            if code not in seen:
+                normalized.append(code)
+                seen.add(code)
+        return normalized
+
 
 class VideoSyncResponse(BaseModel):
     """Response from single video sync"""
@@ -134,6 +178,62 @@ class VideoSyncResponse(BaseModel):
     dive_id: int = Field(..., description="Unique dive ID in database")
     message: str = Field(..., description="Status message")
     created: bool = Field(..., description="Whether new dive was created")
+    updated: bool = Field(False, description="Whether an existing dive was updated")
+
+
+class VideoLabelRequest(BaseModel):
+    """Request to sync a non-dive video label from mac-agent."""
+
+    video_uuid: str = Field(
+        ...,
+        min_length=32,
+        description="Unique video identifier for idempotent label sync"
+    )
+    label_type: str = Field(
+        ...,
+        pattern="^(person|drill|note)$",
+        description="Type of label attached to the video"
+    )
+    label_value: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Label value, e.g. PAUL"
+    )
+    date: Optional[datetime] = Field(
+        None,
+        description="Video date/time in ISO format"
+    )
+    filename: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Photos filename"
+    )
+    raw_caption: Optional[str] = Field(
+        None,
+        description="Original Photos caption"
+    )
+    source: str = Field(
+        "photos_caption",
+        max_length=50,
+        description="Origin of the label"
+    )
+
+    @validator('label_type', 'source')
+    def normalize_lower(cls, v):
+        return v.lower()
+
+    @validator('label_value')
+    def normalize_label_value(cls, v):
+        return v.strip()
+
+
+class VideoLabelResponse(BaseModel):
+    """Response from video label sync."""
+
+    label_id: int = Field(..., description="Unique label ID in database")
+    message: str = Field(..., description="Status message")
+    created: bool = Field(..., description="Whether new label was created")
 
 
 class BatchSyncRequest(BaseModel):

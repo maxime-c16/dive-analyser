@@ -3,8 +3,10 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from time import perf_counter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import init_db, get_db
@@ -43,10 +45,17 @@ def run_auto_import():
         logger.info("No dive metadata JSON found for auto-import")
         return
 
-    # Run import
-    logger.info(f"Auto-importing data from: {json_path}")
     db = SessionLocal()
+    lock_key = 834927
+    locked = False
     try:
+        # Multiple Uvicorn workers start independently. Only one may import,
+        # otherwise they can compete to update every session at startup.
+        locked = bool(db.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": lock_key}).scalar())
+        if not locked:
+            logger.info("Auto-import skipped; another backend worker owns the import lock")
+            return
+        logger.info(f"Auto-importing data from: {json_path}")
         service = ImportService(db)
         stats = service.import_from_json(json_path)
         logger.info(f"Auto-import complete: {stats['sessions_created']} sessions, {stats['dives_created']} dives created, {stats['dives_skipped']} skipped")
@@ -55,6 +64,8 @@ def run_auto_import():
     except Exception as e:
         logger.error(f"Auto-import failed: {e}")
     finally:
+        if locked:
+            db.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": lock_key})
         db.close()
 
 
@@ -91,6 +102,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_slow_requests(request, call_next):
+    started_at = perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (perf_counter() - started_at) * 1000
+    if elapsed_ms >= settings.slow_request_log_ms:
+        logger.warning(
+            "Slow request: %s %s -> %s in %.1fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+    return response
 
 
 # Health check endpoint

@@ -3,10 +3,10 @@ import { X, TrendingUp, TrendingDown, Minus, Film } from 'lucide-react'
 import { api } from '../services/api'
 import { format, parseISO } from 'date-fns'
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
 import DiveVideoPlayer from './DiveVideoPlayer'
+import { isSuccessfulPerformance, performanceScore10 } from '../utils/performanceScoring'
 
 interface Dive {
   id: number
@@ -19,7 +19,10 @@ interface Dive {
   direction: number | null
   is_sync: boolean
   platform_type: string
+  official_dd?: number | null
   video_uuid?: string | null
+  phase1_performance?: string | null
+  phase2_performance?: string | null
 }
 
 interface Session {
@@ -38,14 +41,15 @@ interface SessionDetailProps {
   previousSession?: Session
   onClose: () => void
   allSessions: Session[]
+  diverScope: 'self' | 'all'
 }
 
-const PERFORMANCE_CONFIG: { [key: string]: { label: string; color: string; bg: string; numeric: number } } = {
-  P: { label: 'Perfect', color: 'text-green-400', bg: 'bg-green-500/20', numeric: 4 },
-  G: { label: 'Good', color: 'text-blue-400', bg: 'bg-blue-500/20', numeric: 3 },
-  M: { label: 'Medium', color: 'text-amber-400', bg: 'bg-amber-500/20', numeric: 2 },
-  B: { label: 'Bad', color: 'text-orange-400', bg: 'bg-orange-500/20', numeric: 1 },
-  F: { label: 'Failed', color: 'text-red-400', bg: 'bg-red-500/20', numeric: 0 },
+const PERFORMANCE_CONFIG: { [key: string]: { label: string; color: string; bg: string } } = {
+  P: { label: 'Perfect', color: 'text-green-400', bg: 'bg-green-500/20' },
+  G: { label: 'Good', color: 'text-blue-400', bg: 'bg-blue-500/20' },
+  M: { label: 'Medium', color: 'text-amber-400', bg: 'bg-amber-500/20' },
+  B: { label: 'Bad', color: 'text-orange-400', bg: 'bg-orange-500/20' },
+  F: { label: 'Failed', color: 'text-red-400', bg: 'bg-red-500/20' },
 }
 
 const DIRECTION_NAMES: { [key: number]: string } = {
@@ -64,7 +68,7 @@ const DIRECTION_COLORS: { [key: number]: string } = {
   5: '#ec4899',
 }
 
-function SessionDetail({ session, previousSession, onClose, allSessions }: SessionDetailProps) {
+function SessionDetail({ session, previousSession, onClose, allSessions, diverScope }: SessionDetailProps) {
   const [dives, setDives] = useState<Dive[]>([])
   const [previousDives, setPreviousDives] = useState<Dive[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,20 +76,26 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
   const [selectedDive, setSelectedDive] = useState<Dive | null>(null)
 
   useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
+  useEffect(() => {
     fetchSessionDives()
-  }, [session.id])
+  }, [session.id, diverScope])
 
   const fetchSessionDives = async () => {
     try {
       setLoading(true)
       const response = await api.get('/api/v1/dives', {
-        params: { session_id: session.id, limit: 100 },
+        params: { session_id: session.id, limit: 100, diver_scope: diverScope },
       })
       setDives(response.data || [])
 
       if (previousSession) {
         const prevResponse = await api.get('/api/v1/dives', {
-          params: { session_id: previousSession.id, limit: 100 },
+          params: { session_id: previousSession.id, limit: 100, diver_scope: diverScope },
         })
         setPreviousDives(prevResponse.data || [])
       }
@@ -96,19 +106,6 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
       setLoading(false)
     }
   }
-
-  // Calculate direction breakdown
-  const directionBreakdown = dives.reduce((acc, dive) => {
-    if (dive.direction) {
-      const existing = acc.find(d => d.name === DIRECTION_NAMES[dive.direction!])
-      if (existing) {
-        existing.value += 1
-      } else {
-        acc.push({ name: DIRECTION_NAMES[dive.direction], value: 1 })
-      }
-    }
-    return acc
-  }, [] as Array<{ name: string; value: number }>)
 
   // Calculate height distribution
   const heightDistribution = dives.reduce((acc, dive) => {
@@ -124,13 +121,14 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
   // Performance flow over time
   const performanceFlow = dives.map((dive, index) => ({
     index: index + 1,
-    performance: dive.performance_numeric,
-    success: dive.performance_numeric >= 2 ? 1 : 0,
+    performance: performanceScore10(dive.performance, dive.phase1_performance, dive.phase2_performance),
+    success: isSuccessfulPerformance(dive.performance) ? 1 : 0,
   }))
+  const ddCoverage = dives.length ? Math.round((dives.filter((dive) => dive.official_dd != null).length / dives.length) * 100) : 0
 
   // Calculate comparison metrics
   const calculateTrend = (current: number | undefined, previous: number | undefined) => {
-    if (!current || !previous) return null
+    if (current == null || previous == null) return null
     const diff = current - previous
     return {
       value: Math.abs(diff),
@@ -151,13 +149,13 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto">
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="min-h-screen p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="session-detail-title" className="min-h-screen w-full overflow-y-auto border border-gray-700 bg-gray-800 sm:min-h-0 sm:max-h-[90vh] sm:max-w-4xl sm:rounded-2xl">
           {/* Header */}
-          <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex items-center justify-between">
+          <div className="sticky top-0 flex items-center justify-between border-b border-gray-700 bg-gray-800 p-4 sm:p-6">
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 id="session-detail-title" className="text-2xl font-bold text-white">
                 {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
@@ -165,8 +163,8 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
               </p>
             </div>
             <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-700 rounded-lg transition"
+              type="button" onClick={onClose} aria-label="Close session details"
+              className="touch-target p-2 hover:bg-gray-700 rounded-lg transition"
             >
               <X className="w-6 h-6 text-gray-400" />
             </button>
@@ -189,9 +187,12 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
                   <p className="text-2xl font-bold text-white mt-2">{session.total_dives}</p>
                 </div>
                 <div className="bg-gray-700 rounded-lg p-4">
-                  <p className="text-gray-400 text-xs uppercase">Avg Performance</p>
+                  <p className="text-gray-400 text-xs uppercase">Avg Performance /10</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <p className="text-2xl font-bold text-cyan-400">{session.avg_performance?.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-cyan-400">
+                      {session.avg_performance?.toFixed(1) ?? '-'}
+                    </p>
+                    <span className="text-gray-500 text-sm">/10</span>
                     <TrendIndicator trend={perfTrend} />
                   </div>
                 </div>
@@ -209,7 +210,9 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
                 <div className="bg-gray-700 rounded-lg p-4">
                   <p className="text-gray-400 text-xs uppercase">Best Dive</p>
                   <p className="text-xl font-bold text-yellow-400 mt-2">
-                    {Math.max(...dives.map(d => d.performance_numeric)).toFixed(1)}
+                    {dives.length > 0
+                      ? `${Math.max(...dives.map(d => performanceScore10(d.performance, d.phase1_performance, d.phase2_performance))).toFixed(1)} / 10`
+                      : '-'}
                   </p>
                 </div>
               </div>
@@ -244,7 +247,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
                         </div>
                         <div className="flex items-center gap-2">
                           {dive.video_uuid && (
-                            <Film className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" title="Video available" />
+                            <Film className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label="Video available" />
                           )}
                           <div className={`px-2 py-0.5 rounded text-xs font-semibold ${PERFORMANCE_CONFIG[dive.performance].bg}`}>
                             <span className={PERFORMANCE_CONFIG[dive.performance].color}>
@@ -266,12 +269,11 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
                         diveCode={selectedDive.dive_code}
                         height={selectedDive.height}
                         videoUuid={selectedDive.video_uuid}
-                        onClose={() => setSelectedDive(null)}
                       />
                     ) : (
                       <div className="text-center text-gray-400">
                         <Film className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">Click a dive with a 🎬 icon to play</p>
+                        <p className="text-sm">Select a dive with a video indicator to play it.</p>
                       </div>
                     )}
                   </div>
@@ -280,42 +282,27 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
 
               {/* Analytics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Direction Breakdown */}
+                {/* Execution flow with separate difficulty context */}
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-4">Direction Breakdown</h4>
-                  {directionBreakdown.length > 0 ? (
+                  <h4 className="text-lg font-semibold text-white mb-1">Performance Flow</h4>
+                  <p className="mb-4 text-xs text-gray-400">Execution /10 · official DD available for {ddCoverage}% of attempts</p>
+                  {performanceFlow.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={directionBreakdown}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {directionBreakdown.map((entry, index) => {
-                            const direction = Object.keys(DIRECTION_NAMES).find(
-                              k => DIRECTION_NAMES[parseInt(k)] === entry.name
-                            )
-                            return <Cell key={`cell-${index}`} fill={direction ? DIRECTION_COLORS[parseInt(direction)] : '#6b7280'} />
-                          })}
-                        </Pie>
-                        <Tooltip formatter={(value) => `${value} dives`} />
-                      </PieChart>
+                      <LineChart data={performanceFlow}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" />
+                        <XAxis dataKey="index" stroke="#9ca3af" />
+                        <YAxis stroke="#9ca3af" domain={[0, 10]} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
+                          formatter={(value: number) => [value.toFixed(1), 'Execution /10']}
+                          labelFormatter={(value) => `Attempt ${value}`}
+                        />
+                        <Line type="monotone" dataKey="performance" name="Execution /10" stroke="#54beab" strokeWidth={2} dot={{ fill: '#54beab', r: 3 }} />
+                      </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-gray-500 text-center py-8">No direction data</p>
+                    <p className="py-8 text-center text-gray-500">No scored attempts in this session.</p>
                   )}
-                  <div className="mt-4 space-y-1 text-sm">
-                    {directionBreakdown.map((dir) => (
-                      <div key={dir.name} className="flex justify-between">
-                        <span className="text-gray-400">{dir.name}</span>
-                        <span className="text-white font-semibold">{dir.value} ({((dir.value / dives.length) * 100).toFixed(0)}%)</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Height Distribution */}
@@ -341,16 +328,17 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
 
                 {/* Performance Flow */}
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-4">Performance Flow</h4>
+                  <h4 className="mb-1 text-lg font-semibold text-white">Execution Flow</h4>
+                  <p className="mb-4 text-xs text-gray-400">Raw calibrated execution /10</p>
                   {performanceFlow.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={performanceFlow}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" />
                         <XAxis dataKey="index" stroke="#9ca3af" />
-                        <YAxis domain={[0, 4]} stroke="#9ca3af" />
+                        <YAxis domain={[0, 10]} stroke="#9ca3af" />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
-                          formatter={(value) => value.toFixed(1)}
+                          formatter={(value) => Number(value).toFixed(1)}
                         />
                         <Line
                           type="monotone"
@@ -405,7 +393,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions }: Sessi
                             ? '✨ Great Session!'
                             : perfTrend.isPositive || successTrend.isPositive
                             ? '→ Steady Progress'
-                            : '💪 Keep Pushing'}
+                            : 'Keep pushing'}
                         </p>
                       </div>
                     )}

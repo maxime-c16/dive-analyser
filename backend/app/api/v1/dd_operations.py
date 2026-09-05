@@ -1,7 +1,7 @@
 """API endpoints for DD (Difficulty Degree) operations"""
 
-from typing import List, Dict
-from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Dict, Literal
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
@@ -9,9 +9,21 @@ from app.database import get_db
 from app.services.dd_calculator import DDCalculator
 from app.services.dd_lookup_manager import DDLookupManager
 from app.services.dd_auto_assign import DDAutoAssigner
+from app.services.dd_overview_service import DDOverviewService
+from app.services.world_aquatics_dd import OfficialDDUndefined, calculate_official_dd
 
 
 router = APIRouter(prefix="/dd", tags=["dd"])
+
+
+@router.get("/overview")
+async def get_dd_overview(
+    diver_id: int | None = Query(None),
+    scope: Literal["self", "all"] = Query("self"),
+    db: Session = Depends(get_db),
+) -> Dict:
+    """Return a live, attempt-traceable DD view from the versioned formula."""
+    return DDOverviewService(db).overview(diver_id=diver_id, scope=scope)
 
 
 @router.get("/lookup/{dive_code}/{height}")
@@ -28,20 +40,14 @@ async def lookup_dd_value(
     dive_code = dive_code.strip().upper()
     height = height.strip().lower()
 
-    calculator = DDCalculator(db)
-    dd_value = calculator.lookup_dd(dive_code, height)
-
-    if dd_value is None:
+    try:
+        result = calculate_official_dd(dive_code, height)
+    except OfficialDDUndefined as error:
         raise HTTPException(
             status_code=404,
-            detail=f"DD value not found for {dive_code} at {height}",
-        )
-
-    return {
-        "dive_code": dive_code,
-        "height": height,
-        "dd_value": float(dd_value),
-    }
+            detail={"code": "official_dd_not_defined", "message": str(error)},
+        ) from error
+    return result.as_dict()
 
 
 @router.get("/lookup-all/{dive_code}")
@@ -198,7 +204,7 @@ async def get_dd_coverage(
 async def get_all_dds(
     db: Session = Depends(get_db),
 ) -> Dict:
-    """Get all DD values from database"""
+    """Get formula-defined DD values for the maintained dive-code catalogue."""
     calculator = DDCalculator(db)
     dds = calculator.get_all_dds()
 
