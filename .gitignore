@@ -68,3 +68,7 @@ playwright-report/
 /frontend/.codex-*
 /backend/add_media_resolution_upgrade_runs.sql
 /test_*
+
+# ---- Experiment venvs and ML model weights (large binaries, not source) ----
+venv_c/
+*.pt

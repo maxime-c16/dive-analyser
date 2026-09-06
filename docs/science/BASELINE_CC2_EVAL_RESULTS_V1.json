@@ -1,0 +1,401 @@
+{
+  "label": "BASELINE_C_C2_EVAL_RESULTS_V1",
+  "created": "2026-09-06T05:52:14Z",
+  "variant": "C2",
+  "set_label": "INTERNAL_EVAL",
+  "fingerprint": "b4afd8ae85878308ad0abb445f4da7fe708cd4a9b5987a57b120419176f2bd41",
+  "ultralytics_version": "8.3.253",
+  "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+  "per_dive": {
+    "2281": {
+      "takeoff": {
+        "frame": 795,
+        "timestamp_s": 13.2621,
+        "confidence": 0.019,
+        "applicability": "APPLICABLE"
+      },
+      "apex": {
+        "frame": 889,
+        "timestamp_s": 14.8302,
+        "confidence": 0.018,
+        "applicability": "APPLICABLE"
+      },
+      "water_contact": {
+        "frame": 1017,
+        "timestamp_s": 16.9655,
+        "confidence": 0.012,
+        "applicability": "APPLICABLE"
+      },
+      "meta": {
+        "fps": 59.945155393053014,
+        "total_frames": 1093,
+        "selected_track": 54,
+        "n_detected_frames": 208,
+        "trajectory_coverage": 0.19,
+        "takeoff_raw": 795,
+        "apex_raw": 889,
+        "water_contact_raw": 1017,
+        "is_uncertain": false,
+        "variant": "C2"
+      }
+    },
+    "160": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 59.94005994005994,
+        "total_frames": 708,
+        "selected_track": 1,
+        "n_detected_frames": 607,
+        "trajectory_coverage": 0.857,
+        "takeoff_raw": 0,
+        "apex_raw": 603,
+        "water_contact_raw": 606,
+        "is_uncertain": true,
+        "variant": "C2"
+      }
+    },
+    "191": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 59.94005994005994,
+        "total_frames": 322,
+        "selected_track": 28,
+        "n_detected_frames": 149,
+        "trajectory_coverage": 0.463,
+        "takeoff_raw": 54,
+        "apex_raw": 66,
+        "water_contact_raw": 202,
+        "is_uncertain": true,
+        "variant": "C2"
+      }
+    },
+    "192": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 59.94005994005994,
+        "total_frames": 2523,
+        "selected_track": 57,
+        "n_detected_frames": 1390,
+        "trajectory_coverage": 0.551,
+        "takeoff_raw": 703,
+        "apex_raw": 1026,
+        "water_contact_raw": 2134,
+        "is_uncertain": true,
+        "variant": "C2"
+      }
+    },
+    "848": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 60.0,
+        "total_frames": 550,
+        "reason": "low_coverage_0.05",
+        "variant": "C2"
+      }
+    },
+    "169": {
+      "takeoff": {
+        "frame": 0,
+        "timestamp_s": 0.0,
+        "confidence": 0.006,
+        "applicability": "APPLICABLE"
+      },
+      "apex": {
+        "frame": 599,
+        "timestamp_s": 9.9962,
+        "confidence": 0.005,
+        "applicability": "APPLICABLE"
+      },
+      "water_contact": {
+        "frame": 619,
+        "timestamp_s": 10.33,
+        "confidence": 0.003,
+        "applicability": "APPLICABLE"
+      },
+      "meta": {
+        "fps": 59.92248062015504,
+        "total_frames": 773,
+        "selected_track": 1,
+        "n_detected_frames": 614,
+        "trajectory_coverage": 0.794,
+        "takeoff_raw": 0,
+        "apex_raw": 599,
+        "water_contact_raw": 619,
+        "is_uncertain": false,
+        "variant": "C2"
+      }
+    }
+  },
+  "evaluation": {
+    "split_label": "INTERNAL_EVAL",
+    "ordering_valid": 2,
+    "ordering_total": 2,
+    "per_landmark": {
+      "takeoff": {
+        "total": 6,
+        "evaluable": 2,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 2,
+        "frame_err": {
+          "n": 2,
+          "median": 569.0,
+          "p90": 555.0,
+          "max": 583,
+          "min": 555
+        }
+      },
+      "apex": {
+        "total": 6,
+        "evaluable": 2,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 2,
+        "frame_err": {
+          "n": 2,
+          "median": 338.5,
+          "p90": 29.0,
+          "max": 648,
+          "min": 29
+        }
+      },
+      "water_contact": {
+        "total": 6,
+        "evaluable": 2,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 1,
+        "frame_err": {
+          "n": 2,
+          "median": 372.0,
+          "p90": 9.0,
+          "max": 735,
+          "min": 9
+        }
+      }
+    },
+    "per_dive": {
+      "2281": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 212,
+            "pred_frame": 795,
+            "frame_err": 583,
+            "within": false,
+            "serious": true
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 241,
+            "pred_frame": 889,
+            "frame_err": 648,
+            "within": false,
+            "serious": true
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 282,
+            "pred_frame": 1017,
+            "frame_err": 735,
+            "within": false,
+            "serious": true
+          }
+        }
+      },
+      "160": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 512,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 535,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 568,
+            "pred_frame": null
+          }
+        }
+      },
+      "191": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 128,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 153,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 197,
+            "pred_frame": null
+          }
+        }
+      },
+      "192": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 938,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 965,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 999,
+            "pred_frame": null
+          }
+        }
+      },
+      "848": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 180,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 204,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 246,
+            "pred_frame": null
+          }
+        }
+      },
+      "169": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 555,
+            "pred_frame": 0,
+            "frame_err": 555,
+            "within": false,
+            "serious": true
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 570,
+            "pred_frame": 599,
+            "frame_err": 29,
+            "within": false,
+            "serious": true
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": false,
+            "h_frame": 610,
+            "pred_frame": 619,
+            "frame_err": 9,
+            "within": false,
+            "serious": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@ Last verified: **2026-09-05**, after Temporal Landmark Pilot V1 complete (Phases
 Latest audit: `docs/audits/FOUNDATION_HARDENING_AND_LAYER2_READINESS_2026-09-05.md`.
 Layer-2 architecture: `docs/design/ANALYSIS_LAYER_2_ARCHITECTURE_V1.md`.
 Pilot report: `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
-Supervisor gate: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`.
+Supervisor gate: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`.
 
 ## Canonical Repository
 
@@ -132,11 +132,76 @@ analysis_comparison_metrics 264  (4 per comparison)
 
 ## Current Gate
 
-`SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`
+`SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`
+
+Previous completed gates:
+- `SUPERVISOR_REVIEW_AFTER_SOURCE_AUTHORITY_RECONCILIATION` (2026-09-05)
+- `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE` (2026-09-05)
 
 **What the supervisor should review:**
-1. Commission Baseline C: YOLO person detection + temporal priors (PyTorch 2.10 on server)
-2. Write Layer-2 test suite (0 automated tests for Layer-2 logic currently)
-3. Phase G: decide whether to recall iCloud originals for proxy-vs-original canary
+1. Baseline C R4 finding: generic COCO person detection insufficient for this footage
+2. Next baseline direction: D2-POSE (pose estimation), D1-FT (fine-tune), or D3-OPT (strengthen B)
+3. Proxy-vs-original canary: KEEP_DEFERRED until within striking distance of tolerances
 4. Off-host backup: refresh Mac mirror after this commit
 5. UI layer: decide when to surface temporal landmark results in the frontend
+
+
+## Science layer — Baseline C (2026-09-06)
+
+> **Gate before Baseline C**: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`
+> **Classification**: R4 — HUMAN_DETECTION_ITSELF_INSUFFICIENT
+> **Report**: `docs/science/TEMPORAL_LANDMARK_BASELINE_C_V1_REPORT.md`
+> **New gate**: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`
+
+### Baseline C identity
+
+| Item | Value |
+|---|---|
+| Algorithm | YOLOv8n (COCO class 0) + ByteTrack + y_norm trajectory + C-TAKEOFF-V2 heuristic |
+| Variant | C2 (temporal priors; C1 ≡ C2 on DESIGN so C2 chosen for safety) |
+| Proposer fingerprint | `b4afd8ae85878308ad0abb445f4da7fe708cd4a9b5987a57b120419176f2bd41` |
+| Weights SHA256 | `f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36` (yolov8n.pt) |
+| Freeze manifest | `docs/science/BASELINE_C_FREEZE_V1.json` |
+| Ultralytics | 8.3.253, PyTorch 2.10.0+cu128, CPU-only (GTX 850M sm_50 incompatible) |
+
+### DESIGN results (14 dives)
+
+| Landmark | Within-tol | Serious | Median err | UNCERTAIN |
+|---|---|---|---|---|
+| takeoff | 0% | 9/9 (100%) | 224f | 5 of 14 |
+| apex | 0% | 7/7 (100%) | 150f | — |
+| water_contact | 0% | 9/9 (100%) | 277f | — |
+
+### INTERNAL_EVAL results (6 dives, accessed once after freeze)
+
+| Landmark | Within-tol | Serious | Median err | UNCERTAIN |
+|---|---|---|---|---|
+| takeoff | 0% | 2/2 (100%) | 569f | 4 of 6 |
+| apex | 0% | 2/2 (100%) | 338.5f | — |
+| water_contact | 0% | 1/2 | 372f | — |
+
+### Scientific findings
+
+- **Failure mode**: EARLY_TRIGGER (7/9 DESIGN takeoffs predicted at frame 0–11 vs true 108–1051)
+- **Root cause**: Athletic dive poses in flight (~30–50px at 360p) outside COCO person distribution
+- **Confidence**: Does not separate reliable from catastrophic predictions; useless as filter
+- **Proxy/original**: KEEP_DEFERRED (errors are orders above any proxy artifact)
+- **C vs A/B**: C is strictly worse than both A (median 94/89/85f) and B (157/63/70f DESIGN)
+- **UNCERTAIN rate**: A=7%, B=21%, C=36% DESIGN; C=67% INTERNAL_EVAL
+
+### Classification R4 implications
+
+Generic COCO pretrained detection cannot be tuned to work on this footage. Next baseline
+must use domain-specific detection or pose estimation.
+
+### New files committed (Baseline C commit)
+
+- `backend/tests/test_analysis_layer2.py` (119 tests, expanded from 37)
+- `experiments/landmark_pilot/proposer_baseline_c.py`
+- `experiments/landmark_pilot/run_baseline_c.py`
+- `experiments/landmark_pilot/requirements_c.txt`
+- `docs/science/BASELINE_C_FREEZE_V1.json`
+- `docs/science/BASELINE_CC2_CANARY_RESULTS_V1.json`
+- `docs/science/BASELINE_CC2_DESIGN_RESULTS_V1.json`
+- `docs/science/BASELINE_CC2_EVAL_RESULTS_V1.json`
+- `docs/science/TEMPORAL_LANDMARK_BASELINE_C_V1_REPORT.md`
