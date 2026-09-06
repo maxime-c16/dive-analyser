@@ -69,7 +69,7 @@
 
 ### J1 — SAM 2.1 tiny on new DEVELOPMENT dives (311, 2541, 2555)
 
-| Dive | Outcome | Zero-area frames | Window (s) |
+| Dive | Outcome | Zero-area frames | SAM2 compute (s) [NOT clip duration] |
 |---|---|---|---|
 | 311 | IMMEDIATE_COLLAPSE | 31/48 | 55 |
 | 2541 | IMMEDIATE_COLLAPSE | 48/49 | 61 |
@@ -77,7 +77,7 @@
 
 ### J2 — SAM 2.1 base_plus on representative dives (133, 2387)
 
-| Dive | Outcome | Zero-area frames | Window (s) |
+| Dive | Outcome | Zero-area frames | SAM2 compute (s) [NOT clip duration] |
 |---|---|---|---|
 | 133 | SUCCESS | 0/51 | 78 |
 | 2387 | IMMEDIATE_COLLAPSE | 45/46 | 88 |

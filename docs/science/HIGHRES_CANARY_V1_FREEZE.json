@@ -1,0 +1,165 @@
+{
+  "label": "HIGH_RESOLUTION_PERCEPTION_CANARY_V1",
+  "frozen_at": "2026-09-06T11:34:42.199982+00:00",
+  "source": {
+    "filename": "IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "duration_s": 5.373333,
+    "n_frames_decoded": 322,
+    "r_frame_rate": "60000/1001",
+    "display_dimensions": "1080x1920",
+    "vfr": true,
+    "codec": "hevc_main10",
+    "color": "bt2020_hlg",
+    "dolby_vision_profile": 8,
+    "creation_time": "2026-08-22T15:03:44+0200",
+    "device": "iPhone 17",
+    "location": "+48.8156+002.4943",
+    "caption": "5122D G/G"
+  },
+  "dive_identity": {
+    "status": "MATCHED",
+    "dive_id": 2819,
+    "photos_asset_id": 2815,
+    "session_id": 169,
+    "dive_code": "5122D",
+    "performance": "G",
+    "confidence": "HIGH"
+  },
+  "unit_correction": {
+    "v2_report_column": "Window (s)",
+    "was_incorrectly_interpreted_as": "video_clip_duration_seconds",
+    "correct_meaning": "SAM2_wall_clock_compute_seconds",
+    "actual_clip_duration_range_s": "5-20",
+    "canary_clip_is_normal": true
+  },
+  "representations": {
+    "R0": {
+      "filename": "R0_native_portrait.mp4",
+      "dimensions": "1080x1920",
+      "sha256": "2f12a3229a8fe1fe47f0d412f0663a849661dfc4e519e0959e9719e6e9093bae",
+      "n_frames": 322,
+      "fps": "60000/1001",
+      "crf": 18
+    },
+    "R1": {
+      "filename": "R1_360p_norotate.mp4",
+      "dimensions": "202x360",
+      "sha256": "afe37a6fa1a8f75e987a7f49abdb977f86f66cedf448c273ed057fbfeca66371",
+      "n_frames": 322,
+      "fps": "60000/1001",
+      "crf": 23
+    }
+  },
+  "detector_identities": {
+    "D0_COCO": {
+      "weights": "yolov8n.pt",
+      "architecture": "YOLOv8n_COCO",
+      "class_filter": [
+        0
+      ],
+      "conf": 0.25,
+      "iou": 0.45,
+      "imgsz_r0": 1920,
+      "imgsz_r1": 640
+    },
+    "D1_L1": {
+      "weights_sha256": "4944e62fade083872d425bc53ef5ff9f4f0bd0354610b405df144463d1c59ce9",
+      "architecture": "YOLOv8n_1class_freeze10",
+      "conf": 0.25,
+      "iou": 0.45,
+      "imgsz_r0": 1920,
+      "imgsz_r1": 640,
+      "v2_val_mAP50": 0.766,
+      "generalization_verdict": "FAILED"
+    }
+  },
+  "paired_detection_results": {
+    "D0_COCO_R0_native": {
+      "recall": 1.0,
+      "mean_conf": 0.703,
+      "mean_px_h_px": 102.8,
+      "inference_fps": 5.0
+    },
+    "D0_COCO_R1_360p": {
+      "recall": 0.043,
+      "mean_conf": 0.358,
+      "mean_px_h_px": 31.2,
+      "inference_fps": 34.3
+    },
+    "D1_L1_R0_native": {
+      "recall": 0.0,
+      "mean_conf": 0.0,
+      "mean_px_h_px": 0.0,
+      "inference_fps": 5.2
+    },
+    "D1_L1_R1_360p": {
+      "recall": 0.0,
+      "mean_conf": 0.0,
+      "mean_px_h_px": 0.0,
+      "inference_fps": 38.7
+    }
+  },
+  "tracking_ablation": {
+    "H0": {
+      "method": "PER_FRAME_DETECTION_PLUS_SCENE_ROI",
+      "coverage": 1.0,
+      "trajectory_stability": "LOW",
+      "apex_est_s": 2.119,
+      "water_est_s": 4.137
+    },
+    "H1": {
+      "method": "BYTETRACK",
+      "coverage": 0.547,
+      "diver_track_id": 2,
+      "trajectory_stability": "MEDIUM",
+      "apex_est_s": 3.337
+    }
+  },
+  "scene_geometry": {
+    "platform_side": "RIGHT",
+    "diver_cx_roi": [
+      0.55,
+      1.0
+    ],
+    "diver_cy_roi": [
+      0.2,
+      0.7
+    ],
+    "water_surface_approx_cy_norm": 0.5,
+    "geometry_type": "MANUALLY_INITIALIZED_GEOMETRY"
+  },
+  "cc3_result": {
+    "status": "INSUFFICIENT",
+    "reason": "DIVER_SELECTION_FAILURE",
+    "human_reference": "NOT_YET_AVAILABLE",
+    "visual_estimate": {
+      "takeoff_approx_s": 0.4,
+      "apex_approx_s": 1.4,
+      "water_contact_approx_s": 2.2
+    }
+  },
+  "causal_classification": "RESOLUTION_MAJOR",
+  "analysis_rendition_recommendation": "ANALYSIS_PROXY_720P_HYPOTHESIS",
+  "pilot_360p_disposition": "360P_ONLY_VALID_FOR_COARSE_TASKS",
+  "domain_adaptation_audit": {
+    "train_samples": 28,
+    "val_samples": 8,
+    "split_strategy": "dive_level",
+    "same_dive_leakage": false,
+    "near_duplicate_risk": "LOW",
+    "cross_pool_leakage": "MEDIUM",
+    "l1_mAP50_reclassified_as": "IN_DISTRIBUTION_FEASIBILITY_SIGNAL",
+    "generalization_verdict": "FAILED_OOD"
+  },
+  "next_data_requirement": "6_HIGHRES_DIVES",
+  "perception_architecture_recommendation": "DOMAIN_DETECTOR_PLUS_SCENE_PRIORS",
+  "pose_decision": "POSE_STILL_PREMATURE",
+  "resource_costs": {
+    "D0_R0_1080p_fps": 4.84,
+    "D0_R1_360p_fps": 34.3,
+    "bytetrack_R0_fps": 4.76,
+    "peak_ram_mb": 1123,
+    "device": "MPS_M_series_Mac"
+  }
+}
