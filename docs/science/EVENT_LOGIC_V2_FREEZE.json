@@ -1,0 +1,86 @@
+{
+  "label": "EVENT_LOGIC_V2_FREEZE",
+  "freeze_timestamp": "2026-09-06T00:00:00Z",
+  "schema_version": "v2_event_logic",
+  "frozen_by": "maxime@qwokka.fr",
+  "phase": "K",
+  "git_head_at_freeze": "pending_commit",
+
+  "selected_variant": "E1",
+  "rationale": "E2 adds scene priors (water_line_auto, board_cx filtering) which require calibrated scene geometry per pool. With COCO detector on development corpus (360p, uncontrolled backgrounds), E2 priors are unreliable. E1 is selected for robustness. E2 remains available for future pool-specific calibration.",
+
+  "state_machine_identity": {
+    "file": "experiments/landmark_pilot/proposer_event_logic_v2.py",
+    "states": ["PREPARATION", "APPROACH_OR_HURDLE", "SUPPORT_INTERACTION", "AIRBORNE_ASCENT", "AIRBORNE_DESCENT", "ENTRY"],
+    "context_types": ["HURDLE", "STANDING", "UNKNOWN"],
+    "key_innovations": [
+      "Board re-contact detection prevents HURDLE motion from triggering false takeoff",
+      "Velocity-based preparation end detection (not position variance)",
+      "PTS-aware velocity: dt from actual timestamps, not 1/fps",
+      "Apex restricted to post-takeoff interval",
+      "Water contact via cy_norm threshold, not last frame / track dropout"
+    ]
+  },
+
+  "params_e1": {
+    "variant": "E1",
+    "detector": "yolov8n",
+    "detector_imgsz": 640,
+    "detector_conf": 0.10,
+    "detector_iou": 0.45,
+    "detector_classes": [0],
+    "tracker": "bytetrack",
+    "track_min_conf": 0.10,
+    "track_select_strategy": "longest_x_conf",
+    "smooth_window_s": 0.35,
+    "interp_max_gap_s": 0.30,
+    "vel_max_gap_s": 0.20,
+    "static_var_threshold": 0.0015,
+    "static_window_s": 0.40,
+    "static_min_duration_s": 0.25,
+    "takeoff_vel_threshold": 0.04,
+    "takeoff_sustained_s": 0.15,
+    "takeoff_min_after_prep_s": 0.10,
+    "hurdle_post_plateau_guard_s": 0.40,
+    "apex_search_start_s": 0.08,
+    "water_line_cy_norm": 0.50,
+    "water_contact_method": "cy_threshold_or_dropout",
+    "water_contact_min_after_apex_s": 0.05,
+    "min_coverage_for_confident": 0.15,
+    "max_takeoff_error_for_confident": 0.50,
+    "use_scene_priors": false,
+    "board_cx_min": 0.50,
+    "board_cx_max": 1.00,
+    "water_line_auto": false
+  },
+
+  "test_suite": {
+    "file": "experiments/landmark_pilot/test_event_logic_v2.py",
+    "n_tests": 29,
+    "n_passed": 29,
+    "n_failed": 0,
+    "result": "ALL_PASS",
+    "test_categories": [
+      "context_classification (10 tests)",
+      "pts_aware_velocity (4 tests)",
+      "smoothing (1 test)",
+      "plateau_detection (2 tests)",
+      "hurdle_guard (3 tests)",
+      "apex_restriction (2 tests)",
+      "fps_agnosticism (1 test)",
+      "water_contact (1 test)",
+      "standing_vs_hurdle_path (2 tests)",
+      "scene_geometry_fallback (1 test)",
+      "parameter_completeness (2 tests)"
+    ]
+  },
+
+  "known_limitations": [
+    "COCO detector (yolov8n.pt) used due to L1 domain-adapted weights requiring CUDA — 4.3% recall at 360p (development corpus). State machine is validated on canary (1080p, 100% recall).",
+    "Board re-contact heuristic requires non-positive velocity after hurdle guard; may fail if board loading is very brief or camera angle obscures trajectory.",
+    "Water contact via cy_norm threshold is pool/framing dependent; E2 water_line_auto mitigates this but is not selected for INTERNAL_EVAL.",
+    "DEVELOPMENT corpus evaluation blocked by detector scale failure; Phase I run with COCO fallback only."
+  ],
+
+  "supervisor_gate": "SUPERVISOR_REVIEW_AFTER_EVENT_LOGIC_V2"
+}

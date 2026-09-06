@@ -258,3 +258,91 @@ must use domain-specific detection or pose estimation.
 - Build CC3: fine-tuned L1 detector (all 38 DEVELOPMENT frames, no val hold-out) + ByteTrack
 - Evaluate CC3 on INTERNAL_EVAL at 360p
 - Long-term: original-resolution processing to overcome SCALE_FAILURE root cause
+
+---
+
+## HIGHRES_CANARY_EVENT_SEMANTICS_CORRECTION_V1 — Study Complete (2026-09-06)
+
+**Gate**: `SUPERVISOR_REVIEW_AFTER_EVENT_LOGIC_V2`
+
+**Triggered by**: SUPERVISOR_TASK_PACKET with authoritative corrections to V1 canary interpretation.
+
+### Authoritative canary facts (supersedes V1)
+
+- **Source**: `IMG_1937.mov` (SHA256: `d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae`)
+- **Apparatus**: springboard 1 m (NOT platform 10 m — V1 error)
+- **Dive code**: 5122D G/G — context: **HURDLE** (forward approach)
+- **hurdle**: true, **initial_static**: true, **hurdle_onset**: frame 0 (t=0.000 s)
+
+### PTS-correct annotation fingerprint (HIGHRES_CANARY_V2_EXACT_ANNOTATION.json)
+
+| Landmark | Frame | PTS (s) |
+|---|---|---|
+| hurdle_onset | 0 | 0.000 |
+| board_recontact | 160 | 2.668 |
+| takeoff | 187 | 3.120 |
+| apex | 214 | 3.570 |
+| water_contact | 253 | 4.220 |
+
+Tool: `annotate_canary_v2.py` (PTS-bisect mapping, port 8766). Annotator: maxime@qwokka.fr.
+
+### CC3 re-evaluation errors (Phase G)
+
+| Landmark | CC3 | GT | Error | Classification |
+|---|---|---|---|---|
+| takeoff | 0.10 s | 3.12 s | −3.020 s | CATASTROPHIC |
+| apex | 1.40 s | 3.57 s | −2.170 s | CATASTROPHIC |
+| water_contact | 4.90 s | 4.22 s | +0.680 s | END_OF_CLIP_COINCIDENCE |
+
+### Event Logic V2 (Phase F–K)
+
+**File**: `experiments/landmark_pilot/proposer_event_logic_v2.py`  
+**Selected variant**: E1 (no scene priors — COCO detector unreliable for priors)  
+**Freeze**: `docs/science/EVENT_LOGIC_V2_FREEZE.json`  
+**Tests**: `test_event_logic_v2.py` — **29/29 pass**
+
+Key innovations:
+- Board re-contact detection: hurdle motion not misclassified as takeoff
+- PTS-aware velocity: uses actual timestamp differences, not 1/fps
+- Apex restricted to post-takeoff interval with velocity zero-crossing
+- Water contact: cy_norm threshold, not last frame / track dropout
+- Context-aware: HURDLE vs STANDING classification from dive code
+
+**Coordinate convention**: State machine expects y_arr with positive direction = upward
+(pass `−cy_norm` from detector). Water contact check uses original cy_norm directly.
+
+### Phase M — Canary mechanism check (synthetic trajectory)
+
+| Landmark | E1 estimate | GT | Error |
+|---|---|---|---|
+| takeoff | 3.017 s | 3.120 s | −0.103 s |
+| apex | 3.583 s | 3.570 s | +0.013 s |
+| water_contact | 4.250 s | 4.220 s | +0.030 s |
+
+All states traversed: PREPARATION → APPROACH_OR_HURDLE → SUPPORT_INTERACTION
+→ AIRBORNE_ASCENT → AIRBORNE_DESCENT → ENTRY.
+
+### Phase N — Water contact classification
+
+- **CC3 water_contact (4.90 s)**: END_OF_CLIP_COINCIDENCE — last decoded frame, not physical detection
+- **V2 annotation (4.22 s)**: GENUINE — 1.15 s before end of clip
+- **E1 estimate (4.25 s)**: GENUINE — 1.12 s before end of clip
+
+### Known limitations (post-correction)
+
+1. COCO detector recall: 4.3% at 360p / 100% at 1080p (SCALE_FAILURE inherited from Perception V2)
+2. L1 domain-adapted weights require CUDA (sm_50 incompatible with server GPU) — COCO used as fallback
+3. DEVELOPMENT corpus E1 evaluation blocked by SCALE_FAILURE; full evaluation deferred
+4. Board re-contact heuristic may fail for very short board loading durations
+
+### New files committed (this study)
+
+- `experiments/landmark_pilot/annotate_canary_v2.py`
+- `experiments/landmark_pilot/proposer_event_logic_v2.py`
+- `experiments/landmark_pilot/test_event_logic_v2.py`
+- `experiments/landmark_pilot/phase_m_canary_check.py`
+- `docs/science/HIGHRES_CANARY_V2_EXACT_ANNOTATION.json`
+- `docs/science/HIGHRES_CANARY_V2_REFERENCE.json`
+- `docs/science/EVENT_LOGIC_V2_FREEZE.json`
+- `docs/science/PHASE_M_CANARY_CHECK.json`
+- `docs/science/HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1.md`

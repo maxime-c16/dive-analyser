@@ -1,0 +1,111 @@
+{
+  "label": "HIGHRES_CANARY_V2_REFERENCE",
+  "schema_version": "v2_canary_pts_correct",
+  "created": "2026-09-06T17:55:55.264973+00:00",
+  "supersedes": "HIGHRES_CANARY_V1",
+  "supersession_reason": "Previous annotation used direct visual inspection (not PTS-correct tool) and incorrectly described apparatus as platform/10m. This document is the authoritative reference.",
+  "source": {
+    "filename": "IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "n_frames_decoded": 322,
+    "pts_range_s": [
+      0.0,
+      5.355
+    ],
+    "r_frame_rate": "60000/1001",
+    "display_dimensions": "1080x1920",
+    "vfr": true
+  },
+  "dive_identity": {
+    "status": "MATCHED",
+    "dive_id": 2819,
+    "dive_code": "5122D",
+    "height": "1m",
+    "platform_db": null,
+    "raw_caption": "5122D G/G",
+    "db_metadata_consistent_with_authority": true
+  },
+  "apparatus_authority": {
+    "apparatus": "springboard",
+    "height_m": 1,
+    "hurdle": true,
+    "initial_static": true,
+    "source": "supervisor_correction_2026-09-06"
+  },
+  "annotator": "maxime@qwokka.fr",
+  "annotation_timestamp": "2026-09-06T17:48:41Z",
+  "annotation_method": "PTS-correct annotation tool (annotate_canary_v2.py), frame-accurate, browser-based",
+  "annotation_tool_commit": "7c41ebe",
+  "landmarks": {
+    "takeoff": {
+      "state": "HUMAN_SET",
+      "frame_index": 187,
+      "frame_pts_seconds": 3.12,
+      "category": "mandatory"
+    },
+    "apex": {
+      "state": "HUMAN_SET",
+      "frame_index": 214,
+      "frame_pts_seconds": 3.57,
+      "category": "mandatory"
+    },
+    "water_contact": {
+      "state": "HUMAN_SET",
+      "frame_index": 253,
+      "frame_pts_seconds": 4.22,
+      "category": "mandatory"
+    },
+    "hurdle_onset": {
+      "state": "HUMAN_SET",
+      "frame_index": 0,
+      "frame_pts_seconds": 0,
+      "category": "diagnostic_optional"
+    },
+    "board_recontact": {
+      "state": "HUMAN_SET",
+      "frame_index": 160,
+      "frame_pts_seconds": 2.668333,
+      "category": "diagnostic_optional"
+    }
+  },
+  "dive_structure": {
+    "hurdle_onset_to_board_recontact_s": 2.6683,
+    "board_recontact_to_takeoff_s": 0.4517,
+    "takeoff_to_apex_s": 0.45,
+    "apex_to_water_contact_s": 0.65,
+    "total_flight_s": 1.1,
+    "clip_duration_post_entry_s": 1.135
+  },
+  "previous_approximate_annotation": {
+    "takeoff_s": 3.5,
+    "apex_s": 4.2,
+    "water_contact_s": 4.9,
+    "method": "direct_visual_inspection",
+    "status": "SUPERSEDED",
+    "errors_vs_exact_reference": {
+      "takeoff_diff_s": 0.38,
+      "apex_diff_s": 0.63,
+      "water_contact_diff_s": 0.68
+    }
+  },
+  "cc3_historical_evaluation": {
+    "system_estimates": {
+      "takeoff_s": 0.1,
+      "apex_s": 1.4,
+      "water_contact_s": 4.9
+    },
+    "errors_vs_previous_approx": {
+      "takeoff": -3.4,
+      "apex": -2.8,
+      "water_contact": 0.0
+    },
+    "errors_vs_exact_reference": {
+      "takeoff": -3.02,
+      "apex": -2.17,
+      "water_contact": 0.68
+    },
+    "verdict": "TAKEOFF_CATASTROPHIC_FAIL__APEX_CATASTROPHIC_FAIL__WC_NOT_COINCIDENTAL_0.68s_LATE",
+    "water_contact_classification": "END_OF_CLIP_COINCIDENCE",
+    "note": "Previous 0.00s WC error was artifact of wrong reference. Exact reference reveals +0.68s WC error; CC3 does not detect actual water contact event."
+  }
+}
