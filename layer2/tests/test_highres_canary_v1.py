@@ -152,9 +152,10 @@ def test_pts_aware_smoothing_uses_window():
         {"frame_idx": 1, "pts_s": 0.1, "cy_norm": 0.5},
         {"frame_idx": 2, "pts_s": 0.2, "cy_norm": 0.3},
     ]
+    # window_s=0.05: each neighbor is exactly 0.1s away (>0.05), so each frame smooths to itself
     smoothed = pts_aware_smooth(trajectory, window_s=0.05)
-    assert abs(smoothed[0]["cy_smooth"] - 0.4) < 1e-4
-    assert abs(smoothed[1]["cy_smooth"] - 0.45) < 1e-4
+    assert abs(smoothed[0]["cy_smooth"] - 0.4) < 1e-4   # only itself in window
+    assert abs(smoothed[1]["cy_smooth"] - 0.5) < 1e-4   # only itself in window
 
 def test_missing_gap_preservation():
     trajectory = [
@@ -162,7 +163,7 @@ def test_missing_gap_preservation():
         {"frame_idx": 1, "pts_s": 0.1, "cy_norm": None},
         {"frame_idx": 2, "pts_s": 0.2, "cy_norm": 0.3},
     ]
-    smoothed = pts_aware_smooth(trajectory, window_s=0.05)
+    smoothed = pts_aware_smooth(trajectory, window_s=0.11)
     assert smoothed[1]["cy_smooth"] is None
     assert smoothed[0]["cy_smooth"] is not None
     assert smoothed[2]["cy_smooth"] is not None
