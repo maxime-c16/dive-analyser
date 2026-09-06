@@ -1,0 +1,42 @@
+{
+  "label": "REAL_SIGNAL_EVENT_LOGIC_V2_CANARY",
+  "detector": "COCO_yolov8n",
+  "l1_status": "COMPLETE_FAILURE_0_DETECTIONS",
+  "gt_source_pts": {
+    "takeoff": 3.12,
+    "apex": 3.57,
+    "water_contact": 4.22
+  },
+  "results": {
+    "R1080": {
+      "prep_end_t": 0.316983,
+      "takeoff_t": null,
+      "takeoff_error_s": null,
+      "apex_t": null,
+      "apex_error_s": null,
+      "water_contact_t": null,
+      "water_contact_error_s": null,
+      "selection_strategy": "max_conf_per_frame"
+    },
+    "R720": {
+      "prep_end_t": 0.25025,
+      "takeoff_t": null,
+      "takeoff_error_s": null,
+      "apex_t": null,
+      "apex_error_s": null,
+      "water_contact_t": null,
+      "water_contact_error_s": null,
+      "selection_strategy": "max_conf_per_frame"
+    },
+    "R360": {
+      "prep_end_t": 0.383717,
+      "takeoff_t": null,
+      "takeoff_error_s": null,
+      "apex_t": null,
+      "apex_error_s": null,
+      "water_contact_t": null,
+      "water_contact_error_s": null,
+      "selection_strategy": "max_conf_per_frame"
+    }
+  }
+}

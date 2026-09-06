@@ -1,0 +1,26 @@
+{
+  "label": "PHASE_M_CANARY_CHECK_AUDIT",
+  "audit_date": "2026-09-06",
+  "supersedes_document_claim": "HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1.md section 5",
+  "classification": "ORACLE_TRAJECTORY_TEST",
+  "trajectory_type": "SYNTHETIC_WITH_GT_BREAKPOINTS",
+  "actual_committed_output": {
+    "takeoff_t": 1.450,
+    "takeoff_error_s": -1.670,
+    "apex_t": 2.217,
+    "apex_error_s": -1.353,
+    "water_contact_t": 4.233,
+    "water_contact_error_s": 0.013,
+    "water_contact_type": "GENUINE"
+  },
+  "document_claimed_output": {
+    "takeoff_error_s": -0.103,
+    "apex_error_s": 0.013,
+    "water_contact_error_s": 0.030,
+    "status": "INCORRECT_NEVER_PRODUCED_BY_COMMITTED_CODE"
+  },
+  "mechanism_failure_cause": "Sinusoidal hurdle oscillation triggers false board_recontact and takeoff detection before true board_recontact at t=2.668s",
+  "valid_evidence": "water_contact +0.013s is genuine; takeoff and apex errors are mechanism failures",
+  "unit_tests_remain_valid": true,
+  "note": "29 unit tests validate individual functions in isolation and remain correct. Only the end-to-end synthetic canary mechanism fails."
+}

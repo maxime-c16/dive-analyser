@@ -1,348 +1,90 @@
-# PROJECT_STATE.md - Dive Analyser / DiveSensei
-
-## Perception Decomposition V1 — DEVELOPMENT COMPLETE (2026-09-06)
-
-Report: `docs/science/TEMPORAL_LANDMARK_PERCEPTION_DECOMPOSITION_V1_REPORT.md`.
-Starting canonical HEAD `b9d8952a9e9dbfa78595904f4d2dfdf4e3e6cb58`.
-Root cause: **MULTI_STAGE_LIMITATION** (detection + acquisition + tracking all fail at 360p).
-INTERNAL_EVAL evaluation blocked: 18 localization frames at
-`media/perception_decomposition_v1/localization/INTERNAL_EVAL/` require human review.
-User-facing analysis: **NOT AUTHORIZED**. Next gate: **SUPERVISOR_REVIEW_AFTER_PERCEPTION_DECOMPOSITION_V1**.
-
-Scientific summary:
-- 60-FPS annotation bug discovered, repaired: V2 PTS reference authority established.
-- V2 A/B/C re-evaluation: all baselines seriously fail (>80% serious errors; A median 2.0s, C median 3.7s).
-- Detector-only (F1/F2): IoU50 recall 3/36 and 1/36 respectively. Detection gap confirmed at 360p.
-- Baseline C stage trace (3 DEVELOPMENT dives): wrong-person acquisition (133, 2555) and
-  zero detection at landmark frames (2541). Structural bystander-wins confirmed.
-- Oracle SAM canary (3 DEVELOPMENT dives): 1/3 successful (dive 133, 38/51 frames active);
-  dives 2387 and 2169 collapse immediately at frame index 1.
-- Original access: ACCESS_METHOD_BLOCKED (SSH/TCC denied). No paired original data.
-- Custom fine-tuning: NOT JUSTIFIED. Automatic seeding: SKIPPED (oracle 1/3 success).
-- Pose: POSE_STILL_PREMATURE. Next baseline not frozen.
-
-Last verified: **2026-09-06**.
-Latest audit: `docs/audits/FOUNDATION_HARDENING_AND_LAYER2_READINESS_2026-09-05.md`.
-Layer-2 architecture: `docs/design/ANALYSIS_LAYER_2_ARCHITECTURE_V1.md`.
-Pilot report: `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
-Supervisor gate: `SUPERVISOR_REVIEW_AFTER_PERCEPTION_DECOMPOSITION_V1`.
-
-## Canonical Repository
-
-Canonical source is `mcauchy@192.168.1.57:~/dive-analyser` on host `deb-serv`, branch
-`uiux-overhaul-pro-app`. History was rewritten on 2026-09-05 to remove historical live DB
-credential material and tracked `.env`. Current HEAD: verify with `git rev-parse HEAD`.
-
-The Mac local workspace `/Users/maximecauchy/.perso/diveanalyzer` is not a Git repository
-and is not source authority.
-
-## Backup Authority
-
-A sanitized off-host bare mirror exists on the Mac at
-`/Users/Shared/services/data/diveanalyzer-source-backups/dive-analyser-2026-09-05.git`.
-It is source-only, outside the deployed Mac-agent tree, mode 0700, and must have HEAD equal
-to the canonical repository after each final commit.
-
-## Runtime Topology
-
-Debian server `192.168.1.57` runs Docker Compose: PostgreSQL 16, FastAPI backend,
-React/Vite frontend image, nginx, and Adminer. Mac `192.168.1.19` runs launchd
-`com.diveanalyzer.agent` from `/Users/Shared/services/data/diveanalyzer/`.
-
-nginx is the LAN entrypoint: `http://192.168.1.57:6090` and `https://192.168.1.57:6443`.
-Direct service bindings are loopback-only: Postgres `127.0.0.1:5433`, backend `127.0.0.1:6002`,
-frontend `127.0.0.1:6001`, Adminer `127.0.0.1:8080`.
-
-## Runtime Configuration Authority
-
-Server runtime secrets live in `/home/mcauchy/dive-analyser/.env` (ignored by Git).
-Contains: rotated PostgreSQL credential, Mac machine API key, CORS origins,
-`ANALYSIS_ARTIFACT_ROOT=/app/analysis-artifacts`.
-
-Mac runtime config: `/Users/Shared/services/data/diveanalyzer/state/config.yaml` (0600).
-
-## Source Authorities
-
-- backend: Git `backend/`; runtime bind-mounted `/app`; PASS.
-- frontend: Git `frontend/`; deployed image must be rebuilt for application source changes.
-- infra: Git `docker-compose.yml`, `nginx/`; nginx config is bind-mounted; PASS.
-- Mac agent: Git `mac-agent/` plus deployed Mac code; reconciled 2026-09-05 (byte-parity).
-- Analysis schema: `backend/migrations/add_analysis_layer2.sql` applied to production DB.
-- Experiment code: `experiments/landmark_pilot/` (NOT in backend container; standalone only).
-
-## Security Status
-
-- DB credential rotation: PASS (from 2026-09-05 hardening).
-- Git sanitization: PASS; `git fsck --strict` passed.
-- Machine API auth: PASS.
-- TLS: PASS for Mac agent (local CA, explicit trust).
-- Layer-2 security: proxy-only processing, no bulk recall, no production bulk-enqueue,
-  no credentials in experiment code.
-
-## Current Analysis Capabilities
-
-### Layer 1 (Production)
-
-User-authored metadata + deterministic/statistical/heuristic backend logic: caption parsing,
-DD lookup/provenance, session aggregates, two-phase self ratings, Personal Dive Value V1,
-Journey/fear/plateau heuristics, media readiness, representative-media workflows.
-
-### Layer 2 (Experimental — Research Phase)
-
-**Temporal landmark extraction** implemented and piloted:
-
-- Schema: 9 new tables (`analysis_runs`, `analysis_jobs`, `analysis_landmarks`,
-  `analysis_phases`, `analysis_metrics`, `analysis_artifacts`, `analysis_comparisons`,
-  `analysis_comparison_artifacts`, `analysis_comparison_metrics`) applied to production DB.
-- API: `/api/v1/analysis/` routes (all return `experimental: true`).
-- Metric registry: 11 metrics in `backend/app/data/metric_registry.yaml`.
-- Artifact storage: `media/analysis-artifacts/<dive_id>/<run_uuid>/` (bind-mounted in Docker).
-- Baseline A pipeline: MOG2 + vertical centroid → takeoff/apex/water_contact landmarks.
-- Pilot corpus: 20 dives run; 12/20 APPLICABLE (60%), 8/20 UNCERTAIN (40%).
-- Pairwise comparison: 66 pairs computed and stored.
-- Annotation tool: `experiments/landmark_pilot/annotate.py` (web UI, port 8765).
-
-**Temporal Landmark Pilot V1 COMPLETE.**
-
-**Baseline A:** 0% within-tolerance on all 3 landmarks (all 20 dives). Architectural failure.
-See docs/science/BASELINE_A_EVALUATION_V1.json + BASELINE_A_ERROR_TAXONOMY_V1.json.
-
-**Baseline B (DIBT):** 5.6%/15.4%/5.3% within-tol (takeoff/apex/water_contact, all-20).
-INTERNAL_EVAL: 16.7%/33.3%/0%. NOT ADOPTED — does not meet ≥50% production bar.
-See docs/science/BASELINE_B_EVALUATION_V1.json + BASELINE_B_FREEZE_V1.json.
-
-**Full pilot report:** `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
-
-## Production Data Authority
-
-PostgreSQL Docker volume is the production metadata authority.
-Server `media/videos` holds legacy originals/stubs; `media/cache` holds derived renditions.
-Mac Photos and `/Users/Shared/services/data/media-node/` remain authority for new originals.
-`media/analysis-artifacts/` holds Layer-2 analysis outputs (excluded from Git).
-
-## Layer-2 DB State (2026-09-05)
-
-```
-analysis_runs          20  (pilot; pipeline=temporal_landmarks_baseline_a_v1)
-analysis_jobs          20  (all succeeded)
-analysis_landmarks     60  (3 per run: 36 APPLICABLE, 24 UNCERTAIN)
-analysis_phases        36  (3 per APPLICABLE run: flight_ascent, flight_descent, flight)
-analysis_metrics      120  (10 per APPLICABLE run)
-analysis_artifacts     20  (diagnostic.json per run)
-analysis_comparisons   66  (pairwise, method=temporal_landmark_pairwise_v1)
-analysis_comparison_metrics 264  (4 per comparison)
-```
-
-## Tests And Validation
-
-- Pre-Layer-2 backend security/sync/media tests: 21 passed.
-- Layer-2 schema invariants: verified manually (temporal ordering, UNCERTAIN → conf=0,
-  NOT_APPLICABLE → NULL timestamps, unique metric constraint).
-- Layer-2 unit/integration tests (Phase T): not yet written. TODO.
-
-## Remaining Engineering Debt
-
-1. Layer-2 test suite not yet written.
-2. Baseline C not yet implemented (Baseline A+B both fail production bar).
-3. Proxy-vs-original canary deferred (originals are iCloud-only; Phase G scientifically low priority at current error magnitudes).
-4. Migration-system consolidation remains deferred.
-5. DB role privileges remain broad; rotation preserved current architecture.
-6. Browser/system trust for the local CA is not installed.
-7. Frontend image should be rebuilt on next user-facing frontend source change.
-8. Layer-2 temporal landmark results not yet surfaced in the web UI.
-
-## Current Gate
-
-`SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`
-
-Previous completed gates:
-- `SUPERVISOR_REVIEW_AFTER_HIGHRES_PERCEPTION_CANARY_V1` (2026-09-05)
-- `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE` (2026-09-05)
-
-**What the supervisor should review:**
-1. Baseline C R4 finding: generic COCO person detection insufficient for this footage
-2. Next baseline direction: D2-POSE (pose estimation), D1-FT (fine-tune), or D3-OPT (strengthen B)
-3. Proxy-vs-original canary: KEEP_DEFERRED until within striking distance of tolerances
-4. Off-host backup: refresh Mac mirror after this commit
-5. UI layer: decide when to surface temporal landmark results in the frontend
-
-
-## Science layer — Baseline C (2026-09-06)
-
-> **Gate before Baseline C**: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PILOT_V1_COMPLETE`
-> **Classification**: R4 — HUMAN_DETECTION_ITSELF_INSUFFICIENT
-> **Report**: `docs/science/TEMPORAL_LANDMARK_BASELINE_C_V1_REPORT.md`
-> **New gate**: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`
-
-### Baseline C identity
-
-| Item | Value |
-|---|---|
-| Algorithm | YOLOv8n (COCO class 0) + ByteTrack + y_norm trajectory + C-TAKEOFF-V2 heuristic |
-| Variant | C2 (temporal priors; C1 ≡ C2 on DESIGN so C2 chosen for safety) |
-| Proposer fingerprint | `b4afd8ae85878308ad0abb445f4da7fe708cd4a9b5987a57b120419176f2bd41` |
-| Weights SHA256 | `f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36` (yolov8n.pt) |
-| Freeze manifest | `docs/science/BASELINE_C_FREEZE_V1.json` |
-| Ultralytics | 8.3.253, PyTorch 2.10.0+cu128, CPU-only (GTX 850M sm_50 incompatible) |
-
-### DESIGN results (14 dives)
-
-| Landmark | Within-tol | Serious | Median err | UNCERTAIN |
-|---|---|---|---|---|
-| takeoff | 0% | 9/9 (100%) | 224f | 5 of 14 |
-| apex | 0% | 7/7 (100%) | 150f | — |
-| water_contact | 0% | 9/9 (100%) | 277f | — |
-
-### INTERNAL_EVAL results (6 dives, accessed once after freeze)
-
-| Landmark | Within-tol | Serious | Median err | UNCERTAIN |
-|---|---|---|---|---|
-| takeoff | 0% | 2/2 (100%) | 569f | 4 of 6 |
-| apex | 0% | 2/2 (100%) | 338.5f | — |
-| water_contact | 0% | 1/2 | 372f | — |
-
-### Scientific findings
-
-- **Failure mode**: EARLY_TRIGGER (7/9 DESIGN takeoffs predicted at frame 0–11 vs true 108–1051)
-- **Root cause**: Athletic dive poses in flight (~30–50px at 360p) outside COCO person distribution
-- **Confidence**: Does not separate reliable from catastrophic predictions; useless as filter
-- **Proxy/original**: KEEP_DEFERRED (errors are orders above any proxy artifact)
-- **C vs A/B**: C is strictly worse than both A (median 94/89/85f) and B (157/63/70f DESIGN)
-- **UNCERTAIN rate**: A=7%, B=21%, C=36% DESIGN; C=67% INTERNAL_EVAL
-
-### Classification R4 implications
-
-Generic COCO pretrained detection cannot be tuned to work on this footage. Next baseline
-must use domain-specific detection or pose estimation.
-
-### New files committed (Baseline C commit)
-
-- `backend/tests/test_analysis_layer2.py` (119 tests, expanded from 37)
-- `experiments/landmark_pilot/proposer_baseline_c.py`
-- `experiments/landmark_pilot/run_baseline_c.py`
-- `experiments/landmark_pilot/requirements_c.txt`
-- `docs/science/BASELINE_C_FREEZE_V1.json`
-- `docs/science/BASELINE_CC2_CANARY_RESULTS_V1.json`
-- `docs/science/BASELINE_CC2_DESIGN_RESULTS_V1.json`
-- `docs/science/BASELINE_CC2_EVAL_RESULTS_V1.json`
-- `docs/science/TEMPORAL_LANDMARK_BASELINE_C_V1_REPORT.md`
-
----
-
-## TEMPORAL_LANDMARK_PERCEPTION_V2 — Study Complete (2026-09-06)
-
-**Gate**: SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PERCEPTION_V2
-
-**Result**: All 9 scientific questions answered. Phases A–W complete.
-
-### Key Findings
-- **Root cause**: SCALE_FAILURE (360p proxy) — primary limiting factor throughout
-- **Failure topology**: SCALE_FAILURE → DOMAIN_GAP → ACQUISITION_FAILURE → TRACKING_COLLAPSE
-- **Domain adaptation (Phase L)**: VIABLE — L1 mAP50=0.766 (9x improvement over frozen COCO)
-- **SAM2 model size (Phase J)**: NOT a factor — both tiny and base_plus collapse at 360p (1/6 success rate)
-- **INTERNAL_EVAL CC2 (Phase Q)**: 33.3% within-tolerance (2/6 evaluable), mean error 7.12 s
-- **Architecture decision (Phase N)**: DETECTION_PLUS_LIGHTWEIGHT_TRACKING
-- **All integrity tests (Phase U)**: PASS (3/3) — frozen predictions unaltered, human timestamps unchanged
-
-### Artifacts
-- TEMPORAL_LANDMARK_PERCEPTION_V2_REPORT.md — full study report
-- PHASE_J_ORACLE_TRACKING_V1.json — oracle tracking results
-- PHASE_L_DOMAIN_ADAPTATION_V1.json — domain adaptation results
-- PHASE_M_DECISION_V1.json — method freeze
-- PHASE_N_DECISION_V1.json — architecture decision
-- PHASE_Q_INTERNAL_EVAL_CC2_V1.json — INTERNAL_EVAL evaluation
-- PHASE_R_FINAL_CLASSIFICATION_V1.json — failure classification
-- PHASE_U_TEST_RESULTS_V1.json — integrity tests
-
-### Next Iteration
-- Build CC3: fine-tuned L1 detector (all 38 DEVELOPMENT frames, no val hold-out) + ByteTrack
-- Evaluate CC3 on INTERNAL_EVAL at 360p
-- Long-term: original-resolution processing to overcome SCALE_FAILURE root cause
-
----
-
-## HIGHRES_CANARY_EVENT_SEMANTICS_CORRECTION_V1 — Study Complete (2026-09-06)
-
-**Gate**: `SUPERVISOR_REVIEW_AFTER_EVENT_LOGIC_V2`
-
-**Triggered by**: SUPERVISOR_TASK_PACKET with authoritative corrections to V1 canary interpretation.
-
-### Authoritative canary facts (supersedes V1)
-
-- **Source**: `IMG_1937.mov` (SHA256: `d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae`)
-- **Apparatus**: springboard 1 m (NOT platform 10 m — V1 error)
-- **Dive code**: 5122D G/G — context: **HURDLE** (forward approach)
-- **hurdle**: true, **initial_static**: true, **hurdle_onset**: frame 0 (t=0.000 s)
-
-### PTS-correct annotation fingerprint (HIGHRES_CANARY_V2_EXACT_ANNOTATION.json)
-
-| Landmark | Frame | PTS (s) |
+# PROJECT_STATE.md — Dive Analyser / DiveSensei
+
+> Durable project handoff. Last verified: **2026-09-06** (real-signal pipeline V1).
+> Latest audit: `docs/science/REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md`
+> Previous: `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1`**
+
+## Project purpose
+
+Personal diving-analysis platform for a single athlete (Maxime) and training partners.
+Divers manually pre-trim clips in macOS Photos and caption them with a compact grammar
+(dive code, performance, height, modifiers). The system ingests those clips + captions,
+stores structured metadata, computes statistics/insights, and serves a web UI.
+Long-term goal: a second, deeper analysis layer (phase timing, takeoff/entry
+characteristics, athlete-vs-self comparison). **Not implemented yet — direction only.**
+
+## Canonical repository
+
+- **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `pending_commit_after_real_signal_V1`.
+  No remotes.
+- Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
+  reference slice; never treat it as canonical.
+- SSH access (passwordless from Maxime's MacBook Air only): key `~/.ssh/qwokka`
+  installed in both hosts' `authorized_keys`; aliases in `~/.ssh/config`:
+  `ssh diveanalyzer-server` (= `mcauchy@192.168.1.57`),
+  `ssh diveanalyzer-mac` (= `divesensei@192.168.1.19`).
+
+## Current deployment topology
+
+Two machines on a LAN:
+
+| Machine | Host | Role |
 |---|---|---|
-| hurdle_onset | 0 | 0.000 |
-| board_recontact | 160 | 2.668 |
-| takeoff | 187 | 3.120 |
-| apex | 214 | 3.570 |
-| water_contact | 253 | 4.220 |
+| Machine A | Debian 12 server `deb-serv` @ `192.168.1.57` (user `mcauchy`) | App host: Postgres 16, FastAPI backend, React frontend (nginx), reverse proxy (6090/6443), adminer. Canonical repo at `~/dive-analyser`. |
+| Machine B | Intel MacBook, macOS 15.1.1, `mac-server.home` @ `192.168.1.19` (user `divesensei`) | Ingestion + media edge: watches the Photos library, parses captions, syncs metadata, exports/transcodes/uploads posters & proxies, manages a source vault for originals. |
 
-Tool: `annotate_canary_v2.py` (PTS-bisect mapping, port 8766). Annotator: maxime@qwokka.fr.
+## Canonical source authorities
 
-### CC3 re-evaluation errors (Phase G)
+| Concern | Authoritative source | Drift status |
+|---|---|---|
+| Backend | server repo `backend/` (uncommitted working tree) | UNCOMMITTED |
+| Frontend | server repo `frontend/src` | UNCOMMITTED |
+| Mac agent | server repo `mac-agent/` — reconciled 2026-09-05, byte-identical to deployed | RESOLVED |
+| DB schema | `backend/migrations/*.sql` | known consolidation issue |
+| Runtime config | `.env` + `docker-compose.yml` (server), `state/config.yaml` (Mac) | never in Git |
+| Media originals | Mac source vault + server legacy `media/videos` | DATA — excluded |
+| Derived renditions | server `media/cache` (~840 MB) | DATA — excluded |
 
-| Landmark | CC3 | GT | Error | Classification |
-|---|---|---|---|---|
-| takeoff | 0.10 s | 3.12 s | −3.020 s | CATASTROPHIC |
-| apex | 1.40 s | 3.57 s | −2.170 s | CATASTROPHIC |
-| water_contact | 4.90 s | 4.22 s | +0.680 s | END_OF_CLIP_COINCIDENCE |
+## Current analysis capabilities
 
-### Event Logic V2 (Phase F–K)
+- **A. User-authored:** caption grammar → structured metadata
+- **B. Deterministic:** DD engine, session aggregates, analytics, FINA scoring
+- **C. Heuristic:** fear/plateau, milestones, journey service (no video analysis)
+- **D. ML/CV:** `execution_analyzer.py` is a STUB. Analysis layer remains unimplemented.
 
-**File**: `experiments/landmark_pilot/proposer_event_logic_v2.py`  
-**Selected variant**: E1 (no scene priors — COCO detector unreliable for priors)  
-**Freeze**: `docs/science/EVENT_LOGIC_V2_FREEZE.json`  
-**Tests**: `test_event_logic_v2.py` — **29/29 pass**
+## Science layer status (2026-09-06)
 
-Key innovations:
-- Board re-contact detection: hurdle motion not misclassified as takeoff
-- PTS-aware velocity: uses actual timestamp differences, not 1/fps
-- Apex restricted to post-takeoff interval with velocity zero-crossing
-- Water contact: cy_norm threshold, not last frame / track dropout
-- Context-aware: HURDLE vs STANDING classification from dive code
+### Frozen references
+- Canary dive: 2819 (5122D G/G, springboard 1m, hurdle)
+- Source: `IMG_1937.mov` SHA=`d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae`
+- GT PTS: takeoff=3.120s, apex=3.570s, water_contact=4.220s (frame 187, 214, 253)
+- Event Logic V2 frozen: `EVENT_LOGIC_V2_FREEZE.json`, 29/29 unit tests pass
 
-**Coordinate convention**: State machine expects y_arr with positive direction = upward
-(pass `−cy_norm` from detector). Water contact check uses original cy_norm directly.
+### Critical findings (REAL_SIGNAL_HIGHRES_V1)
+1. **Phase M synthetic check is broken:** takeoff error −1.670s, apex error −1.353s.
+   The HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1.md values (0.103/0.013/0.030s)
+   were never produced by the committed code. Audit: `PHASE_M_CANARY_CHECK_AUDIT.json`.
+2. **L1 domain-adapted model (mAP50=0.766 on DEVELOPMENT) produces 0 detections**
+   on the canary video. CUDA is NOT required (MPS+CPU both work). Generalization failure.
+3. **COCO model detects spectators, not the diver during flight** (t=3.12–4.22s).
+   Both framewise and ByteTrack produce spectator trajectories.
+4. **Event Logic V2 cannot be end-to-end evaluated** on any real video trajectory.
+   Status: EVENT_LOGIC_NOT_YET_EVALUABLE_DUE_TO_PERCEPTION.
+5. **ANALYSIS_SOURCE = user-edited/trimmed Photos rendition** (osxphotos default).
+   `--skip-edited` is SCIENTIFICALLY_INVALID_FOR_DIRECT_PTS_COMPARISON.
 
-### Phase M — Canary mechanism check (synthetic trajectory)
+### Perception architecture decision
+**`PERCEPTION_STILL_INSUFFICIENT`**
 
-| Landmark | E1 estimate | GT | Error |
-|---|---|---|---|
-| takeoff | 3.017 s | 3.120 s | −0.103 s |
-| apex | 3.583 s | 3.570 s | +0.013 s |
-| water_contact | 4.250 s | 4.220 s | +0.030 s |
+### Next required work
+1. Fix diver detection: pool-diverse training data OR spatial scene prior for COCO
+2. Fix Phase M synthetic trajectory (monotone board-loading, not sinusoidal oscillation)
+3. Add Event Logic V2 integration test on a realistic hurdle trajectory
+4. Discriminative target selection (exclude spectator region)
+5. Pool-specific corridor calibration as near-term fallback
 
-All states traversed: PREPARATION → APPROACH_OR_HURDLE → SUPPORT_INTERACTION
-→ AIRBORNE_ASCENT → AIRBORNE_DESCENT → ENTRY.
+## Current supervisor gate
 
-### Phase N — Water contact classification
-
-- **CC3 water_contact (4.90 s)**: END_OF_CLIP_COINCIDENCE — last decoded frame, not physical detection
-- **V2 annotation (4.22 s)**: GENUINE — 1.15 s before end of clip
-- **E1 estimate (4.25 s)**: GENUINE — 1.12 s before end of clip
-
-### Known limitations (post-correction)
-
-1. COCO detector recall: 4.3% at 360p / 100% at 1080p (SCALE_FAILURE inherited from Perception V2)
-2. L1 domain-adapted weights require CUDA (sm_50 incompatible with server GPU) — COCO used as fallback
-3. DEVELOPMENT corpus E1 evaluation blocked by SCALE_FAILURE; full evaluation deferred
-4. Board re-contact heuristic may fail for very short board loading durations
-
-### New files committed (this study)
-
-- `experiments/landmark_pilot/annotate_canary_v2.py`
-- `experiments/landmark_pilot/proposer_event_logic_v2.py`
-- `experiments/landmark_pilot/test_event_logic_v2.py`
-- `experiments/landmark_pilot/phase_m_canary_check.py`
-- `docs/science/HIGHRES_CANARY_V2_EXACT_ANNOTATION.json`
-- `docs/science/HIGHRES_CANARY_V2_REFERENCE.json`
-- `docs/science/EVENT_LOGIC_V2_FREEZE.json`
-- `docs/science/PHASE_M_CANARY_CHECK.json`
-- `docs/science/HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1.md`
+`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1`
