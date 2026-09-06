@@ -1,0 +1,2055 @@
+{
+  "label": "DEVELOPMENT_DESIGN_V2_FRAME_MANIFEST",
+  "date": "2026-09-06",
+  "status": "PENDING_ANNOTATION",
+  "total_frames": 86,
+  "total_dives": 43,
+  "frames": [
+    {
+      "frame_id": "d0203_f0",
+      "dive_id": 203,
+      "dive_code": "202C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "8af21836ffb6409dcbeb3d57834dd8e6aa3e9740b9211ffb2574d94e303ae152",
+      "pts_approx_s": 6.239,
+      "duration_s": 15.598,
+      "frame_file": "frames/d0203_f0.jpg",
+      "frame_sha256": "b993753dc357e04aa0a506cb4bab64300bcc11b7be1ad5965c841b098ae4c399",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0203_f1",
+      "dive_id": 203,
+      "dive_code": "202C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "8af21836ffb6409dcbeb3d57834dd8e6aa3e9740b9211ffb2574d94e303ae152",
+      "pts_approx_s": 10.919,
+      "duration_s": 15.598,
+      "frame_file": "frames/d0203_f1.jpg",
+      "frame_sha256": "9fa150855a65da3622decf293ba6917389c094d1f7e649230c6fde3461fad328",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0558_f0",
+      "dive_id": 558,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-29",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "96f266ab9d54d9b5c4d92bd75c7bd7de2817e589f54890daeba62d962f2cec2b",
+      "pts_approx_s": 4.907,
+      "duration_s": 12.267,
+      "frame_file": "frames/d0558_f0.jpg",
+      "frame_sha256": "59d18eeadaf2b42ede227840442c1ac530b843aa933d1e64419b5f4bb23c3e5b",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            0.4634052515029907,
+            261.0707092285156,
+            32.93776321411133,
+            359.80340576171875
+          ],
+          "conf": 0.7693322896957397
+        }
+      ]
+    },
+    {
+      "frame_id": "d0558_f1",
+      "dive_id": 558,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-29",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "96f266ab9d54d9b5c4d92bd75c7bd7de2817e589f54890daeba62d962f2cec2b",
+      "pts_approx_s": 8.587,
+      "duration_s": 12.267,
+      "frame_file": "frames/d0558_f1.jpg",
+      "frame_sha256": "e71b071fe8727b001d77b906a1dec0ce43460b5ad699bdb4c90cfb80c9ae20bc",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0052_f0",
+      "dive_id": 52,
+      "dive_code": "201C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2024-12-21",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "593e37235354f53a84674da9152bbe06d42a98b860ec561c0f3fead88cb0873b",
+      "pts_approx_s": 3.779,
+      "duration_s": 9.447,
+      "frame_file": "frames/d0052_f0.jpg",
+      "frame_sha256": "fca654ad752233cb8fe84e2cd8bc23f491b83ca2be00d1e79b32031098ac005a",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            79.65152740478516,
+            183.56248474121094,
+            88.70361328125,
+            202.3688201904297
+          ],
+          "conf": 0.2196393460035324
+        }
+      ]
+    },
+    {
+      "frame_id": "d0052_f1",
+      "dive_id": 52,
+      "dive_code": "201C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2024-12-21",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "593e37235354f53a84674da9152bbe06d42a98b860ec561c0f3fead88cb0873b",
+      "pts_approx_s": 6.613,
+      "duration_s": 9.447,
+      "frame_file": "frames/d0052_f1.jpg",
+      "frame_sha256": "68c9922d9383762aedcc02ef771625ce00be611d25620162f8536cfdf866926e",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1964_f0",
+      "dive_id": 1964,
+      "dive_code": "401C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-26",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b18280ee484173d079047944e9636f3021d8c27b6125cd1034b10020de203c2e",
+      "pts_approx_s": 4.078,
+      "duration_s": 10.194,
+      "frame_file": "frames/d1964_f0.jpg",
+      "frame_sha256": "3eac0b39bee168b3181e07d81ea41904c8eb63a264dcc9be1dae91d7add13fbd",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1964_f1",
+      "dive_id": 1964,
+      "dive_code": "401C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-26",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b18280ee484173d079047944e9636f3021d8c27b6125cd1034b10020de203c2e",
+      "pts_approx_s": 7.136,
+      "duration_s": 10.194,
+      "frame_file": "frames/d1964_f1.jpg",
+      "frame_sha256": "b8b80a4b0964e2fe62ae32fe3caa05b39def652a56c17d9f1c84fb0567ebb5a3",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0885_f0",
+      "dive_id": 885,
+      "dive_code": "203C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-05-31",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "22a7647faf8e6a945014d9818407b13f5a9552b1f1347c86b41d054bde2b1da5",
+      "pts_approx_s": 4.133,
+      "duration_s": 10.332,
+      "frame_file": "frames/d0885_f0.jpg",
+      "frame_sha256": "05c6c15a3c7372b1aab44697edd9a6c6a7ca41db491d7abb45a7b346b6cdd8bd",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0885_f1",
+      "dive_id": 885,
+      "dive_code": "203C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-05-31",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "22a7647faf8e6a945014d9818407b13f5a9552b1f1347c86b41d054bde2b1da5",
+      "pts_approx_s": 7.232,
+      "duration_s": 10.332,
+      "frame_file": "frames/d0885_f1.jpg",
+      "frame_sha256": "e9b0484e70d3c9ba35fca275e0202f5e78bf506b9c0f1f492407e1fda2fdf18d",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0509_f0",
+      "dive_id": 509,
+      "dive_code": "201C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b215d6d7aff5e514a3d1c2ff4ea7e5d7ff1547657a1349075091cfe80e02b228",
+      "pts_approx_s": 5.112,
+      "duration_s": 12.78,
+      "frame_file": "frames/d0509_f0.jpg",
+      "frame_sha256": "200b74a76fde5219cb7eed3390ea0c4fd8b6613a492859eb98c686cb4e93faaf",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0509_f1",
+      "dive_id": 509,
+      "dive_code": "201C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b215d6d7aff5e514a3d1c2ff4ea7e5d7ff1547657a1349075091cfe80e02b228",
+      "pts_approx_s": 8.946,
+      "duration_s": 12.78,
+      "frame_file": "frames/d0509_f1.jpg",
+      "frame_sha256": "fbc58507450824eb5f6de51b83932da8786aa2e9e4fcf936ac43f1e2046dc6bf",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            182.40252685546875,
+            253.5145263671875,
+            190.60116577148438,
+            273.45794677734375
+          ],
+          "conf": 0.3905847668647766
+        }
+      ]
+    },
+    {
+      "frame_id": "d0207_f0",
+      "dive_id": 207,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7213b458ed1f20fe2cf1174dcb2e899df39f5464932a89907978f61875ae7d2e",
+      "pts_approx_s": 3.32,
+      "duration_s": 8.301,
+      "frame_file": "frames/d0207_f0.jpg",
+      "frame_sha256": "80e4877536bea738d5bb721459a1f2564fd93981e0823a387731fa043e76608e",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            51.59760665893555,
+            160.43922424316406,
+            66.72217559814453,
+            207.3250274658203
+          ],
+          "conf": 0.26196083426475525
+        }
+      ]
+    },
+    {
+      "frame_id": "d0207_f1",
+      "dive_id": 207,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-03-12",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7213b458ed1f20fe2cf1174dcb2e899df39f5464932a89907978f61875ae7d2e",
+      "pts_approx_s": 5.811,
+      "duration_s": 8.301,
+      "frame_file": "frames/d0207_f1.jpg",
+      "frame_sha256": "f485b300b091023c7ec662b0bb9ac4e76442d95290168b11ba6e9d7a63f5b67e",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d0428_f0",
+      "dive_id": 428,
+      "dive_code": "5121A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-02",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "HURDLE",
+      "media_key": "fb035dc37c8a9bda6e62e75e7a4bc49d7a07057a6aebad8cdd9320cf93ada4c3",
+      "pts_approx_s": 1.7,
+      "duration_s": 4.25,
+      "frame_file": "frames/d0428_f0.jpg",
+      "frame_sha256": "63378ec6589332c0f7a8b1e33c920ac573b3d937542ba8a0670c0c64b755372c",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            47.219818115234375,
+            88.18742370605469,
+            58.705318450927734,
+            117.75643920898438
+          ],
+          "conf": 0.28692102432250977
+        }
+      ]
+    },
+    {
+      "frame_id": "d0428_f1",
+      "dive_id": 428,
+      "dive_code": "5121A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-04-02",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "HURDLE",
+      "media_key": "fb035dc37c8a9bda6e62e75e7a4bc49d7a07057a6aebad8cdd9320cf93ada4c3",
+      "pts_approx_s": 2.975,
+      "duration_s": 4.25,
+      "frame_file": "frames/d0428_f1.jpg",
+      "frame_sha256": "2aa8b5759e4039f5ef672b7d73c2fa44543fe4d516182a8ef8f93324ac20bcc1",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            45.24065017700195,
+            88.0163345336914,
+            56.97787857055664,
+            120.02932739257812
+          ],
+          "conf": 0.7400493621826172
+        },
+        {
+          "bbox_xyxy": [
+            71.45730590820312,
+            170.91856384277344,
+            96.7958984375,
+            207.1306610107422
+          ],
+          "conf": 0.500269889831543
+        }
+      ]
+    },
+    {
+      "frame_id": "d0169_f0",
+      "dive_id": 169,
+      "dive_code": "5222A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-02-23",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "HURDLE",
+      "media_key": "d6e74b04071ae47681895a4a8efe7b84cfd2fc1e2009e028f6952c5caa423b26",
+      "pts_approx_s": 4.215,
+      "duration_s": 10.538,
+      "frame_file": "frames/d0169_f0.jpg",
+      "frame_sha256": "14d203ab8fb9cdef91fed0c9fa21c5d657a61d2e7ab3d066f8b77cda1e35d8a2",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            12.386758804321289,
+            72.90008544921875,
+            22.04778289794922,
+            111.6663589477539
+          ],
+          "conf": 0.48214036226272583
+        },
+        {
+          "bbox_xyxy": [
+            45.61213684082031,
+            97.03227233886719,
+            58.283817291259766,
+            115.7283935546875
+          ],
+          "conf": 0.42811349034309387
+        }
+      ]
+    },
+    {
+      "frame_id": "d0169_f1",
+      "dive_id": 169,
+      "dive_code": "5222A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-02-23",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "HURDLE",
+      "media_key": "d6e74b04071ae47681895a4a8efe7b84cfd2fc1e2009e028f6952c5caa423b26",
+      "pts_approx_s": 7.377,
+      "duration_s": 10.538,
+      "frame_file": "frames/d0169_f1.jpg",
+      "frame_sha256": "5747226f53d39799589421d4396fc77dc0222a90a91c5250724ed3b40f9b2348",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            45.38428497314453,
+            96.60188293457031,
+            57.280426025390625,
+            115.77314758300781
+          ],
+          "conf": 0.5327149033546448
+        }
+      ]
+    },
+    {
+      "frame_id": "d0287_f0",
+      "dive_id": 287,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-03-22",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c",
+      "pts_approx_s": 7.707,
+      "duration_s": 19.268,
+      "frame_file": "frames/d0287_f0.jpg",
+      "frame_sha256": "26b321eca6f35ab5cbf7d344ab2ef089e22c2e739fb3202b39f6148ca14c7eef",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            64.10707092285156,
+            0.0827021598815918,
+            91.08476257324219,
+            60.49861526489258
+          ],
+          "conf": 0.659604549407959
+        },
+        {
+          "bbox_xyxy": [
+            24.794397354125977,
+            0.15055561065673828,
+            64.25044250488281,
+            87.3819808959961
+          ],
+          "conf": 0.4868677258491516
+        }
+      ]
+    },
+    {
+      "frame_id": "d0287_f1",
+      "dive_id": 287,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-03-22",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c",
+      "pts_approx_s": 13.488,
+      "duration_s": 19.268,
+      "frame_file": "frames/d0287_f1.jpg",
+      "frame_sha256": "5fa94c8e6a7ce1c498676effdfe62fe1026a7b1431e35a26962f9143da931e44",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            28.324697494506836,
+            0.0973663330078125,
+            102.9618911743164,
+            85.09329986572266
+          ],
+          "conf": 0.6163339018821716
+        }
+      ]
+    },
+    {
+      "frame_id": "d1940_f0",
+      "dive_id": 1940,
+      "dive_code": "101B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-02-15",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "44df072b4da694a21f7f64e018f779e76a8bc45eed485d3a77f19c5e030f25e1",
+      "pts_approx_s": 6.533,
+      "duration_s": 16.333,
+      "frame_file": "frames/d1940_f0.jpg",
+      "frame_sha256": "4b84cbedef4b0f48358ddc7645a981cf52c901f25acb961c8503474109a3dfbc",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1940_f1",
+      "dive_id": 1940,
+      "dive_code": "101B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-02-15",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "44df072b4da694a21f7f64e018f779e76a8bc45eed485d3a77f19c5e030f25e1",
+      "pts_approx_s": 11.433,
+      "duration_s": 16.333,
+      "frame_file": "frames/d1940_f1.jpg",
+      "frame_sha256": "4b335753a2a62b14fde51e574226f98b3dcc229ce66c416c3c1d4fad780265b1",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1976_f0",
+      "dive_id": 1976,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-02-15",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "a51d6801c4da93897ffd8c3fb218d0e485ee3b71e36c4b57d2c6c5262bf8de2b",
+      "pts_approx_s": 5.332,
+      "duration_s": 13.33,
+      "frame_file": "frames/d1976_f0.jpg",
+      "frame_sha256": "8b2341bf3e664d50cf1d95217219867a5a493b1f83569f1ba9425a6f9b835b3b",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            81.2041244506836,
+            190.0338134765625,
+            93.98218536376953,
+            219.8242645263672
+          ],
+          "conf": 0.5507094264030457
+        },
+        {
+          "bbox_xyxy": [
+            182.4212188720703,
+            253.3899383544922,
+            190.9964599609375,
+            269.2008361816406
+          ],
+          "conf": 0.3112810552120209
+        }
+      ]
+    },
+    {
+      "frame_id": "d1976_f1",
+      "dive_id": 1976,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-02-15",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "a51d6801c4da93897ffd8c3fb218d0e485ee3b71e36c4b57d2c6c5262bf8de2b",
+      "pts_approx_s": 9.331,
+      "duration_s": 13.33,
+      "frame_file": "frames/d1976_f1.jpg",
+      "frame_sha256": "ede9348ccec7dcefae853c39a13e4f38098de9525113914478c222f85d9ef6f0",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            77.96028900146484,
+            189.67466735839844,
+            94.46978759765625,
+            220.23484802246094
+          ],
+          "conf": 0.6138861775398254
+        },
+        {
+          "bbox_xyxy": [
+            137.74179077148438,
+            251.7028350830078,
+            143.5631103515625,
+            265.80841064453125
+          ],
+          "conf": 0.2623268961906433
+        }
+      ]
+    },
+    {
+      "frame_id": "d0298_f0",
+      "dive_id": 298,
+      "dive_code": "010B",
+      "platform_type": "springboard",
+      "height": "3mp",
+      "date": "2025-03-25",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b1021968b487317e838411c3c013ee2cf4b2810587c6028b48ae2532f87160f7",
+      "pts_approx_s": 5.554,
+      "duration_s": 13.885,
+      "frame_file": "frames/d0298_f0.jpg",
+      "frame_sha256": "df788fb8a6b59c05ef6688532a76e00ee64195a1e7d2d19136dcf32e1b2c9dfc",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            12.9232177734375,
+            138.9147186279297,
+            30.75287437438965,
+            181.66111755371094
+          ],
+          "conf": 0.6391710042953491
+        },
+        {
+          "bbox_xyxy": [
+            27.37628173828125,
+            138.82406616210938,
+            43.818599700927734,
+            182.4416046142578
+          ],
+          "conf": 0.3440406322479248
+        },
+        {
+          "bbox_xyxy": [
+            38.60819625854492,
+            137.00946044921875,
+            64.68415069580078,
+            182.37030029296875
+          ],
+          "conf": 0.29544714093208313
+        }
+      ]
+    },
+    {
+      "frame_id": "d0298_f1",
+      "dive_id": 298,
+      "dive_code": "010B",
+      "platform_type": "springboard",
+      "height": "3mp",
+      "date": "2025-03-25",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b1021968b487317e838411c3c013ee2cf4b2810587c6028b48ae2532f87160f7",
+      "pts_approx_s": 9.72,
+      "duration_s": 13.885,
+      "frame_file": "frames/d0298_f1.jpg",
+      "frame_sha256": "b6c1b3454b0dddd081fce8f4186aec388fdff9855f40469eaf77fe026a6be867",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            13.58323860168457,
+            138.64666748046875,
+            34.010162353515625,
+            181.6705780029297
+          ],
+          "conf": 0.698667585849762
+        },
+        {
+          "bbox_xyxy": [
+            32.489723205566406,
+            138.65589904785156,
+            46.56995391845703,
+            181.93479919433594
+          ],
+          "conf": 0.3278001546859741
+        }
+      ]
+    },
+    {
+      "frame_id": "d0297_f0",
+      "dive_id": 297,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2025-03-25",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "3c19108922214751a9dd55238a4b6bebce3baf2353d3a9a9b81f545a4c067407",
+      "pts_approx_s": 2.151,
+      "duration_s": 5.378,
+      "frame_file": "frames/d0297_f0.jpg",
+      "frame_sha256": "9e685ddcbaf7c4d67c039c014ffab4df1b4f14194257f41b510e5da696a93415",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            169.37733459472656,
+            224.07659912109375,
+            192.22718811035156,
+            256.54180908203125
+          ],
+          "conf": 0.23395316302776337
+        }
+      ]
+    },
+    {
+      "frame_id": "d0297_f1",
+      "dive_id": 297,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2025-03-25",
+      "temporal_bucket": "EARLY",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "3c19108922214751a9dd55238a4b6bebce3baf2353d3a9a9b81f545a4c067407",
+      "pts_approx_s": 3.765,
+      "duration_s": 5.378,
+      "frame_file": "frames/d0297_f1.jpg",
+      "frame_sha256": "f7fa35ef67d67ffbc300d86b8df6dcc684ae1b6c77fa1ecc3732b603454b6888",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1405_f0",
+      "dive_id": 1405,
+      "dive_code": "301C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-11-15",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "ef194c0d9cc778a5454bede084f418fc8a2312c02f2f6e7bbfee32e559bbc382",
+      "pts_approx_s": 3.669,
+      "duration_s": 9.173,
+      "frame_file": "frames/d1405_f0.jpg",
+      "frame_sha256": "c00df9358a54badbdac677c8e991fdb8a8bb5a95ce90f34562402fef17a2ef07",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1405_f1",
+      "dive_id": 1405,
+      "dive_code": "301C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-11-15",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "ef194c0d9cc778a5454bede084f418fc8a2312c02f2f6e7bbfee32e559bbc382",
+      "pts_approx_s": 6.421,
+      "duration_s": 9.173,
+      "frame_file": "frames/d1405_f1.jpg",
+      "frame_sha256": "529e47828759ef1e553d9466aeb3c29ba28332eb1975f69d3d093ed751f57fcd",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1018_f0",
+      "dive_id": 1018,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-09-09",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "6903964ac2aa74de4b9b90a0dcb68e123d8860a00c991f0cb3ca01e856a3535b",
+      "pts_approx_s": 5.006,
+      "duration_s": 12.515,
+      "frame_file": "frames/d1018_f0.jpg",
+      "frame_sha256": "19ea4f2b2da5ac6c508c749e34ae7998ae8728d6c810f2261c6412128e0c2423",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            23.193632125854492,
+            105.21077728271484,
+            43.89962387084961,
+            146.73353576660156
+          ],
+          "conf": 0.6559478640556335
+        },
+        {
+          "bbox_xyxy": [
+            87.1197509765625,
+            195.43731689453125,
+            96.56639862060547,
+            219.36248779296875
+          ],
+          "conf": 0.2650718092918396
+        }
+      ]
+    },
+    {
+      "frame_id": "d1018_f1",
+      "dive_id": 1018,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-09-09",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "6903964ac2aa74de4b9b90a0dcb68e123d8860a00c991f0cb3ca01e856a3535b",
+      "pts_approx_s": 8.761,
+      "duration_s": 12.515,
+      "frame_file": "frames/d1018_f1.jpg",
+      "frame_sha256": "eb6412a85cb50908fc6d11301b7b8a9cb7f5eac5e38a305b678e73215c74d535",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            32.9039192199707,
+            110.14583587646484,
+            48.46380615234375,
+            147.74952697753906
+          ],
+          "conf": 0.3501817584037781
+        },
+        {
+          "bbox_xyxy": [
+            36.24939727783203,
+            201.74838256835938,
+            51.08253860473633,
+            246.14794921875
+          ],
+          "conf": 0.3270500600337982
+        },
+        {
+          "bbox_xyxy": [
+            85.55259704589844,
+            197.60208129882812,
+            94.61202239990234,
+            220.20350646972656
+          ],
+          "conf": 0.28183990716934204
+        }
+      ]
+    },
+    {
+      "frame_id": "d1499_f0",
+      "dive_id": 1499,
+      "dive_code": "401C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-12-13",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "72062cba81411b135f68baf6f09d60ef9d3b94169508e71bf2bf73720dd766f2",
+      "pts_approx_s": 4.496,
+      "duration_s": 11.239,
+      "frame_file": "frames/d1499_f0.jpg",
+      "frame_sha256": "52a08382a871a23dd3a154a625afd4c2154860790f79a5f67959730a81a9267b",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1499_f1",
+      "dive_id": 1499,
+      "dive_code": "401C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-12-13",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "72062cba81411b135f68baf6f09d60ef9d3b94169508e71bf2bf73720dd766f2",
+      "pts_approx_s": 7.867,
+      "duration_s": 11.239,
+      "frame_file": "frames/d1499_f1.jpg",
+      "frame_sha256": "573e69f4fe202cf6d4ac3ee400307745b33d944d69835c78532d98cf71a0b693",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1072_f0",
+      "dive_id": 1072,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-09-24",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "f310e68884b4fa747955d942d424f3438312abf7f96955aaf87df84fc398e5b8",
+      "pts_approx_s": 6.25,
+      "duration_s": 15.626,
+      "frame_file": "frames/d1072_f0.jpg",
+      "frame_sha256": "6526bb5f503c74364411958126694f6aac4e14d5437ed9d4f82171786e03dfb6",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            97.44937896728516,
+            196.5251922607422,
+            104.94841003417969,
+            217.56105041503906
+          ],
+          "conf": 0.49824759364128113
+        },
+        {
+          "bbox_xyxy": [
+            82.39625549316406,
+            234.50015258789062,
+            105.049072265625,
+            255.5019989013672
+          ],
+          "conf": 0.3873174488544464
+        }
+      ]
+    },
+    {
+      "frame_id": "d1072_f1",
+      "dive_id": 1072,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-09-24",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "f310e68884b4fa747955d942d424f3438312abf7f96955aaf87df84fc398e5b8",
+      "pts_approx_s": 10.938,
+      "duration_s": 15.626,
+      "frame_file": "frames/d1072_f1.jpg",
+      "frame_sha256": "310854676c117c9539a2b968152dba99febba2e3cb2636da8b1d16b62e8b8f95",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1407_f0",
+      "dive_id": 1407,
+      "dive_code": "5211A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-11-15",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "HURDLE",
+      "media_key": "161754f6b897f42661badfe635640aee2fcbda6f725b6aa4ca8ee06258b63d07",
+      "pts_approx_s": 3.3,
+      "duration_s": 8.249,
+      "frame_file": "frames/d1407_f0.jpg",
+      "frame_sha256": "3eba057df45d61b1d6443f82d467d27e1ec52a6cd0f314f65ff4c9322c819c97",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            29.8029727935791,
+            147.7243194580078,
+            51.15398406982422,
+            214.0098419189453
+          ],
+          "conf": 0.2987581491470337
+        },
+        {
+          "bbox_xyxy": [
+            75.36135864257812,
+            225.61427307128906,
+            87.75294494628906,
+            248.19618225097656
+          ],
+          "conf": 0.26063939929008484
+        }
+      ]
+    },
+    {
+      "frame_id": "d1407_f1",
+      "dive_id": 1407,
+      "dive_code": "5211A",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2025-11-15",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "HURDLE",
+      "media_key": "161754f6b897f42661badfe635640aee2fcbda6f725b6aa4ca8ee06258b63d07",
+      "pts_approx_s": 5.774,
+      "duration_s": 8.249,
+      "frame_file": "frames/d1407_f1.jpg",
+      "frame_sha256": "f68f35d2196f8b8effa051a42e911051564ba2dc8ea1569f943d1a645aba9507",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            14.345135688781738,
+            248.01254272460938,
+            41.981414794921875,
+            319.95623779296875
+          ],
+          "conf": 0.4284016489982605
+        },
+        {
+          "bbox_xyxy": [
+            76.28959655761719,
+            225.32435607910156,
+            87.07772064208984,
+            248.23287963867188
+          ],
+          "conf": 0.29349929094314575
+        }
+      ]
+    },
+    {
+      "frame_id": "d1038_f0",
+      "dive_id": 1038,
+      "dive_code": "301C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-09-20",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7659f69b23dccf7b787f84025196837f359306c571fc19f435afff0885dd5de3",
+      "pts_approx_s": 5.446,
+      "duration_s": 13.614,
+      "frame_file": "frames/d1038_f0.jpg",
+      "frame_sha256": "29d5dbf900f086a0b2feca52c56dc5c48945517b923b510fb3a5769c7252b9b2",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            15.128714561462402,
+            205.11505126953125,
+            40.70595932006836,
+            271.61993408203125
+          ],
+          "conf": 0.49371179938316345
+        },
+        {
+          "bbox_xyxy": [
+            87.5168685913086,
+            191.1177215576172,
+            96.65625762939453,
+            215.14230346679688
+          ],
+          "conf": 0.4922668933868408
+        },
+        {
+          "bbox_xyxy": [
+            14.501008987426758,
+            234.9531707763672,
+            42.630393981933594,
+            296.9437561035156
+          ],
+          "conf": 0.4297746419906616
+        }
+      ]
+    },
+    {
+      "frame_id": "d1038_f1",
+      "dive_id": 1038,
+      "dive_code": "301C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-09-20",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7659f69b23dccf7b787f84025196837f359306c571fc19f435afff0885dd5de3",
+      "pts_approx_s": 9.53,
+      "duration_s": 13.614,
+      "frame_file": "frames/d1038_f1.jpg",
+      "frame_sha256": "d9b9365ac83efb90b78761649ecf8a27c7d3e4681518ad4899b7b60fbfefa4d8",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            88.10645294189453,
+            192.19068908691406,
+            96.38510131835938,
+            220.30226135253906
+          ],
+          "conf": 0.5449995994567871
+        },
+        {
+          "bbox_xyxy": [
+            182.28846740722656,
+            253.85781860351562,
+            190.8280792236328,
+            272.4727783203125
+          ],
+          "conf": 0.37546491622924805
+        },
+        {
+          "bbox_xyxy": [
+            137.4246063232422,
+            251.3942413330078,
+            144.69906616210938,
+            265.9433898925781
+          ],
+          "conf": 0.3341199457645416
+        }
+      ]
+    },
+    {
+      "frame_id": "d1469_f0",
+      "dive_id": 1469,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-12-13",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "36e540ee88f0c1a1f1682b96d052a52ef25821ecd4fa5ba2c4bccfc0ea18d0ac",
+      "pts_approx_s": 20.25,
+      "duration_s": 50.625,
+      "frame_file": "frames/d1469_f0.jpg",
+      "frame_sha256": "d7fd9380643fcafee269cd9585a360a446ce60427079917a27351e5382dbc71e",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            46.67451477050781,
+            201.08193969726562,
+            64.67745208740234,
+            258.3262023925781
+          ],
+          "conf": 0.7243906855583191
+        }
+      ]
+    },
+    {
+      "frame_id": "d1469_f1",
+      "dive_id": 1469,
+      "dive_code": "103C",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2025-12-13",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "36e540ee88f0c1a1f1682b96d052a52ef25821ecd4fa5ba2c4bccfc0ea18d0ac",
+      "pts_approx_s": 35.438,
+      "duration_s": 50.625,
+      "frame_file": "frames/d1469_f1.jpg",
+      "frame_sha256": "f0800b407e4bbaec5dd7ba9e6c1bbb2d608215774eae4183fa9011e22991fb1c",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            47.43404769897461,
+            201.87762451171875,
+            68.07952117919922,
+            257.6458740234375
+          ],
+          "conf": 0.21376928687095642
+        }
+      ]
+    },
+    {
+      "frame_id": "d1187_f0",
+      "dive_id": 1187,
+      "dive_code": "020C",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2025-10-11",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "fd4ce898813a9ad64428c7b81ac9827619ae9beb03e22be65d088a8f024e021e",
+      "pts_approx_s": 3.429,
+      "duration_s": 8.572,
+      "frame_file": "frames/d1187_f0.jpg",
+      "frame_sha256": "87f2f780e8532d5efda6d29a543ad7f0750ebeb740d21c349c2b5980bf7f2bce",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1187_f1",
+      "dive_id": 1187,
+      "dive_code": "020C",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2025-10-11",
+      "temporal_bucket": "MID",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "fd4ce898813a9ad64428c7b81ac9827619ae9beb03e22be65d088a8f024e021e",
+      "pts_approx_s": 6.0,
+      "duration_s": 8.572,
+      "frame_file": "frames/d1187_f1.jpg",
+      "frame_sha256": "6aee956a13bf304a8e2c9051baeb99a0ba9b9b89fbc37ce426e39004dd103b6f",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2612_f0",
+      "dive_id": 2612,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "2838844f28c0c7bddf1a5bb22a5a6db9128abe8768bb269c582bb281fd718569",
+      "pts_approx_s": 3.384,
+      "duration_s": 8.459,
+      "frame_file": "frames/d2612_f0.jpg",
+      "frame_sha256": "7badb88b6f7ba512a2c419c95fd95bb343bef31295774ae357f6c0984fb2b070",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2612_f1",
+      "dive_id": 2612,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "2838844f28c0c7bddf1a5bb22a5a6db9128abe8768bb269c582bb281fd718569",
+      "pts_approx_s": 5.921,
+      "duration_s": 8.459,
+      "frame_file": "frames/d2612_f1.jpg",
+      "frame_sha256": "d6d8d520b49fc88f5619bbeefe8302069aa25e48e3a2005a46b0868d7a852ee6",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2659_f0",
+      "dive_id": 2659,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "63dbf9e181fc7b7e2135cc7e14d531fa34f32d53b8ba56bbaf30b9560095de5a",
+      "pts_approx_s": 7.281,
+      "duration_s": 18.202,
+      "frame_file": "frames/d2659_f0.jpg",
+      "frame_sha256": "bb0d00cb44e66897557d622abf7193ca990f0208c3960cb9002399a5e08b98e5",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2659_f1",
+      "dive_id": 2659,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "63dbf9e181fc7b7e2135cc7e14d531fa34f32d53b8ba56bbaf30b9560095de5a",
+      "pts_approx_s": 12.741,
+      "duration_s": 18.202,
+      "frame_file": "frames/d2659_f1.jpg",
+      "frame_sha256": "5031add7c20c896ffcecb390cc27f761e733a5e0f82a9ca7b03c8b66f948d58f",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2586_f0",
+      "dive_id": 2586,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "74b18b46a2517dc448b1fd3f21bebac163d063ff8895f0350dfd338ffb7ac8bd",
+      "pts_approx_s": 4.484,
+      "duration_s": 11.211,
+      "frame_file": "frames/d2586_f0.jpg",
+      "frame_sha256": "a042332901acf98e6fffbc88b43116175acbbffd713b4a821ae8c060d7825450",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2586_f1",
+      "dive_id": 2586,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "74b18b46a2517dc448b1fd3f21bebac163d063ff8895f0350dfd338ffb7ac8bd",
+      "pts_approx_s": 7.848,
+      "duration_s": 11.211,
+      "frame_file": "frames/d2586_f1.jpg",
+      "frame_sha256": "70758801ee68b2285841dd84729833ff8132a969c3f1e4b68c5cacf6b1476e59",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1777_f0",
+      "dive_id": 1777,
+      "dive_code": "101B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-02-01",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b7efe6218ac06d08ad31d6072ee6cee02974dfa9ae37196efa24553695a33444",
+      "pts_approx_s": 6.427,
+      "duration_s": 16.067,
+      "frame_file": "frames/d1777_f0.jpg",
+      "frame_sha256": "f684f4105dfff4f97104265be45a0df5cf33b7f30b2a34d86f5007cffd2f7eee",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            136.09767150878906,
+            251.45726013183594,
+            142.76849365234375,
+            266.327392578125
+          ],
+          "conf": 0.3035869300365448
+        },
+        {
+          "bbox_xyxy": [
+            79.11261749267578,
+            185.01954650878906,
+            89.77467346191406,
+            220.33084106445312
+          ],
+          "conf": 0.21895423531532288
+        }
+      ]
+    },
+    {
+      "frame_id": "d1777_f1",
+      "dive_id": 1777,
+      "dive_code": "101B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-02-01",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "b7efe6218ac06d08ad31d6072ee6cee02974dfa9ae37196efa24553695a33444",
+      "pts_approx_s": 11.247,
+      "duration_s": 16.067,
+      "frame_file": "frames/d1777_f1.jpg",
+      "frame_sha256": "3f4a2048a523a13c722ebcf33c084ffcfdd33ce3e166e25a4e5fe0fd94eaaea0",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            78.82107543945312,
+            190.2958984375,
+            89.68804931640625,
+            219.87103271484375
+          ],
+          "conf": 0.6617273688316345
+        },
+        {
+          "bbox_xyxy": [
+            0.5022897720336914,
+            125.24168395996094,
+            10.012563705444336,
+            146.97052001953125
+          ],
+          "conf": 0.32181280851364136
+        },
+        {
+          "bbox_xyxy": [
+            137.45333862304688,
+            251.49270629882812,
+            144.4213409423828,
+            265.6040344238281
+          ],
+          "conf": 0.2885078191757202
+        }
+      ]
+    },
+    {
+      "frame_id": "d2623_f0",
+      "dive_id": 2623,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "c81afd2802153ff7c4ed428c84292e95324f990750ca1bc075e46d3d363bcff9",
+      "pts_approx_s": 4.598,
+      "duration_s": 11.495,
+      "frame_file": "frames/d2623_f0.jpg",
+      "frame_sha256": "165e9af45236cb2e1a04072e2c3dc34100e9b972a9644a138ac9d13cb6094b10",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            190.25607299804688,
+            233.2127227783203,
+            201.20394897460938,
+            257.5263671875
+          ],
+          "conf": 0.3202206492424011
+        }
+      ]
+    },
+    {
+      "frame_id": "d2623_f1",
+      "dive_id": 2623,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "c81afd2802153ff7c4ed428c84292e95324f990750ca1bc075e46d3d363bcff9",
+      "pts_approx_s": 8.046,
+      "duration_s": 11.495,
+      "frame_file": "frames/d2623_f1.jpg",
+      "frame_sha256": "6a162402b5ff137f33dce90b6fd252bb7f448c93f91e5adb43482932134d8a7a",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2587_f0",
+      "dive_id": 2587,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "a2ac8e1a651e7fbb8e9b133f3aa7b172b86b4895a5b94f3413176324f286145a",
+      "pts_approx_s": 4.565,
+      "duration_s": 11.412,
+      "frame_file": "frames/d2587_f0.jpg",
+      "frame_sha256": "6693ff7cc4ec3bfd10f34e0b4f89cf84162d2b23318afc1220611639c2b8c27f",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2587_f1",
+      "dive_id": 2587,
+      "dive_code": "101C",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "a2ac8e1a651e7fbb8e9b133f3aa7b172b86b4895a5b94f3413176324f286145a",
+      "pts_approx_s": 7.988,
+      "duration_s": 11.412,
+      "frame_file": "frames/d2587_f1.jpg",
+      "frame_sha256": "e073f17b5b67fa54f936dc65a3294ba6f3d2a65aa460d9451634eb1d4a68fbd2",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            152.19102478027344,
+            100.62889099121094,
+            201.31866455078125,
+            232.85464477539062
+          ],
+          "conf": 0.4413629472255707
+        }
+      ]
+    },
+    {
+      "frame_id": "d2565_f0",
+      "dive_id": 2565,
+      "dive_code": "200B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-05",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "aa2319cefb5ade5e9e8d3e9a075ded01ea5d70b2c53374eda27f15eeb0587345",
+      "pts_approx_s": 4.592,
+      "duration_s": 11.479,
+      "frame_file": "frames/d2565_f0.jpg",
+      "frame_sha256": "141f9702730410ad185d8d69f1587886bf3f18dbfac66eae4d9fb86ac4eda82a",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            67.86985778808594,
+            198.50973510742188,
+            98.76348114013672,
+            269.9786071777344
+          ],
+          "conf": 0.7775055766105652
+        },
+        {
+          "bbox_xyxy": [
+            100.93331909179688,
+            213.24473571777344,
+            120.58074951171875,
+            275.498291015625
+          ],
+          "conf": 0.7523659467697144
+        },
+        {
+          "bbox_xyxy": [
+            10.8883695602417,
+            197.01536560058594,
+            31.68014144897461,
+            247.7288055419922
+          ],
+          "conf": 0.45585158467292786
+        }
+      ]
+    },
+    {
+      "frame_id": "d2565_f1",
+      "dive_id": 2565,
+      "dive_code": "200B",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-05",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "aa2319cefb5ade5e9e8d3e9a075ded01ea5d70b2c53374eda27f15eeb0587345",
+      "pts_approx_s": 8.035,
+      "duration_s": 11.479,
+      "frame_file": "frames/d2565_f1.jpg",
+      "frame_sha256": "6dfe049d628d1f927767328b67c9b78b756619df81d519a0bdef0210c710c5c2",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            67.77029418945312,
+            198.11318969726562,
+            98.07967376708984,
+            270.0332336425781
+          ],
+          "conf": 0.7533285617828369
+        },
+        {
+          "bbox_xyxy": [
+            100.22301483154297,
+            213.04563903808594,
+            120.60924530029297,
+            275.1759033203125
+          ],
+          "conf": 0.751263439655304
+        },
+        {
+          "bbox_xyxy": [
+            9.299973487854004,
+            197.5319366455078,
+            33.32373046875,
+            249.64907836914062
+          ],
+          "conf": 0.6660364270210266
+        }
+      ]
+    },
+    {
+      "frame_id": "d2679_f0",
+      "dive_id": 2679,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-06-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "62b86fc7f4c9da0ad0112a75efb43791b4db761afc7c691db64388c2350ccc05",
+      "pts_approx_s": 5.658,
+      "duration_s": 14.145,
+      "frame_file": "frames/d2679_f0.jpg",
+      "frame_sha256": "f2d254e9afbfb01695cd46bc4819d9e166a72d1d10c5f4370e4638f22c6866ad",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2679_f1",
+      "dive_id": 2679,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-06-08",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "62b86fc7f4c9da0ad0112a75efb43791b4db761afc7c691db64388c2350ccc05",
+      "pts_approx_s": 9.901,
+      "duration_s": 14.145,
+      "frame_file": "frames/d2679_f1.jpg",
+      "frame_sha256": "a6a34358354138e3b910572838a31d63c0c2128be30e24a8bfe6231cda708a4e",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2646_f0",
+      "dive_id": 2646,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "412f853f45e92380dadac2455dd7b819ec408ec91b5d743361033937f75c7acc",
+      "pts_approx_s": 3.472,
+      "duration_s": 8.681,
+      "frame_file": "frames/d2646_f0.jpg",
+      "frame_sha256": "05f8be4ba8f621853857696615eff7fc481c1ed4d41777f3b1594209ef28c734",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2646_f1",
+      "dive_id": 2646,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "412f853f45e92380dadac2455dd7b819ec408ec91b5d743361033937f75c7acc",
+      "pts_approx_s": 6.077,
+      "duration_s": 8.681,
+      "frame_file": "frames/d2646_f1.jpg",
+      "frame_sha256": "797200b4159b9515aac3966d59907c138653856d0790e87dec54c3a9a5a5acfd",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            15.580535888671875,
+            220.22842407226562,
+            40.337745666503906,
+            244.28065490722656
+          ],
+          "conf": 0.42113354802131653
+        },
+        {
+          "bbox_xyxy": [
+            16.325653076171875,
+            220.4287872314453,
+            35.03849411010742,
+            241.5845489501953
+          ],
+          "conf": 0.20470651984214783
+        }
+      ]
+    },
+    {
+      "frame_id": "d2626_f0",
+      "dive_id": 2626,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-20",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "f69d4bf3235e01747b924f5f81e35e9435e679de15e760bb98e355d3ce25726d",
+      "pts_approx_s": 7.261,
+      "duration_s": 18.152,
+      "frame_file": "frames/d2626_f0.jpg",
+      "frame_sha256": "5341f6644d5f3fe6addef2027553560cd176d4c055a89930a6d158d2e5ee35fb",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2626_f1",
+      "dive_id": 2626,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-20",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "f69d4bf3235e01747b924f5f81e35e9435e679de15e760bb98e355d3ce25726d",
+      "pts_approx_s": 12.706,
+      "duration_s": 18.152,
+      "frame_file": "frames/d2626_f1.jpg",
+      "frame_sha256": "5cd50b038e214a008e11ec79256ea6176406edab3dea99bbe02a2f6d4844fdb4",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2644_f0",
+      "dive_id": 2644,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "287dd548328b71be7042dc334c26f45c0cb60d1cf10ee3813758070c2870171d",
+      "pts_approx_s": 6.086,
+      "duration_s": 15.216,
+      "frame_file": "frames/d2644_f0.jpg",
+      "frame_sha256": "60800110a2de97dc4461e2b1a9090f998a1629998f78c87da6d7676b94c0240a",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2644_f1",
+      "dive_id": 2644,
+      "dive_code": "5122D",
+      "platform_type": "springboard",
+      "height": "1m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "287dd548328b71be7042dc334c26f45c0cb60d1cf10ee3813758070c2870171d",
+      "pts_approx_s": 10.651,
+      "duration_s": 15.216,
+      "frame_file": "frames/d2644_f1.jpg",
+      "frame_sha256": "8bc7ce729a0f12e8386effcefd2428f5d9e6258e397f36d5998ecba1268f4331",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2637_f0",
+      "dive_id": 2637,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "aa2914a221ad5a7b21b62013bef7b8f0fc2f05821596ebcbbe2dbf84706ad749",
+      "pts_approx_s": 3.726,
+      "duration_s": 9.314,
+      "frame_file": "frames/d2637_f0.jpg",
+      "frame_sha256": "8c2f1dc77b466f34e78466baebb0a6e967209e12b313fcb6409889756bcede22",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2637_f1",
+      "dive_id": 2637,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-07-17",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "aa2914a221ad5a7b21b62013bef7b8f0fc2f05821596ebcbbe2dbf84706ad749",
+      "pts_approx_s": 6.52,
+      "duration_s": 9.314,
+      "frame_file": "frames/d2637_f1.jpg",
+      "frame_sha256": "fc6d4c51d372d4a0e0c69b97b1d06c48ece7d5fdfb21ec9ae7c4fe394b156f19",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2384_f0",
+      "dive_id": 2384,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-05-23",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "pts_approx_s": 13.029,
+      "duration_s": 32.572,
+      "frame_file": "frames/d2384_f0.jpg",
+      "frame_sha256": "29f058d6658e5e612b4d1e8b50682ff37fa1b7d046820d15b561cf7e78433437",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2384_f1",
+      "dive_id": 2384,
+      "dive_code": "103B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-05-23",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "pts_approx_s": 22.8,
+      "duration_s": 32.572,
+      "frame_file": "frames/d2384_f1.jpg",
+      "frame_sha256": "88a9c36f1d9b54cfecc909ae3da1cbb96e4bb398cde82a440cdfe7db43c83fa0",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2666_f0",
+      "dive_id": 2666,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7aa8feaae379524b23adbcd95e242430f5fe6c8aadc0c6de1807e1205f9f7bfa",
+      "pts_approx_s": 6.484,
+      "duration_s": 16.21,
+      "frame_file": "frames/d2666_f0.jpg",
+      "frame_sha256": "531c441eb1d0f2f00f62402eca577c635394738f68a94aa5e52e31aafcbb5ce9",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2666_f1",
+      "dive_id": 2666,
+      "dive_code": "100B",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "7aa8feaae379524b23adbcd95e242430f5fe6c8aadc0c6de1807e1205f9f7bfa",
+      "pts_approx_s": 11.347,
+      "duration_s": 16.21,
+      "frame_file": "frames/d2666_f1.jpg",
+      "frame_sha256": "30f8cb907183919ae34f0495d62190e9f69529a9ed9e1126dd8e1c3a1086317f",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2455_f0",
+      "dive_id": 2455,
+      "dive_code": "5132D",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-05-26",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "d59de1634f3eec4f35d315ad00897a5a7e89f8120d898d0def30ddf590fe9f12",
+      "pts_approx_s": 3.891,
+      "duration_s": 9.727,
+      "frame_file": "frames/d2455_f0.jpg",
+      "frame_sha256": "6ac41e6024ded16ee2201004bf3e0563410c6981c79337a1c244c300de447732",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            9.804046630859375,
+            257.7226867675781,
+            24.408958435058594,
+            272.6748046875
+          ],
+          "conf": 0.2527194321155548
+        }
+      ]
+    },
+    {
+      "frame_id": "d2455_f1",
+      "dive_id": 2455,
+      "dive_code": "5132D",
+      "platform_type": "springboard",
+      "height": "3m",
+      "date": "2026-05-26",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "d59de1634f3eec4f35d315ad00897a5a7e89f8120d898d0def30ddf590fe9f12",
+      "pts_approx_s": 6.809,
+      "duration_s": 9.727,
+      "frame_file": "frames/d2455_f1.jpg",
+      "frame_sha256": "6cff373a16b94cfa4753b59ef41f74e0f65548d8c589eaeb146a9f37be197940",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2657_f0",
+      "dive_id": 2657,
+      "dive_code": "020C",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184",
+      "pts_approx_s": 10.02,
+      "duration_s": 25.051,
+      "frame_file": "frames/d2657_f0.jpg",
+      "frame_sha256": "b0ec7c89c5344229b2252486aa83dd021a45cae59de41808ded711c8565890bb",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            144.6885986328125,
+            24.26421546936035,
+            201.37355041503906,
+            185.3640899658203
+          ],
+          "conf": 0.4460059404373169
+        }
+      ]
+    },
+    {
+      "frame_id": "d2657_f1",
+      "dive_id": 2657,
+      "dive_code": "020C",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184",
+      "pts_approx_s": 17.536,
+      "duration_s": 25.051,
+      "frame_file": "frames/d2657_f1.jpg",
+      "frame_sha256": "6f24db31b9649d6d7cd91b3053e2f33534f76632e298510954a1b6a65a8e2955",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            136.66087341308594,
+            216.00537109375,
+            181.3897247314453,
+            242.02398681640625
+          ],
+          "conf": 0.30154821276664734
+        }
+      ]
+    },
+    {
+      "frame_id": "d2616_f0",
+      "dive_id": 2616,
+      "dive_code": "010B",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-07-20",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "55abf4d1697ad8ca7a32984ddf75bdb97d9af83a4c3dba794387076019417e19",
+      "pts_approx_s": 2.335,
+      "duration_s": 5.838,
+      "frame_file": "frames/d2616_f0.jpg",
+      "frame_sha256": "26a450a261340a1a5ec8c5c930f1d83888fc76197c08d08f6682a259551b5169",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2616_f1",
+      "dive_id": 2616,
+      "dive_code": "010B",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-07-20",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "55abf4d1697ad8ca7a32984ddf75bdb97d9af83a4c3dba794387076019417e19",
+      "pts_approx_s": 4.087,
+      "duration_s": 5.838,
+      "frame_file": "frames/d2616_f1.jpg",
+      "frame_sha256": "f0807f71f01ee2d69c99f87afee11a137576ed154e853a0beeef6e559ba43665",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2649_f0",
+      "dive_id": 2649,
+      "dive_code": "5100A",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "fa6ac16794af442aa92abfecb22c429ebfed29dc76b9391d94243c8258252736",
+      "pts_approx_s": 6.153,
+      "duration_s": 15.383,
+      "frame_file": "frames/d2649_f0.jpg",
+      "frame_sha256": "98f20a527607c7d3489af1b636db717afa24e5ee0527fd90f67e47cf47b1df85",
+      "annotation": null,
+      "coco_candidates": [
+        {
+          "bbox_xyxy": [
+            0.4744548797607422,
+            28.928787231445312,
+            78.64693450927734,
+            301.0358581542969
+          ],
+          "conf": 0.8311246037483215
+        }
+      ]
+    },
+    {
+      "frame_id": "d2649_f1",
+      "dive_id": 2649,
+      "dive_code": "5100A",
+      "platform_type": "springboard",
+      "height": "5m",
+      "date": "2026-06-09",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "HURDLE",
+      "media_key": "fa6ac16794af442aa92abfecb22c429ebfed29dc76b9391d94243c8258252736",
+      "pts_approx_s": 10.768,
+      "duration_s": 15.383,
+      "frame_file": "frames/d2649_f1.jpg",
+      "frame_sha256": "cb586b36f4f4eedd72c1c6fe01a9439bfb32c2d4ab976970e04c0bdca073b39b",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1576_f0",
+      "dive_id": 1576,
+      "dive_code": "101C",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2026-01-13",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "434469c5273effdccb4a10714f7b3f2bc42b06e4b30ae91f3efd7039fd0ec66f",
+      "pts_approx_s": 5.119,
+      "duration_s": 12.797,
+      "frame_file": "frames/d1576_f0.jpg",
+      "frame_sha256": "b5d510cdd752da9c7c018119290329bca76edf83073b296cd1e8a465b375812d",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1576_f1",
+      "dive_id": 1576,
+      "dive_code": "101C",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2026-01-13",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "434469c5273effdccb4a10714f7b3f2bc42b06e4b30ae91f3efd7039fd0ec66f",
+      "pts_approx_s": 8.958,
+      "duration_s": 12.797,
+      "frame_file": "frames/d1576_f1.jpg",
+      "frame_sha256": "622540514aaefd0458aba8718c261f17c10851a1bcb9f7a25979ecbef27e3f64",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2155_f0",
+      "dive_id": 2155,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2026-04-03",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "e757450b061fdfeca05170c4227ed7016810a3f2e7fb1e0052fb7def6c24d26c",
+      "pts_approx_s": 4.3,
+      "duration_s": 10.75,
+      "frame_file": "frames/d2155_f0.jpg",
+      "frame_sha256": "b65a07a99384969ffcd020f629934bb75df1194d6bfeff29dfc9b4584b9e2b01",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d2155_f1",
+      "dive_id": 2155,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "5m",
+      "date": "2026-04-03",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "e757450b061fdfeca05170c4227ed7016810a3f2e7fb1e0052fb7def6c24d26c",
+      "pts_approx_s": 7.525,
+      "duration_s": 10.75,
+      "frame_file": "frames/d2155_f1.jpg",
+      "frame_sha256": "315f20345445e5c837c897f9bb2a2443be3719107d777a8de0a30d2e48520e5a",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1709_f0",
+      "dive_id": 1709,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "7m",
+      "date": "2026-01-24",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "d5d82ec63eb3a7809b2e88b8e2b23221562c7906a78903c1fb0d9507016e7236",
+      "pts_approx_s": 4.485,
+      "duration_s": 11.212,
+      "frame_file": "frames/d1709_f0.jpg",
+      "frame_sha256": "4d0b6106d4dd9a13c7a3f015de2f6b41c94d217907789bfd04f3e7abd371c9a4",
+      "annotation": null,
+      "coco_candidates": []
+    },
+    {
+      "frame_id": "d1709_f1",
+      "dive_id": 1709,
+      "dive_code": "010B",
+      "platform_type": "platform",
+      "height": "7m",
+      "date": "2026-01-24",
+      "temporal_bucket": "LATE",
+      "hurdle_flag": "NON_HURDLE",
+      "media_key": "d5d82ec63eb3a7809b2e88b8e2b23221562c7906a78903c1fb0d9507016e7236",
+      "pts_approx_s": 7.848,
+      "duration_s": 11.212,
+      "frame_file": "frames/d1709_f1.jpg",
+      "frame_sha256": "3330c02ba7fc42f0dd4d3a9960e1e0bf200a81b9982843113a799cad883008b1",
+      "annotation": null,
+      "coco_candidates": []
+    }
+  ]
+}

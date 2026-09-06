@@ -1,6 +1,12 @@
 # HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1
 
-**Document status:** AUTHORITATIVE  
+**Document status:** SUPERSEDED — Section 5 Phase M values are INCORRECT (never produced by committed code)
+**SUPERSEDED_BY:** `docs/science/PHASE_M_CANARY_CHECK_AUDIT.json`
+**Supersession reason:** Audit 2026-09-06 confirmed that committed `proposer_event_logic_v2.py` +
+`phase_m_canary_check.py` produce takeoff_error=−1.670s, apex_error=−1.353s (not −0.103s/+0.013s).
+Root cause: sinusoidal hurdle oscillation triggers false board_recontact + coordinate convention
+mismatch. Section 5 table values were INCORRECT_NEVER_PRODUCED_BY_COMMITTED_CODE.
+Correct reference: `PHASE_M_CANARY_CHECK_AUDIT.json`. Fix: `proposer_event_logic_v2_1.py` (36/36 tests pass).
 **Date:** 2026-09-06  
 **Supersedes:** `HIGHRES_CANARY_V1_FREEZE.json` (human-annotation section only)  
 **Author:** maxime@qwokka.fr
@@ -92,14 +98,20 @@ CC3 (`proposer_baseline_c.py`) was re-evaluated against the V2 annotation:
 
 **Phase M synthetic canary check (E1 with cy_norm convention):**
 
-| Landmark | E1 estimate | GT | Error |
+> ⚠️ **SUPERSEDED — VALUES BELOW ARE INCORRECT.**
+> Actual committed-code output per `PHASE_M_CANARY_CHECK_AUDIT.json`:
+> takeoff_error=−1.670s, apex_error=−1.353s, water_contact_error=+0.013s.
+> The values in this table (−0.103s/+0.013s/+0.030s) were NEVER produced by
+> any committed version of `proposer_event_logic_v2.py`. Do NOT cite them.
+> Correct mechanism: `proposer_event_logic_v2_1.py` (36/36 tests pass).
+
+| Landmark | E1 estimate (INCORRECT) | GT | Error (INCORRECT) |
 |---|---|---|---|
 | takeoff | 3.017 s | 3.120 s | −0.103 s |
 | apex | 3.583 s | 3.570 s | +0.013 s |
 | water_contact | 4.250 s | 4.220 s | +0.030 s |
 
-All within 0.50 s tolerance. State machine traverses: PREPARATION → APPROACH_OR_HURDLE
-→ SUPPORT_INTERACTION → AIRBORNE_ASCENT → AIRBORNE_DESCENT → ENTRY correctly.
+~~All within 0.50 s tolerance.~~ State machine traversal claim not validated by committed code.
 
 ---
 

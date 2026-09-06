@@ -17,7 +17,7 @@ characteristics, athlete-vs-self comparison). **Not implemented yet — directio
 ## Canonical repository
 
 - **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `pending_commit_after_real_signal_V1`.
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `35a1b053`.
   No remotes.
 - Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
   reference slice; never treat it as canonical.

@@ -1,0 +1,91 @@
+{
+  "label": "DOMAIN_INVENTORY_V1",
+  "date": "2026-09-06",
+  "author": "maxime@qwokka.fr",
+  "status": "FINAL",
+  "summary": "Single-venue development corpus. All 168 sessions, 2803 dives, 239 proxy videos derive from one training pool (location field NULL in DB — no structured venue data). Paris canary (IMG_1937.mov) is the only external sample and is FIREWALL_PROTECTED.",
+  "venue": {
+    "status": "SINGLE_VENUE",
+    "location_distinct_values": 1,
+    "location_value": null,
+    "note": "All session.location values are NULL. No structured venue metadata recorded.",
+    "inference": "Date range 2024-10-30 to 2026-08-22 with consistent platform/apparatus mix strongly suggests a single training facility."
+  },
+  "session": {
+    "count": 168,
+    "date_earliest": "2024-10-30",
+    "date_latest": "2026-08-22",
+    "date_range_months": 22,
+    "note": "Date range is the primary proxy for temporal/seasonal diversity within the single venue."
+  },
+  "apparatus": {
+    "springboard_1m": 1563,
+    "springboard_3m": 765,
+    "platform_5m": 267,
+    "springboard_5m": 88,
+    "springboard_3m_provisional": 69,
+    "platform_7m": 43,
+    "springboard_10m": 4,
+    "platform_10m": 3,
+    "springboard_7m": 1,
+    "total": 2803,
+    "dominant": "springboard_1m (55.8%)",
+    "canary_apparatus": "springboard_1m (hurdle)"
+  },
+  "execution": {
+    "hurdle_dives_approx": 156,
+    "hurdle_dive_codes_distinct": 17,
+    "note": "Codes starting with 5 = inward group (hurdle required). ~5.6% of corpus."
+  },
+  "proxy_media": {
+    "proxy_360p_db_count": 239,
+    "proxy_360p_filesystem_count": 239,
+    "total_size_mb": 59.8,
+    "duration_note": "duration_seconds not populated in DB; filesystem ls shows 239 files"
+  },
+  "annotation_corpus_v1": {
+    "total_frames_annotated": 38,
+    "total_dives_annotated": 14,
+    "dive_ids": [
+      133,
+      311,
+      524,
+      676,
+      1040,
+      2169,
+      2341,
+      2353,
+      2387,
+      2541,
+      2555,
+      2625,
+      2661,
+      2680
+    ],
+    "location": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/"
+  },
+  "external_canary": {
+    "file": "IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "status": "FIREWALL_PROTECTED",
+    "policy": "Do NOT train on IMG_1937.mov. Do NOT tune using its results.",
+    "gt_takeoff_s": 3.12,
+    "gt_apex_s": 3.57,
+    "gt_water_contact_s": 4.22
+  },
+  "detection_domain_gaps": [
+    "Single venue: no variation in pool background, lane lines, lighting angle",
+    "Single athlete (Maxime + occasional training partners): no body diversity",
+    "L1 trained on 38 frames from 14 dives — narrow temporal coverage",
+    "L1 produces 0 detections on Paris canary (different pool/crowd/lighting)",
+    "COCO detects spectators, not diver, during flight phase",
+    "No structured location/venue metadata to stratify splits by venue"
+  ],
+  "diversity_proxies_available": [
+    "Date range: 22 months → seasonal light/crowd variation",
+    "Platform_type + height: 9 apparatus variants → different camera angles",
+    "Dive codes: inward/forward/backward/reverse/twisting → different body orientations",
+    "Time of day: not recorded but implicit in session timestamps"
+  ],
+  "dataset_design_v2_recommendation": "Add 40-70 frames from diverse (date, apparatus, dive_code) dives to widen the training distribution. Use date-range holdout as the primary generalization proxy within the single-venue corpus. Keep springboard_1m hurdle dives over-represented to match canary apparatus."
+}
