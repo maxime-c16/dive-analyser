@@ -1,0 +1,72 @@
+{
+  "authority": "LOCALIZATION_ANNOTATIONS_V1_FREEZE",
+  "frozen_at": "2026-09-06T09:24:15.870715+00:00",
+  "splits": {
+    "DEVELOPMENT_DESIGN": {
+      "count": 38,
+      "per_file_sha256": {
+        "1040_apex.json": "2bfbf09945c4accdcbe9fb18c95982c0245a0b2b534da03e4c65e9fe8466cec4",
+        "1040_takeoff.json": "e610cbd3cb061b55ccbc08a014f7616199c81f0a8fca150ba05476bd9a47f701",
+        "1040_water_contact.json": "afe9ea910b0084daa10ee4e4afe6dd0adb5d2935422e6bce83642cbfd431d3cf",
+        "133_apex.json": "d417402676b894db687b31833e296976bc348543f4a9d9eef1a3bbf6c1cb8116",
+        "133_takeoff.json": "d262fae8dd501b887ec70681850a6f8440abdb0ae7b1e35aea4d3faecc99e79e",
+        "133_water_contact.json": "db3ae314f2105a7dc58f95779b1ee100bf3d7da1340627e475bbe07f1ca370b4",
+        "2169_apex.json": "ced878789f1abb59efd5c6b88d42ada307509553ce324112d58a36effb93f729",
+        "2169_takeoff.json": "de474da06a035867147e02eea08ea9aa92853e0b2dac0dbcde6fe9bb5e50f09c",
+        "2169_water_contact.json": "3ccda9e70d83f8a8ce43651b7f91294c5417c6ca9926429767e03633f99d6227",
+        "2341_apex.json": "7f2ae7048d03b8eb3b29454d54aa9318c2b07e0feb034cb3c2cc26238db3420d",
+        "2341_takeoff.json": "8f9ec413098f3f6f383565f63b124cfa9b669345fe2343b0fd1ac125b628a56a",
+        "2341_water_contact.json": "5b52e6ad3593c8556faaea1d59d27b53b1b1e0d2a7c86110c055bc334a630ef8",
+        "2353_apex.json": "46ee0bb1162998602d1ac7fdd2972e40aa1bc99aecc1dba56ce9d99f9c56b0f0",
+        "2353_takeoff.json": "d16b197e4e819e8d99b65acbb8758f36a57299a71a0e9436fb091a0f595c0d0f",
+        "2353_water_contact.json": "db0c2bf59a570d0da81cdb12626b7f328a47ad47aa7bf2383af8af5e95f03ddb",
+        "2387_apex.json": "a6b283521d3917b8d316cf364c747f870bf3af35c25b07a074c154e617ba2c59",
+        "2387_takeoff.json": "5f68c2e1f3f2e8b7e73918226c60d3d5af55e124e94295eaf9e1fb0b19cc2e3b",
+        "2387_water_contact.json": "6725b9fa39e070b7bbaf754f2e3452ab0a4eca8f127f34054946ec68e88cda58",
+        "2541_apex.json": "76365943fd8e444ac02c3963b6e5287a4a79fb953714698dcfb0c957990d6f76",
+        "2541_takeoff.json": "6e189a9d12638a810a05770ca87e0da7d7daeccb7c27563650ae29e078b0a21a",
+        "2541_water_contact.json": "0dfd52d27b2dd1f856060107707448f245f979ee39155e7bae06e55246bfe92f",
+        "2555_apex.json": "1d458206b90d3eac3c75cbee125ee5292063fb75ad514da39fd2dc0ffde0df74",
+        "2555_takeoff.json": "f13208ad7f7e849004d66761260cabb2cabb6d74467c5ba5892b92b210900d59",
+        "2555_water_contact.json": "1af4ddc2a634bdbf3abbb20fa74bcb17d14cfbe87848af5ec26f0c10856c650c",
+        "2625_apex.json": "565a5b2763d9d03cc8ee72d99c8bf2460b349f591c317e869a74a4dbbb19806f",
+        "2625_water_contact.json": "3041524cbb8e23f2a962d6398d53eca08653d814bddb397984c57fb689772975",
+        "2661_takeoff.json": "61d462f3f285fb08af67b0ad295dbce587f1f1569472b6dd2e76c24b832f1b3d",
+        "2661_water_contact.json": "4b3287b74c77573a9304facd3f64a0630e791e07012448607a9dc127994e5a3f",
+        "2680_takeoff.json": "c29c3ba4c437195e408d0ac77f5d202a0cb040b68b6d2ee8ce9c803cf3c415b2",
+        "2680_water_contact.json": "976c39d01aa4a9830052087e7801ebca302d4ab4694c3e58170c310ff206c500",
+        "311_takeoff.json": "d38f1f59c684c5bde99201e3a1cb0ff420f028bf485b0ee0a2c2b6441cfbca96",
+        "311_water_contact.json": "3bfb652a83ef28ce7470f727a0b64f342f2c9e546a0cca18f885cb5d4f0ad528",
+        "524_apex.json": "47953881002a54d4d2df32ef4a8ada6d91afa306f514e06841271c6e64f4547c",
+        "524_takeoff.json": "c8989d38831f7c9fccb25853c944032c1a6597e8dd382fb935684c559b2c7c5b",
+        "524_water_contact.json": "6a9472f9bc29c3bed6dbab303b64db0c4013143a6bf4544f47a0e3a791217036",
+        "676_apex.json": "2b1b9280594cca8c3bc1290910e5c8674c40a3f7dfc422299fc0c93822b7751d",
+        "676_takeoff.json": "31111abb7da805976b18714dc047b727cf82d6c3c513ce5c015c55015b7bd557",
+        "676_water_contact.json": "32ea66d10fc743ebcef37efe28d8d04f696a2172eb263fee10dd98fa40d86e23"
+      }
+    },
+    "INTERNAL_EVAL": {
+      "count": 18,
+      "per_file_sha256": {
+        "160_apex.json": "a69bc8d06c2e6207b25b45fcef6c249a83b5dbbd564b622fb382d1b580f6fcfa",
+        "160_takeoff.json": "49dacc2e5b88429a7fcd90328a97f4f5d22490095fa057fb3d481f5615c17d1e",
+        "160_water_contact.json": "331b587681d380328ef3b7ed0184c2577d9efd38bc7e89830554cbd0797bf04c",
+        "169_apex.json": "616f050df04ebb57d6f8027934e5483afe5252df9e1fb3474dab4b79f3a2de5d",
+        "169_takeoff.json": "92c9660865787e621e66f47cddb8982de855b8335d80175f09f52d9cad34862e",
+        "169_water_contact.json": "565b1c1f9630bdaaf74e150f234b6ba8b30d93bf80ccec24b823f542a84b562e",
+        "191_apex.json": "9fded789290376abe9c669950aa2ca462f8eb1fcbe2c1af15b80943a9e84e6b9",
+        "191_takeoff.json": "4f34e52744defcbc80abdfda82dde482fc312c1789c2e78b87cff827c7221ac4",
+        "191_water_contact.json": "8880648efcecafb43ee321b7560feaa79d6e6ec19c436482be79aebfd9407187",
+        "192_apex.json": "a0df524d9e90b6618c27c37767d4ad0a56deb16a7a58058d6679066d1e3692ce",
+        "192_takeoff.json": "09217dd99727df2047d1ccb7c6046853a1516b59c380de1734fbf526e59ed419",
+        "192_water_contact.json": "bd93494396db5c7aa902a6dc6ff47f61866665455cac7c17c5bd5f1833bc3a52",
+        "2281_apex.json": "f94c448cb87bd2691a166abbf9a645907ead412eb01ea46c497ced3858dac696",
+        "2281_takeoff.json": "0e86bb45285c2a4793bf7ed24d132680a5aca3b7f2a4bfd41ba4d0ced6659698",
+        "2281_water_contact.json": "23a821f0de90761147418ff761c2e8abe62c94d6e0faee4b843a5c662eb8eeca",
+        "848_apex.json": "bac55a902036287ee46e64a3a2f55c85f5da9aa1c9f60c7a2f757c9fa29e66bc",
+        "848_takeoff.json": "4fc85d6f69c5f0ac142dc10ed199b3591d52ec98cb9d904c800923c8c100c157",
+        "848_water_contact.json": "59cf3307fd1cfb90a9ca7ec6cc785cf111f78d6235b414573919ae4eb85fbd00"
+      }
+    }
+  }
+}

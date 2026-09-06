@@ -1,0 +1,6 @@
+{
+  "label": "PHASE_P_EVENT_LOGIC_V2_DECISION_V1",
+  "created": "2026-09-06T10:22:45Z",
+  "decision": "SKIPPED",
+  "rationale": "Phase P prerequisite: adequate perception (Phase O or detection at >=50% within-tolerance). Neither is satisfied. Event logic V2 cannot be developed without reliable temporal landmark candidates. Existing CC2 baseline provides the best available (but insufficient) predictions."
+}

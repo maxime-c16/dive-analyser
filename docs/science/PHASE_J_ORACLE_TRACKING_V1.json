@@ -1,0 +1,142 @@
+{
+  "phase": "J",
+  "J1_tiny_new_dives": [
+    {
+      "diagnostic_only": true,
+      "autonomous": false,
+      "phase": "J",
+      "dive_id": 311,
+      "checkpoint_variant": "tiny",
+      "seed_source": "human takeoff bbox",
+      "seed_sha256": "d38f1f59c684c5bde99201e3a1cb0ff420f028bf485b0ee0a2c2b6441cfbca96",
+      "window": [
+        412,
+        459
+      ],
+      "window_source": "human temporal bounds; oracle diagnostic only",
+      "checkpoint_sha256": "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69",
+      "checkpoint_file": "sam2.1_hiera_tiny.pt",
+      "config": "sam2.1_hiera_t.yaml",
+      "input_resolution": 1024,
+      "device": "mps",
+      "code_sha256": "3ad6d93f26075f86ef7a10e2d49887516cc726372967bc1a77be62bf394551be",
+      "seconds": 54.92,
+      "peak_rss_bytes": 1390936064,
+      "mps_allocated_bytes": 669784576,
+      "n_frames_tracked": 48,
+      "n_frames_zero_area": 31,
+      "first_collapse_frame": 413,
+      "outcome": "IMMEDIATE_COLLAPSE"
+    },
+    {
+      "diagnostic_only": true,
+      "autonomous": false,
+      "phase": "J",
+      "dive_id": 2541,
+      "checkpoint_variant": "tiny",
+      "seed_source": "human takeoff bbox",
+      "seed_sha256": "6e189a9d12638a810a05770ca87e0da7d7daeccb7c27563650ae29e078b0a21a",
+      "window": [
+        525,
+        573
+      ],
+      "window_source": "human temporal bounds; oracle diagnostic only",
+      "checkpoint_sha256": "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69",
+      "checkpoint_file": "sam2.1_hiera_tiny.pt",
+      "config": "sam2.1_hiera_t.yaml",
+      "input_resolution": 1024,
+      "device": "mps",
+      "code_sha256": "3ad6d93f26075f86ef7a10e2d49887516cc726372967bc1a77be62bf394551be",
+      "seconds": 61.29,
+      "peak_rss_bytes": 1390936064,
+      "mps_allocated_bytes": 582406144,
+      "n_frames_tracked": 49,
+      "n_frames_zero_area": 48,
+      "first_collapse_frame": 526,
+      "outcome": "IMMEDIATE_COLLAPSE"
+    },
+    {
+      "diagnostic_only": true,
+      "autonomous": false,
+      "phase": "J",
+      "dive_id": 2555,
+      "checkpoint_variant": "tiny",
+      "seed_source": "human takeoff bbox",
+      "seed_sha256": "f13208ad7f7e849004d66761260cabb2cabb6d74467c5ba5892b92b210900d59",
+      "window": [
+        257,
+        589
+      ],
+      "window_source": "human temporal bounds; oracle diagnostic only",
+      "checkpoint_sha256": "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69",
+      "checkpoint_file": "sam2.1_hiera_tiny.pt",
+      "config": "sam2.1_hiera_t.yaml",
+      "input_resolution": 1024,
+      "device": "mps",
+      "code_sha256": "3ad6d93f26075f86ef7a10e2d49887516cc726372967bc1a77be62bf394551be",
+      "seconds": 389.31,
+      "peak_rss_bytes": 4532879360,
+      "mps_allocated_bytes": 587131904,
+      "n_frames_tracked": 333,
+      "n_frames_zero_area": 332,
+      "first_collapse_frame": 258,
+      "outcome": "IMMEDIATE_COLLAPSE"
+    }
+  ],
+  "J2_base_plus_comparison": [
+    {
+      "diagnostic_only": true,
+      "autonomous": false,
+      "phase": "J",
+      "dive_id": 133,
+      "checkpoint_variant": "base_plus",
+      "seed_source": "human takeoff bbox",
+      "seed_sha256": "d262fae8dd501b887ec70681850a6f8440abdb0ae7b1e35aea4d3faecc99e79e",
+      "window": [
+        53,
+        103
+      ],
+      "window_source": "human temporal bounds; oracle diagnostic only",
+      "checkpoint_sha256": "a2345aede8715ab1d5d31b4a509fb160c5a4af1970f199d9054ccfb746c004c5",
+      "checkpoint_file": "sam2.1_hiera_base_plus.pt",
+      "config": "sam2.1_hiera_b+.yaml",
+      "input_resolution": 1024,
+      "device": "mps",
+      "code_sha256": "3ad6d93f26075f86ef7a10e2d49887516cc726372967bc1a77be62bf394551be",
+      "seconds": 78.03,
+      "peak_rss_bytes": 4532879360,
+      "mps_allocated_bytes": 1212848384,
+      "n_frames_tracked": 51,
+      "n_frames_zero_area": 0,
+      "first_collapse_frame": null,
+      "outcome": "SUCCESS"
+    },
+    {
+      "diagnostic_only": true,
+      "autonomous": false,
+      "phase": "J",
+      "dive_id": 2387,
+      "checkpoint_variant": "base_plus",
+      "seed_source": "human takeoff bbox",
+      "seed_sha256": "5f68c2e1f3f2e8b7e73918226c60d3d5af55e124e94295eaf9e1fb0b19cc2e3b",
+      "window": [
+        134,
+        179
+      ],
+      "window_source": "human temporal bounds; oracle diagnostic only",
+      "checkpoint_sha256": "a2345aede8715ab1d5d31b4a509fb160c5a4af1970f199d9054ccfb746c004c5",
+      "checkpoint_file": "sam2.1_hiera_base_plus.pt",
+      "config": "sam2.1_hiera_b+.yaml",
+      "input_resolution": 1024,
+      "device": "mps",
+      "code_sha256": "3ad6d93f26075f86ef7a10e2d49887516cc726372967bc1a77be62bf394551be",
+      "seconds": 87.67,
+      "peak_rss_bytes": 4532879360,
+      "mps_allocated_bytes": 943801344,
+      "n_frames_tracked": 46,
+      "n_frames_zero_area": 45,
+      "first_collapse_frame": 135,
+      "outcome": "IMMEDIATE_COLLAPSE"
+    }
+  ]
+}

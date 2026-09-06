@@ -1,0 +1,176 @@
+{
+  "phase": "Q",
+  "label": "PHASE_Q_INTERNAL_EVAL_CC2_V1",
+  "created": "2026-09-06T10:18:53Z",
+  "method": "CC2_ByteTrack_F1F2",
+  "reference": "V2_PTS_REPAIR",
+  "tolerance_s": 1.0,
+  "split": "INTERNAL_EVAL",
+  "n_dives": 6,
+  "n_evaluable_landmarks": 6,
+  "n_uncertain_landmarks": 12,
+  "n_within_tolerance": 2,
+  "n_serious": 4,
+  "pct_within": 33.3,
+  "mean_abs_err_s": 7.12,
+  "median_abs_err_s": 9.729,
+  "finding": "MULTI_STAGE_LIMITATION_CONFIRMED_ON_INTERNAL_EVAL",
+  "per_dive": {
+    "160": {
+      "takeoff": {
+        "pred_ts": null,
+        "gt_pts_v2": 8.525183,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "apex": {
+        "pred_ts": null,
+        "gt_pts_v2": 8.9089,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "water_contact": {
+        "pred_ts": null,
+        "gt_pts_v2": 9.45945,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      }
+    },
+    "169": {
+      "takeoff": {
+        "pred_ts": 0.0,
+        "gt_pts_v2": 9.25,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 9.25,
+        "within_tolerance": false,
+        "serious": true
+      },
+      "apex": {
+        "pred_ts": 9.9962,
+        "gt_pts_v2": 9.5,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 0.4962,
+        "within_tolerance": true,
+        "serious": false
+      },
+      "water_contact": {
+        "pred_ts": 10.33,
+        "gt_pts_v2": 10.166667,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 0.1633,
+        "within_tolerance": true,
+        "serious": false
+      }
+    },
+    "191": {
+      "takeoff": {
+        "pred_ts": null,
+        "gt_pts_v2": 2.135467,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "apex": {
+        "pred_ts": null,
+        "gt_pts_v2": 2.535867,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "water_contact": {
+        "pred_ts": null,
+        "gt_pts_v2": 3.269933,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      }
+    },
+    "192": {
+      "takeoff": {
+        "pred_ts": null,
+        "gt_pts_v2": 15.632283,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "apex": {
+        "pred_ts": null,
+        "gt_pts_v2": 16.082733,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "water_contact": {
+        "pred_ts": null,
+        "gt_pts_v2": 16.649967,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      }
+    },
+    "848": {
+      "takeoff": {
+        "pred_ts": null,
+        "gt_pts_v2": 2.983333,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "apex": {
+        "pred_ts": null,
+        "gt_pts_v2": 3.383333,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      },
+      "water_contact": {
+        "pred_ts": null,
+        "gt_pts_v2": 4.083333,
+        "applicability": "UNCERTAIN",
+        "abs_err_s": null,
+        "within_tolerance": null,
+        "serious": null
+      }
+    },
+    "2281": {
+      "takeoff": {
+        "pred_ts": 13.2621,
+        "gt_pts_v2": 3.533333,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 9.7288,
+        "within_tolerance": false,
+        "serious": true
+      },
+      "apex": {
+        "pred_ts": 14.8302,
+        "gt_pts_v2": 4.016667,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 10.8135,
+        "within_tolerance": false,
+        "serious": true
+      },
+      "water_contact": {
+        "pred_ts": 16.9655,
+        "gt_pts_v2": 4.7,
+        "applicability": "APPLICABLE",
+        "abs_err_s": 12.2655,
+        "within_tolerance": false,
+        "serious": true
+      }
+    }
+  }
+}

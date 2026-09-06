@@ -226,3 +226,35 @@ must use domain-specific detection or pose estimation.
 - `docs/science/BASELINE_CC2_DESIGN_RESULTS_V1.json`
 - `docs/science/BASELINE_CC2_EVAL_RESULTS_V1.json`
 - `docs/science/TEMPORAL_LANDMARK_BASELINE_C_V1_REPORT.md`
+
+---
+
+## TEMPORAL_LANDMARK_PERCEPTION_V2 — Study Complete (2026-09-06)
+
+**Gate**: SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_PERCEPTION_V2
+
+**Result**: All 9 scientific questions answered. Phases A–W complete.
+
+### Key Findings
+- **Root cause**: SCALE_FAILURE (360p proxy) — primary limiting factor throughout
+- **Failure topology**: SCALE_FAILURE → DOMAIN_GAP → ACQUISITION_FAILURE → TRACKING_COLLAPSE
+- **Domain adaptation (Phase L)**: VIABLE — L1 mAP50=0.766 (9x improvement over frozen COCO)
+- **SAM2 model size (Phase J)**: NOT a factor — both tiny and base_plus collapse at 360p (1/6 success rate)
+- **INTERNAL_EVAL CC2 (Phase Q)**: 33.3% within-tolerance (2/6 evaluable), mean error 7.12 s
+- **Architecture decision (Phase N)**: DETECTION_PLUS_LIGHTWEIGHT_TRACKING
+- **All integrity tests (Phase U)**: PASS (3/3) — frozen predictions unaltered, human timestamps unchanged
+
+### Artifacts
+- TEMPORAL_LANDMARK_PERCEPTION_V2_REPORT.md — full study report
+- PHASE_J_ORACLE_TRACKING_V1.json — oracle tracking results
+- PHASE_L_DOMAIN_ADAPTATION_V1.json — domain adaptation results
+- PHASE_M_DECISION_V1.json — method freeze
+- PHASE_N_DECISION_V1.json — architecture decision
+- PHASE_Q_INTERNAL_EVAL_CC2_V1.json — INTERNAL_EVAL evaluation
+- PHASE_R_FINAL_CLASSIFICATION_V1.json — failure classification
+- PHASE_U_TEST_RESULTS_V1.json — integrity tests
+
+### Next Iteration
+- Build CC3: fine-tuned L1 detector (all 38 DEVELOPMENT frames, no val hold-out) + ByteTrack
+- Evaluate CC3 on INTERNAL_EVAL at 360p
+- Long-term: original-resolution processing to overcome SCALE_FAILURE root cause

@@ -1,0 +1,20 @@
+{
+  "label": "PHASE_M_METHOD_FREEZE_V1",
+  "created": "2026-09-06T10:30:05Z",
+  "decision": "FINE_TUNED_DETECTOR_CANDIDATE",
+  "selected_config": "L1_frozen_backbone",
+  "reason": "L1 (YOLOv8n, freeze=10 layers, 100 epoch budget, early-stopped at epoch 25 with best at epoch 5) achieves mAP50=0.766, recall=1.0 on DEVELOPMENT val split (3 dive-level held-out dives, 8 frames). Criterion: max(mAP50) > 2 \u00d7 frozen F1 IoU50 recall (0.083). Threshold: 0.166. Result: VIABLE. L2 (all layers fine-tuned) achieves mAP50\u22480.388 peak \u2014 worse than L1, confirming that frozen backbone is more appropriate for 28-image micro-dataset (catastrophic forgetting risk).",
+  "L1_metrics": {
+    "mAP50": 0.766,
+    "mean_recall": 1.0,
+    "epochs_best": 5,
+    "epochs_stopped": 25
+  },
+  "L2_metrics_peak": {
+    "mAP50": 0.388,
+    "note": "all layers fine-tuned; overfits; worse than L1 on tiny dataset"
+  },
+  "frozen_f1_iou50_recall": 0.083,
+  "feasibility_threshold": 0.166,
+  "caveat": "Val set = 8 images from 3 dives (133, 311, 2387) \u2014 same domain as train. Production generalization unknown; requires larger validation. Fine-tuned model still limited by 360p proxy scale for original-resolution inference."
+}

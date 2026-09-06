@@ -1,0 +1,6 @@
+{
+  "label": "PHASE_O_TRAJECTORY_V2_DECISION_V1",
+  "created": "2026-09-06T10:22:45Z",
+  "decision": "SKIPPED",
+  "rationale": "Phase O prerequisite: acquisition must be adequate. Phase I showed acquisition fails at 360p: motion-coherent selection fails because diver displacement (~14% frame height) is insufficient to distinguish from bystanders. Flight-arc geometry fails because the arc subtends too few pixels for reliable segmentation. Human-centric trajectory V2 cannot be built on failed acquisition."
+}

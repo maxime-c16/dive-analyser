@@ -1,0 +1,500 @@
+{
+  "label": "SCENE_GEOMETRY_AUDIT_V1",
+  "created": "2026-09-06T09:34:59.389164+00:00",
+  "method": "Sparse optical flow (LK) on DEVELOPMENT localization frames; human box geometry",
+  "per_dive": {
+    "133": {
+      "dive_id": 133,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.1,
+        "std_displacement": 3.3,
+        "median_angle_deg": -7.8,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.736,
+          "norm_cy": 0.4,
+          "box_w_px": 53.3,
+          "box_h_px": 63.9,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.634,
+          "norm_cy": 0.37,
+          "box_w_px": 52.0,
+          "box_h_px": 47.0,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.464,
+          "norm_cy": 0.641,
+          "box_w_px": 54.0,
+          "box_h_px": 85.6,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.4,
+      "estimated_water_y_norm": 0.641,
+      "diver_horizontal_range_norm": 0.272,
+      "diver_vertical_range_norm": 0.271
+    },
+    "311": {
+      "dive_id": 311,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.1,
+        "std_displacement": 5.4,
+        "median_angle_deg": 53.3,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.311,
+          "norm_cy": 0.129,
+          "box_w_px": 58.6,
+          "box_h_px": 93.0,
+          "vis": "partial"
+        },
+        "water_contact": {
+          "norm_cx": 0.703,
+          "norm_cy": 0.528,
+          "box_w_px": 83.8,
+          "box_h_px": 81.6,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.129,
+      "estimated_water_y_norm": 0.528,
+      "diver_horizontal_range_norm": 0.392,
+      "diver_vertical_range_norm": 0.399
+    },
+    "524": {
+      "dive_id": 524,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 0.6,
+        "median_angle_deg": 0.0,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.631,
+          "norm_cy": 0.409,
+          "box_w_px": 37.1,
+          "box_h_px": 43.3,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.553,
+          "norm_cy": 0.379,
+          "box_w_px": 40.1,
+          "box_h_px": 33.2,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.409,
+      "diver_horizontal_range_norm": 0.078,
+      "diver_vertical_range_norm": 0.03
+    },
+    "676": {
+      "dive_id": 676,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.1,
+        "std_displacement": 0.7,
+        "median_angle_deg": -27.4,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.607,
+          "norm_cy": 0.307,
+          "box_w_px": 39.9,
+          "box_h_px": 48.1,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.512,
+          "norm_cy": 0.265,
+          "box_w_px": 39.1,
+          "box_h_px": 50.0,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.323,
+          "norm_cy": 0.492,
+          "box_w_px": 46.3,
+          "box_h_px": 60.1,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.307,
+      "estimated_water_y_norm": 0.492,
+      "diver_horizontal_range_norm": 0.284,
+      "diver_vertical_range_norm": 0.227
+    },
+    "1040": {
+      "dive_id": 1040,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 2.5,
+        "median_angle_deg": 1.7,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.196,
+          "norm_cy": 0.479,
+          "box_w_px": 74.5,
+          "box_h_px": 95.8,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.318,
+          "norm_cy": 0.385,
+          "box_w_px": 61.3,
+          "box_h_px": 57.8,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.657,
+          "norm_cy": 0.567,
+          "box_w_px": 64.4,
+          "box_h_px": 79.2,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.479,
+      "estimated_water_y_norm": 0.567,
+      "diver_horizontal_range_norm": 0.461,
+      "diver_vertical_range_norm": 0.182
+    },
+    "2169": {
+      "dive_id": 2169,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 0.7,
+        "median_angle_deg": -4.4,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.401,
+          "norm_cy": 0.283,
+          "box_w_px": 57.7,
+          "box_h_px": 57.9,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.693,
+          "norm_cy": 0.691,
+          "box_w_px": 32.5,
+          "box_h_px": 80.0,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.283,
+      "estimated_water_y_norm": 0.691,
+      "diver_horizontal_range_norm": 0.292,
+      "diver_vertical_range_norm": 0.408
+    },
+    "2341": {
+      "dive_id": 2341,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.1,
+        "std_displacement": 1.2,
+        "median_angle_deg": 45.1,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.367,
+          "norm_cy": 0.762,
+          "box_w_px": 62.0,
+          "box_h_px": 67.3,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.483,
+          "norm_cy": 0.681,
+          "box_w_px": 28.4,
+          "box_h_px": 42.9,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.643,
+          "norm_cy": 0.841,
+          "box_w_px": 56.0,
+          "box_h_px": 78.7,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.762,
+      "estimated_water_y_norm": 0.841,
+      "diver_horizontal_range_norm": 0.276,
+      "diver_vertical_range_norm": 0.16
+    },
+    "2353": {
+      "dive_id": 2353,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 0.2,
+        "median_angle_deg": 28.2,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.239,
+          "norm_cy": 0.61,
+          "box_w_px": 45.3,
+          "box_h_px": 49.7,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.324,
+          "norm_cy": 0.544,
+          "box_w_px": 55.1,
+          "box_h_px": 38.8,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.367,
+          "norm_cy": 0.713,
+          "box_w_px": 21.1,
+          "box_h_px": 63.6,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.61,
+      "estimated_water_y_norm": 0.713,
+      "diver_horizontal_range_norm": 0.128,
+      "diver_vertical_range_norm": 0.169
+    },
+    "2387": {
+      "dive_id": 2387,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.2,
+        "std_displacement": 7.0,
+        "median_angle_deg": 11.6,
+        "n_points": 79
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.636,
+          "norm_cy": 0.404,
+          "box_w_px": 58.3,
+          "box_h_px": 94.2,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.51,
+          "norm_cy": 0.319,
+          "box_w_px": 70.2,
+          "box_h_px": 53.0,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.347,
+          "norm_cy": 0.489,
+          "box_w_px": 39.1,
+          "box_h_px": 109.1,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.404,
+      "estimated_water_y_norm": 0.489,
+      "diver_horizontal_range_norm": 0.289,
+      "diver_vertical_range_norm": 0.17
+    },
+    "2541": {
+      "dive_id": 2541,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.1,
+        "std_displacement": 4.4,
+        "median_angle_deg": 14.6,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.6,
+          "norm_cy": 0.383,
+          "box_w_px": 51.8,
+          "box_h_px": 101.5,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.498,
+          "norm_cy": 0.314,
+          "box_w_px": 75.5,
+          "box_h_px": 59.4,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.356,
+          "norm_cy": 0.489,
+          "box_w_px": 55.4,
+          "box_h_px": 86.2,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.383,
+      "estimated_water_y_norm": 0.489,
+      "diver_horizontal_range_norm": 0.244,
+      "diver_vertical_range_norm": 0.175
+    },
+    "2555": {
+      "dive_id": 2555,
+      "camera_motion": {
+        "motion": "HANDHELD_UNSTABLE",
+        "median_displacement_px": 39.9,
+        "std_displacement": 28.9,
+        "median_angle_deg": 59.1,
+        "n_points": 50
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.382,
+          "norm_cy": 0.439,
+          "box_w_px": 126.7,
+          "box_h_px": 255.9,
+          "vis": "visible"
+        },
+        "apex": {
+          "norm_cx": 0.525,
+          "norm_cy": 0.36,
+          "box_w_px": 118.0,
+          "box_h_px": 125.0,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.441,
+          "norm_cy": 0.62,
+          "box_w_px": 82.6,
+          "box_h_px": 104.2,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.439,
+      "estimated_water_y_norm": 0.62,
+      "diver_horizontal_range_norm": 0.143,
+      "diver_vertical_range_norm": 0.26
+    },
+    "2625": {
+      "dive_id": 2625,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 0.6,
+        "median_angle_deg": 0.0,
+        "n_points": 79
+      },
+      "geometry": {
+        "apex": {
+          "norm_cx": 0.959,
+          "norm_cy": 0.149,
+          "box_w_px": 16.4,
+          "box_h_px": 38.4,
+          "vis": "partial"
+        },
+        "water_contact": {
+          "norm_cx": 0.705,
+          "norm_cy": 0.741,
+          "box_w_px": 71.3,
+          "box_h_px": 67.1,
+          "vis": "visible"
+        }
+      },
+      "estimated_water_y_norm": 0.741,
+      "diver_horizontal_range_norm": 0.254,
+      "diver_vertical_range_norm": 0.592
+    },
+    "2661": {
+      "dive_id": 2661,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 4.5,
+        "median_angle_deg": 3.9,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.472,
+          "norm_cy": 0.408,
+          "box_w_px": 26.5,
+          "box_h_px": 32.0,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.356,
+          "norm_cy": 0.525,
+          "box_w_px": 25.0,
+          "box_h_px": 52.8,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.408,
+      "estimated_water_y_norm": 0.525,
+      "diver_horizontal_range_norm": 0.116,
+      "diver_vertical_range_norm": 0.117
+    },
+    "2680": {
+      "dive_id": 2680,
+      "camera_motion": {
+        "motion": "FIXED",
+        "median_displacement_px": 0.0,
+        "std_displacement": 1.5,
+        "median_angle_deg": -4.2,
+        "n_points": 80
+      },
+      "geometry": {
+        "takeoff": {
+          "norm_cx": 0.785,
+          "norm_cy": 0.315,
+          "box_w_px": 35.9,
+          "box_h_px": 31.6,
+          "vis": "visible"
+        },
+        "water_contact": {
+          "norm_cx": 0.697,
+          "norm_cy": 0.568,
+          "box_w_px": 26.7,
+          "box_h_px": 61.5,
+          "vis": "visible"
+        }
+      },
+      "estimated_board_y_norm": 0.315,
+      "estimated_water_y_norm": 0.568,
+      "diver_horizontal_range_norm": 0.088,
+      "diver_vertical_range_norm": 0.253
+    }
+  },
+  "aggregate": {
+    "board_takeoff_y_norm": {
+      "median": 0.404,
+      "std": 0.154,
+      "n": 13
+    },
+    "water_contact_y_norm": {
+      "median": 0.568,
+      "std": 0.112,
+      "n": 13
+    },
+    "diver_horizontal_range_norm": {
+      "median": 0.263
+    },
+    "camera_motion_distribution": {
+      "FIXED": 13,
+      "HANDHELD_UNSTABLE": 1
+    }
+  }
+}
