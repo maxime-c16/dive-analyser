@@ -1,0 +1,31 @@
+{
+  "label": "TEMPORAL_LANDMARK_GROUND_TRUTH_V2_PTS_REPAIR",
+  "source_v1_manifest_sha256": "2f7a6dd5f9a19047bfdc1d61e83c9dda36c3ef3bdd7882859897ccf5bb7a3412",
+  "split_manifest_sha256": "3718c499b30dc43a439f599fc0e188960d335ab84c08d0b5b9b69ce7e04f8793",
+  "implementation_sha256": "793542fb8e4b21328bd01e2061d7b405a66e39b3240574a6b532c2d964fc52d9",
+  "authority": "User explicitly authorized correction in this thread on 2026-09-06",
+  "rule": "Preserve timestamps, states, and all V1 files; map each timestamp to displayed frame using actual PTS",
+  "per_file_checksums": {
+    "2661": "76d1b5e332490eebf42ae270d82f5bbf1b169b11ead2bf61e71861b84178c12d",
+    "2680": "7afb1164ea617859bd9e39bd62089c9beb61a0df68244a200881592f5a85afc5",
+    "2353": "0c37491db5c2ec38604d8ba04c8f29ba96e9141b47ad3dce51a07ad9ec32ba3b",
+    "2341": "5cd03585f8aa319071bee883c6fe5007e49512e7ed1b9986d3cc70fcb5f8cb4a",
+    "524": "33d4a876193119c923c4fd714babe5b03e932ac05b872fec66d09128a2b86dba",
+    "2625": "8d4ea61ea69bd9ab1931190c944303e473e9a28eba116f8ba668dda1b0f38b6a",
+    "2169": "585f9fe8e556d7e94c27b87619e8d5b8f16b209157832e4d0a76d47d1c655a76",
+    "1040": "fe20f5a060bb4acc827837696da51176c4d2a257e3c62e798ef6eeb42983e179",
+    "676": "98e97c6b7df89645a5eef8c8becce0b682773d54085571fa18690e0dd8f5bc89",
+    "133": "94526af3a636ddfd25e5fb03b46e65f85b993da3eef53e4561bc3d720837edfb",
+    "311": "eacf565a5d55018c994e2f3b2ac9dce74a954aada75390c6ecf91a91686ddbb6",
+    "2541": "f300ec49ffa64a9e26388ba4a017fd7b6b3670bdff62faf96050ebb470e26e46",
+    "2387": "bf70d2cadd69a8904454636668839feeb01959a5721c2828a2a87ffe98ceb458",
+    "2555": "5919e895ba645e688f5cffe5e9a28d1224d9ae3778ac8f9e50e61d6a16eafd66",
+    "2281": "20b8e1a55306499eb09e0853e8ecc599fa76ea2fbc5cd264eafae11875489ad7",
+    "160": "f88f9402c9b29613026bf46ed8053ff7eadacca1111519bec5ce57e128de3d6d",
+    "191": "d30ecea39e8bf547bea639eac02fa92a70c70065163a820a2c64d2c3c8a251b6",
+    "192": "b4fbb6f1af7ca268e49fc0893205f29c487c57d45414869bdfa02dca9daf4411",
+    "848": "50f5c6c8ca39ffdf7dcb598ea41f8d0496f465e0e601efcca4a22dfad6cb7016",
+    "169": "caec560d832cd8172862c63866886925d9b45a067aa0ed72e8cd6bfa02f6115b"
+  },
+  "limitations": "Timing clicks retain original human uncertainty; correction is not a new human review"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "2341_takeoff",
+  "dive_id": 2341,
+  "phase": "takeoff",
+  "frame_index": 214,
+  "split": "DEVELOPMENT_DESIGN",
+  "width": 202,
+  "height": 360,
+  "fps": 60.0,
+  "image_sha256": "8d45d4381fedeecc0a0598d86df7b4b78abc875b833e0e8cd2467a7d8f756221",
+  "media_sha256": "b25f08d4675855e203bef8fc773a6d0efa1d0f2eebb090e727c006bec683b4ec",
+  "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+  "temporal_annotation_sha256": "5cd03585f8aa319071bee883c6fe5007e49512e7ed1b9986d3cc70fcb5f8cb4a",
+  "representation": "proxy_360p_native_decoded_frame",
+  "bbox": [
+    43.1953125,
+    240.53125,
+    105.19140625,
+    307.875
+  ],
+  "state": "HUMAN_REVIEWED",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-06T08:29:03.696602+00:00"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "524_water_contact",
+  "dive_id": 524,
+  "phase": "water_contact",
+  "frame_index": 425,
+  "split": "DEVELOPMENT_DESIGN",
+  "width": 202,
+  "height": 360,
+  "fps": 60.0,
+  "image_sha256": "e34e9521141c100d066e12ea42739f1ac669490661eb5bb6384f3e3cedf50d31",
+  "media_sha256": "85c2c7edaf41a43ce76dd7dc5010fe74f40d709826fe61365c9af65d35ae841b",
+  "media_key": "552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f",
+  "temporal_annotation_sha256": "33d4a876193119c923c4fd714babe5b03e932ac05b872fec66d09128a2b86dba",
+  "representation": "proxy_360p_native_decoded_frame",
+  "bbox": null,
+  "state": "HUMAN_REVIEWED",
+  "visibility": "ambiguous",
+  "note": "cannot see any diver with contact with water, seem uncontinuous with the preceding label",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-06T08:30:36.517271+00:00"
+}

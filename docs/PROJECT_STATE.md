@@ -1,10 +1,31 @@
 # PROJECT_STATE.md - Dive Analyser / DiveSensei
 
-Last verified: **2026-09-05**, after Temporal Landmark Pilot V1 complete (Phases A–T).
+## Perception Decomposition V1 — DEVELOPMENT COMPLETE (2026-09-06)
+
+Report: `docs/science/TEMPORAL_LANDMARK_PERCEPTION_DECOMPOSITION_V1_REPORT.md`.
+Starting canonical HEAD `b9d8952a9e9dbfa78595904f4d2dfdf4e3e6cb58`.
+Root cause: **MULTI_STAGE_LIMITATION** (detection + acquisition + tracking all fail at 360p).
+INTERNAL_EVAL evaluation blocked: 18 localization frames at
+`media/perception_decomposition_v1/localization/INTERNAL_EVAL/` require human review.
+User-facing analysis: **NOT AUTHORIZED**. Next gate: **SUPERVISOR_REVIEW_AFTER_PERCEPTION_DECOMPOSITION_V1**.
+
+Scientific summary:
+- 60-FPS annotation bug discovered, repaired: V2 PTS reference authority established.
+- V2 A/B/C re-evaluation: all baselines seriously fail (>80% serious errors; A median 2.0s, C median 3.7s).
+- Detector-only (F1/F2): IoU50 recall 3/36 and 1/36 respectively. Detection gap confirmed at 360p.
+- Baseline C stage trace (3 DEVELOPMENT dives): wrong-person acquisition (133, 2555) and
+  zero detection at landmark frames (2541). Structural bystander-wins confirmed.
+- Oracle SAM canary (3 DEVELOPMENT dives): 1/3 successful (dive 133, 38/51 frames active);
+  dives 2387 and 2169 collapse immediately at frame index 1.
+- Original access: ACCESS_METHOD_BLOCKED (SSH/TCC denied). No paired original data.
+- Custom fine-tuning: NOT JUSTIFIED. Automatic seeding: SKIPPED (oracle 1/3 success).
+- Pose: POSE_STILL_PREMATURE. Next baseline not frozen.
+
+Last verified: **2026-09-06**.
 Latest audit: `docs/audits/FOUNDATION_HARDENING_AND_LAYER2_READINESS_2026-09-05.md`.
 Layer-2 architecture: `docs/design/ANALYSIS_LAYER_2_ARCHITECTURE_V1.md`.
 Pilot report: `docs/science/TEMPORAL_LANDMARK_REPORT_V1.md`.
-Supervisor gate: `SUPERVISOR_REVIEW_AFTER_TEMPORAL_LANDMARK_BASELINE_C_V1`.
+Supervisor gate: `SUPERVISOR_REVIEW_AFTER_PERCEPTION_DECOMPOSITION_V1`.
 
 ## Canonical Repository
 

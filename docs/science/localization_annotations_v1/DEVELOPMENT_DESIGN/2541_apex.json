@@ -1,0 +1,26 @@
+{
+  "id": "2541_apex",
+  "dive_id": 2541,
+  "phase": "apex",
+  "frame_index": 539,
+  "split": "DEVELOPMENT_DESIGN",
+  "width": 202,
+  "height": 360,
+  "fps": 29.97002997002997,
+  "image_sha256": "30b436cb1a504135863f9d04f1a962160142d4452a5cc27a14515797db4cbab3",
+  "media_sha256": "3d868b409a8e6ec891f4696ca2395d6224a0ebc660a1c9f74e83534188b6b137",
+  "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+  "temporal_annotation_sha256": "f300ec49ffa64a9e26388ba4a017fd7b6b3670bdff62faf96050ebb470e26e46",
+  "representation": "proxy_360p_native_decoded_frame",
+  "bbox": [
+    62.83203125,
+    83.36328125,
+    138.32421875,
+    142.73828125
+  ],
+  "state": "HUMAN_REVIEWED",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-06T08:32:39.161214+00:00"
+}

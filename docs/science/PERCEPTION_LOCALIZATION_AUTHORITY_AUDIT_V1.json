@@ -1,0 +1,500 @@
+{
+  "status": "AUTHORITY_CONFLICT_NO_LABELS_CHANGED",
+  "split": "DEVELOPMENT_DESIGN",
+  "n_dives": 14,
+  "n_landmarks": 38,
+  "inconsistent_count": 20,
+  "out_of_bounds_count": 7,
+  "per_dive": [
+    {
+      "dive_id": 2661,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "time_base": "1/60000",
+        "duration": "25.025000",
+        "nb_frames": "1500"
+      },
+      "media_sha256": "65d74683ee07204beeb334becca36925b21bfa1a2a035815f3a3a5c122b4d5d0",
+      "annotation_sha256": "faa75c81a5a5f15ef2c188319e3be9a6672e086298ba091d28790f018a33fc13",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 1009,
+          "timestamp_seconds": 16.824335,
+          "frame_timestamp_disagreement_frames": 0.5484,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 1056,
+          "timestamp_seconds": 17.607664,
+          "frame_timestamp_disagreement_frames": 0.5956,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 2680,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60/1",
+        "avg_frame_rate": "6530/109",
+        "time_base": "1/15360",
+        "duration": "10.900000",
+        "nb_frames": "653"
+      },
+      "media_sha256": "2a429b9713c8519c56e4011aec05a842845e337c2fefba09d9d3bae14c4f6f91",
+      "annotation_sha256": "d0ebf8486fb97e1bd07e359a140a7a3ee602be8c983a87e3485b0e4b8f0ff59e",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 200,
+          "timestamp_seconds": 3.340518,
+          "frame_timestamp_disagreement_frames": 0.1246,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 241,
+          "timestamp_seconds": 4.023848,
+          "frame_timestamp_disagreement_frames": 0.0617,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 2353,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "time_base": "1/60000",
+        "duration": "23.973950",
+        "nb_frames": "1437"
+      },
+      "media_sha256": "71e3ac13e7bf468accd30d83db7e40c9d815924b92f127ccb31668329628360a",
+      "annotation_sha256": "4741ffbde0efc325bdb4400d193a842d7e32bfc87299acb9dabb491d056cd71f",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 342,
+          "timestamp_seconds": 5.696084,
+          "frame_timestamp_disagreement_frames": 0.5764,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "apex": {
+          "frame_index": 377,
+          "timestamp_seconds": 6.279415,
+          "frame_timestamp_disagreement_frames": 0.6115,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 413,
+          "timestamp_seconds": 6.879412,
+          "frame_timestamp_disagreement_frames": 0.6476,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 2341,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60/1",
+        "avg_frame_rate": "60/1",
+        "time_base": "1/15360",
+        "duration": "10.116667",
+        "nb_frames": "607"
+      },
+      "media_sha256": "b25f08d4675855e203bef8fc773a6d0efa1d0f2eebb090e727c006bec683b4ec",
+      "annotation_sha256": "5d73d65a5acb8754d9112f357cdf2e02890b722d36087eec52703749aa202395",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 214,
+          "timestamp_seconds": 3.572542,
+          "frame_timestamp_disagreement_frames": 0.3525,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "apex": {
+          "frame_index": 237,
+          "timestamp_seconds": 3.955874,
+          "frame_timestamp_disagreement_frames": 0.3524,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 275,
+          "timestamp_seconds": 4.589204,
+          "frame_timestamp_disagreement_frames": 0.3522,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 524,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60/1",
+        "avg_frame_rate": "60/1",
+        "time_base": "1/15360",
+        "duration": "11.933008",
+        "nb_frames": "716"
+      },
+      "media_sha256": "85c2c7edaf41a43ce76dd7dc5010fe74f40d709826fe61365c9af65d35ae841b",
+      "annotation_sha256": "40526ed6c44f8835650d552c8848c0c23b87595b363e7842b40b392227c6a2fe",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 349,
+          "timestamp_seconds": 5.810276,
+          "frame_timestamp_disagreement_frames": 0.3834,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "apex": {
+          "frame_index": 380,
+          "timestamp_seconds": 6.326941,
+          "frame_timestamp_disagreement_frames": 0.3835,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 426,
+          "timestamp_seconds": 7.093604,
+          "frame_timestamp_disagreement_frames": 0.3838,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 2625,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "time_base": "1/60000",
+        "duration": "6.089417",
+        "nb_frames": "365"
+      },
+      "media_sha256": "71dafc0130268bf917f0f33422c910687da323a1fbe1f580aa1be74a749d73e0",
+      "annotation_sha256": "a016221db4eba3a8cd2d98ca6821e477ab602883838d80f221c37a1c8b4853ab",
+      "landmarks": {
+        "apex": {
+          "frame_index": 167,
+          "timestamp_seconds": 2.788456,
+          "frame_timestamp_disagreement_frames": 0.1402,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 222,
+          "timestamp_seconds": 3.705119,
+          "frame_timestamp_disagreement_frames": 0.0851,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 2169,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "time_base": "1/60000",
+        "duration": "17.984633",
+        "nb_frames": "1078"
+      },
+      "media_sha256": "40a3cd691436f7fbdbe1e04527cedb18516d64d38ae35d2854f1d9dbbe36f40a",
+      "annotation_sha256": "6ce93e342af1663d7c259ec7e4ad24e7a5d1216bfad938d9aad41dbb9711b6a8",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 388,
+          "timestamp_seconds": 6.46124,
+          "frame_timestamp_disagreement_frames": 0.7129,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "apex": {
+          "frame_index": 406,
+          "timestamp_seconds": 6.761239,
+          "frame_timestamp_disagreement_frames": 0.7309,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        },
+        "water_contact": {
+          "frame_index": 462,
+          "timestamp_seconds": 7.694569,
+          "frame_timestamp_disagreement_frames": 0.7871,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": true
+        }
+      }
+    },
+    {
+      "dive_id": 1040,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "11.077733",
+        "nb_frames": "332"
+      },
+      "media_sha256": "b93aca3d4920b48aa76964ebe6263a2405ddb1b6b6f5e629a292e163b68c249c",
+      "annotation_sha256": "7a1c8038bb9f299a6338e860f43d44f2bfe2441354395e04b9206f8fe4945762",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 268,
+          "timestamp_seconds": 4.463857,
+          "frame_timestamp_disagreement_frames": 134.2181,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 288,
+          "timestamp_seconds": 4.797189,
+          "frame_timestamp_disagreement_frames": 144.2281,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 325,
+          "timestamp_seconds": 5.413853,
+          "frame_timestamp_disagreement_frames": 162.7467,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 676,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "7.407400",
+        "nb_frames": "222"
+      },
+      "media_sha256": "4d1c1916db3a504206d8b75bcc4e9122c1838d254448488819640b07ec411e76",
+      "annotation_sha256": "4ddc4246f24f518e659858b6e6ea5cb1117d514a8773ae7d98ca836ebb5afd3d",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 213,
+          "timestamp_seconds": 3.553575,
+          "frame_timestamp_disagreement_frames": 106.4993,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 233,
+          "timestamp_seconds": 3.886907,
+          "frame_timestamp_disagreement_frames": 116.5093,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 291,
+          "timestamp_seconds": 4.853569,
+          "frame_timestamp_disagreement_frames": 145.5384,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 133,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "5.939267",
+        "nb_frames": "178"
+      },
+      "media_sha256": "892840a6d418510cb1246cfe7a049e6e6561e5f97bf4f412be52fec042fcc837",
+      "annotation_sha256": "f3fa4841139c6f9b8f24ea31e7b1586033fe1ed6cf35fc501a059265b5e8ad1c",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 108,
+          "timestamp_seconds": 1.800274,
+          "frame_timestamp_disagreement_frames": 54.0457,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 125,
+          "timestamp_seconds": 2.083607,
+          "frame_timestamp_disagreement_frames": 62.5542,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 177,
+          "timestamp_seconds": 2.95027,
+          "frame_timestamp_disagreement_frames": 88.5803,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 311,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "19.252567",
+        "nb_frames": "577"
+      },
+      "media_sha256": "8ea8cb45b5a59e8cc69d5ca2bd08cf6d04e823164bf618830219c59db70ef34d",
+      "annotation_sha256": "37151190024834e856efceb0983e2ab9d5da8c0e0d38048f2360a6f0a944446e",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 825,
+          "timestamp_seconds": 13.7546,
+          "frame_timestamp_disagreement_frames": 412.7742,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 889,
+          "timestamp_seconds": 14.821262,
+          "frame_timestamp_disagreement_frames": 444.8063,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 2541,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "32.532500",
+        "nb_frames": "975"
+      },
+      "media_sha256": "3d868b409a8e6ec891f4696ca2395d6224a0ebc660a1c9f74e83534188b6b137",
+      "annotation_sha256": "285cce43a0460643dedda5a11d4634e86a813d77b8c3775506e5f618dcab7117",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 1051,
+          "timestamp_seconds": 17.518102,
+          "frame_timestamp_disagreement_frames": 525.982,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 1079,
+          "timestamp_seconds": 17.984766,
+          "frame_timestamp_disagreement_frames": 539.996,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 1119,
+          "timestamp_seconds": 18.65143,
+          "frame_timestamp_disagreement_frames": 560.0161,
+          "frame_out_of_bounds": true,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 2387,
+      "probe": {
+        "width": 202,
+        "height": 360,
+        "r_frame_rate": "30000/1001",
+        "avg_frame_rate": "30000/1001",
+        "time_base": "1/30000",
+        "duration": "24.958267",
+        "nb_frames": "748"
+      },
+      "media_sha256": "0a2826d7e501711b40756c7f18a8836511d56a125d46cebbdba26573b7a433f6",
+      "annotation_sha256": "23d04011d02ae8443d469126c5951288c760079a1725f678eef0b780ff340adc",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 269,
+          "timestamp_seconds": 4.483274,
+          "frame_timestamp_disagreement_frames": 134.6361,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 290,
+          "timestamp_seconds": 4.833273,
+          "frame_timestamp_disagreement_frames": 145.1467,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 330,
+          "timestamp_seconds": 5.499937,
+          "frame_timestamp_disagreement_frames": 165.1667,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        }
+      }
+    },
+    {
+      "dive_id": 2555,
+      "probe": {
+        "width": 166,
+        "height": 360,
+        "r_frame_rate": "60/1",
+        "avg_frame_rate": "43320/731",
+        "time_base": "1/15360",
+        "duration": "12.166667",
+        "nb_frames": "722"
+      },
+      "media_sha256": "7f5b9db03c6ec5e6095f66eaf35fe5cad20365d8436d4b6e7933033b8c096e1a",
+      "annotation_sha256": "f280330a35078a3de4860b4f800dc06e1851a897c603c4cadd2bfb7d1a2d929a",
+      "landmarks": {
+        "takeoff": {
+          "frame_index": 259,
+          "timestamp_seconds": 4.313702,
+          "frame_timestamp_disagreement_frames": 3.3645,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "apex": {
+          "frame_index": 384,
+          "timestamp_seconds": 6.397027,
+          "frame_timestamp_disagreement_frames": 4.904,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        },
+        "water_contact": {
+          "frame_index": 576,
+          "timestamp_seconds": 9.597014,
+          "frame_timestamp_disagreement_frames": 7.2686,
+          "frame_out_of_bounds": false,
+          "consistent_with_media_fps": false
+        }
+      }
+    }
+  ]
+}

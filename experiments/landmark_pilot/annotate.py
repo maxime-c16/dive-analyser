@@ -41,11 +41,13 @@ import re
 import subprocess
 import sys
 import urllib.parse
+from functools import lru_cache
 from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
 import yaml
+from repair_annotation_timebase import frame_timestamps
 
 
 # Custom JSON encoder: converts Decimal → float so psycopg2 numeric fields serialize cleanly
@@ -109,6 +111,11 @@ def _proxy_path(media_key: str) -> Path | None:
     """Return the proxy_360p file path for a media_key, or None if missing."""
     p = MEDIA_CACHE_ROOT / "proxy_360p" / media_key[:2] / media_key[2:4] / f"{media_key}.mp4"
     return p if p.exists() else None
+
+
+@lru_cache(maxsize=24)
+def _presentation_times(path: str, mtime_ns: int) -> list:
+    return frame_timestamps(Path(path))
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +268,7 @@ def _get_all_pilot_data() -> list:
                     "session_date": info.get("session_date", ""),
                     "group": info.get("group", ""),
                     "proxy_available": proxy is not None,
+                    "frame_times": _presentation_times(str(proxy), proxy.stat().st_mtime_ns) if proxy else [],
                     "run_uuid": None,
                     "run_status": None,
                     "landmarks": {},
@@ -510,6 +518,7 @@ video{width:100%;border-radius:6px;background:#000;max-height:62vh;object-fit:co
 let dives = [];
 let currentDiveIdx = -1;
 let fps = 30;
+let frameTimes = [];
 let pendingCorrections = {};   // landmark_key -> {frame_index, timestamp_seconds}
 let notApplicableKeys = new Set();
 let ambiguousKeys = new Set();
@@ -595,8 +604,8 @@ async function selectDive(idx) {
 }
 
 function detectFps(d) {
-  // Use stored FPS hint from landmarks, default 60
-  return 60;
+  frameTimes = d.frame_times || [];
+  return frameTimes.length > 1 ? 1 / (frameTimes[1] - frameTimes[0]) : 0;
 }
 
 vid.addEventListener('timeupdate', updateFrameInfo);
@@ -604,18 +613,25 @@ vid.addEventListener('seeked', updateFrameInfo);
 
 function updateFrameInfo() {
   const t = vid.currentTime;
-  const f = Math.round(t * fps);
+  const f = currentFrame();
   frameInfo.textContent = `Frame ~${f}  |  Time ${t.toFixed(4)}s  |  FPS ${fps}`;
 }
 
 function currentFrame() {
-  return Math.round(vid.currentTime * fps);
+  if (!frameTimes.length) return null;
+  let low = 0, high = frameTimes.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (frameTimes[mid] <= vid.currentTime + 0.000001) low = mid + 1;
+    else high = mid;
+  }
+  return Math.max(0, low - 1);
 }
 
 function stepFrame(n) {
-  if (!fps) return;
+  if (!frameTimes.length) return;
   vid.pause();
-  vid.currentTime = Math.max(0, vid.currentTime + n / fps);
+  goToFrame(Math.max(0, Math.min(frameTimes.length - 1, currentFrame() + n)));
 }
 
 function togglePlay() {
@@ -627,11 +643,12 @@ function setSpeed(s) {
 }
 
 function goToFrame(f) {
-  vid.currentTime = f / fps;
+  if (Number.isInteger(f) && f >= 0 && f < frameTimes.length) vid.currentTime = frameTimes[f];
 }
 
 function setLandmark(key) {
   const f = currentFrame();
+  if (f === null) return;
   const ts = vid.currentTime;
   pendingCorrections[key] = {frame_index: f, timestamp_seconds: ts};
   notApplicableKeys.delete(key);
@@ -718,12 +735,12 @@ function renderLandmarks(d) {
 
 function manualEdit(key, value) {
   const f = parseInt(value);
-  if (isNaN(f)) return;
+  if (isNaN(f) || f < 0 || f >= frameTimes.length) return;
   notApplicableKeys.delete(key);
   ambiguousKeys.delete(key);
   if (!pendingCorrections[key]) pendingCorrections[key] = {};
   pendingCorrections[key].frame_index = f;
-  pendingCorrections[key].timestamp_seconds = f / fps;
+  pendingCorrections[key].timestamp_seconds = frameTimes[f];
   statusMsg.textContent = `Editing ${key} frame=${f} (unsaved)`;
   statusMsg.style.color = '#fa4';
 }
