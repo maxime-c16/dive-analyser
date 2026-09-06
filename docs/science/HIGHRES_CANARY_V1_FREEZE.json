@@ -161,5 +161,38 @@
     "bytetrack_R0_fps": 4.76,
     "peak_ram_mb": 1123,
     "device": "MPS_M_series_Mac"
+  },
+  "human_annotation": {
+    "cc3_ground_truth": {
+      "takeoff_s": 3.5,
+      "apex_s": 4.2,
+      "water_contact_s": 4.9,
+      "annotator": "maxime@qwokka.fr",
+      "annotation_date": "2026-09-06",
+      "method": "direct_visual_inspection"
+    },
+    "cc3_system_estimates": {
+      "takeoff_s": 0.1,
+      "apex_s": 1.4,
+      "water_contact_s": 4.9,
+      "method": "H0_trajectory_first_detection_and_position_minima"
+    },
+    "cc3_accuracy": {
+      "takeoff_error_s": 3.4,
+      "takeoff_error_pct_clip": 63.3,
+      "apex_error_s": 2.8,
+      "apex_error_pct_clip": 52.1,
+      "water_contact_error_s": 0.0,
+      "water_contact_error_pct_clip": 0.0,
+      "verdict": "TAKEOFF_APEX_CATASTROPHIC_FAIL__WC_COINCIDENTAL"
+    },
+    "dive_structure": {
+      "pre_dive_approach_s": 3.5,
+      "flight_total_s": 1.4,
+      "takeoff_to_apex_s": 0.7,
+      "apex_to_water_s": 0.7,
+      "note": "Symmetric arc; diver stood stationary on platform for 3.5s pre-takeoff"
+    },
+    "root_cause": "CC3 heuristics (first-detection=takeoff, first-min-cy=apex) fail when the diver is visible and stationary on the platform for 3.5s before the actual dive. Platform-stand phase dominates trajectory; position-only event logic confounded. Fix: velocity/jerk-based takeoff onset detection."
   }
 }

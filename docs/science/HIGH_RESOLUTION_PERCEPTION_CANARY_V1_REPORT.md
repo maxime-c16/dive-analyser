@@ -518,3 +518,55 @@ This is all that is needed. Open the file in QuickTime Player; use the scrubber 
 ## 24. RECOMMENDED NEXT SUPERVISOR GATE
 
 `SUPERVISOR_REVIEW_AFTER_HIGHRES_PERCEPTION_CANARY_V1`
+
+---
+
+## Addendum — CC3 Accuracy Evaluation (2026-09-06)
+
+**Ground truth annotation received from Maxime (direct visual inspection of IMG_1937.mov):**
+
+| Event | Ground Truth | System Estimate | Error | Error % clip |
+|---|---|---|---|---|
+| takeoff | **3.50s** | 0.10s | −3.40s | 63.3% |
+| apex | **4.20s** | 1.40s | −2.80s | 52.1% |
+| water_contact | **4.90s** | 4.90s | 0.00s | 0.0% |
+
+**Verdict**: `TAKEOFF_APEX_CATASTROPHIC_FAIL__WC_COINCIDENTAL`
+
+### Dive structure (ground truth)
+
+The actual dive arc occupies only the final **1.40s** of this 5.37s clip:
+
+```
+0.00s ──────────────── 3.50s ─── 4.20s ─── 4.90s
+      PLATFORM STAND             APEX        WATER
+      (diver stationary         (in-flight  CONTACT
+       on board, 3.5s)           peak)
+```
+
+- Pre-dive approach / stand: **3.50s** (65% of clip)
+- Takeoff → Apex: **0.70s**
+- Apex → Water contact: **0.70s** (symmetric arc, physically consistent with 5122D)
+
+### Root cause
+
+The CC3 heuristics implemented in Phase J assume "first detection = takeoff" and "first minimum cy_norm = apex". These fail completely when the diver is:
+
+1. **Visible and inside the scene ROI throughout the clip** — the diver stands on the platform (cx_norm ≈ 0.88–0.92, cy_norm slowly drifting) for 3.5s before takeoff
+2. **Stationary before takeoff** — the platform-stand phase produces a cy_norm plateau that the position-only heuristic cannot distinguish from in-flight
+
+The water_contact estimate coincidentally matched because `argmax(cy_post_fake_apex)` happened to select the last frame of the clip, which aligns with actual water entry timing.
+
+### Fix required for CC3 V2
+
+The takeoff detection algorithm must use a **velocity/jerk signal** on the cy_norm trajectory, not a position extremum:
+
+- **Takeoff signal**: `d(cy)/dt` spike (rapid upward velocity as diver leaves platform)
+- **Apex signal**: `d(cy)/dt = 0` crossing (zero vertical velocity, not minimum position from clip start)
+- **Water contact**: `cy_norm` local maximum post-apex OR sudden trajectory dropout (diver submerges)
+
+Alternatively: a **motion segmentation** approach — detect the onset of significant cy velocity after a stationary plateau. The platform-stand plateau is a highly discriminative feature (cy_range < 0.02 over >50 frames at 60fps) that can be identified and masked out before event detection.
+
+### Revised Q5 answer
+
+**Q5 revised**: The current PTS-aware trajectory + position-only CC3 heuristics do **not** produce credible landmarks for clips containing a pre-dive platform-stand phase. Ground truth errors of 3.40s (takeoff) and 2.80s (apex) are operationally unacceptable. Water contact (0.00s error) was coincidental. **CC3 V2 with velocity-based event logic is the required next layer-2 study.**
