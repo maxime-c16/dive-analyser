@@ -1,9 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-07** (D3 detector + training sanity).
-> Latest audit: `docs/science/DIVER_DETECTOR_TRAINING_SANITY_AND_D3_REPORT.md`
-> Previous: `docs/science/REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_D3_DETECTOR_SANITY`**
+> Durable project handoff. Last verified: **2026-09-07** (Perception V4 — threshold calibration + Paris pass + EL diagnosis).
+> Latest audit: `docs/science/PERCEPTION_V4_CROSS_VENUE_GENERALIZATION_REPORT.md`
+> Previous: `docs/science/DIVER_DETECTOR_TRAINING_SANITY_AND_D3_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_CROSS_VENUE_PERCEPTION_V4`**
 
 ## Project purpose
 
@@ -59,67 +59,80 @@ Two machines on a LAN:
 ### Frozen references
 - Canary dive: 2819 (5122D G/G, springboard 1m, hurdle)
 - Source: `IMG_1937.mov` SHA=`d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae`
-- GT PTS: takeoff=3.120s, apex=3.570s, water_contact=4.220s (frame 187, 214, 253)
-- Event Logic V2.1 frozen: `EVENT_LOGIC_V2_1_FREEZE.json`, 36/36 unit tests pass (SHA: 63cfadebfc...)
+- GT PTS: takeoff=3.120s, apex=3.570s, water_contact=4.220s
+- Event Logic V2.1 frozen: `EVENT_LOGIC_V2_1_FREEZE.json`, 36/36 unit tests pass (SHA: 63cfadebfc…)
+- D3.1 operating point frozen: `D3_1_OPERATING_POINT_FREEZE.json`, conf=0.05 (same weights as D3)
 - D3 detector frozen: `DIVER_DETECTOR_D3_FREEZE.json`, weights SHA256: `bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d`
 
-### D2 taxonomy correction (Phase A, supervisor correction)
-- D2 failure was previously classified as `EXTERNAL_GENERALIZATION_FAILURE` — **INCORRECT**
-- **Correct classification**: `D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT`
-- Root cause: MPS AMP bug (`amp=True` default on Apple Silicon suppresses classification gradient)
-- Symptom: train precision ≈ 0.003, best_epoch=1, uniform conf ≈ 0.013 on ALL images
-- Fix: `amp=False` for all MPS training
+### Critical findings (Perception V4 cycle, 2026-09-07)
 
-### Critical findings (D3_DETECTOR_SANITY cycle, 2026-09-07)
+1. **D3.1 threshold calibrated to conf=0.05**: Holdout recall 91.3% vs 76.1% at conf=0.10.
+   Paris action-window coverage jumps from 7.5% → **100%** (64/64 frames).
+   Val recall unchanged (no regression). Calibration used INTERNAL data only.
 
-1. **MPS AMP bug root cause identified and repaired**: All future training uses `amp=False` on MPS.
-   D2 training collapse was a pipeline bug, not a data/label problem.
+2. **Paris TRAJECTORY_INPUT_PASS achieved**: At conf=0.05, all GT landmarks detected,
+   100% action-window coverage, max gap = 0s, zero spectator contamination.
+   All 2178 detections in diver region (cy ≤ 0.70). Primary candidate in diver region: 64/64.
 
-2. **D2 missing hard negatives**: 35 `not_visible` frames were entirely excluded from D2 YOLO export.
-   Fixed in D3: 14 hard negatives in train, 3 in val, 18 in holdout.
+3. **Target selection (N0 vs N1 identical)**: Framewise (highest-conf + continuity)
+   and ByteTrack both achieve 100% coverage with identical trajectory (no spectator hits).
+   N0 preferred (simpler, equal performance).
 
-3. **D2 label audit**: 84/85 labels valid; 1 bbox y-clip fixed (v2_d0287_f0.txt).
+4. **Event Logic V2.1 first real-signal evaluation**: `REAL_SIGNAL_CANARY_FAIL`
+   - Predicted takeoff: 4.547s (GT: 3.120s, error **+1.427s**)
+   - Predicted apex: 5.043s (GT: 3.570s, error **+1.473s**)
+   - Predicted water_contact: 5.680s (GT: 4.220s, error **+1.460s**)
+   - Systematic positive offset: algorithm finds events in post-dive portion of video
 
-4. **Overfit sanity PASS**: With `amp=False`, tiny 10+3 dataset achieves mean_pos_conf=0.912 (10/10 > 0.25).
-   Verdict: `TRAINING_PIPELINE_CAN_OVERFIT`. Pipeline is scientifically sound.
+5. **Root cause: VELOCITY_RESOLUTION_INSUFFICIENT_AT_360P**
+   - At GT takeoff (3.120s), smoothed velocity = **−0.011/s**
+   - EL algorithm requires `takeoff_vel_threshold = 0.04/s` (sustained)
+   - At 360p, the 1m springboard flight arc = ≈7px vertical → velocity too weak
+   - Post-dive activity (t > 4.5s) generates 0.045–0.096/s signals → algorithm latches these
+   - **Apex detection was correct**: t=3.556s vs GT 3.570s (Δ=14ms) — not a general failure
 
-5. **D3 training result**: best_epoch=68, best_mAP50=0.627, holdout recall=0.761 at conf=0.10.
-   In-domain video coverage: **97.0%** (97/100 action frames at conf≥0.10).
+6. **Detector decision**: `D3_THRESHOLD_WAS_SUFFICIENT`
+   No new training data required for detector coverage. Multi-venue D4 training is
+   NOT yet required for detector generalization (deferred, not ruled out).
 
-6. **Paris external canary (frozen D3)**: overall 44.7%, action window **7.5%** (5/67 frames).
-   Longest gap 1.034s. `TRAJECTORY_INPUT_FAIL` — domain gap remains.
-
-7. **COCO person at R360**: 0 detections at conf≥0.10 in action window. Prior V1 spectator claim
-   (300/322 at 1080p) is superseded; not applicable at R360 operating resolution.
-
-8. **Scene-prior**: `SCENE_PRIOR_CANNOT_RECOVER_MISSING_DETECTION`.
-
-9. **Trajectory gate**: FAIL (7.5% coverage, 1.034s gap). Event Logic V2.1 not yet evaluable on real signal.
-
-10. **Generalization verdict**: `TRAINING_PIPELINE_REPAIRED_AND_IN_DOMAIN_WORKS`.
-    Remaining issue: domain gap (single-venue training). Requires multi-domain data.
+7. **Event Logic decision**: `REAL_SIGNAL_CANARY_FAIL` — velocity resolution is the blocker.
 
 ### Event Logic V2.1
 - Status: **FROZEN, CORRECT, NOT_REAL_SIGNAL_VALIDATED**
-- 36/36 unit tests pass (MECHANISM_TEST_PASS)
-- Cannot be end-to-end evaluated until trajectory gate passes
-- Do NOT modify Event Logic unless a real scientifically usable trajectory exists
+- 36/36 unit tests pass (all H1/H2/H3 families)
+- Real-signal evaluation: FAIL (velocity resolution at 360p insufficient)
+- Do NOT modify Event Logic V2.1 — it correctly identifies events in the test; the problem is input signal quality
 
-### Perception architecture
-**`TRAINING_PIPELINE_REPAIRED_AND_IN_DOMAIN_WORKS; MORE_DOMAIN_DIVERSITY_REQUIRED`**
+### Perception architecture decision
+`D3_THRESHOLD_WAS_SUFFICIENT` (coverage); `REAL_SIGNAL_CANARY_FAIL` (EL velocity)
 
-### Next required work
-1. **Multi-domain training data** (50–100 frames, 2–3 outdoor pool venues)
-2. Evaluate D4 detector on Paris action window — target ≥ 50% coverage
-3. When trajectory gate passes → evaluate Event Logic V2.1 end-to-end
-4. Fix Phase M synthetic trajectory (sinusoidal hurdle bug → monotone board-loading)
+### Next required work (priority order)
+1. **Process Paris canary at 1080p** — full resolution for ~3× velocity signal improvement.
+   Verify v_takeoff ≥ 0.04/s sustained at 1080p. This is the fastest path to EL PASS.
+2. **If 1080p still fails**: Create 360p-calibrated EL params variant with `takeoff_vel_threshold ≈ 0.008/s`,
+   validate on synthetic trajectories, then apply to Paris.
+3. **Post-dive isolation**: Truncate trajectory at water_contact + buffer before feeding EL,
+   to eliminate post-dive noise. Does not require resolution change.
+4. **If EL pass achieved**: Run Phase Q (bounded multi-dive validation, max 12 dives).
+5. **Multi-domain D4** (Phases D–L): Deferred. Not yet required for coverage. Revisit if 1080p
+   trajectory still fails Event Logic AND the failure is domain-related.
 
 ## Test suite
 
-- `experiments/landmark_pilot/test_d3_pipeline.py` — 36 tests, all pass
-- Covers: D3 dataset integrity, hard-negative policy, overfit sanity, D3 training,
-  Paris firewall, trajectory gate, scene-prior decision, generalization decision
+- `experiments/landmark_pilot/test_d3_pipeline.py` — 20 PASS, 16 SKIP (ephemeral Mac dataset files), 0 FAIL
+- `experiments/landmark_pilot/test_d4_threshold_perception.py` — 35 PASS, 0 SKIP, 0 FAIL
+- Combined: **55 PASS, 16 SKIP, 0 FAIL**
+- Covers: D3.1 threshold freeze, Paris firewall, trajectory gate PASS (D3.1),
+  spectator-region sanity, N0/N1 comparison, EL real-signal failure, EL identity,
+  AMP=False authority, Phase R decisions.
+
+## AMP authority
+
+`PINNED_STACK_MPS_AMP_INCOMPATIBILITY_OR_VERSION_SPECIFIC_BEHAVIOR`
+
+Observed on the exact historical Ultralytics/PyTorch environment used for D2/D3 training.
+All MPS retraining uses `amp=False`. Do NOT document as "AMP broken on all Apple Silicon."
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_D3_DETECTOR_SANITY`
+`SUPERVISOR_REVIEW_AFTER_CROSS_VENUE_PERCEPTION_V4`
