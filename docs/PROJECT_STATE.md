@@ -1,9 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-06** (real-signal pipeline V1).
-> Latest audit: `docs/science/REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md`
+> Durable project handoff. Last verified: **2026-09-07** (real-signal pipeline V2 — D2 detector).
+> Latest audit: `docs/science/PERCEPTION_V3_MULTI_DOMAIN_GENERALIZATION_REPORT.md`
 > Previous: `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V2`**
 
 ## Project purpose
 
@@ -17,7 +17,7 @@ characteristics, athlete-vs-self comparison). **Not implemented yet — directio
 ## Canonical repository
 
 - **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `35a1b053`.
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `1e3fb02`.
   No remotes.
 - Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
   reference slice; never treat it as canonical.
@@ -87,4 +87,4 @@ Two machines on a LAN:
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1`
+`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V2`
