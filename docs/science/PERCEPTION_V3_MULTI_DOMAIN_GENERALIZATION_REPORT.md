@@ -242,3 +242,36 @@ Recommended action before next gate:
 ---
 
 *Report frozen at commit to be determined. SHA-lock on Event Logic V2.1 maintained.*
+
+---
+
+## Supervisor Correction — Phase A (2026-09-07)
+
+**Added after gate .**
+
+### A1 — Root-cause re-classification
+
+The report above classifies the D2 failure primarily as
+. The supervisor has corrected this.
+
+**Revised primary failure taxonomy**: 
+
+**Evidence**:
+- Train precision ≈ 0.003 (on D2's own 32 training images)
+- Best epoch = 1 (early-stopped at epoch 21, never improved)
+- Max confidence on any frame ≈ 0.013 (uniform across all scenes, venues, images)
+- Model produces zero useful detections at any operationally meaningful threshold
+
+A model that cannot discriminate its own training examples has not reached
+the stage where venue-generalization is the primary question. The correct
+question is: **can the training pipeline learn to detect divers at all?**
+
+This question is answered in the subsequent D3 cycle
+().
+
+### A2 — Pretrained weight description
+
+No ImageNet claims found in Phase V/W documents. The base weight
+ is a **COCO-pretrained detection model** (trained on MS-COCO
+2017 person class among 79 others), not an ImageNet classifier.
+This report never made that error; clarification recorded for completeness.

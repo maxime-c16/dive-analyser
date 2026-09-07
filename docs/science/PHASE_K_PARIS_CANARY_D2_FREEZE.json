@@ -9,10 +9,10 @@
     "dive_id": 2819,
     "filename": "IMG_1937.mov",
     "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
-    "representation": "R360 (640×360 landscape, 322 frames)",
-    "gt_takeoff_s": 3.120,
-    "gt_apex_s": 3.570,
-    "gt_water_contact_s": 4.220,
+    "representation": "R360 (640\u00d7360 landscape, 322 frames)",
+    "gt_takeoff_s": 3.12,
+    "gt_apex_s": 3.57,
+    "gt_water_contact_s": 4.22,
     "firewall": "PARIS_CANARY_READ_ONLY_NO_TUNING"
   },
   "inference_config": {
@@ -67,6 +67,13 @@
   "notes": [
     "Paris firewall maintained: no tuning or threshold changes driven by canary results.",
     "R360 SHA differs from prior Phase M (ccf32520 vs 4d7ddb03) due to ffmpeg version difference; both are correct landscape rotations of the same source file.",
-    "D2 trained on D2 val set shows recall=0.857, holdout recall=0.630. The canary failure is a domain generalization failure, not a model capacity failure."
-  ]
+    "D2 recall=0.857 (val) / 0.630 (holdout) are model.val() metrics computed over threshold scan, not video inference. SUPERVISOR_CORRECTION: The canary failure classification has been revised from \"domain generalization failure\" to \"training collapse / non-discriminative training\" \u2014 the model cannot discriminate even its own training images (best_epoch=1, train_precision=0.003, max_conf=0.013 uniform on all scenes). External generalization cannot yet be meaningfully assessed until in-distribution discrimination is established."
+  ],
+  "supervisor_a1_correction": {
+    "date": "2026-09-07",
+    "original_failure_taxonomy": "domain_generalization_failure",
+    "corrected_failure_taxonomy": "D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT",
+    "rationale": "train_precision=0.003, best_epoch=1, max_conf=0.013 uniform. Model non-discriminative on own training set. Venue generalization question is premature.",
+    "preserve_audit_trail": true
+  }
 }

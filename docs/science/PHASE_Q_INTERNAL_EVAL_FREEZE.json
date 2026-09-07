@@ -5,26 +5,69 @@
   "model": "DIVER_DETECTOR_D2_V8N",
   "weights_sha_prefix": "488828723dff1be6",
   "purpose": "In-distribution check on 6 DEVELOPMENT_DESIGN internal dives + INTERNAL_EVAL dive 192",
-
-  "config_standard": {"conf": 0.25, "iou": 0.45, "imgsz": 640, "device": "mps"},
-  "config_diagnostic": {"conf": 0.01, "iou": 0.45, "imgsz": 640, "device": "mps"},
-
+  "config_standard": {
+    "conf": 0.25,
+    "iou": 0.45,
+    "imgsz": 640,
+    "device": "mps"
+  },
+  "config_diagnostic": {
+    "conf": 0.01,
+    "iou": 0.45,
+    "imgsz": 640,
+    "device": "mps"
+  },
   "results_conf_0_25": {
     "mean_detection_rate": 0.0,
     "n_frames_total": 7148,
     "n_detected_total": 0,
     "per_dive": [
-      {"dive_id": 192,  "dive_code": "203C",  "n_frames": 2523, "n_detected": 0, "rate": 0.0},
-      {"dive_id": 311,  "dive_code": "401C",  "n_frames": 577,  "n_detected": 0, "rate": 0.0},
-      {"dive_id": 2169, "dive_code": "101B",  "n_frames": 1078, "n_detected": 0, "rate": 0.0},
-      {"dive_id": 2387, "dive_code": "5411C", "n_frames": 748,  "n_detected": 0, "rate": 0.0},
-      {"dive_id": 2555, "dive_code": "5132D", "n_frames": 722,  "n_detected": 0, "rate": 0.0},
-      {"dive_id": 2661, "dive_code": "010B",  "n_frames": 1500, "n_detected": 0, "rate": 0.0}
+      {
+        "dive_id": 192,
+        "dive_code": "203C",
+        "n_frames": 2523,
+        "n_detected": 0,
+        "rate": 0.0
+      },
+      {
+        "dive_id": 311,
+        "dive_code": "401C",
+        "n_frames": 577,
+        "n_detected": 0,
+        "rate": 0.0
+      },
+      {
+        "dive_id": 2169,
+        "dive_code": "101B",
+        "n_frames": 1078,
+        "n_detected": 0,
+        "rate": 0.0
+      },
+      {
+        "dive_id": 2387,
+        "dive_code": "5411C",
+        "n_frames": 748,
+        "n_detected": 0,
+        "rate": 0.0
+      },
+      {
+        "dive_id": 2555,
+        "dive_code": "5132D",
+        "n_frames": 722,
+        "n_detected": 0,
+        "rate": 0.0
+      },
+      {
+        "dive_id": 2661,
+        "dive_code": "010B",
+        "n_frames": 1500,
+        "n_detected": 0,
+        "rate": 0.0
+      }
     ]
   },
-
   "results_conf_0_01_diagnostic": {
-    "note": "Diagnostic only — conf=0.01 reveals model operating regime. Not a tuned threshold.",
+    "note": "Diagnostic only \u2014 conf=0.01 reveals model operating regime. Not a tuned threshold.",
     "paris_canary_r360": {
       "n_frames": 322,
       "n_detected": 322,
@@ -32,41 +75,67 @@
       "mean_conf": 0.0124,
       "max_conf": 0.0131,
       "gt_takeoff_n_det": 28,
-      "gt_takeoff_max_conf": 0.0130,
+      "gt_takeoff_max_conf": 0.013,
       "gt_apex_n_det": 30,
       "gt_apex_max_conf": 0.0131,
       "gt_water_contact_n_det": 29,
-      "gt_water_contact_max_conf": 0.0130
+      "gt_water_contact_max_conf": 0.013
     },
     "internal_dives": [
-      {"dive_id": 192,  "n_frames": 2523, "detection_rate": 1.0, "mean_conf": 0.0125, "max_conf": 0.0144},
-      {"dive_id": 311,  "n_frames": 577,  "detection_rate": 1.0, "mean_conf": 0.0125, "max_conf": 0.0140},
-      {"dive_id": 2661, "n_frames": 1500, "detection_rate": 1.0, "mean_conf": 0.0124, "max_conf": 0.0138}
+      {
+        "dive_id": 192,
+        "n_frames": 2523,
+        "detection_rate": 1.0,
+        "mean_conf": 0.0125,
+        "max_conf": 0.0144
+      },
+      {
+        "dive_id": 311,
+        "n_frames": 577,
+        "detection_rate": 1.0,
+        "mean_conf": 0.0125,
+        "max_conf": 0.014
+      },
+      {
+        "dive_id": 2661,
+        "n_frames": 1500,
+        "detection_rate": 1.0,
+        "mean_conf": 0.0124,
+        "max_conf": 0.0138
+      }
     ]
   },
-
   "failure_analysis": {
     "model_behavior": "Bimodal: 0 detections at conf>=0.05, 100% detection everywhere at conf<=0.01",
     "operating_confidence": "~0.012-0.013 for all detected boxes, indiscriminate across all frames",
-    "discrimination": "NONE — model fires uniformly on all frames at same confidence (~0.013)",
-    "root_cause": "32 training frames insufficient. Model converged to near-uniform low-confidence firing. Learned person-blob rather than diver-discriminative features.",
+    "discrimination": "NONE \u2014 model fires uniformly on all frames at same confidence (~0.013)",
+    "root_cause": "32 training frames with NO hard negatives. Model experienced training collapse: best_epoch=1, train_precision=0.003, uniform conf~0.013 on all scenes. SUPERVISOR_CORRECTION: Root cause is D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT (non-discriminative training), not primarily single-venue distribution. Venue generalization is not yet testable.",
     "consistency_with_phase_i": {
       "val_mAP50": 0.0732,
       "val_precision": 0.0029,
       "val_recall": 0.8571,
-      "explanation": "model.val() measured recall over threshold scan — at conf=0.01, everything fires (recall near 1.0). Precision=0.0029 reflects no discrimination. mAP50=0.073 is threshold-averaged area under the degenerate PR curve."
+      "explanation": "model.val() measured recall over threshold scan \u2014 at conf=0.01, everything fires (recall near 1.0). Precision=0.0029 reflects no discrimination. mAP50=0.073 is threshold-averaged area under the degenerate PR curve."
     }
   },
-
   "phase_l_to_p_collapse_reinforced": {
     "reason": "No useful trajectory can be extracted: at any useful conf (>=0.05), detection_rate=0. At conf=0.01, 20-30 detections per frame with indiscriminate confidence. ByteTrack cannot isolate the diver from this noise.",
     "event_logic_evaluable": false
   },
-
   "decision": "PERCEPTION_STILL_INSUFFICIENT",
   "notes": [
     "Paris firewall maintained: conf=0.01 diagnostic run does NOT constitute tuning to Paris canary.",
     "The conf=0.25 result (0 detections) is the official Phase K/Q finding.",
     "D2 is not meaningfully better than L1 for the canary use case."
-  ]
+  ],
+  "supervisor_a1_correction": {
+    "date": "2026-09-07",
+    "original_root_cause": "single_venue_distribution",
+    "corrected_root_cause": "D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT",
+    "evidence": [
+      "best_epoch=1",
+      "train_precision=0.003",
+      "max_conf=0.013 uniform",
+      "no hard negatives in training set"
+    ]
+  }
 }

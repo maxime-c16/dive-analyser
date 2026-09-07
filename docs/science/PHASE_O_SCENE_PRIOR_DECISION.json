@@ -1,0 +1,16 @@
+{
+  "label": "PHASE_O_SCENE_PRIOR_DECISION",
+  "date": "2026-09-07",
+  "question": "Is COCO+spatial scene prior applicable?",
+  "coco_target_diver_in_flight": false,
+  "coco_max_person_conf_in_flight": 0.0224,
+  "decision": "SCENE_PRIOR_CANNOT_RECOVER_MISSING_DETECTION",
+  "rationale": [
+    "COCO detects 0 persons at conf>=0.10 in GT frames (R360 representation)",
+    "At conf=0.001 (noise), persons appear at max_conf=0.022 \u2014 below any useful operating threshold",
+    "A scene-prior spatial filter requires first having a high-recall detector as input",
+    "With 0 persons at useful conf, no spatial filter can recover missing detections",
+    "Scene-prior approach not viable at R360 resolution"
+  ],
+  "alternative_note": "At 1080p, COCO may detect spectators at higher confidence. If Paris canary were processed at 1080p, scene-prior might be viable. However, the training corpus uses 360p proxy format. A mismatch between training and inference resolution would introduce additional domain shift."
+}

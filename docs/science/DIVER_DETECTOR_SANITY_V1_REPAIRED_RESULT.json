@@ -1,0 +1,73 @@
+{
+  "label": "DIVER_DETECTOR_SANITY_V1_REPAIRED_RESULT",
+  "date": "2026-09-07",
+  "dataset": "DIVER_DETECTOR_SANITY_V1",
+  "repair": "amp=False (MPS AMP suppresses classification gradient)",
+  "best_epoch": 64,
+  "total_epochs": 100,
+  "best_map50": 0.4475,
+  "final_cls_loss": 1.71385,
+  "final_box_loss": 0.83502,
+  "elapsed_s": 205.65556502342224,
+  "positive_confs": [
+    {
+      "file": "v1_1040_apex.jpg",
+      "max_conf": 0.9989608526229858
+    },
+    {
+      "file": "v1_1040_takeoff.jpg",
+      "max_conf": 0.9987953901290894
+    },
+    {
+      "file": "v1_1040_water_contact.jpg",
+      "max_conf": 0.9635040163993835
+    },
+    {
+      "file": "v1_311_water_contact.jpg",
+      "max_conf": 0.8322958946228027
+    },
+    {
+      "file": "v1_676_apex.jpg",
+      "max_conf": 0.9794570803642273
+    },
+    {
+      "file": "v2_d0203_f1.jpg",
+      "max_conf": 0.7088251113891602
+    },
+    {
+      "file": "v2_d0207_f0.jpg",
+      "max_conf": 0.9898719191551208
+    },
+    {
+      "file": "v2_d0428_f0.jpg",
+      "max_conf": 0.7530316114425659
+    },
+    {
+      "file": "v2_d1499_f0.jpg",
+      "max_conf": 0.9030827879905701
+    },
+    {
+      "file": "v2_d1964_f1.jpg",
+      "max_conf": 0.9881131052970886
+    }
+  ],
+  "negative_confs": [
+    {
+      "file": "neg_d0297_f1.jpg",
+      "max_conf": 0.02876630239188671
+    },
+    {
+      "file": "neg_d0509_f0.jpg",
+      "max_conf": 0.29685473442077637
+    },
+    {
+      "file": "neg_d1405_f0.jpg",
+      "max_conf": 0.022979531437158585
+    }
+  ],
+  "mean_pos_conf": 0.9115937769412994,
+  "mean_neg_conf": 0.11620018941660722,
+  "high_conf_positives": 10,
+  "verdict": "TRAINING_PIPELINE_CAN_OVERFIT",
+  "best_weights_sha256": "62f17f3bd199286258537e86b9bda45f9d0b0527c8f5155f55df187976bd837a"
+}

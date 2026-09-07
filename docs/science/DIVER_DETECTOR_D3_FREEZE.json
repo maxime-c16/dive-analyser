@@ -1,0 +1,21 @@
+{
+  "label": "DIVER_DETECTOR_D3_FREEZE",
+  "date": "2026-09-07",
+  "model": "DIVER_DETECTOR_D3_V8N",
+  "base": "yolov8n.pt (COCO-pretrained detection model)",
+  "dataset": "DIVER_LOCALIZATION_DATASET_D3",
+  "device_trained": "mps (Apple M2)",
+  "amp": false,
+  "conf_threshold_operating": 0.1,
+  "imgsz": 640,
+  "best_weights_local": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/41096d47-755f-4843-9b56-3aecdee13d2e/scratchpad/runs/DIVER_DETECTOR_D3_V8N/weights/best.pt",
+  "best_weights_sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+  "val_map50": 0.637,
+  "holdout_map50": 0.101,
+  "holdout_recall_conf010": 0.761,
+  "internal_video_detection_rate_conf010": 0.97,
+  "internal_video_takeoff_detected": true,
+  "internal_video_takeoff_conf": 0.373,
+  "firewall": "PARIS_CANARY_READ_ONLY_NO_TUNING",
+  "status": "FROZEN"
+}

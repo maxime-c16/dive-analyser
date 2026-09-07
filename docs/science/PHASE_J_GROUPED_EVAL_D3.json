@@ -1,0 +1,153 @@
+{
+  "label": "PHASE_J_GROUPED_EVAL_D3",
+  "date": "2026-09-07",
+  "model": "DIVER_DETECTOR_D3_V8N",
+  "weights": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/41096d47-755f-4843-9b56-3aecdee13d2e/scratchpad/runs/DIVER_DETECTOR_D3_V8N/weights/best.pt",
+  "dataset": "DIVER_LOCALIZATION_DATASET_D3",
+  "splits": {
+    "train": {
+      "0.1": {
+        "split": "train",
+        "conf_thresh": 0.1,
+        "n_pos": 32,
+        "n_neg": 14,
+        "tp": 30,
+        "fn": 2,
+        "fp": 4,
+        "tn": 10,
+        "diver_recall": 0.9375,
+        "precision": 0.8824,
+        "f1": 0.9091,
+        "neg_fp_rate": 0.2857,
+        "mean_pos_conf": 0.6562
+      },
+      "0.25": {
+        "split": "train",
+        "conf_thresh": 0.25,
+        "n_pos": 32,
+        "n_neg": 14,
+        "tp": 27,
+        "fn": 5,
+        "fp": 1,
+        "tn": 13,
+        "diver_recall": 0.8438,
+        "precision": 0.9643,
+        "f1": 0.9,
+        "neg_fp_rate": 0.0714,
+        "mean_pos_conf": 0.6401
+      },
+      "0.5": {
+        "split": "train",
+        "conf_thresh": 0.5,
+        "n_pos": 32,
+        "n_neg": 14,
+        "tp": 23,
+        "fn": 9,
+        "fp": 0,
+        "tn": 14,
+        "diver_recall": 0.7188,
+        "precision": 1.0,
+        "f1": 0.8364,
+        "neg_fp_rate": 0.0,
+        "mean_pos_conf": 0.5972
+      },
+      "mAP50_val": 0.9256
+    },
+    "val": {
+      "0.1": {
+        "split": "val",
+        "conf_thresh": 0.1,
+        "n_pos": 7,
+        "n_neg": 3,
+        "tp": 5,
+        "fn": 2,
+        "fp": 1,
+        "tn": 2,
+        "diver_recall": 0.7143,
+        "precision": 0.8333,
+        "f1": 0.7692,
+        "neg_fp_rate": 0.3333,
+        "mean_pos_conf": 0.2593
+      },
+      "0.25": {
+        "split": "val",
+        "conf_thresh": 0.25,
+        "n_pos": 7,
+        "n_neg": 3,
+        "tp": 3,
+        "fn": 4,
+        "fp": 1,
+        "tn": 2,
+        "diver_recall": 0.4286,
+        "precision": 0.75,
+        "f1": 0.5455,
+        "neg_fp_rate": 0.3333,
+        "mean_pos_conf": 0.2025
+      },
+      "0.5": {
+        "split": "val",
+        "conf_thresh": 0.5,
+        "n_pos": 7,
+        "n_neg": 3,
+        "tp": 1,
+        "fn": 6,
+        "fp": 0,
+        "tn": 3,
+        "diver_recall": 0.1429,
+        "precision": 1.0,
+        "f1": 0.25,
+        "neg_fp_rate": 0.0,
+        "mean_pos_conf": 0.1231
+      },
+      "mAP50_val": 0.637
+    },
+    "holdout": {
+      "0.1": {
+        "split": "holdout",
+        "conf_thresh": 0.1,
+        "n_pos": 46,
+        "n_neg": 18,
+        "tp": 35,
+        "fn": 11,
+        "fp": 10,
+        "tn": 8,
+        "diver_recall": 0.7609,
+        "precision": 0.7778,
+        "f1": 0.7692,
+        "neg_fp_rate": 0.5556,
+        "mean_pos_conf": 0.2873
+      },
+      "0.25": {
+        "split": "holdout",
+        "conf_thresh": 0.25,
+        "n_pos": 46,
+        "n_neg": 18,
+        "tp": 24,
+        "fn": 22,
+        "fp": 7,
+        "tn": 11,
+        "diver_recall": 0.5217,
+        "precision": 0.7742,
+        "f1": 0.6234,
+        "neg_fp_rate": 0.3889,
+        "mean_pos_conf": 0.2472
+      },
+      "0.5": {
+        "split": "holdout",
+        "conf_thresh": 0.5,
+        "n_pos": 46,
+        "n_neg": 18,
+        "tp": 8,
+        "fn": 38,
+        "fp": 4,
+        "tn": 14,
+        "diver_recall": 0.1739,
+        "precision": 0.6667,
+        "f1": 0.2759,
+        "neg_fp_rate": 0.2222,
+        "mean_pos_conf": 0.1121
+      },
+      "mAP50_val": 0.1005
+    }
+  }
+}

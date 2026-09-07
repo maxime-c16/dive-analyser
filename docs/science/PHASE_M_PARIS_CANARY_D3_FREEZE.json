@@ -1,0 +1,33 @@
+{
+  "label": "PHASE_M_PARIS_CANARY_D3_FREEZE",
+  "date": "2026-09-07",
+  "model": "DIVER_DETECTOR_D3_V8N",
+  "weights_sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+  "canary": {
+    "dive_id": 2819,
+    "filename": "IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "gt_takeoff_s": 3.12,
+    "gt_takeoff_frame": 187,
+    "gt_apex_s": 3.57,
+    "gt_apex_frame": 214,
+    "gt_wc_s": 4.22,
+    "gt_wc_frame": 253
+  },
+  "inference_conf": 0.1,
+  "total_frames": 322,
+  "n_detected": 144,
+  "detection_rate": 0.4472,
+  "gt_takeoff_detected": true,
+  "gt_apex_detected": false,
+  "gt_wc_detected": true,
+  "action_window_frames": 67,
+  "action_window_detected": 5,
+  "action_window_coverage": 0.0746,
+  "max_gap_frames": 62,
+  "max_gap_s": 1.0344,
+  "action_mean_conf": 0.1377,
+  "diver_region_detections": 144,
+  "spectator_region_detections": 0,
+  "firewall": "PARIS_CANARY_READ_ONLY_NO_TUNING"
+}

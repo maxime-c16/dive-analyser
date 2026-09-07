@@ -2,7 +2,6 @@
   "label": "PHASE_R_DETECTOR_GENERALIZATION_DECISION",
   "date": "2026-09-07",
   "phase": "R",
-
   "evidence": {
     "L1_on_canary": {
       "detection_rate_conf_0_25": 0.0,
@@ -25,50 +24,53 @@
     },
     "D2_holdout_eval_images": {
       "mAP50": 0.056,
-      "recall": 0.630,
+      "recall": 0.63,
       "precision": 0.002,
-      "note": "model.val() on labeled still images, threshold scan — not comparable to video inference",
+      "note": "model.val() on labeled still images, threshold scan \u2014 not comparable to video inference",
       "source": "PHASE_I_GROUPED_DETECTOR_EVAL_D2.json"
     }
   },
-
   "failure_taxonomy": {
-    "L1": "No detections on Paris canary — training distribution too narrow (38 V1 frames, single venue, early dates)",
-    "D2": "No usable detections on Paris canary — training distribution slightly broader (85 frames, same single venue) but model did not learn discriminative features. 32 training frames insufficient for fine-tuning.",
+    "L1": "No detections on Paris canary \u2014 training distribution too narrow (38 V1 frames, single venue, early dates)",
+    "D2": "Training collapse: best_epoch=1, train_precision=0.003, uniform max_conf=0.013 on every frame. Model never learned discriminative features for diver vs background. Root causes: 32 training frames with ZERO hard negatives; possible learning rate or augmentation issues. SUPERVISOR CORRECTION: venue generalization failure is premature \u2014 model did not discriminate its own training examples.",
     "COCO": "Detects spectators/background persons, NOT the target diver. High recall but wrong target.",
     "shared_root_cause": "Single-venue training corpus. Insufficient frame count for discriminative learning. Diver appearance during flight phase differs significantly from general person appearance."
   },
-
   "generalization_verdict": "PERCEPTION_STILL_INSUFFICIENT_FOR_EXTERNAL_GENERALIZATION",
-
   "path_forward": {
     "option_A": {
       "label": "MORE_DATA_SAME_DOMAIN",
       "description": "Annotate 200-500 more frames from the single venue, including diverse apparatuses and dive phases.",
       "expected_outcome": "Better within-domain recall, unlikely to fix external generalization.",
-      "recommendation": "PARTIAL — improves internal eval but does not address Paris canary failure."
+      "recommendation": "PARTIAL \u2014 improves internal eval but does not address Paris canary failure."
     },
     "option_B": {
       "label": "EXTERNAL_DATA_MULTI_DOMAIN",
       "description": "Acquire dive footage from multiple venues (competitions, public pools, Paris-style pools). Add to training set.",
       "expected_outcome": "Addresses domain gap for external generalization.",
-      "recommendation": "PREFERRED — directly targets root cause."
+      "recommendation": "PREFERRED \u2014 directly targets root cause."
     },
     "option_C": {
       "label": "ARCHITECTURE_CHANGE",
       "description": "Use pose estimation (MediaPipe, MoveNet) or segmentation-based localization instead of pure detection.",
       "expected_outcome": "Better generalization if person-skeleton is venue-agnostic.",
-      "recommendation": "ALTERNATIVE — requires redesign but more principled."
+      "recommendation": "ALTERNATIVE \u2014 requires redesign but more principled."
     },
     "option_D": {
       "label": "SCENE_PRIOR_FILTERING_PLUS_LOWER_CONF",
       "description": "Use COCO at conf=0.05 + pool-corridor spatial prior to filter spectators.",
       "expected_outcome": "COCO fires on spectators in both venues; spatial filter might isolate diver region.",
-      "recommendation": "TACTICAL — tested in Phase M (prior session). Spectator dominates at stationary cy ~0.5. Diver at flight (cy ~0.2-0.4) might be separable with spatial filter. Worth testing."
+      "recommendation": "TACTICAL \u2014 tested in Phase M (prior session). Spectator dominates at stationary cy ~0.5. Diver at flight (cy ~0.2-0.4) might be separable with spatial filter. Worth testing."
     }
   },
-
   "decision": "EXTERNAL_DATA_ESCALATION_REQUIRED",
   "recommended_next_gate": "Acquire minimum 200 frames from 2+ external venues before re-evaluation.",
-  "event_logic_status": "V2.1 FROZEN — cannot evaluate on real Paris signal until perception prerequisite met."
+  "event_logic_status": "V2.1 FROZEN \u2014 cannot evaluate on real Paris signal until perception prerequisite met.",
+  "supervisor_a1_correction": {
+    "date": "2026-09-07",
+    "note": "SUPERVISOR CORRECTION: Primary failure taxonomy revised from EXTERNAL_GENERALIZATION_FAILURE to D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT. Evidence: best_epoch=1, train_precision=0.003, max_conf=0.013 uniform on training images. A non-discriminative model cannot test venue generalization. Path forward changes: first diagnose and repair training pipeline before attributing failure to domain diversity.",
+    "original_verdict": "PERCEPTION_STILL_INSUFFICIENT_FOR_EXTERNAL_GENERALIZATION",
+    "corrected_primary_failure": "D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT",
+    "corrected_secondary_question": "EXTERNAL_GENERALIZATION_TBD_AFTER_TRAINING_REPAIR"
+  }
 }

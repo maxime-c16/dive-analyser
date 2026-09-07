@@ -1,0 +1,21 @@
+{
+  "label": "PHASE_K_D3_INTERNAL_VIDEO_CANARY",
+  "date": "2026-09-07",
+  "dive_id": 192,
+  "dive_code": "203C",
+  "video_path": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/41096d47-755f-4843-9b56-3aecdee13d2e/scratchpad/d3_work/proxy_dive192.mp4",
+  "conf_threshold": 0.1,
+  "sample_step": 5,
+  "action_window": [
+    800,
+    1300
+  ],
+  "n_frames_checked": 100,
+  "n_detected": 97,
+  "detection_rate": 0.97,
+  "landmark_takeoff_frame": 937,
+  "all_confs_mean": 0.3792,
+  "all_confs_max": 0.8806,
+  "n_frames_conf_0_25": 61,
+  "n_frames_conf_0_50": 29
+}

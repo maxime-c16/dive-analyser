@@ -1,0 +1,14 @@
+path: /private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/41096d47-755f-4843-9b56-3aecdee13d2e/scratchpad/d3_work/DIVER_LOCALIZATION_DATASET_D3
+train: images/train
+val: images/val
+test: images/holdout
+
+nc: 1
+names:
+  0: diver
+
+# DIVER_LOCALIZATION_DATASET_D3
+# Class 0 = visible_diver (every clearly visible diver in frame)
+# Hard negatives included as empty-label images
+# Split: LATE temporal bucket -> holdout; EARLY+MID -> train/val
+# Training fix: amp=False required (MPS AMP suppresses classification gradient)

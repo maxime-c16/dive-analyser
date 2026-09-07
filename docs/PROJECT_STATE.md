@@ -1,9 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-07** (real-signal pipeline V2 — D2 detector).
-> Latest audit: `docs/science/PERCEPTION_V3_MULTI_DOMAIN_GENERALIZATION_REPORT.md`
-> Previous: `docs/audits/SOURCE_AUTHORITY_RECONCILIATION_2026-09-05.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V2`**
+> Durable project handoff. Last verified: **2026-09-07** (D3 detector + training sanity).
+> Latest audit: `docs/science/DIVER_DETECTOR_TRAINING_SANITY_AND_D3_REPORT.md`
+> Previous: `docs/science/REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_D3_DETECTOR_SANITY`**
 
 ## Project purpose
 
@@ -17,7 +17,7 @@ characteristics, athlete-vs-self comparison). **Not implemented yet — directio
 ## Canonical repository
 
 - **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `1e3fb02`.
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: *see commit below*.
   No remotes.
 - Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
   reference slice; never treat it as canonical.
@@ -54,37 +54,72 @@ Two machines on a LAN:
 - **C. Heuristic:** fear/plateau, milestones, journey service (no video analysis)
 - **D. ML/CV:** `execution_analyzer.py` is a STUB. Analysis layer remains unimplemented.
 
-## Science layer status (2026-09-06)
+## Science layer status (2026-09-07)
 
 ### Frozen references
 - Canary dive: 2819 (5122D G/G, springboard 1m, hurdle)
 - Source: `IMG_1937.mov` SHA=`d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae`
 - GT PTS: takeoff=3.120s, apex=3.570s, water_contact=4.220s (frame 187, 214, 253)
-- Event Logic V2 frozen: `EVENT_LOGIC_V2_FREEZE.json`, 29/29 unit tests pass
+- Event Logic V2.1 frozen: `EVENT_LOGIC_V2_1_FREEZE.json`, 36/36 unit tests pass (SHA: 63cfadebfc...)
+- D3 detector frozen: `DIVER_DETECTOR_D3_FREEZE.json`, weights SHA256: `bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d`
 
-### Critical findings (REAL_SIGNAL_HIGHRES_V1)
-1. **Phase M synthetic check is broken:** takeoff error −1.670s, apex error −1.353s.
-   The HIGH_RESOLUTION_CANARY_EVENT_SEMANTICS_CORRECTION_V1.md values (0.103/0.013/0.030s)
-   were never produced by the committed code. Audit: `PHASE_M_CANARY_CHECK_AUDIT.json`.
-2. **L1 domain-adapted model (mAP50=0.766 on DEVELOPMENT) produces 0 detections**
-   on the canary video. CUDA is NOT required (MPS+CPU both work). Generalization failure.
-3. **COCO model detects spectators, not the diver during flight** (t=3.12–4.22s).
-   Both framewise and ByteTrack produce spectator trajectories.
-4. **Event Logic V2 cannot be end-to-end evaluated** on any real video trajectory.
-   Status: EVENT_LOGIC_NOT_YET_EVALUABLE_DUE_TO_PERCEPTION.
-5. **ANALYSIS_SOURCE = user-edited/trimmed Photos rendition** (osxphotos default).
-   `--skip-edited` is SCIENTIFICALLY_INVALID_FOR_DIRECT_PTS_COMPARISON.
+### D2 taxonomy correction (Phase A, supervisor correction)
+- D2 failure was previously classified as `EXTERNAL_GENERALIZATION_FAILURE` — **INCORRECT**
+- **Correct classification**: `D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT`
+- Root cause: MPS AMP bug (`amp=True` default on Apple Silicon suppresses classification gradient)
+- Symptom: train precision ≈ 0.003, best_epoch=1, uniform conf ≈ 0.013 on ALL images
+- Fix: `amp=False` for all MPS training
 
-### Perception architecture decision
-**`PERCEPTION_STILL_INSUFFICIENT`**
+### Critical findings (D3_DETECTOR_SANITY cycle, 2026-09-07)
+
+1. **MPS AMP bug root cause identified and repaired**: All future training uses `amp=False` on MPS.
+   D2 training collapse was a pipeline bug, not a data/label problem.
+
+2. **D2 missing hard negatives**: 35 `not_visible` frames were entirely excluded from D2 YOLO export.
+   Fixed in D3: 14 hard negatives in train, 3 in val, 18 in holdout.
+
+3. **D2 label audit**: 84/85 labels valid; 1 bbox y-clip fixed (v2_d0287_f0.txt).
+
+4. **Overfit sanity PASS**: With `amp=False`, tiny 10+3 dataset achieves mean_pos_conf=0.912 (10/10 > 0.25).
+   Verdict: `TRAINING_PIPELINE_CAN_OVERFIT`. Pipeline is scientifically sound.
+
+5. **D3 training result**: best_epoch=68, best_mAP50=0.627, holdout recall=0.761 at conf=0.10.
+   In-domain video coverage: **97.0%** (97/100 action frames at conf≥0.10).
+
+6. **Paris external canary (frozen D3)**: overall 44.7%, action window **7.5%** (5/67 frames).
+   Longest gap 1.034s. `TRAJECTORY_INPUT_FAIL` — domain gap remains.
+
+7. **COCO person at R360**: 0 detections at conf≥0.10 in action window. Prior V1 spectator claim
+   (300/322 at 1080p) is superseded; not applicable at R360 operating resolution.
+
+8. **Scene-prior**: `SCENE_PRIOR_CANNOT_RECOVER_MISSING_DETECTION`.
+
+9. **Trajectory gate**: FAIL (7.5% coverage, 1.034s gap). Event Logic V2.1 not yet evaluable on real signal.
+
+10. **Generalization verdict**: `TRAINING_PIPELINE_REPAIRED_AND_IN_DOMAIN_WORKS`.
+    Remaining issue: domain gap (single-venue training). Requires multi-domain data.
+
+### Event Logic V2.1
+- Status: **FROZEN, CORRECT, NOT_REAL_SIGNAL_VALIDATED**
+- 36/36 unit tests pass (MECHANISM_TEST_PASS)
+- Cannot be end-to-end evaluated until trajectory gate passes
+- Do NOT modify Event Logic unless a real scientifically usable trajectory exists
+
+### Perception architecture
+**`TRAINING_PIPELINE_REPAIRED_AND_IN_DOMAIN_WORKS; MORE_DOMAIN_DIVERSITY_REQUIRED`**
 
 ### Next required work
-1. Fix diver detection: pool-diverse training data OR spatial scene prior for COCO
-2. Fix Phase M synthetic trajectory (monotone board-loading, not sinusoidal oscillation)
-3. Add Event Logic V2 integration test on a realistic hurdle trajectory
-4. Discriminative target selection (exclude spectator region)
-5. Pool-specific corridor calibration as near-term fallback
+1. **Multi-domain training data** (50–100 frames, 2–3 outdoor pool venues)
+2. Evaluate D4 detector on Paris action window — target ≥ 50% coverage
+3. When trajectory gate passes → evaluate Event Logic V2.1 end-to-end
+4. Fix Phase M synthetic trajectory (sinusoidal hurdle bug → monotone board-loading)
+
+## Test suite
+
+- `experiments/landmark_pilot/test_d3_pipeline.py` — 36 tests, all pass
+- Covers: D3 dataset integrity, hard-negative policy, overfit sanity, D3 training,
+  Paris firewall, trajectory gate, scene-prior decision, generalization decision
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V2`
+`SUPERVISOR_REVIEW_AFTER_D3_DETECTOR_SANITY`

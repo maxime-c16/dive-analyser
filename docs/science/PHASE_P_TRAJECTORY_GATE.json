@@ -1,0 +1,20 @@
+{
+  "label": "PHASE_P_TRAJECTORY_GATE",
+  "date": "2026-09-07",
+  "detector": "DIVER_DETECTOR_D3_V8N",
+  "canary": "Paris IMG_1937.mov dive 2819",
+  "criteria": {
+    "1_target_at_takeoff": true,
+    "2_target_at_apex": false,
+    "3_target_at_wc": true,
+    "4_flight_coverage_pct": 7.5,
+    "4_flight_coverage_threshold": 80.0,
+    "5_max_gap_s": 1.034,
+    "5_max_gap_threshold": 0.25,
+    "6_wrong_person_takeover": false
+  },
+  "criteria_met": 3,
+  "criteria_required": 6,
+  "verdict": "TRAJECTORY_INPUT_FAIL",
+  "rationale": "7.5% action-window coverage vs required 80%. Apex frame missed. Max gap 1.034s vs allowed 0.25s. In-domain detection works (97% on training pool) but Paris venue generalization is insufficient."
+}
