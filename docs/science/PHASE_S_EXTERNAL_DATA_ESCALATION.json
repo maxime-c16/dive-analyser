@@ -1,0 +1,52 @@
+{
+  "label": "PHASE_S_EXTERNAL_DATA_ESCALATION",
+  "date": "2026-09-07",
+  "phase": "S",
+  "trigger": "Phase R: EXTERNAL_DATA_ESCALATION_REQUIRED",
+
+  "primary_recommendation": {
+    "label": "SCENE_PRIOR_SPATIAL_FILTER_WITH_COCO",
+    "rationale": [
+      "COCO yolov8n achieves 100% recall on Paris canary at conf=0.10 (all persons detected)",
+      "Failure is misidentification (spectator vs diver), not localization",
+      "Pool corridor spatial prior can be estimated from static background: diver moves in pool deck / springboard zone (cy ~0.10-0.50 from top), spectators cluster at edges (cy>0.80 or cy<0.05, or cx at extreme ends)",
+      "During flight phase, the diver is the ONLY moving person in the pool deck zone",
+      "This approach avoids new training data requirement and preserves the Paris firewall"
+    ],
+    "implementation": {
+      "step_1": "Run COCO at conf=0.10 on full canary video",
+      "step_2": "Extract dominant stationary cluster (background subtraction or median cy/cx)",
+      "step_3": "Filter: keep detections whose centroid is > K sigma from the stationary cluster centroid",
+      "step_4": "Track surviving detections with ByteTrack",
+      "step_5": "Extract trajectory of the track with highest vertical movement (flight arc)",
+      "step_6": "Apply Event Logic V2.1 to trajectory"
+    },
+    "risks": [
+      "Multiple moving persons in pool deck during warmup phases",
+      "Spectator occlusion of diver at takeoff/water_contact",
+      "Filter parameters (K sigma) may need tuning — must not use Paris canary GT to tune"
+    ],
+    "firewall_note": "Pool corridor calibration must be derived from INTERNAL_EVAL or DEVELOPMENT_DESIGN data, NOT from Paris canary frames or GT."
+  },
+
+  "secondary_recommendation": {
+    "label": "MULTI_DOMAIN_TRAINING_DATA",
+    "sources": [
+      "FINA/World Aquatics competition footage (public broadcasts)",
+      "Olympic pool videos (YouTube Creative Commons)",
+      "Diving club training videos from different venues"
+    ],
+    "target": "200-500 frames from >= 3 external venues annotated with bounding boxes",
+    "expected_improvement": "mAP50 >= 0.40 on Paris-style external venue if training corpus is sufficiently diverse",
+    "timeline_estimate": "2-4 weeks data collection + annotation"
+  },
+
+  "rejected_options": {
+    "MORE_DATA_SAME_DOMAIN": "Insufficient — root cause is venue generalization, not quantity",
+    "ARCHITECTURE_CHANGE": "Deferred — higher effort, uncertain payoff without more data"
+  },
+
+  "recommended_immediate_action": "Implement SCENE_PRIOR_SPATIAL_FILTER_WITH_COCO and evaluate on Paris canary before committing to multi-domain data collection.",
+
+  "status": "PLAN_DOCUMENTED_EXECUTION_DEFERRED_PENDING_SUPERVISOR_REVIEW"
+}
