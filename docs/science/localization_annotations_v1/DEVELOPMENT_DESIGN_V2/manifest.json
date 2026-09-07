@@ -19,7 +19,18 @@
       "duration_s": 15.598,
       "frame_file": "frames/d0203_f0.jpg",
       "frame_sha256": "b993753dc357e04aa0a506cb4bab64300bcc11b7be1ad5965c841b098ae4c399",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          35,
+          152.5,
+          86,
+          209.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:00.378742+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -36,7 +47,18 @@
       "duration_s": 15.598,
       "frame_file": "frames/d0203_f1.jpg",
       "frame_sha256": "9fa150855a65da3622decf293ba6917389c094d1f7e649230c6fde3461fad328",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          29,
+          183.5,
+          68,
+          215.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:05.413257+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -53,7 +75,18 @@
       "duration_s": 12.267,
       "frame_file": "frames/d0558_f0.jpg",
       "frame_sha256": "59d18eeadaf2b42ede227840442c1ac530b843aa933d1e64419b5f4bb23c3e5b",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          0.4634052515029907,
+          261.0707092285156,
+          32.93776321411133,
+          359.80340576171875
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:10.625917+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -80,7 +113,13 @@
       "duration_s": 12.267,
       "frame_file": "frames/d0558_f1.jpg",
       "frame_sha256": "e71b071fe8727b001d77b906a1dec0ce43460b5ad699bdb4c90cfb80c9ae20bc",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:13.738399+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -97,7 +136,18 @@
       "duration_s": 9.447,
       "frame_file": "frames/d0052_f0.jpg",
       "frame_sha256": "fca654ad752233cb8fe84e2cd8bc23f491b83ca2be00d1e79b32031098ac005a",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          51,
+          71.5,
+          132,
+          159.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:23.904124+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -124,7 +174,13 @@
       "duration_s": 9.447,
       "frame_file": "frames/d0052_f1.jpg",
       "frame_sha256": "68c9922d9383762aedcc02ef771625ce00be611d25620162f8536cfdf866926e",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:28.622677+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -141,7 +197,18 @@
       "duration_s": 10.194,
       "frame_file": "frames/d1964_f0.jpg",
       "frame_sha256": "3eac0b39bee168b3181e07d81ea41904c8eb63a264dcc9be1dae91d7add13fbd",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          56,
+          74.5,
+          158,
+          177.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:33.608917+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -158,7 +225,18 @@
       "duration_s": 10.194,
       "frame_file": "frames/d1964_f1.jpg",
       "frame_sha256": "b8b80a4b0964e2fe62ae32fe3caa05b39def652a56c17d9f1c84fb0567ebb5a3",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          93,
+          100.5,
+          138,
+          155.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:39.688032+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -175,7 +253,18 @@
       "duration_s": 10.332,
       "frame_file": "frames/d0885_f0.jpg",
       "frame_sha256": "05c6c15a3c7372b1aab44697edd9a6c6a7ca41db491d7abb45a7b346b6cdd8bd",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          58,
+          90.5,
+          119,
+          132.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:45.398716+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -192,7 +281,13 @@
       "duration_s": 10.332,
       "frame_file": "frames/d0885_f1.jpg",
       "frame_sha256": "e9b0484e70d3c9ba35fca275e0202f5e78bf506b9c0f1f492407e1fda2fdf18d",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:48.034725+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -209,7 +304,13 @@
       "duration_s": 12.78,
       "frame_file": "frames/d0509_f0.jpg",
       "frame_sha256": "200b74a76fde5219cb7eed3390ea0c4fd8b6613a492859eb98c686cb4e93faaf",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:55.201665+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -226,7 +327,13 @@
       "duration_s": 12.78,
       "frame_file": "frames/d0509_f1.jpg",
       "frame_sha256": "fbc58507450824eb5f6de51b83932da8786aa2e9e4fcf936ac43f1e2046dc6bf",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:00:59.098932+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -253,7 +360,18 @@
       "duration_s": 8.301,
       "frame_file": "frames/d0207_f0.jpg",
       "frame_sha256": "80e4877536bea738d5bb721459a1f2564fd93981e0823a387731fa043e76608e",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          51.59760665893555,
+          160.43922424316406,
+          66.72217559814453,
+          207.3250274658203
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:01:03.996189+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -280,7 +398,13 @@
       "duration_s": 8.301,
       "frame_file": "frames/d0207_f1.jpg",
       "frame_sha256": "f485b300b091023c7ec662b0bb9ac4e76442d95290168b11ba6e9d7a63f5b67e",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:01:06.956449+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -297,7 +421,18 @@
       "duration_s": 4.25,
       "frame_file": "frames/d0428_f0.jpg",
       "frame_sha256": "63378ec6589332c0f7a8b1e33c920ac573b3d937542ba8a0670c0c64b755372c",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          11,
+          77.5,
+          49,
+          113.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:01:13.713756+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -324,7 +459,18 @@
       "duration_s": 4.25,
       "frame_file": "frames/d0428_f1.jpg",
       "frame_sha256": "2aa8b5759e4039f5ef672b7d73c2fa44543fe4d516182a8ef8f93324ac20bcc1",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          69,
+          162.5,
+          106,
+          209.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:01:29.627524+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -360,7 +506,18 @@
       "duration_s": 10.538,
       "frame_file": "frames/d0169_f0.jpg",
       "frame_sha256": "14d203ab8fb9cdef91fed0c9fa21c5d657a61d2e7ab3d066f8b77cda1e35d8a2",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          12.386758804321289,
+          72.90008544921875,
+          22.04778289794922,
+          111.6663589477539
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:01:35.369195+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -396,7 +553,13 @@
       "duration_s": 10.538,
       "frame_file": "frames/d0169_f1.jpg",
       "frame_sha256": "5747226f53d39799589421d4396fc77dc0222a90a91c5250724ed3b40f9b2348",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:02:42.894605+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -423,7 +586,18 @@
       "duration_s": 19.268,
       "frame_file": "frames/d0287_f0.jpg",
       "frame_sha256": "26b321eca6f35ab5cbf7d344ab2ef089e22c2e739fb3202b39f6148ca14c7eef",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          24,
+          -0.5,
+          79,
+          94.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:02:59.122512+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -459,7 +633,18 @@
       "duration_s": 19.268,
       "frame_file": "frames/d0287_f1.jpg",
       "frame_sha256": "5fa94c8e6a7ce1c498676effdfe62fe1026a7b1431e35a26962f9143da931e44",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          28.324697494506836,
+          0.0973663330078125,
+          102.9618911743164,
+          85.09329986572266
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:03:06.588495+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -486,7 +671,18 @@
       "duration_s": 16.333,
       "frame_file": "frames/d1940_f0.jpg",
       "frame_sha256": "4b84cbedef4b0f48358ddc7645a981cf52c901f25acb961c8503474109a3dfbc",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          127,
+          252.5,
+          163,
+          284.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:07:10.603776+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -503,7 +699,18 @@
       "duration_s": 16.333,
       "frame_file": "frames/d1940_f1.jpg",
       "frame_sha256": "4b335753a2a62b14fde51e574226f98b3dcc229ce66c416c3c1d4fad780265b1",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          137,
+          269.5,
+          174,
+          296.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:07:20.016164+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -520,7 +727,18 @@
       "duration_s": 13.33,
       "frame_file": "frames/d1976_f0.jpg",
       "frame_sha256": "8b2341bf3e664d50cf1d95217219867a5a493b1f83569f1ba9425a6f9b835b3b",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          11,
+          172.5,
+          54,
+          249.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:08:57.974028+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -556,7 +774,13 @@
       "duration_s": 13.33,
       "frame_file": "frames/d1976_f1.jpg",
       "frame_sha256": "ede9348ccec7dcefae853c39a13e4f38098de9525113914478c222f85d9ef6f0",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:09:25.118715+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -592,7 +816,18 @@
       "duration_s": 13.885,
       "frame_file": "frames/d0298_f0.jpg",
       "frame_sha256": "df788fb8a6b59c05ef6688532a76e00ee64195a1e7d2d19136dcf32e1b2c9dfc",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          96,
+          139.5,
+          123,
+          216.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:10:58.368585+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -637,7 +872,13 @@
       "duration_s": 13.885,
       "frame_file": "frames/d0298_f1.jpg",
       "frame_sha256": "b6c1b3454b0dddd081fce8f4186aec388fdff9855f40469eaf77fe026a6be867",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:06.163152+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -673,7 +914,18 @@
       "duration_s": 5.378,
       "frame_file": "frames/d0297_f0.jpg",
       "frame_sha256": "9e685ddcbaf7c4d67c039c014ffab4df1b4f14194257f41b510e5da696a93415",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          30,
+          108.5,
+          105,
+          234.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:21.335465+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -700,7 +952,13 @@
       "duration_s": 5.378,
       "frame_file": "frames/d0297_f1.jpg",
       "frame_sha256": "f7fa35ef67d67ffbc300d86b8df6dcc684ae1b6c77fa1ecc3732b603454b6888",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:24.252719+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -717,7 +975,13 @@
       "duration_s": 9.173,
       "frame_file": "frames/d1405_f0.jpg",
       "frame_sha256": "c00df9358a54badbdac677c8e991fdb8a8bb5a95ce90f34562402fef17a2ef07",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:30.614557+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -734,7 +998,13 @@
       "duration_s": 9.173,
       "frame_file": "frames/d1405_f1.jpg",
       "frame_sha256": "529e47828759ef1e553d9466aeb3c29ba28332eb1975f69d3d093ed751f57fcd",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:34.986574+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -751,7 +1021,18 @@
       "duration_s": 12.515,
       "frame_file": "frames/d1018_f0.jpg",
       "frame_sha256": "19ea4f2b2da5ac6c508c749e34ae7998ae8728d6c810f2261c6412128e0c2423",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          35,
+          205.5,
+          64,
+          264.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:11:46.666367+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -787,7 +1068,18 @@
       "duration_s": 12.515,
       "frame_file": "frames/d1018_f1.jpg",
       "frame_sha256": "eb6412a85cb50908fc6d11301b7b8a9cb7f5eac5e38a305b678e73215c74d535",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          34,
+          195.5,
+          60,
+          254.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:00.465882+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -832,7 +1124,18 @@
       "duration_s": 11.239,
       "frame_file": "frames/d1499_f0.jpg",
       "frame_sha256": "52a08382a871a23dd3a154a625afd4c2154860790f79a5f67959730a81a9267b",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          97,
+          53.5,
+          141,
+          138.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:07.125859+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -849,7 +1152,13 @@
       "duration_s": 11.239,
       "frame_file": "frames/d1499_f1.jpg",
       "frame_sha256": "573e69f4fe202cf6d4ac3ee400307745b33d944d69835c78532d98cf71a0b693",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:10.272405+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -866,7 +1175,18 @@
       "duration_s": 15.626,
       "frame_file": "frames/d1072_f0.jpg",
       "frame_sha256": "6526bb5f503c74364411958126694f6aac4e14d5437ed9d4f82171786e03dfb6",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          82,
+          92.5,
+          123,
+          125.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:15.983761+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -902,7 +1222,13 @@
       "duration_s": 15.626,
       "frame_file": "frames/d1072_f1.jpg",
       "frame_sha256": "310854676c117c9539a2b968152dba99febba2e3cb2636da8b1d16b62e8b8f95",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:20.580143+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -919,7 +1245,18 @@
       "duration_s": 8.249,
       "frame_file": "frames/d1407_f0.jpg",
       "frame_sha256": "3eba057df45d61b1d6443f82d467d27e1ec52a6cd0f314f65ff4c9322c819c97",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          29.8029727935791,
+          147.7243194580078,
+          51.15398406982422,
+          214.0098419189453
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:30.954962+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -955,7 +1292,18 @@
       "duration_s": 8.249,
       "frame_file": "frames/d1407_f1.jpg",
       "frame_sha256": "f68f35d2196f8b8effa051a42e911051564ba2dc8ea1569f943d1a645aba9507",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          14.345135688781738,
+          248.01254272460938,
+          41.981414794921875,
+          319.95623779296875
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:42.337283+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -991,7 +1339,13 @@
       "duration_s": 13.614,
       "frame_file": "frames/d1038_f0.jpg",
       "frame_sha256": "29d5dbf900f086a0b2feca52c56dc5c48945517b923b510fb3a5769c7252b9b2",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:49.484272+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1036,7 +1390,13 @@
       "duration_s": 13.614,
       "frame_file": "frames/d1038_f1.jpg",
       "frame_sha256": "d9b9365ac83efb90b78761649ecf8a27c7d3e4681518ad4899b7b60fbfefa4d8",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:12:52.637465+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1081,7 +1441,18 @@
       "duration_s": 50.625,
       "frame_file": "frames/d1469_f0.jpg",
       "frame_sha256": "d7fd9380643fcafee269cd9585a360a446ce60427079917a27351e5382dbc71e",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          46.67451477050781,
+          201.08193969726562,
+          64.67745208740234,
+          258.3262023925781
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:01.992483+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1108,7 +1479,18 @@
       "duration_s": 50.625,
       "frame_file": "frames/d1469_f1.jpg",
       "frame_sha256": "f0800b407e4bbaec5dd7ba9e6c1bbb2d608215774eae4183fa9011e22991fb1c",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          74,
+          82.5,
+          97,
+          153.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:11.069395+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1135,7 +1517,18 @@
       "duration_s": 8.572,
       "frame_file": "frames/d1187_f0.jpg",
       "frame_sha256": "87f2f780e8532d5efda6d29a543ad7f0750ebeb740d21c349c2b5980bf7f2bce",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          99,
+          89.5,
+          156,
+          175.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:16.043805+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1152,7 +1545,13 @@
       "duration_s": 8.572,
       "frame_file": "frames/d1187_f1.jpg",
       "frame_sha256": "6aee956a13bf304a8e2c9051baeb99a0ba9b9b89fbc37ce426e39004dd103b6f",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:18.345462+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1169,7 +1568,13 @@
       "duration_s": 8.459,
       "frame_file": "frames/d2612_f0.jpg",
       "frame_sha256": "7badb88b6f7ba512a2c419c95fd95bb343bef31295774ae357f6c0984fb2b070",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:20.918423+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1186,7 +1591,13 @@
       "duration_s": 8.459,
       "frame_file": "frames/d2612_f1.jpg",
       "frame_sha256": "d6d8d520b49fc88f5619bbeefe8302069aa25e48e3a2005a46b0868d7a852ee6",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:23.093253+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1203,7 +1614,18 @@
       "duration_s": 18.202,
       "frame_file": "frames/d2659_f0.jpg",
       "frame_sha256": "bb0d00cb44e66897557d622abf7193ca990f0208c3960cb9002399a5e08b98e5",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          168,
+          110.5,
+          200,
+          181.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:41.329585+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1220,7 +1642,18 @@
       "duration_s": 18.202,
       "frame_file": "frames/d2659_f1.jpg",
       "frame_sha256": "5031add7c20c896ffcecb390cc27f761e733a5e0f82a9ca7b03c8b66f948d58f",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          119,
+          110.5,
+          164,
+          193.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:46.677956+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1237,7 +1670,18 @@
       "duration_s": 11.211,
       "frame_file": "frames/d2586_f0.jpg",
       "frame_sha256": "a042332901acf98e6fffbc88b43116175acbbffd713b4a821ae8c060d7825450",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          98,
+          55.5,
+          183,
+          133.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:51.802442+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1254,7 +1698,13 @@
       "duration_s": 11.211,
       "frame_file": "frames/d2586_f1.jpg",
       "frame_sha256": "70758801ee68b2285841dd84729833ff8132a969c3f1e4b68c5cacf6b1476e59",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:13:54.220633+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1271,7 +1721,13 @@
       "duration_s": 16.067,
       "frame_file": "frames/d1777_f0.jpg",
       "frame_sha256": "f684f4105dfff4f97104265be45a0df5cf33b7f30b2a34d86f5007cffd2f7eee",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:01.242629+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1307,7 +1763,13 @@
       "duration_s": 16.067,
       "frame_file": "frames/d1777_f1.jpg",
       "frame_sha256": "3f4a2048a523a13c722ebcf33c084ffcfdd33ce3e166e25a4e5fe0fd94eaaea0",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:33.276301+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1352,7 +1814,18 @@
       "duration_s": 11.495,
       "frame_file": "frames/d2623_f0.jpg",
       "frame_sha256": "165e9af45236cb2e1a04072e2c3dc34100e9b972a9644a138ac9d13cb6094b10",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          124,
+          156.5,
+          173,
+          246.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:40.073234+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1379,7 +1852,13 @@
       "duration_s": 11.495,
       "frame_file": "frames/d2623_f1.jpg",
       "frame_sha256": "6a162402b5ff137f33dce90b6fd252bb7f448c93f91e5adb43482932134d8a7a",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:44.417110+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1396,7 +1875,18 @@
       "duration_s": 11.412,
       "frame_file": "frames/d2587_f0.jpg",
       "frame_sha256": "6693ff7cc4ec3bfd10f34e0b4f89cf84162d2b23318afc1220611639c2b8c27f",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          99,
+          75.5,
+          139,
+          156.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:50.631801+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1413,7 +1903,18 @@
       "duration_s": 11.412,
       "frame_file": "frames/d2587_f1.jpg",
       "frame_sha256": "e073f17b5b67fa54f936dc65a3294ba6f3d2a65aa460d9451634eb1d4a68fbd2",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          152.19102478027344,
+          100.62889099121094,
+          201.31866455078125,
+          232.85464477539062
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:14:56.292787+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1440,7 +1941,18 @@
       "duration_s": 11.479,
       "frame_file": "frames/d2565_f0.jpg",
       "frame_sha256": "141f9702730410ad185d8d69f1587886bf3f18dbfac66eae4d9fb86ac4eda82a",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          35,
+          171.5,
+          62,
+          233.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:07.338061+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1485,7 +1997,13 @@
       "duration_s": 11.479,
       "frame_file": "frames/d2565_f1.jpg",
       "frame_sha256": "6dfe049d628d1f927767328b67c9b78b756619df81d519a0bdef0210c710c5c2",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:33.052490+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1530,7 +2048,18 @@
       "duration_s": 14.145,
       "frame_file": "frames/d2679_f0.jpg",
       "frame_sha256": "f2d254e9afbfb01695cd46bc4819d9e166a72d1d10c5f4370e4638f22c6866ad",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          121,
+          126.5,
+          148,
+          158.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:40.331332+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1547,7 +2076,13 @@
       "duration_s": 14.145,
       "frame_file": "frames/d2679_f1.jpg",
       "frame_sha256": "a6a34358354138e3b910572838a31d63c0c2128be30e24a8bfe6231cda708a4e",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:43.999544+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1564,7 +2099,13 @@
       "duration_s": 8.681,
       "frame_file": "frames/d2646_f0.jpg",
       "frame_sha256": "05f8be4ba8f621853857696615eff7fc481c1ed4d41777f3b1594209ef28c734",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:48.917822+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1581,7 +2122,18 @@
       "duration_s": 8.681,
       "frame_file": "frames/d2646_f1.jpg",
       "frame_sha256": "797200b4159b9515aac3966d59907c138653856d0790e87dec54c3a9a5a5acfd",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          15.580535888671875,
+          220.22842407226562,
+          40.337745666503906,
+          244.28065490722656
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:15:56.980276+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1617,7 +2169,13 @@
       "duration_s": 18.152,
       "frame_file": "frames/d2626_f0.jpg",
       "frame_sha256": "5341f6644d5f3fe6addef2027553560cd176d4c055a89930a6d158d2e5ee35fb",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:16:07.187392+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1634,7 +2192,18 @@
       "duration_s": 18.152,
       "frame_file": "frames/d2626_f1.jpg",
       "frame_sha256": "5cd50b038e214a008e11ec79256ea6176406edab3dea99bbe02a2f6d4844fdb4",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          77,
+          269.5,
+          104,
+          290.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:16:19.223813+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1651,7 +2220,18 @@
       "duration_s": 15.216,
       "frame_file": "frames/d2644_f0.jpg",
       "frame_sha256": "60800110a2de97dc4461e2b1a9090f998a1629998f78c87da6d7676b94c0240a",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          98,
+          91.5,
+          135,
+          191.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:16:29.082598+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1668,7 +2248,13 @@
       "duration_s": 15.216,
       "frame_file": "frames/d2644_f1.jpg",
       "frame_sha256": "8bc7ce729a0f12e8386effcefd2428f5d9e6258e397f36d5998ecba1268f4331",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:17:13.129859+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1685,7 +2271,18 @@
       "duration_s": 9.314,
       "frame_file": "frames/d2637_f0.jpg",
       "frame_sha256": "8c2f1dc77b466f34e78466baebb0a6e967209e12b313fcb6409889756bcede22",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          114,
+          95.5,
+          201,
+          165.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:27.151201+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1702,7 +2299,13 @@
       "duration_s": 9.314,
       "frame_file": "frames/d2637_f1.jpg",
       "frame_sha256": "fc6d4c51d372d4a0e0c69b97b1d06c48ece7d5fdfb21ec9ae7c4fe394b156f19",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:33.186246+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1719,7 +2322,18 @@
       "duration_s": 32.572,
       "frame_file": "frames/d2384_f0.jpg",
       "frame_sha256": "29f058d6658e5e612b4d1e8b50682ff37fa1b7d046820d15b561cf7e78433437",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          133,
+          111.5,
+          179,
+          200.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:37.264825+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1736,7 +2350,18 @@
       "duration_s": 32.572,
       "frame_file": "frames/d2384_f1.jpg",
       "frame_sha256": "88a9c36f1d9b54cfecc909ae3da1cbb96e4bb398cde82a440cdfe7db43c83fa0",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          87,
+          203.5,
+          115,
+          224.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:42.935609+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1753,7 +2378,13 @@
       "duration_s": 16.21,
       "frame_file": "frames/d2666_f0.jpg",
       "frame_sha256": "531c441eb1d0f2f00f62402eca577c635394738f68a94aa5e52e31aafcbb5ce9",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:47.103072+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1770,7 +2401,18 @@
       "duration_s": 16.21,
       "frame_file": "frames/d2666_f1.jpg",
       "frame_sha256": "30f8cb907183919ae34f0495d62190e9f69529a9ed9e1126dd8e1c3a1086317f",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          54,
+          206.5,
+          77,
+          220.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:53.633809+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1787,7 +2429,18 @@
       "duration_s": 9.727,
       "frame_file": "frames/d2455_f0.jpg",
       "frame_sha256": "6ac41e6024ded16ee2201004bf3e0563410c6981c79337a1c244c300de447732",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          35,
+          154.5,
+          73,
+          214.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:20:59.433906+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1814,7 +2467,18 @@
       "duration_s": 9.727,
       "frame_file": "frames/d2455_f1.jpg",
       "frame_sha256": "6cff373a16b94cfa4753b59ef41f74e0f65548d8c589eaeb146a9f37be197940",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          99,
+          169.5,
+          138,
+          211.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:05.371093+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1831,7 +2495,18 @@
       "duration_s": 25.051,
       "frame_file": "frames/d2657_f0.jpg",
       "frame_sha256": "b0ec7c89c5344229b2252486aa83dd021a45cae59de41808ded711c8565890bb",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          85,
+          116.5,
+          116,
+          161.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:11.144982+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1858,7 +2533,18 @@
       "duration_s": 25.051,
       "frame_file": "frames/d2657_f1.jpg",
       "frame_sha256": "6f24db31b9649d6d7cd91b3053e2f33534f76632e298510954a1b6a65a8e2955",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          136.66087341308594,
+          216.00537109375,
+          181.3897247314453,
+          242.02398681640625
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:24.120470+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1885,7 +2571,13 @@
       "duration_s": 5.838,
       "frame_file": "frames/d2616_f0.jpg",
       "frame_sha256": "26a450a261340a1a5ec8c5c930f1d83888fc76197c08d08f6682a259551b5169",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:34.218788+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1902,7 +2594,13 @@
       "duration_s": 5.838,
       "frame_file": "frames/d2616_f1.jpg",
       "frame_sha256": "f0807f71f01ee2d69c99f87afee11a137576ed154e853a0beeef6e559ba43665",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:38.436003+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1919,7 +2617,18 @@
       "duration_s": 15.383,
       "frame_file": "frames/d2649_f0.jpg",
       "frame_sha256": "98f20a527607c7d3489af1b636db717afa24e5ee0527fd90f67e47cf47b1df85",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          90,
+          73.5,
+          133,
+          128.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:44.210999+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": [
         {
           "bbox_xyxy": [
@@ -1946,7 +2655,18 @@
       "duration_s": 15.383,
       "frame_file": "frames/d2649_f1.jpg",
       "frame_sha256": "cb586b36f4f4eedd72c1c6fe01a9439bfb32c2d4ab976970e04c0bdca073b39b",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          93,
+          122.5,
+          156,
+          193.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:51.316882+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1963,7 +2683,18 @@
       "duration_s": 12.797,
       "frame_file": "frames/d1576_f0.jpg",
       "frame_sha256": "b5d510cdd752da9c7c018119290329bca76edf83073b296cd1e8a465b375812d",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          55,
+          164.5,
+          100,
+          213.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:21:58.498711+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1980,7 +2711,13 @@
       "duration_s": 12.797,
       "frame_file": "frames/d1576_f1.jpg",
       "frame_sha256": "622540514aaefd0458aba8718c261f17c10851a1bcb9f7a25979ecbef27e3f64",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:22:08.998301+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -1997,7 +2734,18 @@
       "duration_s": 10.75,
       "frame_file": "frames/d2155_f0.jpg",
       "frame_sha256": "b65a07a99384969ffcd020f629934bb75df1194d6bfeff29dfc9b4584b9e2b01",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          70,
+          76.5,
+          150,
+          142.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:22:13.005627+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -2014,7 +2762,13 @@
       "duration_s": 10.75,
       "frame_file": "frames/d2155_f1.jpg",
       "frame_sha256": "315f20345445e5c837c897f9bb2a2443be3719107d777a8de0a30d2e48520e5a",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:22:17.914319+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -2031,7 +2785,18 @@
       "duration_s": 11.212,
       "frame_file": "frames/d1709_f0.jpg",
       "frame_sha256": "4d0b6106d4dd9a13c7a3f015de2f6b41c94d217907789bfd04f3e7abd371c9a4",
-      "annotation": null,
+      "annotation": {
+        "visibility": "visible",
+        "bbox": [
+          88,
+          77.5,
+          150,
+          150.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:22:22.148202+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     },
     {
@@ -2048,7 +2813,18 @@
       "duration_s": 11.212,
       "frame_file": "frames/d1709_f1.jpg",
       "frame_sha256": "3330c02ba7fc42f0dd4d3a9960e1e0bf200a81b9982843113a799cad883008b1",
-      "annotation": null,
+      "annotation": {
+        "visibility": "not_visible",
+        "bbox": [
+          138,
+          184.5,
+          162,
+          220.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-07T17:22:51.805134+00:00",
+        "state": "HUMAN_REVIEWED"
+      },
       "coco_candidates": []
     }
   ]

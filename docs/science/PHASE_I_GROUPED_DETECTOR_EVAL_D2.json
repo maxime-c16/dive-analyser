@@ -1,0 +1,44 @@
+{
+  "label": "PHASE_I_GROUPED_DETECTOR_EVAL_D2",
+  "date": "2026-09-07",
+  "model": "DIVER_DETECTOR_D2_V8N",
+  "backbone": "yolov8n",
+  "dataset": "DATASET_D2_FREEZE",
+  "best_epoch": 1,
+  "early_stop_epoch": 21,
+  "device_trained": "mps (Apple M2)",
+  "elapsed_s": 83.8,
+  "splits": {
+    "train": {
+      "mAP50": 0.1234,
+      "mAP50_95": 0.0631,
+      "precision": 0.0026,
+      "recall": 0.7812,
+      "n_images": 32
+    },
+    "val": {
+      "mAP50": 0.0732,
+      "mAP50_95": 0.0276,
+      "precision": 0.0029,
+      "recall": 0.8571,
+      "n_images": 7
+    },
+    "holdout": {
+      "mAP50": 0.0562,
+      "mAP50_95": 0.0167,
+      "precision": 0.0021,
+      "recall": 0.6304,
+      "n_images": 46
+    }
+  },
+  "interpretation": {
+    "train_mAP50": 0.1234,
+    "val_mAP50": 0.0732,
+    "holdout_mAP50": 0.0562,
+    "holdout_recall": 0.6304,
+    "generalization_gap_mAP50": 0.0672,
+    "note_on_l1_comparison": "L1 mAP50=0.766 was measured on its training set (DEVELOPMENT = 38 V1 frames, no holdout). D2 val/holdout are genuinely unseen. The comparison is not apples-to-apples. D2 holdout recall=0.630 is meaningful; L1 recall on Paris canary was 0.000.",
+    "precision_analysis": "Precision near 0 across all splits. Model detects persons broadly but does not discriminate diver vs background people. Primary cause: 32 training frames is insufficient for high-precision single-class fine-tuning on a visually diverse corpus.",
+    "usability_verdict": "MARGINAL \u2014 recall sufficient for tracking input, precision requires NMS + scene prior filtering"
+  }
+}

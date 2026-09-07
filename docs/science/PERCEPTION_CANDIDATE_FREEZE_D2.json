@@ -1,0 +1,15 @@
+{
+  "label": "PERCEPTION_CANDIDATE_FREEZE_D2",
+  "date": "2026-09-07",
+  "status": "FROZEN",
+  "model": "DIVER_DETECTOR_D2_V8N",
+  "weights_file": "experiments/landmark_pilot/runs/DIVER_DETECTOR_D2_V8N_best.pt",
+  "weights_sha256": "488828723dff1be67cd63e3283cc0504224b2107a18de71c10d72f9793e4f345",
+  "val_mAP50": 0.0732,
+  "holdout_mAP50": 0.0562,
+  "holdout_recall": 0.6304,
+  "decision": "PROCEED_TO_PARIS_CANARY",
+  "rationale": "holdout recall=0.630 is non-zero (L1 had 0.000 on Paris). Low precision is expected at this dataset size and will be addressed by scene prior filtering (Phase M). Paris canary is the critical test.",
+  "paris_firewall": "Do NOT train on IMG_1937.mov. Do NOT tune using its results.",
+  "next_phase": "PHASE_K \u2014 External Paris Canary evaluation"
+}

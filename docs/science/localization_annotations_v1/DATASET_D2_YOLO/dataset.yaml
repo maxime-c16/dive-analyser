@@ -1,0 +1,12 @@
+path: /home/mcauchy/dive-analyser/docs/science/localization_annotations_v1/DATASET_D2_YOLO
+train: images/train
+val: images/val
+test: images/holdout
+
+nc: 1
+names:
+  0: diver
+
+# Dataset D2 — 85 total annotated frames
+# train=32 val=7 holdout=46
+# Split: EARLY+MID->train/val; LATE->holdout (date-range generalization test)
