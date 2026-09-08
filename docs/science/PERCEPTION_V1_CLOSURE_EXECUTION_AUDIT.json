@@ -1,0 +1,67 @@
+{
+  "label": "PERCEPTION_V1_CLOSURE_EXECUTION_AUDIT",
+  "date": "2026-09-09",
+  "starting_head": "755a64163fb9a58f718f2bba59f2f8a66a467f3a",
+  "repair_packet": "SUPERVISOR_TASK_PACKET_PERCEPTION_V1_CLOSURE_REPAIR",
+  "A1_pipeline_usage": {
+    "PARIS_FULL_TRAJECTORY_V1.json": {
+      "pipeline": "D5_FRAMEWISE_PLUS_R1_AT_ANCHORS",
+      "r1_used_in_continuous": false,
+      "r1_used_in_anchor_pass2": true,
+      "anchor_gate_uses": "d5_rank1_correct",
+      "verdict": "D5_ONLY_FOR_GATE_BUT_R1_UNNECESSARILY_LOADED"
+    },
+    "MULTI_DIVE_DEVELOPMENT_EVAL_V1.json": {
+      "pipeline": "D5_A_PLUS_R1",
+      "r1_used_for_selection": true,
+      "d5_only_data_captured": true,
+      "verdict": "R1_CONTAMINATED_SELECTION",
+      "invalidation": "INVALID_FOR_MINIMAL_PERCEPTION_CLOSURE"
+    },
+    "D5_VS_R1_ABLATION_V1.json": {
+      "pipeline": "D5_ONLY (P0) vs D5+R1 (P1)",
+      "floor_conf_used": 0.001,
+      "verdict": "CLEAN"
+    }
+  },
+  "A2_floor_conf_usage": {
+    "D5_vs_R1_ablation_floor_conf": "0.001 (from PARAMS_E1 / freeze)",
+    "prior_paris_d5_eval_floor_conf": "0.001 (phase_p_paris_d5.py FLOOR_CONF=0.001)",
+    "failed_closure_paris_floor_conf": "0.01 (phase_d_paris_trajectory.py line 31: FLOOR_CONF=0.01)",
+    "multi_dive_dev_floor_conf": "0.001 (correct)",
+    "frame_extraction_bug": {
+      "description": "phase_d_paris_trajectory.py Pass 2 used sequential-read cached frames. Sequential reading from fi=129 causes 2-3 frame drift vs seek. At water_contact, sequential 'fi=239' corresponds to visual frame ~236, where D5 rank-1 is NOT the diver (IoU=0.107). Canonical frame fi=238 (used by phase_p_paris_d5.py via seek) has D5 rank-1 IoU=0.324.",
+      "effect": "C3 water_contact incorrectly FAILED despite diver being detectable"
+    }
+  },
+  "A3_invalidation": {
+    "MULTI_DIVE_DEVELOPMENT_EVAL_V1_pipeline": "D5_A_PLUS_R1",
+    "status": "INVALID_FOR_MINIMAL_PERCEPTION_CLOSURE",
+    "reason": "R1 was used for candidate selection after R1 was rejected (D5_FRAMEWISE_SUFFICIENT declared)",
+    "historical_preservation": "File retained at docs/science/MULTI_DIVE_DEVELOPMENT_EVAL_V1.json",
+    "authority_superseded_by": "DEV_D5_ONLY_TRAJECTORIES_V1.json + D5_only_derived result",
+    "old_result": "1/10 PERCEPTION_VALID (R1-contaminated)",
+    "new_result_derived": "6/10 PERCEPTION_VALID (D5-only, derived from d5_only_correct fields)"
+  },
+  "execution_errors_summary": [
+    {
+      "error": "FLOOR_CONF=0.01 in phase_d_paris_trajectory.py",
+      "frozen_value": "0.001",
+      "impact": "C3 partial miss (IoU=0.107 vs correct 0.324 at canonical frame)",
+      "severity": "SECONDARY (frame bug was primary C3 cause)"
+    },
+    {
+      "error": "Sequential-read frame drift in Pass 2 anchor extraction",
+      "detail": "Used cached frames from sequential read (~3 frames before canonical GT frame)",
+      "impact": "C3 FAIL: canonical fi=238 passes (IoU=0.324), sequential-cached frame fails (IoU=0.107)",
+      "severity": "PRIMARY C3 failure cause",
+      "fix": "Use cap.set(CAP_PROP_POS_FRAMES, canon_fi) + cap.read() for each anchor (matches phase_p_paris_d5.py)"
+    },
+    {
+      "error": "R1 used in MULTI_DIVE_DEVELOPMENT_EVAL_V1.json after R1 rejection",
+      "impact": "1/10 valid instead of true D5-only result",
+      "severity": "HIGH: false DEVELOPMENT perception failure reported",
+      "fix": "Re-derive from d5_only_correct fields (captured in same artifact)"
+    }
+  ]
+}

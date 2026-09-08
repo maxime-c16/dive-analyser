@@ -1,0 +1,15 @@
+{
+  "label": "EL_V2_2_PROMOTION_STATUS",
+  "date": "2026-09-09",
+  "status": "NOT_PROMOTED",
+  "frozen_as": "EXPERIMENTAL_FROZEN",
+  "reason": "V2.2 (body-scale-aware velocity) provides a theoretically superior mechanism but produces identical BOTH_FAIL outcome as V2.1 on both Paris and DEVELOPMENT trajectories under current proxy-resolution constraints. V2.2 promotion to production requires full-resolution trajectories where body height normalization can be meaningfully computed.",
+  "paris_result": "BOTH_FAIL (same as V2.1)",
+  "dev_result": "0/6 complete (same as V2.1)",
+  "promotion_blocker": "PROXY_RESOLUTION_COVERAGE_GAP \u2014 not an EL V2.2 defect",
+  "action": "Retain V2.2 in frozen state; re-evaluate when full-resolution ingestion available",
+  "parameters_frozen": {
+    "takeoff_vel_threshold_bodylengths": 0.55,
+    "note": "DO NOT ALTER \u2014 supervisor constraint"
+  }
+}

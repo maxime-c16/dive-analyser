@@ -1,0 +1,226 @@
+{
+  "label": "DEV_EL_EVALUATION_V1",
+  "date": "2026-09-09",
+  "pipeline": "D5_FRAMEWISE_ONLY",
+  "n_valid_dives": 6,
+  "v2_1_complete": 0,
+  "v2_2_complete": 0,
+  "per_dive": {
+    "133": {
+      "dive_id": 133,
+      "code": "301B",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "water_contact": 2.95027
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    },
+    "311": {
+      "dive_id": 311,
+      "code": "401C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "water_contact": 14.821262
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    },
+    "676": {
+      "dive_id": 676,
+      "code": "301A",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 3.553575,
+        "apex": 3.886907,
+        "water_contact": 4.853569
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    },
+    "1040": {
+      "dive_id": 1040,
+      "code": "102C",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 4.463857,
+        "apex": 4.797189,
+        "water_contact": 5.413853
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    },
+    "2169": {
+      "dive_id": 2169,
+      "code": "101B",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 6.46124,
+        "apex": 6.761239,
+        "water_contact": 7.694569
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    },
+    "2387": {
+      "dive_id": 2387,
+      "code": "5411C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "water_contact": 5.499937
+      },
+      "v2_1_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_1_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_1_total_err": null,
+      "v2_2_result": {
+        "takeoff_pred": null,
+        "apex_pred": null,
+        "water_contact_pred": null,
+        "complete": false,
+        "confidence": null
+      },
+      "v2_2_errors": {
+        "takeoff": null,
+        "apex": null,
+        "water_contact": null
+      },
+      "v2_2_total_err": null
+    }
+  }
+}

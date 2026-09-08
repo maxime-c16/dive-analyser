@@ -1,0 +1,17 @@
+{
+  "label": "R1_RERANKER_FINAL_STATUS",
+  "date": "2026-09-09",
+  "status": "REJECTED",
+  "artifact": "models/frozen/R1_RERANKER.pkl",
+  "verdict": "D5_FRAMEWISE_SUFFICIENT \u2014 R1 adds no value",
+  "evidence": {
+    "ablation": "D5_VS_R1_ABLATION_V1.json: D5-alone 33.3% top-1, D5+R1 27.8% top-1, delta=-5.5pp",
+    "r1_adds_value": false
+  },
+  "dev_contamination": "MULTI_DIVE_DEVELOPMENT_EVAL_V1.json used R1 for selection (D5_A_PLUS_R1 pipeline) after R1 was rejected. This inflated false-invalid rate to 9/10. D5-only re-derivation yields 6/10 valid (correct).",
+  "retention": "Artifact retained for reference; not used in any active pipeline",
+  "reopen_criteria": [
+    "New reranker architecture with demonstrated +5pp improvement on DEVELOPMENT",
+    "Supervised by new research cycle \u2014 not part of perception closure"
+  ]
+}

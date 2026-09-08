@@ -1,0 +1,36 @@
+{
+  "label": "PARIS_EVENT_LOGIC_REAL_TEST_V2",
+  "date": "2026-09-09",
+  "paris_sha": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "trajectory_source": "PARIS_FULL_TRAJECTORY_V2.json",
+  "trajectory_gate": "TRAJECTORY_INPUT_PASS",
+  "dive_code": "5122D",
+  "gt": {
+    "takeoff_s": 3.12,
+    "apex_s": 3.57,
+    "water_contact_s": 4.22
+  },
+  "el_v2_1": {
+    "takeoff_pred": null,
+    "apex_pred": null,
+    "water_contact_pred": null,
+    "complete": null,
+    "confidence": null,
+    "takeoff_err": null,
+    "apex_err": null,
+    "water_contact_err": null
+  },
+  "el_v2_2": {
+    "takeoff_pred": null,
+    "apex_pred": null,
+    "water_contact_pred": null,
+    "complete": null,
+    "confidence": null,
+    "takeoff_err": null,
+    "apex_err": null,
+    "water_contact_err": null
+  },
+  "paris_comparison": "BOTH_FAIL",
+  "v2_1_total_err": null,
+  "v2_2_total_err": null
+}
