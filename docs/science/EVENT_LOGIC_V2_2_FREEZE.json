@@ -1,0 +1,62 @@
+{
+  "label": "EVENT_LOGIC_V2_2_FREEZE",
+  "status": "FROZEN",
+  "date": "2026-09-08",
+  "author": "maxime@qwokka.fr",
+  "supersedes": "EVENT_LOGIC_V2_1_FREEZE.json",
+  "supersession_reason": "V2.1's takeoff_vel_threshold=0.04 is a FIXED ABSOLUTE cy_norm/s magnitude, flagged CAMERA_SCALE_SENSITIVE by the supervisor packet. V2.2 replaces the takeoff decision rule with a scale-aware alternative while preserving V2.1's state machine (PREPARATION -> HURDLE -> BOARD_RECONTACT -> FINAL_FLIGHT), apex detection (velocity zero-crossing, unchanged), and water_contact detection (cy-threshold/dropout, unchanged, already non-circular).",
+  "source_file": "experiments/landmark_pilot/proposer_event_logic_v2_2.py",
+  "source_sha256": "57285d36013239dbdfaaec8ffc7c994178c05ea92e0dbb8f396aab476c333424",
+  "test_file": "experiments/landmark_pilot/test_event_logic_v2_2.py",
+  "test_sha256": "c95532b6f4e0db75d0c7c6b018f5be9e7b7655d4e5429b2069a9f8378489c66f",
+  "test_count": 24,
+  "test_status": "ALL_PASS",
+  "selected_variant": "S1_BODY_SCALE",
+  "perception_identity": {
+    "authority": "PHASE_B_PARIS_SPARSE_IDENTITY_AUDIT.json + PHASE_D1_JK_DEVELOPMENT_TRAJECTORY_RESULTS.json",
+    "d3_1_weights_sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+    "operating_point": "D3_1_OPERATING_POINT_FREEZE.json (conf=0.05, iou=0.45, imgsz=640)",
+    "selection_architecture": "FRAMEWISE_D3_1 + DETERMINISTIC_CONTINUITY (N0)",
+    "known_limitation": "N0 is demonstrated to lock onto static high-confidence false positives when true-target confidence is near the operating threshold. Confirmed on Paris (pervasive: hurdle through entry) AND on DEVELOPMENT (3 of 8 attempted dives excluded via a static-lock variance check, cy_norm std 0.0002-0.0004, matching Paris's 0.0016 signature; 2 further dives excluded via sparse-frame identity mismatch). Only 3 of 8 DEVELOPMENT dives (all STANDING context; zero surviving HURDLE dives) were usable for Event Logic scoring. V2.2 is developed and evaluated ONLY on the trajectories that pass this identity gate; it does not correct or compensate for perception identity errors."
+  },
+  "trajectory_contract": {
+    "unit": "cy_norm (0=top, 1=bottom of frame), bh_norm (bbox height / frame height), exact per-frame PTS in seconds",
+    "source": "d3_infer.py N0 output (framewise highest-confidence + continuity-gated selection, continuity gate=0.12 normalized), one point per decoded frame, gaps where n_candidates=0",
+    "development_corpus_fingerprint": "sha256(PHASE_D1_JK_DEVELOPMENT_TRAJECTORY_RESULTS.json)=857c5d8f4a0c8df27ab07b66ea5a242440c17aa01d602c2c2357e2348d639c46",
+    "development_dives_used": [133, 311, 524, 676, 1040, 2387, 2625, 2680],
+    "development_dives_evaluated_after_gate": [133, 311, 2387]
+  },
+  "scale_normalization_method": {
+    "candidates_investigated": 2,
+    "S1_BODY_SCALE": "v_body[i] = vel_y[i] / ref_bbox_h_norm, ref_bbox_h_norm = robust median bbox height over the preparation window (falls back to whole-signal median, then to MIN_BBOX_H_NORM=0.01 zero/near-zero safeguard). Threshold expressed in body-heights/second.",
+    "S2_PREP_BASELINE": "threshold = prep_mad_multiplier * max(MAD(raw cy_norm/s velocity over preparation window), MAD_FLOOR=0.003). Per-dive-adaptive, no cross-dive scale assumption at all.",
+    "selected": "S1_BODY_SCALE",
+    "selection_rationale": "On the 3 gate-passing DEVELOPMENT dives, S1, S2, and frozen V2.1 produced statistically indistinguishable errors (takeoff median 0.246-0.279s, apex median 0.119s, all n<=2 -- too small a sample to declare either V2.2 candidate strictly more accurate than V2.1). Selection therefore follows Phase K's explicit instruction to weigh robustness-to-camera-scale and simplicity, not a single aggregate accuracy score: S1_BODY_SCALE directly targets the supervisor-flagged failure mode (a FIXED ABSOLUTE velocity threshold that does not travel across camera framings) with a physically interpretable unit (body-heights/second) and a documented, tested zero/near-zero-scale safeguard. S2_PREP_BASELINE is retained as a documented, tested alternative (not discarded) because it requires no bbox-scale reference at all and may be preferable if bbox-height estimates prove unreliable in a future domain; it is not selected for THIS freeze because it still could not be validated against a single real HURDLE trajectory (identical perception-gate limitation as S1) so neither candidate has a decisive real-data edge, and S1 better matches the packet's explicit framing of the problem as camera-SCALE sensitivity."
+  },
+  "smoothing": {
+    "audit_result": "All V2.1/V2.2 temporal windows are already expressed in seconds/PTS (smooth_window_s, interp_max_gap_s, vel_max_gap_s, static_window_s, static_min_duration_s, takeoff_sustained_s, hurdle_post_plateau_guard_s, apex_search_start_s, water_contact_min_after_apex_s). No frame-count window exists to convert. pts_aware_smooth is a PTS-weighted Gaussian in the time domain. FPS-invariance verified by test fixture (30fps vs 60fps renderings of the same synthetic trajectory agree within 2/30s)."
+  },
+  "state_transitions": "Unchanged from V2.1: PREPARATION (static plateau) -> [HURDLE: first neg->non-neg velocity crossing = hurdle apex/board_recontact] -> search sustained rising velocity (scale-aware in V2.2) after board_recontact (HURDLE) or after prep_end+min_delay (STANDING) = takeoff -> velocity zero-crossing (neg->pos) = apex -> cy_norm > water_line threshold or confidence dropout = water_contact.",
+  "thresholds": {
+    "S1_takeoff_vel_threshold_bodylengths": 0.55,
+    "S2_prep_mad_multiplier": 6.0,
+    "S2_mad_floor_cy_norm_per_s": 0.003,
+    "min_bbox_h_norm_safeguard": 0.01,
+    "unchanged_from_v2_1": ["static_min_duration_s=0.25", "takeoff_sustained_s=0.15", "takeoff_min_after_prep_s=0.10", "hurdle_post_plateau_guard_s=0.40", "apex_search_start_s=0.08", "water_line_cy_norm=0.50", "water_contact_min_after_apex_s=0.05", "min_coverage_for_confident=0.15"]
+  },
+  "threshold_calibration_note": "0.55 body-heights/s was set from bounded exploration on DEVELOPMENT synthetic-fixture-scale reasoning plus the (limited, noisy) real-DEVELOPMENT max-body-velocity-near-takeoff samples gathered in this cycle (observed range across 4 early dives: 0.01-11.0 body-heights/s, heavily contaminated by wrong-target-lock noise in exactly the dives later excluded by the D1/static-lock gate). Given the gate-passing real sample is too small (n=3) to fit a threshold with statistical confidence, 0.55 was chosen as a moderate, conservative value roughly in the middle of the plausible clean-signal band, NOT fit to Paris. This is flagged as a limitation, not a rigorously-derived constant.",
+  "water_contact_logic": "Unchanged from V2.1 (already non-circular per packet Phase I: primary rule is a fixed cy_norm>water_line_cy_norm geometric threshold checked forward from apex; fallback is last frame with detector confidence>0.3 after apex. Neither depends on a prior estimate of water_contact itself, so no additional refinement was required or added in this packet).",
+  "uncertainty": "confident = coverage >= min_coverage_for_confident (0.15) AND takeoff_idx is not None, unchanged from V2.1. No landmark is reported for dives failing the D1 perception gate at that landmark.",
+  "development_evaluation_summary": {
+    "dives_attempted": 8,
+    "dives_evaluated_after_gate": 3,
+    "excluded_static_lock": 3,
+    "excluded_sparse_identity_fail": 2,
+    "v21_err_takeoff_median_s": 0.279, "s1_err_takeoff_median_s": 0.246, "s2_err_takeoff_median_s": 0.279,
+    "v21_err_apex_median_s": 0.119, "s1_err_apex_median_s": 0.119, "s2_err_apex_median_s": 0.119,
+    "v21_err_wc_median_s": 0.014, "s1_err_wc_median_s": 0.014, "s2_err_wc_median_s": 0.014,
+    "conclusion": "V2_2_NO_DEVELOPMENT_IMPROVEMENT: on the very small (n<=2 per landmark) gate-passing real sample, S1/S2 are statistically indistinguishable from frozen V2.1's fixed threshold. No candidate shows >1s error or catastrophic failure on gate-passing dives. Zero real HURDLE dives survived the identity gate, so hurdle-context camera-scale robustness could not be validated on real data (only on the synthetic H2/H3 fixtures in test_event_logic_v2_2.py, which all pass)."
+  },
+  "paris_status_at_freeze": "SEALED. No Paris data of any kind (raw, derived, or aggregate) was used to choose S1 vs S2, the body-heights/s multiplier, the MAD multiplier, or any other V2.2 parameter. All calibration used DEVELOPMENT dives only, as required.",
+  "next_gate": "SUPERVISOR_REVIEW_AFTER_REAL_TRAJECTORY_EVENT_LOGIC_V2_2"
+}
