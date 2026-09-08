@@ -1,0 +1,57 @@
+{
+  "label": "TARGET_DIVER_SELECTOR_V2_FREEZE",
+  "date": "2026-09-08",
+  "chosen_selector": "S1_GLOBAL_PATH",
+  "version": "V2",
+  "rationale": "S3_ACTION_GLOBAL_PATH was designed and evaluated as the primary V2 candidate. S3 adds a spatial-persistence motion auxiliary (penalises candidates that appear persistently at the same location across the full sequence, i.e. static background FPs) and scale plausibility. On DEVELOPMENT: S3=48.4% ALL (15/31) vs S1=51.6% (16/31) \u2014 1-frame regression on dive 133 takeoff, and dive 2625 now selects wrong target instead of safely returning NULL. S3 shows directional improvement at Paris (water_contact: MATCH with conf=0.121, iou=0.511 vs S1 WRONG) but takeoff and apex remain wrong. Per packet Phase I instruction (choose using DEVELOPMENT only), S1 remains the chosen selector. S3 Paris finding is recorded as a directional result supporting the motion-auxiliary approach in future work.",
+  "S3_paris_finding": {
+    "water_contact": "S3 MATCH (iou=0.511, dist=0.042, conf=0.121) vs S1 WRONG (conf=0.311, dist=0.536)",
+    "takeoff": "S3 WRONG (dist=0.192) vs S1 WRONG (dist=0.295) \u2014 both wrong, S3 closer",
+    "apex": "S3 WRONG (dist=0.454) vs S1 WRONG (dist=0.4) \u2014 both wrong",
+    "std_cy_paris": {
+      "S1": 0.0162,
+      "S3": 0.0745
+    },
+    "interpretation": "Persistence penalty partially breaks static-FP lock at Paris; insufficient for full trajectory gate pass."
+  },
+  "detector_identity": {
+    "model": "DIVER_DETECTOR_D3_V8N",
+    "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+    "conf_threshold": 0.05,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "reference": "docs/science/D3_PROPOSAL_V1_FREEZE.json"
+  },
+  "algorithm": "Deterministic Viterbi (dynamic programming) over per-frame states = {every raw D3.1 candidate at t} union {NULL} \u2014 identical to TARGET_DIVER_SELECTOR_V1_FREEZE.json",
+  "scoring_terms": "Unchanged from V1: log(conf) observation, spatial continuity + scale-change transition, C_REACQUIRE/C_NULL_HOLD costs, post-hoc INVALID_STATIC_TRACK rolling window rejection.",
+  "S3_parameters_recorded_for_reference": {
+    "W_CONF": 0.5,
+    "W_PERSIST": 4.0,
+    "PERSIST_NEUTRAL": 0.25,
+    "PERSIST_RADIUS": 0.06,
+    "BBOX_AREA_MIN": 0.0005,
+    "BBOX_AREA_MAX": 0.25,
+    "W_SCALE_PLAUS": 0.5
+  },
+  "development_results": {
+    "S0_ALL": 0.4839,
+    "S1_ALL": 0.5161,
+    "S3_ALL": 0.4839,
+    "S0_STANDING": 0.7273,
+    "S1_STANDING": 0.7273,
+    "S3_STANDING": 0.6364,
+    "S0_HURDLE": 0.35,
+    "S1_HURDLE": 0.4,
+    "S3_HURDLE": 0.4,
+    "S1_conditional_acc": 0.8,
+    "S3_conditional_acc": 0.75,
+    "S1_mean_coverage": 0.7971,
+    "S3_mean_coverage": 0.8262,
+    "S1_static_lock_rate": 0.0833,
+    "S3_static_lock_rate": 0.0
+  },
+  "paris_firewall": "Paris labels MUST NOT adjust any parameter in this file. Paris was evaluated post-freeze for external validation only.",
+  "source_sha": "daae424890426ca5922453bd04438925ba6e09d9",
+  "reference_v1": "docs/science/TARGET_DIVER_SELECTOR_V1_FREEZE.json",
+  "status": "FROZEN"
+}

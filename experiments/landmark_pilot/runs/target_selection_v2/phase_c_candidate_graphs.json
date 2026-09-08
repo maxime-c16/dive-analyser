@@ -1,0 +1,141 @@
+{
+  "label": "PHASE_C_CANDIDATE_GRAPHS_V2",
+  "date": "2026-09-08",
+  "proposal_conf": 0.05,
+  "n_dives": 12,
+  "note": "Candidate graphs are the existing raw JSON files (conf=0.05). Each file contains per-frame: PTS, all D3 proposals with bbox/conf/normalized coords, explicit NULL state. No raw frames persisted.",
+  "dives": {
+    "133": {
+      "n_frames": 178,
+      "duration_s": 5.91,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 2,
+      "cand_p90": 3,
+      "cand_max": 3,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/133_raw.json"
+    },
+    "311": {
+      "n_frames": 577,
+      "duration_s": 19.22,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 3,
+      "cand_p90": 3,
+      "cand_max": 4,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/311_raw.json"
+    },
+    "524": {
+      "n_frames": 716,
+      "duration_s": 11.92,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 4,
+      "cand_p90": 6,
+      "cand_max": 8,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/524_raw.json"
+    },
+    "676": {
+      "n_frames": 222,
+      "duration_s": 7.37,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 1,
+      "cand_p90": 2,
+      "cand_max": 3,
+      "null_frame_rate": 0.2252,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/676_raw.json"
+    },
+    "1040": {
+      "n_frames": 332,
+      "duration_s": 11.04,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 1,
+      "cand_p90": 2,
+      "cand_max": 4,
+      "null_frame_rate": 0.0361,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/1040_raw.json"
+    },
+    "2387": {
+      "n_frames": 748,
+      "duration_s": 24.92,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 1,
+      "cand_p90": 2,
+      "cand_max": 5,
+      "null_frame_rate": 0.3663,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2387_raw.json"
+    },
+    "2625": {
+      "n_frames": 365,
+      "duration_s": 6.07,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 3,
+      "cand_p90": 3,
+      "cand_max": 5,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2625_raw.json"
+    },
+    "2680": {
+      "n_frames": 653,
+      "duration_s": 10.88,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 1,
+      "cand_p90": 2,
+      "cand_max": 4,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2680_raw.json"
+    },
+    "2169": {
+      "n_frames": 1078,
+      "duration_s": 17.97,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 2,
+      "cand_p90": 4,
+      "cand_max": 5,
+      "null_frame_rate": 0.0288,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2169_raw.json"
+    },
+    "2341": {
+      "n_frames": 607,
+      "duration_s": 10.1,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 4,
+      "cand_p90": 6,
+      "cand_max": 9,
+      "null_frame_rate": 0.0,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2341_raw.json"
+    },
+    "2541": {
+      "n_frames": 975,
+      "duration_s": 32.5,
+      "width": 202,
+      "height": 360,
+      "cand_p50": 1,
+      "cand_p90": 1,
+      "cand_max": 3,
+      "null_frame_rate": 0.4133,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2541_raw.json"
+    },
+    "2555": {
+      "n_frames": 722,
+      "duration_s": 12.15,
+      "width": 166,
+      "height": 360,
+      "cand_p50": 2,
+      "cand_p90": 5,
+      "cand_max": 11,
+      "null_frame_rate": 0.1039,
+      "source": "experiments/landmark_pilot/runs/target_selection_v1/2555_raw.json"
+    }
+  }
+}

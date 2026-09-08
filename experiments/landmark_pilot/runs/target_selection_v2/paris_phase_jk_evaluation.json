@@ -1,0 +1,85 @@
+{
+  "label": "PARIS_SELECTOR_V2_EVALUATION",
+  "date": "2026-09-08",
+  "selector_frozen": "S1_GLOBAL_PATH (TARGET_DIVER_SELECTOR_V2_FREEZE)",
+  "proposal_frozen": "D3_PROPOSAL_V1_FREEZE (conf=0.05)",
+  "video": "experiments/landmark_pilot/paris_source/IMG_1937.mov",
+  "video_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "n_frames": 322,
+  "resolution": "1080x1920 (portrait)",
+  "phase_j_raw_proposal_ceiling": {
+    "evaluable_reference_frames": 12,
+    "occluded_no_gt": 2,
+    "target_detected_but_not_selected": 8,
+    "target_not_detected": 3,
+    "ambiguous": 1,
+    "raw_ceiling_including_ambiguous": 0.75,
+    "gt_anchor_details": {
+      "takeoff_f187": {
+        "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED",
+        "best_conf": 0.0561,
+        "conf_rank": 5,
+        "best_iou": 0.8074
+      },
+      "apex_f214": {
+        "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED",
+        "best_conf": 0.0731,
+        "conf_rank": 3,
+        "best_iou": 0.6205
+      },
+      "water_contact_f253": {
+        "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED",
+        "best_conf": 0.1213,
+        "conf_rank": 2,
+        "best_iou": 0.5114
+      }
+    },
+    "note": "All 3 GT anchors have correct candidate present but unselected at conf=0.05. This is a selection failure, not a detection failure."
+  },
+  "phase_k_frozen_s1_result": {
+    "correct_gt_anchors": 0,
+    "total_gt_anchors": 3,
+    "takeoff": {
+      "verdict": "WRONG_TARGET",
+      "conf": 0.305,
+      "dist": 0.295
+    },
+    "apex": {
+      "verdict": "WRONG_TARGET",
+      "conf": 0.29,
+      "dist": 0.4
+    },
+    "water_contact": {
+      "verdict": "WRONG_TARGET",
+      "conf": 0.311,
+      "dist": 0.536
+    },
+    "coverage": 1.0,
+    "std_cy_norm": 0.0162,
+    "diagnosis": "Static FP lock persists at Paris. The selected trajectory (std_cy=0.016) shows near-zero vertical variation across the full clip, confirming the selector is locked on a static background object throughout."
+  },
+  "shadow_s3_result": {
+    "correct_gt_anchors": 1,
+    "total_gt_anchors": 3,
+    "takeoff": {
+      "verdict": "WRONG_TARGET",
+      "conf": 0.106,
+      "dist": 0.192
+    },
+    "apex": {
+      "verdict": "WRONG_TARGET",
+      "conf": 0.071,
+      "dist": 0.454
+    },
+    "water_contact": {
+      "verdict": "MATCH",
+      "conf": 0.121,
+      "iou": 0.511,
+      "dist": 0.042
+    },
+    "coverage": 1.0,
+    "std_cy_norm": 0.0745,
+    "interpretation": "Persistence penalty partially breaks static-FP lock. Water contact correctly identified. Takeoff and apex still wrong (proximity to static FP still wins in trajectory context). std_cy improvement (0.016 -> 0.075) confirms partial lock break."
+  },
+  "status": "EVALUATED"
+}

@@ -1,0 +1,1213 @@
+{
+ "phase_g_raw_ceiling_vs_conditional": {
+  "raw_detector_ceiling": {
+   "at_conf_0_05": 0.6452,
+   "n_candidate_present": 20,
+   "n_evaluable": 31,
+   "at_conf_0_005": 0.7742,
+   "note": "Includes ambiguous frames; conf=0.005 uses partial data (full-video low-conf inference not run for all dives, only 2541 miss frames)"
+  },
+  "S3_conditional_accuracy": {
+   "given_candidate_exists": 0.75,
+   "n_correct_given_exists": 15,
+   "n_with_candidate": 20
+  },
+  "S3_overall_correct_rate": 0.4839,
+  "s0_conditional_accuracy": {
+   "given_candidate_exists": 0.75,
+   "n": 20,
+   "n_correct": 15
+  },
+  "s1_conditional_accuracy": {
+   "given_candidate_exists": 0.8,
+   "n": 20,
+   "n_correct": 16
+  }
+ },
+ "aggregate": {
+  "s0": {
+   "STANDING": {
+    "n_dives": 4,
+    "correct_selection_rate": 0.7273,
+    "n_correct": 8,
+    "n_available": 11,
+    "n_null_at_reference": 0,
+    "n_wrong_target": 3,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.8521
+   },
+   "HURDLE": {
+    "n_dives": 8,
+    "correct_selection_rate": 0.35,
+    "n_correct": 7,
+    "n_available": 20,
+    "n_null_at_reference": 2,
+    "n_wrong_target": 11,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.9272
+   },
+   "ALL": {
+    "n_dives": 12,
+    "correct_selection_rate": 0.4839,
+    "n_correct": 15,
+    "n_available": 31,
+    "n_null_at_reference": 2,
+    "n_wrong_target": 14,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.9022
+   }
+  },
+  "s1": {
+   "STANDING": {
+    "n_dives": 4,
+    "correct_selection_rate": 0.7273,
+    "n_correct": 8,
+    "n_available": 11,
+    "n_null_at_reference": 0,
+    "n_wrong_target": 3,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.831
+   },
+   "HURDLE": {
+    "n_dives": 8,
+    "correct_selection_rate": 0.4,
+    "n_correct": 8,
+    "n_available": 20,
+    "n_null_at_reference": 4,
+    "n_wrong_target": 8,
+    "near_zero_variance_lock_rate": 0.125,
+    "mean_target_coverage": 0.7801
+   },
+   "ALL": {
+    "n_dives": 12,
+    "correct_selection_rate": 0.5161,
+    "n_correct": 16,
+    "n_available": 31,
+    "n_null_at_reference": 4,
+    "n_wrong_target": 11,
+    "near_zero_variance_lock_rate": 0.0833,
+    "mean_target_coverage": 0.7971
+   }
+  },
+  "s3": {
+   "STANDING": {
+    "n_dives": 4,
+    "correct_selection_rate": 0.6364,
+    "n_correct": 7,
+    "n_available": 11,
+    "n_null_at_reference": 0,
+    "n_wrong_target": 4,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.842
+   },
+   "HURDLE": {
+    "n_dives": 8,
+    "correct_selection_rate": 0.4,
+    "n_correct": 8,
+    "n_available": 20,
+    "n_null_at_reference": 2,
+    "n_wrong_target": 10,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.8183
+   },
+   "ALL": {
+    "n_dives": 12,
+    "correct_selection_rate": 0.4839,
+    "n_correct": 15,
+    "n_available": 31,
+    "n_null_at_reference": 2,
+    "n_wrong_target": 14,
+    "near_zero_variance_lock_rate": 0.0,
+    "mean_target_coverage": 0.8262
+   }
+  }
+ },
+ "per_dive": {
+  "133": {
+   "context": "STANDING",
+   "code": "301B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 178,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.09178,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0091,
+      "iou": 0.8648,
+      "conf": 0.9738,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0283,
+      "iou": 0.6501,
+      "conf": 0.2803,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0073,
+      "iou": 0.8852,
+      "conf": 0.4131,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 178,
+    "coverage": 0.9831,
+    "longest_null_gap_s": 0.067,
+    "std_cy_norm": 0.09018,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0091,
+      "iou": 0.8648,
+      "conf": 0.9738,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0283,
+      "iou": 0.6501,
+      "conf": 0.2803,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0073,
+      "iou": 0.8852,
+      "conf": 0.4131,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 178,
+    "coverage": 0.9775,
+    "longest_null_gap_s": 0.033,
+    "std_cy_norm": 0.09817,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.2863,
+      "iou": 0.0,
+      "conf": 0.0943,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0283,
+      "iou": 0.6501,
+      "conf": 0.2803,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0073,
+      "iou": 0.8852,
+      "conf": 0.4131,
+      "verdict": "MATCH"
+     }
+    }
+   }
+  },
+  "311": {
+   "context": "STANDING",
+   "code": "401C",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 577,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.32629,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0213,
+      "iou": 0.8188,
+      "conf": 0.408,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0118,
+      "iou": 0.892,
+      "conf": 0.9847,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 577,
+    "coverage": 0.9983,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.31854,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0213,
+      "iou": 0.8188,
+      "conf": 0.408,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0118,
+      "iou": 0.892,
+      "conf": 0.9847,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 577,
+    "coverage": 0.9983,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.3167,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0213,
+      "iou": 0.8188,
+      "conf": 0.408,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0118,
+      "iou": 0.892,
+      "conf": 0.9847,
+      "verdict": "MATCH"
+     }
+    }
+   }
+  },
+  "524": {
+   "context": "HURDLE",
+   "code": "103B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 716,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.12006,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0075,
+      "iou": 0.7344,
+      "conf": 0.7252,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0266,
+      "iou": 0.7023,
+      "conf": 0.9937,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 716,
+    "coverage": 0.9986,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.11473,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0075,
+      "iou": 0.7344,
+      "conf": 0.7252,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0266,
+      "iou": 0.7023,
+      "conf": 0.9937,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 716,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.05961,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0075,
+      "iou": 0.7344,
+      "conf": 0.7252,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0266,
+      "iou": 0.7023,
+      "conf": 0.9937,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     }
+    }
+   }
+  },
+  "676": {
+   "context": "STANDING",
+   "code": "301A",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 222,
+    "coverage": 0.7748,
+    "longest_null_gap_s": 0.934,
+    "std_cy_norm": 0.10382,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5573,
+      "iou": 0.0,
+      "conf": 0.0568,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0042,
+      "iou": 0.8533,
+      "conf": 0.9312,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.2519,
+      "iou": 0.0,
+      "conf": 0.0623,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 222,
+    "coverage": 0.7477,
+    "longest_null_gap_s": 0.934,
+    "std_cy_norm": 0.10373,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5573,
+      "iou": 0.0,
+      "conf": 0.0568,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0042,
+      "iou": 0.8533,
+      "conf": 0.9312,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.2519,
+      "iou": 0.0,
+      "conf": 0.0623,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 222,
+    "coverage": 0.7748,
+    "longest_null_gap_s": 0.934,
+    "std_cy_norm": 0.10382,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5573,
+      "iou": 0.0,
+      "conf": 0.0568,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0042,
+      "iou": 0.8533,
+      "conf": 0.9312,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.2519,
+      "iou": 0.0,
+      "conf": 0.0623,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  },
+  "1040": {
+   "context": "HURDLE",
+   "code": "102C",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 332,
+    "coverage": 0.9639,
+    "longest_null_gap_s": 0.133,
+    "std_cy_norm": 0.12291,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0696,
+      "iou": 0.4834,
+      "conf": 0.298,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0082,
+      "iou": 0.9098,
+      "conf": 0.8871,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0219,
+      "iou": 0.7796,
+      "conf": 0.5116,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 332,
+    "coverage": 0.9337,
+    "longest_null_gap_s": 0.3,
+    "std_cy_norm": 0.11991,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0696,
+      "iou": 0.4834,
+      "conf": 0.298,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0082,
+      "iou": 0.9098,
+      "conf": 0.8871,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0219,
+      "iou": 0.7796,
+      "conf": 0.5116,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 332,
+    "coverage": 0.9518,
+    "longest_null_gap_s": 0.133,
+    "std_cy_norm": 0.12474,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0696,
+      "iou": 0.4834,
+      "conf": 0.298,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0082,
+      "iou": 0.9098,
+      "conf": 0.8871,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0219,
+      "iou": 0.7796,
+      "conf": 0.5116,
+      "verdict": "MATCH"
+     }
+    }
+   }
+  },
+  "2169": {
+   "context": "HURDLE",
+   "code": "101B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 1078,
+    "coverage": 0.9712,
+    "longest_null_gap_s": 0.217,
+    "std_cy_norm": 0.19344,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.5423,
+      "conf": 0.1387,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0569,
+      "iou": 0.2243,
+      "conf": 0.148,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 1078,
+    "coverage": 0.9712,
+    "longest_null_gap_s": 0.217,
+    "std_cy_norm": 0.18751,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.5423,
+      "conf": 0.1387,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0569,
+      "iou": 0.2243,
+      "conf": 0.148,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 1078,
+    "coverage": 0.9712,
+    "longest_null_gap_s": 0.217,
+    "std_cy_norm": 0.22137,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.5423,
+      "conf": 0.1387,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "verdict": "NOT_ANNOTATED"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0569,
+      "iou": 0.2243,
+      "conf": 0.148,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  },
+  "2341": {
+   "context": "HURDLE",
+   "code": "101B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 607,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.11301,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.6007,
+      "iou": 0.0,
+      "conf": 0.4227,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.4598,
+      "iou": 0.0,
+      "conf": 0.4093,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.4619,
+      "iou": 0.0,
+      "conf": 0.3795,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 607,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.09614,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.6007,
+      "iou": 0.0,
+      "conf": 0.4227,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.4598,
+      "iou": 0.0,
+      "conf": 0.4093,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.4619,
+      "iou": 0.0,
+      "conf": 0.3795,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 607,
+    "coverage": 0.9984,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.17312,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.4141,
+      "iou": 0.0,
+      "conf": 0.0637,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.4484,
+      "iou": 0.0,
+      "conf": 0.1135,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.4533,
+      "iou": 0.0,
+      "conf": 0.1321,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  },
+  "2387": {
+   "context": "STANDING",
+   "code": "5411C",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 748,
+    "coverage": 0.6337,
+    "longest_null_gap_s": 2.569,
+    "std_cy_norm": 0.13685,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.4122,
+      "conf": 0.483,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.037,
+      "iou": 0.5043,
+      "conf": 0.4399,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.6016,
+      "iou": 0.0,
+      "conf": 0.1052,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 748,
+    "coverage": 0.5949,
+    "longest_null_gap_s": 2.736,
+    "std_cy_norm": 0.13839,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.4122,
+      "conf": 0.483,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.037,
+      "iou": 0.5043,
+      "conf": 0.4399,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.5478,
+      "iou": 0.0,
+      "conf": 0.0843,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 748,
+    "coverage": 0.6176,
+    "longest_null_gap_s": 2.736,
+    "std_cy_norm": 0.13962,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.0331,
+      "iou": 0.4122,
+      "conf": 0.483,
+      "verdict": "MATCH"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.037,
+      "iou": 0.5043,
+      "conf": 0.4399,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.5478,
+      "iou": 0.0,
+      "conf": 0.0843,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  },
+  "2541": {
+   "context": "HURDLE",
+   "code": "5111B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 975,
+    "coverage": 0.5867,
+    "longest_null_gap_s": 7.207,
+    "std_cy_norm": 0.07482,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0137,
+      "iou": 0.5674,
+      "conf": 0.2271,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 975,
+    "coverage": 0.5395,
+    "longest_null_gap_s": 7.875,
+    "std_cy_norm": 0.06817,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0137,
+      "iou": 0.5674,
+      "conf": 0.2271,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 975,
+    "coverage": 0.5733,
+    "longest_null_gap_s": 7.875,
+    "std_cy_norm": 0.07301,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.0137,
+      "iou": 0.5674,
+      "conf": 0.2271,
+      "verdict": "MATCH"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     }
+    }
+   }
+  },
+  "2555": {
+   "context": "HURDLE",
+   "code": "5132D",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 722,
+    "coverage": 0.8961,
+    "longest_null_gap_s": 0.167,
+    "std_cy_norm": 0.18419,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5388,
+      "iou": 0.0,
+      "conf": 0.1158,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.2525,
+      "iou": 0.1989,
+      "conf": 0.086,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.1597,
+      "iou": 0.1656,
+      "conf": 0.0766,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 722,
+    "coverage": 0.7978,
+    "longest_null_gap_s": 0.65,
+    "std_cy_norm": 0.18973,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5388,
+      "iou": 0.0,
+      "conf": 0.1158,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.2525,
+      "iou": 0.1989,
+      "conf": 0.086,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0513,
+      "iou": 0.4572,
+      "conf": 0.0578,
+      "verdict": "MATCH"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 722,
+    "coverage": 0.8698,
+    "longest_null_gap_s": 0.167,
+    "std_cy_norm": 0.18456,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.5388,
+      "iou": 0.0,
+      "conf": 0.1158,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.2525,
+      "iou": 0.1989,
+      "conf": 0.086,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0513,
+      "iou": 0.4572,
+      "conf": 0.0578,
+      "verdict": "MATCH"
+     }
+    }
+   }
+  },
+  "2625": {
+   "context": "HURDLE",
+   "code": "103B",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 365,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.02898,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": false
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.1632,
+      "iou": 0.0361,
+      "conf": 0.6248,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.6847,
+      "iou": 0.0,
+      "conf": 0.5918,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 365,
+    "coverage": 0.0,
+    "longest_null_gap_s": 6.073,
+    "std_cy_norm": 0.0,
+    "near_zero_variance_lock": true,
+    "phases": {
+     "takeoff": {
+      "available": false
+     },
+     "apex": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     },
+     "water_contact": {
+      "available": true,
+      "verdict": "NULL_AT_REFERENCE"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 365,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.05704,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": false
+     },
+     "apex": {
+      "available": true,
+      "center_dist_norm": 0.1632,
+      "iou": 0.0361,
+      "conf": 0.6248,
+      "verdict": "WRONG_TARGET"
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.6184,
+      "iou": 0.0,
+      "conf": 0.0518,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  },
+  "2680": {
+   "context": "HURDLE",
+   "code": "010C",
+   "s0": {
+    "status": "EVALUATED",
+    "n_frames": 653,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.12112,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.1598,
+      "iou": 0.0,
+      "conf": 0.073,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0726,
+      "iou": 0.2983,
+      "conf": 0.1941,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s1": {
+    "status": "EVALUATED",
+    "n_frames": 653,
+    "coverage": 1.0,
+    "longest_null_gap_s": 0.0,
+    "std_cy_norm": 0.1112,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.1598,
+      "iou": 0.0,
+      "conf": 0.073,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0726,
+      "iou": 0.2983,
+      "conf": 0.1941,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   },
+   "s3": {
+    "status": "EVALUATED",
+    "n_frames": 653,
+    "coverage": 0.1822,
+    "longest_null_gap_s": 4.667,
+    "std_cy_norm": 0.17549,
+    "near_zero_variance_lock": false,
+    "phases": {
+     "takeoff": {
+      "available": true,
+      "center_dist_norm": 0.1598,
+      "iou": 0.0,
+      "conf": 0.073,
+      "verdict": "WRONG_TARGET"
+     },
+     "apex": {
+      "available": false
+     },
+     "water_contact": {
+      "available": true,
+      "center_dist_norm": 0.0726,
+      "iou": 0.2983,
+      "conf": 0.1941,
+      "verdict": "WRONG_TARGET"
+     }
+    }
+   }
+  }
+ }
+}
