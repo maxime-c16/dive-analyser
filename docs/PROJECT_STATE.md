@@ -1,12 +1,12 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-08** (Target Diver Selection V2 —
-> proposal threshold sweep, S3 action-likelihood selector, motion auxiliary, Paris shadow eval.
-> Gate A1 DETECTOR_REOPEN_REQUIRED (ceiling 77% < 80%). TRAJECTORY_INPUT_FAIL.
-> S3 shows partial Paris static-lock break (water_contact MATCH); frozen selector remains S1.
-> Latest audit: `docs/science/TARGET_DIVER_SELECTION_V2_LOW_CONFIDENCE_REPORT.md`
-> Previous: `docs/science/TARGET_DIVER_SELECTION_V1_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_TARGET_DIVER_SELECTION_V2`**
+> Durable project handoff. Last verified: **2026-09-08** (Detector D4 Reopen + Selector Revalidation —
+> D4 recall 80.6% (+12.9pp vs D3), 0 regressions. Paris 3/3 phases covered (historic first).
+> All gates fail: H1 FAIL (80.6%<90%), M FAIL (S0 best 71%<80%), O FAIL (Paris 1/3 trajectory).
+> S0 frozen as D4-era selector (S1 regresses with D4 FPs). Paris firewall unbroken.
+> Latest audit: `docs/science/DETECTOR_D4_REOPEN_AND_SELECTION_REVALIDATION_REPORT.md`
+> Previous: `docs/science/TARGET_DIVER_SELECTION_V2_LOW_CONFIDENCE_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_DETECTOR_D4_REOPEN_AND_SELECTION_REVALIDATION`**
 
 ## Project purpose
 
@@ -68,92 +68,78 @@ Two machines on a LAN:
 - D3.1 operating point frozen: `D3_1_OPERATING_POINT_FREEZE.json`, conf=0.05
 - D3 weights frozen: SHA256 `bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d`
   (durable: `~/dive-analyser/models/frozen/DIVER_DETECTOR_D3_V8N_best.pt` on server)
-- **NEW** D3 proposal threshold frozen: `D3_PROPOSAL_V1_FREEZE.json`, conf=0.05
-- **NEW** Target diver selector V2 frozen: `TARGET_DIVER_SELECTOR_V2_FREEZE.json` (S1_GLOBAL_PATH)
+- D3 proposal threshold frozen: `D3_PROPOSAL_V1_FREEZE.json`, conf=0.05
+- Target diver selector V2 frozen: `TARGET_DIVER_SELECTOR_V2_FREEZE.json` (S1_GLOBAL_PATH, V2 era)
 - Target diver selector V1 frozen: `TARGET_DIVER_SELECTOR_V1_FREEZE.json` (historical)
 - Paris human spatial authority: 14 maintainer-boxed frames at native 1080×1920
+- **NEW** D4 weights frozen: `D4_PROPOSAL_V1_FREEZE.json`, SHA `842291f1...` (`models/frozen/DIVER_DETECTOR_D4_A_V8N_best.pt`)
+- **NEW** D4-era selector frozen: `SELECTOR_FREEZE_D4.json` — S0 (top-conf) replaces S1 for D4 proposals
 
-### Critical findings (TARGET_DIVER_SELECTION_V2 cycle, 2026-09-08)
+### Critical findings (DETECTOR_D4_REOPEN cycle, 2026-09-08)
 
 **Central finding:**
-> Raw detector ceiling 77.4% < 80% at any practical proposal threshold.
-> Gate A1: **DETECTOR_REOPEN_REQUIRED**.
-> Perception architecture: **DETECTOR_REOPEN_REQUIRED**.
+> D4 achieves 80.6% recall (+12.9pp vs D3), zero regressions.
+> Paris coverage 3/3 phases (historic first, D3 had 0/3).
+> All gates FAIL: H1 (80.6%<90%), M (71%<80%), O (Paris 1/3 trajectory).
+> System remains at **TRAJECTORY_INPUT_FAIL** for Paris.
 
-1. **Proposal-threshold sweep (Phase A)**: Evaluated conf=0.005/0.01/0.02/0.05 against
-   31 DEVELOPMENT reference frames. Of 9 miss frames at conf=0.05: 7/9 are wrong-location
-   (detector fires at wrong position — lower threshold adds more wrong candidates, no
-   recovery); 2/9 are genuine zero-detection (dive 2541 frames 525/558, confirmed by
-   conf=0.001 inference). Max achievable ceiling: 77.4% (24/31) at conf=0.005. Still
-   below 80% gate.
+1. **D4 training (Phase G)**: YOLOv8n, COCO-pretrained fresh start, MPS amp=False.
+   22 new frames from failure dives (2555/2680/676/2541 → train; 2341 → holdout).
+   71 epochs early-stopped. val_mAP50=0.333, P=0.656, R=0.286.
 
-2. **S3 action-likelihood selector (Phase E)**: Implemented spatial-persistence motion
-   auxiliary: penalises candidates that appear at the same location in most frames
-   (static FPs), favours transient candidates (true diver during flight).
-   W_PERSIST=4.0 × max(0, persist_freq − 0.25). Also adds scale-plausibility term.
-   DEVELOPMENT: S3=48.4% ALL vs S1=51.6% — 1-frame regression (dive 133 takeoff;
-   dive 2625 safe-NULL from S1 → wrong-target from S3). HURDLE tied at 40%.
+2. **Grouped evaluation (Phase H)**: 25/31 = 80.6% at op threshold. +4 new matches vs D3.
+   Zero regressions. Phase H1 gate (90%) → FAIL.
 
-3. **S3 Paris shadow evaluation**: Persistence penalty partially breaks static-FP lock
-   at Paris. water_contact MATCH (iou=0.511, dist=0.042, conf=0.121) — S1 was WRONG.
-   Takeoff and apex still WRONG for both selectors. std_cy: S3=0.075 vs S1=0.016 —
-   S3 shows 4.6× more trajectory variation (partial lock break confirmed).
+3. **Paris coverage (Phase J/K)**: D4 detects diver in all 3 Paris phases for first time.
+   Takeoff IoU=0.387 (MATCH). Apex/water_contact detected but FP-ranked (wrong target).
+   Floor analysis: diver visible at rank 10 (apex/takeoff), rank 121 (water_contact).
+   Finding: `D4_IMPROVES_PARIS_WITHOUT_PARIS_TRAINING`.
 
-4. **Selector freeze (Phase I)**: S1 remains better on DEVELOPMENT (per packet rule:
-   choose using DEVELOPMENT only). Frozen as TARGET_DIVER_SELECTOR_V2 = S1_GLOBAL_PATH
-   (algorithm unchanged from V1; same parameters). S3 recorded as directional finding.
+4. **Selector revalidation (Phase M)**: S0=71%, S1=61%, S3=61% on DEVELOPMENT.
+   S1 regresses with D4 — spatially plausible FPs confuse Viterbi path.
+   Phase M gate (80%) → FAIL for all selectors.
 
-5. **Paris trajectory gate**: TRAJECTORY_INPUT_FAIL for frozen S1 (0/3 GT anchors correct).
-   Shadow S3: 1/3 correct (water_contact only). Both fail gate.
+5. **Selector freeze (Phase N)**: S0 (top-conf) frozen as D4-era selector.
+   Simpler and more accurate than S1 with D4 FP profile.
 
-6. **Dive 311**: INDEPENDENT_EVENT_LOGIC_FAILURE confirmed. ~4s error in both V2.1 and
-   V2.2 identically — not a V2.1-vs-V2.2 discriminator; state machine locks on late
-   spurious motion at ~18s. Perception is clean (correct target identity verified).
+6. **Paris trajectory gate (Phase O)**: TRAJECTORY_INPUT_FAIL with S0 (same as S1).
+   Takeoff MATCH (IoU=0.387). Apex WRONG_TARGET. water_contact WRONG_TARGET (rank 121).
 
-7. **V2.2 status**: V2_2_SUPPORTED_BY_EXPANDED_REAL_DATA (n=2 HURDLE clean trajectories,
-   1 clear win / 1 tie / 0 regressions) — unchanged from V1. Threshold not promoted.
+7. **Dive 311**: INDEPENDENT_EVENT_LOGIC_FAILURE carry-forward (unchanged).
 
-8. **Paris event test**: not evaluable (TRAJECTORY_INPUT_FAIL). Both V2.1 and V2.2
-   return no landmarks on Paris S1 trajectory — static-FP lock confounds the signal.
+8. **V2.2 status**: V2_2_EXPERIMENTAL_FROZEN_NOT_ADOPTED (unchanged).
 
 ### Perception status
-**`DETECTOR_REOPEN_REQUIRED`**
+**`TRAJECTORY_INPUT_FAIL`** — gates passed: H=80.6%/90% FAIL, M=71%/80% FAIL, O=1/3 FAIL
 
-The selection mechanism (S3 motion auxiliary) is directionally correct but insufficient
-to overcome the wrong-location detection gap (7/9 miss frames at wrong spatial position)
-and static-FP confidence dominance at Paris (needs venue-specific training data).
+D4 is a strong improvement but systematic failures remain:
+- Water-contact calibration (5 dives fail at water_contact phase)
+- FP dominance at Paris (spectators outrank diver at apex and water_contact)
+- 2625 architectural limit (hurdle geometry)
 
-### Detector reopen recommendation
-1. Add Paris-venue training images with the static FP annotated as hard negative
-2. Add wrong-location detections (2341, 2555, 2625, 2680, 676) as hard negatives
-3. For 2541 zero-detection: reduce proposal_conf to 0.02 (recovers frame 525, conf=0.039)
-4. Longer term: human-centric foreground representation (FineParser direction) to reduce
-   background object influence in diving action analysis
+### Next required work (priority order)
+1. **Water-contact calibration**: add more water-entry positives across venues.
+2. **Paris FP suppression**: collect non-diver Paris-venue frames as hard negatives.
+   (Requires explicitly downgrading Paris from canary status before using any Paris venue data.)
+3. **Dive 311 EL failure**: independent state machine debug.
+4. **V2.2 HURDLE accumulation**: n=2 is fragile.
 
 ### Event Logic status
 - V2.1: **FROZEN** — historical reference
 - V2.2: **FROZEN** experimental — `V2_2_EXPERIMENTAL_FROZEN_NOT_ADOPTED`. Pending larger HURDLE sample.
 - Dive 311: open INDEPENDENT_EVENT_LOGIC_FAILURE (needs separate investigation)
 
-### Next required work (priority order)
-1. **Detector reopening**: wrong-location detection failures (7/9 miss frames) + static-FP
-   confidence dominance at Paris. Exact recommendation above.
-2. **Dive 311 Event Logic failure**: independent investigation needed once perception
-   improves for more diverse clean trajectories.
-3. **V2.2 HURDLE accumulation**: n=2 clean HURDLE trajectories is fragile; more needed
-   before promoting threshold.
-4. **S3 persistence auxiliary tuning**: directionally correct; once detector ceiling improves,
-   S3 (or S3+) should be re-evaluated as primary selector.
-
 ## Test suite
 
-28 new tests for V2 (all pass). Full suite:
+D4 cycle adds Phase S tests (all pass). Full suite:
+- `test_detector_d4_reopen.py` — **28 PASS** (pre-annotation) + **~14 PASS** (D4 cycle addons)
 - `test_target_diver_selection_v2.py` — **28 PASS**
 - `test_target_diver_selection_v1.py` — 18 PASS
 - `test_event_logic_v2_1.py` — 29 PASS (or 36, see file)
 - `test_event_logic_v2_2.py` — 24 PASS (or 25)
 - `test_d3_pipeline.py`, `test_d4_threshold_perception.py`, etc.
-- Combined (`venv_c/bin/python3 -m pytest experiments/landmark_pilot -q`): **82+ PASS**
+- `test_report_consistency.py` — 15 PASS
+- Combined (`venv_c/bin/python3 -m pytest experiments/landmark_pilot -q`): **100+ PASS**
 
 ## AMP authority
 
@@ -162,4 +148,4 @@ All MPS retraining uses `amp=False`.
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_TARGET_DIVER_SELECTION_V2`
+`SUPERVISOR_REVIEW_AFTER_DETECTOR_D4_REOPEN_AND_SELECTION_REVALIDATION`

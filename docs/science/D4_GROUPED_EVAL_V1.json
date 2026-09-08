@@ -1,0 +1,317 @@
+{
+  "label": "D4_GROUPED_EVAL_V1",
+  "date": "2026-09-08",
+  "d4_weights_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "canonical_denominator": 31,
+  "op_conf": 0.05,
+  "floor_conf": 0.001,
+  "op_match": 29,
+  "floor_match": 35,
+  "raw_target_candidate_recall": 0.8065,
+  "exhaustive_ceiling": 1.129,
+  "phase_h1_gate": "FAIL",
+  "improvements_vs_d3": [
+    "1040_apex",
+    "1040_takeoff",
+    "1040_water_contact",
+    "133_apex",
+    "133_takeoff",
+    "133_water_contact",
+    "2169_takeoff",
+    "2341_water_contact",
+    "2353_apex",
+    "2353_takeoff",
+    "2353_water_contact",
+    "2387_apex",
+    "2387_takeoff",
+    "2387_water_contact",
+    "2541_apex",
+    "2541_takeoff",
+    "2541_water_contact",
+    "2555_apex",
+    "2555_takeoff",
+    "2555_water_contact",
+    "2661_takeoff",
+    "2680_takeoff",
+    "311_takeoff",
+    "311_water_contact",
+    "524_apex",
+    "524_takeoff",
+    "676_apex",
+    "676_takeoff",
+    "676_water_contact"
+  ],
+  "regressions_vs_d3": [],
+  "remaining_failures": [
+    "2169_water_contact",
+    "2341_apex",
+    "2341_takeoff",
+    "2625_apex",
+    "2625_water_contact",
+    "2661_water_contact",
+    "2680_water_contact"
+  ],
+  "per_frame_results": [
+    {
+      "frame_id": "1040_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 2,
+      "top1_conf": 0.737909197807312
+    },
+    {
+      "frame_id": "1040_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 3,
+      "top1_conf": 0.4836190342903137
+    },
+    {
+      "frame_id": "1040_water_contact",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 3,
+      "top1_conf": 0.40893974900245667
+    },
+    {
+      "frame_id": "133_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 2,
+      "top1_conf": 0.3013059198856354
+    },
+    {
+      "frame_id": "133_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 3,
+      "top1_conf": 0.8788403272628784
+    },
+    {
+      "frame_id": "133_water_contact",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 3,
+      "top1_conf": 0.5810747146606445
+    },
+    {
+      "frame_id": "2169_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 4,
+      "top1_conf": 0.24524588882923126
+    },
+    {
+      "frame_id": "2169_water_contact",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 3,
+      "top1_conf": 0.2179112732410431
+    },
+    {
+      "frame_id": "2341_apex",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 0,
+      "top1_conf": null
+    },
+    {
+      "frame_id": "2341_takeoff",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 1,
+      "top1_conf": 0.1259838491678238
+    },
+    {
+      "frame_id": "2341_water_contact",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 10,
+      "top1_conf": 0.24285392463207245
+    },
+    {
+      "frame_id": "2353_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 9,
+      "top1_conf": 0.24699318408966064
+    },
+    {
+      "frame_id": "2353_takeoff",
+      "matched": true,
+      "target_rank": 6,
+      "n_preds": 7,
+      "top1_conf": 0.18856775760650635
+    },
+    {
+      "frame_id": "2353_water_contact",
+      "matched": true,
+      "target_rank": 4,
+      "n_preds": 8,
+      "top1_conf": 0.15613451600074768
+    },
+    {
+      "frame_id": "2387_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.8270732164382935
+    },
+    {
+      "frame_id": "2387_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.6931416392326355
+    },
+    {
+      "frame_id": "2387_water_contact",
+      "matched": true,
+      "target_rank": 2,
+      "n_preds": 4,
+      "top1_conf": 0.3528093993663788
+    },
+    {
+      "frame_id": "2541_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.7071406841278076
+    },
+    {
+      "frame_id": "2541_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.5767823457717896
+    },
+    {
+      "frame_id": "2541_water_contact",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 2,
+      "top1_conf": 0.13072162866592407
+    },
+    {
+      "frame_id": "2555_apex",
+      "matched": true,
+      "target_rank": 2,
+      "n_preds": 4,
+      "top1_conf": 0.7715048789978027
+    },
+    {
+      "frame_id": "2555_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 9,
+      "top1_conf": 0.9458752274513245
+    },
+    {
+      "frame_id": "2555_water_contact",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 2,
+      "top1_conf": 0.4760223627090454
+    },
+    {
+      "frame_id": "2625_apex",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 3,
+      "top1_conf": 0.15093478560447693
+    },
+    {
+      "frame_id": "2625_water_contact",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 3,
+      "top1_conf": 0.13838019967079163
+    },
+    {
+      "frame_id": "2661_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 5,
+      "top1_conf": 0.5375496745109558
+    },
+    {
+      "frame_id": "2661_water_contact",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 5,
+      "top1_conf": 0.23374594748020172
+    },
+    {
+      "frame_id": "2680_takeoff",
+      "matched": true,
+      "target_rank": 2,
+      "n_preds": 4,
+      "top1_conf": 0.24185499548912048
+    },
+    {
+      "frame_id": "2680_water_contact",
+      "matched": false,
+      "target_rank": null,
+      "n_preds": 4,
+      "top1_conf": 0.23675309121608734
+    },
+    {
+      "frame_id": "311_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 3,
+      "top1_conf": 0.24686360359191895
+    },
+    {
+      "frame_id": "311_water_contact",
+      "matched": true,
+      "target_rank": 3,
+      "n_preds": 5,
+      "top1_conf": 0.4409211277961731
+    },
+    {
+      "frame_id": "524_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 5,
+      "top1_conf": 0.9213769435882568
+    },
+    {
+      "frame_id": "524_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 6,
+      "top1_conf": 0.9387871026992798
+    },
+    {
+      "frame_id": "676_apex",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.8385069370269775
+    },
+    {
+      "frame_id": "676_takeoff",
+      "matched": true,
+      "target_rank": 1,
+      "n_preds": 1,
+      "top1_conf": 0.47848403453826904
+    },
+    {
+      "frame_id": "676_water_contact",
+      "matched": true,
+      "target_rank": 3,
+      "n_preds": 3,
+      "top1_conf": 0.11184711754322052
+    }
+  ],
+  "canonical_matched_op": 25,
+  "canonical_failures": [
+    "2169_water_contact",
+    "2341_apex",
+    "2341_takeoff",
+    "2625_apex",
+    "2625_water_contact",
+    "2680_water_contact"
+  ]
+}

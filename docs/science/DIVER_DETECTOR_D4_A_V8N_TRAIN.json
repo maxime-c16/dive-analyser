@@ -1,0 +1,33 @@
+{
+  "label": "DIVER_DETECTOR_D4_A_V8N_TRAIN",
+  "date": "2026-09-08",
+  "model": "yolov8n",
+  "base_weights": "yolov8n.pt (COCO-pretrained, fresh start)",
+  "dataset": "DIVER_LOCALIZATION_DATASET_D4",
+  "device": "mps",
+  "amp": false,
+  "repair": "amp=False (MPS AMP causes gradient collapse)",
+  "imgsz": 640,
+  "batch": 8,
+  "epochs_trained": 150,
+  "best_epoch": 53,
+  "best_map50": 0.34887,
+  "best_precision": 0.52583,
+  "best_recall": 0.42857,
+  "elapsed_s": 328.88,
+  "best_weights_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "best_weights_size": 6230186,
+  "best_weights_local": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/30aea248-b1dc-4e96-a516-7c1a3d5d757b/scratchpad/runs/DIVER_DETECTOR_D4_A/train/weights/best.pt",
+  "train_split": {
+    "positive": 45,
+    "negative": 17,
+    "total": 62
+  },
+  "val_split": {
+    "positive": 7,
+    "negative": 3,
+    "total": 10
+  },
+  "training_goal": "Fix confidence calibration: push BELOW_THRESHOLD failure frames to TARGET_AVAILABLE",
+  "key_addition": "19 annotated frames from failure dives (train: 2555,2680,676,2541; holdout: 2341)"
+}
