@@ -1,9 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (Perception V1 closure).
-> Latest science: `docs/science/PERCEPTION_V1_CLOSURE_AND_REAL_EVENT_LOGIC_REPORT.md`
-> Previous: `docs/science/DIVER_CANDIDATE_RERANKING_AND_D5_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_V1_CLOSURE_AND_REAL_EVENT_LOGIC`**
+> Durable project handoff. Last verified: **2026-09-09** (Perception V1 closure REPAIR).
+> Latest science: `docs/science/PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md`
+> Previous: `docs/science/PERCEPTION_V1_CLOSURE_AND_REAL_EVENT_LOGIC_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_V1_FINAL_CLOSURE`**
 
 ## Project purpose
 
@@ -17,8 +17,10 @@ characteristics, athlete-vs-self comparison). **Partially underway — Perceptio
 ## Canonical repository
 
 - **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `3e1fdd1`.
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `f50a132`.
   No remotes.
+- Mac bare mirror: `~/.perso/diveanalyzer-perception.git` (cloned from server). HEAD: `f50a132`.
+- Mac working copy: `~/.perso/diveanalyzer-perception`. Remote `origin` → server. Remote `mac-mirror` → bare mirror.
 - Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
   reference slice; never treat it as canonical.
 - SSH access (passwordless from Maxime's MacBook Air only): key `~/.ssh/qwokka`
@@ -63,35 +65,41 @@ Two machines on a LAN:
 
 ### Paris Canary (external evaluation — firewall intact)
 
-**Trajectory gate: `TRAJECTORY_INPUT_FAIL`**
+**Trajectory gate: `TRAJECTORY_INPUT_PASS`** ✓ (repair cycle corrected two execution bugs)
 
-| Criterion | Result |
-|---|---|
-| C1: takeoff identity | True |
-| C2: apex identity | True |
-| C3: water_contact identity | False |
-| C4: ≥80% flight coverage | 100.0% |
-| C5: max gap | 0.0s |
-| C6: wrong-target run | 0.0531s |
+| Criterion | Result | IoU |
+|---|---|---|
+| C1: takeoff identity | ✓ PASS | 0.379 |
+| C2: apex identity | ✓ PASS | 0.417 |
+| C3: water_contact identity | ✓ PASS | 0.324 |
+| C4: ≥80% flight coverage | ✓ PASS | 100.0% |
+| C5: max gap | ✓ PASS | 0.0s |
+| C6: wrong-target run | ✓ PASS | 0.0s |
 
-**Root cause of C3 failure:** D5-A confidence at water entry < 0.01. Prior PARIS_D5_EVAL
-used FLOOR_CONF=0.001 and found rank-1 with IoU=0.725. Phase D used FLOOR_CONF=0.01 and
-found top-1 IoU=0.1087 at wc. Diver confidence drops below 0.01 during water entry.
+**Repair notes:** Previous V1 C3 failure caused by (1) FLOOR_CONF=0.01 instead of frozen 0.001,
+and (2) sequential-read frame drift (3-frame offset from canonical fi=238). Corrected with
+seek-based anchor extraction at FLOOR_CONF=0.001.
 
-**Event Logic on Paris:** `SKIPPED_PERCEPTION_FAIL` — trajectory gate was FAIL so EL was not evaluated.
+Artifact: `PARIS_REAL_TARGET_TRAJECTORY_V1.json` (FROZEN)
 
-### DEVELOPMENT Multi-Dive Evaluation (Phase K)
+**Event Logic on Paris (V2.1 and V2.2):** `BOTH_FAIL` — all events NOT_FOUND.
+Root cause: EL calibration scope mismatch (not a perception failure).
+
+### DEVELOPMENT Multi-Dive Evaluation (D5-only, repair cycle)
 
 | Metric | Value |
 |---|---|
 | Dives evaluated | 10 |
-| PERCEPTION_VALID | 1 (10.0%) |
-| PERCEPTION_INVALID | 9 |
-| Valid dives | [1040] |
-| Invalid dives | [133, 311, 524, 676, 2169, 2341, 2387, 2555, 2625] |
+| PERCEPTION_VALID (D5_FRAMEWISE) | 6 (60.0%) |
+| PERCEPTION_INVALID | 4 |
+| Valid dives | [133, 311, 676, 1040, 2169, 2387] |
+| Invalid dives | [524, 2341, 2555, 2625] |
 
-Note: Evaluation uses 3-anchor-frame detection only (not continuous trajectory).
-Full EL evaluation on DEVELOPMENT dives requires Phase D-style per-video extraction.
+Previous result (1/10) was R1-contaminated. Re-derived from d5_only_correct fields.
+Gate: `DEVELOPMENT_PERCEPTION_USABLE`
+
+**DEVELOPMENT EL evaluation (D5_FRAMEWISE trajectories):** V2.1 0/6, V2.2 0/6.
+Root cause: proxy video (202×360) creates coverage gaps during flight phase — not EL bug.
 
 ### Dive 311 diagnosis
 {
