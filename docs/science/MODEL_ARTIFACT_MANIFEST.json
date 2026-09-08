@@ -14,7 +14,7 @@
     "val_positive": 7,
     "val_negative": 3
   },
-  "source_training_commit": "bf19234 (science: D3 detector sanity cycle — MPS AMP fix, hard-neg correction, 36/36 tests pass)",
+  "source_training_commit": "bf19234 (science: D3 detector sanity cycle \u2014 MPS AMP fix, hard-neg correction, 36/36 tests pass)",
   "training_config": {
     "device": "mps",
     "amp": false,
@@ -34,7 +34,7 @@
   "stores": [
     {
       "role": "PRIMARY_DURABLE_SERVER_COPY",
-      "host": "deb-serv (192.168.1.57, user mcauchy) — canonical app/science server",
+      "host": "deb-serv (192.168.1.57, user mcauchy) \u2014 canonical app/science server",
       "path": "~/dive-analyser/models/frozen/DIVER_DETECTOR_D3_V8N_best.pt",
       "gitignored": true,
       "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
@@ -43,7 +43,7 @@
     },
     {
       "role": "INDEPENDENT_BACKUP",
-      "host": "mac-server.home (192.168.1.19, user divesensei) — Machine B, ingestion/media edge",
+      "host": "mac-server.home (192.168.1.19, user divesensei) \u2014 Machine B, ingestion/media edge",
       "path": "~/.diveanalyzer/model_artifacts/DIVER_DETECTOR_D3_V8N_best.pt",
       "rationale": "~/.diveanalyzer/ is the pre-existing documented Mac-agent data root on Machine B (holds config.yaml, sync_state.json, manual_asset_exports/) per docs/PROJECT_STATE.md 'Runtime config' row. Chosen over the bare git mirror at ~/dive-analyser (unsuitable for large gitignored binaries in a bare repo) and over any undocumented home path.",
       "gitignored": "n/a (not a git repo; plain filesystem location outside any repo)",
@@ -56,5 +56,23 @@
   "verification_method": "sha256sum on both hosts via SSH, 2026-09-08",
   "recovery_test": "see A1_MODEL_RECOVERY_TEST in docs/science/TARGET_DIVER_SELECTION_V1_REPORT.md",
   "no_binary_in_git": true,
-  "status": "MODEL_ARTIFACT_AUTHORITY_GREEN"
+  "status": "MODEL_ARTIFACT_AUTHORITY_GREEN",
+  "DIVER_DETECTOR_D5_A_V8N_best": {
+    "file": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+    "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+    "size_bytes": 6224362,
+    "type": "YOLOv8n",
+    "status": "FROZEN",
+    "freeze_date": "2026-09-09"
+  },
+  "R1_RERANKER": {
+    "file": "models/frozen/R1_RERANKER.pkl",
+    "sha256": "2a9af7b34ebfbc49fbb6a6a39632ae05fae2d1f6eab0b32ac43b9fe1800888e0",
+    "size_bytes": 58433,
+    "type": "ResNet50+StandardScaler+LogisticRegression",
+    "status": "FROZEN",
+    "freeze_date": "2026-09-09"
+  },
+  "_updated": "2026-09-09",
+  "_cycle": "PERCEPTION_V1_CLOSURE"
 }

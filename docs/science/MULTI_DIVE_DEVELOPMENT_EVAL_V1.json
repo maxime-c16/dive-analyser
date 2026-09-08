@@ -1,0 +1,423 @@
+{
+  "label": "MULTI_DIVE_DEVELOPMENT_EVAL_V1",
+  "date": "2026-09-09",
+  "pipeline": "D5_A_PLUS_R1",
+  "target_dives": [
+    311,
+    524,
+    1040,
+    133,
+    2625,
+    676,
+    2555,
+    2341,
+    2387,
+    2169
+  ],
+  "n_total": 10,
+  "n_valid": 1,
+  "n_invalid": 9,
+  "valid_dives": [
+    1040
+  ],
+  "invalid_dives": [
+    133,
+    311,
+    524,
+    676,
+    2169,
+    2341,
+    2387,
+    2555,
+    2625
+  ],
+  "per_dive": {
+    "311": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.4543,
+          "sel_cy_norm": 0.95,
+          "sel_bbox_h_norm": 0.1001
+        },
+        "water_contact": {
+          "correct": true,
+          "iou": 0.6036,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6036,
+          "sel_cy_norm": 0.5114,
+          "sel_bbox_h_norm": 0.2289
+        }
+      },
+      "n_correct": 1,
+      "n_total": 2,
+      "gt_timing": {
+        "dive_id": 311,
+        "takeoff_pts_s": 13.7546,
+        "apex_pts_s": null,
+        "water_contact_pts_s": 14.821262
+      }
+    },
+    "524": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": true,
+          "iou": 0.8955,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.0,
+          "sel_cy_norm": 0.4047,
+          "sel_bbox_h_norm": 0.1187
+        },
+        "apex": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.0,
+          "sel_cy_norm": 0.4952,
+          "sel_bbox_h_norm": 0.2017
+        }
+      },
+      "n_correct": 1,
+      "n_total": 2,
+      "gt_timing": {
+        "dive_id": 524,
+        "takeoff_pts_s": 5.810276,
+        "apex_pts_s": 6.326941,
+        "water_contact_pts_s": 7.093604
+      }
+    },
+    "1040": {
+      "perception": "PERCEPTION_VALID",
+      "phases": {
+        "takeoff": {
+          "correct": true,
+          "iou": 0.6651,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6651,
+          "sel_cy_norm": 0.4432,
+          "sel_bbox_h_norm": 0.2404
+        },
+        "apex": {
+          "correct": true,
+          "iou": 0.4039,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.7509,
+          "sel_cy_norm": 0.3495,
+          "sel_bbox_h_norm": 0.1007
+        },
+        "water_contact": {
+          "correct": true,
+          "iou": 0.7383,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.7383,
+          "sel_cy_norm": 0.5576,
+          "sel_bbox_h_norm": 0.2451
+        }
+      },
+      "n_correct": 3,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 1040,
+        "takeoff_pts_s": 4.463857,
+        "apex_pts_s": 4.797189,
+        "water_contact_pts_s": 5.413853
+      },
+      "traj_pts_for_el": [
+        {
+          "pts_s": 4.463857,
+          "cy_norm": 0.4432,
+          "bbox_h_norm": 0.2404
+        },
+        {
+          "pts_s": 4.797189,
+          "cy_norm": 0.3495,
+          "bbox_h_norm": 0.1007
+        },
+        {
+          "pts_s": 5.413853,
+          "cy_norm": 0.5576,
+          "bbox_h_norm": 0.2451
+        }
+      ],
+      "el_status": "EL_REQUIRES_FULL_VIDEO_TRAJECTORY",
+      "el_note": "Phase K evaluation uses single anchor frames only. Full EL evaluation requires extracting continuous trajectory from the proxy video (Phase D approach). This requires per-video trajectory extraction scripts."
+    },
+    "133": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": true,
+          "iou": 0.3202,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.8414,
+          "sel_cy_norm": 0.3827,
+          "sel_bbox_h_norm": 0.2328
+        },
+        "apex": {
+          "correct": true,
+          "iou": 0.5909,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.3086,
+          "sel_cy_norm": 0.3752,
+          "sel_bbox_h_norm": 0.1626
+        },
+        "water_contact": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6584,
+          "sel_cy_norm": 0.4172,
+          "sel_bbox_h_norm": 0.1456
+        }
+      },
+      "n_correct": 2,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 133,
+        "takeoff_pts_s": 1.800274,
+        "apex_pts_s": 2.083607,
+        "water_contact_pts_s": 2.95027
+      }
+    },
+    "2625": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "apex": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.0,
+          "sel_cy_norm": 0.4475,
+          "sel_bbox_h_norm": 0.0883
+        },
+        "water_contact": {
+          "correct": false,
+          "iou": 0.2941,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.4281,
+          "sel_cy_norm": 0.7101,
+          "sel_bbox_h_norm": 0.297
+        }
+      },
+      "n_correct": 0,
+      "n_total": 2,
+      "gt_timing": {
+        "dive_id": 2625,
+        "takeoff_pts_s": null,
+        "apex_pts_s": 2.788456,
+        "water_contact_pts_s": 3.705119
+      }
+    },
+    "676": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": false,
+          "iou": 0.2321,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6174,
+          "sel_cy_norm": 0.2506,
+          "sel_bbox_h_norm": 0.0888
+        },
+        "apex": {
+          "correct": true,
+          "iou": 0.3376,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.628,
+          "sel_cy_norm": 0.2313,
+          "sel_bbox_h_norm": 0.0841
+        },
+        "water_contact": {
+          "correct": false,
+          "iou": 0.0002,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.822,
+          "sel_cy_norm": 0.4568,
+          "sel_bbox_h_norm": 0.1953
+        }
+      },
+      "n_correct": 1,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 676,
+        "takeoff_pts_s": 3.553575,
+        "apex_pts_s": 3.886907,
+        "water_contact_pts_s": 4.853569
+      }
+    },
+    "2555": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": true,
+          "iou": 0.5479,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.1096,
+          "sel_cy_norm": 0.2783,
+          "sel_bbox_h_norm": 0.5567
+        },
+        "apex": {
+          "correct": false,
+          "iou": 0.2597,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.3517,
+          "sel_cy_norm": 0.4927,
+          "sel_bbox_h_norm": 0.395
+        },
+        "water_contact": {
+          "correct": true,
+          "iou": 0.4194,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6604,
+          "sel_cy_norm": 0.583,
+          "sel_bbox_h_norm": 0.1738
+        }
+      },
+      "n_correct": 2,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 2555,
+        "takeoff_pts_s": 4.313702,
+        "apex_pts_s": 6.397027,
+        "water_contact_pts_s": 9.597014
+      }
+    },
+    "2341": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.0,
+          "sel_cy_norm": 0.823,
+          "sel_bbox_h_norm": 0.09
+        },
+        "apex": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": false,
+          "d5_only_iou": 0.0,
+          "sel_cy_norm": 0.2675,
+          "sel_bbox_h_norm": 0.1528
+        },
+        "water_contact": {
+          "correct": true,
+          "iou": 0.3314,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.8458,
+          "sel_cy_norm": 0.7979,
+          "sel_bbox_h_norm": 0.1536
+        }
+      },
+      "n_correct": 1,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 2341,
+        "takeoff_pts_s": 3.572542,
+        "apex_pts_s": 3.955874,
+        "water_contact_pts_s": 4.589204
+      }
+    },
+    "2387": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": true,
+          "iou": 0.6073,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6073,
+          "sel_cy_norm": 0.3686,
+          "sel_bbox_h_norm": 0.2425
+        },
+        "apex": {
+          "correct": true,
+          "iou": 0.446,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.5822,
+          "sel_cy_norm": 0.3247,
+          "sel_bbox_h_norm": 0.2574
+        },
+        "water_contact": {
+          "correct": false,
+          "iou": 0.0642,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.6411,
+          "sel_cy_norm": 0.2986,
+          "sel_bbox_h_norm": 0.1556
+        }
+      },
+      "n_correct": 2,
+      "n_total": 3,
+      "gt_timing": {
+        "dive_id": 2387,
+        "takeoff_pts_s": 4.483274,
+        "apex_pts_s": 4.833273,
+        "water_contact_pts_s": 5.499937
+      }
+    },
+    "2169": {
+      "perception": "PERCEPTION_INVALID",
+      "phases": {
+        "takeoff": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.5326,
+          "sel_cy_norm": 0.6859,
+          "sel_bbox_h_norm": 0.2937
+        },
+        "water_contact": {
+          "correct": false,
+          "iou": 0.0,
+          "d5_only_correct": true,
+          "d5_only_iou": 0.4048,
+          "sel_cy_norm": 0.3254,
+          "sel_bbox_h_norm": 0.0964
+        }
+      },
+      "n_correct": 0,
+      "n_total": 2,
+      "gt_timing": {
+        "dive_id": 2169,
+        "takeoff_pts_s": 6.46124,
+        "apex_pts_s": 6.761239,
+        "water_contact_pts_s": 7.694569
+      }
+    }
+  },
+  "dive_311_summary": {
+    "perception": "PERCEPTION_INVALID",
+    "phases": {
+      "takeoff": {
+        "correct": false,
+        "iou": 0.0,
+        "d5_only_correct": true,
+        "d5_only_iou": 0.4543,
+        "sel_cy_norm": 0.95,
+        "sel_bbox_h_norm": 0.1001
+      },
+      "water_contact": {
+        "correct": true,
+        "iou": 0.6036,
+        "d5_only_correct": true,
+        "d5_only_iou": 0.6036,
+        "sel_cy_norm": 0.5114,
+        "sel_bbox_h_norm": 0.2289
+      }
+    },
+    "n_correct": 1,
+    "n_total": 2,
+    "gt_timing": {
+      "dive_id": 311,
+      "takeoff_pts_s": 13.7546,
+      "apex_pts_s": null,
+      "water_contact_pts_s": 14.821262
+    }
+  },
+  "el_evaluation_note": "EL evaluation on full trajectories requires Phase D-style per-dive extraction (future work)."
+}
