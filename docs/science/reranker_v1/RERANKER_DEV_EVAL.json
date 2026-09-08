@@ -1,0 +1,379 @@
+{
+  "label": "RERANKER_DEV_EVAL_V1",
+  "date": "2026-09-08",
+  "feature_model": "ResNet50_IMAGENET1K_V1",
+  "feature_dim": 2048,
+  "grouped_split": {
+    "DEV_TRAIN": [
+      1040,
+      133,
+      2169,
+      2387,
+      2541,
+      2555,
+      2625,
+      2661,
+      2680,
+      311,
+      524,
+      676
+    ],
+    "DEV_VAL": [
+      2341,
+      2353
+    ]
+  },
+  "B0": {
+    "name": "D4_confidence_ranking",
+    "DEV_TRAIN": {
+      "n_frames": 28,
+      "n_frames_with_positive": 28,
+      "top1_recall": 0.7142857142857143,
+      "top3_recall": 0.8571428571428571,
+      "top5_recall": 0.8571428571428571,
+      "top10_recall": 1.0,
+      "mrr": 0.7947845804988661,
+      "rank_mean": 2.0714285714285716,
+      "rank_median": 1.0,
+      "by_phase": {
+        "takeoff": {
+          "n": 10,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "apex": {
+          "n": 7,
+          "top1": 0.8571428571428571,
+          "top3": 1.0,
+          "mrr": 0.9285714285714286
+        },
+        "water_contact": {
+          "n": 11,
+          "top1": 0.36363636363636365,
+          "top3": 0.6363636363636364,
+          "mrr": 0.523088023088023
+        }
+      }
+    },
+    "DEV_VAL": {
+      "n_frames": 6,
+      "n_frames_with_positive": 6,
+      "top1_recall": 0.5,
+      "top3_recall": 0.6666666666666666,
+      "top5_recall": 0.8333333333333334,
+      "top10_recall": 1.0,
+      "mrr": 0.6527777777777778,
+      "rank_mean": 2.5,
+      "rank_median": 1.5,
+      "by_phase": {
+        "takeoff": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 1.0,
+          "mrr": 0.75
+        },
+        "apex": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 0.5,
+          "mrr": 0.5833333333333334
+        },
+        "water_contact": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 0.5,
+          "mrr": 0.625
+        }
+      }
+    }
+  },
+  "R1": {
+    "name": "ResNet50_frozen_LogisticRegression",
+    "C": 1.0,
+    "class_weight": "balanced",
+    "train_auc": 1.0,
+    "val_auc": 0.7178160919540231,
+    "DEV_TRAIN": {
+      "n_frames": 28,
+      "n_frames_with_positive": 28,
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "top10_recall": 1.0,
+      "mrr": 1.0,
+      "rank_mean": 1.0,
+      "rank_median": 1.0,
+      "by_phase": {
+        "takeoff": {
+          "n": 10,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "apex": {
+          "n": 7,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "water_contact": {
+          "n": 11,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        }
+      }
+    },
+    "DEV_VAL": {
+      "n_frames": 6,
+      "n_frames_with_positive": 6,
+      "top1_recall": 0.8333333333333334,
+      "top3_recall": 0.8333333333333334,
+      "top5_recall": 0.8333333333333334,
+      "top10_recall": 1.0,
+      "mrr": 0.8611111111111112,
+      "rank_mean": 1.8333333333333333,
+      "rank_median": 1.0,
+      "by_phase": {
+        "takeoff": {
+          "n": 2,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "apex": {
+          "n": 2,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "water_contact": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 0.5,
+          "mrr": 0.5833333333333334
+        }
+      }
+    }
+  },
+  "R2": {
+    "name": "R1_prob_plus_contextual_LogisticRegression",
+    "features": [
+      "r1_diver_prob",
+      "d4_conf",
+      "bbox_area_norm",
+      "bbox_cy_norm",
+      "bbox_aspect"
+    ],
+    "C": 0.1,
+    "class_weight": "balanced",
+    "train_auc": 1.0,
+    "val_auc": 0.6816091954022988,
+    "DEV_TRAIN": {
+      "n_frames": 28,
+      "n_frames_with_positive": 28,
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "top10_recall": 1.0,
+      "mrr": 1.0,
+      "rank_mean": 1.0,
+      "rank_median": 1.0,
+      "by_phase": {
+        "takeoff": {
+          "n": 10,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "apex": {
+          "n": 7,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "water_contact": {
+          "n": 11,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        }
+      }
+    },
+    "DEV_VAL": {
+      "n_frames": 6,
+      "n_frames_with_positive": 6,
+      "top1_recall": 0.6666666666666666,
+      "top3_recall": 0.8333333333333334,
+      "top5_recall": 0.8333333333333334,
+      "top10_recall": 1.0,
+      "mrr": 0.7777777777777778,
+      "rank_mean": 2.0,
+      "rank_median": 1.0,
+      "by_phase": {
+        "takeoff": {
+          "n": 2,
+          "top1": 1.0,
+          "top3": 1.0,
+          "mrr": 1.0
+        },
+        "apex": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 1.0,
+          "mrr": 0.75
+        },
+        "water_contact": {
+          "n": 2,
+          "top1": 0.5,
+          "top3": 0.5,
+          "mrr": 0.5833333333333334
+        }
+      }
+    }
+  },
+  "reranker_gate": {
+    "gate": "PASS",
+    "b0_top1_val": 0.5,
+    "best_top1_val": 0.8333333333333334,
+    "improvement": 0.33333333333333337,
+    "material_threshold": 0.05,
+    "selected_reranker": "R1"
+  },
+  "per_frame_val": {
+    "B0": {
+      "2341_apex": {
+        "rank": 6,
+        "n_cands": 12,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2341
+      },
+      "2341_takeoff": {
+        "rank": 1,
+        "n_cands": 19,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2341
+      },
+      "2341_water_contact": {
+        "rank": 1,
+        "n_cands": 15,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2341
+      },
+      "2353_apex": {
+        "rank": 1,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2353
+      },
+      "2353_takeoff": {
+        "rank": 2,
+        "n_cands": 17,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2353
+      },
+      "2353_water_contact": {
+        "rank": 4,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2353
+      }
+    },
+    "R1": {
+      "2341_apex": {
+        "rank": 1,
+        "n_cands": 12,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2341
+      },
+      "2341_takeoff": {
+        "rank": 1,
+        "n_cands": 19,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2341
+      },
+      "2341_water_contact": {
+        "rank": 1,
+        "n_cands": 15,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2341
+      },
+      "2353_apex": {
+        "rank": 1,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2353
+      },
+      "2353_takeoff": {
+        "rank": 1,
+        "n_cands": 17,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2353
+      },
+      "2353_water_contact": {
+        "rank": 6,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2353
+      }
+    },
+    "R2": {
+      "2341_apex": {
+        "rank": 1,
+        "n_cands": 12,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2341
+      },
+      "2341_takeoff": {
+        "rank": 1,
+        "n_cands": 19,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2341
+      },
+      "2341_water_contact": {
+        "rank": 1,
+        "n_cands": 15,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2341
+      },
+      "2353_apex": {
+        "rank": 2,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "apex",
+        "dive_id": 2353
+      },
+      "2353_takeoff": {
+        "rank": 1,
+        "n_cands": 17,
+        "has_positive": true,
+        "phase": "takeoff",
+        "dive_id": 2353
+      },
+      "2353_water_contact": {
+        "rank": 6,
+        "n_cands": 13,
+        "has_positive": true,
+        "phase": "water_contact",
+        "dive_id": 2353
+      }
+    }
+  },
+  "paris_firewall": "VERIFIED \u2014 Paris not used in training or evaluation"
+}

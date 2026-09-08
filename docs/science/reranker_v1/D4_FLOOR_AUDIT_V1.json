@@ -1,0 +1,3116 @@
+{
+  "label": "D4_FLOOR_AUDIT_V1",
+  "date": "2026-09-08",
+  "detector": "D4_PROPOSAL_V1",
+  "weights_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "floor_conf": 0.001,
+  "op_conf": 0.05,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "canonical_denominator": 34,
+  "target_present_at_floor": 34,
+  "target_present_at_op": 29,
+  "floor_recall": 1.0,
+  "op_recall": 0.8529411764705882,
+  "topk_recall": {
+    "1": {
+      "hits": 23,
+      "total": 34,
+      "recall": 0.6764705882352942
+    },
+    "2": {
+      "hits": 26,
+      "total": 34,
+      "recall": 0.7647058823529411
+    },
+    "3": {
+      "hits": 28,
+      "total": 34,
+      "recall": 0.8235294117647058
+    },
+    "5": {
+      "hits": 29,
+      "total": 34,
+      "recall": 0.8529411764705882
+    },
+    "10": {
+      "hits": 31,
+      "total": 34,
+      "recall": 0.9117647058823529
+    },
+    "25": {
+      "hits": 34,
+      "total": 34,
+      "recall": 1.0
+    },
+    "50": {
+      "hits": 34,
+      "total": 34,
+      "recall": 1.0
+    },
+    "100": {
+      "hits": 34,
+      "total": 34,
+      "recall": 1.0
+    },
+    "999": {
+      "hits": 34,
+      "total": 34,
+      "recall": 1.0
+    }
+  },
+  "per_threshold": {
+    "0.001": {
+      "hits": 34,
+      "total": 34,
+      "recall": 1.0,
+      "avg_n_preds": 137.5
+    },
+    "0.005": {
+      "hits": 33,
+      "total": 34,
+      "recall": 0.9705882352941176,
+      "avg_n_preds": 20.08823529411765
+    },
+    "0.01": {
+      "hits": 33,
+      "total": 34,
+      "recall": 0.9705882352941176,
+      "avg_n_preds": 11.352941176470589
+    },
+    "0.02": {
+      "hits": 30,
+      "total": 34,
+      "recall": 0.8823529411764706,
+      "avg_n_preds": 7.176470588235294
+    },
+    "0.03": {
+      "hits": 30,
+      "total": 34,
+      "recall": 0.8823529411764706,
+      "avg_n_preds": 5.176470588235294
+    },
+    "0.05": {
+      "hits": 29,
+      "total": 34,
+      "recall": 0.8529411764705882,
+      "avg_n_preds": 3.411764705882353
+    },
+    "0.1": {
+      "hits": 25,
+      "total": 34,
+      "recall": 0.7352941176470589,
+      "avg_n_preds": 2.0588235294117645
+    },
+    "0.2": {
+      "hits": 22,
+      "total": 34,
+      "recall": 0.6470588235294118,
+      "avg_n_preds": 0.9705882352941176
+    }
+  },
+  "target_rank_distribution": {
+    "min": 1,
+    "p25": 1.0,
+    "median": 2.5,
+    "p75": 17.5,
+    "p90": 64.59999999999998,
+    "max": 133,
+    "mean": 19.794117647058822
+  },
+  "per_frame": {
+    "1040_apex": {
+      "frame_id": "1040_apex",
+      "frame_index": 143,
+      "media_key": "9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 130,
+      "n_op": 2,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.724551260250105,
+      "target_center_dist": 0.005689829893632215,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.730202317237854,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 130,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 22,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 2,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 130,
+          "target_present": true
+        }
+      }
+    },
+    "1040_takeoff": {
+      "frame_id": "1040_takeoff",
+      "frame_index": 133,
+      "media_key": "9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 130,
+      "n_op": 3,
+      "target_rank_floor": 2,
+      "target_iou_floor": 0.7728774960609,
+      "target_center_dist": 0.010914480462367792,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.4664117693901062,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 130,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 24,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 14,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 130,
+          "target_present": true
+        }
+      }
+    },
+    "1040_water_contact": {
+      "frame_id": "1040_water_contact",
+      "frame_index": 162,
+      "media_key": "9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 134,
+      "n_op": 4,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6923466070760091,
+      "target_center_dist": 0.011421324289930335,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.38902077078819275,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 134,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 21,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 13,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 134,
+          "target_present": true
+        }
+      }
+    },
+    "133_apex": {
+      "frame_id": "133_apex",
+      "frame_index": 62,
+      "media_key": "c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 83,
+      "n_op": 2,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.7433144757539305,
+      "target_center_dist": 0.024828169590521816,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.266228049993515,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 83,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 83,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 83,
+          "target_present": true
+        }
+      }
+    },
+    "133_takeoff": {
+      "frame_id": "133_takeoff",
+      "frame_index": 53,
+      "media_key": "c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 80,
+      "n_op": 3,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.7136637009588109,
+      "target_center_dist": 0.020113541038117584,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.8722665905952454,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 80,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 80,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 80,
+          "target_present": true
+        }
+      }
+    },
+    "133_water_contact": {
+      "frame_id": "133_water_contact",
+      "frame_index": 88,
+      "media_key": "c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 82,
+      "n_op": 3,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.8116073270843721,
+      "target_center_dist": 0.012679856766626455,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.5863671898841858,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 82,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 2,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 82,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 82,
+          "target_present": true
+        }
+      }
+    },
+    "2169_takeoff": {
+      "frame_id": "2169_takeoff",
+      "frame_index": 387,
+      "media_key": "85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 141,
+      "n_op": 3,
+      "target_rank_floor": 133,
+      "target_iou_floor": 0.5172586453730624,
+      "target_center_dist": 0.056601923347738815,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.17075668275356293,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 141,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 16,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 11,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 141,
+          "target_present": true
+        }
+      }
+    },
+    "2169_water_contact": {
+      "frame_id": "2169_water_contact",
+      "frame_index": 461,
+      "media_key": "85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 146,
+      "n_op": 3,
+      "target_rank_floor": 73,
+      "target_iou_floor": 0.45526479698709943,
+      "target_center_dist": 0.06029495930394818,
+      "target_present_at_floor": true,
+      "target_present_at_op": false,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.17891031503677368,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 146,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 21,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 11,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": false
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": false
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 146,
+          "target_present": true
+        }
+      }
+    },
+    "2341_apex": {
+      "frame_id": "2341_apex",
+      "frame_index": 237,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 184,
+      "n_op": 1,
+      "target_rank_floor": 6,
+      "target_iou_floor": 0.5222295362003693,
+      "target_center_dist": 0.021058413116233,
+      "target_present_at_floor": true,
+      "target_present_at_op": false,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.0516795851290226,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 184,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 21,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": false
+        },
+        "0.03": {
+          "n_preds": 2,
+          "target_present": false
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": false
+        },
+        "0.1": {
+          "n_preds": 0,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": false
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 184,
+          "target_present": true
+        }
+      }
+    },
+    "2341_takeoff": {
+      "frame_id": "2341_takeoff",
+      "frame_index": 214,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 190,
+      "n_op": 3,
+      "target_rank_floor": 35,
+      "target_iou_floor": 0.4268489232804049,
+      "target_center_dist": 0.03876091674682745,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.07759814709424973,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 190,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 20,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 0,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 190,
+          "target_present": true
+        }
+      }
+    },
+    "2341_water_contact": {
+      "frame_id": "2341_water_contact",
+      "frame_index": 275,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 201,
+      "n_op": 4,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.7874873825343952,
+      "target_center_dist": 0.008207703754988938,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.3638434112071991,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 201,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 36,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 20,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 15,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 201,
+          "target_present": true
+        }
+      }
+    },
+    "2353_apex": {
+      "frame_id": "2353_apex",
+      "frame_index": 376,
+      "media_key": "66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 180,
+      "n_op": 7,
+      "target_rank_floor": 132,
+      "target_iou_floor": 0.4399620673541542,
+      "target_center_dist": 0.07086947059120237,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.21363767981529236,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 180,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 35,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 21,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 13,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 180,
+          "target_present": true
+        }
+      }
+    },
+    "2353_takeoff": {
+      "frame_id": "2353_takeoff",
+      "frame_index": 341,
+      "media_key": "66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 186,
+      "n_op": 6,
+      "target_rank_floor": 19,
+      "target_iou_floor": 0.5872111763870212,
+      "target_center_dist": 0.03213460945471669,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.14449958503246307,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 186,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 36,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 24,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 186,
+          "target_present": true
+        }
+      }
+    },
+    "2353_water_contact": {
+      "frame_id": "2353_water_contact",
+      "frame_index": 412,
+      "media_key": "66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 184,
+      "n_op": 4,
+      "target_rank_floor": 4,
+      "target_iou_floor": 0.5867957757938119,
+      "target_center_dist": 0.02042866762854268,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.10096756368875504,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 184,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 35,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 22,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 184,
+          "target_present": true
+        }
+      }
+    },
+    "2387_apex": {
+      "frame_id": "2387_apex",
+      "frame_index": 144,
+      "media_key": "e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 114,
+      "n_op": 1,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6048929707709441,
+      "target_center_dist": 0.018676590226505526,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.8423119187355042,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 114,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 114,
+          "target_present": true
+        }
+      }
+    },
+    "2387_takeoff": {
+      "frame_id": "2387_takeoff",
+      "frame_index": 134,
+      "media_key": "e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 118,
+      "n_op": 3,
+      "target_rank_floor": 2,
+      "target_iou_floor": 0.6529710323547817,
+      "target_center_dist": 0.04748438615907865,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.8017169833183289,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 118,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 118,
+          "target_present": true
+        }
+      }
+    },
+    "2387_water_contact": {
+      "frame_id": "2387_water_contact",
+      "frame_index": 164,
+      "media_key": "e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 139,
+      "n_op": 4,
+      "target_rank_floor": 3,
+      "target_iou_floor": 0.6082873842950611,
+      "target_center_dist": 0.04209105205417875,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.18209509551525116,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 139,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 20,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 139,
+          "target_present": true
+        }
+      }
+    },
+    "2541_apex": {
+      "frame_id": "2541_apex",
+      "frame_index": 539,
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 122,
+      "n_op": 1,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6096853682935033,
+      "target_center_dist": 0.026818395869059698,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.5286296010017395,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 122,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 11,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 122,
+          "target_present": true
+        }
+      }
+    },
+    "2541_takeoff": {
+      "frame_id": "2541_takeoff",
+      "frame_index": 525,
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 131,
+      "n_op": 1,
+      "target_rank_floor": 2,
+      "target_iou_floor": 0.6451567424036688,
+      "target_center_dist": 0.020241986211838103,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.5275790095329285,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 131,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 14,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 131,
+          "target_present": true
+        }
+      }
+    },
+    "2541_water_contact": {
+      "frame_id": "2541_water_contact",
+      "frame_index": 558,
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 125,
+      "n_op": 3,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6591287935383957,
+      "target_center_dist": 0.034410316229379824,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.17348720133304596,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 125,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 125,
+          "target_present": true
+        }
+      }
+    },
+    "2555_apex": {
+      "frame_id": "2555_apex",
+      "frame_index": 382,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "video_W": 166,
+      "video_H": 360,
+      "n_floor": 119,
+      "n_op": 4,
+      "target_rank_floor": 11,
+      "target_iou_floor": 0.6647192033262274,
+      "target_center_dist": 0.026155194154478086,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.7577091455459595,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 119,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 16,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 13,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 2,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 119,
+          "target_present": true
+        }
+      }
+    },
+    "2555_takeoff": {
+      "frame_id": "2555_takeoff",
+      "frame_index": 257,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "video_W": 166,
+      "video_H": 360,
+      "n_floor": 121,
+      "n_op": 9,
+      "target_rank_floor": 16,
+      "target_iou_floor": 0.43771974553968107,
+      "target_center_dist": 0.06801061901842102,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.9400486946105957,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 121,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 30,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 21,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 14,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 13,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 4,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 121,
+          "target_present": true
+        }
+      }
+    },
+    "2555_water_contact": {
+      "frame_id": "2555_water_contact",
+      "frame_index": 574,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "video_W": 166,
+      "video_H": 360,
+      "n_floor": 116,
+      "n_op": 2,
+      "target_rank_floor": 4,
+      "target_iou_floor": 0.7374695239850653,
+      "target_center_dist": 0.019992952679038674,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.48269912600517273,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 116,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 15,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 116,
+          "target_present": true
+        }
+      }
+    },
+    "2625_water_contact": {
+      "frame_id": "2625_water_contact",
+      "frame_index": 222,
+      "media_key": "4dc9064e1692518c412a4e6e55f67f92d26959d2bfecb3147617e914da3d84fd",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 85,
+      "n_op": 2,
+      "target_rank_floor": 25,
+      "target_iou_floor": 0.42936545380215685,
+      "target_center_dist": 0.07427707296138356,
+      "target_present_at_floor": true,
+      "target_present_at_op": false,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.1518785059452057,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 85,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 15,
+          "target_present": false
+        },
+        "0.01": {
+          "n_preds": 8,
+          "target_present": false
+        },
+        "0.02": {
+          "n_preds": 5,
+          "target_present": false
+        },
+        "0.03": {
+          "n_preds": 4,
+          "target_present": false
+        },
+        "0.05": {
+          "n_preds": 2,
+          "target_present": false
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": false
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": false
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 85,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 85,
+          "target_present": true
+        }
+      }
+    },
+    "2661_takeoff": {
+      "frame_id": "2661_takeoff",
+      "frame_index": 1008,
+      "media_key": "23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 133,
+      "n_op": 3,
+      "target_rank_floor": 18,
+      "target_iou_floor": 0.7092857572180062,
+      "target_center_dist": 0.0032905712746849037,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.6050001382827759,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 133,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 19,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 133,
+          "target_present": true
+        }
+      }
+    },
+    "2661_water_contact": {
+      "frame_id": "2661_water_contact",
+      "frame_index": 1055,
+      "media_key": "23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 129,
+      "n_op": 4,
+      "target_rank_floor": 11,
+      "target_iou_floor": 0.5231039877200089,
+      "target_center_dist": 0.022873206462495674,
+      "target_present_at_floor": true,
+      "target_present_at_op": false,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.19102361798286438,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 129,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 19,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 14,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 10,
+          "target_present": false
+        },
+        "0.03": {
+          "n_preds": 7,
+          "target_present": false
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": false
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": false
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": false
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 129,
+          "target_present": true
+        }
+      }
+    },
+    "2680_takeoff": {
+      "frame_id": "2680_takeoff",
+      "frame_index": 200,
+      "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 130,
+      "n_op": 5,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6413032301644418,
+      "target_center_dist": 0.021947857742971477,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.28685978055000305,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 130,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 20,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 16,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 2,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 130,
+          "target_present": true
+        }
+      }
+    },
+    "2680_water_contact": {
+      "frame_id": "2680_water_contact",
+      "frame_index": 241,
+      "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 135,
+      "n_op": 5,
+      "target_rank_floor": 45,
+      "target_iou_floor": 0.31766169089474,
+      "target_center_dist": 0.05623898015212452,
+      "target_present_at_floor": true,
+      "target_present_at_op": false,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.2133662849664688,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 135,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 25,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 16,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 12,
+          "target_present": false
+        },
+        "0.03": {
+          "n_preds": 6,
+          "target_present": false
+        },
+        "0.05": {
+          "n_preds": 5,
+          "target_present": false
+        },
+        "0.1": {
+          "n_preds": 2,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": false
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": false
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": false
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 135,
+          "target_present": true
+        }
+      }
+    },
+    "311_water_contact": {
+      "frame_id": "311_water_contact",
+      "frame_index": 444,
+      "media_key": "dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 128,
+      "n_op": 4,
+      "target_rank_floor": 10,
+      "target_iou_floor": 0.6610891588926953,
+      "target_center_dist": 0.04481764718312012,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.44385427236557007,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 128,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 22,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 3,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 128,
+          "target_present": true
+        }
+      }
+    },
+    "524_apex": {
+      "frame_id": "524_apex",
+      "frame_index": 379,
+      "media_key": "552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 205,
+      "n_op": 6,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.7943069965198798,
+      "target_center_dist": 0.016208936689437133,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.9126291871070862,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 205,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 37,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 18,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 11,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 2,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 205,
+          "target_present": true
+        }
+      }
+    },
+    "524_takeoff": {
+      "frame_id": "524_takeoff",
+      "frame_index": 348,
+      "media_key": "552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 205,
+      "n_op": 6,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.6932175299908043,
+      "target_center_dist": 0.0097594326089412,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.9437318444252014,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 205,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 42,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 17,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 12,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 8,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 205,
+          "target_present": true
+        }
+      }
+    },
+    "676_apex": {
+      "frame_id": "676_apex",
+      "frame_index": 116,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 116,
+      "n_op": 1,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.8468485233268166,
+      "target_center_dist": 0.010822917119583261,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.8503950238227844,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 116,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 9,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 6,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 2,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 116,
+          "target_present": true
+        }
+      }
+    },
+    "676_takeoff": {
+      "frame_id": "676_takeoff",
+      "frame_index": 106,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 121,
+      "n_op": 1,
+      "target_rank_floor": 1,
+      "target_iou_floor": 0.7918598719963703,
+      "target_center_dist": 0.014559850578719056,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_SELECTED_CORRECTLY",
+      "floor_conf_top1": 0.4807804822921753,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 121,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 11,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 5,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": true
+        },
+        "0.2": {
+          "n_preds": 1,
+          "target_present": true
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": true
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": true
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 121,
+          "target_present": true
+        }
+      }
+    },
+    "676_water_contact": {
+      "frame_id": "676_water_contact",
+      "frame_index": 145,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "video_W": 202,
+      "video_H": 360,
+      "n_floor": 132,
+      "n_op": 3,
+      "target_rank_floor": 108,
+      "target_iou_floor": 0.6241294048245214,
+      "target_center_dist": 0.03109321554703948,
+      "target_present_at_floor": true,
+      "target_present_at_op": true,
+      "taxonomy": "TARGET_PRESENT_RANKED_BELOW_1",
+      "floor_conf_top1": 0.12863557040691376,
+      "threshold_results": {
+        "0.001": {
+          "n_preds": 132,
+          "target_present": true
+        },
+        "0.005": {
+          "n_preds": 10,
+          "target_present": true
+        },
+        "0.01": {
+          "n_preds": 7,
+          "target_present": true
+        },
+        "0.02": {
+          "n_preds": 4,
+          "target_present": true
+        },
+        "0.03": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.05": {
+          "n_preds": 3,
+          "target_present": true
+        },
+        "0.1": {
+          "n_preds": 1,
+          "target_present": false
+        },
+        "0.2": {
+          "n_preds": 0,
+          "target_present": false
+        }
+      },
+      "topk_results": {
+        "1": {
+          "n_checked": 1,
+          "target_present": false
+        },
+        "2": {
+          "n_checked": 2,
+          "target_present": false
+        },
+        "3": {
+          "n_checked": 3,
+          "target_present": true
+        },
+        "5": {
+          "n_checked": 5,
+          "target_present": true
+        },
+        "10": {
+          "n_checked": 10,
+          "target_present": true
+        },
+        "25": {
+          "n_checked": 25,
+          "target_present": true
+        },
+        "50": {
+          "n_checked": 50,
+          "target_present": true
+        },
+        "100": {
+          "n_checked": 100,
+          "target_present": true
+        },
+        "999": {
+          "n_checked": 132,
+          "target_present": true
+        }
+      }
+    }
+  },
+  "paris_firewall": "Paris excluded from all floor analysis"
+}

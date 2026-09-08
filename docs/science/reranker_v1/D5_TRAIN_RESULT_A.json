@@ -1,0 +1,12 @@
+{
+  "label": "D5_TRAIN_RESULT_A",
+  "date": "2026-09-08",
+  "base_weights": "DIVER_DETECTOR_D4_A_V8N_best.pt",
+  "run": "D5A_transfer",
+  "epochs_ran": "?",
+  "mAP50": 0.0860226121458171,
+  "mAP50_95": 0.05519260332892019,
+  "best_pt": "/tmp/diveanalyzer-exp/models/DIVER_DETECTOR_D5_A_V8N_best.pt",
+  "device": "mps",
+  "amp": false
+}

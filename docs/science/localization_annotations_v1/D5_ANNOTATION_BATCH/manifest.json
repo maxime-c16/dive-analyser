@@ -1,0 +1,2763 @@
+{
+  "batch": "D5_ANNOTATION_BATCH",
+  "date": "2026-09-08",
+  "n_frames": 44,
+  "frames": [
+    {
+      "frame_id": "D5_2169_takeoff_00377",
+      "frame_file": "D5_2169_takeoff_00377.jpg",
+      "dive_id": 2169,
+      "phase": "takeoff",
+      "frame_index": 377,
+      "gt_frame_index": 387,
+      "offset_from_gt": -10,
+      "source_failure_rank": 133,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK133",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            18.16360092163086,
+            244.97547912597656,
+            47.147037506103516,
+            269.43255615234375
+          ],
+          "conf": 0.15664154291152954
+        },
+        {
+          "xyxy_px": [
+            32.04706573486328,
+            25.61440086364746,
+            112.35221862792969,
+            237.51629638671875
+          ],
+          "conf": 0.09919554740190506
+        },
+        {
+          "xyxy_px": [
+            53.0783576965332,
+            100.6748275756836,
+            82.4013671875,
+            127.76509094238281
+          ],
+          "conf": 0.06931845843791962
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": [
+          48,
+          89.5,
+          104,
+          145.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:36:06.379971+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00383",
+      "frame_file": "D5_2169_takeoff_00383.jpg",
+      "dive_id": 2169,
+      "phase": "takeoff",
+      "frame_index": 383,
+      "gt_frame_index": 387,
+      "offset_from_gt": -4,
+      "source_failure_rank": 133,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK133",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            18.170679092407227,
+            244.98638916015625,
+            47.1639518737793,
+            269.409423828125
+          ],
+          "conf": 0.15067806839942932
+        },
+        {
+          "xyxy_px": [
+            32.443809509277344,
+            26.064754486083984,
+            112.39111328125,
+            237.90000915527344
+          ],
+          "conf": 0.10744879394769669
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          46,
+          73.5,
+          99,
+          134.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:36:12.832684+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00387",
+      "frame_file": "D5_2169_takeoff_00387.jpg",
+      "dive_id": 2169,
+      "phase": "takeoff",
+      "frame_index": 387,
+      "gt_frame_index": 387,
+      "offset_from_gt": 0,
+      "source_failure_rank": 133,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK133",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            63.8586311340332,
+            83.34178161621094,
+            93.26388549804688,
+            124.44954681396484
+          ],
+          "conf": 0.2333669364452362
+        },
+        {
+          "xyxy_px": [
+            18.158275604248047,
+            244.97779846191406,
+            47.14973831176758,
+            269.4075012207031
+          ],
+          "conf": 0.1544322371482849
+        },
+        {
+          "xyxy_px": [
+            34.46672058105469,
+            35.1331787109375,
+            110.3399658203125,
+            236.25621032714844
+          ],
+          "conf": 0.11182691901922226
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          63.8586,
+          83.3418,
+          93.2639,
+          124.4495
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:36:21.680554+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00392",
+      "frame_file": "D5_2169_takeoff_00392.jpg",
+      "dive_id": 2169,
+      "phase": "takeoff",
+      "frame_index": 392,
+      "gt_frame_index": 387,
+      "offset_from_gt": 5,
+      "source_failure_rank": 133,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK133",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            66.91779327392578,
+            82.58924102783203,
+            93.99806213378906,
+            125.23116302490234
+          ],
+          "conf": 0.2795700430870056
+        },
+        {
+          "xyxy_px": [
+            18.152864456176758,
+            244.96258544921875,
+            47.178810119628906,
+            269.4223327636719
+          ],
+          "conf": 0.16964463889598846
+        },
+        {
+          "xyxy_px": [
+            34.50614929199219,
+            22.047260284423828,
+            115.88462829589844,
+            224.42335510253906
+          ],
+          "conf": 0.12169788777828217
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          66.9178,
+          82.5892,
+          93.9981,
+          125.2312
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:36:27.846580+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2353_apex_00368",
+      "frame_file": "D5_2353_apex_00368.jpg",
+      "dive_id": 2353,
+      "phase": "apex",
+      "frame_index": 368,
+      "gt_frame_index": 376,
+      "offset_from_gt": -8,
+      "source_failure_rank": 132,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK132",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            165.1321258544922,
+            287.65496826171875,
+            196.74124145507812,
+            309.5182189941406
+          ],
+          "conf": 0.1972302347421646
+        },
+        {
+          "xyxy_px": [
+            19.56003189086914,
+            197.8117218017578,
+            60.3408088684082,
+            291.5258483886719
+          ],
+          "conf": 0.0842493548989296
+        },
+        {
+          "xyxy_px": [
+            63.072200775146484,
+            342.8540954589844,
+            92.71302032470703,
+            360.0
+          ],
+          "conf": 0.07667858898639679
+        },
+        {
+          "xyxy_px": [
+            99.76085662841797,
+            280.4762878417969,
+            149.11337280273438,
+            357.76422119140625
+          ],
+          "conf": 0.07364940643310547
+        },
+        {
+          "xyxy_px": [
+            63.011810302734375,
+            174.65054321289062,
+            87.72235870361328,
+            206.9548797607422
+          ],
+          "conf": 0.06775514781475067
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          32,
+          180.5,
+          89,
+          212.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:36:53.297457+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2353_apex_00373",
+      "frame_file": "D5_2353_apex_00373.jpg",
+      "dive_id": 2353,
+      "phase": "apex",
+      "frame_index": 373,
+      "gt_frame_index": 376,
+      "offset_from_gt": -3,
+      "source_failure_rank": 132,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK132",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            62.22190856933594,
+            177.7147674560547,
+            89.81637573242188,
+            206.51364135742188
+          ],
+          "conf": 0.31219717860221863
+        },
+        {
+          "xyxy_px": [
+            165.35264587402344,
+            287.9856262207031,
+            196.89447021484375,
+            309.6414489746094
+          ],
+          "conf": 0.18257062137126923
+        },
+        {
+          "xyxy_px": [
+            19.570341110229492,
+            199.8244171142578,
+            61.15253829956055,
+            291.3517761230469
+          ],
+          "conf": 0.1261766403913498
+        },
+        {
+          "xyxy_px": [
+            99.58119201660156,
+            280.360107421875,
+            149.549072265625,
+            357.86639404296875
+          ],
+          "conf": 0.07812649011611938
+        },
+        {
+          "xyxy_px": [
+            63.022701263427734,
+            342.8170471191406,
+            92.75848388671875,
+            360.0
+          ],
+          "conf": 0.07377184182405472
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          34,
+          175.5,
+          91,
+          205.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:37:02.784276+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2353_apex_00376",
+      "frame_file": "D5_2353_apex_00376.jpg",
+      "dive_id": 2353,
+      "phase": "apex",
+      "frame_index": 376,
+      "gt_frame_index": 376,
+      "offset_from_gt": 0,
+      "source_failure_rank": 132,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK132",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            19.703516006469727,
+            200.26565551757812,
+            61.212894439697266,
+            288.6195373535156
+          ],
+          "conf": 0.1774691641330719
+        },
+        {
+          "xyxy_px": [
+            61.72250747680664,
+            177.51722717285156,
+            90.99750518798828,
+            207.1990203857422
+          ],
+          "conf": 0.13713915646076202
+        },
+        {
+          "xyxy_px": [
+            165.17311096191406,
+            287.9909973144531,
+            197.0280303955078,
+            309.6331787109375
+          ],
+          "conf": 0.13442005217075348
+        },
+        {
+          "xyxy_px": [
+            99.61022186279297,
+            280.35919189453125,
+            149.49569702148438,
+            357.8857727050781
+          ],
+          "conf": 0.07663460820913315
+        },
+        {
+          "xyxy_px": [
+            63.04941177368164,
+            342.86419677734375,
+            92.74962615966797,
+            360.0
+          ],
+          "conf": 0.07305853813886642
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          32,
+          179.5,
+          91,
+          211.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:37:08.113145+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2353_apex_00380",
+      "frame_file": "D5_2353_apex_00380.jpg",
+      "dive_id": 2353,
+      "phase": "apex",
+      "frame_index": 380,
+      "gt_frame_index": 376,
+      "offset_from_gt": 4,
+      "source_failure_rank": 132,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK132",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            19.808731079101562,
+            200.74156188964844,
+            61.317928314208984,
+            290.2501220703125
+          ],
+          "conf": 0.16709135472774506
+        },
+        {
+          "xyxy_px": [
+            165.24130249023438,
+            287.9590759277344,
+            197.00222778320312,
+            309.6806945800781
+          ],
+          "conf": 0.16520415246486664
+        },
+        {
+          "xyxy_px": [
+            99.82948303222656,
+            280.3866882324219,
+            149.00917053222656,
+            358.0845947265625
+          ],
+          "conf": 0.07324451953172684
+        },
+        {
+          "xyxy_px": [
+            63.016578674316406,
+            342.8372802734375,
+            92.7789535522461,
+            360.0
+          ],
+          "conf": 0.07278897613286972
+        },
+        {
+          "xyxy_px": [
+            149.57029724121094,
+            309.6065368652344,
+            171.57394409179688,
+            351.1002502441406
+          ],
+          "conf": 0.0627773106098175
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          37,
+          178.5,
+          97,
+          208.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:37:30.086295+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_676_water_contact_00133",
+      "frame_file": "D5_676_water_contact_00133.jpg",
+      "dive_id": 676,
+      "phase": "water_contact",
+      "frame_index": 133,
+      "gt_frame_index": 145,
+      "offset_from_gt": -12,
+      "source_failure_rank": 108,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK108",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            52.06681442260742,
+            105.0541000366211,
+            100.65670013427734,
+            144.0006866455078
+          ],
+          "conf": 0.06888169050216675
+        },
+        {
+          "xyxy_px": [
+            148.5544891357422,
+            73.29070281982422,
+            182.1946563720703,
+            120.97940063476562
+          ],
+          "conf": 0.05891382694244385
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          52.0668,
+          105.0541,
+          100.6567,
+          144.0007
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:37:40.317086+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_676_water_contact_00140",
+      "frame_file": "D5_676_water_contact_00140.jpg",
+      "dive_id": 676,
+      "phase": "water_contact",
+      "frame_index": 140,
+      "gt_frame_index": 145,
+      "offset_from_gt": -5,
+      "source_failure_rank": 108,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK108",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            111.50367736816406,
+            111.79242706298828,
+            139.23992919921875,
+            133.25738525390625
+          ],
+          "conf": 0.2210615873336792
+        },
+        {
+          "xyxy_px": [
+            148.64089965820312,
+            73.2868423461914,
+            181.6670379638672,
+            122.19371795654297
+          ],
+          "conf": 0.06978607177734375
+        },
+        {
+          "xyxy_px": [
+            107.70417785644531,
+            102.66387176513672,
+            151.66107177734375,
+            138.00328063964844
+          ],
+          "conf": 0.05413521081209183
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          51,
+          125.5,
+          89,
+          182.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:37:51.034584+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_676_water_contact_00145",
+      "frame_file": "D5_676_water_contact_00145.jpg",
+      "dive_id": 676,
+      "phase": "water_contact",
+      "frame_index": 145,
+      "gt_frame_index": 145,
+      "offset_from_gt": 0,
+      "source_failure_rank": 108,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK108",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            110.48271942138672,
+            111.6080322265625,
+            135.06298828125,
+            134.04005432128906
+          ],
+          "conf": 0.16379554569721222
+        },
+        {
+          "xyxy_px": [
+            51.502567291259766,
+            157.76950073242188,
+            77.61212158203125,
+            201.0831756591797
+          ],
+          "conf": 0.0794292688369751
+        },
+        {
+          "xyxy_px": [
+            148.609375,
+            73.34806823730469,
+            181.66860961914062,
+            122.32075500488281
+          ],
+          "conf": 0.06903202831745148
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          53,
+          150.5,
+          78,
+          205.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:38:08.464790+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_676_water_contact_00150",
+      "frame_file": "D5_676_water_contact_00150.jpg",
+      "dive_id": 676,
+      "phase": "water_contact",
+      "frame_index": 150,
+      "gt_frame_index": 145,
+      "offset_from_gt": 5,
+      "source_failure_rank": 108,
+      "reason": "SEVERE_RANKING",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK108",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            148.58160400390625,
+            73.3038330078125,
+            181.88844299316406,
+            122.09532165527344
+          ],
+          "conf": 0.0796675831079483
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:38:14.063586+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00229",
+      "frame_file": "D5_2680_water_contact_00229.jpg",
+      "dive_id": 2680,
+      "phase": "water_contact",
+      "frame_index": 229,
+      "gt_frame_index": 241,
+      "offset_from_gt": -12,
+      "source_failure_rank": 45,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK45",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            144.41940307617188,
+            128.32408142089844,
+            170.351318359375,
+            167.56842041015625
+          ],
+          "conf": 0.3296712338924408
+        },
+        {
+          "xyxy_px": [
+            33.496463775634766,
+            100.3115234375,
+            118.34130096435547,
+            301.20001220703125
+          ],
+          "conf": 0.23472046852111816
+        },
+        {
+          "xyxy_px": [
+            13.905519485473633,
+            162.63905334472656,
+            35.027015686035156,
+            188.08840942382812
+          ],
+          "conf": 0.12395502626895905
+        },
+        {
+          "xyxy_px": [
+            59.88539123535156,
+            76.99012756347656,
+            174.61669921875,
+            303.1604309082031
+          ],
+          "conf": 0.09100858867168427
+        },
+        {
+          "xyxy_px": [
+            172.74473571777344,
+            287.5700988769531,
+            202.0,
+            320.6361999511719
+          ],
+          "conf": 0.0843181163072586
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:38:40.504722+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00236",
+      "frame_file": "D5_2680_water_contact_00236.jpg",
+      "dive_id": 2680,
+      "phase": "water_contact",
+      "frame_index": 236,
+      "gt_frame_index": 241,
+      "offset_from_gt": -5,
+      "source_failure_rank": 45,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK45",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            33.23131561279297,
+            100.97884368896484,
+            116.66278076171875,
+            300.9803466796875
+          ],
+          "conf": 0.20734411478042603
+        },
+        {
+          "xyxy_px": [
+            13.909356117248535,
+            162.62930297851562,
+            35.025604248046875,
+            188.04205322265625
+          ],
+          "conf": 0.12514927983283997
+        },
+        {
+          "xyxy_px": [
+            172.7220001220703,
+            287.5642395019531,
+            202.0,
+            320.6076965332031
+          ],
+          "conf": 0.07789615541696548
+        },
+        {
+          "xyxy_px": [
+            62.51364517211914,
+            76.32064056396484,
+            175.88682556152344,
+            298.8977355957031
+          ],
+          "conf": 0.07304054498672485
+        },
+        {
+          "xyxy_px": [
+            134.80311584472656,
+            157.9844207763672,
+            152.03021240234375,
+            202.48036193847656
+          ],
+          "conf": 0.07102345675230026
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          125,
+          151.5,
+          157,
+          205.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:38:55.055918+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00246",
+      "frame_file": "D5_2680_water_contact_00246.jpg",
+      "dive_id": 2680,
+      "phase": "water_contact",
+      "frame_index": 246,
+      "gt_frame_index": 241,
+      "offset_from_gt": 5,
+      "source_failure_rank": 45,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK45",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            33.37772750854492,
+            100.39491271972656,
+            118.56834411621094,
+            301.22650146484375
+          ],
+          "conf": 0.2317054569721222
+        },
+        {
+          "xyxy_px": [
+            13.91586685180664,
+            162.63143920898438,
+            35.02784729003906,
+            188.05641174316406
+          ],
+          "conf": 0.1252250373363495
+        },
+        {
+          "xyxy_px": [
+            59.09999084472656,
+            76.62493133544922,
+            173.00717163085938,
+            302.68707275390625
+          ],
+          "conf": 0.09087062627077103
+        },
+        {
+          "xyxy_px": [
+            172.75015258789062,
+            287.5691223144531,
+            202.0,
+            320.6207275390625
+          ],
+          "conf": 0.08637236058712006
+        },
+        {
+          "xyxy_px": [
+            136.20956420898438,
+            151.3729248046875,
+            155.1823272705078,
+            180.6976318359375
+          ],
+          "conf": 0.05401385948061943
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          130,
+          181.5,
+          154,
+          236.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:15.449272+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00255",
+      "frame_file": "D5_2680_water_contact_00255.jpg",
+      "dive_id": 2680,
+      "phase": "water_contact",
+      "frame_index": 255,
+      "gt_frame_index": 241,
+      "offset_from_gt": 14,
+      "source_failure_rank": 45,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK45",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            30.666093826293945,
+            101.78385925292969,
+            114.7342300415039,
+            302.6401062011719
+          ],
+          "conf": 0.2289293259382248
+        },
+        {
+          "xyxy_px": [
+            14.615639686584473,
+            162.37173461914062,
+            34.878089904785156,
+            183.2670440673828
+          ],
+          "conf": 0.0955585166811943
+        },
+        {
+          "xyxy_px": [
+            158.1442108154297,
+            116.5108642578125,
+            181.8071746826172,
+            142.44073486328125
+          ],
+          "conf": 0.06341100484132767
+        },
+        {
+          "xyxy_px": [
+            171.73825073242188,
+            287.55511474609375,
+            202.0,
+            318.26837158203125
+          ],
+          "conf": 0.062072742730379105
+        },
+        {
+          "xyxy_px": [
+            54.58815002441406,
+            78.30494689941406,
+            172.6178741455078,
+            303.9602355957031
+          ],
+          "conf": 0.058403268456459045
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:18.265495+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00204",
+      "frame_file": "D5_2341_takeoff_00204.jpg",
+      "dive_id": 2341,
+      "phase": "takeoff",
+      "frame_index": 204,
+      "gt_frame_index": 214,
+      "offset_from_gt": -10,
+      "source_failure_rank": 35,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK35",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            55.18274688720703,
+            268.5842590332031,
+            73.91178131103516,
+            318.6282958984375
+          ],
+          "conf": 0.2584100663661957
+        },
+        {
+          "xyxy_px": [
+            163.59829711914062,
+            145.88577270507812,
+            197.55062866210938,
+            172.4121856689453
+          ],
+          "conf": 0.06032972410321236
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          55.1827,
+          268.5843,
+          73.9118,
+          318.6283
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:39.733736+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00210",
+      "frame_file": "D5_2341_takeoff_00210.jpg",
+      "dive_id": 2341,
+      "phase": "takeoff",
+      "frame_index": 210,
+      "gt_frame_index": 214,
+      "offset_from_gt": -4,
+      "source_failure_rank": 35,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK35",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            59.55085754394531,
+            254.10659790039062,
+            87.1059799194336,
+            294.90216064453125
+          ],
+          "conf": 0.11355219781398773
+        },
+        {
+          "xyxy_px": [
+            163.58975219726562,
+            145.886962890625,
+            197.64662170410156,
+            172.4492645263672
+          ],
+          "conf": 0.06000733748078346
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          59.5509,
+          254.1066,
+          87.106,
+          294.9022
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:44.096421+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00219",
+      "frame_file": "D5_2341_takeoff_00219.jpg",
+      "dive_id": 2341,
+      "phase": "takeoff",
+      "frame_index": 219,
+      "gt_frame_index": 214,
+      "offset_from_gt": 5,
+      "source_failure_rank": 35,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK35",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            163.57554626464844,
+            145.90234375,
+            197.7312774658203,
+            172.47669982910156
+          ],
+          "conf": 0.06034647300839424
+        },
+        {
+          "xyxy_px": [
+            67.13135528564453,
+            189.2276153564453,
+            92.01641845703125,
+            240.39218139648438
+          ],
+          "conf": 0.05905942618846893
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          59,
+          234.5,
+          106,
+          294.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:53.418287+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00226",
+      "frame_file": "D5_2341_takeoff_00226.jpg",
+      "dive_id": 2341,
+      "phase": "takeoff",
+      "frame_index": 226,
+      "gt_frame_index": 214,
+      "offset_from_gt": 12,
+      "source_failure_rank": 35,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK35",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            163.59071350097656,
+            145.8906707763672,
+            197.62451171875,
+            172.4413299560547
+          ],
+          "conf": 0.06018100306391716
+        },
+        {
+          "xyxy_px": [
+            68.03207397460938,
+            188.79949951171875,
+            88.7176284790039,
+            239.220703125
+          ],
+          "conf": 0.057255301624536514
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          66,
+          228.5,
+          106,
+          276.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:39:59.435149+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00210",
+      "frame_file": "D5_2625_water_contact_00210.jpg",
+      "dive_id": 2625,
+      "phase": "water_contact",
+      "frame_index": 210,
+      "gt_frame_index": 222,
+      "offset_from_gt": -12,
+      "source_failure_rank": 25,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK25",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            134.63421630859375,
+            164.77365112304688,
+            177.72470092773438,
+            217.65390014648438
+          ],
+          "conf": 0.3212990462779999
+        },
+        {
+          "xyxy_px": [
+            7.838590621948242,
+            99.61088562011719,
+            91.38494873046875,
+            315.8013610839844
+          ],
+          "conf": 0.12351157516241074
+        },
+        {
+          "xyxy_px": [
+            13.660263061523438,
+            228.68360900878906,
+            45.06972885131836,
+            250.09878540039062
+          ],
+          "conf": 0.08773869276046753
+        },
+        {
+          "xyxy_px": [
+            122.10555267333984,
+            157.96629333496094,
+            197.18858337402344,
+            321.88958740234375
+          ],
+          "conf": 0.052522409707307816
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          134.6342,
+          164.7737,
+          177.7247,
+          217.6539
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:08.480922+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00217",
+      "frame_file": "D5_2625_water_contact_00217.jpg",
+      "dive_id": 2625,
+      "phase": "water_contact",
+      "frame_index": 217,
+      "gt_frame_index": 222,
+      "offset_from_gt": -5,
+      "source_failure_rank": 25,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK25",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            119.49612426757812,
+            194.2130126953125,
+            166.53652954101562,
+            263.2082214355469
+          ],
+          "conf": 0.21263256669044495
+        },
+        {
+          "xyxy_px": [
+            112.26334381103516,
+            143.21153259277344,
+            179.6186065673828,
+            274.9617004394531
+          ],
+          "conf": 0.16340437531471252
+        },
+        {
+          "xyxy_px": [
+            7.771685600280762,
+            99.61180114746094,
+            91.30033111572266,
+            314.7698059082031
+          ],
+          "conf": 0.12880681455135345
+        },
+        {
+          "xyxy_px": [
+            13.653923988342285,
+            228.67990112304688,
+            45.09210968017578,
+            250.05813598632812
+          ],
+          "conf": 0.08227554708719254
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          119.4961,
+          194.213,
+          166.5365,
+          263.2082
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:12.586999+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00227",
+      "frame_file": "D5_2625_water_contact_00227.jpg",
+      "dive_id": 2625,
+      "phase": "water_contact",
+      "frame_index": 227,
+      "gt_frame_index": 222,
+      "offset_from_gt": 5,
+      "source_failure_rank": 25,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK25",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            8.531476020812988,
+            99.7956771850586,
+            92.54938507080078,
+            315.27410888671875
+          ],
+          "conf": 0.14439938962459564
+        },
+        {
+          "xyxy_px": [
+            13.645088195800781,
+            228.69085693359375,
+            44.80024719238281,
+            249.96072387695312
+          ],
+          "conf": 0.08596650511026382
+        },
+        {
+          "xyxy_px": [
+            152.8359375,
+            184.70654296875,
+            170.25112915039062,
+            213.12998962402344
+          ],
+          "conf": 0.0693240761756897
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          118,
+          262.5,
+          145,
+          308.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:20.449695+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00236",
+      "frame_file": "D5_2625_water_contact_00236.jpg",
+      "dive_id": 2625,
+      "phase": "water_contact",
+      "frame_index": 236,
+      "gt_frame_index": 222,
+      "offset_from_gt": 14,
+      "source_failure_rank": 25,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK25",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            8.305827140808105,
+            99.75325012207031,
+            92.12757873535156,
+            314.7203674316406
+          ],
+          "conf": 0.13761787116527557
+        },
+        {
+          "xyxy_px": [
+            13.65174388885498,
+            228.67405700683594,
+            44.80074691772461,
+            249.97523498535156
+          ],
+          "conf": 0.08929738402366638
+        },
+        {
+          "xyxy_px": [
+            152.87014770507812,
+            184.58506774902344,
+            170.2297821044922,
+            213.1175994873047
+          ],
+          "conf": 0.07015231251716614
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:23.864957+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_takeoff_00998",
+      "frame_file": "D5_2661_takeoff_00998.jpg",
+      "dive_id": 2661,
+      "phase": "takeoff",
+      "frame_index": 998,
+      "gt_frame_index": 1008,
+      "offset_from_gt": -10,
+      "source_failure_rank": 18,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK18",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            83.04737091064453,
+            122.47032928466797,
+            115.59862518310547,
+            156.38587951660156
+          ],
+          "conf": 0.48500680923461914
+        },
+        {
+          "xyxy_px": [
+            164.5582275390625,
+            90.44200897216797,
+            201.6308135986328,
+            142.193359375
+          ],
+          "conf": 0.21088026463985443
+        },
+        {
+          "xyxy_px": [
+            119.37145233154297,
+            208.24046325683594,
+            163.95455932617188,
+            249.6256103515625
+          ],
+          "conf": 0.15585865080356598
+        },
+        {
+          "xyxy_px": [
+            183.05831909179688,
+            59.46176528930664,
+            202.0,
+            83.9547348022461
+          ],
+          "conf": 0.06333374977111816
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          83.0474,
+          122.4703,
+          115.5986,
+          156.3859
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:29.813284+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01004",
+      "frame_file": "D5_2661_takeoff_01004.jpg",
+      "dive_id": 2661,
+      "phase": "takeoff",
+      "frame_index": 1004,
+      "gt_frame_index": 1008,
+      "offset_from_gt": -4,
+      "source_failure_rank": 18,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK18",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            79.87252044677734,
+            120.46129608154297,
+            116.645751953125,
+            158.75665283203125
+          ],
+          "conf": 0.5367419123649597
+        },
+        {
+          "xyxy_px": [
+            182.92901611328125,
+            60.551025390625,
+            202.0,
+            82.01873016357422
+          ],
+          "conf": 0.1543126404285431
+        },
+        {
+          "xyxy_px": [
+            168.82737731933594,
+            90.85322570800781,
+            199.54110717773438,
+            139.27163696289062
+          ],
+          "conf": 0.1156698614358902
+        },
+        {
+          "xyxy_px": [
+            120.20284271240234,
+            207.7793731689453,
+            170.0917205810547,
+            247.78712463378906
+          ],
+          "conf": 0.07077635079622269
+        },
+        {
+          "xyxy_px": [
+            173.43161010742188,
+            91.90279388427734,
+            196.53256225585938,
+            120.57433319091797
+          ],
+          "conf": 0.05076509714126587
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          79.8725,
+          120.4613,
+          116.6458,
+          158.7567
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:32.518225+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01013",
+      "frame_file": "D5_2661_takeoff_01013.jpg",
+      "dive_id": 2661,
+      "phase": "takeoff",
+      "frame_index": 1013,
+      "gt_frame_index": 1008,
+      "offset_from_gt": 5,
+      "source_failure_rank": 18,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK18",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            76.59744262695312,
+            116.57373046875,
+            116.24140167236328,
+            159.02093505859375
+          ],
+          "conf": 0.6241390109062195
+        },
+        {
+          "xyxy_px": [
+            182.88882446289062,
+            60.540889739990234,
+            202.0,
+            82.07897186279297
+          ],
+          "conf": 0.1535608023405075
+        },
+        {
+          "xyxy_px": [
+            166.7602081298828,
+            91.70936584472656,
+            201.3866424560547,
+            142.1968536376953
+          ],
+          "conf": 0.12424538284540176
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          76.5974,
+          116.5737,
+          116.2414,
+          159.0209
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:34.998041+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01020",
+      "frame_file": "D5_2661_takeoff_01020.jpg",
+      "dive_id": 2661,
+      "phase": "takeoff",
+      "frame_index": 1020,
+      "gt_frame_index": 1008,
+      "offset_from_gt": 12,
+      "source_failure_rank": 18,
+      "reason": "RANKING_FAILURE",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_TAKEOFF_RANK18",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            73.93560791015625,
+            116.80886840820312,
+            113.28495025634766,
+            163.1687774658203
+          ],
+          "conf": 0.6609940528869629
+        },
+        {
+          "xyxy_px": [
+            165.85400390625,
+            90.22523498535156,
+            201.8067626953125,
+            142.36769104003906
+          ],
+          "conf": 0.17933787405490875
+        },
+        {
+          "xyxy_px": [
+            182.94436645507812,
+            60.56249237060547,
+            202.0,
+            82.03750610351562
+          ],
+          "conf": 0.14784960448741913
+        },
+        {
+          "xyxy_px": [
+            170.17636108398438,
+            91.41378784179688,
+            192.7761993408203,
+            128.12039184570312
+          ],
+          "conf": 0.06876184791326523
+        },
+        {
+          "xyxy_px": [
+            144.96139526367188,
+            94.61235046386719,
+            193.6870574951172,
+            144.2456817626953
+          ],
+          "conf": 0.05406228080391884
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          73.9356,
+          116.8089,
+          113.285,
+          163.1688
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:37.383233+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01043",
+      "frame_file": "D5_2661_water_contact_01043.jpg",
+      "dive_id": 2661,
+      "phase": "water_contact",
+      "frame_index": 1043,
+      "gt_frame_index": 1055,
+      "offset_from_gt": -12,
+      "source_failure_rank": 11,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            165.1699981689453,
+            92.7782211303711,
+            193.34715270996094,
+            138.26776123046875
+          ],
+          "conf": 0.24706806242465973
+        },
+        {
+          "xyxy_px": [
+            147.25021362304688,
+            208.48348999023438,
+            185.1575469970703,
+            243.27438354492188
+          ],
+          "conf": 0.20683102309703827
+        },
+        {
+          "xyxy_px": [
+            182.85977172851562,
+            60.531742095947266,
+            202.0,
+            82.20458221435547
+          ],
+          "conf": 0.1718178689479828
+        },
+        {
+          "xyxy_px": [
+            65.1496810913086,
+            143.6265106201172,
+            98.49083709716797,
+            181.9471435546875
+          ],
+          "conf": 0.10381987690925598
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          64,
+          142.5,
+          100,
+          185.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:47.435190+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01050",
+      "frame_file": "D5_2661_water_contact_01050.jpg",
+      "dive_id": 2661,
+      "phase": "water_contact",
+      "frame_index": 1050,
+      "gt_frame_index": 1055,
+      "offset_from_gt": -5,
+      "source_failure_rank": 11,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            163.98440551757812,
+            92.05103302001953,
+            202.0,
+            141.31997680664062
+          ],
+          "conf": 0.23665140569210052
+        },
+        {
+          "xyxy_px": [
+            180.78636169433594,
+            60.20600509643555,
+            202.0,
+            82.76901245117188
+          ],
+          "conf": 0.1678316593170166
+        },
+        {
+          "xyxy_px": [
+            82.11709594726562,
+            120.96134185791016,
+            115.73580932617188,
+            143.94895935058594
+          ],
+          "conf": 0.05282283574342728
+        },
+        {
+          "xyxy_px": [
+            169.15200805664062,
+            93.2439956665039,
+            191.7998809814453,
+            126.72838592529297
+          ],
+          "conf": 0.05023377388715744
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          59,
+          151.5,
+          93,
+          202.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:40:52.377716+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01060",
+      "frame_file": "D5_2661_water_contact_01060.jpg",
+      "dive_id": 2661,
+      "phase": "water_contact",
+      "frame_index": 1060,
+      "gt_frame_index": 1055,
+      "offset_from_gt": 5,
+      "source_failure_rank": 11,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            165.10012817382812,
+            91.62926483154297,
+            202.0,
+            141.333984375
+          ],
+          "conf": 0.21630214154720306
+        },
+        {
+          "xyxy_px": [
+            182.896240234375,
+            60.546390533447266,
+            202.0,
+            82.2025375366211
+          ],
+          "conf": 0.17635507881641388
+        },
+        {
+          "xyxy_px": [
+            159.40406799316406,
+            210.05548095703125,
+            189.52163696289062,
+            239.90744018554688
+          ],
+          "conf": 0.14186522364616394
+        },
+        {
+          "xyxy_px": [
+            82.0353775024414,
+            120.98912048339844,
+            115.55274200439453,
+            143.9533233642578
+          ],
+          "conf": 0.06085299700498581
+        },
+        {
+          "xyxy_px": [
+            142.09530639648438,
+            93.64390563964844,
+            193.01361083984375,
+            142.95350646972656
+          ],
+          "conf": 0.05649242550134659
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:00.855661+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01069",
+      "frame_file": "D5_2661_water_contact_01069.jpg",
+      "dive_id": 2661,
+      "phase": "water_contact",
+      "frame_index": 1069,
+      "gt_frame_index": 1055,
+      "offset_from_gt": 14,
+      "source_failure_rank": 11,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            163.60276794433594,
+            210.3993682861328,
+            194.13336181640625,
+            239.7376708984375
+          ],
+          "conf": 0.2626357674598694
+        },
+        {
+          "xyxy_px": [
+            182.880126953125,
+            60.53688049316406,
+            202.0,
+            82.1874008178711
+          ],
+          "conf": 0.17244428396224976
+        },
+        {
+          "xyxy_px": [
+            166.25784301757812,
+            92.06671905517578,
+            201.62355041503906,
+            140.88308715820312
+          ],
+          "conf": 0.13087677955627441
+        },
+        {
+          "xyxy_px": [
+            82.04206085205078,
+            120.980224609375,
+            115.58670043945312,
+            143.9506072998047
+          ],
+          "conf": 0.06087858974933624
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:02.828807+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2555_apex_00374",
+      "frame_file": "D5_2555_apex_00374.jpg",
+      "dive_id": 2555,
+      "phase": "apex",
+      "frame_index": 374,
+      "gt_frame_index": 382,
+      "offset_from_gt": -8,
+      "source_failure_rank": 11,
+      "reason": "APEX_RANKING",
+      "width": 166,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            26.42913055419922,
+            102.56069946289062,
+            88.4453125,
+            187.98558044433594
+          ],
+          "conf": 0.5959358811378479
+        },
+        {
+          "xyxy_px": [
+            94.183349609375,
+            69.74165344238281,
+            143.91969299316406,
+            121.4227523803711
+          ],
+          "conf": 0.5033531188964844
+        },
+        {
+          "xyxy_px": [
+            43.79689407348633,
+            94.41612243652344,
+            108.71672058105469,
+            138.178466796875
+          ],
+          "conf": 0.11301383376121521
+        },
+        {
+          "xyxy_px": [
+            7.568966388702393,
+            73.45287322998047,
+            126.26054382324219,
+            194.6078338623047
+          ],
+          "conf": 0.10409069061279297
+        },
+        {
+          "xyxy_px": [
+            52.30326461791992,
+            259.6353454589844,
+            86.54396057128906,
+            282.11578369140625
+          ],
+          "conf": 0.06930509954690933
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          18,
+          72.5,
+          143,
+          187.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:14.649707+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2555_apex_00379",
+      "frame_file": "D5_2555_apex_00379.jpg",
+      "dive_id": 2555,
+      "phase": "apex",
+      "frame_index": 379,
+      "gt_frame_index": 382,
+      "offset_from_gt": -3,
+      "source_failure_rank": 11,
+      "reason": "APEX_RANKING",
+      "width": 166,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            27.035430908203125,
+            99.4747085571289,
+            84.43721771240234,
+            192.4226837158203
+          ],
+          "conf": 0.6252438426017761
+        },
+        {
+          "xyxy_px": [
+            87.6625747680664,
+            67.79753875732422,
+            143.14476013183594,
+            121.95735931396484
+          ],
+          "conf": 0.250511109828949
+        },
+        {
+          "xyxy_px": [
+            12.54737377166748,
+            85.17207336425781,
+            115.07144165039062,
+            200.9438934326172
+          ],
+          "conf": 0.16452501714229584
+        },
+        {
+          "xyxy_px": [
+            28.84596061706543,
+            143.47140502929688,
+            73.40319061279297,
+            189.3012237548828
+          ],
+          "conf": 0.12629011273384094
+        },
+        {
+          "xyxy_px": [
+            137.8764190673828,
+            158.22650146484375,
+            166.0,
+            183.91748046875
+          ],
+          "conf": 0.05610601603984833
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          26,
+          65.5,
+          144,
+          191.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:19.716736+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2555_apex_00386",
+      "frame_file": "D5_2555_apex_00386.jpg",
+      "dive_id": 2555,
+      "phase": "apex",
+      "frame_index": 386,
+      "gt_frame_index": 382,
+      "offset_from_gt": 4,
+      "source_failure_rank": 11,
+      "reason": "APEX_RANKING",
+      "width": 166,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            35.04050827026367,
+            107.910400390625,
+            87.6675796508789,
+            190.72828674316406
+          ],
+          "conf": 0.6370170712471008
+        },
+        {
+          "xyxy_px": [
+            22.44669532775879,
+            76.93605041503906,
+            114.94694519042969,
+            200.5794219970703
+          ],
+          "conf": 0.17988289892673492
+        },
+        {
+          "xyxy_px": [
+            80.3564224243164,
+            66.81876373291016,
+            145.58656311035156,
+            119.19750213623047
+          ],
+          "conf": 0.10304279625415802
+        },
+        {
+          "xyxy_px": [
+            47.90568542480469,
+            87.44361877441406,
+            109.19489288330078,
+            136.3297576904297
+          ],
+          "conf": 0.0892435759305954
+        },
+        {
+          "xyxy_px": [
+            137.90863037109375,
+            156.93582153320312,
+            166.0,
+            184.4085693359375
+          ],
+          "conf": 0.08817905932664871
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          24,
+          65.5,
+          141,
+          184.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:23.900236+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2555_apex_00392",
+      "frame_file": "D5_2555_apex_00392.jpg",
+      "dive_id": 2555,
+      "phase": "apex",
+      "frame_index": 392,
+      "gt_frame_index": 382,
+      "offset_from_gt": 10,
+      "source_failure_rank": 11,
+      "reason": "APEX_RANKING",
+      "width": 166,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_APEX_RANK11",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            41.73548889160156,
+            127.3318862915039,
+            87.67301940917969,
+            179.86953735351562
+          ],
+          "conf": 0.6266937851905823
+        },
+        {
+          "xyxy_px": [
+            43.510623931884766,
+            90.45277404785156,
+            100.35625457763672,
+            172.77471923828125
+          ],
+          "conf": 0.2861398160457611
+        },
+        {
+          "xyxy_px": [
+            76.88599395751953,
+            67.75436401367188,
+            141.7350311279297,
+            119.92033386230469
+          ],
+          "conf": 0.11007300019264221
+        },
+        {
+          "xyxy_px": [
+            138.78451538085938,
+            156.59280395507812,
+            166.0,
+            184.22787475585938
+          ],
+          "conf": 0.09971331804990768
+        },
+        {
+          "xyxy_px": [
+            46.75904083251953,
+            80.13346099853516,
+            112.92778778076172,
+            134.7843780517578
+          ],
+          "conf": 0.09730128198862076
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          48,
+          71.5,
+          150,
+          176.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:33.898485+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00449",
+      "frame_file": "D5_2169_water_contact_00449.jpg",
+      "dive_id": 2169,
+      "phase": "water_contact",
+      "frame_index": 449,
+      "gt_frame_index": 461,
+      "offset_from_gt": -12,
+      "source_failure_rank": 73,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK73",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            105.37924194335938,
+            154.86630249023438,
+            150.9611053466797,
+            228.93434143066406
+          ],
+          "conf": 0.2985292077064514
+        },
+        {
+          "xyxy_px": [
+            18.196657180786133,
+            245.0188446044922,
+            46.967960357666016,
+            269.2094421386719
+          ],
+          "conf": 0.15534168481826782
+        },
+        {
+          "xyxy_px": [
+            30.13884162902832,
+            23.897735595703125,
+            113.81981658935547,
+            239.78826904296875
+          ],
+          "conf": 0.12765653431415558
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          105.3792,
+          154.8663,
+          150.9611,
+          228.9343
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:38.684959+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00456",
+      "frame_file": "D5_2169_water_contact_00456.jpg",
+      "dive_id": 2169,
+      "phase": "water_contact",
+      "frame_index": 456,
+      "gt_frame_index": 461,
+      "offset_from_gt": -5,
+      "source_failure_rank": 73,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK73",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            18.186220169067383,
+            245.01376342773438,
+            47.018978118896484,
+            269.23284912109375
+          ],
+          "conf": 0.164468914270401
+        },
+        {
+          "xyxy_px": [
+            124.77594757080078,
+            189.44239807128906,
+            144.5294952392578,
+            238.0439910888672
+          ],
+          "conf": 0.153827965259552
+        },
+        {
+          "xyxy_px": [
+            120.44931030273438,
+            185.79090881347656,
+            157.1140899658203,
+            262.729736328125
+          ],
+          "conf": 0.1525345891714096
+        },
+        {
+          "xyxy_px": [
+            30.111431121826172,
+            23.93184471130371,
+            113.6832275390625,
+            239.44589233398438
+          ],
+          "conf": 0.12653164565563202
+        },
+        {
+          "xyxy_px": [
+            128.9604949951172,
+            202.14651489257812,
+            146.3832550048828,
+            254.58404541015625
+          ],
+          "conf": 0.11068861931562424
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          116,
+          194.5,
+          156,
+          265.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:47.486436+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00461",
+      "frame_file": "D5_2169_water_contact_00461.jpg",
+      "dive_id": 2169,
+      "phase": "water_contact",
+      "frame_index": 461,
+      "gt_frame_index": 461,
+      "offset_from_gt": 0,
+      "source_failure_rank": 73,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK73",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            18.16952896118164,
+            244.9985809326172,
+            47.10185241699219,
+            269.2530517578125
+          ],
+          "conf": 0.18476130068302155
+        },
+        {
+          "xyxy_px": [
+            128.92703247070312,
+            207.46478271484375,
+            140.90968322753906,
+            243.50296020507812
+          ],
+          "conf": 0.1683303713798523
+        },
+        {
+          "xyxy_px": [
+            29.809341430664062,
+            14.201082229614258,
+            118.7186050415039,
+            227.10484313964844
+          ],
+          "conf": 0.12326089292764664
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          115,
+          211.5,
+          154,
+          280.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:51.827336+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00466",
+      "frame_file": "D5_2169_water_contact_00466.jpg",
+      "dive_id": 2169,
+      "phase": "water_contact",
+      "frame_index": 466,
+      "gt_frame_index": 461,
+      "offset_from_gt": 5,
+      "source_failure_rank": 73,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK73",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            18.159576416015625,
+            244.994873046875,
+            47.07097244262695,
+            269.2449035644531
+          ],
+          "conf": 0.17494337260723114
+        },
+        {
+          "xyxy_px": [
+            29.802946090698242,
+            14.188224792480469,
+            118.68999481201172,
+            227.1025390625
+          ],
+          "conf": 0.12290243059396744
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          123,
+          238.5,
+          154,
+          278.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:41:55.698394+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_311_water_contact_00432",
+      "frame_file": "D5_311_water_contact_00432.jpg",
+      "dive_id": 311,
+      "phase": "water_contact",
+      "frame_index": 432,
+      "gt_frame_index": 444,
+      "offset_from_gt": -12,
+      "source_failure_rank": 10,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK10",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            134.18905639648438,
+            19.846630096435547,
+            189.05650329589844,
+            80.70747375488281
+          ],
+          "conf": 0.21805910766124725
+        },
+        {
+          "xyxy_px": [
+            54.37731170654297,
+            3.1536426544189453,
+            108.36380004882812,
+            79.22857666015625
+          ],
+          "conf": 0.20581817626953125
+        },
+        {
+          "xyxy_px": [
+            162.64646911621094,
+            337.9248962402344,
+            202.0,
+            360.0
+          ],
+          "conf": 0.13595309853553772
+        },
+        {
+          "xyxy_px": [
+            46.14475631713867,
+            0.0,
+            143.96820068359375,
+            92.87730407714844
+          ],
+          "conf": 0.08765947818756104
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          75,
+          4.5,
+          194,
+          118.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:42:11.294856+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_311_water_contact_00439",
+      "frame_file": "D5_311_water_contact_00439.jpg",
+      "dive_id": 311,
+      "phase": "water_contact",
+      "frame_index": 439,
+      "gt_frame_index": 444,
+      "offset_from_gt": -5,
+      "source_failure_rank": 10,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK10",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            55.62655258178711,
+            0.0,
+            113.26876068115234,
+            79.16392517089844
+          ],
+          "conf": 0.5047537684440613
+        },
+        {
+          "xyxy_px": [
+            117.54790496826172,
+            100.3781509399414,
+            188.47828674316406,
+            163.1551971435547
+          ],
+          "conf": 0.36375048756599426
+        },
+        {
+          "xyxy_px": [
+            173.34275817871094,
+            107.27596282958984,
+            198.982177734375,
+            132.7991485595703
+          ],
+          "conf": 0.16294938325881958
+        },
+        {
+          "xyxy_px": [
+            162.64794921875,
+            337.9353942871094,
+            202.0,
+            360.0
+          ],
+          "conf": 0.1380358636379242
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          88,
+          92.5,
+          199,
+          176.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T20:43:14.065787+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_311_water_contact_00449",
+      "frame_file": "D5_311_water_contact_00449.jpg",
+      "dive_id": 311,
+      "phase": "water_contact",
+      "frame_index": 449,
+      "gt_frame_index": 444,
+      "offset_from_gt": 5,
+      "source_failure_rank": 10,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK10",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            35.65660858154297,
+            64.3180923461914,
+            68.141357421875,
+            99.50743865966797
+          ],
+          "conf": 0.1321479082107544
+        },
+        {
+          "xyxy_px": [
+            162.63995361328125,
+            337.9432067871094,
+            202.0,
+            360.0
+          ],
+          "conf": 0.12909115850925446
+        },
+        {
+          "xyxy_px": [
+            50.611549377441406,
+            0.0,
+            114.70710754394531,
+            72.4926986694336
+          ],
+          "conf": 0.10640323162078857
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T21:03:13.588569+00:00"
+      }
+    },
+    {
+      "frame_id": "D5_311_water_contact_00458",
+      "frame_file": "D5_311_water_contact_00458.jpg",
+      "dive_id": 311,
+      "phase": "water_contact",
+      "frame_index": 458,
+      "gt_frame_index": 444,
+      "offset_from_gt": 14,
+      "source_failure_rank": 10,
+      "reason": "WATER_ENTRY",
+      "width": 202,
+      "height": 360,
+      "pts_approx_s": null,
+      "purpose": "D5_MINING_WATER_CONTACT_RANK10",
+      "has_diver_hint": null,
+      "d4_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            162.9465789794922,
+            336.324462890625,
+            202.0,
+            360.0
+          ],
+          "conf": 0.23990987241268158
+        },
+        {
+          "xyxy_px": [
+            55.90902328491211,
+            26.825101852416992,
+            109.90350341796875,
+            79.68407440185547
+          ],
+          "conf": 0.0812687799334526
+        },
+        {
+          "xyxy_px": [
+            37.92141342163086,
+            66.64137268066406,
+            68.99435424804688,
+            100.04068756103516
+          ],
+          "conf": 0.07266519963741302
+        },
+        {
+          "xyxy_px": [
+            151.03810119628906,
+            343.90240478515625,
+            202.0,
+            360.0
+          ],
+          "conf": 0.06098603084683418
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T21:03:57.363749+00:00"
+      }
+    }
+  ]
+}

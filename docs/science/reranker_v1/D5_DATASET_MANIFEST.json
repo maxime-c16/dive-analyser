@@ -1,0 +1,1001 @@
+{
+  "label": "DIVER_LOCALIZATION_DATASET_D5",
+  "date": "2026-09-08",
+  "n_train": 55,
+  "n_val": 14,
+  "n_errors": 0,
+  "sources": {
+    "D4": 34,
+    "D5": 35
+  },
+  "grouped_split": {
+    "DEV_TRAIN_dives": [
+      133,
+      311,
+      524,
+      676,
+      1040,
+      2169,
+      2387,
+      2541,
+      2555,
+      2625,
+      2661,
+      2680
+    ],
+    "DEV_VAL_dives": [
+      2341,
+      2353
+    ]
+  },
+  "paris_firewall": "VERIFIED \u2014 Paris dive 2819 / IMG_1937.mov excluded from all splits",
+  "dataset_yaml": "/tmp/diveanalyzer-exp/d5_dataset/dataset.yaml",
+  "samples": [
+    {
+      "frame_id": "1040_apex",
+      "dive_id": 1040,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.318388,
+        0.385216,
+        0.303353,
+        0.160558
+      ]
+    },
+    {
+      "frame_id": "1040_takeoff",
+      "dive_id": 1040,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.195796,
+        0.478624,
+        0.368851,
+        0.265972
+      ]
+    },
+    {
+      "frame_id": "1040_water_contact",
+      "dive_id": 1040,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.657178,
+        0.566721,
+        0.318881,
+        0.22003
+      ]
+    },
+    {
+      "frame_id": "133_apex",
+      "dive_id": 133,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.633625,
+        0.370492,
+        0.257348,
+        0.130458
+      ]
+    },
+    {
+      "frame_id": "133_takeoff",
+      "dive_id": 133,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.736444,
+        0.40013,
+        0.264001,
+        0.177365
+      ]
+    },
+    {
+      "frame_id": "133_water_contact",
+      "dive_id": 133,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.46377,
+        0.64107,
+        0.267539,
+        0.237804
+      ]
+    },
+    {
+      "frame_id": "2169_takeoff",
+      "dive_id": 2169,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.400661,
+        0.282666,
+        0.285814,
+        0.160927
+      ]
+    },
+    {
+      "frame_id": "2169_water_contact",
+      "dive_id": 2169,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.693166,
+        0.691075,
+        0.161084,
+        0.22219
+      ]
+    },
+    {
+      "frame_id": "2387_apex",
+      "dive_id": 2387,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.510027,
+        0.318831,
+        0.347521,
+        0.147255
+      ]
+    },
+    {
+      "frame_id": "2387_takeoff",
+      "dive_id": 2387,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.636197,
+        0.403597,
+        0.288444,
+        0.261643
+      ]
+    },
+    {
+      "frame_id": "2387_water_contact",
+      "dive_id": 2387,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.346854,
+        0.489307,
+        0.193514,
+        0.303179
+      ]
+    },
+    {
+      "frame_id": "2541_apex",
+      "dive_id": 2541,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.497912,
+        0.31403,
+        0.373724,
+        0.164931
+      ]
+    },
+    {
+      "frame_id": "2541_takeoff",
+      "dive_id": 2541,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.600219,
+        0.382639,
+        0.256517,
+        0.281966
+      ]
+    },
+    {
+      "frame_id": "2541_water_contact",
+      "dive_id": 2541,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.355827,
+        0.488634,
+        0.274114,
+        0.239334
+      ]
+    },
+    {
+      "frame_id": "2555_apex",
+      "dive_id": 2555,
+      "source": "D4",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.525155,
+        0.359885,
+        0.710749,
+        0.347244
+      ]
+    },
+    {
+      "frame_id": "2555_takeoff",
+      "dive_id": 2555,
+      "source": "D4",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.381742,
+        0.438628,
+        0.763484,
+        0.710829
+      ]
+    },
+    {
+      "frame_id": "2555_water_contact",
+      "dive_id": 2555,
+      "source": "D4",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.440983,
+        0.6199,
+        0.497553,
+        0.289583
+      ]
+    },
+    {
+      "frame_id": "2625_water_contact",
+      "dive_id": 2625,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.704604,
+        0.740571,
+        0.353052,
+        0.186306
+      ]
+    },
+    {
+      "frame_id": "2661_takeoff",
+      "dive_id": 2661,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.471535,
+        0.40791,
+        0.131227,
+        0.088845
+      ]
+    },
+    {
+      "frame_id": "2661_water_contact",
+      "dive_id": 2661,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.355623,
+        0.524897,
+        0.123724,
+        0.146777
+      ]
+    },
+    {
+      "frame_id": "2680_takeoff",
+      "dive_id": 2680,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.785147,
+        0.315489,
+        0.177889,
+        0.087684
+      ]
+    },
+    {
+      "frame_id": "2680_water_contact",
+      "dive_id": 2680,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.697401,
+        0.568023,
+        0.132194,
+        0.170768
+      ]
+    },
+    {
+      "frame_id": "311_water_contact",
+      "dive_id": 311,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.703212,
+        0.528049,
+        0.415049,
+        0.226541
+      ]
+    },
+    {
+      "frame_id": "524_apex",
+      "dive_id": 524,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.553411,
+        0.379167,
+        0.198407,
+        0.092318
+      ]
+    },
+    {
+      "frame_id": "524_takeoff",
+      "dive_id": 524,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.630937,
+        0.409294,
+        0.183903,
+        0.120215
+      ]
+    },
+    {
+      "frame_id": "676_apex",
+      "dive_id": 676,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.512086,
+        0.264887,
+        0.193804,
+        0.139019
+      ]
+    },
+    {
+      "frame_id": "676_takeoff",
+      "dive_id": 676,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.606774,
+        0.307465,
+        0.197343,
+        0.133746
+      ]
+    },
+    {
+      "frame_id": "676_water_contact",
+      "dive_id": 676,
+      "source": "D4",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.323242,
+        0.492215,
+        0.229289,
+        0.166873
+      ]
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00383",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.358911,
+        0.288889,
+        0.262376,
+        0.169444
+      ]
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00387",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.388917,
+        0.288599,
+        0.145571,
+        0.114188
+      ]
+    },
+    {
+      "frame_id": "D5_2169_takeoff_00392",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.398307,
+        0.288639,
+        0.134061,
+        0.11845
+      ]
+    },
+    {
+      "frame_id": "D5_676_water_contact_00133",
+      "dive_id": 676,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.378028,
+        0.345909,
+        0.240544,
+        0.108185
+      ]
+    },
+    {
+      "frame_id": "D5_676_water_contact_00140",
+      "dive_id": 676,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.346535,
+        0.427778,
+        0.188119,
+        0.158333
+      ]
+    },
+    {
+      "frame_id": "D5_676_water_contact_00145",
+      "dive_id": 676,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.324257,
+        0.494444,
+        0.123762,
+        0.152778
+      ]
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00236",
+      "dive_id": 2680,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.69802,
+        0.495833,
+        0.158416,
+        0.15
+      ]
+    },
+    {
+      "frame_id": "D5_2680_water_contact_00246",
+      "dive_id": 2680,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.70297,
+        0.580556,
+        0.118812,
+        0.152778
+      ]
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00210",
+      "dive_id": 2625,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.773166,
+        0.531149,
+        0.213319,
+        0.146889
+      ]
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00217",
+      "dive_id": 2625,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.708001,
+        0.635307,
+        0.232873,
+        0.191653
+      ]
+    },
+    {
+      "frame_id": "D5_2625_water_contact_00227",
+      "dive_id": 2625,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.65099,
+        0.793056,
+        0.133663,
+        0.127778
+      ]
+    },
+    {
+      "frame_id": "D5_2661_takeoff_00998",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.491698,
+        0.3873,
+        0.161145,
+        0.09421
+      ]
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01004",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.486431,
+        0.387803,
+        0.182046,
+        0.106376
+      ]
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01013",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.477324,
+        0.38277,
+        0.196257,
+        0.117909
+      ]
+    },
+    {
+      "frame_id": "D5_2661_takeoff_01020",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.463417,
+        0.388858,
+        0.194799,
+        0.128778
+      ]
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01043",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.405941,
+        0.455556,
+        0.178218,
+        0.119444
+      ]
+    },
+    {
+      "frame_id": "D5_2661_water_contact_01050",
+      "dive_id": 2661,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.376238,
+        0.491667,
+        0.168317,
+        0.141667
+      ]
+    },
+    {
+      "frame_id": "D5_2555_apex_00374",
+      "dive_id": 2555,
+      "source": "D5",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.48494,
+        0.361111,
+        0.753012,
+        0.319444
+      ]
+    },
+    {
+      "frame_id": "D5_2555_apex_00379",
+      "dive_id": 2555,
+      "source": "D5",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.512048,
+        0.356944,
+        0.710843,
+        0.35
+      ]
+    },
+    {
+      "frame_id": "D5_2555_apex_00386",
+      "dive_id": 2555,
+      "source": "D5",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.496988,
+        0.347222,
+        0.704819,
+        0.330556
+      ]
+    },
+    {
+      "frame_id": "D5_2555_apex_00392",
+      "dive_id": 2555,
+      "source": "D5",
+      "split": "train",
+      "W": 166,
+      "H": 360,
+      "bbox_yolo": [
+        0.596386,
+        0.344444,
+        0.614458,
+        0.291667
+      ]
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00449",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.634506,
+        0.533056,
+        0.225653,
+        0.205744
+      ]
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00456",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.673267,
+        0.638889,
+        0.19802,
+        0.197222
+      ]
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00461",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.665842,
+        0.683333,
+        0.193069,
+        0.191667
+      ]
+    },
+    {
+      "frame_id": "D5_2169_water_contact_00466",
+      "dive_id": 2169,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.685644,
+        0.718056,
+        0.153465,
+        0.111111
+      ]
+    },
+    {
+      "frame_id": "D5_311_water_contact_00432",
+      "dive_id": 311,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.665842,
+        0.170833,
+        0.589109,
+        0.316667
+      ]
+    },
+    {
+      "frame_id": "D5_311_water_contact_00439",
+      "dive_id": 311,
+      "source": "D5",
+      "split": "train",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.710396,
+        0.373611,
+        0.549505,
+        0.233333
+      ]
+    },
+    {
+      "frame_id": "2341_apex",
+      "dive_id": 2341,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.483398,
+        0.681489,
+        0.14076,
+        0.119076
+      ]
+    },
+    {
+      "frame_id": "2341_takeoff",
+      "dive_id": 2341,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.367294,
+        0.761675,
+        0.306911,
+        0.187066
+      ]
+    },
+    {
+      "frame_id": "2341_water_contact",
+      "dive_id": 2341,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.643071,
+        0.841233,
+        0.277324,
+        0.21849
+      ]
+    },
+    {
+      "frame_id": "2353_apex",
+      "dive_id": 2353,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.324354,
+        0.544151,
+        0.272935,
+        0.107813
+      ]
+    },
+    {
+      "frame_id": "2353_takeoff",
+      "dive_id": 2353,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.238987,
+        0.610145,
+        0.224068,
+        0.137999
+      ]
+    },
+    {
+      "frame_id": "2353_water_contact",
+      "dive_id": 2353,
+      "source": "D4",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.366868,
+        0.712874,
+        0.104483,
+        0.176638
+      ]
+    },
+    {
+      "frame_id": "D5_2353_apex_00368",
+      "dive_id": 2353,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.299505,
+        0.545833,
+        0.282178,
+        0.088889
+      ]
+    },
+    {
+      "frame_id": "D5_2353_apex_00373",
+      "dive_id": 2353,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.309406,
+        0.529167,
+        0.282178,
+        0.083333
+      ]
+    },
+    {
+      "frame_id": "D5_2353_apex_00376",
+      "dive_id": 2353,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.304455,
+        0.543056,
+        0.292079,
+        0.088889
+      ]
+    },
+    {
+      "frame_id": "D5_2353_apex_00380",
+      "dive_id": 2353,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.331683,
+        0.5375,
+        0.29703,
+        0.083333
+      ]
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00204",
+      "dive_id": 2341,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.319541,
+        0.815573,
+        0.092718,
+        0.139011
+      ]
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00210",
+      "dive_id": 2341,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.363012,
+        0.762512,
+        0.136411,
+        0.113321
+      ]
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00219",
+      "dive_id": 2341,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.408416,
+        0.734722,
+        0.232673,
+        0.166667
+      ]
+    },
+    {
+      "frame_id": "D5_2341_takeoff_00226",
+      "dive_id": 2341,
+      "source": "D5",
+      "split": "val",
+      "W": 202,
+      "H": 360,
+      "bbox_yolo": [
+        0.425743,
+        0.701389,
+        0.19802,
+        0.133333
+      ]
+    }
+  ]
+}

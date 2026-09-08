@@ -1,0 +1,34 @@
+{
+  "label": "DIVER_DETECTOR_D5_A_V8N_FREEZE",
+  "date": "2026-09-08",
+  "status": "FROZEN",
+  "base_detector": "DIVER_DETECTOR_D4_A_V8N_best.pt",
+  "d4_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "d5a_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "training": {
+    "method": "transfer_from_D4",
+    "dataset": "DIVER_LOCALIZATION_DATASET_D5",
+    "n_train": 55,
+    "n_val": 14,
+    "epochs": 3,
+    "patience": 25,
+    "device": "mps",
+    "amp": false
+  },
+  "dev_eval": {
+    "floor_recall": 0.9705882352941176,
+    "op_recall": 0.8823529411764706,
+    "top1_recall": 0.7352941176470589,
+    "mrr": 0.826797385620915
+  },
+  "paris_eval": {
+    "trajectory_gate": "TRAJECTORY_INPUT_PASS",
+    "takeoff_rank": 1,
+    "takeoff_iou": 0.6926,
+    "apex_rank": 1,
+    "apex_iou": 0.6457,
+    "water_contact_rank": 1,
+    "water_contact_iou": 0.7246
+  },
+  "paris_firewall": "Paris used for evaluation only post-freeze. No training signal."
+}

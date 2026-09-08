@@ -1,0 +1,56 @@
+{
+  "label": "PARIS_D5_EVAL",
+  "date": "2026-09-08",
+  "paris_media_sha": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "sha_verified": true,
+  "paris_firewall": "Paris evaluated post-freeze. No training signal flows back.",
+  "D4_results": {
+    "takeoff": {
+      "rank": 1,
+      "matched": true,
+      "best_iou": 0.6181,
+      "best_dist": 0.0116,
+      "n_candidates": 163
+    },
+    "apex": {
+      "rank": 10,
+      "matched": true,
+      "best_iou": 0.6007,
+      "best_dist": 0.0295,
+      "n_candidates": 173
+    },
+    "water_contact": {
+      "rank": 5,
+      "matched": true,
+      "best_iou": 0.4221,
+      "best_dist": 0.0182,
+      "n_candidates": 186
+    }
+  },
+  "D5_A_results": {
+    "takeoff": {
+      "rank": 1,
+      "matched": true,
+      "best_iou": 0.6926,
+      "best_dist": 0.0207,
+      "n_candidates": 148
+    },
+    "apex": {
+      "rank": 1,
+      "matched": true,
+      "best_iou": 0.6457,
+      "best_dist": 0.0059,
+      "n_candidates": 156
+    },
+    "water_contact": {
+      "rank": 1,
+      "matched": true,
+      "best_iou": 0.7246,
+      "best_dist": 0.0188,
+      "n_candidates": 138
+    }
+  },
+  "D4_trajectory_gate": "TRAJECTORY_INPUT_PASS",
+  "D5_trajectory_gate": "TRAJECTORY_INPUT_PASS",
+  "D5_covered": 3
+}

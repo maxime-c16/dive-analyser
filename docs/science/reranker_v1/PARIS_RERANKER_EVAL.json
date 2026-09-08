@@ -1,0 +1,83 @@
+{
+  "label": "PARIS_RERANKER_EVAL_V1",
+  "date": "2026-09-08",
+  "paris_media": "IMG_1937.mov",
+  "paris_media_sha": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "detector": "D4_PROPOSAL_V1",
+  "detector_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "reranker_freeze_status": "FROZEN",
+  "selected_reranker": "R1",
+  "floor_conf": 0.001,
+  "nms_iou": 0.45,
+  "phase_results": {
+    "takeoff": {
+      "pts_s": 3.12,
+      "fi": 176,
+      "n_floor": 163,
+      "gt_px": [
+        522.9270633397313,
+        542.7207293666027,
+        819.9616122840691,
+        892.4280230326295
+      ],
+      "d4_confidence_rank": 1,
+      "d4_iou_with_gt": 0.3873862173656596,
+      "d4_top1_correct": true,
+      "r1_rank": 1,
+      "r1_top1_correct": true,
+      "r2_rank": 1,
+      "r2_top1_correct": true,
+      "selected_reranker": "R1",
+      "selected_rank": 1,
+      "selected_top1_correct": true
+    },
+    "apex": {
+      "pts_s": 3.57,
+      "fi": 201,
+      "n_floor": 173,
+      "gt_px": [
+        495.2015355086372,
+        353.478886756238,
+        665.7581573896354,
+        657.2360844529751
+      ],
+      "d4_confidence_rank": 10,
+      "d4_iou_with_gt": 0.6006839278296564,
+      "d4_top1_correct": false,
+      "r1_rank": 2,
+      "r1_top1_correct": false,
+      "r2_rank": 2,
+      "r2_top1_correct": false,
+      "selected_reranker": "R1",
+      "selected_rank": 2,
+      "selected_top1_correct": false
+    },
+    "water_contact": {
+      "pts_s": 4.22,
+      "fi": 238,
+      "n_floor": 186,
+      "gt_px": [
+        302.1880998080614,
+        687.1785028790787,
+        525.8781190019193,
+        1076.6026871401152
+      ],
+      "d4_confidence_rank": 5,
+      "d4_iou_with_gt": 0.16940665781272657,
+      "d4_top1_correct": false,
+      "r1_rank": 1,
+      "r1_top1_correct": true,
+      "r2_rank": 3,
+      "r2_top1_correct": false,
+      "selected_reranker": "R1",
+      "selected_rank": 1,
+      "selected_top1_correct": true
+    }
+  },
+  "trajectory_gate": "TRAJECTORY_INPUT_FAIL",
+  "n_anchors_correct": 2,
+  "takeoff_correct": true,
+  "apex_correct": false,
+  "water_contact_correct": true,
+  "paris_firewall": "VERIFIED \u2014 Paris evaluated after all parameters frozen"
+}
