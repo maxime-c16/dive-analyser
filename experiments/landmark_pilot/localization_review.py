@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCIENCE = ROOT / "docs/science"
 ARTIFACTS = ROOT / "media/perception_decomposition_v1/localization"
 LABELS = SCIENCE / "localization_annotations_v1"
-SPLITS = ("DEVELOPMENT_DESIGN", "INTERNAL_EVAL")
+SPLITS = ("DEVELOPMENT_DESIGN", "INTERNAL_EVAL", "PARIS")
 
 
 def sha256(path):
@@ -119,7 +119,7 @@ header,footer{padding:12px 18px;display:flex;gap:12px;align-items:center;flex-wr
 h1{font-size:18px;margin:0}main{padding:16px;max-width:1150px;margin:auto}canvas{display:block;width:auto;height:auto;max-width:100%;max-height:calc(100dvh - 230px);margin:auto;touch-action:none;background:#000}
 button,select,input{font:inherit;padding:8px;background:#292e31;color:white;border:1px solid #798186;border-radius:4px}button{cursor:pointer}button:disabled{opacity:.4}
 #save{background:#216c51}#note{flex:1;min-width:160px}#status{min-height:24px;color:#8ce0b6}#frame{margin:10px 0}footer{padding-left:0;padding-right:0}</style>
-<header><h1>Diver Localization</h1><span id="progress"></span><select id="split"><option>DEVELOPMENT_DESIGN</option><option>INTERNAL_EVAL</option></select></header>
+<header><h1>Diver Localization</h1><span id="progress"></span><select id="split"><option>DEVELOPMENT_DESIGN</option><option>INTERNAL_EVAL</option><option>PARIS</option></select></header>
 <main><div id="frame"></div><canvas id="canvas"></canvas><footer>
 <button id="prev" title="Previous frame" aria-label="Previous frame">&#8592;</button><button id="next" title="Next frame" aria-label="Next frame">&#8594;</button>
 <button id="clear" title="Clear box" aria-label="Clear box">&#215;</button>
@@ -191,7 +191,9 @@ def serve(port):
             if row is None:
                 raise ValueError("Unknown frame")
             if url.path == "/frame" and not write:
-                return self.respond((ARTIFACTS / subset / (row["id"] + ".png")).read_bytes(), kind="image/png")
+                ext = row.get("image_ext", "png")
+                mime = "image/jpeg" if ext == "jpg" else "image/png"
+                return self.respond((ARTIFACTS / subset / (row["id"] + "." + ext)).read_bytes(), kind=mime)
             if url.path == "/label" and write:
                 size = int(self.headers.get("Content-Length", 0))
                 if not 0 < size <= 8192:
@@ -219,7 +221,7 @@ def serve(port):
             except (ValueError, OSError) as exc:
                 self.respond({"error": str(exc)}, 400)
 
-    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    server = http.server.HTTPServer(("0.0.0.0", port), Handler)
     print(f"http://localhost:{port}/?token={token}", flush=True)
     server.serve_forever()
 

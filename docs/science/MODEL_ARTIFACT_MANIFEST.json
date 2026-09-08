@@ -1,0 +1,60 @@
+{
+  "label": "MODEL_ARTIFACT_MANIFEST",
+  "date": "2026-09-08",
+  "model_identity": "DIVER_DETECTOR_D3_V8N",
+  "architecture": "YOLOv8n (Ultralytics), base yolov8n.pt COCO-pretrained",
+  "filename": "DIVER_DETECTOR_D3_V8N_best.pt",
+  "size_bytes": 6236202,
+  "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+  "training_dataset": "DIVER_LOCALIZATION_DATASET_D3",
+  "training_dataset_fingerprint": {
+    "note": "No standalone DATASET_D3_MANIFEST.json exists on disk despite D3_1_OPERATING_POINT_FREEZE.json referencing that name; closest actual fingerprint is docs/science/DIVER_DETECTOR_D3_V8N_TRAIN.json",
+    "train_positive": 32,
+    "train_negative": 14,
+    "val_positive": 7,
+    "val_negative": 3
+  },
+  "source_training_commit": "bf19234 (science: D3 detector sanity cycle — MPS AMP fix, hard-neg correction, 36/36 tests pass)",
+  "training_config": {
+    "device": "mps",
+    "amp": false,
+    "imgsz": 640,
+    "batch": 8,
+    "best_epoch": 68,
+    "total_epochs": 118,
+    "best_map50": 0.62684
+  },
+  "inference_identity": {
+    "conf_threshold": 0.05,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "preprocessing": "YOLO default (letterbox to 640, RGB normalise)",
+    "operating_point_freeze": "docs/science/D3_1_OPERATING_POINT_FREEZE.json"
+  },
+  "stores": [
+    {
+      "role": "PRIMARY_DURABLE_SERVER_COPY",
+      "host": "deb-serv (192.168.1.57, user mcauchy) — canonical app/science server",
+      "path": "~/dive-analyser/models/frozen/DIVER_DETECTOR_D3_V8N_best.pt",
+      "gitignored": true,
+      "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+      "size_bytes": 6236202,
+      "established": "prior cycle (docs/PROJECT_STATE.md line ~90), reverified 2026-09-08"
+    },
+    {
+      "role": "INDEPENDENT_BACKUP",
+      "host": "mac-server.home (192.168.1.19, user divesensei) — Machine B, ingestion/media edge",
+      "path": "~/.diveanalyzer/model_artifacts/DIVER_DETECTOR_D3_V8N_best.pt",
+      "rationale": "~/.diveanalyzer/ is the pre-existing documented Mac-agent data root on Machine B (holds config.yaml, sync_state.json, manual_asset_exports/) per docs/PROJECT_STATE.md 'Runtime config' row. Chosen over the bare git mirror at ~/dive-analyser (unsuitable for large gitignored binaries in a bare repo) and over any undocumented home path.",
+      "gitignored": "n/a (not a git repo; plain filesystem location outside any repo)",
+      "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+      "size_bytes": 6236202,
+      "established": "2026-09-08, this cycle"
+    }
+  ],
+  "byte_exact_equality_verified": true,
+  "verification_method": "sha256sum on both hosts via SSH, 2026-09-08",
+  "recovery_test": "see A1_MODEL_RECOVERY_TEST in docs/science/TARGET_DIVER_SELECTION_V1_REPORT.md",
+  "no_binary_in_git": true,
+  "status": "MODEL_ARTIFACT_AUTHORITY_GREEN"
+}

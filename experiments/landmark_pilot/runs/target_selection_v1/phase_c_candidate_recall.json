@@ -1,0 +1,464 @@
+{
+ "summary": {
+  "n_reference_frames_evaluated": 33,
+  "counts": {
+   "TARGET_NOT_DETECTED": 9,
+   "TARGET_DETECTED_BUT_NOT_SELECTED": 9,
+   "TARGET_SELECTED_CORRECTLY": 11,
+   "AMBIGUOUS_REFERENCE": 2,
+   "FRAME_OUT_OF_RANGE": 0,
+   "NOT_ANNOTATED": 2
+  }
+ },
+ "dives": {
+  "1040": {
+   "n_frames": 332,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 133,
+     "n_candidates": 4,
+     "best_iou": 0.8834,
+     "best_center_dist_norm": 0.0079,
+     "best_candidate_conf": 0.185,
+     "best_candidate_conf_rank": 3,
+     "selected_matches_best": false,
+     "selected_conf": 0.069,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 143,
+     "n_candidates": 2,
+     "best_iou": 0.9098,
+     "best_center_dist_norm": 0.0082,
+     "best_candidate_conf": 0.8871,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.8871,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 162,
+     "n_candidates": 2,
+     "best_iou": 0.7796,
+     "best_center_dist_norm": 0.0219,
+     "best_candidate_conf": 0.5116,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": false,
+     "selected_conf": 0.1286,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "133": {
+   "n_frames": 178,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 53,
+     "n_candidates": 2,
+     "best_iou": 0.8648,
+     "best_center_dist_norm": 0.0091,
+     "best_candidate_conf": 0.9738,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.9738,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 62,
+     "n_candidates": 2,
+     "best_iou": 0.6501,
+     "best_center_dist_norm": 0.0283,
+     "best_candidate_conf": 0.2803,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.2803,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 88,
+     "n_candidates": 1,
+     "best_iou": 0.8852,
+     "best_center_dist_norm": 0.0073,
+     "best_candidate_conf": 0.4131,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.4131,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    }
+   }
+  },
+  "2169": {
+   "n_frames": 1078,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 387,
+     "n_candidates": 1,
+     "best_iou": 0.5423,
+     "best_center_dist_norm": 0.0331,
+     "best_candidate_conf": 0.1387,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.1387,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "apex": {
+     "available": true,
+     "verdict": "NOT_ANNOTATED"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 461,
+     "n_candidates": 3,
+     "best_iou": 0.375,
+     "best_center_dist_norm": 0.0748,
+     "best_candidate_conf": 0.1186,
+     "best_candidate_conf_rank": 2,
+     "selected_matches_best": false,
+     "selected_conf": 0.148,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "2341": {
+   "n_frames": 607,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 214,
+     "n_candidates": 4,
+     "best_iou": 0.0,
+     "best_center_dist_norm": 0.6007,
+     "best_candidate_conf": 0.4227,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.4227,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 237,
+     "n_candidates": 5,
+     "best_iou": 0.0,
+     "best_center_dist_norm": 0.4598,
+     "best_candidate_conf": 0.4093,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.4093,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 275,
+     "n_candidates": 6,
+     "best_iou": 0.7229,
+     "best_center_dist_norm": 0.0281,
+     "best_candidate_conf": 0.1097,
+     "best_candidate_conf_rank": 3,
+     "selected_matches_best": false,
+     "selected_conf": 0.3795,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "2387": {
+   "n_frames": 748,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 134,
+     "n_candidates": 1,
+     "best_iou": 0.4122,
+     "best_center_dist_norm": 0.0331,
+     "best_candidate_conf": 0.483,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.483,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 144,
+     "n_candidates": 1,
+     "best_iou": 0.5043,
+     "best_center_dist_norm": 0.037,
+     "best_candidate_conf": 0.4399,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.4399,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 164,
+     "n_candidates": 3,
+     "best_iou": 0.3797,
+     "best_center_dist_norm": 0.0812,
+     "best_candidate_conf": 0.056,
+     "best_candidate_conf_rank": 3,
+     "selected_matches_best": false,
+     "selected_conf": 0.0843,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "2541": {
+   "n_frames": 975,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 525,
+     "n_candidates": 0,
+     "best_iou": null,
+     "best_center_dist_norm": null,
+     "best_candidate_conf": null,
+     "best_candidate_conf_rank": null,
+     "selected_matches_best": false,
+     "selected_conf": null,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 539,
+     "n_candidates": 2,
+     "best_iou": 0.5674,
+     "best_center_dist_norm": 0.0137,
+     "best_candidate_conf": 0.2271,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.2271,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 558,
+     "n_candidates": 0,
+     "best_iou": null,
+     "best_center_dist_norm": null,
+     "best_candidate_conf": null,
+     "best_candidate_conf_rank": null,
+     "selected_matches_best": false,
+     "selected_conf": null,
+     "verdict": "TARGET_NOT_DETECTED"
+    }
+   }
+  },
+  "2555": {
+   "n_frames": 722,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 257,
+     "n_candidates": 5,
+     "best_iou": 0.0395,
+     "best_center_dist_norm": 0.3565,
+     "best_candidate_conf": 0.0772,
+     "best_candidate_conf_rank": 2,
+     "selected_matches_best": false,
+     "selected_conf": 0.1158,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 382,
+     "n_candidates": 2,
+     "best_iou": 0.1989,
+     "best_center_dist_norm": 0.2525,
+     "best_candidate_conf": 0.086,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.086,
+     "verdict": "AMBIGUOUS_REFERENCE"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 574,
+     "n_candidates": 2,
+     "best_iou": 0.4572,
+     "best_center_dist_norm": 0.0513,
+     "best_candidate_conf": 0.0578,
+     "best_candidate_conf_rank": 2,
+     "selected_matches_best": true,
+     "selected_conf": 0.0578,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    }
+   }
+  },
+  "2625": {
+   "n_frames": 365,
+   "phases": {
+    "takeoff": {
+     "available": false
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 167,
+     "n_candidates": 2,
+     "best_iou": 0.0361,
+     "best_center_dist_norm": 0.1632,
+     "best_candidate_conf": 0.6248,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.6248,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 222,
+     "n_candidates": 5,
+     "best_iou": 0.3659,
+     "best_center_dist_norm": 0.0881,
+     "best_candidate_conf": 0.0768,
+     "best_candidate_conf_rank": 4,
+     "selected_matches_best": false,
+     "selected_conf": 0.5918,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "2680": {
+   "n_frames": 653,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 200,
+     "n_candidates": 1,
+     "best_iou": 0.0,
+     "best_center_dist_norm": 0.1598,
+     "best_candidate_conf": 0.073,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.073,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "apex": {
+     "available": false
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 241,
+     "n_candidates": 3,
+     "best_iou": 0.2983,
+     "best_center_dist_norm": 0.0726,
+     "best_candidate_conf": 0.1941,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": false,
+     "selected_conf": 0.0748,
+     "verdict": "AMBIGUOUS_REFERENCE"
+    }
+   }
+  },
+  "311": {
+   "n_frames": 577,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 412,
+     "n_candidates": 3,
+     "best_iou": 0.8188,
+     "best_center_dist_norm": 0.0213,
+     "best_candidate_conf": 0.408,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.408,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "apex": {
+     "available": false
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 444,
+     "n_candidates": 3,
+     "best_iou": 0.892,
+     "best_center_dist_norm": 0.0118,
+     "best_candidate_conf": 0.9847,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": false,
+     "selected_conf": 0.108,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    }
+   }
+  },
+  "524": {
+   "n_frames": 716,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 348,
+     "n_candidates": 4,
+     "best_iou": 0.7344,
+     "best_center_dist_norm": 0.0075,
+     "best_candidate_conf": 0.7252,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": false,
+     "selected_conf": 0.0704,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 379,
+     "n_candidates": 3,
+     "best_iou": 0.7023,
+     "best_center_dist_norm": 0.0266,
+     "best_candidate_conf": 0.9937,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": false,
+     "selected_conf": 0.075,
+     "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+    },
+    "water_contact": {
+     "available": true,
+     "verdict": "NOT_ANNOTATED"
+    }
+   }
+  },
+  "676": {
+   "n_frames": 222,
+   "phases": {
+    "takeoff": {
+     "available": true,
+     "frame_index": 106,
+     "n_candidates": 1,
+     "best_iou": 0.0,
+     "best_center_dist_norm": 0.5573,
+     "best_candidate_conf": 0.0568,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.0568,
+     "verdict": "TARGET_NOT_DETECTED"
+    },
+    "apex": {
+     "available": true,
+     "frame_index": 116,
+     "n_candidates": 1,
+     "best_iou": 0.8533,
+     "best_center_dist_norm": 0.0042,
+     "best_candidate_conf": 0.9312,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.9312,
+     "verdict": "TARGET_SELECTED_CORRECTLY"
+    },
+    "water_contact": {
+     "available": true,
+     "frame_index": 145,
+     "n_candidates": 1,
+     "best_iou": 0.0,
+     "best_center_dist_norm": 0.2519,
+     "best_candidate_conf": 0.0623,
+     "best_candidate_conf_rank": 1,
+     "selected_matches_best": true,
+     "selected_conf": 0.0623,
+     "verdict": "TARGET_NOT_DETECTED"
+    }
+   }
+  }
+ }
+}

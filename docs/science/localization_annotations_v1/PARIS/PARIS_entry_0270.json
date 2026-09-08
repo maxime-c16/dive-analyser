@@ -1,0 +1,22 @@
+{
+  "id": "PARIS_entry_0270",
+  "dive_id": "PARIS_2819",
+  "phase": "entry",
+  "frame_index": 270,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 4.5,
+  "actual_pts_s": 4.505,
+  "image_sha256": "9bfb2fa406b60d081ce526aac4ed3ca6ff2fcb40643db3314966f768bb6ebff3",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": null,
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "occluded",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T12:01:19.253882+00:00"
+}

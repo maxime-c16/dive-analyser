@@ -1,11 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-08** (Real-Trajectory Event Logic V2.2 —
-> D3.1 target-identity audit found a pervasive wrong-target lock on Paris; V2.2 scale-aware
-> Event Logic developed/frozen on DEVELOPMENT; Paris remains FAIL, now attributed to perception).
-> Latest audit: `docs/science/REAL_TRAJECTORY_EVENT_LOGIC_V2_2_REPORT.md`
-> Previous: `docs/science/PERCEPTION_V4_CROSS_VENUE_GENERALIZATION_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_REAL_TRAJECTORY_EVENT_LOGIC_V2_2`**
+> Durable project handoff. Last verified: **2026-09-08** (Target Diver Selection V1 —
+> S1_GLOBAL_PATH selector frozen, replacing the old N0 wrong-target-lock architecture;
+> DEVELOPMENT selection improved with first real HURDLE evidence; Paris selection still
+> FAILS (`TARGET_SELECTION_FAIL`) — a cross-venue generalization gap, now proven with
+> pixel-precise human Paris labels rather than Claude-vision only).
+> Latest audit: `docs/science/TARGET_DIVER_SELECTION_V1_REPORT.md`
+> Previous: `docs/science/REAL_TRAJECTORY_EVENT_LOGIC_V2_2_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_TARGET_DIVER_SELECTION_V1`**
 
 ## Project purpose
 
@@ -148,27 +150,51 @@ Two machines on a LAN:
   `V2_2_NO_DEVELOPMENT_IMPROVEMENT` (accuracy) but selected for scale-robustness per
   packet Phase K instructions. Paris remains FAIL, attributed to perception (below).
 
-### Perception status
-`PERCEPTION_REOPEN_REQUIRED` for the current N0 (framewise-highest-confidence +
-continuity) selection architecture at D3.1's conf=0.05 operating point — it is not safe
-whenever true-target confidence is near threshold. Detector weights/threshold
-themselves are NOT reopened (per packet scope); only the SELECTION step needs revision
-(e.g. a static-object/no-motion plausibility filter, or ByteTrack with a track-quality
-filter on displacement variance).
+### Perception status (updated 2026-09-08, TARGET_DIVER_SELECTION_V1)
+
+`SELECTION_IMPROVED_BUT_NOT_SUFFICIENT`. Target-diver identity selection was reopened
+(detector weights/threshold, Event Logic thresholds, pose/SAM/multi-domain data stayed
+untouched). Full detail: `docs/science/TARGET_DIVER_SELECTION_V1_REPORT.md`.
+
+- **S1_GLOBAL_PATH** (deterministic Viterbi over raw candidates + NULL state) frozen as
+  `TARGET_DIVER_SELECTOR_V1_FREEZE.json`, replacing the old N0 framewise+continuity
+  heuristic. Beats S0 (highest-confidence baseline) and S2 (ByteTrack track-quality,
+  disqualified by catastrophic coverage collapse) on DEVELOPMENT: ALL correct-identity
+  51.6% vs 48.4% (S0); STANDING 72.7% (tie); HURDLE 40.0% vs 35.0% (S0). Fails safe
+  (NULL) rather than confidently wrong on the one genuinely static-throughout track.
+- **Corrected context distribution**: 4 STANDING / 8 HURDLE across the 12 DEVELOPMENT
+  dives (a mid-cycle draft had wrongly hand-labeled only 2 as HURDLE — corrected via
+  the real dive codes run through Event Logic's own `classify_context()`).
+- **4 clean DEVELOPMENT trajectories under S1** (133, 311 STANDING; 524, 1040 HURDLE) —
+  first cycle with any real clean HURDLE evidence (previously zero).
+- **Paris remains `TARGET_SELECTION_FAIL`** even with the frozen S1 selector: raw
+  candidate recall confirms the correct diver candidate IS present at all 3 GT anchors
+  (takeoff/apex/water_contact) but is outranked by a persistently, falsely
+  high-confidence static background object — a genuine cross-venue selection
+  generalization failure, not a detection failure. Paris human spatial labels (14
+  frames, pixel-precise, maintainer-boxed) now exist for the first time as final
+  quantitative authority — previously this was Claude-vision-only.
+- Raw detector ceiling ≈ 65% (DEVELOPMENT), ≈ 67% (Paris) — a genuine, unresolved
+  detection-recall gap (~30%) independent of selection quality.
 
 ### Next required work (priority order)
-1. **Perception selection repair**: add a plausibility gate that rejects candidates with
-   near-zero motion variance over their lifetime (directly targets the demonstrated
-   failure mode), or re-evaluate ByteTrack with such a filter (previously not tested).
-2. **Re-run DEVELOPMENT Event Logic evaluation** with a materially larger surviving-dive
-   count once (1) is done, including real HURDLE examples (zero survived this cycle).
-3. **Re-test Paris** once (1) is done — the canary itself remains valid; its perception
-   identity was the blocker, not Event Logic.
-4. **Model-weight durability**: give D3/D3.1 weights a permanent, backed-up home (see
-   Frozen references above) — currently one accidental scratchpad cleanup from being lost.
-5. **Multi-domain D4**: still deferred (packet Phase P); DEVELOPMENT trajectory coverage
-   issues found this cycle are a SELECTION problem, not primarily a data/domain problem,
-   so D4 is not automatically indicated by these findings.
+1. **Cross-venue selection robustness**: S1's log-confidence observation term is not
+   enough when a false positive is more stably confident than the true diver
+   (demonstrated mechanism at Paris). Would need a spatial prior, an appearance cue, or
+   per-venue confidence recalibration — not attempted this cycle (out of scope).
+2. **Detector recall gap (~30%)**: a real, unresolved ceiling independent of selection.
+   Not addressed this cycle (detector reopening explicitly out of scope); still not
+   proven to require new training data specifically — raw candidates ARE present at
+   the majority of currently-failing reference frames.
+3. **Dive 311's catastrophic ~4s Event Logic error** (identical in V2.1 and V2.2, on an
+   otherwise perception-clean trajectory) — open, unexplained, needs its own
+   investigation (Event Logic tuning was out of this packet's scope).
+4. **V2.2 body-scale threshold**: `SUPPORTED_BY_EXPANDED_REAL_DATA` but only n=2 HURDLE
+   (one clear win, one exact tie, no regression) — real signal, still fragile. Continue
+   accumulating clean HURDLE trajectories before promoting past
+   `V2_2_EXPERIMENTAL_FROZEN_NOT_ADOPTED`.
+5. **Multi-domain D4**: still deferred; this cycle's findings are a selection/detection
+   ceiling problem, not automatically a D4 case.
 
 ## Test suite
 
@@ -179,7 +205,12 @@ filter on displacement variance).
   velocity, zero/near-zero bbox-scale safeguard, preparation MAD/noise statistic,
   FPS invariance, hurdle-vs-final-takeoff, resolution/scale-invariance fixture,
   DEVELOPMENT/PARIS firewall)
-- Combined: **115 PASS, 16 SKIP, 0 FAIL**
+- `experiments/landmark_pilot/test_target_diver_selection_v1.py` — 18 PASS, 0 FAIL (new:
+  NULL-state path, continuity/bbox-scale scoring, initial-static-then-motion vs.
+  static-throughout regression, hurdle motion, candidate disappearance, ByteTrack
+  track-quality, selector freeze fingerprint, Paris firewall, model artifact manifest)
+- Combined (`venv_c/bin/python3 -m pytest experiments/landmark_pilot -q`):
+  **165 PASS, 16 SKIP, 0 FAIL**
 
 ## AMP authority
 

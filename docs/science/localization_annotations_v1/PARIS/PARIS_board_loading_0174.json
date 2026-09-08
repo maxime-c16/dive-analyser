@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_board_loading_0174",
+  "dive_id": "PARIS_2819",
+  "phase": "board_loading",
+  "frame_index": 174,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 2.9,
+  "actual_pts_s": 2.903333,
+  "image_sha256": "a044895358ab43d8a2e5bb709fa468d8c02e173ddce048695dc355a3116c4a55",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    581.746641074856,
+    661.9145873320538,
+    811.957773512476,
+    1008.5124760076775
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:59:00.251701+00:00"
+}

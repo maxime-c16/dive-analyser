@@ -1,0 +1,164 @@
+{
+ "per_frame": {
+  "PARIS_apex_0214": {
+   "available": true,
+   "frame_index": 214,
+   "n_candidates": 6,
+   "best_iou": 0.6205,
+   "best_center_dist_norm": 0.0083,
+   "best_candidate_conf": 0.0731,
+   "best_candidate_conf_rank": 3,
+   "selected_conf": 0.0649,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_approach_0060": {
+   "available": true,
+   "frame_index": 60,
+   "n_candidates": 8,
+   "best_iou": 0.5816,
+   "best_center_dist_norm": 0.0164,
+   "best_candidate_conf": 0.346,
+   "best_candidate_conf_rank": 1,
+   "selected_conf": 0.1055,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_ascent_0198": {
+   "available": true,
+   "frame_index": 198,
+   "n_candidates": 3,
+   "best_iou": 0.0,
+   "best_center_dist_norm": 0.3427,
+   "best_candidate_conf": 0.1789,
+   "best_candidate_conf_rank": 1,
+   "selected_conf": 0.0627,
+   "selected_matches_best": false,
+   "verdict": "TARGET_NOT_DETECTED"
+  },
+  "PARIS_board_loading_0174": {
+   "available": true,
+   "frame_index": 174,
+   "n_candidates": 4,
+   "best_iou": 0.8144,
+   "best_center_dist_norm": 0.0164,
+   "best_candidate_conf": 0.156,
+   "best_candidate_conf_rank": 2,
+   "selected_conf": 0.0613,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_board_recontact_0160": {
+   "available": true,
+   "frame_index": 160,
+   "n_candidates": 5,
+   "best_iou": 0.6909,
+   "best_center_dist_norm": 0.0114,
+   "best_candidate_conf": 0.121,
+   "best_candidate_conf_rank": 2,
+   "selected_conf": 0.0698,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_descent_1_0228": {
+   "available": true,
+   "frame_index": 228,
+   "n_candidates": 4,
+   "best_iou": 0.0,
+   "best_center_dist_norm": 0.4687,
+   "best_candidate_conf": 0.2449,
+   "best_candidate_conf_rank": 1,
+   "selected_conf": 0.0762,
+   "selected_matches_best": false,
+   "verdict": "TARGET_NOT_DETECTED"
+  },
+  "PARIS_descent_2_0240": {
+   "available": true,
+   "frame_index": 240,
+   "n_candidates": 4,
+   "best_iou": 0.0,
+   "best_center_dist_norm": 0.5063,
+   "best_candidate_conf": 0.3011,
+   "best_candidate_conf_rank": 1,
+   "selected_conf": 0.0669,
+   "selected_matches_best": false,
+   "verdict": "TARGET_NOT_DETECTED"
+  },
+  "PARIS_entry_0270": {
+   "available": true,
+   "verdict": "OCCLUDED_NO_GT_BOX",
+   "visibility": "occluded"
+  },
+  "PARIS_hurdle_approach_0108": {
+   "available": true,
+   "frame_index": 108,
+   "n_candidates": 4,
+   "best_iou": 0.1264,
+   "best_center_dist_norm": 0.0651,
+   "best_candidate_conf": 0.1135,
+   "best_candidate_conf_rank": 2,
+   "selected_conf": 0.0621,
+   "selected_matches_best": false,
+   "verdict": "AMBIGUOUS_REFERENCE"
+  },
+  "PARIS_hurdle_flight_0138": {
+   "available": true,
+   "frame_index": 138,
+   "n_candidates": 3,
+   "best_iou": 0.3147,
+   "best_center_dist_norm": 0.0253,
+   "best_candidate_conf": 0.0719,
+   "best_candidate_conf_rank": 3,
+   "selected_conf": 0.0804,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_post_dive_0300": {
+   "available": true,
+   "verdict": "OCCLUDED_NO_GT_BOX",
+   "visibility": "occluded"
+  },
+  "PARIS_preparation_0012": {
+   "available": true,
+   "frame_index": 12,
+   "n_candidates": 5,
+   "best_iou": 0.5332,
+   "best_center_dist_norm": 0.0271,
+   "best_candidate_conf": 0.0791,
+   "best_candidate_conf_rank": 3,
+   "selected_conf": 0.4198,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_takeoff_0187": {
+   "available": true,
+   "frame_index": 187,
+   "n_candidates": 5,
+   "best_iou": 0.8074,
+   "best_center_dist_norm": 0.0169,
+   "best_candidate_conf": 0.0561,
+   "best_candidate_conf_rank": 5,
+   "selected_conf": 0.0643,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  },
+  "PARIS_water_contact_0253": {
+   "available": true,
+   "frame_index": 253,
+   "n_candidates": 7,
+   "best_iou": 0.5114,
+   "best_center_dist_norm": 0.0423,
+   "best_candidate_conf": 0.1213,
+   "best_candidate_conf_rank": 2,
+   "selected_conf": 0.3114,
+   "selected_matches_best": false,
+   "verdict": "TARGET_DETECTED_BUT_NOT_SELECTED"
+  }
+ },
+ "counts": {
+  "TARGET_DETECTED_BUT_NOT_SELECTED": 8,
+  "TARGET_NOT_DETECTED": 3,
+  "OCCLUDED_NO_GT_BOX": 2,
+  "AMBIGUOUS_REFERENCE": 1
+ }
+}

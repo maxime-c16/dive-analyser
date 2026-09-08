@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_ascent_0198",
+  "dive_id": "PARIS_2819",
+  "phase": "ascent",
+  "frame_index": 198,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 3.3,
+  "actual_pts_s": 3.303333,
+  "image_sha256": "d8a1b492459c6d978faefb66b64365fef230c1c29fb53345f3ec9448aa895786",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    484.1746641074856,
+    486.0460652591171,
+    774.5153550863723,
+    747.4088291746641
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:59:07.869008+00:00"
+}
