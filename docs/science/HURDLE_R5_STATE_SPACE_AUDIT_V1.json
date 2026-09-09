@@ -1,0 +1,188 @@
+{
+ "label": "R5_STATE_SPACE_AUDIT_V1",
+ "packet": "HURDLE_TARGET_IDENTITY_V2",
+ "source": "docs/science/HURDLE_TARGET_IDENTITY_CLASSIFICATION_V1.json",
+ "rank_convention": "target_rank = 0-based index in conf-sorted floor candidate set (conf>=0.001, cap 200); inclusion@K = target_rank < K",
+ "r4_state_space": {
+  "graph": "frames x (top-12 floor candidates + NULL)",
+  "K": 12
+ },
+ "evaluable_classes": [
+  "TARGET_AVAILABLE_NOT_TOP1",
+  "TARGET_TOP1_CORRECT"
+ ],
+ "dives": {
+  "1040": {
+   "n_evaluable": 161,
+   "n_target_rank_known": 161,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.3416,
+    "K=24": 0.4099,
+    "K=48": 0.9752,
+    "K=96": 1.0,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 67,
+    "median": 31,
+    "p75": 39,
+    "p90": 43
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 106,
+    "fraction_target_excluded_from_top12": 0.6584,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "2169": {
+   "n_evaluable": 434,
+   "n_target_rank_known": 434,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.977,
+    "K=24": 0.9931,
+    "K=48": 0.9954,
+    "K=96": 1.0,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 85,
+    "median": 0.0,
+    "p75": 0,
+    "p90": 0
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 10,
+    "fraction_target_excluded_from_top12": 0.023,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "2341": {
+   "n_evaluable": 273,
+   "n_target_rank_known": 273,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.5055,
+    "K=24": 0.6593,
+    "K=48": 0.8828,
+    "K=96": 0.9853,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 137,
+    "median": 11,
+    "p75": 34,
+    "p90": 51
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 135,
+    "fraction_target_excluded_from_top12": 0.4945,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "2353": {
+   "n_evaluable": 411,
+   "n_target_rank_known": 411,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.1411,
+    "K=24": 0.2117,
+    "K=48": 0.9976,
+    "K=96": 1.0,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 53,
+    "median": 34,
+    "p75": 36,
+    "p90": 40
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 353,
+    "fraction_target_excluded_from_top12": 0.8589,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "2541": {
+   "n_evaluable": 262,
+   "n_target_rank_known": 262,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.3511,
+    "K=24": 0.4924,
+    "K=48": 0.9962,
+    "K=96": 1.0,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 72,
+    "median": 24.0,
+    "p75": 34,
+    "p90": 37
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 170,
+    "fraction_target_excluded_from_top12": 0.6489,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "2555": {
+   "n_evaluable": 336,
+   "n_target_rank_known": 336,
+   "n_target_rank_unknown": 0,
+   "recall": {
+    "K=12": 0.8512,
+    "K=24": 0.9554,
+    "K=48": 0.9911,
+    "K=96": 1.0,
+    "K=200": 1.0
+   },
+   "rank_stats": {
+    "min": 0,
+    "max": 89,
+    "median": 0.0,
+    "p75": 6,
+    "p90": 16
+   },
+   "a1": {
+    "frames_with_target_excluded_from_top12": 50,
+    "fraction_target_excluded_from_top12": 0.1488,
+    "note": "On excluded frames R4's selector could never output the target regardless of appearance quality; appearance is only the residual failure mode on included frames."
+   }
+  },
+  "524": {
+   "n_evaluable": 0,
+   "n_target_rank_known": 0,
+   "n_target_rank_unknown": 0,
+   "recall": {},
+   "rank_stats": null,
+   "a1": {}
+  }
+ },
+ "a1_primary_aggregate": {
+  "dives": [
+   "1040",
+   "2169",
+   "2341",
+   "2353",
+   "2541"
+  ],
+  "n_evaluable_frames": 1541,
+  "n_frames_target_excluded_from_top12": 774,
+  "fraction_target_excluded_from_top12": 0.5023,
+  "per_dive": {
+   "1040": 0.6584,
+   "2169": 0.023,
+   "2341": 0.4945,
+   "2353": 0.8589,
+   "2541": 0.6489
+  },
+  "causal_reading": null
+ }
+}
