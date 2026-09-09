@@ -1,0 +1,86 @@
+{
+  "label": "PHOTOS_TCC_CLIENT_V1",
+  "created_at_utc": "2026-09-09T08:49:25Z",
+  "status": "IDENTIFIED_TCC_GATE_OPEN",
+  "photos_host": {
+    "hostname": "mac-server.home",
+    "ip": "192.168.1.19",
+    "user": "divesensei",
+    "macos_version": "15.1.1",
+    "macos_build": "24B91",
+    "architecture": "x86_64",
+    "photos_library": "/Users/divesensei/Pictures/Photos Library.photoslibrary"
+  },
+  "deployed_agent": {
+    "launchd_label": "com.diveanalyzer.agent",
+    "launchd_session": "Aqua",
+    "launchd_process_type": "Interactive",
+    "associated_bundle_identifier": "com.diveanalyzer.python-runtime",
+    "wrapper_app": "/Users/divesensei/Applications/DiveSensei Python Runtime.app",
+    "wrapper_executable": "/Users/divesensei/Applications/DiveSensei Python Runtime.app/Contents/MacOS/divesensei-python-runtime",
+    "wrapper_process": {
+      "pid": 5196,
+      "ppid": 1,
+      "command": "/Users/divesensei/Applications/DiveSensei Python Runtime.app/Contents/MacOS/divesensei-python-runtime"
+    },
+    "child_process": {
+      "pid": 5198,
+      "ppid": 5196,
+      "executable": "/Users/Shared/services/data/diveanalyzer/venv/bin/python",
+      "command": "/Users/Shared/services/data/diveanalyzer/venv/bin/python -m src.main --config /Users/Shared/services/data/diveanalyzer/state/config.yaml"
+    },
+    "bundle_identity": {
+      "CFBundleIdentifier": "com.diveanalyzer.python-runtime",
+      "CFBundleDisplayName": "DiveSensei Python Runtime",
+      "CFBundleExecutable": "divesensei-python-runtime",
+      "NSPhotoLibraryUsageDescription": "DiveSensei reads the Photos catalog and recalls one requested dive video at a time.",
+      "codesign": "adhoc",
+      "team_identifier": null
+    }
+  },
+  "direct_recovery_probe_client": {
+    "purpose": "Phase A bounded PhotoKit authorization trigger for dive 311 only",
+    "command_utc_start": "2026-09-09T08:49:13Z",
+    "command_utc_end": "2026-09-09T08:49:25Z",
+    "executable": "/Users/Shared/services/data/diveanalyzer/venv/bin/python",
+    "cli_entrypoint": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+    "cli_entrypoint_shebang": "#!/Users/Shared/services/data/diveanalyzer/venv/bin/python",
+    "real_python_target": "/Users/divesensei/.local/share/uv/python/cpython-3.12-macos-x86_64-none/bin/python3.12",
+    "parent_process": "sshd -> zsh",
+    "bundle_identity": null,
+    "osxphotos_version": "0.76.1",
+    "locale_required": "LC_ALL=C LANG=C",
+    "probe_command": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos export /Users/Shared/services/data/media-node/incoming/tcc_probe_311 --uuid D0C33293-F4B7-4A57-9368-9C53BFC32033 --only-movies --download-missing --use-photokit --update --skip-original-if-edited --verbose",
+    "probe_exit_code": 1,
+    "probe_result": "PHOTOS_TCC_AUTHORIZATION_DENIED",
+    "probe_output_evidence": [
+      "Requesting access to use your Photos library. Click 'Allow Access to All Photos' in the dialog box to grant access.",
+      "Error: could not get authorization to access Photos library",
+      "Please ensure that your  is granted access in 'System Settings > Privacy & Security > Photos'"
+    ],
+    "interactive_prompt_observed_by_ssh": false,
+    "local_full_resolution_bytes_written": false
+  },
+  "current_tcc_authorization_state": {
+    "effective_state": "NOT_FULL_ACCESS",
+    "evidence": "PhotoKit authorization request for the exact osxphotos/Python recovery command failed before any byte materialization.",
+    "tcc_database_read": "NOT_USED_AS_AUTHORITY",
+    "reason_tcc_database_not_authoritative": "TCC is a human authorization boundary; recovery state is determined by normal PhotoKit authorization behavior, not privacy database mutation or forced interpretation."
+  },
+  "human_gate_target": {
+    "client_name_expected_in_system_settings": "Python",
+    "exact_executable_path": "/Users/Shared/services/data/diveanalyzer/venv/bin/python",
+    "exact_cli_path": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+    "fallback_visible_client_if_present": "DiveSensei Python Runtime",
+    "fallback_bundle_identifier": "com.diveanalyzer.python-runtime",
+    "required_permission": "Full Photos Access",
+    "rationale": "The bounded recovery command that will perform the next full-byte iCloud download is the venv osxphotos console script, whose shebang executes the venv Python interpreter. The deployed launchd agent uses the same venv Python for media materialization and is associated with the DiveSensei Python Runtime app bundle."
+  },
+  "safety": {
+    "tcc_bypass_attempted": false,
+    "photos_database_modified": false,
+    "sip_modified": false,
+    "private_icloud_api_used": false,
+    "batch_recovery_started": false
+  }
+}

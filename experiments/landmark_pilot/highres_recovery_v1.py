@@ -25,14 +25,13 @@ class PTSRelation(StrEnum):
 
 
 class RecoveryStatus(StrEnum):
-    RECOVERED = "RECOVERED"
-    CLOUD_NOT_AVAILABLE = "CLOUD_NOT_AVAILABLE"
-    PHOTOS_IDENTITY_UNRESOLVED = "PHOTOS_IDENTITY_UNRESOLVED"
-    EDITED_HIGHRES_UNAVAILABLE = "EDITED_HIGHRES_UNAVAILABLE"
-    TEMPORAL_MISMATCH = "TEMPORAL_MISMATCH"
-    EXPORT_FAILURE = "EXPORT_FAILURE"
-    BLOCKED_TCC_PHOTOS_AUTHORIZATION = "BLOCKED_TCC_PHOTOS_AUTHORIZATION"
-    NOT_REQUESTED_GATE_CLOSED = "NOT_REQUESTED_GATE_CLOSED"
+    RECOVERED_ALIGNED = "RECOVERED_ALIGNED"
+    RECOVERED_DETERMINISTIC_MAPPING = "RECOVERED_DETERMINISTIC_MAPPING"
+    ICLOUD_DOWNLOAD_FAILED = "ICLOUD_DOWNLOAD_FAILED"
+    PHOTOS_ASSET_UNRESOLVED = "PHOTOS_ASSET_UNRESOLVED"
+    EDITED_HQ_EXPORT_FAILED = "EDITED_HQ_EXPORT_FAILED"
+    TEMPORAL_MISMATCH_QUARANTINED = "TEMPORAL_MISMATCH_QUARANTINED"
+    STORAGE_BLOCKED = "STORAGE_BLOCKED"
 
 
 AUTHORIZED_ROLES = {"TRAIN", "DEV_EVAL"}
@@ -114,3 +113,67 @@ def validate_batch_scope(items: Iterable[dict]) -> None:
 
 def checksum_identity_changed(previous_sha256: str, new_sha256: str) -> bool:
     return bool(previous_sha256 and new_sha256 and previous_sha256 != new_sha256)
+
+
+def canary_gate_passed(entries: Iterable[dict], minimum_successes: int = 3) -> bool:
+    successes = 0
+    for entry in entries:
+        if (
+            entry.get("representation") == Representation.EDITED_HIGH_RES_RENDITION
+            or entry.get("representation") == Representation.EDITED_HIGH_RES_RENDITION.value
+            or entry.get("edit_status") == "EDITED_HIGHRES_RENDITION_EXPORTED"
+        ) and entry.get("temporal_mapping") in {
+            PTSRelation.PTS_EQUIVALENT,
+            PTSRelation.PTS_EQUIVALENT.value,
+            PTSRelation.DETERMINISTICALLY_MAPPABLE,
+            PTSRelation.DETERMINISTICALLY_MAPPABLE.value,
+        }:
+            successes += 1
+    return successes >= minimum_successes
+
+
+def validate_tcc_client_manifest(manifest: dict) -> None:
+    required = {
+        "label",
+        "photos_host",
+        "deployed_agent",
+        "direct_recovery_probe_client",
+        "human_gate_target",
+        "safety",
+    }
+    missing = required - set(manifest)
+    if missing:
+        raise ValueError(f"missing TCC manifest fields: {sorted(missing)}")
+    target = manifest["human_gate_target"]
+    if not target.get("exact_executable_path") or not target.get("required_permission"):
+        raise ValueError("TCC human gate target must name executable path and permission")
+    if manifest["safety"].get("tcc_bypass_attempted"):
+        raise ValueError("TCC bypass is prohibited")
+
+
+def validate_durable_manifest(manifest: dict) -> None:
+    if manifest.get("label") != "HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1":
+        raise ValueError("unexpected manifest label")
+    entries = manifest.get("entries") or []
+    validate_batch_scope(entries)
+    for entry in entries:
+        for field in [
+            "dive_id",
+            "photos_uuid",
+            "role",
+            "durable_hq_path",
+            "sha256",
+            "bytes",
+            "resolution",
+            "codec",
+            "duration_seconds",
+            "pts_count",
+            "edit_status",
+            "temporal_mapping",
+            "recovery_timestamp_utc",
+            "tooling_identity",
+        ]:
+            if field not in entry:
+                raise ValueError(f"missing manifest field: {entry.get('dive_id')} {field}")
+        if entry["label_transfer_allowed"] != labels_may_transfer(PTSRelation(entry["temporal_mapping"])):
+            raise ValueError(f"invalid label transfer policy: {entry['dive_id']}")

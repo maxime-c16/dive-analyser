@@ -1,10 +1,10 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (Event Logic V3-C0 frozen).
-> Latest science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
-> Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Previous: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
-> Supervisor gate: **`EVENT_LOGIC_V3_C0_FREEZE`**
+> Durable project handoff. Last verified: **2026-09-09** (iCloud high-resolution recovery frozen with per-asset temporal authority).
+> Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+> Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
+> Previous: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_ICLOUD_HIGHRES_RECOVERY_V1_TCC_REPAIR`**
 
 ## Project purpose
 
@@ -39,6 +39,28 @@ Two machines on a LAN:
 | Machine B | Intel MacBook, macOS 15.1.1, `mac-server.home` @ `192.168.1.19` (user `divesensei`) | Ingestion + media edge: watches the Photos library, parses captions, syncs metadata, exports/transcodes/uploads posters & proxies, manages a source vault for originals. |
 
 ## Science layer status (2026-09-09)
+
+### High-Resolution Analysis Source Recovery — FROZEN_WITH_PER_ASSET_TEMPORAL_AUTHORITY
+
+The Photos/iCloud recovery blocker was repaired through normal macOS Photos Full Access
+for the actual PhotoKit client. Full-byte edited high-resolution renditions were recovered
+for all 14 authorized TRAIN + DEVELOPMENT_EVAL media IDs, with media stored outside Git at
+`/Users/Shared/services/data/media-node/highres_analysis_source_v1/`.
+
+Temporal authority is per asset: 11 assets are `PTS_EQUIVALENT`, 1 is
+`DETERMINISTICALLY_MAPPABLE`, and 2 are `TEMPORAL_MISMATCH_QUARANTINED` (`311`, `524`).
+Existing temporal labels may transfer only to the aligned or deterministically mappable
+assets; quarantined mismatches receive no silent label transfer.
+
+Resolution decision: `HIGHRES_BENEFIT_PROVEN_BUT_PRODUCTION_REPRESENTATION_UNDECIDED`.
+Detector status remains `NO_RETRAIN_AUTHORIZED`.
+
+Primary artifacts:
+- `docs/science/PHOTOS_TCC_CLIENT_V1.json`
+- `docs/science/HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1.json`
+- `docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json`
+- `docs/science/HIGHRES_QUALITY_AUDIT_D5_CANARY_V1.json`
+- `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 
 ### Frozen references
 - Canary dive: 2819 (5122D G/G, springboard 1m, hurdle)

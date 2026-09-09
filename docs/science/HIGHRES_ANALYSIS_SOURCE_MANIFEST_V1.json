@@ -1,0 +1,436 @@
+{
+  "label": "HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1",
+  "created_at_utc": "2026-09-09T09:35:07Z",
+  "status": "RECOVERED_WITH_QUARANTINES",
+  "source_semantics": "ANALYSIS_SOURCE_HQ_V1 candidates are edited high-resolution Photos renditions exported via osxphotos --use-photokit --skip-original-if-edited. Existing temporal labels transfer only for PTS_EQUIVALENT or DETERMINISTICALLY_MAPPABLE assets.",
+  "summary": {
+    "unique_requested": 14,
+    "recovered_total": 14,
+    "recovered_aligned": 11,
+    "recovered_deterministic_mapping": 1,
+    "temporal_mismatch_quarantined": 2,
+    "total_durable_bytes": 355637796
+  },
+  "entries": [
+    {
+      "dive_id": 133,
+      "photos_asset_id": 622,
+      "photos_uuid": "ABD32644-4536-416F-9572-86849FCF15B5",
+      "cloud_guid": "AU6xXzdChT7yKifrguxqf1Io1rO0",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_133/edited_highres_rendition/IMG_6282.MP4",
+      "sha256": "e5c8c1cf776c0fbea15c66b2477423b0003f10437b9f214df6e875a38cbbcebb",
+      "bytes": 2316774,
+      "resolution": {
+        "width": 720,
+        "height": 1280
+      },
+      "codec": "h264",
+      "duration_seconds": 5.921667,
+      "pts_count": 178,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/c2/62/c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb.mp4",
+      "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 311,
+      "photos_asset_id": 287,
+      "photos_uuid": "D0C33293-F4B7-4A57-9368-9C53BFC32033",
+      "cloud_guid": "AXmuUmf/q68eUpM9ptYEMDccfVKe",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_311/edited_highres_rendition/IMG_2156_edited.mov",
+      "sha256": "9bcb37fa3bca5b044855b89e978d7cfe77a9cd3a162ebbb8792e38efb26050e5",
+      "bytes": 7352846,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 7.118345,
+      "pts_count": 218,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "NOT_EQUIVALENT",
+      "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
+      "label_transfer_allowed": false,
+      "current_proxy_path": "/app/media-cache/proxy_360p/dc/1d/dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c.mp4",
+      "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 524,
+      "photos_asset_id": 226,
+      "photos_uuid": "ADA74E55-A410-4918-8C27-218C9D44240B",
+      "cloud_guid": "AX6u13qbBEfJIXLoIG+bmYvTtFMP",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_524/edited_highres_rendition/IMG_2616_edited.mov",
+      "sha256": "0cf0174a912203c942d242e26f9009e7eddedad28109641b56642827ce4c4197",
+      "bytes": 25442142,
+      "resolution": {
+        "width": 876,
+        "height": 1560
+      },
+      "codec": "hevc",
+      "duration_seconds": 11.94,
+      "pts_count": 717,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "NOT_EQUIVALENT",
+      "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
+      "label_transfer_allowed": false,
+      "current_proxy_path": "/app/media-cache/proxy_360p/55/2d/552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 676,
+      "photos_asset_id": 1526,
+      "photos_uuid": "AA890D9A-A8AE-44C4-B6A4-C82BDAD56F46",
+      "cloud_guid": "AbVbkHIz0V81372ETk06lS2juBvP",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_676/edited_highres_rendition/IMG_2895_edited.mov",
+      "sha256": "ce5315666dd934d742331f83b012c7325bd57a71750dd8ab2f45a8bc4cdf2cea",
+      "bytes": 10748845,
+      "resolution": {
+        "width": 1136,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 7.405,
+      "pts_count": 223,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "DETERMINISTICALLY_MAPPABLE",
+      "recovery_status": "RECOVERED_DETERMINISTIC_MAPPING",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/2b/51/2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6.mp4",
+      "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 1040,
+      "photos_asset_id": 501,
+      "photos_uuid": "F956BFFA-C8F4-40BF-B46C-60A56940A761",
+      "cloud_guid": "AUZDSPR4FnhSD9pFL1szmUn6q08C",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_1040/edited_highres_rendition/IMG_4301.mov",
+      "sha256": "fc131b558bfc875353666758550f74cdd14b5b56eaa081171172fbd7135facc1",
+      "bytes": 11377900,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 11.081667,
+      "pts_count": 339,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/9c/b4/9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2169,
+      "photos_asset_id": 14,
+      "photos_uuid": "B6AC3A80-752B-439F-A927-01550A6F52C1",
+      "cloud_guid": "Ae7JP/e4EcLL3eOc8nye9m0PhMyk",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2169/edited_highres_rendition/IMG_9474_edited.mov",
+      "sha256": "ec5f767b545ef32e8ee5e51a798ed790cd5084e8cb37211ec9677f3e0e5a9ec6",
+      "bytes": 33449036,
+      "resolution": {
+        "width": 742,
+        "height": 418
+      },
+      "codec": "hevc",
+      "duration_seconds": 17.978333,
+      "pts_count": 1078,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/85/c8/85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0.mp4",
+      "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2341,
+      "photos_asset_id": 1705,
+      "photos_uuid": "2E8AB91E-1548-4DDB-B5DF-7F32C0386C64",
+      "cloud_guid": "Ac9M7vjZ+kbEoXIheI2JpS39YGVR",
+      "role": "TRAIN",
+      "train_role": "DEV_VAL",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2341/edited_highres_rendition/IMG_0098.mov",
+      "sha256": "19366602949af408513a8d7d968ed216379af64cb6c1435269d9e9a2f4905b57",
+      "bytes": 20291790,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 10.128333,
+      "pts_count": 619,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/3e/01/3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2353,
+      "photos_asset_id": 2404,
+      "photos_uuid": "75F08B66-2658-46EE-8930-C1CC520848B7",
+      "cloud_guid": "AVJlHeaXwJImx/kDOhGsmncKDaEc",
+      "role": "TRAIN",
+      "train_role": "DEV_VAL",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2353/edited_highres_rendition/IMG_1334_edited.mov",
+      "sha256": "56345191f3216ba989e6fae0dc80f44c0a6c8a344ddd4496cf072875fad5b80f",
+      "bytes": 63478342,
+      "resolution": {
+        "width": 1260,
+        "height": 708
+      },
+      "codec": "hevc",
+      "duration_seconds": 23.97,
+      "pts_count": 1437,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/66/b3/66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2387,
+      "photos_asset_id": 956,
+      "photos_uuid": "51BDE272-B56F-411A-997C-5B2277127CA5",
+      "cloud_guid": "AT54f+wWQ6BRG6HFzdLqA0gVGFVF",
+      "role": "DEV_EVAL",
+      "train_role": "TRAIN",
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2387/edited_highres_rendition/IMG_1090.mov",
+      "sha256": "0650000885956218d5baeb453ebef8f0c15d12b00ebf9e6ab97a17e44b508965",
+      "bytes": 32839575,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 24.953333,
+      "pts_count": 752,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/e7/bb/e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2541,
+      "photos_asset_id": 2384,
+      "photos_uuid": "A4E41E78-9BE5-4FD2-97F7-982EC51B46B2",
+      "cloud_guid": "AaAGIEKCxW5BVMFKIs2/48k0L+Bc",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2541/edited_highres_rendition/IMG_1090.mov",
+      "sha256": "08524f9be0824340c2c9cfa0aa02d2579f49b8fbc8475345c20de8d33d48697e",
+      "bytes": 43389473,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 32.5517,
+      "pts_count": 985,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/cf/92/cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2555,
+      "photos_asset_id": 2551,
+      "photos_uuid": "1FBF7764-0257-4AC1-8634-B99C0FA80949",
+      "cloud_guid": "AfCjmznQMenL7umy+DXcFgXCCL9f",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2555/edited_highres_rendition/ScreenRecording_07-05-2026 8-35-45\u202fPM_1.mp4",
+      "sha256": "831bc5f0ffadd2b79eb6d909a766e43df14bb471022a0fbe1790cb0580661275",
+      "bytes": 23337553,
+      "resolution": {
+        "width": 1206,
+        "height": 2622
+      },
+      "codec": "hevc",
+      "duration_seconds": 12.186939,
+      "pts_count": 722,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/dd/7a/dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2625,
+      "photos_asset_id": 2621,
+      "photos_uuid": "3B65107B-CE67-480A-9CE6-C1CF7F54A19B",
+      "cloud_guid": "ASkQwlPjrEBLAHMj9rK+QCXPXKYg",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2625/edited_highres_rendition/IMG_1528_edited.mov",
+      "sha256": "29f972833d987233e7a04ae86854ae8aeb1339d659a2630b43ee359ca36d2505",
+      "bytes": 16240305,
+      "resolution": {
+        "width": 1136,
+        "height": 640
+      },
+      "codec": "hevc",
+      "duration_seconds": 6.08,
+      "pts_count": 365,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/4d/c9/4dc9064e1692518c412a4e6e55f67f92d26959d2bfecb3147617e914da3d84fd.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2661,
+      "photos_asset_id": 2657,
+      "photos_uuid": "D73DB757-0A6F-40BD-A167-D3A3753B617F",
+      "cloud_guid": "AaHCqMrnlt53koLs+jazI3e58AvC",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2661/edited_highres_rendition/IMG_0585.mov",
+      "sha256": "09ace4e80510f9fca3f50f250024a9a18633d4ccec6a4a1f7fedc84afdb527b4",
+      "bytes": 43258735,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 25.035,
+      "pts_count": 1518,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/23/b1/23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    },
+    {
+      "dive_id": 2680,
+      "photos_asset_id": 2676,
+      "photos_uuid": "61CEDB4F-CDED-4E05-9D28-223E3DD26D8B",
+      "cloud_guid": "Abg+RPi9SEDu7M0S4sxlhIzIZUqC",
+      "role": "TRAIN",
+      "train_role": null,
+      "durable_hq_path": "/Users/Shared/services/data/media-node/highres_analysis_source_v1/batch/dive_2680/edited_highres_rendition/IMG_0543.mov",
+      "sha256": "54873f7022fa4d79feb5c1692cd44ccb790951bc5ee86f019c0605c95d2f435a",
+      "bytes": 22114480,
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "codec": "hevc",
+      "duration_seconds": 10.8917,
+      "pts_count": 668,
+      "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_ALIGNED",
+      "label_transfer_allowed": true,
+      "current_proxy_path": "/app/media-cache/proxy_360p/d8/87/d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1.mp4",
+      "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
+      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "tooling_identity": {
+        "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
+        "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      }
+    }
+  ]
+}

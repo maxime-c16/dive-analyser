@@ -12,11 +12,14 @@ from highres_recovery_v1 import (  # noqa: E402
     PTSRelation,
     Representation,
     TemporalEvidence,
+    canary_gate_passed,
     can_be_hq_analysis_source,
     checksum_identity_changed,
     classify_temporal_relation,
     labels_may_transfer,
     validate_batch_scope,
+    validate_durable_manifest,
+    validate_tcc_client_manifest,
 )
 
 
@@ -121,3 +124,129 @@ def test_batch_scope_rejects_duplicates():
 def test_checksum_identity_policy_detects_changed_source():
     assert checksum_identity_changed("a" * 64, "b" * 64)
     assert not checksum_identity_changed("a" * 64, "a" * 64)
+
+
+def test_tcc_client_manifest_requires_exact_gate_target():
+    manifest = {
+        "label": "PHOTOS_TCC_CLIENT_V1",
+        "photos_host": {"hostname": "mac-server.home"},
+        "deployed_agent": {"launchd_label": "com.diveanalyzer.agent"},
+        "direct_recovery_probe_client": {"probe_result": "PHOTOS_TCC_AUTHORIZATION_DENIED"},
+        "human_gate_target": {
+            "exact_executable_path": "/Users/Shared/services/data/diveanalyzer/venv/bin/python",
+            "required_permission": "Full Photos Access",
+        },
+        "safety": {"tcc_bypass_attempted": False},
+    }
+    validate_tcc_client_manifest(manifest)
+
+
+def test_tcc_client_manifest_rejects_bypass():
+    manifest = {
+        "label": "PHOTOS_TCC_CLIENT_V1",
+        "photos_host": {},
+        "deployed_agent": {},
+        "direct_recovery_probe_client": {},
+        "human_gate_target": {
+            "exact_executable_path": "/bin/python3",
+            "required_permission": "Full Photos Access",
+        },
+        "safety": {"tcc_bypass_attempted": True},
+    }
+    with pytest.raises(ValueError, match="bypass"):
+        validate_tcc_client_manifest(manifest)
+
+
+def test_canary_gate_requires_three_edited_temporal_successes():
+    entries = [
+        {
+            "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+            "temporal_mapping": "PTS_EQUIVALENT",
+        },
+        {
+            "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+            "temporal_mapping": "DETERMINISTICALLY_MAPPABLE",
+        },
+        {
+            "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+            "temporal_mapping": "NOT_EQUIVALENT",
+        },
+    ]
+    assert not canary_gate_passed(entries)
+    entries.append(
+        {
+            "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+            "temporal_mapping": "PTS_EQUIVALENT",
+        }
+    )
+    assert canary_gate_passed(entries)
+
+
+def test_durable_manifest_requires_completeness_and_label_transfer_policy():
+    manifest = {
+        "label": "HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1",
+        "entries": [
+            {
+                "dive_id": 133,
+                "photos_uuid": "ABD32644-4536-416F-9572-86849FCF15B5",
+                "role": "TRAIN",
+                "durable_hq_path": "/Users/Shared/services/data/media-node/highres/dive_133.mov",
+                "sha256": "a" * 64,
+                "bytes": 123,
+                "resolution": {"width": 720, "height": 1280},
+                "codec": "h264",
+                "duration_seconds": 5.9,
+                "pts_count": 178,
+                "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+                "temporal_mapping": "PTS_EQUIVALENT",
+                "label_transfer_allowed": True,
+                "recovery_timestamp_utc": "2026-09-09T00:00:00Z",
+                "tooling_identity": {"worker": "test"},
+            },
+            {
+                "dive_id": 311,
+                "photos_uuid": "D0C33293-F4B7-4A57-9368-9C53BFC32033",
+                "role": "DEV_EVAL",
+                "durable_hq_path": "/Users/Shared/services/data/media-node/highres/dive_311.mov",
+                "sha256": "b" * 64,
+                "bytes": 456,
+                "resolution": {"width": 1920, "height": 1080},
+                "codec": "hevc",
+                "duration_seconds": 7.1,
+                "pts_count": 213,
+                "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+                "temporal_mapping": "NOT_EQUIVALENT",
+                "label_transfer_allowed": False,
+                "recovery_timestamp_utc": "2026-09-09T00:00:00Z",
+                "tooling_identity": {"worker": "test"},
+            },
+        ],
+    }
+    validate_durable_manifest(manifest)
+
+
+def test_durable_manifest_rejects_wrong_label_transfer_policy():
+    manifest = {
+        "label": "HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1",
+        "entries": [
+            {
+                "dive_id": 311,
+                "photos_uuid": "D0C33293-F4B7-4A57-9368-9C53BFC32033",
+                "role": "DEV_EVAL",
+                "durable_hq_path": "/Users/Shared/services/data/media-node/highres/dive_311.mov",
+                "sha256": "b" * 64,
+                "bytes": 456,
+                "resolution": {"width": 1920, "height": 1080},
+                "codec": "hevc",
+                "duration_seconds": 7.1,
+                "pts_count": 213,
+                "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
+                "temporal_mapping": "NOT_EQUIVALENT",
+                "label_transfer_allowed": True,
+                "recovery_timestamp_utc": "2026-09-09T00:00:00Z",
+                "tooling_identity": {"worker": "test"},
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="label transfer"):
+        validate_durable_manifest(manifest)

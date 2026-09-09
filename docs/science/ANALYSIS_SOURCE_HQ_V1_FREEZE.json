@@ -1,44 +1,37 @@
 {
   "label": "ANALYSIS_SOURCE_HQ_V1_FREEZE",
-  "date": "2026-09-09",
-  "status": "NOT_FROZEN_CANARY_GATE_CLOSED",
-  "definition_candidate": "Highest-resolution locally materialized representation preserving the exact Photos-edited/trimmed content and a deterministic temporal mapping to current scientific PTS authority.",
-  "gate": {
-    "required_successful_canaries": 3,
-    "successful_canaries": 0,
-    "reason": "PhotoKit export/download requires macOS Photos TCC authorization for the SSH-launched osxphotos process."
+  "created_at_utc": "2026-09-09T09:35:07Z",
+  "status": "FROZEN_WITH_PER_ASSET_TEMPORAL_AUTHORITY",
+  "supersedes": {
+    "file": "docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json",
+    "previous_status": "NOT_FROZEN_CANARY_GATE_CLOSED",
+    "previous_commit": "f49db5f03715c001b662aa27e8a0d870bcd9fa81"
   },
-  "source_semantics": {
-    "preferred_candidate": "EDITED_HIGH_RES_RENDITION",
-    "export_method_candidate": "osxphotos export TARGET --uuid UUID --only-movies --download-missing --use-photokit --update --skip-original-if-edited",
-    "original_master_method": "osxphotos export TARGET --uuid UUID --only-movies --download-missing --use-photokit --update --skip-edited",
-    "edit_trim_preservation_rule": "Only edited Photos renditions may become analysis sources unless raw master temporal equivalence or an explicit deterministic edit transform is proven.",
-    "raw_master_direct_pts_transfer": "PROHIBITED_UNLESS_DETERMINISTICALLY_MAPPABLE"
+  "definition": "Edited high-resolution Photos rendition exported through the authorized Aqua LaunchAgent PhotoKit path, with per-asset checksum, ffprobe metadata, and temporal mapping against the current 360p proxy.",
+  "canary_gate": {
+    "required_successful_aligned_or_mappable_canaries": 3,
+    "passed_canaries": [
+      133,
+      676,
+      2169
+    ],
+    "failed_canaries": [
+      311
+    ]
   },
-  "provenance_fields_required": [
-    "dive_id",
-    "photos_asset_id",
-    "agent_id",
-    "photos_local_uuid",
-    "cloud_guid",
-    "original_filename",
-    "export_command",
-    "export_tool",
-    "recovery_date",
-    "canonical_path",
-    "bytes",
-    "sha256",
-    "codec",
-    "width",
-    "height",
-    "duration_seconds",
-    "pts_relation",
-    "edit_preservation_status"
-  ],
-  "checksum_policy": "SHA256 every materialized representation and store sidecar metadata outside Git; commit only lightweight manifests.",
-  "pts_mapping_policy": {
-    "PTS_EQUIVALENT": "Existing temporal labels may transfer directly.",
-    "DETERMINISTICALLY_MAPPABLE": "Existing temporal labels may transfer only through an explicit mapping.",
-    "NOT_EQUIVALENT": "Temporal label transfer is prohibited."
-  }
+  "label_transfer_policy": {
+    "PTS_EQUIVALENT": "allowed_direct",
+    "DETERMINISTICALLY_MAPPABLE": "allowed_only_through_explicit_mapping",
+    "NOT_EQUIVALENT": "prohibited"
+  },
+  "batch_summary": {
+    "unique_requested": 14,
+    "recovered_total": 14,
+    "recovered_aligned": 11,
+    "recovered_deterministic_mapping": 1,
+    "temporal_mismatch_quarantined": 2,
+    "total_durable_bytes": 355637796
+  },
+  "resolution_decision": "HIGHRES_BENEFIT_PROVEN_BUT_PRODUCTION_REPRESENTATION_UNDECIDED",
+  "detector_training_status": "NO_RETRAIN_AUTHORIZED"
 }
