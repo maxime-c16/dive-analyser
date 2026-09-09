@@ -1,0 +1,132 @@
+{
+  "label": "HIGHRES_QUARANTINE_FORENSICS_V1",
+  "created_at_utc": "2026-09-09T12:58:01Z",
+  "scope": "Lift decisions for manifest entries quarantined as TEMPORAL_MISMATCH (dives 311, 524) and spatial-map verification for 676",
+  "context": {
+    "phase_A_conclusion": "ORIGINAL_MASTER_NOT_INDEPENDENTLY_PROVEN",
+    "phase_A_detail": "Photos library fully iCloud-optimized (no resources/origs); all canary original_master exports byte-identical to edited renditions; analysis basis is the edited_highres_rendition exported by osxphotos",
+    "authority": "Proxy_360p is the label/annotation timeline (human bbox annotations + event logic GT). HQ can host labels only if same content is proven with explicit deterministic transforms."
+  },
+  "dives": {
+    "311": {
+      "verdict": "LIFT_QUARANTINE_DETERMINISTICALLY_MAPPABLE",
+      "temporal_transform": {
+        "type": "TRIM",
+        "t_hq_s": "t_proxy_s - 12.125",
+        "hq_covers_proxy_s": [
+          12.125,
+          19.2433
+        ],
+        "hq_duration_s": 7.118333,
+        "proxy_duration_s": 19.252567
+      },
+      "spatial_transform": {
+        "type": "IDENTITY",
+        "scale": 1.0,
+        "note": "16/16 frames scale 1.0, loc (0,1)-(0,2) at common width 480"
+      },
+      "evidence": [
+        {
+          "artifact": "runs/hq_rep_v1/scale_match_311.json",
+          "detail": "16/16 frames matched at scale 1.0, scores 0.859-0.952"
+        },
+        {
+          "artifact": "runs/hq_rep_v1/offset_verify_311_stride1.json",
+          "detail": "10/10 stride-1 samples at fixed offset -12.125s, blur-equalized NCC 0.9774-0.9950, loc constant (0,1)"
+        },
+        {
+          "artifact": "runs/hq_rep_v1/alignment_quarantine_v0.json",
+          "detail": "initial coarse alignment ALIGNED_SAME_OFFSET (app-sim 0.909 vs permuted 0.156)"
+        }
+      ],
+      "label_transfer": {
+        "allowed": true,
+        "annotated_events": {
+          "takeoff": {
+            "t_proxy_s": 13.747,
+            "t_hq_s": 1.622
+          },
+          "water_contact": {
+            "t_proxy_s": 14.815,
+            "t_hq_s": 2.69
+          }
+        },
+        "note": "Both annotated events inside HQ-covered window; apply t_hq = t_proxy - 12.125 to any proxy-timeline timestamp."
+      }
+    },
+    "524": {
+      "verdict": "LIFT_QUARANTINE_PTS_EQUIVALENT_WITH_SPATIAL_TRANSFORM",
+      "temporal_transform": {
+        "type": "PTS_EQUIVALENT",
+        "offset_s": 0.0,
+        "evidence": "proxy 716 pts first 0.0 last 11.916667 (60fps const); HQ 717 pts first 0.0 last 11.923333; durations 11.933008 vs 11.940000"
+      },
+      "spatial_transform": {
+        "type": "HFLIP_PLUS_CROP_ZOOM",
+        "relation": "proxy content = hflip(HQ display) cropped: hq comparison-frame point (u,v) [480-wide portrait normalization] maps to proxy point (u/1.25 + 93, v/1.25 + 8)",
+        "measured": {
+          "hq_transform": "hflip",
+          "scale": 1.25,
+          "loc_at_480": [
+            93,
+            8
+          ]
+        },
+        "evidence": "16/16 frames matched, scores 0.701-0.778 (runs/hq_rep_v1/scale_match_524_hflip.json); identity (no-hflip) scan failed -> hflip is required"
+      },
+      "label_transfer": {
+        "allowed": true,
+        "annotated_events": {
+          "takeoff": {
+            "t_proxy_s": 5.8
+          },
+          "apex": {
+            "t_proxy_s": 6.317
+          },
+          "water_contact": {
+            "t_proxy_s": 7.083,
+            "bbox": null
+          }
+        },
+        "note": "Temporal transfer is direct (PTS-equivalent). Any HQ-arm bbox comparison must apply the hflip+1.25 crop transform; no HQ-arm detector audit was run for 524 in this packet."
+      }
+    },
+    "676": {
+      "verdict": "SPATIAL_MAP_VERIFIED_TOP_BAND_CROP",
+      "temporal_mapping": "DETERMINISTICALLY_MAPPABLE (PTS-equivalent, offset ~0; already in manifest)",
+      "spatial_transform": {
+        "type": "VERTICAL_TOP_BAND_CROP_UPSCALE",
+        "geometry": "HQ display 1080x1136 (coded 1136x1080 rot -90) == proxy top band rows [0, ~213/360], uniformly upscaled x5.347, full horizontal FOV, no hflip",
+        "proxy_to_hq_display_px": {
+          "x_hq": "x_px * 1080/202",
+          "y_hq": "(y_px - 1) * 1136/212.43"
+        },
+        "proxy_normalized_to_hq_normalized": {
+          "x_off": 0.0,
+          "x_span": 1.0,
+          "y_off": -0.00471,
+          "y_span": 1.69468
+        }
+      },
+      "evidence": [
+        {
+          "artifact": "runs/hq_rep_v1/scale_match_676_v2_blur.json",
+          "detail": "blur-equalized NCC 0.9977/0.9957 at loc (0,1) for t=3.5/3.375; x-shift 0 confirmed by central-patch match"
+        },
+        {
+          "artifact": "runs/hq_rep_v1/sheets/676_gt_overlay_HQ.png",
+          "detail": "GT takeoff/apex/water_contact boxes mapped into HQ display frames land on the diver (visual validation)"
+        },
+        {
+          "detail": "Prior map {y_off 0.002, y_span 0.5917} was applied in the wrong direction and is superseded"
+        }
+      ],
+      "audit_note": "With the corrected map, 676 event identity (top-1 IoU) remains 0 at takeoff/apex for canary_720p/native_hq arms: the diver IS detected (best candidate IoU 0.63-0.72) but top-1 switches to the seated woman/umbrella region at those moments. This is a genuine resolution-dependent ranking effect, not a mapping failure."
+    }
+  },
+  "manifest_actions": [
+    "311: TEMPORAL_MISMATCH_QUARANTINED -> RECOVERED_DETERMINISTIC_MAPPING; temporal_mapping NOT_EQUIVALENT -> DETERMINISTICALLY_MAPPABLE (TRIM -12.125s); label_transfer_allowed -> true",
+    "524: TEMPORAL_MISMATCH_QUARANTINED -> RECOVERED_DETERMINISTIC_MAPPING; temporal_mapping NOT_EQUIVALENT -> PTS_EQUIVALENT; spatial_transform HFLIP_PLUS_CROP_ZOOM recorded; label_transfer_allowed -> true",
+    "676: spatial_transform verified and recorded (temporal mapping unchanged)"
+  ]
+}

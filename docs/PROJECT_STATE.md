@@ -47,13 +47,20 @@ for the actual PhotoKit client. Full-byte edited high-resolution renditions were
 for all 14 authorized TRAIN + DEVELOPMENT_EVAL media IDs, with media stored outside Git at
 `/Users/Shared/services/data/media-node/highres_analysis_source_v1/`.
 
-Temporal authority is per asset: 11 assets are `PTS_EQUIVALENT`, 1 is
-`DETERMINISTICALLY_MAPPABLE`, and 2 are `TEMPORAL_MISMATCH_QUARANTINED` (`311`, `524`).
-Existing temporal labels may transfer only to the aligned or deterministically mappable
-assets; quarantined mismatches receive no silent label transfer.
+Temporal authority is per asset, now fully deterministic: 11 assets are
+`PTS_EQUIVALENT` and 3 are `RECOVERED_DETERMINISTIC_MAPPING` (311 trim
+`t_hq = t_proxy − 12.125s`; 524 PTS-equivalent with hflip+1.25-crop spatial
+transform; 676 verified top-band crop map). **Zero quarantines remain** — the
+311/524 quarantines were lifted by the quarantine forensics (evidence:
+`docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json`), and 676's spatial map
+was verified (the earlier map was direction-inverted).
 
-Resolution decision: `HIGHRES_BENEFIT_PROVEN_BUT_PRODUCTION_REPRESENTATION_UNDECIDED`.
-Detector status remains `NO_RETRAIN_AUTHORIZED`.
+Resolution decision (frozen):
+`PRODUCTION_ANALYSIS_REPRESENTATION_REMAINS_PROXY_360P`
+(`docs/science/HQ_REPRESENTATION_DECISION_V1.json`). HQ = archival master +
+label forensics + future-retrain source, never fed to the frozen D5 detector;
+720p canaries are derived tooling artifacts. Detector status remains
+`NO_RETRAIN_AUTHORIZED`.
 
 Primary artifacts:
 - `docs/science/PHOTOS_TCC_CLIENT_V1.json`
@@ -61,6 +68,10 @@ Primary artifacts:
 - `docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json`
 - `docs/science/HIGHRES_QUALITY_AUDIT_D5_CANARY_V1.json`
 - `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+- `docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json`
+- `docs/science/HQ_REPRESENTATION_DECISION_V1.json`
+- `docs/science/HQ_REPRESENTATION_720P_AND_QUARANTINE_FORENSICS_V1_REPORT.md`
+- `docs/science/HQ_PROXY_TEMPORAL_SPATIAL_INTEROP_V1.md`
 
 ### Frozen references
 - Canary dive: 2819 (5122D G/G, springboard 1m, hurdle)
@@ -375,3 +386,63 @@ PTS 15/15. Zero failures.
 - `docs/science/PARIS_EXTERNAL_V3E_EVAL_V1.json`
 - `docs/science/HURDLE_APPROACH_END_CONTEXT_AND_V3_E_REPORT.md`
 
+
+## HQ representation audit + quarantine forensics — COMPLETE (2026-09-09)
+
+**Decision: `PRODUCTION_ANALYSIS_REPRESENTATION_REMAINS_PROXY_360P`; manifest
+`RECOVERED_ALL_DETERMINISTIC` (zero quarantines).**
+Full report: `docs/science/HQ_REPRESENTATION_720P_AND_QUARANTINE_FORENSICS_V1_REPORT.md`.
+
+### Quarantine forensics (Phases B/C/D)
+- **311 lifted:** HQ = deterministic trim, `t_hq = t_proxy − 12.125s` (10/10
+  stride-1 samples NCC 0.977–0.995, scale 1.0, no spatial transform). Both
+  annotated events (takeoff 13.747s, water_contact 14.815s proxy) inside the
+  HQ-covered window [12.125, 19.2433].
+- **524 lifted:** PTS-equivalent (offset 0) with spatial transform
+  hflip + zoom 1.25 (16/16 frames, scores 0.701–0.778; identity scan failed ->
+  hflip required). HQ-arm box math for 524 unexercised (no audit run).
+- **676 map verified:** HQ display 1080x1136 == proxy top band (rows
+  [0, ~213/360]) upscaled x5.347, full horizontal FOV, no hflip; blur-equalized
+  NCC 0.998 at loc (0,1); GT boxes for takeoff/apex/water_contact mapped into
+  HQ land on the diver (`runs/hq_rep_v1/sheets/676_gt_overlay_HQ.png`). Prior
+  map `{y_off 0.002, y_span 0.5917}` was direction-inverted and is superseded.
+- Phase A unchanged: `ORIGINAL_MASTER_NOT_INDEPENDENTLY_PROVEN` (library fully
+  iCloud-optimized; "original" exports byte-identical to edited renditions).
+
+### Representation audit (frozen D5, 360p vs 720p vs HQ)
+- 1040: 720p top-1 target switching (anchored cy SNR 0.22 vs 2.81 at 360p).
+- 2169: anchored missingness 0.24–0.27 in takeoff window at 720p/HQ (0.0 at
+  360p); anchored peak departure velocity ~2x at 720p.
+- 676: top-1 switches away from the diver at takeoff/apex in 720p/HQ arms
+  (diver present in candidates at IoU 0.63–0.72 but outranked) — genuine
+  resolution-dependent ranking effect, not a mapping failure.
+- 133 (control): stable across arms. Higher resolution gives 3–4x diver pixel
+  height and better 2169 water-contact IoU, but only matters after a retrain.
+- Tooling fixes: 676 map direction corrected and `event_identity` proxy-arm
+  identity bug fixed in `hq_representation_audit_v1.py`; authoritative numbers
+  from `hq_audit_recompute_v2.py` (V2 recomputed JSON + trajectory sheets).
+
+### Decision + policy (frozen)
+- Detector inference: proxy_360p only (frozen D5). HQ = archival master,
+  label transfer allowed for all 14 dives through explicit deterministic
+  transforms. 720p canaries = derived tooling artifacts (not durable; 1040
+  720p drops 7/339 frames, VFR).
+- Retrain at ≥480p: NOT authorized; requires a new detector freeze + fresh audit.
+- `ANALYSIS_SOURCE_HQ_V1_FREEZE.json` amended (`resolution_decision`,
+  `batch_summary`: 11 aligned + 3 deterministic mapping + 0 quarantined;
+  amendment log).
+
+### Tests
+`experiments/landmark_pilot/test_hq_quarantine_forensics_v1.py` — 10/10
+(manifest invariants, recovery_history preservation, 676 map direction math,
+311 window coverage, forensics↔manifest↔decision↔freeze consistency,
+audit-script map parity). Existing suites untouched.
+
+### Artifacts
+- `docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json`
+- `docs/science/HQ_REPRESENTATION_DECISION_V1.json`
+- `docs/science/HQ_PROXY_TEMPORAL_SPATIAL_INTEROP_V1.md`
+- `docs/science/HQ_REPRESENTATION_720P_AND_QUARANTINE_FORENSICS_V1_REPORT.md`
+- `runs/hq_rep_v1/`: `HQ_REPRESENTATION_AUDIT_V2_RECOMPUTED.json`,
+  `scale_match_676_v2_blur.json`, `offset_verify_311_stride1.json`,
+  `720p_canaries/`, `sheets/` (untracked; videos not committed)

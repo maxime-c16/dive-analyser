@@ -1,0 +1,41 @@
+{
+  "label": "HQ_REPRESENTATION_DECISION_V1",
+  "created_at_utc": "2026-09-09T12:59:42Z",
+  "decision": "PRODUCTION_ANALYSIS_REPRESENTATION_REMAINS_PROXY_360P",
+  "scope": "Detector (frozen D5) inference representation for event-logic scoring; HQ and 720p usage policy",
+  "evidence_summary": {
+    "detector": "DIVER_DETECTOR_D5_A_V8N_best.pt, trained and frozen at 360p proxy resolution; NO_RETRAIN_AUTHORIZED",
+    "hurdle_signals": [
+      "1040: top-1 at 720p switches targets (anchored cy SNR 0.22 vs 2.81 at 360p) -catastrophic for per-frame selection",
+      "2169: anchored missingness 0.24-0.27 in takeoff window at 720p/HQ vs 0.0 at 360p (anchored candidate absent, conf floor hit)",
+      "2169: anchored peak departure velocity ~2x higher at 720p (1.65 vs 0.83) - scale-dependent kinematics bias vs frozen GT timeline",
+      "676: top-1 switches away from diver at takeoff/apex in 720p/HQ arms (diver present in candidates at IoU 0.63-0.72 but outranked)"
+    ],
+    "cost": {
+      "ms_per_frame": {
+        "proxy_360p": "16.3-21.0",
+        "canary_720p": "25.9-27.7",
+        "native_hq": "24.5-47.0"
+      },
+      "durable_hq_bytes": 355637796,
+      "note": "360p is also 1.4-1.8x faster per frame than 720p/HQ on the M2 audit node"
+    },
+    "upside_of_higher_res": [
+      "diver pixel height 3-4x larger (56-69px -> 142-253px)",
+      "2169 water-contact top-1 IoU better at 720p/HQ (0.69/0.68 vs 0.55)",
+      "would matter only after a retrain at target resolution"
+    ]
+  },
+  "policy": {
+    "detector_inference": "proxy_360p only (frozen D5)",
+    "hq_files": "ARCHIVAL_MASTER: durable on media node, SHA-tracked, used for label forensics and future retraining; never fed to frozen D5",
+    "hq_label_transfer": "allowed for all 14 batch dives via explicit deterministic transforms (PTS_EQUIVALENT direct; DETERMINISTICALLY_MAPPABLE through recorded mapping)",
+    "720p_canaries": "DERIVED, regenerable, not durable: validated for alignment/audit tooling only; 1040 720p drops 7 of 339 frames (VFR)",
+    "retrain_gate": "HQ_480P_OR_HIGHER_RETRAIN_MAY_BE_REEVALUATED only with a new detector freeze trained at target resolution + fresh audit; not authorized in this packet"
+  },
+  "representation_freeze": {
+    "analysis_representation": "proxy_360p",
+    "manifest": "docs/science/HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1.json",
+    "status": "RECOVERED_ALL_DETERMINISTIC"
+  }
+}

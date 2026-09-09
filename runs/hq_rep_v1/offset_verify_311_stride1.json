@@ -1,0 +1,103 @@
+{
+  "label": "QUAR_311_OFFSET_VERIFY_STRIDE1",
+  "offset_s": -12.125,
+  "common_width": 480,
+  "blur": "7x7 both sides",
+  "n": 10,
+  "n_ge_0.949": 10,
+  "score_min": 0.9774,
+  "score_max": 0.995,
+  "per_sample": [
+    {
+      "proxy_t_s": 12.2,
+      "hq_t_s": 0.075,
+      "score": 0.9906,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 12.95,
+      "hq_t_s": 0.825,
+      "score": 0.9935,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 13.7,
+      "hq_t_s": 1.575,
+      "score": 0.9774,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 14.45,
+      "hq_t_s": 2.325,
+      "score": 0.994,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 15.2,
+      "hq_t_s": 3.075,
+      "score": 0.9911,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 15.95,
+      "hq_t_s": 3.825,
+      "score": 0.9946,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 16.7,
+      "hq_t_s": 4.575,
+      "score": 0.995,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 17.45,
+      "hq_t_s": 5.325,
+      "score": 0.9938,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 18.2,
+      "hq_t_s": 6.075,
+      "score": 0.9924,
+      "loc": [
+        0,
+        1
+      ]
+    },
+    {
+      "proxy_t_s": 18.95,
+      "hq_t_s": 6.825,
+      "score": 0.9913,
+      "loc": [
+        0,
+        1
+      ]
+    }
+  ],
+  "verdict": "CONFIRMS t_hq = t_proxy - 12.125s, scale 1.0, no spatial transform"
+}

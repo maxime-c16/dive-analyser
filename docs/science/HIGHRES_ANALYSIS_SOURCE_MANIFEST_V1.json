@@ -1,14 +1,14 @@
 {
   "label": "HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1",
   "created_at_utc": "2026-09-09T09:35:07Z",
-  "status": "RECOVERED_WITH_QUARANTINES",
+  "status": "RECOVERED_ALL_DETERMINISTIC",
   "source_semantics": "ANALYSIS_SOURCE_HQ_V1 candidates are edited high-resolution Photos renditions exported via osxphotos --use-photokit --skip-original-if-edited. Existing temporal labels transfer only for PTS_EQUIVALENT or DETERMINISTICALLY_MAPPABLE assets.",
   "summary": {
     "unique_requested": 14,
     "recovered_total": 14,
     "recovered_aligned": 11,
     "recovered_deterministic_mapping": 1,
-    "temporal_mismatch_quarantined": 2,
+    "temporal_mismatch_quarantined": 0,
     "total_durable_bytes": 355637796
   },
   "entries": [
@@ -60,16 +60,40 @@
       "duration_seconds": 7.118345,
       "pts_count": 218,
       "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
-      "temporal_mapping": "NOT_EQUIVALENT",
-      "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
-      "label_transfer_allowed": false,
+      "temporal_mapping": "DETERMINISTICALLY_MAPPABLE",
+      "recovery_status": "RECOVERED_DETERMINISTIC_MAPPING",
+      "label_transfer_allowed": true,
       "current_proxy_path": "/app/media-cache/proxy_360p/dc/1d/dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c.mp4",
       "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
-      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "recovery_timestamp_utc": "2026-09-09T12:58:15Z",
       "tooling_identity": {
         "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
         "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
         "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      },
+      "recovery_history": [
+        {
+          "at_utc": "2026-09-09T12:58:15Z",
+          "from": {
+            "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
+            "temporal_mapping": "NOT_EQUIVALENT",
+            "label_transfer_allowed": false
+          },
+          "to_reason": "LIFT: trim mapping t_hq=t_proxy-12.125s verified (10/10 stride-1 NCC 0.977-0.995, scale 1.0)",
+          "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json"
+        }
+      ],
+      "temporal_transform": {
+        "type": "TRIM",
+        "t_hq_s": "t_proxy_s - 12.125",
+        "hq_covers_proxy_s": [
+          12.125,
+          19.2433
+        ]
+      },
+      "spatial_transform": {
+        "type": "IDENTITY",
+        "scale": 1.0
       }
     },
     {
@@ -90,16 +114,41 @@
       "duration_seconds": 11.94,
       "pts_count": 717,
       "edit_status": "EDITED_HIGHRES_RENDITION_EXPORTED",
-      "temporal_mapping": "NOT_EQUIVALENT",
-      "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
-      "label_transfer_allowed": false,
+      "temporal_mapping": "PTS_EQUIVALENT",
+      "recovery_status": "RECOVERED_DETERMINISTIC_MAPPING",
+      "label_transfer_allowed": true,
       "current_proxy_path": "/app/media-cache/proxy_360p/55/2d/552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f.mp4",
       "original_master_metadata": "NOT_RECOVERED_BATCH_EDITED_ONLY",
-      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "recovery_timestamp_utc": "2026-09-09T12:58:15Z",
       "tooling_identity": {
         "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
         "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
         "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      },
+      "recovery_history": [
+        {
+          "at_utc": "2026-09-09T12:58:15Z",
+          "from": {
+            "recovery_status": "TEMPORAL_MISMATCH_QUARANTINED",
+            "temporal_mapping": "NOT_EQUIVALENT",
+            "label_transfer_allowed": false
+          },
+          "to_reason": "LIFT: PTS-equivalent (offset 0) with hflip+1.25 crop zoom spatial transform, 16/16 frames verified",
+          "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json"
+        }
+      ],
+      "temporal_transform": {
+        "type": "PTS_EQUIVALENT",
+        "offset_s": 0.0
+      },
+      "spatial_transform": {
+        "type": "HFLIP_PLUS_CROP_ZOOM",
+        "scale": 1.25,
+        "loc_at_480": [
+          93,
+          8
+        ],
+        "relation": "proxy = crop(hflip(hq)); hq(u,v)->proxy(u/1.25+93, v/1.25+8) at 480-wide portrait normalization"
       }
     },
     {
@@ -125,11 +174,36 @@
       "label_transfer_allowed": true,
       "current_proxy_path": "/app/media-cache/proxy_360p/2b/51/2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6.mp4",
       "original_master_metadata": "CANARY_BYTE_IDENTICAL_TO_EDITED",
-      "recovery_timestamp_utc": "2026-09-09T09:23:44Z",
+      "recovery_timestamp_utc": "2026-09-09T12:58:15Z",
       "tooling_identity": {
         "worker": "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
         "osxphotos": "/Users/Shared/services/data/diveanalyzer/venv/bin/osxphotos",
         "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
+      },
+      "recovery_history": [
+        {
+          "at_utc": "2026-09-09T12:58:15Z",
+          "from": {
+            "recovery_status": "RECOVERED_DETERMINISTIC_MAPPING",
+            "temporal_mapping": "DETERMINISTICALLY_MAPPABLE",
+            "label_transfer_allowed": true
+          },
+          "to_reason": "Spatial map verified: HQ display == proxy top band (rows 0..213/360) upscaled x5.347; supersedes wrong-direction map",
+          "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json"
+        }
+      ],
+      "spatial_transform": {
+        "type": "VERTICAL_TOP_BAND_CROP_UPSCALE",
+        "proxy_to_hq_display_px": {
+          "x_hq": "x_px*1080/202",
+          "y_hq": "(y_px-1)*1136/212.43"
+        },
+        "proxy_normalized_to_hq_normalized": {
+          "x_off": 0.0,
+          "x_span": 1.0,
+          "y_off": -0.00471,
+          "y_span": 1.69468
+        }
       }
     },
     {
@@ -432,5 +506,35 @@
         "ffprobe": "/Users/Shared/services/data/diveanalyzer/bin/ffprobe"
       }
     }
-  ]
+  ],
+  "quarantine_lifts": {
+    "at_utc": "2026-09-09T12:58:15Z",
+    "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json",
+    "lifted": [
+      "311",
+      "524"
+    ],
+    "spatial_map_verified": [
+      "676"
+    ]
+  },
+  "derived_artifacts": {
+    "canaries_720p": {
+      "path_local": "runs/hq_rep_v1/720p_canaries",
+      "dives": [
+        "1040",
+        "2169",
+        "676",
+        "133"
+      ],
+      "encoding": "libx264 crf18 preset veryfast; scale=720:-2 portrait / scale=-2:720 landscape",
+      "pts_equivalence": "all validated vs HQ at offset 0, app-sim >= 0.997 (runs/hq_rep_v1/alignment_720p_canaries.json)",
+      "caveat": "dive_1040 720p has 332 frames vs HQ 339 (minor VFR frame drop)"
+    },
+    "representation_audit": [
+      "runs/hq_rep_v1/HQ_REPRESENTATION_AUDIT_V1.json",
+      "runs/hq_rep_v1/HQ_REPRESENTATION_AUDIT_V2_RECOMPUTED.json"
+    ],
+    "forensics": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json"
+  }
 }

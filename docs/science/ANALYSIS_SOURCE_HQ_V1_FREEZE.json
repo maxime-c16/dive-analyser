@@ -28,10 +28,17 @@
     "unique_requested": 14,
     "recovered_total": 14,
     "recovered_aligned": 11,
-    "recovered_deterministic_mapping": 1,
-    "temporal_mismatch_quarantined": 2,
+    "recovered_deterministic_mapping": 3,
+    "temporal_mismatch_quarantined": 0,
     "total_durable_bytes": 355637796
   },
-  "resolution_decision": "HIGHRES_BENEFIT_PROVEN_BUT_PRODUCTION_REPRESENTATION_UNDECIDED",
-  "detector_training_status": "NO_RETRAIN_AUTHORIZED"
+  "resolution_decision": "PRODUCTION_ANALYSIS_REPRESENTATION_REMAINS_PROXY_360P",
+  "detector_training_status": "NO_RETRAIN_AUTHORIZED",
+  "amendments": [
+    {
+      "at_utc": "2026-09-09T12:59:42Z",
+      "reason": "Quarantine lifts (311, 524) + 676 spatial map verification + representation decision",
+      "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json; docs/science/HQ_REPRESENTATION_DECISION_V1.json"
+    }
+  ]
 }
