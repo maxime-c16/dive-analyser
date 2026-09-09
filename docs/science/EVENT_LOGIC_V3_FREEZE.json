@@ -1,0 +1,76 @@
+{
+  "label": "EVENT_LOGIC_V3_FREEZE",
+  "date": "2026-09-09",
+  "status": "DEVELOPMENT_COMPLETE_NOT_PROMOTED",
+  "gate": "V3_COMPLETE_INSUFFICIENT",
+  "gate_detail": "V3_best(V3B)=3/6 < V2.1=5/6 on development dives — V3 not promoted",
+
+  "rationale": "Phase M of SUPERVISOR_TASK_PACKET required V3 only if EVENT_LOGIC_FAILURE_CONFIRMED. Gate was confirmed (PROC_EL_EVALUATION_V1.json). Maximum two development variants executed: V3-A (REJECTED) and V3-B (MARGINAL). Neither variant improves on V2.1 overall completeness.",
+
+  "v3a": {
+    "status": "REJECTED",
+    "file": "experiments/landmark_pilot/proposer_event_logic_v3_a.py",
+    "changes_over_v2_1": [
+      "A1: bounded apex fallback — search only [takeoff, takeoff+1.5s] (V2.1: unbounded)",
+      "A2: bounded wc search — [apex, apex+2.5s] (V2.1: unbounded)",
+      "A3: multi-plateau STANDING (last qualifying plateau) — REGRESSION",
+      "A4: motion_vel_thresh_factor=0.70 (V2.1: 0.50)"
+    ],
+    "dev_complete": 2,
+    "dev_complete_fraction": "2/6",
+    "regression_dives": ["133", "311", "2387"],
+    "regression_cause": "STANDING 'last qualifying plateau' picks post-wc pool-deck detections (cy~0.11) as prep_end. Pool deck and on-board positions are visually identical in cy_norm space. Dives 311 (prep_end=19.22s), 133 (prep_end=5.91s), 2387 (prep_end=24.92s).",
+    "hurdle_regression": "1040: thresh_factor=0.70 merged approach walk (vel~0.022-0.028) into preparation plateau; HURDLE 'first qualifying' fired post-wc (prep_end=7.274s, takeoff_err=5.746s)",
+    "unit_tests": "experiments/landmark_pilot/test_event_logic_v3_a.py — 15/15 pass (unit tests do not cover post-wc pool-deck confusion regression)"
+  },
+
+  "v3b": {
+    "status": "MARGINAL",
+    "file": "experiments/landmark_pilot/proposer_event_logic_v3_b.py",
+    "changes_over_v3a": [
+      "B3a STANDING: 'last qualifying plateau BEFORE first water_line_cy_norm (0.50) crossing' — still fails for 311 (water_line crossing found late at ~17s in pool region, not at actual 14.8s wc)",
+      "B3b HURDLE: thresh_factor_hurdle=0.50 (V2.1 level) + min_duration_hurdle=0.50s (vs 0.40s)"
+    ],
+    "dev_complete": 3,
+    "dev_complete_fraction": "3/6",
+    "improvements_over_v3a": "Restored 133 (to_err=0.165s) and 2387 (to_err=2.148s wc_err=0.161s) which V3-A broke",
+    "remaining_failures": {
+      "311": "water_line_crossing unreliable: cy>0.50 not detected at actual wc (diver underwater), first cy>0.50 found at ~17s (post-wc noise). Fallback 80%-of-video search_end=15.4s still includes pool-deck plateau. prep_end=17.32s → takeoff=None.",
+      "676": "Pre-existing 360p noise + interpolate_gaps_time NoneType bug (fixed in this cycle). prep_end=None in V2.1, V3-A, V3-B.",
+      "1040": "HURDLE min_duration_hurdle=0.50s: initial rest=0.43s < 0.50s skipped. On-board static < 0.50s (brief prep typical of this diver). prep_end=None. water_line_crossing=None → 80% fallback. No qualifying plateau in 80% window."
+    },
+    "root_finding": "V3-B correctly identifies that post-wc pool-deck detections cannot be excluded by spatial filtering (cy~0.11 = same as on-board). water_line_cy_norm=0.50 boundary fails when the diver enters water without sustained cy>0.50 detection (disappears underwater).",
+    "unit_tests": "experiments/landmark_pilot/test_event_logic_v3_a.py — 15/15 pass"
+  },
+
+  "promoted_for_paris": false,
+  "paris_el_note": "V3 not evaluated on Paris per packet Phase N gate: V3_COMPLETE(3/6) < V2.1_COMPLETE(5/6)",
+
+  "confirmed_improvements": {
+    "A1_bounded_apex": {
+      "status": "CORRECT — FUTURE WORK",
+      "evidence": "Unit tests confirm bounded fallback stays within [takeoff, takeoff+1.5s]. Would fix dive 311 wc_err=3.53s (apex at 14.05s + 2.5s window correctly finds wc at 14.82s) IF prep_end were correct. V2.1 unbounded apex fallback picks pool-deck cy~0.11 detections at t=18.35s.",
+      "integration_path": "Apply as targeted patch to V2.1 prep_end logic in a future cycle"
+    },
+    "A2_bounded_wc": {
+      "status": "CORRECT — FUTURE WORK",
+      "evidence": "Unit tests confirm search bounded to [apex, apex+2.5s]. Prevents wc errors > 2.5s after apex.",
+      "integration_path": "Apply as targeted patch to V2.1 in a future cycle"
+    }
+  },
+
+  "interpolate_gaps_bug_fix": {
+    "file": "experiments/landmark_pilot/proposer_event_logic_v2_1.py",
+    "function": "interpolate_gaps_time",
+    "bug": "gap_start = i-1 could point to a None frame (when run of Nones starts at video beginning). y0=result[gap_start]=None then caused TypeError in y1-y0.",
+    "fix": "Added None-guard: if result[gap_start] is None: skip gap (no left boundary).",
+    "note": "This is a correctness fix, not a parameter change. V2.1 PARAMS_E1 unchanged."
+  },
+
+  "open_problems_requiring_future_work": [
+    "HURDLE prep_end is variable across divers — no single time-based or velocity-based rule generalizes (confirmed by user: 'hurdle are not really deterministic and changes by divers')",
+    "Post-wc pool-deck detections (cy~0.11) are visually identical to on-board preparation — spatial filtering cannot distinguish them",
+    "water_line_cy_norm boundary approach fails when diver disappears at water contact (cy>0.50 not detected at actual wc)",
+    "Recommended future approach: scene-level temporal segmentation (separate pool-visible from pool-invisible phases) before applying EL"
+  ]
+}

@@ -1,9 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (Perception V1 closure REPAIR).
-> Latest science: `docs/science/PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md`
-> Previous: `docs/science/PERCEPTION_V1_CLOSURE_AND_REAL_EVENT_LOGIC_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_V1_FINAL_CLOSURE`**
+> Durable project handoff. Last verified: **2026-09-09** (Procedural Trajectory Readiness + EL V3).
+> Latest science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
+> Previous: `docs/science/PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PROCEDURAL_TRAJECTORY_READINESS_V1`**
 
 ## Project purpose
 
@@ -17,9 +17,9 @@ characteristics, athlete-vs-self comparison). **Partially underway — Perceptio
 ## Canonical repository
 
 - **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `f50a132`.
+  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `e3c6cc4` → updated this cycle.
   No remotes.
-- Mac bare mirror: `~/.perso/diveanalyzer-perception.git` (cloned from server). HEAD: `f50a132`.
+- Mac bare mirror: `~/.perso/diveanalyzer-perception.git` (cloned from server).
 - Mac working copy: `~/.perso/diveanalyzer-perception`. Remote `origin` → server. Remote `mac-mirror` → bare mirror.
 - Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
   reference slice; never treat it as canonical.
@@ -65,7 +65,7 @@ Two machines on a LAN:
 
 ### Paris Canary (external evaluation — firewall intact)
 
-**Trajectory gate: `TRAJECTORY_INPUT_PASS`** ✓ (repair cycle corrected two execution bugs)
+**Flight trajectory gate: `TRAJECTORY_INPUT_PASS`** ✓
 
 | Criterion | Result | IoU |
 |---|---|---|
@@ -76,16 +76,22 @@ Two machines on a LAN:
 | C5: max gap | ✓ PASS | 0.0s |
 | C6: wrong-target run | ✓ PASS | 0.0s |
 
-**Repair notes:** Previous V1 C3 failure caused by (1) FLOOR_CONF=0.01 instead of frozen 0.001,
-and (2) sequential-read frame drift (3-frame offset from canonical fi=238). Corrected with
-seek-based anchor extraction at FLOOR_CONF=0.001.
+**Procedural trajectory gate: `PARIS_PROCEDURAL_INPUT_PASS`** ✓  
+C1_prep=100%, C2_pretakeoff=100%, Flight=100%. Full video (322/344 frames @ 1080p).
 
-Artifact: `PARIS_REAL_TARGET_TRAJECTORY_V1.json` (FROZEN)
+**Event Logic on Paris (V2.1 and V2.2) — FULL TRAJECTORY:**
 
-**Event Logic on Paris (V2.1 and V2.2):** `BOTH_FAIL` — all events NOT_FOUND.
-Root cause: EL calibration scope mismatch (not a perception failure).
+| Version | Complete | to_err | ap_err | wc_err | Note |
+|---|---|---|---|---|---|
+| V2.1 | ✓ | 1.685s | 1.952s | 0.183s | HURDLE prep_end fails (FM2) |
+| V2.2 | ✓ | 1.335s | 1.552s | 0.183s | HURDLE prep_end fails (FM2) |
 
-### DEVELOPMENT Multi-Dive Evaluation (D5-only, repair cycle)
+Previous "BOTH_FAIL" EL result was incorrect — it ran on 3-point anchor trajectory, not full video.
+Current failure: HURDLE prep_end detection (FM2 — first motion at 0.683s, actual takeoff 3.12s).
+
+Artifact: `PARIS_PROC_EL_EVALUATION_V1.json`
+
+### DEVELOPMENT Multi-Dive Evaluation
 
 | Metric | Value |
 |---|---|
@@ -95,55 +101,63 @@ Root cause: EL calibration scope mismatch (not a perception failure).
 | Valid dives | [133, 311, 676, 1040, 2169, 2387] |
 | Invalid dives | [524, 2341, 2555, 2625] |
 
-Previous result (1/10) was R1-contaminated. Re-derived from d5_only_correct fields.
-Gate: `DEVELOPMENT_PERCEPTION_USABLE`
+**PROCEDURAL gate (new):** All 6 VALID dives pass `PROCEDURAL_TRAJECTORY_INPUT`.  
+Floor coverage = 100% for all. Op_conf coverage: 133=58.4%, 311=62.0%, 676=81.5%, 1040/2169=100%, 2387=89.2%.
 
-**DEVELOPMENT EL evaluation (D5_FRAMEWISE trajectories):** V2.1 0/6, V2.2 0/6.
-Root cause: proxy video (202×360) creates coverage gaps during flight phase — not EL bug.
+**DEVELOPMENT EL evaluation (full continuous trajectories):**
 
-### Dive 311 diagnosis
-{
-  "perception": "PERCEPTION_INVALID",
-  "phases": {
-    "takeoff": {
-      "correct": false,
-      "iou": 0.0,
-      "d5_only_correct": true,
-      "d5_only_iou": 0.4543,
-      "sel_cy_norm": 0.95,
-      "sel_bbox_h_norm": 0.1001
-    },
-    "water_contact": {
-      "correct": true,
-      "iou": 0.6036,
-      "d5_only_correct": true,
-      "d5_only_iou": 0.6036,
-      "sel_cy_norm": 0.5114,
-      "sel_bbox_h_norm": 0.2289
-    }
-  },
-  "n_correct": 1,
-  "n_total": 2,
-  "gt_timing": {
-    "dive_id": 311,
-    "takeoff_pts_s": 13.7546,
-    "apex_pts_s": null,
-    "water_contact_pts_s": 14.821262
-  }
-}
+| Dive | V2.1 complete | to_err | wc_err | Root cause |
+|---|---|---|---|---|
+| 133  | ✓ | 0.165s | 0.148s | OK |
+| 311  | ✓ | 0.059s | **3.530s** | FM1: UNBOUNDED APEX FALLBACK |
+| 676  | ✗ | — | — | FM3: 360p noise + interpolate_gaps crash |
+| 1040 | ✓ | 1.995s | 2.511s | FM2: PREMATURE HURDLE PREP_END |
+| 2169 | ✓ | 1.280s | 0.364s | FM2: late takeoff detection |
+| 2387 | ✓ | 2.148s | 0.039s | FM2: PREMATURE PREP_END (brief off-board rest) |
 
-### Perception architecture decision
-**`D5_FRAMEWISE_SUFFICIENT`** (see `docs/science/TARGET_DIVER_PERCEPTION_V1_FREEZE.json`)
+**EL gate: `EVENT_LOGIC_FAILURE_CONFIRMED`** — 5/6 complete, documented failures.
 
-### Event Logic decision
-- V2.1: retained and frozen (PARAMS_E1 takeoff_vel_threshold=0.04)
-- V2.2: NOT promoted — Paris trajectory gate failed, no EL comparison possible
-- Next step: Fix C3 (water_contact detection) then re-run Paris EL evaluation
+### Event Logic V3 — DEVELOPMENT COMPLETE, NOT PROMOTED
+
+**V3_DEVELOPMENT_COMPLETE_INSUFFICIENT**: V3-B best (3/6) < V2.1 (5/6). Not promoted.
+
+**V3-A**: REJECTED (2/6) — STANDING "last qualifying plateau" picks post-wc pool-deck detections.  
+**V3-B**: MARGINAL (3/6) — water_line_cy_norm boundary unreliable (diver disappears at wc).
+
+**Confirmed future improvements:**
+- A1 (bounded apex fallback): correct, validated by unit tests. Patch to V2.1 in next cycle.
+- A2 (bounded wc search): correct. Patch to V2.1 in next cycle.
+
+**Key finding (HURDLE prep_end):** HURDLE preparation structure is non-deterministic across divers (user-confirmed). No single rule generalizes. Requires future scene-level temporal segmentation.
+
+V3 freeze: `EVENT_LOGIC_V3_FREEZE.json`
+
+### Dive 311 diagnosis (CORRECTED)
+
+| Field | Value |
+|---|---|
+| Classification | **EVENT_LOGIC_CAUSED_FAILURE** (corrected from PERCEPTION_GAP_CAUSED_FAILURE) |
+| Procedural coverage | PASS (C2=89.7%, flight=100%) |
+| V2.1 takeoff | 13.814s (error: **0.059s** — excellent) |
+| V2.1 wc | 18.352s (error: **3.530s** — catastrophic) |
+| Root cause | FM1: unbounded apex fallback picks pool-deck cy~0.11 as apex at 18.35s |
+| Fix | A1 bounded apex (V3 confirmed): [takeoff, takeoff+1.5s] → wc_err ~0.15s |
+
+### PTS Authority
+
+**`PTS_AUTHORITATIVE_SEEK`** — always `cap.set(CAP_PROP_POS_FRAMES, fi)` before `cap.read()` for anchor frames.
+
+Historical Paris failure documented: fi=235 sequential drift → fi=238 seek canonical (3-frame, 53ms at 56.5fps). Test suite: `test_pts_authority_v1.py` — 15/15 pass.
 
 ### Detector closure
-`D5_A_FROZEN` — no new detector training authorized in this cycle.
-Water contact detection requires FLOOR_CONF<0.01 (noted for next cycle).
+`D5_A_FROZEN` — no new detector training authorized. Floor coverage 100% across all dives. No `RAW_DETECTOR_MISS` failures. No D6 warranted.
+
+### Resolution diagnostic
+`UNAVAILABLE` — 720p proxies not found for development dives. High-res ANALYSIS_SOURCE export failed previously. No comparison possible.
+
+### Bug fix
+`interpolate_gaps_time` in `proposer_event_logic_v2_1.py`: NoneType crash when left gap boundary is None. Fixed (None-guard). PARAMS_E1 unchanged.
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_PERCEPTION_V1_CLOSURE_AND_REAL_EVENT_LOGIC`
+`SUPERVISOR_REVIEW_AFTER_PROCEDURAL_TRAJECTORY_READINESS_V1`

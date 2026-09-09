@@ -172,6 +172,10 @@ def interpolate_gaps_time(y_arr, pts_arr, max_gap_s):
         if gap_start < 0:
             i += 1
             continue
+        if result[gap_start] is None:
+            # Left boundary has no value — skip (leading or adjacent-None gap).
+            i += 1
+            continue
         j = i
         while j < n and result[j] is None:
             j += 1

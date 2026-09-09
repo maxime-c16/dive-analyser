@@ -1,0 +1,973 @@
+{
+  "label": "PROC_COVERAGE_V1",
+  "date": "2026-09-09",
+  "pipeline": "D5_FRAMEWISE_ONLY",
+  "floor_conf": 0.001,
+  "op_conf": 0.05,
+  "nms_iou": 0.45,
+  "pts_authority": "PTS_AUTHORITATIVE_SEEK",
+  "n_dives": 6,
+  "flight_valid_dives": [
+    311,
+    676,
+    1040,
+    2169,
+    2387
+  ],
+  "procedural_valid_dives": [
+    133,
+    311,
+    676,
+    1040,
+    2169,
+    2387
+  ],
+  "corpus_gate": "PROCEDURAL_INPUT_READY",
+  "procedural_thresholds": {
+    "min_c2_coverage": 0.4,
+    "max_c2_gap_s": 0.5,
+    "min_flight_coverage": 0.5
+  },
+  "per_dive": {
+    "133": {
+      "dive_id": 133,
+      "code": "301B",
+      "context": "STANDING",
+      "proxy": "133.mp4",
+      "fps": 29.97002997002997,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 178,
+      "n_op_frames": 104,
+      "n_floor_frames": 178,
+      "overall_op_coverage": 0.5843,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "wc": 2.95027
+      },
+      "flight_valid": false,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            0.0
+          ],
+          "op": {
+            "n_frames": 0,
+            "n_detected": 0,
+            "coverage": null,
+            "longest_gap_s": null,
+            "mean_conf": null
+          },
+          "floor": {
+            "n_frames": 0,
+            "n_detected": 0,
+            "coverage": null,
+            "longest_gap_s": null,
+            "mean_conf": null
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": null
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            0.8,
+            1.8
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1253,
+            "cy_std": 0.0113
+          },
+          "floor": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1253,
+            "cy_std": 0.0113
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0029
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            1.8,
+            2.084
+          ],
+          "op": {
+            "n_frames": 9,
+            "n_detected": 8,
+            "coverage": 0.8889,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.16,
+            "cy_std": 0.0047
+          },
+          "floor": {
+            "n_frames": 9,
+            "n_detected": 9,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.16,
+            "cy_std": 0.0047
+          },
+          "cy_continuity": 0.0037
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            2.084,
+            2.95
+          ],
+          "op": {
+            "n_frames": 26,
+            "n_detected": 16,
+            "coverage": 0.6154,
+            "longest_gap_s": 0.1335,
+            "mean_conf": 0.1091,
+            "cy_std": 0.0856
+          },
+          "floor": {
+            "n_frames": 26,
+            "n_detected": 26,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1091,
+            "cy_std": 0.0856
+          },
+          "cy_continuity": 0.0233
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            2.95,
+            3.45
+          ],
+          "op": {
+            "n_frames": 15,
+            "n_detected": 13,
+            "coverage": 0.8667,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.1139,
+            "cy_std": 0.0077
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          1.8,
+          2.95
+        ],
+        "n_frames": 35,
+        "n_detected": 24,
+        "coverage": 0.6857,
+        "longest_gap_s": 0.1335,
+        "mean_conf": 0.1261,
+        "cy_std": 0.0711
+      }
+    },
+    "311": {
+      "dive_id": 311,
+      "code": "401C",
+      "context": "STANDING",
+      "proxy": "311.mp4",
+      "fps": 29.97002997002997,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 577,
+      "n_op_frames": 358,
+      "n_floor_frames": 577,
+      "overall_op_coverage": 0.6205,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "wc": 14.821262
+      },
+      "flight_valid": true,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            11.755
+          ],
+          "op": {
+            "n_frames": 353,
+            "n_detected": 250,
+            "coverage": 0.7082,
+            "longest_gap_s": 1.4348,
+            "mean_conf": 0.0694,
+            "cy_std": 0.0009
+          },
+          "floor": {
+            "n_frames": 353,
+            "n_detected": 353,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.0694,
+            "cy_std": 0.0009
+          },
+          "failure_attribution": {
+            "total_missing": 103,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 103,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0002
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            12.755,
+            13.755
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 29,
+            "coverage": 0.9667,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.0983,
+            "cy_std": 0.0047
+          },
+          "floor": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.0983,
+            "cy_std": 0.0047
+          },
+          "failure_attribution": {
+            "total_missing": 1,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 1,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0017
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            13.755,
+            14.155
+          ],
+          "op": {
+            "n_frames": 12,
+            "n_detected": 12,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.0976,
+            "cy_std": 0.019
+          },
+          "floor": {
+            "n_frames": 12,
+            "n_detected": 12,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.0976,
+            "cy_std": 0.019
+          },
+          "cy_continuity": 0.0176
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            14.155,
+            14.821
+          ],
+          "op": {
+            "n_frames": 20,
+            "n_detected": 19,
+            "coverage": 0.95,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.2689,
+            "cy_std": 0.1346
+          },
+          "floor": {
+            "n_frames": 20,
+            "n_detected": 20,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2689,
+            "cy_std": 0.1346
+          },
+          "cy_continuity": 0.0222
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            14.821,
+            15.321
+          ],
+          "op": {
+            "n_frames": 15,
+            "n_detected": 11,
+            "coverage": 0.7333,
+            "longest_gap_s": 0.0667,
+            "mean_conf": 0.1144,
+            "cy_std": 0.157
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          13.755,
+          14.821
+        ],
+        "n_frames": 32,
+        "n_detected": 31,
+        "coverage": 0.9688,
+        "longest_gap_s": 0.0334,
+        "mean_conf": 0.2026,
+        "cy_std": 0.1318
+      }
+    },
+    "676": {
+      "dive_id": 676,
+      "code": "301A",
+      "context": "STANDING",
+      "proxy": "676.mp4",
+      "fps": 29.97002997002997,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 222,
+      "n_op_frames": 181,
+      "n_floor_frames": 222,
+      "overall_op_coverage": 0.8153,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 3.553575,
+        "apex": 3.886907,
+        "wc": 4.853569
+      },
+      "flight_valid": true,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            1.554
+          ],
+          "op": {
+            "n_frames": 47,
+            "n_detected": 29,
+            "coverage": 0.617,
+            "longest_gap_s": 0.4004,
+            "mean_conf": 0.1109,
+            "cy_std": 0.1005
+          },
+          "floor": {
+            "n_frames": 47,
+            "n_detected": 47,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1109,
+            "cy_std": 0.1005
+          },
+          "failure_attribution": {
+            "total_missing": 18,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 18,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0211
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            2.554,
+            3.554
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3342,
+            "cy_std": 0.0175
+          },
+          "floor": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3342,
+            "cy_std": 0.0175
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0051
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            3.554,
+            3.887
+          ],
+          "op": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.354,
+            "cy_std": 0.0087
+          },
+          "floor": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.354,
+            "cy_std": 0.0087
+          },
+          "cy_continuity": 0.0054
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            3.887,
+            4.854
+          ],
+          "op": {
+            "n_frames": 29,
+            "n_detected": 27,
+            "coverage": 0.931,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.231,
+            "cy_std": 0.0743
+          },
+          "floor": {
+            "n_frames": 29,
+            "n_detected": 29,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.231,
+            "cy_std": 0.0743
+          },
+          "cy_continuity": 0.0201
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            4.854,
+            5.354
+          ],
+          "op": {
+            "n_frames": 15,
+            "n_detected": 15,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2631,
+            "cy_std": 0.0512
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          3.554,
+          4.854
+        ],
+        "n_frames": 39,
+        "n_detected": 37,
+        "coverage": 0.9487,
+        "longest_gap_s": 0.0334,
+        "mean_conf": 0.2643,
+        "cy_std": 0.0723
+      }
+    },
+    "1040": {
+      "dive_id": 1040,
+      "code": "102C",
+      "context": "HURDLE",
+      "proxy": "1040.mp4",
+      "fps": 29.97002997002997,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 332,
+      "n_op_frames": 332,
+      "n_floor_frames": 332,
+      "overall_op_coverage": 1.0,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 4.463857,
+        "apex": 4.797189,
+        "wc": 5.413853
+      },
+      "flight_valid": true,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            2.464
+          ],
+          "op": {
+            "n_frames": 74,
+            "n_detected": 74,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1438,
+            "cy_std": 0.1707
+          },
+          "floor": {
+            "n_frames": 74,
+            "n_detected": 74,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1438,
+            "cy_std": 0.1707
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0835
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            3.464,
+            4.464
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1797,
+            "cy_std": 0.151
+          },
+          "floor": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1797,
+            "cy_std": 0.151
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0625
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            4.464,
+            4.797
+          ],
+          "op": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1953,
+            "cy_std": 0.1491
+          },
+          "floor": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1953,
+            "cy_std": 0.1491
+          },
+          "cy_continuity": 0.2484
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            4.797,
+            5.414
+          ],
+          "op": {
+            "n_frames": 19,
+            "n_detected": 19,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2262,
+            "cy_std": 0.045
+          },
+          "floor": {
+            "n_frames": 19,
+            "n_detected": 19,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2262,
+            "cy_std": 0.045
+          },
+          "cy_continuity": 0.0142
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            5.414,
+            5.914
+          ],
+          "op": {
+            "n_frames": 15,
+            "n_detected": 15,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1864,
+            "cy_std": 0.1811
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          4.464,
+          5.414
+        ],
+        "n_frames": 29,
+        "n_detected": 29,
+        "coverage": 1.0,
+        "longest_gap_s": 0.0,
+        "mean_conf": 0.2156,
+        "cy_std": 0.1076
+      }
+    },
+    "2169": {
+      "dive_id": 2169,
+      "code": "101B",
+      "context": "HURDLE",
+      "proxy": "2169.mp4",
+      "fps": 59.94005994005994,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 1078,
+      "n_op_frames": 1078,
+      "n_floor_frames": 1078,
+      "overall_op_coverage": 1.0,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 6.46124,
+        "apex": 6.761239,
+        "wc": 7.694569
+      },
+      "flight_valid": true,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            4.461
+          ],
+          "op": {
+            "n_frames": 268,
+            "n_detected": 268,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.487,
+            "cy_std": 0.0015
+          },
+          "floor": {
+            "n_frames": 268,
+            "n_detected": 268,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.487,
+            "cy_std": 0.0015
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0001
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            5.461,
+            6.461
+          ],
+          "op": {
+            "n_frames": 60,
+            "n_detected": 60,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.4173,
+            "cy_std": 0.0805
+          },
+          "floor": {
+            "n_frames": 60,
+            "n_detected": 60,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.4173,
+            "cy_std": 0.0805
+          },
+          "failure_attribution": {
+            "total_missing": 0,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 0,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0151
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            6.461,
+            6.761
+          ],
+          "op": {
+            "n_frames": 18,
+            "n_detected": 18,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2984,
+            "cy_std": 0.2011
+          },
+          "floor": {
+            "n_frames": 18,
+            "n_detected": 18,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2984,
+            "cy_std": 0.2011
+          },
+          "cy_continuity": 0.0256
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            6.761,
+            7.695
+          ],
+          "op": {
+            "n_frames": 56,
+            "n_detected": 56,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3263,
+            "cy_std": 0.1383
+          },
+          "floor": {
+            "n_frames": 56,
+            "n_detected": 56,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3263,
+            "cy_std": 0.1383
+          },
+          "cy_continuity": 0.0363
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            7.695,
+            8.195
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1953,
+            "cy_std": 0.1861
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          6.461,
+          7.695
+        ],
+        "n_frames": 74,
+        "n_detected": 74,
+        "coverage": 1.0,
+        "longest_gap_s": 0.0,
+        "mean_conf": 0.3195,
+        "cy_std": 0.1561
+      }
+    },
+    "2387": {
+      "dive_id": 2387,
+      "code": "5411C",
+      "context": "STANDING",
+      "proxy": "2387.mp4",
+      "fps": 29.97002997002997,
+      "W": 202,
+      "H": 360,
+      "n_total_frames": 748,
+      "n_op_frames": 667,
+      "n_floor_frames": 748,
+      "overall_op_coverage": 0.8917,
+      "gt_timing_used_for_eval_only": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "wc": 5.499937
+      },
+      "flight_valid": true,
+      "procedural_valid": true,
+      "procedural_fail_reasons": [],
+      "windows": {
+        "C1_PREPARATION": {
+          "window_s": [
+            0.0,
+            2.483
+          ],
+          "op": {
+            "n_frames": 75,
+            "n_detected": 73,
+            "coverage": 0.9733,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.1257,
+            "cy_std": 0.0052
+          },
+          "floor": {
+            "n_frames": 75,
+            "n_detected": 75,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.1257,
+            "cy_std": 0.0052
+          },
+          "failure_attribution": {
+            "total_missing": 2,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 2,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0027
+        },
+        "C2_IMMEDIATE_PRE_TAKEOFF": {
+          "window_s": [
+            3.483,
+            4.483
+          ],
+          "op": {
+            "n_frames": 30,
+            "n_detected": 29,
+            "coverage": 0.9667,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.2066,
+            "cy_std": 0.0338
+          },
+          "floor": {
+            "n_frames": 30,
+            "n_detected": 30,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2066,
+            "cy_std": 0.0338
+          },
+          "failure_attribution": {
+            "total_missing": 1,
+            "RAW_DETECTOR_MISS": 0,
+            "TARGET_CANDIDATE_EXISTS_BUT_SELECTION_MISS": 0,
+            "DECODE_OR_PTS_ERROR": 0,
+            "SOURCE_RESOLUTION_LIMITATION": 1,
+            "UNKNOWN": 0
+          },
+          "cy_continuity": 0.0148
+        },
+        "C3_TAKEOFF_TO_APEX": {
+          "window_s": [
+            4.483,
+            4.833
+          ],
+          "op": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2529,
+            "cy_std": 0.0138
+          },
+          "floor": {
+            "n_frames": 10,
+            "n_detected": 10,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.2529,
+            "cy_std": 0.0138
+          },
+          "cy_continuity": 0.0056
+        },
+        "C4_APEX_TO_WC": {
+          "window_s": [
+            4.833,
+            5.5
+          ],
+          "op": {
+            "n_frames": 20,
+            "n_detected": 20,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3082,
+            "cy_std": 0.0636
+          },
+          "floor": {
+            "n_frames": 20,
+            "n_detected": 20,
+            "coverage": 1.0,
+            "longest_gap_s": 0.0,
+            "mean_conf": 0.3082,
+            "cy_std": 0.0636
+          },
+          "cy_continuity": 0.0298
+        },
+        "C5_POST_WC": {
+          "window_s": [
+            5.5,
+            6.0
+          ],
+          "op": {
+            "n_frames": 15,
+            "n_detected": 14,
+            "coverage": 0.9333,
+            "longest_gap_s": 0.0334,
+            "mean_conf": 0.3348,
+            "cy_std": 0.0994
+          }
+        }
+      },
+      "flight_coverage": {
+        "window_s": [
+          4.483,
+          5.5
+        ],
+        "n_frames": 30,
+        "n_detected": 30,
+        "coverage": 1.0,
+        "longest_gap_s": 0.0,
+        "mean_conf": 0.2898,
+        "cy_std": 0.0547
+      }
+    }
+  }
+}
