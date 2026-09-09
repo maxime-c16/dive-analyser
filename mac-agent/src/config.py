@@ -148,6 +148,7 @@ class ObjectStoreConfig:
     min_free_disk_bytes: int = 0
     presign_ttl_seconds: int = 3600
     max_retries: int = 3
+    storage_backend: str = "b2"
 
 
 @dataclass
@@ -314,6 +315,7 @@ class Config:
                 min_free_disk_bytes=object_store_data.get('min_free_disk_bytes', 0),
                 presign_ttl_seconds=object_store_data.get('presign_ttl_seconds', 3600),
                 max_retries=object_store_data.get('max_retries', 3),
+                storage_backend=object_store_data.get('storage_backend', 'b2'),
             )
 
             logging_data = data.get('logging', {})

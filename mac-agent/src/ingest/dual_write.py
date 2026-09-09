@@ -862,6 +862,124 @@ def mode_caption_mutation(config, video_uuid: str) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# One-shot production-runtime run mode (canary recovery / controlled gates).
+# Uses the SAME production config, allowlist guard, store and authenticated
+# HTTP commit transport as the daemon hook; materialization reuses the
+# production MediaMaterializer primitive (never a second parallel daemon).
+
+RENDITION_SEMANTICS_RUN = RENDITION_SEMANTICS
+
+
+def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
+    """Drive ONE allowlisted asset through verified object-store ingest,
+    running inside the production agent runtime context (same interpreter,
+    host, user, Photos TCC) with the authenticated backend commit transport.
+
+    The legacy path for the asset must already be healthy; this mode is the
+    additive object-store leg only (and the retry/recovery entry point)."""
+    pdw = ProductionDualWrite.from_config(config)
+    if pdw is None:
+        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_flags_off"}))
+        return 3
+    if not pdw.should_process(video_uuid):
+        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_allowlisted"}))
+        return 3
+    if env_file:
+        pdw.env_file = str(Path(env_file).expanduser())
+    state_dir = pdw.state_dir
+    state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
+    state_store.load(video_uuid)
+    if state_store.state.is_terminal:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "already_terminal",
+                    "state": state_store.state.value,
+                    "zero_new_ops": True,
+                }
+            )
+        )
+        return 0
+    if not (state_dir / f"{video_uuid}.evidence.json").exists():
+        pdw._capture_evidence(video_uuid)
+
+    from ..media_materializer import MediaMaterializer
+
+    materializer = MediaMaterializer(
+        str(Path(config.media.materialization_dir).expanduser())
+        if hasattr(config.media, "materialization_dir")
+        else "~/.diveanalyzer/materialized_assets",
+        max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
+        osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
+        use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
+    )
+
+    def materialize_from_photos(asset_uuid: str, workdir: Path) -> Path:
+        exported = materializer.materialize(asset_uuid)
+        target = workdir / f"legacy_rendition{Path(exported).suffix.lower() or '.mov'}"
+        shutil.copy2(exported, target)
+        try:
+            materializer.cleanup_failed_residue(asset_uuid)
+        except Exception:
+            pass
+        return target
+
+    staging_root = pdw.temp_root / "dual_write_run" / video_uuid
+    staging_root.mkdir(parents=True, exist_ok=True)
+    workdir = staging_root / "work"
+    if workdir.exists():
+        shutil.rmtree(workdir, ignore_errors=True)
+    staged_path = materialize_from_photos(video_uuid, workdir)
+
+    pdw._set_stage_meta(
+        video_uuid,
+        {
+            "staged_path": str(staged_path),
+            "staged_bytes": staged_path.stat().st_size,
+            "copy_seconds": 0.0,
+            "run_mode": "one_shot_production_runtime",
+        },
+    )
+    pdw._ensure_dirs()
+    run_started = time.time()
+    try:
+        pdw._drive(video_uuid, staged_path)
+    except ObjectStoreError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "retryable_failure",
+                    "error_family": type(exc).__name__,
+                }
+            )
+        )
+        return 1
+    shutil.rmtree(staging_root, ignore_errors=True)
+    journal = json.loads((state_dir / f"{video_uuid}.json").read_text(encoding="utf-8"))
+    final_state = journal.get("state")
+    metrics_files = sorted((state_dir / "metrics").glob("*.json"), key=lambda p: p.stat().st_mtime)
+    snapshot = json.loads(metrics_files[-1].read_text()) if metrics_files else {}
+    print(
+        json.dumps(
+            {
+                "mode": "dual-write-run",
+                "outcome": "driven",
+                "final_state": final_state,
+                "result": snapshot.get("result"),
+                "media_sha256": snapshot.get("media_sha256"),
+                "object_key": snapshot.get("object_key"),
+                "elapsed_seconds": round(time.time() - run_started, 2),
+                "metrics_snapshot": metrics_files[-1].name if metrics_files else None,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if final_state == "CACHE_CLEANED" else 1
+
+
 def main(argv=None) -> int:
     import argparse
     import sys
@@ -870,18 +988,20 @@ def main(argv=None) -> int:
 
     parser = argparse.ArgumentParser(description="P4 production dual-write one-shot modes")
     parser.add_argument("--config", required=True)
-    parser.add_argument("mode", choices=["caption-mutation"])
+    parser.add_argument("--env-file")
+    parser.add_argument("mode", choices=["caption-mutation", "run"])
     parser.add_argument("--video-uuid", required=True)
     args = parser.parse_args(argv)
 
     from ..config import Config
 
     config = Config.from_file(args.config)
-    errors = config.validate()
-    if errors:
-        raise SystemExit(f"invalid config: {errors}")
+    if not config.validate():
+        raise SystemExit("invalid config")
     if args.mode == "caption-mutation":
         return mode_caption_mutation(config, args.video_uuid)
+    if args.mode == "run":
+        return mode_run(config, args.video_uuid, args.env_file)
     return 2
 
 
