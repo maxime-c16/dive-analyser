@@ -1,10 +1,10 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (iCloud high-res recovery canary blocked).
-> Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+> Durable project handoff. Last verified: **2026-09-09** (Event Logic V3-C0 frozen).
+> Latest science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Previous: `docs/science/PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_ICLOUD_HIGHRES_RECOVERY_V1`**
+> Previous: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+> Supervisor gate: **`EVENT_LOGIC_V3_C0_FREEZE`**
 
 ## Project purpose
 
@@ -170,4 +170,64 @@ High-res recovery artifacts:
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_PROCEDURAL_TRAJECTORY_READINESS_V1`
+`EVENT_LOGIC_V3_C0_FREEZE`
+
+## Event Logic V3-C — COMPLETE (2026-09-09)
+
+**Decision: `V3_REAL_DATA_PROMOTION_JUSTIFIED`** — V3-C0 frozen.
+
+### V3-C0 (A1+A2): FROZEN
+
+Patches V2.1 with two bounded-search fixes only. All PARAMS_E1 values unchanged.
+
+| Param | Value | Derivation |
+|---|---|---|
+| `apex_max_window_s` | 1.5s | 4.3× max dev takeoff→apex (0.35s, dive 2387) |
+| `wc_max_window_s` | 2.5s | 2.6× max dev apex→wc (0.97s, dive 676) |
+
+**DEVELOPMENT results:**
+
+| Dive | V2.1 wc_err | V3-C0 wc_err | Note |
+|---|---|---|---|
+| 133  | 0.148s | 0.148s | unchanged |
+| 311  | 3.530s | **0.027s** ✓ | FM1 FIXED |
+| 676  | 0.752s | 1.016s | FM3 unresolved, minor regression |
+| 1040 | 2.511s | 2.511s | FM2 unresolved |
+| 2169 | 0.364s | 0.364s | FM2 unresolved |
+| 2387 | 0.039s | 0.161s | minor regression |
+
+| Metric | V2.1 | V3-C0 |
+|---|---|---|
+| Complete | 6/6 | 6/6 |
+| med_to_err | 1.637s | 1.637s |
+| med_wc_err | 0.558s | **0.262s** (+53%) |
+
+**Paris V3-C0:** to_err=1.685s (FM2 unresolved), wc_err=0.133s (vs 0.183s V2.1).
+
+### V3-C1 (A1+A2+HURDLE recontact): NOT PROMOTED
+
+Scans all sustained-neg-vel starts; rejects any with positive vel in 0.25s window
+(= board recontact after hurdle jump). Returns first candidate after last recontact.
+
+Paris: to_err=0.183s, ap_err=0.033s (excellent). Development HURDLE catastrophic
+regression (1040 to_err=6.214s, 2169 to_err=2.848s) due to 360p noise corrupting
+the takeoff signal. DEVELOPMENT must justify before Paris can confirm.
+
+### Open failures
+
+- FM2 (HURDLE prep_end, dives 1040/2169): requires scene-level segmentation or higher-res proxies.
+- FM3 (360p noise, dive 676): perception limitation.
+- Paris HURDLE takeoff FM2: out of scope for V3-C0.
+
+### Tests and artifacts
+
+- `experiments/landmark_pilot/proposer_event_logic_v3_c0.py` — V3-C0 source
+- `experiments/landmark_pilot/proposer_event_logic_v3_c1.py` — V3-C1 source (not promoted)
+- `experiments/landmark_pilot/test_event_logic_v3_c.py` — 14 tests, 14/14 pass
+- `docs/science/PARIS_MEDIA_IDENTITY_V1.json` — 322 vs 344 reconciliation
+- `docs/science/EL_REAL_BASELINE_V1.json` — V2.1/V2.2 on full trajectories
+- `docs/science/EL_V3C_DEVELOPMENT_EVAL_V1.json` — 4-variant DEVELOPMENT comparison
+- `docs/science/EL_V3C_PARIS_EVAL_V1.json` — Paris external evaluation
+- `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md` — full report
+
+**Regression:** 65/65 pass (V2.1 36 + PTS 15 + V3-C 14).

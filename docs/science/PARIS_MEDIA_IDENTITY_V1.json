@@ -1,0 +1,39 @@
+{
+  "label": "PARIS_MEDIA_IDENTITY_V1",
+  "date": "2026-09-09",
+  "source_path": "~/Downloads/IMG_1937.mov",
+  "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "container": {
+    "codec": "hevc",
+    "nb_frames_container": 344,
+    "duration_s": 5.373333,
+    "r_frame_rate": "60000/1001",
+    "r_frame_rate_approx_fps": 59.94006,
+    "avg_frame_rate": "51600/913",
+    "avg_frame_rate_approx_fps": 56.516977
+  },
+  "opencv": {
+    "CAP_PROP_FPS": 56.516977,
+    "CAP_PROP_FRAME_COUNT_reported": 344,
+    "n_frames_actually_decoded": 322,
+    "frame_size": "1080x1920",
+    "first_pts_s": 0.0,
+    "last_decoded_pts_s": 5.355
+  },
+  "canonical_anchor_frames": {
+    "takeoff": {"fi": 176, "pts_s": 3.07},
+    "apex":    {"fi": 201, "pts_s": 3.536667},
+    "wc":      {"fi": 238, "pts_s": 4.153333}
+  },
+  "gt_landmarks_s": {"takeoff": 3.120, "apex": 3.570, "wc": 4.220},
+  "reconciliation": {
+    "344_meaning": "nb_frames in HEVC container metadata — includes unreachable trailing GOP",
+    "322_meaning": "actual frames decoded by OpenCV before EOF (trailing 22 frames unreachable)",
+    "56_517_fps_meaning": "avg_frame_rate (51600/913) from HEVC PTS metadata — this is what OpenCV CAP_PROP_FPS returns",
+    "59_94_fps_meaning": "r_frame_rate = 60000/1001 (nominal declared stream rate, NOT what OpenCV uses)",
+    "historical_59_94_source": "ffprobe r_frame_rate field — correct for stream declaration but not OpenCV FPS value",
+    "pts_authority": "PTS read via cap.get(CAP_PROP_POS_MSEC)/1000.0 after each read — correct regardless of reported FPS mismatch",
+    "harmless": "All events (fi=176/201/238) within 322-frame window; EL pipeline uses actual PTS from CAP_PROP_POS_MSEC, not fi/fps arithmetic",
+    "report_correction": "Previous reports stating '56.5fps' are accurate for OpenCV's CAP_PROP_FPS; reports citing '59.94fps' refer to r_frame_rate which OpenCV does not use. The '322/344' discrepancy is real and harmless."
+  }
+}
