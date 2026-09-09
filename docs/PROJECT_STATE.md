@@ -1,7 +1,9 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (media-backbone P0/P1
-> appended; iCloud high-resolution recovery frozen with per-asset temporal authority).
+> Durable project handoff. Last verified: **2026-09-09** (media-backbone P2 DEV
+> canary GREEN; P0/P1 appended; iCloud high-resolution recovery frozen with per-asset
+> temporal authority).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P2_CANARY_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
