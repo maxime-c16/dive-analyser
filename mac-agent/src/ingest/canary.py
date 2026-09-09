@@ -140,7 +140,7 @@ def edit_fingerprint(photo) -> str:
     material = json.dumps(
         {
             "hasadjustments": bool(getattr(photo, "hasadjustments", False)),
-            "duration": photo.duration,
+            "duration": photo_duration(photo),
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -148,11 +148,19 @@ def edit_fingerprint(photo) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
+def photo_duration(photo) -> float:
+    for attribute in ("duration", "video_duration", "mov_duration"):
+        value = getattr(photo, attribute, None)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return 0.0
+
+
 def photo_provenance(photo) -> dict:
     return {
         "uuid": photo.uuid,
         "original_filename": photo.original_filename,
-        "duration_seconds": round(photo.duration or 0.0, 3),
+        "duration_seconds": round(photo_duration(photo), 3),
         "hasadjustments": bool(getattr(photo, "hasadjustments", False)),
         "ismissing": bool(getattr(photo, "ismissing", False)),
         "incloud": bool(getattr(photo, "incloud", False)),
@@ -545,10 +553,15 @@ def mode_run(args) -> int:
         path = raw_materialize_fn(video_uuid, workdir)
         finished_at = utcnow()
         media_meta = ffprobe_metadata(path, cfg["ffprobe_path"])
-        _update_evidence(
-            state_dir,
-            video_uuid,
-            lambda ev: ev.update(
+
+        def _finish(ev: dict) -> None:
+            photos_duration = ((ev.get("photo") or {}).get("duration_seconds")) or 0.0
+            duration_match = (
+                abs((media_meta.get("duration_seconds") or 0.0) - photos_duration) <= 0.2
+                if photos_duration
+                else None
+            )
+            ev.update(
                 {
                     "materialization": {
                         "started_at": started_at,
@@ -556,14 +569,11 @@ def mode_run(args) -> int:
                         "byte_size": path.stat().st_size,
                     },
                     "media_metadata": media_meta,
-                    "rendition_duration_match": abs(
-                        (media_meta.get("duration_seconds") or 0.0)
-                        - ((ev.get("photo") or {}).get("duration_seconds") or 0.0)
-                    )
-                    <= 0.2,
+                    "rendition_duration_match": duration_match,
                 }
-            ),
-        )
+            )
+
+        _update_evidence(state_dir, video_uuid, _finish)
         return path
 
     commit_db_fn = make_commit_db_fn(args.commit_receipt)
@@ -742,7 +752,12 @@ def mode_privacy_probe(args) -> int:
     bucket = os_cfg["bucket"]
     list_url = f"{endpoint}/{bucket}?list-type=2&max-keys=1"
     get_url = f"{endpoint}/{bucket}/{args.key}"
-    results = [_anonymous_probe(list_url, (403,)), _anonymous_probe(get_url, (403,))]
+    # Backblaze B2 denies unauthenticated requests with 401 (or 403 depending
+    # on surface); both are denial evidence for a private bucket.
+    results = [
+        _anonymous_probe(list_url, (401, 403)),
+        _anonymous_probe(get_url, (401, 403)),
+    ]
     for probe in results:
         probe["url_redacted"] = True
     print(json.dumps({"mode": "privacy-probe", "probes": results}))
