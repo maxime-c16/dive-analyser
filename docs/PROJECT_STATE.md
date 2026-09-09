@@ -1,6 +1,7 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (iCloud high-resolution recovery frozen with per-asset temporal authority).
+> Durable project handoff. Last verified: **2026-09-09** (media-backbone P0/P1
+> appended; iCloud high-resolution recovery frozen with per-asset temporal authority).
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
@@ -446,3 +447,75 @@ audit-script map parity). Existing suites untouched.
 - `runs/hq_rep_v1/`: `HQ_REPRESENTATION_AUDIT_V2_RECOMPUTED.json`,
   `scale_match_676_v2_blur.json`, `offset_verify_311_stride1.json`,
   `720p_canaries/`, `sheets/` (untracked; videos not committed)
+
+## Media backbone P0/P1 — COMPLETE (2026-09-09, media-backbone thread)
+
+**Status: `INTAKE_GATE_1_READY`** — implementation branch `media-backbone-p0-p1-v1`
+(worktree `~/.perso/diveanalyzer-media-backbone`, base HEAD `4b192dc0`).
+Task packet `MEDIA_BACKBONE_P0_P1_V1`. No cloud resources created. Production
+upload/serving untouched; science authorities untouched.
+
+### What exists now (all additive, feature-flagged OFF)
+
+- **Agent-side backbone** `mac-agent/src/ingest/`:
+  `content_addr` (sha256 + `blobs/sha256/<2>/<sha>` keys),
+  `objectstore/` (`FakeObjectStore` test backend with fault injection,
+  `BackblazeB2Store` S3-compatible adapter — lazy boto3, private-bucket,
+  DEV/PROD bucket cross-wiring rejected, no bucket creation, guarded delete),
+  `state_store` (JSON atomic-persist resumable state),
+  `coordinator` (`ObjectStoreIngestCoordinator`, states
+  DISCOVERED→…→CACHE_CLEANED + QUARANTINED, verified-ingest roundtrip rule:
+  full GET SHA == local SHA, min_free_disk_bytes guard, stale-temp
+  reconciliation, idempotent re-drive),
+  `caption` (`CurrentStableCaptionProvider` authority + PhotoKit/direct-SQLite
+  SHADOW provider + redacted parity harness).
+  Config: `object_store:` block in mac-agent config, `enabled: false` default;
+  disabled mode never constructs object-store components (tested).
+- **Server-side additive schema** `backend/app/models/media_backbone.py`
+  (`media_blobs`, `media_revisions`, `caption_revisions`,
+  `ingest_object_state`) + idempotent commit service
+  `backend/app/services/media_backbone.py::commit_verified_ingest`
+  (refuses unverified commit; caption SHA must equal sha256 of the exact
+  persisted caption_raw UTF-8 bytes) + additive migration
+  `backend/migrations/add_media_backbone_tables.sql` (IF NOT EXISTS only,
+  reversible by dropping the 4 new tables; static guard test).
+- **Caption doctrine implemented**: exact persisted raw text (current
+  production boundary = `.strip()` at the agent boundary, documented, no other
+  normalization), append-only revisions, shadow comparison fields, parser
+  never mutates raw.
+- **State-machine crash tests A–G all green** (before materialization /
+  before hash / before upload / mid-upload / before verify / before commit /
+  before cleanup) + no-duplicate replay + corrupt-state-file recovery.
+
+### Test results (2026-09-09, Python 3.12)
+
+- `mac-agent`: `test_ingest_backbone.py` 59/59 pass; full suite 114 passed +
+  4 pre-existing failures in `test_sync_client.py` (fail identically on base
+  HEAD with this venv: pytest-9 asyncio-fixture drift — NOT caused by this branch).
+- `backend`: `test_media_backbone.py` 18/18 pass (sqlite, tables-scoped
+  create_all; pre-existing UUID/analysis-models sqlite incompatibility noted,
+  present on base commit).
+
+### B2 research (see `docs/architecture/MEDIA_BACKBONE_SECURITY_V1.md`)
+
+Region choice is ACCOUNT-LEVEL at creation, immutable, one region per account;
+EU Central = Amsterdam (`s3.eu-central-003.backblazeb2.com`); EU residency does
+NOT remove US (CLOUD Act) jurisdiction over the provider — legal/policy
+decision explicitly left to the human.
+
+### Next gate
+
+`INTAKE_GATE_1`: human/provider decisions required — (1) B2 account/region
+(EU Central Amsterdam recommended, legal sign-off human), (2) authorize DEV
+bucket + bucket-scoped app key creation, (3) provision credentials. Then P2
+packet: one real canary clip (album `DiveAnalyzer Ready`, caption
+`107B | 7.5 | H:3 | drill:no-arms | note:à revoir`) through
+`ObjectStoreIngestCoordinator` with `object_store.enabled: true` on DEV.
+
+### Key documents
+
+- `docs/architecture/MEDIA_BACKBONE_CURRENT_STATE_V1.md` (P0 audit)
+- `docs/architecture/MEDIA_BACKBONE_TARGET_V1.md` (interfaces/seams)
+- `docs/architecture/MEDIA_INGEST_STATE_MACHINE_V1.md` (states, crash contract)
+- `docs/architecture/MEDIA_BACKBONE_SECURITY_V1.md` (security + B2 EU research)
+- `docs/architecture/MEDIA_BACKBONE_MIGRATION_PLAN_V1.md` (P0–P8 phases; DB-driven historical migration, NOT a Photos-library crawl)

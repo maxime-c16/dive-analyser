@@ -177,3 +177,23 @@ logging:
 # Problem: "Invalid YAML syntax"
 # Solution: Make sure indentation is correct (use spaces, not tabs)
 #   Validate with: python -c "import yaml; yaml.safe_load(open('config.yaml'))"
+
+# ============================================================================
+# OBJECT-STORE MEDIA BACKBONE (media-backbone P1) — HARD OFF BY DEFAULT
+# ============================================================================
+# When disabled (default), NO object-store code participates in any ingest
+# path; production upload/serving behavior is unchanged.
+#
+# object_store:
+#   enabled: false                    # flip to true only at the P2 canary gate
+#   environment: dev                  # dev | prod (bucket cross-wiring is rejected)
+#   bucket: diveanalyzer-dev-media    # private bucket; name must contain the env token
+#   region: eu-central-003            # or endpoint_url: https://s3.eu-central-003.backblazeb2.com
+#   prefix: blobs/sha256              # deterministic, privacy-safe object keys
+#   state_dir: ~/.diveanalyzer/object_ingest_state
+#   temp_root: ~/.diveanalyzer/object_ingest_tmp
+#   min_free_disk_bytes: 10737418240  # guard: stop ingest before risking the disk
+#   presign_ttl_seconds: 3600         # short-TTL presigned GET (max 7 days)
+#   max_retries: 3
+# Credentials (NEVER in this file): B2_APPLICATION_KEY_ID / B2_APPLICATION_KEY
+# environment variables. Use a bucket-scoped application key, never the master key.
