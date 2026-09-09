@@ -905,40 +905,54 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
     if not (state_dir / f"{video_uuid}.evidence.json").exists():
         pdw._capture_evidence(video_uuid)
 
-    from ..media_materializer import MediaMaterializer
+    # Preferred source of canonical bytes: an existing staging copy produced
+    # by the legacy pipeline hook (§16 — reuse already-materialized legacy
+    # bytes; no second Photos materialization). Only when absent, acquire
+    # through the production vault / MediaMaterializer primitives.
+    stage_meta = pdw._read_stage_meta(video_uuid)
+    staged_path: Path | None = None
+    existing = stage_meta.get("staged_path")
+    if stage_meta.get("run_mode") != "one_shot_production_runtime" and existing:
+        candidate = Path(existing)
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            staged_path = candidate
+    if staged_path is None:
+        from ..media_materializer import MediaMaterializer
 
-    materializer = MediaMaterializer(
-        str(Path(config.media.materialization_dir).expanduser())
-        if hasattr(config.media, "materialization_dir")
-        else "~/.diveanalyzer/materialized_assets",
-        max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
-        osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
-        use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
-    )
+        materializer = MediaMaterializer(
+            str(Path(config.media.materialization_dir).expanduser())
+            if hasattr(config.media, "materialization_dir")
+            else "~/.diveanalyzer/materialized_assets",
+            max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
+            osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
+            use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
+        )
 
-    def materialize_from_photos(asset_uuid: str, workdir: Path) -> Path:
-        exported = materializer.materialize(asset_uuid)
-        target = workdir / f"legacy_rendition{Path(exported).suffix.lower() or '.mov'}"
-        shutil.copy2(exported, target)
-        try:
-            materializer.cleanup_failed_residue(asset_uuid)
-        except Exception:
-            pass
-        return target
+        import asyncio as _asyncio
 
-    staging_root = pdw.temp_root / "dual_write_run" / video_uuid
-    staging_root.mkdir(parents=True, exist_ok=True)
-    workdir = staging_root / "work"
-    if workdir.exists():
-        shutil.rmtree(workdir, ignore_errors=True)
-    staged_path = materialize_from_photos(video_uuid, workdir)
+        def materialize_from_photos(asset_uuid: str, workdir: Path) -> Path:
+            exported = _asyncio.run(materializer.materialize(asset_uuid))
+            target = workdir / f"legacy_rendition{Path(exported).suffix.lower() or '.mov'}"
+            shutil.copy2(exported, target)
+            try:
+                materializer.cleanup_failed_residue(asset_uuid)
+            except Exception:
+                pass
+            return target
+
+        staging_root = pdw.temp_root / "dual_write_run" / video_uuid
+        staging_root.mkdir(parents=True, exist_ok=True)
+        workdir = staging_root / "work"
+        if workdir.exists():
+            shutil.rmtree(workdir, ignore_errors=True)
+        staged_path = materialize_from_photos(video_uuid, workdir)
 
     pdw._set_stage_meta(
         video_uuid,
         {
             "staged_path": str(staged_path),
             "staged_bytes": staged_path.stat().st_size,
-            "copy_seconds": 0.0,
+            "copy_seconds": stage_meta.get("copy_seconds", 0.0),
             "run_mode": "one_shot_production_runtime",
         },
     )
@@ -957,7 +971,10 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
             )
         )
         return 1
-    shutil.rmtree(staging_root, ignore_errors=True)
+    if stage_meta.get("run_mode") == "one_shot_production_runtime":
+        shutil.rmtree(
+            pdw.temp_root / "dual_write_run" / video_uuid, ignore_errors=True
+        )
     journal = json.loads((state_dir / f"{video_uuid}.json").read_text(encoding="utf-8"))
     final_state = journal.get("state")
     metrics_files = sorted((state_dir / "metrics").glob("*.json"), key=lambda p: p.stat().st_mtime)
