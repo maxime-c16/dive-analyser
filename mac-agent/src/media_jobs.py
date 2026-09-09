@@ -231,6 +231,7 @@ class MediaJobProcessor:
                 max_bytes=self.config.media.materialization_max_bytes,
                 osxphotos_path=self.config.media.osxphotos_path,
                 use_photokit=self.config.media.materialization_use_photokit,
+                export_timeout_seconds=self.config.media.materialization_timeout_seconds,
             )
         exporter = MediaExporter(
             reader,

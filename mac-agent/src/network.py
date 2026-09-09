@@ -44,10 +44,21 @@ async def is_online(server_url: str, timeout: float = 5.0, ca_cert_path: str = "
         if status and status != "000":
             logger.debug(f"Server reachable: HTTP {status}")
             return True
-        logger.debug(f"Server not reachable: curl returned {status}")
+        # P4.3: surface the mechanical failure reason (exit code + stderr tail)
+        # at WARNING so intermittent probe 000s are diagnosable from the log
+        # instead of only being visible at DEBUG level. TLS verification is
+        # never weakened: the CA bundle stays authoritative.
+        stderr_tail = (result.stderr or "").strip()[-300:]
+        logger.warning(
+            "Connectivity probe returned %s (curl exit %s) for %s%s",
+            status,
+            result.returncode,
+            server_url,
+            f": {stderr_tail}" if stderr_tail else "",
+        )
         return False
     except Exception as e:
-        logger.debug(f"Network check failed: {e}")
+        logger.warning(f"Connectivity probe failed: {e}")
         return False
 
 
@@ -116,6 +127,7 @@ class NetworkMonitor:
         self,
         server_url: str,
         check_interval: float = 30.0,
+        ca_cert_path: str = "",
     ):
         """
         Initialize network monitor.
@@ -123,9 +135,15 @@ class NetworkMonitor:
         Args:
             server_url: Server URL to monitor
             check_interval: Interval between checks in seconds
+            ca_cert_path: Optional internal CA bundle passed through to every
+                probe (P4.3 repair: NetworkMonitor previously probed WITHOUT
+                the CA, so HTTPS probes failed at TLS handshake and reported
+                the server offline even while it was reachable — the source
+                of the observed intermittent 000s)
         """
         self.server_url = server_url
         self.check_interval = check_interval
+        self.ca_cert_path = ca_cert_path
         self.is_online = True
         self.last_check = datetime.now()
         self.offline_since = None
@@ -145,7 +163,9 @@ class NetworkMonitor:
 
         # Perform check
         was_online = self.is_online
-        self.is_online = await is_online(self.server_url, timeout=5.0)
+        self.is_online = await is_online(
+            self.server_url, timeout=5.0, ca_cert_path=self.ca_cert_path
+        )
         self.last_check = now
 
         # Log state changes

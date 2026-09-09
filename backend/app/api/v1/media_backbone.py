@@ -159,4 +159,4 @@ async def commit_backbone_ingest(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
-    return MediaBackboneCommitResponse(environment=environment, **result)
+    return MediaBackboneCommitResponse(**result)

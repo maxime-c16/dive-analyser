@@ -46,6 +46,8 @@ class MediaBackboneCommitResponse(BaseModel):
     environment: str
     blob_sha256: str
     blob_existed: bool
+    media_blob_location_id: int
+    blob_location_existed: bool
     media_revision_id: int
     media_revision_existed: bool
     caption_revision_id: int

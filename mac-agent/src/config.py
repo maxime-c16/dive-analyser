@@ -98,6 +98,7 @@ class MediaConfig:
     allow_single_asset_materialization: bool = False
     materialization_dir: str = "~/.diveanalyzer/materialized_assets"
     materialization_max_bytes: int = 2_000_000_000
+    materialization_timeout_seconds: int = 600
     materialization_cleanup_after_success: bool = True
     materialization_use_photokit: bool = False
     retain_failed_materialization: bool = True
@@ -290,6 +291,7 @@ class Config:
                 allow_single_asset_materialization=media_data.get('allow_single_asset_materialization', False),
                 materialization_dir=str(Path(media_data.get('materialization_dir', "~/.diveanalyzer/materialized_assets")).expanduser()),
                 materialization_max_bytes=media_data.get('materialization_max_bytes', 2_000_000_000),
+                materialization_timeout_seconds=media_data.get('materialization_timeout_seconds', 600),
                 materialization_cleanup_after_success=media_data.get('materialization_cleanup_after_success', True),
                 materialization_use_photokit=media_data.get('materialization_use_photokit', False),
                 retain_failed_materialization=media_data.get('retain_failed_materialization', True),
@@ -548,6 +550,14 @@ class Config:
 
         if self.media.materialization_max_bytes < 1:
             raise ValueError("materialization_max_bytes must be positive")
+        # P4.3: bounded configurable single-asset export timeout (the P4.2
+        # cohort observed real 600 s cold-iCloud export timeouts). Tunable
+        # without code modification; bounded, never unlimited. The default
+        # retains the pre-P4.3 production behavior exactly.
+        if not (30 <= self.media.materialization_timeout_seconds <= 3600):
+            raise ValueError(
+                "materialization_timeout_seconds must be within [30, 3600]"
+            )
         if self.media.failed_materialization_ttl_hours < 1:
             raise ValueError("failed_materialization_ttl_hours must be positive")
         vault = self.media.source_vault
@@ -584,8 +594,12 @@ def setup_logging(config: LoggingConfig) -> None:
     """Configure Python logging based on config."""
     log_level = getattr(logging, config.level)
 
+    # P4.3: include the process PID in every log line — two daemon instances
+    # (canonical LaunchAgent + any accidental duplicate) interleave in the
+    # same application.log with identical message formats, which is exactly
+    # what made the P4.2 duplicate-daemon and probe-000 findings undiagnosable.
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        '%(asctime)s - pid:%(process)d - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -654,6 +668,7 @@ media:
   allow_single_asset_materialization: false
   materialization_dir: ~/.diveanalyzer/materialized_assets
   materialization_max_bytes: 2000000000
+  materialization_timeout_seconds: 600
   materialization_cleanup_after_success: true
   temp_dir: ~/.diveanalyzer/media_tmp
   ffmpeg_path: ffmpeg

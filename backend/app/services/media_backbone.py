@@ -1,9 +1,27 @@
 """Media backbone commit service.
 
 The single write path for verified object-store ingest: idempotent inserts of
-content-addressed blobs, media revisions and caption revisions. Re-calling
-with the same content returns the existing rows (no duplicates). No endpoint
-is wired in this packet; the P2 canary will call this.
+content-addressed blobs, physical storage locations, media revisions and
+caption revisions. Re-calling with the same content returns the existing rows
+(no duplicates). No endpoint is wired in this packet; the P2 canary will call
+this.
+
+STORAGE AUTHORITY (P4.3): content dedupe and storage-location dedupe are
+SEPARATE operations.
+
+- get_or_create MediaBlob by SHA            → content identity
+- get_or_create MediaBlobLocation by
+  (blob SHA, environment, backend, bucket, object_key) → physical replica
+
+Consequences, all tested:
+- repeated identical commit in one environment  → 0 duplicate rows
+- DEV → PROD commit of the same SHA            → 0 duplicate blobs
+                                                  + 1 new PROD location
+- same location key with a conflicting SHA     → rejected (fail closed)
+- environment → bucket mismatch                → rejected (fail closed)
+
+P5 lookup precondition: `resolve_verified_location` gives the deterministic
+verified physical location of a blob in a given environment.
 """
 
 from datetime import datetime
@@ -16,11 +34,13 @@ from app.models.media_backbone import (
     CaptionRevision,
     IngestObjectState,
     MediaBlob,
+    MediaBlobLocation,
     MediaRevision,
 )
 
 RENDITION_SEMANTICS_DEFAULT = "photos_edited_rendition"
 CAPTION_HASH_ENCODING = "utf-8"
+SUPPORTED_ENVIRONMENTS = ("dev", "prod")
 
 
 def caption_sha256(persisted_raw: str) -> str:
@@ -37,6 +57,156 @@ def _validate_sha(sha: str) -> str:
     if not isinstance(sha, str) or len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
         raise ValueError(f"malformed sha256: {sha!r}")
     return sha
+
+
+def _validate_environment(environment: str) -> str:
+    if environment not in SUPPORTED_ENVIRONMENTS:
+        raise ValueError(f"unsupported environment: {environment!r}")
+    return environment
+
+
+def environment_bucket(environment: str) -> str:
+    """Allowlisted physical bucket for a commit environment (fail closed).
+
+    ENVIRONMENT AUTHORITY: the environment belongs to the physical
+    storage/commit context. environment=dev commits may only reference the
+    DEV bucket; environment=prod only the PROD bucket; anything else is a
+    422-grade ValueError at the service boundary.
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    bucket = (
+        settings.media_backbone_prod_bucket
+        if environment == "prod"
+        else settings.media_backbone_dev_bucket
+    ) or ""
+    bucket = bucket.strip().lower()
+    if not bucket:
+        raise ValueError(
+            f"environment {environment!r} has no allowlisted bucket configured"
+        )
+    return bucket
+
+
+def _validate_location(
+    *,
+    environment: str,
+    storage_backend: str,
+    bucket: str,
+    object_key: str,
+) -> tuple[str, str, str]:
+    _validate_environment(environment)
+    if not storage_backend:
+        raise ValueError("missing storage_backend")
+    bucket = (bucket or "").strip().lower()
+    if not bucket:
+        raise ValueError("missing bucket")
+    if not object_key:
+        raise ValueError("missing object_key")
+    expected_bucket = environment_bucket(environment)
+    if bucket != expected_bucket:
+        raise ValueError(
+            f"environment {environment!r} must reference the {expected_bucket!r} "
+            f"bucket, got {bucket!r}"
+        )
+    return storage_backend, bucket, object_key
+
+
+def _get_or_create_location(
+    db: Session,
+    *,
+    blob_sha256: str,
+    environment: str,
+    storage_backend: str,
+    bucket: str,
+    object_key: str,
+    remote_object_id: str | None = None,
+    verified: bool = True,
+    verified_at: datetime | None = None,
+) -> tuple[MediaBlobLocation, bool]:
+    """get_or_create one physical storage replica for a content blob.
+
+    Idempotent on the full replica identity; rejects a location key that is
+    already bound to a DIFFERENT content SHA (fail closed, never overwrite).
+    """
+    _validate_sha(blob_sha256)
+    backend, bucket, object_key = _validate_location(
+        environment=environment,
+        storage_backend=storage_backend,
+        bucket=bucket,
+        object_key=object_key,
+    )
+    location = (
+        db.query(MediaBlobLocation)
+        .filter_by(
+            storage_backend=backend,
+            bucket=bucket,
+            object_key=object_key,
+        )
+        .one_or_none()
+    )
+    if location is not None:
+        if location.blob_sha256 != blob_sha256:
+            raise ValueError(
+                f"object key {object_key!r} in {bucket!r} is already bound to "
+                f"blob {location.blob_sha256!r}; refusing conflicting SHA "
+                f"{blob_sha256!r}"
+            )
+        return location, True
+    location = MediaBlobLocation(
+        blob_sha256=blob_sha256,
+        environment=environment,
+        storage_backend=backend,
+        bucket=bucket,
+        object_key=object_key,
+        remote_object_id=remote_object_id,
+        verified=verified,
+        verified_at=verified_at or (datetime.utcnow() if verified else None),
+    )
+    db.add(location)
+    return location, False
+
+
+def resolve_verified_location(
+    db: Session, blob_sha256: str, environment: str
+) -> MediaBlobLocation | None:
+    """P5 storage-location lookup: verified replica of a blob in an environment.
+
+    Deterministic: environment and bucket are allowlist-bound, so the
+    (blob SHA, environment) pair yields exactly one verified location in the
+    accepted deployment model; if a future deployment ever holds several
+    verified replicas of one blob inside one environment, the newest
+    verified one wins deterministically (verified_at DESC, id DESC).
+    Locations with verified=False are NEVER returned (not playback-eligible).
+    """
+    _validate_sha(blob_sha256)
+    _validate_environment(environment)
+    return (
+        db.query(MediaBlobLocation)
+        .filter_by(blob_sha256=blob_sha256, environment=environment, verified=True)
+        .order_by(MediaBlobLocation.verified_at.desc(), MediaBlobLocation.id.desc())
+        .first()
+    )
+
+
+def resolve_media_revision_location(
+    db: Session, video_uuid: str, environment: str
+) -> MediaBlobLocation | None:
+    """P5 lookup: "where is the verified PROD object for this MediaRevision?".
+
+    media_revisions carry the logical clip revision (content, not location);
+    the blob's physical replica is resolved through content identity only.
+    """
+    revision = (
+        db.query(MediaRevision)
+        .filter_by(video_uuid=video_uuid)
+        .order_by(MediaRevision.id.desc())
+        .first()
+    )
+    if revision is None:
+        return None
+    return resolve_verified_location(db, revision.blob_sha256, environment)
 
 
 def commit_verified_ingest(
@@ -78,6 +248,7 @@ def commit_verified_ingest(
         )
     if byte_size <= 0:
         raise ValueError(f"invalid byte_size: {byte_size}")
+    _validate_environment(environment)
 
     blob = db.get(MediaBlob, blob_sha256)
     blob_existed = blob is not None
@@ -92,12 +263,28 @@ def commit_verified_ingest(
                 Decimal(str(duration_seconds)) if duration_seconds is not None else None
             ),
             rendition_semantics=rendition_semantics,
+            # Transitional first-seen location fields (non-authoritative).
             storage_backend=storage_backend,
             bucket=bucket,
             object_key=object_key,
             ingest_impl_version=ingest_impl_version,
         )
         db.add(blob)
+
+    # Storage-location dedupe is separate from content dedupe (P4.3): a blob
+    # that already exists still gains its physical replica for THIS
+    # environment if it does not have one yet (e.g. same SHA previously
+    # committed in DEV now verified in PROD). Legacy location columns on the
+    # content row are intentionally left untouched.
+    location, location_existed = _get_or_create_location(
+        db,
+        blob_sha256=blob_sha256,
+        environment=environment,
+        storage_backend=storage_backend,
+        bucket=bucket,
+        object_key=object_key,
+        verified=True,
+    )
 
     media_revision = (
         db.query(MediaRevision)
@@ -143,9 +330,12 @@ def commit_verified_ingest(
         )
         db.add(caption_revision)
 
+    # Ledger identity is (video_uuid, environment, object_key): the same
+    # content-addressed key committed in DEV and PROD is two logical ingest
+    # events (P4.3), not one.
     state = (
         db.query(IngestObjectState)
-        .filter_by(video_uuid=video_uuid, object_key=object_key)
+        .filter_by(video_uuid=video_uuid, environment=environment, object_key=object_key)
         .one_or_none()
     )
     if state is None:
@@ -167,6 +357,9 @@ def commit_verified_ingest(
         "video_uuid": video_uuid,
         "blob_sha256": blob.sha256,
         "blob_existed": blob_existed,
+        "media_blob_location_id": location.id,
+        "blob_location_existed": location_existed,
+        "environment": environment,
         "media_revision_id": media_revision.id,
         "media_revision_existed": media_revision_existed,
         "caption_revision_id": caption_revision.id,

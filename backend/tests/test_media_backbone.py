@@ -12,12 +12,15 @@ from app.models import (
     CaptionRevision,
     IngestObjectState,
     MediaBlob,
+    MediaBlobLocation,
     MediaRevision,
 )
 from app.models.media import MediaCacheEntry
 from app.services.media_backbone import (
     caption_sha256,
     commit_verified_ingest,
+    resolve_media_revision_location,
+    resolve_verified_location,
 )
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -25,6 +28,7 @@ from sqlalchemy.pool import StaticPool
 
 BACKBONE_TABLES = [
     MediaBlob.__table__,
+    MediaBlobLocation.__table__,
     MediaRevision.__table__,
     CaptionRevision.__table__,
     IngestObjectState.__table__,
@@ -115,7 +119,7 @@ class TestCommitService:
     def test_media_change_appends_new_revision(self, db):
         _commit(db)
         new_blob = hashlib.sha256(b"re-edited-clip").hexdigest()
-        _commit(db, blob_sha256=new_blob)
+        _commit(db, blob_sha256=new_blob, object_key=f"blobs/sha256/{new_blob[:2]}/{new_blob}")
         assert db.query(MediaRevision).count() == 2
         assert db.query(CaptionRevision).count() == 1
 
@@ -360,3 +364,197 @@ class TestMigrationSafetyGuard:
     def test_reversibility_comment_present(self):
         sql = self.MIGRATION.read_text()
         assert "DROP TABLE IF EXISTS media_blobs" in sql
+
+
+DEV_BUCKET_NAME = "diveanalyzer-dev-media"
+PROD_BUCKET_NAME = "diveanalyzer-prod-media"
+
+CROSS_ENV_UUID = "C1D2E3F4A5B60718293A4B5C6D7E8F90"
+OTHER_SHA = hashlib.sha256(b"other-clip-bytes").hexdigest()
+
+
+class TestStorageLocationModel:
+    """P4.3 storage authority: content identity vs physical storage replicas.
+
+    Packet MEDIA_BACKBONE_P4_3_OVERNIGHT_STORAGE_AUTHORITY_HARDENING_V1 §25:
+    the same SHA must be representable in the DEV and PROD buckets
+    simultaneously without losing either location.
+    """
+
+    def test_new_sha_in_dev_creates_blob_and_dev_location(self, db):
+        result = _commit(db)
+        assert result["blob_existed"] is False
+        assert result["blob_location_existed"] is False
+        location = db.query(MediaBlobLocation).one()
+        assert location.blob_sha256 == BLOB_SHA
+        assert location.environment == "dev"
+        assert location.bucket == DEV_BUCKET_NAME
+        assert location.verified is True
+        assert location.verified_at is not None
+
+    def test_same_sha_replay_dev_no_duplicates(self, db):
+        first = _commit(db)
+        replay = _commit(db)
+        assert replay["blob_existed"] is True
+        assert replay["blob_location_existed"] is True
+        assert replay["media_blob_location_id"] == first["media_blob_location_id"]
+        assert db.query(MediaBlob).count() == 1
+        assert db.query(MediaBlobLocation).count() == 1
+        assert db.query(IngestObjectState).count() == 1
+
+    def test_same_sha_first_prod_commit_same_blob_plus_prod_location(self, db):
+        _commit(db)  # DEV
+        prod = _commit(
+            db,
+            bucket=PROD_BUCKET_NAME,
+            environment="prod",
+        )
+        assert prod["blob_existed"] is True  # content dedupe across environments
+        assert prod["blob_location_existed"] is False  # new physical replica
+        locations = db.query(MediaBlobLocation).all()
+        assert len(locations) == 2
+        envs = sorted(l.environment for l in locations)
+        assert envs == ["dev", "prod"]
+        # One content row, two physical replicas; the transitional blob row
+        # keeps its first-seen (DEV) location untouched.
+        blob = db.get(MediaBlob, BLOB_SHA)
+        assert blob.bucket == DEV_BUCKET_NAME
+
+    def test_same_sha_replay_prod_no_duplicates(self, db):
+        _commit(db)
+        _commit(db, bucket=PROD_BUCKET_NAME, environment="prod")
+        replay = _commit(db, bucket=PROD_BUCKET_NAME, environment="prod")
+        assert replay["blob_existed"] is True
+        assert replay["blob_location_existed"] is True
+        assert db.query(MediaBlob).count() == 1
+        assert db.query(MediaBlobLocation).count() == 2
+        assert db.query(IngestObjectState).count() == 2
+
+    def test_same_sha_dev_plus_prod_exactly_two_locations(self, db):
+        _commit(db)
+        _commit(db, bucket=PROD_BUCKET_NAME, environment="prod")
+        assert db.query(MediaBlob).count() == 1
+        assert db.query(MediaBlobLocation).count() == 2
+
+    def test_wrong_bucket_for_environment_rejected(self, db):
+        with pytest.raises(ValueError, match="must reference the"):
+            _commit(db, bucket=PROD_BUCKET_NAME, environment="dev")
+
+    def test_prod_environment_referencing_dev_location_rejected(self, db):
+        with pytest.raises(ValueError, match="must reference the"):
+            _commit(db, bucket=DEV_BUCKET_NAME, environment="prod")
+
+    def test_dev_environment_referencing_prod_location_rejected(self, db):
+        with pytest.raises(ValueError, match="must reference the"):
+            _commit(db, bucket=PROD_BUCKET_NAME, environment="dev")
+
+    def test_same_key_conflicting_sha_rejected(self, db):
+        _commit(db)
+        other_key = f"blobs/sha256/{BLOB_SHA[:2]}/{BLOB_SHA}"
+        with pytest.raises(ValueError, match="conflicting SHA"):
+            _commit(
+                db,
+                blob_sha256=OTHER_SHA,
+                object_key=other_key,
+                caption_raw="other caption bytes",
+                caption_sha=caption_sha256("other caption bytes"),
+            )
+
+    def test_unverified_location_not_playback_eligible(self, db):
+        from datetime import datetime
+
+        db.add(
+            MediaBlobLocation(
+                blob_sha256=OTHER_SHA,
+                environment="prod",
+                storage_backend="b2",
+                bucket=PROD_BUCKET_NAME,
+                object_key=f"blobs/sha256/{OTHER_SHA[:2]}/{OTHER_SHA}",
+                verified=False,
+                verified_at=None,
+            )
+        )
+        db.commit()
+        assert resolve_verified_location(db, OTHER_SHA, "prod") is None
+
+    def test_p5_lookup_media_revision_prod_deterministic(self, db):
+        _commit(db, video_uuid=CROSS_ENV_UUID)
+        _commit(
+            db,
+            video_uuid=CROSS_ENV_UUID,
+            bucket=PROD_BUCKET_NAME,
+            environment="prod",
+        )
+        location = resolve_media_revision_location(db, CROSS_ENV_UUID, "prod")
+        assert location is not None
+        assert location.blob_sha256 == BLOB_SHA
+        assert location.environment == "prod"
+        assert location.bucket == PROD_BUCKET_NAME
+        assert location.verified is True
+        again = resolve_media_revision_location(db, CROSS_ENV_UUID, "prod")
+        assert again.id == location.id  # deterministic, stable answer
+        assert resolve_media_revision_location(db, "FFFF0000-0000-4000-8000-000000000000", "prod") is None
+
+    def test_ingest_state_env_scoped_uniqueness(self, db):
+        _commit(db)  # (uuid, key, env=dev)
+        _commit(db, bucket=PROD_BUCKET_NAME, environment="prod")
+        states = db.query(IngestObjectState).order_by(IngestObjectState.id).all()
+        assert len(states) == 2  # one logical ingest event per environment
+        assert [s.environment for s in states] == ["dev", "prod"]
+        assert all(s.blob_sha256 == BLOB_SHA for s in states)
+
+    def test_blob_content_columns_untouched_by_location_repair(self, db):
+        _commit(db)
+        _commit(db, bucket=PROD_BUCKET_NAME, environment="prod")
+        blob = db.get(MediaBlob, BLOB_SHA)
+        # Transitional columns keep the first-seen location only.
+        assert blob.bucket == DEV_BUCKET_NAME
+        assert blob.object_key == f"blobs/sha256/{BLOB_SHA[:2]}/{BLOB_SHA}"
+
+
+class TestBlobLocationsMigrationSafetyGuard:
+    """Static guard for the P4.3 additive locations migration."""
+
+    MIGRATION = (
+        Path(__file__).resolve().parents[1]
+        / "migrations"
+        / "add_media_blob_locations.sql"
+    )
+
+    def test_migration_file_exists(self):
+        assert self.MIGRATION.is_file()
+
+    def test_additive_statements_only(self):
+        sql = self.MIGRATION.read_text()
+        statements = [
+            line.strip()
+            for line in sql.splitlines()
+            if line.strip() and not line.strip().startswith("--")
+        ]
+        joined = "\n".join(statements)
+        for forbidden in re.finditer(
+            r"^\s*(ALTER\s+TABLE|DROP\s+COLUMN|UPDATE\s+|DELETE\s+FROM|TRUNCATE)",
+            joined,
+            re.MULTILINE | re.IGNORECASE,
+        ):
+            raise AssertionError(f"non-additive statement found: {forbidden.group(0)!r}")
+        # One new backbone table; idempotent INSERT..SELECT backfill allowed.
+        assert joined.count("CREATE TABLE IF NOT EXISTS") == 1
+        assert joined.count("INSERT INTO") == 1
+        # The legacy uniqueness index is dropped only AFTER the replacement
+        # authority exists (documented, reversible, non-destructive).
+        assert joined.count("DROP INDEX IF EXISTS") == 1
+        assert "ix_ingest_object_state_clip_key_unique" in joined
+
+    def test_backfill_is_idempotent(self):
+        sql = self.MIGRATION.read_text()
+        assert "NOT EXISTS (" in sql
+
+    def test_no_reference_to_legacy_tables(self):
+        sql = self.MIGRATION.read_text()
+        for legacy in ("dives", "photos_assets", "media_cache_entries", "media_jobs"):
+            assert not re.search(rf"\b{legacy}\b", sql)
+
+    def test_reversibility_comment_present(self):
+        sql = self.MIGRATION.read_text()
+        assert "DROP TABLE IF EXISTS media_blob_locations" in sql

@@ -282,7 +282,7 @@ async def run_sync_loop(config: Config) -> None:
         logger.info("Sync client closed")
 
 
-async def main():
+async def main(argv: list[str] | None = None):
     """Main entry point."""
     parser = ArgumentParser(description="Diving Analyser Mac Agent")
     parser.add_argument(
@@ -302,7 +302,7 @@ async def main():
         help="Show Photos library statistics",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         create_example_config()
@@ -336,8 +336,28 @@ async def main():
                 logger.info(f"  - {v['dive_code']} {v['height']}")
             return
 
-        # Run the full sync loop
-        await run_sync_loop(config)
+        # Run the full sync loop.
+        # P4.3 singleton guard: only the full daemon mode takes the lock —
+        # --extract-only / --library-stats diagnostics and the one-shot
+        # ingest CLIs (src.ingest.dual_write / src.ingest.canary) are
+        # unaffected by design.
+        from .daemon_lock import (
+            acquire_daemon_lock,
+            release_daemon_lock,
+            DaemonAlreadyRunning,
+        )
+
+        lock_path = Path(args.config).expanduser().parent / "daemon.lock"
+        try:
+            holder = acquire_daemon_lock(lock_path)
+        except DaemonAlreadyRunning as exc:
+            logger.error("DAEMON_SINGLETON_REFUSE: %s", exc)
+            return
+
+        try:
+            await run_sync_loop(config)
+        finally:
+            release_daemon_lock(lock_path, holder)
 
     except FileNotFoundError as e:
         logger.error(f"Configuration error: {e}")

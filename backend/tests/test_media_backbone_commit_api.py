@@ -21,6 +21,7 @@ from app.models import (
     CaptionRevision,
     IngestObjectState,
     MediaBlob,
+    MediaBlobLocation,
     MediaRevision,
 )
 
@@ -47,6 +48,7 @@ def db():
         engine,
         tables=[
             MediaBlob.__table__,
+            MediaBlobLocation.__table__,
             MediaRevision.__table__,
             CaptionRevision.__table__,
             IngestObjectState.__table__,
@@ -281,3 +283,67 @@ def test_malformed_identifiers_rejected(client):
         mutate(doc)
         response = client.post("/api/v1/media/backbone/commit", json=doc)
         assert response.status_code == 422
+
+
+def test_cross_environment_content_dedupe_via_api(client, db):
+    """P4.3: same SHA first committed in DEV, then verified in PROD → one
+    content row, exactly two physical locations, new PROD ledger row."""
+    dev_sha = hashlib.sha256(b"cross-env-api-bytes").hexdigest()
+    dev_caption = "107B | 7.5 | cross-env"
+    dev_cap_sha = hashlib.sha256(dev_caption.encode("utf-8")).hexdigest()
+
+    dev_doc = _doc_with(
+        {"environment": "dev"},
+        blob_sha256=dev_sha,
+    )
+    dev_doc = _patch_blob(dev_doc, dev_sha)
+    dev_doc["payload"]["blob"]["bucket"] = DEV_BUCKET
+    dev_doc["payload"]["caption"]["raw"] = dev_caption
+    dev_doc["payload"]["caption"]["sha256"] = dev_cap_sha
+    response = client.post("/api/v1/media/backbone/commit", json=dev_doc)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["blob_existed"] is False
+    assert body["blob_location_existed"] is False
+
+    prod_doc = _doc_with(
+        {"environment": "prod"},
+        blob_sha256=dev_sha,
+    )
+    prod_doc = _patch_blob(prod_doc, dev_sha)
+    prod_doc["payload"]["blob"]["bucket"] = PROD_BUCKET
+    prod_doc["payload"]["caption"]["raw"] = dev_caption
+    prod_doc["payload"]["caption"]["sha256"] = dev_cap_sha
+    response = client.post("/api/v1/media/backbone/commit", json=prod_doc)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["blob_existed"] is True  # content dedupe
+    assert body["blob_location_existed"] is False  # new physical replica
+
+    locations = db.query(MediaBlobLocation).all()
+    assert len(locations) == 2
+    assert sorted(l.environment for l in locations) == ["dev", "prod"]
+    assert db.query(MediaBlob).count() == 1
+    prod_states = (
+        db.query(IngestObjectState).filter_by(environment="prod").all()
+    )
+    assert len(prod_states) == 1
+
+    # Unchanged PROD replay → zero duplicate location rows.
+    response = client.post("/api/v1/media/backbone/commit", json=prod_doc)
+    assert response.status_code == 200, response.text
+    assert response.json()["blob_location_existed"] is True
+    assert db.query(MediaBlobLocation).count() == 2
+
+
+def test_location_fields_in_response(client, db):
+    response = client.post("/api/v1/media/backbone/commit", json=_document())
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "media_blob_location_id" in body
+    assert "blob_location_existed" in body
+    location = db.query(MediaBlobLocation).one()
+    assert location.blob_sha256 == MEDIA_SHA
+    assert location.environment == "prod"
+    assert location.bucket == PROD_BUCKET
+    assert location.verified is True
