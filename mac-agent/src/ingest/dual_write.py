@@ -912,9 +912,14 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
     stage_meta = pdw._read_stage_meta(video_uuid)
     staged_path: Path | None = None
     existing = stage_meta.get("staged_path")
-    if stage_meta.get("run_mode") != "one_shot_production_runtime" and existing:
+    expected_bytes = stage_meta.get("staged_bytes")
+    if existing:
         candidate = Path(existing)
-        if candidate.is_file() and candidate.stat().st_size > 0:
+        if (
+            candidate.is_file()
+            and expected_bytes
+            and candidate.stat().st_size == int(expected_bytes)
+        ):
             staged_path = candidate
     if staged_path is None:
         from ..media_materializer import MediaMaterializer
