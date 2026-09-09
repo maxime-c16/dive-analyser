@@ -945,33 +945,33 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
         if not acquired:
             from ..media_materializer import MediaMaterializer
 
-        materializer = MediaMaterializer(
-            str(Path(config.media.materialization_dir).expanduser())
-            if hasattr(config.media, "materialization_dir")
-            else "~/.diveanalyzer/materialized_assets",
-            max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
-            osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
-            use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
-        )
+            materializer = MediaMaterializer(
+                str(Path(config.media.materialization_dir).expanduser())
+                if hasattr(config.media, "materialization_dir")
+                else "~/.diveanalyzer/materialized_assets",
+                max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
+                osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
+                use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
+            )
 
-        import asyncio as _asyncio
+            import asyncio as _asyncio
 
-        def materialize_from_photos(asset_uuid: str, workdir: Path) -> Path:
-            exported = _asyncio.run(materializer.materialize(asset_uuid))
-            target = workdir / f"legacy_rendition{Path(exported).suffix.lower() or '.mov'}"
-            shutil.copy2(exported, target)
-            try:
-                materializer.cleanup_failed_residue(asset_uuid)
-            except Exception:
-                pass
-            return target
+            def materialize_from_photos(asset_uuid: str, workdir: Path) -> Path:
+                exported = _asyncio.run(materializer.materialize(asset_uuid))
+                target = workdir / f"legacy_rendition{Path(exported).suffix.lower() or '.mov'}"
+                shutil.copy2(exported, target)
+                try:
+                    materializer.cleanup_failed_residue(asset_uuid)
+                except Exception:
+                    pass
+                return target
 
-        staging_root = pdw.temp_root / "dual_write_run" / video_uuid
-        staging_root.mkdir(parents=True, exist_ok=True)
-        workdir = staging_root / "work"
-        if workdir.exists():
-            shutil.rmtree(workdir, ignore_errors=True)
-        staged_path = materialize_from_photos(video_uuid, workdir)
+            staging_root = pdw.temp_root / "dual_write_run" / video_uuid
+            staging_root.mkdir(parents=True, exist_ok=True)
+            workdir = staging_root / "work"
+            if workdir.exists():
+                shutil.rmtree(workdir, ignore_errors=True)
+            staged_path = materialize_from_photos(video_uuid, workdir)
 
     pdw._set_stage_meta(
         video_uuid,
