@@ -117,6 +117,122 @@ def validate_allowlist_for_run(uuids: list[str], min_count: int = ALLOWLIST_PACK
 
 
 # ---------------------------------------------------------------------------
+# GUI-LaunchAgent materialization (iCloud-only assets need PhotoKit, which is
+# only available inside the user's Aqua session — same runtime context class
+# as the production agent; one transient launchd job per export, booted out
+# after use; not a daemon).
+
+MOVIE_EXTENSIONS = {".mov", ".mp4", ".m4v", ".avi", ".hevc"}
+MIN_MATERIALIZED_BYTES = 16 * 1024
+
+
+def select_materialized_video(target_dir: Path, max_bytes: int) -> Path:
+    """Select the materialized rendition: prefer the EDITED rendition file
+    (osxphotos '<name>_edited.<ext>') when present, else the largest movie
+    file. Enforces the same size bounds as the production materializer.
+    Rendition doctrine: the edited/trimmed Photos rendition is the authority
+    (osxphotos export without --skip-edited semantics)."""
+    candidates: list[Path] = []
+    edited: list[Path] = []
+    for path in target_dir.rglob("*"):
+        if not path.is_file() or path.name.startswith("."):
+            continue
+        if path.suffix.lower() not in MOVIE_EXTENSIONS:
+            continue
+        size = path.stat().st_size
+        if size < MIN_MATERIALIZED_BYTES or size > max_bytes:
+            continue
+        candidates.append(path)
+        if "_edited" in path.stem:
+            edited.append(path)
+    pool = edited or candidates
+    if not pool:
+        raise p3_MaterializationError("materialization_only_placeholders")
+    return max(pool, key=lambda p: (p.stat().st_size, p.name))
+
+
+class p3_MaterializationError(ObjectStoreError):
+    """Retryable materialization failure (coordinator records and re-drives)."""
+
+
+def make_gui_agent_materialize_fn(cfg: dict):
+    import plistlib
+    import tempfile
+
+    mat_cfg = cfg["materializer"]
+    osxphotos_path = mat_cfg.get("osxphotos_path") or "osxphotos"
+    max_bytes = int(mat_cfg.get("max_bytes", 2_000_000_000))
+    timeout = int(mat_cfg.get("export_timeout_seconds", 900))
+    gui_uid = int(mat_cfg.get("gui_uid", 501))
+
+    def materialize(video_uuid: str, workdir: Path) -> Path:
+        workdir.mkdir(parents=True, exist_ok=True)
+        label = f"com.diveanalyzer.p3-materialize-{video_uuid[:8].lower()}"
+        fd, plist_path = tempfile.mkstemp(prefix=f"{label}.", suffix=".plist")
+        stdout_path = workdir / "export.out"
+        stderr_path = workdir / "export.err"
+        program = [
+            osxphotos_path,
+            "export",
+            str(workdir),
+            "--uuid",
+            video_uuid,
+            "--only-movies",
+            "--download-missing",
+            "--use-photokit",
+            "--update",
+            "--verbose",
+        ]
+        with os.fdopen(fd, "wb") as fh:
+            plistlib.dump(
+                {
+                    "Label": label,
+                    "ProgramArguments": program,
+                    "RunAtLoad": True,
+                    "StandardOutPath": str(stdout_path),
+                    "StandardErrorPath": str(stderr_path),
+                },
+                fh,
+            )
+        service = f"gui/{gui_uid}/{label}"
+        subprocess.run(["launchctl", "bootout", service], capture_output=True)
+        boot = subprocess.run(
+            ["launchctl", "bootstrap", f"gui/{gui_uid}", plist_path],
+            capture_output=True,
+            text=True,
+        )
+        if boot.returncode != 0:
+            Path(plist_path).unlink(missing_ok=True)
+            raise p3_MaterializationError(f"launchd bootstrap failed: {boot.stderr.strip()}")
+        deadline = time.time() + timeout
+        done = False
+        while time.time() < deadline:
+            time.sleep(3)
+            out = stdout_path.read_text(encoding="utf-8", errors="replace") if stdout_path.exists() else ""
+            if "Do you want to continue?" in out:
+                subprocess.run(["launchctl", "bootout", service], capture_output=True)
+                Path(plist_path).unlink(missing_ok=True)
+                raise p3_MaterializationError(
+                    "osxphotos export blocked on an interactive prompt "
+                    "(stale export db in workdir); refusing interactive runs"
+                )
+            if "Elapsed time:" in out or "error:" in out.lower():
+                done = True
+                break
+        try:
+            subprocess.run(["launchctl", "bootout", service], capture_output=True)
+        finally:
+            Path(plist_path).unlink(missing_ok=True)
+        if not done:
+            raise p3_MaterializationError(f"export timeout after {timeout}s")
+        if "error: 0" not in out and "error:" in out.lower():
+            raise p3_MaterializationError(f"osxphotos export error: {out[-300:]}")
+        return select_materialized_video(workdir, max_bytes)
+
+    return materialize
+
+
+# ---------------------------------------------------------------------------
 # Metrics helpers
 
 
@@ -357,7 +473,10 @@ def build_queue_context(cfg: dict, env_file: str | None):
     shadow = PhotosDbCaptionProviderShadow(library_path)
     env = load_env_file(env_file) if env_file else None
     store, b2_config = build_b2_store(cfg, env)
-    raw_materialize_fn = make_materialize_fn(cfg)
+    if cfg.get("materializer", {}).get("use_gui_launchagent"):
+        raw_materialize_fn = make_gui_agent_materialize_fn(cfg)
+    else:
+        raw_materialize_fn = make_materialize_fn(cfg)
     ffprobe_bin = cfg.get("ffprobe_path") or "ffprobe"
     return {
         "cfg": cfg,
@@ -518,8 +637,14 @@ def process_asset(
         if final_state is IngestState.QUARANTINED:
             break
         if final_state is IngestState.REMOTE_VERIFIED and not commit_receipt_path.exists():
-            # Operator commit tunnel required before convergence continues.
+            # Operator commit tunnel required before convergence continues:
+            # persist the staged document (P2 convention) and stop this asset;
+            # the queue continues with the next allowlisted asset.
             staged = stage_commit_document(cfg, video_uuid)
+            staged_path = state_dir / f"{video_uuid}.commit_input.json"
+            fd = os.open(staged_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(staged, fh, ensure_ascii=False, indent=2, sort_keys=True)
             record["staged_commit"] = True
             break
         # retryable: back off then re-drive the same asset
@@ -797,6 +922,12 @@ def mode_media_mutation(cfg: dict, video_uuid: str) -> int:
     stable = build_stable_provider(library_path)
     shadow = PhotosDbCaptionProviderShadow(library_path)
     os.unlink(journal_path)
+    # stale operational commit artifacts must not survive a journal reset:
+    # an old receipt/commit_input would no longer match the fresh payload
+    for suffix in ("commit_receipt.json", "commit_input.json"):
+        stale = state_dir / f"{video_uuid}.{suffix}"
+        if stale.exists():
+            stale.unlink()
     evidence = capture_evidence(cfg, state_dir, video_uuid, stable, shadow, db)
     evidence["mutation"] = {
         "kind": "media_edit_trim",

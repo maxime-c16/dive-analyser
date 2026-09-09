@@ -176,7 +176,7 @@ def ctx(tmp_path, monkeypatch):
 def install_fake_transport(monkeypatch, store: FakeObjectStore, blobs_committed: set):
     """Mimic the server commit service: idempotent by SHA, receipt-confirmed."""
 
-    def factory(cmd, state_dir, video_uuid):
+    def factory(cmd, cfg, state_dir, video_uuid):
         def commit_db_fn(payload):
             assert payload["remote_verified"] is True
             sha = payload["blob"]["sha256"]
@@ -492,6 +492,45 @@ def test_media_mutation_resets_journal_and_reingests_new_blob(ctx, monkeypatch):
     assert mutation["previous"]["edit_fingerprint"] == old_fingerprint
     assert mutation["previous"]["media_sha256"] == old_sha
     assert mutation["new_edit_fingerprint"] != old_fingerprint
+
+
+# ---------------------------------------------------------------------------
+# Materialized-rendition selection (edited preference, size bounds)
+
+
+def test_select_materialized_video_prefers_edited(tmp_path):
+    original = tmp_path / "IMG_x.mov"
+    original.write_bytes(b"a" * 20_000)
+    edited = tmp_path / "IMG_x_edited.mov"
+    edited.write_bytes(b"b" * 18_000)
+    (tmp_path / ".osxphotos_export.db").write_bytes(b"c" * 30_000)
+    assert p3_queue.select_materialized_video(tmp_path, 10**9) == edited
+
+
+def test_select_materialized_video_largest_without_edited(tmp_path):
+    small = tmp_path / "a.mov"
+    small.write_bytes(b"a" * 16_500)
+    large = tmp_path / "b.mp4"
+    large.write_bytes(b"b" * 25_000)
+    assert p3_queue.select_materialized_video(tmp_path, 10**9) == large
+
+
+def test_select_materialized_video_size_bounds(tmp_path):
+    tiny = tmp_path / "a.mov"
+    tiny.write_bytes(b"a" * 100)  # below 16 KiB floor
+    huge = tmp_path / "b.mov"
+    huge.write_bytes(b"b" * 40)
+    ok = tmp_path / "c.mov"
+    ok.write_bytes(b"c" * 20)
+    with pytest.raises(p3_queue.p3_MaterializationError):
+        p3_queue.select_materialized_video(tmp_path, 30)  # floor kills a,b; c too big
+
+
+def test_select_materialized_video_placeholders_raises(tmp_path):
+    only_db = tmp_path / ".osxphotos_export.db"
+    only_db.write_bytes(b"x" * 50_000)
+    with pytest.raises(p3_queue.p3_MaterializationError):
+        p3_queue.select_materialized_video(tmp_path, 10**9)
 
 
 # ---------------------------------------------------------------------------

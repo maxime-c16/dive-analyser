@@ -135,17 +135,41 @@ def build_stable_provider(library_path: str) -> CurrentStableCaptionProvider:
 
 
 def edit_fingerprint(photo) -> str:
+    """Edit fingerprint v2 (P3 bounded repair).
+
+    The v1 formula ({hasadjustments, duration}) was blind to media edits on
+    already-edited assets when osxphotos does not expose duration
+    (osxphotos 0.76.1: duration unavailable -> v1 fingerprint unchanged after
+    a re-trim). v2 adds a SHA-256 of the Photos adjustment RENDER plist
+    (photo.adjustments_path) — the stored edit recipe — which changes on a
+    new media edit and is NOT touched by caption edits. Falls back to v1
+    inputs when the plist is unavailable. Historical evidence keeps the
+    fingerprint value recorded at its capture time.
+    """
     import hashlib
 
-    material = json.dumps(
-        {
-            "hasadjustments": bool(getattr(photo, "hasadjustments", False)),
-            "duration": photo_duration(photo),
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+    material: dict = {
+        "fingerprint_version": 2,
+        "hasadjustments": bool(getattr(photo, "hasadjustments", False)),
+        "duration": photo_duration(photo),
+    }
+    adjustments_path = getattr(photo, "adjustments_path", None)
+    adjustment_render_sha256 = None
+    if adjustments_path:
+        try:
+            from pathlib import Path as _Path
+
+            render = _Path(adjustments_path)
+            if render.is_file():
+                adjustment_render_sha256 = hashlib.sha256(
+                    render.read_bytes()
+                ).hexdigest()
+        except OSError:
+            adjustment_render_sha256 = None
+    material["adjustment_render_sha256"] = adjustment_render_sha256
+    return hashlib.sha256(
+        json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def photo_duration(photo) -> float:
