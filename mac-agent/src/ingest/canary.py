@@ -396,6 +396,52 @@ def stage_commit_document(cfg: dict, video_uuid: str) -> dict:
     return {"payload": payload, "extra": extra}
 
 
+def mode_refresh_shadow(args) -> int:
+    """Re-run stable+shadow caption reads and update ONLY the shadow/parity
+    fields of the evidence file (never the media/materialization evidence)."""
+    cfg = load_canary_config(args.config)
+    os_cfg = cfg["object_store"]
+    state_dir = Path(os_cfg["state_dir"]).expanduser()
+    library_path = cfg["photos"]["library_path"]
+    stable = build_stable_provider(library_path)
+    shadow = PhotosDbCaptionProviderShadow(library_path)
+    stable_result = stable.get_caption(args.video_uuid)
+    shadow_result = shadow.get_caption(args.video_uuid)
+    parity = compare_caption_providers([(args.video_uuid, stable_result, shadow_result)])
+    _update_evidence(
+        state_dir,
+        args.video_uuid,
+        lambda ev: ev.update(
+            {
+                "shadow": {
+                    "provider": shadow_result.provider,
+                    "available": shadow_result.available,
+                    "shadow_sha256": shadow_result.sha256,
+                    "shadow_length": len(shadow_result.raw or ""),
+                    "shadow_utf8_bytes": len((shadow_result.raw or "").encode("utf-8")),
+                    "shadow_raw": shadow_result.raw,
+                    "error_family": shadow_result.error_family,
+                },
+                "parity": parity,
+            }
+        ),
+    )
+    print(
+        json.dumps(
+            {
+                "mode": "refresh-shadow",
+                "stable_available": stable_result.available,
+                "stable_sha256": stable_result.sha256,
+                "shadow_available": shadow_result.available,
+                "shadow_sha256": shadow_result.sha256,
+                "error_family": shadow_result.error_family,
+                "exact_equal": parity["samples"][0]["exact_equal"],
+            }
+        )
+    )
+    return 0
+
+
 def mode_caption_mutation(args) -> int:
     """Caption-only mutation: same media/blob, new CaptionRevision.
 
@@ -812,6 +858,7 @@ def main(argv=None) -> int:
         "journal",
         "staged-payload",
         "caption-mutation",
+        "refresh-shadow",
         "b2-preflight",
         "privacy-probe",
         "presign-test",
@@ -844,6 +891,10 @@ def main(argv=None) -> int:
         if not args.video_uuid:
             raise SystemExit("caption-mutation requires --video-uuid")
         return mode_caption_mutation(args)
+    if args.mode == "refresh-shadow":
+        if not args.video_uuid:
+            raise SystemExit("refresh-shadow requires --video-uuid")
+        return mode_refresh_shadow(args)
     if args.mode == "b2-preflight":
         return mode_b2_preflight(args)
     if args.mode == "privacy-probe":

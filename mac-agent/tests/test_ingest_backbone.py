@@ -423,6 +423,58 @@ class TestCaptionRawExactness:
         assert result.raw == "  kept-exact  "
         assert result.sha256 == caption_sha256("  kept-exact  ")
 
+    def test_shadow_provider_modern_schema_join(self, tmp_path):
+        """macOS 13+ schema: caption lives in ZASSETDESCRIPTION.ZLONGDESCRIPTION,
+        reached through ZADDITIONALASSETATTRIBUTES — all introspected, never
+        hardcoded into the query text by the caller."""
+        import sqlite3 as _sqlite3
+        lib = tmp_path / "Lib"
+        (lib / "database").mkdir(parents=True)
+        db = lib / "database" / "Photos.sqlite"
+        con = _sqlite3.connect(db)
+        con.execute("CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID TEXT)")
+        con.execute(
+            "CREATE TABLE ZADDITIONALASSETATTRIBUTES "
+            "(Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZASSETDESCRIPTION INTEGER)"
+        )
+        con.execute(
+            "CREATE TABLE ZASSETDESCRIPTION "
+            "(Z_PK INTEGER PRIMARY KEY, ZLONGDESCRIPTION TEXT)"
+        )
+        con.execute("INSERT INTO ZASSET VALUES (1, 'u2')")
+        con.execute("INSERT INTO ZADDITIONALASSETATTRIBUTES VALUES (1, 1, 7)")
+        con.execute("INSERT INTO ZASSETDESCRIPTION VALUES (7, '  modern exact  ')")
+        con.commit()
+        con.close()
+        shadow = PhotosDbCaptionProviderShadow(lib)
+        result = shadow.get_caption("u2")
+        assert result.available
+        assert result.raw == "  modern exact  "
+        assert result.sha256 == caption_sha256("  modern exact  ")
+
+    def test_shadow_provider_modern_schema_missing_row(self, tmp_path):
+        import sqlite3 as _sqlite3
+        lib = tmp_path / "Lib"
+        (lib / "database").mkdir(parents=True)
+        db = lib / "database" / "Photos.sqlite"
+        con = _sqlite3.connect(db)
+        con.execute("CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID TEXT)")
+        con.execute(
+            "CREATE TABLE ZADDITIONALASSETATTRIBUTES "
+            "(Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZASSETDESCRIPTION INTEGER)"
+        )
+        con.execute(
+            "CREATE TABLE ZASSETDESCRIPTION "
+            "(Z_PK INTEGER PRIMARY KEY, ZLONGDESCRIPTION TEXT)"
+        )
+        con.execute("INSERT INTO ZASSET VALUES (1, 'u3')")
+        con.commit()
+        con.close()
+        shadow = PhotosDbCaptionProviderShadow(lib)
+        result = shadow.get_caption("u3")
+        assert not result.available
+        assert result.error_family == "shadow_no_row"
+
     def test_photokit_shadow_status_constant(self):
         assert PHOTOKIT_CAPTION_SHADOW_STATUS == "NOT_IMPLEMENTED_CURRENT_RUNTIME"
         shadow = PhotosDbCaptionProviderShadow("unused")

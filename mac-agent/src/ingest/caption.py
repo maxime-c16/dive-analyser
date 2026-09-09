@@ -114,10 +114,17 @@ class CurrentStableCaptionProvider:
 class PhotosDbCaptionProviderShadow:
     """SHADOW ONLY: direct read-only Photos-library SQLite read.
 
-    NOT PhotoKit (see ``PHOTOKIT_CAPTION_SHADOW_STATUS``). The caption column
-    is located by runtime introspection (``PRAGMA table_info(ZASSET)``); any
-    obstacle reports ``available=False`` with an error reason. Ingestion never
-    depends on this provider.
+    NOT PhotoKit (see ``PHOTOKIT_CAPTION_SHADOW_STATUS``). The caption source
+    is located by runtime introspection (``PRAGMA table_info`` /
+    ``sqlite_master``), never by hardcoded schema assumptions:
+
+    1. legacy schemas: a ``*caption*`` column directly on ``ZASSET``;
+    2. modern schemas (macOS 13+): the
+       ``ZASSET → ZADDITIONALASSETATTRIBUTES → ZASSETDESCRIPTION.ZLONGDESCRIPTION``
+       join, with every participating table/column located by introspection.
+
+    Any obstacle reports ``available=False`` with an error reason. Ingestion
+    never depends on this provider.
     """
 
     name = "photos_db_sqlite_shadow"
@@ -132,22 +139,7 @@ class PhotosDbCaptionProviderShadow:
             con = sqlite3.connect(uri, uri=True, timeout=5.0)
             try:
                 con.execute("PRAGMA query_only=ON")
-                columns = [
-                    row[1]
-                    for row in con.execute("PRAGMA table_info(ZASSET)").fetchall()
-                ]
-                caption_col = next(
-                    (c for c in columns if "caption" in c.lower()), None
-                )
-                if caption_col is None:
-                    return CaptionResult(
-                        self.name, False, None, None, "shadow_column_not_found",
-                        provider_kind=self.provider_kind,
-                    )
-                row = con.execute(
-                    f'SELECT "{caption_col}" FROM ZASSET WHERE ZUUID = ?',
-                    (video_uuid,),
-                ).fetchone()
+                raw = self._read_caption(con, video_uuid)
             finally:
                 con.close()
         except Exception as exc:
@@ -155,16 +147,109 @@ class PhotosDbCaptionProviderShadow:
                 self.name, False, None, None, f"shadow_unavailable: {exc}",
                 provider_kind=self.provider_kind,
             )
-        if row is None or row[0] is None:
+        if raw is None:
             return CaptionResult(
                 self.name, False, None, None, "shadow_no_row",
                 provider_kind=self.provider_kind,
             )
-        raw = str(row[0])
         return CaptionResult(
             self.name, True, raw, caption_sha256(raw), None,
             provider_kind=self.provider_kind,
         )
+
+    def _read_caption(self, con: sqlite3.Connection, video_uuid: str) -> str | None:
+        columns = [
+            row[1]
+            for row in con.execute("PRAGMA table_info(ZASSET)").fetchall()
+        ]
+        caption_col = next(
+            (c for c in columns if "caption" in c.lower()), None
+        )
+        if caption_col is not None:
+            row = con.execute(
+                f'SELECT "{caption_col}" FROM ZASSET WHERE ZUUID = ?',
+                (video_uuid,),
+            ).fetchone()
+            if row is not None and row[0] is not None:
+                return str(row[0])
+        return self._read_caption_via_additional_attributes(
+            con, video_uuid, set(columns)
+        )
+
+    def _read_caption_via_additional_attributes(
+        self,
+        con: sqlite3.Connection,
+        video_uuid: str,
+        zasset_columns: set[str],
+    ) -> str | None:
+        tables = {
+            row[0]
+            for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        required = {"ZASSET", "ZADDITIONALASSETATTRIBUTES"}
+        description_tables = [
+            t for t in tables if "ASSETDESCRIPTION" in t.upper()
+        ]
+        if not required <= tables or not description_tables:
+            raise sqlite3.DatabaseError("shadow_schema_not_found")
+
+        def _columns(table: str) -> list[str]:
+            return [
+                row[1]
+                for row in con.execute(f'PRAGMA table_info("{table}")').fetchall()
+            ]
+
+        aaa_columns = _columns("ZADDITIONALASSETATTRIBUTES")
+        asset_fk = next(
+            (c for c in aaa_columns if c.upper() == "ZASSET"), None
+        )
+        description_fk = next(
+            (
+                c
+                for c in aaa_columns
+                if "ASSETDESCRIPTION" in c.upper()
+                and c not in zasset_columns
+            ),
+            None,
+        )
+        if asset_fk is None or description_fk is None:
+            raise sqlite3.DatabaseError("shadow_schema_not_found")
+
+        description_table = "ZASSETDESCRIPTION"
+        if description_table not in tables:
+            description_table = description_tables[0]
+        description_columns = _columns(description_table)
+        long_col = next(
+            (
+                c
+                for c in description_columns
+                if c.upper() in ("ZLONGDESCRIPTION",)
+                or "DESCRIPTION" in c.upper()
+            ),
+            None,
+        )
+        if long_col is None:
+            raise sqlite3.DatabaseError("shadow_schema_not_found")
+
+        rows = con.execute(
+            f'SELECT d."{long_col}" '
+            f'FROM ZASSET s '
+            f'JOIN ZADDITIONALASSETATTRIBUTES a ON a."{asset_fk}" = s.Z_PK '
+            f'LEFT JOIN "{description_table}" d ON d.Z_PK = a."{description_fk}" '
+            f'WHERE s.ZUUID = ?',
+            (video_uuid,),
+        ).fetchall()
+        values = {row[0] for row in rows if row is not None and row[0] is not None}
+        if not values:
+            return None
+        if len(values) > 1:
+            raise sqlite3.DatabaseError("shadow_ambiguous_description")
+        value = next(iter(values))
+        if not isinstance(value, str):
+            raise sqlite3.DatabaseError("shadow_ambiguous_description")
+        return value
 
 
 def compare_caption_providers(
