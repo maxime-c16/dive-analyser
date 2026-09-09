@@ -5,7 +5,7 @@ import socket
 import yaml
 import logging
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 from datetime import datetime
 from urllib.parse import urlparse
@@ -151,6 +151,25 @@ class ObjectStoreConfig:
 
 
 @dataclass
+class DualWriteConfig:
+    """P4 production dual-write controls (packet §18). Hard OFF by default.
+
+    enabled=True additionally requires object_store.enabled and a PROD
+    environment, and an explicit allowlist of EXACTLY ONE canary UUID (§19).
+    Controlled failure injections (fail_put_once / fail_commit_once) are
+    explicit opt-in flags for the P4 gates, never defaults.
+    """
+
+    enabled: bool = False
+    allowlist: List[str] = field(default_factory=list)
+    commit_endpoint_path: str = "/api/v1/media/backbone/commit"
+    commit_timeout_seconds: int = 120
+    env_file: str = ""
+    fail_put_once: bool = False
+    fail_commit_once: bool = False
+
+
+@dataclass
 class Config:
     server: ServerConfig
     agent: AgentConfig
@@ -159,10 +178,13 @@ class Config:
     media: MediaConfig
     logging: LoggingConfig
     object_store: ObjectStoreConfig = None
+    dual_write: DualWriteConfig = None
 
     def __post_init__(self):
         if self.object_store is None:
             self.object_store = ObjectStoreConfig()
+        if self.dual_write is None:
+            self.dual_write = DualWriteConfig()
 
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
@@ -306,6 +328,20 @@ class Config:
                 keep_files=logging_data.get('keep_files', 5)
             )
 
+            dual_write_data = data.get('dual_write', {})
+            env_file = dual_write_data.get('env_file', '')
+            dual_write = DualWriteConfig(
+                enabled=dual_write_data.get('enabled', False),
+                allowlist=list(dual_write_data.get('allowlist', []) or []),
+                commit_endpoint_path=dual_write_data.get(
+                    'commit_endpoint_path', '/api/v1/media/backbone/commit'
+                ),
+                commit_timeout_seconds=dual_write_data.get('commit_timeout_seconds', 120),
+                env_file=str(Path(env_file).expanduser()) if env_file else '',
+                fail_put_once=dual_write_data.get('fail_put_once', False),
+                fail_commit_once=dual_write_data.get('fail_commit_once', False),
+            )
+
             return cls(
                 server=server,
                 agent=agent,
@@ -313,7 +349,8 @@ class Config:
                 sync=sync,
                 media=media,
                 logging=logging_cfg,
-                object_store=object_store
+                object_store=object_store,
+                dual_write=dual_write
             )
 
         except KeyError as e:
@@ -360,6 +397,11 @@ class Config:
         except ValueError as e:
             errors.append(f"object_store: {e}")
 
+        try:
+            self._validate_dual_write_config()
+        except ValueError as e:
+            errors.append(f"dual_write: {e}")
+
         # Logging configuration validation
         try:
             self._validate_logging_config()
@@ -393,6 +435,28 @@ class Config:
             raise ValueError(str(e))
         if cfg.min_free_disk_bytes < 0:
             raise ValueError("min_free_disk_bytes must be >= 0")
+
+    def _validate_dual_write_config(self) -> None:
+        """Firewall for P4 production dual-write config (packet §18/§19/§29)."""
+        cfg = self.dual_write
+        if cfg is None or not cfg.enabled:
+            return
+        if not self.object_store.enabled:
+            raise ValueError("dual_write.enabled requires object_store.enabled")
+        if self.object_store.environment != "prod":
+            raise ValueError(
+                "dual_write.enabled requires object_store.environment == 'prod'"
+            )
+        from src.ingest.dual_write import validate_prod_allowlist
+
+        try:
+            validate_prod_allowlist(list(cfg.allowlist or []))
+        except ValueError as e:
+            raise ValueError(str(e))
+        if not cfg.env_file:
+            raise ValueError("dual_write.enabled requires env_file (B2 credentials)")
+        if cfg.commit_timeout_seconds <= 0:
+            raise ValueError("commit_timeout_seconds must be > 0")
 
     def _validate_server_url(self, url: str) -> None:
         """Validate server URL format and protocol."""

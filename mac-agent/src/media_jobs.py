@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import Config
+from .ingest.dual_write import ProductionDualWrite
 from .media_exporter import MediaExporter, MediaUnavailableError
 from .media_materializer import MediaMaterializer
 from .media_uploader import MediaUploader
@@ -37,6 +38,16 @@ class MediaJobProcessor:
         self.transcoder = None
         self.uploader = None
         self.source_vault = None
+        # P4 production dual-write: None unless BOTH flags are enabled
+        # (object_store.enabled AND dual_write.enabled); None = legacy-only.
+        self.dual_write = ProductionDualWrite.from_config(config)
+        if self.dual_write is not None:
+            logger.info(
+                "P4 production dual-write ARMED for allowlisted asset %s "
+                "(bucket=%s)",
+                self.dual_write.dual.allowlist[0][:8],
+                self.dual_write.os_cfg.bucket,
+            )
         if self.config.media.source_vault.enabled:
             self.source_vault = MediaSourceVault(
                 self.config.media.source_vault.root,
@@ -149,6 +160,10 @@ class MediaJobProcessor:
             result = await uploader.upload_and_finalize(job_id, artifact)
             if self.source_vault:
                 self.source_vault.mark_media_ready(canonical_video_uuid, rendition)
+            # P4 additive dual-write trigger: legacy has ALREADY succeeded here.
+            # Runs off-thread after staging a copy; legacy cleanup proceeds
+            # immediately and is never gated on object-store success.
+            await self._trigger_dual_write(video_uuid, source)
             exporter.cleanup_source_after_success(source)
             logger.info(f"Media job {job_id} finalized cache entry {result.get('cache_entry_id')}")
         except MediaUnavailableError as e:
@@ -164,6 +179,28 @@ class MediaJobProcessor:
         finally:
             if lease_keepalive:
                 lease_keepalive.cancel()
+
+    async def _trigger_dual_write(self, video_uuid: str, source: Path) -> None:
+        """Stage + launch the additive object-store ingest after legacy success.
+
+        Failure semantics (packet §24/§40): any dual-write problem is logged
+        and left as OBJECT_STORE_PENDING_RETRY state; the legacy result of
+        this job is already durable and is never rolled back or deleted.
+        """
+        dual_write = self.dual_write
+        if dual_write is None:
+            return
+        try:
+            staged = await asyncio.to_thread(dual_write.stage_copy, video_uuid, source)
+        except Exception as exc:
+            logger.warning(
+                "dual-write staging skipped for %s (legacy unaffected): %s",
+                video_uuid[:8],
+                exc,
+            )
+            return
+        if staged is not None:
+            dual_write.launch(video_uuid, staged)
 
     async def _keep_materialization_lease_alive(self, job_id: int) -> None:
         """Renew a claimed job while Photos materialization awaits iCloud."""

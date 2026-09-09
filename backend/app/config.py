@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     slow_query_log_ms: int = int(os.getenv("SLOW_QUERY_LOG_MS", "250"))
     slow_request_log_ms: int = int(os.getenv("SLOW_REQUEST_LOG_MS", "500"))
 
+    # Media backbone commit endpoint (P4): environment-scoped bucket allowlist.
+    # DEV and PROD remote references must never alias silently.
+    media_backbone_dev_bucket: str = os.getenv("MEDIA_BACKBONE_DEV_BUCKET", "diveanalyzer-dev-media")
+    media_backbone_prod_bucket: str = os.getenv("MEDIA_BACKBONE_PROD_BUCKET", "diveanalyzer-prod-media")
+    media_backbone_object_prefix: str = os.getenv("MEDIA_BACKBONE_OBJECT_PREFIX", "blobs/sha256")
+
     @property
     def configured_api_keys(self) -> List[str]:
         return [key.strip() for key in self.mac_agent_api_keys.split(",") if key.strip()]

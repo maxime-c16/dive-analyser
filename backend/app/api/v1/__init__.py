@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 # Import route modules
-from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis
+from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone
 
 # Create v1 router
 v1_router = APIRouter(prefix="/api/v1")
@@ -22,6 +22,7 @@ v1_router.include_router(journey.router, prefix="/journey", tags=["journey"])
 v1_router.include_router(psychology.router, tags=["psychology"])
 v1_router.include_router(videos.router, tags=["videos"])
 v1_router.include_router(media.router, tags=["media"])
+v1_router.include_router(media_backbone.router, tags=["media-backbone"])
 v1_router.include_router(ws_sync.router, tags=["websocket"])
 v1_router.include_router(dive_codes.router, tags=["dive-codes"])
 v1_router.include_router(dd_operations.router, tags=["dd"])

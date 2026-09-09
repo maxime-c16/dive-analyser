@@ -79,6 +79,13 @@ def fake_media_bytes(video_uuid: str, dedupe_group: str | None = None) -> bytes:
 MATERIALIZE_MAP: dict[str, str] = {}
 
 
+
+def load_latest_metrics(state_dir):
+    metrics_dir = state_dir / "metrics"
+    files = sorted(metrics_dir.glob("p3_*.json"), key=lambda p: p.stat().st_mtime)
+    assert files, "no metrics snapshot written"
+    return json.loads(files[-1].read_text())
+
 def make_fake_db():
     photos = [FakePhoto(u, CAPTIONS[u]) for u in ALL_UUIDS]
     return FakeDb(photos)
@@ -226,7 +233,7 @@ def test_queue_ingests_all_assets_with_metrics(ctx, monkeypatch, tmp_path):
     options = base_options(commit_transport_cmd="true")
     rc = p3_queue.run_queue(ctx["cfg"], {**options, "allowlist": ALL_UUIDS})
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     summary = p3_queue.summarize_metrics(metrics)
     assert summary["sample_size"] == 8
     assert summary["ingested"] == 8
@@ -252,7 +259,7 @@ def test_queue_deduplicates_identical_media(ctx, monkeypatch):
     options = base_options(commit_transport_cmd="true", run_min_allowlist=2, allowlist=[UUID_B, UUID_C])
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     summary = p3_queue.summarize_metrics(metrics)
     assert summary["ingested"] == 2
     assert summary["unique_media_blobs"] == 1
@@ -287,7 +294,7 @@ def test_dedupe_still_fails_closed_on_corrupt_existing_object(ctx, monkeypatch):
     options = base_options(commit_transport_cmd="true", run_min_allowlist=1, allowlist=[UUID_C])
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     asset = metrics["assets"][0]
     assert asset["quarantined"] is True
     assert asset["ops"]["put_count"] == 0  # dedupe skip happened...
@@ -309,7 +316,7 @@ def test_failure_isolation_quarantined_asset_does_not_block_queue(ctx, monkeypat
     )
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     a, b, c = metrics["assets"]
     assert a["final_state"] == "IngestState.CACHE_CLEANED"
     assert b["quarantined"] is True
@@ -333,7 +340,7 @@ def test_retryable_put_failure_recovers_within_queue(ctx, monkeypatch):
     )
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     asset = metrics["assets"][0]
     assert asset["final_state"] == "IngestState.CACHE_CLEANED"
     assert len(asset["passes"]) >= 2
@@ -358,7 +365,7 @@ def test_low_disk_guard_refuses_then_resumes(ctx, monkeypatch):
     )
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     asset = metrics["assets"][0]
     assert asset["final_state"] == "IngestState.MEDIA_REQUESTED"
     assert asset["quarantined"] is False
@@ -371,7 +378,7 @@ def test_low_disk_guard_refuses_then_resumes(ctx, monkeypatch):
     options2 = base_options(commit_transport_cmd="true", run_min_allowlist=1, allowlist=[UUID_A])
     rc = p3_queue.run_queue(ctx["cfg"], options2)
     assert rc == 0
-    metrics2 = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics2 = load_latest_metrics(ctx["state_dir"])
     assert metrics2["assets"][0]["final_state"] == "IngestState.CACHE_CLEANED"
 
 
@@ -387,7 +394,7 @@ def test_queue_restart_skips_committed_and_converges(ctx, monkeypatch):
     rc = p3_queue.run_queue(ctx["cfg"], {**options, "run_min_allowlist": 3, "allowlist": ALL_UUIDS[:3]})
     assert rc == 0
     assert sum(ctx["store"].put_counts.values()) == puts_after_first
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     for asset in metrics["assets"]:
         assert asset["already_committed_before_queue"] is True
         assert asset["ops"]["put_count"] == 0
@@ -406,7 +413,7 @@ def test_unchanged_rerun_after_full_completion_is_zero_op(ctx, monkeypatch):
     rc = p3_queue.run_queue(ctx["cfg"], options)
     assert rc == 0
     assert sum(ctx["store"].put_counts.values()) == puts_before
-    metrics = json.loads((ctx["state_dir"] / "p3_metrics.json").read_text())
+    metrics = load_latest_metrics(ctx["state_dir"])
     summary = p3_queue.summarize_metrics(metrics)
     assert summary["ingested"] == 8
     assert summary["unique_media_blobs"] == 8

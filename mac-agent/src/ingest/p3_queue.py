@@ -722,6 +722,7 @@ def run_queue(cfg: dict, options: dict[str, Any]) -> int:
 
     metrics: dict[str, Any] = {
         "version": P3_METRICS_VERSION,
+        "run_id": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f"),
         "started_at": utcnow(),
         "ready_album_title": title,
         "ready_album_size": len(album_uuids),
@@ -770,7 +771,19 @@ def run_queue(cfg: dict, options: dict[str, Any]) -> int:
 
 
 def _write_metrics(state_dir: Path, metrics: dict) -> None:
-    path = state_dir / "p3_metrics.json"
+    """Run-unique snapshot (packet §36): metrics/<run_id>.json, never
+    overwriting prior-run evidence. The same run's file is atomically
+    rewritten while that run is in progress; distinct runs get distinct
+    files (suffix -2, -3, ... on same-second collisions)."""
+    metrics_dir = state_dir / "metrics"
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    run_id = metrics.get("run_id") or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    candidate = f"p3_{run_id}"
+    suffix = 1
+    while (metrics_dir / f"{candidate}.json").exists() and metrics.get("run_id") is None:
+        suffix += 1
+        candidate = f"p3_{run_id}-{suffix}"
+    path = metrics_dir / f"{candidate}.json"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump(metrics, fh, ensure_ascii=False, indent=2, sort_keys=True)
