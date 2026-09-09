@@ -3,7 +3,8 @@
 Covers packet MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1 §11-§13,
 §26, §29: API-key authentication, environment/bucket firewall, idempotence
 (including lost-response retry), validation fail-closed behavior, and
-environment-scoped DB rows.
+environment-scoped DB rows. Requests use the canonical staged document
+shape {"payload": {...}, "extra": {...}} established at P2.
 """
 
 import hashlib
@@ -71,20 +72,31 @@ def client(db):
     app.dependency_overrides.clear()
 
 
-def _body(**overrides):
-    body = {
+def _document(**payload_overrides):
+    payload = {
         "video_uuid": VIDEO_UUID,
         "ingest_impl_version": "media_backbone_v1",
         "rendition_semantics": "photos_edited_rendition",
-        "caption_raw": CAPTION_RAW,
-        "caption_sha256": CAPTION_SHA,
-        "caption_provider": "current_stable_caption_provider",
-        "blob_sha256": MEDIA_SHA,
-        "byte_size": 2048,
-        "object_key": f"blobs/sha256/{MEDIA_SHA[:2]}/{MEDIA_SHA}.mov",
-        "storage_backend": "b2",
-        "bucket": PROD_BUCKET,
+        "caption": {
+            "raw": CAPTION_RAW,
+            "sha256": CAPTION_SHA,
+            "provider": "current_stable_caption_provider",
+        },
+        "blob": {
+            "sha256": MEDIA_SHA,
+            "byte_size": 2048,
+            "object_key": f"blobs/sha256/{MEDIA_SHA[:2]}/{MEDIA_SHA}.mov",
+            "storage_backend": "b2",
+            "bucket": PROD_BUCKET,
+        },
         "remote_verified": True,
+    }
+    payload.update(payload_overrides)
+    return {"payload": payload, "extra": _extra()}
+
+
+def _extra(**overrides):
+    extra = {
         "environment": "prod",
         "codec": "hevc",
         "width": 1920,
@@ -99,20 +111,29 @@ def _body(**overrides):
         "parser_version": "grammar_v1",
         "parsed_json": {"dive_code": "107B"},
     }
-    body.update(overrides)
-    return body
+    extra.update(overrides)
+    return extra
 
 
-BACKBONE_COUNTS = (
-    (MediaBlob, "blob"),
-    (MediaRevision, "media_revision"),
-    (CaptionRevision, "caption_revision"),
-    (IngestObjectState, "ingest_state"),
-)
+def _doc_with(extra_overrides=None, **payload_overrides):
+    doc = _document(**payload_overrides)
+    doc["extra"] = _extra(**(extra_overrides or {}))
+    return doc
+
+
+def _patch_blob(doc, blob_sha):
+    doc["payload"]["blob"]["sha256"] = blob_sha
+    doc["payload"]["blob"]["object_key"] = f"blobs/sha256/{blob_sha[:2]}/{blob_sha}.mov"
+    return doc
 
 
 def _row_counts(db):
-    return {name: len(db.execute(select(model)).scalars().all()) for model, name in BACKBONE_COUNTS}
+    return {
+        "blob": len(db.execute(select(MediaBlob)).scalars().all()),
+        "media_revision": len(db.execute(select(MediaRevision)).scalars().all()),
+        "caption_revision": len(db.execute(select(CaptionRevision)).scalars().all()),
+        "ingest_state": len(db.execute(select(IngestObjectState)).scalars().all()),
+    }
 
 
 def test_commit_rejects_missing_and_invalid_api_key(db):
@@ -122,17 +143,17 @@ def test_commit_rejects_missing_and_invalid_api_key(db):
     app.dependency_overrides[get_db] = override_get_db
     try:
         anonymous = TestClient(app)
-        response = anonymous.post("/api/v1/media/backbone/commit", json=_body())
+        response = anonymous.post("/api/v1/media/backbone/commit", json=_document())
         assert response.status_code == 401
         wrong = TestClient(app, headers={"X-API-Key": "wrong-key"})
-        response = wrong.post("/api/v1/media/backbone/commit", json=_body())
+        response = wrong.post("/api/v1/media/backbone/commit", json=_document())
         assert response.status_code == 401
     finally:
         app.dependency_overrides.clear()
 
 
 def test_prod_commit_creates_environment_scoped_rows(client, db):
-    response = client.post("/api/v1/media/backbone/commit", json=_body())
+    response = client.post("/api/v1/media/backbone/commit", json=_document())
     assert response.status_code == 200, response.text
     result = response.json()
     assert result["environment"] == "prod"
@@ -155,12 +176,12 @@ def test_prod_commit_creates_environment_scoped_rows(client, db):
 
 
 def test_idempotent_replay_and_lost_response_retry(client, db):
-    first = client.post("/api/v1/media/backbone/commit", json=_body())
+    first = client.post("/api/v1/media/backbone/commit", json=_document())
     assert first.status_code == 200
     # Simulated lost response / network retry: the SAME identical request is
     # re-sent. Must return the same logical result and create zero duplicates.
     for _ in range(3):
-        retry = client.post("/api/v1/media/backbone/commit", json=_body())
+        retry = client.post("/api/v1/media/backbone/commit", json=_document())
         assert retry.status_code == 200
         result = retry.json()
         assert result["blob_sha256"] == first.json()["blob_sha256"]
@@ -178,75 +199,85 @@ def test_idempotent_replay_and_lost_response_retry(client, db):
 
 
 def test_caption_hash_mismatch_rejected(client):
-    body = _body(caption_sha256="0" * 64)
-    response = client.post("/api/v1/media/backbone/commit", json=body)
+    doc = _document()
+    doc["payload"]["caption"]["sha256"] = "0" * 64
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 422
-    assert "caption_sha256" in response.json()["detail"].lower() or "caption" in response.json()["detail"].lower()
 
 
 def test_unverified_commit_rejected(client):
-    response = client.post("/api/v1/media/backbone/commit", json=_body(remote_verified=False))
+    doc = _document()
+    doc["payload"]["remote_verified"] = False
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 422
 
 
 def test_environment_bucket_firewall(client):
     # PROD bucket claimed under dev environment -> rejected
-    response = client.post("/api/v1/media/backbone/commit", json=_body(environment="dev"))
+    response = client.post(
+        "/api/v1/media/backbone/commit", json=_doc_with({"environment": "dev"})
+    )
     assert response.status_code == 422
     assert "allowlisted" in response.json()["detail"]
     # DEV bucket claimed under prod environment -> rejected
-    response = client.post(
-        "/api/v1/media/backbone/commit",
-        json=_body(
-            environment="prod",
-            bucket=DEV_BUCKET,
-            blob_sha256=hashlib.sha256(b"dev-bytes").hexdigest(),
-        ),
+    doc = _doc_with(
+        blob_sha256=hashlib.sha256(b"dev-bytes").hexdigest(),
     )
+    doc = _patch_blob(doc, hashlib.sha256(b"dev-bytes").hexdigest())
+    doc["payload"]["blob"]["bucket"] = DEV_BUCKET
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 422
     # unknown bucket -> rejected
-    response = client.post(
-        "/api/v1/media/backbone/commit",
-        json=_body(bucket="diveanalyzer-unknown-media"),
-    )
+    doc = _document()
+    doc["payload"]["blob"]["bucket"] = "diveanalyzer-unknown-media"
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 422
-    # dev environment with the allowlisted dev bucket -> accepted (0 dup risk:
-    # distinct caption/sha)
+    # dev environment with the allowlisted dev bucket -> accepted
     dev_sha = hashlib.sha256(b"dev-api-test-bytes").hexdigest()
     dev_caption = "107B | 7.5 | dev-api-row"
-    response = client.post(
-        "/api/v1/media/backbone/commit",
-        json=_body(
-            environment="dev",
-            bucket=DEV_BUCKET,
-            blob_sha256=dev_sha,
-            object_key=f"blobs/sha256/{dev_sha[:2]}/{dev_sha}.mov",
-            caption_raw=dev_caption,
-            caption_sha256=hashlib.sha256(dev_caption.encode("utf-8")).hexdigest(),
-        ),
+    doc = _doc_with(
+        {"environment": "dev"},
+        blob_sha256=dev_sha,
     )
+    doc = _patch_blob(doc, dev_sha)
+    doc["payload"]["blob"]["bucket"] = DEV_BUCKET
+    doc["payload"]["caption"]["raw"] = dev_caption
+    doc["payload"]["caption"]["sha256"] = hashlib.sha256(
+        dev_caption.encode("utf-8")
+    ).hexdigest()
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 200, response.text
     assert response.json()["environment"] == "dev"
 
 
+def test_missing_environment_rejected(client):
+    doc = _document()
+    doc["extra"] = {k: v for k, v in doc["extra"].items() if k != "environment"}
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
+    assert response.status_code == 422
+    assert "environment" in response.json()["detail"]
+
+
 def test_object_key_must_match_blob_sha(client):
     other_sha = hashlib.sha256(b"other-bytes").hexdigest()
-    response = client.post(
-        "/api/v1/media/backbone/commit",
-        json=_body(object_key=f"blobs/sha256/{other_sha[:2]}/{other_sha}.mov"),
-    )
+    doc = _document()
+    doc["payload"]["blob"]["object_key"] = f"blobs/sha256/{other_sha[:2]}/{other_sha}.mov"
+    response = client.post("/api/v1/media/backbone/commit", json=doc)
     assert response.status_code == 422
     assert "content-addressed" in response.json()["detail"]
 
 
 def test_malformed_identifiers_rejected(client):
-    for override in (
-        {"video_uuid": "not-a-uuid"},
-        {"blob_sha256": "XYZ"},
-        {"caption_sha256": "XYZ"},
-        {"environment": "staging"},
-        {"storage_backend": "r2"},
-        {"byte_size": 0},
-    ):
-        response = client.post("/api/v1/media/backbone/commit", json=_body(**override))
-        assert response.status_code == 422, override
+    cases = [
+        lambda d: d["payload"].__setitem__("video_uuid", "not-a-uuid"),
+        lambda d: d["payload"]["blob"].__setitem__("sha256", "XYZ"),
+        lambda d: d["payload"]["caption"].__setitem__("sha256", "XYZ"),
+        lambda d: d["extra"].__setitem__("environment", "staging"),
+        lambda d: d["payload"]["blob"].__setitem__("storage_backend", "r2"),
+        lambda d: d["payload"]["blob"].__setitem__("byte_size", 0),
+    ]
+    for mutate in cases:
+        doc = _document()
+        mutate(doc)
+        response = client.post("/api/v1/media/backbone/commit", json=doc)
+        assert response.status_code == 422

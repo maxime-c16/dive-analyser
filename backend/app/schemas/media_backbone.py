@@ -1,8 +1,9 @@
 """Media backbone P4 commit endpoint schema.
 
-Flattened, explicit request body for verified object-store ingest commits.
+Accepts the canonical verified-ingest document shape used since P2:
+{"payload": {video_uuid, caption{...}, blob{...}, ...}, "extra": {...}}.
 Only verified, already-consistency-checked data is accepted; the router
-refuses anything that the commit service would reject.
+re-validates every invariant before delegating to commit_verified_ingest.
 """
 
 from typing import Any, Optional
@@ -10,35 +11,34 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
-class MediaBackboneCommitRequest(BaseModel):
-    video_uuid: str = Field(..., min_length=36, max_length=36)
-    ingest_impl_version: str = Field(..., min_length=1, max_length=64)
-    rendition_semantics: str = Field(..., min_length=1, max_length=128)
-    caption_raw: str
-    caption_sha256: str = Field(..., min_length=64, max_length=64)
-    caption_provider: str = Field(..., min_length=1, max_length=128)
-    blob_sha256: str = Field(..., min_length=64, max_length=64)
+class CommitCaption(BaseModel):
+    raw: str
+    sha256: str = Field(..., min_length=64, max_length=64)
+    provider: str = Field(..., min_length=1, max_length=128)
+
+
+class CommitBlob(BaseModel):
+    sha256: str = Field(..., min_length=64, max_length=64)
     byte_size: int = Field(..., gt=0)
     object_key: str = Field(..., min_length=1, max_length=512)
     storage_backend: str = Field(..., min_length=1, max_length=32)
     bucket: str = Field(..., min_length=1, max_length=128)
+
+
+class CommitPayload(BaseModel):
+    video_uuid: str = Field(..., min_length=36, max_length=36)
+    ingest_impl_version: str = Field(..., min_length=1, max_length=64)
+    rendition_semantics: str = Field(..., min_length=1, max_length=128)
+    caption: CommitCaption
+    blob: CommitBlob
     remote_verified: bool
-    environment: str = Field(..., min_length=1, max_length=16)
 
-    codec: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    duration_seconds: Optional[float] = None
-    photos_edit_fingerprint: Optional[str] = None
-    source_provenance: Optional[dict[str, Any]] = None
 
-    shadow_provider: Optional[str] = None
-    shadow_raw: Optional[str] = None
-    shadow_sha256: Optional[str] = Field(None, min_length=64, max_length=64)
-    shadow_available: Optional[bool] = None
+class MediaBackboneCommitRequest(BaseModel):
+    """The staged verified-ingest document: payload + extra metadata."""
 
-    parser_version: Optional[str] = None
-    parsed_json: Optional[dict[str, Any]] = None
+    payload: CommitPayload
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class MediaBackboneCommitResponse(BaseModel):

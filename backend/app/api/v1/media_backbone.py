@@ -48,63 +48,70 @@ def _environment_bucket(environment: str) -> str:
     return (settings.media_backbone_dev_bucket or "").strip().lower()
 
 
-def validate_commit_request(request: MediaBackboneCommitRequest) -> None:
-    """Fail-closed validation. Raises HTTPException 422 on any violation."""
-    if not UUID_RE.match(request.video_uuid or ""):
+def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, str, str]:
+    """Fail-closed validation. Raises HTTPException 422 on any violation.
+
+    Returns (environment, blob_sha256, caption_sha256) for the caller.
+    """
+    payload = request.payload
+    extra = request.extra
+    if not UUID_RE.match(payload.video_uuid or ""):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="malformed video_uuid",
         )
-    if request.environment not in SUPPORTED_ENVIRONMENTS:
+    environment = str(extra.get("environment", "")).strip().lower()
+    if environment not in SUPPORTED_ENVIRONMENTS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"unsupported environment: {request.environment!r}",
+            detail=f"unsupported or missing environment in extra: {environment!r}",
         )
-    if not request.remote_verified:
+    if not payload.remote_verified:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="refusing unverified ingest commit",
         )
-    if not SHA_RE.match(request.blob_sha256 or ""):
+    if not SHA_RE.match(payload.blob.sha256 or ""):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="malformed media sha256",
         )
-    if not SHA_RE.match(request.caption_sha256 or ""):
+    if not SHA_RE.match(payload.caption.sha256 or ""):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="malformed caption sha256",
         )
-    if request.storage_backend != EXPECTED_STORAGE_BACKEND:
+    if payload.blob.storage_backend != EXPECTED_STORAGE_BACKEND:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"unsupported storage backend {request.storage_backend!r}; "
+                f"unsupported storage backend {payload.blob.storage_backend!r}; "
                 f"expected {EXPECTED_STORAGE_BACKEND!r}"
             ),
         )
-    bucket = request.bucket.strip().lower()
-    allowed_bucket = _environment_bucket(request.environment)
+    bucket = payload.blob.bucket.strip().lower()
+    allowed_bucket = _environment_bucket(environment)
     if not allowed_bucket or bucket != allowed_bucket:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"bucket {request.bucket!r} is not the allowlisted "
-                f"{request.environment} bucket"
+                f"bucket {payload.blob.bucket!r} is not the allowlisted "
+                f"{environment} bucket"
             ),
         )
     prefix = (
         getattr(get_settings(), "media_backbone_object_prefix", DEFAULT_OBJECT_PREFIX)
         or DEFAULT_OBJECT_PREFIX
     ).strip("/")
-    stem, _, ext = request.object_key.rpartition(".")
-    candidate = stem if ext and KEY_EXT_RE.match(ext) else request.object_key
-    expected = f"{prefix}/{request.blob_sha256[:2]}/{request.blob_sha256}"
+    stem, _, ext = payload.blob.object_key.rpartition(".")
+    candidate = stem if ext and KEY_EXT_RE.match(ext) else payload.blob.object_key
+    expected = f"{prefix}/{payload.blob.sha256[:2]}/{payload.blob.sha256}"
     if candidate != expected:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="object key is not the content-addressed key of blob_sha256",
         )
+    return environment, payload.blob.sha256, payload.caption.sha256
 
 
 @router.post("/commit", response_model=MediaBackboneCommitResponse)
@@ -115,39 +122,41 @@ async def commit_backbone_ingest(
 ) -> MediaBackboneCommitResponse:
     """Persist one verified object-store ingest (idempotent)."""
     del api_key  # authentication enforced by dependency
-    validate_commit_request(request)
+    environment, _media_sha, _caption_sha = validate_commit_request(request)
+    payload = request.payload
+    extra = request.extra
     try:
         result = commit_verified_ingest(
             db,
-            video_uuid=request.video_uuid,
-            blob_sha256=request.blob_sha256,
-            byte_size=request.byte_size,
-            object_key=request.object_key,
-            storage_backend=request.storage_backend,
-            bucket=request.bucket.strip().lower(),
-            caption_raw=request.caption_raw,
-            caption_sha=request.caption_sha256,
-            caption_provider=request.caption_provider,
+            video_uuid=payload.video_uuid,
+            blob_sha256=payload.blob.sha256,
+            byte_size=payload.blob.byte_size,
+            object_key=payload.blob.object_key,
+            storage_backend=payload.blob.storage_backend,
+            bucket=payload.blob.bucket.strip().lower(),
+            caption_raw=payload.caption.raw,
+            caption_sha=payload.caption.sha256,
+            caption_provider=payload.caption.provider,
             verified=True,
-            rendition_semantics=request.rendition_semantics,
-            codec=request.codec,
-            width=request.width,
-            height=request.height,
-            duration_seconds=request.duration_seconds,
-            photos_edit_fingerprint=request.photos_edit_fingerprint,
-            source_provenance=request.source_provenance,
-            shadow_provider=request.shadow_provider,
-            shadow_raw=request.shadow_raw,
-            shadow_sha256=request.shadow_sha256,
-            shadow_available=request.shadow_available,
-            parser_version=request.parser_version,
-            parsed_json=request.parsed_json,
-            ingest_impl_version=request.ingest_impl_version,
-            environment=request.environment,
+            rendition_semantics=payload.rendition_semantics,
+            codec=extra.get("codec"),
+            width=extra.get("width"),
+            height=extra.get("height"),
+            duration_seconds=extra.get("duration_seconds"),
+            photos_edit_fingerprint=extra.get("photos_edit_fingerprint"),
+            source_provenance=extra.get("source_provenance"),
+            shadow_provider=extra.get("shadow_provider"),
+            shadow_raw=extra.get("shadow_raw"),
+            shadow_sha256=extra.get("shadow_sha256"),
+            shadow_available=extra.get("shadow_available"),
+            parser_version=extra.get("parser_version"),
+            parsed_json=extra.get("parsed_json"),
+            ingest_impl_version=payload.ingest_impl_version,
+            environment=environment,
         )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
-    return MediaBackboneCommitResponse(environment=request.environment, **result)
+    return MediaBackboneCommitResponse(environment=environment, **result)
