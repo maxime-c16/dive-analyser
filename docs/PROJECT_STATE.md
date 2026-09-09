@@ -1,12 +1,12 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (media-backbone P3
-> Ready-album queue complete).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P3_READY_QUEUE_V1.md`
+> Durable project handoff. Last verified: **2026-09-09** (media-backbone P4
+> production dual-write canary complete).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
-> Previous: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_ICLOUD_HIGHRES_RECOVERY_V1_TCC_REPAIR`**
+> Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4`**
 
 ## Project purpose
 
@@ -662,6 +662,50 @@ bucket `diveanalyzer-dev-media` (endpoint `s3.eu-central-003.backblazeb2.com`):
 - Rollback unchanged: production config has NO object_store block (flag off
   by construction); nothing to revert.
 - STOP before P4 (production dual-write canary).
+
+### Media backbone P4 — PRODUCTION DUAL-WRITE CANARY GREEN (2026-09-09)
+
+**Status: `P4_PRODUCTION_DUAL_WRITE_GREEN`.** Full report:
+`docs/audits/MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1.md`. Branch
+`media-backbone-p4-prod-dual-write-v1` (ff-merged into canonical).
+
+- PROD bucket `diveanalyzer-prod-media` (EU-Central 003), private
+  (anonymous LIST 403 / GET 401 re-verified post-commit). One NEW
+  production clip (uuid `5F884C3D…`, `IMG_2069.MOV`, not previously in DEV
+  backbone) dual-wrote once: legacy media job materialized the edited
+  rendition ONCE, dual-write staged a copy (0.023 s) and ingested the same
+  bytes to B2 PROD (40,865,620 B, `blobs/sha256/a8/a8579aa4….mov`),
+  full-GET SHA equality, authenticated backend commit (env=prod rows).
+- Production-safe commit transport replaces the operator tunnel:
+  `POST /api/v1/media/backbone/commit` (X-API-Key, fail-closed validation,
+  canonical `{payload, extra}` document, idempotent via
+  `commit_verified_ingest`). P3 tunnel = DEV/CANARY DIAGNOSTIC ONLY.
+- Flags `object_store.enabled` + `dual_write.enabled` (default OFF) with
+  hard single-UUID allowlist guard; single backpressure slot.
+- Controlled injections GREEN: first-B2-PUT retryable failure → legacy
+  unaffected → recovery, one blob; backend-commit lost-response → remote
+  retained, retry converged, 0 duplicates (put skipped, 0 new bytes).
+- Unchanged rerun: 0 rows / 0 bytes. Caption-only mutation (new
+  CaptionRevision id 13, same blob/revision, 0 B2 upload) + idempotent
+  rerun. Rollback: flags OFF → legacy-only verified (0 object-store
+  activity, playback intact), canary blob retained.
+- Mutations: `LEGACY_PRODUCTION_BEHAVIOR_MUTATION NONE`;
+  `BACKBONE_PRODUCTION_CANARY_DB_MUTATION YES`;
+  `PRODUCTION_OBJECT_STORE_MUTATION YES (one canary lineage)`;
+  `PRODUCTION_PLAYBACK_MUTATION NONE`; science untouched.
+- Repairs: production daemon connectivity probe lacked the internal CA
+  (loops never started since boot — pre-existing; logs prove pre-P4) —
+  fixed; backend endpoint accepted the canonical nested document shape;
+  ObjectStoreConfig.storage_backend; P3 metrics run-unique snapshots.
+- SECURITY DEBT (temporary, maintainer-accepted): PROD key preset includes
+  `deleteFiles` (Backblaze UI limitation; key is bucket-scoped; no delete
+  in any ingest path). `P5_OR_BROADER_PROD_BLOCKER = YES` until a
+  deleteFiles-free key exists or the supervisor re-approves. PROD key
+  rotated by maintainer before closure (chat-exposed key revoked,
+  attested).
+- Object Lock console check still owed (key cannot read lock config).
+- Tests: agent 164/164; backend backbone 32/32; full backend suite has
+  only the pre-existing failure. Cost: ~0.2 GB storage + transfer → $0.
 
 ### Key documents
 
