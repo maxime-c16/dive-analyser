@@ -1,0 +1,82 @@
+{
+  "results": [
+    {
+      "label": "311_HQ_vs_PROXY_QUARANTINED",
+      "a_path": "runs/highres_recovery_v1/batch_media/dive_311/edited_highres_rendition/IMG_2156_edited.mov",
+      "b_path": "runs/hq_rep_v1/pulled_proxies/dc/1d/dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c.mp4",
+      "a_media": {
+        "width": 1920,
+        "height": 1080,
+        "codec_name": "hevc",
+        "avg_frame_rate": "21800/747",
+        "duration": "7.118333"
+      },
+      "b_media": {
+        "width": 202,
+        "height": 360,
+        "codec_name": "h264",
+        "avg_frame_rate": "30000/1001",
+        "duration": "19.252567"
+      },
+      "a_pts_summary": {
+        "n": 213,
+        "first_pts": 0.0,
+        "last_pts": 7.073333
+      },
+      "b_pts_summary": {
+        "n": 577,
+        "first_pts": 0.0,
+        "last_pts": 19.2192
+      },
+      "offset_frames_hq_vs_proxy": 43,
+      "offset_seconds": 1.434685466981132,
+      "orientation": {
+        "hq_transpose": null,
+        "proxy_transpose": 2
+      },
+      "mean_similarity": 0.9198576900483991,
+      "baseline_permuted_similarity": 0.9205223955576463,
+      "overlap_frames": 57,
+      "verdict": "ALIGNED_WEAK_SEPARATION"
+    },
+    {
+      "label": "524_HQ_vs_PROXY_QUARANTINED",
+      "a_path": "runs/highres_recovery_v1/batch_media/dive_524/edited_highres_rendition/IMG_2616_edited.mov",
+      "b_path": "runs/hq_rep_v1/pulled_proxies/55/2d/552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f.mp4",
+      "a_media": {
+        "width": 876,
+        "height": 1560,
+        "codec_name": "hevc",
+        "avg_frame_rate": "11950/199",
+        "duration": "11.940000"
+      },
+      "b_media": {
+        "width": 202,
+        "height": 360,
+        "codec_name": "h264",
+        "avg_frame_rate": "60/1",
+        "duration": "11.933008"
+      },
+      "a_pts_summary": {
+        "n": 717,
+        "first_pts": 0.0,
+        "last_pts": 11.923333
+      },
+      "b_pts_summary": {
+        "n": 716,
+        "first_pts": 0.0,
+        "last_pts": 11.916667
+      },
+      "offset_frames_hq_vs_proxy": -39,
+      "offset_seconds": -0.6494552891061453,
+      "orientation": {
+        "hq_transpose": 1,
+        "proxy_transpose": 2
+      },
+      "mean_similarity": 0.06787594308055976,
+      "baseline_permuted_similarity": 0.06422825893739721,
+      "overlap_frames": 57,
+      "verdict": "NO_ALIGNMENT_AT_INTEGER_OFFSET"
+    }
+  ]
+}

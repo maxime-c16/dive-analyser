@@ -1,0 +1,280 @@
+{
+  "results": [
+    {
+      "label": "2169_HQ_vs_PROXY_PTS_EQUIVALENT",
+      "a_path": "runs/highres_recovery_v1/batch_media/dive_2169/edited_highres_rendition/IMG_9474_edited.mov",
+      "b_path": "runs/hq_rep_v1/pulled_proxies/85/c8/85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0.mp4",
+      "a_media": {
+        "width": 742,
+        "height": 418,
+        "codec_name": "hevc",
+        "avg_frame_rate": "92400/1541",
+        "duration": "17.978333"
+      },
+      "b_media": {
+        "width": 202,
+        "height": 360,
+        "codec_name": "h264",
+        "avg_frame_rate": "60000/1001",
+        "duration": "17.984633"
+      },
+      "a_pts_summary": {
+        "n": 1078,
+        "first_pts": 0.0,
+        "last_pts": 17.961667
+      },
+      "b_pts_summary": {
+        "n": 1078,
+        "first_pts": 0.0,
+        "last_pts": 17.96795
+      },
+      "offset_frames_hq_vs_proxy": 0,
+      "offset_seconds": 0.0,
+      "orientation": {
+        "hq_transpose": 1,
+        "proxy_transpose": null
+      },
+      "crop_frac": 0.6,
+      "appearance_similarity": 0.998813592762501,
+      "motion_similarity": 0.604444752714937,
+      "crop_scan": [
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9987077262847386,
+          "mot_sim": 0.5647551629512468,
+          "overlap_frames": 144,
+          "crop_frac": 1.0
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.998674626028452,
+          "mot_sim": 0.5724518839787931,
+          "overlap_frames": 144,
+          "crop_frac": 0.85
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9986666741640219,
+          "mot_sim": 0.594854538429447,
+          "overlap_frames": 144,
+          "crop_frac": 0.7
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.998813592762501,
+          "mot_sim": 0.604444752714937,
+          "overlap_frames": 144,
+          "crop_frac": 0.6
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9990448391885359,
+          "mot_sim": 0.5817142310665621,
+          "overlap_frames": 144,
+          "crop_frac": 0.5
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9992202480881597,
+          "mot_sim": 0.5393419398595649,
+          "overlap_frames": 144,
+          "crop_frac": 0.4
+        }
+      ],
+      "mean_similarity": null,
+      "baseline_permuted_similarity": 0.9726325829841205,
+      "overlap_frames": 144,
+      "verdict": "ALIGNED_WEAK_SEPARATION"
+    },
+    {
+      "label": "1040_HQ_vs_PROXY_PTS_EQUIVALENT",
+      "a_path": "runs/highres_recovery_v1/batch_media/dive_1040/edited_highres_rendition/IMG_4301.mov",
+      "b_path": "runs/hq_rep_v1/pulled_proxies/9c/b4/9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e.mp4",
+      "a_media": {
+        "width": 1920,
+        "height": 1080,
+        "codec_name": "hevc",
+        "avg_frame_rate": "101700/3473",
+        "duration": "11.081667"
+      },
+      "b_media": {
+        "width": 202,
+        "height": 360,
+        "codec_name": "h264",
+        "avg_frame_rate": "30000/1001",
+        "duration": "11.077733"
+      },
+      "a_pts_summary": {
+        "n": 332,
+        "first_pts": 0.0,
+        "last_pts": 11.043333
+      },
+      "b_pts_summary": {
+        "n": 332,
+        "first_pts": 0.0,
+        "last_pts": 11.044367
+      },
+      "offset_frames_hq_vs_proxy": null,
+      "offset_seconds": null,
+      "orientation": {
+        "hq_transpose": null,
+        "proxy_transpose": 2
+      },
+      "crop_frac": 1.0,
+      "appearance_similarity": null,
+      "motion_similarity": null,
+      "crop_scan": [
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9974314511135499,
+          "mot_sim": 0.9423502547724533,
+          "overlap_frames": 89,
+          "crop_frac": 1.0
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9971937210297146,
+          "mot_sim": 0.9415396542017873,
+          "overlap_frames": 89,
+          "crop_frac": 0.85
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9958808352245756,
+          "mot_sim": 0.939457265275105,
+          "overlap_frames": 89,
+          "crop_frac": 0.7
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9963843148785921,
+          "mot_sim": 0.8943613451052654,
+          "overlap_frames": 89,
+          "crop_frac": 0.6
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9969004027788277,
+          "mot_sim": 0.8368852765315736,
+          "overlap_frames": 89,
+          "crop_frac": 0.5
+        },
+        {
+          "offset_frames": 0,
+          "best_kind": "appearance",
+          "app_sim": 0.9977139693706544,
+          "mot_sim": 0.7757130315321111,
+          "overlap_frames": 89,
+          "crop_frac": 0.4
+        }
+      ],
+      "mean_similarity": null,
+      "baseline_permuted_similarity": 0.8361958393354374,
+      "overlap_frames": 0,
+      "verdict": "NO_ALIGNMENT_AT_INTEGER_OFFSET"
+    },
+    {
+      "label": "676_HQ_vs_PROXY_DETERMINISTICALLY_MAPPABLE",
+      "a_path": "runs/highres_recovery_v1/batch_media/dive_676/edited_highres_rendition/IMG_2895_edited.mov",
+      "b_path": "runs/hq_rep_v1/pulled_proxies/2b/51/2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6.mp4",
+      "a_media": {
+        "width": 1136,
+        "height": 1080,
+        "codec_name": "hevc",
+        "avg_frame_rate": "44600/1481",
+        "duration": "7.405000"
+      },
+      "b_media": {
+        "width": 202,
+        "height": 360,
+        "codec_name": "h264",
+        "avg_frame_rate": "30000/1001",
+        "duration": "7.407400"
+      },
+      "a_pts_summary": {
+        "n": 223,
+        "first_pts": 0.0,
+        "last_pts": 7.371667
+      },
+      "b_pts_summary": {
+        "n": 222,
+        "first_pts": 0.0,
+        "last_pts": 7.374033
+      },
+      "offset_frames_hq_vs_proxy": -18,
+      "offset_seconds": -0.5977027297297298,
+      "orientation": {
+        "hq_transpose": 1,
+        "proxy_transpose": null
+      },
+      "crop_frac": 0.5,
+      "appearance_similarity": 0.27880295092159246,
+      "motion_similarity": 0.03822888298435334,
+      "crop_scan": [
+        {
+          "offset_frames": -23,
+          "best_kind": "appearance",
+          "app_sim": 0.27023987862717513,
+          "mot_sim": -0.0258390543897248,
+          "overlap_frames": 36,
+          "crop_frac": 1.0
+        },
+        {
+          "offset_frames": -23,
+          "best_kind": "appearance",
+          "app_sim": 0.21013515639706337,
+          "mot_sim": -0.027700143874762,
+          "overlap_frames": 36,
+          "crop_frac": 0.85
+        },
+        {
+          "offset_frames": -15,
+          "best_kind": "appearance",
+          "app_sim": 0.1939320998483205,
+          "mot_sim": 0.009180951326854536,
+          "overlap_frames": 44,
+          "crop_frac": 0.7
+        },
+        {
+          "offset_frames": -18,
+          "best_kind": "appearance",
+          "app_sim": 0.24287738488166635,
+          "mot_sim": 0.031028038564957602,
+          "overlap_frames": 41,
+          "crop_frac": 0.6
+        },
+        {
+          "offset_frames": -18,
+          "best_kind": "appearance",
+          "app_sim": 0.27880295092159246,
+          "mot_sim": 0.03822888298435334,
+          "overlap_frames": 41,
+          "crop_frac": 0.5
+        },
+        {
+          "offset_frames": -18,
+          "best_kind": "appearance",
+          "app_sim": 0.2814955338067762,
+          "mot_sim": 0.02474968411596354,
+          "overlap_frames": 41,
+          "crop_frac": 0.4
+        }
+      ],
+      "mean_similarity": null,
+      "baseline_permuted_similarity": 0.25940188275018344,
+      "overlap_frames": 41,
+      "verdict": "NO_ALIGNMENT_AT_INTEGER_OFFSET"
+    }
+  ]
+}
