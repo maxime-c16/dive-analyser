@@ -204,7 +204,57 @@ High-res recovery artifacts:
 
 ## Current supervisor gate
 
-`SUPERVISOR_REVIEW_AFTER_HURDLE_APPROACH_CONTEXT_V1`
+`SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_REPAIR_V1`
+
+## HURDLE target identity repair — COMPLETE (2026-09-09, identity-repair thread)
+
+Packet `HURDLE_TARGET_IDENTITY_REPAIR` executed on top of `a551319` (Event Logic
+HEAD) with the HQ-representation thread's `4b192dc` fetched read-only as the
+canonical base. Read-only wrt the HQ thread's artifacts; no media/manifest
+authority modified.
+
+**Phase A — per-frame GT identity classification (new evidence):**
+- Built `HURDLE_TARGET_ANCHORS_V1.json` (HUMAN_GT boxes at 20 annotated frames
+  across 2169/2341/2353/2555 + operator-verified visual anchors; identity traps
+  documented) and `HURDLE_TARGET_CHAINS_V1.json` (per-frame GT chains, GT-direct
+  at annotated frames, AMBIGUOUS where identity is not establishable, WATER
+  post-wc). Chains validated against every human box: IoU 0.30–1.00.
+- `HURDLE_TARGET_IDENTITY_CLASSIFICATION_V1.json`: on ALL 5 classified HURDLE
+  dives the target is present in the raw floor proposals **100% of evaluable
+  frames**, while the D5 op-point top-1 is the target only **0.5–51.8%** (1040
+  10.6%, 2169 96.3%, 2341 2.2%, 2353 0.5%, 2541 14.9%, 2555 51.8%); longest
+  continuous wrong runs 33–363 frames. The failure is SELECTION, not detection.
+
+**Phase B — R4 appearance-aware global path: FAIL.**
+- `R4_APPEARANCE_AWARE_GLOBAL_PATH` implemented per packet spec (frozen ResNet50
+  ImageNet features, NULL state, E3 sequence prior with bounded scan, E4 static
+  prep protection, 192-config hyperparameter grid + dive-event track picking).
+- Verdict: appearance features are non-discriminative at 360p (cross-cos ≈
+  self-cos, 0.60–1.00) and D5 conf is anti-informative (the distractors are
+  static background boxes with TOP conf — 2341: (0.64,0.11) conf 0.403 all
+  video). Best R4 mean top-1 = 0.213 < D5 baseline 0.249. No configuration
+  repairs any dive; 2169 is preserved (0.91–0.96).
+- `HURDLE_R4_APPEARANCE_REPAIR_RESULT_V1.json` (verdict + diagnostics).
+
+**FM2 reclassification + V3-D0 replay:**
+- `HURDLE_FM2_RECLASSIFICATION_V1.json`: FM2 root cause corrected from "target
+  instability/oscillation" to SYSTEMATIC per-frame selection failure (static
+  distractors outrank the diver); detector-ceiling hypotheses refuted
+  (avail_floor=1.000 on all classified dives incl. 1040).
+- V3-D0 replayed on the frozen cache: 1040/2169 magnitudes reproduce the freeze
+  exactly (sign convention differs); 5 HURDLE dives had no prior V3-D0 numbers.
+  The frozen 1040 trajectory (cy=0.221) is literally the structure distractor —
+  FM2 operates on the wrong object on 4/6 classified dives.
+
+**524:** no usable GT anchors; the HQ hflip mapping self-validation FAILED
+(exhaustive scale/flip/time search caps at NCC 0.32–0.46 vs spec ~0.74) — HQ 524
+boxes NOT used; representation authority untouched.
+
+### Tests / commits
+- Worktree: `~/.perso/diveanalyzer-hurdle-identity-repair` (detached at `a551319`
+  → `682b634` Phase A → `438b7e0` Phase B). Server integration lands on
+  `4b192dc` via cherry-pick, then the report commit.
+- Report: `docs/science/HURDLE_TARGET_IDENTITY_REPAIR_AND_FM2_CAUSAL_V1_REPORT.md`
 
 ## Event Logic V3-C — COMPLETE (2026-09-09)
 
