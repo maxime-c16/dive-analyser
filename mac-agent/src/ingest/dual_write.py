@@ -922,7 +922,28 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
         ):
             staged_path = candidate
     if staged_path is None:
-        from ..media_materializer import MediaMaterializer
+        acquired = False
+        # Production vault: the legacy pipeline's checksum-validated
+        # materialization source (same bytes the transcoder consumed).
+        try:
+            sv_cfg = getattr(config.media, "source_vault", None)
+            if sv_cfg is not None and getattr(sv_cfg, "enabled", False):
+                from ..source_vault import MediaSourceVault
+
+                vault = MediaSourceVault(
+                    sv_cfg.root,
+                    getattr(sv_cfg, "volume_uuid", ""),
+                    getattr(config.media, "ffprobe_path", "ffprobe"),
+                    policy=sv_cfg,
+                )
+                recalled = vault.resolve(video_uuid)
+                if recalled is not None:
+                    staged_path = recalled.path
+                    acquired = True
+        except Exception:
+            acquired = False
+        if not acquired:
+            from ..media_materializer import MediaMaterializer
 
         materializer = MediaMaterializer(
             str(Path(config.media.materialization_dir).expanduser())
