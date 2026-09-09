@@ -130,6 +130,27 @@ class LoggingConfig:
 
 
 @dataclass
+class ObjectStoreConfig:
+    """Object-storage ingest backbone (media-backbone). Hard OFF by default.
+
+    When disabled (the default and the production state for this packet), no
+    object-store code participates in any ingest path.
+    """
+
+    enabled: bool = False
+    environment: str = "dev"
+    bucket: str = ""
+    region: str = ""
+    endpoint_url: str = ""
+    prefix: str = "blobs/sha256"
+    state_dir: str = "~/.diveanalyzer/object_ingest_state"
+    temp_root: str = "~/.diveanalyzer/object_ingest_tmp"
+    min_free_disk_bytes: int = 0
+    presign_ttl_seconds: int = 3600
+    max_retries: int = 3
+
+
+@dataclass
 class Config:
     server: ServerConfig
     agent: AgentConfig
@@ -137,6 +158,11 @@ class Config:
     sync: SyncConfig
     media: MediaConfig
     logging: LoggingConfig
+    object_store: ObjectStoreConfig = None
+
+    def __post_init__(self):
+        if self.object_store is None:
+            self.object_store = ObjectStoreConfig()
 
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
@@ -253,6 +279,21 @@ class Config:
                 local_asset_overrides=media_data.get('local_asset_overrides', {}),
             )
 
+            object_store_data = data.get('object_store', {})
+            object_store = ObjectStoreConfig(
+                enabled=object_store_data.get('enabled', False),
+                environment=object_store_data.get('environment', 'dev'),
+                bucket=object_store_data.get('bucket', ''),
+                region=object_store_data.get('region', ''),
+                endpoint_url=object_store_data.get('endpoint_url', ''),
+                prefix=object_store_data.get('prefix', 'blobs/sha256'),
+                state_dir=str(Path(object_store_data.get('state_dir', '~/.diveanalyzer/object_ingest_state')).expanduser()),
+                temp_root=str(Path(object_store_data.get('temp_root', '~/.diveanalyzer/object_ingest_tmp')).expanduser()),
+                min_free_disk_bytes=object_store_data.get('min_free_disk_bytes', 0),
+                presign_ttl_seconds=object_store_data.get('presign_ttl_seconds', 3600),
+                max_retries=object_store_data.get('max_retries', 3),
+            )
+
             logging_data = data.get('logging', {})
             log_file = logging_data.get('file', None)
             if log_file:
@@ -271,7 +312,8 @@ class Config:
                 photos=photos,
                 sync=sync,
                 media=media,
-                logging=logging_cfg
+                logging=logging_cfg,
+                object_store=object_store
             )
 
         except KeyError as e:
@@ -313,6 +355,11 @@ class Config:
         except ValueError as e:
             errors.append(f"media: {e}")
 
+        try:
+            self._validate_object_store_config()
+        except ValueError as e:
+            errors.append(f"object_store: {e}")
+
         # Logging configuration validation
         try:
             self._validate_logging_config()
@@ -323,6 +370,29 @@ class Config:
             raise ConfigValidationError("Configuration validation failed", errors)
 
         return True
+
+    def _validate_object_store_config(self) -> None:
+        """Firewall for object-store ingest config; disabled mode is always valid."""
+        cfg = self.object_store
+        if cfg is None or not cfg.enabled:
+            return
+        from src.ingest.objectstore.b2 import B2Config
+        from src.ingest.errors import ConfigValidationError
+
+        try:
+            B2Config(
+                environment=cfg.environment,
+                bucket=cfg.bucket,
+                region=cfg.region or None,
+                endpoint_url=cfg.endpoint_url or None,
+                prefix=cfg.prefix,
+                max_retries=cfg.max_retries,
+                presign_ttl_seconds=cfg.presign_ttl_seconds,
+            )
+        except ConfigValidationError as e:
+            raise ValueError(str(e))
+        if cfg.min_free_disk_bytes < 0:
+            raise ValueError("min_free_disk_bytes must be >= 0")
 
     def _validate_server_url(self, url: str) -> None:
         """Validate server URL format and protocol."""
