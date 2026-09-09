@@ -579,12 +579,45 @@ Reconciliation matrix (4 cases, one deterministic outcome each) tested in
 
 ### Next gate
 
-`INTAKE_GATE_1`: human/provider decisions required — (1) B2 account/region
-(EU Central Amsterdam recommended, legal sign-off human), (2) authorize DEV
-bucket + bucket-scoped app key creation, (3) provision credentials. Then P2
-packet: one real canary clip (album `DiveAnalyzer Ready`, caption
-`107B | 7.5 | H:3 | drill:no-arms | note:à revoir`) through
-`ObjectStoreIngestCoordinator` with `object_store.enabled: true` on DEV.
+~~`INTAKE_GATE_1`~~ **PASSED 2026-09-09** — EU-Central account, DEV bucket
+`diveanalyzer-dev-media` (private) + bucket-scoped key provisioned by the
+maintainer; P2 canary executed **GREEN** (see next section). Remaining human
+action: rotate the exposed first application key (P2 audit §17.1). Next phase:
+P3 (5–10 clip queue, still canary-only) — DO NOT START without a new packet.
+
+### Media backbone P2 — CANARY GREEN (2026-09-09)
+
+**`P2_CANARY_GREEN`.** Full report: `docs/audits/MEDIA_BACKBONE_P2_CANARY_V1.md`.
+One real clip (uuid `42D80813-0D2F-4F75-92BB-F0648E7AA77E`, `IMG_1641.mov`,
+album `DiveAnalyser Ready` — en-GB spelling accepted as boundary alias) went
+through the complete verified-ingest flow into the private EU-Central DEV
+bucket `diveanalyzer-dev-media` (endpoint `s3.eu-central-003.backblazeb2.com`):
+
+- exact caption byte-proof: `caption_raw` 48 chars / 49 UTF-8 bytes,
+  SHA `18d6377f…`; shadow (PhotosDbCaptionProviderShadow, repaired to introspect
+  the macOS 13+ caption join) exact-equal; caption-only mutation produced
+  CaptionRevision id 2 (SHA `2c11f584…`) with SAME blob + same MediaRevision
+  and ZERO media upload; append-only history holds (2 rows).
+- media: Photos edited rendition (hasadjustments=true), HEVC 1920×1080
+  9.288s, 19,019,783 B; SHA `2af63b4b…`; object key
+  `blobs/sha256/2a/2af63b4b…9.mov`; full-GET roundtrip SHA equality (A==B PASS).
+- controlled crash at `REMOTE_VERIFIED:before_effect` (injected failpoint) then
+  receipt-confirmed restart converged `DB_COMMITTED → CACHE_CLEANED` (one
+  logical result); server commit service idempotent (replay → same ids).
+- real-provider privacy: anonymous bucket LIST → 403, anonymous object GET → 401;
+  presigned GET (300s TTL) → 200; byte-range GETs → 206 (incl. mid-file + tail).
+- DB authority: media_blobs/media_revisions/caption_revisions/
+  ingest_object_state = 1/1/2/1 rows; legacy tables byte-untouched
+  (0 dives/catalog rows for the canary; LaunchAgent ran throughout, pid stable).
+- rollback: production agent config has NO object_store block (flag off by
+  construction); canary runner refuses configs without the section.
+- cost: ~19 MB storage + ~57 MB transfer → $0 (B2 free tier).
+- production mutations: NONE. PROD resources: NONE. Secrets in Git: NONE.
+- SECURITY: first applicationKey exposed in a chat screenshot during install —
+  rotate (delete + recreate + re-inject) before P3.
+- runtime corrections: production runtime IS the "DiveSensei Python Runtime.app"
+  bundle (P0-era note was wrong); P2 ran one-shot CLI from the same
+  host/user/interpreter context with proven Photos TCC (probe 12277 videos).
 
 ### Key documents
 
