@@ -1,9 +1,8 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (media-backbone P2 DEV
-> canary GREEN; P0/P1 appended; iCloud high-resolution recovery frozen with per-asset
-> temporal authority).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P2_CANARY_V1.md`
+> Durable project handoff. Last verified: **2026-09-09** (media-backbone P3
+> Ready-album queue complete).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P3_READY_QUEUE_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
@@ -620,6 +619,49 @@ bucket `diveanalyzer-dev-media` (endpoint `s3.eu-central-003.backblazeb2.com`):
 - runtime corrections: production runtime IS the "DiveSensei Python Runtime.app"
   bundle (P0-era note was wrong); P2 ran one-shot CLI from the same
   host/user/interpreter context with proven Photos TCC (probe 12277 videos).
+
+### Media backbone P3 — READY QUEUE COMPLETE (2026-09-09)
+
+**Status: P3_COMPLETE** (DEV/canary only). Full report:
+`docs/audits/MEDIA_BACKBONE_P3_READY_QUEUE_V1.md`. Branch
+`media-backbone-p3-ready-queue-v1`.
+
+- Key rotation done BEFORE any P3 media op: old `diveanalyzer-dev-canary` key
+  revoked (maintainer-attested in console), new bucket-scoped DEV key
+  installed (0600, single file); preflight + negative scope probes green
+  (no all-buckets/admin/prod capability; UI Read/Write preset includes
+  deleteFiles — flagged for P4 key tightening).
+- Bounded queue: explicit 9-UUID allowlist (album = 82 assets; membership is
+  NOT authorization; >10 refused live + unit-tested). 9/9 ingested, 100%
+  full-GET SHA equality, shadow caption parity 9/9 exact-equal.
+- Controlled tests (live): retryable PUT failure → recovery; quarantine
+  (fail-closed) → isolation + release/resume; low-disk guard → refusal
+  before materialization + resume; SIGKILL mid-run → journal restart
+  convergence; unchanged rerun ×2 → 0 ops / 0 duplicates.
+- Mutations: caption-only (new CaptionRevision id 11, same blob/revision,
+  0 media upload); media trim (new fingerprint v2, bytes 19,019,783 →
+  10,139,200, 9.288 s → 5.158 s, new blob `b712e2ea…` + MediaRevision id 10;
+  old blob retained on B2).
+- Repairs (auto-repair scope): GUI-launchd one-shot materialization for
+  iCloud-only assets (PhotoKit needs Aqua session; maintainer granted venv
+  python Photos access via System Settings; transient launchd job per
+  export, booted out after use — not a daemon); edited-rendition-preferred
+  selection; edit fingerprint v2 (adjustment render plist SHA);
+  interactive-prompt refusal; stale-receipt cleanup on journal reset.
+- DB authority: media_blobs/media_revisions/caption_revisions/
+  ingest_object_state = 10/10/11/10; legacy tables untouched
+  (`LEGACY_PRODUCTION_PATH_MUTATIONS NONE`, `BACKBONE_CANARY_DB_MUTATIONS YES`
+  — corrected terminology per packet §3, P2 audit §20 updated).
+- Privacy/presign/range recheck: anonymous LIST 403 / object GET 401;
+  presign 200; Range 206 (representative new object).
+- Bounds: min free disk 20.28 GB; peak temp cache 275 MB; sequential
+  single-asset policy held. DEV storage ~0.2 GB → cost $0 (free tier).
+- Ready-album UX finding (not frozen): album is a poor exclusive boundary at
+  82 members; implicit readiness (caption-present + not-yet-ingested) with
+  album-as-override is the evidence-backed direction for P4.
+- Rollback unchanged: production config has NO object_store block (flag off
+  by construction); nothing to revert.
+- STOP before P4 (production dual-write canary).
 
 ### Key documents
 

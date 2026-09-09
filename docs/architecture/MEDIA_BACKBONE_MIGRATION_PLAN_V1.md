@@ -10,7 +10,7 @@ P2 prepared, gates preserved.
 | **P0** | Current-state audit, interface derivation, additive schema design | **COMPLETE** — `MEDIA_BACKBONE_CURRENT_STATE_V1.md`, `MEDIA_BACKBONE_TARGET_V1.md`, additive models + migration |
 | **P1** | Ingestion state machine, ObjectStore abstraction + fake, B2 adapter (no credentials), content addressing, caption revisions, crash/idempotence tests, security review, EU research | **COMPLETE** — all tests green without cloud resources |
 | **P2** | ONE real canary clip through the full verified-ingest flow into the DEV bucket | PREPARED — blocked on human/provider gate |
-| **P3** | 5–10 clip queue through the same flow, still canary-only, legacy untouched | future |
+| **P3** | 5–10 clip queue through the same flow, still canary-only, legacy untouched | **COMPLETE** — `MEDIA_BACKBONE_P3_READY_QUEUE_V1.md` (9-clip bounded allowlist queue; GUI-launchd materialization for iCloud-only assets; controlled failure/restart/quarantine/low-disk/mutation evidence) |
 | **STOP** | Mandatory stop-and-review before any production-facing change | — |
 | **P4** (future) | Production dual-write (legacy sink + B2 PROD) behind flags | NOT STARTED |
 | **P5** (future) | B2-backed athlete playback via short-TTL presigned GET | NOT STARTED |

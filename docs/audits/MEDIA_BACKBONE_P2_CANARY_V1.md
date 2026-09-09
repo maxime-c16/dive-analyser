@@ -244,8 +244,34 @@ uuid; `media_jobs` unchanged (4357 pre-existing rows); legacy serving/paths byte
 - `ff8beea` live-preflight fixes (osxphotos 0.76.1 duration fallback, 401/403 denial probe, album alias)
 - `dcf04e1` shadow repair (macOS 13+ introspected caption join) + refresh-shadow mode + tests (129/129)
 
-## 20. Production mutations
+## 20. Production mutations (terminology corrected 2026-09-09, P3 packet §3)
 
-NONE. PROD B2 resources created: NONE. Secrets added to Git: NO.
+Reporting correction (P3 packet MEDIA_BACKBONE_P3_READY_QUEUE_V1 §3): the P2-era
+statement "PRODUCTION_MUTATIONS: NONE" was imprecise. The accurate model:
+
+```text
+LEGACY_PRODUCTION_PATH_MUTATIONS
+NONE
+- 0 dives / captioned_media_catalog / media_jobs changes; legacy serving,
+  upload, and agent paths byte-identical; LaunchAgent untouched throughout.
+
+BACKBONE_ADDITIVE_DB_MUTATIONS
+YES
+- the additive media-backbone migration was applied (authorized by P1)
+- isolated P2 canary rows were written to the new backbone tables
+  (media_blobs / media_revisions / caption_revisions / ingest_object_state)
+```
+
+This was authorized by the accepted P0/P1/P2 scope and is not a regression;
+it is recorded here without rewriting the historical evidence above.
+PROD B2 resources created: NONE. Secrets added to Git: NO.
 Scientific authorities mutated: NO (hurdle-identity thread's concurrent commits
 preserved untouched).
+
+Post-canary key rotation (P3 prerequisite, packet §2): the exposed
+`diveanalyzer-dev-canary` key was deleted in the Backblaze console and
+replaced by a new bucket-scoped DEV key (confirmed by the maintainer;
+revocation is the security boundary). The replacement key was re-verified in
+the P3 report: authenticates, DEV-bucket-only, list/read/write (+deleteFiles
+via the UI "Read and Write" preset), no all-buckets/admin/prod capability,
+credential file still 0600 with no stale copies.
