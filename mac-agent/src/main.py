@@ -152,6 +152,7 @@ async def run_sync_loop(config: Config) -> None:
         online = await wait_for_network(
             config.server.url,
             timeout=float(config.sync.interval_seconds),
+            ca_cert_path=config.server.ca_cert_path,
         )
         if online:
             break

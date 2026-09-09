@@ -13,22 +13,31 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 
-async def is_online(server_url: str, timeout: float = 5.0) -> bool:
+async def is_online(server_url: str, timeout: float = 5.0, ca_cert_path: str = "") -> bool:
     """
     Check if network is online and server is reachable via curl.
 
     Args:
         server_url: Server URL to check connectivity
         timeout: Timeout in seconds for the check
+        ca_cert_path: Optional internal CA bundle for TLS verification;
+            provided so the probe matches the real client behavior (the
+            production backend uses an internal CA). Without it a probe
+            against the HTTPS endpoint fails at TLS handshake and the
+            daemon would never consider itself online.
 
     Returns:
         True if online and reachable, False otherwise
     """
     try:
+        cmd = ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+               "--max-time", str(int(timeout))]
+        if ca_cert_path:
+            cmd.extend(["--cacert", ca_cert_path])
+        cmd.append(server_url)
         result = await asyncio.to_thread(
             subprocess.run,
-            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
-             "--max-time", str(int(timeout)), server_url],
+            cmd,
             capture_output=True, text=True, timeout=timeout + 5,
         )
         status = result.stdout.strip()
@@ -46,6 +55,7 @@ async def wait_for_network(
     server_url: str,
     timeout: float = 300.0,
     check_interval: float = 5.0,
+    ca_cert_path: str = "",
 ) -> bool:
     """
     Wait for network to become available.
@@ -56,6 +66,7 @@ async def wait_for_network(
         server_url: Server URL to check
         timeout: Maximum time to wait in seconds (default: 5 minutes)
         check_interval: Initial interval between checks in seconds (grows exponentially)
+        ca_cert_path: Optional internal CA bundle passed through to the probe
 
     Returns:
         True if network becomes available, False if timeout exceeded
@@ -68,7 +79,7 @@ async def wait_for_network(
     while datetime.now() < deadline:
         logger.info("Checking if network is available...")
 
-        if await is_online(server_url, timeout=min(5.0, current_interval)):
+        if await is_online(server_url, timeout=min(5.0, current_interval), ca_cert_path=ca_cert_path):
             elapsed = (datetime.now() - start_time).total_seconds()
             logger.info(f"Network is back online (waited {elapsed:.1f}s)")
             return True
