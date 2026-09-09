@@ -18,6 +18,44 @@ P2 prepared, gates preserved.
 | **P7** (future) | Historical migration of existing media to B2 | NOT STARTED |
 | **P8** (future) | Legacy local-media decommission | NOT STARTED |
 
+## P2 runtime preflight (repair R7)
+
+The packet-era hypothesis "DiveSensei Python Runtime.app / com.diveanalyzer.python-runtime"
+has zero hits in the repository. The actually deployed runtime is the
+Dive Analyzer LaunchAgent with the venv interpreter
+(`deploy/com.diveanalyzer.agent.mac-media-01.plist`:
+`/Users/Shared/services/data/diveanalyzer/venv/bin/python`, config
+`/Users/Shared/services/data/diveanalyzer/state/config.yaml`, GUI/Aqua launch
+context). Do NOT "fix" toward the stale reference; instead, before any canary
+run, execute and RECORD a runtime preflight (read-only):
+
+```text
+1. Identify the exact process/runtime that will execute P2:
+     host, user, launch context (launchd gui/<uid> vs interactive shell),
+     process identity (pid path), interpreter binary + version,
+     the exact config.yaml loaded.
+2. Prove Photos/TCC access from THAT runtime (read-only):
+     health-probe read of Photos.sqlite (mode=ro) succeeds,
+     osxphotos read returns captions, heartbeat photos_access_status=ok.
+3. Prove 'DiveAnalyzer Ready' album discovery from THAT runtime:
+     osxphotos album lookup returns the album and contains the canary clip.
+4. Prove targeted iCloud-only edited-rendition materialization from THAT
+     runtime: single-UUID export of the canary asset completes and produces
+     the edited rendition bytes (ffprobe provenance recorded).
+```
+
+Canary must record (preflight evidence file, no secrets):
+
+```text
+host, process identity, runtime/interpreter (+version), launch context,
+Photos library identity (path + library UUID if exposed), materializer path
+(osxphotos binary used), config file used
+```
+
+No raw SSH PhotoKit execution. If TCC access is not proven from the recorded
+runtime, STOP at `HUMAN_PROVIDER_GATE` (interactive GUI rehearsal required),
+do not attempt workaround launches.
+
 ## P2 canary (exact remaining steps)
 
 Precondition — HUMAN/PROVIDER GATE (see below): EU-Central (or chosen region)
@@ -39,7 +77,9 @@ Flow:
     (new album lookup via osxphotos album API — least invasive reuse of the
     existing PhotosReader; no UX freeze)
   → stable caption (CurrentStableCaptionProvider)
-  → shadow caption if available (PhotoKitCaptionProviderShadow; not blocking)
+  → shadow caption if available (PhotosDbCaptionProviderShadow — direct
+    Photos-DB SQLite read; real PhotoKit = NOT_IMPLEMENTED_CURRENT_RUNTIME;
+    not blocking)
   → targeted edited rendition (existing MediaMaterializer, single UUID)
   → ffprobe/provenance (codec/width/height/duration recorded on MediaBlob)
   → local SHA (sha256, object key blobs/sha256/<2>/<sha>)

@@ -1,11 +1,21 @@
 """Media backbone additive schema (DIVE_ANALYZER_MEDIA_BACKBONE_V1).
 
 Content-addressed media blobs, append-only media revisions and caption
-revisions, and object-store ingest state mirroring. Strictly additive:
+revisions, and the server-side durable commit ledger. Strictly additive:
 no legacy table is altered. `video_uuid` is the existing application-owned
 logical clip identity (dives.video_uuid / photos_assets.video_uuid); it is
 recorded as an indexed string here (no FK cascade entanglement) so the
 migration is fully reversible by dropping these tables alone.
+
+STATE AUTHORITY (repair R3): there is ONE coherent model with two layers —
+- LOCAL EXECUTION JOURNAL (mac-agent per-clip JSON state file,
+  `mac-agent/src/ingest/state_store.py`): the ONLY authority for pre-commit /
+  restart / retry mechanics on macOS.
+- SERVER DB (media_blobs / media_revisions / caption_revisions + the
+  `ingest_object_state` COMMIT LEDGER): the ONLY authority for the durable
+  committed logical result. `ingest_object_state` is written exactly once per
+  verified ingest commit by `commit_verified_ingest` and is NEVER read by
+  agent-side orchestration — it is not a second state machine.
 """
 
 from datetime import datetime
@@ -99,6 +109,13 @@ class CaptionRevision(Base):
 
 
 class IngestObjectState(Base):
+    """Server-side durable commit ledger (repair R3).
+
+    Written exactly once per verified ingest commit (`DB_COMMITTED` evidence);
+    never read by agent-side orchestration, which uses the local execution
+    journal only.
+    """
+
     __tablename__ = "ingest_object_state"
 
     id = Column(Integer, primary_key=True, index=True)

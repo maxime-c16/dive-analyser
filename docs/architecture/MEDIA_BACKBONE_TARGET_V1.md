@@ -36,17 +36,25 @@ class CaptionProvider(Protocol):
 ```
 
 - `CurrentStableCaptionProvider` — wraps the existing osxphotos
-  `photo.description` path (the validated production authority). Persists the
-  exact provider boundary: the current path strips leading/trailing whitespace
-  (extractor.py:125); the provider records that boundary explicitly and does no
-  further normalization (no Unicode normalization, no whitespace collapse, no
-  punctuation rewriting, no newline convention change).
-- `PhotoKitCaptionProviderShadow` — SHADOW ONLY. Reads the caption through an
-  independent read-only direct-SQLite path against the Photos library DB
-  (schema introspected at runtime via `PRAGMA table_info`; reports
+  `photo.description` path (the validated production authority). Returns the
+  EXACT provider string: **`caption_raw` for the new backbone authority is the
+  caption obtained from the provider BEFORE any application-level whitespace
+  normalization** (repair R1). No strip, no Unicode normalization, no
+  whitespace collapse, no punctuation rewriting, no newline convention change.
+  The historical `.strip()` (extractor.py:125) is the LEGACY payload transform
+  (`legacy_caption_transform`), retained exclusively in the legacy production
+  path; the backbone never applies it to the value it persists.
+- `PhotosDbCaptionProviderShadow` (renamed from the misleading
+  `PhotoKitCaptionProviderShadow` in repair R2) — SHADOW ONLY. Direct
+  read-only SQLite access to the Photos library DB is NOT PhotoKit. Schema is
+  introspected at runtime via `PRAGMA table_info`; reports
   `shadow_available=False` with an error reason if the column cannot be located
-  safely). Never authoritative; never blocks ingestion; never raises into the
-  stable path.
+  safely. Returns the exact DB string (no strip). Never authoritative; never
+  blocks ingestion; never raises into the stable path.
+- Real PhotoKit caption shadow status: `PHOTOKIT_CAPTION_SHADOW_STATUS =
+  NOT_IMPLEMENTED_CURRENT_RUNTIME` (P1 does not require real PhotoKit shadow
+  availability; a future real PhotoKit shadow would need a valid authorized
+  macOS PhotoKit runtime, not fragile name-satisfying machinery).
 
 ### `MediaMaterializer` (seam over existing code)
 
@@ -164,6 +172,24 @@ write path for the backbone: idempotently inserts blob/revision/caption-revision
 rows keyed by SHA; re-calling with the same content returns existing rows
 (no duplicates). Used by the P2 canary; wired to no endpoint in P1.
 
+## STATE AUTHORITY (repair R3)
+
+ONE coherent model, two layers — no competing state stores:
+
+- **LOCAL EXECUTION JOURNAL** (mac-agent per-clip JSON state file,
+  `mac-agent/src/ingest/state_store.py`): the ONLY authority for pre-commit /
+  restart / retry mechanics on macOS. All orchestration decisions are made
+  from this file alone.
+- **SERVER DB** (`media_blobs` / `media_revisions` / `caption_revisions` +
+  `ingest_object_state`): the ONLY authority for the durable committed logical
+  result. `ingest_object_state` is a **server-side durable commit ledger** —
+  written exactly once per verified ingest commit by
+  `commit_verified_ingest`, never read by agent-side orchestration (the agent
+  has no DB access; `commit_db_fn` is injected). It is not a second
+  state machine. Reconciliation outcomes are deterministic (see
+  `MEDIA_INGEST_STATE_MACHINE_V1.md` §Reconciliation matrix); tests prove
+  restart convergence does not depend on two divergent mutable state stores.
+
 ## Feature flag / rollback
 
 - Agent config: `object_store.enabled: false` (default) + `environment: dev|prod`,
@@ -188,5 +214,6 @@ rows keyed by SHA; re-calling with the same content returns existing rows
 Validated at construction time (typed errors): missing credentials, empty bucket,
 dev/prod bucket cross-wiring (`diveanalyzer-prod-media` selected while
 `environment=dev` and vice versa), unexpected object prefix, malformed SHA (must
-match `^[0-9a-f]{64}$`), public-access expectation (private bucket enforced —
-presign required for reads), missing endpoint/region.
+match `^[0-9a-f]{64}$`), public-access expectation (private bucket is a required
+provisioning invariant and is checked at the config level at P1; actual
+anonymous-access denial is verified against the real DEV bucket at P2), missing endpoint/region.

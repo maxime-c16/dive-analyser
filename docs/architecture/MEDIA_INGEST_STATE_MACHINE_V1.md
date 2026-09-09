@@ -25,7 +25,33 @@ Retryable failures do NOT advance state: they increment `attempts`, record
   `remote {verified, attempts, last_put_sha256}`,
   `db_commit {committed}`, `attempts`, `last_error`, bounded `history[]`.
 - The state file is the operational resume authority; `ingest_object_state`
-  (server table, additive) mirrors committed evidence for observability.
+  is a server-side durable commit ledger (see STATE AUTHORITY), not a second
+  orchestration journal.
+
+## STATE AUTHORITY (repair R3)
+
+- **LOCAL EXECUTION JOURNAL** — the per-clip JSON state file
+  (`IngestStateStore`): the ONLY authority for pre-commit / restart / retry
+  mechanics. The agent never reads server state.
+- **SERVER DB** — `media_blobs` / `media_revisions` / `caption_revisions`:
+  the ONLY authority for the durable committed logical result.
+- `ingest_object_state` is a **server-side durable commit ledger**: written
+  exactly once per verified ingest commit by `commit_verified_ingest`; never
+  read by agent orchestration; not a second state machine.
+
+### Reconciliation matrix (each case has ONE deterministic outcome)
+
+| Case | Deterministic reconciliation outcome |
+|---|---|
+| local journal exists / DB rows absent | resume journal; DB commit runs exactly once at REMOTE_VERIFIED→DB_COMMITTED (idempotent by SHA) |
+| local journal lost / committed DB rows exist | fresh re-ingest converges to the SAME content-addressed result (same blob SHA, same object key); server dedupe by SHA collapses to one logical result; no duplicate rows |
+| remote object exists / journal says pre-upload | idempotent re-put of identical content-addressed bytes; converge; one object |
+| DB committed / journal says pre-commit (crash after effect before persist) | restart re-commits; server dedupe collapses to one logical result |
+
+Tests: `TestStateAuthority` (agent) — the 4 reconciliation cases + a static
+assertion that the agent coordinator never references server state;
+`TestStateAuthorityArchitecture` (backend) — `ingest_object_state` referenced
+only by its model and the commit service.
 
 ## Crash-safety ordering
 

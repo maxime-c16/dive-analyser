@@ -467,8 +467,12 @@ upload/serving untouched; science authorities untouched.
   DISCOVERED→…→CACHE_CLEANED + QUARANTINED, verified-ingest roundtrip rule:
   full GET SHA == local SHA, min_free_disk_bytes guard, stale-temp
   reconciliation, idempotent re-drive),
-  `caption` (`CurrentStableCaptionProvider` authority + PhotoKit/direct-SQLite
-  SHADOW provider + redacted parity harness).
+  `caption` (`CurrentStableCaptionProvider` authority — R1: returns the EXACT
+  provider string, no app-level strip; `PhotosDbCaptionProviderShadow`
+  SHADOW provider — R2: truthful name, direct Photos-DB SQLite is NOT
+  PhotoKit, `PHOTOKIT_CAPTION_SHADOW_STATUS =
+  NOT_IMPLEMENTED_CURRENT_RUNTIME`; redacted provider-identity parity
+  harness).
   Config: `object_store:` block in mac-agent config, `enabled: false` default;
   disabled mode never constructs object-store components (tested).
 - **Server-side additive schema** `backend/app/models/media_backbone.py`
@@ -479,29 +483,49 @@ upload/serving untouched; science authorities untouched.
   persisted caption_raw UTF-8 bytes) + additive migration
   `backend/migrations/add_media_backbone_tables.sql` (IF NOT EXISTS only,
   reversible by dropping the 4 new tables; static guard test).
-- **Caption doctrine implemented**: exact persisted raw text (current
-  production boundary = `.strip()` at the agent boundary, documented, no other
-  normalization), append-only revisions, shadow comparison fields, parser
-  never mutates raw.
+- **Caption doctrine implemented (post-R1)**: `caption_raw` = EXACT provider
+  output BEFORE any application-level whitespace normalization; the legacy
+  `.strip()` lives ONLY in the legacy payload path
+  (`legacy_caption_transform`) and is byte-unchanged; append-only revisions;
+  shadow comparison fields; parser never mutates raw.
 - **State-machine crash tests A–G all green** (before materialization /
   before hash / before upload / mid-upload / before verify / before commit /
   before cleanup) + no-duplicate replay + corrupt-state-file recovery.
 
-### Test results (2026-09-09, Python 3.12)
+### Test results (2026-09-09, Python 3.12, post-repair R1)
 
-- `mac-agent`: `test_ingest_backbone.py` 59/59 pass; full suite 114 passed +
-  4 pre-existing failures in `test_sync_client.py` (fail identically on base
-  HEAD with this venv: pytest-9 asyncio-fixture drift — NOT caused by this branch).
-- `backend`: `test_media_backbone.py` 18/18 pass (sqlite, tables-scoped
-  create_all; pre-existing UUID/analysis-models sqlite incompatibility noted,
-  present on base commit).
+- `mac-agent`: `test_ingest_backbone.py` **68/68 pass**; full mac-agent suite
+  with the repo-required deps installed (incl. pytest-asyncio): **127/127 pass
+  on branch, 59/59 on base HEAD** — zero new failures.
+- `backend`: `test_media_backbone.py` **23/23 pass**; full backend suite in an
+  identical venv: base `9 failed / 279 passed / 11 skipped / 273 errors` vs
+  branch `9 failed / 302 passed / 11 skipped / 273 errors` with **byte-identical
+  failure/error signatures (282 lines)** — all pre-existing (sqlite vs
+  postgres-UUID analysis models + 8 e2e async-plugin + 1 DD-metric test).
+  `NEW_FAILURES_INTRODUCED_BY_BRANCH = 0` (branch adds +23 passing tests).
 
 ### B2 research (see `docs/architecture/MEDIA_BACKBONE_SECURITY_V1.md`)
 
 Region choice is ACCOUNT-LEVEL at creation, immutable, one region per account;
 EU Central = Amsterdam (`s3.eu-central-003.backblazeb2.com`); EU residency does
 NOT remove US (CLOUD Act) jurisdiction over the provider — legal/policy
-decision explicitly left to the human.
+decision explicitly left to the human. PRIMARY-SOURCE pricing (Pay-As-You-Go):
+$6.95/TB-month, first 10 GB free, free egress up to 3× average monthly
+storage, $0.01/GB above; S3 API requires an Application Key (master key
+unusable). Resource plan presents Option A (one account, two buckets) vs
+Option B (separate accounts) neutrally; the human decides. P1 private-bucket
+claims are CONFIGURATION REQUIREMENTS only — anonymous-access denial must be
+verified against the real DEV bucket at P2.
+
+### STATE AUTHORITY (post-R3)
+
+Single coherent model: the mac-agent per-clip JSON execution journal is the
+ONLY pre-commit/restart orchestration authority; the server DB
+(blob/revision/caption-revision rows) is the ONLY durable committed-result
+authority; `ingest_object_state` is a server-side durable commit ledger
+written once per verified commit, never read by agent orchestration.
+Reconciliation matrix (4 cases, one deterministic outcome each) tested in
+`TestStateAuthority` + `TestStateAuthorityArchitecture`.
 
 ### Next gate
 

@@ -6,7 +6,7 @@ Task packet: `MEDIA_BACKBONE_P0_P1_V1`. Research freshness: 2026-09-09.
 
 | Control | Decision | Evidence / mechanism |
 |---|---|---|
-| Bucket privacy | **Private only.** Public buckets are out of scope; the adapter assumes and requires a private bucket. Reads happen in-process; future athlete delivery goes through short-TTL presigned GETs. | `B2Config` / adapter docs; no anonymous-read configuration surface exists |
+| Bucket privacy | **Private only.** Public buckets are out of scope. PRECISION (repair R5): at P1 this is a **CONFIGURATION REQUIREMENT / provisioning invariant** — the adapter assumes and requires a private bucket and rejects unsafe application config. It is NOT yet a real-provider-verified property: no bucket exists until the P2 gate. P2 MUST test that anonymous LIST/GET on the actual DEV bucket is denied. Future athlete delivery goes through short-TTL presigned GETs. | `B2Config` / adapter docs; no anonymous-read configuration surface exists; **real verification pending P2** |
 | Least-privilege key | Use a **B2 application key** scoped to the single bucket (`capabilities: listFiles,readFiles,writeFiles` on the DEV bucket), never the master key. Master-key use is explicitly warned against in Backblaze's S3-API docs. | docs/architecture notes; operational provisioning step at DEV gate |
 | DEV/PROD separation | Separate buckets by naming convention enforced by the config firewall: `diveanalyzer-dev-media` / `diveanalyzer-prod-media`; DEV-with-PROD-bucket (and vice versa) is a construction-time error. Tests cover both cross-wirings. | `mac-agent/src/ingest/objectstore/b2.py`, `test_ingest_backbone.py::TestB2ConfigFirewall` |
 | Secrets | Server-side/agent-side only: `B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` environment variables (or operator-injected config). No credentials in source, fixtures, tests, or YAML examples. No browser exposure: the browser never talks to B2 in this packet. | env-var resolution in `B2Config.resolve_credentials()`; repo grep = zero hardcoded secrets |
@@ -71,10 +71,14 @@ dimension. No resources were created during this research.
   trivial-by-design: content-addressed blobs can be re-uploaded from the
   agent/vault or re-fetched from the old bucket, since the DB (not the object
   store) is the authority. Bucket/key format is region-independent.
-- **Cost:** B2 is priced ~$0.006/GB/month storage and ~$0.01/GB egress
-  (third-party 2026 reference; confirm exact numbers at account creation —
-  pricing is outside this packet's authority). EU Central launched Q1 2023 with
-  the same B2 pricing as US regions; no EU price premium documented.
+- **Cost (PRIMARY SOURCE — Backblaze B2 Pay-As-You-Go, supervisor-verified
+  against primary documentation, repair R6):**
+  - Storage: **$6.95 / TB / month** (≈ $0.00695/GB-mo)
+  - **First 10 GB free**
+  - Free egress: **up to 3× average monthly storage**
+  - Egress above the free allowance: **$0.01 / GB**
+  - Pricing is NOT hardcoded into any runtime logic (config- and doc-level
+    only). EU Central launched Q1 2023; no EU price premium documented.
 - **Operational constraints:** S3-compatible API only (no B2-native key
   required); master application key cannot be used with the S3 API — create a
   bucket-scoped application key; multipart upload ETags are not SHA-256
@@ -112,11 +116,43 @@ separates credentials/accounts, which matches the packet's environment
 separation doctrine more strictly and is therefore the recommended shape if
 both buckets are provisioned by the same provider account holder.
 
-## B2 resource plan (proposed, NOT executed)
+## B2 resource plan — human decision (NOT executed)
+
+### Option A — one EU-Central account, two buckets, separate least-privilege keys
+
+```text
+one EU-Central account
+  bucket diveanalyzer-dev-media  (private, bucket-scoped app key w/ read+write)
+  bucket diveanalyzer-prod-media (private, created later at the P4 gate,
+                                  separate bucket-scoped app key)
+```
+
+Advantages: simpler, same residency, less account administration.
+
+### Option B — separate EU-Central DEV and PROD accounts
+
+```text
+DEV account  -> bucket diveanalyzer-dev-media  (DEV app key)
+PROD account -> bucket diveanalyzer-prod-media (PROD app key, at P4)
+(optional: both administered together via Backblaze Groups)
+```
+
+Advantages: stronger blast-radius / billing / administrative isolation.
+
+**Decision is the human's.** Operational note (repair R6): the supervisor
+considers Option A adequate technically for an initial small project unless a
+security/administrative requirement motivates Option B; Option B can be
+adopted later without re-uploading content-addressed blobs (the DB, not the
+object store, is the authority). Both options keep DEV and PROD in separate
+buckets with separate least-privilege keys.
+
+### Provisioning sheet (identical under either option)
+
+| Item | Value |
 
 | Item | Value |
 |---|---|
-| DEV bucket | `diveanalyzer-dev-media` — private, EU-Central region (pending human region decision) |
+| DEV bucket | `diveanalyzer-dev-media` — private, EU-Central region (pending human region decision); **anonymous LIST/GET denial must be tested at P2** |
 | PROD bucket | `diveanalyzer-prod-media` — private, created only at P4 gate |
 | DEV app key | bucket-scoped application key (files read/write/list on DEV bucket only) |
 | PROD app key | bucket-scoped, separate, provisioned at P4 |
