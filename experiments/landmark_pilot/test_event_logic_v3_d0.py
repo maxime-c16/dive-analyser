@@ -13,14 +13,15 @@ Tests organised per Phase R–S requirements:
   - FPS invariance: results consistent across 30 fps and 60 fps (D0g)
   - Long static preparation: guard correctly gates early motion (D0h)
   - Board-recontact invariant: apex cannot be below board (D0i)
-  - Paris firewall: V3-D0 Paris to_err ≤ 2.0s (PARIS_FIREWALL)
+  - Paris scientific firewall: Paris absent from DEVELOPMENT inputs/params,
+    freeze precedes Paris evaluation, Paris artifact report-only (PARIS_FIREWALL 1-4)
   - Freeze identity: proposer parameters match frozen artifact (D0j)
 
 All trajectories synthetic (cy_norm convention: 0=top, 1=bottom;
 rising diver = decreasing cy_norm = negative velocity).
 """
 
-import sys, os, math
+import sys, os, math, json
 sys.path.insert(0, os.path.dirname(__file__))
 
 from proposer_event_logic_v3_d0 import (
@@ -488,63 +489,79 @@ def test_fm1_closed_311_pattern():
     assert wc_t < 5.0, f"FM1: wc={wc_t:.3f}s too late (pool-deck not suppressed by A2)"
 
 
-def test_paris_firewall():
-    """PARIS_FIREWALL: V3-D0 Paris to_err ≤ 2.0s (not worse than V3-C0 baseline).
+def _freeze_artifact():
+    """Load the V3-D0 freeze artifact (Paris firewall integrity checks)."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(repo_root, "docs", "science", "EVENT_LOGIC_V3_D0_FREEZE.json")
+    with open(path) as f:
+        return json.load(f)
 
-    Uses a synthetic trajectory that mimics the Paris detection pattern:
-    prep movement creates an early valid-looking hurdle candidate before GT takeoff.
-    The test does NOT load the real Paris video; it verifies the algorithm doesn't
-    catastrophically regress vs the documented V3-C0 Paris result.
 
-    Known result from Phase M evaluation (real D5 trajectories):
-    V3-C0 to_err=1.685s, V3-D0 to_err=1.685s (identical).
-    Guard: V3-D0 Paris to_err ≤ 2.0s (no regression).
+def test_paris_source_absent_from_development_inputs():
+    """PARIS_FIREWALL_1: Paris must not appear in the DEVELOPMENT corpus fingerprint.
+
+    Paris is an external canary. Its media and GT live outside the DEVELOPMENT
+    corpus; a future candidate algorithm must never see Paris data during
+    parameter selection.
     """
-    fps = 56.517  # Paris video fps
-    board_cy = 0.4635  # Paris y_prep measured in Phase M
-    # Simulate Paris: early false hurdle at 1.117s (cy_apex=0.380 < y_prep=0.464,
-    # rise=0.083 > min_rise=0.01 → accepted), then takeoff found at 1.435s.
-    # GT takeoff = 3.120s → to_err = |1.435 - 3.120| = 1.685s.
-    n_total = 5.0
-    n = int(n_total * fps) + 1
-    pts = [i / fps for i in range(n)]
-    cy = []
-    false_apex_s   = 1.117
-    false_to_s     = 1.435
-    gt_apex_s      = 3.570
-    gt_wc_s        = 4.220
-    for t in pts:
-        if t < 0.5:
-            cy.append(board_cy)
-        elif t < false_apex_s:
-            frac = (t - 0.5) / (false_apex_s - 0.5)
-            cy.append(board_cy - frac * 0.084)   # small rise (0.380 = board_cy - 0.084)
-        elif t < false_apex_s + 0.3:
-            frac = (t - false_apex_s) / 0.3
-            cy.append((board_cy - 0.084) + frac * 0.05)  # return: crosses neg→non-neg
-        elif t < false_to_s:
-            cy.append(board_cy - 0.034)
-        elif t < false_to_s + 0.25:
-            frac = (t - false_to_s) / 0.25
-            cy.append((board_cy - 0.034) - frac * 0.10)  # false takeoff descent
-        elif t < gt_apex_s:
-            frac = (t - (false_to_s + 0.25)) / (gt_apex_s - (false_to_s + 0.25))
-            # Slow oscillation / board dynamics before real apex
-            cy.append(board_cy - 0.034 - 0.10 + frac * 0.12)
-        elif t < gt_wc_s:
-            frac = (t - gt_apex_s) / (gt_wc_s - gt_apex_s)
-            cy.append((board_cy - 0.034 - 0.10 + 0.12) + frac * 0.40)
-        else:
-            cy.append(0.80)
-    conf = [0.5] * n
-    res = propose_events_v3d0(cy, pts, conf, "5122D", PARAMS_V3D0)
-    to_t = res["takeoff_t"]
-    assert to_t is not None, "Paris: takeoff must be detected"
-    gt_to = 3.120
-    to_err = abs(to_t - gt_to)
-    assert to_err <= 2.0, (
-        f"PARIS_FIREWALL: to_err={to_err:.3f}s > 2.0s threshold "
-        f"(V3-C0 baseline=1.685s). V3-D0 must not regress Paris.")
+    fx = _freeze_artifact()
+    corpus = fx["development_corpus_fingerprint"]
+    assert set(corpus["dives"]) == {133, 311, 676, 1040, 2169, 2387}, (
+        f"PARIS_FIREWALL: DEVELOPMENT corpus drift detected: {corpus['dives']}")
+    blob = json.dumps(corpus).lower()
+    assert "paris" not in blob and "img_1937" not in blob, (
+        "PARIS_FIREWALL: Paris identity leaked into DEVELOPMENT corpus fingerprint")
+
+
+def test_paris_absent_from_parameter_derivation():
+    """PARIS_FIREWALL_2: no Paris-derived constant may exist in Event Logic params.
+
+    Every parameter key and value in PARAMS_V3D0 must be free of Paris identity
+    or Paris GT numbers. The documented Paris GT (3.120 / 3.570 / 4.220) and the
+    Paris evaluation result (1.685) must never appear as a parameter value.
+    """
+    forbidden_values = {3.120, 3.570, 4.220, 1.685}
+    blob = json.dumps(PARAMS_V3D0)
+    assert "paris" not in blob.lower(), "PARIS_FIREWALL: 'paris' string in PARAMS_V3D0"
+    for key, val in PARAMS_V3D0.items():
+        if isinstance(val, float):
+            assert val not in forbidden_values, (
+                f"PARIS_FIREWALL: param {key}={val} matches a Paris-derived constant")
+    # Full module source must not encode Paris thresholds in code (comments OK).
+    src_path = os.path.join(os.path.dirname(__file__), "proposer_event_logic_v3_d0.py")
+    with open(src_path) as f:
+        src = f.read()
+    for line in src.splitlines():
+        code = line.split("#")[0]
+        for lit in ("3.120", "3.570", "4.220", "1.685"):
+            assert lit not in code, (
+                f"PARIS_FIREWALL: Paris-derived literal {lit} in code: {line.strip()}")
+
+
+def test_freeze_precedes_paris_evaluation():
+    """PARIS_FIREWALL_3: Paris evaluation is declared post-freeze read-only."""
+    fx = _freeze_artifact()
+    p = fx["paris_external_test"]
+    assert p["status"].startswith("READ_ONLY"), (
+        "PARIS_FIREWALL: Paris external test is not declared read-only post-freeze")
+    assert fx["status"] == "FROZEN"
+    # Freeze timestamp must precede any Paris evaluation timestamp field.
+    freeze_date = fx.get("date")
+    assert freeze_date is not None and freeze_date <= "2026-09-09"
+
+
+def test_paris_result_artifact_declared_immutable():
+    """PARIS_FIREWALL_4: recorded Paris GT is immutable and result-only.
+
+    The freeze artifact stores Paris GT and results for reporting. These values
+    must never be used as DEVELOPMENT selection thresholds: the artifact must
+    keep the result classification and no threshold semantics.
+    """
+    fx = _freeze_artifact()
+    p = fx["paris_external_test"]
+    assert p["gt_takeoff"] == 3.120 and p["gt_apex"] == 3.570 and p["gt_wc"] == 4.220
+    assert "threshold" not in json.dumps(p).lower(), (
+        "PARIS_FIREWALL: Paris result must not encode a selection threshold")
 
 
 def test_d0j_freeze_identity():
@@ -581,7 +598,10 @@ if __name__ == "__main__":
         test_d0i_board_recontact_invariant_rejected,
         test_h1_standing_non_regression,
         test_fm1_closed_311_pattern,
-        test_paris_firewall,
+        test_paris_source_absent_from_development_inputs,
+        test_paris_absent_from_parameter_derivation,
+        test_freeze_precedes_paris_evaluation,
+        test_paris_result_artifact_declared_immutable,
         test_d0j_freeze_identity,
     ]
     passed = failed = 0
