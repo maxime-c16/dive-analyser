@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import Config
 from src.ingest import (
+    PHOTOKIT_CAPTION_SHADOW_STATUS,
     BackblazeB2Store,
     B2Config,
     CaptionResult,
@@ -21,9 +22,10 @@ from src.ingest import (
     IngestState,
     IngestStateStore,
     ObjectStoreIngestCoordinator,
-    PhotoKitCaptionProviderShadow,
+    PhotosDbCaptionProviderShadow,
     compare_caption_providers,
     caption_sha256,
+    legacy_caption_transform,
     object_key_for_sha,
     sha256_bytes,
     sha256_file,
@@ -314,40 +316,81 @@ CAPTIONS = [
 ]
 
 
-class TestCaptionRevisionSemantics:
-    def test_ascii_caption_exact(self):
-        provider = CurrentStableCaptionProvider(lambda uuid: "101A F 3m")
-        result = provider.get_caption("uuid1")
-        assert result.available and result.raw == "101A F 3m"
-        assert result.sha256 == caption_sha256("101A F 3m")
+EXACTNESS_STRINGS = [
+    "abc",
+    " abc",
+    "abc ",
+    "  abc  ",
+    "",
+    " ",
+    "  ",
+    "a  b",
+    "a\nb",
+    "\na\n",
+    "éèàç",
+    "🤿",
+    "107B | 7.5 | H:3",
+]
 
-    def test_raw_byte_preservation_unicode_emoji_pipes(self):
-        for caption in CAPTIONS:
+
+class TestCaptionRawExactness:
+    """R1: caption_raw = exact provider output, BEFORE any app-level strip."""
+
+    def test_provider_returns_exact_string_for_every_case(self):
+        for caption in EXACTNESS_STRINGS:
+            provider = CurrentStableCaptionProvider(lambda uuid, c=caption: c)
+            result = provider.get_caption("u")
+            assert result.available, caption
+            assert result.raw == caption
+            assert result.sha256 == caption_sha256(caption)
+            assert bytes(result.raw, "utf-8") == caption.encode("utf-8")
+
+    def test_no_strip_applied_by_backbone_provider(self):
+        provider = CurrentStableCaptionProvider(lambda uuid: "  abc  ")
+        result = provider.get_caption("u")
+        assert result.raw == "  abc  "
+        assert result.sha256 == caption_sha256("  abc  ")
+        assert result.raw != "abc"
+
+    def test_whitespace_variants_have_distinct_hashes(self):
+        provider = CurrentStableCaptionProvider(lambda uuid: None)
+        variants = {}
+        for caption in ["abc", " abc", "abc ", "  abc  ", "\na\n", "a"]:
+            provider = CurrentStableCaptionProvider(lambda uuid, c=caption: c)
+            variants[caption] = provider.get_caption("u").sha256
+        assert len(set(variants.values())) == len(variants)
+        assert variants[" abc"] != variants["abc"]
+        assert variants["abc "] != variants["abc"]
+        assert variants["\na\n"] != variants["a"]
+
+    def test_effectively_empty_is_derived_gate_only(self):
+        for caption in ["", " ", "  "]:
             provider = CurrentStableCaptionProvider(lambda uuid, c=caption: c)
             result = provider.get_caption("u")
             assert result.available
             assert result.raw == caption
             assert result.sha256 == caption_sha256(caption)
-            assert bytes(result.raw, "utf-8") == caption.encode("utf-8")
+            assert result.effectively_empty is True
 
-    def test_strip_boundary_documented_behavior(self):
-        provider = CurrentStableCaptionProvider(lambda uuid: "  103B G 5m  ")
+    def test_effectively_empty_false_for_whitespace_bearing_caption(self):
+        provider = CurrentStableCaptionProvider(lambda uuid: " 107B ")
         result = provider.get_caption("u")
-        assert result.raw == "103B G 5m"
-        assert result.sha256 == caption_sha256("103B G 5m")
+        assert result.effectively_empty is False
+        assert result.raw == " 107B "
 
-    def test_no_internal_normalization(self):
-        caption = "multiple   internal    spaces\ttab"
-        provider = CurrentStableCaptionProvider(lambda uuid: caption)
+    def test_legacy_transform_is_separate_and_unapplied(self):
+        assert legacy_caption_transform(" abc") == "abc"
+        assert legacy_caption_transform("abc ") == "abc"
+        assert legacy_caption_transform("\na\n") == "a"
+        provider = CurrentStableCaptionProvider(lambda uuid: " abc ")
         result = provider.get_caption("u")
-        assert result.raw == caption
-        assert result.sha256 == caption_sha256(caption)
+        assert result.raw != legacy_caption_transform(result.raw)
 
-    def test_empty_caption_unavailable(self):
-        provider = CurrentStableCaptionProvider(lambda uuid: "   ")
-        result = provider.get_caption("u")
-        assert not result.available
-        assert result.error == "empty_caption"
+    def test_unicode_and_emoji_exact_bytes(self):
+        for caption in ["éèàç", "🤿", "107B | 7.5 | H:3"]:
+            provider = CurrentStableCaptionProvider(lambda uuid, c=caption: c)
+            result = provider.get_caption("u")
+            assert result.raw.encode("utf-8") == caption.encode("utf-8")
 
     def test_provider_failure_does_not_raise(self):
         def boom(uuid):
@@ -356,29 +399,78 @@ class TestCaptionRevisionSemantics:
         provider = CurrentStableCaptionProvider(boom)
         result = provider.get_caption("u")
         assert not result.available
-        assert "stable_provider_error" in result.error
+        assert result.error_family == "stable_provider_error"
 
     def test_shadow_provider_missing_library(self, tmp_path):
-        shadow = PhotoKitCaptionProviderShadow(tmp_path / "NotALibrary")
+        shadow = PhotosDbCaptionProviderShadow(tmp_path / "NotALibrary")
         result = shadow.get_caption("uuid")
         assert not result.available
         assert result.error
 
-    def test_parity_harness_redacted_and_counts(self):
-        stable = CaptionResult("s", True, "caption text", caption_sha256("caption text"))
-        shadow_same = CaptionResult("shadow", True, "caption text", caption_sha256("caption text"))
-        shadow_diff = CaptionResult("shadow", True, "caption!", caption_sha256("caption!"))
-        shadow_down = CaptionResult("shadow", False, None, None, "shadow_unavailable")
+    def test_shadow_provider_returns_exact_db_value(self, tmp_path):
+        import sqlite3 as _sqlite3
+        lib = tmp_path / "Lib"
+        (lib / "database").mkdir(parents=True)
+        db = lib / "database" / "Photos.sqlite"
+        con = _sqlite3.connect(db)
+        con.execute("CREATE TABLE ZASSET (ZUUID TEXT, ZUNMANAGEDCAPTION TEXT)")
+        con.execute("INSERT INTO ZASSET VALUES ('u1', '  kept-exact  ')")
+        con.commit()
+        con.close()
+        shadow = PhotosDbCaptionProviderShadow(lib)
+        result = shadow.get_caption("u1")
+        assert result.available
+        assert result.raw == "  kept-exact  "
+        assert result.sha256 == caption_sha256("  kept-exact  ")
+
+    def test_photokit_shadow_status_constant(self):
+        assert PHOTOKIT_CAPTION_SHADOW_STATUS == "NOT_IMPLEMENTED_CURRENT_RUNTIME"
+        shadow = PhotosDbCaptionProviderShadow("unused")
+        assert shadow.provider_kind == "photos_db_sqlite"
+        assert "photokit" not in shadow.name
+
+
+class TestParityHarnessMetadata:
+    def test_report_includes_provider_identity_and_redaction(self):
+        stable = CaptionResult(
+            "osxphotos_description_stable", True, "caption text",
+            caption_sha256("caption text"),
+            provider_kind="osxphotos_description", provider_version="1.0",
+        )
+        shadow_same = CaptionResult(
+            "photos_db_sqlite_shadow", True, "caption text",
+            caption_sha256("caption text"),
+            provider_kind="photos_db_sqlite", provider_version="1.0",
+        )
+        shadow_diff = CaptionResult(
+            "photos_db_sqlite_shadow", True, "caption!",
+            caption_sha256("caption!"), provider_kind="photos_db_sqlite",
+        )
+        shadow_down = CaptionResult(
+            "photos_db_sqlite_shadow", False, None, None,
+            "shadow_unavailable: locked", provider_kind="photos_db_sqlite",
+        )
         report = compare_caption_providers(
             [("u1", stable, shadow_same), ("u2", stable, shadow_diff), ("u3", stable, shadow_down)]
         )
         assert report["sample_count"] == 3
         assert report["exact_equal_count"] == 1
         assert report["exact_equal_rate"] == pytest.approx(1 / 3)
-        assert len(report["mismatches"]) == 1
-        assert report["mismatches"][0]["video_uuid"] == "u2"
-        assert "raw" not in json.dumps(report)
         assert report["provider_failures"] == {"stable": 0, "shadow": 1}
+        assert len(report["samples"]) == 3
+        sample = report["samples"][1]
+        assert sample["exact_equal"] is False
+        assert sample["stable"]["provider_kind"] == "osxphotos_description"
+        assert sample["shadow"]["provider_kind"] == "photos_db_sqlite"
+        assert sample["shadow"]["caption_sha256"] == caption_sha256("caption!")
+        assert sample["shadow"]["caption_length"] == len("caption!")
+        assert sample["shadow"]["error_family"] is None
+        down = report["samples"][2]["shadow"]
+        assert down["available"] is False
+        assert down["error_family"] == "shadow_unavailable"
+        serialized = json.dumps(report)
+        assert "raw" not in serialized
+        assert "caption text" not in serialized
 
 
 _FAKE_STORES: dict[str, FakeObjectStore] = {}
@@ -638,6 +730,119 @@ class TestPersistenceRestart:
         assert sum(store.put_counts.values()) == 1
         assert len(store.objects) == 1
         assert len(committed) == 1
+
+
+class TestStateAuthority:
+    """R3: ONE coherent state model.
+
+    - Local per-clip JSON journal = authority for pre-commit/restart mechanics.
+    - Server DB (blob/revision/caption-revision + ingest_object_state commit
+      ledger) = authority for the durable committed logical result.
+    - The agent never reads server state; the ledger is written once at commit.
+    """
+
+    def _dedupe_commit_fn(self):
+        committed: list[tuple] = []
+        seen: set[tuple] = set()
+
+        def commit(payload):
+            key = (payload["video_uuid"], payload["blob"]["sha256"], payload["caption"]["sha256"])
+            committed.append(key)
+            if key in seen:
+                return {"ok": True, "deduped": True}
+            seen.add(key)
+            return {"ok": True}
+
+        return commit, committed
+
+    def test_local_journal_is_the_only_agent_side_orchestration_store(self, tmp_path):
+        coordinator_src = (
+            Path(__file__).resolve().parents[1] / "src" / "ingest" / "coordinator.py"
+        ).read_text()
+        assert "ingest_object_state" not in coordinator_src
+        assert "app.models" not in coordinator_src
+        assert "commit_verified_ingest" not in coordinator_src
+
+    def test_reconciliation_local_journal_exists_db_absent(self, tmp_path):
+        """Journal reached REMOTE_VERIFIED; DB commit never happened.
+        Deterministic outcome: restart commits exactly once, converges."""
+        coordinator, _, _, _ = make_coordinator(
+            tmp_path, failpoints={"REMOTE_VERIFIED:before_effect": "raise"}
+        )
+        with pytest.raises(InjectedCrash):
+            coordinator.run_once()
+        commit_fn, committed = self._dedupe_commit_fn()
+        restarted, store, _, _ = make_coordinator(
+            tmp_path,
+            store=IngestStateStore(tmp_path / "state" / "ingest.json"),
+            commit_fn=commit_fn,
+        )
+        assert restarted.run_once() is IngestState.CACHE_CLEANED
+        assert len(committed) == 1
+        assert len(set(committed)) == 1
+
+    def test_reconciliation_journal_lost_committed_db_rows_exist(self, tmp_path):
+        """Journal lost after a full successful ingest. Deterministic outcome:
+        full re-ingest converges to the SAME content-addressed result; server
+        dedupe by content SHA collapses to one logical result, no duplicates."""
+        coordinator, store, _, content = make_coordinator(tmp_path)
+        assert coordinator.run_once() is IngestState.CACHE_CLEANED
+        first_sha = coordinator.store.doc["media"]["sha256"]
+        commit_fn, committed = self._dedupe_commit_fn()
+        fresh_state = IngestStateStore(tmp_path / "state2" / "ingest.json")
+        restarted, store2, _, _ = make_coordinator(
+            tmp_path, store=fresh_state, commit_fn=commit_fn,
+            object_store=store,
+        )
+        assert restarted.run_once() is IngestState.CACHE_CLEANED
+        assert restarted.store.doc["media"]["sha256"] == first_sha
+        assert len(store.objects) == 1
+        keys = {(c[0], c[1]) for c in committed}
+        assert len(keys) == 1
+
+    def test_reconciliation_remote_exists_journal_says_pre_upload(self, tmp_path):
+        """Journal at REMOTE_UPLOAD_STARTED (pre-upload) but object already
+        exists remotely. Deterministic outcome: idempotent re-put of identical
+        bytes, converges, no duplicate objects."""
+        coordinator, store, _, content = make_coordinator(
+            tmp_path, failpoints={"REMOTE_UPLOAD_STARTED:before_effect": "raise"}
+        )
+        with pytest.raises(InjectedCrash):
+            coordinator.run_once()
+        key = object_key_for_sha(sha256_bytes(content), ext="mov")
+        store.objects[key] = content
+        commit_fn, committed = self._dedupe_commit_fn()
+        restarted, _, _, _ = make_coordinator(
+            tmp_path,
+            store=IngestStateStore(tmp_path / "state" / "ingest.json"),
+            commit_fn=commit_fn,
+            object_store=store,
+        )
+        assert restarted.run_once() is IngestState.CACHE_CLEANED
+        assert store.store_sha256(key) == sha256_bytes(content)
+        assert len(committed) == 1
+
+    def test_reconciliation_db_committed_journal_says_pre_commit(self, tmp_path):
+        """DB commit actually succeeded but the journal was not persisted
+        (crash after effect). Deterministic outcome: restart re-commits;
+        server dedupe collapses to one logical result."""
+        coordinator, _, _, _ = make_coordinator(
+            tmp_path, failpoints={"REMOTE_VERIFIED:after_effect": "raise"}
+        )
+        commit_fn_first, committed_first = self._dedupe_commit_fn()
+        coordinator.commit_db_fn = commit_fn_first
+        with pytest.raises(InjectedCrash):
+            coordinator.run_once()
+        assert len(committed_first) == 1
+        state_file = tmp_path / "state" / "ingest.json"
+        assert json.loads(state_file.read_text())["state"] == "REMOTE_VERIFIED"
+        commit_fn, committed = self._dedupe_commit_fn()
+        restarted, _, _, _ = make_coordinator(
+            tmp_path, store=IngestStateStore(state_file), commit_fn=commit_fn
+        )
+        assert restarted.run_once() is IngestState.CACHE_CLEANED
+        all_keys = {(c[0], c[1]) for c in committed_first + committed}
+        assert len(all_keys) == 1
 
 
 class TestFeatureFlagLegacyCompatibility:

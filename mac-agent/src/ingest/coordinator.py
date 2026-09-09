@@ -164,7 +164,11 @@ class ObjectStoreIngestCoordinator:
         if self.caption_provider is None:
             raise ObjectStoreError("caption provider not configured")
         result = self.caption_provider.get_caption(self.video_uuid)
-        if not result.available or not result.sha256:
+        if (
+            not result.available
+            or not result.sha256
+            or result.effectively_empty
+        ):
             raise IngestFatalError(
                 f"caption_unavailable: {result.provider}:{result.error}"
             )

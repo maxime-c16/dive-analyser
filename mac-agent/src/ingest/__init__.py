@@ -23,12 +23,15 @@ from .objectstore.b2 import B2Config, BackblazeB2Store
 from .states import IngestState
 from .state_store import IngestStateStore
 from .caption import (
+    LEGACY_STRIP_BOUNDARY,
+    PHOTOKIT_CAPTION_SHADOW_STATUS,
     CaptionResult,
     CaptionProvider,
     CurrentStableCaptionProvider,
-    PhotoKitCaptionProviderShadow,
+    PhotosDbCaptionProviderShadow,
     caption_sha256,
     compare_caption_providers,
+    legacy_caption_transform,
 )
 from .coordinator import ObjectStoreIngestCoordinator
 
@@ -53,7 +56,10 @@ __all__ = [
     "CaptionResult",
     "CaptionProvider",
     "CurrentStableCaptionProvider",
-    "PhotoKitCaptionProviderShadow",
+    "PhotosDbCaptionProviderShadow",
+    "PHOTOKIT_CAPTION_SHADOW_STATUS",
+    "LEGACY_STRIP_BOUNDARY",
+    "legacy_caption_transform",
     "caption_sha256",
     "compare_caption_providers",
     "ObjectStoreIngestCoordinator",

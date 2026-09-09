@@ -190,6 +190,74 @@ class TestCommitService:
         assert row.parsed_json["dive_code"] == "107B"
 
 
+EXACTNESS_STRINGS = [
+    "abc",
+    " abc",
+    "abc ",
+    "  abc  ",
+    "",
+    " ",
+    "  ",
+    "a  b",
+    "a\nb",
+    "\na\n",
+    "éèàç",
+    "🤿",
+    "107B | 7.5 | H:3",
+]
+
+
+class TestCaptionRawExactness:
+    """R1: CaptionRevision.caption_raw preserves the provider-returned string
+    before any application-level whitespace normalization."""
+
+    def test_input_provider_string_equals_persisted_caption_raw(self, db):
+        for i, caption in enumerate(EXACTNESS_STRINGS):
+            _commit(
+                db,
+                video_uuid=f"RAW{i:031d}",
+                caption_raw=caption,
+                caption_sha=caption_sha256(caption),
+            )
+            row = db.query(CaptionRevision).filter_by(video_uuid=f"RAW{i:031d}").one()
+            assert row.caption_raw == caption
+            assert row.caption_raw.encode("utf-8") == caption.encode("utf-8")
+            assert row.caption_sha256 == hashlib.sha256(caption.encode("utf-8")).hexdigest()
+
+    def test_whitespace_variants_are_distinct_rows_and_hashes(self, db):
+        for i, caption in enumerate(["abc", " abc", "abc ", "  abc  ", "\na\n", "a"]):
+            _commit(
+                db,
+                video_uuid=f"VAR{i:031d}",
+                caption_raw=caption,
+                caption_sha=caption_sha256(caption),
+            )
+        hashes = {
+            r.caption_raw: r.caption_sha256
+            for r in db.query(CaptionRevision).filter(
+                CaptionRevision.video_uuid.like("VAR%")
+            ).all()
+        }
+        assert len(hashes) == 6
+        assert hashes[" abc"] != hashes["abc"]
+        assert hashes["abc "] != hashes["abc"]
+        assert hashes["\na\n"] != hashes["a"]
+        assert caption_sha256(" abc") != caption_sha256("abc")
+        assert caption_sha256("abc ") != caption_sha256("abc")
+        assert caption_sha256("\na\n") != caption_sha256("a")
+
+    def test_persisted_exact_even_for_whitespace_only(self, db):
+        _commit(
+            db,
+            video_uuid="W" * 32,
+            caption_raw="  ",
+            caption_sha=caption_sha256("  "),
+        )
+        row = db.query(CaptionRevision).filter_by(video_uuid="W" * 32).one()
+        assert row.caption_raw == "  "
+        assert row.caption_sha256 == hashlib.sha256(b"  ").hexdigest()
+
+
 class TestSchemaAdditivity:
     def test_new_tables_exist_and_legacy_untouched(self, db):
         assert db.get(MediaBlob, BLOB_SHA) is None
@@ -224,6 +292,36 @@ class TestSchemaAdditivity:
         assert state.verified is True
         assert state.db_committed_at is not None
         assert state.environment == "dev"
+
+
+class TestStateAuthorityArchitecture:
+    """R3 static assertion: the commit ledger is not a second orchestration
+    journal — `ingest_object_state` is referenced ONLY by its model and the
+    commit service; the agent coordinator never touches it."""
+
+    def test_ledger_referenced_only_in_model_and_service(self):
+        backend_dir = Path(__file__).resolve().parents[1]
+        allowed = {
+            backend_dir / "app" / "models" / "media_backbone.py",
+            backend_dir / "app" / "services" / "media_backbone.py",
+            backend_dir / "tests" / "test_media_backbone.py",
+        }
+        hits = []
+        for py in backend_dir.rglob("*.py"):
+            if py in allowed or "migrations" in py.parts:
+                continue
+            if "ingest_object_state" in py.read_text():
+                hits.append(str(py))
+        assert hits == []
+
+    def test_agent_coordinator_does_not_reference_server_state(self):
+        agent_coordinator = (
+            Path(__file__).resolve().parents[2]
+            / "mac-agent" / "src" / "ingest" / "coordinator.py"
+        )
+        src = agent_coordinator.read_text()
+        assert "ingest_object_state" not in src
+        assert "app.models" not in src
 
 
 class TestMigrationSafetyGuard:
