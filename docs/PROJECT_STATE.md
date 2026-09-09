@@ -868,3 +868,59 @@ ff-merged into canonical (`268bfe5` → `572516f` + docs commit).
 - `docs/architecture/MEDIA_INGEST_STATE_MACHINE_V1.md` (states, crash contract)
 - `docs/architecture/MEDIA_BACKBONE_SECURITY_V1.md` (security + B2 EU research)
 - `docs/architecture/MEDIA_BACKBONE_MIGRATION_PLAN_V1.md` (P0–P8 phases; DB-driven historical migration, NOT a Photos-library crawl)
+
+## HURDLE identity selection V2 — GATE FAILED, confound closed (2026-09-10, identity-v2 thread)
+
+Packet `HURDLE_TARGET_IDENTITY_V2` executed on Apple M2 (worktree
+`~/.perso/diveanalyzer-identity-v2`, branch `hurdle-identity-v2`, base
+`d4c0c8a`). Report:
+`docs/science/HURDLE_IDENTITY_SELECTION_V2_REPORT.md`.
+
+**A1 — the R4 confound is quantified and confirmed.** The true target was
+OUTSIDE R4's top-12 candidate graph on 50.2% of primary evaluable frames
+(2353 85.9%, 1040 65.8%, 2541 64.9%); recall@48 ≥ 0.88, @96 ≥ 0.985, @200
+= 1.000 on every classified dive (`HURDLE_R5_STATE_SPACE_AUDIT_V1.json`).
+R4 was therefore NOT valid evidence that appearance-aware association is
+intrinsically insufficient.
+
+**Full-clip GT-free inference (Phase B).** The frozen D5 recipe re-ran over
+FULL production clips for all six primary dives; selector paths consume
+only `R5_FULLCLIP_CANDIDATES_V1.json` (interval [0, video_end]); GT times
+appear only under `gt_eval_only` metadata. Regression-tested.
+
+**R5-A (candidate-complete sparse tracklets) — repairs one dive.** 2353
+0.365 vs D5 top-1 0.005 (longest wrong 363 → 23); 2169 regresses
+catastrophically (movers with dive-scale excursions exist in that clip);
+no stable multi-dive configuration. **R5-B (frozen OSNet Market-1501
+association) — repairs none.** Selection gate **FAILED**; no
+`HURDLE_TARGET_IDENTITY_V2_FREEZE`; no repaired trajectories; V3-D0
+replayed UNCHANGED on the frozen cache and reproduces the recorded
+magnitudes exactly (adds per-dive baselines for 2341/2353/2541/2555).
+
+**Appearance is vindicated as a direction (Phase E).** Frozen OSNet
+(Market-1501) is discriminative on the tiny 360p divers: separation
+margin 0.203 / ROC-AUC 0.902 aggregate vs ResNet50-ImageNet 0.126 / 0.837
+(AUC 0.82–0.98 on all five ordinary dives, NN-retrieval ≈ 1.0). The R4
+"appearance is insufficient" verdict is REFUTED at the representation
+level. Measured pose-transition structure: prep–prep cos 0.89–0.97,
+prep–flight 0.67–0.79 vs distractor ~0.65 — appearance verifies static
+identity but cannot bridge prep→flight alone.
+
+**HQ appearance-only (Phase F): `MIXED_HQ_APPEARANCE_GAIN`** (aggregate
+margin 0.199/AUC 0.932 vs proxy 0.231/0.923; per-dive mixed; 2341
+improves). All six HQ renditions sha-verified against the manifest.
+
+**FM2: `FM2_STILL_IDENTITY_LIMITED`.** Detector remains closed
+(`D5_DETECTOR_REMAINS_CLOSED`; recall@200 = 1.000 re-confirmed). **524:
+`524_MAPPING_AUTHORITY_CONFLICT_CONFIRMED`** (read-only re-audit: at the
+HQ thread's own claimed parameters NCC 0.24–0.32, exhaustive search caps
+0.64 at unstable parameters) — 524 stays excluded. **2555** stays
+`SCREEN_RECORDING_STRESS_CASE` (all instruments degrade; not promoted).
+
+Tests: `experiments/landmark_pilot/test_hurdle_identity_v2.py` — 21/21
+pass (zero failures). Host caches/weights stay outside Git with sha256
+provenance committed.
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_SELECTION_V2`

@@ -1,0 +1,211 @@
+{
+ "label": "E_APPEARANCE_BENCHMARK_V1",
+ "packet": "HURDLE_TARGET_IDENTITY_V2",
+ "encoders": {
+  "E0_resnet50_imagenet": {
+   "class": "torchvision resnet50 IMAGENET1K_V1 (historical R4 encoder)",
+   "weights_sha256": "0676ba61b6795bbe1773cffd859882e5e297624d384b6993f7c9e683e722fb8a",
+   "input": "224x224 avgpool 2048-d"
+  },
+  "E1_osnet_market1501": {
+   "class": "OSNet x1.0 person-ReID, Market-1501-trained (frozen)",
+   "weights_path": "models/reid/osnet_x1_0_market1501.pth",
+   "weights_sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+   "source": "torchreid MODEL_ZOO (KaiyangZhou/deep-person-reid)",
+   "input": "256x128 512-d"
+  }
+ },
+ "pair_construction": "GT chains define target crops (eval authority only); distractors = floor candidates with center-dist > 0.08 from target; persistent background = median top-distractor position",
+ "dives": {
+  "1040": {
+   "n_samples": 27,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 253,
+    "n_cross_pairs": 351,
+    "cos_same_mean": 0.8225,
+    "cos_same_std": 0.0916,
+    "cos_cross_mean": 0.7802,
+    "cos_cross_std": 0.0278,
+    "separation_margin": 0.0423,
+    "roc_auc": 0.6036,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 27,
+    "bg_cross_cos_mean": 0.7576
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 253,
+    "n_cross_pairs": 351,
+    "cos_same_mean": 0.7799,
+    "cos_same_std": 0.1363,
+    "cos_cross_mean": 0.6284,
+    "cos_cross_std": 0.0444,
+    "separation_margin": 0.1516,
+    "roc_auc": 0.8208,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 27,
+    "bg_cross_cos_mean": 0.6586
+   }
+  },
+  "2169": {
+   "n_samples": 37,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 534,
+    "n_cross_pairs": 666,
+    "cos_same_mean": 0.8931,
+    "cos_same_std": 0.0808,
+    "cos_cross_mean": 0.7415,
+    "cos_cross_std": 0.0668,
+    "separation_margin": 0.1516,
+    "roc_auc": 0.9201,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 37,
+    "bg_cross_cos_mean": 0.7475
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 534,
+    "n_cross_pairs": 666,
+    "cos_same_mean": 0.8805,
+    "cos_same_std": 0.1398,
+    "cos_cross_mean": 0.6611,
+    "cos_cross_std": 0.1,
+    "separation_margin": 0.2194,
+    "roc_auc": 0.8701,
+    "nn_retrieval_rate": 0.9459,
+    "n_nn_queries": 37,
+    "bg_cross_cos_mean": 0.6481
+   }
+  },
+  "2341": {
+   "n_samples": 23,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 169,
+    "n_cross_pairs": 253,
+    "cos_same_mean": 0.8488,
+    "cos_same_std": 0.0523,
+    "cos_cross_mean": 0.6316,
+    "cos_cross_std": 0.0596,
+    "separation_margin": 0.2172,
+    "roc_auc": 0.9786,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 23,
+    "bg_cross_cos_mean": 0.6111
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 169,
+    "n_cross_pairs": 253,
+    "cos_same_mean": 0.849,
+    "cos_same_std": 0.0872,
+    "cos_cross_mean": 0.6428,
+    "cos_cross_std": 0.0822,
+    "separation_margin": 0.2063,
+    "roc_auc": 0.9308,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 23,
+    "bg_cross_cos_mean": 0.6078
+   }
+  },
+  "2353": {
+   "n_samples": 35,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 465,
+    "n_cross_pairs": 595,
+    "cos_same_mean": 0.8547,
+    "cos_same_std": 0.094,
+    "cos_cross_mean": 0.7498,
+    "cos_cross_std": 0.0297,
+    "separation_margin": 0.1049,
+    "roc_auc": 0.8133,
+    "nn_retrieval_rate": 0.9714,
+    "n_nn_queries": 35,
+    "bg_cross_cos_mean": 0.7813
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 465,
+    "n_cross_pairs": 595,
+    "cos_same_mean": 0.8823,
+    "cos_same_std": 0.0886,
+    "cos_cross_mean": 0.6806,
+    "cos_cross_std": 0.0546,
+    "separation_margin": 0.2016,
+    "roc_auc": 0.9817,
+    "nn_retrieval_rate": 1.0,
+    "n_nn_queries": 35,
+    "bg_cross_cos_mean": 0.6846
+   }
+  },
+  "2541": {
+   "n_samples": 44,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 782,
+    "n_cross_pairs": 946,
+    "cos_same_mean": 0.8762,
+    "cos_same_std": 0.0695,
+    "cos_cross_mean": 0.7622,
+    "cos_cross_std": 0.066,
+    "separation_margin": 0.114,
+    "roc_auc": 0.8709,
+    "nn_retrieval_rate": 0.9318,
+    "n_nn_queries": 44,
+    "bg_cross_cos_mean": 0.7825
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 782,
+    "n_cross_pairs": 946,
+    "cos_same_mean": 0.876,
+    "cos_same_std": 0.1354,
+    "cos_cross_mean": 0.6388,
+    "cos_cross_std": 0.1003,
+    "separation_margin": 0.2372,
+    "roc_auc": 0.9071,
+    "nn_retrieval_rate": 0.9773,
+    "n_nn_queries": 44,
+    "bg_cross_cos_mean": 0.6163
+   }
+  },
+  "2555": {
+   "n_samples": 28,
+   "E0_resnet50_imagenet": {
+    "n_same_pairs": 299,
+    "n_cross_pairs": 378,
+    "cos_same_mean": 0.7396,
+    "cos_same_std": 0.072,
+    "cos_cross_mean": 0.7448,
+    "cos_cross_std": 0.0778,
+    "separation_margin": -0.0052,
+    "roc_auc": 0.4826,
+    "nn_retrieval_rate": 0.4286,
+    "n_nn_queries": 28,
+    "bg_cross_cos_mean": 0.8712
+   },
+   "E1_osnet_market1501": {
+    "n_same_pairs": 299,
+    "n_cross_pairs": 378,
+    "cos_same_mean": 0.7399,
+    "cos_same_std": 0.0834,
+    "cos_cross_mean": 0.7163,
+    "cos_cross_std": 0.1114,
+    "separation_margin": 0.0236,
+    "roc_auc": 0.5503,
+    "nn_retrieval_rate": 0.6786,
+    "n_nn_queries": 28,
+    "bg_cross_cos_mean": 0.8634
+   }
+  }
+ },
+ "E0_resnet50_imagenet_primary_aggregate": {
+  "cos_same_mean": 0.8591,
+  "cos_cross_mean": 0.7331,
+  "separation_margin": 0.126,
+  "roc_auc": 0.8373,
+  "nn_retrieval_rate": 0.9806,
+  "bg_cross_cos_mean": 0.736
+ },
+ "E1_osnet_market1501_primary_aggregate": {
+  "cos_same_mean": 0.8535,
+  "cos_cross_mean": 0.6503,
+  "separation_margin": 0.2032,
+  "roc_auc": 0.9021,
+  "nn_retrieval_rate": 0.9846,
+  "bg_cross_cos_mean": 0.6431
+ }
+}

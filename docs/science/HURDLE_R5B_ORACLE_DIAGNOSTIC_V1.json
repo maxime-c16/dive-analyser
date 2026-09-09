@@ -1,0 +1,43 @@
+{
+ "label": "R5B_ORACLE_DIAGNOSTIC_V1",
+ "packet": "HURDLE_TARGET_IDENTITY_V2",
+ "gt_usage": "prototype seed ONLY (diagnostic ceiling, not inference)",
+ "dives": {
+  "1040": {
+   "n_eval_frames": 54,
+   "per_frame_correct": 0.0,
+   "longest_wrong_run": 54,
+   "null_coverage": 0.0
+  },
+  "2169": {
+   "n_eval_frames": 145,
+   "per_frame_correct": 0.8828,
+   "longest_wrong_run": 11,
+   "null_coverage": 0.0
+  },
+  "2341": {
+   "n_eval_frames": 91,
+   "per_frame_correct": 0.4725,
+   "longest_wrong_run": 45,
+   "null_coverage": 0.0
+  },
+  "2353": {
+   "n_eval_frames": 137,
+   "per_frame_correct": 0.0,
+   "longest_wrong_run": 137,
+   "null_coverage": 0.0
+  },
+  "2541": {
+   "n_eval_frames": 88,
+   "per_frame_correct": 0.0,
+   "longest_wrong_run": 88,
+   "null_coverage": 0.0
+  },
+  "2555": {
+   "n_eval_frames": 112,
+   "per_frame_correct": 0.0357,
+   "longest_wrong_run": 102,
+   "null_coverage": 0.0
+  }
+ }
+}
