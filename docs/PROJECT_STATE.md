@@ -192,7 +192,7 @@ High-res recovery artifacts:
 
 ## Current supervisor gate
 
-`EVENT_LOGIC_V3_C0_FREEZE`
+`SUPERVISOR_REVIEW_AFTER_HURDLE_APPROACH_CONTEXT_V1`
 
 ## Event Logic V3-C — COMPLETE (2026-09-09)
 
@@ -313,3 +313,65 @@ prep-walk rises from real hurdle at 360p.
 - docs/science/HURDLE_FINAL_TAKEOFF_OBSERVABILITY_AND_V3_D_REPORT.md -- full report
 
 **Regression:** 27/27 pass (V3-C0 14 + V3-D0 13).
+
+## V3-D0 status correction (2026-09-09, V3-E thread)
+
+V3-D0 is `V3_D0_EXPERIMENTAL_FROZEN_DEVELOPMENT_BASELINE` — a frozen **development**
+baseline, NOT production-promoted. Paris external failure (to_err 1.685s) stands.
+FM1 CLOSED; FM2 OPEN/PARTIALLY_ADDRESSED; FM3 (360p target instability, 1040) open.
+The V3-D0 test suite's Paris numeric assertion (`Paris to_err <= 2.0s`) was retired
+as a selection criterion and replaced by Paris scientific-firewall integrity tests
+(Paris absent from DEVELOPMENT inputs/params; freeze precedes Paris evaluation;
+Paris artifact report-only). Suite now 16/16.
+
+## HURDLE approach-end context and V3-E — COMPLETE (2026-09-09)
+
+**Decision: `MORE_HURDLE_GT_REQUIRED` / `V3_D0_REMAINS_EXPERIMENTAL_BASELINE`.**
+Full report: `docs/science/HURDLE_APPROACH_END_CONTEXT_AND_V3_E_REPORT.md`.
+
+### Parallel-thread integration
+Canonical HEAD `30267b1` verified on server + Mac; both reported thread HEADs
+(`30267b1` Event Logic, `9881813` HQ/media) are ancestors (linear history, no
+merge needed). HQ thread stable artifacts preserved; quarantined HQ (311, 524)
+untouched. Audit: `docs/science/PARALLEL_THREAD_INTEGRATION_AUDIT.json`.
+
+### HURDLE DEVELOPMENT corpus: 2 -> 7 dives (all with human V2 GT)
+1040, 2169, 524 (HQ quarantined — 360p only), 2341, 2353 (drill), 2541, 2555.
+2625 excluded (no takeoff GT); 2661/2680 excluded (armstand); INTERNAL_EVAL
+(2281) untouched. No human-labeling gate needed; no step-count inference.
+
+### Key findings
+- **Robust board reference:** 1040's `y_prep` (0.531) is a corrupted mixture of
+  two D5 levels; robust B1r cluster-median recovers the true level (0.2208) and
+  fails loud (2541 non-diver plateau). Chosen: B1r.
+- **2D audit:** no dive is APPROACH_END_OBSERVABLE_FROM_2D; the approach-progress
+  coordinate s(t) is not reliably extractable at 360p. Vertical-only failure
+  generalizes to 2D.
+- **HQ (read-only, 1040/2169 only):** controlled comparison gives 1040 =
+  HQ_IMPROVES_SNR_ONLY, 2169 = HQ_NO_MATERIAL_GAIN. Target instability persists
+  at HQ; HQ does not repair detection.
+- **V3-E0 (V3-D0 + B1r):** 2169 unchanged; **1040 regressed** (1.995s -> 5.746s):
+  with a correct board level, the unbounded gate scan accepts a post-water-contact
+  flicker crossing at 9.343s. STANDING byte-identical (4/4). FM1 intact.
+- **V3-E1:** NOT_JUSTIFIED_BY_DEVELOPMENT_EVIDENCE (no validated end-of-board cue).
+- **Freeze gate: FAILED** -> no V3-E freeze; `MORE_HURDLE_GT_REQUIRED`.
+- **Paris (report-only, post-decision):** full-clip authority unchanged
+  (to_err 1.685s); frozen 182-frame window trajectory: V3-D0 = V3-E0 = to_err
+  1.3919s (window excludes the 1.117s pre-window feature). No tuning afterward.
+- **Scene-context decision: `MORE_HURDLE_GT_REQUIRED`** — scene segmentation is
+  NOT yet justified (target trajectory itself is incorrect; HQ no material gain).
+
+### Tests
+V3-E 13/13, V3-D0 16/16 (incl. Paris firewall 1-4), V3-C 14/14, highres 16/16,
+PTS 15/15. Zero failures.
+
+### Artifacts
+- `experiments/landmark_pilot/proposer_event_logic_v3_e0.py` (candidate, not frozen)
+- `experiments/landmark_pilot/test_event_logic_v3_e.py`
+- `docs/science/DEV_HURDLE_TRAJ_CACHE_V2.json`, `STANDING_TRAJ_CACHE_V2.json`
+- `docs/science/V3D0_HURDLE_CORPUS_BASELINE_V1.json`, `BOARD_REFERENCE_AUDIT_V1.json`
+- `docs/science/TWOD_APPROACH_AUDIT_V1.json`, `HQ_HURDLE_DIAGNOSTIC_V1.json`
+- `docs/science/V3E_DEVELOPMENT_COMPARISON_V1.json`, `V3E_FREEZE_GATE_FAILED_V1.json`
+- `docs/science/PARIS_EXTERNAL_V3E_EVAL_V1.json`
+- `docs/science/HURDLE_APPROACH_END_CONTEXT_AND_V3_E_REPORT.md`
+

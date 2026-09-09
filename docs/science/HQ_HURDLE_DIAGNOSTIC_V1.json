@@ -1,0 +1,355 @@
+{
+ "label": "HQ_HURDLE_DIAGNOSTIC_V1",
+ "date": "2026-09-09T12:28:03.711185+00:00",
+ "hq_read_only": true,
+ "assets_used": [
+  "1040",
+  "2169"
+ ],
+ "pts_assumption": "PTS_EQUIVALENT (offset 0) per HQ thread; verified report-only",
+ "model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+ "script_sha256": "06b6fd28bcf975566fc6459deb12575249eb8cb12bbad0b69829aa76ac84b2e7",
+ "gt_note": "GT used only for the documented neg-ratio diagnostic window and post-hoc error reporting; no HQ-derived value feeds Event Logic params.",
+ "results": {
+  "1040": {
+   "code": "102C",
+   "rendition": "runs/highres_recovery_v1/batch_media/dive_1040/edited_highres_rendition/IMG_4301.mov",
+   "rendition_sha256": "fc131b558bfc875353666758550f74cdd14b5b56eaa081171172fbd7135facc1",
+   "rendition_check": {
+    "size_matches_expected": true,
+    "n_frames_matches_expected": true,
+    "video_size": [
+     1080,
+     1920
+    ],
+    "n_frames": 332,
+    "note": "size compared orientation-agnostic (cv2 WxH order)"
+   },
+   "hq_read_only": true,
+   "pts_check": {
+    "360p_first": 0.0,
+    "360p_last": 11.044367,
+    "hq_first": 0.0,
+    "hq_last": 11.043333,
+    "first_offset_s": 0.0,
+    "last_offset_s": -0.001034,
+    "per_frame_offset_median_s": -0.0002,
+    "same_frame_count": true,
+    "verdict": "PTS_EQUIVALENT_WITHIN_20MS"
+   },
+   "absolute_cy_context": {
+    "note": "cy_norm is frame-height-relative; framings differ (360p portrait 202x360 vs HQ). Compare relative dynamics, not absolute levels.",
+    "cy_median_360p": 0.4072,
+    "cy_median_hq": 0.0318,
+    "frame_size_360p": [
+     202,
+     360
+    ],
+    "frame_size_hq": [
+     1080,
+     1920
+    ]
+   },
+   "target_stability": {
+    "360p_switches": {
+     "count": 5,
+     "events": [
+      {
+       "t_start": 0.6006,
+       "t_end": 0.8008,
+       "dur_s": 0.2,
+       "level_mean": 0.2208
+      },
+      {
+       "t_start": 2.836167,
+       "t_end": 3.3033,
+       "dur_s": 0.467,
+       "level_mean": 0.5986
+      },
+      {
+       "t_start": 5.9059,
+       "t_end": 6.7067,
+       "dur_s": 0.801,
+       "level_mean": 0.2207
+      },
+      {
+       "t_start": 7.841167,
+       "t_end": 8.7087,
+       "dur_s": 0.868,
+       "level_mean": 0.5474
+      },
+      {
+       "t_start": 9.242567,
+       "t_end": 9.476133,
+       "dur_s": 0.234,
+       "level_mean": 0.1063
+      }
+     ]
+    },
+    "hq_switches": {
+     "count": 5,
+     "events": [
+      {
+       "t_start": 3.803333,
+       "t_end": 4.738333,
+       "dur_s": 0.935,
+       "level_mean": 0.438
+      },
+      {
+       "t_start": 5.405,
+       "t_end": 7.073333,
+       "dur_s": 1.668,
+       "level_mean": 0.2448
+      },
+      {
+       "t_start": 8.341667,
+       "t_end": 8.575,
+       "dur_s": 0.233,
+       "level_mean": 0.5445
+      },
+      {
+       "t_start": 8.975,
+       "t_end": 9.375,
+       "dur_s": 0.4,
+       "level_mean": 0.7106
+      },
+      {
+       "t_start": 9.641667,
+       "t_end": 10.376667,
+       "dur_s": 0.735,
+       "level_mean": 0.1824
+      }
+     ]
+    }
+   },
+   "neg_velocity_ratios": {
+    "360p": {
+     "window_s": 0.35,
+     "n_frames": 21,
+     "raw_neg_frames": 9,
+     "raw_neg_ratio": 0.429,
+     "smooth_neg_frames": 0,
+     "smooth_neg_ratio": 0.0
+    },
+    "documented_360p": {
+     "raw_neg_ratio": 0.381,
+     "smooth_neg_ratio": 0.0
+    },
+    "360p_matches_documented": false,
+    "hq": {
+     "window_s": 0.35,
+     "n_frames": 21,
+     "raw_neg_frames": 11,
+     "raw_neg_ratio": 0.524,
+     "smooth_neg_frames": 16,
+     "smooth_neg_ratio": 0.762
+    },
+    "note": "The HQ-vs-360p comparison is computed on IDENTICAL primitives (same recipe, same gate window) and is the controlled comparison. The documented 360p ratios come from HURDLE_OBSERVABILITY_V3D_ANALYSIS_V1 and do not exactly replicate here (see 360p_matches_documented); the discrepancy is reported, not reconciled, and no parameter is derived from either."
+   },
+   "b1_support": {
+    "360p": {
+     "prep_end_t": 0.433767,
+     "n_cluster": 5,
+     "median_plain": 0.22095,
+     "mad": 0.00022,
+     "median_rejected": 0.22078
+    },
+    "hq": {
+     "prep_end_t": 2.168333,
+     "n_cluster": 65,
+     "median_plain": 0.03159,
+     "mad": 0.00011,
+     "median_rejected": 0.0316
+    }
+   },
+   "v3d0_on_hq": {
+    "predicted": {
+     "prep_end_t": 2.168333,
+     "takeoff_t": 2.603333,
+     "apex_t": 2.836667,
+     "water_contact_t": 5.305
+    },
+    "to_err_hq": 1.8605,
+    "to_err_360p": 1.9947,
+    "report_only": true
+   },
+   "approach_coordinate": {
+    "360p_inlier_fraction": 0.764,
+    "hq": {
+     "start_t": 2.168333,
+     "end_t": 8.408333,
+     "n_axis_samples": 188,
+     "axis_angle_deg": 73.91,
+     "inlier_fraction": 0.6596
+    }
+   },
+   "verdict": "HQ_NO_MATERIAL_GAIN",
+   "verdict_evidence": {
+    "identity_repaired": false,
+    "takeoff_repaired": false,
+    "snr_improved": false
+   }
+  },
+  "2169": {
+   "code": "101B",
+   "rendition": "runs/highres_recovery_v1/batch_media/dive_2169/edited_highres_rendition/IMG_9474_edited.mov",
+   "rendition_sha256": "ec5f767b545ef32e8ee5e51a798ed790cd5084e8cb37211ec9677f3e0e5a9ec6",
+   "rendition_check": {
+    "size_matches_expected": true,
+    "n_frames_matches_expected": true,
+    "video_size": [
+     418,
+     742
+    ],
+    "n_frames": 1078,
+    "note": "size compared orientation-agnostic (cv2 WxH order)"
+   },
+   "hq_read_only": true,
+   "pts_check": {
+    "360p_first": 0.0,
+    "360p_last": 17.96795,
+    "hq_first": 0.0,
+    "hq_last": 17.961667,
+    "first_offset_s": 0.0,
+    "last_offset_s": -0.006283,
+    "per_frame_offset_median_s": -0.00695,
+    "same_frame_count": true,
+    "verdict": "PTS_EQUIVALENT_WITHIN_20MS"
+   },
+   "absolute_cy_context": {
+    "note": "cy_norm is frame-height-relative; framings differ (360p portrait 202x360 vs HQ). Compare relative dynamics, not absolute levels.",
+    "cy_median_360p": 0.5832,
+    "cy_median_hq": 0.4864,
+    "frame_size_360p": [
+     202,
+     360
+    ],
+    "frame_size_hq": [
+     418,
+     742
+    ]
+   },
+   "target_stability": {
+    "360p_switches": {
+     "count": 4,
+     "events": [
+      {
+       "t_start": 6.589917,
+       "t_end": 7.05705,
+       "dur_s": 0.467,
+       "level_mean": 0.7099
+      },
+      {
+       "t_start": 7.140467,
+       "t_end": 7.35735,
+       "dur_s": 0.217,
+       "level_mean": 0.3916
+      },
+      {
+       "t_start": 7.891217,
+       "t_end": 8.224883,
+       "dur_s": 0.334,
+       "level_mean": 0.511
+      },
+      {
+       "t_start": 16.683333,
+       "t_end": 17.183833,
+       "dur_s": 0.5,
+       "level_mean": 0.3235
+      }
+     ]
+    },
+    "hq_switches": {
+     "count": 3,
+     "events": [
+      {
+       "t_start": 6.6,
+       "t_end": 7.1,
+       "dur_s": 0.5,
+       "level_mean": 0.6755
+      },
+      {
+       "t_start": 12.623333,
+       "t_end": 13.023333,
+       "dur_s": 0.4,
+       "level_mean": 0.7334
+      },
+      {
+       "t_start": 13.623333,
+       "t_end": 13.94,
+       "dur_s": 0.317,
+       "level_mean": 0.4854
+      }
+     ]
+    }
+   },
+   "neg_velocity_ratios": {
+    "360p": {
+     "window_s": 0.35,
+     "n_frames": 42,
+     "raw_neg_frames": 21,
+     "raw_neg_ratio": 0.5,
+     "smooth_neg_frames": 0,
+     "smooth_neg_ratio": 0.0
+    },
+    "documented_360p": {
+     "raw_neg_ratio": 0.19,
+     "smooth_neg_ratio": 0.0
+    },
+    "360p_matches_documented": false,
+    "hq": {
+     "window_s": 0.35,
+     "n_frames": 42,
+     "raw_neg_frames": 19,
+     "raw_neg_ratio": 0.452,
+     "smooth_neg_frames": 2,
+     "smooth_neg_ratio": 0.048
+    },
+    "note": "The HQ-vs-360p comparison is computed on IDENTICAL primitives (same recipe, same gate window) and is the controlled comparison. The documented 360p ratios come from HURDLE_OBSERVABILITY_V3D_ANALYSIS_V1 and do not exactly replicate here (see 360p_matches_documented); the discrepancy is reported, not reconciled, and no parameter is derived from either."
+   },
+   "b1_support": {
+    "360p": {
+     "prep_end_t": 5.9059,
+     "n_cluster": 338,
+     "median_plain": 0.26335,
+     "mad": 0.00111,
+     "median_rejected": 0.26257
+    },
+    "hq": {
+     "prep_end_t": 0.36,
+     "n_cluster": 20,
+     "median_plain": 0.26393,
+     "mad": 0.00018,
+     "median_rejected": 0.26392
+    }
+   },
+   "v3d0_on_hq": {
+    "predicted": {
+     "prep_end_t": 0.36,
+     "takeoff_t": 6.883333,
+     "apex_t": 7.283333,
+     "water_contact_t": 7.416667
+    },
+    "to_err_hq": 0.4221,
+    "to_err_360p": 0.4123,
+    "report_only": true
+   },
+   "approach_coordinate": {
+    "360p_inlier_fraction": 0.7397,
+    "hq": {
+     "start_t": 0.36,
+     "end_t": 7.116667,
+     "n_axis_samples": 406,
+     "axis_angle_deg": 94.85,
+     "inlier_fraction": 0.5123
+    }
+   },
+   "verdict": "HQ_NO_MATERIAL_GAIN",
+   "verdict_evidence": {
+    "identity_repaired": false,
+    "takeoff_repaired": false,
+    "snr_improved": false
+   }
+  }
+ }
+}
