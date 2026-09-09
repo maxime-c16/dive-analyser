@@ -159,3 +159,48 @@ buckets with separate least-privilege keys.
 | Secrets transport | environment variables on the mac-server agent runtime + backend env; never in Git |
 | Object prefix | `blobs/sha256/` |
 | Endpoint | `https://s3.eu-central-003.backblazeb2.com` (if EU Central selected) |
+
+## Least-privilege PROD key authority (established at P4.1, 2026-09-09)
+
+The PROD runtime credential is a **true least-privilege application key**,
+created via the Backblaze **Native API v4** `b2_create_key` with an explicit
+capabilities array (the console UI cannot express this scope — its
+bucket-restricted presets force extra capabilities such as `deleteFiles`):
+
+```text
+key name:        diveanalyzer-prod-ingest-v2
+capabilities:    [listFiles, readFiles, writeFiles]   (exactly, nothing more)
+bucket scope:    diveanalyzer-prod-media only (bucketIds restricted)
+provider flags:  options = ["s3"]   (S3-compatible surface enabled)
+```
+
+Authority rules (binding for all future phases):
+
+1. **No destructive or administrative capability is ever granted** to a
+   runtime key: `deleteFiles`, `writeBuckets`, `deleteBuckets`, `writeKeys`,
+   `deleteKeys`, `shareFiles` are absent by construction and verified
+   against the provider response (`b2_create_key` response and a fresh
+   `b2_authorize_account` with the key itself).
+2. **Creation transport:** privileged key-creation credentials (Master Key
+   or temporary `writeKeys` account key) are ephemeral operator input in a
+   local trusted context (`read -s`, in-memory only) — never stored in Git,
+   PROJECT_STATE, docs, agent config, runtime env files, or shell history.
+   The local agent owns all API plumbing.
+3. **Key lifecycle order is fixed:** create → validate provider scope →
+   S3 compatibility validation → install (0600, atomic swap) →
+   production-runtime preflight GREEN → revoke the previous key. No
+   availability gap.
+4. **B2 semantics note (provider-documented behavior, verified live):** the
+   S3 `DeleteObject` call maps to a *hide* marker (soft hide; the upload
+   version is retained); hard deletion requires `b2_delete_file_version`,
+   which least-privilege runtime keys cannot perform (401). The ingest path
+   performs no delete operations regardless (P4 compensating control).
+5. **Scope verification is provider-reported evidence, persisted non-secret**
+   in `docs/audits/…_EVIDENCE.json`; negative probes are synthetic-only and
+   never target the production canary lineage.
+6. P4.1 status: `TEMPORARY_DELETEFILES_SECURITY_DEBT = NO`;
+   `P5_OR_BROADER_PROD_KEY_BLOCKER = NO` (credential blocker cleared only —
+   not an authorization for P5 or broader rollout). Known outstanding debt
+   (pre-existing, flagged at P4.1, out of scope): `diveanalyzer-dev-agent`
+   (`003e2bb572cfba70000000001`) is an ACCOUNT-WIDE key holding admin
+   capabilities (`writeKeys`, `deleteKeys`, `deleteBuckets`).

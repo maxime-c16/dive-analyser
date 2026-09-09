@@ -1,0 +1,100 @@
+{
+  "task": "MEDIA_BACKBONE_P4_1_PROD_KEY_HARDENING_V1",
+  "date": "2026-09-09",
+  "canonical_pre_head": "ce3be0381d42b4ea9d4490ec57a187c706fefa93",
+  "status": "PROD_KEY_HARDENING_GREEN",
+  "new_key": {
+    "keyName": "diveanalyzer-prod-ingest-v2",
+    "applicationKeyId": "003e2bb572cfba70000000006",
+    "capabilities": ["listFiles", "readFiles", "writeFiles"],
+    "bucketIds": ["7e720bcb6587827caf0b0a17"],
+    "bucket_names": ["diveanalyzer-prod-media"],
+    "options": ["s3"],
+    "namePrefix": null
+  },
+  "provider_reported_scope_evidence": {
+    "b2_create_key_v4_response": {
+      "capabilities": ["listFiles", "readFiles", "writeFiles"],
+      "bucketIds": ["7e720bcb6587827caf0b0a17"],
+      "options": ["s3"]
+    },
+    "b2_authorize_account_v4_with_new_key": {
+      "allowed_capabilities": ["listFiles", "readFiles", "writeFiles"],
+      "allowed_bucket_ids": ["7e720bcb6587827caf0b0a17"],
+      "allowed_bucket_names": ["diveanalyzer-prod-media"],
+      "s3ApiUrl_present": true
+    }
+  },
+  "s3_compatibility_validation": {
+    "environment": "mac-server production context, production venv (python 3.12.13, boto3 1.43.90), deployed adapter (sha256 6da6e7b3, byte-identical to canonical)",
+    "put_single": {
+      "key": "blobs/sha256/bc/bc1fece7db5e4406cdb8dd7b8ff856b2bcef25416ff35dba69be63cfb5705bc1.bin",
+      "bytes": 784,
+      "sha_matches": true
+    },
+    "head": {"found": true, "bytes_match": true},
+    "get": {"bytes": 784, "sha_matches": true},
+    "presign_get_300s": {"status": 200, "sha_matches": true},
+    "s3_list_files_v2": {"ok": true, "key_count": 3},
+    "multipart": {
+      "key": "blobs/sha256/a5/a5f2bc63efe2982b063f4ee871e6365ef6a6a5bcf90399b793147f13fa8fb193.bin",
+      "bytes": 12582912,
+      "sha_matches_put_and_get": true,
+      "head_bytes_match": true
+    }
+  },
+  "negative_permission_tests": {
+    "b2_delete_file_version_synthetic_only": {"denied": true, "status": 401, "code": "unauthorized", "canary_touched": false},
+    "b2_create_bucket": {"denied": true, "status": 401},
+    "b2_update_bucket_noop_allPrivate": {"denied": true, "status": 401},
+    "b2_list_buckets": {"denied": true, "status": 401},
+    "b2_create_key": {"denied": true, "status": 401},
+    "b2_delete_bucket_safe_target": {"denied": true, "status": 401},
+    "s3_other_bucket_head": {"denied": true, "status": 403},
+    "s3_other_bucket_put": {"denied": true, "note": "provider closes connection on unauthorized PUT (documented provider behavior); denial covered by HEAD 403 + provider-reported capabilities"},
+    "s3_delete_semantics_note": "S3 DeleteObject on B2 maps to a hide marker (soft hide, upload version retained); hard deletion requires b2_delete_file_version which returned 401 unauthorized. The ingest path performs no delete operations (P4 compensating control unchanged)."
+  },
+  "runtime_cutover": {
+    "file": "/Users/Shared/services/data/diveanalyzer/state/object_store_prod.env",
+    "mode": "0600",
+    "owner": "divesensei:admin",
+    "method": "atomic rename-swap, single env file convention restored",
+    "key_id_live": "003e2bb572cfba70000000006"
+  },
+  "production_runtime_preflight": {
+    "adapter_initialized": true,
+    "config_valid": true,
+    "canary_head": {"found": true, "bytes": 40865620},
+    "canary_full_get": {
+      "bytes": 40865620,
+      "seconds": 3.81,
+      "sha_matches_canary": true,
+      "key": "blobs/sha256/a8/a8579aa42f828b19133f469a67e13dfde2ef8b79badc536a4b088e10c65ee178.mov"
+    },
+    "dual_write_flags": "OFF"
+  },
+  "old_prod_key": {
+    "keyName": "diveanalyzer-prod-agent",
+    "applicationKeyId": "003e2bb572cfba70000000004",
+    "revoked": "YES — maintainer-attested (console)"
+  },
+  "admin_credential_cleanup": {
+    "privileged_credential_handling": "typed via read -s in local helper; used in memory only; never stored in files/env/history/chat",
+    "helper_temp_files": "cleaned by exit trap",
+    "local_new_key_secret_file": "deleted after cutover",
+    "server_staging_and_backup_files": "deleted after cutover",
+    "production_secret_files": "single 0600 env file with new key only"
+  },
+  "production_media_mutation": "NONE (two retained non-sensitive synthetic validation objects documented in s3_compatibility_validation; no production media lineage touched)",
+  "key_inventory_snapshot_2026_09_09": [
+    {"keyName": "diveanalyzer-dev-agent", "applicationKeyId": "003e2bb572cfba70000000001", "note": "ACCOUNT-WIDE key with admin capabilities — pre-existing finding, out of P4.1 scope, flagged to maintainer"},
+    {"keyName": "diveanalyzer-dev-canary", "applicationKeyId": "003e2bb572cfba70000000003", "bucketIds": ["ce32bbfbb597826caf0b0a17"]},
+    {"keyName": "diveanalyzer-prod-agent", "applicationKeyId": "003e2bb572cfba70000000004", "bucketIds": ["7e720bcb6587827caf0b0a17"]},
+    {"keyName": "diveanalyzer-prod-ingest-v2", "applicationKeyId": "003e2bb572cfba70000000006", "bucketIds": ["7e720bcb6587827caf0b0a17"], "capabilities": ["listFiles", "readFiles", "writeFiles"]}
+  ],
+  "security_debt": {
+    "TEMPORARY_DELETEFILES_SECURITY_DEBT": "NO",
+    "P5_OR_BROADER_PROD_KEY_BLOCKER": "NO",
+    "note": "Credential blocker cleared only; does not authorize P5 or broader rollout"
+  }
+}

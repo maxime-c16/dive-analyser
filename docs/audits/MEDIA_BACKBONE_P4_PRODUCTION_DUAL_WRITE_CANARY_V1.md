@@ -53,6 +53,8 @@ authorized proceeding for P4.
 - `P5_OR_BROADER_PROD_BLOCKER = YES` — no broader PROD cohort until a
   deleteFiles-free key exists (B2 native API with master key offline) or
   the supervisor explicitly re-approves.
+- **CLOSED 2026-09-09 by P4.1** (§35) — a deleteFiles-free key now exists
+  and is the production runtime credential.
 - Compensating controls: ingest path performs NO delete operations
   (`delete_object_explicit_operator_action` is outside every ingest/retry/
   rollback path, unit-tested); no automatic deletion anywhere; no delete
@@ -226,3 +228,55 @@ no automatic remote deletion; no local media deletion; no DiveSensei
 integration; no implicit whole-library readiness (album membership was not
 treated as authorization); caption authority unchanged (PhotoKit caption
 API remains out of scope; shadow stays read-only NON-AUTHORITATIVE).
+
+## 35. P4.1 — least-privilege PROD key hardening (2026-09-09)
+
+Packet `MEDIA_BACKBONE_P4_1_PROD_KEY_HARDENING_V1` executed on top of the
+P4 canonical HEAD (`ce3be0381d42b4ea9d4490ec57a187c706fefa93`). Security
+hardening only; no P5, no broader cohort, no code changes.
+
+- New PROD key `diveanalyzer-prod-ingest-v2`
+  (`003e2bb572cfba70000000006`) created via Backblaze Native API v4
+  (`b2_create_key`, `bucketIds` array) with an explicit capabilities
+  array `[listFiles, readFiles, writeFiles]`, bucket-restricted to
+  `diveanalyzer-prod-media` (`7e720bcb6587827caf0b0a17`); provider
+  response `options` = `["s3"]`.
+- Provider-reported scope proven twice: the `b2_create_key` response and
+  a fresh `b2_authorize_account` (v4) **with the new key** both report
+  exactly the three capabilities and the single PROD bucket — no
+  `deleteFiles`, `writeBuckets`, `deleteBuckets`, `writeKeys`.
+- S3 compatibility (production venv, deployed adapter byte-identical to
+  canonical): PUT (single 784 B + 12 MB multipart), HEAD, GET (SHA
+  equality), presigned GET (300 s) → 200, S3 `list_objects_v2` → ok.
+  No DELETE performed.
+- Negative probes: `b2_delete_file_version` → 401 (denied; synthetic
+  target only, canary untouched); `b2_create_bucket` / `b2_update_bucket`
+  / `b2_list_buckets` / `b2_create_key` / `b2_delete_bucket` → 401
+  (denied); other-bucket S3 HEAD → 403; other-bucket PUT → provider
+  closes connection (documented provider behavior; denial covered by the
+  HEAD 403 + provider-reported caps). S3 `DeleteObject` on B2 maps to a
+  soft hide (upload version retained); hard delete requires
+  `b2_delete_file_version`, which this key cannot perform.
+- Runtime cutover: atomic swap of
+  `/Users/Shared/services/data/diveanalyzer/state/object_store_prod.env`
+  to the new key (0600, divesensei:admin, single-file convention).
+  Production runtime preflight GREEN with the new key: adapter init,
+  canary HEAD, full-GET SHA equality (40,865,620 B, 3.81 s). Dual-write
+  flags remained OFF; legacy daemon healthy throughout; no production
+  media mutation.
+- Old key `diveanalyzer-prod-agent` (`003e2bb572cfba70000000004`) — the
+  broader P4 preset key — revoked (maintainer-attested, console).
+- Admin/privileged credential: typed via `read -s` in a local helper,
+  used in memory only, never stored (no files/env/history/chat); all
+  staging/backup files removed; single 0600 env file remains.
+- Order held: create → validate → install → production preflight GREEN →
+  revoke old. No availability gap.
+- `TEMPORARY_DELETEFILES_SECURITY_DEBT = NO`;
+  `P5_OR_BROADER_PROD_KEY_BLOCKER = NO` (credential blocker cleared
+  only — NOT an authorization for P5 or broader rollout).
+- Pre-existing finding flagged (out of scope, no action taken):
+  `diveanalyzer-dev-agent` (`003e2bb572cfba70000000001`) is an
+  ACCOUNT-WIDE key holding admin capabilities (`writeKeys`,
+  `deleteKeys`, `deleteBuckets`).
+- Evidence (non-secret):
+  `docs/audits/MEDIA_BACKBONE_P4_1_PROD_KEY_HARDENING_V1_EVIDENCE.json`.

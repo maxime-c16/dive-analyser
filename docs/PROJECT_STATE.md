@@ -702,10 +702,42 @@ bucket `diveanalyzer-dev-media` (endpoint `s3.eu-central-003.backblazeb2.com`):
   in any ingest path). `P5_OR_BROADER_PROD_BLOCKER = YES` until a
   deleteFiles-free key exists or the supervisor re-approves. PROD key
   rotated by maintainer before closure (chat-exposed key revoked,
-  attested).
+  attested). **DEBT CLOSED 2026-09-09 by P4.1 (see next section).**
 - Object Lock console check still owed (key cannot read lock config).
 - Tests: agent 164/164; backend backbone 32/32; full backend suite has
   only the pre-existing failure. Cost: ~0.2 GB storage + transfer → $0.
+
+### Media backbone P4.1 — least-privilege PROD key hardening COMPLETE (2026-09-09)
+
+**Status: `PROD_KEY_HARDENING_GREEN`.** Packet
+`MEDIA_BACKBONE_P4_1_PROD_KEY_HARDENING_V1` on top of canonical HEAD
+`ce3be0381…` (security hardening only; no code changes; no P5, no
+broader cohort). Evidence:
+`docs/audits/MEDIA_BACKBONE_P4_1_PROD_KEY_HARDENING_V1_EVIDENCE.json`;
+P4 audit §35.
+
+- New PROD key `diveanalyzer-prod-ingest-v2` (id `…0006`) created via
+  Backblaze Native API v4 with exact capabilities
+  `[listFiles, readFiles, writeFiles]`, bucket-restricted to
+  `diveanalyzer-prod-media` (`7e720bcb6587827caf0b0a17`), `options=["s3"]`.
+- Scope proven twice (create response + fresh authorize WITH the new
+  key); negative probes: hard delete / bucket ops / key ops → 401,
+  other-bucket S3 → 403; S3 DeleteObject = soft hide on B2 (upload
+  version retained) — canary untouched throughout.
+- S3 compat GREEN: PUT single + 12 MB multipart, HEAD, GET SHA equality,
+  presigned GET 300 s → 200, list ok. No DELETE performed.
+- Runtime cutover atomic: `object_store_prod.env` (0600, divesensei)
+  now holds the least-privilege key; production runtime preflight GREEN
+  (adapter init, canary HEAD, full-GET SHA equality 3.81 s); dual-write
+  flags OFF; legacy daemon healthy; no production media mutation.
+- Old key `diveanalyzer-prod-agent` (…0004) revoked
+  (maintainer-attested). Privileged admin credential used in memory only
+  (local `read -s` helper), never stored anywhere.
+- `TEMPORARY_DELETEFILES_SECURITY_DEBT = NO`;
+  `P5_OR_BROADER_PROD_KEY_BLOCKER = NO` — credential blocker cleared
+  ONLY; P5/broader rollout still requires a new packet.
+- Flagged (pre-existing, out of scope): `diveanalyzer-dev-agent` (…0001)
+  is an ACCOUNT-WIDE key with admin capabilities.
 
 ### Key documents
 
