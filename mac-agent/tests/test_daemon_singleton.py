@@ -56,7 +56,8 @@ def _write(path: Path, content):
 def test_acquire_creates_lock_with_owner_identity(lock_path):
     holder = acquire_daemon_lock(lock_path)
     assert holder["pid"] > 0
-    assert "src.main" in holder["command"]
+    assert holder["command"]  # non-empty process command recorded
+    assert holder["start_time"]  # real ps-derived start time recorded
     record = json.loads(lock_path.read_text())
     assert record["pid"] == holder["pid"]
 
@@ -156,3 +157,76 @@ def test_full_daemon_mode_refuses_when_lock_held(lock_path, live_daemon_record, 
         asyncio.run(main_module.main(["--config", str(lock_path.parent / "config.yaml")]))
     assert called["sync_loop"] == 0
     assert "DAEMON_SINGLETON_REFUSE" in caplog.text
+
+
+def test_ps_field_without_header_returns_value(monkeypatch):
+    """Live-deploy regression: `ps -o lstart=` emits value only, no header.
+
+    The first P4.3 implementation assumed a header row and returned None for
+    every live owner, letting a second instance steal the lock and race the
+    canonical daemon (observed in the live deploy and repaired same-night).
+    """
+    from src import daemon_lock
+
+    class R:
+        returncode = 0
+        stdout = "Jeu 10 sep 00:14:22 2026\n"
+        stderr = ""
+
+    monkeypatch.setattr(
+        daemon_lock.subprocess, "run", lambda *a, **k: R()
+    )
+    assert daemon_lock._ps_field(123, "lstart=") == "Jeu 10 sep 00:14:22 2026"
+
+    class RH:
+        returncode = 0
+        stdout = " STARTED\nJeu 10 sep 00:14:22 2026\n"
+        stderr = ""
+
+    monkeypatch.setattr(daemon_lock.subprocess, "run", lambda *a, **k: RH())
+    assert daemon_lock._ps_field(123, "lstart") == "Jeu 10 sep 00:14:22 2026"
+
+
+def test_real_ps_lstart_matches_recorded_self(tmp_path, monkeypatch):
+    """End-to-end with the REAL ps output on this host: a process must verify
+    its own lock as live (not stale), under ANY locale.
+
+    The live deploy found `ps -o lstart=` output is locale-dependent ("Thu
+    Sep 10" under the daemon's C locale vs "Jeu 10 sep" under fr_FR), which
+    made cross-context verification steal the lock; the verifier forces
+    LC_ALL=C. This test runs with a French locale to prove the fix.
+    """
+    import os
+
+    from src import daemon_lock
+
+    monkeypatch.setenv("LC_ALL", "fr_FR.UTF-8")
+    monkeypatch.setenv("LANG", "fr_FR.UTF-8")
+
+    # This test process is pytest, not src.main; relax the command marker so
+    # the real ps start-time/alive verification is what is under test.
+    monkeypatch.setattr(daemon_lock, "_COMMAND_MARKER", "")
+    holder = acquire_daemon_lock(tmp_path / "daemon.lock")
+    assert _owner_is_live(holder) is True
+    release_daemon_lock(tmp_path / "daemon.lock", holder)
+
+
+def test_ps_start_time_is_locale_stable(monkeypatch):
+    """The verifier must force LC_ALL=C into the ps subprocess env."""
+    import os
+    import subprocess as sp
+
+    from src import daemon_lock
+
+    captured = {}
+
+    def fake_run(cmd, capture_output=True, text=True, timeout=None, env=None):
+        captured["env"] = env
+        result = type("R", (), {"returncode": 0, "stdout": "Thu Sep 10 00:18:41 2026\n", "stderr": ""})()
+        return result
+
+    monkeypatch.setenv("LC_ALL", "fr_FR.UTF-8")
+    monkeypatch.setattr(daemon_lock.subprocess, "run", fake_run)
+    value = daemon_lock._process_start_time(123)
+    assert captured["env"]["LC_ALL"] == "C"
+    assert value == "Thu Sep 10 00:18:41 2026"

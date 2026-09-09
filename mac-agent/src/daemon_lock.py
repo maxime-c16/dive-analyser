@@ -20,8 +20,11 @@ Mechanism: a deterministic pid/lock file with stale-owner verification.
 """
 
 import json
+import logging
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 LOCK_FILENAME = "daemon.lock"
 _COMMAND_MARKER = "src.main"
@@ -57,18 +60,39 @@ def _current_command() -> str:
 
 
 def _ps_field(pid: int, fmt: str) -> str | None:
+    """One ps output field, header-safe and locale-stable.
+
+    Two live-deploy P4.3 findings are fixed here:
+    1. `ps -p PID -o lstart=` (header-suppressed `=` form) emits ONLY the
+       value line on macOS — a header-row assumption returned None for every
+       live owner, letting a second instance steal the lock.
+    2. `lstart=` output is LOCALE-dependent ("Thu Sep 10" under the launchd
+       daemon's C locale vs "Jeu 10 sep" under a fr_FR SSH session). The
+       verifier forces LC_ALL=C so recorded and re-read start times compare
+       equal regardless of which process verifies the lock.
+    """
     try:
+        import os
+
+        env = dict(os.environ)
+        env["LC_ALL"] = "C"
         result = subprocess.run(
             ["ps", "-p", str(pid), "-o", fmt],
             capture_output=True,
             text=True,
             timeout=5,
+            env=env,
         )
         if result.returncode != 0:
             return None
         lines = [ln.strip() for ln in result.stdout.strip().splitlines() if ln.strip()]
-        # First line is the header; second is the value.
-        return lines[1] if len(lines) >= 2 else None
+        if not lines:
+            return None
+        first = lines[0]
+        # Header-form output: a bare header token followed by the value.
+        if len(lines) > 1 and first.upper() in {"STARTED", "COMMAND", "LSTART"}:
+            return lines[1]
+        return first
     except Exception:
         return None
 
@@ -143,6 +167,9 @@ def acquire_daemon_lock(lock_path: str | Path) -> dict:
             path.unlink()
         except FileNotFoundError:
             pass
+        logger.warning(
+            "stale daemon lock taken over (previous record: %r)", record
+        )
 
 
 def release_daemon_lock(lock_path: str | Path, holder: dict) -> None:
