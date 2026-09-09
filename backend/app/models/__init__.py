@@ -43,6 +43,12 @@ from app.models.media_catalog import (
 )
 from app.models.diver import Diver, DiverAlias
 from app.models.training_period import TrainingPeriod
+from app.models.media_backbone import (
+    MediaBlob,
+    MediaRevision,
+    CaptionRevision,
+    IngestObjectState,
+)
 
 __all__ = [
     "Session",
@@ -87,6 +93,10 @@ __all__ = [
     "Diver",
     "DiverAlias",
     "TrainingPeriod",
+    "MediaBlob",
+    "MediaRevision",
+    "CaptionRevision",
+    "IngestObjectState",
 ]
 from app.models.analysis import (
     AnalysisRun,
