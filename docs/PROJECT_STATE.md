@@ -253,3 +253,63 @@ the takeoff signal. DEVELOPMENT must justify before Paris can confirm.
 - `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md` — full report
 
 **Regression:** 65/65 pass (V2.1 36 + PTS 15 + V3-C 14).
+
+## Event Logic V3-D — FROZEN (2026-09-09)
+
+**Decision: V3_D_DEVELOPMENT_IMPROVES_PARIS_FAILS / SCENE_CONTEXT_NEXT_JUSTIFIED**
+
+### V3-D0: FROZEN (EVENT_LOGIC_V3_D0_FREEZE)
+
+Board-rise validity gate for HURDLE apex detection + STANDING-like fallback.
+Inherits V3-C0 (A1+A2) completely. Two new parameter keys only.
+
+**Change summary:**
+- D0: At each neg->non-neg velocity crossing after guard, check cy_apex < y_prep - min_rise.
+  Physical invariant: at a real hurdle apex the diver must be above the board.
+  If violated: crossing is a detector artifact -> continue scanning.
+- Fallback: if no valid apex found, search for sustained negative velocity from guard_end.
+
+**Parameters:** min_hurdle_rise_cy=0.01, fallback_sustained_s=0.15. All V3-C0/PARAMS_E1 values unchanged.
+
+**DEVELOPMENT results:**
+
+| Dive | Context | V3-C0 to_err | V3-D0 to_err | Delta |
+|---|---|---|---|---|
+| 133  | STANDING | 0.165s | 0.165s | UNCHANGED |
+| 311  | STANDING | 0.059s | 0.059s | UNCHANGED (FM1 closed) |
+| 676  | STANDING | 3.086s | 3.086s | UNCHANGED |
+| 1040 | HURDLE   | 1.995s | 1.995s | UNCHANGED |
+| 2169 | HURDLE   | 1.280s | **0.412s** | **-67.8%** (STANDING_FALLBACK) |
+| 2387 | STANDING | 2.148s | 2.148s | UNCHANGED |
+
+med_to: 1.637s -> 1.204s (-26.5%). med_wc: 0.262s -> 0.224s (improved).
+
+**Freeze gate: PASS.** Hurdle improves, no STANDING catastrophe, FM1 closed, WC not regressed.
+
+**Paris external test (read-only, post-freeze):**
+- V3-D0 Paris to_err=1.685s -- identical to V3-C0
+- Paris false hurdle at 1.117s: cy_apex=0.380 < y_prep=0.464, rise=+0.083 -> passes board-rise check
+- Different failure mode from 2169 (approach-walk creates valid-looking brief rise above board)
+
+**Scene context decision: SCENE_CONTEXT_NEXT_JUSTIFIED**
+Paris approach-walk kinematics pass board-rise gate. Kinematic signals alone cannot distinguish
+prep-walk rises from real hurdle at 360p.
+
+**Observability findings (from V3-D analysis):**
+- Both HURDLE dives: smooth_neg_ratio=0.0 at GT takeoff -> Gaussian smoothing destroys signal
+- 2169 root cause: D5 switches from cy=0.262 to cy=0.711 at t=6.406s; artifact overwhelms rising motion
+- 1040 root cause: D5 oscillates between cy=0.22 and cy=0.60; no filter/primitive recovers signal
+- HQ (iCloud thread): 2169 HQ to_err=0.439s (improved); 1040 HQ sm_neg=0.714 (signal visible at HQ)
+
+**V3-D1 evaluated:** identical results to V3-D0 (fallback_sustained_s=0.25s). Not promoted.
+
+### Tests and artifacts
+
+- experiments/landmark_pilot/proposer_event_logic_v3_d0.py -- V3-D0 source (frozen)
+- experiments/landmark_pilot/test_event_logic_v3_d0.py -- 13 tests, 13/13 PASS
+- docs/science/EVENT_LOGIC_V3_D0_FREEZE.json -- freeze artifact
+- docs/science/EL_V3D_REVISED_DEVELOPMENT_EVAL_V1.json -- per-dive results
+- docs/science/HURDLE_OBSERVABILITY_V3D_ANALYSIS_V1.json -- observability analysis
+- docs/science/HURDLE_FINAL_TAKEOFF_OBSERVABILITY_AND_V3_D_REPORT.md -- full report
+
+**Regression:** 27/27 pass (V3-C0 14 + V3-D0 13).
