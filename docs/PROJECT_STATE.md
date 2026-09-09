@@ -1,12 +1,12 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (media-backbone P4
-> production dual-write canary complete).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1.md`
+> Durable project handoff. Last verified: **2026-09-09** (media-backbone P4.2
+> bounded production dual-write cohort complete).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4_2`**
 
 ## Project purpose
 
@@ -738,6 +738,62 @@ P4 audit §35.
   ONLY; P5/broader rollout still requires a new packet.
 - Flagged (pre-existing, out of scope): `diveanalyzer-dev-agent` (…0001)
   is an ACCOUNT-WIDE key with admin capabilities.
+
+### Media backbone P4.2 — bounded production dual-write cohort COMPLETE (2026-09-09)
+
+**Status: `P4_2_COMPLETE` (`PRODUCTION_COHORT_GREEN`).** Packet
+`MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1` on top of canonical HEAD
+`bba47b77…`. Durable audit:
+`docs/audits/MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1.md`.
+
+- 8-clip bounded production cohort (bounds [5, 10], target = 8; explicit
+  allowlist, all `DiveAnalyser Ready` members, none PROD lineages, none
+  science-referenced, none selected from scientific data). Legacy primary;
+  B2 PROD additive; playback legacy-only; flags started OFF and returned
+  OFF at close (rollback proven: 0 object-store activity, playback 200,
+  all 10 PROD objects retained).
+- Legacy: 22/22 renditions eventually READY via the normal product request
+  endpoint (two 600 s iCloud export timeouts on the cold cache recovered
+  through product-driven retry — legacy never waited on B2).
+- B2: 8/8 PUT + full-GET SHA equality + authenticated env=prod commits +
+  receipts; 167,393,364 B total; **4 new PROD lineages**
+  (606653E2, C3A7A952, 0EC8DDBE, C27D4087) + 4 clips that are P3 DEV
+  lineages whose prod commits content-deduped idempotently onto existing
+  rows (0 duplicate rows; first production exercise of cross-environment
+  content-addressed dedupe). prod DB: ledger 1→5, prod blobs 1→5,
+  prod caption revisions 2→6; dev counts unchanged (10).
+- Unchanged rerun of the complete allowlist: 8/8 `already_terminal`,
+  0 rows / 0 bytes / 0 duplicate legacy clips. Caption parity exact_equal
+  8/8; no natural mutations (caption-only mechanism stays P4 §32-proven;
+  unchanged-caption guard re-proven as a no-op).
+- **Real production bug found and fixed:** with the P4.1 least-privilege
+  key, B2 S3 returns 403 (not 404) for HEAD on a MISSING object — the
+  adapter mapped only the 404 family to "absent", stalling drives at
+  REMOTE_UPLOAD_STARTED (retryable; legacy unaffected). Repair:
+  fail-closed 403 disambiguation via prefix-LIST probe (absent → None,
+  present/list-failure → raise); 3 adapter tests; stalled journals
+  re-driven to convergence reusing staged legacy bytes (0 new
+  materializations).
+- Guard hardened: prod allowlist now requires 5–10 explicit UUIDs
+  (REFUSE TO ARM outside; implicit readiness structurally impossible);
+  backpressure keeps ONE active dual-write and records a tiny bounded
+  pending marker with NO staged byte accumulation (skipped triggers
+  recoverable via the bounded one-shot run mode); static no-delete/hide
+  firewall tests over the whole ingestion path (delete/hide operations
+  performed: 0); state machine has no destructive state.
+- Privacy recheck: anonymous LIST 403 / GET 401 (canary + cohort objects).
+- Security findings: P4.1's two synthetic objects are no longer in the
+  bucket (pre-dates P4.2's first LIST; likely external console cleanup —
+  P4.2 deleted nothing; flagged for reconciliation);
+  `diveanalyzer-dev-agent` account-wide admin key still flagged
+  (pre-existing). Object Lock console check still owed.
+- Metrics: per-asset median 8.97 s / max 12.82 s background B2 leg
+  (31–34 MB); legacy critical-path overhead 0.01–0.03 s staging copy;
+  min free disk ≈ 17.9 GB. Ready album UX: no friction observed.
+- Tests: mac-agent 171/171 (production venv); backend backbone 35 pass +
+  1 pre-existing env-only failure (static host-path test; backend code
+  untouched). `LEGACY_PRODUCTION_BEHAVIOR_MUTATION NONE`;
+  `PRODUCTION_PLAYBACK_MUTATION NONE`; science untouched.
 
 ### Key documents
 

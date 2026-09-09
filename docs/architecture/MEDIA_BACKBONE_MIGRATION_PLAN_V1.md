@@ -13,6 +13,9 @@ P2 prepared, gates preserved.
 | **P3** | 5–10 clip queue through the same flow, still canary-only, legacy untouched | **COMPLETE** — `MEDIA_BACKBONE_P3_READY_QUEUE_V1.md` (9-clip bounded allowlist queue; GUI-launchd materialization for iCloud-only assets; controlled failure/restart/quarantine/low-disk/mutation evidence) |
 | **STOP** | Mandatory stop-and-review before any production-facing change | — |
 | **P4** | Production dual-write canary (legacy sink primary + B2 PROD additive, flags + single-UUID allowlist, authenticated commit endpoint) | **COMPLETE 2026-09-09 — `P4_PRODUCTION_DUAL_WRITE_GREEN`** (one-canary cohort; broader PROD rollout blocked on the deleteFiles key debt — see P4 audit §3) |
+| **P4.1** | Least-privilege PROD key hardening (native API v4, deleteFiles-free) | **COMPLETE 2026-09-09 — `PROD_KEY_HARDENING_GREEN`** |
+| **P4.2** | Bounded production dual-write cohort, 5–10 real NEW clips (legacy primary; B2 additive; playback legacy-only) | **COMPLETE 2026-09-09 — `P4_2_COMPLETE` / `PRODUCTION_COHORT_GREEN`** (`MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1.md`: 8-clip explicit allowlist, 8/8 legacy, 8/8 B2 verified + env=prod commits (4 new PROD lineages + 4 P3-DEV-lineage content-dedupes), unchanged-rerun idempotence, bounded backpressure marker, static no-delete/hide firewall, B2 adapter 403-on-missing-HEAD repair, rollback GREEN) |
+| **STOP** | Mandatory stop-and-review before any P5 playback work | — |
 | **P5** (future) | B2-backed athlete playback via short-TTL presigned GET | NOT STARTED |
 | **P6** (future) | Default serving from B2 (cache becomes fallback) | NOT STARTED |
 | **P7** (future) | Historical migration of existing media to B2 | NOT STARTED |
@@ -108,12 +111,17 @@ components).
 
 ## Explicit non-goals until later gates
 
-- No broader PROD cohort before the `deleteFiles` key debt is resolved or
-  explicitly re-approved (P4 audit §3: `P5_OR_BROADER_PROD_BLOCKER = YES`).
+- The `deleteFiles` key debt was resolved at P4.1 and a bounded 8-clip
+  production cohort was executed and accepted at P4.2
+  (`MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1.md`). Broader/default-ON
+  production dual-write, P5 playback, and any wider cohort remain gated on
+  a NEW explicit supervisor packet.
 - No P5 athlete B2 playback; production playback remains legacy-only.
 - No migration of existing production playback before P5+.
 - No bulk-copy of historical media before P7.
 - No removal of local media / deletion of production media (no automatic
-  remote purge is implemented at all; the PROD canary blob and the retained
-  synthetic preflight probe stay as durable audit evidence).
+  remote purge is implemented at all; the PROD canary blob, the 8 P4.2
+  cohort blobs, and the retained synthetic preflight probe stay as durable
+  audit evidence; delete/hide operations performed across
+  P2/P3/P4/P4.1/P4.2: 0).
 - No athlete-media public exposure (private bucket + presign-only future).
