@@ -156,9 +156,12 @@ class DualWriteConfig:
     """P4 production dual-write controls (packet §18). Hard OFF by default.
 
     enabled=True additionally requires object_store.enabled and a PROD
-    environment, and an explicit allowlist of EXACTLY ONE canary UUID (§19).
-    Controlled failure injections (fail_put_once / fail_commit_once) are
-    explicit opt-in flags for the P4 gates, never defaults.
+    environment, and an explicit allowlist of a bounded production cohort of
+    5-10 Photos UUIDs (P4.2 packet §6: count outside [5, 10] → REFUSE TO ARM;
+    implicit readiness such as whole-library/album ingestion is structurally
+    impossible). Controlled failure injections (fail_put_once /
+    fail_commit_once) are explicit opt-in flags for the P4 gates, never
+    defaults.
     """
 
     enabled: bool = False

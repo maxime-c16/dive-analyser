@@ -20,9 +20,13 @@ Architecture (packet MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1):
 Invariants:
 - legacy success never depends on object-store success; failure semantics:
   LEGACY_SUCCESS + OBJECT_STORE_PENDING_RETRY (journal keeps retryable state)
-- hard prod allowlist: exactly ONE Photos UUID (count != 1 → refuse to start)
+- hard prod allowlist: a bounded production cohort of 5-10 Photos UUIDs
+  (count outside [5, 10] → refuse to arm) — packet
+  MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1 §6
 - ONE materialization: the legacy export is reused; no second Photos export
-- max one active dual-write materialization (backpressure)
+- max one active dual-write materialization (backpressure); triggers arriving
+  while the slot is busy are refused with a bounded pending marker (no staged
+  byte accumulation), recoverable via the one-shot run mode
 - metrics snapshots are run-unique and immutable (never overwrite evidence)
 - this module NEVER prints caption text, credentials, or presigned URLs
 """
@@ -64,7 +68,8 @@ logger = logging.getLogger(__name__)
 UUID_PATTERN = re.compile(
     r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
 )
-PROD_ALLOWLIST_REQUIRED_COUNT = 1
+PROD_ALLOWLIST_MIN_COUNT = 5
+PROD_ALLOWLIST_MAX_COUNT = 10
 METRICS_VERSION = "media_backbone_p4_v1"
 DEFAULT_COMMIT_ENDPOINT_PATH = "/api/v1/media/backbone/commit"
 MAX_PASSES_PER_TRIGGER = 5
@@ -72,16 +77,26 @@ RETRY_BACKOFF_SECONDS = 5.0
 
 
 def validate_prod_allowlist(allowlist: list[str]) -> None:
-    """P4 hard guard (packet §19): exactly ONE Photos UUID.
+    """P4.2 hard guard (packet §6): bounded production cohort allowlist.
 
-    Any other count (0, or more than one) refuses production dual-write.
+    EXPLICIT ALLOWLIST ONLY: 5 <= len(allowlist) <= 10, all entries valid
+    unique Photos UUIDs. Any other count (0..4 or >10), duplicate, or
+    malformed entry REFUSES TO ARM production dual-write. Implicit
+    readiness (whole library, whole album, all captioned clips) is
+    structurally impossible: the count must be supplied explicitly.
     """
     if not isinstance(allowlist, (list, tuple)):
         raise ValueError("prod dual-write allowlist must be a list of UUIDs")
-    if len(allowlist) != PROD_ALLOWLIST_REQUIRED_COUNT:
+    if not (
+        PROD_ALLOWLIST_MIN_COUNT
+        <= len(allowlist)
+        <= PROD_ALLOWLIST_MAX_COUNT
+    ):
         raise ValueError(
             f"prod dual-write allowlist guard violation: {len(allowlist)} entries; "
-            f"exactly {PROD_ALLOWLIST_REQUIRED_COUNT} canary UUID is authorized"
+            f"a bounded production cohort of {PROD_ALLOWLIST_MIN_COUNT}-"
+            f"{PROD_ALLOWLIST_MAX_COUNT} explicit UUIDs is authorized "
+            f"(REFUSE TO ARM outside this range)"
         )
     seen: list[str] = []
     for entry in allowlist:
@@ -203,7 +218,9 @@ class ProductionDualWrite:
         area while the legacy pipeline still owns them.
 
         Returns None (skip) when the asset is not allowlisted, the journal is
-        already terminal, or the single backpressure slot is occupied.
+        already terminal, or the single backpressure slot is occupied (a tiny
+        bounded pending marker is recorded in the latter case; no staged media
+        bytes accumulate).
         Raises on real staging errors (legacy path unaffected either way —
         the caller catches and continues).
         """
@@ -225,6 +242,21 @@ class ProductionDualWrite:
                     "(one active materialization policy)",
                     video_uuid[:8],
                 )
+                # Bounded backlog policy (P4.2 packet §19): NO staged bytes are
+                # retained for skipped triggers — only a tiny pending marker
+                # so the asset remains discoverable for a bounded re-drive via
+                # the one-shot run mode. Staged full-media copies exist for at
+                # most ONE asset (the active one) at any moment. Any previous
+                # staging metadata for this asset is preserved.
+                existing_meta = self._read_stage_meta(video_uuid)
+                existing_meta.update(
+                    {
+                        "backpressure_skip": True,
+                        "skip_reason": "one_active_materialization_slot_busy",
+                        "skipped_at": utcnow(),
+                    }
+                )
+                self._set_stage_meta(video_uuid, existing_meta)
                 return None
             self._active.add(video_uuid)
         source_path = Path(source_path)

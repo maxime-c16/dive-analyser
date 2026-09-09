@@ -216,10 +216,14 @@ class TestB2ConfigFirewall:
 
 
 class StubB2Client:
-    def __init__(self, fail_times=0):
+    def __init__(self, fail_times=0, head_403_for_missing=False, list_probe_fails=False):
         self.objects = {}
         self.fail_times = fail_times
         self.calls = 0
+        self.head_403_for_missing = head_403_for_missing
+        self.list_probe_fails = list_probe_fails
+        self.list_calls = 0
+        self.head_403_keys = set()
 
     def put_object(self, Bucket, Key, Body):
         self.calls += 1
@@ -231,11 +235,24 @@ class StubB2Client:
 
     def head_object(self, Bucket, Key):
         self.calls += 1
-        if Key not in self.objects:
+        if Key not in self.objects or Key in self.head_403_keys:
+            if self.head_403_for_missing or Key in self.head_403_keys:
+                # B2 least-privilege provider behavior (P4.2): HeadObject on
+                # a missing object returns 403 Forbidden, not 404
+                error = RuntimeError("forbidden")
+                error.response = {"Error": {"Code": "403"}}
+                raise error
             error = RuntimeError("missing")
             error.response = {"Error": {"Code": "404"}}
             raise error
         return {"ContentLength": len(self.objects[Key]), "ETag": '"etag"'}
+
+    def list_objects_v2(self, Bucket, Prefix, MaxKeys=1):
+        self.list_calls += 1
+        if self.list_probe_fails:
+            raise RuntimeError("list denied")
+        matching = [k for k in self.objects if k.startswith(Prefix)]
+        return {"Contents": [{"Key": k, "Size": len(self.objects[k])} for k in matching], "KeyCount": len(matching)}
 
     def get_object(self, Bucket, Key):
         self.calls += 1
@@ -285,6 +302,35 @@ class TestBackblazeB2Store:
         client = StubB2Client()
         store, _ = self._store(client)
         assert store.head("missing") is None
+
+    def test_head_b2_403_on_missing_returns_none(self):
+        """P4.2 least-privilege key semantics: HeadObject on a MISSING object
+        returns 403 Forbidden; the prefix-LIST probe proves absence and head
+        maps to None (idempotent ingest proceeds to PUT)."""
+        client = StubB2Client(head_403_for_missing=True)
+        store, _ = self._store(client)
+        assert store.head("blobs/sha256/ab/missing") is None
+        assert client.list_calls == 1
+
+    def test_head_b2_403_on_missing_with_failing_list_fails_closed(self):
+        """LIST probe failure -> the 403 is treated as a real auth problem:
+        retries exhausted -> ObjectStoreUnavailable (fail closed)."""
+        client = StubB2Client(head_403_for_missing=True, list_probe_fails=True)
+        store, _ = self._store(client)
+        with pytest.raises(ObjectStoreUnavailable):
+            store.head("blobs/sha256/ab/missing")
+        assert client.list_calls == store.config.max_retries + 1
+
+    def test_head_b2_403_but_list_shows_present_fails_closed(self):
+        """Object present per LIST but HEAD 403 -> unexpected auth state:
+        fail closed (ObjectStoreUnavailable), never treated as absent."""
+        client = StubB2Client(head_403_for_missing=True)
+        key = "blobs/sha256/ab/present-but-head-denied"
+        client.objects[key] = b"x"
+        client.head_403_keys.add(key)
+        store, _ = self._store(client)
+        with pytest.raises(ObjectStoreUnavailable):
+            store.head(key)
 
     def test_presign_ttl_bounds(self):
         client = StubB2Client()

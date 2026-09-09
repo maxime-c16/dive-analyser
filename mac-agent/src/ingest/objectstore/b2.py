@@ -185,10 +185,34 @@ class BackblazeB2Store:
                     code = response.get("Error", {}).get("Code", "")
                 if code in ("404", "NoSuchKey", "NotFound"):
                     return None
+                if code in ("403", "AccessDenied"):
+                    # P4.2 repair (verified live 2026-09-09): Backblaze B2's
+                    # S3 API returns 403 Forbidden — NOT 404 — for HeadObject
+                    # on a MISSING object when the application key holds
+                    # least-privilege capabilities. Disambiguate with a
+                    # prefix LIST probe (listFiles is an authorized
+                    # capability): absent -> None (idempotent ingest path
+                    # proceeds to PUT); still present -> real auth problem,
+                    # fail closed below. If the LIST probe itself fails, the
+                    # error is treated as real (fail closed).
+                    if self._absent_by_prefix_list(key):
+                        return None
                 last_error = exc
                 if attempt < self.config.max_retries:
                     time.sleep(min(2 ** attempt, 8))
         raise ObjectStoreUnavailable(f"head failed after retries: {last_error}") from last_error
+
+    def _absent_by_prefix_list(self, key: str) -> bool:
+        """True ONLY when a successful prefix LIST proves the key absent.
+        Any list failure returns False (fail closed: the caller raises)."""
+        try:
+            resp = self._client.list_objects_v2(
+                Bucket=self.config.bucket, Prefix=key, MaxKeys=1
+            )
+        except Exception:
+            return False
+        contents = resp.get("Contents") or []
+        return not any(obj.get("Key") == key for obj in contents)
 
     def get(self, key: str) -> bytes:
         resp = self._with_retries(

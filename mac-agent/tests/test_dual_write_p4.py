@@ -2,7 +2,13 @@
 materialization rule, failure isolation (B2 + backend commit), idempotent
 re-drive, lost-response retry convergence, metrics snapshot immutability,
 caption-only mutation — all offline (FakeObjectStore + fake PhotosDB),
-no credentials, no network."""
+no credentials, no network.
+
+P4.2 additions (MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1): bounded cohort
+allowlist guard (5-10 explicit UUIDs, REFUSE TO ARM outside), backpressure
+pending marker (no staged byte accumulation), static no-delete/hide
+firewall over the ingestion path.
+"""
 
 import json
 import sys
@@ -22,8 +28,23 @@ from src.ingest.state_store import IngestStateStore
 from src.ingest.states import IngestState
 
 UUID_A = "11111111-1111-1111-1111-111111111111"
-UUID_B = "22222222-2222-2222-2222-222222222222"
+UUID_B = "22222222-2222-2222-2222-222222222222"  # NOT allowlisted
+UUID_C = "33333333-3333-3333-3333-333333333333"
+UUID_D = "44444444-4444-4444-4444-444444444444"
+UUID_E = "55555555-5555-5555-5555-555555555555"
+UUID_F = "66666666-6666-6666-6666-666666666666"
+UUID_G = "77777777-7777-7777-7777-777777777777"
+UUID_H = "88888888-8888-8888-8888-888888888888"
+UUID_I = "99999999-9999-9999-9999-999999999999"
 UUID_MALFORMED = "not-a-uuid"
+# P4.2 cohort shape: 8 explicit UUIDs (target = 8, bounds [5, 10])
+COHORT_8 = [UUID_A, UUID_C, UUID_D, UUID_E, UUID_F, UUID_G, UUID_H, UUID_I]
+COHORT_5 = COHORT_8[:5]
+COHORT_4 = COHORT_8[:4]
+COHORT_11 = COHORT_8 + [UUID_B] + [
+    "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+    "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+]
 MEDIA_BYTES = b"p4-canary-media-bytes"
 
 FFPROBE_FAKE = {
@@ -168,7 +189,7 @@ def env(tmp_path, monkeypatch):
         ),
         dual_write=SimpleNamespace(
             enabled=True,
-            allowlist=[UUID_A],
+            allowlist=list(COHORT_8),
             commit_endpoint_path="/api/v1/media/backbone/commit",
             commit_timeout_seconds=30,
             env_file="",
@@ -204,10 +225,27 @@ def build_pdw(env) -> dual_write.ProductionDualWrite:
 
 
 def test_allowlist_guard_counts():
-    for bad in ([], [UUID_A, UUID_B], [UUID_A] * 2, [UUID_MALFORMED], "single"):
+    # REFUSE TO ARM: empty, below minimum, above maximum, duplicates,
+    # malformed, non-list
+    for bad in (
+        [],
+        [UUID_A, UUID_B],
+        COHORT_4,
+        COHORT_11,
+        [UUID_A] * 5,
+        [UUID_MALFORMED] * 5,
+        "single",
+    ):
         with pytest.raises(ValueError):
             dual_write.validate_prod_allowlist(list(bad) if isinstance(bad, str) else bad)
-    dual_write.validate_prod_allowlist([UUID_A])  # exactly one: authorized
+    # Authorized: explicit bounded cohort at the boundaries and the target
+    dual_write.validate_prod_allowlist(COHORT_5)
+    dual_write.validate_prod_allowlist(COHORT_8)
+    dual_write.validate_prod_allowlist(
+        COHORT_8
+        + ["AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"]
+        + ["BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"]
+    )  # 10 = max authorized
 
 
 def test_from_config_requires_both_flags(env):
@@ -225,7 +263,7 @@ def test_from_config_requires_both_flags(env):
     env.config.dual_write.allowlist = [UUID_A, UUID_B]
     with pytest.raises(ValueError):
         dual_write.ProductionDualWrite.from_config(env.config)
-    env.config.dual_write.allowlist = [UUID_A]
+    env.config.dual_write.allowlist = list(COHORT_8)
     assert isinstance(dual_write.ProductionDualWrite.from_config(env.config), dual_write.ProductionDualWrite)
 
 
@@ -282,6 +320,32 @@ def test_stage_copy_skips_when_not_allowlisted_or_terminal(env):
     assert pdw.stage_copy(UUID_A, source) is None
     pdw._active.clear()
     assert pdw.stage_copy(UUID_A, source) is not None
+
+
+def test_stage_copy_backpressure_records_bounded_pending_marker(env):
+    """P4.2 §19: when the single slot is busy the trigger is refused WITHOUT
+    staging media bytes; only a tiny bounded pending marker is persisted so
+    the asset stays recoverable (one-shot run mode). Staged full-media bytes
+    exist for at most ONE asset."""
+    pdw = build_pdw(env)
+    source = make_media_file(env.temp_root)
+    source_b = make_media_file(env.temp_root, "source_b.mov")
+    staged_a = pdw.stage_copy(UUID_A, source)  # occupies the slot
+    assert staged_a is not None
+    assert pdw.stage_copy(UUID_C, source_b) is None  # busy → refused
+    marker = env.state_dir / f"{UUID_C}.stage.json"
+    assert marker.exists()
+    meta = json.loads(marker.read_text())
+    assert meta["backpressure_skip"] is True
+    assert meta["skip_reason"] == "one_active_materialization_slot_busy"
+    # NO staged media bytes for the skipped asset
+    staging_c = env.temp_root / "dual_write_staging" / UUID_C
+    assert not staging_c.exists()
+    # only ONE asset has staged full-media bytes
+    staged_dirs = [
+        d for d in (env.temp_root / "dual_write_staging").iterdir() if d.is_dir()
+    ]
+    assert [d.name for d in staged_dirs] == [UUID_A]
 
 
 # ---------------------------------------------------------------------------
@@ -517,3 +581,68 @@ def test_caption_mutation_refused_when_flags_off(env):
 
 def test_caption_mutation_refused_not_allowlisted(env):
     assert dual_write.mode_caption_mutation(env.config, UUID_B) == 3
+
+
+# ---------------------------------------------------------------------------
+# No-delete / no-hide firewall (P4.2 packet §4/§23) — static invariant
+
+INGEST_PATH_MODULES = [
+    "src/ingest/coordinator.py",
+    "src/ingest/dual_write.py",
+    "src/ingest/states.py",
+    "src/ingest/state_store.py",
+    "src/ingest/p3_queue.py",
+    "src/media_jobs.py",
+]
+
+FORBIDDEN_DELETE_TOKENS = [
+    "delete_object",
+    "DeleteObject",
+    "delete_file_version",
+    "b2_hide_file",
+    "hide_file",
+]
+
+
+def _repo_file(relpath: str) -> Path:
+    return Path(__file__).resolve().parents[1] / relpath
+
+
+def test_no_delete_or_hide_primitives_in_ingestion_path():
+    """The ingestion path may only PUT/HEAD/GET/LIST. Every remote destructive
+    visibility operation (delete/hide/purge/delete-file-version) is absent
+    from every ingest/orchestration module (static invariant)."""
+    for relpath in INGEST_PATH_MODULES:
+        text = _repo_file(relpath).read_text(encoding="utf-8")
+        for token in FORBIDDEN_DELETE_TOKENS:
+            assert token not in text, (
+                f"{relpath} must not reference {token!r} "
+                "(no-delete/hide firewall)"
+            )
+
+
+def test_delete_capability_is_operator_explicit_and_uncalled_by_ingest():
+    """The ONLY delete-capable symbol is the intentionally verbose
+    `delete_object_explicit_operator_action` on store adapters; it has no
+    callers inside the ingest/orchestration path (the single historical
+    caller is the canary b2-preflight operator diagnostic, which cleans only
+    its own SYNTHETIC probe and is never part of the daemon/ingest loops;
+    not invoked in production P2/P3/P4/P4.1/P4.2)."""
+    ingest_text = "".join(
+        _repo_file(rel).read_text(encoding="utf-8") for rel in INGEST_PATH_MODULES
+    )
+    assert "delete_object_explicit_operator_action" not in ingest_text
+
+    b2_text = _repo_file("src/ingest/objectstore/b2.py").read_text(encoding="utf-8")
+    assert "def delete_object_explicit_operator_action" in b2_text
+    # the adapter's delete is documented as non-ingest
+    assert "NOT" in b2_text and "ingest" in b2_text
+
+
+def test_ingest_state_machine_has_no_destructive_transition():
+    """The state machine contains no destructive/visibility-removal state:
+    the only cleanup transition is CACHE_CLEANED (LOCAL temp bytes, strictly
+    after remote verification + DB commit)."""
+    destructive = {"DELETE", "HIDE", "PURGE", "REMOVE", "DESTROY"}
+    members = {state.name for state in IngestState}
+    assert not (members & destructive), "destructive state in ingest machine"
