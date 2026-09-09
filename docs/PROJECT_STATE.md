@@ -1,9 +1,10 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (Procedural Trajectory Readiness + EL V3).
-> Latest science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
+> Durable project handoff. Last verified: **2026-09-09** (iCloud high-res recovery canary blocked).
+> Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+> Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
 > Previous: `docs/science/PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PROCEDURAL_TRAJECTORY_READINESS_V1`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_ICLOUD_HIGHRES_RECOVERY_V1`**
 
 ## Project purpose
 
@@ -153,7 +154,16 @@ Historical Paris failure documented: fi=235 sequential drift → fi=238 seek can
 `D5_A_FROZEN` — no new detector training authorized. Floor coverage 100% across all dives. No `RAW_DETECTOR_MISS` failures. No D6 warranted.
 
 ### Resolution diagnostic
-`UNAVAILABLE` — 720p proxies not found for development dives. High-res ANALYSIS_SOURCE export failed previously. No comparison possible.
+`BLOCKED_TCC_PHOTOS_AUTHORIZATION` — iCloud catalog metadata is visible on the
+Photos host, but full-byte edited high-resolution export is not proven. The
+SSH-launched `osxphotos --download-missing --use-photokit` canary requested
+Photos "Allow Access to All Photos" and failed authorization. Batch recovery was
+not started; `ANALYSIS_SOURCE_HQ_V1` remains not frozen.
+
+High-res recovery artifacts:
+- `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+- `docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json` (`NOT_FROZEN_CANARY_GATE_CLOSED`)
+- `docs/science/HIGHRES_RECOVERY_BATCH_V1.json`
 
 ### Bug fix
 `interpolate_gaps_time` in `proposer_event_logic_v2_1.py`: NoneType crash when left gap boundary is None. Fixed (None-guard). PARAMS_E1 unchanged.
