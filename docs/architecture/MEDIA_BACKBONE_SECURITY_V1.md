@@ -204,3 +204,78 @@ Authority rules (binding for all future phases):
    (pre-existing, flagged at P4.1, out of scope): `diveanalyzer-dev-agent`
    (`003e2bb572cfba70000000001`) is an ACCOUNT-WIDE key holding admin
    capabilities (`writeKeys`, `deleteKeys`, `deleteBuckets`).
+
+## DEV admin key debt — P4.3 audit (audit only, NO rotation performed)
+
+Packet §18: `diveanalyzer-dev-agent` (applicationKeyId `003e2bb572cfba70000000001`,
+P4.1 key inventory) remains an **account-wide key with admin capabilities**.
+P4.3 audited it read-only; no credential was rotated or touched:
+
+- **Where it is used:** NOWHERE in any runtime config found. The Mac
+  production host's `object_store.env` (DEV ingest) holds
+  `diveanalyzer-dev-canary` (`…0003`, bucket-scoped — the P3 rotation); the
+  PROD runtime holds `diveanalyzer-prod-ingest-v2` (…0006). A targeted
+  search over the Mac state directory, deployed code, and the canonical
+  repo found **zero references** to the …0001 key ID.
+- **What capabilities it has:** account-wide admin (all buckets, full
+  capability set including `deleteFiles`/key management).
+- **Does production runtime depend on it?** NO — both runtime credentials
+  are bucket-scoped least-privilege keys.
+- **Does DEV ingest require admin capabilities?** NO — P3 ran the complete
+  ingest flow green on the bucket-scoped DEV key; P4.1 proved
+  `[listFiles, readFiles, writeFiles]` suffices end-to-end.
+- **Remaining exposure:** whoever holds this key can read/write/delete in
+  every bucket of the account and manage keys. It is presumably held only
+  by the maintainer (used interactively for console/API administration,
+  e.g. P4.1 key creation used a privileged credential in memory only).
+
+**Recommendation (future maintainer-attended step, NOT overnight):** revoke
+`diveanalyzer-dev-agent` …0001 entirely — no runtime needs it. If a
+privileged maintenance credential is ever required again, create it ad hoc
+with exact capabilities via the P4.1 in-memory procedure and delete it
+immediately after use. Until then the key is dormant-but-dangerous debt;
+treat any committed reference to it as a secret-class finding.
+
+## P4.1 synthetic-object absence — P4.3 reconciliation (§17, read-only)
+
+P4.1's S3-compatibility validation PUT two synthetic objects and documented
+them as retained evidence (`bc1fece7…` 784 B single-PUT probe, `a5f2bc63…`
+12 MB multipart probe). P4.2's first full LIST found them absent, and P4.3's
+read-only LIST re-confirmed: the PROD bucket holds exactly 10 objects — the
+P4 synthetic preflight probe (`72d94c7f…`, 408 B), the P4 canary blob, and
+the 8 P4.2 cohort blobs. P4.3 performed no delete/hide and did not recreate
+them. Evidence collected:
+
+- The two keys exist verbatim in the P4.1 evidence JSON (`put_single.key`,
+  `multipart.key`) with SHA-verified PUT/HEAD/GET results; no timestamps
+  were recorded for their creation beyond the P4.1 session window.
+- Project-code deletion is excluded: the runtime key cannot hard-delete
+  (401, P4.1) and S3 `DeleteObject` was never called (0 log matches for
+  delete/hide primitives in the full production log; the P4.2 static
+  no-delete firewall covers the entire ingest path; the P4 `b2-preflight`
+  diagnostic cleans only its own `72d94c7f` probe, which is still present).
+- Provider lifecycle rules cannot be excluded: bucket-level lifecycle
+  configuration is not readable with the least-privilege key (401 on
+  bucket ops) — noted as an unproven alternative.
+
+**Classification: `EXTERNAL_OR_MANUAL_REMOVAL_MOST_LIKELY`** (maintainer
+console cleanup during the P4.1→P4.2 window is the leading hypothesis;
+`PROVIDER_LIFECYCLE` cannot be fully excluded; `PROJECT_CODE_ACTION` is
+excluded by evidence). Not a P5 blocker: the objects were non-sensitive
+synthetic validation bytes, and no unauthorized destructive action by
+project code is indicated.
+
+## P4.3 storage-authority hardening (2026-09-10)
+
+The P4.2 cross-environment cohort exposed a schema-representation gap:
+`media_blobs` carried physical location fields on the content-identity row,
+so the four P3 DEV lineage blobs that were verified into the PROD bucket at
+P4.2 deduped onto their DEV rows and their PROD replicas were not durably
+represented. P4.3 repaired this additively (see STORAGE AUTHORITY in
+`MEDIA_BACKBONE_TARGET_V1.md`): `media_blob_locations` is now the
+authoritative per-replica record, the legacy blob location columns are
+documented transitional/non-authoritative, the commit ledger is
+environment-scoped, and the commit service rejects environment/bucket
+mismatches and conflicting-SHA location keys at the service boundary (in
+addition to the existing commit-API firewall). No destructive migration;
+no media deletion; no credential changes; dual-write flags remain OFF.

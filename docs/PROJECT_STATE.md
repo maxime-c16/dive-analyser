@@ -1,12 +1,12 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-09** (media-backbone P4.2
-> bounded production dual-write cohort complete).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1.md`
+> Durable project handoff. Last verified: **2026-09-10** (media-backbone P4.3
+> overnight storage-authority hardening complete).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_3_STORAGE_AUTHORITY_HARDENING_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4_2`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4_3`**
 
 ## Project purpose
 
@@ -794,6 +794,72 @@ P4 audit §35.
   1 pre-existing env-only failure (static host-path test; backend code
   untouched). `LEGACY_PRODUCTION_BEHAVIOR_MUTATION NONE`;
   `PRODUCTION_PLAYBACK_MUTATION NONE`; science untouched.
+
+### Media backbone P4.3 — overnight storage-authority hardening COMPLETE (2026-09-10)
+
+**Status: `P4_3_COMPLETE` / `P5_STORAGE_AUTHORITY_READY`.** Full report:
+`docs/audits/MEDIA_BACKBONE_P4_3_STORAGE_AUTHORITY_HARDENING_V1.md`.
+Packet `MEDIA_BACKBONE_P4_3_OVERNIGHT_STORAGE_AUTHORITY_HARDENING_V1`
+(fully unattended; no human interaction; flags stayed OFF; 0 new media;
+0 B2 writes/deletes). Branch `media-backbone-p4-3-storage-authority-v1`,
+ff-merged into canonical (`268bfe5` → `572516f` + docs commit).
+
+- **Diagnosis (§2 gate):** the pre-P4.3 schema could NOT represent the same
+  SHA in DEV and PROD simultaneously — `media_blobs` conflated content
+  identity with physical location, and the P4.2 dev-overlap cohort's four
+  verified PROD replicas (901A95AF, F2A9B8CC, BB513C7F, EB4ACB9E) were not
+  durably represented (deduped onto DEV rows; ledger dedupe on
+  `(video_uuid, object_key)` swallowed the PROD commit events).
+- **Repair (additive):** `media_blob_locations` = authoritative per-replica
+  storage records (unique on replica identity and per-blob replica;
+  environment + verified state); blob location columns documented
+  transitional/non-authoritative; ledger uniqueness env-scoped
+  (`(video_uuid, environment, object_key)`; index swap, no data rewrite);
+  commit service separates content dedupe from location dedupe and rejects
+  environment/bucket mismatches + conflicting-SHA location keys at two
+  layers; migration `add_media_blob_locations.sql` idempotent on real
+  Postgres (empty / cross-env / re-run tested).
+- **Live reconciliation:** backup of the 5 backbone tables first
+  (`~/backups/backbone_p4_3_before_reconciliation_20260910_001112.sql`);
+  backfill 10 DEV + 5 PROD locations (0 dups); the 4 missing PROD replicas
+  reconstructed by **idempotent replay of the durable P4.2 receipts**
+  through `commit_verified_ingest` (fail-closed pre-checks; B2 HEAD
+  byte-verified read-only). Final: 15 blobs / 19 locations (10 dev + 9
+  prod, all verified) / 15 revisions / 17 captions / 19 ledger rows —
+  zero duplicate logical rows; each shared SHA = 1 DEV + 1 PROD location.
+- **P5 precondition proven:** `resolve_verified_location` /
+  `resolve_media_revision_location` give one deterministic verified
+  location per (revision, environment); `verified=false` locations are
+  never playback-eligible. No P5 surface implemented.
+- **Daemon singleton:** the P4.2 duplicate (`28973`, SSH-probe orphan —
+  the runtime app binary is a daemon launcher, so probing it via SSH
+  started a full production daemon; it never started loops) terminated
+  cleanly; `daemon_lock.py` pid/lock file with stale-owner verification
+  wired into full-daemon mode only; two live-deploy bugs found and fixed
+  same-night (ps lstart= header suppression; locale-dependent output —
+  now LC_ALL=C forced); §20 contract proven live (second instance refuses
+  with `DAEMON_SINGLETON_REFUSE`, zero loop starts). Exactly one
+  production agent instance.
+- **Connectivity probes:** curl exit/stderr surfaced at WARNING,
+  `NetworkMonitor` CA propagation repair, PID in every log line — no TLS
+  authority change; the orphan's 000-loop cause is formally
+  `INSUFFICIENT_EVIDENCE` (was DEBUG-invisible; future recurrences
+  diagnosable in minutes).
+- **Materializer timeout:** bounded configurable
+  `materialization_timeout_seconds` (default 600 = current production
+  behavior; [30,3600]; wired end-to-end; live value unchanged).
+- **P4.1 synthetic objects:** `EXTERNAL_OR_MANUAL_REMOVAL_MOST_LIKELY`
+  (project-code deletion excluded by evidence; provider lifecycle not
+  fully excludable; not recreated/deleted; not a P5 blocker).
+- **DEV admin key (…0001):** audit only — zero runtime references;
+  production does not depend on it; recommendation: revoke in a
+  maintainer-attended step. No rotation performed.
+- Tests: backend backbone 52 pass; mac-agent 192/192 (production venv);
+  full backend suite signature-identical to baseline (1 pre-existing
+  failure + 273 pre-existing errors, byte-identical on pre-P4.3 code);
+  migration/secret/media scans clean.
+- Verdict recommendation: `P5_STORAGE_AUTHORITY_READY` — P5 still requires
+  a new explicit supervisor packet.
 
 ### Key documents
 

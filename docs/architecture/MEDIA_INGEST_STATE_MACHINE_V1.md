@@ -36,8 +36,25 @@ Retryable failures do NOT advance state: they increment `attempts`, record
 - **SERVER DB** — `media_blobs` / `media_revisions` / `caption_revisions`:
   the ONLY authority for the durable committed logical result.
 - `ingest_object_state` is a **server-side durable commit ledger**: written
-  exactly once per verified ingest commit by `commit_verified_ingest`; never
+  once per verified ingest commit by `commit_verified_ingest`; never
   read by agent orchestration; not a second state machine.
+
+### Ledger semantics (P4.3)
+
+`ingest_object_state` records **logical ingest events**, one row per
+`(video_uuid, environment, object_key)`. The pre-P4.3 uniqueness
+`(video_uuid, object_key)` conflated the DEV and PROD commit contexts: the
+same content-addressed `object_key` exists in both buckets, so a
+DEV → PROD commit of the same SHA found the DEV ledger row and the PROD
+commit event was never durably recorded (exactly what the P4.2 dev-overlap
+cohort hit). The uniqueness is now environment-scoped
+(`ix_ingest_object_state_clip_env_key_unique`; migration
+`add_media_blob_locations.sql` creates the replacement BEFORE dropping the
+conflated index — no data row is deleted or rewritten). Physical replica
+records are NOT kept here; they live in `media_blob_locations`
+(STORAGE AUTHORITY in `MEDIA_BACKBONE_TARGET_V1.md`). The ledger remains
+non-orchestration: agent-side recovery still depends only on the local JSON
+journal.
 
 ### Reconciliation matrix (each case has ONE deterministic outcome)
 

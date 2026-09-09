@@ -170,7 +170,44 @@ DROP of the new tables only):
 `backend/app/services/media_backbone.py::commit_verified_ingest(...)` — the only
 write path for the backbone: idempotently inserts blob/revision/caption-revision
 rows keyed by SHA; re-calling with the same content returns existing rows
-(no duplicates). Used by the P2 canary; wired to no endpoint in P1.
+(no duplicates). Used by the P2 canary; wired to the P4 commit endpoint.
+
+## STORAGE AUTHORITY (P4.3)
+
+CONTENT IDENTITY and PHYSICAL STORAGE REPLICAS are separate concepts
+(P4.3 packet §2/§3; exercised live by the P4.2 cross-environment cohort):
+
+- **CONTENT AUTHORITY**: `media_blobs` is content identity ONLY — one row
+  per SHA-256 with immutable content-level metadata. Its `storage_backend`
+  / `bucket` / `object_key` / `remote_object_id` columns are
+  **transitional / non-authoritative**: they record the first-seen location
+  only, are retained for compatibility, and must never be consulted for
+  "where is this replica?".
+- **STORAGE LOCATION AUTHORITY**: `media_blob_locations`
+  (`backend/app/models/media_backbone.py::MediaBlobLocation`, migration
+  `add_media_blob_locations.sql`) is the authoritative per-replica record:
+  unique on `(storage_backend, bucket, object_key)` (physical replica
+  identity — a location key is bound to exactly one content SHA; a
+  conflicting SHA is rejected, never overwritten) and on
+  `(blob_sha256, storage_backend, bucket, object_key)` (idempotent
+  storage-location dedupe). Each row carries `environment`, `verified`,
+  `verified_at`.
+- **ENVIRONMENT AUTHORITY**: environment belongs to the physical
+  storage/commit context, never to the SHA. `environment=dev` commits may
+  only reference the DEV bucket; `environment=prod` only the PROD bucket
+  (enforced in the commit service AND the commit API, fail-closed from the
+  same settings allowlist). One SHA = one `MediaBlob`; one blob → zero or
+  more verified locations (e.g. one DEV replica + one PROD replica as two
+  first-class rows).
+- **P5 LOOKUP SEMANTICS**: the internal-only helpers
+  `resolve_verified_location(db, sha, environment)` and
+  `resolve_media_revision_location(db, video_uuid, environment)` answer
+  "where is the verified PROD object for this MediaRevision?"
+  deterministically: join content → verified replica for the environment
+  (`verified=false` locations are never returned — not playback-eligible;
+  newest-verified-wins ordering is deterministic even if a future
+  deployment ever held several verified replicas per environment). No P5
+  playback surface is exposed by P4.3.
 
 ## STATE AUTHORITY (repair R3)
 
