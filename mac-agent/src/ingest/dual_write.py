@@ -57,6 +57,7 @@ from .caption import (
     compare_caption_providers,
 )
 from .coordinator import ObjectStoreIngestCoordinator
+from .media_content_type import video_content_type
 from .errors import ObjectStoreUnavailable
 from .objectstore.b2 import B2Config, BackblazeB2Store
 from .state_store import IngestStateStore
@@ -126,14 +127,14 @@ class _CountingStore:
         self.get_bytes = 0
         self.commit_attempts = 0
 
-    def put(self, key: str, source):
+    def put(self, key: str, source, content_type: str | None = None):
         if self._fail_put_once:
             self._fail_put_once = False
             raise ObjectStoreUnavailable(
                 "injected first-put failure (P4 controlled test)"
             )
         self.put_count += 1
-        result = self._inner.put(key, source)
+        result = self._inner.put(key, source, content_type=content_type)
         self.put_bytes += result.byte_size
         return result
 
@@ -584,6 +585,13 @@ class ProductionDualWrite:
             storage_backend=self.os_cfg.storage_backend or "b2",
             bucket=b2_config.bucket,
             skip_put_if_remote_present=True,
+            # P5 §20 (future-ingest Content-Type): ffprobe evidence, never a
+            # filename guess; no historical object is rewritten.
+            content_type=video_content_type(
+                media_meta.get("container"),
+                media_meta.get("codec"),
+                staged_path.suffix.lstrip("."),
+            ),
         )
 
         final_state = None

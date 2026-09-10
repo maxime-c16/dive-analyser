@@ -54,6 +54,34 @@ class Settings(BaseSettings):
     media_backbone_prod_bucket: str = os.getenv("MEDIA_BACKBONE_PROD_BUCKET", "diveanalyzer-prod-media")
     media_backbone_object_prefix: str = os.getenv("MEDIA_BACKBONE_OBJECT_PREFIX", "blobs/sha256")
 
+    # P5 user authentication + B2 playback canary. Feature flags default
+    # FALSE (fail closed); the legacy unauthenticated app is untouched while
+    # they are off.
+    user_auth_enabled: bool = os.getenv("USER_AUTH_ENABLED", "false").lower() == "true"
+    b2_playback_canary_enabled: bool = os.getenv("B2_PLAYBACK_CANARY_ENABLED", "false").lower() == "true"
+
+    # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +
+    # Path=/ and Secure in every HTTPS deployment; AUTH_COOKIE_SECURE may be
+    # disabled ONLY for a plain-HTTP local test environment — production
+    # browser authentication requires HTTPS (Secure is never disabled merely
+    # because a local HTTP dev environment exists).
+    auth_cookie_name: str = os.getenv("AUTH_COOKIE_NAME", "da_session")
+    auth_cookie_secure: bool = os.getenv("AUTH_COOKIE_SECURE", "true").lower() == "true"
+    auth_session_ttl_seconds: int = int(os.getenv("AUTH_SESSION_TTL_SECONDS", "604800"))
+
+    # Bounded login brute-force protection (DB-backed, cross-worker):
+    # per-identifier failed-attempt counter inside a rolling window.
+    auth_login_max_failures: int = int(os.getenv("AUTH_LOGIN_MAX_FAILURES", "5"))
+    auth_login_failure_window_seconds: int = int(os.getenv("AUTH_LOGIN_FAILURE_WINDOW_SECONDS", "900"))
+
+    # B2 playback presign (runtime credential only — never in Git; the
+    # playback key is least-privilege readFiles on the PROD bucket).
+    media_playback_presign_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS", "120"))
+    b2_playback_region: str = os.getenv("B2_PLAYBACK_REGION", "")
+    b2_playback_endpoint_url: str = os.getenv("B2_PLAYBACK_ENDPOINT_URL", "")
+    b2_playback_key_id: str = os.getenv("B2_PLAYBACK_KEY_ID", "")
+    b2_playback_key_secret: str = os.getenv("B2_PLAYBACK_KEY_SECRET", "")
+
     @property
     def configured_api_keys(self) -> List[str]:
         return [key.strip() for key in self.mac_agent_api_keys.split(",") if key.strip()]

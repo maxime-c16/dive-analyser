@@ -1,12 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-10** (media-backbone P4.3
-> overnight storage-authority hardening complete).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P4_3_STORAGE_AUTHORITY_HARDENING_V1.md`
+> Durable project handoff. Last verified: **2026-09-10** (media-backbone P5
+> accelerated auth + playback canary GREEN).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1.md`
+> Previous backbone: `docs/audits/MEDIA_BACKBONE_P4_3_STORAGE_AUTHORITY_HARDENING_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P4_3`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P5_AUTH_PLAYBACK_V1`**
 
 ## Project purpose
 
@@ -203,7 +204,7 @@ High-res recovery artifacts:
 ### Bug fix
 `interpolate_gaps_time` in `proposer_event_logic_v2_1.py`: NoneType crash when left gap boundary is None. Fixed (None-guard). PARAMS_E1 unchanged.
 
-## Current supervisor gate
+
 
 `SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_REPAIR_V1`
 
@@ -924,3 +925,52 @@ provenance committed.
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_SELECTION_V2`
+
+## Media backbone P5 — auth + B2 playback canary (2026-09-10, P5 thread)
+
+Packet `MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1` executed on top of
+the P4.3 closure base (`59e9097`) and the concurrent hurdle-identity-v2
+science commit (`636b0dc`, untouched). Reported P5-PRE head `8a332d3` was
+NOT in canonical history (invalid object) — proceeded from fresh canonical
+state without overwriting anything.
+
+- **USER auth layer V1 (flag-gated)**: additive schema (`app_users` /
+  `user_credentials` / `user_sessions` / `user_diver_access` /
+  `login_attempts` / `media_playback_grants`), Argon2id passwords
+  (argon2-cffi 23.1.0 pinned), opaque server-side sessions (cookie carries
+  raw token, DB stores SHA-256 only), hardened cookie
+  (HttpOnly/Secure/SameSite=Strict/Path=/), login/logout/me endpoints with
+  uniform failures + DB-backed rate limit (5 fails / id / 15 min → 429),
+  one-shot operator bootstrap CLI (getpass-only password).
+- **Ownership**: `MEDIA_DIVER_LINK_ALREADY_DETERMINISTIC`
+  (MediaRevision.video_uuid → dives.video_uuid UNIQUE → diver_id); central
+  policy `can_user_access_media` (authenticated + exactly one trusted
+  diver owner + explicit OWNER binding); IDOR-proven with synthetic users.
+- **Playback grant**: `GET /api/v1/media/revisions/{id}/play` — 302 to a
+  120 s presigned B2 URL (clamp [1,300]); `no-store`/`no-referrer`;
+  presigned URLs never logged/stored (asserted); expired grant rejected by
+  the provider live (401 after 130 s) and a fresh grant works.
+- **Live proof**: one real owner (maxime, diver 1, OWNER), cohort 9/9
+  verified-PROD revisions authorized (target 8), Range/seek GREEN in
+  Chromium (real Chrome channel) + WebKit via Playwright; negative tests
+  (unauthenticated 401, wrong-owner 404 no-Location, unknown 404,
+  flags-off fail-closed); provider-failure → explicit 503, no legacy
+  fallback. CORS NOT required (B2 untouched). Legacy playback healthy.
+- **Future-ingest Content-Type repair** (mac-agent, no historical
+  rewrite): evidence-based video MIME from ffprobe container/codec;
+  dual-write flags OFF; 0 B2 writes/deletes; 0 new media ingested.
+- **Flags returned OFF at closure** (rollback contract): production
+  default playback remains legacy; re-activation = `.env` flip
+  (`USER_AUTH_ENABLED=true`, `B2_PLAYBACK_CANARY_ENABLED=true`) + backend
+  restart; schema and the provisioned owner account persist.
+- Tests: backend P5 suite 21 pass (+ backbone suites 32 pass), full
+  backend suite delta = 0 new failures; mac-agent on the production Mac
+  182/182 (incl. 11 new Content-Type tests + 2 test-harness signature
+  repairs for the additive content_type argument).
+- Outstanding: Object Lock attestation pending; `diveanalyzer-dev-agent`
+  admin-key cleanup debt; presign uses the P4.1 key (recorded end-state
+  debt: dedicated presign-only playback key, provider-console action).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P5_AUTH_PLAYBACK_V1`

@@ -254,3 +254,46 @@ dev/prod bucket cross-wiring (`diveanalyzer-prod-media` selected while
 match `^[0-9a-f]{64}$`), public-access expectation (private bucket is a required
 provisioning invariant and is checked at the config level at P1; actual
 anonymous-access denial is verified against the real DEV bucket at P2), missing endpoint/region.
+
+## P5 authenticated playback grant architecture (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1`. Authority:
+`docs/architecture/USER_AUTHORIZATION_V1.md`; audit:
+`docs/audits/MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1.md`.
+
+- **New route (fail-closed, flag-gated)**:
+  `GET /api/v1/media/revisions/{revision_id}/play`
+  `session → can_user_access_media → verified-PROD location → B2 presign
+  (TTL 120 s) → HTTP 302 Location`.
+- **Grant model**: 302 redirect preferred over JSON URL — frontend JS
+  needs no provider URL, `<video src>` semantics stay simple,
+  authorization stays same-origin, and no B2 CORS is required (verified
+  live: Chromium + WebKit metadata/play/seek/Range all GREEN without any
+  bucket CORS mutation).
+- **Backend presigner**: `backend/app/services/b2_presign.py` (boto3
+  pinned 1.34.69) over the S3-compatible API, region/endpoint/credential
+  from runtime env only (`B2_PLAYBACK_*`), TTL clamped to [1, 300] s,
+  `PresignUnavailable` → explicit 503 provider-failure family (never a
+  redirect to an arbitrary location, never a legacy fallback).
+- **Canary listing endpoint** (bounded to the same flags):
+  `GET /api/v1/media/playback/canary/revisions` — media revisions the
+  current user may access that resolve to exactly one verified PROD
+  location (ids + coarse metadata only).
+- **Frontend canary (bounded)**: `frontend/src/pages/P5Canary.tsx` at
+  `/media/p5-canary` — login surface, authenticated playback of the
+  cohort `<video src="/api/v1/media/revisions/{id}/play">` with NO
+  `crossorigin` attribute and no JS media fetch, and logout. It does not
+  replace any legacy video URL anywhere.
+- **Content-Type (future ingest only)**: mac-agent
+  `media_content_type.video_content_type()` derives the wire MIME from
+  ffprobe container/codec evidence (`video/quicktime` / `video/mp4` /
+  `video/webm` / `video/x-matroska`, fail-closed default
+  `binary/octet-stream`); `ObjectStoreIngestCoordinator` forwards it to
+  `put(..., content_type=...)`; the B2 adapter passes `ContentType` to
+  both boto3 upload paths and omits it when unset (legacy behavior
+  preserved). Historical objects are NOT rewritten.
+- **Rollback**: `USER_AUTH_ENABLED=false` + `B2_PLAYBACK_CANARY_ENABLED=false`
+  (the post-canary default) makes every new route 404 and leaves the
+  legacy playback pipeline untouched; re-activation is a `.env` flip +
+  backend restart. Distinguish `AUTHORIZATION_DENIED` (404) from
+  `B2_PROVIDER_FAILURE` (503) — never bypass auth because B2 is down.

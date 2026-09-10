@@ -288,9 +288,9 @@ class CountingObjectStore:
         self.get_count = 0
         self.get_bytes = 0
 
-    def put(self, key: str, source: bytes | Path):
+    def put(self, key: str, source: bytes | Path, content_type: str | None = None):
         self.put_count += 1
-        result = self._inner.put(key, source)
+        result = self._inner.put(key, source, content_type=content_type)
         self.put_bytes += result.byte_size
         return result
 
@@ -327,10 +327,10 @@ class InjectingObjectStore(CountingObjectStore):
             return True
         return False
 
-    def put(self, key: str, source: bytes | Path):
+    def put(self, key: str, source: bytes | Path, content_type: str | None = None):
         if self._consume("put"):
             raise ObjectStoreUnavailable("injected first-put failure (P3 controlled test)")
-        return super().put(key, source)
+        return super().put(key, source, content_type=content_type)
 
     def get(self, key: str) -> bytes:
         if self._consume("get"):

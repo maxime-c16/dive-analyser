@@ -57,6 +57,9 @@ class ObjectStoreIngestCoordinator:
         storage_backend: str = "b2",
         bucket: str = "",
         skip_put_if_remote_present: bool = False,
+        # P5 §20: wire Content-Type for FUTURE uploads (evidence-based, no
+        # historical rewrite). None keeps the legacy provider default.
+        content_type: str | None = None,
     ):
         self.video_uuid = video_uuid
         self.store = state_store
@@ -72,6 +75,7 @@ class ObjectStoreIngestCoordinator:
         self.storage_backend = storage_backend
         self.bucket = bucket
         self.skip_put_if_remote_present = bool(skip_put_if_remote_present)
+        self.content_type = content_type
         self.store.load(video_uuid)
         if self.store.state is IngestState.DISCOVERED:
             self._remove_workdir()
@@ -147,7 +151,9 @@ class ObjectStoreIngestCoordinator:
                     put_skipped = True
             if not put_skipped:
                 path = Path(media["temp_path"])
-                result = self.object_store.put(media["object_key"], path)
+                result = self.object_store.put(
+                    media["object_key"], path, content_type=self.content_type
+                )
                 remote["last_put_sha256"] = result.sha256
             remote["attempts"] = int(remote.get("attempts", 0)) + 1
             remote["last_put_skipped_existing"] = put_skipped

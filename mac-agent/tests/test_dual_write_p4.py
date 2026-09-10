@@ -410,10 +410,10 @@ def test_b2_persistent_failure_isolated_then_recovers(env, monkeypatch):
     outage = {"active": True}
     original_put = FakeObjectStore.put
 
-    def outaged_put(self, key, src):
+    def outaged_put(self, key, src, *args, **kwargs):
         if outage["active"]:
             raise dual_write.ObjectStoreUnavailable("simulated B2 outage")
-        return original_put(self, key, src)
+        return original_put(self, key, src, *args, **kwargs)
 
     monkeypatch.setattr(FakeObjectStore, "put", outaged_put)
     monkeypatch.setattr(dual_write, "RETRY_BACKOFF_SECONDS", 0.0)

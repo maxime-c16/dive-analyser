@@ -143,16 +143,15 @@ class BackblazeB2Store:
                     time.sleep(min(2 ** attempt, 8))
         raise ObjectStoreUnavailable(f"object store unavailable after retries: {last_error}") from last_error
 
-    def put(self, key: str, source: bytes | Path) -> PutResult:
+    def put(self, key: str, source: bytes | Path, content_type: str | None = None) -> PutResult:
         from hashlib import sha256 as _sha
 
         if isinstance(source, (bytes, bytearray)):
             data = bytes(source)
-            self._with_retries(
-                lambda: self._client.put_object(
-                    Bucket=self.config.bucket, Key=key, Body=data
-                )
-            )
+            kwargs = {"Bucket": self.config.bucket, "Key": key, "Body": data}
+            if content_type:
+                kwargs["ContentType"] = content_type
+            self._with_retries(lambda: self._client.put_object(**kwargs))
             return PutResult(key=key, sha256=_sha(data).hexdigest(), byte_size=len(data))
         path = Path(source)
         digest = _sha()
@@ -161,9 +160,13 @@ class BackblazeB2Store:
             for chunk in iter(lambda: fh.read(1024 * 1024), b""):
                 digest.update(chunk)
                 size += len(chunk)
+        upload_kwargs = {"ContentType": content_type} if content_type else None
         self._with_retries(
             lambda: self._client.upload_fileobj(
-                open(path, "rb"), self.config.bucket, key
+                open(path, "rb"),
+                self.config.bucket,
+                key,
+                ExtraArgs=upload_kwargs,
             )
         )
         return PutResult(key=key, sha256=digest.hexdigest(), byte_size=size)

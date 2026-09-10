@@ -738,8 +738,8 @@ class TestIngestionStateMachine:
         )
         real_put = store.put
 
-        def put_then_corrupt(key, source):
-            result = real_put(key, source)
+        def put_then_corrupt(key, source, *args, **kwargs):
+            result = real_put(key, source, *args, **kwargs)
             store.objects[key] = b"tampered!"
             return result
 

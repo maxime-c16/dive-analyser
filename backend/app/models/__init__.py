@@ -50,6 +50,14 @@ from app.models.media_backbone import (
     CaptionRevision,
     IngestObjectState,
 )
+from app.models.user_auth import (
+    AppUser,
+    UserCredential,
+    UserSession,
+    UserDiverAccess,
+    LoginAttempt,
+    MediaPlaybackGrant,
+)
 
 __all__ = [
     "Session",
@@ -99,6 +107,12 @@ __all__ = [
     "MediaRevision",
     "CaptionRevision",
     "IngestObjectState",
+    "AppUser",
+    "UserCredential",
+    "UserSession",
+    "UserDiverAccess",
+    "LoginAttempt",
+    "MediaPlaybackGrant",
 ]
 from app.models.analysis import (
     AnalysisRun,

@@ -1,0 +1,115 @@
+"""Server-side opaque session authority (P5).
+
+Contract:
+- The raw session token is generated with a CSPRNG (secrets) and is returned
+  to the caller exactly once so it can be placed in the browser cookie.
+- The database stores ONLY the SHA-256 hex of the raw token. Plaintext or
+  bearer tokens are NEVER persisted server-side.
+- Resolution is by token hash; expired or revoked sessions are unusable.
+- Every successful login issues a FRESH token (session fixation avoided);
+  old sessions are revoked at login by design of per-user revocation below.
+"""
+
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional, Tuple
+
+from sqlalchemy.orm import Session
+
+from app.models.user_auth import AppUser, UserSession
+
+SESSION_TOKEN_BYTES = 32  # 256-bit raw token
+
+
+def generate_session_token() -> str:
+    """Cryptographically random, URL-safe raw session token."""
+    return secrets.token_urlsafe(SESSION_TOKEN_BYTES)
+
+
+def hash_session_token(raw_token: str) -> str:
+    """DB-side lookup identity: SHA-256 hex of the raw token."""
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def create_session(
+    db: Session,
+    *,
+    user_id: int,
+    ttl_seconds: int,
+    revoke_existing: bool = True,
+) -> Tuple[str, UserSession]:
+    """Issue a fresh session. Returns (raw_token, session_row).
+
+    revoke_existing=True enforces one live browser session per user at the
+    P5 canary stage and guarantees login rotation: a stolen/previous token
+    cannot survive a new login (fixation + replay shrink).
+    """
+    if ttl_seconds <= 0:
+        raise ValueError("session ttl must be positive")
+    if revoke_existing:
+        _revoke_all_user_sessions(db, user_id)
+    raw_token = generate_session_token()
+    now = datetime.utcnow()
+    session = UserSession(
+        user_id=user_id,
+        token_hash=hash_session_token(raw_token),
+        created_at=now,
+        expires_at=now + timedelta(seconds=ttl_seconds),
+        revoked_at=None,
+        last_used_at=None,
+    )
+    db.add(session)
+    db.commit()
+    return raw_token, session
+
+
+def resolve_session(
+    db: Session, raw_token: Optional[str]
+) -> Optional[Tuple[UserSession, AppUser]]:
+    """Resolve a raw cookie token to a live (session, user) pair.
+
+    Denied when: token missing/malformed, no matching hash, revoked,
+    or expired. Updates last_used_at for live sessions.
+    """
+    if not raw_token or len(raw_token) > 512:
+        return None
+    token_hash = hash_session_token(raw_token)
+    session = (
+        db.query(UserSession).filter_by(token_hash=token_hash).one_or_none()
+    )
+    if session is None:
+        return None
+    if session.revoked_at is not None:
+        return None
+    if session.expires_at <= datetime.utcnow():
+        return None
+    user = db.get(AppUser, session.user_id)
+    if user is None or not user.is_active:
+        return None
+    session.last_used_at = datetime.utcnow()
+    db.commit()
+    return session, user
+
+
+def revoke_session_by_raw_token(db: Session, raw_token: Optional[str]) -> bool:
+    """Revoke the session matching a raw token (logout)."""
+    if not raw_token:
+        return False
+    token_hash = hash_session_token(raw_token)
+    session = (
+        db.query(UserSession).filter_by(token_hash=token_hash).one_or_none()
+    )
+    if session is None or session.revoked_at is not None:
+        return False
+    session.revoked_at = datetime.utcnow()
+    db.commit()
+    return True
+
+
+def _revoke_all_user_sessions(db: Session, user_id: int) -> None:
+    now = datetime.utcnow()
+    db.query(UserSession).filter(
+        UserSession.user_id == user_id, UserSession.revoked_at.is_(None)
+    ).update({"revoked_at": now}, synchronize_session=False)
+    db.commit()

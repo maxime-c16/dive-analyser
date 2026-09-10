@@ -28,6 +28,7 @@ import Journey from "./pages/Journey";
 import DiveAnalysis from "./pages/DiveAnalysis";
 import RepresentativeMedia from "./pages/RepresentativeMedia";
 import MediaRecall from "./pages/MediaRecall";
+import P5Canary from "./pages/P5Canary";
 import Admin from "./pages/Admin";
 
 const navItems = [
@@ -37,6 +38,7 @@ const navItems = [
   { to: "/dives", label: "Dives", icon: Waves },
   { to: "/media/representatives", label: "Representatives", icon: Film },
   { to: "/media/recall", label: "Media recall", icon: HardDriveDownload },
+  { to: "/media/p5-canary", label: "B2 canary", icon: Film },
   { to: "/admin", label: "System", icon: ShieldCheck },
   { to: "/sessions", label: "Sessions", icon: CalendarDays },
   { to: "/competitions", label: "Competitions", icon: Medal },
@@ -50,6 +52,7 @@ const routeLabels: Record<string, string> = {
   "/media": "Media",
   "/media/representatives": "Representatives",
   "/media/recall": "Media recall",
+  "/media/p5-canary": "B2 canary",
   "/admin": "System",
   "/sessions": "Sessions",
   "/competitions": "Competitions",
@@ -239,6 +242,7 @@ function Router() {
           element={<RepresentativeMedia />}
         />
         <Route path="/media/recall" element={<MediaRecall />} />
+        <Route path="/media/p5-canary" element={<P5Canary />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/sessions" element={<Sessions />} />
         <Route path="/competitions" element={<Journey />} />

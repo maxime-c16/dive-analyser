@@ -279,3 +279,55 @@ environment-scoped, and the commit service rejects environment/bucket
 mismatches and conflicting-SHA location keys at the service boundary (in
 addition to the existing commit-API firewall). No destructive migration;
 no media deletion; no credential changes; dual-write flags remain OFF.
+
+## P5 user authentication & playback authorization (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1` added the smallest
+production-grade USER auth layer needed for authorized B2 playback. Full
+authority: `docs/architecture/USER_AUTHORIZATION_V1.md`. Summary:
+
+- **AppUser / UserCredential / UserSession / UserDiverAccess** — additive,
+  reversible, idempotent schema (`add_user_auth_tables.sql`), idempotence
+  re-proven on the real Postgres.
+- **Argon2id** password verifier (argon2-cffi 23.1.0, pinned); no plaintext,
+  no reversible encryption; safe library verifier only.
+- **Opaque server-side sessions**: cookie carries a 256-bit raw token; DB
+  stores only its SHA-256; login rotates and revokes prior sessions.
+- **Cookie**: `HttpOnly; Secure; SameSite=Strict; Path=/` (production
+  HTTPS via nginx 6443; AUTH_COOKIE_SECURE never disabled for production).
+- **Endpoints**: login / logout / me; uniform generic failures; DB-backed
+  rate limit (5 failures / identifier / 15 min window → 429, rolling
+  reset; no permanent lockout); no public registration.
+- **MEDIA→DIVER link**: `MEDIA_DIVER_LINK_ALREADY_DETERMINISTIC`
+  (MediaRevision.video_uuid → dives.video_uuid UNIQUE → dives.diver_id);
+  no additive ownership table; no inference from filename/caption/albums/
+  is_primary_user.
+- **Central policy** `can_user_access_media`: ALLOW iff authenticated
+  + exactly one trusted diver owner + explicit OWNER binding; otherwise
+  DENY. No LAN/UUID/legacy fallbacks. IDOR-proven with two synthetic users.
+- **Playback grant**: authenticated same-origin route → verified-PROD
+  location (exactly one; ambiguous/unverified/DEV → DENY) → B2 presign
+  TTL 120 s (clamp [1,300]) → 302 with `Cache-Control: private, no-store`
+  + `Referrer-Policy: no-referrer`. Presigned URLs never logged or stored
+  (test-asserted + live log scan). Expired grants rejected by the
+  provider (live-proven 401 after 130 s) and a fresh grant is obtained by
+  re-requesting the route.
+- **CORS**: NOT required for the `<video>`-element flow (no crossorigin,
+  no JS media fetch) — live-verified in Chromium + WebKit; B2 untouched.
+- **Content-Type**: existing `binary/octet-stream` objects play as-is
+  (recorded compatibility, no rewrite); future uploads get evidence-based
+  video MIME via ffprobe container/codec (mac-agent change, dual-write
+  flags still OFF, 0 media ops).
+- **Flags**: `USER_AUTH_ENABLED` / `B2_PLAYBACK_CANARY_ENABLED` default
+  false, fail-closed; after the live canary/cohort proof both were
+  returned OFF (legacy playback remains the product default).
+- **Live proof**: one real owner account (bootstrap CLI, getpass-only
+  password), canary revision 12 → 9/9 cohort authorized (target ≥5),
+  Range/seek GREEN in Chromium + WebKit, negative tests (unauthenticated
+  401, wrong-owner 404 no-Location, unknown-revision 404), expired-grant
+  provider rejection + fresh grant. 0 B2 writes, 0 deletes, no object
+  mutation, dual-write flags OFF throughout.
+- **Outstanding**: Object Lock attestation pending; DEV admin key cleanup
+  debt; presign credential is the P4.1 key (readFiles included) — a
+  dedicated presign-only playback key is the recorded end-state debt
+  (provider-console action).

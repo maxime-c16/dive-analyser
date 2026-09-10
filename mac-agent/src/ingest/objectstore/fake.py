@@ -22,12 +22,16 @@ class FakeObjectStore:
         self.etags: dict[str, str] = {}
         self.put_counts: dict[str, int] = {}
         self.presigned: list[tuple[str, int]] = []
+        self.put_content_types: dict[str, str] = {}
         self.fail_after_bytes: int | None = None
         self.corrupt_keys: set[str] = set()
         self.error_keys: set[str] = set()
         self._lock = threading.Lock()
 
-    def put(self, key: str, source: bytes | Path) -> PutResult:
+    def put(self, key: str, source: bytes | Path, content_type: str | None = None) -> PutResult:
+        if content_type is not None:
+            with self._lock:
+                self.put_content_types[key] = content_type
         data = bytes(source) if isinstance(source, (bytes, bytearray)) else Path(source).read_bytes()
         with self._lock:
             self.put_counts[key] = self.put_counts.get(key, 0) + 1
