@@ -48,20 +48,15 @@ def clamp_ttl(ttl_seconds: Optional[int] = None) -> int:
     return max(MIN_TTL_SECONDS, min(MAX_TTL_SECONDS, ttl))
 
 
-def presign_get(
-    bucket: str,
-    object_key: str,
-    ttl_seconds: Optional[int] = None,
-    storage_location_id: Optional[int] = None,
-) -> PresignResult:
-    """Presign a GET for one object. Returns (url, ttl) — url is transient.
+def _b2_client():
+    """S3-compatible client for the dedicated read-only playback key.
 
-    Raises PresignUnavailable when the playback credential is not
-    configured; callers MUST map that to an explicit provider-failure
-    response, never to a fallback or a redirect to an arbitrary location.
+    The playback credential is least-privilege readFiles on the PROD bucket
+    only; it is configured directly with the known endpoint/bucket so no
+    account-level listing is ever needed. Raises PresignUnavailable when
+    not configured.
     """
     settings = get_settings()
-    ttl = clamp_ttl(ttl_seconds)
     key_id = (settings.b2_playback_key_id or "").strip()
     secret = (settings.b2_playback_key_secret or "").strip()
     if not key_id or not secret:
@@ -75,13 +70,52 @@ def presign_get(
     ).strip()
     import boto3  # lazy: unit tests inject fakes instead
 
-    client = boto3.client(
+    return boto3.client(
         "s3",
         endpoint_url=endpoint,
         region_name=region,
         aws_access_key_id=key_id,
         aws_secret_access_key=secret,
     )
+
+
+def head_object(bucket: str, object_key: str) -> bool:
+    """Provider-side health proof for one playback grant (P6 §13/§29).
+
+    boto3 presigning is a LOCAL signing operation: an invalid, revoked, or
+    expired playback credential still produces a syntactically valid URL
+    that the provider then rejects — handing the browser a dead redirect.
+    This HEAD proves the credential can actually read the object RIGHT
+    NOW; any provider rejection/failure raises PresignUnavailable so the
+    caller can apply the B2_TEMPORARY_FAILURE policy (authorized legacy
+    fallback, or explicit 503 — never a dead Location).
+    """
+    client = _b2_client()
+    try:
+        client.head_object(Bucket=bucket, Key=object_key)
+        return True
+    except PresignUnavailable:
+        raise
+    except Exception as exc:
+        raise PresignUnavailable(
+            f"playback credential/object unusable: {type(exc).__name__}"
+        ) from exc
+
+
+def presign_get(
+    bucket: str,
+    object_key: str,
+    ttl_seconds: Optional[int] = None,
+    storage_location_id: Optional[int] = None,
+) -> PresignResult:
+    """Presign a GET for one object. Returns (url, ttl) — url is transient.
+
+    Raises PresignUnavailable when the playback credential is not
+    configured; callers MUST map that to an explicit provider-failure
+    response, never to a fallback or a redirect to an arbitrary location.
+    """
+    ttl = clamp_ttl(ttl_seconds)
+    client = _b2_client()
     url = client.generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": object_key},

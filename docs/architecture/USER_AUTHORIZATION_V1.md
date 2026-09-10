@@ -101,28 +101,33 @@ state: one user (`user_id=1`, OWNER of diver 1), plus the standing
 synthetic negative-test user `p5-synthetic-negative@test.local` (no
 access).
 
-## 8. Flags & rollback
+## 8. Flags & rollback (P6)
 
 - `USER_AUTH_ENABLED=false` + `B2_PLAYBACK_CANARY_ENABLED=false`
-  (defaults): every new route 404s; legacy app 100% unchanged.
-- Post-canary state (2026-09-10): flags returned OFF after the live
-  canary/cohort proof. Re-activation: set both true in server `.env`,
-  `docker-compose up -d backend` (schema + account persist; nothing to
+  (compose defaults): every new route 404s; legacy app 100% unchanged —
+  this is the EMERGENCY ROLLBACK state (proven live in P6: unauthenticated
+  legacy playback restored, auth routes hidden).
+- **P6 final production state (2026-09-10): BOTH FLAGS ON** for the
+  existing bootstrapped OWNER only — authenticated B2-default playback
+  with authenticated legacy fallback. Re-activation from OFF is a `.env`
+  flip + backend restart (schema + account persist; nothing to
   re-migrate).
-- Legacy playback remains the product default; the P5 route is never a
-  global replacement.
+- Flag rollback (proven live): `B2_PLAYBACK_CANARY_ENABLED=false` with
+  auth on → the B2 play route + metrics endpoint 404 (fail-closed) while
+  legacy media routes REMAIN auth-gated; legacy app healthy.
 
-## 9. Outstanding items
+## 9. Outstanding items (post-P6)
 
-- Object Lock attestation for `diveanalyzer-prod-media`: pending (P5 did
-  not mutate retention; see SECURITY_V1).
-- `diveanalyzer-dev-agent` (account-wide admin, unused): recorded cleanup
-  debt; unused by P5.
-- Presign credential: the backend presigner currently uses the P4.1
-  least-privilege PROD key (`diveanalyzer-prod-ingest-v2`, caps
-  listFiles/readFiles/writeFiles — broader than playback needs). A
-  dedicated presign-only (readFiles) playback key is the correct end
-  state and requires a provider-console action (HUMAN_PROVIDER_ACTION).
-  Recorded as security debt, not a blocker.
+- RESOLVED in P6: dedicated read-only playback key
+  `diveanalyzer-prod-playback-v1` (caps exactly `readFiles`, PROD-bucket
+  restricted) created and live-proven; the backend no longer holds any
+  write-capable B2 credential. Object Lock attested DISABLED.
+  `diveanalyzer-dev-agent` (account-wide admin) REVOKED.
+- Maintainer UI cleanup (one batch): revoke duplicate playback key
+  `…0009` (from the aborted first operator run) and the one-time
+  `p6-op-ephemeral` admin key `…0008`.
+- Standing accounts: real OWNER (user_id=1, diver 1) +
+  `p5-synthetic-negative@test.local` and `p6-negative@example.test`
+  (both with NO diver access, for negative tests).
 - Historical `binary/octet-stream` objects: compatibility verified;
   re-upload/rewrite remains forbidden without a future explicit packet.

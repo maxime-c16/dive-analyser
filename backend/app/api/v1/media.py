@@ -43,6 +43,8 @@ from app.schemas.media import (
     ResolutionUpgradeStartRequest,
 )
 from app.security import verify_api_key
+from app.services.legacy_gate import require_legacy_media_user
+from app.services.user_access import can_user_access_cache_entry
 from app.services.media_cache import (
     get_playable_entry,
     cache_tmp_path,
@@ -172,6 +174,8 @@ def _media_headers(path: Path, content_type: str, content_length: int) -> dict[s
         "Content-Disposition": f'inline; filename="{path.name}"',
         "Content-Length": str(content_length),
         "Content-Type": content_type,
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
     }
 
 
@@ -855,8 +859,19 @@ async def play_cached_media(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Serve a verified cached media artifact."""
+    """Serve a verified cached media artifact.
+
+    P6 legacy IDOR closure: while USER_AUTH_ENABLED the route requires a
+    live session and central OWNER authorization (via the deterministic
+    cache-entry → Photos asset → dive → diver chain) BEFORE any bytes are
+    served. With auth disabled the legacy behavior is preserved (rollback).
+    """
     entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None:
+        decision = can_user_access_cache_entry(db, user, entry)
+        if not decision.allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     media_path = Path(entry.storage_path)
     return _serve_media_file(
         media_path,
@@ -868,11 +883,17 @@ async def play_cached_media(
 
 @router.post("/events/viewed")
 async def mark_media_viewed(
+    request: Request,
     entry_id: int,
     db: Session = Depends(get_db),
 ):
     """Track a cache entry access without streaming the file."""
     entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None:
+        decision = can_user_access_cache_entry(db, user, entry)
+        if not decision.allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return {
         "entry_id": entry.id,
         "last_accessed_at": entry.last_accessed_at,

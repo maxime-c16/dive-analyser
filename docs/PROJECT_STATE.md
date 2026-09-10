@@ -1,13 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-10** (media-backbone P5
-> accelerated auth + playback canary GREEN).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1.md`
-> Previous backbone: `docs/audits/MEDIA_BACKBONE_P4_3_STORAGE_AUTHORITY_HARDENING_V1.md`
+> Durable project handoff. Last verified: **2026-09-10** (media-backbone P6
+> owner default B2 playback + legacy IDOR closure GREEN).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
+> Previous backbone: `docs/audits/MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P5_AUTH_PLAYBACK_V1`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P6_DEFAULT_PLAYBACK_V1`**
 
 ## Project purpose
 
@@ -974,3 +974,62 @@ state without overwriting anything.
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P5_AUTH_PLAYBACK_V1`
+
+## Media backbone P6 handoff (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1` on top of the
+accepted P5 state (`a2f7885`). Full evidence:
+`docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`.
+
+- **Dedicated playback key**: `diveanalyzer-prod-playback-v1` (…000a,
+  caps exactly `readFiles`, PROD bucket only) — the backend lost the
+  write-capable ingest credential entirely (credential domains separated
+  and live-verified). Playback key proofs: read GREEN (206/200), write/
+  delete/hide/bucket/cross-bucket DENIED. `diveanalyzer-dev-agent`
+  account-wide admin key REVOKED. Object Lock attested DISABLED.
+  Maintainer UI cleanup pending: revoke `…0009` (duplicate) +
+  `p6-op-ephemeral` `…0008`.
+- **Login rate-limit repair**: two-tier (per-IP 10/15 min + per-identifier
+  20/15 min, success clears) — no more indefinite lockout via wrong-
+  password bursts; brute-force still bounded.
+- **Session cleanup** bounded (expired/revoked, 24 h retention) after
+  login; cookie/session model unchanged and revalidated.
+- **CSRF**: SameSite=Strict primary + minimal Origin validation on
+  auth POSTs; cookie policy unchanged.
+- **Legacy IDOR closure** (auth-enabled state): `/videos/{uuid}`,
+  `/videos/check/{uuid}`, `/media/cache/{id}/play`,
+  `/media/events/viewed` now require session + central OWNER
+  authorization. Flags off = exact legacy behavior (emergency rollback,
+  proven).
+- **Authenticated legacy fallback**: B2 default (verified-PROD replica +
+  grant-time provider HEAD proof) → else server-side legacy stream with
+  Range; browser never receives an unauthenticated legacy URL; ambiguous
+  → fail-closed; auth failures never fall back.
+- **Live proofs**: default B2 grant chain (302 → 200/206), expired-
+  presign refresh (401 → fresh 302 → 206), B2-failure injection →
+  authenticated legacy fallback (200/206) with wrong-owner DENY during
+  outage, wrong-owner DENY on play/legacy routes, Chrome + WebKit GREEN
+  (metadata/play/seek, 0 page errors).
+- **Cohort**: 9/9 verified-PROD owner revisions via B2 (each provider
+  fetch ranged 206); DEV-only → authorized legacy fallback or fail-closed
+  404.
+- **Production default (owner only)**: `USER_AUTH_ENABLED=true`,
+  `B2_PLAYBACK_CANARY_ENABLED=true` (final, live-verified). No public
+  registration; no additional athletes; legacy fallback remains behind
+  authorization. Both rollback paths (flag-level + emergency) proven.
+- **Observability**: in-process playback metrics + authenticated
+  `/api/v1/media/playback/metrics`; grant ledger extended with
+  LEGACY_FALLBACK outcomes; no tokens/URLs/cookies in metrics or logs.
+- **Ops counters**: B2_MEDIA_WRITES=0; delete/hide=0; media ingested=0;
+  science untouched.
+- Tests: P6 suite 30 pass + P5 suite 21 pass; full backend suite delta
+  0 new failures (2 pre-existing failures / 273 pre-existing errors).
+- Frontend note: the deployed SPA is the baked image
+  `dive-analyser-frontend:latest` built via
+  `docker build -f frontend/Dockerfile.deploy -t dive-analyser-frontend:latest frontend`
+  — `docker-compose build frontend` builds a dev image and does NOT
+  produce the deployed one.
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P6_AUTH_PLAYBACK_V1`

@@ -113,3 +113,43 @@ def _revoke_all_user_sessions(db: Session, user_id: int) -> None:
         UserSession.user_id == user_id, UserSession.revoked_at.is_(None)
     ).update({"revoked_at": now}, synchronize_session=False)
     db.commit()
+
+
+def cleanup_stale_sessions(
+    db: Session, retention_seconds: int = 86400, max_rows: int = 500
+) -> int:
+    """Bounded cleanup of expired/revoked session rows (P6 hardening).
+
+    Deletes at most ``max_rows`` rows that are expired, or revoked at least
+    ``retention_seconds`` ago. Live sessions are never touched. Returns the
+    number of rows deleted; the caller decides when to invoke this (a cheap
+    bounded call after successful login keeps ``user_sessions`` from growing
+    without limit without any scheduled-job infrastructure).
+    """
+    now = datetime.utcnow()
+    cutoff = now - timedelta(seconds=max(retention_seconds, 0))
+    expired = (
+        db.query(UserSession)
+        .filter(UserSession.expires_at <= now)
+        .order_by(UserSession.expires_at.asc())
+        .limit(max_rows)
+    )
+    expired_ids = [row.id for row in expired.all()]
+    revoked = (
+        db.query(UserSession)
+        .filter(UserSession.revoked_at.isnot(None))
+        .filter(UserSession.revoked_at <= cutoff)
+        .order_by(UserSession.revoked_at.asc())
+        .limit(max_rows)
+    )
+    revoked_ids = [row.id for row in revoked.all()]
+    stale_ids = list(dict.fromkeys(expired_ids + revoked_ids))[:max_rows]
+    if not stale_ids:
+        return 0
+    deleted = (
+        db.query(UserSession)
+        .filter(UserSession.id.in_(stale_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted

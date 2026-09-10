@@ -124,10 +124,12 @@ class LoginAttempt(Base):
     id = Column(Integer, primary_key=True, index=True)
     identifier = Column(String(255), nullable=False, index=True)
     success = Column(Boolean, nullable=False)
+    client_ip = Column(String(64), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         Index("ix_login_attempts_identifier_time", "identifier", "created_at"),
+        Index("ix_login_attempts_client_ip_time", "client_ip", "created_at"),
     )
 
 

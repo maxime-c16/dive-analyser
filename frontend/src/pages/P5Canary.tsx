@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { LogIn, LogOut, ShieldCheck } from "lucide-react";
 
 /**
- * P5 B2 playback canary (bounded feature surface).
+ * Authenticated media player (bounded feature surface).
  *
- * Never replaces legacy playback: only this canary page exercises the
- * authenticated B2 route (GET /api/v1/media/revisions/{id}/play -> 302 to a
- * short-TTL presigned B2 URL). The <video> element uses NO crossorigin
+ * Single playback source (GET /api/v1/media/revisions/{id}/play): the backend
+ * chooses B2 (short-TTL presigned redirect) or an authenticated legacy
+ * source transparently. The <video> element uses NO crossorigin
  * attribute and no fetch(): the redirect is followed by the element itself
  * and Range/seek requests go straight to the provider URL.
  */
@@ -132,10 +132,9 @@ function P5Canary() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">B2 playback canary (P5)</h1>
+          <h1 className="text-lg font-semibold">Media player</h1>
           <p className="text-sm text-app-muted">
-            Authenticated playback of verified PROD media via short-lived
-            presigned grants. Legacy playback is unchanged elsewhere.
+            Sign in to watch your dives. Playback uses short-lived, private links.
           </p>
         </div>
         <button
@@ -158,7 +157,7 @@ function P5Canary() {
 
       {revisions.length === 0 ? (
         <div className="border border-app bg-app-panel p-4 text-sm text-app-muted">
-          No authorized PROD media revisions found for this account.
+          No authorized media found for this account.
         </div>
       ) : (
         <div className="grid gap-4">

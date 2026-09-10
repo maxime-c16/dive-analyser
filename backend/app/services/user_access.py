@@ -32,7 +32,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.dive import Dive
+from app.models.media import MediaCacheEntry
 from app.models.media_backbone import MediaRevision
+from app.models.photos_asset import PhotosAsset
 from app.models.user_auth import AppUser, UserDiverAccess
 
 ACCESS_KIND_OWNER = "OWNER"
@@ -98,6 +100,77 @@ def can_user_access_media(
     if user is None or not user.is_active:
         return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
     diver_id = resolve_media_diver_owner(db, media_revision)
+    if diver_id is None:
+        return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
+    if not user_has_diver_access(db, user.id, diver_id):
+        return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS, diver_id)
+    return MediaAccessDecision(True, "allowed", diver_id)
+
+
+def resolve_video_diver_owner(db: Session, video_uuid: str) -> Optional[int]:
+    """Authoritative chain for a legacy video identity:
+
+        dives.video_uuid (UNIQUE)  ->  dives.diver_id
+
+    Same deterministic function the media-revision chain bottoms out in.
+    Returns None (fail closed) for unknown/unlinked UUIDs.
+    """
+    if not video_uuid:
+        return None
+    dive = db.query(Dive).filter(Dive.video_uuid == video_uuid).one_or_none()
+    if dive is None or dive.diver_id is None:
+        return None
+    return dive.diver_id
+
+
+def can_user_access_video(
+    db: Session, user: AppUser, video_uuid: str
+) -> MediaAccessDecision:
+    """Central policy for legacy video-identity playback (P6 legacy gating).
+
+    ALLOW iff the same rule as can_user_access_media, entered through the
+    dive chain directly. No legacy fallbacks: no primary-user shortcut, no
+    LAN locality, no UUID secrecy.
+    """
+    if user is None or not user.is_active:
+        return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
+    diver_id = resolve_video_diver_owner(db, video_uuid)
+    if diver_id is None:
+        return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
+    if not user_has_diver_access(db, user.id, diver_id):
+        return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS, diver_id)
+    return MediaAccessDecision(True, "allowed", diver_id)
+
+
+def resolve_cache_entry_diver_owner(
+    db: Session, entry: Optional[MediaCacheEntry]
+) -> Optional[int]:
+    """Authoritative chain for a media-cache rendition:
+
+        MediaCacheEntry.photos_asset_id -> PhotosAsset.video_uuid
+          -> dives.video_uuid (UNIQUE)  ->  dives.diver_id
+
+    Cache entries are derived renditions of a Photos asset; the asset's
+    video_uuid joins the unique dive chain, so (cache entry -> diver) is a
+    function or nothing. Returns None (fail closed) otherwise.
+    """
+    if entry is None or entry.photos_asset_id is None:
+        return None
+    asset = db.get(PhotosAsset, entry.photos_asset_id)
+    if asset is None or not asset.video_uuid:
+        return None
+    return resolve_video_diver_owner(db, asset.video_uuid)
+
+
+def can_user_access_cache_entry(
+    db: Session, user: AppUser, entry: Optional[MediaCacheEntry]
+) -> MediaAccessDecision:
+    """Central policy for media-cache (poster/proxy) playback (P6)."""
+    if entry is None:
+        return MediaAccessDecision(False, DENY_UNKNOWN_REVISION)
+    if user is None or not user.is_active:
+        return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
+    diver_id = resolve_cache_entry_diver_owner(db, entry)
     if diver_id is None:
         return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
     if not user_has_diver_access(db, user.id, diver_id):

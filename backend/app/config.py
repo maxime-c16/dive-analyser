@@ -69,10 +69,24 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = os.getenv("AUTH_COOKIE_SECURE", "true").lower() == "true"
     auth_session_ttl_seconds: int = int(os.getenv("AUTH_SESSION_TTL_SECONDS", "604800"))
 
-    # Bounded login brute-force protection (DB-backed, cross-worker):
-    # per-identifier failed-attempt counter inside a rolling window.
-    auth_login_max_failures: int = int(os.getenv("AUTH_LOGIN_MAX_FAILURES", "5"))
+    # Bounded login brute-force protection (DB-backed, cross-worker), P6
+    # two-tier repair: an aggressive per-source (client IP) cap keeps any
+    # single network source from spraying guesses or holding an identifier
+    # at its failure ceiling; a generous per-identifier cap bounds distributed
+    # credential guessing without a durable account lock (the window rolls
+    # off and any successful login clears the identifier's failure rows, so
+    # a legitimate user is never non-destructively locked out).
+    auth_login_max_failures: int = int(os.getenv("AUTH_LOGIN_MAX_FAILURES", "20"))
+    auth_login_ip_max_failures: int = int(os.getenv("AUTH_LOGIN_IP_MAX_FAILURES", "10"))
     auth_login_failure_window_seconds: int = int(os.getenv("AUTH_LOGIN_FAILURE_WINDOW_SECONDS", "900"))
+
+    # Bounded cleanup for expired/revoked sessions: rows older than the
+    # retention window are deleted (bounded per call) after a successful
+    # login. Revoked sessions must be inspectable briefly; expired ones are
+    # already unusable.
+    auth_session_cleanup_retention_seconds: int = int(
+        os.getenv("AUTH_SESSION_CLEANUP_RETENTION_SECONDS", "86400")
+    )
 
     # B2 playback presign (runtime credential only — never in Git; the
     # playback key is least-privilege readFiles on the PROD bucket).

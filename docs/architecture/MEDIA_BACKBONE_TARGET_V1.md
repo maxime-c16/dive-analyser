@@ -297,3 +297,31 @@ Packet `MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1`. Authority:
   legacy playback pipeline untouched; re-activation is a `.env` flip +
   backend restart. Distinguish `AUTHORIZATION_DENIED` (404) from
   `B2_PROVIDER_FAILURE` (503) — never bypass auth because B2 is down.
+
+
+## P6 — B2-default playback for the authorized owner (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1` (audit:
+`docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`):
+
+- **Single playback URL**: `GET /api/v1/media/revisions/{id}/play` is the
+  one application playback route; the backend decides the source. The
+  frontend never sees B2 storage keys, bucket names, or presigned URLs in
+  state; the `<video>` element follows the 302 natively (no crossorigin,
+  no fetch) and seek/Range go straight to the provider.
+- **Source policy** (authorization ALWAYS first): verified PROD B2
+  replica + credential proven usable at grant time (provider HEAD) →
+  presigned GET redirect (TTL 120 s); NO_PROD_B2_REPLICA or
+  B2_TEMPORARY_FAILURE → authenticated server-side legacy stream with
+  Range (cache rendition preference proxy_720p > proxy_360p > original,
+  else the exact legacy file candidates, allowed-roots constrained);
+  ambiguous/integrity faults → fail-closed 404; AUTH_DENIED never falls
+  back.
+- **Legacy routes auth-gated** while auth enabled (rollback = flags off):
+  `/videos/{uuid}`, `/videos/check/{uuid}`, `/media/cache/{id}/play`,
+  `/media/events/viewed`.
+- **Production default for the current OWNER**: B2 playback enabled
+  (`USER_AUTH_ENABLED=true`, `B2_PLAYBACK_CANARY_ENABLED=true`), cohort
+  9/9 via B2 (provider 206 each), legacy fallback live-proven, both
+  rollback paths proven. Future ingest Content-Type derivation unchanged
+  and still inert for history.

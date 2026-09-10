@@ -331,3 +331,54 @@ authority: `docs/architecture/USER_AUTHORIZATION_V1.md`. Summary:
   debt; presign credential is the P4.1 key (readFiles included) — a
   dedicated presign-only playback key is the recorded end-state debt
   (provider-console action).
+
+## P6 dedicated playback key, legacy IDOR closure, default playback (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1`. Durable audit:
+`docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md` (+ key
+evidence JSON `docs/audits/MEDIA_BACKBONE_P6_PLAYBACK_KEY_EVIDENCE.json`).
+
+- **Dedicated playback key** `diveanalyzer-prod-playback-v1`
+  (…000a): capabilities exactly `readFiles`, bucket-restricted to
+  `diveanalyzer-prod-media`, S3 client configured directly with the known
+  endpoint/bucket (no account-level listing needed). Proofs: GetObject/
+  HeadObject/presigned GET/Range-206 GREEN; PutObject, delete, hide,
+  create-bucket, cross-bucket all DENIED. The backend holds NO
+  write-capable B2 credential anymore; the Mac ingest runtime keeps the
+  P4.1 ingest key (verified functional). One-time operator admin key
+  `p6-op-ephemeral` (…0008) + duplicate playback key `…0009` await one
+  maintainer UI revocation.
+- **Login lockout-DoS repair**: two-tier limiter — per-IP failed-attempt
+  cap (10/15 min, first X-Forwarded-For element; nginx is the only
+  ingress) + per-identifier cap (20/15 min); ANY successful login CLEARS
+  the identifier failures (non-destructive recovery, no durable lock).
+  Brute force still bounded; a single source cannot hold an identifier at
+  its ceiling.
+- **Session hygiene**: bounded cleanup of expired/revoked sessions after
+  successful login (retention default 24 h, max 500 rows/call).
+- **CSRF (exact)**: SameSite=Strict is the primary control for this
+  single-origin topology; added minimal Origin validation on state-
+  changing auth POSTs (login/logout) as defense-in-depth; cookie policy
+  unchanged.
+- **Legacy IDOR closure** (routes now auth-gated while auth enabled —
+  rollback = flags off): `/videos/{uuid}` + `/videos/check/{uuid}` +
+  `/media/cache/{id}/play` + `/media/events/viewed` require session +
+  central OWNER authorization through the deterministic chains
+  (cache entry → PhotosAsset → dive → diver). Unauth 401, wrong owner
+  404, owner allowed; live-proven for all identities.
+- **Authenticated legacy fallback**: authorized owner gets B2 by default;
+  B2 unavailable (grant-time provider HEAD proof catches invalid/revoked
+  credentials that local presigning would mask) → server-side legacy
+  stream with Range (browser NEVER receives an unauthenticated legacy
+  URL); no legacy copy → explicit 503 provider failure; ambiguous/
+  unverified/DEV-only location → fail-closed 404; authorization failures
+  NEVER fall back.
+- **Object Lock** attested: none/absent → DISABLED (no retention touch).
+- **dev-agent admin key REVOKED** (b2_delete_key 200).
+- **Security headers**: legacy media streams now carry no-referrer +
+  nosniff; frontend SPA pages carry both via nginx (server-level +
+  repeated in header-defining locations).
+- Live default-playback canary GREEN (Chrome + WebKit), cohort 9/9 B2
+  (all provider 206), expired-presign refresh GREEN, B2-failure injection
+  → authenticated legacy fallback (200/206), wrong-owner DENY in all
+  three states. 0 B2 writes, 0 deletes/hides.

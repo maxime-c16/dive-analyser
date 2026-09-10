@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks, status
+from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks, Request, status
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, RedirectResponse
 import httpx
 import os
@@ -33,6 +33,8 @@ from app.services.performance_scoring import ORDINAL_SCORE
 from app.services.media_cache import playback_url
 from app.services.media_jobs import create_or_reuse_media_job
 from app.services.diver_identity import invalidate_analysis_cache, resolve_diver
+from app.services.legacy_gate import require_legacy_media_user
+from app.services.user_access import can_user_access_video
 from app.security import verify_api_key
 
 router = APIRouter(prefix="/videos", tags=["videos"])
@@ -602,13 +604,23 @@ async def sync_batch_videos(
 # ========== VIDEO STREAM ENDPOINTS (existing) ==========
 
 @router.get("/{video_uuid}")
-async def stream_video(video_uuid: str, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
+async def stream_video(
+    video_uuid: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
+):
     """
     Stream a video by UUID.
 
     Video files are stored in the macOS Photos library.
     We look up the dive record to get the video path, then stream the file.
+
+    P6 legacy IDOR closure: while USER_AUTH_ENABLED the route requires a
+    live session and central OWNER authorization BEFORE any bytes leave the
+    server. With auth disabled the legacy behavior is preserved (rollback).
     """
+    user = require_legacy_media_user(db, request)
     try:
         # Find the dive with this video UUID
         stmt = select(Dive).where(Dive.video_uuid == video_uuid)
@@ -617,6 +629,13 @@ async def stream_video(video_uuid: str, db: Session = Depends(get_db), backgroun
 
         if not dive:
             raise HTTPException(status_code=404, detail="Video not found")
+
+        if user is not None:
+            decision = can_user_access_video(db, user, video_uuid)
+            if not decision.allowed:
+                # Uniform 404: no existence disclosure for unauthorized
+                # identities, exactly like the P5 playback route.
+                raise HTTPException(status_code=404, detail="Video not found")
 
         print(f"[videos] lookup: video_uuid={video_uuid}, video_path={getattr(dive,'video_path',None)}, video_filename={getattr(dive,'video_filename',None)}")
 
@@ -700,6 +719,8 @@ async def stream_video(video_uuid: str, db: Session = Depends(get_db), backgroun
             headers={
                 "Accept-Ranges": "bytes",
                 "Cache-Control": "public, max-age=3600",
+                "Referrer-Policy": "no-referrer",
+                "X-Content-Type-Options": "nosniff",
             }
         )
 
@@ -711,11 +732,25 @@ async def stream_video(video_uuid: str, db: Session = Depends(get_db), backgroun
 
 
 @router.get("/check/{video_uuid}")
-async def check_video_availability(video_uuid: str, db: Session = Depends(get_db)):
+async def check_video_availability(
+    video_uuid: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     """
     Check if a video is available without streaming it.
     Useful for frontend to show icons only for available videos.
+
+    P6 legacy IDOR closure: same session + central authorization gate as
+    the streaming route (raised BEFORE the availability probe and outside
+    its catch-all, so denial is a real 401/404 — never a spoofed
+    {"available": false}).
     """
+    user = require_legacy_media_user(db, request)
+    if user is not None:
+        decision = can_user_access_video(db, user, video_uuid)
+        if not decision.allowed:
+            raise HTTPException(status_code=404, detail="Video not found")
     try:
         cached_proxy = _ready_cached_media_for_uuid(db, video_uuid, "proxy_360p")
         if cached_proxy:

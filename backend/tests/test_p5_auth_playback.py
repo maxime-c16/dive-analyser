@@ -24,6 +24,8 @@ from app.main import app
 from app.models.dive import Dive
 from app.models.diver import Diver
 from app.models.media_backbone import MediaBlobLocation, MediaRevision
+from app.models.media import MediaCacheEntry
+from app.models.photos_asset import PhotosAsset
 from app.models.session import Session as SessionModel
 from app.models.user_auth import (
     AppUser,
@@ -79,6 +81,8 @@ def db():
             UserDiverAccess.__table__,
             LoginAttempt.__table__,
             MediaPlaybackGrant.__table__,
+            PhotosAsset.__table__,
+            MediaCacheEntry.__table__,
         ],
     )
     TestingSession = sessionmaker(bind=engine)
@@ -257,13 +261,18 @@ def fake_presign(monkeypatch):
 
     import app.api.v1.media_playback as playback_module
 
+    def _head_ok(bucket, object_key):
+        return True
+
     monkeypatch.setattr(playback_module.b2_presign, "presign_get", _fake)
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", _head_ok)
     return calls
 
 
-def _login(client, email="user-a@example.test", password="correct-horse-battery"):
+def _login(client, email="user-a@example.test", password="correct-horse-battery", ip=None):
+    headers = {"X-Forwarded-For": ip} if ip else {}
     return client.post(
-        "/api/v1/auth/login", json={"email": email, "password": password}
+        "/api/v1/auth/login", json={"email": email, "password": password}, headers=headers
     )
 
 
@@ -360,17 +369,23 @@ def test_login_rotates_token_and_revokes_previous(client, db):
 
 
 def test_login_rate_limit_bounded_window(client, db, monkeypatch):
-    for _ in range(get_settings().auth_login_max_failures):
-        assert _login(client, password="wrong").status_code == 401
-    # Even the CORRECT password is refused while the window is exhausted.
-    assert _login(client).status_code == 429
+    # P6 two-tier repair: distinct source IPs so the per-IP cap does not
+    # fire before the identifier ceiling is reached.
+    id_cap = get_settings().auth_login_max_failures
+    for i in range(id_cap):
+        ip = f"203.0.113.{i + 1}"
+        assert _login(client, password="wrong", ip=ip).status_code == 401
+    # Even the CORRECT password is refused while the identifier window is
+    # exhausted (bounded, NOT durable).
+    fresh = TestClient(app)
+    assert _login(fresh).status_code == 429
     # Window roll-off resets: no permanent lockout.
     for row in db.query(LoginAttempt).all():
         row.created_at = datetime.utcnow() - timedelta(
             seconds=get_settings().auth_login_failure_window_seconds + 1
         )
     db.commit()
-    assert _login(client).status_code == 200
+    assert _login(fresh).status_code == 200
 
 
 # ------------------------------------------------- §9/§11/§12 ownership + IDOR
