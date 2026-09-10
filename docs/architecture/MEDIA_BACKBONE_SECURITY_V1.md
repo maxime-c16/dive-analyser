@@ -382,3 +382,30 @@ evidence JSON `docs/audits/MEDIA_BACKBONE_P6_PLAYBACK_KEY_EVIDENCE.json`).
   (all provider 206), expired-presign refresh GREEN, B2-failure injection
   → authenticated legacy fallback (200/206), wrong-owner DENY in all
   three states. 0 B2 writes, 0 deletes/hides.
+
+
+## P7 continuous ingest + historical migration security posture (2026-09-10)
+
+- **Authorization unchanged by migration**: every migrated PROD replica is
+  served exclusively through the P6 single playback route; authenticated
+  OWNER access + deterministic media→diver chain unchanged; wrong-user 404
+  and unauthenticated 401 re-proven live after migration on migrated and
+  legacy routes (`/videos/{uuid}`, cache play).
+- **Inventory endpoint** (`/media/backbone/migration/inventory`): machine
+  (agent API key) authenticated, read-only, returns identity + storage facts
+  only — no captions, no filenames, no media text.
+- **Credential separation maintained**: migration reads DEV with the
+  DEV-canary bucket-scoped key and writes PROD with the PROD-ingest
+  bucket-scoped key (`listFiles/readFiles/writeFiles`); the backend still
+  holds ONLY the readFiles playback key; no account-wide key exists.
+- **Copy-only**: no delete/hide/deleteFileVersion is imported or callable from
+  the migration engine or the continuous path (static test);
+  `B2 delete/hide operations: 0`.
+- **No backlog explosion**: continuous mode triggers ONLY on the exact
+  `new_captioned_ingestion` production event reason; no Photos/DB/library
+  discovery surface exists in the trigger path (structural, unit-proven).
+- **Activation boundary rollback**: dual_write.enabled=false restores the
+  byte-identical legacy-only pipeline (proven live); B2 playback rollback is
+  `B2_PLAYBACK_CANARY_ENABLED=false` → authenticated legacy playback (proven
+  live; user auth stays ON — the both-flags-off unauthenticated state is no
+  longer used as a normal rollback).

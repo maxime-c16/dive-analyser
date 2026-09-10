@@ -325,3 +325,32 @@ Packet `MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1` (audit:
   9/9 via B2 (provider 206 each), legacy fallback live-proven, both
   rollback paths proven. Future ingest Content-Type derivation unchanged
   and still inert for history.
+
+
+## P7 — continuous dual-write + historical migration (2026-09-10)
+
+Packet `MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1` (audit:
+`docs/audits/MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1.md`;
+migration engine authority: `docs/architecture/HISTORICAL_MEDIA_MIGRATION_V1.md`).
+
+- **Continuous activation boundary**: the legacy media-job event stream is the
+  production trigger. `ProductionDualWrite.should_process(video_uuid,
+  request_reason)` accepts the exact configured `dual_write.trigger_reason`
+  (default `new_captioned_ingestion` — jobs created only for NEWLY inserted
+  captioned dives). The 5-10 UUID cohort allowlist is now canary/debug-only;
+  normal production requires NO hand-edited UUID lists.
+- **Historical backlog isolation**: the continuous path performs no discovery
+  of any kind (no Photos crawl / DB walk / album tap); renovation jobs
+  (population/upgrade/replacement) are structurally refused. History belongs
+  exclusively to the migration engine.
+- **Staging disk guard**: `stage_copy` refuses (bounded marker, no bytes) when
+  free disk < `min_free_disk_bytes` + staged size.
+- **Migration engine**: `mac-agent/src/ingest/migration.py` + backend
+  inventory endpoint `GET /api/v1/media/backbone/migration/inventory`
+  (agent-key gated, storage facts only). Per-item durable journal; states
+  INVENTORIED→…→CLEANED (+ RETRYABLE/QUARANTINED/DEFERRED_INTERACTIVE/
+  SKIPPED_ALREADY_PROD); DEV-read/PROD-ingest separate scoped keys;
+  roundtrip SHA; copy-only; idempotent reruns; one active item.
+- **P7 production flags**: `object_store.enabled=true`,
+  `dual_write.enabled=true`, `continuous_new_ingest=true`,
+  `migration.enabled=true` (engine remains one-shot).

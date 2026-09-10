@@ -18,6 +18,7 @@ Security properties:
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -25,9 +26,13 @@ from app.database import get_db
 from app.schemas.media_backbone import (
     MediaBackboneCommitRequest,
     MediaBackboneCommitResponse,
+    MediaMigrationInventoryItem,
 )
 from app.security import verify_api_key
 from app.services.media_backbone import commit_verified_ingest
+from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
+from app.models.media_backbone import CaptionRevision
+from app.models.user_auth import UserDiverAccess
 
 router = APIRouter(prefix="/media/backbone", tags=["media-backbone"])
 
@@ -160,3 +165,82 @@ async def commit_backbone_ingest(
             detail=str(exc),
         ) from exc
     return MediaBackboneCommitResponse(**result)
+
+
+
+
+@router.get(
+    "/migration/inventory",
+    response_model=list[MediaMigrationInventoryItem],
+)
+async def migration_inventory(
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> list[MediaMigrationInventoryItem]:
+    """P7 historical migration inventory (agent-key gated, read-only).
+
+    The DB/domain graph defines the migration queue: every MediaRevision whose
+    deterministic chain MediaRevision.video_uuid -> dives (UNIQUE) -> diver
+    resolves, annotated with verified storage locations and OWNER-binding
+    facts. No captions, no filenames, no Photos crawl: agent-side source
+    classification uses ONLY these storage facts. An unresolved chain is
+    reported as has_diver_chain=False (agent-side QUARANTINE class E) — never
+    guessed, never silently dropped.
+    """
+    del api_key  # authentication enforced by dependency
+
+    from app.models.dive import Dive
+
+    owner_diver_ids = {
+        row[0]
+        for row in db.execute(
+            select(UserDiverAccess.diver_id).where(
+                UserDiverAccess.access_kind == "OWNER"
+            )
+        ).all()
+    }
+    dives_by_video_uuid = dict(
+        db.query(Dive.video_uuid, Dive.diver_id).all()
+    )
+    blobs = {b.sha256: b for b in db.query(MediaBlob).all()}
+    locations = {
+        (loc.blob_sha256, loc.environment): loc
+        for loc in db.query(MediaBlobLocation).all()
+    }
+    latest_caption_provider = {
+        cr.video_uuid: cr.caption_provider
+        for cr in db.query(CaptionRevision).order_by(CaptionRevision.id).all()
+    }
+
+    items: list[MediaMigrationInventoryItem] = []
+    revisions = db.query(MediaRevision).order_by(MediaRevision.id).all()
+    for revision in revisions:
+        blob = blobs.get(revision.blob_sha256)
+        prod_loc = locations.get((revision.blob_sha256, "prod"))
+        dev_loc = locations.get((revision.blob_sha256, "dev"))
+        diver_id = dives_by_video_uuid.get(revision.video_uuid)
+        items.append(
+            MediaMigrationInventoryItem(
+                media_revision_id=revision.id,
+                video_uuid=revision.video_uuid,
+                blob_sha256=revision.blob_sha256,
+                byte_size=blob.byte_size if blob else 0,
+                rendition_semantics=revision.rendition_semantics or "",
+                verified_prod=bool(prod_loc is not None and prod_loc.verified),
+                verified_dev=bool(dev_loc is not None and dev_loc.verified),
+                prod_object_key=prod_loc.object_key if prod_loc else None,
+                dev_object_key=dev_loc.object_key if dev_loc else None,
+                owner_diver=(
+                    diver_id in owner_diver_ids if diver_id is not None else False
+                ),
+                has_diver_chain=diver_id is not None,
+                diver_id=diver_id,
+                caption_provider=latest_caption_provider.get(revision.video_uuid),
+                blob_created_at=(
+                    blob.created_at.isoformat()
+                    if blob is not None and blob.created_at
+                    else None
+                ),
+            )
+        )
+    return items

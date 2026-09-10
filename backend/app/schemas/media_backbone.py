@@ -41,6 +41,28 @@ class MediaBackboneCommitRequest(BaseModel):
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
+class MediaMigrationInventoryItem(BaseModel):
+    """P7 historical-migration inventory row (privacy-safe).
+
+    No captions, no filenames, no human-readable media text: identity +
+    storage facts only. The DB/domain graph defines the migration queue."""
+
+    media_revision_id: int
+    video_uuid: str
+    blob_sha256: str
+    byte_size: int
+    rendition_semantics: str
+    verified_prod: bool
+    verified_dev: bool
+    prod_object_key: Optional[str] = None
+    dev_object_key: Optional[str] = None
+    owner_diver: bool
+    has_diver_chain: bool
+    diver_id: Optional[int] = None
+    caption_provider: Optional[str] = None
+    blob_created_at: Optional[str] = None
+
+
 class MediaBackboneCommitResponse(BaseModel):
     video_uuid: str
     environment: str

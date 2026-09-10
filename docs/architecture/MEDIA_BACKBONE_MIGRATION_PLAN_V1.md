@@ -19,7 +19,7 @@ P2 prepared, gates preserved.
 | **STOP** | Mandatory stop-and-review before any P5 playback work | — |
 | **P5** (future) | B2-backed athlete playback via short-TTL presigned GET | NOT STARTED |
 | **P6** (future) | Default serving from B2 (cache becomes fallback) | NOT STARTED |
-| **P7** (future) | Historical migration of existing media to B2 | NOT STARTED |
+| **P7** | Historical migration of existing media to B2 | **COMPLETE 2026-09-10 — `P7_CONTINUOUS_AND_HISTORY_GREEN`** (`MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1.md` + `HISTORICAL_MEDIA_MIGRATION_V1.md`: DB-driven inventory 15 OWNER revisions (9 already-PROD / 6 DEV-only), continuous dual-write armed with the existing production job-event trigger (`new_captioned_ingestion` reason; allowlist now canary/debug-only), 6/6 DEV→PROD migrations roundtrip-verified, second-pass idempotence, automatic B2 playback convergence, copy-only, 0 delete/hide) |
 | **P8** (future) | Legacy local-media decommission | NOT STARTED |
 
 ## P2 runtime preflight (repair R7)
@@ -100,7 +100,7 @@ Rollback at any canary point: `object_store.enabled: false` (or backend
 to today (feature-flag tests prove disabled mode never constructs object-store
 components).
 
-## Historical migration doctrine (P7, future)
+## Historical migration doctrine (P7 — EXECUTED, see HISTORICAL_MEDIA_MIGRATION_V1.md)
 
 - Historical media migration is **Dive Analyzer DB-driven**: the DB
   (`dives` / `photos_assets` / `media_cache_entries`) is the manifest of

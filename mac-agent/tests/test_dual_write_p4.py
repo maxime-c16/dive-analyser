@@ -189,6 +189,8 @@ def env(tmp_path, monkeypatch):
         ),
         dual_write=SimpleNamespace(
             enabled=True,
+            continuous_new_ingest=False,
+            trigger_reason="new_captioned_ingestion",
             allowlist=list(COHORT_8),
             commit_endpoint_path="/api/v1/media/backbone/commit",
             commit_timeout_seconds=30,
@@ -273,7 +275,7 @@ def test_config_validate_dual_write_errors(tmp_path):
     config = Config.__new__(Config)
     config.object_store = SimpleNamespace(enabled=False, environment="dev", bucket="", region="", endpoint_url="", prefix="blobs/sha256", state_dir="", temp_root="", min_free_disk_bytes=0, presign_ttl_seconds=300, max_retries=3)
     config.dual_write = SimpleNamespace(
-        enabled=True, allowlist=[UUID_A], commit_endpoint_path="", commit_timeout_seconds=30, env_file="", fail_put_once=False, fail_commit_once=False
+        enabled=True, continuous_new_ingest=False, trigger_reason="new_captioned_ingestion", allowlist=[UUID_A], commit_endpoint_path="", commit_timeout_seconds=30, env_file="", fail_put_once=False, fail_commit_once=False
     )
     with pytest.raises(ValueError) as exc:
         config._validate_dual_write_config()

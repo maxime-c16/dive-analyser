@@ -20,9 +20,14 @@ Architecture (packet MEDIA_BACKBONE_P4_PRODUCTION_DUAL_WRITE_CANARY_V1):
 Invariants:
 - legacy success never depends on object-store success; failure semantics:
   LEGACY_SUCCESS + OBJECT_STORE_PENDING_RETRY (journal keeps retryable state)
-- hard prod allowlist: a bounded production cohort of 5-10 Photos UUIDs
-  (count outside [5, 10] → refuse to arm) — packet
-  MEDIA_BACKBONE_P4_2_PRODUCTION_COHORT_V1 §6
+- activation boundary (packet MEDIA_BACKBONE_P7 §5/§6): normal production
+  triggers are the EXISTING media-job events whose request_reason marks a
+  genuinely new captioned production clip (`continuous_new_ingest` +
+  `trigger_reason`); the fixed 5-10 UUID cohort allowlist remains ONLY as
+  the canary/debug mode (dual_write.continuous_new_ingest=false). Enabling
+  continuous dual-write adds NO discovery/scanning of Photos, the DB, or
+  the library: historical media is reached exclusively by the dedicated
+  migration engine (P7), never by the continuous path.
 - ONE materialization: the legacy export is reused; no second Photos export
 - max one active dual-write materialization (backpressure); triggers arriving
   while the slot is busy are refused with a bounded pending marker (no staged
@@ -193,16 +198,32 @@ class ProductionDualWrite:
             raise ValueError(
                 "production dual-write requires object_store.environment == 'prod'"
             )
-        validate_prod_allowlist(list(dual_cfg.allowlist or []))
+        if not dual_cfg.continuous_new_ingest:
+            # Canary/debug mode: the bounded explicit cohort allowlist is
+            # mandatory (P4.2 packet §6). Continuous production semantics
+            # (P7 packet §5/§7) never require hand-edited UUID lists; an
+            # allowlist may still be supplied as an additional debug filter.
+            validate_prod_allowlist(list(dual_cfg.allowlist or []))
         return cls(config)
 
     # -- guards -------------------------------------------------------------
 
-    def should_process(self, video_uuid: str) -> bool:
+    def should_process(self, video_uuid: str, request_reason: str | None = None) -> bool:
+        """Activation boundary (P7 packet §5/§6).
+
+        Two disjoint triggers:
+        - continuous production: the caller presents the exact configured
+          new-captioned-ingestion request reason (an existing production
+          media-job event stream — no scanning, no backlog sweep);
+        - canary/debug: explicit allowlist membership (unchanged P4.2 guard).
+        """
         if not (self.os_cfg.enabled and self.dual.enabled):
             return False
         if not UUID_PATTERN.match(video_uuid or ""):
             return False
+        if self.dual.continuous_new_ingest:
+            if (request_reason or "") == (self.dual.trigger_reason or ""):
+                return True
         return video_uuid.upper() in {u.upper() for u in self.dual.allowlist}
 
     def _ensure_dirs(self) -> None:
@@ -214,20 +235,53 @@ class ProductionDualWrite:
 
     # -- hook entry points --------------------------------------------------
 
-    def stage_copy(self, video_uuid: str, source_path: Path) -> Path | None:
+    def stage_copy(
+        self,
+        video_uuid: str,
+        source_path: Path,
+        request_reason: str | None = None,
+    ) -> Path | None:
         """Copy the already-materialized legacy bytes into the dual-write temp
         area while the legacy pipeline still owns them.
 
-        Returns None (skip) when the asset is not allowlisted, the journal is
-        already terminal, or the single backpressure slot is occupied (a tiny
-        bounded pending marker is recorded in the latter case; no staged media
-        bytes accumulate).
+        Returns None (skip) when the asset is not activated (continuous
+        reason or canary allowlist), the journal is already terminal, the
+        single backpressure slot is occupied (a tiny bounded pending marker
+        is recorded in the latter case; no staged media bytes accumulate),
+        or free disk cannot hold the staged copy plus the guard margin.
         Raises on real staging errors (legacy path unaffected either way —
         the caller catches and continues).
         """
-        if not self.should_process(video_uuid):
+        if not self.should_process(video_uuid, request_reason):
             return None
         self._ensure_dirs()
+        try:
+            source_bytes = Path(source_path).stat().st_size
+        except OSError as exc:
+            raise ObjectStoreUnavailable(
+                f"staging source vanished before dual-write copy: {exc}"
+            ) from exc
+        free_bytes = shutil.disk_usage(self.temp_root).free
+        margin = int(getattr(self.os_cfg, "min_free_disk_bytes", 0) or 0)
+        if free_bytes - source_bytes < margin:
+            logger.warning(
+                "dual-write staging refused for %s: free=%s staged=%s guard=%s",
+                video_uuid[:8],
+                free_bytes,
+                source_bytes,
+                margin,
+            )
+            self._set_stage_meta(
+                video_uuid,
+                {
+                    "staging_refused": True,
+                    "skip_reason": "insufficient_disk_for_staging",
+                    "free_bytes": free_bytes,
+                    "source_bytes": source_bytes,
+                    "refused_at": utcnow(),
+                },
+            )
+            return None
         state_store = IngestStateStore(self.state_dir / f"{video_uuid}.json")
         state_store.load(video_uuid)
         if state_store.state.is_terminal:
@@ -697,7 +751,7 @@ INGEST_IMPL_VERSION = "media_backbone_v1"
 RENDITION_SEMANTICS = "photos_edited_rendition"
 
 
-def mode_caption_mutation(config, video_uuid: str) -> int:
+def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = None) -> int:
     """Caption-only update through the normal production transport.
 
     Gate: Photos edit fingerprint MUST be unchanged (media unchanged).
@@ -710,10 +764,10 @@ def mode_caption_mutation(config, video_uuid: str) -> int:
     if pdw is None:
         print(json.dumps({"mode": "caption-mutation", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid):
+    if not pdw.should_process(video_uuid, request_reason):
         print(
             json.dumps(
-                {"mode": "caption-mutation", "outcome": "refused_not_allowlisted"}
+                {"mode": "caption-mutation", "outcome": "refused_not_activated"}
             )
         )
         return 3
@@ -911,7 +965,7 @@ def mode_caption_mutation(config, video_uuid: str) -> int:
 RENDITION_SEMANTICS_RUN = RENDITION_SEMANTICS
 
 
-def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
+def mode_run(config, video_uuid: str, env_file: str | None = None, request_reason: str | None = None) -> int:
     """Drive ONE allowlisted asset through verified object-store ingest,
     running inside the production agent runtime context (same interpreter,
     host, user, Photos TCC) with the authenticated backend commit transport.
@@ -922,8 +976,8 @@ def mode_run(config, video_uuid: str, env_file: str | None = None) -> int:
     if pdw is None:
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid):
-        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_allowlisted"}))
+    if not pdw.should_process(video_uuid, request_reason):
+        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_activated"}))
         return 3
     if env_file:
         pdw.env_file = str(Path(env_file).expanduser())
@@ -1074,6 +1128,13 @@ def main(argv=None) -> int:
     parser.add_argument("--env-file")
     parser.add_argument("mode", choices=["caption-mutation", "run"])
     parser.add_argument("--video-uuid", required=True)
+    parser.add_argument(
+        "--request-reason",
+        default=None,
+        help="Present the production trigger reason to the continuous "
+        "activation boundary (required for non-allowlisted assets when "
+        "dual_write.continuous_new_ingest is enabled).",
+    )
     args = parser.parse_args(argv)
 
     from ..config import Config
@@ -1082,9 +1143,9 @@ def main(argv=None) -> int:
     if not config.validate():
         raise SystemExit("invalid config")
     if args.mode == "caption-mutation":
-        return mode_caption_mutation(config, args.video_uuid)
+        return mode_caption_mutation(config, args.video_uuid, args.request_reason)
     if args.mode == "run":
-        return mode_run(config, args.video_uuid, args.env_file)
+        return mode_run(config, args.video_uuid, args.env_file, args.request_reason)
     return 2
 
 

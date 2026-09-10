@@ -1,13 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-10** (media-backbone P6
-> owner default B2 playback + legacy IDOR closure GREEN).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
-> Previous backbone: `docs/audits/MEDIA_BACKBONE_P5_ACCELERATED_AUTH_PLAYBACK_V1.md`
+> Durable project handoff. Last verified: **2026-09-10** (media-backbone P7:
+> continuous ingest + historical migration GREEN).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1.md`
+> Previous backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P6_DEFAULT_PLAYBACK_V1`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P7`**
 
 ## Project purpose
 
@@ -1033,3 +1033,41 @@ accepted P5 state (`a2f7885`). Full evidence:
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P6_AUTH_PLAYBACK_V1`
+
+## Media backbone P7 — continuous ingest + historical migration (2026-09-10, GREEN)
+
+- **Continuous dual-write ARMED (production-normal)**: new captioned
+  production clips flow legacy-first → automatic additive B2 PROD dual-write
+  via the EXISTING media-job event stream (trigger reason
+  `new_captioned_ingestion` — jobs created only for newly inserted dives).
+  NO allowlist dependency in normal production; the 5-10 UUID cohort
+  allowlist remains canary/debug-only. Historical/renovation jobs are
+  structurally refused (unit-proven per reason).
+- **Historical backlog isolation**: the continuous path performs no
+  discovery of any kind; history is reached only by the migration engine.
+- **Historical migration COMPLETE**: DB-driven inventory (agent-key endpoint,
+  storage facts only) → 15 OWNER revisions: 9 already verified PROD (class A),
+  6 DEV-only (class B) migrated DEV→PROD with separate bucket-scoped
+  credentials, roundtrip SHA-verified (137,309,564 bytes each way); 0
+  C/D/E/F, 0 retries, 0 quarantines, 0 residuals. Second pass: 0 uploads,
+  0 GETs, 0 commits, 0 duplicate rows.
+- **Playback convergence**: migrated revisions automatically became
+  B2-backed (302 → provider 206) with zero frontend changes; wrong-owner
+  404 / unauth 401 re-proven on migrated + legacy routes.
+- **Rollback proofs (live)**: `B2_PLAYBACK_CANARY_ENABLED=false` → play
+  route 404 + authenticated legacy playback GREEN (video 307/cache 200) +
+  unauth 401; `dual_write.enabled=false` → legacy loops healthy, zero
+  object-store arming. Both re-armed after proof.
+- **Engine authority**: `docs/architecture/HISTORICAL_MEDIA_MIGRATION_V1.md`;
+  audit: `docs/audits/MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1.md`.
+- **Final state**: `USER_AUTH_ENABLED=true`, `B2_PLAYBACK_CANARY_ENABLED=true`,
+  `object_store.enabled=true`, `dual_write.enabled=true`,
+  `continuous_new_ingest=true`, `migration.enabled=true` (one-shot engine,
+  never a daemon). PROD bucket: 16 objects / 345,568,956 bytes. Delete/hide:
+  0. Science: untouched.
+- **Next phase**: user onboarding / external access / legacy decommission
+  preparation (P8 requires its own supervisor packet + evidence).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P7`

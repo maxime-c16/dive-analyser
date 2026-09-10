@@ -154,24 +154,59 @@ class ObjectStoreConfig:
 
 @dataclass
 class DualWriteConfig:
-    """P4 production dual-write controls (packet §18). Hard OFF by default.
+    """P4/P7 production dual-write controls. Hard OFF by default.
 
     enabled=True additionally requires object_store.enabled and a PROD
-    environment, and an explicit allowlist of a bounded production cohort of
-    5-10 Photos UUIDs (P4.2 packet §6: count outside [5, 10] → REFUSE TO ARM;
-    implicit readiness such as whole-library/album ingestion is structurally
-    impossible). Controlled failure injections (fail_put_once /
-    fail_commit_once) are explicit opt-in flags for the P4 gates, never
-    defaults.
+    environment, plus ONE activation mode (packet
+    MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1 §5/§7):
+
+    - continuous_new_ingest=True: production-normal semantics. The trigger is
+      the EXISTING legacy media-job event whose request_reason equals
+      `trigger_reason` (a genuinely new captioned production clip). No
+      allowlist is required and none is scanned; historical/backlog media is
+      structurally unreachable from this path (only the dedicated migration
+      engine touches history).
+    - continuous_new_ingest=False (default): P4.2 canary/debug semantics —
+      an explicit bounded allowlist of 5-10 Photos UUIDs is mandatory
+      (count outside [5, 10] → REFUSE TO ARM).
+
+    Controlled failure injections (fail_put_once / fail_commit_once) are
+    explicit opt-in flags for the gates, never defaults.
     """
 
     enabled: bool = False
+    continuous_new_ingest: bool = False
+    trigger_reason: str = "new_captioned_ingestion"
     allowlist: List[str] = field(default_factory=list)
     commit_endpoint_path: str = "/api/v1/media/backbone/commit"
     commit_timeout_seconds: int = 120
     env_file: str = ""
     fail_put_once: bool = False
     fail_commit_once: bool = False
+
+
+@dataclass
+class MigrationConfig:
+    """P7 historical media migration engine (packet §25/§26). Hard OFF.
+
+    One-shot, DB-driven, copy-only migration of eligible OWNER Dive Analyzer
+    logical media to verified PROD B2 replicas. Distinct from the daemon and
+    from continuous dual-write (no daemon mode exists for migration; the
+    engine can never become a second production daemon). DEV read and PROD
+    ingest use SEPARATE bucket-scoped credential files.
+    """
+
+    enabled: bool = False
+    state_dir: str = "~/.diveanalyzer/object_migration_state"
+    temp_root: str = "~/.diveanalyzer/object_migration_tmp"
+    prod_env_file: str = ""
+    dev_env_file: str = ""
+    dev_bucket: str = ""
+    vault_root: str = ""
+    receipt_dirs: List[str] = field(default_factory=list)
+    min_free_disk_bytes: int = 10737418240
+    wave_size: int = 5
+    max_attempts: int = 5
 
 
 @dataclass
@@ -184,12 +219,15 @@ class Config:
     logging: LoggingConfig
     object_store: ObjectStoreConfig = None
     dual_write: DualWriteConfig = None
+    migration: MigrationConfig = None
 
     def __post_init__(self):
         if self.object_store is None:
             self.object_store = ObjectStoreConfig()
         if self.dual_write is None:
             self.dual_write = DualWriteConfig()
+        if self.migration is None:
+            self.migration = MigrationConfig()
 
     @classmethod
     def from_file(cls, config_path: str) -> "Config":
@@ -339,6 +377,12 @@ class Config:
             env_file = dual_write_data.get('env_file', '')
             dual_write = DualWriteConfig(
                 enabled=dual_write_data.get('enabled', False),
+                continuous_new_ingest=bool(
+                    dual_write_data.get('continuous_new_ingest', False)
+                ),
+                trigger_reason=str(
+                    dual_write_data.get('trigger_reason', 'new_captioned_ingestion')
+                ),
                 allowlist=list(dual_write_data.get('allowlist', []) or []),
                 commit_endpoint_path=dual_write_data.get(
                     'commit_endpoint_path', '/api/v1/media/backbone/commit'
@@ -349,6 +393,34 @@ class Config:
                 fail_commit_once=dual_write_data.get('fail_commit_once', False),
             )
 
+            migration_data = data.get('migration', {}) or {}
+            migration = MigrationConfig(
+                enabled=bool(migration_data.get('enabled', False)),
+                state_dir=str(
+                    Path(migration_data.get(
+                        'state_dir', '~/.diveanalyzer/object_migration_state'
+                    )).expanduser()
+                ),
+                temp_root=str(
+                    Path(migration_data.get(
+                        'temp_root', '~/.diveanalyzer/object_migration_tmp'
+                    )).expanduser()
+                ),
+                prod_env_file=str(Path(migration_data.get('prod_env_file', '')).expanduser()),
+                dev_env_file=str(Path(migration_data.get('dev_env_file', '')).expanduser()),
+                dev_bucket=str(migration_data.get('dev_bucket', '')),
+                vault_root=str(migration_data.get('vault_root', '')),
+                receipt_dirs=[
+                    str(Path(p).expanduser())
+                    for p in (migration_data.get('receipt_dirs', []) or [])
+                ],
+                min_free_disk_bytes=int(
+                    migration_data.get('min_free_disk_bytes', 10737418240)
+                ),
+                wave_size=int(migration_data.get('wave_size', 5)),
+                max_attempts=int(migration_data.get('max_attempts', 5)),
+            )
+
             return cls(
                 server=server,
                 agent=agent,
@@ -357,7 +429,8 @@ class Config:
                 media=media,
                 logging=logging_cfg,
                 object_store=object_store,
-                dual_write=dual_write
+                dual_write=dual_write,
+                migration=migration
             )
 
         except KeyError as e:
@@ -409,6 +482,11 @@ class Config:
         except ValueError as e:
             errors.append(f"dual_write: {e}")
 
+        try:
+            self._validate_migration_config()
+        except ValueError as e:
+            errors.append(f"migration: {e}")
+
         # Logging configuration validation
         try:
             self._validate_logging_config()
@@ -454,16 +532,43 @@ class Config:
             raise ValueError(
                 "dual_write.enabled requires object_store.environment == 'prod'"
             )
-        from src.ingest.dual_write import validate_prod_allowlist
+        if not cfg.continuous_new_ingest:
+            # Canary/debug mode keeps the P4.2 explicit-cohort guard; P7
+            # continuous production semantics never require UUID lists.
+            from src.ingest.dual_write import validate_prod_allowlist
 
-        try:
-            validate_prod_allowlist(list(cfg.allowlist or []))
-        except ValueError as e:
-            raise ValueError(str(e))
+            try:
+                validate_prod_allowlist(list(cfg.allowlist or []))
+            except ValueError as e:
+                raise ValueError(str(e))
         if not cfg.env_file:
             raise ValueError("dual_write.enabled requires env_file (B2 credentials)")
         if cfg.commit_timeout_seconds <= 0:
             raise ValueError("commit_timeout_seconds must be > 0")
+
+    def _validate_migration_config(self) -> None:
+        """P7 migration config firewall (packet §7/§14/§15/§24)."""
+        cfg = getattr(self, 'migration', None)
+        if cfg is None or not cfg.enabled:
+            return
+        if not self.object_store.enabled:
+            raise ValueError("migration.enabled requires object_store.enabled")
+        if self.object_store.environment != "prod":
+            raise ValueError(
+                "historical migration requires object_store.environment == 'prod'"
+            )
+        if not cfg.prod_env_file:
+            raise ValueError("migration.enabled requires prod_env_file (B2 credentials)")
+        if cfg.dev_env_file and not cfg.dev_bucket:
+            raise ValueError(
+                "migration.dev_env_file requires dev_bucket (separate DEV replica source)"
+            )
+        if "prod" not in (self.object_store.bucket or ""):
+            raise ValueError(
+                "migration must target the PROD bucket via object_store.bucket"
+            )
+        if cfg.min_free_disk_bytes < 0 or cfg.wave_size < 1 or cfg.max_attempts < 1:
+            raise ValueError("migration bounds invalid (wave_size/max_attempts >= 1)")
 
     def _validate_server_url(self, url: str) -> None:
         """Validate server URL format and protocol."""

@@ -42,12 +42,19 @@ class MediaJobProcessor:
         # (object_store.enabled AND dual_write.enabled); None = legacy-only.
         self.dual_write = ProductionDualWrite.from_config(config)
         if self.dual_write is not None:
-            logger.info(
-                "P4 production dual-write ARMED for allowlisted asset %s "
-                "(bucket=%s)",
-                self.dual_write.dual.allowlist[0][:8],
-                self.dual_write.os_cfg.bucket,
-            )
+            if self.dual_write.dual.continuous_new_ingest:
+                logger.info(
+                    "P7 continuous dual-write ARMED: trigger reason %r "
+                    "(bucket=%s); no allowlist dependency",
+                    self.dual_write.dual.trigger_reason,
+                    self.dual_write.os_cfg.bucket,
+                )
+            else:
+                logger.info(
+                    "P4 production dual-write ARMED (canary allowlist, "
+                    "bucket=%s)",
+                    self.dual_write.os_cfg.bucket,
+                )
         if self.config.media.source_vault.enabled:
             self.source_vault = MediaSourceVault(
                 self.config.media.source_vault.root,
@@ -162,8 +169,13 @@ class MediaJobProcessor:
                 self.source_vault.mark_media_ready(canonical_video_uuid, rendition)
             # P4 additive dual-write trigger: legacy has ALREADY succeeded here.
             # Runs off-thread after staging a copy; legacy cleanup proceeds
-            # immediately and is never gated on object-store success.
-            await self._trigger_dual_write(video_uuid, source)
+            # immediately and is never gated on object-store success. P7: the
+            # job's request_reason is the continuous activation boundary —
+            # only genuinely new captioned production clips (or explicit
+            # canary allowlist entries) arm the additive B2 leg.
+            await self._trigger_dual_write(
+                video_uuid, source, job.get("request_reason")
+            )
             exporter.cleanup_source_after_success(source)
             logger.info(f"Media job {job_id} finalized cache entry {result.get('cache_entry_id')}")
         except MediaUnavailableError as e:
@@ -180,7 +192,9 @@ class MediaJobProcessor:
             if lease_keepalive:
                 lease_keepalive.cancel()
 
-    async def _trigger_dual_write(self, video_uuid: str, source: Path) -> None:
+    async def _trigger_dual_write(
+        self, video_uuid: str, source: Path, request_reason: str | None = None
+    ) -> None:
         """Stage + launch the additive object-store ingest after legacy success.
 
         Failure semantics (packet §24/§40): any dual-write problem is logged
@@ -191,7 +205,9 @@ class MediaJobProcessor:
         if dual_write is None:
             return
         try:
-            staged = await asyncio.to_thread(dual_write.stage_copy, video_uuid, source)
+            staged = await asyncio.to_thread(
+                dual_write.stage_copy, video_uuid, source, request_reason
+            )
         except Exception as exc:
             logger.warning(
                 "dual-write staging skipped for %s (legacy unaffected): %s",
