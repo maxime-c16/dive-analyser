@@ -764,3 +764,35 @@ class SyncClient:
             'duplicates': 0,
             'successful_labels': 0,
         }
+
+
+def _curl_get(url: str, api_key: str, timeout: float, ca_cert_path: str = "") -> tuple:
+    """Blocking HTTP GET via curl (P9 read-only inventory endpoints).
+    Returns (status_code, body_str)."""
+    cmd = [
+        "curl", "-s",
+        "-H", f"X-API-Key: {api_key}",
+        "-w", "\n%{http_code}",
+        "--max-time", str(int(timeout)),
+    ]
+    if ca_cert_path:
+        cmd.extend(["--cacert", ca_cert_path])
+    cmd.append(url)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout + 5,
+    )
+    output = result.stdout.strip()
+    lines = output.rsplit("\n", 1)
+    if len(lines) == 2:
+        body_str, status_str = lines
+    else:
+        body_str = output
+        status_str = "0"
+    try:
+        status_code = int(status_str)
+    except ValueError:
+        status_code = 0
+    return status_code, body_str
