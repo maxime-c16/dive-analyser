@@ -377,9 +377,12 @@ self-deleted).
 
 ## 17. Outstanding items
 
-1. Maintainer UI action (one batch): revoke `…0009` (duplicate playback
-   key) and `…0008` (`p6-op-ephemeral` admin key) in the Backblaze
-   console.
+1. RESOLVED by the maintainer during closure: the duplicate playback key
+   `…0009` and the one-time `p6-op-ephemeral` admin key `…0008` were
+   revoked in the Backblaze console; the LIVE playback key `…000a` was
+   re-verified functional (provider HEAD 200) after the cleanup. Final
+   key inventory: dev-canary (003), prod-agent (004), prod-ingest-v2
+   (006), prod-playback-v1 (…000a).
 2. Frontend container hard-restart caution: the frontend ships as the
    baked image `dive-analyser-frontend:latest` built via
    `docker build -f frontend/Dockerfile.deploy -t dive-analyser-frontend:latest frontend`
