@@ -329,14 +329,27 @@ class ProductionDualWrite:
         started = time.time()
         shutil.copy2(source_path, target)
         copy_seconds = time.time() - started
-        self._set_stage_meta(
-            video_uuid,
+        # P9-B passive capture: the trigger provenance is recorded ONCE (first
+        # trigger wins) and never clobbered, so a later observation of the
+        # stage metadata can reconstruct WHEN the natural ingest was seen and
+        # under which activation boundary it was armed.
+        meta = self._read_stage_meta(video_uuid)
+        meta.setdefault("triggered_at", utcnow())
+        meta.setdefault("request_reason", request_reason or "")
+        meta.setdefault(
+            "activation",
+            "continuous"
+            if (request_reason or "") == (self.dual.trigger_reason or "")
+            else "allowlist",
+        )
+        meta.update(
             {
                 "staged_path": str(target),
                 "staged_bytes": target.stat().st_size,
                 "copy_seconds": round(copy_seconds, 3),
-            },
+            }
         )
+        self._set_stage_meta(video_uuid, meta)
         return target
 
     def launch(self, video_uuid: str, staged_path: Path) -> bool:
@@ -609,6 +622,13 @@ class ProductionDualWrite:
             "copy_bytes": stage_meta.get("staged_bytes"),
             "copy_seconds": stage_meta.get("copy_seconds"),
         }
+        # P9-B passive capture: durable trigger provenance in every run's
+        # metrics snapshot (request_reason only — never caption content).
+        metrics["trigger"] = {
+            "request_reason": stage_meta.get("request_reason"),
+            "triggered_at": stage_meta.get("triggered_at"),
+            "activation": stage_meta.get("activation"),
+        }
 
         store, b2_config = self._build_store()
         counting = _CountingStore(store, fail_put_once=self.dual.fail_put_once)
@@ -702,6 +722,26 @@ class ProductionDualWrite:
         metrics["media_sha256"] = (state_store.doc.get("media") or {}).get("sha256")
         metrics["object_key"] = (state_store.doc.get("media") or {}).get("object_key")
         metrics["free_disk_bytes_after"] = shutil.disk_usage(self.temp_root).free
+        # P9-B passive capture: when the commit receipt exists, record the
+        # durable server-side identity summary (ids only, no caption bytes).
+        receipt_path = self.state_dir / f"{video_uuid}.commit_receipt.json"
+        if receipt_path.exists():
+            try:
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                result = receipt.get("result") or {}
+                metrics["commit"] = {
+                    "transport": (receipt.get("transport") or "http"),
+                    "environment": result.get("environment"),
+                    "blob_sha256": result.get("blob_sha256"),
+                    "media_blob_location_id": result.get("media_blob_location_id"),
+                    "media_revision_id": result.get("media_revision_id"),
+                    "caption_revision_id": result.get("caption_revision_id"),
+                    "ingest_state_id": result.get("ingest_state_id"),
+                    "blob_location_existed": result.get("blob_location_existed"),
+                    "media_revision_existed": result.get("media_revision_existed"),
+                }
+            except (OSError, ValueError):
+                metrics["commit"] = {"error": "receipt_unreadable"}
         metrics["completed_at"] = utcnow()
         self._write_metrics_snapshot(run_id, metrics)
         logger.info(
