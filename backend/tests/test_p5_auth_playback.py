@@ -27,6 +27,7 @@ from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.models.media import MediaCacheEntry
 from app.models.photos_asset import PhotosAsset
 from app.models.session import Session as SessionModel
+from app.models.security_audit_log import SecurityAuditEvent
 from app.models.user_auth import (
     AppUser,
     LoginAttempt,
@@ -81,6 +82,7 @@ def db():
             UserDiverAccess.__table__,
             LoginAttempt.__table__,
             MediaPlaybackGrant.__table__,
+            SecurityAuditEvent.__table__,
             PhotosAsset.__table__,
             MediaCacheEntry.__table__,
         ],
