@@ -42,9 +42,11 @@ from app.models.user_auth import (
     LoginAttempt,
     UserCredential,
     UserDiverAccess,
+    UserSession,
 )
 from app.services.passwords import ALGORITHM_LABEL, verify_password
 from app.services import sessions
+from app.services import auth_metrics, security_audit_log
 from app.services.user_access import user_has_diver_access
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -260,16 +262,25 @@ async def login(
 
     if _rate_limited(db, email, client_ip):
         # Generic bounded response; no distinct account-locked semantics.
+        auth_metrics.get_auth_metrics().login_rate_limited.inc()
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_LOGIN_RATE_LIMITED,
+            actor_context=security_audit_log.ACTOR_SYSTEM,
+            metadata={"identifier_present": bool(email)},
+        )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, _TOO_MANY_ATTEMPTS)
 
     user = db.query(AppUser).filter(AppUser.email == email).one_or_none()
     if user is None:
         verify_password(_dummy_hash(), password)
+        auth_metrics.get_auth_metrics().login_failure.inc()
         _record_attempt(db, email, success=False, client_ip=client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, _GENERIC_LOGIN_FAILURE)
 
     if not user.is_active:
         verify_password(_dummy_hash(), password)
+        auth_metrics.get_auth_metrics().login_failure.inc()
         _record_attempt(db, email, success=False, client_ip=client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, _GENERIC_LOGIN_FAILURE)
 
@@ -281,6 +292,7 @@ async def login(
         or credential.password_algo != ALGORITHM_LABEL
         or not verify_password(credential.password_hash, password)
     ):
+        auth_metrics.get_auth_metrics().login_failure.inc()
         _record_attempt(db, email, success=False, client_ip=client_ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, _GENERIC_LOGIN_FAILURE)
 
@@ -288,6 +300,7 @@ async def login(
     # bounded cleanup of stale session rows. Neither can lock a user out.
     _clear_identifier_failures(db, email, client_ip)
     _record_attempt(db, email, success=True, client_ip=client_ip)
+    auth_metrics.get_auth_metrics().login_success.inc()
     settings = get_settings()
     sessions.cleanup_stale_sessions(
         db,
@@ -315,9 +328,17 @@ async def logout(
     if not _origin_allowed(request):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Origin not allowed")
     settings = get_settings()
-    sessions.revoke_session_by_raw_token(
-        db, request.cookies.get(settings.auth_cookie_name)
-    )
+    raw_cookie = request.cookies.get(settings.auth_cookie_name)
+    resolved = sessions.resolve_session(db, raw_cookie)
+    revoked = sessions.revoke_session_by_raw_token(db, raw_cookie)
+    if revoked and resolved is not None:
+        auth_metrics.get_auth_metrics().session_revocations.inc()
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_SESSION_REVOKED,
+            actor_context="user",
+            target_user_id=resolved[1].id,
+        )
     _clear_session_cookie(response)
     _secure_headers(response)
     return {"ok": True}
@@ -346,3 +367,28 @@ async def me(
             for row in access_rows
         ],
     }
+
+
+@router.get("/metrics")
+async def auth_metrics_endpoint(
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(get_current_user),
+):
+    """Privacy-safe auth operational metrics (P8 §25).
+
+    In-process outcome counters for THIS worker plus the approximate live
+    session count (DB). No tokens, cookies, identifiers or URLs.
+    """
+    if not _auth_enabled():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    active_sessions = (
+        db.query(UserSession)
+        .filter(
+            UserSession.revoked_at.is_(None),
+            UserSession.expires_at > datetime.datetime.utcnow(),
+        )
+        .count()
+    )
+    snapshot = auth_metrics.get_auth_metrics().snapshot()
+    snapshot["active_sessions_approx"] = active_sessions
+    return snapshot

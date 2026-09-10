@@ -107,6 +107,23 @@ def revoke_session_by_raw_token(db: Session, raw_token: Optional[str]) -> bool:
     return True
 
 
+def revoke_all_user_sessions(db: Session, user_id: int) -> int:
+    """Revoke every live session of a user (P8 operator authority).
+
+    Public wrapper over the login-rotation revocation: used by disable /
+    password-reset flows so existing sessions lose access immediately.
+    Returns the number of sessions revoked.
+    """
+    now = datetime.utcnow()
+    revoked = (
+        db.query(UserSession)
+        .filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
+        .update({"revoked_at": now}, synchronize_session=False)
+    )
+    db.commit()
+    return revoked
+
+
 def _revoke_all_user_sessions(db: Session, user_id: int) -> None:
     now = datetime.utcnow()
     db.query(UserSession).filter(
