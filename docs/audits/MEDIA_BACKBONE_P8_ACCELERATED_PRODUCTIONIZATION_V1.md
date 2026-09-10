@@ -3,7 +3,8 @@
 > Task packet `MEDIA_BACKBONE_P8_ACCELERATED_PRODUCTIONIZATION_V1`.
 > Executed 2026-09-10 on top of the accepted P7 state (canonical HEAD
 > `b8e5de930388595b4cc8d8812d77fe2968c4df20`, fresh-verified on server + Mac).
-> Branch `media-backbone-p8-productionization-v1`.
+> Branch `media-backbone-p8-productionization-v1`; ff-merged into
+canonical `uiux-overhaul-pro-app` (final HEAD `61d1703`).
 > Verdicts: `P8_PRODUCTIONIZATION_GREEN`, `EXTERNAL_ACCESS_PROVIDER_GATE`,
 > `LEGACY_DECOMMISSION_NOT_READY`.
 > Absolute counters: **B2 delete/hide = 0; legacy media deleted = 0;
@@ -262,7 +263,7 @@ never disabled during P8.
 - `backend/app/api/v1/auth.py` (audit + metrics wiring),
   `backend/app/services/sessions.py` (public revoke helper)
 - `backend/tests/test_p8_user_admin.py`
-- `nginx/conf.d/default.conf` — Host $http_host fix (deployed live)
+- `nginx/conf.d/default.conf` — Host $http_host fix (committed + deployed live)
 - `docs/architecture/EXTERNAL_ACCESS_V1.md`
 - `docs/architecture/LEGACY_DECOMMISSION_PLAN_V1.md`
 - PROJECT_STATE + USER_AUTHORIZATION/SECURITY/TARGET/MIGRATION_PLAN P8
