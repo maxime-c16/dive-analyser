@@ -1,0 +1,59 @@
+{
+  "policy_id": "MEDIA_RETENTION_POLICY_V1",
+  "frozen_at": "2026-09-10",
+  "authority": "docs/architecture/BACKUP_AND_RETENTION_V1.md",
+  "rules": [
+    {
+      "subject": "b2_verified_prod_media",
+      "rule": "retain",
+      "retain_until": "explicit_logical_deletion_policy_exists",
+      "automatic_deletion": false,
+      "automatic_hiding": false
+    },
+    {
+      "subject": "caption_revisions",
+      "rule": "append_only",
+      "mutation_of_existing_rows": false
+    },
+    {
+      "subject": "media_revisions",
+      "rule": "append_only",
+      "mutation_of_existing_rows": false
+    },
+    {
+      "subject": "legacy_media_cache",
+      "rule": "temporary_rebuildable_cache",
+      "deletion_authorized": false,
+      "note": "active playback substrate today; candidates enumerated by dry-run only"
+    },
+    {
+      "subject": "legacy_media_videos_directory",
+      "rule": "temporary_rebuildable_cache",
+      "deletion_authorized": false,
+      "note": "icloudpd iCloud-original cache; rebuildable from iCloud source"
+    },
+    {
+      "subject": "photos_assets",
+      "rule": "never_deleted_by_dive_analyzer",
+      "deletion_authorized": false
+    },
+    {
+      "subject": "source_vault",
+      "rule": "active_required_until_continuous_ingest_proven",
+      "deletion_authorized": false
+    },
+    {
+      "subject": "b2_object_lifecycle",
+      "rule": "no_automatic_delete_or_hide_in_v1",
+      "deletion_authorized": false,
+      "note": "logical delete design is DB-state only; physical purge is a separate delayed operator-controlled lifecycle"
+    }
+  ],
+  "invariants": [
+    "B2 delete operations performed by any automated path: 0",
+    "B2 hide operations performed by any automated path: 0",
+    "legacy media deletions outside the five sanctioned bounded cleanup sites: 0",
+    "Photos deletions: 0",
+    "science storage excluded from all product reclamation calculations"
+  ]
+}

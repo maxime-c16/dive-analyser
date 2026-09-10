@@ -339,4 +339,9 @@ async def playback_metrics_endpoint(
     """Privacy-safe playback counters (authenticated users only)."""
     if not _flags_enabled():
         raise HTTPException(404, "Not found")
-    return metrics.snapshot()
+    snapshot = metrics.snapshot()
+    # P9 §41: durable aggregation from the grant ledger (survives restart).
+    from app.services.ops_metrics import durable_ops_snapshot
+
+    snapshot["durable"] = durable_ops_snapshot(db)
+    return snapshot

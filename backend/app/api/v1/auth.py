@@ -391,4 +391,9 @@ async def auth_metrics_endpoint(
     )
     snapshot = auth_metrics.get_auth_metrics().snapshot()
     snapshot["active_sessions_approx"] = active_sessions
+    # P9 §41: durable aggregation (derived from append-only tables, survives
+    # worker restart) alongside the in-process counters.
+    from app.services.ops_metrics import durable_ops_snapshot
+
+    snapshot["durable"] = durable_ops_snapshot(db)
     return snapshot

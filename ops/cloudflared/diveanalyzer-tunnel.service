@@ -1,0 +1,21 @@
+# diveanalyzer-tunnel.service — systemd unit for the named Dive Analyzer
+# Cloudflare tunnel (P9 machine-side prep; enable ONLY after the single
+# HUMAN_PROVIDER_ACTION in docs/architecture/EXTERNAL_ACCESS_V1.md §6).
+#
+# Do NOT touch cloudflared-navidrome.service (separate app, quick tunnel).
+
+[Unit]
+Description=Cloudflare Zero-Trust Tunnel - Dive Analyzer (named tunnel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/cloudflared/diveanalyzer.yml run
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
