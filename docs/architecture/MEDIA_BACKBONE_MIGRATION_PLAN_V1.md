@@ -126,3 +126,17 @@ components).
   audit evidence; delete/hide operations performed across
   P2/P3/P4/P4.1/P4.2: 0).
 - No athlete-media public exposure (private bucket + presign-only future).
+
+## P8 status (2026-09-10)
+
+- Continuous ingest: ARMED and healthy all phase; no natural new clip
+  occurred (`CONTINUOUS_NATURAL_INGEST = NOT_OBSERVED_YET`); no synthetic
+  production data created to force the gate.
+- Storage reconciliation: 15/15 eligible OWNER revisions verified PROD
+  (100%); B2 inventory 16 objects / 345.6 MB, all content-addressed,
+  0 orphans; ledger 25/25 DB_COMMITTED.
+- Legacy decommission readiness: NOT_READY (prerequisites table in
+  `LEGACY_DECOMMISSION_PLAN_V1` §4; /videos family = 14 GB unreferenced
+  future reclaim; deletion forbidden — 0 delete/hide operations in P8).
+- External access: LAN_ONLY; provider-gate path documented in
+  `EXTERNAL_ACCESS_V1` (single consolidated human/provider action).

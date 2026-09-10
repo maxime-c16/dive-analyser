@@ -1070,4 +1070,63 @@ accepted P5 state (`a2f7885`). Full evidence:
 
 ### Next gate
 
-`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P7`
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P8`
+
+## Media backbone P8 — accelerated productionization (2026-09-10, GREEN)
+
+Packet `MEDIA_BACKBONE_P8_ACCELERATED_PRODUCTIONIZATION_V1` on top of
+canonical `b8e5de9`. Branch `media-backbone-p8-productionization-v1`.
+Full audit: `docs/audits/MEDIA_BACKBONE_P8_ACCELERATED_PRODUCTIONIZATION_V1.md`.
+
+- **Multi-user operator administration**: server-local CLI
+  `backend/scripts/manage_user.py` (create/disable/enable/reset-password/
+  bind/unbind/revoke-sessions/list — no secrets, getpass+Argon2id,
+  disable & reset revoke ALL sessions). NOT the mac-agent X-API-Key
+  authority; no web admin role; no public registration.
+- **Security audit trail**: additive `security_audit_log` table +
+  service; events for user lifecycle, session revocation, ownership
+  changes, login_rate_limited. Applied to real Postgres (idempotent,
+  reversible).
+- **Auth metrics**: privacy-safe counters + authenticated
+  `/api/v1/auth/metrics`.
+- **Live production proofs** (synthetic identities, cleaned up; audit
+  retained): IDOR matrix across legacy routes + B2 play (A→A allow,
+  cross-user deny 404, anon 401, B→maxime 404); §44 disable live (live
+  session loses access instantly, login denied); §45 password reset
+  live (old session dead, old pw fails, new pw works); rate-limit
+  10→429 with audit row.
+- **Production defect fixed**: nginx forwarded `Host $host`
+  (port-stripped), breaking backend Origin reconstruction → same-origin
+  browser login 403 unless the origin was in CORS_ALLOW_ORIGINS. Fix:
+  `Host $http_host` (deployed, reload-verified). No wildcard origins;
+  cookie policy unchanged.
+- **Playback cohort (P8-E)**: 62+ authenticated requests observed —
+  100% authorized, 100% B2-selected, 0 denials / 0 unexpected fallback /
+  0 provider failures / 0 presign leaks; provider ranged GET 206.
+- **Continuous ingest**: armed and healthy throughout; no natural new
+  clip occurred → `CONTINUOUS_NATURAL_INGEST = NOT_OBSERVED_YET` (no
+  fake data; legacy decommission stays NOT_READY). Soak: single daemon,
+  ledger 25/25 DB_COMMITTED, no staging accumulation.
+- **Reconciliation**: 15/15 eligible OWNER revisions verified PROD
+  (100%); B2 fresh inventory 16 objects / 345.6 MB, all
+  content-addressed, 0 orphans. B2 delete/hide: 0.
+- **External access**: LAN_ONLY (WAN probes dead, no port-forward).
+  Prepared path documented (`EXTERNAL_ACCESS_V1`); verdict
+  `EXTERNAL_ACCESS_PROVIDER_GATE`; ONE consolidated provider action
+  defined (Cloudflare Zero-Trust route + CORS entry). Nothing opened.
+- **Legacy readiness**: full dependency audit
+  (`LEGACY_DECOMMISSION_PLAN_V1`); cache = still primary UI substrate;
+  `/videos` = 14 GB unreferenced fallback (largest future reclaim);
+  vault 13 GB = ingest source (keep). Verdict
+  `LEGACY_DECOMMISSION_NOT_READY`; no deletion; no dry-run yet.
+- Tests: P8 suite 10/10; P5+P6 51/51 (fixture gained the audit table);
+  media_backbone 91 pass + 1 pre-existing env-only (needs /mac-agent in
+  container); commit_api failures pre-existing on base HEAD in this
+  container (reproduced on reverted code). mac-agent untouched.
+- Flags final: `USER_AUTH_ENABLED=true`, `B2_PLAYBACK_CANARY_ENABLED=true`,
+  `object_store.enabled=true`, `dual_write.enabled=true`,
+  `continuous_new_ingest=true`. Science untouched. No secrets in Git.
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P8`

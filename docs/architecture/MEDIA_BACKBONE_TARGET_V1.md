@@ -354,3 +354,18 @@ migration engine authority: `docs/architecture/HISTORICAL_MEDIA_MIGRATION_V1.md`
 - **P7 production flags**: `object_store.enabled=true`,
   `dual_write.enabled=true`, `continuous_new_ingest=true`,
   `migration.enabled=true` (engine remains one-shot).
+
+## P8 productionization (2026-09-10)
+
+- Operator user administration exists server-side (CLI), completing the
+  target's "users are provisioned by the operator" leg for multi-user
+  onboarding; the web admin domain remains deliberately unbuilt.
+- `security_audit_log` + auth metrics close the account-observability
+  gap in the target architecture.
+- Playback substrate reality check (for the future target): the legacy
+  cache is still the UI's primary playback/poster substrate; B2 serves
+  the revisions route. Full B2-native UI playback requires the target's
+  later phases (cache-independent media state + poster supply). See
+  `LEGACY_DECOMMISSION_PLAN_V1`.
+- Storage measured: server cache 864 MB, /videos 14 GB (unreferenced
+  fallback), Mac vault 13 GB, B2 345.6 MB (16 objects).

@@ -131,3 +131,28 @@ access).
   (both with NO diver access, for negative tests).
 - Historical `binary/octet-stream` objects: compatibility verified;
   re-upload/rewrite remains forbidden without a future explicit packet.
+
+## P8 multi-user productionization (2026-09-10)
+
+- Server-local operator CLI `backend/scripts/manage_user.py`: create-user,
+  disable/enable, reset-password (getpass→Argon2id, revokes ALL sessions),
+  bind/unbind-diver, revoke-sessions, list-users/list-access/list-divers
+  (no secrets). Deliberately NOT the mac-agent X-API-Key authority and NOT
+  a web admin role (packet §8). No public registration; no auto-accounts.
+- Durable disable: `is_active=false` + every live session revoked at
+  disable and at reset-password (`sessions.revoke_all_user_sessions`).
+- Security audit trail: additive `security_audit_log` table +
+  `app/services/security_audit_log.py`; events user_created/disabled/
+  enabled, password_reset, session_revoked, ownership_granted/revoked,
+  login_rate_limited. No credential material ever stored.
+- Auth metrics: privacy-safe in-process counters + authenticated
+  `/api/v1/auth/metrics` (login_success/failure/rate_limited,
+  session_revocations, active_sessions_approx).
+- Live production proofs (synthetic users, cleaned up after): IDOR matrix
+  A→A 200 / A→B 404 / B→B 200 / B→A 404 / B→maxime 404 / anon 401 across
+  legacy routes; A→maxime B2 play 404; disable kills live session +
+  denies login; password reset rotates + revokes; 10-attempt burst → 429
+  + audit row. Suite `test_p8_user_admin.py` 10/10.
+- Ownership inventory: 23 divers, media revisions all→diver 1, 1 user→
+  diver OWNER mapping, 0 unowned/ambiguous. Media for unonboarded divers
+  stays private; no inferred accounts.

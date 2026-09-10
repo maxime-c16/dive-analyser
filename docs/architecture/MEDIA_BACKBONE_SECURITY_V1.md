@@ -409,3 +409,30 @@ evidence JSON `docs/audits/MEDIA_BACKBONE_P6_PLAYBACK_KEY_EVIDENCE.json`).
   `B2_PLAYBACK_CANARY_ENABLED=false` → authenticated legacy playback (proven
   live; user auth stays ON — the both-flags-off unauthenticated state is no
   longer used as a normal rollback).
+
+## P8 productionization security posture (2026-09-10)
+
+- Ingress defect fixed: nginx `proxy_set_header Host $http_host`
+  (port-preserving) so backend Origin validation reconstructs
+  same-origin candidates; previously a same-origin browser login POST
+  with Origin set was rejected unless the exact origin was in
+  CORS_ALLOW_ORIGINS. Live-verified; no wildcard origins; cookie policy
+  unchanged (HttpOnly/Secure/SameSite=Strict).
+- External access: LAN_ONLY classification (WAN probes of 6090/6443
+  dead; no port-forward). External path prepared but gated behind ONE
+  consolidated provider action — see `EXTERNAL_ACCESS_V1`. Raw
+  port-forward publication rejected as an architecture.
+- Proxy trust: rate limiter derives client IP from XFF's first element
+  (nginx-appended) only; unchanged by P8; compatible with a future
+  cloudflared→nginx boundary.
+- B2 CORS: still NOT required (redirect playback unchanged).
+- Keys: playback key caps unchanged (readFiles only); ingest key caps
+  unchanged (list/read/write); no rotation; delete/hide operations: 0.
+- B2 PROD inventory fresh-read: 16 objects / 345,568,956 bytes, all
+  `blobs/sha256/…`, 0 orphans. Reconciliation: 15/15 eligible revisions
+  have exactly one verified PROD location.
+- Playback cohort (P8-E): 62+ authenticated requests, 100% authorized,
+  100% B2-selected, 0 denied / 0 unexpected fallback / 0 provider
+  failures / 0 presign leaks; provider ranged GET → 206 re-proven.
+- Soak: single daemon (launchd pid stable, daemon.lock), ledger 25/25
+  DB_COMMITTED, no staging accumulation, no retry loop.
