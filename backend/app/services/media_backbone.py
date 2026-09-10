@@ -218,10 +218,12 @@ def commit_verified_ingest(
     object_key: str,
     storage_backend: str,
     bucket: str,
-    caption_raw: str,
-    caption_sha: str,
-    caption_provider: str,
+    caption_raw: str | None = None,
+    caption_sha: str | None = None,
+    caption_provider: str | None = None,
     verified: bool = True,
+    media_only: bool = False,
+    media_only_reason: str | None = None,
     rendition_semantics: str = RENDITION_SEMANTICS_DEFAULT,
     codec: str | None = None,
     width: int | None = None,
@@ -241,11 +243,30 @@ def commit_verified_ingest(
     if not verified:
         raise ValueError("refusing to commit unverified ingest (roundtrip verification required)")
     _validate_sha(blob_sha256)
-    _validate_sha(caption_sha)
-    if caption_sha != caption_sha256(caption_raw):
-        raise ValueError(
-            "caption_sha256 does not match the persisted caption_raw UTF-8 bytes"
-        )
+    if media_only:
+        # P10 media-only mode: verified media bytes + truthful MediaRevision
+        # baseline WITHOUT a fabricated CaptionRevision. The caption authority
+        # is explicitly unresolved; the ledger records
+        # MEDIA_VERIFIED_METADATA_PENDING so the residual stays visible and
+        # repairable without re-downloading media bytes.
+        if not media_only_reason or not media_only_reason.strip():
+            raise ValueError(
+                "media_only commit requires a non-empty media_only_reason"
+            )
+        if caption_raw is not None or caption_sha is not None or caption_provider is not None:
+            raise ValueError(
+                "media_only commit must not carry caption data"
+            )
+    else:
+        if caption_raw is None or caption_sha is None or caption_provider is None:
+            raise ValueError(
+                "caption authority required unless media_only mode is declared"
+            )
+        _validate_sha(caption_sha)
+        if caption_sha != caption_sha256(caption_raw):
+            raise ValueError(
+                "caption_sha256 does not match the persisted caption_raw UTF-8 bytes"
+            )
     if byte_size <= 0:
         raise ValueError(f"invalid byte_size: {byte_size}")
     _validate_environment(environment)
@@ -303,36 +324,41 @@ def commit_verified_ingest(
         )
         db.add(media_revision)
 
-    caption_revision = (
-        db.query(CaptionRevision)
-        .filter_by(video_uuid=video_uuid, caption_sha256=caption_sha)
-        .one_or_none()
-    )
-    caption_revision_existed = caption_revision is not None
-    if caption_revision is None:
-        caption_revision = CaptionRevision(
-            video_uuid=video_uuid,
-            caption_raw=caption_raw,
-            caption_sha256=caption_sha,
-            caption_provider=caption_provider,
-            parser_version=parser_version,
-            parsed_json=dict(parsed_json) if parsed_json else None,
-            shadow_provider=shadow_provider,
-            shadow_raw=shadow_raw,
-            shadow_sha256=shadow_sha256,
-            shadow_available=shadow_available,
-            exact_equal=(
-                (shadow_sha256 == caption_sha)
-                if (shadow_available and shadow_sha256)
-                else None
-            ),
-            observed_at=datetime.utcnow(),
+    caption_revision_existed = False
+    caption_revision_id: int | None = None
+    caption_revision: CaptionRevision | None = None
+    if not media_only:
+        caption_revision = (
+            db.query(CaptionRevision)
+            .filter_by(video_uuid=video_uuid, caption_sha256=caption_sha)
+            .one_or_none()
         )
-        db.add(caption_revision)
+        caption_revision_existed = caption_revision is not None
+        if caption_revision is None:
+            caption_revision = CaptionRevision(
+                video_uuid=video_uuid,
+                caption_raw=caption_raw,
+                caption_sha256=caption_sha,
+                caption_provider=caption_provider,
+                parser_version=parser_version,
+                parsed_json=dict(parsed_json) if parsed_json else None,
+                shadow_provider=shadow_provider,
+                shadow_raw=shadow_raw,
+                shadow_sha256=shadow_sha256,
+                shadow_available=shadow_available,
+                exact_equal=(
+                    (shadow_sha256 == caption_sha)
+                    if (shadow_available and shadow_sha256)
+                    else None
+                ),
+                observed_at=datetime.utcnow(),
+            )
+            db.add(caption_revision)
 
     # Ledger identity is (video_uuid, environment, object_key): the same
     # content-addressed key committed in DEV and PROD is two logical ingest
     # events (P4.3), not one.
+    ledger_state = "DB_COMMITTED" if not media_only else "MEDIA_VERIFIED_METADATA_PENDING"
     state = (
         db.query(IngestObjectState)
         .filter_by(video_uuid=video_uuid, environment=environment, object_key=object_key)
@@ -342,7 +368,7 @@ def commit_verified_ingest(
         state = IngestObjectState(
             video_uuid=video_uuid,
             object_key=object_key,
-            state="DB_COMMITTED",
+            state=ledger_state,
             blob_sha256=blob_sha256,
             caption_sha256=caption_sha,
             verified=verified,
@@ -351,6 +377,10 @@ def commit_verified_ingest(
             storage_backend=storage_backend,
         )
         db.add(state)
+    elif media_only and state.state == "DB_COMMITTED" and state.caption_sha256 is None:
+        # Upgrade a prior media-only record whose caption authority later
+        # resolved through a separate caption path; never downgrade.
+        pass
 
     db.commit()
     return {
@@ -362,7 +392,11 @@ def commit_verified_ingest(
         "environment": environment,
         "media_revision_id": media_revision.id,
         "media_revision_existed": media_revision_existed,
-        "caption_revision_id": caption_revision.id,
+        "caption_revision_id": (
+            caption_revision.id if caption_revision is not None else None
+        ),
         "caption_revision_existed": caption_revision_existed,
+        "media_only": bool(media_only),
         "ingest_state_id": state.id,
+        "ledger_state": ledger_state,
     }
