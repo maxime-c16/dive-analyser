@@ -1,9 +1,13 @@
-# LEGACY_DECOMMISSION_PLAN_V1 — readiness audit (P8), no execution
+# LEGACY_DECOMMISSION_PLAN_V1 — readiness audit (P8) + dry-run readiness (P9)
 
-> Status after `MEDIA_BACKBONE_P8_ACCELERATED_PRODUCTIONIZATION_V1`:
-> **LEGACY_DECOMMISSION_NOT_READY**. This document is READINESS-ONLY:
-> it classifies dependencies and storage, and defines the future P9
-> dry-run. **No legacy media was or may be deleted in P8** (packet §49).
+> Status after `MEDIA_BACKBONE_P9_PRODUCTION_READINESS_AND_EXTERNAL_ACCESS_V1`:
+> **LEGACY_DECOMMISSION_DRY_RUN_READY** (the deletion-candidate inventory can
+> be trusted) with **LEGACY_PHYSICAL_DELETION_READY = NO** — because
+> `CONTINUOUS_NATURAL_INGEST` is still PENDING. This document is
+> READINESS-ONLY: it classifies dependencies and storage, and defines the
+> dry-run. **No legacy media was or may be deleted in P8 or P9.**
+> The DRY-RUN-ONLY inventory tool is `backend/scripts/legacy_dry_run.py`
+> (no --delete flag, no destructive mode, no B2 client; static-tested).
 
 ## 1. What "legacy media" means here (categories)
 
@@ -63,34 +67,56 @@ retention cleanup (only for verified, non-pinned sources), exporter/
 materializer staging cleanup, ingest staging cleanup, ops `/videos`
 prune (age+byte-capped). **B2 delete/hide performed to date: 0.**
 
-## 4. Decommission prerequisites (packet §35) — live scorecard
+## 4. Decommission prerequisites (packet §35) — live scorecard (P9 refresh)
 
 | Prerequisite | State |
 |---|---|
-| Natural continuous-ingest proof | NOT OBSERVED YET → blocker |
-| Extended B2 playback observation | partial (62+ requests GREEN; longer soak owed) |
-| Multi-user auth stable | achieved (P8) |
-| Every eligible logical media verified PROD | 15/15 = 100% |
-| Rollback independent of deleted legacy bytes | NOT proven (legacy fallback still the rollback path) |
-| Backup/recovery policy frozen | NOT frozen |
-| Retention policy frozen | NOT frozen |
-| Provider-failure strategy accepted | partial (P6 matrix proven; policy not frozen) |
+| Natural continuous-ingest proof | STILL PENDING (armed, healthy; no natural clip in the P8+P9 windows) → HARD DELETION BLOCKER (P9 §37) |
+| Extended B2 playback observation | GREEN (P9: 192 ALLOWED / 16 denied-intentional / 0 provider failures / 0 unexpected; ≥100 target exceeded) |
+| Multi-user auth stable | achieved (P8; P9: synthetic negatives removed, exactly 1 legitimate production user) |
+| Every eligible logical media verified PROD | 15/15 = 100% (P9 re-verified, 0 drift) |
+| Rollback independent of deleted legacy bytes | NOT proven (legacy fallback still the rollback path) — BLOCKS PHYSICAL DELETION, not the dry run |
+| Backup/recovery policy frozen | GREEN (BACKUP_AND_RETENTION_V1 §3: daily encrypted pg_dump + off-host copy + readability gate) |
+| Restore tested | GREEN (isolated-container restore PASS: 14-table row reconciliation + ownership chain + verified PROD locations) |
+| Retention policy frozen | GREEN (BACKUP_AND_RETENTION_V1 §6 + ops/retention_policy_v1.json, test-enforced) |
+| Logical deletion semantics defined | GREEN (DESIGN ONLY, BACKUP_AND_RETENTION_V1 §7: DB-state retirement vs delayed operator purge) |
+| Provider-failure strategy accepted | GREEN (P6 matrix proven live; policy frozen in TARGET/SECURITY docs) |
 
-## 5. Future P9 dry-run design (when prerequisites pass) — PLAN ONLY
+## 4a. P9 dry-run evidence (live, no deletions)
 
-1. Freeze backup/retention policy + accept provider-failure strategy.
-2. Enumerate exact deletable bytes: category (e) first (`/videos`, 14 GB,
-   unreferenced), then obsolete cache renditions superseded by verified
-   B2 replicas (per-revision reconciliation: for each MediaRevision with
-   a verified PROD location, the cache renditions that are derivable
-   from B2 bytes).
-3. Mandatory keepers: canonical vault (a), posters while UI depends on
-   them (c), analysis pipeline proxy files (A5) until B2-native fetch
-   exists, all journals/state.
-4. Recovery: every candidate file must be reconstructable from B2
-   (roundtrip SHA) or must be explicitly declared non-recoverable and
-   kept. Dry-run outputs a manifest (path, bytes, recoverable-from-B2,
-   reason) — executed deletions happen only in a LATER phase after
-   human approval.
-5. Rollback: freeze backup image of `media/cache`+`media/videos` before
-   any real run; validation = playback + analysis + gallery canaries.
+Storage classification refreshed (packet §31-§34):
+
+| Category | Size (2026-09-10 P9 refresh) | Classification |
+|---|---|---|
+| server media/cache | 1718 files / 890 MB | ACTIVE playback substrate; 29 files (10.7 MB) are B2-derivable candidates (15 verified-PROD revisions' derivations), 1689 conservative KEEP |
+| server media/videos | 176 files / 14.28 GB, ALL `IMG_*.MOV` | ORPHAN icloudpd iCloud-ORIGINAL cache: 0 matches against any dives.video_uuid; production dives.video_path NULL for all 2805 dives; video_labels reference UUID-named files only → RECLAIMABLE CANDIDATE (not authorized), rebuildable from iCloud via icloudpd |
+| Mac source vault | 13 GB / 440 sources | ACTIVE_REQUIRED (ingest + migration source); becomes a bounded cache only after CONTINUOUS_NATURAL_INGEST=GREEN + a recovery strategy that does not need the vault (DESIGN ONLY) |
+| Mac highres (science) | 445 MB | SCIENCE AUTHORITY — excluded from all product reclamation |
+| B2 PROD | 16 objects / 345,568,956 bytes | verified replica authority; 1 documented P4 preflight evidence object (72d94c7f, 408 B); 0 unexplained orphans; 0 missing |
+| Postgres | 34 MB | encrypted daily backups (BACKUP_AND_RETENTION_V1) |
+
+## 5. Dry-run tool (P9 §35) — IMPLEMENTED, DRY-RUN ONLY
+
+`backend/scripts/legacy_dry_run.py` (committed, live-executed):
+
+- Output per candidate: path, size, category, why candidate, authoritative
+  replacement (verified B2 revision / iCloud source), recovery proof, and
+  blocking dependency.
+- Hardcoded safety (static-tested in `test_p9_production_readiness.py`):
+  NO `--delete` argument, NO destructive mode, NO B2 client usage, no
+  remove/unlink/rmtree primitives anywhere in the file.
+- Read-only DB queries + read-only filesystem stat/list only.
+- Live run: cache classification (29 B2-derivable candidates out of 1718
+  cache files; the rest conservative KEEP) + /videos classification
+  (176/176 orphan icloudpd artifacts, 0 DB references) + science exclusion.
+
+## 5a. What would make LEGACY_PHYSICAL_DELETION_READY = YES (future)
+
+1. `CONTINUOUS_NATURAL_INGEST = GREEN` (a real new clip through the
+   continuous dual-write path, with the P9 observation record complete).
+2. A rollback strategy that does NOT need legacy bytes (e.g. B2-native
+   playback for every surface or an accepted failure model), re-proven.
+3. A second independent replica of the B2 media (BACKUP_AND_RETENTION_V1
+   §5 recommendation) accepted by the human.
+4. A human-approved deletion manifest produced by a dry run, executed in a
+   LATER packet with its own firewall. P9 does NOT implement execution.

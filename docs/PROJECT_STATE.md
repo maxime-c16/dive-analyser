@@ -1130,3 +1130,66 @@ Full audit: `docs/audits/MEDIA_BACKBONE_P8_ACCELERATED_PRODUCTIONIZATION_V1.md`.
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P8`
+
+## Media backbone P9 — production readiness + external access prep (2026-09-10, GREEN with natural-ingest PENDING)
+
+Packet `MEDIA_BACKBONE_P9_PRODUCTION_READINESS_AND_EXTERNAL_ACCESS_V1` on
+top of canonical `9da2310`. Branch
+`media-backbone-p9-production-readiness-v1`. Full audit:
+`docs/audits/MEDIA_BACKBONE_P9_PRODUCTION_READINESS_AND_EXTERNAL_ACCESS_V1.md`.
+
+- **Verdicts**: `P9_PRODUCTION_READINESS_GREEN`;
+  `CONTINUOUS_NATURAL_INGEST_PENDING` (no natural clip in the P8+P9
+  windows; durable passive capture now deployed so the next natural clip
+  closes the gate without an operator);
+  `EXTERNAL_ACCESS_PROVIDER_GATE` (machine-side 100% prepared + externally
+  live-tested through a temporary quick tunnel, then torn down);
+  `LEGACY_DECOMMISSION_DRY_RUN_READY` with
+  **LEGACY_PHYSICAL_DELETION_READY = NO**.
+- **Backup/restore (P9-C)**: frozen policy
+  (`docs/architecture/BACKUP_AND_RETENTION_V1.md` +
+  `ops/retention_policy_v1.json`); daily 03:15 encrypted pg_dump cron live
+  (AES-256-CBC+PBKDF2, readability gate, 14 daily + 8 weekly retention);
+  off-host encrypted copy on the ingest Mac via a
+  `restrict,from=<server>` restricted SSH key; isolated-container restore
+  test PASS (14-table row reconciliation + ownership chain 15/15 +
+  verified PROD locations 15/15; 73 s total).
+- **Account/session cleanup (P9-D)**: the two historical synthetic
+  negative accounts removed from production (audit trail retained; 0
+  orphan sessions; production = exactly 1 legitimate real user).
+- **External access (P9-E)**: cloudflared audit (navidrome quick tunnel =
+  separate app, untouched); decision = separate named tunnel + loopback
+  vhost :6091 (adminer refused); external proofs through a temporary
+  quick tunnel: login/cookie flags, foreign-origin 403, unauth 401,
+  wrong-owner 404, owner 302→206 with Range/seek, expired-presign
+  refresh, privacy-safe errors; ONE consolidated HUMAN_PROVIDER_ACTION
+  (EXTERNAL_ACCESS_V1 §7: domain zone in Cloudflare + named tunnel
+  `diveanalyzer` + hostname `dive.<domain>` → HTTP localhost:6091).
+- **Soak (P9-F)**: 192 ALLOWED / 16 denied-intentional / 0 provider
+  failures / 0 unexpected (≥100 target exceeded); ledger 25/25
+  DB_COMMITTED; staging clean; single daemon; §40 rollback revalidated
+  live (B2-off → authenticated legacy fallback with Range 206).
+- **Metrics durability (§41)**: durable aggregation from append-only
+  tables (login_attempts / media_playback_grants / security_audit_log) on
+  both metrics endpoints — restart no longer loses operational data.
+- **Reconciliation (§28/§29)**: 15/15 verified-PROD (100%, 0 drift);
+  B2 16 objects / 345.6 MB, 0 unexplained orphans (1 documented P4
+  preflight evidence object), 0 missing.
+- **Legacy dry-run (P9-G)**: `backend/scripts/legacy_dry_run.py`
+  (DRY-RUN ONLY, no delete primitives, static-tested); cache 1718 files /
+  890 MB (29 B2-derivable candidates); /videos 176 files / 14.28 GB ALL
+  icloudpd iCloud-original cache artifacts with 0 DB references
+  (rebuildable from iCloud; NOT authorized); vault 13 GB ACTIVE_REQUIRED
+  with bounded-cache conditions documented; science excluded everywhere.
+- **Repairs found live**: restricted-key sshd option syntax (`pty=no` →
+  `restrict`); rsync `--no-times --no-perms` under the restricted key;
+  backup sha-manifest filename mismatch; standalone `docker-compose`
+  (no `docker compose` plugin on this host).
+- Counters: B2 delete/hide 0; legacy media deleted 0; Photos ops 0;
+  science untouched; no secrets in Git.
+- Tests: mac-agent 248/248; backend P9 suite 10 pass (+1 env-layout skip);
+  P5/P6/P8/backbone 101 pass (1 pre-existing env-only failure).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P9`

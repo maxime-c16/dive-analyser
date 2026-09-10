@@ -369,3 +369,31 @@ migration engine authority: `docs/architecture/HISTORICAL_MEDIA_MIGRATION_V1.md`
   `LEGACY_DECOMMISSION_PLAN_V1`.
 - Storage measured: server cache 864 MB, /videos 14 GB (unreferenced
   fallback), Mac vault 13 GB, B2 345.6 MB (16 objects).
+
+## P9 production readiness + external access preparation (2026-09-10)
+
+- **Target state reached for the ingest backbone**: continuous dual-write
+  production-normal semantics stayed ARMED and healthy through P9
+  (single daemon, ledger 25/25 DB_COMMITTED, no staging bytes, 17 GiB
+  free). The natural-clip observation gap is the ONLY remaining ingest
+  gate; P9 added durable passive capture for it (below).
+- **Durable natural-ingest observation (P9-B)**: stage metadata records
+  trigger provenance ONCE (`triggered_at` / `request_reason` /
+  `activation`, first-trigger-wins); every dual-write run's metrics
+  snapshot carries the trigger provenance + the durable commit receipt
+  identity summary; `mac-agent/src/ingest/natural_ingest_evidence.py`
+  composes the privacy-safe observation record (no raw captions) with a
+  completeness gate for the natural-ingest evidence.
+- **Backup/restore authority (P9-C)**: encrypted daily Postgres backups
+  with off-host replication + isolated restore validation are now part of
+  the target operating model — see `BACKUP_AND_RETENTION_V1`.
+- **Playback substrate**: unchanged reality (cache = UI substrate, B2 =
+  revisions route). Extended soak GREEN: 192 ALLOWED grants / 16
+  intentional denials / 0 provider failures / 0 unexpected, and a live
+  B2-off rollback revalidation (authenticated legacy fallback with Range).
+- **External ingress**: machine-side fully prepared (named tunnel config +
+  loopback-only vhost + activation checklist); externally live-tested
+  through a temporary quick tunnel end-to-end; one provider action
+  remains — `EXTERNAL_ACCESS_V1` §7.
+- **Legacy decommission**: dry-run tool implemented and live-run;
+  `LEGACY_DECOMMISSION_DRY_RUN_READY` with `LEGACY_PHYSICAL_DELETION_READY=NO`.

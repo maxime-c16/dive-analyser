@@ -436,3 +436,36 @@ evidence JSON `docs/audits/MEDIA_BACKBONE_P6_PLAYBACK_KEY_EVIDENCE.json`).
   failures / 0 presign leaks; provider ranged GET → 206 re-proven.
 - Soak: single daemon (launchd pid stable, daemon.lock), ledger 25/25
   DB_COMMITTED, no staging accumulation, no retry loop.
+
+## P9 security posture (2026-09-10)
+
+- **Account hygiene**: the two historical synthetic negative accounts
+  (P5/P6) were removed from production (cascade-deleted sessions;
+  `user_disabled` audit rows retained). Production now has exactly ONE
+  legitimate real user (maxime → diver 1 OWNER); zero orphan live
+  sessions; removed-account login still returns the uniform 401.
+- **External-path proofs (temporary quick tunnel over the real internet,
+  then torn down — verified dead)**: cookie flags intact
+  (HttpOnly/Secure/SameSite=Strict); foreign Origin → 403; unauth → 401 on
+  B2 play / legacy video / legacy check / me; authenticated wrong-owner →
+  uniform 404 on all media routes; owner play → 302 → provider ranged 206;
+  seek ranges 206; expired presign → provider 401 → fresh grant → 302/206;
+  15 grants per external pass, 0 leaks; error bodies expose no paths,
+  no bucket/keys (bucket+key only in the by-design redirect Location), no
+  stack traces, no other-diver identity; `private, no-store` /
+  `no-referrer` / `nosniff` headers present.
+- **Proxy trust (test-hardened)**: the per-IP rate-limit identity is the
+  FIRST XFF element only; appended caller-supplied chain elements cannot
+  forge the bucket; a correct password is still capped at the IP ceiling;
+  a different observed source is a different bucket. Origin validation
+  accepts only EXACT configured origins (a literal `*` config value can
+  never match a browser Origin — structurally no wildcard trust).
+- **Metrics durability (§41)**: durable aggregation from the append-only
+  tables (login_attempts / media_playback_grants / security_audit_log)
+  exposed on both metrics endpoints; worker restarts no longer lose
+  operational facts. No identifiers/tokens/URLs in the aggregates.
+- **Backup security**: Postgres backups are AES-256-CBC+PBKDF2 encrypted
+  (key 0600, never in Git); off-host copies travel over a dedicated SSH
+  key restricted with `restrict,from=<server-ip>`; no plaintext secrets.
+- **Counters**: B2 delete/hide 0; legacy media deleted 0; Photos
+  operations 0; science untouched; no secrets in Git.
