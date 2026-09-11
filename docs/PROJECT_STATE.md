@@ -1,14 +1,17 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-11** (media-backbone P10:
-> full-corpus historical migration — 2799/2799 real assets in PROD).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Previous backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
+> Durable project handoff. Last verified: **2026-09-11** (media-backbone P11:
+> FINAL CLOSURE — MEDIA_BACKBONE_V1 CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR).
+> Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
+> parent-supervisor handoff; byte+count accounting RECONCILED).
+> Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
 > Latest science: `docs/science/PERCEPTION_STATUS_REBASE_V1.md` (strategic status rebase)
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
 > Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`**
+> Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
+> (media-backbone subproject ended; further media work returns to the main supervisor)
 
 ## Project purpose
 
@@ -1250,6 +1253,61 @@ Canonical HEAD after P10: `8a50d89e2cbbdffb4d96785f534ac024dde09cf0`.
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P10` — next candidates:
 P11 fixture-row cleanup decision, second independent replica decision,
 external hostname action, natural-ingest evidence closure.
+
+## Media backbone P11 — FINAL CLOSURE (2026-09-11, MEDIA_BACKBONE_V1_CLOSED_READY_FOR_PARENT_SUPERVISOR)
+
+Packet `MEDIA_BACKBONE_P11_FINAL_CLOSURE_AND_PARENT_HANDOFF_V1`.
+Final handoff: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md`
+(self-contained; a fresh main-project supervisor thread needs no other history).
+
+- **Fresh verification of the accepted P10 state: exact.** dives 2805 /
+  distinct video_uuid 2805 / 23 divers / blobs 2800 / revisions 2800 /
+  captions 2802 / PROD verified locations 2800 / DEV 10 / 1 real user.
+  B2 fresh LIST: **2,801 objects / 61,416,354,980 bytes; 0 malformed keys;
+  0 missing verified DB keys; 1 documented P4 evidence object (408 B) =
+  the only non-media object; 0 unexplained orphans.**
+- **COUNT_ACCOUNTING = RECONCILED**: 2799 real identities = 2798 × 1 blob +
+  1 identity (`42D80813…`, dive 2838) with 2 retained append-only revisions
+  (same Photos asset re-trimmed 2026-09-09; distinct edit fingerprints and
+  durations; both blobs verified PROD) — EXPECTED_APPEND_ONLY_HISTORY.
+  2800 blobs = 2785 P10-created + 15 pre-P10 (9 dual-write-canary + 6 P7
+  DEV→PROD). 2800 PROD locations + 1 evidence object = 2801 B2 objects
+  (byte-exact).
+- **BYTE_ACCOUNTING = RECONCILED**: the reported P10 upload metric
+  60,497,725,121 was a surviving-run-counter aggregation; the exact
+  573,060,903-byte gap = crashed-canary PUTs 216,084,468 (journal-proven
+  dedupe re-verify) + restart-counter losses 183,131,868 + 173,696,767 +
+  final-run sliver 147,800. Every byte is physically present, journal-verified
+  and byte-accounted: 345,568,956 + 61,070,786,024 = 61,416,354,980.
+  Durable ledger: `…/p10/p11-b2-object-ledger.json` (2801 entries classified,
+  totals exact, 0 unexplained).
+- **Six synthetic fixture rows: RETAIN + DOCUMENT
+  (SYNTHETIC_NON_MEDIA_FIXTURE)** — production rows exist, 0 caption
+  revisions, 0 ledger rows, 0 backbone media, no recoverable Photos/source
+  media, no real athlete media behind them; excluded transparently from
+  media-backbone coverage denominators, not hidden from DB-health audits;
+  no purge, no new schema field.
+- **Authorization regression live**: owner migrated item 302→presigned B2;
+  non-owner migrated item (diver 19) 404; unauthenticated 401 — storage
+  existence != authorization.
+- **Runtime**: all flags live (USER_AUTH_ENABLED, B2 playback,
+  object_store.enabled, dual_write.enabled, continuous_new_ingest,
+  migration.enabled); single production agent daemon (pid verified); no
+  migration process running (P10 one-shot finished; staging tmp empty);
+  backend cleanly recreated at P10 final deployment (RestartCount 0, healthy).
+- **CONTINUOUS_NATURAL_INGEST = PENDING** (passive capture armed; no
+  natural ingest observed yet — independent future observation).
+- **Unchanged gates**: EXTERNAL_ACCESS_PROVIDER_GATE (owned Cloudflare
+  domain/zone + hostname — human action outside this workstream);
+  LEGACY_PHYSICAL_DELETION_READY = NO (dry-run ready only; second
+  independent media replica RECOMMENDED before any physical deletion);
+  legacy/Photos/B2 deletions = 0; B2 delete/hide ops P10+P11 = 0;
+  UserDiverAccess created = 0; science mutations = NONE; secrets in Git = NO.
+- Storage reconciliation live: 2507/2507 OWNER revisions
+  exactly-one-verified-PROD, 0 drift (293 non-owner revisions verified via
+  blob-location + B2 reconciliation).
+- Tests: backend P10/commit suites 20/20; P9 suite 9 pass / 1 skipped /
+  1 env-only path failure (pre-existing, unchanged).
 
 
 ## Perception status rebase (2026-09-11, PERCEPTION_STATUS_REBASE_V1)
