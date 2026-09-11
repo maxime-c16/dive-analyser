@@ -1,0 +1,102 @@
+{
+ "label": "HURDLE_OSNET_EMBED_CACHE_V1",
+ "concept": "REPRODUCIBLE_HOST_LEVEL_SCIENCE_CACHE (not a new ground-truth authority)",
+ "created": "2026-09-10 (extraction), manifest 2026-09-11",
+ "committed_to_git": false,
+ "cache": {
+  "path": "runs/hurdle_prototype_v3/osnet_emb_cache_v1.npz",
+  "path_kind": "HOST_ONLY (symlinked worktree dirs point at one host cache)",
+  "sha256": "48ab9bd3805342a1fc5c87a7b868afe94289ea25e8b3054172d8f8a97405f1b0",
+  "size_bytes": 534152558,
+  "format": "npz: keys (dive|frame_index|candidate_index) -> vecs (L2-normalized float32)",
+  "n_keys": 579709
+ },
+ "crop_recipe": {
+  "source": "360p proxy pixels (proxy_360p authority)",
+  "box": "candidate center box (cx, cy, bw, bh)",
+  "pad": 1.3,
+  "resize_to": [
+   256,
+   128
+  ],
+  "normalization": "per-embedding L2; tracklet embedding = L2(mean of <=6 crop embeddings)",
+  "max_crops_per_tracklet": 6,
+  "deterministic_subsample": "starts[::n_frames//6][:6]"
+ },
+ "encoder": {
+  "identity": "OSNet x1.0 Market-1501 (torchreid), wrapper OSNetWrap in phase_hurdle_e_appearance_benchmark_v1.py",
+  "weights_path": "models/reid/osnet_x1_0_market1501.pth",
+  "weights_sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+  "embedding_dim": 512
+ },
+ "source_candidates": {
+  "path": "runs/hurdle_identity_v1/R5_FULLCLIP_CANDIDATES_V1.json (frozen full-clip D5 candidates)",
+  "sha256": "3bed1aafb3d55353372260466ae0683acc62b188d75e6ef2587d936c150e0d83"
+ },
+ "source_proxies": {
+  "1040": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/1040.mp4",
+   "proxy_sha256": "b93aca3d4920b48aa76964ebe6263a2405ddb1b6b6f5e629a292e163b68c249c"
+  },
+  "2169": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/2169.mp4",
+   "proxy_sha256": "40a3cd691436f7fbdbe1e04527cedb18516d64d38ae35d2854f1d9dbbe36f40a"
+  },
+  "2341": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/2341.mp4",
+   "proxy_sha256": "b25f08d4675855e203bef8fc773a6d0efa1d0f2eebb090e727c006bec683b4ec"
+  },
+  "2353": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/2353.mp4",
+   "proxy_sha256": "71e3ac13e7bf468accd30d83db7e40c9d815924b92f127ccb31668329628360a"
+  },
+  "2541": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/2541.mp4",
+   "proxy_sha256": "3d868b409a8e6ec891f4696ca2395d6224a0ebc660a1c9f74e83534188b6b137"
+  },
+  "2555": {
+   "proxy_path": "media/perception_decomposition_v1/proxies/2555.mp4",
+   "proxy_sha256": "7f5b9db03c6ec5e6095f66eaf35fe5cad20365d8436d4b6e7933033b8c096e1a"
+  }
+ },
+ "coverage": {
+  "dives": {
+   "1040": {
+    "embedded_crop_keys": 33857,
+    "total_candidate_instances": 33857,
+    "coverage_frac": 1.0
+   },
+   "2169": {
+    "embedded_crop_keys": 104953,
+    "total_candidate_instances": 104953,
+    "coverage_frac": 1.0
+   },
+   "2341": {
+    "embedded_crop_keys": 84911,
+    "total_candidate_instances": 84911,
+    "coverage_frac": 1.0
+   },
+   "2353": {
+    "embedded_crop_keys": 201812,
+    "total_candidate_instances": 201812,
+    "coverage_frac": 1.0
+   },
+   "2541": {
+    "embedded_crop_keys": 95423,
+    "total_candidate_instances": 95423,
+    "coverage_frac": 1.0
+   },
+   "2555": {
+    "embedded_crop_keys": 58753,
+    "total_candidate_instances": 58753,
+    "coverage_frac": 1.0
+   }
+  },
+  "note": "V3 extraction (plausible tracklets + hypothesis path crops) COMPLETED 2026-09-11 by phase_v4_cache_complete_v1.py to FULL candidate-ocean coverage (one sequential decode per dive, MPS-batched, bounded one-time; Phase B repair requires embeddings for short fragments outside the plausible set). Manifest regenerated; meta.json n_keys updated by the scripts themselves."
+ },
+ "provenance_rules": {
+  "verification": "meta weights_sha256 re-verified against weights file on every load (EmbeddingCache.verify)",
+  "status": "SCIENCE_CACHE_REPRODUCIBLE \u2014 a cache is reusable only while all shas verify; on mismatch, re-extract"
+ },
+ "revision": "V1.1 (completed coverage 2026-09-11)"
+}

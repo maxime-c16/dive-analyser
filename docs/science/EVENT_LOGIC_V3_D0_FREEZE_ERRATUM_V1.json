@@ -1,0 +1,69 @@
+{
+  "label": "EVENT_LOGIC_V3_D0_FREEZE_ERRATUM_V1",
+  "packet": "HURDLE_TARGET_IDENTITY_V3",
+  "created": "2026-09-11",
+  "status": "ERRATUM_APPLIED",
+  "summary": "Erratum for a metadata drift inside the historical V3-D0 freeze artifact. The freeze JSON was found to record interpolation-gap metadata that disagrees with the executable scientific authority. The historical freeze artifact is treated as IMMUTABLE: its committed bytes were restored (a previous cycle had edited the file in place); this separate erratum records the drift and the proof that the frozen executable behavior reproduces the accepted results. No executable behavior changed.",
+
+  "freeze_artifact": {
+    "path": "docs/science/EVENT_LOGIC_V3_D0_FREEZE.json",
+    "authority": "HISTORICAL_FREEZE_IMMUTABLE",
+    "sha256_restored": "9702f7eecb2ef7028f83fb9d7177b5eeefe1e50dd07d49cc62e6efb60ca6751b",
+    "recorded_metadata": {
+      "interp_max_gap_s": 0.5,
+      "vel_max_gap_s": 0.5
+    }
+  },
+
+  "executable_authority": {
+    "principle": "The executable scientific code is the authority; the freeze JSON is documentation. The frozen executable was used for every accepted result and is unchanged.",
+    "values": {
+      "interp_max_gap_s": 0.30,
+      "vel_max_gap_s": 0.20
+    },
+    "definition_chain": "PARAMS_E1 (proposer_event_logic_v3_e.py) -> PARAMS_V3C0 (proposer_event_logic_v3_c0.py) -> PARAMS_V3D0 (proposer_event_logic_v3_d0.py = dict(PARAMS_V3C0))",
+    "files": [
+      "experiments/landmark_pilot/proposer_event_logic_v3_e.py",
+      "experiments/landmark_pilot/proposer_event_logic_v3_c0.py",
+      "experiments/landmark_pilot/proposer_event_logic_v3_d0.py"
+    ],
+    "executable_untouched": "verified by git diff assertion in test_hurdle_prototype_v3.py::TestDocReconciliation::test_executable_untouched (Event Logic files byte-identical to committed HEAD)"
+  },
+
+  "replay_proof": {
+    "statement": "Replaying the FROZEN EXECUTABLE (PARAMS_V3D0, interp 0.30 / vel 0.20) on the frozen historical trajectory cache reproduces the recorded V2 magnitudes exactly. A 0.5/0.5 executable cannot produce these values; therefore the accepted results were generated under 0.30/0.20 and the freeze-JSON 0.5/0.5 record is documentation drift only.",
+    "trajectory_source": "docs/science/DEV_HURDLE_TRAJ_CACHE_V2.json (frozen)",
+    "trajectory_source_sha256": "91ae4a5a63977e7996b75ca7a84f73c56bd0e5aa0b711d82ae36310ebaccae89",
+    "recorded_magnitudes_takeoff_err_water_contact_err": {
+      "1040": [-1.9947, -2.511],
+      "2169": [0.4123, -0.2872],
+      "2341": [1.0108, 3.4108],
+      "2353": [-1.8089, -2.2414],
+      "2541": [-15.0156, -14.9144],
+      "2555": [-2.6137, -7.4803]
+    },
+    "replay_artifacts": {
+      "V2_cycle": {
+        "path": "runs/hurdle_identity_v1/V3D0_REPLAY_IDENTITY_V2.json",
+        "sha256": "35124cbe8265cac501ec097183e9a418896d715fcdd6a4ced0e0afab8984f22e",
+        "frozen_params_in_artifact": {"interp_max_gap_s": 0.3, "vel_max_gap_s": 0.2}
+      },
+      "V3_cycle_reverification": {
+        "path": "runs/hurdle_identity_v1/v3d0_replay_v1.json",
+        "sha256": "01c70b508994e60c643a81f298d7eb2a267d9179db3a4906a2feb5620607f8f0"
+      }
+    },
+    "pinned_by_tests": [
+      "test_hurdle_prototype_v3.py::TestFreezeDiscipline::test_historical_arm_replay_reproduces (2169 spot check: takeoff err +0.4123 / wc err -0.2872, and PARAMS_V3D0 identity 0.30/0.20)",
+      "test_hurdle_prototype_v3.py::TestDocReconciliation::test_erratum_matches_executable",
+      "test_hurdle_prototype_v3.py::TestDocReconciliation::test_historical_freeze_immutable"
+    ]
+  },
+
+  "correction_history": {
+    "drift_found": "HURDLE_TARGET_IDENTITY_V3 Phase S audit (read-only source-of-truth check)",
+    "prior_action_taken": "The V3 prototype cycle briefly edited the freeze JSON in place (metadata corrected to 0.30/0.20 with an in-file reconciliation record).",
+    "superseded_by": "Supervisor packet HURDLE_IDENTITY_COMPONENT_AND_TARGET_SELECTION_V4 §0.2: historical freeze artifacts are immutable. The in-place edit was reverted to the original committed bytes (sha256 above) and this erratum artifact was created instead.",
+    "current_state": "Freeze artifact byte-identical to committed history; drift documented here only."
+  }
+}
