@@ -332,3 +332,60 @@ def test_transports_unkown_state_fails_closed(tmp_path):
     journal.doc["state"] = "BOGUS_STATE"
     assert journal.state == "BOGUS_STATE"
     assert not journal.is_terminal
+
+
+def test_g_class_resolved_by_deterministic_caption_equality(tmp_path):
+    """Both candidates exist, different assets; exactly one description
+    equals the dive raw_caption -> deterministic resolution (no guessing)."""
+    class FakeAsset:
+        def __init__(self, uuid, description):
+            self.uuid = uuid
+            self.description = description
+            self.date_modified = None
+            self.adjustments_path = None
+
+    engine, _ = make_engine(tmp_path)
+    engine.dive_caption_fn = lambda vu: "103B P/G 3m"
+    vu_asset = FakeAsset("662C57F8-E184-47E4-9CEC-7CB53FA0A7C7", "103B P/M 3m")
+    fn_asset = FakeAsset("20E90523-7B91-422C-9EB7-F91A1CEB12D1", "103B P/G 3m")
+    resolved = engine._resolve_differing_assets(
+        DomainItem(video_uuid="662C57F8-E184-47E4-9CEC-7CB53FA0A7C7"),
+        vu_asset,
+        fn_asset,
+    )
+    assert resolved is fn_asset
+
+
+def test_g_class_stays_unguessed_when_equality_inconclusive(tmp_path):
+    class FakeAsset:
+        def __init__(self, uuid, description):
+            self.uuid = uuid
+            self.description = description
+            self.date_modified = None
+            self.adjustments_path = None
+
+    engine, _ = make_engine(tmp_path)
+    engine.dive_caption_fn = lambda vu: "nothing matches"
+    a = FakeAsset("A" * 36, "desc one")
+    b = FakeAsset("B" * 36, "desc two")
+    assert (
+        engine._resolve_differing_assets(
+            DomainItem(video_uuid="C" * 36), a, b
+        )
+        is None
+    )
+    engine.dive_caption_fn = None
+    assert (
+        engine._resolve_differing_assets(
+            DomainItem(video_uuid="C" * 36), a, b
+        )
+        is None
+    )
+    engine.dive_caption_fn = lambda vu: "desc one"
+    engine.dive_caption_fn = lambda vu: None
+    assert (
+        engine._resolve_differing_assets(
+            DomainItem(video_uuid="C" * 36), a, b
+        )
+        is None
+    )

@@ -359,3 +359,33 @@ async def domain_migration_inventory(
             )
         )
     return items
+
+
+@router.get(
+    "/migration/dive_caption/{video_uuid}",
+)
+async def dive_raw_caption(
+    video_uuid: str,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> dict:
+    """P10 G-class tie-break helper (agent-key gated, read-only, per-item).
+
+    Returns ONLY the dive's recorded raw_caption for ONE video_uuid (the
+    exact provider string the historical extractor parsed). Used by the P10
+    engine solely for the DETERMINISTIC caption-equality identity tie-break
+    when dives.video_uuid and dives.video_filename resolve to two DIFFERENT
+    Photos assets (same capture exported twice). Never used to manufacture
+    caption data for a CaptionRevision (P10 §21: caption authority stays the
+    fresh provider read). The generic domain inventory remains caption-free.
+    """
+    del api_key  # authentication enforced by dependency
+
+    from app.models.dive import Dive
+
+    row = (
+        db.query(Dive.raw_caption)
+        .filter(Dive.video_uuid == video_uuid)
+        .first()
+    )
+    return {"video_uuid": video_uuid, "raw_caption": row[0] if row else None}

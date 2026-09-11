@@ -295,3 +295,36 @@ def test_domain_inventory_boundary_is_distinct_video_uuid(client, db):
     assert fns == {"20E90523-7B91-422C-9EB7-F91A1CEB12D1.mov"}
     divers = {i["diver_id"] for i in items}
     assert divers == {1}
+
+
+@pytest.mark.skipif(Dive is None, reason="Dive model unavailable on sqlite")
+def test_dive_caption_endpoint_tiebreak_readonly(client, db):
+    db.add(
+        Dive(
+            session_id=1,
+            dive_code="103B",
+            performance="G",
+            performance_numeric=2,
+            height="3",
+            dive_datetime=datetime(2026, 2, 18, 18, 32, 38),
+            video_uuid=VIDEO_UUID,
+            video_filename=f"{VIDEO_UUID}.mov",
+            diver_id=1,
+            raw_caption="103B P/G 3m",
+        )
+    )
+    r = client.get(
+        f"/api/v1/media/backbone/migration/dive_caption/{VIDEO_UUID}"
+    )
+    assert r.status_code == 200, r.text
+    assert r.json() == {"video_uuid": VIDEO_UUID, "raw_caption": "103B P/G 3m"}
+    r2 = client.get(
+        "/api/v1/media/backbone/migration/dive_caption/E6ACBCF6-9801-439B-937D-852718BA8815"
+    )
+    assert r2.status_code == 200
+    assert r2.json()["raw_caption"] is None
+    r3 = client.get(
+        "/api/v1/media/backbone/migration/dive_caption/E6ACBCF6-9801-439B-937D-852718BA8815",
+        headers={"X-API-Key": ""},
+    )
+    assert r3.status_code in (401, 403)

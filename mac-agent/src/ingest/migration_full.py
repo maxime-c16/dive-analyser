@@ -321,6 +321,7 @@ class FullCorpusMigrationEngine:
         prod_environment: str = "prod",
         free_disk_bytes_fn=None,
         dry_run: bool = False,
+        dive_caption_fn: Callable[[str], str | None] | None = None,
     ):
         self.prod_store = prod_store
         self.dev_store = dev_store
@@ -340,6 +341,13 @@ class FullCorpusMigrationEngine:
         self.prod_environment = prod_environment
         self._free_disk_bytes_fn = free_disk_bytes_fn
         self.dry_run = dry_run
+        # G-class tie-break (deterministic, no guessing): when dives.video_uuid
+        # and dives.video_filename resolve to two DIFFERENT Photos assets, the
+        # dive's recorded raw_caption (exact provider string the historical
+        # extractor parsed) is compared to each asset's current description.
+        # EXACT equality (then the documented legacy .strip() transform) on
+        # exactly ONE asset resolves the identity; both/neither stays residual.
+        self.dive_caption_fn = dive_caption_fn
         self.counters: dict[str, int] = {
             "prod_put_bytes": 0,
             "prod_verify_get_bytes": 0,
@@ -427,6 +435,7 @@ class FullCorpusMigrationEngine:
             ),
             min_free_disk_bytes=int(cfg.min_free_disk_bytes),
             prod_bucket=prod_cfg.bucket,
+            dive_caption_fn=build_dive_caption_fn(config),
         )
 
     # -- inventory resolution (packet §11) -----------------------------------
@@ -454,12 +463,24 @@ class FullCorpusMigrationEngine:
                 and fn_asset is not None
                 and vu_asset.uuid != fn_asset.uuid
             ):
-                item.classification = InventoryClass.G_IDENTITY_AMBIGUOUS
-                item.notes.append(
-                    "video_uuid and video_filename resolve to DIFFERENT assets "
-                    f"({vu_asset.uuid[:8]} vs {fn_asset.uuid[:8]})"
+                resolved = self._resolve_differing_assets(
+                    item, vu_asset, fn_asset
                 )
-                item.resolved_asset_uuid = None
+                if resolved is None:
+                    item.classification = InventoryClass.G_IDENTITY_AMBIGUOUS
+                    item.notes.append(
+                        "video_uuid and video_filename resolve to DIFFERENT "
+                        f"assets ({vu_asset.uuid[:8]} vs {fn_asset.uuid[:8]}); "
+                        "deterministic caption-equality tie-break inconclusive"
+                    )
+                    item.resolved_asset_uuid = None
+                    continue
+                item.resolved_asset_uuid = resolved.uuid
+                item.notes.append(
+                    "identity resolved deterministically: dive raw_caption "
+                    "equals exactly one asset's description ("
+                    f"{resolved.uuid[:8]})"
+                )
                 continue
             asset = vu_asset or fn_asset
             if asset is None:
@@ -482,6 +503,33 @@ class FullCorpusMigrationEngine:
                 except OSError:
                     pass
         return index
+
+    def _resolve_differing_assets(self, item, vu_asset, fn_asset):
+        """Deterministic G-class tie-break (packet §3: no invented resolution).
+
+        Both candidate Photos assets are compared against the dive's recorded
+        raw_caption (the exact string the historical extractor parsed, with
+        the documented legacy .strip() boundary). Exactly one match resolves;
+        anything else returns None (stays G, unguessed)."""
+        if self.dive_caption_fn is None:
+            return None
+        try:
+            raw_caption = self.dive_caption_fn(item.video_uuid)
+        except Exception:
+            return None
+        if raw_caption is None:
+            return None
+        vu_desc = getattr(vu_asset, "description", None)
+        fn_desc = getattr(fn_asset, "description", None)
+        matches = [
+            asset
+            for asset, desc in ((vu_asset, vu_desc), (fn_asset, fn_desc))
+            if desc is not None
+            and (desc == raw_caption or desc == raw_caption.strip())
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def classify(
         self, items: list[DomainItem], photos_index: dict[str, Any]
@@ -1382,6 +1430,30 @@ def mode_status(config) -> int:
         )
     )
     return 0
+
+
+def build_dive_caption_fn(config):
+    """Per-item dive raw_caption fetch (agent-key gated, read-only) for the
+    G-class deterministic tie-break. Returns None on any transport issue
+    (fail-safe: the item stays G/unguessed rather than guessed)."""
+    server = config.server
+
+    from ..sync_client import _curl_get
+
+    def fetch(video_uuid: str) -> str | None:
+        url = (
+            server.url.rstrip("/")
+            + f"/api/v1/media/backbone/migration/dive_caption/{video_uuid}"
+        )
+        status, body = _curl_get(url, server.api_key, 60.0, server.ca_cert_path)
+        if status != 200:
+            return None
+        try:
+            return json.loads(body).get("raw_caption")
+        except ValueError:
+            return None
+
+    return fetch
 
 
 def build_http_commit_fn(config):
