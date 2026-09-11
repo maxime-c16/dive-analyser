@@ -4,10 +4,11 @@
 > full-corpus historical migration — 2799/2799 real assets in PROD).
 > Latest backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
-> Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
+> Latest science: `docs/science/PERCEPTION_STATUS_REBASE_V1.md` (strategic status rebase)
+> Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P10`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`**
 
 ## Project purpose
 
@@ -1249,3 +1250,60 @@ Canonical HEAD after P10: `8a50d89e2cbbdffb4d96785f534ac024dde09cf0`.
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P10` — next candidates:
 P11 fixture-row cleanup decision, second independent replica decision,
 external hostname action, natural-ingest evidence closure.
+
+
+## Perception status rebase (2026-09-11, PERCEPTION_STATUS_REBASE_V1)
+
+Strategic evidence-synthesis rebase; observational only — zero new detector/ReID/
+video-model inference, zero new labels, no protected holdout access, no Paris tuning,
+no new freezes. Full report: `docs/science/PERCEPTION_STATUS_REBASE_V1.md`;
+artifacts: `PERCEPTION_STATUS_SCORECARD_V1.json`, `PERCEPTION_PRIORITY_MATRIX_V1.json`.
+
+- **Git authority:** canonical `uiux-overhaul-pro-app`; science V4 commits
+  `f116558`/`ccf40b5` are on branch `hurdle-prototype-v3` and NOT reachable from
+  canonical — used read-only as accepted science history (integration discrepancy
+  reported, not merged).
+- **Scorecard (15 recorded rows, development corpus):** 2 PASS (133, 311 STANDING),
+  3 PARTIAL, 7 FAIL, 3 NOT_EVALUATED. STANDING is the only family with any
+  end-to-end scientific validity (2/4 dives; 676 FM3 and 2387 takeoff still fail).
+  HURDLE: proposals usable (100% floor availability), identity BLOCKING
+  (top-1 0.5-51.8% except 2169), Event Logic FM2 downstream-blocked
+  (`FM2_STILL_IDENTITY_LIMITED`), 524 authority conflict excluded.
+- **Product prevalence:** `PRODUCT_PREVALENCE_UNKNOWN` (caption grammar has no
+  approach field); documented lower bound: hurdle-mandatory codes = 156/2803 (5.6%).
+  The product is unevaluated on most dives, not blocked on one subset.
+- **Core Detection V1:** `NOT_STARTED` — no raw-session spotting / clip-extraction
+  code exists anywhere in the repository.
+- **Media backbone readiness (read-only from committed P10 state):** 2799/2799 real
+  assets verified PROD (61.42 GB); only `photos_edited_rendition` tier exists —
+  360p/720p are NOT durably addressable in B2 yet; the 14-dive HQ analysis source
+  remains the research HQ authority.
+
+### Decisions
+
+```text
+HURDLE_IDENTITY_HEURISTIC_RESEARCH = PAUSED
+PRIMARY_NEXT_MILESTONE             = PRIORITY_CORE_DETECTION_V1
+SECONDARY_PARALLEL_LINE            = TARGET_IDENTITY_V1_LEARNED (background, evaluation-only, no freeze)
+HURDLE_DECISION                    = HURDLE_DEPENDS_ON_FUTURE_TARGET_IDENTITY
+TRAINING_DECISION                  = LEARNED_TARGET_IDENTITY_JUSTIFIED_BUT_NOT_NEXT_PRIORITY
+LABELING_DECISION                  = NEW_LABELS_LIKELY_REQUIRED (Core Detection: minimal raw-session event windows; NOT collected in this packet)
+```
+
+### Proposed roadmap
+
+M1 CORE_DETECTION_V1 (raw-session spotting + rough clip + recall) ->
+M2 TARGET_IDENTITY_V1_LEARNED -> M3 supported-family temporal pipeline + takeoff
+refinement -> M4 pose/mask/biomechanics at HQ renditions.
+Aligns with detect -> extract -> align -> measure -> compare -> interpret.
+
+### Tests
+
+`experiments/landmark_pilot/test_perception_status_rebase_v1.py` — 13/13 pass.
+Aggregation script: `experiments/landmark_pilot/phase_perception_status_rebase_v1.py`
+(stdlib-only, deterministic). Science authorities mutated: NO. Media backbone
+mutated: NO.
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`
