@@ -1,0 +1,342 @@
+{
+  "alignments": [
+    {
+      "clip": "IMG_0543-15670371.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 2529.5,
+      "clip_duration_s": 7.5,
+      "window": [
+        2529.5,
+        2537.0
+      ],
+      "path_score": 0.885942096582758,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.9908472783629211,
+      "n_votes": 10,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-20685941.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 10.5,
+      "window": null,
+      "path_score": 0.7073525892061537,
+      "path_margin": 0.24872821933831396,
+      "raw_block_ncc": 0.9949816778103537,
+      "n_votes": 6,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-22114480.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 3549.5,
+      "clip_duration_s": 11.0,
+      "window": [
+        3549.5,
+        3560.5
+      ],
+      "path_score": 0.9274092698301656,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.9946491336996178,
+      "n_votes": 11,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-23603808.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 3708.0,
+      "clip_duration_s": 11.5,
+      "window": [
+        3708.0,
+        3719.5
+      ],
+      "path_score": 0.7452854714606014,
+      "path_margin": 0.1756094033797334,
+      "raw_block_ncc": 0.9906472007567183,
+      "n_votes": 16,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-23687868.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 11.5,
+      "window": null,
+      "path_score": 0.690883325750564,
+      "path_margin": 0.09261560636135602,
+      "raw_block_ncc": 0.9949626280714655,
+      "n_votes": 8,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-23904860.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 3030.5,
+      "clip_duration_s": 12.0,
+      "window": [
+        3030.5,
+        3042.5
+      ],
+      "path_score": 0.7775233223668581,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.995724299549292,
+      "n_votes": 12,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-23986056.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 12.0,
+      "window": null,
+      "path_score": 0.5627977590396648,
+      "path_margin": 0.013106028144774573,
+      "raw_block_ncc": 0.9908550154741843,
+      "n_votes": 13,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-24148542.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 12.0,
+      "window": null,
+      "path_score": 0.6919315382708652,
+      "path_margin": 0.09184226161330633,
+      "raw_block_ncc": 0.993304774692113,
+      "n_votes": 12,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-24152375.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 12.0,
+      "window": null,
+      "path_score": 0.642516674735918,
+      "path_margin": 0.39706371598639756,
+      "raw_block_ncc": 0.994875902936409,
+      "n_votes": 8,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-24526191.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 12.0,
+      "window": null,
+      "path_score": 0.4959179876110892,
+      "path_margin": 0.006135611484132331,
+      "raw_block_ncc": 0.9954613192180614,
+      "n_votes": 9,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-25516779.MOV",
+      "status": "RECOVERED",
+      "authority": "DIRECT_HUMAN_GT",
+      "offset_s": 2622.5,
+      "clip_duration_s": 12.5,
+      "window": [
+        2622.5,
+        2635.0
+      ],
+      "path_score": 0.6137063100216594,
+      "path_margin": 0.07388166606704416,
+      "raw_block_ncc": 0.9960837163277565,
+      "n_votes": 10,
+      "captioned": true,
+      "dive_ids": [
+        2687
+      ],
+      "dive_codes": [
+        "101C"
+      ]
+    },
+    {
+      "clip": "IMG_0543-25960440.MOV",
+      "status": "RECOVERED",
+      "authority": "DIRECT_HUMAN_GT",
+      "offset_s": 1655.5,
+      "clip_duration_s": 12.5,
+      "window": [
+        1655.5,
+        1668.0
+      ],
+      "path_score": 0.5745246643447157,
+      "path_margin": 0.2655002271519136,
+      "raw_block_ncc": 0.9892155946138553,
+      "n_votes": 13,
+      "captioned": true,
+      "dive_ids": [
+        2679
+      ],
+      "dive_codes": [
+        "5122D"
+      ]
+    },
+    {
+      "clip": "IMG_0543-27143027.MOV",
+      "status": "RECOVERED",
+      "authority": "DIRECT_HUMAN_GT",
+      "offset_s": 2929.5,
+      "clip_duration_s": 13.0,
+      "window": [
+        2929.5,
+        2942.5
+      ],
+      "path_score": 0.8040495593824704,
+      "path_margin": 0.3970184108630792,
+      "raw_block_ncc": 0.9940279772721599,
+      "n_votes": 14,
+      "captioned": true,
+      "dive_ids": [
+        2688
+      ],
+      "dive_codes": [
+        "101B"
+      ]
+    },
+    {
+      "clip": "IMG_0543-27265480.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 13.5,
+      "window": null,
+      "path_score": 0.7123074192735461,
+      "path_margin": 0.09047028514938271,
+      "raw_block_ncc": 0.9956203265902248,
+      "n_votes": 12,
+      "captioned": true,
+      "dive_ids": [
+        2681
+      ],
+      "dive_codes": [
+        "101B"
+      ]
+    },
+    {
+      "clip": "IMG_0543-27633451.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 1520.5,
+      "clip_duration_s": 14.0,
+      "window": [
+        1520.5,
+        1534.5
+      ],
+      "path_score": 0.7624781490502277,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.9937703083868935,
+      "n_votes": 13,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-28198084.MOV",
+      "status": "WEAK",
+      "authority": "WEAK_LABEL",
+      "offset_s": null,
+      "clip_duration_s": 14.0,
+      "window": null,
+      "path_score": 0.6546753782560306,
+      "path_margin": 0.10030724441815131,
+      "raw_block_ncc": 0.9960443607697982,
+      "n_votes": 8,
+      "captioned": true,
+      "dive_ids": [
+        2683
+      ],
+      "dive_codes": [
+        "101C"
+      ]
+    },
+    {
+      "clip": "IMG_0543-36920795.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 1655.5,
+      "clip_duration_s": 18.5,
+      "window": [
+        1655.5,
+        1674.0
+      ],
+      "path_score": 0.8835504799525451,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.9938830375555884,
+      "n_votes": 22,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543-43125389.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 950.0,
+      "clip_duration_s": 24.5,
+      "window": [
+        950.0,
+        974.5
+      ],
+      "path_score": 0.7565605750572917,
+      "path_margin": 0.4280399602003642,
+      "raw_block_ncc": 0.9981403461401891,
+      "n_votes": 25,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    },
+    {
+      "clip": "IMG_0543.MOV",
+      "status": "RECOVERED",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "offset_s": 2188.0,
+      "clip_duration_s": 8.5,
+      "window": [
+        2188.0,
+        2196.5
+      ],
+      "path_score": 0.9012844172707541,
+      "path_margin": 1.0,
+      "raw_block_ncc": 0.9952113338189659,
+      "n_votes": 8,
+      "captioned": false,
+      "dive_ids": [],
+      "dive_codes": []
+    }
+  ]
+}

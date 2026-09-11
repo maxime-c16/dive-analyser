@@ -1,0 +1,252 @@
+{
+  "schema": "CORE_DETECTION_V1_CORPUS_V1",
+  "created": "2026-09-11",
+  "note": "Raw-session corpus for Core Detection V1 P0/P1. One authorized raw session currently recoverable end-to-end (server legacy cache + Photos original + 5 captioned dives byte-identical to B2 PROD blobs). Additional raw sessions exist in the Photos library but require iCloud recall (originals not local) - recorded as candidate_sessions_pending_recall.",
+  "sessions": [
+    {
+      "session_media_id": "IMG_0543-7294485222",
+      "source": "diveanalyzer-server:~/dive-analyser/media/videos (icloudpd original-size cache, album 'Dive Analyzer')",
+      "authorization": "authorized project media (Dive Analyzer app cache, canonical ingestion source)",
+      "file": "IMG_0543-7294485222.MOV",
+      "size_bytes": 7294485222,
+      "duration_s": 3892.35,
+      "resolution_note": "iPhone HEVC; rotation metadata (portrait display); probe fields recorded at runtime",
+      "fps_note": "60/1 nominal, VFR characteristics expected (iPhone)",
+      "sha256_server_reported": null,
+      "known_dives": 5,
+      "label_availability": "5 captioned dives (DIRECT_HUMAN_GT) + 14 uncaptioned sibling clips (WEAK_LABEL candidates)",
+      "photos_original_asset": {
+        "original_filename": "IMG_0543.mov",
+        "variants_in_library": 22,
+        "note": "server cache file is the largest variant (3892.35s); Photos library holds additional trimmed variants"
+      },
+      "derived_clips": [
+        {
+          "file": "IMG_0543-25960440.MOV",
+          "size_bytes": 25960440,
+          "dive_ids": [
+            2679
+          ],
+          "dive_codes": [
+            "5122D"
+          ],
+          "captioned": true,
+          "blob_sha256": "4bc588f118f6784f56e350580f7eb20fa9cd0cddf9196102125e7e564f77b884"
+        },
+        {
+          "file": "IMG_0543-27265480.MOV",
+          "size_bytes": 27265480,
+          "dive_ids": [
+            2681
+          ],
+          "dive_codes": [
+            "101B"
+          ],
+          "captioned": true,
+          "blob_sha256": "d0fbc9f366e0ca1655d1d9f15f7f0f79627d63a44374ce149460f0c7ed502333"
+        },
+        {
+          "file": "IMG_0543-25516779.MOV",
+          "size_bytes": 25516779,
+          "dive_ids": [
+            2687
+          ],
+          "dive_codes": [
+            "101C"
+          ],
+          "captioned": true,
+          "blob_sha256": "5d8e4644384c241baa9cee0a526fb7b6b16232fac3e284c0e9a2fc21b246543b"
+        },
+        {
+          "file": "IMG_0543-28198084.MOV",
+          "size_bytes": 28198084,
+          "dive_ids": [
+            2683
+          ],
+          "dive_codes": [
+            "101C"
+          ],
+          "captioned": true,
+          "blob_sha256": "6a1f0612a042a33ccb4d1975e7be1956658d4fecbfbbbbb55e4e98282a0172b1"
+        },
+        {
+          "file": "IMG_0543-27143027.MOV",
+          "size_bytes": 27143027,
+          "dive_ids": [
+            2688
+          ],
+          "dive_codes": [
+            "101B"
+          ],
+          "captioned": true,
+          "blob_sha256": "a5964a7c7f113172a2cfdc3f4bcf065bbea186f774c9bca000eeeddfe60a3911"
+        },
+        {
+          "file": "IMG_0543.MOV",
+          "size_bytes": 8368330,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-15670371.MOV",
+          "size_bytes": 15670371,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-20685941.MOV",
+          "size_bytes": 20685941,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-22114480.MOV",
+          "size_bytes": 22114480,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-23603808.MOV",
+          "size_bytes": 23603808,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-23687868.MOV",
+          "size_bytes": 23687868,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-23904860.MOV",
+          "size_bytes": 23904860,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-23986056.MOV",
+          "size_bytes": 23986056,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-24148542.MOV",
+          "size_bytes": 24148542,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-24152375.MOV",
+          "size_bytes": 24152375,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-24526191.MOV",
+          "size_bytes": 24526191,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-27633451.MOV",
+          "size_bytes": 27633451,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-36920795.MOV",
+          "size_bytes": 36920795,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        },
+        {
+          "file": "IMG_0543-43125389.MOV",
+          "size_bytes": 43125389,
+          "dive_ids": [],
+          "dive_codes": [],
+          "captioned": false
+        }
+      ],
+      "gt_semantics": "captioned clip = exactly one real dive (DIRECT_HUMAN_GT after strict alignment recovery); uncaptioned clips = WEAK_LABEL (diagnostics only)",
+      "band_note": "water/board bands are fractions of THUMBNAIL height, frozen after first-session inspection (see session report)",
+      "water_band": [
+        0.5,
+        0.66
+      ],
+      "board_band": [
+        0.28,
+        0.48
+      ],
+      "band_source": "frame inspection at session t=1657 (grid1657.jpg): water surface rows 0.50-0.66, springboard/diver zone rows 0.28-0.48; frozen before event-level evaluation"
+    }
+  ],
+  "candidate_sessions_pending_recall": [
+    {
+      "original_filename": "IMG_1937.MOV",
+      "duration_s": 8623,
+      "note": "2.4h session incl. canary dive 2819; Photos original NOT local (iCloud), server cache variant is 5.4s trimmed"
+    },
+    {
+      "original_filename": "IMG_9376.MOV",
+      "duration_s": 5637
+    },
+    {
+      "original_filename": "IMG_8690.MOV",
+      "duration_s": 4389
+    },
+    {
+      "original_filename": "IMG_5509.MOV",
+      "duration_s": 3671
+    },
+    {
+      "original_filename": "IMG_8897.MOV",
+      "duration_s": 3612
+    },
+    {
+      "original_filename": "IMG_0585.MOV",
+      "duration_s": 3537
+    },
+    {
+      "original_filename": "IMG_7017.MOV",
+      "duration_s": 3435
+    },
+    {
+      "original_filename": "IMG_8745.MOV",
+      "duration_s": 3307
+    },
+    {
+      "original_filename": "IMG_9078.MOV",
+      "duration_s": 2910
+    },
+    {
+      "original_filename": "IMG_8802.MOV",
+      "duration_s": 2599
+    },
+    {
+      "original_filename": "IMG_9869.MOV",
+      "duration_s": 2585
+    },
+    {
+      "original_filename": "IMG_1641.MOV",
+      "duration_s": 2512
+    },
+    {
+      "original_filename": "IMG_0236.MOV",
+      "duration_s": 2450
+    }
+  ],
+  "readiness": "RAW_SESSION_CORPUS_PARTIAL"
+}

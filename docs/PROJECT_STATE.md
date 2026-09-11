@@ -1412,3 +1412,49 @@ Tests: `experiments/landmark_pilot/test_hurdle_identity_v4.py` — 31/31
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_V4`
+
+## Core Detection V1 P0/P1 — PARTIAL (2026-09-11, core-detection thread)
+
+Branch `core-detection-v1` (merge `d968ad1` canonicalized V3/V4 hurdle
+history: `V3_V4_HISTORY_CANONICALIZED`). Protocol + results:
+`docs/science/CORE_DETECTION_V1_P0_P1.md`, `CORE_DETECTION_V1_RESULTS.json`,
+`CORE_DETECTION_V1_PROTOCOL.json`, corpus `CORE_DETECTION_V1_CORPUS.json`;
+code `experiments/core_detection/` (16/16 tests).
+
+**Corpus:** single authorized raw session `IMG_0543-7294485222.MOV`
+(3892.35 s, local sha256 f7833812…, server hash timed out — size+ffprobe
+identity). 13 further long sessions are iCloud-only (icloudpd container
+absent on server) → corpus readiness PARTIAL; recall not currently possible
+without redeploy (`candidate_sessions_pending_recall`).
+
+**GT recovery (verifier v2):** v1 raw-NCC alignment is undiscriminating in
+the static pool scene (median NCC ≈ 0.99; false peaks verified in empty
+segments). v2 = temporal-derivative signature votes + offset clustering +
+path-score ranking + ambiguity margin + raw block-NCC floor. 10/19 clips
+RECOVERED (5 captioned DIRECT), 9 WEAK (ambiguous similar-dive clusters),
+→ 10 unique primary-GT dives after overlap merge (two clips share one dive).
+
+**Event metrics (pre-registered thresholds, no tuning):** V0 visual-only
+recall 0.50 (31 FP); final visual+audio recall **0.90 = target** (9/10;
+audio recovered 4 weak-splash misses) at precision 0.085 (97 FP ≈ 90/h,
+mostly low-score audio blips + camera-handling at session edges) and
+full-dive containment 0.0 (event_time anchors at splash peak vs clip-extent
+GT; pre-registered [t−8 s, t+6 s] window). Audio fusion needed an
+implementation fix (one-sided onset → positive-support robust stats,
+rectified z, per-bin max, no pre-smoothing); pre-registered fusion rule
+preserved. Bands frozen from frame inspection: water [0.50,0.66], board
+[0.28,0.48]. Representation: `360P_SUFFICIENT_FOR_SPOTTING_WITH_CAVEATS`.
+
+**Verdict: `CORE_DETECTION_P1_PARTIAL`** — recall target reached on one
+session, but precision/containment fail the "rough clip containing the
+complete dive" half; single-session corpus limits generalization. No B2 /
+media-backbone / HURDLE-research mutation; no holdout/Paris access; no new
+human labels; no media in Git.
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1` — decisions requested:
+(a) iterate precision (audio gating / FP suppression) on top of the
+audio-fused recall signal; (b) revisit rough-window anchor (event start vs
+splash peak) for containment; (c) recall iCloud-only sessions to widen the
+corpus before further threshold work.
