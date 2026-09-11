@@ -977,3 +977,55 @@ consistency + freeze-gate verdict recording in `V6_FINAL_V3.json`).
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_HURDLE_PROTOTYPE_SELECTION_V3`
+
+## HURDLE identity component & target selection V4 — percolation eliminated, 2341 hypothesis repaired, ranking still the blocker (2026-09-11, prototype-v3 thread)
+
+Packet `HURDLE_IDENTITY_COMPONENT_AND_TARGET_SELECTION_V4` (worktree
+`~/.perso/diveanalyzer-prototype-v3`, branch `hurdle-prototype-v3`, cut
+at the V3 closure commit `f116558`; media-backbone untouched).
+
+**V3 closure first (§0):** recovered all uncommitted V3 work, closed the
+suite at 34/34 (gate-verdict recording repaired in `V6_FINAL_V3.json`),
+committed the complete negative result as its own commit `f116558`,
+pushed to canonical server + Mac bare mirror,
+`HURDLE_PROTOTYPE_V3_NEGATIVE_RESULT_CLOSED`. Historical freeze
+immutability restored: `EVENT_LOGIC_V3_D0_FREEZE.json` reverted to its
+original committed bytes (sha `9702f7ee…`) and the metadata drift +
+executable authority (0.30/0.20) + replay proof recorded in
+`EVENT_LOGIC_V3_D0_FREEZE_ERRATUM_V1.json`. No executable behavior
+changed.
+
+**Cache discipline:** 0 D5 frames rerun; one bounded completion pass of
+the OSNet host cache to FULL candidate-ocean coverage (348,622 → 579,709
+keys; 1.0 coverage on all corpus dives; no double-embedding;
+manifest `HURDLE_OSNET_EMBED_CACHE_V1` V1.1 committed, npz NOT in Git).
+
+**Positive results.** (1) A0 mutual-kNN REJECTED (k∈{1,2,3} all collapse
+— reciprocal ranking does not bound percolation on the frozen ocean).
+(2) A1 bounded-degree identity graph (deg 3 + bridge margin 0.06)
+ELIMINATES percolation: 136–278 components/dive, largest fraction
+0.04–0.09 (was 1.0). (3) 2341 hypothesis-generation repaired with ONE
+bounded mechanism (component-seeded appearance-NN rollouts): the pool
+now contains a target trajectory at 0.337 pf (was 0.0/0.077); rollouts
+generate excellent chains on 1040/2169/2353/2541 (0.82–0.88).
+
+**Still the blocker (V3 diagnosis re-confirmed at component level):**
+component purity is 0.10–0.42 (< 0.75 required) ->
+`COMPONENT_IDENTITY_STILL_COLLAPSED`; the new frozen component scorer
+AND the frozen Kinetics r2plus1d_18 action-semantic score (E3:
+target 0.71–0.96 vs bystander 0.01–0.24 — decisive vs bystanders/
+structures, NOT vs airborne-looking fast movers; ocean max ≈ 1.0) both
+remain gameable. No automatic 2169-preservation mechanism found
+(stable-wrong D5 paths are smoother+more confident than the correct
+one). **Freeze gate FAILED (0/4)** -> no V4 freeze, no repaired
+trajectories, no repaired-trajectory replay (historical V3-D0 replay
+re-verified byte-exact). **FM2_STILL_IDENTITY_LIMITED.**
+**IDENTITY_COMPONENT_CONSTRUCTION_STILL_PRIMARY_BLOCKER** (proposal
+completeness ✓, hypothesis generation ✓, component purity ✗).
+
+Tests: `experiments/landmark_pilot/test_hurdle_identity_v4.py` — 31/31
+(zero failures).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_V4`

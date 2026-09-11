@@ -1,0 +1,40 @@
+{
+  "label": "V4_FREEZE_GATE_VERDICT",
+  "packet": "HURDLE_IDENTITY_COMPONENT_AND_TARGET_SELECTION_V4",
+  "created": "2026-09-11",
+  "verdict": "GATE_FAILED",
+  "criteria": {
+    "materially_improved_required": 3,
+    "materially_improved": 0,
+    "preserve_2169": false,
+    "no_long_catastrophic_wrong_run": false,
+    "2341_pool_trajectory_available": true,
+    "full_clip_gt_free": true,
+    "no_paris_influence": true,
+    "no_single_dive_tuning": true
+  },
+  "per_failing_dive_final_config": {
+    "1040": {"v7a_pf": 0.0, "hist_d5": 0.1056, "materially_improved": false},
+    "2341": {"v7a_pf": 0.0, "hist_d5": 0.022, "materially_improved": false},
+    "2353": {"v7a_pf": 0.0, "hist_d5": 0.0049, "materially_improved": false},
+    "2541": {"v7a_pf": 0.0115, "hist_d5": 0.1489, "materially_improved": false}
+  },
+  "control": {
+    "2169": {"d5_pf": 0.9631, "v7a_pf": 0.0, "preserved": false,
+             "note": "the frozen D5 top-1 path is only available through the gate; with the gate NOT firing, ranking regresses it"},
+    "2555": {"d5_pf": 0.5179, "v7b_pf": 0.003, "stress_case": true}
+  },
+  "best_in_pool_diagnostic": {
+    "1040": 0.851, "2169": 0.873, "2341": 0.337,
+    "2353": 0.876, "2541": 0.817, "2555": 0.256,
+    "note": "GT-EVAL-ONLY diagnostic: the pool contains materially better target trajectories on every ordinary dive; the GT-free ranking cannot pick them."
+  },
+  "diagnosis": "GT-free aggregate ranking remains gameable at the component level (V3 finding re-confirmed at cleaner component level); component purity remains the binding constraint",
+  "consequences": [
+    "no HURDLE_TARGET_IDENTITY_V4_FREEZE created",
+    "no repaired trajectories (Phase K skipped per packet order)",
+    "no V3-D0 replay on repaired trajectories (nothing to replay; the frozen historical replay is re-verified byte-exact)",
+    "FM2_STILL_IDENTITY_LIMITED",
+    "IDENTITY_COMPONENT_CONSTRUCTION_STILL_PRIMARY_BLOCKER"
+  ]
+}
