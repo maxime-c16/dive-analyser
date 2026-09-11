@@ -1,13 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-10** (media-backbone P7:
-> continuous ingest + historical migration GREEN).
-> Latest backbone: `docs/audits/MEDIA_BACKBONE_P7_ACCELERATED_CONTINUOUS_INGEST_MIGRATION_V1.md`
+> Durable project handoff. Last verified: **2026-09-11** (media-backbone P10:
+> full-corpus historical migration — 2799/2799 real assets in PROD).
+> Latest backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1.md`
 > Latest science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P7`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P10`**
 
 ## Project purpose
 
@@ -1193,3 +1193,59 @@ top of canonical `9da2310`. Branch
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P9`
+
+## Media backbone P10 — FULL-CORPUS historical migration (2026-09-11 overnight, FULL_RECOVERABLE_CORPUS_GREEN)
+
+Packet `MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1`,
+UNATTENDED OVERNIGHT execution, on top of canonical `2fa9187` (P9).
+Full audit: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`.
+Canonical HEAD after P10: `8a50d89e2cbbdffb4d96785f534ac024dde09cf0`.
+
+- **Corpus re-definition (the P9 gap closed)**: inventory boundary = the
+  DOMAIN graph (dives.video_uuid), NOT media_revisions. Fresh counts:
+  dives 2805 / distinct video_uuid 2805 (UNIQUE ⇒ 0 duplicate refs,
+  0 cross-diver conflicts) / 23 divers with video / 15 revision rows = 14
+  distinct identities. **2799/2805 identities resolve via
+  dives.video_filename** (corpus-wide caption corroboration 2799/2799);
+  6 rows are synthetic TEST fixtures with no recoverable media.
+- **Result**: 2799/2799 real recoverable assets = **verified PROD bytes +
+  truthful MediaRevision + resolved caption (100% of the real corpus;
+  99.79% of all distinct identities)**. 60.5 GB new bytes, every upload
+  full-GET roundtrip-verified; 0 B2 retries; 0 remote-SHA failures;
+  0 media-only commits (0 MEDIA_VERIFIED_METADATA_PENDING); peak RAM
+  719 MiB (streamed); min free disk 10.92 GiB (guard never breached).
+- **Source identity/seams (additive + tested)**: domain-inventory endpoint
+  (caption-free), media-only commit mode (ledger
+  MEDIA_VERIFIED_METADATA_PENDING — built + tested, not needed),
+  vault provenance firewall (identity mapping + export-freshness proof;
+  201 of 440 vault entries accepted, rest fell through to Photos by
+  design), explicit `--library` materializer fix (launchd "last opened
+  library" XPC hang — root-caused via process sampling), deterministic
+  G-class caption-equality identity tie-break (dive raw_caption ==
+  exactly one asset description; the one ambiguous item resolved + migrated).
+- **Idempotence**: second full pass = 0 uploads / 0 GETs / 0 commits /
+  0 duplicate rows; canary-repair re-drive re-verified PROD via HEAD
+  (dedupe 216 MB avoided).
+- **Authorization**: all-diver STORAGE migration (23 divers) with
+  **UserDiverAccess rows created = 0; AppUsers created = 0**; wrong-owner
+  playback 404 + unauth 401 on migrated non-owner items while owner 302→206
+  (storage existence != authorization).
+- **B2**: 2,801 objects / 61.42 GB; 0 malformed; 0 missing verified keys;
+  1 documented P4 evidence object = only orphan; **delete/hide = 0**.
+  Cost ≈ $0.36/month.
+- **Residuals (explicit)**: 6 synthetic test-fixture rows (permanent,
+  no media exists) — decision requested for a future cleanup packet.
+- **Unchanged**: CONTINUOUS_NATURAL_INGEST = PENDING (passive capture
+  armed, 0 triggers); EXTERNAL_ACCESS_PROVIDER_GATE;
+  LEGACY_PHYSICAL_DELETION_READY = NO (second independent replica still
+  required before any physical deletion); legacy/cache/Photos deletions 0;
+  science untouched.
+- Durable artifacts: `/Users/Shared/services/data/media-node/p10/`
+  (full-corpus-inventory.json, migration-plan.json, migration-final-summary.json,
+  migration-residuals.json, migration-journals/ 2799, migration-checkpoints/).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_MEDIA_BACKBONE_P10` — next candidates:
+P11 fixture-row cleanup decision, second independent replica decision,
+external hostname action, natural-ingest evidence closure.
