@@ -223,6 +223,31 @@ class BackblazeB2Store:
         )
         return resp["Body"].read()
 
+    def get_streaming_sha(self, key: str, chunk_size: int = 1024 * 1024):
+        """Full GET streamed through a hash sink; bytes are never buffered
+        whole in RAM and never written to disk (P10 §28/§29/§31).
+
+        Returns (sha256_hex, byte_size). Raises ObjectStoreUnavailable on
+        transport failure after bounded retries."""
+        from hashlib import sha256 as _sha
+
+        resp = self._with_retries(
+            lambda: self._client.get_object(Bucket=self.config.bucket, Key=key)
+        )
+        digest = _sha()
+        size = 0
+        body = resp["Body"]
+        try:
+            for chunk in iter(lambda: body.read(chunk_size), b""):
+                digest.update(chunk)
+                size += len(chunk)
+        finally:
+            try:
+                body.close()
+            except Exception:
+                pass
+        return digest.hexdigest(), size
+
     def presign_get(self, key: str, ttl_seconds: int) -> str:
         if ttl_seconds <= 0 or ttl_seconds > MAX_TTL_SECONDS:
             raise ConfigValidationError(f"presign ttl out of range: {ttl_seconds}")

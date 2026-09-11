@@ -26,6 +26,7 @@ from app.database import get_db
 from app.schemas.media_backbone import (
     MediaBackboneCommitRequest,
     MediaBackboneCommitResponse,
+    MediaDomainInventoryItem,
     MediaMigrationInventoryItem,
 )
 from app.security import verify_api_key
@@ -53,10 +54,11 @@ def _environment_bucket(environment: str) -> str:
     return (settings.media_backbone_dev_bucket or "").strip().lower()
 
 
-def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, str, str]:
+def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, str, str | None]:
     """Fail-closed validation. Raises HTTPException 422 on any violation.
 
     Returns (environment, blob_sha256, caption_sha256) for the caller.
+    caption_sha256 is None only in explicit media-only mode (P10).
     """
     payload = request.payload
     extra = request.extra
@@ -81,11 +83,32 @@ def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, s
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="malformed media sha256",
         )
-    if not SHA_RE.match(payload.caption.sha256 or ""):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="malformed caption sha256",
-        )
+    media_only = bool(extra.get("media_only", False))
+    if media_only:
+        reason = str(extra.get("media_only_reason", "")).strip()
+        if not reason:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="media_only commit requires a non-empty media_only_reason",
+            )
+        if payload.caption is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="media_only commit must not carry caption data",
+            )
+        caption_sha = None
+    else:
+        if payload.caption is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="caption authority required unless media_only mode is declared",
+            )
+        if not SHA_RE.match(payload.caption.sha256 or ""):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="malformed caption sha256",
+            )
+        caption_sha = payload.caption.sha256
     if payload.blob.storage_backend != EXPECTED_STORAGE_BACKEND:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -116,7 +139,7 @@ def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, s
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="object key is not the content-addressed key of blob_sha256",
         )
-    return environment, payload.blob.sha256, payload.caption.sha256
+    return environment, payload.blob.sha256, caption_sha
 
 
 @router.post("/commit", response_model=MediaBackboneCommitResponse)
@@ -130,6 +153,7 @@ async def commit_backbone_ingest(
     environment, _media_sha, _caption_sha = validate_commit_request(request)
     payload = request.payload
     extra = request.extra
+    media_only = bool(extra.get("media_only", False))
     try:
         result = commit_verified_ingest(
             db,
@@ -139,10 +163,12 @@ async def commit_backbone_ingest(
             object_key=payload.blob.object_key,
             storage_backend=payload.blob.storage_backend,
             bucket=payload.blob.bucket.strip().lower(),
-            caption_raw=payload.caption.raw,
-            caption_sha=payload.caption.sha256,
-            caption_provider=payload.caption.provider,
+            caption_raw=payload.caption.raw if payload.caption else None,
+            caption_sha=payload.caption.sha256 if payload.caption else None,
+            caption_provider=payload.caption.provider if payload.caption else None,
             verified=True,
+            media_only=media_only,
+            media_only_reason=str(extra.get("media_only_reason", "")) if media_only else None,
             rendition_semantics=payload.rendition_semantics,
             codec=extra.get("codec"),
             width=extra.get("width"),
@@ -244,3 +270,122 @@ async def migration_inventory(
             )
         )
     return items
+
+
+@router.get(
+    "/migration/domain_inventory",
+    response_model=list[MediaDomainInventoryItem],
+)
+async def domain_migration_inventory(
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> list[MediaDomainInventoryItem]:
+    """P10 FULL-CORPUS domain inventory (agent-key gated, read-only).
+
+    Inventory authority is the Dive Analyzer DOMAIN graph — every dive row
+    bearing a video_uuid, deduplicated to DISTINCT video_uuid identities —
+    NOT the media_revisions table (which covered only 15 historical items).
+    Each row reports: identity (video_uuid), the recorded Photos asset
+    identity stem (video_filename), the diver set, and any existing
+    backbone facts (MediaRevision/blob/locations/captions).
+
+    video_filename is a recorded UUID string (the historical exporter named
+    renditions after the Photos asset); it is the deterministic
+    source-resolution key for the historical era and carries no human text,
+    no captions and no PII. Ownership/access is NEVER granted by this
+    endpoint: storage existence != authorization.
+    """
+    del api_key  # authentication enforced by dependency
+
+    from app.models.dive import Dive
+    from sqlalchemy import func
+
+    blobs = {b.sha256: b for b in db.query(MediaBlob).all()}
+    latest_loc = {}
+    for loc in db.query(MediaBlobLocation).order_by(MediaBlobLocation.id).all():
+        latest_loc[(loc.blob_sha256, loc.environment)] = loc
+    caption_counts: dict[str, int] = {}
+    caption_providers: dict[str, str] = {}
+    for cr in db.query(CaptionRevision).order_by(CaptionRevision.id).all():
+        caption_counts[cr.video_uuid] = caption_counts.get(cr.video_uuid, 0) + 1
+        caption_providers[cr.video_uuid] = cr.caption_provider
+    revisions_by_uuid = {
+        r.video_uuid: r
+        for r in db.query(MediaRevision).order_by(MediaRevision.id).all()
+    }
+
+    rows = (
+        db.query(
+            Dive.video_uuid,
+            Dive.video_filename,
+            Dive.diver_id,
+            func.count(Dive.id),
+        )
+        .filter(Dive.video_uuid.isnot(None))
+        .group_by(Dive.video_uuid, Dive.video_filename, Dive.diver_id)
+        .all()
+    )
+
+    items: list[MediaDomainInventoryItem] = []
+    for video_uuid, video_filename, diver_id, count in rows:
+        revision = revisions_by_uuid.get(video_uuid)
+        blob = blobs.get(revision.blob_sha256) if revision else None
+        prod_loc = (
+            latest_loc.get((revision.blob_sha256, "prod")) if revision else None
+        )
+        dev_loc = (
+            latest_loc.get((revision.blob_sha256, "dev")) if revision else None
+        )
+        items.append(
+            MediaDomainInventoryItem(
+                video_uuid=video_uuid,
+                video_filename=video_filename,
+                diver_id=diver_id,
+                dive_count=int(count),
+                media_revision_id=revision.id if revision else None,
+                blob_sha256=revision.blob_sha256 if revision else None,
+                byte_size=blob.byte_size if blob else 0,
+                rendition_semantics=(
+                    revision.rendition_semantics if revision else None
+                ),
+                verified_prod=bool(
+                    prod_loc is not None and prod_loc.verified
+                ),
+                verified_dev=bool(dev_loc is not None and dev_loc.verified),
+                prod_object_key=prod_loc.object_key if prod_loc else None,
+                dev_object_key=dev_loc.object_key if dev_loc else None,
+                caption_provider=caption_providers.get(video_uuid),
+                caption_revision_count=caption_counts.get(video_uuid, 0),
+            )
+        )
+    return items
+
+
+@router.get(
+    "/migration/dive_caption/{video_uuid}",
+)
+async def dive_raw_caption(
+    video_uuid: str,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> dict:
+    """P10 G-class tie-break helper (agent-key gated, read-only, per-item).
+
+    Returns ONLY the dive's recorded raw_caption for ONE video_uuid (the
+    exact provider string the historical extractor parsed). Used by the P10
+    engine solely for the DETERMINISTIC caption-equality identity tie-break
+    when dives.video_uuid and dives.video_filename resolve to two DIFFERENT
+    Photos assets (same capture exported twice). Never used to manufacture
+    caption data for a CaptionRevision (P10 §21: caption authority stays the
+    fresh provider read). The generic domain inventory remains caption-free.
+    """
+    del api_key  # authentication enforced by dependency
+
+    from app.models.dive import Dive
+
+    row = (
+        db.query(Dive.raw_caption)
+        .filter(Dive.video_uuid == video_uuid)
+        .first()
+    )
+    return {"video_uuid": video_uuid, "raw_caption": row[0] if row else None}

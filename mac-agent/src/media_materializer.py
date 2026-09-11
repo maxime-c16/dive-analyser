@@ -52,6 +52,7 @@ class MediaMaterializer:
         osxphotos_path: str | None = None,
         export_timeout_seconds: int = DEFAULT_EXPORT_TIMEOUT_SECONDS,
         use_photokit: bool = False,
+        library_path: str | None = None,
     ):
         self.root = Path(materialization_dir).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -59,6 +60,11 @@ class MediaMaterializer:
         self.osxphotos_path = osxphotos_path or _find_osxphotos()
         self.export_timeout_seconds = export_timeout_seconds
         self.use_photokit = use_photokit
+        # P10 (additive): an explicit --library skips osxphotos' "last opened
+        # library" resolution, which probes the running Photos app and can
+        # block indefinitely in one-shot/launchd contexts. The production
+        # daemon (launched at login) is unaffected when library_path is None.
+        self.library_path = library_path
 
     async def materialize(self, video_uuid: str) -> Path:
         """Export exactly one movie UUID and return the local video file path."""
@@ -115,6 +121,8 @@ class MediaMaterializer:
             "--update",
             "--verbose",
         ]
+        if self.library_path:
+            command.extend(["--library", str(self.library_path)])
         if self.use_photokit:
             command.append("--use-photokit")
         return command
