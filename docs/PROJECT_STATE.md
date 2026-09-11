@@ -924,3 +924,56 @@ provenance committed.
 ### Next gate
 
 `SUPERVISOR_REVIEW_AFTER_HURDLE_IDENTITY_SELECTION_V2`
+
+## HURDLE GT-free prototype selection V3 — GATE FAILED, seed-preference gap closed (2026-09-10, prototype-v3 thread)
+
+Packet `HURDLE_TARGET_IDENTITY_V3` executed on Apple M2 (worktree
+`~/.perso/diveanalyzer-prototype-v3`, branch `hurdle-prototype-v3`, cut at
+canonical HEAD `636b0dc`; media-backbone `59e9097` verified ancestor).
+Report: `docs/science/HURDLE_GT_FREE_PROTOTYPE_SELECTION_V3_REPORT.md`.
+
+**Cache discipline held: 0 D5 frames rerun; one bounded OSNet extraction
+(25,524 crops, persisted + sha-provenanced); everything else from frozen
+caches.** Candidate-complete graph, R5-A/R5-B machinery, OSNet weights
+reused unchanged.
+
+**Diagnosis (the cycle's durable contribution).** (1) The correct target
+prototype EXISTS in bounded GT-free candidate pools on 4/5 ordinary dives
+(43-48 pure target fragments per dive; appearance-guided rollouts reach
+best-in-pool 0.47-0.77 where D5 top-1 is 0.02-0.15). (2) No aggregate
+GT-free scorer can pick it: excursion magnitude prefers junk movers;
+appearance coherence REWARDS static structures and PENALIZES true divers
+(pose gap); coverage/NULL terms are satisfied by surviving junk. (3)
+Confidence does not separate the target (conf p50 0.002-0.003 = floor
+junk on 1040/2353). (4) The V2 oracle gap is a seed-PREFERENCE gap, not
+an association or appearance gap.
+
+P0 (appearance-consensus clusters) collapses into one mega-cluster per
+dive at the frozen 0.70 mover floor — rejected. P1 (multi-hypothesis)
+demonstrated the 1040 engineering-variant repair (0.609-0.658, longest
+wrong 122 -> 37) recorded as a diagnostic, not a result. P2 (dual-phase
+consensus) never binds. Two frozen scorer variants both gameable.
+
+**Freeze gate FAILED** (0/4 materially improved, 2169 not preserved by
+V6's own selection) -> no `HURDLE_TARGET_IDENTITY_V3_FREEZE`, no repaired
+trajectories (Phases K/L skipped per packet order), historical V3-D0
+replay re-verified byte-exact. **FM2_STILL_IDENTITY_LIMITED.**
+**PROTOTYPE_SELECTION_STILL_PRIMARY_BLOCKER** (residual failure is
+selection preference + chain existence, NOT appearance separability -> no
+trained ReID head justified this cycle). 2555 stress case kept (V6
+0.0089; undecodable tail frames handled). 524 conflict re-verified
+read-only. Phase S: `EVENT_LOGIC_V3_D0_FREEZE_ERRATUM_V1` — the V3-D0
+freeze JSON recorded interp/vel_max_gap_s 0.5/0.5 vs executable 0.30/0.20
+(executable = scientific authority; Event Logic files byte-untouched);
+the historical freeze artifact is immutable — the interim in-place
+metadata correction was REVERTED to the original committed bytes
+(sha256 `9702f7ee…`) and the drift + replay proof live in
+`docs/science/EVENT_LOGIC_V3_D0_FREEZE_ERRATUM_V1.json`.
+
+Tests: `experiments/landmark_pilot/test_hurdle_prototype_v3.py` — 34/34
+(zero failures; includes historical-freeze immutability + erratum
+consistency + freeze-gate verdict recording in `V6_FINAL_V3.json`).
+
+### Next gate
+
+`SUPERVISOR_REVIEW_AFTER_HURDLE_PROTOTYPE_SELECTION_V3`
