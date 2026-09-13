@@ -282,7 +282,7 @@ live):
 | Initial canonical HEAD | `97f20cf17377ea253b74bba554d598d5a8ea9cb0` |
 | Task branch final commit | 630662e59998d1dd8ad9af7ff26f06ff43fb353b |
 | Concurrent canonical advance during U4/U5 | none (canonical stayed at 97f20cf through the gate) |
-| Final canonical HEAD | 630662e59998d1dd8ad9af7ff26f06ff43fb353b (fast-forward; canonical did not advance concurrently during the gate) |
+| Final canonical HEAD | 7e21a207724e375f668d64a7bc3196a27dc97352 (fast-forward chain 97f20cf -> 630662e implementation -> 7e21a20 evidence record; canonical did not advance concurrently during the gate) |
 | Post-merge revalidation | tsc clean, vitest 110/110, build green |
 
 ## 15. Remaining debt
