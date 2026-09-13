@@ -11,9 +11,10 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`,
-> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`,
+> `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
 > `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
 > `SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`;
 > earlier: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
@@ -1994,5 +1995,76 @@ Report: `docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1.md`
 (+ `.json`).
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`.**
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
+infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+
+## Subject GT Level-A Annotation V1 — DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1 (2026-09-13)
+
+Packet executed on worktree branch `subject-gt-level-a-annotation-v1`
+(base = canonical `uiux-overhaul-pro-app` @ `bf78182`; packet-stated HEAD
+`f00dffd` verified as ancestor — canonical had advanced via the concurrent
+UI-U1/U2 integration, science content intact).
+
+### Purpose
+Close the STANDING subject-GT measurement gap with the minimum scientifically
+valid human Level-A identity GT, then measure true GT-free reference-acquisition
+correctness on STANDING (A0/A1 frozen, zero changes).
+
+### Level-A GT (new scientific authority)
+- Deterministic queue (`SUBJECT_GT_LEVEL_A_QUEUE_STANDING_V1.json`,
+  byte-identical regeneration) from the frozen minimum-GT plan: eval window
+  `[0, wc+0.5 s]`, 0.5 s grid (7/31/11/12 = 61) + 2 measured close-person
+  extras = **63 anchors**; blind local web UI; **63/63 annotated by Maxime**
+  (58 boxes / 5 NOT_VISIBLE) in one session.
+- Reuse: 0 reused — 2 exact-frame D4/D5 mining-box candidates rejected because
+  mining boxes carry generic diver semantics, not subject identity (labeled
+  fresh; historical artifacts untouched).
+- Frozen: `docs/science/localization_annotations_v1/SUBJECT_GT_LEVEL_A_STANDING_V1/`
+  (63 anchors + MANIFEST, artifact SHA `d805aac2…a75e`, HUMAN_REVIEWED,
+  annotator maxime). Validation PASS; consistency review clean (max shift
+  1.06 bh/0.5 s; no static-structure boxes; nothing returned). No
+  interpolation; Level-B remains unauthorized.
+
+### Frozen V2 replay + true Level-A reference correctness (STANDING)
+A0/A1 replayed unchanged (module SHA-pinned, constants asserted vs V2 freeze;
+all 8 top-1 selections match the frozen cohort replay exactly; D5/OSNet never
+re-run). Subject candidate ≡ consistent (center ≤ 0.06) with EVERY visible
+human anchor its tracklet covers:
+
+| Dive | A0 | A1 | best subj rank A0/A1 strict (p≥0.5) |
+|---|---|---|---|
+| 133 | WRONG 0.00 | WRONG 0.00 | 77/17 (15/9) |
+| 311 | WRONG 0.00 | WRONG 0.00 | 30/22 (30/21) |
+| 676 | WRONG 0.00 | WRONG 0.00 | 22/152 (9/4) |
+| 2387 | GT_UNOBSERVED | WRONG 0.18 | —/92 (24/4) |
+
+**0/8 top-1 subject-correct (0/7 measured).** V2 failure CONFIRMED on STANDING
+with true human GT. Cohort-packet rank optimism (3–89, sparse single-anchor
+rule) quantified and corrected (17–152 strict).
+
+### HURDLE vs STANDING (family-specific failure modes — key finding)
+Both families fail top-1, but for DIFFERENT dominant reasons: HURDLE decoys
+are stable STATIC tracklets (recorded V2/R4); STANDING decoys are
+LOW-CONFIDENCE PHANTOM person-mover tracklets (mean D5 conf 0.002–0.056,
+dive-like kinematics, no conf≥0.3 person nearby). Static decoys are NOT
+equally dominant across families; pooling would mislead.
+
+### Candidate-learning dataset + gate
+9 dives / 2 families / 1–2 athletes / single venue; ~17 subject-reference
+positives total (STANDING strict union = 12; HURDLE ≥1/dive); 626/1495
+STANDING candidates unobservable by anchors; negatives correlated within dive.
+**`LEARNING_EXPERIMENT_STILL_TOO_SMALL`**; design `NOT_AUTHORIZED_YET`;
+**`ARMSTAND_EXPANSION_NOT_NEEDED_YET`** (constraint is independence, not
+family count).
+
+### Resources / firewalls
+0 B2 reads/writes, 0 new D5 inference, 0 embeddings, 0 training, no media
+mutation; 524/2555/Paris/INTERNAL_EVAL/holdout untouched. 63 frames extracted
+(outside Git, kept for image_sha256 re-verification). Tests: 15 new +
+subject-resolution suite 54/54 green; 3 pre-existing cosmetic reranker
+failures reproduced identically, untouched. Full report:
+`docs/science/DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1.md` (+ `.json`).
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`.**
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
 infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).

@@ -1,0 +1,288 @@
+{
+ "annotation_queue": {
+  "artifact": "docs/science/SUBJECT_GT_LEVEL_A_QUEUE_STANDING_V1.json",
+  "counts": {
+   "133": {
+    "base": 7,
+    "close_person_extra": 1,
+    "requested": 8
+   },
+   "2387": {
+    "base": 12,
+    "close_person_extra": 1,
+    "requested": 13
+   },
+   "311": {
+    "base": 31,
+    "close_person_extra": 0,
+    "requested": 31
+   },
+   "676": {
+    "base": 11,
+    "close_person_extra": 0,
+    "requested": 11
+   },
+   "total": 63
+  },
+  "deterministic": true,
+  "regeneration_byte_identical": true,
+  "reuse_outcome": {
+   "note": "2 exact-frame candidates (676 f30 D4 batch, 676 f150 D5 batch) rejected for REUSE because D4/D5 mining boxes carry generic diver-box semantics, not subject-identity semantics; both frames labeled fresh with subject semantics; historical artifacts untouched",
+   "reused": 0
+  },
+  "rules": {
+   "base_grid": "0.5 s spacing, frame = round(t*fps)",
+   "close_person_extra": "frozen-D5 pair (conf>=0.05, IoU<0.5) center distance <0.10 mean-bh at a base frame -> one extra anchor at +/-0.25 s",
+   "eval_window": "[0, water_contact + 0.5 s] from frozen DEVELOPMENT_DESIGN water_contact authority",
+   "reuse_rule": "exact-frame HUMAN_REVIEWED reuse restricted to DEVELOPMENT_DESIGN (subject-identity semantics)"
+  }
+ },
+ "armstand_decision": "ARMSTAND_EXPANSION_NOT_NEEDED_YET",
+ "armstand_rationale": "the binding constraint is positive-count/label independence, not family count; ARMSTAND materialization would not unlock the learning gate and its proxies/caches remain deferred",
+ "base_canonical_verified": "bf78182a6a79c9c96383a66bed9cea7928142652 (origin/uiux-overhaul-pro-app; contains f00dffd74ad0b1cc3d029c4bfa76bd80e8b3744e as ancestor; packet-stated HEAD superseded by concurrent UI-U1/U2 integration, science content verified intact)",
+ "candidate_learning_dataset": {
+  "athletes": "subject diver_id=1 (Maxime) on 7/9; diver_id=7 on 2341 and 676",
+  "dives": 9,
+  "families": 2,
+  "hurdle_from_v2_artifacts": {
+   "acquisition_candidates": {
+    "1040": 451,
+    "2169": 516,
+    "2341": 545,
+    "2353": 771,
+    "2541": 605,
+    "total": 2888
+   },
+   "label_basis": "per-frame target_chains_v1 (most candidates labelable)",
+   "subject_reference_positives": ">=1 per dive (purity-evaluable refs, V2 phase9)"
+  },
+  "sessions": "single-venue pool; exact session split not re-derived this packet",
+  "standing_measured": {
+   "acquisition_candidates": {
+    "133": 176,
+    "2387": 658,
+    "311": 424,
+    "676": 237,
+    "total": 1495
+   },
+   "no_anchor_coverage_unobserved": {
+    "133": 53,
+    "2387": 445,
+    "311": 90,
+    "676": 38,
+    "total": 626
+   },
+   "note": "negatives are heavily correlated within dive (phantom families, static repeats); candidate counts must not be read as independent examples",
+   "person_mover_negatives": {
+    "133": 39,
+    "2387": 209,
+    "311": 160,
+    "676": 75,
+    "total": 483
+   },
+   "static_non_person_negatives": {
+    "133": 63,
+    "2387": 160,
+    "311": 98,
+    "676": 75,
+    "total": 396
+   },
+   "subject_reference_positives_strict": {
+    "133": 2,
+    "2387": 6,
+    "311": 1,
+    "676": 3,
+    "total": 12
+   }
+  },
+  "statistical_unit": "dive/session (NOT candidate box)"
+ },
+ "consistency_review": {
+  "examined_and_accepted": "311 f435 generous box (w 0.77 clip width) during fast descent overlaps the conf-0.35 D5 person cluster; human authority stands",
+  "jump_scan": "max consecutive-anchor shift 1.06 bh per 0.5 s (walking pace); no swap-like jumps (>2 bh) anywhere",
+  "returned_to_human": [],
+  "static_run_scan": "no identical-box runs >= 5 (no non-person structure boxed)"
+ },
+ "current_true_bottleneck": "GT-free reference acquisition loses top-1 to low-confidence phantom tracklets with dive-like kinematics on STANDING (and to stable static tracklets on HURDLE); handcrafted scorers cannot separate these without either a supervisor-authorized a-priori candidate-quality rule or learning, and learning data remains too small",
+ "date": "2026-09-13",
+ "durable_artifacts": [
+  "docs/science/DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1.md",
+  "docs/science/DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1.json",
+  "docs/science/SUBJECT_GT_LEVEL_A_QUEUE_STANDING_V1.json",
+  "docs/science/localization_annotations_v1/SUBJECT_GT_LEVEL_A_STANDING_V1/ (63 anchors + MANIFEST.json)",
+  "experiments/subject_resolution/phase_subject_gt_level_a_annotation_v1.py",
+  "experiments/subject_resolution/phase_subject_gt_level_a_replay_v1.py",
+  "experiments/subject_resolution/test_subject_gt_level_a_annotation_v1.py",
+  "runs/subject_gt_level_a_v1/{replay_rankings,reference_eval_v1,validation_v1}.json (outside Git)"
+ ],
+ "frozen_v2_replay": {
+  "A0_changed": false,
+  "A1_changed": false,
+  "D5_rerun": false,
+  "OSNet_rerun": false,
+  "constants_verified_against_v2_freeze": true,
+  "osnet_loaded": false,
+  "top1_selections_match_frozen_cohort_replay": "8/8 (A0+A1 x 4 dives, tid and score exact)",
+  "v2_module_sha256": "01a17dd77131076d323b4adbc0790ac1d284f36fe39ebfb98a0ef64ad7a1d73e"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1",
+ "human_annotation": {
+  "annotator": "maxime",
+  "completion": "63/63 in one session",
+  "method": "blind local web UI (127.0.0.1 only): open frame -> drag bbox -> SAVE SUBJECT BOX / NOT_VISIBLE; no detector/ranker hints shown; progress persisted per action",
+  "review_corrections": "none required"
+ },
+ "hurdle_vs_standing": {
+  "detail": "HURDLE failure signature (recorded V2/R4): stable STATIC tracklets outrank the subject. STANDING failure signature (measured here): top-1 decoys are LOW-CONFIDENCE PHANTOM person-mover tracklets (mean D5 conf 0.002-0.056, dive-like excursion 0.21-0.48 cy, terminal toward water) far from any conf>=0.3 person detection (133/311: 0.5-0.8 normalized from subject) or partially tracking near the subject then drifting (2387 A1: 0.04-0.07 early, purity 2/11). The two families fail for DIFFERENT dominant reasons; pooled-only conclusions remain forbidden and would now also be misleading.",
+  "dominant_negatives_similar": false,
+  "hurdle_v2_record": {
+   "A0_subject_correct": "0/5",
+   "A1_subject_correct": "0/5",
+   "best_A1_ranks": "2-14",
+   "gt_basis": "per-frame chains"
+  },
+  "person_distractors_more_important_in_standing": true,
+  "standing_v2_record": {
+   "A0_subject_correct": "0/4 (1 unobserved)",
+   "A1_subject_correct": "0/4",
+   "best_ranks_strict": "17-152",
+   "gt_basis": "Level-A anchors (this packet)"
+  },
+  "static_decoys_equally_dominant": false,
+  "subject_rank_distribution_similar": false,
+  "v2_fails_in_both_families": true
+ },
+ "label": "DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1",
+ "learning_design": "NOT_AUTHORIZED_YET",
+ "learning_feasibility": "LEARNING_EXPERIMENT_STILL_TOO_SMALL",
+ "learning_feasibility_rationale": "9 dives / 2 families / 1-2 athletes / single venue; ~17 subject-reference positives total (12 STANDING strict + >=5 HURDLE); negatives dominated by within-dive correlated phantom/static families; LOSO-by-dive folds would rest on ~15 training positives with heavy dependence; adding ARMSTAND (2 dives, same athlete/venue, no proxies yet) would not change this verdict",
+ "level_a_gt_authority": {
+  "annotation_count": 63,
+  "annotator": "maxime",
+  "artifact": "docs/science/localization_annotations_v1/SUBJECT_GT_LEVEL_A_STANDING_V1",
+  "artifact_sha256": "d805aac2b46e52f002de2842b56bb9a1b0ced808f0862a4c559f5ffe9099a75e",
+  "authority": "HUMAN_REVIEWED",
+  "dives": [
+   "133",
+   "311",
+   "676",
+   "2387"
+  ],
+  "level_b_note": "NOT dense trajectory GT; interpolation unauthorized (Level-B remains deferred)",
+  "manifest": "MANIFEST.json",
+  "not_visible_count": 5,
+  "per_dive_counts": {
+   "133": 8,
+   "2387": 13,
+   "311": 31,
+   "676": 11
+  },
+  "schema": "existing localization_annotations_v1 semantics extended with subject-identity source_identity + provenance"
+ },
+ "media_backbone_mutated": "NO",
+ "packet": "DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1",
+ "protected_data_firewall": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE \u2014 untouched, excluded from cohort",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED \u2014 untouched, not annotated, not evaluated",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris IMG_1937": "EXTERNAL_ONLY \u2014 NOT_ACCESSED"
+ },
+ "quality_validation": {
+  "all_queue_items_resolved": true,
+  "bbox_inside_bounds": true,
+  "existing_anchors_preserved": true,
+  "model_agreement_used_as_quality_criterion": false,
+  "no_duplicate_conflict": true,
+  "not_visible_explicit": true,
+  "positive_width_height": true,
+  "source_frame_identity": true,
+  "verdict": "PASS"
+ },
+ "recommended_next_supervisor_gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1",
+ "resource_results": {
+  "B2_reads": 0,
+  "B2_writes": 0,
+  "annotation_frames_extracted": 63,
+  "cleanup": "annotation UI server stopped; 63 extracted frames (1.6 MB, outside Git) retained under runs/subject_gt_level_a_v1/frames for image_sha256 re-verification (re-extraction is not byte-deterministic); no other temp exports",
+  "model_training": 0,
+  "new_D5_inference": 0,
+  "new_embeddings": 0,
+  "new_human_labels": 63,
+  "peak_rss_gb": 0.6
+ },
+ "scientific_authorities_mutated": "NEW_LEVEL_A_GT_AUTHORITY_ONLY",
+ "standing_reference_results": {
+  "headline": "0/8 top-1 reference selections subject-correct (0/7 measured, 1 REFERENCE_GT_UNOBSERVED); V2 failure CONFIRMED on STANDING with true human Level-A GT",
+  "metric_definition": {
+   "reference_verdict": "top-1 purity over visible anchors inside its span: 1.0 = SUBJECT_CORRECT, <1.0 = SUBJECT_WRONG, no visible anchor in span = REFERENCE_GT_UNOBSERVED",
+   "sensitivity": "purity>=0.5 variant reported as p05",
+   "subject_candidate": "candidate box consistent (normalized center distance <= 0.06, reference_purity precedent) with EVERY visible human anchor its tracklet covers"
+  },
+  "note_vs_cohort_packet": "cohort-packet 'best anchor-consistent rank 3-89' used the old sparse event anchors (2-4/dive) with single-anchor consistency; the new 0.5 s grid + all-covered-anchors rule yields stricter ranks 17-152 (strict) \u2014 earlier optimism quantified and corrected",
+  "per_dive": {
+   "133": {
+    "A0": {
+     "best_rank_p05": 15,
+     "best_rank_strict": 77,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    },
+    "A1": {
+     "best_rank_p05": 9,
+     "best_rank_strict": 17,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    }
+   },
+   "2387": {
+    "A0": {
+     "best_rank_p05": 24,
+     "best_rank_strict": null,
+     "purity": null,
+     "verdict": "REFERENCE_GT_UNOBSERVED"
+    },
+    "A1": {
+     "best_rank_p05": 4,
+     "best_rank_strict": 92,
+     "purity": 0.1818,
+     "verdict": "SUBJECT_WRONG"
+    }
+   },
+   "311": {
+    "A0": {
+     "best_rank_p05": 30,
+     "best_rank_strict": 30,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    },
+    "A1": {
+     "best_rank_p05": 21,
+     "best_rank_strict": 22,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    }
+   },
+   "676": {
+    "A0": {
+     "best_rank_p05": 9,
+     "best_rank_strict": 22,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    },
+    "A1": {
+     "best_rank_p05": 4,
+     "best_rank_strict": 152,
+     "purity": 0.0,
+     "verdict": "SUBJECT_WRONG"
+    }
+   }
+  }
+ },
+ "test_results": {
+  "new_tests": "15 (test_subject_gt_level_a_annotation_v1.py)",
+  "pre_existing_failures": "3 cosmetic test_candidate_reranker.py failures reproduced byte-identically, pre-existing historical debt, NOT repaired (housekeeping firewall)",
+  "subject_resolution_suite": "54/54 passed (15 new + 39 existing)"
+ },
+ "worktree": "~/.perso/diveanalyzer-subject-gt-l1a (branch subject-gt-level-a-annotation-v1)"
+}
