@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    Uuid as SaUuid,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -30,7 +31,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
+# DIVER_ID_19_HARDENING_V2 test-env repair: postgresql.UUID is not compilable
+# on the sqlite test harness; generic Uuid renders CHAR(32) there, PGUUID on
+# Postgres. No runtime behavior change on Postgres.
+def _uuid_column():
+    return SaUuid(as_uuid=True).with_variant(PGUUID(as_uuid=True), "postgresql")
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -52,7 +59,7 @@ class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
 
     id                      = Column(Integer, primary_key=True, index=True)
-    run_uuid                = Column(UUID(as_uuid=True), nullable=False, unique=True,
+    run_uuid                = Column(_uuid_column(), nullable=False, unique=True,
                                      server_default="gen_random_uuid()")
 
     # Scientific subject
@@ -402,7 +409,7 @@ class AnalysisComparison(Base):
     __tablename__ = "analysis_comparisons"
 
     id                   = Column(Integer, primary_key=True, index=True)
-    comparison_uuid      = Column(UUID(as_uuid=True), nullable=False, unique=True,
+    comparison_uuid      = Column(_uuid_column(), nullable=False, unique=True,
                                   server_default="gen_random_uuid()")
 
     target_run_id        = Column(Integer, ForeignKey("analysis_runs.id", ondelete="RESTRICT"),

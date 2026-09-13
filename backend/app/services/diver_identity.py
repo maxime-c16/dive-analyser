@@ -33,13 +33,32 @@ def resolve_diver(db: Session, person_name: str | None, *, create: bool = True) 
     if not person_name or not person_name.strip():
         return get_primary_diver(db)
     canonical = canonicalize_name(person_name)
+    # DIVER_ID_19_HARDENING_V2: inactive divers are never resolved by normal
+    # identity resolution (generic rule; no name-specific branch). Historical
+    # rows remain inspectable via direct queries/admin API.
     diver = db.execute(
         select(Diver)
         .outerjoin(DiverAlias, DiverAlias.diver_id == Diver.id)
-        .where(or_(Diver.canonical_name == canonical, DiverAlias.canonical_alias == canonical))
+        .where(
+            Diver.active.is_(True),
+            or_(Diver.canonical_name == canonical, DiverAlias.canonical_alias == canonical),
+        )
     ).scalars().first()
     if diver or not create:
         return diver
+    # DIVER_ID_19_HARDENING_V2: a retired (inactive) diver owning this name
+    # (directly or via alias) must never be silently resurrected under a new
+    # id — historical input stays unbound (caller leaves diver_id NULL).
+    retired = db.execute(
+        select(Diver)
+        .outerjoin(DiverAlias, DiverAlias.diver_id == Diver.id)
+        .where(
+            Diver.active.is_(False),
+            or_(Diver.canonical_name == canonical, DiverAlias.canonical_alias == canonical),
+        )
+    ).scalars().first()
+    if retired is not None:
+        return None
     diver = Diver(display_name=display_name(person_name), canonical_name=canonical)
     db.add(diver)
     db.flush()
