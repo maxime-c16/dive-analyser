@@ -1967,6 +1967,68 @@ Durable audit: `docs/audits/UI-U3-clip-viewer-core-v1.md`
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
+### UI-U4/U5 — RELIABILITY_MOBILE_ACCESSIBILITY_V1 (2026-09-13)
+
+**Status: UI_U4U5 GREEN (the review loop is now operationally trustworthy).**
+Durable audit: `docs/audits/UI-U4U5-reliability-mobile-accessibility-v1.md`
+(+ `docs/audits/evidence-ui-u4u5-screenshots/`, 12 state captures).
+
+- **Media transport-failure policy (frontend-only; backend lifecycle
+  untouched):** `DiveVideoPlayer` rewritten around an explicit phase
+  machine (checking/ready/preparing/prepare-failed/not-cached/
+  transport-failed). Initial status lookup: 3 bounded automatic retries,
+  then an actionable `role=alert` "Retry status check" — no endless
+  spinner; a failed status GET never POSTs a prepare request. Active
+  preparation polling: transient failures preserve the last known
+  authoritative state presented honestly as "transcoding — connection
+  interrupted" (STALE_OR_CACHED); at 5 consecutive failures the automatic
+  loop stops and "Check status again" appears; recovery clears stale
+  framing. Long legitimate preparations become "Still preparing this
+  clip" + "Check status now" after 90s (never marked failed, no invented
+  progress). Decode failure ("Video could not be loaded") is now an
+  accessible alert with an in-place "Try again" reload — no new media
+  jobs. Prepare/Retry-prepare remain explicit and duplicate-guarded.
+- **Viewer modal contract:** background (sidebar, mobile nav, mounted
+  Library) made `inert` while the viewer is open via the new
+  `utils/a11y.tsx` primitives (`inertExcept`, `trapTabKey`,
+  `VisuallyHidden`); Tab/Shift+Tab cycle inside the dialog; close returns
+  focus to the originating card with a search-input fallback when the
+  card no longer exists. Frozen U3 keyboard/URL/history contracts
+  preserved verbatim (unit + E2E re-proven).
+- **Core accessibility:** skip-to-main-content link (first focusable,
+  visible on focus, desktop+mobile); `main#main-content` landmark exactly
+  once; Library loading/empty use `role=status`, errors `role=alert`;
+  player states use status/alert semantics with announcement dedup (no
+  poll spam); reduced motion enforced + E2E-asserted (spinner static,
+  state text informative); non-color state signals (icon+text) on core
+  surfaces; touch targets unchanged ≥44px.
+- **Mobile/reflow:** 390×844 loop green; NEW 320px narrow reflow green
+  (scrollWidth ≤320, all critical controls reachable); landscape 844×390
+  green; 200% zoom validated via 640×400 equivalent reflow.
+- **E2E identity isolation:** the single production user IS the operator
+  identity (PERSONAL_OPERATOR_IDENTITY); the existing storageState
+  (session 147, remember_me, exp 2026-10-13) was reused for ALL U4/U5
+  validation — ZERO logins performed, zero session revocations; no auth
+  semantics changed. Upstream recommendation: provision a dedicated E2E
+  user before session 147 expires.
+- **Automated a11y:** `@axe-core/playwright@4.13.0` (pinned, dev-only,
+  lockfile committed): 0 critical / 0 serious on Library, Viewer-ready,
+  Viewer-error, mobile-390 Viewer. Manual keyboard/zoom/reflow pass done;
+  screen reader NOT_MANUALLY_SCREEN_READER_TESTED.
+- **Tests:** vitest **110/110** (was 85; +25); new
+  `e2e/tests/reliabilityAccessibility.spec.ts` 22 passed/2 skipped
+  (transport-failure D/E/F/F2, library-retry G, focus containment C,
+  keyboard loop B, reduced motion H, 320 J, landscape K, axe L/L2); full
+  authenticated suite 120 passed/4 skipped/0 failed on preview AND 124
+  passed/4 skipped/0 failed against production post-deploy; typecheck +
+  build green; lint still NOT_CONFIGURED (pre-existing).
+- **Deployment:** frontend-only rebuild from canonical tree; live bundle
+  **`index-CbYUMwwV.js`**, deployed sourcemaps byte-identical to Git
+  (11/11 key files); live captures added (4).
+- Next gate: **UI-U6 — OBSOLETE_ROUTE_AND_VISUAL_SYSTEM_CLEANUP_V1**.
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
+integrating (established convention).
+
 ## Subject Resolution Cohort Expansion V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 (2026-09-13)
 
 Packet executed on worktree branch `subject-resolution-cohort-expansion-v1`

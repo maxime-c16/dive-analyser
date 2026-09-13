@@ -1,9 +1,14 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
-import DiveVideoPlayer from './DiveVideoPlayer'
-import { getMediaStatus, requestMedia } from '../services/mediaApi'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import DiveVideoPlayer, {
+  INITIAL_STATUS_ATTEMPTS,
+  LONG_PREPARATION_MS,
+  MAX_POLL_FAILURES,
+  MEDIA_POLL_INTERVAL_MS,
+} from './DiveVideoPlayer'
+import { getMediaStatus, requestMedia, type MediaStatus } from '../services/mediaApi'
 
 vi.mock('../services/mediaApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/mediaApi')>()
@@ -11,7 +16,10 @@ vi.mock('../services/mediaApi', async (importOriginal) => {
 })
 
 const missing = { video_uuid: 'uuid', status: 'missing', can_request: true, available_renditions: [], playback_url: null, poster_url: null, job: null }
+const transcoding = { ...missing, status: 'transcoding', can_request: false }
+const ready = { ...missing, status: 'ready', playback_url: '/cached.mp4' }
 beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
+afterEach(() => { vi.useRealTimers() })
 
 it('checks status passively without creating a job', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); expect(await screen.findByRole('button', { name: /Prepare clip/ })).toBeInTheDocument(); expect(getMediaStatus).toHaveBeenCalledOnce(); expect(requestMedia).not.toHaveBeenCalled() })
 it('Prepare clip explicitly creates one proxy request', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); await userEvent.click(await screen.findByRole('button', { name: /Prepare clip/ })); expect(requestMedia).toHaveBeenCalledOnce(); expect(requestMedia).toHaveBeenCalledWith('uuid', 'proxy_360p') })
@@ -27,4 +35,180 @@ it('defaults to 1x when no rate is requested', async () => {
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
   const video = (await screen.findByLabelText('103B 1m dive video')) as HTMLVideoElement
   expect(video.playbackRate).toBe(1)
+})
+
+// ---- U4/U5: frontend transport-failure policy ----
+
+function flushInitialCheck() {
+  return act(async () => { await vi.advanceTimersByTimeAsync(0) })
+}
+
+it('a persistent initial status failure exits loading into an actionable retryable error', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  await act(async () => { await vi.advanceTimersByTimeAsync(INITIAL_STATUS_ATTEMPTS * 2000) })
+  const alert = screen.getByRole('alert')
+  expect(alert).toHaveTextContent(/Couldn.t check media availability/)
+  expect(screen.getByRole('button', { name: 'Retry status check' })).toBeInTheDocument()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(getMediaStatus).toHaveBeenCalledTimes(INITIAL_STATUS_ATTEMPTS)
+})
+
+it('the bounded retry policy is finite and deterministic', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+  expect(getMediaStatus).toHaveBeenCalledTimes(INITIAL_STATUS_ATTEMPTS)
+})
+
+it('Retry status check re-runs the lookup and never posts a prepare request', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  fireEvent.click(screen.getByRole('button', { name: 'Retry status check' }))
+  await flushInitialCheck()
+  expect(requestMedia).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/cached.mp4')
+})
+
+it('a single transient poll failure preserves the last known state and recovery clears it', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce(transcoding)
+    .mockRejectedValueOnce(new Error('network down'))
+    .mockResolvedValue(transcoding)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  expect(screen.getByRole('status')).toHaveTextContent('Preparing media: transcoding')
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS) })
+  expect(screen.getByRole('status')).toHaveTextContent('transcoding — connection interrupted')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS) })
+  expect(screen.getByRole('status')).toHaveTextContent('Preparing media: transcoding')
+  expect(screen.getByRole('status').textContent).not.toContain('connection interrupted')
+})
+
+it('repeated poll failures terminalize into an actionable state and stop the automatic loop', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce(transcoding)
+    .mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS * MAX_POLL_FAILURES + 100) })
+  const alert = screen.getByRole('alert')
+  expect(alert).toHaveTextContent('transcoding — status checks stopped')
+  expect(screen.getByRole('button', { name: 'Check status again' })).toBeInTheDocument()
+  const callsAfterStop = vi.mocked(getMediaStatus).mock.calls.length
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS * 4) })
+  expect(vi.mocked(getMediaStatus).mock.calls.length).toBe(callsAfterStop)
+})
+
+it('Check status again recovers polling after repeated transport failures', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce(transcoding)
+    .mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS * MAX_POLL_FAILURES + 100) })
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  fireEvent.click(screen.getByRole('button', { name: 'Check status again' }))
+  await flushInitialCheck()
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/cached.mp4')
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('a legitimate long-running preparation is never marked failed and stays actionable', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockResolvedValue(transcoding)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  expect(screen.getByRole('status')).toHaveTextContent('Preparing media: transcoding')
+  await act(async () => { await vi.advanceTimersByTimeAsync(LONG_PREPARATION_MS + MEDIA_POLL_INTERVAL_MS * 2) })
+  expect(screen.getByRole('status')).toHaveTextContent('Still preparing this clip')
+  expect(screen.getByRole('button', { name: 'Check status now' })).toBeInTheDocument()
+  expect(screen.queryByText('No video available')).not.toBeInTheDocument()
+})
+
+it('unchanged polls do not change the announced status text', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockResolvedValue(transcoding)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  const region = screen.getByRole('status')
+  const before = region.textContent
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS * 3) })
+  expect(screen.getByRole('status')).toBe(region)
+  expect(region.textContent).toBe(before)
+})
+
+it('double-clicking Prepare clip does not submit duplicate preparation requests', async () => {
+  vi.mocked(requestMedia).mockImplementation(
+    () => new Promise((resolve) => setTimeout(() => resolve({ ...missing, status: 'queued', created_job: true }), 50)),
+  )
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  const button = await screen.findByRole('button', { name: /Prepare clip/ })
+  fireEvent.click(button)
+  fireEvent.click(button)
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 80)) })
+  expect(requestMedia).toHaveBeenCalledTimes(1)
+})
+
+it('Retry prepare remains an explicit action and is also duplicate-guarded', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...missing, status: 'failed', can_request: true, job: { id: 1, status: 'failed', rendition: 'proxy_360p', last_error: 'proxy export failed' } })
+  vi.mocked(requestMedia).mockImplementation(
+    () => new Promise((resolve) => setTimeout(() => resolve({ ...missing, status: 'queued', created_job: true }), 50)),
+  )
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  const button = await screen.findByRole('button', { name: /Retry prepare/ })
+  fireEvent.click(button)
+  fireEvent.click(button)
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 80)) })
+  expect(requestMedia).toHaveBeenCalledTimes(1)
+  expect(requestMedia).toHaveBeenCalledWith('uuid', 'proxy_360p')
+  expect(await screen.findByRole('status')).toHaveTextContent('Preparing media: queued')
+})
+
+it('a video decode error exposes an accessible retry that reloads playback without new jobs', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const loadSpy = vi.spyOn(HTMLMediaElement.prototype, 'load')
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  const video = await screen.findByLabelText('103B 1m dive video')
+  fireEvent.error(video)
+  const alert = screen.getByRole('alert')
+  expect(alert).toHaveTextContent('Video could not be loaded')
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(loadSpy).toHaveBeenCalled()
+  expect(requestMedia).not.toHaveBeenCalled()
+  expect(getMediaStatus).toHaveBeenCalledOnce()
+})
+
+it('media readiness is announced once and preparation states use status semantics', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  expect(screen.getByRole('status')).toHaveTextContent('Media ready.')
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  expect(screen.getByRole('status')).toHaveTextContent('Media ready.')
+})
+
+it('a status failure never destroys a previously known preparation state presentation', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce(transcoding)
+    .mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS * 2) })
+  // last known state label is still visible, framed as interrupted — not failed
+  expect(screen.getByRole('status').textContent).toContain('transcoding')
+  expect(screen.queryByText('No video available')).not.toBeInTheDocument()
 })

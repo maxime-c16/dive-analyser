@@ -124,3 +124,22 @@ describe('minimal IA routing', () => {
     expect(screen.getByRole('link', { name: 'Back to Library' })).toBeInTheDocument()
   })
 })
+
+// ---- U4/U5: skip navigation + landmarks ----
+
+it('a skip-to-main-content link precedes all content and targets the main landmark', async () => {
+  renderAt('/dives')
+  const skipLink = screen.getByRole('link', { name: 'Skip to main content' })
+  const main = screen.getByRole('main')
+  expect(main).toHaveAttribute('id', 'main-content')
+  expect(main).toHaveAttribute('tabindex', '-1')
+  expect(skipLink).toHaveAttribute('href', '#main-content')
+  // The skip link is the first focusable element in the app shell.
+  const firstFocusable = document.querySelector('a, button, input, select, textarea, [tabindex]')
+  expect(firstFocusable).toBe(skipLink)
+})
+
+it('the main landmark exists exactly once in the shell', async () => {
+  renderAt('/dives')
+  expect(screen.getAllByRole('main')).toHaveLength(1)
+})

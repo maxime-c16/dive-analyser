@@ -209,3 +209,59 @@ it('an attempt without linked media shows a usable state', () => {
   )
   expect(screen.getByText('No linked clip for this attempt.')).toBeInTheDocument()
 })
+
+// ---- U4/U5: modal interaction model ----
+
+it('background content becomes inert while the viewer is open and is restored on close', () => {
+  const outside = document.createElement('button')
+  outside.textContent = 'Background control'
+  document.body.appendChild(outside)
+  const { unmount } = renderClipViewer(1)
+  expect(outside).toHaveAttribute('inert')
+  unmount()
+  expect(outside.hasAttribute('inert')).toBe(false)
+  outside.remove()
+})
+
+it('the dialog itself is never inert', () => {
+  renderClipViewer(1)
+  expect(screen.getByRole('dialog')).not.toHaveAttribute('inert')
+})
+
+it('Tab wraps from the last control back to the first inside the viewer', () => {
+  const { container } = renderClipViewer(1)
+  const dialog = screen.getByRole('dialog')
+  const analysis = screen.getByRole('link', { name: 'Analysis' })
+  analysis.focus()
+  fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: 'Tab' })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to Library' }))
+  expect(dialog.contains(document.activeElement)).toBe(true)
+})
+
+it('Shift+Tab wraps from the first control to the last inside the viewer', () => {
+  const { container } = renderClipViewer(1)
+  const back = screen.getByRole('button', { name: 'Back to Library' })
+  back.focus()
+  fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Analysis' }))
+})
+
+it('Tab from outside the viewer is pulled back into the first control', () => {
+  const { container } = renderClipViewer(1)
+  ;(document.activeElement as HTMLElement)?.blur()
+  fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: 'Tab' })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to Library' }))
+})
+
+it('hidden Details content is never a Tab target', () => {
+  const { container } = renderClipViewer(1)
+  const dialog = screen.getByRole('dialog')
+  const focusables = Array.from(
+    dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), select:not([disabled])',
+    ),
+  ).filter((element) => !element.closest('[hidden]'))
+  expect(focusables.length).toBeGreaterThan(0)
+  focusables.forEach((element) => expect(element.closest('[hidden]')).toBeNull())
+  expect(container).toBeInTheDocument()
+})

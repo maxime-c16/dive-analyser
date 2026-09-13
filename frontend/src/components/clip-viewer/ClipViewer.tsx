@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
 import { getPreview } from "../../utils/mediaPreview";
+import { inertExcept, trapTabKey } from "../../utils/a11y";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
 import ClipMetadataSummary from "./ClipMetadataSummary";
@@ -50,6 +51,16 @@ export default function ClipViewer({
     };
   }, []);
 
+  // Modal interaction model: the viewer visually covers the Library, so the
+  // rest of the page (sidebar, mobile navigation, the mounted Library) is
+  // made inert — unreachable for focus, pointer and assistive technology —
+  // and Tab/Shift+Tab are kept inside the review surface.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    return inertExcept(dialog);
+  }, []);
+
   // Warm the adjacent clips' poster/status cache so Previous/Next feel
   // instant. Deduped and cached; no new caching architecture.
   useEffect(() => {
@@ -63,6 +74,11 @@ export default function ClipViewer({
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
+        return;
+      }
+      if (event.key === "Tab") {
+        const dialog = dialogRef.current;
+        if (dialog) trapTabKey(dialog, event);
         return;
       }
       const target = event.target as HTMLElement | null;

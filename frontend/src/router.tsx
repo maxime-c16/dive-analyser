@@ -257,8 +257,11 @@ function MobileNavigation() {
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-app text-app-text">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <div className="flex min-h-screen w-full">
-        <aside className="hidden w-64 shrink-0 border-r border-app lg:block">
+        <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label="Workspace sidebar">
           <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6">
             <div className="border-b border-app pb-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-app-muted">
@@ -306,7 +309,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileNavigation />
 
-          <main className="flex-1">
+          <main id="main-content" tabIndex={-1} className="flex-1">
             <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
               <Breadcrumbs />
               {children}

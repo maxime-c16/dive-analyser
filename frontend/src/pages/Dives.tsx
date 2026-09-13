@@ -433,6 +433,9 @@ export default function Dives() {
 
   // Focus lifecycle: return focus to the originating Library card when the
   // viewer closes, so keyboard users are not dropped at the document body.
+  // If the originating card no longer exists (filters changed, attempt
+  // removed), fall back to the Library search input — never scroll the
+  // page unexpectedly.
   useEffect(() => {
     if (selected) return;
     const attemptId = viewerReturnAttemptRef.current;
@@ -442,7 +445,13 @@ export default function Dives() {
       const card = document.querySelector<HTMLElement>(
         `[data-attempt-id="${attemptId}"]`,
       );
-      card?.focus({ preventScroll: true });
+      if (card) {
+        card.focus({ preventScroll: true });
+        return;
+      }
+      document
+        .querySelector<HTMLInputElement>('input[aria-label="Search dives"]')
+        ?.focus({ preventScroll: true });
     });
   }, [selected]);
 
@@ -622,12 +631,18 @@ export default function Dives() {
         </div>
       </section>
       {loading && (
-        <div className="border-y border-app py-20 text-center text-sm text-app-muted">
+        <div
+          className="border-y border-app py-20 text-center text-sm text-app-muted"
+          role="status"
+        >
           Loading your dive library…
         </div>
       )}
       {error && (
-        <div className="mt-6 border border-red-300/40 bg-red-300/10 p-4 text-sm text-red-100">
+        <div
+          className="mt-6 border border-red-300/40 bg-red-300/10 p-4 text-sm text-red-100"
+          role="alert"
+        >
           <p>{error}</p>
           <button
             type="button"
@@ -672,7 +687,7 @@ export default function Dives() {
             </div>
           </div>
           {filtered.length === 0 ? (
-            <div className="border-b border-app py-16 text-center">
+            <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
                 No attempts match this search.
               </p>
