@@ -116,18 +116,24 @@ def test_frozen_v2_module_unchanged():
     rep.check_frozen()  # raises on drift
 
 
+FROZEN_COHORT_REPLAY_TOP1 = {
+    # (dive, method) -> (tid, score) from the frozen cohort-expansion replay
+    # (runs/subject_resolution/v2_cross_family_replay_standing_raw.json)
+    ("133", "A0"): (281, 3.0596), ("133", "A1"): (30, 1.9153),
+    ("311", "A0"): (719, 2.354), ("311", "A1"): (654, 2.2928),
+    ("676", "A0"): (455, 2.5039), ("676", "A1"): (233, 2.085),
+    ("2387", "A0"): (1107, 2.9034), ("2387", "A1"): (147, 2.7112),
+}
+
+
 def test_replay_matches_frozen_cohort_replay():
     r = json.loads((REPO / "runs/subject_gt_level_a_v1/replay_rankings.json").read_text())
-    old = json.loads((REPO / "/Users/maximecauchy/.perso/diveanalyzer-cohort-exp/runs/"
-                      "subject_resolution/v2_cross_family_replay_standing_raw.json"
-                      ).read_text()) if False else json.loads(
-        (REPO.parent / "diveanalyzer-cohort-exp/runs/subject_resolution/"
-         "v2_cross_family_replay_standing_raw.json").read_text())
     for d in STANDING:
         for m in ("A0", "A1"):
             top = r["dives"][d]["methods"][m]
-            assert top["top_tid"] == old[d][f"{m}_top"]["tid"]
-            assert abs(top["top_score"] - old[d][f"{m}_top"]["score"]) < 1e-9
+            exp_tid, exp_score = FROZEN_COHORT_REPLAY_TOP1[(d, m)]
+            assert top["top_tid"] == exp_tid
+            assert abs(top["top_score"] - exp_score) < 1e-9
 
 
 def test_bbox_validator():
