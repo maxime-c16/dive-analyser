@@ -1901,6 +1901,62 @@ Durable audit: `docs/audits/UI-U1U2-minimal-ia-library-core-v1.md`
 - Next gate: **UI-U3 — CLIP_VIEWER_CORE_V1** (reader redesign; the reader
   implementation itself was intentionally not redesigned here).
 
+### UI-U3 — CLIP_VIEWER_CORE_V1 (2026-09-13)
+
+**Status: UI_U3_GREEN (clip review is now a real review instrument).**
+Durable audit: `docs/audits/UI-U3-clip-viewer-core-v1.md`
+(+ `docs/audits/evidence-ui-u3-screenshots/`, 11 desktop/mobile/state captures).
+
+- **Viewer architecture:** the U0R-era side-sheet reader is replaced by a
+  full-viewport review surface (`components/clip-viewer/`:
+  ClipViewer, ClipViewerNavigation, ClipMetadataSummary, ClipDetails) —
+  video-first hierarchy per the U3 packet; Library stays mounted underneath
+  and the selected clip stays URL-authoritative (`clip=<attempt-id>`).
+  Shared attempt presentation extracted to `utils/attemptPresentation.ts`;
+  thumbnail preview cache extracted to `utils/mediaPreview.ts` (also used for
+  bounded adjacent-clip prefetch). `DiveVideoPlayer` gained an optional
+  `playbackRate` prop and its overlays moved from legacy gray/cyan to the
+  `--app-*` token system (media lifecycle semantics unchanged).
+- **Frozen U1/U2 contract preserved:** open=PUSH, Prev/Next=REPLACE,
+  close/Escape=REPLACE, browser Back closes the viewer first, reload
+  reopens, pagination depth + exact scroll restoration intact; N/TOTAL
+  reflects the current filtered result set with boundary disabling and no
+  wrap-around. Clean clip-to-clip transitions via player remount
+  (`key=attempt.id`) — no stale metadata.
+- **Review controls:** playback-rate control (0.25×–2×, default 1×,
+  labelled select) persisted for the mounted Library session; bounded
+  keyboard model (Escape close; Shift+←/→ Previous/Next guarded against
+  typing targets; Space play/pause only off interactive controls; plain
+  arrows left to native seek). Focus returns to the originating Library
+  card on close (`data-attempt-id`).
+- **Progressive disclosure:** Details collapsed by default (secondary
+  metadata incl. raw caption); Analysis stays a secondary link that
+  round-trips via browser Back to the selected clip. No new metrics, no
+  implementation identifiers exposed; no new mutation capabilities.
+- **Defect found+fixed during validation:** Details panel was permanently
+  visible because Tailwind's `grid` class overrode the `hidden` attribute
+  (utility display beats UA display); fixed with an explicit grid/hidden
+  class swap.
+- **Tests:** vitest **85/85** (was 61); typecheck + production build green;
+  new `e2e/tests/clipViewer.spec.ts` (15 passed / 1 mobile-keyboard skip)
+  covering viewer-open, playback/rate/seek, rapid review (history flat),
+  keyboard contract, Back-context, reload deep link, Analysis round-trip,
+  390px mobile (no horizontal overflow), failed-media state via route
+  interception only; full authenticated suite 97–98 passed / 0 persistent
+  failures (two documented load-sensitive legacy tests pass on isolated
+  re-run, unchanged from U1/U2). E2E ran against a local production preview
+  (`vite preview` :4173, HTTPS, `/api` proxied to the live backend — preview
+  proxy/HTTPS support added to `vite.config.ts`); credentials runtime-env
+  only (stored U1/U2 session had been revoked server-side; a fresh real
+  `/api/v1/auth/login` was performed).
+- Performance (preview build, live backend): clip open→playable ~1.2s;
+  Next→playable 1.1–1.8s over consecutive ready clips.
+- Next gate: **UI-U4/U5 — RELIABILITY_MOBILE_ACCESSIBILITY_V1** (player
+  status-poll terminalization, indefinite spinner, shared retry, focus-trap/
+  WCAG hardening, reduced-motion, 200% zoom, broader mobile reliability).
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
+integrating (established convention).
+
 ## Subject Resolution Cohort Expansion V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 (2026-09-13)
 
 Packet executed on worktree branch `subject-resolution-cohort-expansion-v1`

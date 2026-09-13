@@ -14,9 +14,10 @@ interface DiveVideoPlayerProps {
   diveCode: string
   height: string
   videoUuid: string
+  playbackRate?: number
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: DiveVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -112,6 +113,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
     }
   }, [videoSrc])
 
+  // Keep the requested playback speed applied across source loads and changes.
+  useEffect(() => {
+    const video = videoRef.current
+    if (video) video.playbackRate = playbackRate
+  }, [playbackRate, videoSrc])
+
   const requestMedia = async () => {
     try {
       setIsRequesting(true)
@@ -156,6 +163,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
   }
 
   const handleLoadedMetadata = () => {
+    const video = videoRef.current
+    if (video) video.playbackRate = playbackRate
     setIsLoading(false)
   }
 
@@ -165,22 +174,22 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
   }
 
   return (
-    <div className="relative w-full h-full bg-black rounded-lg overflow-hidden group">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       {/* Unauthenticated: session expired or never set — prompt to sign in. */}
       {!authChecking && !user && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6">
-          <div className="text-center max-w-sm">
-            <LogIn className="w-10 h-10 text-cyan-400 mx-auto mb-3" />
-            <p className="text-gray-200 font-semibold mb-2">Sign in to play</p>
-            <p className="text-gray-500 text-sm mb-4">
+          <div className="max-w-sm text-center">
+            <LogIn className="mx-auto mb-3 h-10 w-10 text-app-accent" />
+            <p className="mb-2 font-semibold text-app-text">Sign in to play</p>
+            <p className="mb-4 text-sm text-app-muted">
               Your session has expired. Sign in to watch your clips.
             </p>
             <Link
               to="/login"
               state={{ from: window.location.pathname }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-gray-950 font-semibold hover:bg-cyan-400 transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="h-4 w-4" />
               Sign in
             </Link>
           </div>
@@ -204,9 +213,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
       {/* App UI is visible only before a playable source exists. */}
       {isLoading && !videoSrc && !error && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
-          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
           {mediaStatus && mediaStatus !== 'ready' && (
-            <div className="absolute bottom-6 text-center text-gray-200 text-sm">
+            <div className="absolute bottom-6 text-center text-sm text-app-text">
               Preparing media: {mediaStatus.replace(/_/g, ' ')}
             </div>
           )}
@@ -216,17 +225,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
       {/* Error State */}
       {error && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80">
-          <div className="text-center max-w-sm px-6">
-            <p className="text-gray-300 mb-2">No video available</p>
-            <p className="text-gray-500 text-sm mb-4">{error}</p>
+          <div className="max-w-sm px-6 text-center">
+            <p className="mb-2 text-app-text">No video available</p>
+            <p className="mb-4 text-sm text-app-muted">{error}</p>
             {canRequest && (
               <button
                 type="button"
                 onClick={requestMedia}
                 disabled={isRequesting}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-gray-950 font-semibold hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <DownloadCloud className="w-4 h-4" />
+                <DownloadCloud className="h-4 w-4" />
                 {isRequesting ? 'Requesting…' : 'Retry prepare'}
               </button>
             )}
@@ -236,19 +245,19 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
 
       {!videoSrc && !isLoading && canRequest && !error && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6">
-          <div className="text-center max-w-sm">
-            <Clock className="w-10 h-10 text-cyan-400 mx-auto mb-3" />
-            <p className="text-gray-200 font-semibold mb-2">Clip is not cached yet</p>
-            <p className="text-gray-500 text-sm mb-4">
+          <div className="max-w-sm text-center">
+            <Clock className="mx-auto mb-3 h-10 w-10 text-app-accent" />
+            <p className="mb-2 font-semibold text-app-text">Clip is not cached yet</p>
+            <p className="mb-4 text-sm text-app-muted">
               Request a lightweight proxy. The Mac agent will prepare it when online.
             </p>
             <button
               type="button"
               onClick={requestMedia}
               disabled={isRequesting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-gray-950 font-semibold hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <DownloadCloud className="w-4 h-4" />
+              <DownloadCloud className="h-4 w-4" />
               {isRequesting ? 'Requesting…' : 'Prepare clip'}
             </button>
           </div>
