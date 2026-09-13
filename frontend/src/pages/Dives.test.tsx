@@ -38,7 +38,7 @@ it('defaults to primary diver and exposes other divers only intentionally', asyn
   expect((await screen.findAllByText('103B')).length).toBeGreaterThan(ownCodeCount)
 })
 
-it('filters natural search tokens and opens the exact attempt reader', async () => {
+it('filters natural search tokens and opens the exact attempt viewer', async () => {
   renderPage()
   const search = await screen.findByRole('textbox', { name: 'Search dives' })
   await userEvent.type(search, '103 3m SYNC DB')
@@ -48,7 +48,7 @@ it('filters natural search tokens and opens the exact attempt reader', async () 
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
   expect(document.body.style.overflow).toBe('hidden')
   expect(screen.getByText('Native player uuid-2')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Analyze 103C' })).toHaveAttribute('href', '/dives/analysis/103C')
-  await userEvent.click(screen.getByRole('button', { name: 'Close attempt' }))
+  expect(screen.getByRole('link', { name: 'Analysis' })).toHaveAttribute('href', '/dives/analysis/103C')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
   expect(document.body.style.overflow).toBe('')
 })

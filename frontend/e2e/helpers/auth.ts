@@ -12,6 +12,10 @@ import { fileURLToPath } from 'node:url';
  * playwright/.auth/ (gitignored). The login uses the application's normal
  * supported authentication mechanism (POST /api/v1/auth/login) — no auth
  * semantics are changed and no production bypass exists.
+ *
+ * When credentials are not present in the current environment but a previous
+ * valid storageState already exists, that storageState is reused unchanged:
+ * it is the same real authenticated session mechanism, merely not re-created.
  */
 export const authStatePath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -25,6 +29,12 @@ export const authStatePath = path.resolve(
 export async function ensureAuthenticatedState(): Promise<void> {
   const email = process.env.E2E_TEST_EMAIL;
   const password = process.env.E2E_TEST_PASSWORD;
+  if ((!email || !password) && fs.existsSync(authStatePath)) {
+    console.warn(
+      'E2E_TEST_EMAIL/E2E_TEST_PASSWORD not set — reusing the existing authenticated storageState.',
+    );
+    return;
+  }
   if (!email || !password) {
     throw new Error(
       'E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be set in the environment to run the authenticated E2E suite.',
