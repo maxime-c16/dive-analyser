@@ -133,6 +133,9 @@ def parse_dive_caption(caption: Optional[str]) -> Optional[DiveMetadata]:
                 is_sync = True
             elif part_upper in ("SMACK", "BELLY"):
                 is_smack = True
+            elif part_upper in _ANNOTATION_TOKENS:
+                # Recognized diving annotation (e.g. rip entry): never a person.
+                pass
             elif _is_drill_token(part_upper):
                 if part_upper not in modifiers:
                     modifiers.append(part_upper)
@@ -320,9 +323,14 @@ def _is_drill_token(text: str) -> bool:
     return text in {"SD", "DB", "HU"}
 
 
+# Entry-quality / one-token diving annotations that must never become a person
+# (DIVER_ID_19_PHANTOM root cause: "RIP" parsed as a diver name and auto-created).
+_ANNOTATION_TOKENS = {"RIP"}
+
+
 def _is_reserved_label_token(text: str) -> bool:
     """Return True for one-token captions that should not become people."""
-    return text in {"SD", "DB", "HU", "SYNC", "SYNCHRO", "SMACK", "BELLY"}
+    return text in {"SD", "DB", "HU", "SYNC", "SYNCHRO", "SMACK", "BELLY", "RIP"}
 
 
 def _is_person_name(text: str) -> bool:
@@ -334,14 +342,21 @@ def _is_person_name(text: str) -> bool:
     - 2-20 characters long
     - Contains only letters (hyphens/apostrophes allowed)
 
+    Note: unlike the historical docstring, ALL-CAPS names are accepted
+    ("TOM", "PAUL", "FANNY", ...) because production captions are typed in
+    caps. Non-name diving annotations (RIP, SMACK, SYNC, ...) are excluded
+    by the reserved/keyword token checks before this predicate is reached.
+
     Examples:
         "John" → True
         "Mary-Jane" → True
         "O'Connor" → True
-        "JOHN" → False (all caps)
+        "TOM" → True (production captions are all caps)
+        "JOHN" → True
         "john" → False (lowercase)
         "J" → False (too short)
         "A123" → False (contains number)
+        "RIP" → False (reserved annotation token)
     """
     if not text or len(text) < 2 or len(text) > 20:
         return False
