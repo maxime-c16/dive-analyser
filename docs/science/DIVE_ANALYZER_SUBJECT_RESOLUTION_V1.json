@@ -1,0 +1,99 @@
+{
+  "label": "DIVE_ANALYZER_SUBJECT_RESOLUTION_V1",
+  "packet": "DIVE_ANALYZER_SUBJECT_RESOLUTION_V1",
+  "date": "2026-09-13",
+  "branch": "subject-resolution-v1",
+  "base_head": "c4c9cfc1ad0ab77ccd9bea02d75f1a2c5b7560c5",
+  "repair_commit": "3dafd8b",
+  "gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1",
+  "gt_usage": "GT chains (target_chains_v1.json) used for EVALUATION ONLY; zero GT enters inference; zero new embeddings, detections or training",
+  "frozen_inputs_reused": {
+    "candidates": "runs/hurdle_identity_v1/R5_FULLCLIP_CANDIDATES_V1.json (floor conf 0.001, NMS 0.45, imgsz 640, cap 200)",
+    "embeddings": "runs/hurdle_prototype_v3/osnet_emb_cache_v1.npz (579709 keys x 512-d OSNet x1_0 market1501)",
+    "gt": "runs/hurdle_identity_v1/target_chains_v1.json + target_anchors_v1.json (eval-only)",
+    "models": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt + models/reid/osnet_x1_0_market1501.pth",
+    "dives": ["1040", "2169", "2341", "2353", "2541"]
+  },
+  "phase3_persontrack_construction": {
+    "mechanism": "union-find agglomerative merge over all plausible floor-candidate tracklets; merge if endpoint IoU>=0.3 OR cos>=0.80 with temporal gap<=0.5s",
+    "subject_tracklet_coverage_per_dive": {"1040": 1.0, "2169": 1.0, "2341": 1.0, "2353": 1.0, "2541": 1.0},
+    "subject_merged_track_coverage": {"1040": 1.0, "2169": 1.0, "2341": 0.894, "2353": 0.995, "2541": 1.0},
+    "fragmentation": "subject spans 15-161 distinct tracklets per dive; longest single tracklet run: 2169 5.69s, 2341 0.55s",
+    "finding": "SUBJECT IS REACHABLE: on every ordinary dive some tracklet/track contains every GT subject frame; but naive merge collapses subject and distractors into one mega-cluster (same failure mode as V4 bounded-degree linkage)"
+  },
+  "phase5_junk_taxonomy": {
+    "mechanism": "area<0.02 or span<0.7s+conf<0.05 -> NON_PERSON_LIKELY; static-stable person-sized -> PERSON_NON_DIVER_POSSIBLE; moving excursion>=0.20 rel-frame units span>=0.33s -> VALID_PERSON_TRACK; else UNKNOWN",
+    "counts_per_dive": {
+      "1040": {"NON_PERSON_LIKELY": 368, "PERSON_NON_DIVER_POSSIBLE": 21, "VALID_PERSON_TRACK": 109, "UNKNOWN": 203},
+      "2169": {"NON_PERSON_LIKELY": 212, "PERSON_NON_DIVER_POSSIBLE": 14, "VALID_PERSON_TRACK": 100, "UNKNOWN": 255},
+      "2341": {"NON_PERSON_LIKELY": 143, "PERSON_NON_DIVER_POSSIBLE": 49, "VALID_PERSON_TRACK": 130, "UNKNOWN": 196},
+      "2353": {"NON_PERSON_LIKELY": 311, "PERSON_NON_DIVER_POSSIBLE": 50, "VALID_PERSON_TRACK": 148, "UNKNOWN": 313},
+      "2541": {"NON_PERSON_LIKELY": 497, "PERSON_NON_DIVER_POSSIBLE": 34, "VALID_PERSON_TRACK": 117, "UNKNOWN": 409}
+    },
+    "finding": "junk elimination is SAFE-BY-CONSTRUCTION for movers (VALID_PERSON_TRACK preserved); the binding problem is choosing among hundreds of surviving person tracks, not junk"
+  },
+  "phase7_r0_within_clip_reference": {
+    "design": "acquire a GT-free stable reference tracklet per clip (flow-compensated, cy_std<=0.03, span>=2s), then retrieve subject by OSNet cos",
+    "oracle_ceiling": {
+      "note": "best reference among all stable tracklets, chosen with GT (diagnostic ceiling)",
+      "GT@1": {"1040": 0.689, "2341": 0.707, "2353": 0.788, "2541": 0.859, "2169": 0.873},
+      "refs": {"1040": "tid914", "2341": "tid120", "2353": "tid1471", "2541": "tid439", "2169": "tid245"}
+    },
+    "gt_free_acquisition_rules_tested": [
+      "longest-span stable tracklet", "area x span product", "max-confidence stable tracklet",
+      "person-size window [0.03,0.07] + longest", "leftmost stable tracklet",
+      "later-displacement-topology (candidate near the stable track that later moves)",
+      "displacement+person-size joint top-3 ensemble", "max-conf single-frame reference"
+    ],
+    "gt_free_results_GT@1": {"1040": 0.0, "2341": 0.0, "2353": 0.0, "2541": 0.0, "2169": 0.885},
+    "diagnosis": "correct references have median area 0.038-0.05 but rank 16-79 by area/span/score; NO tested property separates them from wrong stable tracks on 4/5 dives; only 2169 admits a GT-free rule (max-conf stable, 0.885-0.871)",
+    "verdict": "REFERENCE_R0_WITHIN_CLIP = PARTIAL / ACQUISITION_FAILED"
+  },
+  "phase7_r1_cross_clip_gallery": {
+    "design": "use a stable reference from ANOTHER dive of the same diver as gallery reference",
+    "same_athlete_cross_clip_cos": {"1040<->2353": 0.808, "others": "0.64-0.77"},
+    "fanny_ref_vs_maxime_dive_embeds": {"1040": 0.794, "2169": 0.662, "2353": 0.717, "2541": 0.591},
+    "diagnosis": "cross-athlete reference cos (0.59-0.79) overlaps same-athlete cross-clip cos (0.64-0.81) and distractor cos (0.6-0.8); raw OSNet cos is not identity-separative across clips",
+    "verdict": "REFERENCE_R1_GALLERY = REJECTED (confirms audit H1b; no new factor changes separability)"
+  },
+  "phase8_subject_conditioned_matching_with_oracle_ref": {
+    "design": "frame-level OSNet cos against oracle stable reference; per-frame top-1 subject or not",
+    "GT@1": {"1040": 0.689, "2169": 0.873, "2341": 0.707, "2353": 0.788, "2541": 0.859},
+    "longest_wrong_run_s": {"1040": 0.97, "2169": 0.45, "2341": 0.43, "2353": 0.65, "2541": 1.13},
+    "ambiguity_margin_top1_top2_p50": "0.008-0.05 (tight but nonzero; abstention thresholds feasible-in-principle)",
+    "twin_track_warning": "1040: second-best track cos 0.967 is 0.881 subject-fraction while the best (0.977) is a non-subject static twin; 2341: 230 (0.946, subj 0.963) vs ref track 120 (0.944)"
+  },
+  "comparison_table_GT@1": {
+    "columns": ["dive", "H0_d5_top1", "audit_H1a_gt_prep_ref", "oracle_stable_ref", "best_gtfree_acquisition", "r1_gallery"],
+    "rows": [
+      ["1040", 0.1056, 0.0, 0.689, 0.0, "not-separable"],
+      ["2169", 0.9631, 0.8797, 0.873, 0.871, "not-separable"],
+      ["2341", 0.022, 0.3643, 0.707, 0.0, "not-separable"],
+      ["2353", 0.0049, 0.7304, 0.788, 0.0, "not-separable"],
+      ["2541", 0.1489, 0.005, 0.859, 0.0, "not-separable"]
+    ]
+  },
+  "decision": {
+    "architecture": "PREFERRED_ARCHITECTURE = OPTION_D_HYBRID (PersonTracks -> junk elimination -> subject-conditioned resolution) CONFIRMED",
+    "primary_lock": "GT-FREE REFERENCE ACQUISITION, not PersonTrack construction",
+    "honest_statement": "PersonTrack construction achieves near-complete subject coverage but naive merging is degenerate; the actual bottleneck moved to acquiring a discriminative reference without ground truth. All bounded GT-free acquisition mechanisms tested this cycle failed on 4/5 dives; raw OSNet cos cannot separate identities across clips (R1 rejected). Per supervisor directive the protocol was NOT changed to chase this; it is reported as the open problem.",
+    "next_learning_problem": "TRAIN_SUBJECT_CONDITIONED_MATCHER (remains); plus NEW: reference-acquisition signal study (e.g. temporal position priors relative to dive phases, board-occupancy topology, or a learned stable-reference scorer) - bounded proposals only, LOSO-by-dive, no random frame splits",
+    "abstention": "ambiguity margins (p50 0.008-0.05) make abstention thresholds feasible-in-principle once a real reference exists; expect need for learned margin calibration"
+  },
+  "constraints_respected": {
+    "d5_reruns": 0,
+    "new_embeddings": 0,
+    "training": 0,
+    "human_labels": 0,
+    "b2_writes": 0,
+    "holdout_touched": false,
+    "paris_frames": 0,
+    "frozen_cache_recompute": 0
+  },
+  "tests": "33/33 pass (20 metadata incl. 5 phantom-repair regression + 13 audit)",
+  "artifacts": {
+    "repair_audit": "docs/audits/DIVER_ID_19_PHANTOM_REPAIR_V1.md",
+    "repair_sql": "experiments/subject_resolution/phantom_repair_v1.sql",
+    "science": "docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_V1.{md,json}"
+  }
+}

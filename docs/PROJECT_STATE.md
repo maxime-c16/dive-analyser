@@ -9,8 +9,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`;
+> earlier: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
 > Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
 > (media-backbone subproject ended; further media work returns to the main supervisor)
 
@@ -1568,5 +1569,68 @@ embeddings, 0 training, 0 labels, 0 B2 writes, no holdout/Paris):
   temporal model; no cross-clip gallery matching with frozen OSNet at 360p.
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`.**
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
+infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+
+## Subject Resolution V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_V1 (2026-09-13)
+
+Packet executed on worktree branch `subject-resolution-v1` (base `c4c9cfc1…`,
+repair commit `3dafd8b`, science commit this section). Companion to the V1
+audit above. Two closures:
+
+### Phase 1: DIVER_ID_19 phantom — REPAIRED (PHANTOM_DIVER_REPAIR_GREEN)
+
+Supervisor-authorized live repair, full detail in
+`docs/audits/DIVER_ID_19_PHANTOM_REPAIR_V1.md`, exact transaction in
+`experiments/subject_resolution/phantom_repair_v1.sql`:
+- Root cause proven: `_is_person_name()` accepted the annotation token `RIP`
+  (rip entry); `resolve_diver()` auto-created `divers.id=19`.
+- Parser fixed (`RIP` → reserved annotation token; all-caps names deliberately
+  still accepted — production convention), 5 regression tests, **fix deployed
+  and live on the production mac-agent** (service restarted, verified RIP→None,
+  TOM→TOM).
+- 6 rows (217, 1919, 1957, 2169, 2388, 2713) moved `diver_id 19→1` in ONE
+  explicit transaction with snapshot-proven zero collateral change; pre/post
+  evidence in the audit doc. `dives WHERE diver_id=19` → 0.
+- `divers.id=19` documented as orphan (NOT deleted); follow-up hardening noted:
+  `resolve_diver()` does not filter `active` — backend deny-list or active
+  filtering is a separate decision.
+- Backup guard-rail finding: daily pg-backup cron was failing since 2026-09-11
+  (script lost exec bit during P4.3 work); fixed (`chmod +x`) and a fresh
+  verified backup taken before mutation (`20260913T111414Z.dump.enc`, sha256
+  manifest, off-host push OK).
+
+### Phases 2–12: subject resolution science — measured, lock relocated
+
+Report: `docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_V1.{md,json}`.
+Cohort {1040, 2169, 2341, 2353, 2541}, 100% frozen-cache reuse (0 D5 reruns,
+0 embeddings, 0 training, 0 labels, 0 B2 writes; GT chains eval-only):
+- **PersonTrack construction is probably no longer the main lock**: subject
+  tracklet coverage 1.0 on all 5 dives; merged-track coverage
+  1.0/1.0/0.894/0.995/1.0; but naive union-find merge collapses subject+distractors
+  into one mega-cluster (V4 failure mode again). Junk taxonomy (Phase 5) is
+  safe-by-construction for movers; junk elimination is not the bottleneck.
+- **GT-free reference acquisition is the real lock**: with an oracle stable
+  reference, subject-conditioned OSNet retrieval reaches GT@1
+  0.689/0.873/0.707/0.788/0.859 (repairs H1a misses 2341/2541), but NO tested
+  GT-free acquisition rule (longest-span, area×span, max-conf, person-size
+  window, leftmost, later-displacement topology, joint ensembles, single-frame)
+  separated the correct reference on 4/5 dives — only 2169 admits one (0.885).
+  Verdict `REFERENCE_R0_WITHIN_CLIP = PARTIAL/ACQUISITION_FAILED`.
+- **R1 cross-clip gallery REJECTED** (confirmed H1b): same-athlete cross-clip
+  cos 0.64–0.81 overlaps cross-athlete 0.59–0.79 and distractor 0.6–0.8.
+- Ambiguity margins p50 0.008–0.05: abstention feasible-in-principle with a
+  real reference; margin calibration will need learning.
+- Decisions: `OPTION_D_HYBRID` architecture CONFIRMED;
+  `NEXT_LEARNING_PROBLEM = TRAIN_SUBJECT_CONDITIONED_MATCHER` + NEW bounded
+  line: reference-acquisition signal study (dive-phase temporal priors,
+  board-occupancy topology, or learned stable-reference scorer; LOSO-by-dive,
+  no random frame splits). Protocol NOT changed mid-packet per supervisor
+  directive; the open problem is reported honestly.
+
+Tests: 33/33 (20 metadata incl. 5 phantom-repair regressions + 13 audit).
+Server temp cleanup `/tmp/subject_resolution_v1/*` pending → done this cycle.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`.**
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
 infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
