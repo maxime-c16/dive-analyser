@@ -9,7 +9,8 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`**
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
 > Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
 > (media-backbone subproject ended; further media work returns to the main supervisor)
 
@@ -1516,3 +1517,56 @@ human labels; no media in Git.
 audio-fused recall signal; (b) revisit rough-window anchor (event start vs
 splash peak) for containment; (c) recall iCloud-only sessions to widen the
 corpus before further threshold work.
+
+## Dive Analyzer subject-resolution audit — DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1 (2026-09-13)
+
+Diagnostic + architectural audit of the Dive Analyzer perception problem
+(individual edited clips only; Core Detection / raw-session work remains
+DiveSensei scope). Report: `docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1.md`,
+data: `DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1.json`,
+DB export: `SUBJECT_RESOLUTION_DB_EXPORT_V1.json`,
+script: `experiments/subject_resolution/subject_resolution_audit_v1.py`,
+tests: `experiments/subject_resolution/test_subject_resolution_audit_v1.py` (13/13).
+
+Key findings (all from existing artifacts + read-only DB; 0 D5 reruns, 0
+embeddings, 0 training, 0 labels, 0 B2 writes, no holdout/Paris):
+- **Product subject authority is essentially complete**: 2805/2805 dives have
+  FK-valid `diver_id` + UNIQUE `video_uuid` 1:1; person_name cross-check 299/299.
+  New data-quality finding: `diver_id=19 ("RIP")` is a caption-parsing phantom
+  (rip-entry token, 6 clips incl. control dive 2169 → true subject = default
+  athlete); `SYNCK` (1928) ambiguous. Read-only; flagged for product fix.
+- **Historical target GT matches the product subject** on 10/12 (conflict:
+  2169 semantic-only via the phantom; unknown: 524 authority conflict). No GT
+  reinterpretation.
+- **Multi-diver clips are materially present**: 100 sync dives (3.6%), 36
+  multi-diver sessions (929 dives), ≥695 clips with another diver's dive
+  timestamped within 20 s (≥382 non-sync primary-athlete clips). Annotated
+  corpus: 9 MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR, 1 SEQUENTIAL (2341 next-diver
+  trap), 2 AMBIGUOUS. Product-wide prevalence: UNCERTAIN (timestamp proxy).
+- **Historical "wrong target" reclassified**: mostly NON_PERSON_CONFUSION
+  (1040/2341 static structures) and SUBJECT_DISAMBIGUATION (2353 bystander,
+  2341 next-diver), NOT identity-continuity loss (no tracks ever existed).
+  FM2 → `FM2_MIXED_IDENTITY_AND_SUBJECT_DISAMBIGUATION`.
+- **Subject-conditioned diagnostic (frozen OSNet cache, no training)**:
+  H1a same-clip reference repairs exactly the person-distractor failures
+  (2353 0.005→0.730; 2341 0.022→0.364; 2169 preserved 0.880) but reference
+  construction is a real design problem (1040/2541 window/pose-transition
+  failures); H1b cross-clip gallery ≈ 0 → frozen Market-1501 OSNet at 360p
+  insufficient for cross-clip matching. Verdict: `SUBJECT_MATCHING_SIGNAL_WEAK`.
+- **Decisions**: `SYNCHRO_MUST_BE_REPRESENTABLE_BUT_NOT_V1_DRIVER` (100/2805);
+  `PREFERRED_ARCHITECTURE = OPTION_D_HYBRID` (PersonTracks → junk elimination →
+  known-subject resolution); `NEXT_LEARNING_PROBLEM =
+  TRAIN_SUBJECT_CONDITIONED_MATCHER` (not trained; LOSO-by-dive, random frame
+  splits forbidden); `EXISTING_DATA_SUFFICIENT_BUT_IMBALANCED`.
+- **Corrected roadmap** (from INDIVIDUAL_B2_CLIP): M1 subject-resolution /
+  identity continuity → M2 clean subject trajectory → M3 temporal landmarks →
+  M4 pose/mask/geometry (HQ) → M5 biomechanics → M6 comparison. No raw-session
+  Core Detection.
+- Stop-doing list extended: no generic targetness without diver_id context; no
+  one-diver-per-clip assumption; no junk-elimination before subject resolution;
+  no per-frame NN matching across the prep→flight pose transition without a
+  temporal model; no cross-clip gallery matching with frozen OSNet at 360p.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`.**
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
+infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
