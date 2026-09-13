@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     auth_cookie_name: str = os.getenv("AUTH_COOKIE_NAME", "da_session")
     auth_cookie_secure: bool = os.getenv("AUTH_COOKIE_SECURE", "true").lower() == "true"
     auth_session_ttl_seconds: int = int(os.getenv("AUTH_SESSION_TTL_SECONDS", "604800"))
+    # 30-day TTL when the user checks "Keep me signed in"
+    auth_session_remember_ttl_seconds: int = int(os.getenv("AUTH_SESSION_REMEMBER_TTL_SECONDS", "2592000"))
 
     # Bounded login brute-force protection (DB-backed, cross-worker), P6
     # two-tier repair: an aggressive per-source (client IP) cap keeps any

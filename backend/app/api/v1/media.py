@@ -5,6 +5,7 @@ This API is intentionally parallel to legacy /videos routes. A video_uuid means
 """
 
 from pathlib import Path
+import threading
 from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -78,6 +79,8 @@ from app.services.media_agents import (
 )
 from app.services.media_recall import build_recall_manifest, plan_recall_batch
 from app.models.media_catalog import CaptionedMediaCatalog, MediaCatalogPopulationRun, MediaCatalogRun, MediaResolutionUpgradeRun
+from app.models.media_backbone import MediaBlobLocation, MediaRevision
+from app.config import get_settings
 from app.services.media_catalog import (
     catalog_population_plan,
     catalog_population_run_summary,
@@ -233,6 +236,54 @@ def _serve_media_file(path: Path, content_type: str, request: Request, head_only
     )
 
 
+# In-process cache: video_uuid -> MediaRevision.id (int) or None.
+# Avoids repeated JOIN queries against media_revisions/media_blob_locations
+# that would otherwise hold a DB connection open in "idle in transaction"
+# state after each status check, blocking UPDATE media_jobs queries.
+# Per-worker; persists until restart.  Thread-safe.
+_backbone_id_cache: dict = {}
+_backbone_id_cache_lock = threading.Lock()
+
+
+def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
+    """Return the B2 playback URL for the most-recent verified PROD backbone
+    revision of *video_uuid*, or None if no such revision exists.
+
+    Result is cached in-process per video_uuid so the JOIN query runs at
+    most once per worker restart per video — eliminates the "idle in
+    transaction" DB connection leak that occurred when the query result was
+    not cached and the connection was held open between status calls.
+    """
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
+        return None
+
+    # Fast path: already in cache (including explicit None for no-backbone dives)
+    with _backbone_id_cache_lock:
+        if video_uuid in _backbone_id_cache:
+            cached = _backbone_id_cache[video_uuid]
+            return f"/api/v1/media/revisions/{cached}/play" if cached is not None else None
+
+    # Slow path: query the DB once, then cache the result
+    row = db.execute(
+        select(MediaRevision.id)
+        .join(
+            MediaBlobLocation,
+            (MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256)
+            & (MediaBlobLocation.environment == "prod")
+            & (MediaBlobLocation.verified == True),
+        )
+        .where(MediaRevision.video_uuid == video_uuid)
+        .order_by(MediaRevision.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    with _backbone_id_cache_lock:
+        _backbone_id_cache[video_uuid] = row
+
+    return f"/api/v1/media/revisions/{row}/play" if row is not None else None
+
+
 def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     entries = ready_entries_for_asset(db, asset.id)
     preferred = _preferred_entry(entries)
@@ -240,11 +291,24 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     job = latest_active_job_for_asset(db, asset.id)
 
     if preferred:
+        # Local proxy cache ready — use it (best quality / smallest file).
         status_value = "ready"
-    elif job:
-        status_value = job.status
+        final_playback_url = playback_url(preferred.id)
     else:
-        status_value = "missing"
+        # No ready proxy.  Check backbone first so the user can play the
+        # original from B2 immediately, even if a transcoding job is queued.
+        # Once the proxy finishes, preferred will be set and we switch to it.
+        backbone_url = _backbone_playback_url(db, asset.video_uuid)
+        if backbone_url:
+            status_value = "ready"
+            final_playback_url = backbone_url
+        elif job:
+            # No backbone either — show the job's in-progress status.
+            status_value = job.status
+            final_playback_url = None
+        else:
+            status_value = "missing"
+            final_playback_url = None
 
     return MediaStatusResponse(
         video_uuid=asset.video_uuid,
@@ -252,7 +316,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         can_request=True,
         preferred_rendition=preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries}),
-        playback_url=playback_url(preferred.id) if preferred else None,
+        playback_url=final_playback_url,
         poster_url=playback_url(poster.id) if poster else None,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
