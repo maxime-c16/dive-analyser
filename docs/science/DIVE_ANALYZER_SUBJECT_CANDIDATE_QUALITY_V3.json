@@ -1,0 +1,1062 @@
+{
+ "abstention_diagnostic": {
+  "finding": "wrong top-1 references remain confidently wrong (REFERENCE_FOUND margins up to 2.24); abstention cannot separate them",
+  "policy": "no retuning; diagnostic margins only",
+  "wrong_top1": [
+   {
+    "dive": "1040",
+    "margin": 0.2276,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.685
+   },
+   {
+    "dive": "1040",
+    "margin": 0.6477,
+    "method": "A1",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.6077
+   },
+   {
+    "dive": "2169",
+    "margin": 0.1815,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 2.7222
+   },
+   {
+    "dive": "2169",
+    "margin": 0.0,
+    "method": "A1",
+    "status": "REFERENCE_AMBIGUOUS",
+    "top_score": 3.2
+   },
+   {
+    "dive": "2341",
+    "margin": 0.0584,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.8588
+   },
+   {
+    "dive": "2341",
+    "margin": 0.0,
+    "method": "A1",
+    "status": "REFERENCE_NOT_FOUND",
+    "top_score": 0.3147
+   },
+   {
+    "dive": "2353",
+    "margin": 0.5356,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 2.3815
+   },
+   {
+    "dive": "2353",
+    "margin": 2.24,
+    "method": "A1",
+    "status": "REFERENCE_FOUND",
+    "top_score": 3.2
+   },
+   {
+    "dive": "2541",
+    "margin": 0.3977,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 3.012
+   },
+   {
+    "dive": "2541",
+    "margin": 0.6243,
+    "method": "A1",
+    "status": "REFERENCE_FOUND",
+    "top_score": 3.2
+   },
+   {
+    "dive": "133",
+    "margin": 0.263,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.9349
+   },
+   {
+    "dive": "133",
+    "margin": 0.361,
+    "method": "A1",
+    "status": "REFERENCE_NOT_FOUND",
+    "top_score": 0.6681
+   },
+   {
+    "dive": "311",
+    "margin": 0.5176,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.5302
+   },
+   {
+    "dive": "311",
+    "margin": 0.072,
+    "method": "A1",
+    "status": "REFERENCE_FOUND",
+    "top_score": 1.032
+   },
+   {
+    "dive": "676",
+    "margin": 1.2893,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 2.5039
+   },
+   {
+    "dive": "676",
+    "margin": 0.0074,
+    "method": "A1",
+    "status": "REFERENCE_AMBIGUOUS",
+    "top_score": 1.1567
+   },
+   {
+    "dive": "2387",
+    "margin": 0.133,
+    "method": "A0",
+    "status": "REFERENCE_FOUND",
+    "top_score": 2.9034
+   },
+   {
+    "dive": "2387",
+    "margin": 0.0238,
+    "method": "A1",
+    "status": "REFERENCE_AMBIGUOUS",
+    "top_score": 2.7112
+   }
+  ]
+ },
+ "armstand_decision": "ARMSTAND_STILL_DEFERRED",
+ "baseline_reproduction": {
+  "HURDLE": "IDENTICAL (A0/A1 top-1 tid+score match frozen V2 freeze artifact on all 5 dives; candidate counts match)",
+  "STANDING": "IDENTICAL (full ranked tid+score lists and candidate features match durable Level-A replay artifact on all 4 dives; eval verdicts identical: 0/7 measurable top-1 subject-correct, 2387-A0 REFERENCE_GT_UNOBSERVED)"
+ },
+ "canonical_base": "0dabd2bca89270e2d0171107af4aca5f8b3a0650",
+ "classification": "CANDIDATE_QUALITY_V3_PARTIAL",
+ "classification_rationale": [
+  "subject candidates preserved on all 9 dives (retention gate passed)",
+  "phantom top-1 wins suppressed 9 -> 0 without deletion",
+  "reference top-1 does NOT improve: 0/18 before and after; the dominant remaining decoys are SUPPORTED movers (real persons or subject-adjacent association fragments with purity up to 0.67), an identity/association failure mode outside candidate quality",
+  "best-subject-rank improves materially on 12 of 18 (dive,method) cells (e.g. 311-A0 30->2, 133-A0 77->14, 2387-A0 435->100) but regresses on 3 HURDLE cells (1040-A1 2->15, 2353-A0 9->18, 2353-A1 2->16), so the improvement is not clean"
+ ],
+ "date": "2026-09-13",
+ "downstream_matcher_replay": "NOT_JUSTIFIED (V3 produced no correct references to replay the matcher on)",
+ "exclusions": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE (not loaded)",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED (not loaded)",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris": "EXTERNAL_ONLY (not accessed)"
+ },
+ "frozen_inputs": {
+  "cohort_d5_cache_sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f",
+  "d5_floor_conf": 0.001,
+  "hurdle_d5_cache_sha256": "3bed1aafb3d55353372260466ae0683acc62b188d75e6ef2587d936c150e0d83",
+  "level_a_authority_sha256": "d805aac2b46e52f002de2842b56bb9a1b0ced808f0862a4c559f5ffe9099a75e",
+  "v2_module_sha256": "01a17dd77131076d323b4adbc0790ac1d284f36fe39ebfb98a0ef64ad7a1d73e"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3",
+ "handcrafted_heuristics": "HANDCRAFTED_SUBJECT_REFERENCE_HEURISTICS_CONTINUE_ONLY_IF_NEW_EVIDENCE (no V4 rule cycle proposed; remaining failure is identity/association, not candidate quality)",
+ "label": "DIVE_ANALYZER_SUBJECT_CANDIDATE_QUALITY_V3",
+ "learning_reassessment": "EXPAND_INDEPENDENT_GT_BEFORE_LEARNING",
+ "phantom_suppression_totals": {
+  "phantom_candidates": 1581,
+  "phantom_downranked": 1578,
+  "phantom_top1_wins_after": 0,
+  "phantom_top1_wins_before": 9,
+  "top1_subject_correct": {
+   "HURDLE": 0,
+   "STANDING": 0,
+   "of": {
+    "HURDLE": 10,
+    "STANDING": 8
+   }
+  }
+ },
+ "phase3_evidence": {
+  "HURDLE": "signal does not cover all subject candidates (26.8% of subject candidates have zero support) but every dive retains >=1 supported subject candidate; several HURDLE top-1 decoys are supported movers",
+  "STANDING": "every subject candidate has >=1 supported frame (0% zero-support, support_count>=2); 76.7% of non-subject movers and 92.2% of non-subject statics have zero support; the STANDING top-1 phantom decoys on 133/311 have zero support",
+  "verdict_rationale": "signal is real and generic but only partially separates subjects from the candidate ocean; supported real movers remain dominant after phantom suppression"
+ },
+ "phase3_track_support_signal": "TRACK_SUPPORT_SIGNAL_PARTIAL",
+ "q0_track_support": {
+  "constants_provenance": "0.05 = frozen V2 person-plausible occupancy threshold; 0.06 = frozen reference_purity/Level-A consistency radius; no new numeric cutoff",
+  "cutoff_family": [
+   1,
+   2,
+   3,
+   5
+  ],
+  "cutoff_family_result": "0/18 top-1 subject-correct at every member; >=1 retained as primary",
+  "definition": "support_count = #frames where any candidate with conf >= 0.05 lies within normalized center distance 0.06 of the tracklet box (own box included); soft tiered down-rank, frozen A0/A1 order within tier, frozen abstention semantics, graceful fallback",
+  "status": "EXECUTED"
+ },
+ "q1_support_appearance": {
+  "probe": {
+   "nonsubject_all": {
+    "max": 1.0,
+    "median": 0.9179,
+    "min": 0.3955,
+    "n": 10335
+   },
+   "nonsubject_mover_supported": {
+    "max": 1.0,
+    "median": 0.8659,
+    "min": 0.4012,
+    "n": 2247
+   },
+   "subject_all": {
+    "max": 0.985,
+    "median": 0.8704,
+    "min": 0.5546,
+    "n": 124
+   },
+   "subject_supported": {
+    "max": 0.985,
+    "median": 0.8241,
+    "min": 0.5546,
+    "n": 89
+   }
+  },
+  "reason": "within-track appearance coherence does not separate subject candidates from supported non-subject movers: non-subject candidates are equally or more coherent (median at or above the subject median in every slice); Q1 offers no generic benefit for the remaining supported-mover failure mode and is rejected before formulation",
+  "status": "REJECTED_EARLY"
+ },
+ "resource_results": {
+  "b2_reads": 0,
+  "b2_writes": 0,
+  "model_training": 0,
+  "new_d5_inference": 0,
+  "new_embeddings": 0,
+  "new_human_labels": 0
+ },
+ "subject_retention_gate": {
+  "result": "PASSED on all 9 dives at every pre-registered cutoff (support_count >= 1/2/3/5); no subject hypothesis deleted",
+  "rule": "at least one subject candidate survives quality handling"
+ },
+ "v3_results_per_dive": {
+  "1040": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 8,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 58
+     },
+     "A1": {
+      "best_subject_rank": 15,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 78
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 8,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 58
+     },
+     "A1": {
+      "best_subject_rank": 13,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 78
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 7,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 58
+     },
+     "A1": {
+      "best_subject_rank": 11,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 78
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 6,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 628
+     },
+     "A1": {
+      "best_subject_rank": 10,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 78
+     }
+    }
+   },
+   "family": "HURDLE",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 11,
+     "best_subject_rank_v3": 8,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 58
+    },
+    "A1": {
+     "best_subject_rank_frozen": 2,
+     "best_subject_rank_v3": 15,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 78
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 165,
+    "n_phantom_downranked": 164,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 2
+   }
+  },
+  "133": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 14,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 409
+     },
+     "A1": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 7
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 12,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 409
+     },
+     "A1": {
+      "best_subject_rank": 4,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 7
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 12,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 409
+     },
+     "A1": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 7
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 8,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 409
+     },
+     "A1": {
+      "best_subject_rank": 4,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 7
+     }
+    }
+   },
+   "family": "STANDING",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 77,
+     "best_subject_rank_v3": 14,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 409
+    },
+    "A1": {
+     "best_subject_rank_frozen": 17,
+     "best_subject_rank_v3": 5,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": true,
+     "v3_status": "REFERENCE_NOT_FOUND",
+     "v3_top_tid": 7
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 69,
+    "n_phantom_downranked": 68,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 2
+   }
+  },
+  "2169": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 6,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 22
+     },
+     "A1": {
+      "best_subject_rank": 11,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 285
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 6,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 22
+     },
+     "A1": {
+      "best_subject_rank": 11,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 285
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 6,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 22
+     },
+     "A1": {
+      "best_subject_rank": 10,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 285
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 285
+     },
+     "A1": {
+      "best_subject_rank": 8,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 285
+     }
+    }
+   },
+   "family": "HURDLE",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 6,
+     "best_subject_rank_v3": 6,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 22
+    },
+    "A1": {
+     "best_subject_rank_frozen": 14,
+     "best_subject_rank_v3": 11,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_AMBIGUOUS",
+     "v3_top_tid": 285
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 114,
+    "n_phantom_downranked": 114,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 0
+   }
+  },
+  "2341": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 4,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 42
+     },
+     "A1": {
+      "best_subject_rank": 83,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 350
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 4,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 42
+     },
+     "A1": {
+      "best_subject_rank": 83,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 350
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 4,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 42
+     },
+     "A1": {
+      "best_subject_rank": 79,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 350
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 3,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 42
+     },
+     "A1": {
+      "best_subject_rank": 76,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 116
+     }
+    }
+   },
+   "family": "HURDLE",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 5,
+     "best_subject_rank_v3": 4,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": true,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 42
+    },
+    "A1": {
+     "best_subject_rank_frozen": 178,
+     "best_subject_rank_v3": 83,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": false,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_NOT_FOUND",
+     "v3_top_tid": 350
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 175,
+    "n_phantom_downranked": 175,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 2
+   }
+  },
+  "2353": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 18,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 724
+     },
+     "A1": {
+      "best_subject_rank": 16,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 169
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 15,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 724
+     },
+     "A1": {
+      "best_subject_rank": 16,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 169
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 14,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 724
+     },
+     "A1": {
+      "best_subject_rank": 16,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 169
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 13,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 724
+     },
+     "A1": {
+      "best_subject_rank": 16,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 169
+     }
+    }
+   },
+   "family": "HURDLE",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 9,
+     "best_subject_rank_v3": 18,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 724
+    },
+    "A1": {
+     "best_subject_rank_frozen": 2,
+     "best_subject_rank_v3": 16,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 169
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 199,
+    "n_phantom_downranked": 199,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 0
+   }
+  },
+  "2387": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 100,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 1107
+     },
+     "A1": {
+      "best_subject_rank": 45,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 147
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 84,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 1107
+     },
+     "A1": {
+      "best_subject_rank": 36,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 147
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 78,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 1107
+     },
+     "A1": {
+      "best_subject_rank": 33,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 147
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 66,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 659
+     },
+     "A1": {
+      "best_subject_rank": 29,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 147
+     }
+    }
+   },
+   "family": "STANDING",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 435,
+     "best_subject_rank_v3": 100,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": false,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 1107
+    },
+    "A1": {
+     "best_subject_rank_frozen": 92,
+     "best_subject_rank_v3": 45,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": false,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_AMBIGUOUS",
+     "v3_top_tid": 147
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 276,
+    "n_phantom_downranked": 275,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 0
+   }
+  },
+  "2541": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 37,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 312
+     },
+     "A1": {
+      "best_subject_rank": 19,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 834
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 33,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 312
+     },
+     "A1": {
+      "best_subject_rank": 18,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 834
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 29,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 312
+     },
+     "A1": {
+      "best_subject_rank": 16,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 834
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 26,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 834
+     },
+     "A1": {
+      "best_subject_rank": 15,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 834
+     }
+    }
+   },
+   "family": "HURDLE",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 71,
+     "best_subject_rank_v3": 37,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": false,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 312
+    },
+    "A1": {
+     "best_subject_rank_frozen": 35,
+     "best_subject_rank_v3": 19,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 834
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 245,
+    "n_phantom_downranked": 245,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 0
+   }
+  },
+  "311": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 2,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     },
+     "A1": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 2,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     },
+     "A1": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 2,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     },
+     "A1": {
+      "best_subject_rank": 5,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 2,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     },
+     "A1": {
+      "best_subject_rank": 3,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 316
+     }
+    }
+   },
+   "family": "STANDING",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 30,
+     "best_subject_rank_v3": 2,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": true,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 316
+    },
+    "A1": {
+     "best_subject_rank_frozen": 22,
+     "best_subject_rank_v3": 5,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": true,
+     "top20_contains_subject": true,
+     "top5_contains_subject": true,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 316
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 250,
+    "n_phantom_downranked": 250,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 2
+   }
+  },
+  "676": {
+   "cutoff_family_robustness": {
+    "1": {
+     "A0": {
+      "best_subject_rank": 13,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 455
+     },
+     "A1": {
+      "best_subject_rank": 32,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 240
+     }
+    },
+    "2": {
+     "A0": {
+      "best_subject_rank": 13,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 455
+     },
+     "A1": {
+      "best_subject_rank": 31,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 240
+     }
+    },
+    "3": {
+     "A0": {
+      "best_subject_rank": 12,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 455
+     },
+     "A1": {
+      "best_subject_rank": 25,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 240
+     }
+    },
+    "5": {
+     "A0": {
+      "best_subject_rank": 10,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 455
+     },
+     "A1": {
+      "best_subject_rank": 23,
+      "fallback_to_frozen": false,
+      "subject_correct": false,
+      "top_tid": 240
+     }
+    }
+   },
+   "family": "STANDING",
+   "methods": {
+    "A0": {
+     "best_subject_rank_frozen": 22,
+     "best_subject_rank_v3": 13,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": true,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_FOUND",
+     "v3_top_tid": 455
+    },
+    "A1": {
+     "best_subject_rank_frozen": 152,
+     "best_subject_rank_v3": 32,
+     "subject_candidate_retained": true,
+     "subject_correct": false,
+     "top10_contains_subject": false,
+     "top20_contains_subject": false,
+     "top5_contains_subject": false,
+     "v3_status": "REFERENCE_AMBIGUOUS",
+     "v3_top_tid": 240
+    }
+   },
+   "phantoms": {
+    "n_phantom_candidates": 88,
+    "n_phantom_downranked": 88,
+    "phantom_top1_wins_after": 0,
+    "phantom_top1_wins_before": 1
+   }
+  }
+ }
+}
