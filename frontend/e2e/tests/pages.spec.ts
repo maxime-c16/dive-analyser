@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/app.fixture';
 
 test.describe('Frontend Pages', () => {
-  test('Dashboard page loads without critical errors', async ({ page, consoleLogger }) => {
+  test('Home (/) lands in the Library without critical errors', async ({ page, consoleLogger }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
 
     // Wait for main content to load
@@ -11,13 +11,13 @@ test.describe('Frontend Pages', () => {
 
     // Check no critical 404 errors
     const api404s = errorReport.errors.filter((e) => e.includes('404'));
-    expect(api404s.length).toBe(0, `Found 404 errors on dashboard: ${api404s.join(', ')}`);
+    expect(api404s.length).toBe(0, `Found 404 errors on home: ${api404s.join(', ')}`);
 
     // Check no 500 errors
     const api500s = errorReport.errors.filter((e) => e.includes('500'));
     expect(api500s.length).toBe(0, `Found 500 errors on dashboard: ${api500s.join(', ')}`);
 
-    console.log('Dashboard page loaded successfully');
+    console.log('Home page loaded successfully');
   });
 
   test('Journey page loads and fetches data', async ({ page, consoleLogger }) => {
@@ -100,9 +100,10 @@ test.describe('Frontend Pages', () => {
   test('Page title and logo are visible', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
 
-    // Check for app title/logo
-    const logoText = await page.locator('text=Diving Analytics').first();
-    expect(logoText).toBeDefined();
+    // Check for app title/logo (sidebar on desktop, top bar on mobile)
+    await expect(
+      page.locator('text=Dive Analyser').locator('visible=true').first(),
+    ).toBeVisible();
 
     console.log('Page title and logo verified');
   });

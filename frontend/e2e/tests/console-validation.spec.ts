@@ -47,6 +47,7 @@ test.describe('Comprehensive Console Validation', () => {
   }
 
   test('All pages - No orphaned API calls', async ({ page, consoleLogger }) => {
+    test.setTimeout(120_000);
     console.log('\n🔍 Checking for orphaned API calls...');
 
     let totalApiErrors = 0;

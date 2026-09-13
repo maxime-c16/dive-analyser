@@ -76,3 +76,6 @@ venv_c/
 # ---- TARGET_DIVER_SELECTION_V1: raw source video staged for Paris frame extraction ----
 experiments/landmark_pilot/paris_source/
 *.mov
+
+# ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
+frontend/playwright/.auth/
