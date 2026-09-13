@@ -6,13 +6,18 @@ Worktree: `/home/mcauchy/dive-analyser-worktrees/ui-u3-clip-viewer-core-v1`
 Branch: `ui-u3-clip-viewer-core-v1`
 Initial canonical HEAD: `bf78182a6a79c9c96383a66bed9cea7928142652`
 (branch `uiux-overhaul-pro-app`, the accepted U1/U2 final state)
-Final canonical HEAD (this gate): see §14 (recorded after integration).
+Final canonical HEAD (this gate): `c0a5ae8caa48dc6b8fa6f9e7cbdd09575c640206`
+(server-side merge of `ui-u3-clip-viewer-core-v1` @ `0f08b52` over the
+concurrently advanced canonical `4f01003b...` Subject Candidate Quality V3;
+frontend content byte-identical to the task branch, proven by
+`git diff ui-u3-clip-viewer-core-v1 HEAD -- frontend/` = empty).
 
-> Evidence: `docs/audits/evidence-ui-u3-screenshots/` (11 captures:
-> d01–d07 desktop, m01–m04 mobile 390×844, s01 failed-media state).
-> All validation ran against the NEW build served by a local production
-> preview (`vite preview` on :4173, HTTPS, API proxied to the live backend)
-> before deployment, exactly as in U1/U2.
+> Evidence: `docs/audits/evidence-ui-u3-screenshots/` (16 captures:
+> d01–d07 desktop, m01–m04 mobile 390×844, s01 failed-media state,
+> live-d/m production post-deploy captures).
+> All pre-deployment validation ran against the NEW build served by a local
+> production preview (`vite preview` on :4173, HTTPS, API proxied to the
+> live backend) before deployment, exactly as in U1/U2.
 
 ---
 
@@ -201,12 +206,38 @@ Defects found and repaired during validation:
 
 ## 12. Deployment
 
-See §14 for the recorded identity. Frontend-only rebuild via
-`frontend/Dockerfile.deploy` + `docker-compose up -d --force-recreate
---no-deps frontend`; backend/auth/DB/B2 untouched. Deployed sourcemap
-first-party sources verified byte-identical to canonical Git.
+Frontend-only rebuild of `dive-analyser-frontend:latest` from the canonical
+tree via `frontend/Dockerfile.deploy` (image `dc534c142c3b`) +
+`docker-compose up -d --force-recreate --no-deps frontend`. Live bundle:
+**`index-CYly4foH.js`** — identical to the canonical-tree build. Deployed
+sourcemap first-party sources verified **byte-identical to canonical Git**
+for 10/10 key files (Dives, DiveVideoPlayer, all four clip-viewer
+components, attemptPresentation, mediaPreview, router, App). Backend/auth/
+DB/B2 untouched.
 
-## 13. Remaining debt
+Post-deploy live validation against production `https://192.168.1.57:6443`:
+
+- Full authenticated E2E suite: **98 passed / 2 skipped / 0 failed**
+  (desktop + mobile projects).
+- Live captures: `live-d01-home-library.png`, `live-d02-viewer-playing.png`,
+  `live-d03-back-library.png`, `live-m01-viewer.png`,
+  `live-m02-back-library.png` — `/` lands in the Library, the viewer is the
+  dominant surface, and Back restores the Library on production for desktop
+  and mobile.
+
+## 14. Canonical integration record
+
+| Item | Value |
+|---|---|
+| Initial canonical HEAD | `bf78182a6a79c9c96383a66bed9cea7928142652` |
+| Task branch final commit | `0f08b52` (`ui-u3-clip-viewer-core-v1`) |
+| Concurrent canonical advance during U3 | `4f01003b4413a149f33eab0e32c2b30c9485ee86` (science: Subject Candidate Quality V3; no frontend overlap) |
+| Final canonical HEAD | `c0a5ae8caa48dc6b8fa6f9e7cbdd09575c640206` |
+| Post-merge revalidation | tsc clean, vitest 85/85, build green (`index-CYly4foH.js`) |
+| Deployed bundle identity | `index-CYly4foH.js` |
+| Deployed↔Git source identity | 10/10 key files byte-identical |
+
+## 15. Remaining debt
 
 - **U4/U5:** poll-failure terminalization (indefinite spinner), focus trap
   hardening + full WCAG closure (skip-to-content, reduced-motion, 200% zoom,
@@ -218,5 +249,13 @@ first-party sources verified byte-identical to canonical Git.
 - E2E environment note: headless Chromium races `<video>` playback faster
   than real time and can suspend it; the U3 E2E asserts control semantics
   (playbackRate, seek, paused flips) rather than sustained playback.
+
+Evidence inventory (16 captures): `d01-viewer-initial`,
+`d02-viewer-playing`, `d03-next-state`, `d04-previous-state`,
+`d05-analysis-entry`, `d07-back-restored-library`, `m01-viewer`,
+`m02-details`, `m03-next`, `m04-back-library`, `s01-failed-media`
+(preview build) + `live-d01-home-library`, `live-d02-viewer-playing`,
+`live-d03-back-library`, `live-m01-viewer`, `live-m02-back-library`
+(production).
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_UI_U3_CLIP_VIEWER_CORE_V1`.**

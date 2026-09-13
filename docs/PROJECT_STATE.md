@@ -1953,6 +1953,14 @@ Durable audit: `docs/audits/UI-U3-clip-viewer-core-v1.md`
   `/api/v1/auth/login` was performed).
 - Performance (preview build, live backend): clip open→playable ~1.2s;
   Next→playable 1.1–1.8s over consecutive ready clips.
+- Canonical integration: server-side merge `c0a5ae8` (task branch
+  `ui-u3-clip-viewer-core-v1` @ `0f08b52`) over the concurrently advanced
+  `4f01003` (science Subject Candidate Quality V3; no frontend overlap);
+  frontend content byte-identical to the task branch; post-merge tsc /
+  vitest 85/85 / build green. Deployed frontend bundle **`index-CYly4foH.js`**
+  (image `dc534c142c3b`), deployed sourcemap sources byte-identical to Git
+  (10/10 key files); live production E2E **98 passed / 2 skipped / 0
+  failed**; live captures added to the evidence dir (16 total).
 - Next gate: **UI-U4/U5 — RELIABILITY_MOBILE_ACCESSIBILITY_V1** (player
   status-poll terminalization, indefinite spinner, shared retry, focus-trap/
   WCAG hardening, reduced-motion, 200% zoom, broader mobile reliability).
