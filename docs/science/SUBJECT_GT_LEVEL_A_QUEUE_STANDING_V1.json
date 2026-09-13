@@ -1,0 +1,878 @@
+{
+ "counts": {
+  "new_human_required": 63,
+  "per_dive": {
+   "133": {
+    "requested": 8,
+    "reused": 0
+   },
+   "2387": {
+    "requested": 13,
+    "reused": 0
+   },
+   "311": {
+    "requested": 31,
+    "reused": 0
+   },
+   "676": {
+    "requested": 11,
+    "reused": 0
+   }
+  },
+  "requested_total": 63,
+  "reused_existing": 0
+ },
+ "created": "1b0e0832c348e644",
+ "inputs": {
+  "d5_cache": "runs/subject_resolution/R5_FULLCLIP_CANDIDATES_COHORT_V1.json",
+  "d5_cache_sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f",
+  "proxy_sha256": {
+   "133": "892840a6d418510cb1246cfe7a049e6e6561e5f97bf4f412be52fec042fcc837",
+   "2387": "0a2826d7e501711b40756c7f18a8836511d56a125d46cebbdba26573b7a433f6",
+   "311": "8ea8cb45b5a59e8cc69d5ca2bd08cf6d04e823164bf618830219c59db70ef34d",
+   "676": "4d1c1916db3a504206d8b75bcc4e9122c1838d254448488819640b07ec411e76"
+  },
+  "water_contact_sources": {
+   "133": {
+    "file": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/133_water_contact.json",
+    "sha256": "db3ae314f2105a7dc58f95779b1ee100bf3d7da1340627e475bbe07f1ca370b4"
+   },
+   "2387": {
+    "file": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/2387_water_contact.json",
+    "sha256": "6725b9fa39e070b7bbaf754f2e3452ab0a4eca8f127f34054946ec68e88cda58"
+   },
+   "311": {
+    "file": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/311_water_contact.json",
+    "sha256": "3bfb652a83ef28ce7470f727a0b64f342f2c9e546a0cca18f885cb5d4f0ad528"
+   },
+   "676": {
+    "file": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/676_water_contact.json",
+    "sha256": "32ea66d10fc743ebcef37efe28d8d04f696a2172eb263fee10dd98fa40d86e23"
+   }
+  }
+ },
+ "items": [
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 0,
+   "id": "L1A_133_f00000",
+   "pts_s": 0.0,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.0,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "close_pair_evidence": {
+    "from_base_frame": 0,
+    "pairs": [
+     {
+      "confs": [
+       0.1378,
+       0.0599
+      ],
+      "dist_norm": 0.0569,
+      "iou": 0.4738
+     }
+    ]
+   },
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 7,
+   "id": "L1A_133_f00007",
+   "pts_s": 0.233567,
+   "reason": "level_a_close_person_extra_0.25s",
+   "rel_clip_time_s": 0.2336,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 15,
+   "id": "L1A_133_f00015",
+   "pts_s": 0.5005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.5005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 30,
+   "id": "L1A_133_f00030",
+   "pts_s": 1.001,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.001,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 45,
+   "id": "L1A_133_f00045",
+   "pts_s": 1.5015,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.5015,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 60,
+   "id": "L1A_133_f00060",
+   "pts_s": 2.002,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.002,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 75,
+   "id": "L1A_133_f00075",
+   "pts_s": 2.5025,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.5025,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 133,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 90,
+   "id": "L1A_133_f00090",
+   "pts_s": 3.003,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.003,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 0,
+   "id": "L1A_311_f00000",
+   "pts_s": 0.0,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.0,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 15,
+   "id": "L1A_311_f00015",
+   "pts_s": 0.5005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.5005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 30,
+   "id": "L1A_311_f00030",
+   "pts_s": 1.001,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.001,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 45,
+   "id": "L1A_311_f00045",
+   "pts_s": 1.5015,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.5015,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 60,
+   "id": "L1A_311_f00060",
+   "pts_s": 2.002,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.002,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 75,
+   "id": "L1A_311_f00075",
+   "pts_s": 2.5025,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.5025,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 90,
+   "id": "L1A_311_f00090",
+   "pts_s": 3.003,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.003,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 105,
+   "id": "L1A_311_f00105",
+   "pts_s": 3.5035,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.5035,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 120,
+   "id": "L1A_311_f00120",
+   "pts_s": 4.004,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.004,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 135,
+   "id": "L1A_311_f00135",
+   "pts_s": 4.5045,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.5045,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 150,
+   "id": "L1A_311_f00150",
+   "pts_s": 5.005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 5.005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 165,
+   "id": "L1A_311_f00165",
+   "pts_s": 5.5055,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 5.5055,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 180,
+   "id": "L1A_311_f00180",
+   "pts_s": 6.006,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 6.006,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 195,
+   "id": "L1A_311_f00195",
+   "pts_s": 6.5065,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 6.5065,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 210,
+   "id": "L1A_311_f00210",
+   "pts_s": 7.007,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 7.007,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 225,
+   "id": "L1A_311_f00225",
+   "pts_s": 7.5075,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 7.5075,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 240,
+   "id": "L1A_311_f00240",
+   "pts_s": 8.008,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 8.008,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 255,
+   "id": "L1A_311_f00255",
+   "pts_s": 8.5085,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 8.5085,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 270,
+   "id": "L1A_311_f00270",
+   "pts_s": 9.009,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 9.009,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 285,
+   "id": "L1A_311_f00285",
+   "pts_s": 9.5095,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 9.5095,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 300,
+   "id": "L1A_311_f00300",
+   "pts_s": 10.01,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 10.01,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 315,
+   "id": "L1A_311_f00315",
+   "pts_s": 10.5105,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 10.5105,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 330,
+   "id": "L1A_311_f00330",
+   "pts_s": 11.011,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 11.011,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 345,
+   "id": "L1A_311_f00345",
+   "pts_s": 11.5115,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 11.5115,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 360,
+   "id": "L1A_311_f00360",
+   "pts_s": 12.012,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 12.012,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 375,
+   "id": "L1A_311_f00375",
+   "pts_s": 12.5125,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 12.5125,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 390,
+   "id": "L1A_311_f00390",
+   "pts_s": 13.013,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 13.013,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 405,
+   "id": "L1A_311_f00405",
+   "pts_s": 13.5135,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 13.5135,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 420,
+   "id": "L1A_311_f00420",
+   "pts_s": 14.014,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 14.014,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 435,
+   "id": "L1A_311_f00435",
+   "pts_s": 14.5145,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 14.5145,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 311,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 450,
+   "id": "L1A_311_f00450",
+   "pts_s": 15.015,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 15.015,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 0,
+   "id": "L1A_676_f00000",
+   "pts_s": 0.0,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.0,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 15,
+   "id": "L1A_676_f00015",
+   "pts_s": 0.5005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.5005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 30,
+   "id": "L1A_676_f00030",
+   "pts_s": 1.001,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.001,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 45,
+   "id": "L1A_676_f00045",
+   "pts_s": 1.5015,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.5015,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 60,
+   "id": "L1A_676_f00060",
+   "pts_s": 2.002,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.002,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 75,
+   "id": "L1A_676_f00075",
+   "pts_s": 2.5025,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.5025,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 90,
+   "id": "L1A_676_f00090",
+   "pts_s": 3.003,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.003,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 105,
+   "id": "L1A_676_f00105",
+   "pts_s": 3.5035,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.5035,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 120,
+   "id": "L1A_676_f00120",
+   "pts_s": 4.004,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.004,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 135,
+   "id": "L1A_676_f00135",
+   "pts_s": 4.5045,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.5045,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 676,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 150,
+   "id": "L1A_676_f00150",
+   "pts_s": 5.005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 5.005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 0,
+   "id": "L1A_2387_f00000",
+   "pts_s": 0.0,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.0,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 15,
+   "id": "L1A_2387_f00015",
+   "pts_s": 0.5005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 0.5005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 30,
+   "id": "L1A_2387_f00030",
+   "pts_s": 1.001,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.001,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 45,
+   "id": "L1A_2387_f00045",
+   "pts_s": 1.5015,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 1.5015,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 60,
+   "id": "L1A_2387_f00060",
+   "pts_s": 2.002,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.002,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 75,
+   "id": "L1A_2387_f00075",
+   "pts_s": 2.5025,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 2.5025,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 90,
+   "id": "L1A_2387_f00090",
+   "pts_s": 3.003,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.003,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 105,
+   "id": "L1A_2387_f00105",
+   "pts_s": 3.5035,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 3.5035,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 120,
+   "id": "L1A_2387_f00120",
+   "pts_s": 4.004,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.004,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "close_pair_evidence": {
+    "from_base_frame": 120,
+    "pairs": [
+     {
+      "confs": [
+       0.1553,
+       0.1208
+      ],
+      "dist_norm": 0.0511,
+      "iou": 0.3757
+     }
+    ]
+   },
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 127,
+   "id": "L1A_2387_f00127",
+   "pts_s": 4.237567,
+   "reason": "level_a_close_person_extra_0.25s",
+   "rel_clip_time_s": 4.2376,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 135,
+   "id": "L1A_2387_f00135",
+   "pts_s": 4.5045,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 4.5045,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 150,
+   "id": "L1A_2387_f00150",
+   "pts_s": 5.005,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 5.005,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  },
+  {
+   "dive_id": 2387,
+   "existing_human_annotation": false,
+   "family": "STANDING",
+   "frame_index": 165,
+   "id": "L1A_2387_f00165",
+   "pts_s": 5.5055,
+   "reason": "level_a_base_grid_0.5s",
+   "rel_clip_time_s": 5.5055,
+   "reused_from": null,
+   "status": "PENDING_HUMAN"
+  }
+ ],
+ "label": "SUBJECT_GT_LEVEL_A_QUEUE_STANDING_V1",
+ "packet": "DIVE_ANALYZER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1",
+ "per_dive_plan": {
+  "133": {
+   "base_grid_points": 7,
+   "close_person_extra_points": 1,
+   "water_contact_frame_index": 88,
+   "water_contact_s": 2.9363,
+   "window_end_s": 3.4363
+  },
+  "2387": {
+   "base_grid_points": 12,
+   "close_person_extra_points": 1,
+   "water_contact_frame_index": 164,
+   "water_contact_s": 5.4721,
+   "window_end_s": 5.9721
+  },
+  "311": {
+   "base_grid_points": 31,
+   "close_person_extra_points": 0,
+   "water_contact_frame_index": 444,
+   "water_contact_s": 14.8148,
+   "window_end_s": 15.3148
+  },
+  "676": {
+   "base_grid_points": 11,
+   "close_person_extra_points": 0,
+   "water_contact_frame_index": 145,
+   "water_contact_s": 4.8382,
+   "window_end_s": 5.3382
+  }
+ },
+ "plan": "SUBJECT_GT_MINIMUM_ANNOTATION_PLAN_V1 (frozen)",
+ "rules": {
+  "base_grid": "0.5 s spacing from t=0 while t <= window_end; frame = round(t*fps)",
+  "eval_window_s": "[0, water_contact + 0.5]",
+  "extra_anchor_rule": "at a base frame, if two distinct frozen-D5 candidates (conf>=0.05, IoU<0.5) have center distance < 0.1 mean-bh normalized, add one anchor at +0.25s (or -0.25s if past window end)",
+  "reuse_rule": "existing HUMAN_REVIEWED annotation at the exact frame_index is reused, never re-asked",
+  "water_contact_authority": "DEVELOPMENT_DESIGN water_contact frame_index / fps"
+ }
+}
