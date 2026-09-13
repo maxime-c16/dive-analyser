@@ -76,3 +76,8 @@ venv_c/
 # ---- TARGET_DIVER_SELECTION_V1: raw source video staged for Paris frame extraction ----
 experiments/landmark_pilot/paris_source/
 *.mov
+
+# ---- Subject Resolution V1: host caches and large binaries (never in Git) ----
+runs/hurdle_identity_v1/
+runs/hurdle_prototype_v3/*.npz
+models/reid/
