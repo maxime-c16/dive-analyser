@@ -1,0 +1,436 @@
+{
+ "accepted_v2_canonical_verified": "72890378810574164caaacee731133aee3b06559 (origin/uiux-overhaul-pro-app; local branch advanced from it)",
+ "dataset_balance": {
+  "athletes": "subject diver_id=1 (Maxime) on 7/9 cohort dives; 2341 diver_id=7, 676 diver_id=7 (product DB authority)",
+  "dives_in_primary_cohort": 9,
+  "families": 2,
+  "legitimate_other_diver_negatives": "present (sync dives 100 corpus-wide; 2353 bystander, 2341 next-diver documented)",
+  "non_person_static_negatives": "dominant distractor class (R4/V1: static structures outrank divers)",
+  "same_scene_human_negatives": "present in all 9 (multi-person frames: HURDLE 330-1437/clip; STANDING 32-326/clip)",
+  "sessions": "multi (STANDING+HURDLE from same single-venue pool; exact session split not re-derived this packet)",
+  "subject_reference_positives": "evaluable only on HURDLE per-frame GT today; STANDING anchor-frame positives: 133=3, 311=3, 676=9, 2387=3",
+  "training_eligible_potential": "labels exist ONLY for HURDLE (5 dives). STANDING/ARMSTAND label-eligible only after new human GT. Training-eligible != evaluation authority."
+ },
+ "date": "2026-09-13",
+ "development_authority_census": [
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1",
+   "dive": "1040",
+   "family": "HURDLE_ORDINARY",
+   "gt_level": "FULL_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "target_chains_v1 (GT/AMBIGUOUS/WATER per-frame)"
+  },
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1",
+   "dive": "2169",
+   "family": "HURDLE_ORDINARY",
+   "gt_level": "FULL_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "target_chains_v1"
+  },
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1",
+   "dive": "2341",
+   "family": "HURDLE_ORDINARY",
+   "gt_level": "FULL_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "target_chains_v1"
+  },
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1",
+   "dive": "2353",
+   "family": "HURDLE_DRILL",
+   "gt_level": "FULL_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "target_chains_v1"
+  },
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1",
+   "dive": "2541",
+   "family": "HURDLE_ORDINARY",
+   "gt_level": "FULL_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "target_chains_v1"
+  },
+  {
+   "appearance_cache": "-",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1 (present, EXCLUDED from cohort)",
+   "dive": "524",
+   "family": "HURDLE_AUTHORITY_CONFLICT",
+   "gt_level": "NO_SUBJECT_GT",
+   "in_cohort": false,
+   "subject_authority": "NONE (no usable anchors)"
+  },
+  {
+   "appearance_cache": "osnet_emb_cache_v1.npz",
+   "d5_cache": "R5_FULLCLIP_CANDIDATES_V1 (present, EXCLUDED from primary cohort)",
+   "dive": "2555",
+   "family": "HURDLE_STRESS_SCREEN_RECORDING",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": false,
+   "subject_authority": "target_chains_v1 (239 AMBIGUOUS of 635)"
+  },
+  {
+   "appearance_cache": "NEW osnet_emb_cohort_v1.npz",
+   "d5_cache": "NEW R5_FULLCLIP_CANDIDATES_COHORT_V1",
+   "dive": "133",
+   "family": "STANDING",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "3 human bbox anchors (DEV_DESIGN takeoff/apex/wc) + temporal GT"
+  },
+  {
+   "appearance_cache": "NEW osnet_emb_cohort_v1.npz",
+   "d5_cache": "NEW R5_FULLCLIP_CANDIDATES_COHORT_V1",
+   "dive": "311",
+   "family": "STANDING",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "4 human bbox anchors (DEV_DESIGN + D5 mining) + temporal GT"
+  },
+  {
+   "appearance_cache": "NEW osnet_emb_cohort_v1.npz",
+   "d5_cache": "NEW R5_FULLCLIP_CANDIDATES_COHORT_V1",
+   "dive": "676",
+   "family": "STANDING",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "9 human bbox anchors (DEV_DESIGN + D4 + D5 mining) + temporal GT"
+  },
+  {
+   "appearance_cache": "NEW osnet_emb_cohort_v1.npz",
+   "d5_cache": "NEW R5_FULLCLIP_CANDIDATES_COHORT_V1",
+   "dive": "2387",
+   "family": "STANDING",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": true,
+   "subject_authority": "3 human bbox anchors (DEV_DESIGN) + temporal GT"
+  },
+  {
+   "appearance_cache": "NONE",
+   "d5_cache": "NONE (proxy not materialized)",
+   "dive": "2661",
+   "family": "ARMSTAND",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": false,
+   "subject_authority": "8 human bbox anchors (D5 mining + DEV_DESIGN takeoff/wc)"
+  },
+  {
+   "appearance_cache": "NONE",
+   "d5_cache": "NONE (proxy not materialized)",
+   "dive": "2680",
+   "family": "ARMSTAND",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": false,
+   "subject_authority": "6 human bbox anchors (D5 mining + D4 + DEV_DESIGN takeoff/wc)"
+  },
+  {
+   "appearance_cache": "NONE",
+   "d5_cache": "NONE (proxy not materialized)",
+   "dive": "2625",
+   "family": "NO_TAKEOFF_GT",
+   "gt_level": "SPARSE_SUBJECT_GT",
+   "in_cohort": false,
+   "subject_authority": "4 human bbox anchors (D5 mining, wc only)"
+  }
+ ],
+ "family_comparison": {
+  "ARMSTAND": "NOT_EVALUATED (no cache, not in cohort)",
+  "HURDLE": {
+   "best_rank_range": "2-14 (A1)",
+   "downstream_gt1": "~0",
+   "gt_basis": "per-frame chains (full)",
+   "reference_subject_correct_A0": "0/5",
+   "reference_subject_correct_A1": "0/5",
+   "top20_availability": "0.25-1.0"
+  },
+  "STANDING": {
+   "best_rank_range": "3-89 (anchor-consistent)",
+   "downstream_gt1": "NOT_EVALUABLE (no per-frame GT)",
+   "gt_basis": "sparse human anchors only",
+   "reference_subject_correct_A0": "0/4",
+   "reference_subject_correct_A1": "0/4",
+   "top20_availability": "3/4 dives A0, 2/4 A1"
+  },
+  "pooled_conclusion": "FORBIDDEN without family-level reporting (respected): failure is NOT HURDLE-unique; GT-free reference acquisition is generically hard across at least 2 families."
+ },
+ "frozen_authority": {
+  "d5_model": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+  "d5_model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "d5_recipe": {
+   "device": "mps",
+   "floor_cap": 200,
+   "floor_conf": 0.001,
+   "imgsz": 640,
+   "nms_iou": 0.45,
+   "window": "FULL_CLIP_GT_FREE"
+  },
+  "osnet": "models/reid/osnet_x1_0_market1501.pth",
+  "osnet_recipe": {
+   "batch": 32,
+   "crop_pad": 1.3,
+   "emb_size": [
+    256,
+    128
+   ],
+   "normalize": "L2"
+  },
+  "osnet_sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+  "pts_authority": "sequential decode from frame 0, CAP_PROP_POS_MSEC (identical to frozen audit path)"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1",
+ "label": "DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1",
+ "learning_gate": "COHORT_EXPANSION_REQUIRES_MINIMAL_HUMAN_GT",
+ "media_backbone_mutated": "NO",
+ "new_appearance_cache": {
+  "artifact": "runs/subject_resolution/osnet_emb_cohort_v1.npz (host cache, outside Git)",
+  "cache_sha256": "4d8360026bb8276599262ac87b8c0b8a695c7536d9f0a3df2394450c43dd0b8d",
+  "meta": "runs/subject_resolution/osnet_emb_cohort_v1.meta.json",
+  "n_keys": 144729,
+  "peak_rss_gb": 0.57,
+  "recipe": "identical to HURDLE_OSNET_EMBED_CACHE_V1 (pad 1.3, 256x128, L2, batch 32, MPS)",
+  "runtime_s_per_dive": {
+   "133": 74,
+   "2387": 612,
+   "311": 338,
+   "676": 157
+  }
+ },
+ "new_d5_cache": {
+  "artifact": "runs/subject_resolution/R5_FULLCLIP_CANDIDATES_COHORT_V1.json (host cache, outside Git)",
+  "cache_sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f",
+  "cross_check_vs_frozen_traj_cache": "per-frame best candidate matches STANDING_TRAJ_CACHE_V2 within 0.02 cy/bh on all comparable frames (133: 0/104, 311: 0/358, 676: 0/181, 2387: 0/667 mismatches) => frozen D5 semantics reproduced exactly",
+  "determinism_check": {
+   "dive": "133",
+   "n_frames": 178,
+   "rerun_diff_frames": 0,
+   "verdict": "DETERMINISTIC_UNDER_FROZEN_PROTOCOL"
+  },
+  "per_dive": {
+   "133": {
+    "appearance_cache_before": "NONE",
+    "cache_before": "NONE (only single-target STANDING_TRAJ_CACHE_V2 existed)",
+    "device": "mps",
+    "family": "STANDING",
+    "fps": 29.97003,
+    "n_candidates": 11803,
+    "n_frames": 178,
+    "peak_rss_gb": 0.54,
+    "proxy_sha256": "892840a6d418510cb1246cfe7a049e6e6561e5f97bf4f412be52fec042fcc837",
+    "runtime_s": 4.0,
+    "video_size": [
+     202,
+     360
+    ]
+   },
+   "2387": {
+    "appearance_cache_before": "NONE",
+    "cache_before": "NONE (only single-target STANDING_TRAJ_CACHE_V2 existed)",
+    "device": "mps",
+    "family": "STANDING",
+    "fps": 29.97003,
+    "n_candidates": 71508,
+    "n_frames": 748,
+    "peak_rss_gb": 0.6,
+    "proxy_sha256": "0a2826d7e501711b40756c7f18a8836511d56a125d46cebbdba26573b7a433f6",
+    "runtime_s": 11.8,
+    "video_size": [
+     202,
+     360
+    ]
+   },
+   "311": {
+    "appearance_cache_before": "NONE",
+    "cache_before": "NONE (only single-target STANDING_TRAJ_CACHE_V2 existed)",
+    "device": "mps",
+    "family": "STANDING",
+    "fps": 29.97003,
+    "n_candidates": 41914,
+    "n_frames": 577,
+    "peak_rss_gb": 0.56,
+    "proxy_sha256": "8ea8cb45b5a59e8cc69d5ca2bd08cf6d04e823164bf618830219c59db70ef34d",
+    "runtime_s": 9.3,
+    "video_size": [
+     202,
+     360
+    ]
+   },
+   "676": {
+    "appearance_cache_before": "NONE",
+    "cache_before": "NONE (only single-target STANDING_TRAJ_CACHE_V2 existed)",
+    "device": "mps",
+    "family": "STANDING",
+    "fps": 29.97003,
+    "n_candidates": 19504,
+    "n_frames": 222,
+    "peak_rss_gb": 0.57,
+    "proxy_sha256": "4d1c1916db3a504206d8b75bcc4e9122c1838d254448488819640b07ec411e76",
+    "runtime_s": 4.2,
+    "video_size": [
+     202,
+     360
+    ]
+   }
+  },
+  "schema": "identical to R5_FULLCLIP_CANDIDATES_V1 (per-frame pts_s/fi/n/c[conf,cx,cy,bw,bh]); GT-free (no gt_eval_only payload)"
+ },
+ "packet": "DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1",
+ "protected_data_firewall": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE (cache present from V1 but NOT loaded, NOT evaluated, NOT in cohort)",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED (proxy absent from materialized set; cache untouched)",
+  "FINAL_HOLDOUT": "NOT_ACCESSED (no holdout set materialized in any science artifact)",
+  "INTERNAL_EVAL": "160/169/191/192/848/2281 NOT_ACCESSED",
+  "Paris IMG_1937": "EXTERNAL_ONLY, report-only in prior packets; NOT_ACCESSED this packet"
+ },
+ "readiness_matrix": {
+  "ARMSTAND": {
+   "verdict": "NOT_READY \u2014 no proxy/candidate cache; sparse anchors only"
+  },
+  "HURDLE": {
+   "133_n_a": null,
+   "verdict": "FULL_REFERENCE_EVAL_READY + FULL_TRAJECTORY_EVAL_READY (5 primary dives)"
+  },
+  "STANDING": {
+   "verdict": "CACHE_READY_GT_INSUFFICIENT \u2014 caches now at parity; reference eval possible only at anchor frames; trajectory eval NOT ready"
+  }
+ },
+ "reference_eval_requirements": {
+  "Level_A_reference_correctness": "answerable on STANDING with sparse anchors ONLY when the candidate reference span contains a human anchor frame; otherwise requires new anchors (~1 per 0.5s of eval window). 133: 7, 311: 31, 676: 11, 2387: 12 anchor units at 0.5s spacing (or ~2x at 0.25s) \u2014 derived from measured walker survival (median 0.73s, p25 0.17s), not assumed.",
+  "Level_B_downstream_framewise_matching": "requires per-frame subject chain authority like HURDLE target_chains_v1; NOT derivable from existing STANDING/ARMSTAND annotations (walker conflicts measured). Requires dense human annotation (hundreds of boxes per clip) or a new validated derivation protocol."
+ },
+ "resource_results": {
+  "B2_reads": 0,
+  "B2_writes": 0,
+  "cleanup": "no temp residue; single-process sequential execution throughout",
+  "new_d5_inference": "4 clips (133/311/676/2387), sequential, caffeinate, MPS",
+  "new_embeddings": 144729,
+  "new_human_labels": "NONE",
+  "paris_development": "NOT_ACCESSED",
+  "peak_ram_gb": 0.6,
+  "protected_data": "NOT_ACCESSED",
+  "temporary_disk": "~220MB runs/subject_resolution (host cache, retained as durable science cache)",
+  "training": "NONE"
+ },
+ "science_decision": "COLLECT_MINIMAL_SUBJECT_GT_NEXT",
+ "scientific_authorities_mutated": "NO",
+ "stop_doing_additions": [
+  "no geometry-only walker as GT authority on STANDING (measured: conflicts even at 0.8s anchor spacing)",
+  "no cross-family pooled conclusions without family-level reporting"
+ ],
+ "subject_gt_authority_verdicts": {
+  "ARMSTAND_2661": "SPARSE_SUBJECT_GT (8 anchors, no cache)",
+  "ARMSTAND_2680": "SPARSE_SUBJECT_GT (6 anchors, no cache)",
+  "STANDING_133": "SPARSE_SUBJECT_GT (3 anchors)",
+  "STANDING_2387": "SPARSE_SUBJECT_GT (3 anchors)",
+  "STANDING_311": "SPARSE_SUBJECT_GT (4 anchors)",
+  "STANDING_676": "SPARSE_SUBJECT_GT (9 anchors)"
+ },
+ "subject_gt_derivation": {
+  "ARMSTAND": "SUBJECT_GT_INSUFFICIENT \u2014 anchors exist but no proxy/candidate cache materialized (proxies absent from media set); GT density same problem as STANDING.",
+  "HURDLE": "SUBJECT_GT_ALREADY_SUFFICIENT (existing target_chains_v1 human-anchored per-frame GT, unchanged).",
+  "STANDING": "SUBJECT_GT_INSUFFICIENT \u2014 deterministic geometry-only continuation from sparse human anchors was tested and FAILS defensibility: multi-anchor chains disagree (676: 49 conflicting frames out of 148 covered with 0.8s anchor spacing; 133/2387/311: 0 consistent overlap frames). Walker survival median 0.73s (p25 0.17s). No interpolation pattern is scientifically defensible without new human labels. Derivation FORBIDDEN pattern (human takeoff time + D5 nearest person) explicitly rejected."
+ },
+ "v2_cross_family_replay": {
+  "finding": "V2 FAILURE REPRODUCES OUTSIDE HURDLE: A0/A1 top-1 is NOT the subject on all 4 STANDING dives (anchor-verified). Top-20 anchor-subject availability: 133 A0=yes/A1=yes, 311 no/no, 676 A0=yes/A1=yes, 2387 A0=yes/A1=no. Same failure mode (wrong stable/static tracklet ranked first), now shown on a second family.",
+  "per_dive": {
+   "133": {
+    "A0_top_is_subject": false,
+    "A0_top_tid": 281,
+    "A1_top_is_subject": false,
+    "A1_top_tid": 30,
+    "best_anchor_consistent_rank": {
+     "A0": 4,
+     "A1": 3
+    }
+   },
+   "2387": {
+    "A0_top_is_subject": false,
+    "A0_top_tid": 1107,
+    "A1_top_is_subject": false,
+    "A1_top_tid": 147,
+    "best_anchor_consistent_rank": {
+     "A0": 13,
+     "A1": 22
+    }
+   },
+   "311": {
+    "A0_top_is_subject": false,
+    "A0_top_tid": 719,
+    "A1_top_is_subject": false,
+    "A1_top_tid": 654,
+    "best_anchor_consistent_rank": {
+     "A0": 89,
+     "A1": 61
+    }
+   },
+   "676": {
+    "A0_top_is_subject": false,
+    "A0_top_tid": 455,
+    "A1_top_is_subject": false,
+    "A1_top_tid": 233,
+    "best_anchor_consistent_rank": {
+     "A0": 9,
+     "A1": 4
+    }
+   }
+  },
+  "scope_note": "full V2 replay (reference_purity + downstream GT@1) requires per-frame GT chains which STANDING lacks; replay limited to GT-free acquisition outputs scored against human anchor frames (eval-only)",
+  "status": "V2_CROSS_FAMILY_REPLAY_EXECUTED (bounded: acquisition half + anchor-frame identity check only)",
+  "topk_anchor_subject_availability": {
+   "133": {
+    "A0_top10_anchor_subject": true,
+    "A0_top1_anchor_subject": false,
+    "A0_top20_anchor_subject": true,
+    "A0_top3_anchor_subject": false,
+    "A0_top5_anchor_subject": true,
+    "A1_top10_anchor_subject": true,
+    "A1_top1_anchor_subject": false,
+    "A1_top20_anchor_subject": true,
+    "A1_top3_anchor_subject": true,
+    "A1_top5_anchor_subject": true
+   },
+   "2387": {
+    "A0_top10_anchor_subject": false,
+    "A0_top1_anchor_subject": false,
+    "A0_top20_anchor_subject": true,
+    "A0_top3_anchor_subject": false,
+    "A0_top5_anchor_subject": false,
+    "A1_top10_anchor_subject": false,
+    "A1_top1_anchor_subject": false,
+    "A1_top20_anchor_subject": false,
+    "A1_top3_anchor_subject": false,
+    "A1_top5_anchor_subject": false
+   },
+   "311": {
+    "A0_top10_anchor_subject": false,
+    "A0_top1_anchor_subject": false,
+    "A0_top20_anchor_subject": false,
+    "A0_top3_anchor_subject": false,
+    "A0_top5_anchor_subject": false,
+    "A1_top10_anchor_subject": false,
+    "A1_top1_anchor_subject": false,
+    "A1_top20_anchor_subject": false,
+    "A1_top3_anchor_subject": false,
+    "A1_top5_anchor_subject": false
+   },
+   "676": {
+    "A0_top10_anchor_subject": true,
+    "A0_top1_anchor_subject": false,
+    "A0_top20_anchor_subject": true,
+    "A0_top3_anchor_subject": false,
+    "A0_top5_anchor_subject": false,
+    "A1_top10_anchor_subject": true,
+    "A1_top1_anchor_subject": false,
+    "A1_top20_anchor_subject": true,
+    "A1_top3_anchor_subject": false,
+    "A1_top5_anchor_subject": true
+   }
+  }
+ }
+}

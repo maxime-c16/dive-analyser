@@ -11,9 +11,10 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
-> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
+> `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
 > `SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`;
 > earlier: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
 > Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
@@ -1896,3 +1897,99 @@ Durable audit: `docs/audits/UI-U1U2-minimal-ia-library-core-v1.md`
 - Canonical HEAD after this gate: see LOCAL_AGENT_REPORT / git log.
 - Next gate: **UI-U3 — CLIP_VIEWER_CORE_V1** (reader redesign; the reader
   implementation itself was intentionally not redesigned here).
+
+## Subject Resolution Cohort Expansion V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 (2026-09-13)
+
+Packet executed on worktree branch `subject-resolution-cohort-expansion-v1`
+(base = canonical `uiux-overhaul-pro-app` @ `7289037`, the accepted V2 integration;
+local stale `uiux-overhaul-pro-app` pointer at `c4c9cfc` noted, server is authority).
+
+### Purpose
+Break the single-family HURDLE evaluation ceiling: build a frozen, multi-family
+DEVELOPMENT cohort for Subject Resolution experiments (cache materialization +
+GT audit only; no training, no tuning, no new labels).
+
+### Cohort result (primary DEVELOPMENT cohort: 9 dives, 2 families)
+- HURDLE (5): 1040, 2169, 2341, 2353, 2541 — unchanged, FULL_SUBJECT_GT
+  (target_chains_v1), full-candidate + OSNet caches from V1.
+- STANDING (4, NEW): 133, 311, 676, 2387 — frozen multi-person D5 full-candidate
+  caches materialized this packet (`runs/subject_resolution/
+  R5_FULLCLIP_CANDIDATES_COHORT_V1.json`, GT-free schema identical to
+  R5_FULLCLIP_CANDIDATES_V1) + OSNet appearance cache
+  (`osnet_emb_cohort_v1.npz`, 144,729 crops, frozen recipe) → full parity with
+  HURDLE cache authority.
+- ARMSTAND (2661/2680): NOT materialized (proxies absent from the media set);
+  8/6 human bbox anchors exist. NOT_READY.
+- Excluded: 524 (AUTHORITY_CONFLICT), 2555 (SCREEN_RECORDING_STRESS, not
+  loaded), 2625 (no takeoff GT), INTERNAL_EVAL dives, Paris, holdout.
+
+### Frozen D5 verification (cache materialization only)
+Same frozen D5-A (sha 82b420c4…), conf 0.001 / NMS 0.45 / imgsz 640 / cap 200 /
+MPS / sequential PTS read. Proxy SHAs verified against frozen
+STANDING_TRAJ_CACHE_V2 before inference. Determinism: bounded 133 re-run
+reproduced 0/178 differing frames. Cross-check: per-frame best candidate
+matches STANDING_TRAJ_CACHE_V2 within 0.02 on ALL comparable frames
+(0 mismatches in 104/358/181/667) — frozen D5 behaves well on STANDING.
+Peak RAM 0.6 GB, strictly sequential, caffeinate.
+
+### Subject-GT audit (no self-labeling)
+- STANDING human authority = sparse event-frame bbox anchors only
+  (133:3, 311:4, 676:9, 2387:3 — HUMAN_REVIEWED, DEVELOPMENT_DESIGN + D4/D5
+  mining batches). ARMSTAND: 2661:8, 2680:6.
+- Deterministic geometry-only continuation from anchors tested and FAILED
+  defensibility: multi-anchor chains disagree (676: 49 conflicting frames of
+  148 covered at 0.8s spacing; 133/2387/311: zero consistent overlap);
+  walker survival median 0.73s (p25 0.17s). Forbidden pattern (human takeoff
+  time + D5 nearest person) explicitly rejected. No synthetic GT.
+- Verdicts: STANDING/ARMSTAND = SUBJECT_GT_INSUFFICIENT;
+  HURDLE = SUBJECT_GT_ALREADY_SUFFICIENT.
+
+### V2 cross-family replay (bounded, frozen A0/A1 unchanged)
+A0/A1 top-1 is NOT the subject on ALL 4 STANDING dives (anchor-verified);
+best anchor-consistent ranks 3–89; top-20 anchor-subject availability
+133 yes/yes, 311 no/no, 676 yes/yes, 2387 yes/no.
+**V2 failure REPRODUCES OUTSIDE HURDLE** — GT-free reference acquisition is
+generically hard, not HURDLE-unique. No new rules derived, nothing tuned.
+
+### Level A/B distinction + minimum GT plan
+Level A (reference correctness) becomes evaluable on STANDING with sparse
+identity anchors at ~0.5s spacing over [0, wc+0.5s] (derived from measured
+walker survival, not assumed): 133→7, 311→31, 676→11, 2387→12 units.
+Level B (framewise trajectory) requires per-frame chain authority — NOT
+derivable from existing annotations. Plan (no labels collected):
+`docs/science/SUBJECT_GT_MINIMUM_ANNOTATION_PLAN_V1.md`.
+
+### Decisions
+```text
+LEARNING_GATE   = COHORT_EXPANSION_REQUIRES_MINIMAL_HUMAN_GT
+SCIENCE_DECISION = COLLECT_MINIMAL_SUBJECT_GT_NEXT
+```
+Training remains NOT executed. HURDLE-only training stays forbidden; the
+Level-A anchor plan is the cheapest unlock to a genuine ≥2-family learned
+experiment (9 dives).
+
+### Tests / pre-existing failures
+New `test_cohort_expansion_v1.py` 15/15 (cohort determinism, family
+classification, protected-data firewall, Paris/524/2555 exclusions, frozen
+D5 config identity, cache provenance, no GT self-labeling, no B2 mutation);
+subject_resolution suite 39/39. PRE-EXISTING (not this packet, present on
+server canonical): 3 cosmetic failures in test_candidate_reranker.py —
+(1) manifest string "IoU>=0.3" vs test literal "0.30" (f-string renders
+0.30→0.3; unsatisfiable by construction), (2)+(3) test expects
+D5_ANNOTATION_BATCH_MANIFEST.json under docs/science/reranker_v1/ but the
+committed batch manifest lives at
+docs/science/localization_annotations_v1/D5_ANNOTATION_BATCH/manifest.json
+(per the reranker report's own artifact index). No science impact; left
+untouched (out of packet scope).
+
+### Resources / firewalls
+0 B2 reads/writes, 0 training, 0 new human labels, 0 protected-data access,
+0 Paris access. No scientific authority mutated; no media-backbone mutation.
+Caches remain outside Git (host science caches).
+
+Report: `docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1.md`
+(+ `.json`).
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`.**
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
+infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
