@@ -73,6 +73,7 @@ def _dummy_hash() -> str:
 class LoginRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=1, max_length=1024)
+    remember_me: bool = False
 
 
 def _secure_headers(response: Response) -> None:
@@ -85,12 +86,15 @@ def _auth_enabled() -> bool:
     return bool(get_settings().user_auth_enabled)
 
 
-def _set_session_cookie(response: Response, raw_token: str) -> None:
+def _set_session_cookie(
+    response: Response, raw_token: str, ttl_seconds: int | None = None
+) -> None:
     settings = get_settings()
+    age = ttl_seconds if ttl_seconds is not None else int(settings.auth_session_ttl_seconds)
     response.set_cookie(
         key=settings.auth_cookie_name,
         value=raw_token,
-        max_age=int(settings.auth_session_ttl_seconds),
+        max_age=age,
         httponly=True,
         secure=bool(settings.auth_cookie_secure),
         samesite="strict",
@@ -306,13 +310,19 @@ async def login(
         db,
         retention_seconds=settings.auth_session_cleanup_retention_seconds,
     )
+    # Honour the "keep me signed in" preference sent by the client.
+    session_ttl = (
+        int(settings.auth_session_remember_ttl_seconds)
+        if request_body.remember_me
+        else int(settings.auth_session_ttl_seconds)
+    )
     raw_token, _session = sessions.create_session(
         db,
         user_id=user.id,
-        ttl_seconds=int(settings.auth_session_ttl_seconds),
+        ttl_seconds=session_ttl,
         revoke_existing=True,
     )
-    _set_session_cookie(response, raw_token)
+    _set_session_cookie(response, raw_token, ttl_seconds=session_ttl)
     _secure_headers(response)
     return {"user_id": user.id, "email": email}
 

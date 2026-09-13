@@ -7,6 +7,8 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
+import Login from "./pages/Login";
+import { useAuth } from "./contexts/AuthContext";
 import {
   BarChart3,
   BookOpen,
@@ -227,27 +229,57 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Redirect unauthenticated visitors to /login, preserving the intended URL. */
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, checking } = useAuth();
+  const location = useLocation();
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+  return <>{children}</>;
+}
+
 function Router() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/dashboard" element={<Navigate to="/" replace />} />
-        <Route path="/journey" element={<Journey />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/dives" element={<Dives />} />
-        <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
-        <Route
-          path="/media/representatives"
-          element={<RepresentativeMedia />}
-        />
-        <Route path="/media/recall" element={<MediaRecall />} />
-        <Route path="/media/p5-canary" element={<P5Canary />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/sessions" element={<Sessions />} />
-        <Route path="/competitions" element={<Journey />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      {/* Login is outside the Layout and needs no auth */}
+      <Route path="/login" element={<Login />} />
+
+      {/* All other routes require a live session */}
+      <Route
+        path="*"
+        element={
+          <AuthGuard>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/journey" element={<Journey />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/dives" element={<Dives />} />
+                <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
+                <Route
+                  path="/media/representatives"
+                  element={<RepresentativeMedia />}
+                />
+                <Route path="/media/recall" element={<MediaRecall />} />
+                <Route path="/media/p5-canary" element={<P5Canary />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/sessions" element={<Sessions />} />
+                <Route path="/competitions" element={<Journey />} />
+              </Routes>
+            </Layout>
+          </AuthGuard>
+        }
+      />
+    </Routes>
   );
 }
 

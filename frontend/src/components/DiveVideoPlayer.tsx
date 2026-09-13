@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Clock, DownloadCloud } from 'lucide-react'
+import { Clock, DownloadCloud, LogIn } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import {
   getMediaStatus,
   getPlaybackUrlFromStatus,
@@ -24,6 +26,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
   const [canRequest, setCanRequest] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const pollRef = useRef<number | null>(null)
+  const { user, checking: authChecking } = useAuth()
 
   useEffect(() => {
     let cancelled = false
@@ -163,6 +166,27 @@ function DiveVideoPlayer({ diveCode, height, videoUuid }: DiveVideoPlayerProps) 
 
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden group">
+      {/* Unauthenticated: session expired or never set — prompt to sign in. */}
+      {!authChecking && !user && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6">
+          <div className="text-center max-w-sm">
+            <LogIn className="w-10 h-10 text-cyan-400 mx-auto mb-3" />
+            <p className="text-gray-200 font-semibold mb-2">Sign in to play</p>
+            <p className="text-gray-500 text-sm mb-4">
+              Your session has expired. Sign in to watch your clips.
+            </p>
+            <Link
+              to="/login"
+              state={{ from: window.location.pathname }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-gray-950 font-semibold hover:bg-cyan-400 transition"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign in
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Safari owns the complete control surface for playable clips. */}
       <video
         ref={videoRef}

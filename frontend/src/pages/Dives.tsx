@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import {
@@ -42,7 +42,7 @@ type Dive = {
 };
 
 type Diver = { id: number; display_name: string; is_primary_user: boolean };
-type MediaPreview = { posterUrl: string | null; ready: boolean };
+type MediaPreview = { posterUrl: string | null; videoThumbUrl: string | null; ready: boolean };
 type Scope = "self" | "all";
 type View = "grid" | "list";
 
@@ -84,9 +84,16 @@ function getPreview(videoUuid: string): Promise<MediaPreview> {
   const request = getMediaStatus(videoUuid)
     .then((status) => ({
       posterUrl: status.poster_url || null,
+      // When no poster exists, use the playback URL so DiveThumbnail can
+      // render a <video preload="metadata"> that shows the first frame.
+      // The proxy URL never expires (backend generates a fresh presign each
+      // time the browser hits it), so it's safe to cache indefinitely.
+      videoThumbUrl: !status.poster_url && status.playback_url
+        ? status.playback_url
+        : null,
       ready: Boolean(status.playback_url),
     }))
-    .catch(() => ({ posterUrl: null, ready: false }))
+    .catch(() => ({ posterUrl: null, videoThumbUrl: null, ready: false }))
     .then((result) => {
       previewCache.set(videoUuid, result);
       return result;
@@ -106,28 +113,71 @@ function DiveThumbnail({
   const [preview, setPreview] = useState<MediaPreview | null>(() =>
     dive.video_uuid ? previewCache.get(dive.video_uuid) || null : null,
   );
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    let active = true;
     if (!dive.video_uuid) return;
-    getPreview(dive.video_uuid).then((result) => {
-      if (active) setPreview(result);
-    });
+    // If already cached, apply immediately — no network request needed.
+    const cached = previewCache.get(dive.video_uuid);
+    if (cached) {
+      setPreview(cached);
+      return;
+    }
+    // Gate the fetch behind IntersectionObserver so we only hit the
+    // backend for thumbnails that are actually near the viewport.
+    // Without this, opening the Dives page fires 2000+ concurrent
+    // status requests and exhausts the DB connection pool.
+    const container = containerRef.current;
+    if (!container) return;
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          observer.disconnect();
+          getPreview(dive.video_uuid!).then((result) => {
+            if (active) setPreview(result);
+          });
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(container);
     return () => {
       active = false;
+      observer.disconnect();
     };
   }, [dive.video_uuid]);
   return (
     <div
+      ref={containerRef}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
     >
       {preview?.posterUrl ? (
+        // Poster image from local media cache — instant, lightweight
         <img
           src={preview.posterUrl}
           alt={`Poster for ${dive.dive_code}`}
           className="h-full w-full object-cover"
           loading="lazy"
         />
+      ) : preview?.videoThumbUrl ? (
+        // No poster in cache but B2 video available — render first frame
+        // via <video preload="metadata">. The backend generates a fresh
+        // presigned URL each time the browser follows the proxy link, so
+        // the cached videoThumbUrl path never goes stale.
+        <video
+          src={preview.videoThumbUrl}
+          preload="metadata"
+          muted
+          playsInline
+          className="h-full w-full object-cover"
+          onLoadedMetadata={(e) => {
+            // Nudge past frame 0 to guarantee the first frame renders
+            // instead of a black placeholder on WebKit/Chrome.
+            (e.currentTarget as HTMLVideoElement).currentTime = 0.001;
+          }}
+        />
       ) : (
+        // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
           <span className="font-mono text-xl font-semibold tracking-tight text-app-muted">
             {dive.dive_code}

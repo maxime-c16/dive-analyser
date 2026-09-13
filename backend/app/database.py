@@ -49,6 +49,15 @@ def get_db() -> Session:
     try:
         yield db
     finally:
+        # Explicit rollback before close: ensures any open transaction is
+        # ended regardless of the code path that called db.close().  Without
+        # this, SQLAlchemy 2.0 Session.close() can return the connection to
+        # the pool while the transaction is still open (idle in transaction),
+        # blocking concurrent UPDATEs until Postgres kills the connection.
+        try:
+            db.rollback()
+        except Exception:
+            pass
         db.close()
 
 

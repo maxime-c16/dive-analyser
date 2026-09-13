@@ -106,20 +106,49 @@ app.add_middleware(
 )
 
 
-@app.middleware("http")
-async def log_slow_requests(request, call_next):
-    started_at = perf_counter()
-    response = await call_next(request)
-    elapsed_ms = (perf_counter() - started_at) * 1000
-    if elapsed_ms >= settings.slow_request_log_ms:
-        logger.warning(
-            "Slow request: %s %s -> %s in %.1fms",
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
-        )
-    return response
+class _SlowRequestLogger:
+    """Pure ASGI slow-request logger.
+
+    Replaces the former @app.middleware("http") / BaseHTTPMiddleware approach
+    that caused SQLAlchemy sessions to leak when clients disconnected (HTTP
+    499).  BaseHTTPMiddleware defers dependency-generator teardown (db.close)
+    until the response body is consumed by the middleware coroutine; a client
+    disconnect means that never happens, leaving connections "idle in
+    transaction" with row-level locks until Postgres kills them.
+
+    This middleware awaits the inner ASGI app directly so teardown runs as
+    part of the normal request lifecycle and is unaffected by client drops.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started_at = perf_counter()
+        status_code = 0
+
+        async def send_with_capture(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 0)
+            await send(message)
+
+        await self.app(scope, receive, send_with_capture)
+        elapsed_ms = (perf_counter() - started_at) * 1000
+        if elapsed_ms >= settings.slow_request_log_ms:
+            logger.warning(
+                "Slow request: %s %s -> %s in %.1fms",
+                scope.get("method", "?"),
+                scope.get("path", "?"),
+                status_code,
+                elapsed_ms,
+            )
+
+
+app.add_middleware(_SlowRequestLogger)
 
 
 # Health check endpoint
