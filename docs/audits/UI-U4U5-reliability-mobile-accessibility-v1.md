@@ -266,19 +266,23 @@ Post-deploy live validation against production `https://192.168.1.57:6443`
 (using the SAME stored session — zero logins performed, session 147 still
 live):
 
-- Full authenticated E2E suite against production: **124 passed / 4
-  skipped / 0 failed** (desktop + mobile projects).
+- Full authenticated E2E suite against production: **120 passed / 4
+  skipped / 0 failed** (desktop + mobile projects; 98+2 from U3 + this
+  gate 22 passed/2 skipped).
 - Live captures: `live-d01-library.png`, `live-d02-viewer.png`,
-  `live-m01-viewer.png`, `live-m02-back-library.png`.
+  `live-d03-back-library.png`, `live-m01-viewer.png`,
+  `live-m02-back-library.png` (20 total evidence captures).
+- Session 147 verified STILL LIVE after the full production run — the
+  entire gate performed zero logins and zero revocations.
 
 ## 14. Canonical integration record
 
 | Item | Value |
 |---|---|
 | Initial canonical HEAD | `97f20cf17377ea253b74bba554d598d5a8ea9cb0` |
-| Task branch final commit | (see §16) |
+| Task branch final commit | 630662e59998d1dd8ad9af7ff26f06ff43fb353b |
 | Concurrent canonical advance during U4/U5 | none (canonical stayed at 97f20cf through the gate) |
-| Final canonical HEAD | (see §16) |
+| Final canonical HEAD | 630662e59998d1dd8ad9af7ff26f06ff43fb353b (fast-forward; canonical did not advance concurrently during the gate) |
 | Post-merge revalidation | tsc clean, vitest 110/110, build green |
 
 ## 15. Remaining debt
