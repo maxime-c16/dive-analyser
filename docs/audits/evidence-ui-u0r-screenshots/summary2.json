@@ -1,0 +1,78 @@
+{
+  "notes": {
+    "p2_back_restores": {
+      "url": "https://192.168.1.57:6443/dives?q=103&view=list",
+      "search": "103"
+    },
+    "reader_nav": {
+      "initial": {
+        "t": "103B · 22 Aug 2026 · 13:03",
+        "ind": "Selected attempt · 1 of 444",
+        "prevDis": true,
+        "nextDis": false
+      },
+      "next1": {
+        "t": "103B · 22 Aug 2026 · 13:03",
+        "ind": "Selected attempt · 2 of 444",
+        "prevDis": false,
+        "nextDis": false
+      },
+      "next2": {
+        "t": "103B · 22 Aug 2026 · 13:03",
+        "ind": "Selected attempt · 3 of 444",
+        "prevDis": false,
+        "nextDis": false
+      },
+      "prev1": {
+        "t": "103B · 22 Aug 2026 · 13:03",
+        "ind": "Selected attempt · 2 of 444",
+        "prevDis": false,
+        "nextDis": false
+      },
+      "prev2": {
+        "t": "103B · 22 Aug 2026 · 13:03",
+        "ind": "Selected attempt · 1 of 444",
+        "prevDis": true,
+        "nextDis": false
+      }
+    },
+    "reader_arrowkey_changes": false,
+    "linked_count_on_default_view": 49,
+    "notready_text": "Exact attempt5211A · 22 Aug 2026 · 13:03Analyze 5211ASelected attempt · 6 of 2194PreviousNextAttempt detailsScore5.6 / 10 · MOfficial DD1.8PhasesG / MHeight1mPlatformspringboardPositionStraightContextIndividualModifiersNoneDate22 August 2026Raw caption5211A G/M",
+    "competitions_h1": null,
+    "sessions_h1": "Training Sessions",
+    "status_sample": [
+      {
+        "code": "5124D",
+        "dt": "2026-09-06T16:02:15",
+        "status": "ready",
+        "has_playback": true,
+        "playback_path": "/api/v1/media/cache/2265/play",
+        "has_poster": true,
+        "renditions": [
+          "poster",
+          "proxy_360p",
+          "proxy_720p"
+        ]
+      },
+      {
+        "code": "103B",
+        "dt": "2026-08-22T13:03:44",
+        "status": "ready",
+        "has_playback": true,
+        "playback_path": "/api/v1/media/revisions/1717/play",
+        "has_poster": false,
+        "renditions": []
+      },
+      {
+        "code": "103B",
+        "dt": "2026-08-22T13:03:44",
+        "status": "ready",
+        "has_playback": true,
+        "playback_path": "/api/v1/media/revisions/2204/play",
+        "has_poster": false,
+        "renditions": []
+      }
+    ]
+  }
+}

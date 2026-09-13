@@ -1,0 +1,156 @@
+{
+  "console": [
+    "login: Failed to load resource: the server responded with a status of 401 ()",
+    "m-login: Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "api": [
+    "login: 401 https://192.168.1.57:6443/api/v1/auth/me",
+    "m-login: 401 https://192.168.1.57:6443/api/v1/auth/me"
+  ],
+  "notes": {
+    "dashboard_nav": [
+      {
+        "t": "Overview",
+        "href": "/"
+      },
+      {
+        "t": "Journey",
+        "href": "/journey"
+      },
+      {
+        "t": "Analytics",
+        "href": "/analytics"
+      },
+      {
+        "t": "Dives",
+        "href": "/dives"
+      },
+      {
+        "t": "Representatives",
+        "href": "/media/representatives"
+      },
+      {
+        "t": "Media recall",
+        "href": "/media/recall"
+      },
+      {
+        "t": "Player",
+        "href": "/media/p5-canary"
+      },
+      {
+        "t": "System",
+        "href": "/admin"
+      },
+      {
+        "t": "Sessions",
+        "href": "/sessions"
+      },
+      {
+        "t": "Competitions",
+        "href": "/competitions"
+      }
+    ],
+    "dives_counts": [
+      "443",
+      "2",
+      "5.0"
+    ],
+    "clip_dialog_opened": true,
+    "clip_url": "https://192.168.1.57:6443/dives?q=103",
+    "video_initial": {
+      "readyState": 4,
+      "t": 0,
+      "paused": true,
+      "w": 0,
+      "dur": 16.77
+    },
+    "video_after_6s": {
+      "readyState": 4,
+      "t": 0,
+      "paused": true,
+      "w": 0,
+      "dur": 16.77
+    },
+    "next_prev": {
+      "t0": "103B · 22 Aug 2026 · 13:03",
+      "t1": "103B · 22 Aug 2026 · 13:03",
+      "t2": "103B · 22 Aug 2026 · 13:03",
+      "t3": "103B · 22 Aug 2026 · 13:03",
+      "url": "https://192.168.1.57:6443/dives?q=103"
+    },
+    "reader_after_escape": false,
+    "search_after_escape": "103",
+    "browser_back_reader": {
+      "dialog_open": false,
+      "url": "https://192.168.1.57:6443/"
+    },
+    "back_to_dives": {
+      "url": "https://192.168.1.57:6443/",
+      "search": null
+    },
+    "reload_dives": {
+      "url": "https://192.168.1.57:6443/",
+      "search": null
+    },
+    "sync_filtered_count": [],
+    "notready": "no Linked card visible",
+    "route_/analytics": {
+      "url": "https://192.168.1.57:6443/analytics",
+      "h1": "Detailed Analytics"
+    },
+    "route_/sessions": {
+      "url": "https://192.168.1.57:6443/sessions",
+      "h1": "Training Sessions"
+    },
+    "route_/media/representatives": {
+      "url": "https://192.168.1.57:6443/media/representatives",
+      "h1": "Representative Media"
+    },
+    "route_/media/recall": {
+      "url": "https://192.168.1.57:6443/media/recall",
+      "h1": "Media recall"
+    },
+    "route_/media/p5-canary": {
+      "url": "https://192.168.1.57:6443/media/p5-canary",
+      "h1": null
+    },
+    "route_/admin": {
+      "url": "https://192.168.1.57:6443/admin",
+      "h1": null
+    },
+    "route_/competitions": {
+      "url": "https://192.168.1.57:6443/competitions",
+      "h1": null
+    },
+    "route_/dashboard": {
+      "url": "https://192.168.1.57:6443/",
+      "h1": null
+    },
+    "route_404": {
+      "url": "https://192.168.1.57:6443/nonexistent-route-xyz",
+      "h1": null
+    },
+    "tab_sequence": [
+      "A:Overview",
+      "A:Journey",
+      "A:Analytics",
+      "A:Dives",
+      "A:Representatives",
+      "A:Media recall",
+      "A:Player",
+      "A:System",
+      "A:Sessions",
+      "A:Competitions",
+      "A:Dive Analyser",
+      "BUTTON:My dives"
+    ],
+    "m_overflow": 0,
+    "mobile_video": {
+      "readyState": 4,
+      "t": 0,
+      "paused": true,
+      "w": 0,
+      "dur": 16.77
+    }
+  }
+}
