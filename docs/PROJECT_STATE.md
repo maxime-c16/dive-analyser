@@ -1,6 +1,8 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-11** (media-backbone P11:
+> Durable project handoff. Last verified: **2026-09-13** (infrastructure thread:
+> HTTPS migration, session auth, B2 thumbnail fallback, DB connection leak fix).
+> Previous: **2026-09-11** (media-backbone P11:
 > FINAL CLOSURE — MEDIA_BACKBONE_V1 CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR).
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
@@ -9,8 +11,7 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`**
 > Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
 > (media-backbone subproject ended; further media work returns to the main supervisor)
 
@@ -1518,55 +1519,206 @@ audio-fused recall signal; (b) revisit rough-window anchor (event start vs
 splash peak) for containment; (c) recall iCloud-only sessions to widen the
 corpus before further threshold work.
 
-## Dive Analyzer subject-resolution audit — DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1 (2026-09-13)
+## Infrastructure / App layer — COMPLETE (2026-09-12–13)
 
-Diagnostic + architectural audit of the Dive Analyzer perception problem
-(individual edited clips only; Core Detection / raw-session work remains
-DiveSensei scope). Report: `docs/science/DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1.md`,
-data: `DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1.json`,
-DB export: `SUBJECT_RESOLUTION_DB_EXPORT_V1.json`,
-script: `experiments/subject_resolution/subject_resolution_audit_v1.py`,
-tests: `experiments/subject_resolution/test_subject_resolution_audit_v1.py` (13/13).
+Incremental production hardening on top of the accepted P11 state.
+No science authorities mutated. No B2 media writes. No backbone schema changes.
 
-Key findings (all from existing artifacts + read-only DB; 0 D5 reruns, 0
-embeddings, 0 training, 0 labels, 0 B2 writes, no holdout/Paris):
-- **Product subject authority is essentially complete**: 2805/2805 dives have
-  FK-valid `diver_id` + UNIQUE `video_uuid` 1:1; person_name cross-check 299/299.
-  New data-quality finding: `diver_id=19 ("RIP")` is a caption-parsing phantom
-  (rip-entry token, 6 clips incl. control dive 2169 → true subject = default
-  athlete); `SYNCK` (1928) ambiguous. Read-only; flagged for product fix.
-- **Historical target GT matches the product subject** on 10/12 (conflict:
-  2169 semantic-only via the phantom; unknown: 524 authority conflict). No GT
-  reinterpretation.
-- **Multi-diver clips are materially present**: 100 sync dives (3.6%), 36
-  multi-diver sessions (929 dives), ≥695 clips with another diver's dive
-  timestamped within 20 s (≥382 non-sync primary-athlete clips). Annotated
-  corpus: 9 MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR, 1 SEQUENTIAL (2341 next-diver
-  trap), 2 AMBIGUOUS. Product-wide prevalence: UNCERTAIN (timestamp proxy).
-- **Historical "wrong target" reclassified**: mostly NON_PERSON_CONFUSION
-  (1040/2341 static structures) and SUBJECT_DISAMBIGUATION (2353 bystander,
-  2341 next-diver), NOT identity-continuity loss (no tracks ever existed).
-  FM2 → `FM2_MIXED_IDENTITY_AND_SUBJECT_DISAMBIGUATION`.
-- **Subject-conditioned diagnostic (frozen OSNet cache, no training)**:
-  H1a same-clip reference repairs exactly the person-distractor failures
-  (2353 0.005→0.730; 2341 0.022→0.364; 2169 preserved 0.880) but reference
-  construction is a real design problem (1040/2541 window/pose-transition
-  failures); H1b cross-clip gallery ≈ 0 → frozen Market-1501 OSNet at 360p
-  insufficient for cross-clip matching. Verdict: `SUBJECT_MATCHING_SIGNAL_WEAK`.
-- **Decisions**: `SYNCHRO_MUST_BE_REPRESENTABLE_BUT_NOT_V1_DRIVER` (100/2805);
-  `PREFERRED_ARCHITECTURE = OPTION_D_HYBRID` (PersonTracks → junk elimination →
-  known-subject resolution); `NEXT_LEARNING_PROBLEM =
-  TRAIN_SUBJECT_CONDITIONED_MATCHER` (not trained; LOSO-by-dive, random frame
-  splits forbidden); `EXISTING_DATA_SUFFICIENT_BUT_IMBALANCED`.
-- **Corrected roadmap** (from INDIVIDUAL_B2_CLIP): M1 subject-resolution /
-  identity continuity → M2 clean subject trajectory → M3 temporal landmarks →
-  M4 pose/mask/geometry (HQ) → M5 biomechanics → M6 comparison. No raw-session
-  Core Detection.
-- Stop-doing list extended: no generic targetness without diver_id context; no
-  one-diver-per-clip assumption; no junk-elimination before subject resolution;
-  no per-frame NN matching across the prep→flight pose transition without a
-  temporal model; no cross-clip gallery matching with frozen OSNet at 360p.
+### DB connection leak fix — RESOLVED
 
-**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`.**
-NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
-infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+**Root cause:** SQLAlchemy 2.0 `Session.close()` does NOT always rollback an
+open transaction before returning the connection to the pool, leaving connections
+in an `idle in transaction` state. With pool_size=10 + max_overflow=5, all 15
+slots could be blocked, causing `POST /api/v1/dives?limit=5000` to return 499
+(client timeout) and `UPDATE media_jobs` to deadlock.
+
+**Fix (`backend/app/database.py`):** explicit `db.rollback()` in the `get_db`
+finally block before `db.close()`, wrapped in a bare except to avoid masking the
+original exception. Zero `idle in transaction` connections observed after fix.
+Dives endpoint response time: from timeout (>30 s) to <1 s.
+
+**In-process backbone ID cache (`backend/app/api/v1/media.py`):** the per-request
+backbone JOIN (`MediaRevision JOIN MediaBlobLocation`) that maps `video_uuid →
+revision_id` was running on every status poll from the Dives page. Added a module-level
+`_backbone_id_cache: dict` + `threading.Lock()`. The JOIN now runs at most once per
+UUID per worker restart. Cache miss result (None or revision_id) is stored so
+missing-revision UUIDs are also cached and never re-queried.
+
+### Session auth — login page and auth guard — COMPLETE
+
+**Context:** ALL user sessions had expired (last active Sep 10–11, TTL 7 days);
+no login page existed in the main app — login UI existed only inside the `P5Canary`
+internal page.
+
+**New files:**
+- `frontend/src/contexts/AuthContext.tsx` — `AuthProvider` + `useAuth()` hook;
+  calls `GET /api/v1/auth/me` on mount; exposes `{ user, checking, refresh }`.
+- `frontend/src/pages/Login.tsx` — standalone email/password form; posts to
+  `POST /api/v1/auth/login`; calls `refresh()` on success; redirects to
+  `location.state.from` (the URL the AuthGuard bounced from).
+
+**Modified:**
+- `frontend/src/App.tsx` — wrapped entire tree with `<AuthProvider>` (outside
+  `<SyncStatusProvider>` and `<BrowserRouter>`).
+- `frontend/src/router.tsx` — added `AuthGuard` component (redirects
+  unauthenticated users to `/login` with `state.from`; shows a loading spinner
+  while checking); restructured `Router()` so `/login` is outside the guard and
+  all other routes are inside it.
+- `frontend/src/components/DiveVideoPlayer.tsx` — added auth-awareness; when
+  `!authChecking && !user`, renders a "Sign in to play" overlay with a link to
+  `/login` instead of the video player.
+
+**Deployment:** rebuilt frontend Docker image with
+`docker build -f frontend/Dockerfile.deploy -t dive-analyser-frontend:latest frontend`
++ `docker-compose up -d --force-recreate --no-deps frontend`.
+
+### HTTPS migration — COMPLETE (2026-09-12)
+
+The app was accessible over both HTTP (`:6090`) and HTTPS (`:6443`) with cookies
+marked `Secure`, so HTTP sessions were silently broken. The nginx config had an
+HTTP→HTTPS redirect block but it was commented out.
+
+**`nginx/conf.d/default.conf` changes:**
+- Split the single dual-protocol server block into two:
+  - HTTP server (port 80): `return 301 https://$host:6443$request_uri;`
+    (redirects `http://...:6090/…` → `https://...:6443/…`)
+  - HTTPS server (port 443): all application proxy blocks unchanged
+- Added security headers to the HTTPS server block (applied to all API and
+  frontend responses):
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: SAMEORIGIN`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+- Added `ssl_prefer_server_ciphers on` and `ssl_session_cache/timeout`.
+
+**`.env` CORS update:** removed HTTP origins
+(`http://192.168.1.57:6090`, `http://deb-serv:6090`, `http://localhost:6090`).
+`CORS_ALLOW_ORIGINS` now: `https://192.168.1.57:6443,https://deb-serv:6443`.
+(The `_origin_allowed` function in `auth.py` also dynamically adds both schemes
+for the request's own Host, so this is belt-and-suspenders.)
+
+**Already correct (no changes needed):**
+- WebSocket: `wss://` auto-detected from `window.location.protocol === 'https:'`
+  in `SyncStatusContext.tsx`.
+- Cookies: already `Secure + HttpOnly + SameSite=Strict` (`AUTH_COOKIE_SECURE=true`).
+- All frontend API calls: relative paths (`/api/...`), no hardcoded hosts.
+
+**Verification:** `http://...:6090/` → 301 → `https://...:6443/` ✓;
+HTTPS health 200 ✓; API 200 ✓; security headers present on all API responses ✓.
+
+### Thumbnail fallback for B2-only dives — COMPLETE (2026-09-12)
+
+**Gap:** 805/2805 dives have local poster cache entries (`media_cache_entries`
+with `rendition='poster'`). The remaining ~2000 B2-only dives (all post-migration
+originals, especially recent: Aug 2026 = 7/113 with posters) showed only the
+dive-code placeholder. Backend has no ffmpeg/OpenCV (Alpine container); server-side
+frame extraction is off the table.
+
+**Fix (`frontend/src/pages/Dives.tsx`):**
+- `MediaPreview` type extended: `{ posterUrl, videoThumbUrl, ready }`.
+- `getPreview()` populates `videoThumbUrl` from `status.playback_url` when
+  `status.poster_url` is null. The cached value is the proxy URL
+  (`/api/v1/media/revisions/{id}/play`), NOT the raw B2 presigned URL — so the
+  cache never goes stale (the proxy regenerates a fresh presign on each browser
+  request).
+- `DiveThumbnail` render: three-way fallback:
+  1. `posterUrl` → `<img>` (unchanged, existing path)
+  2. `videoThumbUrl` → `<video preload="metadata" muted playsInline>` with
+     `onLoadedMetadata` nudging `currentTime = 0.001` to force first-frame
+     display on WebKit/Chrome instead of a black placeholder.
+  3. Neither → dive-code gradient placeholder (unchanged)
+- The IntersectionObserver lazy-loading (`rootMargin: '200px'`) and the
+  `previewRequests` in-flight deduplication map are unchanged — at most one
+  status fetch per UUID, only for dives near the viewport.
+
+**Rebuilt and redeployed** via `docker build -f Dockerfile.deploy` +
+`docker-compose up -d --force-recreate --no-deps frontend`.
+
+### "Keep me signed in" — COMPLETE (2026-09-13)
+
+**Problem:** session TTL = 7 days (604800 s); repeated sign-ins required as
+sessions expired. No "remember me" option existed.
+
+**Backend changes:**
+- `backend/app/config.py`: added `auth_session_remember_ttl_seconds: int`
+  (default `AUTH_SESSION_REMEMBER_TTL_SECONDS=2592000` = 30 days).
+- `backend/app/api/v1/auth.py`:
+  - `LoginRequest` gains `remember_me: bool = False`.
+  - `_set_session_cookie()` gains a `ttl_seconds: int | None = None` override
+    parameter.
+  - Login handler selects `session_ttl`:
+    `remember_me=True → auth_session_remember_ttl_seconds (30 d)`,
+    `remember_me=False → auth_session_ttl_seconds (7 d)`;
+    passes the same TTL to both `create_session()` and `_set_session_cookie()`.
+
+**Frontend change (`frontend/src/pages/Login.tsx`):**
+- Added `rememberMe` state (default `true` — personal device).
+- Added "Keep me signed in for 30 days" checkbox above the submit button.
+- Posts `remember_me: boolean` in the JSON body to `POST /api/v1/auth/login`.
+
+**Rebuilt and redeployed** frontend + backend.
+
+### Verified live state (2026-09-13)
+
+```
+Container       Image                         Status
+backend         dive-analyser-backend         Up, healthy
+frontend        dive-analyser-frontend:latest Up
+nginx           nginx:alpine                  Up (6090→HTTP redirect, 6443→HTTPS app)
+postgres        postgres:16-alpine            Up, healthy
+adminer         adminer:latest                Up
+
+http://...:6090/    → 301 https://...:6443/
+https://...:6443/   → 200 (React SPA)
+/api/v1/auth/me     → 401 unauthenticated (correct)
+/api/v1/dives       → 200 <1 s (was timeout)
+Security headers:   HSTS / nosniff / SAMEORIGIN / Referrer-Policy present
+```
+
+### Flags unchanged
+`USER_AUTH_ENABLED=true`, `B2_PLAYBACK_CANARY_ENABLED=true`,
+`object_store.enabled=true`, `dual_write.enabled=true`,
+`continuous_new_ingest=true`. Science: untouched. B2 delete/hide: 0.
+
+### Next gate
+
+No science gate. Infrastructure is in a stable, fully operational state.
+Next supervisor action depends on the science roadmap:
+`SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1` (pending) /
+`SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1` (pending).
+
+## UI Simplification Program (UI-U0R — 2026-09-13)
+
+**Status: UI_U0R GREEN (audit/rebase gate; no redesign performed).**
+Durable audit: `docs/audits/UI-U0R-authoritative-source-live-contract-rebase-v1.md`
+(+ `docs/audits/evidence-ui-u0r-screenshots/`, 39 desktop/mobile live captures).
+
+- **Authoritative frontend source PROVEN:** the live app (https://192.168.1.57:6443,
+  image `dive-analyser-frontend:latest` built 2026-09-12T13:03:55Z via
+  `frontend/Dockerfile.deploy`) is built from THIS working tree `frontend/`
+  (still uncommitted — documented build drift). Proof: deployed bundle
+  sourcemap sources 44/44 byte-identical to working tree; fresh `npm run
+  build` reproduces deployed bundle `index-BD0otN-g.js` byte-exactly.
+- Canonical HEAD at audit start `c4c9cfc` → mechanical repair commit `165eadf`
+  (vitest IntersectionObserver stub + AppleDouble cleanup; tsc/vitest/build green).
+- Current routes: `/` Dashboard, `/journey`, `/analytics`, `/dives` (Library:
+  "Browse attempts"), `/dives/analysis/:code`, `/media/{representatives,recall,
+  p5-canary}` ("Player" nav item = P5 canary harness), `/admin`, `/sessions`,
+  `/competitions` (alias rendering Journey), `/login`, no 404 fallback.
+- Playback: `GET /api/v1/media/{uuid}/status` → playback_url = B2 backbone
+  proxy `/api/v1/media/revisions/{id}/play` (auth-checked, 302→presigned GET
+  TTL 120s, legacy-cache fallback) or legacy `/api/v1/media/cache/{id}/play`;
+  native `<video>` player; prep lifecycle via `/api/v1/media/{uuid}/request`
+  + 3s polling. B2/media semantics untouched by this audit.
+- Library state: search/scope/filters/view in URL params (persist across
+  nav/reload); selected clip + pagination + scroll NOT URL-backed (lost on
+  back/reload — the main U1 fix). Prev/Next = client-side over the current
+  filtered result set (backend order `dive_datetime DESC, id DESC`) — works
+  live, no backend redesign needed.
+- Known defects for U1/U2: no 404 route; reader not deep-linkable; `/dives`
+  load error has no retry; two competing visual systems (app-* tokens vs
+  legacy gray/cyan on Dashboard/Journey/Analytics/Sessions + DiveVideoPlayer
+  overlays); e2e suite 34/34 broken by auth (needs auth fixture, pre-existing);
+  P5Canary mislabeled "Player" and stuck on "Checking session…".
+- Next gate: **authorize UI-U1/U2 — MINIMAL_IA_AND_LIBRARY_CORE_V1** (Dives.tsx
+  is the Library base; supervisor decision needed on `/` = Library).
