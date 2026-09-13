@@ -81,3 +81,6 @@ experiments/landmark_pilot/paris_source/
 runs/hurdle_identity_v1/
 runs/hurdle_prototype_v3/*.npz
 models/reid/
+
+# ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
+frontend/playwright/.auth/

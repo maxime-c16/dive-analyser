@@ -13,12 +13,12 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  ChevronDown,
   Film,
   Gauge,
   HardDriveDownload,
-  Medal,
-  Menu,
   ShieldCheck,
+  Menu,
   Waves,
   X,
 } from "lucide-react";
@@ -33,50 +33,101 @@ import MediaRecall from "./pages/MediaRecall";
 import P5Canary from "./pages/P5Canary";
 import Admin from "./pages/Admin";
 
-const navItems = [
-  { to: "/", label: "Overview", icon: Gauge },
+/** Library is the product home; everything else is secondary or operational. */
+const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
+
+const secondaryNav = [
+  { to: "/dashboard", label: "Overview", icon: Gauge },
   { to: "/journey", label: "Journey", icon: BookOpen },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/dives", label: "Dives", icon: Waves },
   { to: "/media/representatives", label: "Representatives", icon: Film },
-  { to: "/media/recall", label: "Media recall", icon: HardDriveDownload },
-  { to: "/media/p5-canary", label: "Player", icon: Film },
-  { to: "/admin", label: "System", icon: ShieldCheck },
   { to: "/sessions", label: "Sessions", icon: CalendarDays },
-  { to: "/competitions", label: "Competitions", icon: Medal },
+];
+
+const operationsNav = [
+  { to: "/media/recall", label: "Media recall", icon: HardDriveDownload },
+  { to: "/admin", label: "System", icon: ShieldCheck },
 ];
 
 const routeLabels: Record<string, string> = {
-  "/": "Overview",
+  "/": "Library",
+  "/dashboard": "Overview",
   "/journey": "Journey",
   "/analytics": "Analytics",
-  "/dives": "Dives",
+  "/dives": "Library",
   "/media": "Media",
   "/media/representatives": "Representatives",
   "/media/recall": "Media recall",
-  "/media/p5-canary": "Player",
+  "/media/p5-canary": "Player canary",
   "/admin": "System",
   "/sessions": "Sessions",
   "/competitions": "Competitions",
 };
 
-function AppNavLink({ to, label, icon: Icon }: (typeof navItems)[number]) {
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+function AppNavLink({
+  to,
+  label,
+  icon: Icon,
+  emphasis = false,
+}: NavItem & { emphasis?: boolean }) {
   return (
     <NavLink
       to={to}
       end={to === "/"}
       className={({ isActive }) =>
         [
-          "flex items-center gap-3 border border-transparent px-3 py-2.5 text-sm font-medium transition-colors",
+          "flex items-center gap-3 border border-transparent px-3 py-2.5 transition-colors",
+          emphasis ? "text-base font-semibold" : "text-sm font-medium",
           isActive
             ? "border-app bg-app-panel text-app-text"
             : "text-app-muted hover:border-app hover:bg-app-panel/70 hover:text-app-text",
         ].join(" ")
       }
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={emphasis ? "h-5 w-5" : "h-4 w-4"} />
       <span>{label}</span>
     </NavLink>
+  );
+}
+
+function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-controls="operations-navigation"
+        className={
+          compact
+            ? "touch-target flex w-full items-center justify-between border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-muted"
+            : "flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted hover:text-app-text"
+        }
+      >
+        Operations
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <nav
+          id="operations-navigation"
+          aria-label="Operations navigation"
+          className={compact ? "mt-2 grid gap-2" : "mt-2 space-y-1"}
+        >
+          {operationsNav.map((item) => (
+            <AppNavLink key={item.to} {...item} emphasis={compact} />
+          ))}
+        </nav>
+      )}
+    </div>
   );
 }
 
@@ -85,7 +136,7 @@ function Breadcrumbs() {
   const parts = location.pathname.split("/").filter(Boolean);
   const crumbs =
     parts.length === 0
-      ? [{ href: "/", label: "Overview" }]
+      ? [{ href: "/", label: "Library" }]
       : parts.map((part, index) => {
           const href = `/${parts.slice(0, index + 1).join("/")}`;
           return {
@@ -135,7 +186,7 @@ function MobileNavigation() {
     <div className="sticky top-0 z-40 border-b border-app bg-app lg:hidden">
       <div className="flex h-14 items-center justify-between px-4">
         <Link
-          to="/"
+          to="/dives"
           className="min-h-11 inline-flex items-center text-base font-semibold text-app-text"
         >
           Dive Analyser
@@ -162,11 +213,28 @@ function MobileNavigation() {
           className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-app bg-app p-4 shadow-[0_18px_40px_rgba(0,0,0,.35)]"
         >
           <nav aria-label="Primary navigation" className="grid gap-2">
-            {navItems.map(({ to, label, icon: Icon }) => (
+            {primaryNav.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
-                end={to === "/"}
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `touch-target flex items-center gap-3 border px-4 text-lg font-semibold ${isActive ? "border-app-strong bg-app-panel text-app-text" : "border-app bg-app-panel-elevated text-app-text"}`
+                }
+              >
+                <Icon className="h-5 w-5" />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+          <p className="mb-2 mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
+            Review
+          </p>
+          <nav aria-label="Secondary navigation" className="grid gap-2">
+            {secondaryNav.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
                   `touch-target flex items-center gap-3 border px-4 text-base font-medium ${isActive ? "border-app-strong bg-app-panel text-app-text" : "border-app bg-app-panel-elevated text-app-muted"}`
@@ -177,6 +245,9 @@ function MobileNavigation() {
               </NavLink>
             ))}
           </nav>
+          <div className="mt-5">
+            <OperationsDisclosure compact />
+          </div>
         </div>
       )}
     </div>
@@ -197,16 +268,34 @@ function Layout({ children }: { children: React.ReactNode }) {
                 Training Workspace
               </div>
               <p className="mt-2 text-sm leading-6 text-app-muted">
-                Operational view for review, progression, sessions, and
-                competition prep.
+                Your clips live in the Library. Review, analysis, and history
+                branch out from there.
               </p>
             </div>
 
-            <nav className="mt-6 space-y-1">
-              {navItems.map((item) => (
-                <AppNavLink key={item.to} {...item} />
+            <nav className="mt-6 space-y-1" aria-label="Primary navigation">
+              {primaryNav.map((item) => (
+                <AppNavLink key={item.to} {...item} emphasis />
               ))}
             </nav>
+
+            <div className="mt-6">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
+                Review
+              </p>
+              <nav
+                className="mt-2 space-y-1"
+                aria-label="Secondary navigation"
+              >
+                {secondaryNav.map((item) => (
+                  <AppNavLink key={item.to} {...item} />
+                ))}
+              </nav>
+            </div>
+
+            <div className="mt-6">
+              <OperationsDisclosure />
+            </div>
 
             <div className="mt-auto border-t border-app pt-4 text-xs leading-5 text-app-muted">
               LAN / WireGuard workspace
@@ -225,6 +314,31 @@ function Layout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** `/` is the product entry: the Library. Query parameters are preserved. */
+function RootRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/dives${location.search}`} replace />;
+}
+
+function NotFound() {
+  return (
+    <div className="app-panel mx-auto mt-10 max-w-lg py-10 text-center">
+      <h1 className="text-2xl font-semibold text-app-text">Page not found</h1>
+      <p className="mt-2 text-sm leading-6 text-app-muted">
+        This address doesn&rsquo;t match a page in the workspace. Your clips are
+        in the Library.
+      </p>
+      <Link
+        to="/dives"
+        className="touch-target mt-6 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent"
+      >
+        <Waves className="h-4 w-4" />
+        Back to Library
+      </Link>
     </div>
   );
 }
@@ -259,8 +373,8 @@ function Router() {
           <AuthGuard>
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/" element={<RootRedirect />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/journey" element={<Journey />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/dives" element={<Dives />} />
@@ -274,6 +388,7 @@ function Router() {
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/sessions" element={<Sessions />} />
                 <Route path="/competitions" element={<Journey />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
           </AuthGuard>

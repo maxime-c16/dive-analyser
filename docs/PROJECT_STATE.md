@@ -1855,3 +1855,44 @@ Tests: 11/11 V2 + 20/20 metadata + 13/13 audit; zero failures.
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`.**
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
 infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+
+### UI-U1/U2 — MINIMAL_IA_AND_LIBRARY_CORE_V1 (2026-09-13)
+
+**Status: UI_U1U2 GREEN (first CLIP_FIRST product gate).**
+Durable audit: `docs/audits/UI-U1U2-minimal-ia-library-core-v1.md`
+(+ `docs/audits/evidence-ui-u1u2-screenshots/`, 14 desktop/mobile/state captures).
+
+- **Concurrent ownership resolved:** the infra thread's completed, deployed
+  session-auth/HTTPS/B2-thumbnail work was durably committed as a
+  path-limited attribution commit `0133386c` (content md5-verified unchanged;
+  science-thread staged deletions/untracked experiments untouched). The UI
+  task worktree `ui-u1u2-library-core-v1` is based on it — the worktree now
+  contains the true authoritative frontend for the first time.
+- **Library is the product home:** `/` → redirect to `/dives` (query
+  preserved); `/dashboard` renders the Dashboard secondarily; nav is now
+  PRIMARY=Library, SECONDARY=Overview/Journey/Analytics/Representatives/
+  Sessions, OPERATIONS=collapsed disclosure (Media recall, System);
+  P5Canary and Competitions hidden from nav (routes preserved); real 404
+  page with "Back to Library".
+- **Selected clip is URL-addressable:** `/dives?...&clip=<attempt-id>`
+  (stable DB id, not media UUID). Reader is derived from the URL: open=PUSH,
+  Prev/Next=REPLACE, close=REPLACE, browser Back closes the reader before
+  leaving the Library. Reload reopens the clip; invalid/stale clip ids fail
+  safely. Filter changes keep REPLACE semantics and never reset because of
+  the clip param.
+- **Context restoration proven live:** pagination depth survives the review
+  loop; scroll restored exactly (desktop 4000→4000, mobile 2500→2500);
+  reader focus moves into the dialog on mount (required so the browser does
+  not scroll the still-focused card back into view on close).
+- **Library reliability:** distinct empty state with Clear filters;
+  retryable error with working Retry.
+- **E2E auth foundation:** global-setup login fixture via the real
+  `/api/v1/auth/login` (runtime env credentials only, storageState
+  gitignored); legacy 34/34-failing suite repaired → **83 passed / 1
+  skipped / 0 failed** across desktop+mobile projects; new
+  `e2e/tests/library.spec.ts` covers packet Tests A–F. Unit/component tests
+  61/61 (was 44). typecheck + production build green; lint still
+  NOT_CONFIGURED (pre-existing).
+- Canonical HEAD after this gate: see LOCAL_AGENT_REPORT / git log.
+- Next gate: **UI-U3 — CLIP_VIEWER_CORE_V1** (reader redesign; the reader
+  implementation itself was intentionally not redesigned here).

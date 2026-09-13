@@ -18,3 +18,17 @@ if (typeof (globalThis as { IntersectionObserver?: unknown }).IntersectionObserv
   }
   (globalThis as { IntersectionObserver: unknown }).IntersectionObserver = IOStub as unknown;
 }
+
+// jsdom does not implement window.scrollTo; the Library scroll-restoration
+// effect calls it when the reader closes. Tests assert behavior elsewhere.
+window.scrollTo = () => {}
+
+// jsdom lacks ResizeObserver; recharts ResponsiveContainer needs it.
+if (typeof (globalThis as { ResizeObserver?: unknown }).ResizeObserver === "undefined") {
+  class ROStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as { ResizeObserver: unknown }).ResizeObserver = ROStub as unknown;
+}

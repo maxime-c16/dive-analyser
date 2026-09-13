@@ -334,6 +334,13 @@ function AttemptReader({
     dive.phase1_performance || undefined,
     dive.phase2_performance || undefined,
   );
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // Move focus into the dialog so the underlying card does not keep focus:
+    // a still-focused card would be scrolled back into view by the browser
+    // when the body overflow lock is released, breaking scroll restoration.
+    dialogRef.current?.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     const bodyOverflow = document.body.style.overflow;
     const documentOverflow = document.documentElement.style.overflow;
@@ -358,10 +365,12 @@ function AttemptReader({
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-reader-title"
-        className="ml-auto flex h-[100dvh] w-full max-w-5xl flex-col overflow-y-auto overscroll-contain border-l border-app bg-app"
+        className="ml-auto flex h-[100dvh] w-full max-w-5xl flex-col overflow-y-auto overscroll-contain border-l border-app bg-app outline-none"
       >
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-app bg-app/95 px-4 py-3 backdrop-blur sm:px-6">
           <div className="min-w-0">
@@ -510,10 +519,11 @@ export default function Dives() {
   const [searchParams, setSearchParams] = usePreservedSearchParams();
   const [dives, setDives] = useState<Dive[]>([]);
   const [divers, setDivers] = useState<Diver[]>([]);
-  const [selected, setSelected] = useState<Dive | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [shown, setShown] = useState(48);
+  const scrollAnchorRef = useRef<number | null>(null);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
   const scope = (searchParams.get("scope") || "self") as Scope;
@@ -524,9 +534,22 @@ export default function Dives() {
     .split(",")
     .filter(Boolean);
   const view = (searchParams.get("view") || "grid") as View;
+  const clipParam = searchParams.get("clip") || "";
+
+  const update = (
+    patch: Record<string, string | null>,
+    options?: { replace?: boolean },
+  ) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(patch).forEach(([key, value]) =>
+      value ? next.set(key, value) : next.delete(key),
+    );
+    setSearchParams(next, { replace: options?.replace ?? true });
+  };
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     Promise.all([
       api.get("/api/v1/dives", {
         params: { limit: 5000, exclude_lineup: true, diver_scope: "all" },
@@ -549,15 +572,8 @@ export default function Dives() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  const update = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(patch).forEach(([key, value]) =>
-      value ? next.set(key, value) : next.delete(key),
-    );
-    setSearchParams(next, { replace: true });
-  };
   const primaryId = divers.find((diver) => diver.is_primary_user)?.id;
   const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
   const filtered = useMemo(
@@ -634,8 +650,52 @@ export default function Dives() {
     performanceFilter,
     modifiers.join(","),
   ]);
+
+  // The reader is derived from the URL: `clip` holds the selected attempt id.
+  // Selection is only valid inside the current filtered result set, so a
+  // filter change that excludes the clip closes the reader automatically.
+  const selected =
+    clipParam && filtered.some((dive) => String(dive.id) === clipParam)
+      ? filtered.find((dive) => String(dive.id) === clipParam) || null
+      : null;
+
+  // Stale/invalid clip identity (bad id, removed attempt, direct stale link):
+  // clear it non-destructively so the Library stays usable.
+  useEffect(() => {
+    if (!clipParam || loading || error) return;
+    if (!filtered.some((dive) => String(dive.id) === clipParam)) {
+      update({ clip: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipParam, loading, error, filtered]);
+
+  // Deterministic Library scroll restoration for the review loop: the anchor
+  // is captured when a clip is opened and restored when the reader closes
+  // (browser Back or the close control).
+  useEffect(() => {
+    if (selected) return;
+    if (scrollAnchorRef.current !== null) {
+      const anchor = scrollAnchorRef.current;
+      scrollAnchorRef.current = null;
+      requestAnimationFrame(() => window.scrollTo(0, anchor));
+    }
+  }, [selected]);
+
+  const openClip = (dive: Dive) => {
+    if (scrollAnchorRef.current === null) {
+      scrollAnchorRef.current = window.scrollY;
+    }
+    // Opening a clip is one history entry; Prev/Next/close replace instead.
+    update({ clip: String(dive.id) }, { replace: false });
+  };
+  const moveToClip = (dive: Dive) => {
+    update({ clip: String(dive.id) });
+  };
+  const closeReader = () => {
+    update({ clip: null });
+  };
+
   const visible = filtered.slice(0, shown);
-  const recent = filtered.slice(0, 10);
   const heights = useMemo(
     () =>
       [...new Set(dives.map((dive) => dive.height))].sort(
@@ -644,18 +704,6 @@ export default function Dives() {
     [dives],
   );
   const codeCount = new Set(filtered.map((dive) => dive.dive_code)).size;
-  const average = filtered.length
-    ? filtered.reduce(
-        (sum, dive) =>
-          sum +
-          performanceScore10(
-            dive.performance,
-            dive.phase1_performance || undefined,
-            dive.phase2_performance || undefined,
-          ),
-        0,
-      ) / filtered.length
-    : 0;
   const activeFilters = [
     heightFilter,
     contextFilter,
@@ -680,10 +728,10 @@ export default function Dives() {
         <div>
           <p className="text-xs font-medium text-app-muted">Dive library</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
-            Browse attempts
+            Library
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-app-muted">
-            Search by dive code, position, height, context, rating, or drill.
+            Search by code, position, height, context, rating, or modifier.
             Open a tile to review that exact attempt.
           </p>
         </div>
@@ -695,12 +743,6 @@ export default function Dives() {
           <div className="border border-app bg-app-panel px-3 py-2">
             <span className="text-app-muted">Codes </span>
             <strong className="ml-1 text-app-text">{codeCount}</strong>
-          </div>
-          <div className="hidden border border-app bg-app-panel px-3 py-2 sm:block">
-            <span className="text-app-muted">Average </span>
-            <strong className="ml-1 text-app-accent">
-              {average.toFixed(1)}
-            </strong>
           </div>
         </div>
       </header>
@@ -820,123 +862,113 @@ export default function Dives() {
       )}
       {error && (
         <div className="mt-6 border border-red-300/40 bg-red-300/10 p-4 text-sm text-red-100">
-          {error}
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="touch-target mt-3 inline-flex items-center gap-2 border border-red-300/50 bg-black/30 px-3 text-sm text-red-50"
+          >
+            Retry
+          </button>
         </div>
       )}
       {!loading && !error && (
-        <>
-          <section className="mt-8">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-app-text">
-                  Recent attempts
-                </h2>
-                <p className="mt-1 text-xs text-app-muted">
-                  Tap a card to open the exact clip and attempt details.
-                </p>
-              </div>
-              <span className="text-sm text-app-accent">
-                {recent.length} shown
-              </span>
+        <section className="mt-8">
+          <div className="flex items-end justify-between gap-3 border-b border-app pb-3">
+            <div>
+              <h2 className="text-lg font-semibold text-app-text">
+                All matching attempts
+              </h2>
+              <p className="mt-1 text-xs text-app-muted">
+                {filtered.length} attempts ·{" "}
+                {scope === "self"
+                  ? "your training history"
+                  : "all authorized divers"}
+              </p>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 mobile-scroll-region 2xl:grid 2xl:grid-cols-5 2xl:overflow-visible">
-              {recent.map((dive) => (
-                <AttemptCard
-                  key={dive.id}
-                  dive={dive}
-                  compact
-                  onOpen={() => setSelected(dive)}
-                />
-              ))}
+            <div className="hidden items-center gap-1 sm:flex">
+              <button
+                type="button"
+                onClick={() => update({ view: "grid" })}
+                className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => update({ view: "list" })}
+                className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+                aria-label="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
-          </section>
-          <section className="mt-10">
-            <div className="flex items-end justify-between gap-3 border-b border-app pb-3">
-              <div>
-                <h2 className="text-lg font-semibold text-app-text">
-                  All matching attempts
-                </h2>
-                <p className="mt-1 text-xs text-app-muted">
-                  {filtered.length} attempts ·{" "}
-                  {scope === "self"
-                    ? "your training history"
-                    : "all authorized divers"}
-                </p>
-              </div>
-              <div className="hidden items-center gap-1 sm:flex">
+          </div>
+          {filtered.length === 0 ? (
+            <div className="border-b border-app py-16 text-center">
+              <p className="font-medium text-app-text">
+                No attempts match this search.
+              </p>
+              <p className="mt-2 text-sm text-app-muted">
+                Try a shorter code, remove a modifier, or switch scope.
+              </p>
+              {(activeFilters > 0 || scope !== "self") && (
                 <button
                   type="button"
-                  onClick={() => update({ view: "grid" })}
-                  className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-                  aria-label="Grid view"
+                  onClick={reset}
+                  className="touch-target mt-4 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent"
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Clear filters
                 </button>
-                <button
-                  type="button"
-                  onClick={() => update({ view: "list" })}
-                  className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </button>
-              </div>
+              )}
             </div>
-            {filtered.length === 0 ? (
-              <div className="border-b border-app py-16 text-center">
-                <p className="font-medium text-app-text">
-                  No attempts match this search.
-                </p>
-                <p className="mt-2 text-sm text-app-muted">
-                  Try a shorter code, remove a modifier, or switch scope.
-                </p>
-              </div>
-            ) : (
-              <>
-                {view === "grid" && (
-                  <div className="mt-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {visible.map((dive) => (
-                      <AttemptCard
-                        key={dive.id}
-                        dive={dive}
-                        onOpen={() => setSelected(dive)}
-                      />
-                    ))}
-                  </div>
-                )}
-                <div
-                  className={`mt-4 border border-app bg-app-panel ${view === "grid" ? "sm:hidden" : ""}`}
-                >
+          ) : (
+            <>
+              {view === "grid" && (
+                <div className="mt-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {visible.map((dive) => (
-                    <AttemptRow
+                    <AttemptCard
                       key={dive.id}
                       dive={dive}
-                      onOpen={() => setSelected(dive)}
+                      onOpen={() => openClip(dive)}
                     />
                   ))}
                 </div>
-                {shown < filtered.length && (
-                  <div className="mt-5 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setShown((count) => count + 48)}
-                      className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
-                    >
-                      Show 48 more attempts
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        </>
+              )}
+              <div
+                className={`mt-4 border border-app bg-app-panel ${view === "grid" ? "sm:hidden" : ""}`}
+              >
+                {visible.map((dive) => (
+                  <AttemptRow
+                    key={dive.id}
+                    dive={dive}
+                    onOpen={() => openClip(dive)}
+                  />
+                ))}
+              </div>
+              {shown < filtered.length && (
+                <div className="mt-5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShown((count) => count + 48)}
+                    className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
+                  >
+                    Show 48 more attempts
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       )}
       {selected && (
         <AttemptReader
           dive={selected}
           dives={filtered}
-          onClose={() => setSelected(null)}
-          onMove={setSelected}
+          onClose={closeReader}
+          onMove={moveToClip}
         />
       )}
     </div>
