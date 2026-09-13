@@ -1894,7 +1894,10 @@ Durable audit: `docs/audits/UI-U1U2-minimal-ia-library-core-v1.md`
   `e2e/tests/library.spec.ts` covers packet Tests A–F. Unit/component tests
   61/61 (was 44). typecheck + production build green; lint still
   NOT_CONFIGURED (pre-existing).
-- Canonical HEAD after this gate: see LOCAL_AGENT_REPORT / git log.
+- Gate integration: task branch merged at `75fca59` (canonical
+  `uiux-overhaul-pro-app`); canonical has since advanced with concurrent
+  science merges (`f00dffd7`) preserving this gate's frontend content.
+  Deployed live bundle `index-Dt1jwy4N.js` verified byte-identical to Git.
 - Next gate: **UI-U3 — CLIP_VIEWER_CORE_V1** (reader redesign; the reader
   implementation itself was intentionally not redesigned here).
 

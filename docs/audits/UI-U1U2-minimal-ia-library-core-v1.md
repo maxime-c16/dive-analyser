@@ -5,7 +5,10 @@ Task: `UI-U1/U2 — MINIMAL_IA_AND_LIBRARY_CORE_V1`
 Worktree: `/home/mcauchy/dive-analyser-worktrees/ui-u1u2-library-core-v1`
 Branch: `ui-u1u2-library-core-v1`
 Initial canonical HEAD: `defc6cfae5f36c6e3b4f7a56dfa569efd157db35` (branch `uiux-overhaul-pro-app`, identical to U0R final)
-Final canonical HEAD: recorded in LOCAL_AGENT_REPORT after integration.
+Final canonical HEAD (this gate): `75fca591ebf0323edf4d403a914cd19ca6c4c028`
+(merge of `ui-u1u2-library-core-v1` into canonical). Canonical has since
+advanced with concurrent science merges (`f00dffd7...` Subject Resolution Cohort
+Expansion V1) that preserve this gate's frontend content byte-for-byte.
 
 > Evidence: `docs/audits/evidence-ui-u1u2-screenshots/` (14 captures: d01–d08
 > desktop 1440×900, m01–m04 mobile 390×844, s01–s02 reliability states).
@@ -263,11 +266,21 @@ Live-behavior proofs captured during E2E/capture runs (preview build):
 
 ## 15. Deployment
 
-Performed after integration (see LOCAL_AGENT_REPORT): frontend-only rebuild of
-`dive-analyser-frontend:latest` from the canonical tree via
-`frontend/Dockerfile.deploy` + `docker-compose up -d --force-recreate
---no-deps frontend`; backend/auth/DB/B2 untouched. Post-deploy live smoke and
-full E2E re-run against production recorded in the LOCAL_AGENT_REPORT.
+Performed: frontend-only rebuild of `dive-analyser-frontend:latest` from the
+canonical tree via `frontend/Dockerfile.deploy` (image `fc9f1c6e4498`) +
+`docker-compose up -d --force-recreate --no-deps frontend`. New live bundle:
+`index-Dt1jwy4N.js` (index.html md5 `7d4c5fde89c234b1818d52e0b7947ed0`).
+Deployed sourcemap first-party sources verified byte-identical to canonical
+Git (7/7 key files). Backend/auth/DB/B2 untouched.
+
+Post-deploy live validation against production `https://192.168.1.57:6443`:
+- Full authenticated E2E suite: **83 passed / 1 skipped / 0 failed**
+  (desktop + mobile projects; one load-sensitive legacy test passed on
+  re-run after a transient server I/O spike).
+- Live captures: `live-d01-home-lands-in-library.png`,
+  `live-m01-home-lands-in-library.png` — `/` lands in the Library on
+  production for desktop and mobile.
+- Live URLs verified: `/` -> `/dives` (desktop + mobile).
 
 ## 16. Remaining work
 
