@@ -11,8 +11,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
 > `SUPERVISOR_REVIEW_AFTER_PERCEPTION_STATUS_REBASE_V1`;
 > earlier: `SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1`, pending)
 > Media-backbone gate: **`MEDIA_BACKBONE_V1: CLOSED_AND_RETURNED_TO_PARENT_SUPERVISOR`**
@@ -1789,5 +1790,68 @@ Tests: 33/33 (20 metadata incl. 5 phantom-repair regressions + 13 audit).
 Server temp cleanup `/tmp/subject_resolution_v1/*` pending → done this cycle.
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`.**
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
+infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+
+## Subject Reference Acquisition V2 — DIVE_ANALYZER_SUBJECT_REFERENCE_ACQUISITION_V2 (2026-09-13)
+
+Packet executed on worktree branch `subject-reference-acquisition-v2`
+(base = integrated canonical `uiux-overhaul-pro-app` @ d4c3f29 = V1
+reconciliation `a0e09d2` + DIVER_ID_19_HARDENING_V2 `d4c3f29`).
+
+### Phase 0 — canonical reconciliation + hardening
+
+- V1 (`3dafd8b` + `1a656c7`) merged into canonical `uiux-overhaul-pro-app`
+  (merge `a0e09d2`, clean temporary integration worktree; concurrent dirty
+  main worktree + staged science deletions preserved untouched; UI-U0R
+  sections unioned).
+- `PHANTOM_DIVER_HARDENING_GREEN`: diver 19 retired generically — live DB
+  `active=false` (snapshot-proven, zero collateral), `resolve_diver()`
+  requires `active` and refuses to resurrect retired names (no RIP-specific
+  branch; production container redeployed and verified live: RIP -> None,
+  TOM/PAUL/FANNY/SARA/MAT -> active rows). Tests 9/9 divers + full-suite
+  failure set identical to pristine. `docs/audits/DIVER_ID_19_HARDENING_V2.md`.
+
+### Science verdict (5-dive HURDLE multi-person cohort; frozen caches only)
+
+- `EDITED_CLIP_TEMPORAL_STRUCTURE_STRONG` (action inside clip body in 5/5,
+  τ_water 0.29–0.57; pre/post padding 0.24–0.54τ / 0.43–0.71τ; subject
+  visible+stable pre-takeoff 5/5) — but NOT discriminative: other persons do
+  not occupy reliably different temporal regions.
+- `BOARD_TOPOLOGY_WEAK` (coarse water region usable as weak prior; specific
+  apparatus region NOT separable from generic static clusters).
+- `A0_CLIP_RELATIVE_ACTION_OWNERSHIP` and `A1_APPARATUS_TO_WATER` (the two
+  allowed no-training formulations, fixed a priori constants, flow-compensated,
+  GT-free stripped store): `REFERENCE_SUBJECT_CORRECT 0/5 dives` for both.
+  Best subject reference ranks 2–14 (A1, 4/5 dives) — real but insufficient
+  ranking signal. Bounded stable-anchor→departure continuation diagnostic
+  also failed.
+- Downstream frozen matcher replay with V2 references: GT@1 ≈ 0 (acquisition
+  failure is not hidden by the matcher). Oracle stable-ref ceiling unchanged
+  (0.689/0.873/0.707/0.788/0.859).
+- `ABSTENTION_NOT_INFORMATIVE` (margin thresholds remove nothing catastrophic;
+  top-1 errors are confident wrong picks).
+- Multi-person cohort remains 5 HURDLE dives only (STANDING dives lack
+  per-frame subject GT + multi-person frozen D5 caches; new D5 inference was
+  prohibited this packet). Cross-family generalization UNTESTABLE this cycle.
+
+### Decision
+
+```text
+LEARNING_DECISION = NO_TRAINING_YET
+DATA_SUFFICIENCY  = DATA_TOO_SMALL_FOR_LEARNING
+CURRENT TRUE BLOCKER = GT-free subject reference acquisition (unchanged from V1)
+```
+
+Recommended next: widen the multi-person cohort (bounded D5-inference packet
+for STANDING/ARMSTAND) THEN `TRAIN_REFERENCE_ACQUISITION_SCORER_NEXT`
+(LOSO-by-dive, labels from frozen GT chains). Do NOT train a subject-
+conditioned matcher yet.
+
+Resources: 0 D5 inference, 0 embeddings, 0 training, 0 labels, 0 B2 reads/
+writes, no holdout/Paris/524/2555 science use (2555 not even loaded).
+Tests: 11/11 V2 + 20/20 metadata + 13/13 audit; zero failures.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`.**
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
 infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
