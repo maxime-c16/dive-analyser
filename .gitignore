@@ -82,5 +82,10 @@ runs/hurdle_identity_v1/
 runs/hurdle_prototype_v3/*.npz
 models/reid/
 
+# ---- Subject Candidate Quality V3: host caches and run outputs (never in Git) ----
+runs/subject_resolution/
+runs/subject_gt_level_a_v1/
+runs/subject_candidate_quality_v3/
+
 # ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
 frontend/playwright/.auth/

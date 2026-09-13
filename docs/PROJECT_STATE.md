@@ -11,8 +11,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`,
 > `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_V1`,
 > `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_AUDIT_V1`,
@@ -2068,3 +2069,73 @@ failures reproduced identically, untouched. Full report:
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`.**
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when the
 infrastructure thread commits (established convention, cf. `d968ad1`/`98a3528`).
+
+## Subject Candidate Quality V3 — DIVE_ANALYZER_SUBJECT_CANDIDATE_QUALITY_V3 (2026-09-13)
+
+Packet executed on worktree branch `subject-candidate-quality-v3`
+(fresh from canonical `uiux-overhaul-pro-app` @ `0dabd2b`). Final bounded
+no-training hypothesis: suppress/down-rank unsupported low-quality person
+hypotheses via TRACK-LEVEL evidence while preserving the floor-conf=0.001
+proposal recall that keeps the true subject available. D5 floor NOT raised.
+
+### Phase 0/1 — authorities + baseline reproduction (PASSED)
+Level-A authority SHA recomputed `d805aac2…a75e` (63 anchors); frozen D5
+model `82b420c4…`; HURDLE caches `3bed1aaf…`/`48ab9bd3…`; STANDING caches
+`b2f01e41…`/`4d836002…`; V2 module byte-identical (`01a17dd7…`). Baseline
+replayed EXACTLY: HURDLE A0/A1 top-1 tid+score match the frozen V2 freeze
+artifact on all 10 cells; STANDING full ranked lists + candidate features
+byte-identical to the durable Level-A replay (0/7 measurable top-1 correct).
+
+### Phase 2/3 — diagnostic + track-support signal: `TRACK_SUPPORT_SIGNAL_PARTIAL`
+Per-candidate quality measures from the frozen caches only (GT for labeling
+only). STANDING: every subject candidate has >=2 supported frames (0%
+zero-support; support = conf>=0.05 detection within normalized center
+distance 0.06, both constants reused frozen semantics) while 76.7% of
+non-subject movers and 92.2% of statics have zero support; the 133/311
+top-1 phantom decoys have ZERO support. HURDLE: 26.8% of subject candidates
+have zero support (true subject sometimes exists only below 0.05), and the
+2169/2353/2541 top-1 decoys are SUPPORTED movers.
+
+### Phase 4/5/6/7/8 — Q0 executed, Q1 rejected early, retention gate PASSED
+Q0 (pre-registered, no new numeric cutoff): support_count tier — supported
+candidates outrank unsupported; frozen A0/A1 order within tier; frozen
+abstention semantics on the top tier; graceful fallback; NOTHING deleted.
+Retention gate passed on all 9 dives at cutoff family {1,2,3,5}. Q1
+(within-track OSNet appearance coherence) REJECTED_EARLY with data:
+non-subject movers are equally/more coherent (median 0.866–0.918 vs subject
+0.824–0.870) — no generic benefit.
+
+### Phase 9–12 — V3 results: `CANDIDATE_QUALITY_V3_PARTIAL`
+Top-1 subject-correct: HURDLE 0/10, STANDING 0/8 — UNCHANGED from frozen V2.
+Phantom suppression real: phantom top-1 wins 9 -> 0; 1578/1581 phantom
+candidates down-ranked; no deletion. Best-subject-rank improves materially
+on 12/18 cells (311-A0 30->2, 133-A0 77->14, 2387-A0 435->100, 676-A1
+152->32, 2341-A1 178->83) but regresses on 3 HURDLE cells (1040-A1 2->15,
+2353-A0 9->18, 2353-A1 2->16). DECISIVE FINDING: after phantom suppression
+the dominant wrong references are SUPPORTED movers — real other-person
+tracks and subject-adjacent association fragments (purity up to 0.67). The
+remaining failure is IDENTITY/ASSOCIATION, not candidate quality.
+
+### Phase 13–19 — decisions
+No V4 rule cycle proposed
+(`HANDCRAFTED_SUBJECT_REFERENCE_HEURISTICS_CONTINUE_ONLY_IF_NEW_EVIDENCE`).
+Learning: `EXPAND_INDEPENDENT_GT_BEFORE_LEARNING` (9 dives/~17 positives;
+target now points at identity-aware reference selection, not sharpened
+enough for a pilot). Next GT: 4–6 NEW independent dives/sessions/athletes
+(Level-B chains), NOT more anchors on the same 4 STANDING clips.
+`ARMSTAND_STILL_DEFERRED` (limitation is independence + identity, not
+family diversity). Abstention: diagnostic only — wrong top-1s remain
+confidently wrong (margins up to 2.24); no production threshold. Matcher
+replay `NOT_JUSTIFIED` (no correct references). Event Logic untouched
+(`EVENT_LOGIC_REPLAY_DEFERRED`).
+
+### Resources / firewalls / tests
+0 new D5 inference, 0 embeddings, 0 training, 0 labels, 0 B2 reads/writes;
+524/2555/Paris/INTERNAL_EVAL/holdout untouched; GT structurally excluded
+from the inference path (test-enforced); Level-A GT unmutated. Tests: 19
+new + subject-resolution suite 73 passed/1 pre-existing skip. Code:
+`experiments/subject_resolution/phase_subject_candidate_quality_v3.py`
+(+ tests). Full report:
+`docs/science/DIVE_ANALYZER_SUBJECT_CANDIDATE_QUALITY_V3.md` (+ `.json`).
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`.**
