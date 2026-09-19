@@ -273,7 +273,7 @@ features; core IA unchanged; analysis semantics unchanged.
   (compose has no build section; explicit `docker build -f
   frontend/Dockerfile.deploy` + `up -d --force-recreate --no-deps`).
 - Deployed commit: code-merge `1dd8045` (frontend tree frozen; final
-  canonical HEAD recorded in PROJECT_STATE after the docs-only merge).
+  canonical HEAD 03aa75165a6a2261384b1b082491f1b12e4e87bc (docs-only merge, frontend tree identical to 1dd8045).
   Live bundle `index-zrC4-UyN.js`
   (md5 `138abc98420a2779f1c650231da43b35`) + `index-A_H9YTui.css`
   (md5 `2815236eb28049fc8187361467e84d3e`): both md5-identical to a fresh
