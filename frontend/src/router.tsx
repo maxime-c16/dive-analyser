@@ -55,13 +55,11 @@ const routeLabels: Record<string, string> = {
   "/journey": "Journey",
   "/analytics": "Analytics",
   "/dives": "Library",
-  "/media": "Media",
   "/media/representatives": "Representatives",
   "/media/recall": "Media recall",
   "/media/p5-canary": "Player canary",
   "/admin": "System",
   "/sessions": "Sessions",
-  "/competitions": "Competitions",
 };
 
 type NavItem = {
@@ -131,34 +129,66 @@ function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
   );
 }
 
+type Crumb = { label: string; href?: string };
+
+/**
+ * User-visible breadcrumb trail for a pathname. Hidden operational routes
+ * and deep viewer/analysis paths never expose router-internal hierarchy:
+ * only destinations a user can actually navigate to become links.
+ */
+export function breadcrumbTrail(pathname: string): Crumb[] {
+  const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
+  if (analysisMatch) {
+    return [
+      { label: "Library", href: "/dives" },
+      { label: `${decodeURIComponent(analysisMatch[1])} analysis` },
+    ];
+  }
+  switch (pathname) {
+    case "/":
+    case "/dives":
+      return [{ label: "Library" }];
+    case "/dashboard":
+      return [{ label: "Overview" }];
+    case "/journey":
+      return [{ label: "Journey" }];
+    case "/analytics":
+      return [{ label: "Analytics" }];
+    case "/sessions":
+      return [{ label: "Sessions" }];
+    case "/media/representatives":
+      return [{ label: "Representatives" }];
+    case "/media/recall":
+      return [{ label: "Media recall" }];
+    case "/media/p5-canary":
+      return [{ label: "Player canary" }];
+    case "/admin":
+      return [{ label: "System" }];
+    default: {
+      const last = pathname.split("/").filter(Boolean).pop();
+      return [{ label: last ? last.replace(/-/g, " ") : "Library" }];
+    }
+  }
+}
+
 function Breadcrumbs() {
   const location = useLocation();
-  const parts = location.pathname.split("/").filter(Boolean);
-  const crumbs =
-    parts.length === 0
-      ? [{ href: "/", label: "Library" }]
-      : parts.map((part, index) => {
-          const href = `/${parts.slice(0, index + 1).join("/")}`;
-          return {
-            href,
-            label: routeLabels[href] ?? part.replace(/-/g, " "),
-          };
-        });
+  const crumbs = breadcrumbTrail(location.pathname);
 
   return (
     <div className="mx-auto mb-4 hidden w-full max-w-[1320px] items-center gap-2 overflow-x-auto text-xs font-medium uppercase tracking-[0.14em] text-app-muted sm:flex">
       <Link to="/" className="hover:text-app-text">
         Dive Analyser
       </Link>
-      {crumbs.map((crumb, index) => (
-        <React.Fragment key={crumb.href}>
+      {crumbs.map((crumb) => (
+        <React.Fragment key={crumb.label}>
           <span>/</span>
-          {index === crumbs.length - 1 ? (
-            <span className="text-app-text">{crumb.label}</span>
-          ) : (
+          {crumb.href ? (
             <Link to={crumb.href} className="hover:text-app-text">
               {crumb.label}
             </Link>
+          ) : (
+            <span className="text-app-text">{crumb.label}</span>
           )}
         </React.Fragment>
       ))}
@@ -327,6 +357,16 @@ function RootRedirect() {
   return <Navigate to={`/dives${location.search}`} replace />;
 }
 
+/**
+ * `/competitions` never owned unique content (it rendered Journey
+ * directly). Compatibility redirect: old bookmarks land on Journey with
+ * their query string intact; no separate page/component ownership.
+ */
+export function CompetitionsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/journey${location.search}`} replace />;
+}
+
 function NotFound() {
   return (
     <div className="app-panel mx-auto mt-10 max-w-lg py-10 text-center">
@@ -390,7 +430,10 @@ function Router() {
                 <Route path="/media/p5-canary" element={<P5Canary />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/sessions" element={<Sessions />} />
-                <Route path="/competitions" element={<Journey />} />
+                <Route
+                  path="/competitions"
+                  element={<CompetitionsRedirect />}
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

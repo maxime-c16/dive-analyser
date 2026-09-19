@@ -1,13 +1,11 @@
-@import "./styles/sync.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--app-text);
+  background-color: var(--app-bg);
   --app-bg: #0d1113;
   --app-panel: #15191c;
   --app-panel-elevated: #191f23;
@@ -109,6 +107,10 @@ body,
   overflow-x: clip;
 }
 
+#root {
+  min-height: 100vh;
+}
+
 /* Skip navigation: hidden until keyboard focus, then clearly visible.
    Works on desktop and mobile layouts; sits above every app surface. */
 .skip-link {
@@ -206,6 +208,10 @@ select {
     border-color: var(--app-accent);
   }
 
+  .bg-app-accent-soft {
+    background-color: rgba(84, 190, 171, 0.1);
+  }
+
   .app-input {
     border: 1px solid var(--app-border);
     border-radius: 0.75rem;
@@ -222,59 +228,6 @@ select {
   .mobile-scroll-region {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-  }
-
-  /* Legacy pages still use Tailwind's gray/cyan palette. Keep their semantics
-     while rendering them in the same workspace system as newer pages. */
-  .bg-gray-950,
-  .bg-gray-900 {
-    background-color: var(--app-bg);
-  }
-  .bg-gray-800 {
-    background-color: var(--app-panel);
-  }
-  .bg-gray-700,
-  .bg-gray-700\/50 {
-    background-color: var(--app-panel-elevated);
-  }
-  .border-gray-800,
-  .border-gray-700,
-  .border-gray-600 {
-    border-color: var(--app-border);
-  }
-  .text-white,
-  .text-gray-100 {
-    color: var(--app-text);
-  }
-  .text-gray-300,
-  .text-gray-400,
-  .text-gray-500 {
-    color: var(--app-muted);
-  }
-  .text-cyan-300,
-  .text-cyan-400,
-  .text-cyan-500,
-  .text-green-300,
-  .text-green-400 {
-    color: var(--app-accent);
-  }
-  .bg-cyan-500\/10,
-  .bg-cyan-500\/20,
-  .bg-green-500\/10,
-  .bg-green-500\/20 {
-    background-color: rgba(84, 190, 171, 0.12);
-  }
-  .border-cyan-500,
-  .border-cyan-500\/30,
-  .border-cyan-500\/50,
-  .border-green-500\/30 {
-    border-color: var(--app-accent);
-  }
-  .focus\:border-cyan-500:focus {
-    border-color: var(--app-accent);
-  }
-  .focus\:ring-cyan-500:focus {
-    --tw-ring-color: var(--app-accent);
   }
 }
 

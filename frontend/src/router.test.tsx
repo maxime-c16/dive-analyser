@@ -1,9 +1,9 @@
 import React from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Router from './router'
+import Router, { CompetitionsRedirect, breadcrumbTrail } from './router'
 
 vi.mock('./contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -107,13 +107,57 @@ describe('minimal IA routing', () => {
       '/media/recall',
       '/admin',
       '/media/p5-canary',
-      '/competitions',
     ]) {
       const { unmount } = renderAt(path)
       await screen.findByRole('navigation', { name: 'Primary navigation' })
       expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
       unmount()
     }
+  })
+
+  it('/competitions is a compatibility redirect to /journey, not a page', async () => {
+    renderAt('/competitions')
+    // The redirect lands on Journey (no duplicate Competitions destination).
+    expect(
+      await screen.findByRole('heading', { name: 'Your Diving Journey' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
+  })
+
+  it('/competitions preserves the query string across the redirect', () => {
+    function LocationProbe() {
+      const location = useLocation()
+      return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+    }
+    render(
+      <MemoryRouter initialEntries={['/competitions?scope=all']}>
+        <Routes>
+          <Route path="/competitions" element={<CompetitionsRedirect />} />
+          <Route path="/journey" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByTestId('location')).toHaveTextContent('/journey?scope=all')
+  })
+
+  it('breadcrumbs reflect user-visible IA, not router hierarchy', () => {
+    expect(breadcrumbTrail('/dives')).toEqual([{ label: 'Library' }])
+    expect(breadcrumbTrail('/journey')).toEqual([{ label: 'Journey' }])
+    // Deep analysis paths link back to the Library, not to /dives/analysis.
+    expect(breadcrumbTrail('/dives/analysis/5210D')).toEqual([
+      { label: 'Library', href: '/dives' },
+      { label: '5210D analysis' },
+    ])
+    // Media routes have no fake intermediate "Media" parent link.
+    expect(breadcrumbTrail('/media/representatives')).toEqual([
+      { label: 'Representatives' },
+    ])
+    expect(breadcrumbTrail('/media/recall')).toEqual([{ label: 'Media recall' }])
+    expect(breadcrumbTrail('/media/p5-canary')).toEqual([{ label: 'Player canary' }])
+    // Unknown paths render a single harmless crumb, never a dead hierarchy.
+    expect(breadcrumbTrail('/nonexistent-route-xyz')).toEqual([
+      { label: 'nonexistent route xyz' },
+    ])
   })
 
   it('unknown URLs render a usable recovery page instead of an empty shell', async () => {

@@ -1,5 +1,5 @@
 import React from 'react'
-import { TrendingUp, TrendingDown, Minus, ChevronRight, Home, Info } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
 import { format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, subDays } from 'date-fns'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { performanceBorder, performanceColor } from '../utils/performanceScoring'
@@ -117,8 +117,8 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       : null
 
   const TrendIndicator = ({ trend }: { trend: any }) => {
-    if (!trend) return <span className="text-gray-500 text-xs">-</span>
-    if (trend.isNeutral) return <Minus className="w-3 h-3 text-gray-500" />
+    if (!trend) return <span className="text-app-muted text-xs">-</span>
+    if (trend.isNeutral) return <Minus className="w-3 h-3 text-app-muted" />
     const color = trend.isPositive ? 'text-green-400' : 'text-red-400'
     const Icon = trend.isPositive ? TrendingUp : TrendingDown
     return (
@@ -133,15 +133,6 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-[0.18em]">
-        <Home className="w-3.5 h-3.5" />
-        <span>Dashboard</span>
-        <ChevronRight className="w-3 h-3 opacity-60" />
-        <span>Sessions</span>
-        <ChevronRight className="w-3 h-3 opacity-60" />
-        <span className="text-cyan-300">Review</span>
-      </div>
-
       {/* Warning if showing past week */}
       {showWeekWarning && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-3">
@@ -156,56 +147,56 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       {/* Week Overview */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {/* Total Dives Card */}
-        <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30 rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-cyan-400 text-xs font-semibold uppercase tracking-wider">{showWeekWarning ? 'Most recent week' : 'Last 7 days'}</p>
+        <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{showWeekWarning ? 'Most recent week' : 'Last 7 days'}</p>
           <div className="mt-3 flex flex-col items-center">
-            <p className="text-3xl sm:text-4xl font-bold text-white">{weekDives}</p>
+            <p className="text-3xl sm:text-4xl font-bold text-app-text">{weekDives}</p>
             {weekDivesTrend && (
               <div className="mt-2 flex items-center justify-center gap-1.5">
                 {weekDivesTrend.isPositive ? (
                   <TrendingUp className="w-4 h-4 text-green-400" />
                 ) : weekDivesTrend.isNeutral ? (
-                  <Minus className="w-4 h-4 text-gray-500" />
+                  <Minus className="w-4 h-4 text-app-muted" />
                 ) : (
                   <TrendingDown className="w-4 h-4 text-red-400" />
                 )}
-                <span className="text-sm font-bold text-gray-300">{weekDivesTrend.value}</span>
+                <span className="text-sm font-bold text-app-text">{weekDivesTrend.value}</span>
               </div>
             )}
           </div>
-          <p className="text-cyan-400 text-xs mt-3">Total Dives {weekDivesTrend ? 'vs prev' : ''}</p>
+          <p className="text-app-accent text-xs mt-3">Total Dives {weekDivesTrend ? 'vs prev' : ''}</p>
         </div>
 
         {/* Performance Card */}
-        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">Avg Performance /10</p>
+        <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">Avg Performance /10</p>
           <div className="mt-3 flex flex-col items-center">
             <p className={`text-3xl sm:text-4xl font-bold ${performanceColor(weekAvgPerf)}`}>
               {weekAvgPerf.toFixed(1)}
-              <span className="ml-1 text-sm text-gray-400 align-middle">/10</span>
+              <span className="ml-1 text-sm text-app-muted align-middle">/10</span>
             </p>
             {weekPerfTrend && (
               <div className="mt-2 flex items-center justify-center gap-1.5">
                 {weekPerfTrend.isPositive ? (
                   <TrendingUp className="w-4 h-4 text-green-400" />
                 ) : weekPerfTrend.isNeutral ? (
-                  <Minus className="w-4 h-4 text-gray-500" />
+                  <Minus className="w-4 h-4 text-app-muted" />
                 ) : (
                   <TrendingDown className="w-4 h-4 text-red-400" />
                 )}
-                <span className="text-sm font-bold text-gray-300">{weekPerfTrend.percent}%</span>
+                <span className="text-sm font-bold text-app-text">{weekPerfTrend.percent}%</span>
               </div>
             )}
           </div>
-          <p className="text-blue-400 text-xs mt-3">Calibrated score {weekPerfTrend ? 'vs prev week' : ''}</p>
+          <p className="text-app-accent text-xs mt-3">Calibrated score {weekPerfTrend ? 'vs prev week' : ''}</p>
         </div>
 
         {/* Success Card */}
-        <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30 rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
+        <div className="border border-green-500/30 bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
           <p className="text-green-400 text-xs font-semibold uppercase tracking-wider">Success</p>
           {recentSessions.length > 0 && (
             <div className="mt-3 flex flex-col items-center">
-              <p className="text-3xl sm:text-4xl font-bold text-white">
+              <p className="text-3xl sm:text-4xl font-bold text-app-text">
                 {(recentSessions[0].success_rate || 0).toFixed(0)}%
               </p>
               {successTrend && (
@@ -213,11 +204,11 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                   {successTrend.isPositive ? (
                     <TrendingUp className="w-4 h-4 text-green-400" />
                   ) : successTrend.isNeutral ? (
-                    <Minus className="w-4 h-4 text-gray-500" />
+                    <Minus className="w-4 h-4 text-app-muted" />
                   ) : (
                     <TrendingDown className="w-4 h-4 text-red-400" />
                   )}
-                  <span className="text-sm font-bold text-gray-300">{successTrend.percent}%</span>
+                  <span className="text-sm font-bold text-app-text">{successTrend.percent}%</span>
                 </div>
               )}
             </div>
@@ -226,17 +217,17 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
         </div>
 
         {/* Sessions Card */}
-        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-purple-400 text-xs font-semibold uppercase tracking-wider">Sessions</p>
-          <p className="text-3xl sm:text-4xl font-bold text-white mt-3">{recentSessions.length}</p>
-          <p className="text-purple-400 text-xs mt-3">Recent</p>
+        <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">Sessions</p>
+          <p className="text-3xl sm:text-4xl font-bold text-app-text mt-3">{recentSessions.length}</p>
+          <p className="text-app-accent text-xs mt-3">Recent</p>
         </div>
       </div>
 
       {/* Recent Sessions Cards */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
+        <h3 className="text-lg font-semibold text-app-text flex items-center gap-2">
+          <span className="w-2 h-2 bg-app-accent rounded-full"></span>
           Recent Sessions
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -252,55 +243,55 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                 : null
 
             // Border color based on performance
-            let borderColor = 'border-gray-700'
+            let borderColor = 'border-app'
             borderColor = performanceBorder(session.avg_performance || 0)
 
             return (
               <button
                 key={session.id}
                 onClick={() => onSessionClick(session)}
-                className={`bg-gray-800 rounded-lg p-4 border ${borderColor} hover:border-cyan-500 transition text-left`}
+                className={`bg-app-panel rounded-lg p-4 border ${borderColor} hover:border-app-accent transition text-left`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-white font-semibold text-sm">
+                    <p className="text-app-text font-semibold text-sm">
                       {format(parseISO(session.date), 'MMM d')}
                     </p>
-                    <p className="text-gray-500 text-xs mt-1">
+                    <p className="text-app-muted text-xs mt-1">
                       {session.total_dives} dives
                     </p>
                   </div>
                   {index === 0 && (
-                    <span className="bg-cyan-500/20 text-cyan-400 text-xs px-2 py-1 rounded">Latest</span>
+                    <span className="bg-app-accent-soft text-app-accent text-xs px-2 py-1 rounded">Latest</span>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Performance /10</span>
+                    <span className="text-app-muted">Performance /10</span>
                     <div className="flex items-center gap-2">
                       <span className={`font-bold ${performanceColor(session.avg_performance || 0)}`}>
                         {session.avg_performance?.toFixed(1)}
                       </span>
-                      <span className="text-xs text-gray-500">/10</span>
+                      <span className="text-xs text-app-muted">/10</span>
                       {perfTrend ? (
                         <div className="flex items-center gap-0.5">
                           {perfTrend.isPositive ? (
                             <TrendingUp className="w-4 h-4 text-green-400" />
                           ) : perfTrend.isNeutral ? (
-                            <Minus className="w-4 h-4 text-gray-500" />
+                            <Minus className="w-4 h-4 text-app-muted" />
                           ) : (
                             <TrendingDown className="w-4 h-4 text-red-400" />
                           )}
-                          <span className="text-xs font-semibold text-gray-400">{Math.abs(parseFloat(perfTrend.percent))}%</span>
+                          <span className="text-xs font-semibold text-app-muted">{Math.abs(parseFloat(perfTrend.percent))}%</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-600">-</span>
+                        <span className="text-xs text-app-muted">-</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Success Rate</span>
+                    <span className="text-app-muted">Success Rate</span>
                     <div className="flex items-center gap-2">
                       <span className="text-green-400 font-bold">{session.success_rate?.toFixed(0)}%</span>
                       {successTrend ? (
@@ -308,21 +299,21 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                           {successTrend.isPositive ? (
                             <TrendingUp className="w-4 h-4 text-green-400" />
                           ) : successTrend.isNeutral ? (
-                            <Minus className="w-4 h-4 text-gray-500" />
+                            <Minus className="w-4 h-4 text-app-muted" />
                           ) : (
                             <TrendingDown className="w-4 h-4 text-red-400" />
                           )}
-                          <span className="text-xs font-semibold text-gray-400">{Math.abs(parseFloat(successTrend.percent))}%</span>
+                          <span className="text-xs font-semibold text-app-muted">{Math.abs(parseFloat(successTrend.percent))}%</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-600">-</span>
+                        <span className="text-xs text-app-muted">-</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-gray-700">
-                  <p className="text-xs text-cyan-400 hover:text-cyan-300 transition">View Details →</p>
+                <div className="mt-3 pt-3 border-t border-app">
+                  <p className="text-xs text-app-accent hover:text-app-text transition">View Details →</p>
                 </div>
               </button>
             )
