@@ -5,7 +5,6 @@ import { SyncStatusProvider } from './contexts/SyncStatusContext'
 import SyncNotifications from './components/SyncNotifications'
 import MilestoneNotifier from './components/MilestoneNotifier'
 import SyncErrorHandler from './components/SyncErrorHandler'
-import './App.css'
 import { AuthProvider } from './contexts/AuthContext'
 
 function App() {

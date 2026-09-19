@@ -124,11 +124,11 @@ function Journey() {
       <div className="app-page">
         <div className="max-w-4xl mx-auto">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+            <div className="h-8 bg-app-panel-elevated rounded w-1/3"></div>
+            <div className="h-4 bg-app-panel-elevated rounded w-2/3"></div>
             <div className="space-y-4 mt-6">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-24 bg-gray-700 rounded"></div>
+                <div key={i} className="h-24 bg-app-panel-elevated rounded"></div>
               ))}
             </div>
           </div>
@@ -170,34 +170,34 @@ function Journey() {
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-5">
               <div className="min-w-0">
-                <div className="text-gray-400 text-sm mb-1">Total Dives</div>
+                <div className="text-app-muted text-sm mb-1">Total Dives</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.total_dives}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-gray-400 text-sm mb-1">Unique Dives</div>
+                <div className="text-app-muted text-sm mb-1">Unique Dives</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.unique_dive_combinations}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-gray-400 text-sm mb-1">Training Days</div>
+                <div className="text-app-muted text-sm mb-1">Training Days</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.days_of_training}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-gray-400 text-sm mb-1">Improvement</div>
+                <div className="text-app-muted text-sm mb-1">Improvement</div>
                 <div
-                  className={`app-kpi-value text-2xl ${journeyData.growth.improvement > 0 ? "text-green-400" : "text-gray-400"}`}
+                  className={`app-kpi-value text-2xl ${journeyData.growth.improvement > 0 ? "text-green-400" : "text-app-muted"}`}
                 >
                   {journeyData.growth.improvement > 0 ? "+" : ""}
                   {journeyData.growth.improvement.toFixed(2)}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-gray-400 text-sm mb-1">Trajectory</div>
+                <div className="text-app-muted text-sm mb-1">Trajectory</div>
                 <div
                   className={`text-lg font-semibold ${
                     journeyData.growth.trajectory === "improving"
@@ -244,7 +244,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "narrative"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               Your Story
@@ -254,7 +254,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "dd-progression"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               DD Progression
@@ -264,7 +264,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "timeline"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               Milestones
@@ -274,7 +274,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "phases"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               Phase Analysis
@@ -284,7 +284,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "psychology"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               Psychology
@@ -294,7 +294,7 @@ function Journey() {
               className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent ${
                 activeTab === "avoided"
                   ? "border-app-accent text-app-accent"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
               Patterns
@@ -315,13 +315,13 @@ function Journey() {
               <div className="mb-6 flex flex-col gap-3 border-b border-app pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold">Milestones</h2>
-                  <p className="mt-1 text-sm text-gray-400">
+                  <p className="mt-1 text-sm text-app-muted">
                     Recorded breakthroughs and progress points. Open any item
                     for the full context.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm text-gray-400">Show:</label>
+                  <label className="text-sm text-app-muted">Show:</label>
                   <select
                     value={minSignificance}
                     onChange={(e) =>
@@ -355,7 +355,7 @@ function Journey() {
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-6 pb-6 border-b border-app sm:grid-cols-4 sm:gap-4">
                   <div className="min-w-0">
-                    <div className="text-gray-400 text-sm mb-1">
+                    <div className="text-app-muted text-sm mb-1">
                       Total Dives
                     </div>
                     <div className="app-kpi-value text-2xl">
@@ -363,7 +363,7 @@ function Journey() {
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-gray-400 text-sm mb-1">
+                    <div className="text-app-muted text-sm mb-1">
                       Two-Phase Format
                     </div>
                     <div className="app-kpi-value text-2xl text-app-accent">
@@ -371,15 +371,15 @@ function Journey() {
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-gray-400 text-sm mb-1">
+                    <div className="text-app-muted text-sm mb-1">
                       Legacy Format
                     </div>
-                    <div className="app-kpi-value text-2xl text-blue-400">
+                    <div className="app-kpi-value text-2xl text-app-accent">
                       {phaseData.summary?.legacy_dives || 0}
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-gray-400 text-sm mb-1">
+                    <div className="text-app-muted text-sm mb-1">
                       New Format %
                     </div>
                     <div className="app-kpi-value text-2xl text-green-400">
@@ -391,10 +391,10 @@ function Journey() {
                 {/* Phase 1 Analysis */}
                 <div className="mb-8">
                   <div className="mb-4">
-                    <h3 className="text-xl font-bold text-cyan-400 mb-2">
+                    <h3 className="text-xl font-bold text-app-accent mb-2">
                       Phase 1: Hurdle + Flight (Takeoff)
                     </h3>
-                    <p className="text-gray-400 text-sm mb-3">
+                    <p className="text-app-muted text-sm mb-3">
                       {phaseData.phase1_analysis?.description}
                     </p>
                     <div className="app-kpi-value mb-2 text-2xl">
@@ -412,10 +412,10 @@ function Journey() {
                           key={score}
                           className="border border-app bg-app-panel-elevated p-3 text-center"
                         >
-                          <div className="text-lg font-bold text-cyan-400">
+                          <div className="text-lg font-bold text-app-accent">
                             {score}
                           </div>
-                          <div className="text-gray-400 text-xs">
+                          <div className="text-app-muted text-xs">
                             {Number(count)} dives
                           </div>
                         </div>
@@ -426,10 +426,10 @@ function Journey() {
                 {/* Phase 2 Analysis */}
                 <div className="mb-8">
                   <div className="mb-4">
-                    <h3 className="text-xl font-bold text-cyan-400 mb-2">
+                    <h3 className="text-xl font-bold text-app-accent mb-2">
                       Phase 2: Opening + Entry (Landing)
                     </h3>
-                    <p className="text-gray-400 text-sm mb-3">
+                    <p className="text-app-muted text-sm mb-3">
                       {phaseData.phase2_analysis?.description}
                     </p>
                     <div className="app-kpi-value mb-2 text-2xl">
@@ -447,10 +447,10 @@ function Journey() {
                           key={score}
                           className="border border-app bg-app-panel-elevated p-3 text-center"
                         >
-                          <div className="text-lg font-bold text-cyan-400">
+                          <div className="text-lg font-bold text-app-accent">
                             {score}
                           </div>
-                          <div className="text-gray-400 text-xs">
+                          <div className="text-app-muted text-xs">
                             {Number(count)} dives
                           </div>
                         </div>
@@ -461,7 +461,7 @@ function Journey() {
                 {/* Phase Combinations */}
                 {phaseData.phase_combinations?.distribution && (
                   <div className="mb-8">
-                    <h3 className="text-xl font-bold text-cyan-400 mb-4">
+                    <h3 className="text-xl font-bold text-app-accent mb-4">
                       Most Common Phase Combinations
                     </h3>
                     <div className="space-y-2">
@@ -473,10 +473,10 @@ function Journey() {
                             key={combo}
                             className="flex items-center justify-between border border-app bg-app-panel-elevated p-3"
                           >
-                            <div className="font-mono text-cyan-400">
+                            <div className="font-mono text-app-accent">
                               {combo}
                             </div>
-                            <div className="text-gray-400">
+                            <div className="text-app-muted">
                               {Number(count)} dives
                             </div>
                           </div>
@@ -502,7 +502,7 @@ function Journey() {
                               <div className="font-bold text-green-400 mb-1">
                                 {insight.pattern}
                               </div>
-                              <p className="text-gray-300 text-sm">
+                              <p className="text-app-text text-sm">
                                 {insight.coaching}
                               </p>
                             </div>
@@ -514,8 +514,8 @@ function Journey() {
 
                 {/* Recommendation */}
                 {phaseData.recommendation && (
-                  <div className="mt-6 border border-blue-500/30 bg-blue-500/10 p-4">
-                    <p className="text-blue-300">{phaseData.recommendation}</p>
+                  <div className="mt-6 border border-app-accent bg-app-accent-soft p-4">
+                    <p className="text-app-accent">{phaseData.recommendation}</p>
                   </div>
                 )}
               </div>
@@ -537,7 +537,7 @@ function Journey() {
               <div className="app-panel p-4 sm:p-6">
                 <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
                   <Brain
-                    className="h-6 w-6 text-purple-400"
+                    className="h-6 w-6 text-app-accent"
                     aria-hidden="true"
                   />
                   Your Psychological Profile
@@ -551,32 +551,32 @@ function Journey() {
                   <>
                     {/* Mental Health Indicators */}
                     <div className="grid grid-cols-1 gap-3 mb-8 pb-8 border-b border-app sm:grid-cols-3">
-                      <div className="border border-purple-500/30 bg-purple-500/10 p-4">
-                        <div className="text-gray-400 text-sm mb-2">
+                      <div className="border border-app-accent bg-app-accent-soft p-4">
+                        <div className="text-app-muted text-sm mb-2">
                           Mental Blocks Detected
                         </div>
-                        <div className="app-kpi-value text-2xl text-purple-400">
+                        <div className="app-kpi-value text-2xl text-app-accent">
                           {journeyData.psychological.mental_blocks_detected ||
                             0}
                         </div>
                       </div>
-                      <div className="border border-blue-500/30 bg-blue-500/10 p-4">
-                        <div className="text-gray-400 text-sm mb-2">
+                      <div className="border border-app-accent bg-app-accent-soft p-4">
+                        <div className="text-app-muted text-sm mb-2">
                           Fear vs Difficulty
                         </div>
-                        <div className="app-kpi-value text-2xl text-blue-400">
+                        <div className="app-kpi-value text-2xl text-app-accent">
                           {journeyData.psychological.fear_coefficient
                             ? journeyData.psychological.fear_coefficient.toFixed(
                                 2,
                               )
                             : "1.0"}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-app-muted mt-1">
                           Coefficient ratio
                         </div>
                       </div>
                       <div className="border border-green-500/30 bg-green-500/10 p-4">
-                        <div className="text-gray-400 text-sm mb-2">
+                        <div className="text-app-muted text-sm mb-2">
                           Confidence Trend
                         </div>
                         <div
@@ -612,11 +612,11 @@ function Journey() {
                           />
                           Mental Block Detected
                         </div>
-                        <p className="text-gray-300 text-sm">
+                        <p className="text-app-text text-sm">
                           You've been attempting the same maximum difficulty for
                           3+ months. This is a natural plateau! Consider:
                         </p>
-                        <ul className="text-gray-300 text-sm list-disc list-inside mt-2 space-y-1">
+                        <ul className="text-app-text text-sm list-disc list-inside mt-2 space-y-1">
                           <li>Taking a break and returning refreshed</li>
                           <li>Focusing on form on easier dives</li>
                           <li>Using visualization and mental rehearsal</li>
@@ -632,17 +632,17 @@ function Journey() {
                       </h3>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">
+                          <span className="text-app-muted">
                             First Month Avg Performance
                           </span>
-                          <span className="text-white font-bold">
+                          <span className="text-app-text font-bold">
                             {journeyData.growth.first_month_average.toFixed(2)}{" "}
                             / 10
                           </span>
                         </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-2 bg-app-border rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                            className="h-full bg-app-accent"
                             style={{
                               width: `${(journeyData.growth.first_month_average / 10) * 100}%`,
                             }}
@@ -650,32 +650,32 @@ function Journey() {
                         </div>
 
                         <div className="flex items-center justify-between mt-4">
-                          <span className="text-gray-400">
+                          <span className="text-app-muted">
                             Latest Month Avg Performance
                           </span>
-                          <span className="text-white font-bold">
+                          <span className="text-app-text font-bold">
                             {journeyData.growth.last_month_average.toFixed(2)} /
                             10
                           </span>
                         </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-2 bg-app-border rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                            className="h-full bg-green-500"
                             style={{
                               width: `${(journeyData.growth.last_month_average / 10) * 100}%`,
                             }}
                           />
                         </div>
 
-                        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-                          <div className="text-blue-400 font-bold">
+                        <div className="mt-4 p-3 bg-app-accent-soft border border-app-accent rounded">
+                          <div className="text-app-accent font-bold">
                             Overall Improvement
                           </div>
-                          <div className="text-white text-lg">
+                          <div className="text-app-text text-lg">
                             {journeyData.growth.improvement > 0 ? "+" : ""}
                             {journeyData.growth.improvement.toFixed(2)} points
                           </div>
-                          <div className="text-gray-400 text-sm mt-1">
+                          <div className="text-app-muted text-sm mt-1">
                             {journeyData.growth.trajectory === "improving" ? (
                               <span className="inline-flex items-center gap-1">
                                 <TrendingUp className="h-4 w-4" />
@@ -700,21 +700,18 @@ function Journey() {
 
                     {/* Emotional State Placeholder */}
                     <div className="mt-4 border border-app bg-app-panel-elevated p-4">
-                      <h3 className="text-lg font-bold text-purple-400 mb-3">
+                      <h3 className="text-lg font-bold text-app-accent mb-3">
                         Emotional Tracking
                       </h3>
-                      <p className="text-gray-400 text-sm mb-3">
+                      <p className="text-app-muted text-sm">
                         Ready to start logging your emotional state? This helps
                         us understand your confidence patterns and identify
                         mental blocks.
                       </p>
-                      <div className="inline-block border border-purple-400/40 bg-purple-500/15 px-4 py-2 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/25">
-                        Start Tracking Emotions
-                      </div>
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-app-muted">
                     <div className="animate-pulse">
                       Loading your psychological profile...
                     </div>

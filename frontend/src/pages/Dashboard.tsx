@@ -79,7 +79,7 @@ interface RecentSession {
 }
 
 const COLORS = {
-  primary: "#06b6d4", // cyan-500
+  primary: "#54beab", // app accent
   success: "#22c55e", // green-500
   warning: "#f59e0b", // amber-500
   danger: "#ef4444", // red-500
@@ -159,8 +159,8 @@ function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-gray-400">Loading your diving data...</p>
+          <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-xl text-app-muted">Loading your diving data...</p>
         </div>
       </div>
     );
@@ -170,10 +170,10 @@ function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
-          <p className="text-2xl text-red-500 mb-4">{error}</p>
+          <p className="text-2xl text-red-400 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="border border-app-accent bg-app-accent px-6 py-2 font-medium text-app-bg transition-colors hover:bg-cyan-300"
+            className="border border-app-accent bg-app-accent px-6 py-2 font-medium text-app-bg transition-colors hover:brightness-110"
           >
             Retry
           </button>
@@ -241,17 +241,17 @@ function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">
+          <h1 className="text-2xl md:text-3xl font-bold text-app-text">
             Training Dashboard
           </h1>
-          <p className="text-gray-400 mt-1 text-sm md:text-base">
+          <p className="text-app-muted mt-1 text-sm md:text-base">
             Your diving performance at a glance
           </p>
         </div>
-        <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-gray-500">
+        <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-app-muted">
           <div>Last updated: {format(new Date(), "PPp")}</div>
           {currentSync && (
-            <div className="text-cyan-400">
+            <div className="text-app-accent">
               Sync: {currentSync.progress_percent}%
             </div>
           )}
@@ -271,14 +271,14 @@ function Dashboard() {
           title="Total Dives"
           value={stats?.total_dives || 0}
           subtitle="Personal attempts"
-          color="cyan"
+          color="accent"
           icon={Waves}
         />
         <MetricCard
           title="Success Rate"
           value={`${stats?.success_rate?.toFixed(1) || 0}%`}
           subtitle="Medium or better"
-          color="green"
+          color="success"
           trend={
             stats?.success_rate && stats.success_rate > 75 ? "up" : "neutral"
           }
@@ -288,7 +288,7 @@ function Dashboard() {
           title="Avg Performance"
           value={stats?.avg_performance?.toFixed(2) || "0.00"}
           subtitle="Calibrated /10"
-          color="purple"
+          color="accent"
           icon={BarChart3}
         />
         {stats?.avg_dd !== undefined && stats.avg_dd > 0 && (
@@ -296,7 +296,7 @@ function Dashboard() {
             title="Avg DD"
             value={stats.avg_dd.toFixed(1)}
             subtitle="Difficulty degree"
-            color="yellow"
+            color="accent"
             icon={Zap}
           />
         )}
@@ -305,7 +305,7 @@ function Dashboard() {
             title="Max DD"
             value={stats.max_dd.toFixed(1)}
             subtitle="Highest difficulty"
-            color="orange"
+            color="accent"
             icon={Flame}
           />
         )}
@@ -313,7 +313,7 @@ function Dashboard() {
           title="Training Sessions"
           value={stats?.total_sessions || 0}
           subtitle="Total days"
-          color="amber"
+          color="accent"
           icon={CalendarDays}
         />
       </div>
@@ -412,7 +412,7 @@ function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Progression */}
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-app-text mb-4">
             Monthly Progression
           </h2>
           <ResponsiveContainer width="100%" height={280}>
@@ -431,16 +431,16 @@ function Dashboard() {
                   />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="monthLabel" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
+              <XAxis dataKey="monthLabel" stroke="#98a2aa" fontSize={12} />
+              <YAxis stroke="#98a2aa" fontSize={12} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#15191c",
+                  border: "1px solid rgba(82,96,105,.45)",
                   borderRadius: "8px",
                 }}
-                labelStyle={{ color: "#fff" }}
+                labelStyle={{ color: "#edf2f4" }}
               />
               <Area
                 type="monotone"
@@ -456,32 +456,32 @@ function Dashboard() {
 
         {/* Performance by Height */}
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-app-text mb-4">
             Performance by Height
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
               <XAxis
                 type="number"
-                stroke="#9ca3af"
+                stroke="#98a2aa"
                 fontSize={12}
                 domain={[0, 10]}
               />
               <YAxis
                 dataKey="name"
                 type="category"
-                stroke="#9ca3af"
+                stroke="#98a2aa"
                 fontSize={12}
                 width={40}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#15191c",
+                  border: "1px solid rgba(82,96,105,.45)",
                   borderRadius: "8px",
                 }}
-                labelStyle={{ color: "#fff" }}
+                labelStyle={{ color: "#edf2f4" }}
                 formatter={(value: number, name: string) => [
                   name === "performance" ? value.toFixed(2) : value,
                   name === "performance"
@@ -506,28 +506,28 @@ function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Direction Breakdown */}
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-app-text mb-4">
             By Direction
           </h2>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={directionChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
               <XAxis
                 dataKey="name"
-                stroke="#9ca3af"
+                stroke="#98a2aa"
                 fontSize={11}
                 angle={-20}
                 textAnchor="end"
                 height={50}
               />
-              <YAxis stroke="#9ca3af" fontSize={12} />
+              <YAxis stroke="#98a2aa" fontSize={12} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#15191c",
+                  border: "1px solid rgba(82,96,105,.45)",
                   borderRadius: "8px",
                 }}
-                labelStyle={{ color: "#fff" }}
+                labelStyle={{ color: "#edf2f4" }}
               />
               <Bar
                 dataKey="dives"
@@ -541,7 +541,7 @@ function Dashboard() {
 
         {/* Success Rate Trend */}
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-app-text mb-4">
             Success Rate Trend
           </h2>
           <ResponsiveContainer width="100%" height={240}>
@@ -560,13 +560,13 @@ function Dashboard() {
                   />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="monthLabel" stroke="#9ca3af" fontSize={11} />
-              <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
+              <XAxis dataKey="monthLabel" stroke="#98a2aa" fontSize={11} />
+              <YAxis stroke="#98a2aa" fontSize={12} domain={[0, 100]} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#15191c",
+                  border: "1px solid rgba(82,96,105,.45)",
                   borderRadius: "8px",
                 }}
                 formatter={(value: number) => [
@@ -587,7 +587,7 @@ function Dashboard() {
 
         {/* Height Distribution Pie */}
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-app-text mb-4">
             Training Focus
           </h2>
           <ResponsiveContainer width="100%" height={240}>
@@ -619,8 +619,8 @@ function Dashboard() {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#15191c",
+                  border: "1px solid rgba(82,96,105,.45)",
                   borderRadius: "8px",
                 }}
               />
@@ -635,7 +635,7 @@ function Dashboard() {
           <h2 className="app-section-title">Recent Training Sessions</h2>
           <a
             href="/sessions"
-            className="text-cyan-400 hover:text-cyan-300 text-sm"
+            className="text-app-accent hover:text-app-text text-sm"
           >
             View all →
           </a>
@@ -682,11 +682,11 @@ function Dashboard() {
                   key={session.id}
                   className="border-b border-app/60 hover:bg-app-panel-elevated"
                 >
-                  <td className="py-3 text-white font-medium">
+                  <td className="py-3 text-app-text font-medium">
                     {format(parseISO(session.date), "MMM d, yyyy")}
                   </td>
-                  <td className="py-3 text-gray-300">{session.total_dives}</td>
-                  <td className="py-3 text-gray-300">
+                  <td className="py-3 text-app-text">{session.total_dives}</td>
+                  <td className="py-3 text-app-text">
                     {session.total_personal_dives}
                   </td>
                   <td className="py-3">
@@ -717,25 +717,17 @@ function MetricCard({
   title: string;
   value: string | number;
   subtitle: string;
-  color: "cyan" | "green" | "purple" | "amber" | "yellow" | "orange";
+  color: "accent" | "success";
   trend?: "up" | "down" | "neutral";
   icon: LucideIcon;
 }) {
   const colorClasses = {
-    cyan: "border-app bg-app-panel",
-    green: "border-app bg-app-panel",
-    purple: "border-app bg-app-panel",
-    amber: "border-app bg-app-panel",
-    yellow: "border-app bg-app-panel",
-    orange: "border-app bg-app-panel",
+    accent: "border-app bg-app-panel",
+    success: "border-app bg-app-panel",
   };
   const valueColors = {
-    cyan: "text-cyan-400",
-    green: "text-green-400",
-    purple: "text-purple-400",
-    amber: "text-amber-400",
-    yellow: "text-yellow-400",
-    orange: "text-orange-400",
+    accent: "text-app-accent",
+    success: "text-green-400",
   };
 
   return (
@@ -766,7 +758,7 @@ function MetricCard({
 }
 
 function PerformanceBadge({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-gray-500">-</span>;
+  if (value === null) return <span className="text-app-muted">-</span>;
 
   const color =
     value >= 7
@@ -778,7 +770,7 @@ function PerformanceBadge({ value }: { value: number | null }) {
 }
 
 function SuccessRateBadge({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-gray-500">-</span>;
+  if (value === null) return <span className="text-app-muted">-</span>;
 
   const color =
     value >= 80

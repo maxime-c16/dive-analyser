@@ -123,11 +123,13 @@ test.describe('Library home (desktop)', () => {
       expect(response?.ok(), `${route} should respond OK`).toBeTruthy();
       await expect(page.getByText('Page not found')).toHaveCount(0);
     }
-    // Migration-preserved routes (hidden from nav, not deleted in this gate)
-    for (const route of ['/media/p5-canary', '/competitions']) {
-      await page.goto(route);
-      await expect(page.getByText('Page not found')).toHaveCount(0);
-    }
+    // Hidden operational harness (kept reachable, not normal navigation)
+    await page.goto('/media/p5-canary');
+    await expect(page.getByText('Page not found')).toHaveCount(0);
+    // Obsolete alias: compatibility redirect preserves the query string
+    await page.goto('/competitions?scope=all');
+    await expect(page).toHaveURL(/\/journey\?scope=all/);
+    await expect(page.getByText('Page not found')).toHaveCount(0);
   });
 
   test('unknown URLs get a usable recovery page', async ({ page }) => {

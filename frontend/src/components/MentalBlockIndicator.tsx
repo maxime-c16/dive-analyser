@@ -37,7 +37,7 @@ function MentalBlockIndicator() {
 
   if (loading) {
     return (
-      <div className="animate-pulse bg-gray-800 rounded-lg p-4 h-24 border border-gray-700"></div>
+      <div className="animate-pulse bg-app-panel rounded-lg p-4 h-24 border border-app"></div>
     )
   }
 
@@ -75,7 +75,7 @@ function MentalBlockIndicator() {
                   {block.type === 'avoided_dive' && 'Avoided Dive'}
                 </div>
                 <p className="text-yellow-300 text-sm mt-1">{block.description}</p>
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-app-muted mt-2">
                   {block.duration_months} month{block.duration_months !== 1 ? 's' : ''} • Affecting{' '}
                   {block.dives_affected.length} dive{block.dives_affected.length !== 1 ? 's' : ''}
                 </div>
@@ -109,7 +109,7 @@ function MentalBlockIndicator() {
                     {block.recommendations.map((rec, recIdx) => (
                       <div
                         key={recIdx}
-                        className="text-sm text-gray-300 flex items-start gap-2"
+                        className="text-sm text-app-text flex items-start gap-2"
                       >
                         <span className="text-green-400 font-bold mt-0.5">•</span>
                         <span>{rec}</span>
@@ -130,13 +130,13 @@ function MentalBlockIndicator() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => fetchMentalBlocks()}
-                    className="flex-1 py-2 px-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition-colors"
+                    className="flex-1 py-2 px-3 bg-app-panel-elevated border border-app-strong text-app-text rounded text-sm font-medium transition-colors"
                   >
                     Check Progress
                   </button>
                   <button
                     onClick={() => setExpanded(null)}
-                    className="flex-1 py-2 px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm font-medium transition-colors"
+                    className="flex-1 py-2 px-3 bg-app-panel border border-app hover:text-app-text text-app-text rounded text-sm font-medium transition-colors"
                   >
                     Dismiss
                   </button>

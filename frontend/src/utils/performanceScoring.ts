@@ -40,7 +40,7 @@ export function performanceColor(score: number): string {
 export function performanceBorder(score: number): string {
   if (score >= 7) return 'border-green-500/50'
   if (score >= 5.5) return 'border-amber-500/50'
-  if (score >= 4.5) return 'border-gray-600'
+  if (score >= 4.5) return 'border-app'
   return 'border-red-500/50'
 }
 

@@ -60,7 +60,7 @@ function SessionDirectionIndicator({ sessionId, diverScope }: SessionDirectionIn
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-gray-500">Directions:</span>
+      <span className="text-xs text-app-muted">Directions:</span>
       <div className="flex gap-2">
         {directions.map((dir) => (
           <div

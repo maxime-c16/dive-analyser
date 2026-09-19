@@ -89,19 +89,19 @@ function Sessions() {
   };
 
   const getPerformanceColor = (perf: number | undefined) => {
-    if (!perf) return "text-gray-500";
+    if (!perf) return "text-app-muted";
     return performanceColor(perf);
   };
 
   const getSuccessRateColor = (rate: number | undefined) => {
-    if (!rate) return "bg-gray-700 text-gray-400";
+    if (!rate) return "bg-app-panel-elevated text-app-muted";
     if (rate >= 80) return "bg-green-500/20 text-green-400";
     if (rate >= 60) return "bg-amber-500/20 text-amber-400";
     return "bg-red-500/20 text-red-400";
   };
 
   const getSessionBorderColor = (perf: number | undefined) => {
-    if (!perf) return "border-gray-700";
+    if (!perf) return "border-app";
     return performanceBorder(perf);
   };
 
@@ -123,7 +123,7 @@ function Sessions() {
 
   const TrendIndicator = ({ trend }: { trend: any }) => {
     if (!trend) return null;
-    if (trend.isNeutral) return <Minus className="w-4 h-4 text-gray-500" />;
+    if (trend.isNeutral) return <Minus className="w-4 h-4 text-app-muted" />;
     return trend.isPositive ? (
       <TrendingUp className="w-4 h-4 text-green-400" />
     ) : (
@@ -153,8 +153,8 @@ function Sessions() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Training Sessions</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-app-text">Training Sessions</h1>
+          <p className="text-app-muted mt-1">
             {diverScope === "self"
               ? "Your training history by day"
               : "All authorized divers by day"}
@@ -164,17 +164,17 @@ function Sessions() {
         {/* Quick Stats */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-4">
           <div className="app-panel min-w-0 px-3 py-2 sm:px-4">
-            <span className="text-gray-400 text-sm">Sessions</span>
+            <span className="text-app-muted text-sm">Sessions</span>
             <span className="app-kpi-value ml-2">{stats.totalSessions}</span>
           </div>
           <div className="app-panel min-w-0 px-3 py-2 sm:px-4">
-            <span className="text-gray-400 text-sm">Total Dives</span>
+            <span className="text-app-muted text-sm">Total Dives</span>
             <span className="app-kpi-value ml-2 text-app-accent">
               {stats.totalDives}
             </span>
           </div>
           <div className="app-panel col-span-2 min-w-0 px-3 py-2 sm:col-span-1 sm:px-4">
-            <span className="text-gray-400 text-sm">Average per session</span>
+            <span className="text-app-muted text-sm">Average per session</span>
             <span className="app-kpi-value ml-2 text-app-text">
               {stats.avgDivesPerSession.toFixed(1)}
             </span>
@@ -216,7 +216,7 @@ function Sessions() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-app-accent border-t-transparent rounded-full animate-spin"></div>
         </div>
       )}
 
@@ -232,10 +232,10 @@ function Sessions() {
         <div className="space-y-8">
           {Object.entries(groupedSessions).map(([month, monthSessions]) => (
             <div key={month}>
-              <h2 className="text-lg font-semibold text-gray-400 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
+              <h2 className="text-lg font-semibold text-app-muted mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-app-accent rounded-full"></span>
                 {month}
-                <span className="text-sm font-normal text-gray-500">
+                <span className="text-sm font-normal text-app-muted">
                   ({monthSessions.length} sessions)
                 </span>
               </h2>
@@ -255,17 +255,17 @@ function Sessions() {
                         {/* Date and Location */}
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center bg-cyan-500/10">
+                            <div className="flex h-12 w-12 items-center justify-center bg-app-accent-soft">
                               <Waves
-                                className="h-6 w-6 text-cyan-400"
+                                className="h-6 w-6 text-app-accent"
                                 aria-hidden="true"
                               />
                             </div>
                             <div>
-                              <h3 className="text-lg font-semibold text-white">
+                              <h3 className="text-lg font-semibold text-app-text">
                                 {getDateLabel(session.date)}
                               </h3>
-                              <p className="text-gray-400 text-sm">
+                              <p className="text-app-muted text-sm">
                                 {session.location ||
                                   format(parseISO(session.date), "EEEE")}
                               </p>
@@ -279,7 +279,7 @@ function Sessions() {
                             <p className="app-kpi-value text-2xl">
                               {session.total_dives}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-app-muted">
                               {diverScope === "self"
                                 ? "My attempts"
                                 : "In scope"}
@@ -289,7 +289,7 @@ function Sessions() {
                             <p className="app-kpi-value text-2xl text-app-accent">
                               {session.total_personal_dives}
                             </p>
-                            <p className="text-xs text-gray-500">Scored</p>
+                            <p className="text-xs text-app-muted">Scored</p>
                           </div>
                           <div className="text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -300,7 +300,7 @@ function Sessions() {
                               </p>
                               {trend && <TrendIndicator trend={trend} />}
                             </div>
-                            <p className="text-xs text-gray-500">Avg Perf</p>
+                            <p className="text-xs text-app-muted">Avg Perf</p>
                           </div>
                           <div className="text-center">
                             <span
@@ -310,7 +310,7 @@ function Sessions() {
                                 ? `${session.success_rate.toFixed(0)}%`
                                 : "-"}
                             </span>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-app-muted mt-1">
                               Success
                             </p>
                           </div>
@@ -320,7 +320,7 @@ function Sessions() {
                       {/* Notes (if any) */}
                       {session.notes && (
                         <div className="mt-4 border-t border-app pt-4">
-                          <p className="text-gray-400 text-sm">
+                          <p className="text-app-muted text-sm">
                             {session.notes}
                           </p>
                         </div>
@@ -351,7 +351,7 @@ function Sessions() {
                       </div>
 
                       {/* Click hint */}
-                      <div className="mt-3 inline-flex items-center gap-1 text-xs text-cyan-400">
+                      <div className="mt-3 inline-flex items-center gap-1 text-xs text-app-accent">
                         View details{" "}
                         <ChevronRight
                           className="h-3.5 w-3.5"
@@ -374,8 +374,8 @@ function Sessions() {
             className="mx-auto mb-4 h-12 w-12 text-app-muted"
             aria-hidden="true"
           />
-          <p className="text-gray-400 text-xl">No sessions found</p>
-          <p className="text-gray-500 mt-2">
+          <p className="text-app-muted text-xl">No sessions found</p>
+          <p className="text-app-muted mt-2">
             Start training to see your sessions here
           </p>
         </div>
