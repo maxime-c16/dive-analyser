@@ -2137,8 +2137,8 @@ deployment freeze, test strategy).
 
 - **Authority:** base = accepted U7 HEAD `6218149`; no drift, no
   concurrent product regression. Task `cef0c16` → code-merge `1dd8045`
-  (deployment source); final canonical HEAD: [final HEAD — docs-only
-  merge, frontend tree identical to `1dd8045`].
+  (deployment source); final canonical HEAD: `03aa75165a6a2261384b1b082491f1b12e4e87bc`
+  (docs-only merge; frontend tree identical to `1dd8045`).
   Deployed from committed canonical source only (frontend-only rebuild);
   live bundle **`index-zrC4-UyN.js`**
   (md5 `138abc98420a2779f1c650231da43b35`) + `index-A_H9YTui.css`
