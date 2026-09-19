@@ -2025,7 +2025,56 @@ Durable audit: `docs/audits/UI-U4U5-reliability-mobile-accessibility-v1.md`
 - **Deployment:** frontend-only rebuild from canonical tree; live bundle
   **`index-CbYUMwwV.js`**, deployed sourcemaps byte-identical to Git
   (11/11 key files); live captures added (4).
-- Next gate: **UI-U6 — OBSOLETE_ROUTE_AND_VISUAL_SYSTEM_CLEANUP_V1**.
+- Next gate: **UI-U6 — OBSOLETE_ROUTE_AND_VISUAL_SYSTEM_CLEANUP_V1** (COMPLETE, see below).
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
+integrating (established convention).
+
+### UI-U6 — OBSOLETE_ROUTE_AND_VISUAL_SYSTEM_CLEANUP_V1 (2026-09-19)
+
+**Status: UI_U6 GREEN (subtractive cleanup; core review loop untouched).**
+Durable audit: `docs/audits/UI-U6-obsolete-route-visual-system-cleanup-v1.md`
+(+ `docs/audits/evidence-ui-u6-screenshots/`, 28 before/after captures at 1440px + 390px).
+
+- **Route cleanup:** `/competitions` no longer renders Journey inline — it is
+  now a query-preserving compatibility redirect (`/competitions?scope=all`
+  → `/journey?scope=all`, unit + live-production E2E proven). No normal-nav
+  entry, no duplicate component ownership. `/media/p5-canary` audited
+  **OPERATIONALLY_USED** (sole consumer of the gated B2 canary endpoint
+  `GET /api/v1/media/playback/canary/revisions`; standing diagnostic harness in the P5/P6 media-backbone
+  audits) — kept reachable and hidden, documented as the
+  operational/debug route.
+- **Navigation/breadcrumbs:** routeLabels dropped the obsolete alias + the
+  fake media parent; new exported breadcrumbTrail() maps paths to
+  user-visible IA (deep analysis →s Library plus code-analysis crumb;
+  media routes →s single crumb, no dead hierarchy). Fake in-component
+  breadcrumb removed from RecentProgress. Hierarchy unchanged
+  (Library-first).
+- **Visual consolidation:** Dashboard/Journey/JourneyNarrative/Analytics/
+  Sessions/SessionDetail/RecentProgress/AvoidedDives/SyncStatus/
+  MentalBlockIndicator/SyncNotifications/SyncErrorHandler/MilestoneNotifier/
+  SessionDirectionIndicator/Admin migrated from the legacy gray/cyan page
+  themes to app tokens (neutral/info →s tokens, decorative
+  cyan/blue/purple/teal →s accent, gradients →s solid, dead
+  CTA/confetti/duplicate-chart/fake-breadcrumb removed). Success/warning/
+  error treatments and true data-series colors kept as justified semantics.
+  No secondary-page features added; charts, player, media semantics
+  untouched.
+- **Dead removal (proven):** DiveStory.tsx, EmotionalStateCapture.tsx,
+  styles/sync.css, App.css, the gray/cyan index.css shim, the unused
+  diving Tailwind palette, dead animate-in classes. Net **+547/-1233
+  lines** across 26 files.
+- **Tests:** tsc green; vitest **113/113** (was 110; +redirect, +query,
+  +breadcrumb table); build green; preview E2E **120 passed/4 skipped/0
+  failed** and production E2E **120 passed/4 skipped/0 failed**
+  (desktop 62 + mobile 58; axe L/L2 0 critical/0 serious both runs); lint
+  still NOT_CONFIGURED (pre-existing).
+- **Deployment:** frontend-only rebuild from canonical tree; live bundle
+  **`index-CHTyUqYq.js`** + `index-B_p-ckMH.css` (JS -1,559 B, CSS -28%; no new runtime
+  deps), deployed sources byte-identical to Git (10/10 key JS files via
+  sourcemap + md5 vs canonical-tree build). Backend/auth/DB/B2 untouched.
+  Stored localhost-scoped session 147 reused for all runs — zero logins,
+  zero revocations; dedicated E2E identity debt remains.
+- Next gate: **UI-U7 — ANALYSIS_PROGRESSIVE_DISCLOSURE_V1**.
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
