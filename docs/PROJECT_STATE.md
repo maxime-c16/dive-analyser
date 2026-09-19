@@ -2123,6 +2123,69 @@ screen 1440/390/320, progression open, comparison, unavailable, retry).
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
+### UI-U8 — FINAL_USABILITY_PERFORMANCE_REGRESSION_CLOSURE_V1 (2026-09-19)
+
+**Status: UI_U8 BLOCKED — solely on `DEDICATED_E2E_IDENTITY_REQUIRED`.
+All product/technical closure work is complete; one interactive operator
+step remains (mint a dedicated E2E user).**
+Durable audit: `docs/audits/UI-U8-final-usability-performance-regression-closure-v1.md`
+(+ `docs/audits/evidence-ui-u8-final/`, 10 captures).
+Start-here architecture doc (new): `docs/ui/UI_SIMPLIFICATION_V1_FINAL.md`
+(final IA, route map, Library/Viewer/Analysis contracts,
+reliability/mobile/a11y contracts, visual authority, ownership,
+deployment freeze, test strategy).
+
+- **Authority:** base = accepted U7 HEAD `6218149`; no drift, no
+  concurrent product regression. Task `cef0c16` → code-merge `1dd8045`
+  (deployment source); final canonical HEAD: [final HEAD — docs-only
+  merge, frontend tree identical to `1dd8045`].
+  Deployed from committed canonical source only (frontend-only rebuild);
+  live bundle **`index-zrC4-UyN.js`**
+  (md5 `138abc98420a2779f1c650231da43b35`) + `index-A_H9YTui.css`
+  (md5 `2815236eb28049fc8187361467e84d3e`),
+  md5-identical to the canonical-tree build, sourcemaps byte-identical
+  to Git (8/8 key files). Prior U7 bundle `index-BQ0tlWdF.js` was
+  verified consistent at preflight.
+- **Contracts:** all U1–U7 contracts re-proven (tsc clean, vitest
+  **126/126**, desktop E2E 71+19 rerun green, mobile **69/4skip/0fail**,
+  axe 0 critical/0 serious). Clip URL/history (`clip=<attempt-id>`,
+  PUSH open / REPLACE nav / exact Back), viewer, keyboard, reliability
+  phases, Analysis grain (`?attempt=` presentation-only), mobile
+  390/320/landscape, 200% reflow — all preserved.
+- **Bounded repairs (3):** SessionDetail modal gained the canonical
+  focus contract (inertExcept+trapTabKey, focus return; media semantics
+  untouched — proven by probe); Journey dead emotional-state teaser
+  removed (11 lines; capability deleted in U6); axe `landmark-unique`
+  moderate repaired (redundant inner region role dropped; verified
+  absent). AttemptDrawer classified JUSTIFIED_SECONDARY_PLAYER (kept).
+- **Product success:** NEW_USER / RAPID_REVIEW / MOBILE /
+  ERROR_RECOVERY / KEYBOARD_ONLY / ANALYSIS_ROUND_TRIP — all PASS
+  (heuristic + automated evidence; no real user study). Rapid review:
+  14 moves, 0 wrong-target, history +0 across REPLACE nav, Next≈510ms
+  (no regression vs U3/U4 baseline). Scroll 3568→3568 exact.
+- **E2E identity (blocking):** no dedicated identity exists (only
+  `user_id=1` personal operator). Safe path confirmed
+  (`manage_user.py create-user`, per-user single-session → isolated
+  lifecycle) but needs one interactive operator getpass step — not
+  improvised. All validation reused the stored session with zero logins.
+  Operator action is a one-liner in the U8 audit §3. Session expires
+  2026-10-13. Litmus: after minting, one full production run under the
+  new identity with Maxime's session valid before/after → CLOSED_GREEN.
+- **Deployment freeze:** compose frontend has no build section — the
+  frozen procedure (explicit Dockerfile.deploy build + frontend-only
+  recreate + bundle/sourcemap verification) is now durable in the
+  start-here doc. Mirror `mac-mirror` synced; server→mirror SSH
+  mechanically repaired with the already-authorized agent key
+  (IdentitiesOnly; no new access). Stale `:4173` preview stopped;
+  dormant UI worktrees removed after no-unmerged-commits proof.
+- **Program status: UI_SIMPLIFICATION_PROGRAM CLOSED except the E2E
+  identity operator step** (all success paths PASS; debt is
+  non-product: identity provisioning, unconfigured lint, no manual SR
+  pass). Next: operator mints dedicated E2E identity → one production
+  E2E run → declare CLOSED_GREEN.
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
+integrating (established convention).
+
 ## Subject Resolution Cohort Expansion V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 (2026-09-13)
 
 Packet executed on worktree branch `subject-resolution-cohort-expansion-v1`
