@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BarChart3, ChevronDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
 import { getPreview } from "../../utils/mediaPreview";
@@ -31,6 +31,7 @@ export default function ClipViewer({
 }) {
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
+  const location = useLocation();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
 
@@ -192,7 +193,8 @@ export default function ClipViewer({
                   />
                 </button>
                 <Link
-                  to={`/dives/analysis/${attempt.dive_code}`}
+                  to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
+                  state={{ returnTo: `${location.pathname}${location.search}` }}
                   className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 text-sm text-app-text"
                 >
                   <BarChart3 className="h-4 w-4" />

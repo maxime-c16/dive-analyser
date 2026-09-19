@@ -191,7 +191,7 @@ it('Details is closed by default and toggles secondary metadata', async () => {
 it('Analysis is a secondary link that preserves the review return path', () => {
   renderClipViewer(1)
   const link = screen.getByRole('link', { name: 'Analysis' })
-  expect(link).toHaveAttribute('href', '/dives/analysis/103B')
+  expect(link).toHaveAttribute('href', '/dives/analysis/103B?attempt=2')
 })
 
 it('an attempt without linked media shows a usable state', () => {
