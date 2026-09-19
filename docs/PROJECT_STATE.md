@@ -2078,6 +2078,51 @@ Durable audit: `docs/audits/UI-U6-obsolete-route-visual-system-cleanup-v1.md`
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
+### UI-U7 — ANALYSIS_PROGRESSIVE_DISCLOSURE_V1 (2026-09-19)
+
+**Status: UI_U7 GREEN. Analysis is a secondary inspection surface attached to
+clip review (calm first screen, authoritative data only, exact return).**
+Durable audit: `docs/audits/UI-U7-analysis-progressive-disclosure-v1.md`
+(+ `docs/audits/evidence-ui-u7-screenshots/`, 8 captures: viewer, first
+screen 1440/390/320, progression open, comparison, unavailable, retry).
+
+- **Route/context contract:** Viewer entry
+  `/dives/analysis/:code?attempt=<id>` + `state.returnTo` (presentation-only
+  context, never computation). Back-to-clip restores the exact Viewer
+  (returnTo, else `/dives?clip=<id>`); direct code-only URLs fall back to
+  `/dives?q=<CODE>`; invalid `attempt=` stays unresolved and can never claim
+  a clip; code switches strip `attempt`; drawer no longer auto-opens.
+- **Grain model:** all aggregates DIVE_CODE_AGGREGATE under active filters
+  (deterministic layer B); personal-values = ATTEMPT values in code scope
+  (heuristic v1, caveats kept); representatives = media-authority ATTEMPT
+  selections. No per-attempt science exists (stub/perception firewall
+  untouched); no UNKNOWN_AUTHORITY output user-facing; scope labeled
+  everywhere ("all attempts" vs "this attempt").
+- **First screen:** Back control, scope header, selected-attempt context,
+  4-figure key summary (Attempts/Median/Consistency/Trend), What-changed
+  insights. Collapsed `AnalysisSection` units (unmounted until opened):
+  Filters, Progression, Comparison & history, Phases, Attempts, plus
+  Representatives / Personal priority. Sticky bar + observability footer
+  removed from user UI. Transport (loading/error+read-only Retry) separated
+  from capability states (available/partial/unavailable).
+- **Viewer round-trip:** Viewer→Analysis→Back proven same attempt +
+  Library context (unit + live E2E, incl. browser Back).
+- **Tests:** tsc green; vitest **126/126** (was 113); build green;
+  preview E2E **142 passed/4 skipped/0 failed** (desktop+mobile, 22 new
+  analysis specs); production live **52 passed/0 failed**; axe 0
+  critical/0 serious on tested U7 surfaces (one nested-interactive repair in
+  the chart svg role). Lint still NOT_CONFIGURED (pre-existing).
+- **Production bundle:** **`index-BQ0tlWdF.js`** + `index-A_H9YTui.css`
+  (JS +0.18%, CSS −1%, no new deps), frontend-only rebuild from the
+  committed canonical tree, deployed sources byte-identical to Git.
+  Stored session 147 reused — zero logins; dedicated E2E identity debt
+  remains (expires 2026-10-13).
+- Next gate: **UI-U8 — FINAL_USABILITY_PERFORMANCE_REGRESSION_CLOSURE_V1**
+  (no redesign: usability closure, dead-UI sweep, E2E identity, manual SR
+  pass if available, PRODUCT_SUCCESS_TEST).
+NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
+integrating (established convention).
+
 ## Subject Resolution Cohort Expansion V1 — DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 (2026-09-13)
 
 Packet executed on worktree branch `subject-resolution-cohort-expansion-v1`
