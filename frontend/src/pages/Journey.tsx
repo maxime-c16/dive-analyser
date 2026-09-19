@@ -698,17 +698,6 @@ function Journey() {
                       </div>
                     </div>
 
-                    {/* Emotional State Placeholder */}
-                    <div className="mt-4 border border-app bg-app-panel-elevated p-4">
-                      <h3 className="text-lg font-bold text-app-accent mb-3">
-                        Emotional Tracking
-                      </h3>
-                      <p className="text-app-muted text-sm">
-                        Ready to start logging your emotional state? This helps
-                        us understand your confidence patterns and identify
-                        mental blocks.
-                      </p>
-                    </div>
                   </>
                 ) : (
                   <div className="text-center py-8 text-app-muted">
