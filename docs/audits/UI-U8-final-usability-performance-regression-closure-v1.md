@@ -272,8 +272,10 @@ features; core IA unchanged; analysis semantics unchanged.
 - Authoritative procedure frozen in `docs/ui/UI_SIMPLIFICATION_V1_FINAL.md`
   (compose has no build section; explicit `docker build -f
   frontend/Dockerfile.deploy` + `up -d --force-recreate --no-deps`).
-- Deployed commit: code-merge `1dd8045` (frontend tree frozen; final
-  canonical HEAD 03aa75165a6a2261384b1b082491f1b12e4e87bc (docs-only merge, frontend tree identical to 1dd8045).
+- Deployed commit: code-merge `1dd8045` (frontend tree frozen; all
+  later merges docs-only with identical frontend tree — docs-merge
+  `03aa751`, HEAD-record `f571d83`, final canonical HEAD recorded in
+  PROJECT_STATE).
   Live bundle `index-zrC4-UyN.js`
   (md5 `138abc98420a2779f1c650231da43b35`) + `index-A_H9YTui.css`
   (md5 `2815236eb28049fc8187361467e84d3e`): both md5-identical to a fresh
