@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Minus, Film } from 'lucide-react'
 import { api } from '../services/api'
 import { format, parseISO } from 'date-fns'
@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
 import DiveVideoPlayer from './DiveVideoPlayer'
+import { inertExcept, trapTabKey } from '../utils/a11y'
 import { isSuccessfulPerformance, performanceScore10 } from '../utils/performanceScoring'
 
 interface Dive {
@@ -74,11 +75,29 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedDive, setSelectedDive] = useState<Dive | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<Element | null>(null)
 
+  // Modal focus contract (same primitives as the canonical ClipViewer):
+  // background inert while open, Tab trapped inside the dialog, Escape
+  // closes, focus returns to the opening control.
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', closeOnEscape)
-    return () => document.removeEventListener('keydown', closeOnEscape)
+    triggerRef.current = document.activeElement
+    const overlay = overlayRef.current
+    const dialog = dialogRef.current
+    const restoreInert = overlay ? inertExcept(overlay) : undefined
+    dialog?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { onClose(); return }
+      if (event.key === 'Tab' && dialog) trapTabKey(dialog, event)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      restoreInert?.()
+      ;(triggerRef.current as HTMLElement | null)?.focus?.()
+    }
   }, [onClose])
 
   useEffect(() => {
@@ -149,9 +168,9 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div ref={overlayRef} className="fixed inset-0 z-50 overflow-y-auto bg-black/80" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div className="min-h-screen p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-        <div role="dialog" aria-modal="true" aria-labelledby="session-detail-title" className="min-h-screen w-full overflow-y-auto border border-app bg-app-panel sm:min-h-0 sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg">
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="session-detail-title" className="min-h-screen w-full overflow-y-auto border border-app bg-app-panel outline-none sm:min-h-0 sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg">
           {/* Header */}
           <div className="sticky top-0 flex items-center justify-between border-b border-app bg-app-panel p-4 sm:p-6">
             <div>

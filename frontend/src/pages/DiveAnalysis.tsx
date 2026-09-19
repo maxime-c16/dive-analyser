@@ -104,7 +104,7 @@ function AnalysisSection({ id, title, caption, defaultOpen = false, children }: 
         <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 text-app-muted transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
     </h2>
-    {open && <div id={panelId} role="region" aria-labelledby={buttonId} className="border-t border-app p-4 sm:p-5">{children}</div>}
+    {open && <div id={panelId} className="border-t border-app p-4 sm:p-5">{children}</div>}
   </section>
 }
 
