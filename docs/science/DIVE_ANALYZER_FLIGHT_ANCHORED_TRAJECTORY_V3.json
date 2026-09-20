@@ -1,0 +1,1060 @@
+{
+ "ACTION_SPANNING_SUBJECT_TRAJECTORY_RECALL": {
+  "evaluable_clips": 15,
+  "recovered_clips": 1
+ },
+ "ANALYTICS_READINESS": {
+  "ACTION_TRAJECTORY_RECOVERED_EVENT_UNVERIFIED": 0,
+  "FLIGHT_TRAJECTORY_RECOVERED_ONLY": 1,
+  "TRAJECTORY_AND_EVENTS_PLAUSIBLE": 0,
+  "TRAJECTORY_NOT_READY": 14
+ },
+ "CURRENT_TRUE_BOTTLENECK": "SUBJECT_FLIGHT_SELECTION_AMONG_COMPLETE_ALTERNATIVES: flight-window observation is complete (floor 1.0 on 7/9, capped lattice >=0.92) and chaining finds coherent arcs, but identity-free Q cannot select the subject arc among several plausible flights (top cores temporally disjoint from HUMAN windows on 7/9; 2169 mixed stitch). Next: dive-action validation (other-action precision + manual-selection fallback).",
+ "F0": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+ "F1": "F1_FLIGHT_SEED_BIDIRECTIONAL_EXTENSION",
+ "FLIGHT_PHASE_SUBJECT_TRAJECTORY_RECALL": {
+  "evaluable_clips": 9,
+  "recovered_clips": 1
+ },
+ "IDENTITY_LINE": "FROZEN_DEFERRED",
+ "METRIC_CAVEAT": "ACTION recall 1/15 is 2169 rank-1 at 0.889 with prep 0.987 / flight 0.294: prep-dominated, refused as DiveTrack recovery by the Phase-14 hierarchy. FLIGHT recall 1/9 is 676 rank-4 at 1.0 on a 2-anchor window via F1 extension (F0 core off-window): thin, reported as FLIGHT_TRAJECTORY_RECOVERED_ONLY.",
+ "NEXT_RESEARCH_DECISION": "IMPROVE_DIVE_ACTION_VALIDATION_NEXT",
+ "OTHER_ACTION_GT": "OTHER_ACTION_GT_NOW_HIGH_VALUE",
+ "OTHER_ACTION_GT_MINIMAL_FUTURE_PLAN": "After V3 retains plausible action-spanning arcs on every clip: HUMAN takeoff/water-contact marks for top retained arcs of 3-4 crowded clips to score multi-path precision (real other dives vs mixed stitches, cf. 2169 r1). No full action labels. Design only, no collection.",
+ "OVERLAY_READINESS": "TRACK_STABILITY_STILL_INSUFFICIENT",
+ "SYNCHRO_REPRESENTATION": "SYNCHRO_REPRESENTABLE",
+ "TOP_K": 5,
+ "V3_STATUS": "FLIGHT_ANCHORED_TRAJECTORY_V3_PARTIAL",
+ "authorities": {
+  "caches": {
+   "cohort": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-cand-quality-v3/runs/subject_resolution/R5_FULLCLIP_CANDIDATES_COHORT_V1.json",
+    "sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f"
+   },
+   "hurdle": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-cand-quality-v3/runs/hurdle_identity_v1/R5_FULLCLIP_CANDIDATES_V1.json",
+    "sha256": "3bed1aafb3d55353372260466ae0683acc62b188d75e6ef2587d936c150e0d83"
+   },
+   "indep": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-independent-gt/runs/subject_resolution/R5_FULLCLIP_CANDIDATES_INDEP_V1.json",
+    "sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f"
+   }
+  },
+  "cohort": [
+   "1040",
+   "1304",
+   "133",
+   "2169",
+   "2204",
+   "2223",
+   "2341",
+   "2353",
+   "2387",
+   "2526",
+   "2541",
+   "2583",
+   "2839",
+   "311",
+   "676"
+  ],
+  "f3_implementation": "c077f0f3e00a6e59f92b12209add6156151215e902f66fc1ac1a488b15b53a4c",
+  "f3_protocol_constants": {
+   "CORE_MAX_S": 3.0,
+   "CORE_MIN_S": 0.3,
+   "DUP_AGREE": 0.95,
+   "DYNAMIC_SLOTS": 32,
+   "F3_VERSION": "FLIGHT_ANCHORED_TRAJECTORY_V3_F0F1_V1",
+   "FINAL_TOP_K": 5,
+   "FLOW_TOP": 20,
+   "FRAME_CAP": 50,
+   "LATCH_GRACE_FRAMES": 3,
+   "MAX_SUCC_PER_PATH": 6,
+   "MOVER_KEEP": 10,
+   "MOVE_NORM": 0.8,
+   "NULL_COST": 0.2,
+   "NULL_MAX_S": 0.3,
+   "POOL_PER_START": 8,
+   "SEARCH_BEAM_WIDTH": 64,
+   "SEED_MOVERS": 6,
+   "SEED_TOP": 12,
+   "SPEED_LATCH": 0.15,
+   "START_STRIDE": 30,
+   "STATIC_SLOTS": 32,
+   "STATIC_SPEED": 0.05,
+   "W_ACC": 0.1,
+   "W_CONF": 0.1,
+   "W_CONF_CONT": 0.05,
+   "W_DESCENT": 0.5,
+   "W_DYN": 1.0,
+   "W_EXCURSION": 1.0,
+   "W_LATERAL": 0.25,
+   "W_MOVE": 0.05,
+   "W_NULL": 1.0,
+   "W_SIZE": 0.5,
+   "W_SMOOTH": 0.25,
+   "W_STATIC": 0.5,
+   "reused_frozen": {
+    "ACC_NORM": 3.5,
+    "GATE_BASE": 0.05,
+    "GATE_VEL": 1.0,
+    "RADIUS": 0.06,
+    "RANGE_NORM": 0.5,
+    "SIZE_TOL": 0.7984573603642703,
+    "VEL_ALPHA": 0.35,
+    "VEL_MAX": 1.4,
+    "V_MAX_CX_S": 1.2,
+    "V_MAX_CY_S": 1.5
+   }
+  },
+  "f3_runner": "c191c148e1df850d604b7af66582428299697ccc11fb4e80cfb5ca3f8ed53868",
+  "files": {
+   "experiments/landmark_pilot/proposer_event_logic_v2_1.py": "f43bd781f4ef1261acede6ce6e87d7e19ee640e9cf11c66ec9b13b78a0ab2d11",
+   "experiments/landmark_pilot/proposer_event_logic_v3_c0.py": "9c5077191699416e0148f868bd0d2fc6f19fd5a823102eeb1bdd5e0f129a8438",
+   "experiments/landmark_pilot/r5_tracklets_v1.py": "23d7740f6756e205dc136089d2a26385a7a0a3d149e6e5168cb4d0e77f9b6010",
+   "experiments/subject_resolution/phase_subject_candidate_quality_v3.py": "9fc8dcbc9d9040cc7c216bcff45a2995d08322043da8b6ff703eeed4b9694fcb",
+   "experiments/subject_resolution/subject_reference_acquisition_v2.py": "01a17dd77131076d323b4adbc0790ac1d284f36fe39ebfb98a0ef64ad7a1d73e"
+  },
+  "gt": {
+   "L1A": {
+    "count": 63,
+    "sha256": "d805aac2b46e52f002de2842b56bb9a1b0ced808f0862a4c559f5ffe9099a75e"
+   },
+   "L1B": {
+    "count": 180,
+    "sha256": "dc958909435ad043a1284064b5dd6f85ca4b8eb365ed643289943f679c83a9df"
+   },
+   "event_1040": "fe20f5a060bb4acc827837696da51176c4d2a257e3c62e798ef6eeb42983e179",
+   "event_133": "94526af3a636ddfd25e5fb03b46e65f85b993da3eef53e4561bc3d720837edfb",
+   "event_2169": "585f9fe8e556d7e94c27b87619e8d5b8f16b209157832e4d0a76d47d1c655a76",
+   "event_2341": "5cd03585f8aa319071bee883c6fe5007e49512e7ed1b9986d3cc70fcb5f8cb4a",
+   "event_2353": "0c37491db5c2ec38604d8ba04c8f29ba96e9141b47ad3dce51a07ad9ec32ba3b",
+   "event_2387": "bf70d2cadd69a8904454636668839feeb01959a5721c2828a2a87ffe98ceb458",
+   "event_2541": "f300ec49ffa64a9e26388ba4a017fd7b6b3670bdff62faf96050ebb470e26e46",
+   "event_311": "eacf565a5d55018c994e2f3b2ac9dce74a954aada75390c6ecf91a91686ddbb6",
+   "event_676": "98e97c6b7df89645a5eef8c8becce0b682773d54085571fa18690e0dd8f5bc89",
+   "hurdle_chains": "11d075bed7a4967e66ddf881cbaa6529e9ca0862d86786269d1398cb194c6b15"
+  },
+  "packet": "DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3",
+  "protocol_commit": "95d1de59261526d423fadd3f979607fd7e3d7156",
+  "starting_head": "1d49bbead2c230b44ab42c76958c24eac5fe1a35",
+  "v2_report": "efccc7d50e0319e45707b6a5fce56edf775d4270344d83a3d6d24c7446390972"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3",
+ "identity_line": "FROZEN_DEFERRED",
+ "media_backbone_mutated": "NO",
+ "packet": "DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3",
+ "per_dive": {
+  "1040": {
+   "alternative_paths": 4,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 29,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 4.463857,
+    "water_contact_s": 5.413853
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.9006211180124224,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 48,
+    "decoded_paths": 48,
+    "frames": 332,
+    "full_floor_candidates": 33857,
+    "nodes": 18135,
+    "starts": 12
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_1040.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.771433,
+      "human_timestamp_s": 4.797189,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.437767,
+      "human_timestamp_s": 4.463857,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.4054,
+      "human_timestamp_s": 5.413853,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.546583850931677,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 161
+  },
+  "1304": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.9,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 36,
+    "decoded_paths": 36,
+    "frames": 199,
+    "full_floor_candidates": 17887,
+    "nodes": 10751,
+    "starts": 7
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.9,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.2,
+   "v2_union_subject_coverage": 0.9,
+   "visible_subject_anchors": 10
+  },
+  "133": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 2,
+   "flight_floor_inclusion": 0.5,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 1.800274,
+    "water_contact_s": 2.95027
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.7142857142857143,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 48,
+    "decoded_paths": 48,
+    "frames": 178,
+    "full_floor_candidates": 11803,
+    "nodes": 9172,
+    "starts": 6
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_133.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 2.068733,
+      "human_timestamp_s": 2.083607,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 1.768433,
+      "human_timestamp_s": 1.800274,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 2.936267,
+      "human_timestamp_s": 2.95027,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.8571428571428571,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.42857142857142855,
+   "v2_union_subject_coverage": 0.8571428571428571,
+   "visible_subject_anchors": 7
+  },
+  "2169": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.8894009216589862,
+   "best_subject_path_rank": 1,
+   "best_subject_purity": 0.9301204819277108,
+   "flight_anchors": 49,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 6.46124,
+    "water_contact_s": 7.694569
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 1.0,
+   "full_action_extension": {
+    "flight_coverage": 0.29411764705882354,
+    "full_action_coverage": 0.8894009216589862,
+    "post_coverage": null,
+    "prep_coverage": 0.9868766404199475
+   },
+   "lattice": {
+    "decoded_cores": 248,
+    "decoded_paths": 248,
+    "frames": 1078,
+    "full_floor_candidates": 104953,
+    "nodes": 57786,
+    "starts": 36
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": true,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2169.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.75675,
+      "human_timestamp_s": 6.761239,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.45645,
+      "human_timestamp_s": 6.46124,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 7.691017,
+      "human_timestamp_s": 7.694569,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "SCORED"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.7949308755760369,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 434
+  },
+  "2204": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.46153846153846156,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 76,
+    "decoded_paths": 76,
+    "frames": 516,
+    "full_floor_candidates": 44652,
+    "nodes": 27788,
+    "starts": 18
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.6153846153846154,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.15384615384615385,
+   "v2_union_subject_coverage": 0.6153846153846154,
+   "visible_subject_anchors": 13
+  },
+  "2223": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.3,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 76,
+    "decoded_paths": 76,
+    "frames": 590,
+    "full_floor_candidates": 57253,
+    "nodes": 32444,
+    "starts": 20
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.5,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.0,
+   "v2_union_subject_coverage": 0.5,
+   "visible_subject_anchors": 20
+  },
+  "2341": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 61,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 3.572542,
+    "water_contact_s": 4.589204
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.8168498168498168,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 160,
+    "decoded_paths": 160,
+    "frames": 607,
+    "full_floor_candidates": 84911,
+    "nodes": 35540,
+    "starts": 21
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2341.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.95,
+      "human_timestamp_s": 3.955874,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.566667,
+      "human_timestamp_s": 3.572542,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.583333,
+      "human_timestamp_s": 4.589204,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.20146520146520147,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 273
+  },
+  "2353": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 72,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 5.696084,
+    "water_contact_s": 6.879412
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.36009732360097324,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 324,
+    "decoded_paths": 324,
+    "frames": 1437,
+    "full_floor_candidates": 201812,
+    "nodes": 78600,
+    "starts": 48
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2353.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.272933,
+      "human_timestamp_s": 6.279415,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.689017,
+      "human_timestamp_s": 5.696084,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.873533,
+      "human_timestamp_s": 6.879412,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.0364963503649635,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 411
+  },
+  "2387": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 3,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 4.483274,
+    "water_contact_s": 5.499937
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 1.0,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 160,
+    "decoded_paths": 160,
+    "frames": 748,
+    "full_floor_candidates": 71508,
+    "nodes": 40612,
+    "starts": 25
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2387.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.8048,
+      "human_timestamp_s": 4.833273,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.471133,
+      "human_timestamp_s": 4.483274,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.472133,
+      "human_timestamp_s": 5.499937,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.38461538461538464,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 13
+  },
+  "2526": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.8333333333333334,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 256,
+    "decoded_paths": 256,
+    "frames": 956,
+    "full_floor_candidates": 130907,
+    "nodes": 54119,
+    "starts": 32
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.9444444444444444,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.1111111111111111,
+   "v2_union_subject_coverage": 0.9444444444444444,
+   "visible_subject_anchors": 18
+  },
+  "2541": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 27,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 17.518102,
+    "water_contact_s": 18.65143
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.9618320610687023,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 264,
+    "decoded_paths": 264,
+    "frames": 975,
+    "full_floor_candidates": 95423,
+    "nodes": 53271,
+    "starts": 33
+   },
+   "limitation": "FLIGHT_ASSOCIATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2541.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 17.984633,
+      "human_timestamp_s": 17.984766,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 17.5175,
+      "human_timestamp_s": 17.518102,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 18.6186,
+      "human_timestamp_s": 18.65143,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 1.0,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.583969465648855,
+   "v2_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 262
+  },
+  "2583": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.9333333333333333,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 128,
+    "decoded_paths": 128,
+    "frames": 575,
+    "full_floor_candidates": 57791,
+    "nodes": 31558,
+    "starts": 20
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.9333333333333333,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.4666666666666667,
+   "v2_union_subject_coverage": 0.9333333333333333,
+   "visible_subject_anchors": 15
+  },
+  "2839": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 0,
+   "flight_floor_inclusion": null,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "GT_UNAVAILABLE"
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.6206896551724138,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 52,
+    "decoded_paths": 52,
+    "frames": 526,
+    "full_floor_candidates": 56073,
+    "nodes": 29105,
+    "starts": 18
+   },
+   "limitation": "GT_UNAVAILABLE",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.7241379310344828,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.1724137931034483,
+   "v2_union_subject_coverage": 0.7241379310344828,
+   "visible_subject_anchors": 29
+  },
+  "311": {
+   "alternative_paths": 5,
+   "best_flight_contamination": null,
+   "best_flight_coverage": 0.0,
+   "best_flight_purity": null,
+   "best_flight_rank": null,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 1,
+   "flight_floor_inclusion": 0.0,
+   "flight_recovered": false,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 13.7546,
+    "water_contact_s": 14.821262
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.9655172413793104,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 144,
+    "decoded_paths": 144,
+    "frames": 577,
+    "full_floor_candidates": 41914,
+    "nodes": 30259,
+    "starts": 20
+   },
+   "limitation": "FLIGHT_OBSERVATION_LIMITED",
+   "longest_missing_flight_gap_s": null,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_311.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "signed_error_s": null,
+      "status": "NOT_APPLICABLE"
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 13.747067,
+      "human_timestamp_s": 13.7546,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 14.8148,
+      "human_timestamp_s": 14.821262,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.9655172413793104,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.20689655172413793,
+   "v2_union_subject_coverage": 0.9655172413793104,
+   "visible_subject_anchors": 29
+  },
+  "676": {
+   "alternative_paths": 5,
+   "best_flight_contamination": 0,
+   "best_flight_coverage": 1.0,
+   "best_flight_purity": 1.0,
+   "best_flight_rank": 4,
+   "best_subject_coverage": 0.0,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "flight_anchors": 2,
+   "flight_floor_inclusion": 1.0,
+   "flight_recovered": true,
+   "flight_window": {
+    "status": "SCORED",
+    "takeoff_s": 3.553575,
+    "water_contact_s": 4.853569
+   },
+   "formulation": "F0_FRAME_LEVEL_FLIGHT_LATTICE",
+   "frame_cap_union_subject_coverage": 0.8888888888888888,
+   "full_action_extension": {
+    "flight_coverage": null,
+    "full_action_coverage": null,
+    "post_coverage": null,
+    "prep_coverage": null
+   },
+   "lattice": {
+    "decoded_cores": 64,
+    "decoded_paths": 64,
+    "frames": 222,
+    "full_floor_candidates": 19504,
+    "nodes": 12172,
+    "starts": 8
+   },
+   "limitation": "FULL_ACTION_EXTENSION_LIMITED",
+   "longest_missing_flight_gap_s": 0.09876899999999988,
+   "recovered": false,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_676.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.870533,
+      "human_timestamp_s": 3.886907,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.536867,
+      "human_timestamp_s": 3.553575,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.838167,
+      "human_timestamp_s": 4.853569,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "synchro_representable": true,
+   "union_subject_coverage": 0.8888888888888888,
+   "v2_best_subject_coverage": 0.0,
+   "v2_pool_best_subject_coverage": 0.4444444444444444,
+   "v2_union_subject_coverage": 0.8888888888888888,
+   "visible_subject_anchors": 9
+  }
+ },
+ "protected_data": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris": "EXTERNAL_ONLY"
+ },
+ "reference_acquisition": "DEFERRED",
+ "resources": {
+  "B2_reads": 0,
+  "B2_writes": 0,
+  "D5_inference": 0,
+  "media_decodes": 0,
+  "new_embeddings": 0,
+  "new_labels": 0,
+  "peak_ram_bytes": 446676992,
+  "runtime_s": 1115.5119014997035,
+  "training": 0
+ },
+ "scientific_authorities_mutated": "NO"
+}

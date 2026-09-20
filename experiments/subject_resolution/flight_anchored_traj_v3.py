@@ -418,9 +418,9 @@ def extract_flight_core(path, kept, pts):
         # frame positions are dense indices into pts, so span+1 works
         nframes = pos[valid] - pos[i] + 1
         null_frac = 1.0 - nobs / np.maximum(nframes, 1)
-        # smoothness over steps i..j-1
-        acc_mean = np.array([float(np.mean(acc[i:k])) if k > i else 0.0
-                             for k in valid])
+        # smoothness over steps i..j-1 (acc has m-2 entries; guard the tail)
+        acc_mean = np.array([float(np.mean(acc[i:k])) if k > i and i < len(acc)
+                             and len(acc[i:k]) else 0.0 for k in valid])
         smooth_pen = np.minimum(acc_mean / ACC_NORM, 2.0)
         stat = np.array([float(np.mean(speed[i:k] < STATIC_SPEED)) if k > i
                          else 0.0 for k in valid])

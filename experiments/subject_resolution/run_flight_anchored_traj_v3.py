@@ -100,26 +100,30 @@ def flight_window(dive, frame_pts):
             'water_contact_s': t1['timestamp_seconds']}
 
 
-def flight_correspondence(track, anchors, window):
-    """GT-zone: correspondence restricted to flight-window anchors."""
+def flight_correspondence(track, anchors, window, frame_pts):
+    """GT-zone: correspondence over ALL flight-window anchors.
+
+    Denominator is every HUMAN subject anchor inside the flight window
+    (by recorded frame PTS), never intersected with the track's own
+    frames: a path that misses the window scores 0, a partial span is
+    not inflated.
+    """
     t0, t1 = window['takeoff_s'], window['water_contact_s']
-    fi2pts = {p['frame_index']: p['pts_s'] for p in track['trajectory']}
     fl = {fi: v for fi, v in anchors.items()
-          if fi in fi2pts and t0 - FLIGHT_PAD_S <= fi2pts[fi] <= t1 + FLIGHT_PAD_S}
+          if t0 - FLIGHT_PAD_S <= frame_pts[fi] <= t1 + FLIGHT_PAD_S}
     if not fl:
         return {'flight_anchors': 0, 'overlapping_anchors': 0,
                 'matching_anchors': 0, 'purity': None,
                 'matched_anchor_coverage': 0.0, 'is_subject': False,
                 'observed_non_subject_anchor_count': 0, 'matched_frames': []}
+    tr = {p['frame_index']: p['bbox_cxcywh_norm'][:2] for p in track['trajectory']}
     overlap = hits = 0
     matches = []
-    for point in track['trajectory']:
-        fi = point['frame_index']
-        if fi not in fl:
+    for fi in fl:
+        if fi not in tr:
             continue
         overlap += 1
-        cx, cy = point['bbox_cxcywh_norm'][:2]
-        if math.hypot(cx - fl[fi][0], cy - fl[fi][1]) <= f3.RADIUS:
+        if math.hypot(tr[fi][0] - fl[fi][0], tr[fi][1] - fl[fi][1]) <= f3.RADIUS:
             hits += 1
             matches.append(fi)
     purity = hits / overlap if overlap else None
@@ -168,6 +172,27 @@ def _dive_group(dive):
     return next(g for g, ids in v1run.GROUPS.items() if dive in ids)
 
 
+def flight_floor_inclusion(dive, group, anchors, window, frame_pts):
+    """GT-zone: fraction of flight-window anchors with ANY full-floor
+    candidate within RADIUS (raw observation upper bound in-window)."""
+    raw = json.loads(v1run.CACHES[group].read_text())
+    doc = raw['dives'][dive]
+    frames = f3.inference_view(doc['frames'])
+    t0, t1 = window['takeoff_s'], window['water_contact_s']
+    fl = [fi for fi in anchors
+          if t0 - FLIGHT_PAD_S <= frame_pts[fi] <= t1 + FLIGHT_PAD_S]
+    if not fl:
+        return 0.0
+    hit = 0
+    for fi in fl:
+        for c in frames[fi]['c']:
+            if math.hypot(c['cx'] - anchors[fi][0],
+                          c['cy'] - anchors[fi][1]) <= f3.RADIUS:
+                hit += 1
+                break
+    return hit / len(fl)
+
+
 def frame_union_at_cap(dive, group):
     """GT-zone: subject-anchor coverage by the capped frame lattice (any
     lattice candidate within RADIUS) vs full-floor union from V1 report."""
@@ -212,7 +237,7 @@ def evaluate():
                   for t in output['tracks']]
         window = flight_window(dive, output['frame_pts'])
         if window['status'] == 'SCORED':
-            fscored = [{**t, 'flight_evaluation': flight_correspondence(t, anchors, window)}
+            fscored = [{**t, 'flight_evaluation': flight_correspondence(t, anchors, window, output['frame_pts'])}
                        for t in scored]
             fsubj = [t for t in fscored if t['flight_evaluation']['is_subject']]
             frecovered = [t for t in fsubj
@@ -255,11 +280,14 @@ def evaluate():
         else:
             extension = {'prep_coverage': None, 'flight_coverage': None,
                          'post_coverage': None, 'full_action_coverage': None}
-        # perception vs representation (preregistered cutoffs mirror V2)
+        # perception vs representation (preregistered protocol cutoffs:
+        # flight-window observation < 0.50 -> OBSERVATION_LIMITED)
         union = v1dive['raw_subject_union_anchor_coverage']
+        flight_obs = (flight_floor_inclusion(dive, group, anchors, window, output['frame_pts'])
+                      if window['status'] == 'SCORED' else None)
         if window['status'] != 'SCORED':
             limitation = 'GT_UNAVAILABLE'
-        elif union < 0.5:
+        elif flight_obs is not None and flight_obs < 0.5:
             limitation = 'FLIGHT_OBSERVATION_LIMITED'
         elif fbest is not None and fbest['flight_evaluation']['matched_anchor_coverage'] >= RECOVERY_COVERAGE:
             if best is not None and best['evaluation']['matched_anchor_coverage'] >= RECOVERY_COVERAGE:
@@ -278,12 +306,13 @@ def evaluate():
                          'decoded_paths', 'decoded_cores')},
             'union_subject_coverage': union,
             'frame_cap_union_subject_coverage': cap_union,
+            'flight_floor_inclusion': flight_obs,
             'v2_union_subject_coverage': v2dive['union_subject_coverage'],
             'v2_pool_best_subject_coverage': v2dive['pool_best_subject_coverage'],
             'v2_best_subject_coverage': v2dive['best_subject_coverage'],
             'flight_window': window,
             'flight_anchors': (fbest and fbest['flight_evaluation']['flight_anchors']
-                               or (flight_correspondence(scored[0], anchors, window)['flight_anchors']
+                               or (flight_correspondence(scored[0], anchors, window, output['frame_pts'])['flight_anchors']
                                    if window['status'] == 'SCORED' and scored else 0)),
             'best_flight_rank': fbest['path_rank'] if fbest else None,
             'best_flight_coverage': fbest['flight_evaluation']['matched_anchor_coverage'] if fbest else 0.0,
@@ -320,11 +349,33 @@ def evaluate():
               'lim', limitation, flush=True)
     flight_evaluable = [d for d in results if results[d]['flight_window']['status'] == 'SCORED']
     flight_recall = sum(results[d]['flight_recovered'] for d in flight_evaluable)
+    readiness = {'TRAJECTORY_NOT_READY': 0,
+                 'FLIGHT_TRAJECTORY_RECOVERED_ONLY': 0,
+                 'ACTION_TRAJECTORY_RECOVERED_EVENT_UNVERIFIED': 0,
+                 'TRAJECTORY_AND_EVENTS_PLAUSIBLE': 0}
+    for d, p in results.items():
+        fl = p['flight_recovered']
+        act = (p['recovered'] and p['flight_recovered']
+               and (p['full_action_extension']['full_action_coverage'] or 0) >= RECOVERY_COVERAGE)
+        # Phase-14 hierarchy: good prep + bad flight is NOT a recovered
+        # DiveTrack, so action classes require flight recovery as well.
+        if fl and act:
+            seq = [t for t in json.loads((OUT / f'{d}.json').read_text())['tracks']
+                   if t['path_rank'] == p['best_flight_rank']]
+            if seq and seq[0]['procedural_sequence'] == 'COMPLETE_DIVE_SEQUENCE':
+                readiness['TRAJECTORY_AND_EVENTS_PLAUSIBLE'] += 1
+            else:
+                readiness['ACTION_TRAJECTORY_RECOVERED_EVENT_UNVERIFIED'] += 1
+        elif fl:
+            readiness['FLIGHT_TRAJECTORY_RECOVERED_ONLY'] += 1
+        else:
+            readiness['TRAJECTORY_NOT_READY'] += 1
     report = {'packet': 'DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3',
               'authorities': frozen,
               'F0': f3.F0_BEAM,
               'F1': f3.F1_BEAM,
               'TOP_K': f3.FINAL_TOP_K,
+              'ANALYTICS_READINESS': readiness,
               'FLIGHT_PHASE_SUBJECT_TRAJECTORY_RECALL': {'recovered_clips': flight_recall,
                 'evaluable_clips': len(flight_evaluable)},
               'ACTION_SPANNING_SUBJECT_TRAJECTORY_RECALL': {

@@ -60,3 +60,30 @@ than merged hypotheses. Each retained path additionally exposes:
 
 `DIVE_LIKE` on an unattributed retained arc remains a downstream
 diagnostic, not a correctness label. No production DB migration.
+
+## V3 flight-anchored addendum (experimental, no migration)
+
+Flight-Anchored V3 retains bounded top-K frame-level flight paths
+(`FINAL_TOP_K = 5`) decoded without any PersonTrack membership. Each
+retained path additionally exposes:
+
+- `path_id`: equals `track_id` (`f3-` deterministic hash of the ordered
+  frame-level observation set + protocol version).
+- `person_track_refs`: empty by design (decoding never uses PersonTrack
+  membership); R5 fragment overlap, if ever reported, is diagnostic only.
+- `flight_core_interval`: frozen F0 core [first, last] PTS (rank-defining).
+- `flight_objective_parts`: frozen Q components (excursion, descent,
+  lateral, smoothness, null/static fractions, confidence).
+- `handoff_provenance`: ordered list of `{kind, from, to, gap_s}` with
+  kind in `{frame, gap}`; `gap` steps carry explicit `null_frames`
+  (bounded missing observations, never silent extrapolation).
+- `path_rank` / `path_score` (Q) / `formulation` (F1): F0 Q order is final;
+  F1 extension is rank-subordinate and never reranks cores.
+- Manual-selection contract fields (`path_id`, `representative_frame`,
+  `temporal_extent`, `trajectory`, `flight_core_interval`,
+  `events_available`, `analysis_available=false`) are all present, so a
+  future user-picks-among-valid-DiveTracks fallback needs no migration.
+
+A good-prep + bad-flight retained path is explicitly NOT a recovered
+DiveTrack (Phase-14 hierarchy); flight coverage is reported separately
+from full-action coverage on every retained path.
