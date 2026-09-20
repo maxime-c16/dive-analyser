@@ -87,5 +87,8 @@ runs/subject_resolution/
 runs/subject_gt_level_a_v1/
 runs/subject_candidate_quality_v3/
 
+# ---- Subject Conditioned Identity L0: run outputs (never in Git) ----
+runs/subject_identity_l0/
+
 # ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
 frontend/playwright/.auth/

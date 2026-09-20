@@ -1,6 +1,11 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
 > Durable project handoff. Last verified: **2026-09-20** (science thread:
+> Dive Analyzer subject-conditioned identity pilot L0 — first bounded learned
+> identity-matching experiment with oracle within-clip reference: LODO top-1
+> B0 4/12, B1 2/12, L0 1/12 → `IDENTITY_MATCHER_L0_FAILS`,
+> `SCALE_IDENTITY_MATCHER_DATA_NEXT`; GT-free reference acquisition stays open).
+> Previous: **2026-09-20** (science thread:
 > Dive Analyzer independent subject-GT expansion V1 — 6 new dives, Level-B
 > frozen, V3 replay generalizes, identity-learning pilot justified, design-only).
 > Previous: **2026-09-13** (infrastructure thread:
@@ -10,7 +15,13 @@
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Latest science: `docs/science/DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1.md`
+> Latest science: `docs/science/DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0.md`
+> (15 dives / 13 sessions / 4 athletes; `ORACLE_WITHIN_CLIP_REFERENCE_V1`
+> even/odd split, 11-D L2 logistic C=1.0; Layer-A LODO top-1 B0 4/12, B1 2/12,
+> L0 1/12, LOSO identical; rank smoothing without top-1 gain on 29 MATCH
+> positives → `IDENTITY_MATCHER_L0_FAILS`, `SCALE_IDENTITY_MATCHER_DATA_NEXT`;
+> oracle is non-production, GT-free acquisition remains the product bottleneck)
+> Previous science: `docs/science/DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1.md`
 > (6 new independent dives 1304/2204/2223/2526/2583/2839; 180 HUMAN_REVIEWED
 > Level-B anchors frozen as `SUBJECT_GT_LEVEL_B_INDEPENDENT_V1`
 > SHA `dc958909…`; frozen V3 replay 0/12 top-1, phantom top-1 1→0, all wrong
@@ -20,8 +31,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_REFERENCE_ACQUISITION_V2`,
