@@ -1,0 +1,452 @@
+{
+ "label": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+ "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+ "date": "2026-09-20",
+ "canonical_base": "4f01003b4413a149f33eab0e32c2b30c9485ee86",
+ "gate": "SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+ "recommended_next_supervisor_gate": "SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+ "independence_gain": "INDEPENDENCE_GAIN_STRONG",
+ "independence_rationale": "5 novel sessions (all new dives in previously unrepresented sessions); athletes 2->4 (+LOUIS, +MAT); two richest multi-person scenes in the science corpus; lineup config + longest clip; residual correlation (single venue context; 2204+2223 share session 137 as different athletes) disclosed",
+ "bottleneck_generalization": "SUPPORTED_REAL_MOVER_IDENTITY_GENERALIZES",
+ "bottleneck_rationale": "same transition on independent dives: phantom top-1 1->0, subjects retained where strictly labeled (8/12 cells), 12/12 wrong tops are supported real movers (support 1-74), 8/12 delivered as REFERENCE_FOUND. Zero-strict-subject cells on 2223/2583 (fragmentation + weak D5 detection) extend the diagnosis to association; not a different bottleneck.",
+ "learning_readiness": "IDENTITY_LEARNING_PILOT_JUSTIFIED",
+ "learning_readiness_rationale": "(1) 13 sessions meaningful independence; (2) 4 athletes >= 3; (3) supported real-person ambiguity beyond old corpus; (4) Level-B GT supports grouped evaluation; (5) objective definable without GT leakage; (6) 15 dives/13 sessions support leave-one-dive/session-out",
+ "learning_formulation": "L0_SUBJECT_CONDITIONED_TRACK_MATCHER (reference evidence + candidate track -> MATCH/NON_MATCH/AMBIGUOUS). Preferred over L1 because it separates the unresolved reference-acquisition interface from identity matching. DESIGN ONLY; no training executed.",
+ "reference_interface": "pilot trains/evaluates with an ORACLE within-clip reference derived from Level-B GT; production reference acquisition (0/12 top-1 here) stays an explicitly open interface; joint reference+track scoring deferred, not assumed",
+ "armstand_decision": "ARMSTAND_STILL_DEFERRED",
+ "armstand_rationale": "ordinary dives delivered the independence (2 new athletes, 5 new sessions); nothing uniquely valuable shown for armstand",
+ "scientific_authorities_mutated": "NEW_LEVEL_B_GT_AUTHORITY_ONLY",
+ "media_backbone_mutated": "NO",
+ "media_firewall": {
+  "b2_reads": "bounded (proxy verification)",
+  "b2_writes": 0
+ },
+ "training": "NONE (not authorized; none performed)",
+ "current_true_bottleneck": "subject identity among supported real-person movers and subject-adjacent association fragments (now with measured association-fragmentation contribution on dense GT)",
+ "selection_firewall": "product/session/metadata + generic scene-diversity evidence before algorithm outcomes; no A0/A1/V3/OSNet replay artifact exists for any new dive; D5 used only for cache + queue close-person extras (generic geometry, reused frozen constants)",
+ "protected_data_firewall": {
+  "524": "AUTHORITY_CONFLICT_EXCLUDED untouched",
+  "2555": "SCREEN_RECORDING_STRESS_CASE untouched",
+  "Paris": "EXTERNAL_ONLY NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "FINAL_HOLDOUT": "NOT_ACCESSED"
+ },
+ "dive_rows": [
+  {
+   "dive_id": "1304",
+   "diver_id": 7,
+   "athlete": "FANNY",
+   "date": "2025-10-28",
+   "session": 81,
+   "code": "105B 1m springboard",
+   "family": "STANDING_APPROACH",
+   "n_anchors": 14,
+   "extras": 0,
+   "clip_end_s": 6.6,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  },
+  {
+   "dive_id": "2204",
+   "diver_id": 7,
+   "athlete": "FANNY",
+   "date": "2026-04-07",
+   "session": 137,
+   "code": "105C 3m springboard",
+   "family": "STANDING_APPROACH",
+   "n_anchors": 18,
+   "extras": 0,
+   "clip_end_s": 8.583333,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  },
+  {
+   "dive_id": "2223",
+   "diver_id": 10,
+   "athlete": "LOUIS",
+   "date": "2026-04-07",
+   "session": 137,
+   "code": "107C 3m springboard",
+   "family": "STANDING",
+   "n_anchors": 22,
+   "extras": 2,
+   "clip_end_s": 9.816667,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  },
+  {
+   "dive_id": "2526",
+   "diver_id": 14,
+   "athlete": "MAT",
+   "date": "2026-05-30",
+   "session": 147,
+   "code": "5121D 1m springboard",
+   "family": "HURDLE_ORDINARY",
+   "n_anchors": 51,
+   "extras": 19,
+   "clip_end_s": 15.916667,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  },
+  {
+   "dive_id": "2583",
+   "diver_id": 1,
+   "athlete": "MAXIME",
+   "date": "2026-07-08",
+   "session": 158,
+   "code": "010B 5m springboard lineup",
+   "family": "STANDING",
+   "n_anchors": 36,
+   "extras": 16,
+   "clip_end_s": 9.576233,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  },
+  {
+   "dive_id": "2839",
+   "diver_id": 1,
+   "athlete": "MAXIME",
+   "date": "2026-09-06",
+   "session": 203,
+   "code": "5124D 1m springboard",
+   "family": "STANDING",
+   "n_anchors": 39,
+   "extras": 3,
+   "clip_end_s": 17.5,
+   "product_authority": "SUBJECT_AUTHORITY_STRONG"
+  }
+ ],
+ "annotation": {
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1",
+  "queue_deterministic_rebuild": "PASS (ids + reasons identical)",
+  "annotator": "maxime",
+  "completion": "180/180 in two sessions (177 + final 3 on 2526 f0/f15/f30)",
+  "visible_count": 105,
+  "not_visible_count": 75,
+  "method_counts": {
+   "human_drawn_or_corrected": 105,
+   "human_not_visible": 75
+  },
+  "drafts_used": 0,
+  "ui_blindness": "dive/diver/frame/t/progress only; no ranking/support/identity scores shown or stored"
+ },
+ "level_b_gt_authority": {
+  "authority": "HUMAN_REVIEWED",
+  "artifact": "docs/science/localization_annotations_v1/SUBJECT_GT_LEVEL_B_INDEPENDENT_V1",
+  "artifact_sha256": "dc958909435ad043a1284064b5dd6f85ca4b8eb365ed643289943f679c83a9df",
+  "dives": [
+   "1304",
+   "2223",
+   "2204",
+   "2526",
+   "2583",
+   "2839"
+  ],
+  "annotator": "maxime",
+  "n_anchors": 180,
+  "not_visible_count": 75,
+  "method_counts": {
+   "human_drawn_or_corrected": 105,
+   "human_not_visible": 75
+  }
+ },
+ "consistency_validation": {
+  "flag_rule": "consecutive-visible anchor jump > 4.0 mean-bh/s (anchor PTS dt)",
+  "flags": 0,
+  "max_jump_per_s_bh": {
+   "1304": 2.597,
+   "2204": 1.628,
+   "2223": 2.688,
+   "2526": 3.07,
+   "2583": 3.311,
+   "2839": 1.301
+  },
+  "note": "one initial flag traced to a 60-vs-30fps dt bug in the diagnostic; fixed; FLAGS ONLY, no auto-correction",
+  "verdict": "CLEAN"
+ },
+ "d5_cache": {
+  "artifact": "runs/subject_resolution/R5_FULLCLIP_CANDIDATES_INDEP_V1.json (host-only, gitignored)",
+  "model": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+  "model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "floor_conf": 0.001,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "floor_cap": 200,
+  "n_candidates_total": 364563,
+  "n_frames_total": 3362,
+  "peak_rss_gb_max": 0.65
+ },
+ "osnet_cache": {
+  "artifact": "runs/subject_resolution/osnet_emb_indep_v1.npz (host-only, gitignored)",
+  "weights_sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+  "crop_pad": 1.3,
+  "emb_size": [
+   256,
+   128
+  ],
+  "n_keys": 364563,
+  "parity": "n_keys == total D5 candidates"
+ },
+ "subject_observability_d5": {
+  "note": "visible anchors with a conf>=0.05 D5 candidate within 0.06",
+  "per_dive": {
+   "1304": "5/10",
+   "2204": "2/13",
+   "2223": "4/20",
+   "2526": "7/18",
+   "2583": "13/15",
+   "2839": "8/29"
+  }
+ },
+ "identity_negative_audit": {
+  "per_dive": {
+   "1304": {
+    "movers_zero_support_frac": 0.5676,
+    "n_candidates": 285,
+    "other_diver_like_supported": 92,
+    "phantom_movers": 126,
+    "static_candidates": 59,
+    "subject_adjacent_fragments": 4,
+    "subject_tracklets": 4,
+    "subject_zero_support": 1,
+    "supported_nonsubject_movers": 96
+   },
+   "2204": {
+    "movers_zero_support_frac": 0.4158,
+    "n_candidates": 623,
+    "other_diver_like_supported": 332,
+    "phantom_movers": 237,
+    "static_candidates": 50,
+    "subject_adjacent_fragments": 1,
+    "subject_tracklets": 3,
+    "subject_zero_support": 0,
+    "supported_nonsubject_movers": 333
+   },
+   "2223": {
+    "movers_zero_support_frac": 0.402,
+    "n_candidates": 717,
+    "other_diver_like_supported": 353,
+    "phantom_movers": 242,
+    "static_candidates": 115,
+    "subject_adjacent_fragments": 7,
+    "subject_tracklets": 0,
+    "subject_zero_support": 0,
+    "supported_nonsubject_movers": 360
+   },
+   "2526": {
+    "movers_zero_support_frac": 0.2852,
+    "n_candidates": 554,
+    "other_diver_like_supported": 198,
+    "phantom_movers": 87,
+    "static_candidates": 245,
+    "subject_adjacent_fragments": 20,
+    "subject_tracklets": 4,
+    "subject_zero_support": 0,
+    "supported_nonsubject_movers": 218
+   },
+   "2583": {
+    "movers_zero_support_frac": 0.556,
+    "n_candidates": 422,
+    "other_diver_like_supported": 109,
+    "phantom_movers": 154,
+    "static_candidates": 145,
+    "subject_adjacent_fragments": 21,
+    "subject_tracklets": 0,
+    "subject_zero_support": 0,
+    "supported_nonsubject_movers": 123
+   },
+   "2839": {
+    "movers_zero_support_frac": 0.4527,
+    "n_candidates": 837,
+    "other_diver_like_supported": 336,
+    "phantom_movers": 287,
+    "static_candidates": 201,
+    "subject_adjacent_fragments": 11,
+    "subject_tracklets": 2,
+    "subject_zero_support": 0,
+    "supported_nonsubject_movers": 347
+   }
+  },
+  "aggregate": {
+   "subject_tracklets_strict": 13,
+   "supported_nonsubject_movers": 1477,
+   "phantom_movers": 1133,
+   "static": 815,
+   "subject_adjacent_fragments": 64
+  }
+ },
+ "frozen_v3_replay": {
+  "q0": "Q0_TRACK_SUPPORT_TIER reused unchanged; frozen A0/A1 order within tier; frozen abstention; graceful fallback",
+  "cells": [
+   {
+    "dive": "1304",
+    "a0": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 56,
+     "top_motion": "nonsubject_mover",
+     "top_support": 9,
+     "frozen_best": 24
+    },
+    "a1": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 16,
+     "top_motion": "nonsubject_mover",
+     "top_support": 1,
+     "frozen_best": 38
+    }
+   },
+   {
+    "dive": "2204",
+    "a0": {
+     "status": "REFERENCE_AMBIGUOUS",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 16,
+     "top_motion": "nonsubject_mover",
+     "top_support": 5,
+     "frozen_best": 25
+    },
+    "a1": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 193,
+     "top_motion": "nonsubject_mover",
+     "top_support": 5,
+     "frozen_best": 291
+    }
+   },
+   {
+    "dive": "2223",
+    "a0": {
+     "status": "REFERENCE_AMBIGUOUS",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": null,
+     "top_motion": "nonsubject_mover",
+     "top_support": 15,
+     "frozen_best": null
+    },
+    "a1": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": null,
+     "top_motion": "nonsubject_mover",
+     "top_support": 1,
+     "frozen_best": null
+    }
+   },
+   {
+    "dive": "2526",
+    "a0": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 5,
+     "top_motion": "nonsubject_mover",
+     "top_support": 72,
+     "frozen_best": 6
+    },
+    "a1": {
+     "status": "REFERENCE_AMBIGUOUS",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 170,
+     "top_motion": "nonsubject_mover",
+     "top_support": 1,
+     "frozen_best": 297
+    }
+   },
+   {
+    "dive": "2583",
+    "a0": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": null,
+     "top_motion": "nonsubject_mover",
+     "top_support": 18,
+     "frozen_best": null
+    },
+    "a1": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": null,
+     "top_motion": "nonsubject_mover",
+     "top_support": 2,
+     "frozen_best": null
+    }
+   },
+   {
+    "dive": "2839",
+    "a0": {
+     "status": "REFERENCE_FOUND",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 89,
+     "top_motion": "nonsubject_mover",
+     "top_support": 74,
+     "frozen_best": 154
+    },
+    "a1": {
+     "status": "REFERENCE_AMBIGUOUS",
+     "reference_verdict": "SUBJECT_WRONG",
+     "best_subject_rank": 131,
+     "top_motion": "nonsubject_mover",
+     "top_support": 44,
+     "frozen_best": 236
+    }
+   }
+  ],
+  "top1_subject_correct": "0/12",
+  "phantom_top1_before": 1,
+  "phantom_top1_after": 0,
+  "subject_retained_cells": "8/12 (4 cells on 2223/2583 have no strict subject)"
+ },
+ "expanded_dataset": {
+  "n_dives": 15,
+  "n_sessions": 13,
+  "sessions": [
+   25,
+   32,
+   46,
+   66,
+   81,
+   134,
+   137,
+   144,
+   147,
+   148,
+   155,
+   158,
+   203
+  ],
+  "n_athletes": 4,
+  "athletes": [
+   "Maxime (diver 1)",
+   "FANNY (diver 7)",
+   "LOUIS (diver 10)",
+   "MAT (diver 14)"
+  ],
+  "n_families": 2,
+  "families": {
+   "HURDLE": 7,
+   "STANDING": 8,
+   "note": "STANDING includes 2 STANDING_APPROACH variants; 2353 is HURDLE_DRILL"
+  },
+  "strict_subject_tracklets": 13,
+  "visible_level_b_anchors": 105,
+  "supported_nonsubject_movers": 1477,
+  "phantom_negatives": 1133,
+  "static_negatives": 815,
+  "subject_adjacent_fragment_negatives": 64,
+  "new_diagnostics_candidates": 3438
+ },
+ "resource_results": {
+  "d5_peak_rss_gb_max": 0.65,
+  "new_embeddings": 364563,
+  "new_human_labels": 180,
+  "b2_reads": "bounded",
+  "b2_writes": 0,
+  "training": 0,
+  "analysis_runs": "diagnostic + replay completed on Apple M2 without incident"
+ },
+ "test_results": "15 new tests PASS; suite slice: 72 passed (57 pre-existing runnable + 15 new), 5 skipped; 11 failed + 16 errors all pre-existing environmental (prior packets host-only caches absent from this slice) - zero packet-owned failures",
+ "durable_artifacts": [
+  "docs/science/DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1.md",
+  "docs/science/DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1.json",
+  "docs/science/SUBJECT_GT_LEVEL_B_ANNOTATION_PLAN_V1.md",
+  "docs/science/SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1.json",
+  "docs/science/localization_annotations_v1/SUBJECT_GT_LEVEL_B_INDEPENDENT_V1 (180 anchors + MANIFEST)"
+ ]
+}

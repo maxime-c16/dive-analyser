@@ -1,0 +1,34 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  93,
+  81,
+  166,
+  158
+ ],
+ "created_at": "2026-09-20T17:17:02.478161+00:00",
+ "dive_id": 1304,
+ "diver": "FANNY",
+ "family": "STANDING_APPROACH",
+ "frame_index": 105,
+ "height": 360,
+ "id": "L1B_1304_f00105",
+ "image_sha256": "fefc6d8075160be557a08594f25072b9dd007ca14de9117de32d4e3bfd90259d",
+ "media_sha256": "293b0acb0755a4aa47f4e743c8ebacfd299bd62a0e3f712a6b98822794c9b491",
+ "method": "human_drawn_or_corrected",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 3.5,
+ "queue_reason": "level_b_base_grid_0.5s_full_clip",
+ "reason": "level_b_base_grid_0.5s_full_clip",
+ "rel_clip_time_s": 3.5,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202
+}
