@@ -39,3 +39,24 @@ Positive hypothesis count yields NO_DIVE_TRACK_FOUND, ONE_DIVE_TRACK_FOUND, or M
 ## Overlay and future attachments
 
 Observed boxes can be rendered for inspection. Masks, silhouettes, and pose can later attach by `(clip revision, track version, frame_index, pts_s)` with validity/occlusion flags. No segmentation introduced. Whole-action continuity is not validated: `TRACK_STABILITY_INSUFFICIENT_FOR_OVERLAY`. Diagnostic box drawing remains possible. Manual selection is a viable interface contract, but selecting a short or contaminated track cannot recover missing action coverage; reliable end-to-end fallback remains unproven.
+
+## V2 path-decoding addendum (experimental, no migration)
+
+Association V2 retains bounded top-K decoded paths (`TOP_K = 5`) rather
+than merged hypotheses. Each retained path additionally exposes:
+
+- `path_id`: equals `track_id` (deterministic hash of ordered fragment refs).
+- `person_track_refs`: ORDERED carrier fragment IDs (decoding order).
+- `handoff_provenance`: ordered list of `{kind, from, to, key}` with kind in
+  `{gap, overlap, interleave}`; `key` is gap seconds, handoff frame, or
+  `[h, j]` handoff interval. Carriers contribute only their inter-handoff
+  segment; missing frames stay absent.
+- `path_rank` / `path_score` / `continuity_score`: identity-free ordering
+  among retained alternatives, never identity confidence.
+- `mean_handoff_appearance`: nullable frozen-OSNet local compatibility
+  (A1 clips only); null means no cached embeddings, never a penalty.
+- `association_provenance`: `A0_CONTINUITY_PATH` or
+  `A1_CONTINUITY_APPEARANCE_PATH`.
+
+`DIVE_LIKE` on an unattributed retained arc remains a downstream
+diagnostic, not a correctness label. No production DB migration.

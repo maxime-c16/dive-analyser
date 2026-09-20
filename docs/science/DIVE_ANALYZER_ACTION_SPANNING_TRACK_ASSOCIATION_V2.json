@@ -1,0 +1,1025 @@
+{
+ "A0": "A0_CONTINUITY_PATH_DECODER",
+ "A1": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+ "A1_FINDING": "EXECUTED on 10/15 dives with frozen OSNet caches (hurdle group has no cache: A0 fallback). Handoff appearance compatibility shows no separation between subject-subject and other handoffs (delta of means <= 0.03, often other higher): geometric gating already enforces visual similarity, so local appearance is geometry-redundant and cannot fix crowded-scene ranking.",
+ "A1_applied_dives": [
+  "1304",
+  "133",
+  "2204",
+  "2223",
+  "2387",
+  "2526",
+  "2583",
+  "2839",
+  "311",
+  "676"
+ ],
+ "ACTION_SPANNING_SUBJECT_TRAJECTORY_RECALL": {
+  "evaluable_clips": 15,
+  "recovered_clips": 0
+ },
+ "ANALYTICS_READINESS": {
+  "TRAJECTORY_AND_EVENTS_PLAUSIBLE": 0,
+  "TRAJECTORY_NOT_READY": 15,
+  "TRAJECTORY_RECOVERED_EVENT_UNVERIFIED": 0,
+  "note": "No retained path satisfies subject correspondence; no frozen event-accuracy acceptance threshold exists, so no analytics promotion."
+ },
+ "CURRENT_TRUE_BOTTLENECK": "FLIGHT-PHASE CHAINING: flight anchors are observed (union ~100% where HUMAN windows exist) but shattered across dozens of single-anchor micro-fragments (e.g. 2169: 49 flight anchors across 54 fragments); pairwise lattice transitions are representable (recall 0.83-1.00 on 9 clips) yet beam search cannot chain them into top-5 paths, and identity-free ranking is Pareto-dominated by static/wanderer hypotheses. Next: flight-anchored or frame-level decoding representation + flight-phase validation (the >=75% all-anchor criterion is prep-dominated).",
+ "IDENTITY_LINE": "FROZEN_DEFERRED",
+ "METRIC_CAVEAT": "ACTION_SPANNING_SUBJECT_TRAJECTORY_RECALL = 0/15 (V1: 1/15 weak correspondence, 0/15 strong). Decoded-pool subject coverage materially exceeds V1 merged best on 10+ clips (2169: 0.795 vs 0.194; 2541: 0.584 vs 0.027; 1040: 0.547 vs 0.031), proving representation gain without retention gain. The >=75% all-anchor criterion is prep-dominated (2169 prep anchors alone = 79%): prep-only statics can satisfy it while missing the flight entirely.",
+ "NEXT_RESEARCH_DECISION": "IMPROVE_ASSOCIATION_REPRESENTATION_NEXT",
+ "OTHER_ACTION_GT": "OTHER_ACTION_GT_STILL_PREMATURE",
+ "OTHER_ACTION_GT_MINIMAL_FUTURE_PLAN": "After representation-next retains flight-spanning chains: label HUMAN flight windows (takeoff/water_contact only, existing DEVELOPMENT_DESIGN grammar) for the top retained arcs of 3-4 crowded clips (2169/2341/2353/2541) to measure multi-path precision (real other dives vs mixed stitches). No full action labels needed.",
+ "OVERLAY_READINESS": "TRACK_STABILITY_STILL_INSUFFICIENT",
+ "SYNCHRO_REPRESENTATION": "SYNCHRO_REPRESENTABLE",
+ "TEST_RESULTS": {
+  "command": "python3 -m pytest -q experiments/subject_resolution/test_action_span_assoc_v2.py",
+  "packet_owned": "16 passed, zero failures",
+  "v1_suite": "python3 -m pytest -q experiments/subject_resolution/test_multi_track_action_v1.py: 14 passed, zero failures"
+ },
+ "TOP_K": 5,
+ "V2_STATUS": "ACTION_SPANNING_ASSOCIATION_V2_PARTIAL",
+ "authorities": {
+  "caches": {
+   "cohort": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-cand-quality-v3/runs/subject_resolution/R5_FULLCLIP_CANDIDATES_COHORT_V1.json",
+    "sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f"
+   },
+   "hurdle": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-cand-quality-v3/runs/hurdle_identity_v1/R5_FULLCLIP_CANDIDATES_V1.json",
+    "sha256": "3bed1aafb3d55353372260466ae0683acc62b188d75e6ef2587d936c150e0d83"
+   },
+   "indep": {
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-independent-gt/runs/subject_resolution/R5_FULLCLIP_CANDIDATES_INDEP_V1.json",
+    "sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f"
+   }
+  },
+  "cohort": [
+   "1040",
+   "1304",
+   "133",
+   "2169",
+   "2204",
+   "2223",
+   "2341",
+   "2353",
+   "2387",
+   "2526",
+   "2541",
+   "2583",
+   "2839",
+   "311",
+   "676"
+  ],
+  "files": {
+   "experiments/landmark_pilot/proposer_event_logic_v2_1.py": "f43bd781f4ef1261acede6ce6e87d7e19ee640e9cf11c66ec9b13b78a0ab2d11",
+   "experiments/landmark_pilot/proposer_event_logic_v3_c0.py": "9c5077191699416e0148f868bd0d2fc6f19fd5a823102eeb1bdd5e0f129a8438",
+   "experiments/landmark_pilot/r5_tracklets_v1.py": "23d7740f6756e205dc136089d2a26385a7a0a3d149e6e5168cb4d0e77f9b6010",
+   "experiments/subject_resolution/phase_subject_candidate_quality_v3.py": "9fc8dcbc9d9040cc7c216bcff45a2995d08322043da8b6ff703eeed4b9694fcb",
+   "experiments/subject_resolution/subject_reference_acquisition_v2.py": "01a17dd77131076d323b4adbc0790ac1d284f36fe39ebfb98a0ef64ad7a1d73e"
+  },
+  "gt": {
+   "L1A": {
+    "count": 63,
+    "sha256": "d805aac2b46e52f002de2842b56bb9a1b0ced808f0862a4c559f5ffe9099a75e"
+   },
+   "L1B": {
+    "count": 180,
+    "sha256": "dc958909435ad043a1284064b5dd6f85ca4b8eb365ed643289943f679c83a9df"
+   },
+   "event_1040": "fe20f5a060bb4acc827837696da51176c4d2a257e3c62e798ef6eeb42983e179",
+   "event_133": "94526af3a636ddfd25e5fb03b46e65f85b993da3eef53e4561bc3d720837edfb",
+   "event_2169": "585f9fe8e556d7e94c27b87619e8d5b8f16b209157832e4d0a76d47d1c655a76",
+   "event_2341": "5cd03585f8aa319071bee883c6fe5007e49512e7ed1b9986d3cc70fcb5f8cb4a",
+   "event_2353": "0c37491db5c2ec38604d8ba04c8f29ba96e9141b47ad3dce51a07ad9ec32ba3b",
+   "event_2387": "bf70d2cadd69a8904454636668839feeb01959a5721c2828a2a87ffe98ceb458",
+   "event_2541": "f300ec49ffa64a9e26388ba4a017fd7b6b3670bdff62faf96050ebb470e26e46",
+   "event_311": "eacf565a5d55018c994e2f3b2ac9dce74a954aada75390c6ecf91a91686ddbb6",
+   "event_676": "98e97c6b7df89645a5eef8c8becce0b682773d54085571fa18690e0dd8f5bc89",
+   "hurdle_chains": "11d075bed7a4967e66ddf881cbaa6529e9ca0862d86786269d1398cb194c6b15"
+  },
+  "packet": "DIVE_ANALYZER_ACTION_SPANNING_TRACK_ASSOCIATION_V2",
+  "protocol_commit": "95d1de59261526d423fadd3f979607fd7e3d7156",
+  "starting_head": "1d49bbead2c230b44ab42c76958c24eac5fe1a35",
+  "v1_implementation_unchanged": "43e27d2ce26d3c4032f55ff46a87d9b474d5e4ced23e395416d56f905d50a485",
+  "v1_report": "c5bfb35f18c1b54c5e323faa7b6f234c12d3a21a458fde8c2d7b31cff878cd01"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_ACTION_SPANNING_TRACK_ASSOCIATION_V2",
+ "identity_line": "FROZEN_DEFERRED",
+ "media_backbone_mutated": "NO",
+ "packet": "DIVE_ANALYZER_ACTION_SPANNING_TRACK_ASSOCIATION_V2",
+ "per_dive": {
+  "1040": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.546583850931677,
+   "decoded_pool_subject_paths": 15,
+   "flight_phase": {
+    "flight_anchors": 29,
+    "flight_fraction_of_anchors": 0.18012422360248448,
+    "status": "SCORED"
+   },
+   "formulation": "A0_CONTINUITY_PATH_DECODER",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 7900,
+    "gap_edges": 971,
+    "interleave_edges": 14475,
+    "nodes": 2359,
+    "overlap_edges": 800
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 27,
+    "same_fragment": 122,
+    "transition_recall": 0.93125,
+    "unlinked": 11
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 1,
+   "pool_best_subject_coverage": 0.546583850931677,
+   "pool_best_subject_purity": 0.88,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_1040.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.771433,
+      "human_timestamp_s": 4.797189,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.437767,
+      "human_timestamp_s": 4.463857,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.4054,
+      "human_timestamp_s": 5.413853,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 161
+  },
+  "1304": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.0,
+   "decoded_pool_subject_paths": 5,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 7259,
+    "gap_edges": 875,
+    "interleave_edges": 10830,
+    "nodes": 2015,
+    "overlap_edges": 564
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 4,
+    "same_fragment": 0,
+    "transition_recall": 0.5,
+    "unlinked": 4
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 2,
+   "pool_best_subject_coverage": 0.2,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.9,
+   "v1_union_subject_coverage": 0.9,
+   "visible_subject_anchors": 10
+  },
+  "133": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.42857142857142855,
+   "decoded_pool_subject_paths": 15,
+   "flight_phase": {
+    "flight_anchors": 2,
+    "flight_fraction_of_anchors": 0.2857142857142857,
+    "status": "SCORED"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 3016,
+    "gap_edges": 329,
+    "interleave_edges": 5039,
+    "nodes": 786,
+    "overlap_edges": 173
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 1,
+    "same_fragment": 3,
+    "transition_recall": 0.8,
+    "unlinked": 1
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 3,
+   "pool_best_subject_coverage": 0.42857142857142855,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_133.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 2.068733,
+      "human_timestamp_s": 2.083607,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 1.768433,
+      "human_timestamp_s": 1.800274,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 2.936267,
+      "human_timestamp_s": 2.95027,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.8571428571428571,
+   "v1_union_subject_coverage": 0.8571428571428571,
+   "visible_subject_anchors": 7
+  },
+  "2169": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.7880184331797235,
+   "decoded_pool_subject_paths": 74,
+   "flight_phase": {
+    "flight_anchors": 49,
+    "flight_fraction_of_anchors": 0.11290322580645161,
+    "status": "SCORED"
+   },
+   "formulation": "A0_CONTINUITY_PATH_DECODER",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+ASSOCIATION_SWITCH",
+   "lattice": {
+    "decoded_paths": 4935,
+    "gap_edges": 382,
+    "interleave_edges": 15132,
+    "nodes": 1155,
+    "overlap_edges": 1365
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 82,
+    "same_fragment": 349,
+    "transition_recall": 0.9953810623556582,
+    "unlinked": 2
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 2,
+   "pool_best_subject_coverage": 0.7949308755760369,
+   "pool_best_subject_purity": 0.9324324324324325,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2169.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.75675,
+      "human_timestamp_s": 6.761239,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.45645,
+      "human_timestamp_s": 6.46124,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 7.691017,
+      "human_timestamp_s": 7.694569,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 434
+  },
+  "2204": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.15384615384615385,
+   "decoded_pool_subject_paths": 5,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 14435,
+    "gap_edges": 1864,
+    "interleave_edges": 29167,
+    "nodes": 4002,
+    "overlap_edges": 2183
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 1,
+    "same_fragment": 1,
+    "transition_recall": 0.2857142857142857,
+    "unlinked": 5
+   },
+   "limitation": "MIXED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 3,
+   "pool_best_subject_coverage": 0.15384615384615385,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.6153846153846154,
+   "v1_union_subject_coverage": 0.6153846153846154,
+   "visible_subject_anchors": 13
+  },
+  "2223": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.0,
+   "decoded_pool_subject_paths": 0,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 13869,
+    "gap_edges": 1480,
+    "interleave_edges": 28575,
+    "nodes": 3311,
+    "overlap_edges": 2616
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 2,
+    "same_fragment": 0,
+    "transition_recall": 0.2222222222222222,
+    "unlinked": 7
+   },
+   "limitation": "MIXED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 0,
+   "pool_best_subject_coverage": 0.0,
+   "pool_best_subject_purity": null,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.5,
+   "v1_union_subject_coverage": 0.5,
+   "visible_subject_anchors": 20
+  },
+  "2341": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.03663003663003663,
+   "decoded_pool_subject_paths": 34,
+   "flight_phase": {
+    "flight_anchors": 61,
+    "flight_fraction_of_anchors": 0.22344322344322345,
+    "status": "SCORED"
+   },
+   "formulation": "A0_CONTINUITY_PATH_DECODER",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 7507,
+    "gap_edges": 506,
+    "interleave_edges": 17987,
+    "nodes": 1394,
+    "overlap_edges": 1762
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 180,
+    "same_fragment": 69,
+    "transition_recall": 0.9154411764705882,
+    "unlinked": 23
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 3,
+   "pool_best_subject_coverage": 0.20146520146520147,
+   "pool_best_subject_purity": 0.8088235294117647,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2341.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.95,
+      "human_timestamp_s": 3.955874,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.566667,
+      "human_timestamp_s": 3.572542,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.583333,
+      "human_timestamp_s": 4.589204,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 273
+  },
+  "2353": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.0364963503649635,
+   "decoded_pool_subject_paths": 6,
+   "flight_phase": {
+    "flight_anchors": 72,
+    "flight_fraction_of_anchors": 0.17518248175182483,
+    "status": "SCORED"
+   },
+   "formulation": "A0_CONTINUITY_PATH_DECODER",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 7532,
+    "gap_edges": 538,
+    "interleave_edges": 22897,
+    "nodes": 1668,
+    "overlap_edges": 3157
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 88,
+    "same_fragment": 294,
+    "transition_recall": 0.9317073170731708,
+    "unlinked": 28
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 1,
+   "pool_best_subject_coverage": 0.0364963503649635,
+   "pool_best_subject_purity": 0.8333333333333334,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2353.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.272933,
+      "human_timestamp_s": 6.279415,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.689017,
+      "human_timestamp_s": 5.696084,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 6.873533,
+      "human_timestamp_s": 6.879412,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 411
+  },
+  "2387": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.23076923076923078,
+   "decoded_pool_subject_paths": 26,
+   "flight_phase": {
+    "flight_anchors": 3,
+    "flight_fraction_of_anchors": 0.23076923076923078,
+    "status": "SCORED"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH",
+   "lattice": {
+    "decoded_paths": 9107,
+    "gap_edges": 1403,
+    "interleave_edges": 20472,
+    "nodes": 3298,
+    "overlap_edges": 910
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 2,
+    "same_fragment": 8,
+    "transition_recall": 0.8333333333333334,
+    "unlinked": 2
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 3,
+   "pool_best_subject_coverage": 0.38461538461538464,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2387.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.8048,
+      "human_timestamp_s": 4.833273,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.471133,
+      "human_timestamp_s": 4.483274,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 5.472133,
+      "human_timestamp_s": 5.499937,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 13
+  },
+  "2526": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.1111111111111111,
+   "decoded_pool_subject_paths": 29,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 8138,
+    "gap_edges": 489,
+    "interleave_edges": 17925,
+    "nodes": 1319,
+    "overlap_edges": 1776
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 7,
+    "same_fragment": 1,
+    "transition_recall": 0.5,
+    "unlinked": 8
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 1,
+   "pool_best_subject_coverage": 0.1111111111111111,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.9444444444444444,
+   "v1_union_subject_coverage": 0.9444444444444444,
+   "visible_subject_anchors": 18
+  },
+  "2541": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.5305343511450382,
+   "decoded_pool_subject_paths": 81,
+   "flight_phase": {
+    "flight_anchors": 27,
+    "flight_fraction_of_anchors": 0.10305343511450382,
+    "status": "SCORED"
+   },
+   "formulation": "A0_CONTINUITY_PATH_DECODER",
+   "fragmentation_classes": "OVERLAPPING_ALTERNATIVES+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 8832,
+    "gap_edges": 1479,
+    "interleave_edges": 18057,
+    "nodes": 3109,
+    "overlap_edges": 843
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 59,
+    "same_fragment": 185,
+    "transition_recall": 0.9348659003831418,
+    "unlinked": 17
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 4,
+   "pool_best_subject_coverage": 0.583969465648855,
+   "pool_best_subject_purity": 0.8406593406593407,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_2541.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 17.984633,
+      "human_timestamp_s": 17.984766,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 17.5175,
+      "human_timestamp_s": 17.518102,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 18.6186,
+      "human_timestamp_s": 18.65143,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 6,
+   "union_subject_coverage": 1.0,
+   "v1_union_subject_coverage": 1.0,
+   "visible_subject_anchors": 262
+  },
+  "2583": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.4,
+   "decoded_pool_subject_paths": 16,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 6258,
+    "gap_edges": 413,
+    "interleave_edges": 13640,
+    "nodes": 1107,
+    "overlap_edges": 1200
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 3,
+    "same_fragment": 9,
+    "transition_recall": 0.9230769230769231,
+    "unlinked": 1
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 2,
+   "pool_best_subject_coverage": 0.4666666666666667,
+   "pool_best_subject_purity": 0.875,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.9333333333333333,
+   "v1_union_subject_coverage": 0.9333333333333333,
+   "visible_subject_anchors": 15
+  },
+  "2839": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.13793103448275862,
+   "decoded_pool_subject_paths": 14,
+   "flight_phase": {
+    "status": "NO_HUMAN_FLIGHT_AUTHORITY"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 16878,
+    "gap_edges": 2598,
+    "interleave_edges": 32401,
+    "nodes": 5635,
+    "overlap_edges": 2078
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 2,
+    "same_fragment": 4,
+    "transition_recall": 0.3,
+    "unlinked": 14
+   },
+   "limitation": "MIXED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 3,
+   "pool_best_subject_coverage": 0.1724137931034483,
+   "pool_best_subject_purity": 0.8333333333333334,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "status": "NO_HUMAN_EVENT_AUTHORITY"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 9,
+   "union_subject_coverage": 0.7241379310344828,
+   "v1_union_subject_coverage": 0.7241379310344828,
+   "visible_subject_anchors": 29
+  },
+  "311": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.20689655172413793,
+   "decoded_pool_subject_paths": 3,
+   "flight_phase": {
+    "flight_anchors": 1,
+    "flight_fraction_of_anchors": 0.034482758620689655,
+    "status": "SCORED"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH+LOW_SUPPORT_SEGMENT",
+   "lattice": {
+    "decoded_paths": 7168,
+    "gap_edges": 1028,
+    "interleave_edges": 12274,
+    "nodes": 2145,
+    "overlap_edges": 434
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 20,
+    "same_fragment": 3,
+    "transition_recall": 0.8518518518518519,
+    "unlinked": 4
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 1,
+   "pool_best_subject_coverage": 0.20689655172413793,
+   "pool_best_subject_purity": 1.0,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_311.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "signed_error_s": null,
+      "status": "NOT_APPLICABLE"
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 13.747067,
+      "human_timestamp_s": 13.7546,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 14.8148,
+      "human_timestamp_s": 14.821262,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.9655172413793104,
+   "v1_union_subject_coverage": 0.9655172413793104,
+   "visible_subject_anchors": 29
+  },
+  "676": {
+   "alternative_paths": 5,
+   "best_subject_coverage": 0.0,
+   "best_subject_path": null,
+   "best_subject_path_rank": null,
+   "best_subject_purity": null,
+   "best_v1_coverage": 0.3333333333333333,
+   "decoded_pool_subject_paths": 116,
+   "flight_phase": {
+    "flight_anchors": 2,
+    "flight_fraction_of_anchors": 0.2222222222222222,
+    "status": "SCORED"
+   },
+   "formulation": "A1_CONTINUITY_PLUS_LOCAL_APPEARANCE",
+   "fragmentation_classes": "TEMPORAL_GAP+OVERLAPPING_ALTERNATIVES+INTERLEAVED_FRAGMENTS+ASSOCIATION_SWITCH",
+   "lattice": {
+    "decoded_paths": 4097,
+    "gap_edges": 412,
+    "interleave_edges": 7065,
+    "nodes": 1017,
+    "overlap_edges": 380
+   },
+   "lattice_transition_recall": {
+    "edge_linked": 3,
+    "same_fragment": 4,
+    "transition_recall": 1.0,
+    "unlinked": 0
+   },
+   "limitation": "ASSOCIATION_LIMITED",
+   "longest_gap_s": null,
+   "observed_contamination": null,
+   "pool_best_nfragments": 2,
+   "pool_best_subject_coverage": 0.4444444444444444,
+   "pool_best_subject_purity": 0.8,
+   "recovered": false,
+   "retained_paths": 5,
+   "subject_event_accuracy": {
+    "authority": "docs/science/pilot_annotations_v2/DEVELOPMENT_DESIGN/dive_676.yaml",
+    "errors": {
+     "apex": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.870533,
+      "human_timestamp_s": 3.886907,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "takeoff": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 3.536867,
+      "human_timestamp_s": 3.553575,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     },
+     "water_contact": {
+      "absolute_error_s": null,
+      "human_frame_pts_s": 4.838167,
+      "human_timestamp_s": 4.853569,
+      "prediction_pts_s": null,
+      "signed_error_s": null
+     }
+    },
+    "status": "NO_RETAINED_SUBJECT_PATHTRACK"
+   },
+   "subject_path_ranks": [],
+   "synchro_representable": true,
+   "temporal_overlap_pairs": 10,
+   "union_subject_coverage": 0.8888888888888888,
+   "v1_union_subject_coverage": 0.8888888888888888,
+   "visible_subject_anchors": 9
+  }
+ },
+ "protected_data": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris": "EXTERNAL_ONLY"
+ },
+ "reference_acquisition": "DEFERRED",
+ "resources": {
+  "B2_reads": 0,
+  "B2_writes": 0,
+  "D5_inference": 0,
+  "media_decodes": 0,
+  "new_embeddings": 0,
+  "new_labels": 0,
+  "peak_ram_bytes": 1703575552,
+  "runtime_s": 691.0543139590882,
+  "training": 0
+ },
+ "scientific_authorities_mutated": "NO"
+}
