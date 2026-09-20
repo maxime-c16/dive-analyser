@@ -1,0 +1,29 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": null,
+ "created_at": "2026-09-20T17:21:17.315357+00:00",
+ "dive_id": 2583,
+ "diver": "MAXIME",
+ "family": "STANDING",
+ "frame_index": 270,
+ "height": 360,
+ "id": "L1B_2583_f00270",
+ "image_sha256": "3e8d777c1c0036f27cd7d8ffcc7d7898ebad1771cf262960d627602fe6df017d",
+ "media_sha256": "496ba22de35d93e37071d56f89309ebb944aa9974566b2b0b60d2a99041f36cf",
+ "method": "human_not_visible",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 4.5045,
+ "queue_reason": "level_b_base_grid_0.5s_full_clip",
+ "reason": "level_b_base_grid_0.5s_full_clip",
+ "rel_clip_time_s": 4.5045,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "not_visible",
+ "width": 202
+}

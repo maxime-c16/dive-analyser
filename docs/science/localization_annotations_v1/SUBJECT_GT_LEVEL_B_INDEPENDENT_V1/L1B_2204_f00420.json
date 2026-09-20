@@ -1,0 +1,29 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": null,
+ "created_at": "2026-09-20T17:18:58.889370+00:00",
+ "dive_id": 2204,
+ "diver": "FANNY",
+ "family": "STANDING_APPROACH",
+ "frame_index": 420,
+ "height": 360,
+ "id": "L1B_2204_f00420",
+ "image_sha256": "7dc2ac285d11c72bc8a3210db82cb3cbb698bf3891bfb7718effbcf2263e544e",
+ "media_sha256": "de7f769aa5e029b07efbf8faca73aca92c519580d6b11c8d96d4875356c115bd",
+ "method": "human_not_visible",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 7.0,
+ "queue_reason": "level_b_base_grid_0.5s_full_clip",
+ "reason": "level_b_base_grid_0.5s_full_clip",
+ "rel_clip_time_s": 7.0,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "not_visible",
+ "width": 202
+}

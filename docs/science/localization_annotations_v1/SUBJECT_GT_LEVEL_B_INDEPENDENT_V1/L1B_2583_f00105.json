@@ -1,0 +1,47 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  131,
+  0,
+  181,
+  46
+ ],
+ "close_pair_evidence": {
+  "from_base_frame": 90,
+  "pairs": [
+   {
+    "confs": [
+     0.1697,
+     0.0676
+    ],
+    "dist_norm": 0.0674,
+    "iou": 0.3999
+   }
+  ]
+ },
+ "created_at": "2026-09-20T17:20:53.594363+00:00",
+ "dive_id": 2583,
+ "diver": "MAXIME",
+ "family": "STANDING",
+ "frame_index": 105,
+ "height": 360,
+ "id": "L1B_2583_f00105",
+ "image_sha256": "9fcf9e3ce9d7a062ffdde7c3bae018d6cf12727a2ca42a2028f104cb5e0687fa",
+ "media_sha256": "496ba22de35d93e37071d56f89309ebb944aa9974566b2b0b60d2a99041f36cf",
+ "method": "human_drawn_or_corrected",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 1.75175,
+ "queue_reason": "level_b_close_person_extra_0.25s",
+ "reason": "level_b_close_person_extra_0.25s",
+ "rel_clip_time_s": 1.7517,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202
+}

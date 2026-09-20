@@ -1,0 +1,47 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  47,
+  149,
+  137,
+  275
+ ],
+ "close_pair_evidence": {
+  "from_base_frame": 330,
+  "pairs": [
+   {
+    "confs": [
+     0.0794,
+     0.0657
+    ],
+    "dist_norm": 0.0692,
+    "iou": 0.4492
+   }
+  ]
+ },
+ "created_at": "2026-09-20T17:18:00.260993+00:00",
+ "dive_id": 2223,
+ "diver": "LOUIS",
+ "family": "STANDING",
+ "frame_index": 345,
+ "height": 360,
+ "id": "L1B_2223_f00345",
+ "image_sha256": "dcdf4d17c1231a4f5390909d27bbc51fb00a9f3ab8c66106ae1e5a132bc559a5",
+ "media_sha256": "c1a38b51ed212abd1af443004b8eb8ebd5824f9195af773de3d4a2ebc43d3919",
+ "method": "human_drawn_or_corrected",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 5.75,
+ "queue_reason": "level_b_close_person_extra_0.25s",
+ "reason": "level_b_close_person_extra_0.25s",
+ "rel_clip_time_s": 5.75,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202
+}
