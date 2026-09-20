@@ -89,6 +89,7 @@ runs/subject_candidate_quality_v3/
 
 # ---- Subject Conditioned Identity L0: run outputs (never in Git) ----
 runs/subject_identity_l0/
+runs/multi_track_action_v1/
 
 # ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
 frontend/playwright/.auth/

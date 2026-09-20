@@ -2453,3 +2453,44 @@ new + subject-resolution suite 73 passed/1 pre-existing skip. Code:
 `docs/science/DIVE_ANALYZER_SUBJECT_CANDIDATE_QUALITY_V3.md` (+ `.json`).
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`.**
+
+## 2026-09-20 — Multi-track dive-action V1 (latest Dive Analyzer science gate)
+
+Starting canonical authority: `1d49bbead2c230b44ab42c76958c24eac5fe1a35`.
+Accepted L0 history remains frozen: B0 4/12, B1 2/12, L0 1/12,
+`IDENTITY_MATCHER_L0_FAILS`; three additional clips fragmented. No rerun.
+The new product decision supersedes identity-as-gateway: `Dive.diver_id`
+remains product authority, but `analysis_subject_track` is independently
+selectable and multiple simultaneous/sequential DiveTracks must coexist.
+
+**`MULTI_TRACK_DIVE_ACTION_V1_NOT_READY`**; next research:
+**`IMPROVE_TRACK_ASSOCIATION_NEXT`**. Multi-track architecture and frozen
+per-track replay work, but action-spanning trajectory quality does not.
+All 15 clips retained: 34,320 raw PersonTracks + 6,490 merged hypotheses.
+D0 117 and D1 62 dive-like hypotheses. Primary anchor-correspondence
+`KNOWN_DIVE_TRACK_RECALL = 1 / 15` (2387, rank 3); stronger >=75% subject
+anchor coverage recall 0/15. The one primary pass covers only 3/13 anchors
+and has event absolute errors 2.648/2.164/0.929 s, so it does not validate
+recovery of the actual intended dive. Bounded identity-free merging improves
+no clip's best qualifying subject coverage. Other-diver legitimacy and false
+DiveTrack counts remain unknown without exhaustive HUMAN action labels;
+non-subject positives are not automatically false dives.
+
+`SYNCHRO_REPRESENTABLE` verified using two simultaneous synthetic arcs through
+the real frozen Event Logic. `TRACK_STABILITY_INSUFFICIENT_FOR_OVERLAY` for
+whole-action attachments; observed diagnostic boxes are available. Future
+user selection contract defined, no UI/DB migration. Manual selection cannot
+alone repair fragmented or contaminated trajectories.
+
+Apple M2, sequential cache-only inference, <0.7 GB process RSS; no D5 inference,
+embeddings, training, labels, media decoding, or B2 reads/writes. Frozen D5,
+R5/V2/V3, Event Logic V3-C0 and HUMAN authorities hash-verified, unchanged.
+14 packet tests pass. No protected dataset access. Identity line frozen,
+`REFERENCE_ACQUISITION_DEFERRED`, ARMSTAND deferred, Media Backbone closed.
+
+Reports: `docs/science/DIVE_ANALYZER_MULTI_TRACK_DIVE_ACTION_V1.md` / `.json`;
+contract: `docs/science/ANALYSIS_TRACK_CONTRACT_V1.md`; recovery log:
+`docs/science/MULTI_TRACK_DIVE_ACTION_V1_PROGRESS.md`. Host-only trajectories
+are gitignored. Existing UI/infra/science history and worktree changes preserved.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_MULTI_TRACK_DIVE_ACTION_V1`.**
