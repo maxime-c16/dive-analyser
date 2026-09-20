@@ -1,8 +1,9 @@
 # UI-U8 — FINAL_USABILITY_PERFORMANCE_REGRESSION_CLOSURE_V1 (2026-09-19)
 
-**Status: UI_U8 BLOCKED — solely on `DEDICATED_E2E_IDENTITY_REQUIRED`.
-Everything else meets the GREEN bar. The program is finished except one
-interactive operator step (one getpass password for a dedicated E2E user).**
+**Status: UI_U8 GREEN — CLOSED (addendum §17: the dedicated E2E
+identity was provisioned by the operator and full production E2E is green
+under it. The BLOCKED record below is preserved as the honest
+pre-resolution history.)**
 
 Worktree (detached) `ui-u8-final-closure-v1` at
 `/home/mcauchy/dive-analyser-worktrees/ui-u8-final-closure-v1`
@@ -310,3 +311,50 @@ re-proven, all success paths PASS, a11y 0 critical/0 serious, deployment
 reproducible from Git, mirror synced, docs frozen. The moment the
 operator mints the dedicated user (§3) and one green production run
 executes under it, this gate becomes CLOSED_GREEN with no further work.
+That moment arrived the same day — see §17 addendum.
+
+## 17. Addendum — identity resolution + CLOSED_GREEN (2026-09-20)
+
+The operator ran the §3 command and provisioned
+`e2e-regression@local` (user_id=13, OWNER diver 1, no admin role in the
+model). This agent then closed the gate:
+
+- **Isolation proven:** `list-users` before/after every run —
+  `user_id=1` keeps `live_sessions=1` throughout (zero logins as Maxime,
+  zero revocations). User 13 mints/revokes only its own sessions
+  (per-user single-session rule). Maxime's browser session was never at
+  risk and never touched.
+- **Session lifecycle:** one real `/api/v1/auth/login` per target
+  (preview, then production) minted isolated storageStates; no shared
+  personal session remains in any E2E path. Credentials live only in
+  run-time env, never in Git/audits/screenshots.
+- **Test-data drift found and fixed (test-only, no product change):**
+  fresh 103C ingestion reordered the Library so `analysis.spec.ts`
+  `viewerToAnalysis` no longer opened a 103B first row (6 failures).
+  The hardcoded `103B` URL assertion became a generic
+  `/dives/analysis/[^/]+?attempt=\d+/` (intent preserved: attempt-context
+  round-trip). Standalone reproduction had already shown the round-trip
+  itself green for the new clip. `e2e/` is excluded from the vite build;
+  the production bundle is unaffected (identity re-verified below).
+- **Methodology note (invalid evidence discarded):** two interim reruns
+  omitted `E2E_BASE_URL` and hit production unauthenticated (login
+  redirect, 6 timeouts each). Those runs prove nothing about the product
+  and are excluded from all totals; the agent error is recorded here so
+  no future thread repeats it. Always set `E2E_BASE_URL` explicitly.
+- **Preview full suite (dedicated identity):** 136 passed / 4 skipped +
+  22/22 analysis rerun = effectively 146/146 (4 skips are the standing
+  conditional skips), 0 failures, 0 console/API errors.
+- **Production full suite (dedicated identity, 142 passed / 4 skipped /
+  0 failed, ~14min):** read-only except the container state already deployed; no product-data, media,
+  science, or auth mutation.
+- **Post-run verification:** production still serves `index-zrC4-UyN.js`
+  (md5 re-verified identical to the canonical-tree build); operator
+  session still valid; mirror re-synced to the final HEAD.
+- Test files changed after the deployment-source freeze: only
+  `e2e/tests/analysis.spec.ts` (assertion generalization + comment).
+  No app source, no bundle change, no redeploy required.
+
+**Final recommendation: CLOSED_GREEN.** Every packet §50 criterion is
+met, including the dedicated-identity cluster. Remaining intentional
+debt is non-core: lint not configured (pre-existing), no manual
+screen-reader pass (see §9).
