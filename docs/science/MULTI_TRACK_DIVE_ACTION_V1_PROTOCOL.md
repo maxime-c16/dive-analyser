@@ -15,3 +15,7 @@ Evaluation only: compare every raw/merged hypothesis with all existing visible H
 Human event errors use DEVELOPMENT_DESIGN YAML human timestamp_seconds with frame_pts_seconds alongside it; predicted events use actual cache PTS. Event scoring is post-inference, on best matching retained subject hypothesis selected by evaluation coverage then purity (explicit evaluation oracle, not default UI selection). No event-window lookup during inference.
 
 No training, embeddings, new labels, media decode, B2 access, identity ranking, segmentation, UI or database migration. Protected clips 524/2555 and protected collections excluded. ARMSTAND and reference acquisition deferred.
+
+## Compliance correction after first run (not a threshold or positive-rule change)
+
+Code review found that the NON_DIVE clause above used V3 support within D0, conflicting with the packet's evidence-only D0 separation. Corrected D0 to classify coherent static fragments without quality; D1 applies frozen Q0 support to both resolved labels, demoting unsupported labels to AMBIGUOUS. D0/D1 positive decisions and D1 negative decisions are unchanged. No numerical constant, association edge, or event parameter changes. Regenerate outputs and test this separation explicitly. Original preregistration remains available at the protocol commit.
