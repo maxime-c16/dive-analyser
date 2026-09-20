@@ -25,7 +25,8 @@ async function openFirstClip(page: Page, query = '103') {
 async function viewerToAnalysis(page: Page) {
   await openFirstClip(page);
   await viewer(page).getByRole('link', { name: 'Analysis' }).click();
-  await expect(page).toHaveURL(/\/dives\/analysis\/103B\?attempt=\d+/);
+  // First 103-family row drifts with ingestion (103B-first, now 103C-first); assert attempt-context preservation, not the code itself.
+  await expect(page).toHaveURL(/\/dives\/analysis\/[^/]+\?attempt=\d+/);
   await expect(page.getByTestId('analysis-attempt-context')).toContainText('This attempt');
   await expect(backControl(page)).toHaveText('Back to clip');
 }

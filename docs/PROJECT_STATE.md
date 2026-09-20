@@ -2125,9 +2125,9 @@ integrating (established convention).
 
 ### UI-U8 — FINAL_USABILITY_PERFORMANCE_REGRESSION_CLOSURE_V1 (2026-09-19)
 
-**Status: UI_U8 BLOCKED — solely on `DEDICATED_E2E_IDENTITY_REQUIRED`.
-All product/technical closure work is complete; one interactive operator
-step remains (mint a dedicated E2E user).**
+**Status: UI_U8 GREEN — CLOSED (2026-09-20 addendum: operator
+provisioned `e2e-regression@local` and full production E2E is green under
+it; pre-resolution BLOCKED history preserved in the audit).**
 Durable audit: `docs/audits/UI-U8-final-usability-performance-regression-closure-v1.md`
 (+ `docs/audits/evidence-ui-u8-final/`, 10 captures).
 Start-here architecture doc (new): `docs/ui/UI_SIMPLIFICATION_V1_FINAL.md`
@@ -2165,14 +2165,16 @@ deployment freeze, test strategy).
   (heuristic + automated evidence; no real user study). Rapid review:
   14 moves, 0 wrong-target, history +0 across REPLACE nav, Next≈510ms
   (no regression vs U3/U4 baseline). Scroll 3568→3568 exact.
-- **E2E identity (blocking):** no dedicated identity exists (only
-  `user_id=1` personal operator). Safe path confirmed
-  (`manage_user.py create-user`, per-user single-session → isolated
-  lifecycle) but needs one interactive operator getpass step — not
-  improvised. All validation reused the stored session with zero logins.
-  Operator action is a one-liner in the U8 audit §3. Session expires
-  2026-10-13. Litmus: after minting, one full production run under the
-  new identity with Maxime's session valid before/after → CLOSED_GREEN.
+- **E2E identity (CLOSED 2026-09-20):** dedicated `e2e-regression@local`
+  (user_id=13, OWNER diver 1, no admin role) provisioned by the operator
+  via `manage_user.py create-user`. Isolation proven: `user_id=1` keeps
+  `live_sessions=1` before/after every run (zero Maxime logins, zero
+  revocations).   Full preview suite 146 effective green + full production suite (142
+  passed / 4 skipped / 0 failed) under the dedicated identity; no shared
+  personal session remains in any E2E path. Credentials in run-time env
+  only, never in Git. Also fixed one test-data drift (`analysis.spec.ts`
+  103B-first assumption → generic code pattern; test-only, bundle
+  unaffected). Full detail in audit §17.
 - **Deployment freeze:** compose frontend has no build section — the
   frozen procedure (explicit Dockerfile.deploy build + frontend-only
   recreate + bundle/sourcemap verification) is now durable in the
@@ -2180,11 +2182,10 @@ deployment freeze, test strategy).
   mechanically repaired with the already-authorized agent key
   (IdentitiesOnly; no new access). Stale `:4173` preview stopped;
   dormant UI worktrees removed after no-unmerged-commits proof.
-- **Program status: UI_SIMPLIFICATION_PROGRAM CLOSED except the E2E
-  identity operator step** (all success paths PASS; debt is
-  non-product: identity provisioning, unconfigured lint, no manual SR
-  pass). Next: operator mints dedicated E2E identity → one production
-  E2E run → declare CLOSED_GREEN.
+- **Program status: UI_SIMPLIFICATION_PROGRAM CLOSED_GREEN.**
+  All success paths PASS; remaining intentional debt is non-core
+  (unconfigured lint, no manual SR pass). Final canonical HEAD recorded
+  below; E2E no longer depends on the personal session.
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
