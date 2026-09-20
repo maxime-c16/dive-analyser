@@ -358,3 +358,56 @@ model). This agent then closed the gate:
 met, including the dedicated-identity cluster. Remaining intentional
 debt is non-core: lint not configured (pre-existing), no manual
 screen-reader pass (see §9).
+
+## 18. Addendum — U8R final closure-evidence normalization (2026-09-20)
+
+U8 closed with a full-preview evidence gap (136 passed / 4 skipped /
+6 failed, then a 22/22 targeted rerun). U8R ran the REQUIRED full
+preview suite from fresh canonical source to normalize it. No product
+code changed at any point in U8R.
+
+- **Fresh canonical HEAD tested:** `24895f6` (U8 final; no advance since
+  U8). Frontend tree vs the U8 deployment source `1dd8045`: exactly one
+  file, `frontend/e2e/tests/analysis.spec.ts` (the U8 drift-robustness
+  fix, test-only, build-excluded). Fresh `npm run build` from that HEAD
+  reproduces the production identities byte-identically
+  (`index-zrC4-UyN.js` md5 `138abc98420a2779f1c650231da43b35`,
+  `index-A_H9YTui.css` md5 `2815236eb28049fc8187361467e84d3e`).
+- **Preview environment:** dedicated worktree
+  `ui-u8r-closure-evidence-v1` @ `24895f6`, clean source (node_modules
+  symlinked + pinned axe `--no-save`, manifests untouched), production
+  preview `vite preview` on `:4176` serving the fresh build, `/api`
+  proxied to the live backend. Stale `:4173` was already removed in U8;
+  `:4176` stopped after validation. No stale preview, no old dist, no
+  dirty source.
+- **Identity:** dedicated `e2e-regression@local` (user_id=13) only —
+  one real login minted the run session; Maxime's identity never used.
+  Operator session (`user_id=1`) verified `live_sessions=1` before AND
+  after the run; user 13 owns only its own lifecycle. No credential
+  material in Git, audit, or screenshots.
+- **Full preview E2E result: 142 passed / 4 skipped / 0 failed**
+  (~14.8 min, both projects, 0 console errors, 0 API errors).
+- **Six prior drift failures — all pass inside this full run:**
+  `analysis A` (Viewer→Analysis context), `B` (Back to clip), `C`
+  (browser Back), each on chromium AND mobile-chromium. U8 cause:
+  fresh 103C ingestion reordered the Library, breaking the hardcoded
+  `103B` URL assertion; U8 repair: generic
+  `/dives/analysis/[^/]+?attempt=\d+/` assertion (intent preserved).
+  Disposition: deterministic test defect, repaired, proven in-run —
+  not a product regression (the round-trip itself was separately
+  reproduced green during U8 diagnosis).
+- **Axe in-run:** no violations surfaced at any level in the run log;
+  the L/L2/K suites assert 0 critical / 0 serious (all green).
+- **Core smoke:** covered by the suite itself (Library → Viewer →
+  Next/Previous → Back → Analysis → Back-to-Viewer across library,
+  clipViewer, and analysis specs, desktop + mobile); no separate smoke
+  needed beyond the full pass.
+- **Production:** bundle still `index-zrC4-UyN.js`, md5-identical to the
+  fresh canonical build — unchanged, source-identical. No production
+  rerun required and none performed (per U8R §12); accepted U8
+  production evidence (142/4/0) stands.
+- **Source changes in U8R:** NONE to product; NONE to tests; docs-only
+  amendment (this section + PROJECT_STATE U8R lines).
+
+**U8R decision: UI_U8R_GREEN. Program DIVE_ANALYZER_UI_SIMPLIFICATION_PROGRAM
+is CLOSED_GREEN. No U9; further UI work is normal product evolution.**

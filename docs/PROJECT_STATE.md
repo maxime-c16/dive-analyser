@@ -2186,6 +2186,12 @@ deployment freeze, test strategy).
   All success paths PASS; remaining intentional debt is non-core
   (unconfigured lint, no manual SR pass). Final canonical HEAD recorded
   below; E2E no longer depends on the personal session.
+- **U8R normalization (2026-09-20):** full preview E2E from fresh
+  canonical HEAD **142 passed / 4 skipped / 0 failed** under the
+  dedicated identity (all six former drift failures green in-run; axe
+  0 critical / 0 serious); production bundle unchanged and
+  source-identical (no prod rerun required); operator session valid
+  before/after. No product code changed. Detail: audit §18.
 NOTE for concurrent threads: PROJECT_STATE sections must be UNIONED when
 integrating (established convention).
 
