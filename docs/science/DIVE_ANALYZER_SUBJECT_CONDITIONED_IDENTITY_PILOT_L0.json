@@ -1,0 +1,401 @@
+{
+ "ambiguous_behavior": {
+  "ambiguous_scores": {
+   "max": 0.7589,
+   "median": 0.345,
+   "min": 0.0669,
+   "n": 3126,
+   "p25": 0.2608,
+   "p75": 0.4245
+  },
+  "best_match_scores": {
+   "max": 0.7959,
+   "median": 0.5641,
+   "min": 0.3806,
+   "n": 12,
+   "p25": 0.4922,
+   "p75": 0.6176
+  },
+  "top_nonmatch_scores": {
+   "max": 0.7246,
+   "median": 0.6075,
+   "min": 0.3797,
+   "n": 12,
+   "p25": 0.546,
+   "p75": 0.6424
+  }
+ },
+ "athlete_aware_descriptive": {
+  "FANNY (7)": {
+   "b0": 0,
+   "b1": 0,
+   "dives": [
+    "2204",
+    "2341",
+    "676"
+   ],
+   "l0": 0
+  },
+  "Maxime (1)": {
+   "b0": 4,
+   "b1": 2,
+   "dives": [
+    "1040",
+    "133",
+    "2169",
+    "2353",
+    "2387",
+    "2541",
+    "2583",
+    "2839",
+    "311"
+   ],
+   "l0": 1
+  }
+ },
+ "athlete_generalization_disclaimer": "This pilot does not demonstrate generalization to unseen athletes.",
+ "canonical_base": "76abc08116052e39419629fd01992c706d462d7a",
+ "classification_rules": {
+  "beats_b0": false,
+  "beats_b1": false,
+  "loso_at_parity_with_baselines": false,
+  "not_single_dive_driven": false,
+  "per_family_at_least_parity": false,
+  "per_family_strict_gain": false
+ },
+ "cohort": {
+  "families": {
+   "HURDLE": 7,
+   "STANDING": 8
+  },
+  "n_athletes": 4,
+  "n_dives": 15,
+  "n_sessions": 13
+ },
+ "current_true_bottleneck": "supported real-person mover ambiguity under a valid oracle reference (lookalikes outscore subjects on frozen appearance on 8/12 eligible dives), compounded by tiny matcher training data (29 MATCH positives) and unresolved GT-free reference acquisition (0/12 GT-free top-1).",
+ "date": "2026-09-20",
+ "durable_artifacts": [
+  "docs/science/SUBJECT_CONDITIONED_IDENTITY_PILOT_L0_PROTOCOL.md",
+  "docs/science/DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0.md",
+  "docs/science/DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0.json"
+ ],
+ "frozen_identities": {
+  "candidate_quality_v3": "CANDIDATE_QUALITY_V3_PARTIAL (unchanged)",
+  "cohort_d5_cache_sha256": "b2f01e4116466a6ac7f48de7361c3f9d5586a0902ad3f2a68d55b5348b53403f",
+  "d5_model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "hurdle_d5_cache_sha256": "3bed1aafb3d55353372260466ae0683acc62b188d75e6ef2587d936c150e0d83",
+  "level_a_sha256": "d805aac2b46e52f002de2842b56bb9a1b0ced808f0862a4c559f5ffe9099a75e",
+  "level_b_sha256": "dc958909435ad043a1284064b5dd6f85ca4b8eb365ed643289943f679c83a9df",
+  "osnet_weights_sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+  "v2_module_sha256": "01a17dd77131076d323b4adbc0790ac1d284f36fe39ebfb98a0ef64ad7a1d73e"
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0",
+ "interpretation": "Subject-conditioned identity learning with an ORACLE within-clip reference does not beat frozen cosine on grouped held-out top-1 (L0 1/12 vs B0 4/12, B1 2/12). The oracle reference is non-production by construction; GT-free reference acquisition remains explicitly unresolved and is the dominant product bottleneck.",
+ "l0_status": "IDENTITY_MATCHER_L0_FAILS",
+ "label": "DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0",
+ "layer_a_matcher_conditional": {
+  "b0": {
+   "correct": 4,
+   "eligible": 12,
+   "eligible_dives": [
+    "1040",
+    "133",
+    "2169",
+    "2204",
+    "2341",
+    "2353",
+    "2387",
+    "2541",
+    "2583",
+    "2839",
+    "311",
+    "676"
+   ],
+   "families": {
+    "HURDLE": {
+     "correct": 3,
+     "dives": [
+      "1040",
+      "2169",
+      "2341",
+      "2353",
+      "2541",
+      "2839"
+     ],
+     "eligible": 6
+    },
+    "STANDING": {
+     "correct": 1,
+     "dives": [
+      "133",
+      "2204",
+      "2387",
+      "2583",
+      "311",
+      "676"
+     ],
+     "eligible": 6
+    }
+   }
+  },
+  "b1": {
+   "correct": 2,
+   "eligible": 12,
+   "eligible_dives": [
+    "1040",
+    "133",
+    "2169",
+    "2204",
+    "2341",
+    "2353",
+    "2387",
+    "2541",
+    "2583",
+    "2839",
+    "311",
+    "676"
+   ],
+   "families": {
+    "HURDLE": {
+     "correct": 1,
+     "dives": [
+      "1040",
+      "2169",
+      "2341",
+      "2353",
+      "2541",
+      "2839"
+     ],
+     "eligible": 6
+    },
+    "STANDING": {
+     "correct": 1,
+     "dives": [
+      "133",
+      "2204",
+      "2387",
+      "2583",
+      "311",
+      "676"
+     ],
+     "eligible": 6
+    }
+   }
+  },
+  "l0_lodo": {
+   "correct": 1,
+   "eligible": 12,
+   "eligible_dives": [
+    "1040",
+    "133",
+    "2169",
+    "2204",
+    "2341",
+    "2353",
+    "2387",
+    "2541",
+    "2583",
+    "2839",
+    "311",
+    "676"
+   ],
+   "families": {
+    "HURDLE": {
+     "correct": 1,
+     "dives": [
+      "1040",
+      "2169",
+      "2341",
+      "2353",
+      "2541",
+      "2839"
+     ],
+     "eligible": 6
+    },
+    "STANDING": {
+     "correct": 0,
+     "dives": [
+      "133",
+      "2204",
+      "2387",
+      "2583",
+      "311",
+      "676"
+     ],
+     "eligible": 6
+    }
+   }
+  },
+  "l0_loso": {
+   "correct": 1,
+   "eligible": 12,
+   "families": {
+    "HURDLE": {
+     "correct": 1,
+     "eligible": 6
+    },
+    "STANDING": {
+     "correct": 0,
+     "eligible": 6
+    }
+   }
+  }
+ },
+ "layer_b_end_to_end_upper_bound": {
+  "non_evaluable_dives": [
+   "1304",
+   "2223",
+   "2526"
+  ],
+  "note": "all 15 dives; PARTIAL/NO_POSITIVE stay visible as stack failures"
+ },
+ "media_backbone_mutated": "NO",
+ "next_research_decision": "SCALE_IDENTITY_MATCHER_DATA_NEXT",
+ "next_research_reason": "no grouped gain from 29 MATCH positives / 11-D matcher (small-data overfitting signature: rank smoothing without top-1 gain); B0 oracle-cosine 4/12 shows the interface carries signal worth more data; representation-vs-summary limits not isolated, so no richer-representation claim.",
+ "oracle_reference": {
+  "fallbacks": 0,
+  "interface": "ORACLE_WITHIN_CLIP_REFERENCE_V1",
+  "new_frozen_osnet_gt_embeddings": 857,
+  "per_dive": {
+   "1040": {
+    "reference": 81,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 161
+   },
+   "1304": {
+    "reference": 5,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 10
+   },
+   "133": {
+    "reference": 4,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 7
+   },
+   "2169": {
+    "reference": 217,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 434
+   },
+   "2204": {
+    "reference": 7,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 13
+   },
+   "2223": {
+    "reference": 10,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 20
+   },
+   "2341": {
+    "reference": 137,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 273
+   },
+   "2353": {
+    "reference": 206,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 411
+   },
+   "2387": {
+    "reference": 7,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 13
+   },
+   "2526": {
+    "reference": 9,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 18
+   },
+   "2541": {
+    "reference": 131,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 262
+   },
+   "2583": {
+    "reference": 8,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 15
+   },
+   "2839": {
+    "reference": 15,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 29
+   },
+   "311": {
+    "reference": 15,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 29
+   },
+   "676": {
+    "reference": 5,
+    "split": "EVEN_ODD_INTERLEAVED",
+    "visible": 9
+   }
+  },
+  "split": "even/odd interleaved, reference=even"
+ },
+ "packet": "DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0",
+ "protected_data_firewall": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris": "EXTERNAL_ONLY"
+ },
+ "protocol_artifact": "docs/science/SUBJECT_CONDITIONED_IDENTITY_PILOT_L0_PROTOCOL.md",
+ "protocol_commit": "534d4b210d19e1f156e557719e13dce80b932d53",
+ "reachability": {
+  "1040": "MATCHER_ELIGIBLE",
+  "1304": "PARTIAL_PROPOSAL_REACHABILITY",
+  "133": "MATCHER_ELIGIBLE",
+  "2169": "MATCHER_ELIGIBLE",
+  "2204": "MATCHER_ELIGIBLE",
+  "2223": "PARTIAL_PROPOSAL_REACHABILITY",
+  "2341": "MATCHER_ELIGIBLE",
+  "2353": "MATCHER_ELIGIBLE",
+  "2387": "MATCHER_ELIGIBLE",
+  "2526": "PARTIAL_PROPOSAL_REACHABILITY",
+  "2541": "MATCHER_ELIGIBLE",
+  "2583": "MATCHER_ELIGIBLE",
+  "2839": "MATCHER_ELIGIBLE",
+  "311": "MATCHER_ELIGIBLE",
+  "676": "MATCHER_ELIGIBLE"
+ },
+ "recommended_next_supervisor_gate": "SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0",
+ "resource_results": {
+  "b2_reads": 0,
+  "b2_writes": 0,
+  "d5_inference": 0,
+  "matcher_deterministic_refit": true,
+  "matcher_training_runtime_s": 5.6,
+  "new_frozen_osnet_gt_reference_embeddings": 857,
+  "new_human_labels": 0,
+  "osnet_training": 0,
+  "peak_ram_gb": "NOT_INSTRUMENTED (small-CPU task; OSNet caches loaded per group; no spill observed)"
+ },
+ "scientific_authorities_mutated": "NO",
+ "secondary_lodo_eligible": {
+  "b0": {
+   "mean_mrr": 0.3446,
+   "median_subject_rank": 56,
+   "top10": 4,
+   "top3": 4,
+   "top5": 4
+  },
+  "b1": {
+   "mean_mrr": 0.2149,
+   "median_subject_rank": 21,
+   "top10": 4,
+   "top3": 2,
+   "top5": 2
+  },
+  "l0": {
+   "mean_mrr": 0.2276,
+   "median_subject_rank": 27,
+   "top10": 5,
+   "top3": 5,
+   "top5": 5
+  }
+ }
+}
