@@ -2494,3 +2494,47 @@ contract: `docs/science/ANALYSIS_TRACK_CONTRACT_V1.md`; recovery log:
 are gitignored. Existing UI/infra/science history and worktree changes preserved.
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_MULTI_TRACK_DIVE_ACTION_V1`.**
+## 2026-09-20 — Action-spanning track association V2 (Dive Analyzer science gate)
+
+Starting canonical authority: `8964f7d1258d5160c0f42e6db80521a12a148747`.
+V1 baseline reproduced exactly first (V1 suite 14 passed, recall 1/15,
+strong 0/15, 34,320 raw / 6,490 merged); V1 report/implementation
+byte-identical to canonical. Dedicated branch
+`dive-analyzer-action-span-assoc-v2`; concurrent work preserved.
+
+**`ACTION_SPANNING_ASSOCIATION_V2_PARTIAL`**; next research:
+**`IMPROVE_ASSOCIATION_REPRESENTATION_NEXT`**. Association reformulated as
+trajectory decoding over an overlap-aware fragment lattice (gap + overlap +
+interleave edges; interleave links strictly alternating fragments that V1
+could not represent) with beam search (`BEAM_WIDTH = 512`) and diverse
+top-5 path preservation (no connected-component collapse, no identity, no
+GT, frozen gates only). A0 continuity on all 15 clips; A1 (frozen OSNet
+local compatibility) on the 10 clips with embedding caches (hurdle has no
+cache: A0 fallback).
+
+`ACTION_SPANNING_SUBJECT_TRAJECTORY_RECALL = 0/15` (>=75% retained
+criterion; V1 had 1 weak/15). Decoded-pool subject coverage materially
+exceeds V1 merged best on 10+ clips (2169: 0.795 vs 0.194; 2541: 0.584 vs
+0.027; 1040: 0.547 vs 0.031); lattice transition recall 0.83-1.00 on 9
+clips — representable pairwise, unchainable by beam into top-5.
+Subject chains are Pareto-dominated on every identity-free signal; A1
+measured null (subject-subject vs other handoff appearance delta <=0.03:
+geometry-redundant). Flight anchors observed at ~100% union where HUMAN
+windows exist but shattered into single-anchor micro-fragments (2169: 49
+anchors / 54 fragments) — the true bottleneck is flight-phase chaining.
+The >=75% all-anchor criterion is prep-dominated (2169 prep = 79%) and
+must become flight-phase-aware before gating analytics.
+
+`SYNCHRO_REPRESENTABLE` (5 diverse overlapping paths/clip);
+`TRACK_STABILITY_STILL_INSUFFICIENT_FOR_OVERLAY`; analytics 15/15
+`TRAJECTORY_NOT_READY`; other-action GT `STILL_PREMATURE`;
+`IDENTITY_LINE = FROZEN_DEFERRED`. Frozen Event Logic V3-C0 replayed
+unchanged. Cache-only: D5/training/embeddings/labels/B2/media all zero;
+runtime 691 s, peak RAM 1.7 GB. V2 suite 16 passed + V1 suite 14 passed.
+No protected data, no B2/media mutation.
+
+Reports: `docs/science/DIVE_ANALYZER_ACTION_SPANNING_TRACK_ASSOCIATION_V2.md`
+/ `.json`; contract addendum in `ANALYSIS_TRACK_CONTRACT_V1.md` (V2 path
+fields). Run outputs gitignored.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_ACTION_SPANNING_TRACK_ASSOCIATION_V2`.**
