@@ -263,3 +263,11 @@ plausible DiveTracks per clip; the science now needs precision
 machinery — which retained arcs are real dives, whose are they, and
 (through the manual-selection contract) letting the user pick. Do not
 return to identity unless validation specifically requires it.
+
+## Caveat added 2026-09-26 by DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 (append-only)
+
+"Observation complete" was measured on anchors that are D4/D5 training frames (landmark
+boxes, D5-mined seeds) or derived chains. On blind mid-flight human authority
+(`FLIGHT_GT_HUMAN_V1`) raw presence ≥ 75 % holds on 11/15 dives (4 observation failures:
+133, 311, 1304, 2204) and V3's pool recovers 0/15. See
+`DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md`.

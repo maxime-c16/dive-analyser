@@ -41,7 +41,7 @@ def _dup(a, b):
     return _agree(a['obs'], b['obs']) >= DUP_AGREE
 
 
-def surface(d, reps=('360', 'hq'), mod=S, max_surfaced=None):
+def surface(d, reps=('360', 'hq'), mod=S, max_surfaced=None, ranker=None):
     """Ranked, deduplicated flight candidates (DiveTracks) over the requested representations."""
     cands = []
     for rep in reps:
@@ -51,7 +51,7 @@ def surface(d, reps=('360', 'hq'), mod=S, max_surfaced=None):
         pts = [f['pts_s'] for f in fr]
         pool, L = PC.pool(mod, d, rep)
         for pr, (T, p) in enumerate(pool, 1):
-            for q, seg, parts in R.flight_segments(p, L, pts):
+            for q, seg, parts in (ranker or R).flight_segments(p, L, pts):
                 lo, hi = parts['t0'] - PRE_S, parts['t1'] + POST_S
                 obs = {f: tuple(float(v) for v in L[f][j]) for f, j in p if lo <= pts[f] <= hi}
                 cands.append({'rep': rep, 'pool_rank': pr, 'Q': q, 'T': T, 'obs': obs,
