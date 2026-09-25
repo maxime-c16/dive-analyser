@@ -1,6 +1,13 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-20** (science thread:
+> Durable project handoff. Last verified: **2026-09-21** (science thread:
+> Dive Analyzer flight-anchored trajectory V3 — frame-level flight-lattice
+> decoding with NULL state and dual-population beam: flight recall 1/9
+> (676 thin), action recall 1/15 (2169 prep-dominated, refused as recovery);
+> observation complete, chaining works, subject selection among competing
+> flights is the next blocker → `FLIGHT_ANCHORED_TRAJECTORY_V3_PARTIAL`,
+> `IMPROVE_DIVE_ACTION_VALIDATION_NEXT`; frozen authorities untouched).
+> Previous: **2026-09-20** (science thread:
 > Dive Analyzer subject-conditioned identity pilot L0 — first bounded learned
 > identity-matching experiment with oracle within-clip reference: LODO top-1
 > B0 4/12, B1 2/12, L0 1/12 → `IDENTITY_MATCHER_L0_FAILS`,
@@ -15,7 +22,12 @@
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Latest science: `docs/science/DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0.md`
+> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3.md`
+> (frame-level F0 flight lattice + F1 bidirectional extension, protocol-frozen;
+> 1/9 flight recall, 1/15 action recall prep-dominated; observation ruled out,
+> chaining solved, selection is the blocker → `PARTIAL`,
+> `IMPROVE_DIVE_ACTION_VALIDATION_NEXT`, `OTHER_ACTION_GT_NOW_HIGH_VALUE`)
+> Previous science: `docs/science/DIVE_ANALYZER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0.md`
 > (15 dives / 13 sessions / 4 athletes; `ORACLE_WITHIN_CLIP_REFERENCE_V1`
 > even/odd split, 11-D L2 logistic C=1.0; Layer-A LODO top-1 B0 4/12, B1 2/12,
 > L0 1/12, LOSO identical; rank smoothing without top-1 gain on 29 MATCH
@@ -31,8 +43,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1`,

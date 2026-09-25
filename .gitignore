@@ -94,5 +94,8 @@ runs/multi_track_action_v1/
 # ---- Action-Spanning Track Association V2: run outputs (never in Git) ----
 runs/action_span_assoc_v2/
 
+# ---- Flight-Anchored Trajectory V3: run outputs (never in Git) ----
+runs/flight_anchored_traj_v3/
+
 # ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
 frontend/playwright/.auth/
