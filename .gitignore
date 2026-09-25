@@ -104,3 +104,6 @@ runs/flight_anchored_traj_v3_1_bf/
 runs/flight_anchored_traj_v3_1_bfc/
 runs/flight_anchored_traj_v3_1_bfcd/
 runs/flight_anchored_traj_v3_1_bfd/
+
+# DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 run outputs + HQ candidate caches (host-only)
+runs/flight_search_recovery_v1/

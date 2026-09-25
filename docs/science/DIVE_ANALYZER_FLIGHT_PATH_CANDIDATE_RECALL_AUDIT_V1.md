@@ -231,3 +231,12 @@ Search must be redesigned around subject-flight recall, not patched.
   worktree (one test reads a git-ignored V2 run artifact absent from this worktree — environment,
   not packet-owned). Zero packet-owned failures.
 - Scientific authorities mutated: NO. Media backbone mutated: NO.
+
+## Caveat added 2026-09-26 by DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 (append-only)
+
+- Re-measured on the new blind mid-flight human authority `FLIGHT_GT_HUMAN_V1` (15 dives):
+  frozen V3 raw 11/15 → lattice 10 → graph 9 → pool **0** → F1 top-5 2/15. The
+  localization "search is the primary blocker" is confirmed on independent authority.
+- The DEV landmark boxes and hurdle `HUMAN_GT` seeds used here are D4/D5 training labels:
+  detector presence at those frames is in-sample; "observation complete" statements are
+  optimistic for mid-flight frames. See `DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md` §3, §5.

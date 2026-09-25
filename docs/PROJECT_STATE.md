@@ -1,6 +1,16 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-25** (science thread:
+> Durable project handoff. Last verified: **2026-09-26** (science thread:
+> Dive Analyzer flight search recovery V1 — new blind mid-flight HUMAN authority
+> `FLIGHT_GT_HUMAN_V1` (123 boxes, 15 dives, digest `740bf71d`); redesigned search
+> (global track-before-detect DP + ballistic flight-segment ranking, protocol frozen
+> `3317d70` before sealed eval): surfaced top-5 3/15 at 360p vs frozen V3 2/15 (V3 pool
+> 0/15); 360p+HQ 4/9 event dives (top-10; all rank 1 with post-sealed ranker v2);
+> dominant loss = SEARCH CONSTRUCTION 8/15 (airborne subject has lower D5 confidence than
+> nearby people; OSNet AUC 0.59); DEV landmark authority found detector-in-sample; 1080p
+> helps observation, complementary, not sufficient; manual multi-track NOT viable;
+> gate `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`).
+> Previous: **2026-09-25** (science thread:
 > Dive Analyzer flight-path candidate recall audit V1 — frozen V3 reproduced
 > 15/15 byte-identical; retention funnel (9 event dives): raw 7 → graph oracle 4
 > → generated pool 0 → F0 top-K 0 → F1 1 (676 thin); strict-human seeds 5→4→0→1;
@@ -35,7 +45,9 @@
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1.md`
+> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md`
+> (sealed funnel V3 vs redesigned search, 360p vs HQ, human flight authority audit)
+> Previous science: `docs/science/DIVE_ANALYZER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1.md`
 > (audit/localization; S0–S6 stage funnel with evaluation-only graph oracle and
 > beam subject trace; search S2→S3 loses every representable case)
 > Previous science: `docs/science/DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3.md`
@@ -59,8 +71,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`,
@@ -2597,3 +2610,28 @@ reported (1040/2541 evaluator-only), F1 backward sign, core-length saturation, p
 perception despite recovered aligned 1080p. Bug-fix candidates (A–D) evaluated outside the
 frozen pipeline and NOT promoted (no retained gain, regressions on 676/2169).
 Gate: `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`.
+
+## Flight search recovery V1 — 2026-09-26
+
+Report `docs/science/DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md` / `.json`; protocol
+`FLIGHT_SEARCH_RECOVERY_V1_PROTOCOL.md` (frozen `3317d70` before sealed evaluation).
+
+- **Human authority:** `localization_annotations_v1/FLIGHT_GT_HUMAN_V1` (commit `fddfe4c`,
+  digest `740bf71d`): 123 blind boxes at k/8 of the HUMAN flight window on 15 DEVELOPMENT
+  dives + human takeoff/water-contact for 1304/2204/2223/2526/2583/2839. Pre-existing
+  landmark boxes and hurdle HUMAN seeds are D4/D5 training labels (detector-in-sample).
+  FLIGHT_GT_HUMAN_V1 is now *burned* for further design selection (post-sealed work on it is
+  adaptive); a fresh held-out flight authority is needed before promoting any v2.
+- **Sealed funnel** (raw ≥75 % → graph → pool → top-5): frozen V3 360p 11 → 9 → 0 → 2/15;
+  FSR v1 360p 11 → 11 → 3 → 3/15; FSR HQ 8 → 8 → 2 → 0/9 (top-10 2/9); FSR 360p+HQ top-5
+  2/9, top-10 4/9. Post-sealed ranker v2 (trim-and-rescore, GT-free synthetic validation):
+  360p+HQ top-1 4/9 = candidate ceiling.
+- **Blocker:** search construction (8/15): subject reachable but captured by brighter nearby
+  people (evidence search) or clutter (confidence-agnostic search); appearance useless (AUC
+  0.59). Five search families tried; same ceiling. Next: flight-phase detector data (needs
+  authority; D5 unchanged here).
+- **HQ:** `runs/flight_search_recovery_v1/HQ_D5_CANDIDATES_V1.json` (host; frozen D5 recipe on
+  recovered renditions, proxy frame/timeline); 311 trim refined to 12.145 s.
+- Code: `experiments/subject_resolution/fsr_*.py`; tests `test_flight_search_recovery_v1.py`
+  19 passed. Frozen V3/r5/D5/Event Logic unchanged; no protected data; no B2 mutation.
+- Gate: `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`.

@@ -56,3 +56,12 @@ Pitfalls learned the hard way:
   `runs/hq_rep_v1/sheets/676_gt_overlay_HQ.png`.
 - Audit implementation: `experiments/landmark_pilot/hq_representation_audit_v1.py`
   (`DIVES[...]["map"]`), recomputation `hq_audit_recompute_v2.py`.
+
+## Caveat added 2026-09-26 by DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 (append-only)
+
+311 trim re-verified with blur-equalized NCC on every-motion samples: nearest-PTS mapping
+at `t_hq = t_proxy - 12.125` selects the HQ frame one step late on all samples; a sub-frame
+scan peaks at **12.145 s** (NCC 0.99916 vs 0.99764 at 12.125). The ~20 ms (0.6 frame)
+difference is negligible for event labels but matters for frame-exact HQ box transfer.
+Evidence: `docs/science/FLIGHT_SEARCH_RECOVERY_V1_HQ_ALIGNMENT.json` (summary; full rows host-only)
+used by `experiments/subject_resolution/fsr_hq_cache_v1.py`.
