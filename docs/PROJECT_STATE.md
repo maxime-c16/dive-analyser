@@ -1,6 +1,19 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-21** (science thread:
+> Durable project handoff. Last verified: **2026-09-25** (science thread:
+> Dive Analyzer flight-path candidate recall audit V1 — frozen V3 reproduced
+> 15/15 byte-identical; retention funnel (9 event dives): raw 7 → graph oracle 4
+> → generated pool 0 → F0 top-K 0 → F1 1 (676 thin); strict-human seeds 5→4→0→1;
+> subject flight is representable but never generated → `SEARCH_IS_PRIMARY_BLOCKER`,
+> `IMPROVE_SEARCH_RECALL_NEXT`, `MANUAL_TRACK_SELECTION_NOT_YET_VIABLE`,
+> `OTHER_ACTION_GT_STILL_PREMATURE`; defects found: motion-gate unit error in V3
+> and upstream r5 (subject flight links rejected 24–55 %), end-of-clip-only pool
+> harvest, spike-latched mover slots, seeding never on airborne diver (71/94),
+> hurdle subject authority evaluator-seeded/candidate-snapped (1040/2541 zero
+> HUMAN_GT), F1 backward sign, core-length saturation, 202×360 proxies despite
+> recovered aligned 1080p for 12 dives; bug-fix candidates evaluated, NOT promoted;
+> git authority reconciled: V3 merged into canonical `f043f63`, mirror was stale).
+> Previous: **2026-09-21** (science thread:
 > Dive Analyzer flight-anchored trajectory V3 — frame-level flight-lattice
 > decoding with NULL state and dual-population beam: flight recall 1/9
 > (676 thin), action recall 1/15 (2169 prep-dominated, refused as recovery);
@@ -22,7 +35,10 @@
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3.md`
+> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1.md`
+> (audit/localization; S0–S6 stage funnel with evaluation-only graph oracle and
+> beam subject trace; search S2→S3 loses every representable case)
+> Previous science: `docs/science/DIVE_ANALYZER_FLIGHT_ANCHORED_TRAJECTORY_V3.md`
 > (frame-level F0 flight lattice + F1 bidirectional extension, protocol-frozen;
 > 1/9 flight recall, 1/15 action recall prep-dominated; observation ruled out,
 > chaining solved, selection is the blocker → `PARTIAL`,
@@ -43,8 +59,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`,
+> earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CANDIDATE_QUALITY_V3`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_GT_LEVEL_A_ANNOTATION_V1`,
@@ -2551,3 +2568,32 @@ Reports: `docs/science/DIVE_ANALYZER_ACTION_SPANNING_TRACK_ASSOCIATION_V2.md`
 fields). Run outputs gitignored.
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_ACTION_SPANNING_TRACK_ASSOCIATION_V2`.**
+
+## Git authority reconciliation — 2026-09-25 (FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1)
+
+- True canonical: `uiux-overhaul-pro-app` on the server (`mcauchy@192.168.1.57:~/dive-analyser`).
+  Starting HEAD `d3ab6c43acf4971ab914547f0dd373f097771b0a` (V2 `509f4a9` already merged).
+- V3 `d252f7b` (protocol) → `3e889f2` (science) were feature-only; merged `--no-ff` (clean) →
+  `f043f6382defdda5acecfe8db66da7305c175d98`. No science commit rewritten.
+- The "d3ab6c4 missing" report came from a stale mirror (`mac-mirror` …`dive-analyser-2026-09-05.git`
+  at `8964f7d`) and a local clone tracking it; fresh server evidence wins. Mirror resynced at
+  audit completion.
+- Frozen V3 artifacts record runner SHA `cef17b32…` vs committed `c191c148…` (disclosed
+  post-inference evaluation-only edits); inference outputs reproduce byte-identical.
+- Concurrent server working-tree state (5 uncommitted deletions of subject_resolution_audit_v1
+  files + untracked files) left untouched.
+
+## Flight-path candidate recall audit V1 — 2026-09-25
+
+Retention funnel (frozen V3 authority, 9 event dives): raw union 7/9, graph oracle 4/9
+(1040/2169/2353/676), generated pool 0/9, F0 top-K 0/9, F1 1/9 (676, 2-anchor, F1-carried).
+Strict HUMAN seeds: 5/7 → 4/7 → 0/7 → 0/7 → 1/7. Root causes: SEARCH 1040/2169/2353;
+GRAPH 2341/2541/2387; OBSERVATION 133/311 (thin); FULL_ACTION_EXTENSION 676.
+Decisions: `SEARCH_IS_PRIMARY_BLOCKER`, `IMPROVE_SEARCH_RECALL_NEXT`,
+`MANUAL_TRACK_SELECTION_NOT_YET_VIABLE`, `OTHER_ACTION_GT_STILL_PREMATURE`.
+Key defects (see report §9): motion-gate unit error (V3 + r5), end-of-clip-only harvest,
+spike-latched mover slots, seeding misses the airborne diver, hurdle GT authority weaker than
+reported (1040/2541 evaluator-only), F1 backward sign, core-length saturation, proxy-only
+perception despite recovered aligned 1080p. Bug-fix candidates (A–D) evaluated outside the
+frozen pipeline and NOT promoted (no retained gain, regressions on 676/2169).
+Gate: `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`.

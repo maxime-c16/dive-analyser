@@ -99,3 +99,8 @@ runs/flight_anchored_traj_v3/
 
 # ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
 frontend/playwright/.auth/
+runs/flight_path_recall_audit_v1/
+runs/flight_anchored_traj_v3_1_bf/
+runs/flight_anchored_traj_v3_1_bfc/
+runs/flight_anchored_traj_v3_1_bfcd/
+runs/flight_anchored_traj_v3_1_bfd/
