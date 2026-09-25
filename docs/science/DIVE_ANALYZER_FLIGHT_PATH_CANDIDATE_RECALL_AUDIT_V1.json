@@ -1,0 +1,2272 @@
+{
+ "BEAM_TRACE": {
+  "1040": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.20689655172413793,
+    "anchor_frames_subject_pre_prune": 0.2413793103448276,
+    "flight_anchors": 29,
+    "mean_mover_latch_fraction_in_window": 0.4975433044636908,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "PRUNE_LOSS",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 5,
+     "PRUNE_LOSS": 1,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 6,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "status": "NO_FLIGHT_AUTHORITY"
+   },
+   "dive": "1040"
+  },
+  "133": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.5,
+    "flight_anchors": 2,
+    "mean_mover_latch_fraction_in_window": 0.4166666666666667,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "PRUNE_LOSS"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 2,
+     "PRUNE_LOSS": 1,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 3,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.5,
+    "flight_anchors": 2,
+    "mean_mover_latch_fraction_in_window": 0.4166666666666667,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "PRUNE_LOSS"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 2,
+     "PRUNE_LOSS": 1,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 3,
+    "status": "SCORED"
+   },
+   "dive": "133"
+  },
+  "2169": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.8571428571428571,
+    "anchor_frames_subject_pre_prune": 0.8979591836734694,
+    "flight_anchors": 49,
+    "mean_mover_latch_fraction_in_window": 0.8099248892844537,
+    "per_start_outcome": {
+     "0": "TRANSITION_LOSS",
+     "120": "SURVIVED",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "TRANSITION_LOSS",
+     "210": "TRANSITION_LOSS",
+     "240": "TRANSITION_LOSS",
+     "270": "TRANSITION_LOSS",
+     "30": "TRANSITION_LOSS",
+     "300": "TRANSITION_LOSS",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "PRUNE_LOSS",
+     "390": "PRUNE_LOSS",
+     "420": "SURVIVED",
+     "450": "SURVIVED",
+     "60": "TRANSITION_LOSS",
+     "90": "TRANSITION_LOSS"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 2,
+     "PRUNE_LOSS": 2,
+     "SURVIVED": 3,
+     "TRANSITION_LOSS": 9
+    },
+    "starts_active_in_window": 16,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 1.0,
+    "anchor_frames_subject_pre_prune": 1.0,
+    "flight_anchors": 5,
+    "mean_mover_latch_fraction_in_window": 0.8151678464178463,
+    "per_start_outcome": {
+     "0": "PRUNE_LOSS",
+     "120": "SURVIVED",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "PRUNE_LOSS",
+     "210": "PRUNE_LOSS",
+     "240": "PRUNE_LOSS",
+     "270": "PRUNE_LOSS",
+     "30": "PRUNE_LOSS",
+     "300": "PRUNE_LOSS",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "TRANSITION_LOSS",
+     "390": "TRANSITION_LOSS",
+     "420": "SURVIVED",
+     "450": "SURVIVED",
+     "60": "PRUNE_LOSS",
+     "90": "PRUNE_LOSS"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 2,
+     "PRUNE_LOSS": 9,
+     "SURVIVED": 3,
+     "TRANSITION_LOSS": 2
+    },
+    "starts_active_in_window": 16,
+    "status": "SCORED"
+   },
+   "dive": "2169"
+  },
+  "2341": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.3770491803278688,
+    "anchor_frames_subject_pre_prune": 0.6229508196721312,
+    "flight_anchors": 61,
+    "mean_mover_latch_fraction_in_window": 0.49397573920853366,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "PRUNE_LOSS",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "PRUNE_LOSS",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 8,
+     "PRUNE_LOSS": 2,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 10,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 1.0,
+    "anchor_frames_subject_pre_prune": 1.0,
+    "flight_anchors": 2,
+    "mean_mover_latch_fraction_in_window": 0.5,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "SURVIVED",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 7,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 1,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 8,
+    "status": "SCORED"
+   },
+   "dive": "2341"
+  },
+  "2353": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.1527777777777778,
+    "anchor_frames_subject_pre_prune": 0.2361111111111111,
+    "flight_anchors": 72,
+    "mean_mover_latch_fraction_in_window": 0.6739443424959468,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "TRANSITION_LOSS",
+     "210": "NEVER_ON_SUBJECT",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "300": "NEVER_ON_SUBJECT",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "PRUNE_LOSS",
+     "390": "PRUNE_LOSS",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 11,
+     "PRUNE_LOSS": 2,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 1
+    },
+    "starts_active_in_window": 14,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.25,
+    "flight_anchors": 4,
+    "mean_mover_latch_fraction_in_window": 0.6649639423076923,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "NEVER_ON_SUBJECT",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "300": "NEVER_ON_SUBJECT",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "PRUNE_LOSS",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 12,
+     "PRUNE_LOSS": 1,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 13,
+    "status": "SCORED"
+   },
+   "dive": "2353"
+  },
+  "2387": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.0,
+    "flight_anchors": 3,
+    "mean_mover_latch_fraction_in_window": 0.47058823529411764,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 6,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 6,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.0,
+    "flight_anchors": 3,
+    "mean_mover_latch_fraction_in_window": 0.47058823529411764,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 6,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 6,
+    "status": "SCORED"
+   },
+   "dive": "2387"
+  },
+  "2541": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.037037037037037035,
+    "anchor_frames_subject_pre_prune": 0.14814814814814814,
+    "flight_anchors": 27,
+    "mean_mover_latch_fraction_in_window": 0.4637161117235828,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "NEVER_ON_SUBJECT",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "300": "NEVER_ON_SUBJECT",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "NEVER_ON_SUBJECT",
+     "390": "NEVER_ON_SUBJECT",
+     "420": "NEVER_ON_SUBJECT",
+     "450": "NEVER_ON_SUBJECT",
+     "480": "NEVER_ON_SUBJECT",
+     "510": "NEVER_ON_SUBJECT",
+     "540": "NEVER_ON_SUBJECT",
+     "60": "PRUNE_LOSS",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 18,
+     "PRUNE_LOSS": 1,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 19,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "status": "NO_FLIGHT_AUTHORITY"
+   },
+   "dive": "2541"
+  },
+  "311": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.0,
+    "flight_anchors": 1,
+    "mean_mover_latch_fraction_in_window": 0.6197916666666666,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "NEVER_ON_SUBJECT",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "300": "NEVER_ON_SUBJECT",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "NEVER_ON_SUBJECT",
+     "390": "NEVER_ON_SUBJECT",
+     "420": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 15,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 15,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 0.0,
+    "anchor_frames_subject_pre_prune": 0.0,
+    "flight_anchors": 1,
+    "mean_mover_latch_fraction_in_window": 0.6197916666666666,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "NEVER_ON_SUBJECT",
+     "150": "NEVER_ON_SUBJECT",
+     "180": "NEVER_ON_SUBJECT",
+     "210": "NEVER_ON_SUBJECT",
+     "240": "NEVER_ON_SUBJECT",
+     "270": "NEVER_ON_SUBJECT",
+     "30": "NEVER_ON_SUBJECT",
+     "300": "NEVER_ON_SUBJECT",
+     "330": "NEVER_ON_SUBJECT",
+     "360": "NEVER_ON_SUBJECT",
+     "390": "NEVER_ON_SUBJECT",
+     "420": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 15,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 0
+    },
+    "starts_active_in_window": 15,
+    "status": "SCORED"
+   },
+   "dive": "311"
+  },
+  "676": {
+   "FROZEN_V3_AUTHORITY": {
+    "anchor_frames_subject_post_prune": 0.5,
+    "anchor_frames_subject_pre_prune": 0.5,
+    "flight_anchors": 2,
+    "mean_mover_latch_fraction_in_window": 0.45,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "TRANSITION_LOSS",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 4,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 1
+    },
+    "starts_active_in_window": 5,
+    "status": "SCORED"
+   },
+   "STRICT_HUMAN_SEEDS": {
+    "anchor_frames_subject_post_prune": 0.5,
+    "anchor_frames_subject_pre_prune": 0.5,
+    "flight_anchors": 2,
+    "mean_mover_latch_fraction_in_window": 0.45,
+    "per_start_outcome": {
+     "0": "NEVER_ON_SUBJECT",
+     "120": "TRANSITION_LOSS",
+     "30": "NEVER_ON_SUBJECT",
+     "60": "NEVER_ON_SUBJECT",
+     "90": "NEVER_ON_SUBJECT"
+    },
+    "start_outcomes": {
+     "NEVER_ON_SUBJECT": 4,
+     "PRUNE_LOSS": 0,
+     "SURVIVED": 0,
+     "TRANSITION_LOSS": 1
+    },
+    "starts_active_in_window": 5,
+    "status": "SCORED"
+   },
+   "dive": "676"
+  }
+ },
+ "BUGFIX_CANDIDATES_EVALUATION_ONLY": {
+  "A+B+C+D": {
+   "flight_recall_candidate": 0,
+   "flight_recall_v3": 1,
+   "per_dive": {
+    "1040": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "1304": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "133": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "2169": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.8894009216589862,
+     "v3_flight_recovered": false
+    },
+    "2204": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "2223": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "2341": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "2353": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "2387": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "2526": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "2541": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "2583": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "2839": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": null,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": null
+    },
+    "311": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": false
+    },
+    "676": {
+     "cand_best_subject_full_cov": 0.0,
+     "cand_flight_recovered": false,
+     "v3_best_subject_full_cov": 0.0,
+     "v3_flight_recovered": true
+    }
+   },
+   "regressions": [
+    "2169",
+    "676"
+   ]
+  },
+  "note": "Not promoted, not merged into the frozen pipeline. A=motion-gate units, B=F1 sign/coords, C=snapshot harvest, D=sustained-motion dynamic slots.",
+  "pool_probe_notes": "Pool-level subject coverage does not improve under A+B / A+B+D / A+B+C+D on 1040/2169/2341 (2169 0.184 -> 0.12-0.14); whole-beam snapshot harvest on 1040 0.07-0.14; frozen V3 + whole-beam snapshot harvest on 2169 0.184 -> 0.31 (purity 0.94, Q-rank 1 / diverse rank 1: ranking is not the blocker once subject flight reaches the pool), with fix A 0.12. Local fixes are necessary but insufficient: V3 cost economics rank real (jittery, shape-changing, NULL-bridged) flight below static/hijack paths at seeding, retention and triage."
+ },
+ "DECISIONS": {
+  "EVENT_LOGIC": "FROZEN",
+  "HEAD_AT_AUDIT_START": "f043f6382defdda5acecfe8db66da7305c175d98",
+  "IDENTITY_LINE": "FROZEN_DEFERRED",
+  "MANUAL_SELECTION_READINESS": "MANUAL_TRACK_SELECTION_NOT_YET_VIABLE",
+  "MEDIA_BACKBONE_MUTATED": "NO",
+  "NEXT_RESEARCH_DECISION": "IMPROVE_SEARCH_RECALL_NEXT",
+  "OTHER_ACTION_GT": "OTHER_ACTION_GT_STILL_PREMATURE",
+  "POSE_ANALYTICS": "PAUSED",
+  "PRIMARY_BLOCKER": "SEARCH_IS_PRIMARY_BLOCKER",
+  "REFERENCE_ACQUISITION": "DEFERRED",
+  "SCIENTIFIC_AUTHORITIES_MUTATED": "NO"
+ },
+ "FINDINGS": [
+  {
+   "claim": "Velocity caps calibrated for span-averaged velocity (DEP_VEL_MAX=1.4, \"divers never sprint\") and a per-second jitter allowance (JITTER_C=0.012) are applied to INSTANTANEOUS single-frame velocity. At 60 fps normal detector box jitter on a rotating airborne diver exceeds the cap.",
+   "evidence": "Mean flight speed ~0.5-1.0 norm/s but per-frame GT speed oscillates 0-5 norm/s; camera flow ~0 (not a compensation artifact). V3 gate blocks subject adjacent pairs 2341 21/55, 1040 5/30, 2541 5/23, 2387 2/27 (takeoff link). r5._gate_ok rejects subject flight links 1040 41%, 2169 55%, 2341 42%, 2353 32%, 2541 24% (clip-wide 6-25%).",
+   "id": "BUG_ROGUE",
+   "severity": "CRITICAL",
+   "stage": "GRAPH (S2) + upstream r5 tracklets"
+  },
+  {
+   "claim": "Pool is harvested only from paths alive at the LAST frame of the clip; flight hypotheses found mid-beam are pruned or die before harvest.",
+   "evidence": "2169: subject in-beam post-prune on 86% (frozen) / 100% (strict) of flight anchor frames, 3 starts carry it through the whole window, yet final beam/pool best = 0.184. 2341 strict: 100% in-beam, pool 0.0.",
+   "id": "BUG_QUEUDVER",
+   "severity": "CRITICAL",
+   "stage": "SEARCH (S2->S3)"
+  },
+  {
+   "claim": "Dynamic (mover) slots rank by cost - W_DYN*age*min(maxspeed,0.8)/0.8 with maxspeed the max-ever EWMA speed: one spike latches a permanent bonus that grows with age; sparse hijack/jitter paths evict the real subject.",
+   "evidence": "676 start 120 frame 131: 9 on-subject hypotheses pre-prune, 0 post; dynamic occupants have 5-7 obs over 11 frames with maxspeed ~0.8 vs subject 0.54; ~3.5 key-unit gap from the age x maxspeed term. Mean mover-latch fraction in flight windows 0.42-0.82.",
+   "id": "BUG_PEEVES",
+   "severity": "HIGH",
+   "stage": "SEARCH (beam retention)"
+  },
+  {
+   "claim": "Starts seed only top-12 confidence + 6 movers at 30-frame strata; the airborne diver is rarely seeded and never re-acquired.",
+   "evidence": "Beam trace: 71/94 start-windows (frozen authority) never place a hypothesis on the subject during flight; whole-beam snapshot harvest on 1040 still only 0.07-0.14.",
+   "id": "BUG_SEEDING_NEVER_ON_SUBJECT",
+   "severity": "HIGH",
+   "stage": "SEARCH (seeding)"
+  },
+  {
+   "claim": "Hurdle subject \"GT\" is evaluator-seeded and candidate-snapped: 1040 and 2541 have ZERO HUMAN_GT anchors (VISUAL_EVALUATOR only); other hurdle chains are 2-5 human seeds linearly interpolated and snapped to D5 candidates; unresolved frames AMBIGUOUS_GT are excluded from denominators; one not_visible HUMAN seed (2169 t=6.2833) is used as a position seed.",
+   "evidence": "Median anchor-to-floor distance 0.0000 on all hurdle dives (union=1.0 by construction). 2169: 28/80 flight frames AMBIGUOUS (all 28 of the clip); mid-flight snaps at match_dist 0.055-0.079 > RADIUS 0.06 on 2341/2541. Human flight seeds: 1040 0, 2169 5, 2341 2, 2353 4, 2541 0.",
+   "id": "BUG_LOCKHART",
+   "severity": "HIGH",
+   "stage": "EVALUATION AUTHORITY"
+  },
+  {
+   "claim": "extend_core backward prediction double-negates (vx=-vel0 with dt_sign<0) so it extrapolates forward in time; forward seed velocity mixes raw with compensated coordinates; velocity never updated.",
+   "evidence": "Source inspection; corrected in candidate BF-B (no retained gain, see candidates).",
+   "id": "BUG_NEVILLE",
+   "severity": "MEDIUM",
+   "stage": "F1 extension"
+  },
+  {
+   "claim": "Excursion term (running max-min) is monotone in window length while penalties are means, so cores saturate at CORE_MAX_S=3.0 s and pack ~1.2 s flights with 1.8 s of surrounding content.",
+   "evidence": "2169 top-5 cores all 2.94-2.98 s; 2541 r1 2.97 s; 311 r1 2.97 s.",
+   "id": "BUG_DUDLEY",
+   "severity": "MEDIUM",
+   "stage": "F0 core objective Q"
+  },
+  {
+   "claim": "Entire pipeline runs on 202x360 portrait proxies; airborne diver 27x41 to 60x32 px. 1920x1080 originals were recovered and timeline-aligned for 12 development dives (ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1) but never fed to detection/trajectory.",
+   "evidence": "HUMAN_GT flight boxes (2169/2341/2353) and L1A boxes; HIGHRES manifest RECOVERED_ALIGNED 11 + DETERMINISTIC_MAPPING 1.",
+   "id": "BUG_HAGRID",
+   "severity": "STRATEGIC",
+   "stage": "PERCEPTION INPUT"
+  },
+  {
+   "claim": "311's single flight anchor is a 156x148 px box clipped at the right frame edge; neighbours (-1,+2) have floor matches; under the frozen hits>=2 rule 311 is unrecoverable by construction (1 flight anchor).",
+   "evidence": "L1A_311_f00435 bbox [46,15,202,163] on 202x360; f00420 not_visible.",
+   "id": "BUG_NICK_QUASI_SANS_TETE",
+   "severity": "LOW",
+   "stage": "OBSERVATION CONTROL (311)"
+  }
+ ],
+ "GIT_AUTHORITY_RECONCILIATION": {
+  "concurrent_work_preserved": "yes (server working tree carried 5 pre-existing uncommitted deletions of subject_resolution_audit_v1 files + untracked files; untouched)",
+  "stale_mirror_explanation": "mac-mirror (divesensei@192.168.1.19 ...dive-analyser-2026-09-05.git) was at 8964f7d and never received d3ab6c4; V3 used a local clone whose uiux-overhaul-pro-app tracked the stale state, hence \"d3ab6c4 missing\".",
+  "starting_canonical_head": "d3ab6c43acf4971ab914547f0dd373f097771b0a",
+  "true_canonical_branch": "uiux-overhaul-pro-app (server mcauchy@192.168.1.57:~/dive-analyser)",
+  "v2_integration": "509f4a9 merged into canonical by d3ab6c4 (already integrated before this packet)",
+  "v3_integration": "d252f7b -> 3e889f2 feature-only on dive-analyzer-flight-anchored-trajectory-v3; merged non-destructively into canonical as f043f6382defdda5acecfe8db66da7305c175d98 (--no-ff, clean)",
+  "v3_runner_hash_note": "frozen V3 inference artifacts record runner sha cef17b32...; committed runner at 3e889f2 is c191c148... (post-inference evaluation-only edits disclosed in the V3 report); inference outputs reproduce byte-identical."
+ },
+ "PER_DIVE": {
+  "FROZEN_V3_AUTHORITY": {
+   "1040": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.0499959999999993,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": -0.12468287105718032,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 1.0499959999999993,
+     "off_subject": 0,
+     "path_rank": 2,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 17,
+     "coverage": 0.0,
+     "diverse_rank": 2,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 29,
+    "graph_oracle": {
+     "coverage": 0.7586206896551724,
+     "longest_gap_s": 0.1668339999999997,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 30,
+     "gt_max_abs_vx": 4.483276890340737,
+     "gt_max_abs_vy": 4.3588725387358584,
+     "gt_max_speed": 6.2529626165849495,
+     "gt_steps": 28,
+     "gt_steps_over_VEL_MAX": 6,
+     "pairs_passable": 22,
+     "pairs_size_blocked": 3,
+     "pairs_velocity_blocked": 5
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "133": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.249996,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": -0.4056068448703251,
+     "core_rank_by_Q": 26,
+     "coverage": 0.0,
+     "diverse_rank": null,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": 5
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.133467,
+     "off_subject": 1,
+     "path_rank": 1,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 45,
+     "coverage": 0.0,
+     "diverse_rank": 7,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.5,
+    "flight_anchors": 2,
+    "graph_oracle": {
+     "coverage": 0.5,
+     "longest_gap_s": 0.585393,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 20,
+     "gt_max_abs_vx": 0.13388998130582325,
+     "gt_max_abs_vy": 0.05365745365745346,
+     "gt_max_speed": 0.1442416355532461,
+     "gt_steps": 1,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 15,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 2
+    },
+    "primary_loss_stage": "FLIGHT_OBSERVATION_LIMITED",
+    "raw_union": 0.5,
+    "stage_qualifies": {
+     "S0": false,
+     "S1": false,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2169": {
+    "F0_final_best": {
+     "coverage": 0.1836734693877551,
+     "diverse_rank": 2,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.1836734693877551,
+     "longest_gap_s": 1.09626,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.30297311881527855,
+     "core_rank_by_Q": 5,
+     "coverage": 0.1836734693877551,
+     "diverse_rank": 2,
+     "purity": 1.0,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.2653061224489796,
+     "full_action_coverage": 0.029953917050691243,
+     "longest_gap_s": 0.1001000000000003,
+     "off_subject": 25,
+     "path_rank": 2,
+     "purity": 0.34210526315789475,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 122,
+     "coverage": 0.3469387755102041,
+     "diverse_rank": 15,
+     "purity": 0.4146341463414634,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.1836734693877551,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 49,
+    "graph_oracle": {
+     "coverage": 0.7755102040816326,
+     "longest_gap_s": 0.1668339999999997,
+     "off_subject": 1,
+     "purity": 0.9743589743589743,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 65,
+     "gt_max_abs_vx": 2.6699034945752493,
+     "gt_max_abs_vy": 4.816100221782521,
+     "gt_max_speed": 5.215417315663399,
+     "gt_steps": 48,
+     "gt_steps_over_VEL_MAX": 17,
+     "pairs_passable": 60,
+     "pairs_size_blocked": 0,
+     "pairs_velocity_blocked": 3
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2341": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.1166619999999994,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.4829509431665744,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.13333300000000037,
+     "off_subject": 40,
+     "path_rank": 2,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 5,
+     "coverage": 0.0,
+     "diverse_rank": 2,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.9180327868852459,
+    "flight_anchors": 61,
+    "graph_oracle": {
+     "coverage": 0.5737704918032787,
+     "longest_gap_s": 0.1499999999999999,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 55,
+     "gt_max_abs_vx": 3.9325013499730046,
+     "gt_max_abs_vy": 5.745229809192421,
+     "gt_max_speed": 6.957185888633145,
+     "gt_steps": 60,
+     "gt_steps_over_VEL_MAX": 26,
+     "pairs_passable": 33,
+     "pairs_size_blocked": 5,
+     "pairs_velocity_blocked": 21
+    },
+    "primary_loss_stage": "GRAPH_REPRESENTATION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2353": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.283328,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": -0.002710488803378661,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.016684000000000587,
+     "off_subject": 72,
+     "path_rank": 1,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 58,
+     "coverage": 0.0,
+     "diverse_rank": null,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.9861111111111112,
+    "flight_anchors": 72,
+    "graph_oracle": {
+     "coverage": 0.75,
+     "longest_gap_s": 0.14303299999999997,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 70,
+     "gt_max_abs_vx": 4.242792063777611,
+     "gt_max_abs_vy": 5.903314751543328,
+     "gt_max_speed": 6.081448870477408,
+     "gt_steps": 71,
+     "gt_steps_over_VEL_MAX": 23,
+     "pairs_passable": 61,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 9
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2387": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.116663,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.32547623274238957,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 1.116663,
+     "off_subject": 0,
+     "path_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 63,
+     "coverage": 0.0,
+     "diverse_rank": 10,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 3,
+    "graph_oracle": {
+     "coverage": 0.6666666666666666,
+     "longest_gap_s": 0.571726,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 27,
+     "gt_max_abs_vx": 0.3588602783355258,
+     "gt_max_abs_vy": 0.32699744699744693,
+     "gt_max_speed": 0.3986487036959265,
+     "gt_steps": 2,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 24,
+     "pairs_size_blocked": 2,
+     "pairs_velocity_blocked": 2
+    },
+    "primary_loss_stage": "GRAPH_REPRESENTATION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2541": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.2333280000000038,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.8438517867680548,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.3333333333333333,
+     "full_action_coverage": 0.04961832061068702,
+     "longest_gap_s": 0.06673299999999927,
+     "off_subject": 17,
+     "path_rank": 4,
+     "purity": 0.34615384615384615,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 13,
+     "coverage": 0.3333333333333333,
+     "diverse_rank": 4,
+     "purity": 0.34615384615384615,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.9259259259259259,
+    "flight_anchors": 27,
+    "graph_oracle": {
+     "coverage": 0.6296296296296297,
+     "longest_gap_s": 0.1668329999999969,
+     "off_subject": 1,
+     "purity": 0.9444444444444444,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 23,
+     "gt_max_abs_vx": 1.8987592159685063,
+     "gt_max_abs_vy": 2.9505199748255717,
+     "gt_max_speed": 2.9605362367044634,
+     "gt_steps": 26,
+     "gt_steps_over_VEL_MAX": 7,
+     "pairs_passable": 17,
+     "pairs_size_blocked": 2,
+     "pairs_velocity_blocked": 5
+    },
+    "primary_loss_stage": "GRAPH_REPRESENTATION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "311": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.13346699999999956,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.26023030448404594,
+     "core_rank_by_Q": 25,
+     "coverage": 0.0,
+     "diverse_rank": 6,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.034482758620689655,
+     "longest_gap_s": 0.10009999999999941,
+     "off_subject": 0,
+     "path_rank": 5,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 19,
+     "coverage": 0.0,
+     "diverse_rank": 5,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.0,
+    "flight_anchors": 1,
+    "graph_oracle": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.523595000000002,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 1,
+     "gt_max_abs_vx": null,
+     "gt_max_abs_vy": null,
+     "gt_max_speed": null,
+     "gt_steps": 0,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 0,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 1
+    },
+    "primary_loss_stage": "FLIGHT_OBSERVATION_LIMITED",
+    "raw_union": 0.0,
+    "stage_qualifies": {
+     "S0": false,
+     "S1": false,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "676": {
+    "F0_final_best": {
+     "coverage": 0.5,
+     "diverse_rank": 2,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.5,
+     "longest_gap_s": 0.5004249999999995,
+     "off_subject": 1,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.31902535113566516,
+     "core_rank_by_Q": 9,
+     "coverage": 0.5,
+     "diverse_rank": 2,
+     "purity": 0.5,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 1.0,
+     "full_action_coverage": 0.4444444444444444,
+     "longest_gap_s": 0.09876899999999988,
+     "off_subject": 0,
+     "path_rank": 4,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 22,
+     "coverage": 1.0,
+     "diverse_rank": 6,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "beam_final_best": {
+     "coverage": 0.5,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 2,
+    "graph_oracle": {
+     "coverage": 1.0,
+     "longest_gap_s": 0.5004249999999995,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 28,
+     "gt_max_abs_vx": 0.2186401420361813,
+     "gt_max_abs_vy": 0.17204917304917275,
+     "gt_max_speed": 0.2782165157867263,
+     "gt_steps": 1,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 27,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 1
+    },
+    "primary_loss_stage": "FULL_ACTION_EXTENSION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": true,
+     "S5cf": true,
+     "S6": true
+    }
+   }
+  },
+  "STRICT_HUMAN_SEEDS": {
+   "1040": {
+    "status": "NO_FLIGHT_AUTHORITY"
+   },
+   "133": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.249996,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": -0.4056068448703251,
+     "core_rank_by_Q": 26,
+     "coverage": 0.0,
+     "diverse_rank": null,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": 5
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.133467,
+     "off_subject": 1,
+     "path_rank": 1,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 45,
+     "coverage": 0.0,
+     "diverse_rank": 7,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.5,
+    "flight_anchors": 2,
+    "graph_oracle": {
+     "coverage": 0.5,
+     "longest_gap_s": 0.585393,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 20,
+     "gt_max_abs_vx": 0.13388998130582325,
+     "gt_max_abs_vy": 0.05365745365745346,
+     "gt_max_speed": 0.1442416355532461,
+     "gt_steps": 1,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 15,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 2
+    },
+    "primary_loss_stage": "FLIGHT_OBSERVATION_LIMITED",
+    "raw_union": 0.5,
+    "stage_qualifies": {
+     "S0": false,
+     "S1": false,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2169": {
+    "F0_final_best": {
+     "coverage": 0.4,
+     "diverse_rank": 2,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.4,
+     "longest_gap_s": 1.09626,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.30297311881527855,
+     "core_rank_by_Q": 5,
+     "coverage": 0.4,
+     "diverse_rank": 2,
+     "purity": 1.0,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.6,
+     "full_action_coverage": 0.42857142857142855,
+     "longest_gap_s": 0.1001000000000003,
+     "off_subject": 2,
+     "path_rank": 2,
+     "purity": 0.6,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 5,
+     "coverage": 0.6,
+     "diverse_rank": 2,
+     "purity": 0.6,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.4,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 5,
+    "graph_oracle": {
+     "coverage": 1.0,
+     "longest_gap_s": 0.0667340000000003,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 55,
+     "gt_max_abs_vx": 0.3351686461214404,
+     "gt_max_abs_vy": 0.9064547065925709,
+     "gt_max_speed": 0.9664358004785952,
+     "gt_steps": 4,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 51,
+     "pairs_size_blocked": 2,
+     "pairs_velocity_blocked": 1
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2341": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.47745799999999994,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.03393794149721526,
+     "core_rank_by_Q": 25,
+     "coverage": 0.0,
+     "diverse_rank": null,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": 4
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.13333300000000037,
+     "off_subject": 0,
+     "path_rank": 2,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 5,
+     "coverage": 0.0,
+     "diverse_rank": 2,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 2,
+    "graph_oracle": {
+     "coverage": 1.0,
+     "longest_gap_s": 0.12745799999999985,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 29,
+     "gt_max_abs_vx": 0.14827243350733366,
+     "gt_max_abs_vy": 0.28542775592069713,
+     "gt_max_speed": 0.32164222109062696,
+     "gt_steps": 1,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 15,
+     "pairs_size_blocked": 3,
+     "pairs_velocity_blocked": 11
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2353": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.8604159999999998,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": -0.002710488803378661,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 0.016684000000000587,
+     "off_subject": 4,
+     "path_rank": 1,
+     "purity": 0.0,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 58,
+     "coverage": 0.0,
+     "diverse_rank": null,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 4,
+    "graph_oracle": {
+     "coverage": 1.0,
+     "longest_gap_s": 0.4933829999999997,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 71,
+     "gt_max_abs_vx": 0.41039050558935286,
+     "gt_max_abs_vy": 0.2773126873126898,
+     "gt_max_speed": 0.41891806700665113,
+     "gt_steps": 3,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 66,
+     "pairs_size_blocked": 0,
+     "pairs_velocity_blocked": 5
+    },
+    "primary_loss_stage": "SEARCH_PRUNING_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2387": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 1.116663,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.32547623274238957,
+     "core_rank_by_Q": 1,
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.0,
+     "longest_gap_s": 1.116663,
+     "off_subject": 0,
+     "path_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 63,
+     "coverage": 0.0,
+     "diverse_rank": 10,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 3,
+    "graph_oracle": {
+     "coverage": 0.6666666666666666,
+     "longest_gap_s": 0.571726,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 27,
+     "gt_max_abs_vx": 0.3588602783355258,
+     "gt_max_abs_vy": 0.32699744699744693,
+     "gt_max_speed": 0.3986487036959265,
+     "gt_steps": 2,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 24,
+     "pairs_size_blocked": 2,
+     "pairs_velocity_blocked": 2
+    },
+    "primary_loss_stage": "GRAPH_REPRESENTATION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "2541": {
+    "status": "NO_FLIGHT_AUTHORITY"
+   },
+   "311": {
+    "F0_final_best": {
+     "coverage": 0.0,
+     "diverse_rank": 1,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.13346699999999956,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.26023030448404594,
+     "core_rank_by_Q": 25,
+     "coverage": 0.0,
+     "diverse_rank": 6,
+     "purity": null,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 0.0,
+     "full_action_coverage": 0.034482758620689655,
+     "longest_gap_s": 0.10009999999999941,
+     "off_subject": 0,
+     "path_rank": 5,
+     "purity": null,
+     "qualifies": false
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 19,
+     "coverage": 0.0,
+     "diverse_rank": 5,
+     "purity": null,
+     "qualifies": false
+    },
+    "beam_final_best": {
+     "coverage": 0.0,
+     "purity": null,
+     "qualifies": false
+    },
+    "capped_lattice_union": 0.0,
+    "flight_anchors": 1,
+    "graph_oracle": {
+     "coverage": 0.0,
+     "longest_gap_s": 0.523595000000002,
+     "off_subject": 0,
+     "purity": null,
+     "qualifies": false
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 1,
+     "gt_max_abs_vx": null,
+     "gt_max_abs_vy": null,
+     "gt_max_speed": null,
+     "gt_steps": 0,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 0,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 1
+    },
+    "primary_loss_stage": "FLIGHT_OBSERVATION_LIMITED",
+    "raw_union": 0.0,
+    "stage_qualifies": {
+     "S0": false,
+     "S1": false,
+     "S2": false,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": false,
+     "S5cf": false,
+     "S6": false
+    }
+   },
+   "676": {
+    "F0_final_best": {
+     "coverage": 0.5,
+     "diverse_rank": 2,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "F0_pool_best": {
+     "coverage": 0.5,
+     "longest_gap_s": 0.5004249999999995,
+     "off_subject": 1,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "F0_pool_core_best": {
+     "Q": 0.31902535113566516,
+     "core_rank_by_Q": 9,
+     "coverage": 0.5,
+     "diverse_rank": 2,
+     "purity": 0.5,
+     "qualifies": false,
+     "suppressed_by_diverse_rank": null
+    },
+    "F1_final_best": {
+     "coverage": 1.0,
+     "full_action_coverage": 0.4444444444444444,
+     "longest_gap_s": 0.09876899999999988,
+     "off_subject": 0,
+     "path_rank": 4,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "F1_pool_best_counterfactual_all_cores": {
+     "core_rank_by_Q": 22,
+     "coverage": 1.0,
+     "diverse_rank": 6,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "beam_final_best": {
+     "coverage": 0.5,
+     "purity": 0.5,
+     "qualifies": false
+    },
+    "capped_lattice_union": 1.0,
+    "flight_anchors": 2,
+    "graph_oracle": {
+     "coverage": 1.0,
+     "longest_gap_s": 0.5004249999999995,
+     "off_subject": 0,
+     "purity": 1.0,
+     "qualifies": true
+    },
+    "link_feasibility": {
+     "adjacent_subject_pairs": 28,
+     "gt_max_abs_vx": 0.2186401420361813,
+     "gt_max_abs_vy": 0.17204917304917275,
+     "gt_max_speed": 0.2782165157867263,
+     "gt_steps": 1,
+     "gt_steps_over_VEL_MAX": 0,
+     "pairs_passable": 27,
+     "pairs_size_blocked": 1,
+     "pairs_velocity_blocked": 1
+    },
+    "primary_loss_stage": "FULL_ACTION_EXTENSION_LIMITED",
+    "raw_union": 1.0,
+    "stage_qualifies": {
+     "S0": true,
+     "S1": true,
+     "S2": true,
+     "S3": false,
+     "S3a": false,
+     "S3c": false,
+     "S4": false,
+     "S5": true,
+     "S5cf": true,
+     "S6": true
+    }
+   }
+  }
+ },
+ "PER_DIVE_ROOT_CAUSE": {
+  "1040": [
+   "SEARCH_PRUNING_LIMITED",
+   "AUTHORITY: VISUAL_EVALUATOR_ONLY"
+  ],
+  "133": [
+   "FLIGHT_OBSERVATION_LIMITED",
+   "THIN_AUTHORITY (2 anchors)"
+  ],
+  "2169": [
+   "SEARCH_PRUNING_LIMITED",
+   "FULL_ACTION_EXTENSION_LIMITED (F1 contaminates: purity 1.0->0.34)"
+  ],
+  "2341": [
+   "GRAPH_REPRESENTATION_LIMITED",
+   "SEARCH_PRUNING_LIMITED (strict-human oracle 1.0, pool 0.0)"
+  ],
+  "2353": [
+   "SEARCH_PRUNING_LIMITED",
+   null
+  ],
+  "2387": [
+   "GRAPH_REPRESENTATION_LIMITED",
+   "takeoff link velocity/size-blocked"
+  ],
+  "2541": [
+   "GRAPH_REPRESENTATION_LIMITED",
+   "AUTHORITY: VISUAL_EVALUATOR_ONLY"
+  ],
+  "311": [
+   "FLIGHT_OBSERVATION_LIMITED",
+   "THIN_AUTHORITY (1 edge-clipped anchor; unrecoverable under hits>=2)"
+  ],
+  "676": [
+   "FULL_ACTION_EXTENSION_LIMITED",
+   "THIN (2 anchors; flight reached only by F1 of a pre-flight core)"
+  ]
+ },
+ "RETENTION_FUNNEL": {
+  "FROZEN_V3_AUTHORITY": {
+   "S0": 7,
+   "S1": 7,
+   "S2": 4,
+   "S3": 0,
+   "S3a": 0,
+   "S3c": 0,
+   "S4": 0,
+   "S5": 1,
+   "S5cf": 1,
+   "S6": 1,
+   "evaluable": 9
+  },
+  "STRICT_HUMAN_SEEDS": {
+   "S0": 5,
+   "S1": 5,
+   "S2": 4,
+   "S3": 0,
+   "S3a": 0,
+   "S3c": 0,
+   "S4": 0,
+   "S5": 1,
+   "S5cf": 1,
+   "S6": 1,
+   "evaluable": 7
+  }
+ },
+ "STAGE_DEFINITIONS": "DIVE_ANALYZER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1.\n\nAudit / localization only. Frozen V3 (F0 + F1) is executed UNCHANGED via\nflight_anchored_traj_v3.infer; pass-through wrappers record intermediate\nstages (per-start final beam, decoded pool). No V3 constant or function is\nmodified. HUMAN subject/event GT enters only in the evaluation section,\nafter every stage for a dive is frozen in memory.\n\nStages (actual implementation stages):\n  S0  RAW_FLOOR_UNION        full D5 floor (conf>=0.001, cap 200), any cand\n  S1  CAPPED_FRAME_LATTICE   build_frame_lattice (50 conf + 10 movers)\n  S2  GRAPH_ORACLE           best path through S1 nodes under V3's exact\n                             transition function (gates, caps, NULL<=0.30 s),\n                             without search restrictions (start strata, seed\n                             caps, fan-out, beam). Evaluation-only; adds no\n                             node or edge.\n  S3a BEAM_FINAL             each start's final live beam (<=64), pre-triage\n  S3  F0_POOL_PATHS          decoded pool (POOL_PER_START triage, dedup)\n  S3c F0_POOL_CORES          best-Q core per pool path (the ranked objects)\n  S4  F0_TOPK_CORES          diversity-deduped Q order, first FINAL_TOP_K\n  S5  F1_EXTENDED_CANDIDATES in V3 == S6 (extend_core runs on top-K only);\n                             an evaluation-only counterfactual applies the\n                             frozen extend_core to EVERY pool core (S5cf)\n  S6  F1_FINAL_TOPK          retained V3 tracks\n",
+ "V3_REPRODUCTION": {
+  "all_15_outputs_identical": true,
+  "best_flight_coverage_matches_v3_report": {
+   "1040": true,
+   "133": true,
+   "2169": false,
+   "2341": true,
+   "2353": true,
+   "2387": true,
+   "2541": false,
+   "311": true,
+   "676": true
+  },
+  "flight_recall": {
+   "evaluable_clips": 9,
+   "recovered_clips": 1
+  },
+  "lattice_pool_rank_sha256": {
+   "1040": [
+    "b36ed7722300ac6064630bfb0d368328d9466b38369461071b3278bc5ac1be10",
+    "ddc15087d2b3353cfa743bd4d1d71e576d90d233c598c8691b1f340103715426",
+    "1cf97d06d8470c95d97039da363740b34c7165f2a1970e8f204c537f734d61b6"
+   ],
+   "1304": [
+    "c13d7222039cecbeb517b75eb09548428599c9ed2fffd83cdef8ea0fe27ddd57",
+    "9fead70c74c038dd2044aa8f55dc9ce826a8e94d8477b1794127c65394317454",
+    "77a59f607980a7c93cc6cdec3a22cbddac85d774c261df8b8c3469356d416bf7"
+   ],
+   "133": [
+    "28141a31058c7f676712bb0a05b4e3b03ed44feb488ff05328a11f73054fc209",
+    "d23cb600ca606a51bbbfb00eb0535d31646f2458fa3347841dca132df6acdc3b",
+    "57d139213d47ea97bd84a74ed7a7fe1bfac0cc4aeac1bf6474006e66fe807faf"
+   ],
+   "2169": [
+    "b3257fdab0b05638d1b620cf3585a641b118a08cd4712c60de01f913ae7e418a",
+    "e5f992b934e47f7e28d19051a8697c9aad377eb7f4bbf4a7596dde571cbeec49",
+    "8f388856f72af9d2308985c70e0b8717d246d3f5dfc50aa1f9c26dcd2e0700b5"
+   ],
+   "2204": [
+    "05972f6c638f20895914bffb8a49a98c1962a2cefbad0462abc7b5bd4570e41a",
+    "e4cab2e0c190f485d7ddb3d38919f9e28d748388257e764c2e562ee75644d1b7",
+    "cc1fb1e4c1ec4ee570bdf2b8fd38c4c9344640faa9a7b1fb935d0fe018f1538a"
+   ],
+   "2223": [
+    "c19d90ff7843fddd8a001f82101f578f9f17eb9d997fa990cfe2ca9c1c2cf98d",
+    "7478b18477aab7dbdd165d83d090775774ea06eb794097cb03779c1d3976e06e",
+    "ea3872c91c3f30640d0ba3293019652ac808d415500210b73c0f8aa895eafa39"
+   ],
+   "2341": [
+    "68c2f1c94f09fa0c40e59e5a8ae69eba07491a3a74d2eec119e7919d26be25c8",
+    "44ac2f65a8dcc922a30b96ae4bdd4aad553d37cd73a0af04f730cb138bb5f4b6",
+    "24d46d3cba69aa6662ad33ff6c4a791cedb197eafe1e6673b53ca6c82fafdb99"
+   ],
+   "2353": [
+    "1cd25762744bafa6c97333cebc6f9c9f5a607c52c2541dae0582989a9cc8a481",
+    "6a7d314196e6ada7fab1d45f7233e89844d01375faf79c024ffd8f1eed5127aa",
+    "f68c82e6d970eb24cb4c2a4e0fa03e0332682f00a05af94f6967a62de27221f0"
+   ],
+   "2387": [
+    "530bdaecb12d15f322632f61feb439033685e45e9c0cec54eab93bbff4151321",
+    "9bafbf473656adeb8f02c6537cb1e532e56cc1a4a5cfe28e0553a4421a93fcb6",
+    "7795b4fe3fedd82228151e9f7b2b60d002158930217eb34aaf1c00577d849fd9"
+   ],
+   "2526": [
+    "3cbf3b8addc682d9c1266e1f100ce4529fdbb4210deb4aa9e924234ab995382e",
+    "f2e6979dc686a2ccea53be27a743c4b7cc80f4141969dded9487468f2bebb58f",
+    "45b484e9b945548da65b9b444fee8fd4f967022256e59522e9a10175796d9e2c"
+   ],
+   "2541": [
+    "1da52625d753ce38bc1da633eeb8aa0634dd99befd99e7a0c1224d7fbf82c34a",
+    "2e1eb0ee27ff8be4000f0ede215e52ac970a09ba89ac6e25cb0b3022618d0264",
+    "409713e090e016d3c5ce4a1c4f6d91a30f383bcac32380a2311ee3177ba7df6b"
+   ],
+   "2583": [
+    "080d64e4e56e5a2f1d56672a5628f8d121fec384370f1863017d2947aa6eeed5",
+    "9fd59930d1f1e4f4b3b4fc8fc879d1f854a098f53b893fbe044d7ffa95755417",
+    "af17274d262b8ed2f977fa35a08ffc8b9b979a8678738dfdc35c00be818bb1a0"
+   ],
+   "2839": [
+    "53c06bcdc04bac7d61eaf9fa05f3e740e3a1f723813c28ea20118d7d475fd5e1",
+    "13396522641a5dddf6dacebc011280269c5a2aa9953fe870e6f00dc87e54653a",
+    "7f3bb8f40aea13bb6c1c0e3c07a330d9657c279fe0ef7b075ee473d8b2a909b3"
+   ],
+   "311": [
+    "c49d5c02dca16927b14b74fa5a8e8989db941bfde2db8cb3000f3a8f1c39e3b8",
+    "d3e4da654d9ab3d08faac7a44c6a9c54c0454b5a056c72b2453389c9b21eaaa6",
+    "243ef32227580fb366293edc46dbcc82541c620a59938e30267513cb0e0c1f91"
+   ],
+   "676": [
+    "3d69598eb97d567fd097528acd459bb23e80f86f9f793bbe68b15ddcba990430",
+    "bd86ae9c6d30380da639ad2e627be835d1d836f73bd600f77a20c5313d60a2fe",
+    "d0db6714eab5b9f82ff69e2a83cb7aa587cae492d4105a651631e37fe7a58d9e"
+   ]
+  },
+  "official_runner_reinference_identical": true,
+  "per_dive_identical": {
+   "1040": true,
+   "1304": true,
+   "133": true,
+   "2169": true,
+   "2204": true,
+   "2223": true,
+   "2341": true,
+   "2353": true,
+   "2387": true,
+   "2526": true,
+   "2541": true,
+   "2583": true,
+   "2839": true,
+   "311": true,
+   "676": true
+  },
+  "search_pool_sizes": {
+   "1040": {
+    "beam_final_paths": 704,
+    "cores": 48,
+    "diverse_cores": 4,
+    "pool_paths": 48,
+    "starts_eligible": 11,
+    "starts_survived": 11,
+    "suppressed_as_duplicate": 44
+   },
+   "1304": {
+    "beam_final_paths": 448,
+    "cores": 36,
+    "diverse_cores": 6,
+    "pool_paths": 36,
+    "starts_eligible": 7,
+    "starts_survived": 7,
+    "suppressed_as_duplicate": 30
+   },
+   "133": {
+    "beam_final_paths": 352,
+    "cores": 48,
+    "diverse_cores": 7,
+    "pool_paths": 48,
+    "starts_eligible": 6,
+    "starts_survived": 6,
+    "suppressed_as_duplicate": 41
+   },
+   "2169": {
+    "beam_final_paths": 2240,
+    "cores": 248,
+    "diverse_cores": 15,
+    "pool_paths": 248,
+    "starts_eligible": 36,
+    "starts_survived": 36,
+    "suppressed_as_duplicate": 233
+   },
+   "2204": {
+    "beam_final_paths": 1088,
+    "cores": 76,
+    "diverse_cores": 18,
+    "pool_paths": 76,
+    "starts_eligible": 17,
+    "starts_survived": 17,
+    "suppressed_as_duplicate": 58
+   },
+   "2223": {
+    "beam_final_paths": 1088,
+    "cores": 76,
+    "diverse_cores": 17,
+    "pool_paths": 76,
+    "starts_eligible": 20,
+    "starts_survived": 17,
+    "suppressed_as_duplicate": 59
+   },
+   "2341": {
+    "beam_final_paths": 1280,
+    "cores": 160,
+    "diverse_cores": 13,
+    "pool_paths": 160,
+    "starts_eligible": 20,
+    "starts_survived": 20,
+    "suppressed_as_duplicate": 147
+   },
+   "2353": {
+    "beam_final_paths": 2816,
+    "cores": 324,
+    "diverse_cores": 16,
+    "pool_paths": 324,
+    "starts_eligible": 48,
+    "starts_survived": 44,
+    "suppressed_as_duplicate": 308
+   },
+   "2387": {
+    "beam_final_paths": 1600,
+    "cores": 160,
+    "diverse_cores": 13,
+    "pool_paths": 160,
+    "starts_eligible": 25,
+    "starts_survived": 25,
+    "suppressed_as_duplicate": 147
+   },
+   "2526": {
+    "beam_final_paths": 2048,
+    "cores": 256,
+    "diverse_cores": 13,
+    "pool_paths": 256,
+    "starts_eligible": 32,
+    "starts_survived": 32,
+    "suppressed_as_duplicate": 243
+   },
+   "2541": {
+    "beam_final_paths": 1984,
+    "cores": 264,
+    "diverse_cores": 20,
+    "pool_paths": 264,
+    "starts_eligible": 33,
+    "starts_survived": 33,
+    "suppressed_as_duplicate": 93
+   },
+   "2583": {
+    "beam_final_paths": 1184,
+    "cores": 128,
+    "diverse_cores": 12,
+    "pool_paths": 128,
+    "starts_eligible": 19,
+    "starts_survived": 19,
+    "suppressed_as_duplicate": 116
+   },
+   "2839": {
+    "beam_final_paths": 704,
+    "cores": 52,
+    "diverse_cores": 10,
+    "pool_paths": 52,
+    "starts_eligible": 18,
+    "starts_survived": 11,
+    "suppressed_as_duplicate": 42
+   },
+   "311": {
+    "beam_final_paths": 1216,
+    "cores": 144,
+    "diverse_cores": 15,
+    "pool_paths": 144,
+    "starts_eligible": 19,
+    "starts_survived": 19,
+    "suppressed_as_duplicate": 129
+   },
+   "676": {
+    "beam_final_paths": 512,
+    "cores": 64,
+    "diverse_cores": 12,
+    "pool_paths": 64,
+    "starts_eligible": 8,
+    "starts_survived": 8,
+    "suppressed_as_duplicate": 52
+   }
+  }
+ },
+ "gate": "SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1",
+ "packet": "DIVE_ANALYZER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1",
+ "protected_data": {
+  "2555": "SCREEN_RECORDING_STRESS_CASE",
+  "524": "AUTHORITY_CONFLICT_EXCLUDED",
+  "FINAL_HOLDOUT": "NOT_ACCESSED",
+  "INTERNAL_EVAL": "NOT_ACCESSED",
+  "Paris": "EXTERNAL_ONLY"
+ },
+ "resources": {
+  "B2_reads": 0,
+  "B2_writes": 0,
+  "D5_inference": 0,
+  "media_decodes": 0,
+  "new_embeddings": 0,
+  "new_labels": 0,
+  "runtime_s_per_dive": {
+   "1040": 31.623935082927346,
+   "1304": 8.403147374745458,
+   "133": 16.162778624799103,
+   "2169": 761.349664459005,
+   "2204": 31.54795354232192,
+   "2223": 41.90919016720727,
+   "2341": 265.06914079142734,
+   "2353": 1265.7913641659543,
+   "2387": 232.7372665000148,
+   "2526": 705.0963492919691,
+   "2541": 524.6413642498665,
+   "2583": 170.39545691711828,
+   "2839": 37.246450250037014,
+   "311": 144.13633129186928,
+   "676": 23.276741292327642
+  },
+  "training": 0
+ }
+}
