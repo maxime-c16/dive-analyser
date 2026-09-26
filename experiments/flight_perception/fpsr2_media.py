@@ -67,3 +67,19 @@ def hq_entry(d):
     assert sha256_file(p) == row['edited_blob_sha256']
     return {'path': str(p), 'sha256': row['edited_blob_sha256'],
             'map': {'dt': 0.0, 'x_off': 0.0, 'x_span': 1.0, 'y_off': 0.0, 'y_span': 1.0}}
+
+
+def read_frames(path, fn):
+    import cv2
+    cap = cv2.VideoCapture(str(path))
+    pts, out = [], []
+    W = H = None
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        H, W = frame.shape[:2]
+        pts.append(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+        out.append(fn(frame))
+    cap.release()
+    return pts, out, W, H

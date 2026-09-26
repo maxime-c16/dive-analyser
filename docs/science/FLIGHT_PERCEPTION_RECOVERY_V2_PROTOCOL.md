@@ -21,6 +21,16 @@ Model/fusion design may use the older V1 and V2 GT. D5 and
 recovery radius and surfaced top-K remain byte-unchanged. The final V3 GT
 is loaded once after the strategy, all parameters and code are committed.
 
+Bounded development candidates are: F1, S2-first per-frame union with D5
+boxes outside IoU 0.30; F2, select D5 for a clip representation only when
+S2 has no detection at confidence 0.30 or above; S3, one 20-epoch fine tune
+of a copied S2 checkpoint with the four consumed V2 failure dives added to
+DS1. F1/F2 are assessed on consumed V2 diagnostics. S3 is admissible for the
+fresh test only if its untouched FGT1 validation top-5 sum across 360/HQ is
+at least S2's frozen 7 and its primary top-5 is at least S2's 3/6. If S3
+passes, S3 alone is the primary V3 strategy; otherwise F2 is primary. D5 and
+S2 are always evaluated as immutable comparators. No selection uses V3 results.
+
 Per dive report raw presence at conf floor and 0.10; IoU and confidence rank/
 margin; continuity runs; S0 raw, S2 graph, S3 pool, S3b extracted and surfaced
 top-1/5/10. Report 360p and verified HQ separately, plus primary 360p+HQ,
