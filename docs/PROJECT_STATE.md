@@ -1,6 +1,19 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
 > Durable project handoff. Last verified: **2026-09-26** (science thread:
+> Dive Analyzer flight perception recovery V2 — fresh blind HUMAN V3 development
+> holdout (14 dives/13 disjoint sessions, digest `83326b04`), selected S3
+> (`3dc07f69`) before V3 GT read; frozen FSR primary top-5/top-10 **12/14**
+> versus S2 **11/14** and D5 **3/14 / 4/14**. Frozen manual multi-track
+> gate passed. S3 360p raw presence 0.844 vs S2 0.852 and D5 0.861, but
+> stronger confidence continuity drives pool and surfaced trajectories;
+> replay 1/2, HQ 11/12. D5 faint tail is real but naive union did not
+> improve surfaced trajectories in consumed V2 development. Remaining:
+> dive 377 observation/graph loss; replay 1003 search-pool to candidate
+> extraction with proxy-only unverified HQ. S3 PROMOTED FOR FURTHER SCIENCE;
+> product-wide robustness not established. Gate
+> `SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_RECOVERY_V2`.)
+> Previous: **2026-09-26** (science thread:
 > Dive Analyzer flight perception successor V1 — fresh session-grouped split from the canonical
 > DB (`FLIGHT_PERCEPTION_SUCCESSOR_SPLIT_V1`, 525ee82); new blind human authorities
 > `FLIGHT_GT_HUMAN_V2_HOLDOUT` (sealed, 9 dives/8 sessions, f9712942) and `FLIGHT_TRAIN_HUMAN_V1`
@@ -56,7 +69,9 @@
 > Latest backbone: `docs/handoffs/MEDIA_BACKBONE_V1_CLOSURE_HANDOFF.md` (final
 > parent-supervisor handoff; byte+count accounting RECONCILED).
 > Previous backbone: `docs/audits/MEDIA_BACKBONE_P10_OVERNIGHT_FULL_DIVE_ANALYZER_MIGRATION_V1.md`
-> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1.md`
+> Latest science: `docs/science/DIVE_ANALYZER_FLIGHT_PERCEPTION_RECOVERY_V2.md`
+> (fresh V3 HUMAN authority, frozen S3/D5/S2 comparison and downstream FSR gate)
+> Previous science: `docs/science/DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1.md`
 > (fresh holdout, flight-focused detector successor vs frozen D5 through the frozen search)
 > Previous science: `docs/science/DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md`
 > (sealed funnel V3 vs redesigned search, 360p vs HQ, human flight authority audit)
@@ -84,8 +99,9 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_SUCCESSOR`**
-> (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`, `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`,
+> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_RECOVERY_V2`**
+> (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_SUCCESSOR`,
+> `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`, `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_SUBJECT_CONDITIONED_IDENTITY_PILOT_L0`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1`,

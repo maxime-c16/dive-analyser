@@ -111,3 +111,8 @@ runs/flight_search_recovery_v1/
 # DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1 host artifacts (datasets, caches, checkpoints, media)
 runs/flight_perception_successor_v1/
 media/fps_v1/
+
+# Flight perception recovery V2 host artifacts and local predecessor mounts
+/runs/flight_perception_recovery_v2/
+/runs/flight_perception_successor_v1
+/media/fps_v1

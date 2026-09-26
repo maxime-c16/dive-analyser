@@ -1,0 +1,85 @@
+{
+  "artifact_sha256": {
+    "F1_FGT2H_dev_eval": "dc605e6ef4026c4feb97f998f827b51a756191d6d95794e6c0314ce8803a8ec5",
+    "F2_FGT2H_dev_eval": "eda18c58dd69574c7041e42410c10e3757d2e3343cc996b6fb6a3bcdf3c7f6aa",
+    "S3_FGT1_eval": "659ae0ab91df68ef674640921f9b7579172abca1b40504118e0bd7eb2aca185b",
+    "S3_validation_cache_360": "c24519fd9bd2bd6bb8474e2516359b7ede4a65a978725e93d36d464a40467b92",
+    "S3_validation_cache_hq": "cafa0bcda797c903062ce120a2d09044768c3ac0268225593c191c30c41ca4f7"
+  },
+  "consumed_v2_role": "DEVELOPMENT_DIAGNOSTIC_AND_TARGETED_TRAINING",
+  "development_diagnostic": {
+    "D5": {
+      "raw_360": 0.926,
+      "top1": 0,
+      "top10": 1,
+      "top5": 1
+    },
+    "F1_raw_union": {
+      "raw_360": 0.963,
+      "top1": 0,
+      "top10": 5,
+      "top5": 4
+    },
+    "F2_confidence_route": {
+      "raw_360": 0.852,
+      "top1": 4,
+      "top10": 6,
+      "top5": 6
+    },
+    "S2": {
+      "raw_360": 0.667,
+      "top1": 4,
+      "top10": 5,
+      "top5": 5
+    }
+  },
+  "fresh_holdout_read": false,
+  "immutable_comparators": {
+    "D5": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+    "S2_COCOinit_DS1": "d3ba0b035e7a8eb20bb5af66db62984bfb4682075b0c1267677d293e0e9d9c7f"
+  },
+  "label": "FLIGHT_PERCEPTION_RECOVERY_SELECTION_V2",
+  "model": {
+    "batch": 16,
+    "created": "2026-09-26T16:05:46.556984+00:00",
+    "dataset_digest": "1c6f107d968ec45c9b08c8ad984aa00437e46f8d135861c0197ab035a27d42e6",
+    "device": "mps",
+    "epochs": 20,
+    "fresh_holdout_read": false,
+    "imgsz": 640,
+    "init_sha256": "d3ba0b035e7a8eb20bb5af66db62984bfb4682075b0c1267677d293e0e9d9c7f",
+    "label": "S3_S2init_DS2_OOD",
+    "path": "/Users/maximecauchy/.perso/diveanalyzer-flight-perception-recovery-v2/runs/flight_perception_recovery_v2/models/S3_S2init_DS2_OOD/weights/last.pt",
+    "runtime_s": 677.0,
+    "sha256": "3dc07f69cbe3824490f73c14a59ed328ff35fc2da48da2fd4e324acf9bcc4e9a"
+  },
+  "primary": "S3_S2init_DS2_OOD",
+  "protocol_sha256": "d15c21382125688ea0d7cc0bcd8c4d4b4531c9e387b632d983a52612e92bfbb8",
+  "selection_rule": "S3 admissible when FGT1 validation 360+HQ top5 sum >= S2 frozen 7 and primary 360+hq top5 >= S2 3/6; both met; S3 preselected before fresh GT",
+  "split_commit": "4d111da57514cce7dae5ec7e8751b96751b0076c",
+  "status": "FROZEN_BEFORE_FGT3H_GT_LOAD_OR_FRESH_INFERENCE",
+  "validation": {
+    "S2": {
+      "of": 6,
+      "primary_top5": 3,
+      "score": [
+        7,
+        7,
+        8,
+        0.632
+      ],
+      "top5_sum_360_hq": 7
+    },
+    "S3": {
+      "of": 6,
+      "primary_top5": 3,
+      "score": [
+        7,
+        8,
+        10,
+        0.698
+      ],
+      "top5_sum_360_hq": 7
+    }
+  }
+}
