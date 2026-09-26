@@ -2749,3 +2749,44 @@ successor with fresh event authority, then bounded overlay pilot.
 Pose/biomechanics stay paused; reopen after the landmark gate.
 
 Gate: SUPERVISOR_REVIEW_AFTER_FULL_ACTION_TRAJECTORY_AND_EVENT_LOGIC.
+
+## FAT2 gate V1 — 2026-09-27 (verdict: VOID)
+
+Fresh authority `FULL_ACTION_GT_HUMAN_V2_FRESH` (digest
+74aaf4ad29e00180f5893a0c43bba10bc1dac3a323f758539395a9f2ea914592,
+48 items + FAT2_EVENTS): dives 1190/s75 and 1279/s80 fully labeled
+(takeoff, water contact, apex + independent apex repeat at 0.033 s
+agreement on both; flight/prep/post boxes + blind repeat); 2838
+annotator-excluded as unlabelable (mostly empty 18.6 s proxy), recorded in
+MANIFEST, stays in the funnel denominator. Queue revision:
+`FAT2_QUEUE_REVISION_V1.md`. S3 caches + selection were sealed until the
+freeze and are now open.
+
+Gate (frozen FAX, predeclared rule): 1190 top-Q 6/9, 1279 top-Q 4/9 — both
+below the 0.75 recovery bar, so the conditional selected-track set is empty
+and criteria (ii)-(iv) cannot be evaluated. **Verdict: FAT2_GATE_VOID**
+(not a FAX failure finding). Full record: `DIVE_ANALYZER_FAT2_GATE_V1.md`;
+gate script `fat2_fresh_eval_v1.py`; host-only numbers
+`runs/full_action_fax_v1/fat2_gate_results.json`.
+
+Diagnostics (frozen code, non-gate): 1190 is the correct flight missed on
+localization noise (two 0.06-boundary misses + one detector gap; overlay
+shows the right diver); 1279 is a partial flight (segment starts 0.30 s
+after takeoff; short-prep regime with 2 distinct prep frames). S3 prep
+recall is ~0 at every fresh prep anchor (1190: 13 partial; 1279: 2 visible)
+— a perception-coverage bound on small/partial prep figures (S3 training
+stays frozen), not an extension bug. Where S3 sees nothing, FAX links
+nothing (1190: 30-obs flight-only; 1279: 25-obs short track; zero
+hallucinated prep across 15 anchors): the uncertainty design holds on fresh
+data. Frozen V3-C0 abstains on both short tracks; V4-A0 DEV probe gives
+1190 to -0.167 / apex 0.000 / wc -0.533 and 1279 to +0.167 / apex +0.067 /
+wc -0.267 — first scored HUMAN apex errors, corroborating the DEV envelope.
+
+Conclusion: FAT2 as drawn cannot validate FAX prep recovery (regime
+mismatch + n=2 + one exclusion). DEV (21/33 prep at purity 1.0) stands as
+design evidence, still unvalidated. Next: one more targeted fresh round in
+the FAT1 regime (long visible prep, near subjects, new sessions) combined
+with EL-successor validation (apex proven collectible); then the bounded
+overlay pilot. Pose/biomechanics stay paused.
+
+Gate: SUPERVISOR_REVIEW_AFTER_FULL_ACTION_TRAJECTORY_AND_EVENT_LOGIC.

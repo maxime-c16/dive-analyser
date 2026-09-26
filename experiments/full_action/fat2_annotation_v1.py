@@ -344,7 +344,10 @@ def cmd_validate(args):
 def cmd_freeze(args):
     patch_tool()
     draft = U.load_draft()
-    assert not draft.get('excluded_dives'), 'excluded dive(s) need a queue revision before freezing'
+    excluded = sorted(draft.get('excluded_dives', {}))
+    if excluded and not args.allow_excluded:
+        raise SystemExit('excluded dive(s) need a queue revision: re-run with --allow-excluded '
+                         '(the exclusion set is then recorded in the MANIFEST)')
     q = build_queue(draft)
     assert not [e['id'] for e in q['events'] if e['id'] not in draft['events']], 'events incomplete'
     assert not [i['id'] for i in q['items'] if i['id'] not in draft['items']], 'items incomplete'
@@ -360,6 +363,8 @@ def cmd_freeze(args):
     fgt2h = None
     events = {}
     for d in DIVES:
+        if d in excluded:
+            continue
         t0 = draft['events'][f'FAT2_{d}_takeoff']['pts_s']
         t1 = draft['events'][f'FAT2_{d}_water_contact']['pts_s']
         ta = draft['events'][f'FAT2_{d}_apex']['pts_s']
@@ -371,6 +376,7 @@ def cmd_freeze(args):
     pe.write_text(json.dumps(events, indent=1, sort_keys=True) + '\n')
     files[pe.name] = hashlib.sha256(pe.read_bytes()).hexdigest()
     man = {'authority': 'FULL_ACTION_GT_HUMAN_V2_FRESH', 'sealed': True,
+           'excluded_dives': {d: draft['excluded_dives'][d] for d in excluded},
            'n_items': len(files) - 1, 'digest': hashlib.sha256(
                json.dumps(files, sort_keys=True).encode()).hexdigest(), 'files': files}
     (dst / 'MANIFEST.json').write_text(json.dumps(man, indent=1, sort_keys=True) + '\n')
@@ -381,5 +387,6 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('cmd', choices=['serve', 'validate', 'freeze'])
     ap.add_argument('--port', type=int, default=8765)
+    ap.add_argument('--allow-excluded', action='store_true')
     a = ap.parse_args()
     {'serve': cmd_serve, 'validate': cmd_validate, 'freeze': cmd_freeze}[a.cmd](a)
