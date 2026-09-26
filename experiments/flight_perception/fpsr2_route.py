@@ -47,4 +47,8 @@ def build(rep, ids=None):
 
 
 if __name__ == '__main__':
-    build(sys.argv[1], sys.argv[2:])
+    args = sys.argv[1:]
+    if args[0] == '--fresh':
+        RUN = ROOT / 'runs/flight_perception_recovery_v2'
+        args = args[1:]
+    build(args[0], args[1:])
