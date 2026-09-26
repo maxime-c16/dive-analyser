@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -196,7 +197,9 @@ def evaluate(key, authority, protocol_sha=None, dives=None, reps=('360', 'hq')):
         if len(A) < 2:
             res['excluded_lt2_visible_flight_anchors'][d] = len(A)
             continue
-        per = {'role': 'FRESH_HELD_OUT_DEVELOPMENT', 'n_flight_anchors': len(A), 'unobserved': len(auth[d]['unobserved'])}
+        per = {'role': 'FRESH_HELD_OUT_DEVELOPMENT', 'n_flight_anchors': len(A),
+               'unobserved': len(auth[d]['unobserved']),
+               'median_human_box_height_norm': statistics.median(a[6] for a in A.values())}
         use_reps = [r for r in reps if r == '360' or d in _STATE['hq']]
         for rep in use_reps:
             fr = C.frames(d, rep)
