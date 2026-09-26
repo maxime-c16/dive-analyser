@@ -2703,3 +2703,49 @@ Frozen S3/D5/S2/FSR/V3-C0 byte-identical; no protected set, Paris, 524, 2555,
 B2/Media Backbone mutation, training, identity, segmentation, or pose.
 
 **Gate: `SUPERVISOR_REVIEW_AFTER_SELECTED_DIVETRACK_ANALYSIS`.**
+
+
+## Full-action trajectory V1 (FAX) — 2026-09-26
+
+Starting canonical 4cab183e1b99b2b1e629c6e8d854ead296712430.
+Decision: FLIGHT_ANCHORED_EXTENSION_V1_DEV_VALIDATED (design evidence only;
+no generalization claim). The frozen FSR full pool path is retired as a
+full-action representation: its prep span is unconstrained flight-evidence
+by-catch (correct on 1555/2257, far-platform wander on 2474/1731, empty on
+980), and its search lattice deletes static candidates so quiet standing
+prep has no nodes by construction (2288 f30-f120 STATIC-ONLY vs HUMAN boxes).
+
+FAX V1 (frozen protocol experiments/full_action/FAX_V1_PROTOCOL.md, code
+SHA-256 55282fb968cc960919242ee43ef9ebd3db7c13becbd663aab35b3b150306a2ad):
+flight-anchored bidirectional extension over the full floor lattice incl.
+static; immutable flight core; frozen-adjacent gates + NMS-double merging
+(IoU 0.30 or higher) + same-object overlap (IoU above 0); residual-margin 0.25
+uniqueness (AMBIGUOUS_HANDOFF stops); no confidence threshold (handstand
+prep links through conf-0.002 on dive 31); forward scope cap 0.5 s
+(POST_ENTRY_CAP); missing frames absent, never synthetic; stops carry
+labeled reasons, alternatives bounded and unlinked. Margin-by-merge 3x3
+sensitivity leaves all scored coverage/purity invariant.
+
+DEV results (FAT1 prep now design evidence: 1555 6/6, 2257 7/7, 2288 7/7
+pure; 23 1/10 honest near-margin stop; 980 0/3 honest flight-only; pooled
+21/33 at purity 1.0. FGT3H consumed flight preserved 11/12; contamination
+refused on 1731/2474; full prep chains on 31/872/966 with visual continuity).
+Frozen V3-C0 replayed unchanged fails on the trustworthy tracks (takeoff
+-2.0 to -3.1 s: first-motion-after-first-stillness fires on prep motion;
+flight anchor unused; dive-code context rescues only 2257/HURDLE).
+V4-A0 DEV probe (flight-anchored takeoff, frozen thresholds, NOT frozen):
+takeoff -0.17 to -0.48 s on 14/17, honest abstention on 980/992/2242.
+Same trajectories, so the failure is event semantics. The uniform 0.25 s
+early bias is a successor-cycle calibration question.
+
+Predeclared FAT2 gate plus committed blind queue (FAT2_ANNOTATION_QUEUE_V1.md,
+queue code fat2_annotation_v1.py): dives 1190/s75, 1279/s80, 2838/s202
+(all unused in every training/consumed/DEV role; sessions disjoint from all
+prior sets), new HUMAN takeoff/contact/apex (plus apex repeat) and
+flight/prep/post boxes; GT-free selection viability pre-screened (all viable;
+37 rejected at raw-clip check: empty deck). S3 caches plus selection sealed
+until the freeze. Next after gate: versioned flight-anchored Event Logic
+successor with fresh event authority, then bounded overlay pilot.
+Pose/biomechanics stay paused; reopen after the landmark gate.
+
+Gate: SUPERVISOR_REVIEW_AFTER_FULL_ACTION_TRAJECTORY_AND_EVENT_LOGIC.
