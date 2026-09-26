@@ -65,6 +65,7 @@ def test_holdout_loader_requires_committed_protocol():
 
 
 def test_annotation_ui_hides_set():
+    pytest.importorskip('cv2')  # science host (Mac) only
     import fps_flight_gt_annotation_v2 as A
     assert "k != 'set'" in Path(A.__file__).read_text()
     assert '/frames/' not in A._UI and A._UI.count('ssrc(') == 2
