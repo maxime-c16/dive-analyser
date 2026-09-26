@@ -124,3 +124,6 @@ media/fps_v1/
 runs/full_action_fax_v1/
 runs/fat2_annotation/
 runs/s3_weights/
+runs/full_action_fat3/
+runs/fat3_annotation/
+runs/fat3_media/
