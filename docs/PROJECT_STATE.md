@@ -2664,3 +2664,42 @@ Report `docs/science/DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1.md` / `.json`; prot
 - Code: `experiments/subject_resolution/fsr_*.py`; tests `test_flight_search_recovery_v1.py`
   19 passed. Frozen V3/r5/D5/Event Logic unchanged; no protected data; no B2 mutation.
 - Gate: `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`.
+
+## Selected DiveTrack V1 — 2026-09-26
+
+Starting canonical `01d6c3cfec18269213fd02687dc186838249c7dd` (S3
+Flight Perception Recovery V2 already integrated). Full report:
+`docs/science/DIVE_ANALYZER_SELECTED_DIVETRACK_V1.md`; protocol:
+`docs/science/SELECTED_DIVETRACK_V1_PROTOCOL.md`; HUMAN authority:
+`docs/science/localization_annotations_v1/FULL_ACTION_GT_HUMAN_V1_DEVELOPMENT/`
+(digest `91f729961f7acc21608b642043efc465f27e8887d80436b557ed452709983dc1`).
+
+**Decision: `SELECTED_FLIGHT_DOES_NOT_YET_YIELD_RELIABLE_FULL_DIVE_ANALYSIS`.**
+The five-session fresh full-action DEVELOPMENT evaluation (dives
+23/980/1555/2257/2288) had 5/5 intended flights at rank 1 among frozen
+S3+FSR candidates. The original surfaced tracks hit 44/45 flight HUMAN
+anchors but only 7/33 visible preparation anchors; they are bounded to the
+flight segment minus 1 s/plus 0.5 s, so not full-action trajectories. Their
+underlying global FSR pool paths recover 20/33 preparation anchors: 1555
+6/6, 2257 6/7, 23 5/10 (two localization/identity-uncertain mismatches),
+2288 3/7, 980 0/3. Visual overlays show clean full paths on 1555/2257 and
+unsafe preflight associations in consumed FGT3 diagnostic cases. The FSR
+global flight-search path is not a certified selected-subject PersonTrack.
+
+Frozen Event Logic V3-C0, replayed unchanged on the visually continuous
+1555/2257 full paths (100% HUMAN prep/flight purity at overlapping anchors),
+places takeoff 2.183/2.135 s early and contact 2.750/0.467 s away from HUMAN
+events. EL is an independent blocker once a good track exists; 980/2288 are
+primarily trajectory incomplete. HUMAN apex error remains unscored (no apex
+GT in this authority). No new extension heuristic or Event Logic tuning was
+promoted. Box overlays are viable for flight-candidate identification, not
+general full-action analysis. Per-track pose stays paused; multiple DiveTracks
+and independent user selections remain intact.
+
+Next science: explicitly flight-anchored, phase-aware extension with handoff
+uncertainty and new session-disjoint DEVELOPMENT evaluation; then isolate and
+repair V3-C0 early-prep logic on validated tracks with HUMAN apex authority.
+Frozen S3/D5/S2/FSR/V3-C0 byte-identical; no protected set, Paris, 524, 2555,
+B2/Media Backbone mutation, training, identity, segmentation, or pose.
+
+**Gate: `SUPERVISOR_REVIEW_AFTER_SELECTED_DIVETRACK_ANALYSIS`.**

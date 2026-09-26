@@ -53,7 +53,9 @@ The frozen full-pool path gives extensive, apparently pure preparation for
 1555 and 2257, but Event Logic picks early movement and produces >2 s
 takeoff error. That isolates an Event Logic failure on at least these
 anchor-supported paths, subject to final visual inspection between sparse
-anchors. Dive 23 has two wrong prep anchors and full-path contamination;
+anchors. Dive 23 has two preparation center mismatches at the frozen 0.06
+radius, but its contact sheet suggests the same diver; call this localization
+error or identity uncertainty, not a confirmed switch.
 980 has no prep observation. Dive 2288 has missing prep despite an extended
 pool path. The surfaced window cannot be called a full-action track.
 
