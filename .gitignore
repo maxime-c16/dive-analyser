@@ -116,3 +116,6 @@ media/fps_v1/
 /runs/flight_perception_recovery_v2/
 /runs/flight_perception_successor_v1
 /media/fps_v1
+
+# Selected DiveTrack V1 host-only caches, HUMAN annotation drafts, and overlays
+/runs/selected_divetrack_v1/
