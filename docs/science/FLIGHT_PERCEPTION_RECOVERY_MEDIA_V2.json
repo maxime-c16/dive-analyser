@@ -183,6 +183,11 @@
       "source_object_key": "blobs/sha256/ed/edc1e894f76455794fd767804497804907a862240abcf4dbcdb28b4080f3737b.mov"
     }
   },
+  "host_artifact_sha256": {
+    "HQ_ALIGNMENT_V2.json": "9d64514a6aefd41f462e95340031f865ab51c042575e685a15c05e6afb6f6e2e",
+    "PROXY_REGISTRY_V2.json": "94a3abb2311ca5f53bc3f61c30f213f695066930c132308c184935a494aef41b",
+    "hq/b2_download_manifest.json": "021d003437ad5cacde1e8e7e07e1885db6b55874b6d3fc66f2ffaeada38ad384"
+  },
   "label": "FLIGHT_PERCEPTION_RECOVERY_MEDIA_V2",
   "recipe": "mac-agent/src/transcoder.py proxy_360p video recipe, audio omitted",
   "role": "sealed fresh holdout media only; no detector or GT output",
