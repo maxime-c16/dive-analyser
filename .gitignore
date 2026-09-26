@@ -107,3 +107,7 @@ runs/flight_anchored_traj_v3_1_bfd/
 
 # DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 run outputs + HQ candidate caches (host-only)
 runs/flight_search_recovery_v1/
+
+# DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1 host artifacts (datasets, caches, checkpoints, media)
+runs/flight_perception_successor_v1/
+media/fps_v1/
