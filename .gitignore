@@ -119,3 +119,8 @@ media/fps_v1/
 
 # Selected DiveTrack V1 host-only caches, HUMAN annotation drafts, and overlays
 /runs/selected_divetrack_v1/
+
+# Full-action trajectory V1 host artifacts (FAX tracks, FAT2 caches/sealed/annotation drafts, S3 weights)
+runs/full_action_fax_v1/
+runs/fat2_annotation/
+runs/s3_weights/
