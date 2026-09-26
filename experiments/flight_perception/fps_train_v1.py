@@ -33,6 +33,10 @@ BASE_AUG = dict(mosaic=0.5, mixup=0.0, degrees=10.0, translate=0.1, scale=0.5, f
 VARIANTS = {
     # pilot: existing labels only (HIST + FGT1 event boxes), D5 init
     'S0_pilot_DS0': dict(dataset='DS0_HIST_FGT1', init='D5', epochs=60, imgsz=640, batch=16, aug=BASE_AUG),
+    # successor path: + FLIGHT_TRAIN_HUMAN_V1, D5 init
+    'S1_D5init_DS1': dict(dataset='DS1_HIST_FGT1_FTR1', init='D5', epochs=60, imgsz=640, batch=16, aug=BASE_AUG),
+    # init ablation: COCO yolov8n (no inherited D-series / 524/2555 exposure)
+    'S2_COCOinit_DS1': dict(dataset='DS1_HIST_FGT1_FTR1', init='COCO', epochs=60, imgsz=640, batch=16, aug=BASE_AUG),
 }
 
 
