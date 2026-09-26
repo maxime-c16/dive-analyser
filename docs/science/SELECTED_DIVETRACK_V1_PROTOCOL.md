@@ -36,7 +36,9 @@ the diver who performs the intended flight, even if another diver appears.
 
 ## Evaluation
 
-Run the exact frozen FSR top-5 selection on the S3 cache. Use HUMAN FGT2H
+Run the exact frozen FSR top-5 selection on S3 360p plus strictly aligned HQ
+candidate caches (all five HQ mappings passed the prior alignment registry).
+Use HUMAN FGT2H
 flight boxes to select the first qualifying candidate as a proxy for the user
 click. An unsurfaced target is a perception failure and stays in the total
 funnel denominator; it does not enter conditional selected-track statistics.

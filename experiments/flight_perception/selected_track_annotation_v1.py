@@ -107,6 +107,34 @@ def prepare():
         'blind': 'No detector/path/selected candidate shown'}, indent=2, sort_keys=True) + '\n')
 
 
+def freeze():
+    draft = U.load_draft()
+    expected = {x['id'] for x in queue()['items']}
+    assert expected == set(draft['items']), 'annotation queue incomplete or contains excluded dive'
+    assert not draft['events'], 'event times must come only from frozen FGT2H authority'
+    dst = ROOT / 'docs/science/localization_annotations_v1/FULL_ACTION_GT_HUMAN_V1_DEVELOPMENT'
+    assert not dst.exists(), 'authority already frozen; never overwrite'
+    dst.mkdir(parents=True)
+    files = {}
+    for key in sorted(expected):
+        a = draft['items'][key]
+        assert a['authority'] == 'HUMAN_REVIEWED' and a['annotator'] == 'maxime'
+        assert a['dive_id'] in DIVES and a['visibility'] in ('visible', 'partial', 'not_visible', 'ambiguous')
+        p = dst / f'{key}.json'
+        p.write_text(json.dumps({'id': key, **a}, indent=2, sort_keys=True) + '\n')
+        files[p.name] = Media.sha256_file(p)
+    digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+    (dst / 'MANIFEST.json').write_text(json.dumps({
+        'label': 'FULL_ACTION_GT_HUMAN_V1_DEVELOPMENT', 'digest': digest,
+        'files': files, 'dives': list(DIVES), 'n_items': len(files),
+        'queue_manifest_sha256': Media.sha256_file(WORK / 'QUEUE_MANIFEST.json'),
+        'preexisting_flight_gt': 'FLIGHT_GT_HUMAN_V2_HOLDOUT',
+        'event_source_sha256': Media.sha256_file(EVENTS),
+        'blind': 'Raw proxy frames only; no detector candidate or track shown',
+        'sealed': True}, indent=2, sort_keys=True) + '\n')
+    print('frozen', dst, digest)
+
+
 def setup():
     U.fm = Media
     U.WORK = WORK
@@ -120,7 +148,7 @@ def setup():
 def main():
     setup()
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['prepare', 'serve', 'validate'])
+    p.add_argument('cmd', choices=['prepare', 'serve', 'validate', 'freeze'])
     p.add_argument('--port', type=int, default=8767)
     a = p.parse_args()
     if a.cmd == 'prepare':
@@ -132,8 +160,10 @@ def main():
         srv = ThreadingHTTPServer(('127.0.0.1', a.port), U.Handler)
         print(f'full-action annotation UI: http://127.0.0.1:{a.port}', flush=True)
         srv.serve_forever()
-    else:
+    elif a.cmd == 'validate':
         U.cmd_validate(a)
+    else:
+        freeze()
 
 
 if __name__ == '__main__':
