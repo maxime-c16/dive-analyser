@@ -127,3 +127,5 @@ runs/s3_weights/
 runs/full_action_fat3/
 runs/fat3_annotation/
 runs/fat3_media/
+runs/fax_v2_media/
+runs/fax_v2_annotation/
