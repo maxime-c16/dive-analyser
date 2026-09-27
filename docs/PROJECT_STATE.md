@@ -1,5 +1,16 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX4 reattachment cycle in progress (2026-09-27): the raw-only,
+> session-disjoint HUMAN queue 2473/s140, 2533/s148, 410/s35, 1667/s102
+> is frozen before S3/FSR outcomes at `70b008f`. Blind annotation is pending;
+> no FAX4 reattachment result, rate, overlay promotion, or Event Logic/pose
+> resume claim exists. Queue identities and protocol:
+> `docs/science/FAX4_QUEUE_MANIFEST.json`,
+> `experiments/full_action/FAX_V4_PROTOCOL.md`. FAX3B remains consumed
+> development evidence. Its 164 flight path has only a 0.05 s consecutive
+> narrow run at the first apparent post-mix split; width alone does not
+> certify physical-person reattachment.
+
 > Latest science: **2026-09-27 FAX V3 uncertainty-aware fresh gate FAIL;
 > overlay gate CLOSED.** Blind FAX3 (four new sessions, authority digest
 > `9a9e712c…`) produced identical V1/V2/V3 prep: 25/51 correct, 26 honest
