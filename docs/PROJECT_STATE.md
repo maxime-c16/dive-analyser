@@ -1,18 +1,21 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Latest science: **2026-09-27 FAX V3 uncertainty-aware candidate remains
-> DEVELOPMENT, overlay gate CLOSED.** The blind FAX3 authority
-> (`FULL_ACTION_GT_HUMAN_FAX3_FRESH`, digest `9a9e712c…`, four new sessions)
-> yielded 25/51 correct prep, 26 honest prep abstentions and zero sampled
-> wrong-person prep overlaps for V1, V2 and V3 alike. All four selected flights
-> surfaced; none had a detected mixed edge, so this fresh round does not
-> validate V3's 205 safeguard. On consumed FAX2, V3 changes 205's 26 wrong
-> prep overlaps to abstention, preserving the 7/54 correct prep hits, but
-> that result is not a fresh gate. A second raw-selected close-person queue
-> (164/s26, 200/s27, 389/s34, 373/s33) is preregistered and awaiting blind
-> HUMAN labels as `FAX3B`. Event Logic V3-C0/V4-B0 and pose remain frozen.
-> Report: `docs/science/DIVE_ANALYZER_FAX_V3_FIRST_FRESH_READOUT.md`.
-> Next blocker: fresh mixed-edge evidence and calibrated identity abstention.
+> Latest science: **2026-09-27 FAX V3 uncertainty-aware fresh gate FAIL;
+> overlay gate CLOSED.** Blind FAX3 (four new sessions, authority digest
+> `9a9e712c…`) produced identical V1/V2/V3 prep: 25/51 correct, 26 honest
+> abstentions, zero sampled wrong-person links, but no mixed selected-flight
+> edge. Targeted blind FAX3B (four further sessions, digest `0cf6e1d…`) found
+> one true mixed edge on 164; V3 abstained safely but suppressed its later
+> correct flight subcore. Three selected flights: V1/V2 23/31 correct prep,
+> 24/27 flight; V3 23/31 prep, 16/27 flight; zero sampled wrong-person prep
+> overlaps for all. 373 was unsurfaced. Consumed 205 still shows V3 changing
+> 26 wrong prep overlaps to abstention, but that is development evidence only.
+> V3 is not promoted. Next blocker: calibrated person-specific reattachment
+> after a mixed interval; 164/1363 prep perception and 373/1751 upstream
+> flight surfacing are separate. Event Logic V3-C0/V4-B0 remains frozen and
+> pose paused. Reports: `docs/science/DIVE_ANALYZER_FAX_V3_FIRST_FRESH_READOUT.md`,
+> `docs/science/DIVE_ANALYZER_FAX_V3B_FRESH_GATE.md`.
+> Gate: `SUPERVISOR_REVIEW_AFTER_UNCERTAINTY_AWARE_FULL_ACTION_TRACKING`.
 
 > Latest science: **2026-09-27 FAX V2 fresh gate FAIL.** Blind session-disjoint
 > `FULL_ACTION_GT_HUMAN_FAX2_FRESH` (205/1751/1621/1363; digest `6a4914c9`)
