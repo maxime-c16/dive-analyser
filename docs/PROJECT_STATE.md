@@ -1,10 +1,27 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> FAX4 reattachment cycle in progress (2026-09-27): the raw-only,
+> FAX4 fresh HUMAN gate sealed (2026-09-27, digest `f6bd2af9…`): four queued,
+> one HUMAN-unlabelable (410), two qualifying selected flights (2473, 2533),
+> one upstream unsurfaced (1667). Neither selected path has a mixed edge.
+> V1/V2/V3/V4 are identical: 10/20 correct prep, 10 honest prep NULL,
+> zero sampled wrong-person links, 16/18 flight, 2/3 post. This is a clean
+> control, not reattachment validation. 2473 is an association abstention
+> with S3 target candidates at all 7 missing prep anchors; 2533's 3 missing
+> prep anchors lack S3 target candidates. General overlay stays unsafe;
+> Event Logic and pose stay frozen. Report:
+> `docs/science/DIVE_ANALYZER_FAX_V4_FRESH_GATE.md`.
+>
+> A second raw-only FAX5 queue (590/s42, 321/s32, 474/s37, 627/s44) is
+> prepared from six source-screened clips before detector inspection.
+> Blind HUMAN authority is pending. Queue identities:
+> `docs/science/FAX5_QUEUE_MANIFEST.json` and
+> `experiments/full_action/FAX_V5_PROTOCOL.md`.
+
+> FAX4 queue provenance (2026-09-27): the raw-only,
 > session-disjoint HUMAN queue 2473/s140, 2533/s148, 410/s35, 1667/s102
-> is frozen before S3/FSR outcomes at `70b008f`. Blind annotation is pending;
-> no FAX4 reattachment result, rate, overlay promotion, or Event Logic/pose
-> resume claim exists. Queue identities and protocol:
+> was frozen before S3/FSR outcomes at `70b008f`. No mixed-interval
+> reattachment rate, overlay promotion, or Event Logic/pose resume claim
+> follows from this authority. Queue identities and protocol:
 > `docs/science/FAX4_QUEUE_MANIFEST.json`,
 > `experiments/full_action/FAX_V4_PROTOCOL.md`. FAX3B remains consumed
 > development evidence. Its 164 flight path has only a 0.05 s consecutive
