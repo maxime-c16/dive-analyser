@@ -1,5 +1,16 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX6 blind HUMAN gate prepared (2026-09-27), labels pending: four new
+> session-disjoint raw-screened dives 649/s45, 745/s48, 772/s49, 850/s52.
+> It will test a frozen development instance-mask bridge after mixed edges;
+> consumed 164/205/590 show local person-specific reattachment but do not
+> establish safety. Source SHA and queue rules:
+> `experiments/full_action/FAX_V6_PROTOCOL.md`; blind queue manifest
+> `docs/science/FAX6_QUEUE_MANIFEST.json` SHA `5813d487…`; prototype
+> `experiments/full_action/fax_instance_bridge_v1_dev.py` SHA `46db2213…`.
+> No promotion or general overlay readiness is claimed. FAX5 failure and
+> separate perception/surfacing blockers remain authoritative below.
+
 > FAX5 fresh mixed-person gate FAIL (2026-09-27): blind authority digest
 > `c178fd72…`, three labelable dives + 627 HUMAN-unlabelable. Only 590 has
 > a qualifying selected flight; 321/474 are upstream unsurfaced. 590 has a

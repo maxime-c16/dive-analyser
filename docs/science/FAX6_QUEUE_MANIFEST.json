@@ -1,0 +1,55 @@
+{
+ "authority": "FULL_ACTION_GT_HUMAN_FAX6_FRESH (queue; labels pending)",
+ "blind": "Raw study-local proxy frames only. No S3 boxes, FSR candidates, FAX tracks, scores, or overlays shown or reachable. S3 caches + FSR selection are sealed until the freeze.",
+ "codes": {
+  "649": "201B",
+  "745": "201C",
+  "772": "201C",
+  "850": "201C"
+ },
+ "created_rule": "Per dive: takeoff, water contact (scrub), apex + independent apex repeat (scrub, constrained to the marked window); then flight k/8 boxes, PREP every 0.5s clip-start to >=0.1s pre-takeoff, POST +0.1/+0.3/+0.5; one blind PREP repeat per dive (middle PREP). Nearest recorded proxy PTS throughout.",
+ "dives": [
+  "649",
+  "745",
+  "772",
+  "850"
+ ],
+ "media_sha256": {
+  "649": "4126a493fa81a7685ac5bb6682213116fdea56fe52b216e6caf000a9267bd794",
+  "745": "3e93a3d3fc6b3a0786f7a112604d9decb92e8d67a13341e9d69eea37adb157cd",
+  "772": "e1a34a20a871f236c21b3e9d85f969141016b0dcbf65e66dd04f24dc2806e629",
+  "850": "0da0e1e0be414bc5608b26700015688554096820fe96cadc8013481ac4713638"
+ },
+ "n_event_steps": 16,
+ "proxy_size": {
+  "649": [
+   202,
+   360
+  ],
+  "745": [
+   202,
+   360
+  ],
+  "772": [
+   202,
+   360
+  ],
+  "850": [
+   202,
+   360
+  ]
+ },
+ "pts_source": {
+  "649": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V6)",
+  "745": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V6)",
+  "772": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V6)",
+  "850": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V6)"
+ },
+ "reserve": [],
+ "sessions": {
+  "649": 45,
+  "745": 48,
+  "772": 49,
+  "850": 52
+ }
+}
