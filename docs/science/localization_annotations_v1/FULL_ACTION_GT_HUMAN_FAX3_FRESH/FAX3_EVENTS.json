@@ -1,0 +1,30 @@
+{
+ "1515": {
+  "apex": 19.486133,
+  "apex_source": "FAX3_FRESH_HUMAN",
+  "takeoff": 19.052367,
+  "takeoff_contact_source": "FAX3_FRESH_HUMAN",
+  "water_contact": 20.387033
+ },
+ "2086": {
+  "apex": 6.016667,
+  "apex_source": "FAX3_FRESH_HUMAN",
+  "takeoff": 5.55,
+  "takeoff_contact_source": "FAX3_FRESH_HUMAN",
+  "water_contact": 6.933333
+ },
+ "2160": {
+  "apex": 11.066667,
+  "apex_source": "FAX3_FRESH_HUMAN",
+  "takeoff": 10.3,
+  "takeoff_contact_source": "FAX3_FRESH_HUMAN",
+  "water_contact": 12.533333
+ },
+ "2674": {
+  "apex": 6.439767,
+  "apex_source": "FAX3_FRESH_HUMAN",
+  "takeoff": 5.972633,
+  "takeoff_contact_source": "FAX3_FRESH_HUMAN",
+  "water_contact": 7.1071
+ }
+}
