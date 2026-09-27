@@ -292,6 +292,17 @@ def patch_tool():
     U.ensure_dive_frames = ensure_dive_frames
     U._UI = U._UI.replace('Flight GT session 3 (human)', 'FAT3 full-action GT (human, blind)')
     assert 'FAT3 full-action GT' in U._UI
+    # Viewport fix (2026-09-27, pre-annotation, draft empty): the inherited
+    # fit() constrains canvas scale by viewport height only. Dive 16's proxy
+    # is 648x360 landscape (all prior annotation dives were 202x360
+    # portrait), so its canvas (~1570px wide) pushes the control panel
+    # off-screen. Constrain by width too; S stays uniform so box mapping
+    # (canvas/S -> native proxy pixels, server-clamped per dive) is exact.
+    _old_fit = 'S=Math.max(1,(window.innerHeight-20)/H);'
+    _new_fit = ('S=Math.max(0.5,Math.min((window.innerHeight-20)/H,'
+                '(window.innerWidth-420)/W));')
+    assert U._UI.count(_old_fit) == 1, 'viewer fit() patch drifted'
+    U._UI = U._UI.replace(_old_fit, _new_fit)
 
 
 def queue_manifest():
