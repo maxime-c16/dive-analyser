@@ -1,0 +1,23 @@
+{
+ "1667": {
+  "apex": 2.066667,
+  "apex_source": "FAX4_FRESH_HUMAN",
+  "takeoff": 1.7,
+  "takeoff_contact_source": "FAX4_FRESH_HUMAN",
+  "water_contact": 2.783333
+ },
+ "2473": {
+  "apex": 8.725383,
+  "apex_source": "FAX4_FRESH_HUMAN",
+  "takeoff": 8.191517,
+  "takeoff_contact_source": "FAX4_FRESH_HUMAN",
+  "water_contact": 9.325983
+ },
+ "2533": {
+  "apex": 10.5,
+  "apex_source": "FAX4_FRESH_HUMAN",
+  "takeoff": 9.766667,
+  "takeoff_contact_source": "FAX4_FRESH_HUMAN",
+  "water_contact": 11.933333
+ }
+}
