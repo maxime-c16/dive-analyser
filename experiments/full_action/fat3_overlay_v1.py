@@ -15,11 +15,11 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / 'experiments' / 'subject_resolution'))
 sys.path.insert(0, str(ROOT / 'experiments' / 'full_action'))
 import fax_extension_v1 as FAX
-from fax_eval_v1 import select_flight
+from fat3_fresh_eval_v1 import select_flight
 
 WORKROOT = Path('/Users/maximecauchy/.perso/diveanalyzer-fullaction-fat3')
-CACHE = json.loads((WORKROOT / 'runs' / 'full_action_fat3' / 'caches' /
-                    'CAND_S3_FAT3_360.json').read_text())
+CACHE = {'360': json.loads((WORKROOT / 'runs' / 'full_action_fat3' / 'caches' /
+                         'CAND_S3_FAT3_360.json').read_text())}
 PROXIES = WORKROOT / 'runs' / 'fat3_media' / 'proxies'
 OUT = WORKROOT / 'runs' / 'full_action_fat3' / 'overlays'
 COLOR = {'CORE': (0, 255, 0), 'LINKED': (0, 165, 255)}

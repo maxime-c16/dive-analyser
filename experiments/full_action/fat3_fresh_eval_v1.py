@@ -25,13 +25,64 @@ sys.path.insert(0, str(ROOT / 'experiments' / 'landmark_pilot'))
 import fax_extension_v1 as FAX
 import proposer_event_logic_v3_c0 as EL
 import proposer_event_logic_v4_b0 as V4
-from fax_eval_v1 import select_flight, score_phase
+import fsr_rank_v1 as R
+import fsr_search_v1 as S
 
 FAT3 = ROOT / 'docs' / 'science' / 'localization_annotations_v1' / 'FULL_ACTION_GT_HUMAN_V3_FRESH'
-CACHE = json.loads((ROOT / 'runs' / 'full_action_fat3' / 'caches' /
-                    'CAND_S3_FAT3_360.json').read_text())
+CACHE = {'360': json.loads((ROOT / 'runs' / 'full_action_fat3' / 'caches' /
+                            'CAND_S3_FAT3_360.json').read_text())}
 RADIUS = 0.06
 OUT = ROOT / 'runs' / 'full_action_fat3' / 'fat3_gate_results.json'
+
+
+def floor_lattice(frames):
+    return [[(c['cx'], c['cy'], c['bw'], c['bh'], c['conf']) for c in
+             sorted(f['c'], key=lambda c: (-c['conf'], c['cx'], c['cy'], c['bw'], c['bh']))[:200]]
+            for f in frames]
+
+
+def select_flight(cache, d):
+    """Frozen FSR selection (from fax_eval_v1; inlined to keep this eval
+    self-contained): per-rep pool -> flight segments -> merge by Q."""
+    cands = []
+    for rep in cache:  # FAT3 is proxy-only; iterate available reps
+        if d not in cache[rep]['dives']:
+            continue
+        fr = cache[rep]['dives'][d]['frames']
+        pts = [f['pts_s'] for f in fr]
+        Fl = floor_lattice(fr)
+        lat_frames = [{'fi': f['fi'], 'pts_s': f['pts_s'], 'c': f['c']} for f in fr]
+        pool, Latt = S.search(lat_frames)
+        for pr, (T, p) in enumerate(pool, 1):
+            for q, seg, parts in R.flight_segments(p, Latt, pts):
+                lo, hi = parts['t0'] - 1.0, parts['t1'] + 0.5
+                obs = {f: tuple(float(v) for v in Latt[f][j]) for f, j in p if lo <= pts[f] <= hi}
+                cands.append({'rep': rep, 'pool_rank': pr, 'Q': q, 'obs': obs,
+                              'parts': parts, 'path': p, 'Latt': Latt, 'pts': pts, 'Fl': Fl})
+    cands.sort(key=lambda z: (-z['Q'], z['pool_rank'], z['rep']))
+    return cands
+
+
+def score_phase(obs, labels):
+    """HUMAN-anchor scoring (from fax_eval_v1; inlined, unchanged semantics)."""
+    visible = {f: x for f, x in labels.items()
+               if x.get('visibility') in ('visible', 'partial') and x.get('bbox')}
+    hits = overlap = 0
+    wrong = []
+    for f, a in sorted(visible.items()):
+        if f not in obs:
+            continue
+        overlap += 1
+        box = a['bbox']
+        cx = (box[0] + box[2]) / (2 * a['width'])
+        cy = (box[1] + box[3]) / (2 * a['height'])
+        if math.hypot(obs[f][0] - cx, obs[f][1] - cy) <= RADIUS:
+            hits += 1
+        else:
+            wrong.append(f)
+    return {'visible': len(visible), 'hits': hits, 'overlap': overlap,
+            'coverage': hits / len(visible) if visible else None,
+            'purity': hits / overlap if overlap else None, 'wrong': wrong}
 
 
 def load_authority():
@@ -62,10 +113,10 @@ def ctr(a):
 
 def main():
     assert FAX.RESID_MARGIN == 0.25 and FAX.IOU_MERGE == 0.30 and FAX.FWD_MAX_S == 0.5
-    assert FAX.VERSION == 'FAX_V1'
+    assert FAX.VERSION == 'FULL_ACTION_EXTENSION_V1_DEV'
     assert V4.VERSION == 'EVENT_LOGIC_V4_B0' and V4.TAKEOFF_BIAS_S == 0.23
-    assert CACHE['model_sha256'] == '3dc07f69cbe3824490f73c14a59ed328ff35fc2da48da2fd4e324acf9bcc4e9a'
-    assert CACHE['gt_payload'] == 'NONE'
+    assert CACHE['360']['model_sha256'] == '3dc07f69cbe3824490f73c14a59ed328ff35fc2da48da2fd4e324acf9bcc4e9a'
+    assert CACHE['360']['gt_payload'] == 'NONE'
     assert hashlib.sha256((HERE / 'fax_extension_v1.py').read_bytes()).hexdigest() == \
         '55282fb968cc960919242ee43ef9ebd3db7c13becbd663aab35b3b150306a2ad'
     boxes, flight, events, digest, excluded = load_authority()
@@ -105,6 +156,7 @@ def main():
             diag_top_candidate(out, d, top, boxes, flight, events)
             continue
         row['verdict'] = 'SELECTED'
+        out['dives'][d] = row
         score_selected(out, d, sel, boxes, flight, events)
     selected = [d for d, r in out['dives'].items() if r['verdict'] == 'SELECTED']
     preps = [(d, out['dives'][d]['gate_track']['preparation']) for d in selected]
