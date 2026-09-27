@@ -1,0 +1,30 @@
+{
+ "649": {
+  "apex": 5.5,
+  "apex_source": "FAX6_FRESH_HUMAN",
+  "takeoff": 5.016667,
+  "takeoff_contact_source": "FAX6_FRESH_HUMAN",
+  "water_contact": 6.1
+ },
+ "745": {
+  "apex": 4.35,
+  "apex_source": "FAX6_FRESH_HUMAN",
+  "takeoff": 3.966667,
+  "takeoff_contact_source": "FAX6_FRESH_HUMAN",
+  "water_contact": 5.066667
+ },
+ "772": {
+  "apex": 6.1061,
+  "apex_source": "FAX6_FRESH_HUMAN",
+  "takeoff": 5.689017,
+  "takeoff_contact_source": "FAX6_FRESH_HUMAN",
+  "water_contact": 6.773433
+ },
+ "850": {
+  "apex": 5.772433,
+  "apex_source": "FAX6_FRESH_HUMAN",
+  "takeoff": 5.372033,
+  "takeoff_contact_source": "FAX6_FRESH_HUMAN",
+  "water_contact": 6.45645
+ }
+}
