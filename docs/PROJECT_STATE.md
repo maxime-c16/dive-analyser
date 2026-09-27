@@ -9,7 +9,12 @@
 > `experiments/full_action/FAX_V4_PROTOCOL.md`. FAX3B remains consumed
 > development evidence. Its 164 flight path has only a 0.05 s consecutive
 > narrow run at the first apparent post-mix split; width alone does not
-> certify physical-person reattachment.
+> certify physical-person reattachment. A provisional sparse-motion bridge
+> links 23 moving mixed-edge features into that run versus zero stationary
+> and at most three competing-box features, yielding local reattachment
+> after 0.4 s of explicit NULL but only four asserted frames. It does not
+> restore sampled flight coverage or establish overlay safety. See
+> `docs/science/DIVE_ANALYZER_FAX_V4_DEV_READOUT.md`.
 
 > Latest science: **2026-09-27 FAX V3 uncertainty-aware fresh gate FAIL;
 > overlay gate CLOSED.** Blind FAX3 (four new sessions, authority digest
