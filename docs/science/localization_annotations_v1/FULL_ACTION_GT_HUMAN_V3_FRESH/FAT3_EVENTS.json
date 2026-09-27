@@ -1,0 +1,44 @@
+{
+ "1491": {
+  "apex": 6.45,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 6.016667,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 7.083333
+ },
+ "16": {
+  "apex": 15.266667,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 14.8,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 15.766667
+ },
+ "1716": {
+  "apex": 3.866667,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 3.466667,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 4.5
+ },
+ "251": {
+  "apex": 5.766667,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 5.316667,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 6.4
+ },
+ "2519": {
+  "apex": 5.8,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 5.5,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 6.5
+ },
+ "2742": {
+  "apex": 4.587917,
+  "apex_source": "FAT3_FRESH_HUMAN",
+  "takeoff": 4.187517,
+  "takeoff_contact_source": "FAT3_FRESH_HUMAN",
+  "water_contact": 5.25525
+ }
+}
