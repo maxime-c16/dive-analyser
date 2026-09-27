@@ -7,6 +7,8 @@
 > S3 box spans two people and the backward chain follows the wrong one.
 > Full-action overlays and pose remain unsafe; Event Logic V3-C0/V4-B0 frozen.
 > Report: `docs/science/DIVE_ANALYZER_FAX_V2_FRESH_GATE.md`.
+> Detailed supervisor output and repair hypotheses:
+> `docs/science/DIVE_ANALYZER_FAX_V2_DETAILED_SUPERVISOR_OUTPUT.md`.
 > Gate: `SUPERVISOR_REVIEW_AFTER_SELECTED_FLIGHT_CONDITIONED_ASSOCIATION`.
 
 > Durable project handoff. Last verified: **2026-09-27** (science thread: FAT3 full-action + event-logic validation - fresh session-disjoint DEVELOPMENT authority FULL_ACTION_GT_HUMAN_V3_FRESH (6 dives, digest dfd493f0); frozen FAX V1 validated 29/29 prep @ 1.0 where identity is unambiguous, association (not perception) is the blocker in multi-person prep; frozen V3-C0 still fails on validated tracks; V4-B0 successor materially improves with a documented prep-rise-lock failure; overlay conditional, pose stays paused; gate SUPERVISOR_REVIEW_AFTER_FULL_ACTION_AND_EVENT_LOGIC_VALIDATION.)
