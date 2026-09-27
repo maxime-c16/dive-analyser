@@ -1,9 +1,22 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> FAX6 blind HUMAN gate prepared (2026-09-27), labels pending: four new
+> FAX6 fresh mixed-interval gate (2026-09-27): blind HUMAN authority sealed
+> at `9965c978`, digest `a719d25f…`, four new sessions, two qualifying
+> mixed selected flights (745, 850), one clean selected flight (772), one
+> upstream unsurfaced (649). Frozen individual-mask bridge recovers both
+> mixed selected physical divers after explicit 0.400/0.100 s NULL; 8/8
+> asserted HUMAN flight masks correct, zero observed wrong-person links.
+> This restores 8/18 mixed-flight anchors versus V3/V4 zero, but mixed
+> prep remains 0/19 and V1/V2 had zero observed physical switches here.
+> No demonstrated silent-switch reduction, no general full-action overlay
+> promotion. Instance bridge remains development-only. Event Logic/pose
+> stay frozen. Report:
+> `docs/science/DIVE_ANALYZER_FAX_V6_INSTANCE_FRESH_GATE.md`.
+
+> FAX6 blind HUMAN gate prepared before detector inspection (2026-09-27): four new
 > session-disjoint raw-screened dives 649/s45, 745/s48, 772/s49, 850/s52.
-> It will test a frozen development instance-mask bridge after mixed edges;
-> consumed 164/205/590 show local person-specific reattachment but do not
+> It tests a frozen development instance-mask bridge after mixed edges;
+> consumed 164/205/590 showed local person-specific reattachment but did not
 > establish safety. Source SHA and queue rules:
 > `experiments/full_action/FAX_V6_PROTOCOL.md`; blind queue manifest
 > `docs/science/FAX6_QUEUE_MANIFEST.json` SHA `5813d487…`; prototype
