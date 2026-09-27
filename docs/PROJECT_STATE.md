@@ -1,6 +1,7 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
-> Durable project handoff. Last verified: **2026-09-26** (science thread:
+> Durable project handoff. Last verified: **2026-09-27** (science thread: FAT3 full-action + event-logic validation - fresh session-disjoint DEVELOPMENT authority FULL_ACTION_GT_HUMAN_V3_FRESH (6 dives, digest dfd493f0); frozen FAX V1 validated 29/29 prep @ 1.0 where identity is unambiguous, association (not perception) is the blocker in multi-person prep; frozen V3-C0 still fails on validated tracks; V4-B0 successor materially improves with a documented prep-rise-lock failure; overlay conditional, pose stays paused; gate SUPERVISOR_REVIEW_AFTER_FULL_ACTION_AND_EVENT_LOGIC_VALIDATION.)
+> Previous handoff: **2026-09-26** (science thread:
 > Dive Analyzer flight perception recovery V2 — fresh blind HUMAN V3 development
 > holdout (14 dives/13 disjoint sessions, digest `83326b04`), selected S3
 > (`3dc07f69`) before V3 GT read; frozen FSR primary top-5/top-10 **12/14**
@@ -99,7 +100,7 @@
 > Previous science: `docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md`
 > Previous science: `docs/science/EVENT_LOGIC_V3_REAL_DATA_REPAIR_REPORT.md`
 > Previous science: `docs/science/PROCEDURAL_TRAJECTORY_READINESS_AND_EVENT_LOGIC_V3_REPORT.md`
-> Supervisor gate: **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_RECOVERY_V2`**
+> Previous supervisor gate (flight perception recovery V2): **`SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_RECOVERY_V2`**
 > (previous: `SUPERVISOR_REVIEW_AFTER_FLIGHT_PERCEPTION_SUCCESSOR`,
 > `SUPERVISOR_REVIEW_AFTER_FLIGHT_SEARCH_RECOVERY`, `SUPERVISOR_REVIEW_AFTER_FLIGHT_PATH_CANDIDATE_RECALL_AUDIT_V1`,
 > earlier: `SUPERVISOR_REVIEW_AFTER_FLIGHT_ANCHORED_TRAJECTORY_V3`,
@@ -2790,3 +2791,61 @@ with EL-successor validation (apex proven collectible); then the bounded
 overlay pilot. Pose/biomechanics stay paused.
 
 Gate: SUPERVISOR_REVIEW_AFTER_FULL_ACTION_TRAJECTORY_AND_EVENT_LOGIC.
+
+
+## FAT3 gate V1 — 2026-09-27 (verdict: FAIL with validated generalization)
+
+Fresh authority `FULL_ACTION_GT_HUMAN_V3_FRESH` (digest
+`dfd493f0fe482cfd73149b38de474d54ba9fdbff6d30c044aacf4cfebcb0c48b`,
+182 items + FAT3_EVENTS, zero exclusions, apex-repeat agreement
+0.000–0.033 s): 6 session-disjoint DEVELOPMENT dives in the
+visible-prep regime (16/s7, 251/s31, 1491/s92, 1716/s104, 2519/s139,
+2742/s166; reserve 735/s47 unused), all 1m springboard, committed
+pre-annotation (`69ad2f2`) with GT-free metadata + raw-clip screen and a
+dive-context sweep (no prior dive reference to any of the 10 shortlisted
+IDs). S3 caches + FSR selection built GT-free and sealed; viability 7/7.
+Event Logic successor V4-B0 (flight-anchored takeoff + DEV-median bias
++0.23 s, frozen V3-C0 apex/wc downstream) designed and frozen on DEV
+only (`39bba63`), 10/10 unit tests, before annotation.
+
+Gate (frozen FAX V1, predeclared rule): 6/6 flights surfaced, but pooled
+prep purity violated (4 wrong-person overlaps: 16×2, 2519×2) and pooled
+prep coverage 29/70 = 0.414 < 0.5; flight (i) fails on 2519 (0.667).
+**Verdict: FAT3_GATE_FAIL.** Full record:
+`DIVE_ANALYZER_FAT3_GATE_V1.md` (`48dd1e8`).
+
+Attribution (visual + coordinate forensics):
+- VALIDATED full recovery where identity is unambiguous: 1491 (12/12),
+  251 (11/11, same-athlete annotator-adjudicated), 2742 (6/6) — 29/29 at
+  purity 1.0. FAX V1 generalizes fresh. 1716 honest short track (empty
+  scene → walk-in, 0 visible prep, GAP/GAP).
+- Association failures (extension, NOT perception): 16 (crowd drift onto
+  background people within 1 s of core in a 2-simultaneous-diver scene,
+  then honest AMBIGUOUS stop); 2519 (static water-junk ride via an
+  IoU-0.10 handoff while the diver steps to the board; partial flight).
+  S3 sees the HUMAN-boxed diver at 56/65 visible prep anchors
+  (2519 @ conf 0.77) — no FAT2-class perception bound in this regime.
+  FAX V1's identity-free geometric gates admit confident wrong-person
+  links → real algorithmic limitation; FAX successor justified (next
+  cycle; FAT3 burned as validation; FAX V1 unchanged).
+- V3-C0 still fails on validated tracks (1491 −3.033, 2742 −2.352).
+- V4-B0 materially improves (takeoff median 0.508 vs 2.142 on
+  {1491,2742,251,1716}; exact fresh apexes 0.000 on clean takeoffs; wc
+  mixed: −0.583 on 1491 threshold semantics) with a new documented
+  prep-rise-lock failure (251 satellite bounce −0.883, 2742 board mount
+  −1.168): "first rise after last low" must prefer proximity to ft0.
+  2519 honest abstention (both logics).
+- Overlay: viable on sparse single-diver tracks only; confident
+  wrong-person risk in crowds → bounded pilot on sparse scenes +
+  FAX-successor cycle. Pose/geometry stay PAUSED (identity blocker).
+- Blocker (exactly one): trajectory extension = identity-aware
+  association in multi-person prep scenes.
+- Method: targeted annotator adjudication (251 same-athlete) is now the
+  identity firewall; viewer viewport fix pre-annotation (`34fb42b`); no
+  ghost-exclusion incident.
+
+Frozen: FAX V1 `55282fb9…`, S3 `3dc07f69…`, V3-C0, V4-B0 `21ad37bb…`
+(tests `fe40ca39…`), eval `81dd9d03…`, authority digest `dfd493f0…`.
+Concurrent worktree state untouched throughout.
+
+Gate: `SUPERVISOR_REVIEW_AFTER_FULL_ACTION_AND_EVENT_LOGIC_VALIDATION`.
