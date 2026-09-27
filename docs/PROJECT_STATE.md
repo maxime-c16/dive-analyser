@@ -1,5 +1,18 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX5 fresh mixed-person gate FAIL (2026-09-27): blind authority digest
+> `c178fd72…`, three labelable dives + 627 HUMAN-unlabelable. Only 590 has
+> a qualifying selected flight; 321/474 are upstream unsurfaced. 590 has a
+> mixed selected edge. V4 abstains honestly but never reattaches (0/9
+> asserted flight anchors, 0/14 prep); its width-based suffix first appears
+> post-entry and fails motion competition (7 target-candidate vs 12 competing
+> moving features). V1/V2 preserve 9/9 flight and 10/14 correct prep; three
+> other prep center misses are visually partial/downshifted boxes on the
+> same diver, not physical-person switches. Fresh wrong-person continuation
+> observed: zero. No demonstrated safety gain, major coverage loss.
+> Full-action box overlays remain unsafe; Event Logic/pose remain frozen.
+> Report: `docs/science/DIVE_ANALYZER_FAX_V5_FRESH_GATE.md`.
+
 > FAX4 fresh HUMAN gate sealed (2026-09-27, digest `f6bd2af9…`): four queued,
 > one HUMAN-unlabelable (410), two qualifying selected flights (2473, 2533),
 > one upstream unsurfaced (1667). Neither selected path has a mixed edge.
@@ -11,9 +24,8 @@
 > Event Logic and pose stay frozen. Report:
 > `docs/science/DIVE_ANALYZER_FAX_V4_FRESH_GATE.md`.
 >
-> A second raw-only FAX5 queue (590/s42, 321/s32, 474/s37, 627/s44) is
-> prepared from six source-screened clips before detector inspection.
-> Blind HUMAN authority is pending. Queue identities:
+> The FAX5 queue (590/s42, 321/s32, 474/s37, 627/s44) was prepared from
+> six source-screened clips before detector inspection. Queue identities:
 > `docs/science/FAX5_QUEUE_MANIFEST.json` and
 > `experiments/full_action/FAX_V5_PROTOCOL.md`.
 
