@@ -1,5 +1,8 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> Pose hardening V1 (2026-09-28): HUMAN-anchored temporal hardening eliminates residual L/R flips in VALID (0 across all dives/res) via bone-gated UNUSABLE marking + 3f median (jitter -17 to -53%, still 0.075-0.220); chaining without HUMAN anchoring rejected (2120 proxy 86% distractor latch -> true 30%). HQ improves recall/continuity (dense +19-50pts ex. 2134; 1257 prep 0->64%) but degrades geometry (flips/CV rise on rescued hard frames). Phase VALID HQ non-1849: PREP 0.93, TAKEOFF 0.49, EARLY 0.34, ROTATION 0.26, EXTENSION 0.35, ENTRY 0.34, POST 0.05; 1849 slow-tuck exception 0.81-1.00. m-pose shifts recall only (1257 1->6/9, 2120 6->9/9, 47 6->4/9, 2134 ~0); rotation-TTA rescues some (47 2/3, 2120 2/3, 1257 3/8) but 2134 0/9. Geometry gated to PREP/standing only (1849-like tuck-hold conditional, HQ jitter 0.134 still above 0.10). Bounded diving-specific pose fine-tune now justified; minimal HUMAN ask <=20 hard flight L/R frames (not requested). Blocker is perception blindness in rotation/inversion/pike/small-flight/entry, not smoothing. Report: docs/science/DIVE_ANALYZER_POSE_HARDENING_V1.md. Gate: SUPERVISOR_REVIEW_AFTER_POSE_HARDENING_V1.
+
+
 > Clean-track pose feasibility (2026-09-28): pose is phase-gated viable only.
 > DEVELOPMENT HUMAN-validated same-person DiveTracks (FAX7 digest b71b950e,
 > FAX8 digest a31d5bcf; primary 47/s15, 952/s58, 1257/s79, 2120/s129 plus
