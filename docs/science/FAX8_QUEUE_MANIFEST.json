@@ -1,0 +1,83 @@
+{
+ "authority": "FULL_ACTION_GT_HUMAN_FAX8_FRESH (queue; labels pending)",
+ "blind": "Raw study-local proxy frames only. No S3 boxes, FSR candidates, FAX tracks, scores, or overlays shown or reachable. S3 caches + FSR selection are sealed until the freeze.",
+ "codes": {
+  "1257": "301C",
+  "1463": "201C",
+  "1849": "403B",
+  "2134": "103B",
+  "2398": "102B",
+  "907": "301C"
+ },
+ "created_rule": "Per dive: takeoff, water contact (scrub), apex + independent apex repeat (scrub, constrained to the marked window); then flight k/8 boxes, PREP every 0.5s clip-start to >=0.1s pre-takeoff, POST +0.1/+0.3/+0.5; one blind PREP repeat per dive (middle PREP). Nearest recorded proxy PTS throughout.",
+ "dives": [
+  "907",
+  "1257",
+  "1463",
+  "1849",
+  "2134",
+  "2398"
+ ],
+ "media_sha256": {
+  "1257": "d2c862fd64d713fbec4a2265faeecd9e3786066b7a582c5988d76321ee5310a6",
+  "1463": "265bcf1015f94cb3e975292fcc2554604b9f79940458a596ca5efd835cd71202",
+  "1849": "6762915ab61dd6dc2021ca7ec1eeefc06574a035793a9739ecc484ce268cc35b",
+  "2134": "6c4e12c4167398c5bf6a8ca38191d71d7fdf92279f4b736aaebbcff9d2bfda3c",
+  "2398": "9e1a9745cde8ca5397a9d83849145d9ca320dc61c540a4f83a4adf423649d558",
+  "907": "0b71ec4f2cc21eeb2c57d416c21d7f50cbb3e586ecf90622143d961d6b5fb5d2"
+ },
+ "n_event_steps": 24,
+ "proxy_size": {
+  "1257": [
+   202,
+   360
+  ],
+  "1463": [
+   202,
+   360
+  ],
+  "1849": [
+   202,
+   360
+  ],
+  "2134": [
+   202,
+   360
+  ],
+  "2398": [
+   202,
+   360
+  ],
+  "907": [
+   214,
+   360
+  ]
+ },
+ "pts_source": {
+  "1257": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)",
+  "1463": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)",
+  "1849": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)",
+  "2134": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)",
+  "2398": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)",
+  "907": "study-local proxy sequential cv2 decode (PROXY_REGISTRY_FAX_V8)"
+ },
+ "raw_registry_sha256": "67ae277be517b3bd73d3cfd81834f086214b349dd5a1a4810b7bbfea3e77321b",
+ "reserve": [],
+ "selection_manifest_sha256": "c06af274aa266760aa96449e1fb1a245ca762b0777204366f1c4f697b087adb3",
+ "sessions": {
+  "1257": 79,
+  "1463": 90,
+  "1849": 107,
+  "2134": 130,
+  "2398": 153,
+  "907": 54
+ },
+ "source_sha256": {
+  "1257": "f49c7aaf1d4b3d75c26c45c1f02869954b000afd563285dc626b2dd31eaec345",
+  "1463": "707901738006601384d7a660a8e6c5e2276e506d19bf530c008a5b8a1751ec2c",
+  "1849": "689930d0790d699349ccb8ee9c8c0a9e3b09f856641c14a3a4288f8fc0c42993",
+  "2134": "789704017f29f4c79da23c6165516cb2f3a486bc5bdb3d68f84f89f6120d72da",
+  "2398": "903809d32fe4863859c98ee1cf9fa86fdf97e2d819344ab92a7b98cb07009fb9",
+  "907": "991bab99c58f59593c49db97169e6622598193bf6af795a0fca50922e9d874e6"
+ }
+}

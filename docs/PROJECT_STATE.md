@@ -1,14 +1,32 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX7 fresh blind authority sealed (2026-09-28): six session-disjoint dives,
+> 182 HUMAN records plus events, digest `b71b950e…`; five selected flights,
+> one separate FSR surfacing failure. No selected flight had a qualifying
+> mixed edge, so fresh prep-to-subcore connection outcomes have denominator
+> zero. Clean controls gave 37/60 correct prep centers, 22 prep abstentions,
+> one wrong-person prep center at 884 f210 / 7.007 s, 45/45 selected flight,
+> and 5/5 immediate post. A post-seal S3 candidate audit found a target-near
+> prep box on 51/60 samples, including 13/16 on 884 versus only 1/16
+> correctly associated: association and perception must be measured
+> separately. Report: `docs/science/DIVE_ANALYZER_FAX7_PREP_CONTINUITY_FRESH_READOUT.md`.
+> General overlay pilot, Event Logic, and pose remain gated.
+>
+> FAX8 raw-only DEVELOPMENT queue prepared (2026-09-28): 907/s54, 1257/s79,
+> 1463/s90, 1849/s107, 2134/s130, 2398/s153, all selected from unused
+> original raw contact sheets with distinct sessions before FAX8 inference.
+> HUMAN annotation is pending. Queue and gate:
+> `docs/science/FAX8_QUEUE_MANIFEST.json`,
+> `experiments/full_action/FAX_V8_PROTOCOL.md`. No FAX8 result is claimed.
+
 > FAX7 prep-to-subcore fresh blind queue prepared (2026-09-28): six new
 > session-disjoint raw-screened DEVELOPMENT dives 47/s15, 884/s53,
 > 952/s58, 1327/s82, 1798/s109, 2120/s129. Selection used 2/4/6/8 s
 > source frames only, from 24 metadata-shortlisted sessions; no model
 > outcomes were inspected. Source SHA, proxy SHA, and blind HUMAN rules:
 > `experiments/full_action/FAX_V7_PROTOCOL.md` and
-> `docs/science/FAX7_QUEUE_MANIFEST.json`. HUMAN labels are pending; no FAX7
-> detector inspection, fresh continuity result, overlay promotion, Event
-> Logic validation, or pose resume is claimed.
+> `docs/science/FAX7_QUEUE_MANIFEST.json`. The later sealed result above
+> supersedes this queue-only status.
 
 > Prep-to-trusted-subcore continuity V1 development probe (2026-09-28):
 > two-endpoint person-instance path competition on consumed FAX2 205 and FAX6
@@ -17,9 +35,7 @@
 > unresolved rather than asserting V1's 26 wrong-person prep overlaps.
 > Consumed mixed FAX6 sampled coverage under strict interval NULL is 9/19 prep, 8/18 physically correct
 > flight masks, 2/2 immediate post; wrong-person assertions observed 0.
-> **No fresh session-disjoint HUMAN authority was available or sealed**:
-> unused raw-screened source videos and B2 read credentials are absent in
-> this workspace. This is not a safety or pilot gate. General full-action
+> This consumed probe is not a safety or pilot gate. General full-action
 > overlay, Event Logic validation, and pose/geometry remain paused. No
 > frozen method or protected authority was changed. Report:
 > `docs/science/DIVE_ANALYZER_PREP_TO_SUBCORE_CONTINUITY_DEV_V1.md`.
