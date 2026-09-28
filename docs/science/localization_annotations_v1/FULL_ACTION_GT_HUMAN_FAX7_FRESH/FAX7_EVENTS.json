@@ -1,0 +1,44 @@
+{
+ "1327": {
+  "apex": 5.872533,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 5.438767,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 6.573233
+ },
+ "1798": {
+  "apex": 6.1,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 5.6,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 6.8
+ },
+ "2120": {
+  "apex": 5.016667,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 4.5,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 5.683333
+ },
+ "47": {
+  "apex": 9.943267,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 9.5095,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 10.8108
+ },
+ "884": {
+  "apex": 8.3083,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 7.9079,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 9.009
+ },
+ "952": {
+  "apex": 6.523183,
+  "apex_source": "FAX7_FRESH_HUMAN",
+  "takeoff": 6.122783,
+  "takeoff_contact_source": "FAX7_FRESH_HUMAN",
+  "water_contact": 7.190517
+ }
+}
