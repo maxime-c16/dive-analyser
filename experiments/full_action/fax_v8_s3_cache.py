@@ -1,6 +1,6 @@
 """FAX8 S3 floor caches (GT-free inference; no HUMAN data read).
 
-Dives: 47/884/952/1327/1798/2120 (blind fresh queue). Proxy-only
+Dives: 907/1257/1463/1849/2134/2398 (blind fresh queue). Proxy-only
 (no HQ arm this round). Schema identical to the FAT2 SELECTED_TRACK caches
 (frames: pts_s, fi (1-based), n, c; floor conf 0.001, NMS 0.45, imgsz 640,
 cap 200). Proxy SHA asserted vs the frozen queue table; decode PTS asserted
@@ -28,7 +28,7 @@ MODEL_SHA = '3dc07f69cbe3824490f73c14a59ed328ff35fc2da48da2fd4e324acf9bcc4e9a'
 OUT = WORKROOT / 'model_caches'
 AUTHORITY = ROOT / 'docs/science/localization_annotations_v1/FULL_ACTION_GT_HUMAN_FAX8_FRESH/MANIFEST.json'
 
-DIVES_360 = ('47', '884', '952', '1327', '1798', '2120')
+DIVES_360 = ('907', '1257', '1463', '1849', '2134', '2398')
 
 PROXY_SHA = {d: x['proxy_sha256'] for d, x in json.loads(REGISTRY.read_text())['dives'].items()}
 
