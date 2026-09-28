@@ -12,6 +12,12 @@
 > wrong-person link is confirmed, but a reduction cannot be estimated.
 > General overlay pilot, Event Logic, and pose remain gated. Readout:
 > `docs/science/DIVE_ANALYZER_FAX8_PREP_CONTINUITY_FRESH_READOUT.md`.
+> A later raw-only screen of 12 additional unused sessions did not establish
+> a true target-person convergence/split, so no further HUMAN queue was
+> frozen. Core architecture risk: `prep_to_subcore_v1_dev` takes V1's
+> geometric backward extension as its prep branch; that is not independent
+> physical-person trust. The next gate needs a separately trusted prep
+> branch and a raw-verified two-person interaction before annotation.
 
 > FAX7 fresh blind authority sealed (2026-09-28): six session-disjoint dives,
 > 182 HUMAN records plus events, digest `b71b950e…`; five selected flights,
