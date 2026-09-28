@@ -1,5 +1,10 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> Detailed supervisor handoff for the completed FAX7/FAX8
+> prep-to-subcore cycle: `docs/science/DIVE_ANALYZER_PREP_TO_SUBCORE_CONTINUITY_DETAILED_SUPERVISOR_OUTPUT.md`.
+> The connection remains unproven on fresh true merge/split data; general
+> full-action pilot, Event Logic, and pose stay gated.
+
 > FAX8 fresh authority (2026-09-28): six HUMAN-complete session-disjoint
 > dives, digest `a31d5bcf…`; four selected flights, two upstream FSR
 > surfacing failures. The sole machine-flagged mixed edge, 2134, is a
