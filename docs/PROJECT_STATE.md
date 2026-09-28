@@ -1,5 +1,15 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX7 prep-to-subcore fresh blind queue prepared (2026-09-28): six new
+> session-disjoint raw-screened DEVELOPMENT dives 47/s15, 884/s53,
+> 952/s58, 1327/s82, 1798/s109, 2120/s129. Selection used 2/4/6/8 s
+> source frames only, from 24 metadata-shortlisted sessions; no model
+> outcomes were inspected. Source SHA, proxy SHA, and blind HUMAN rules:
+> `experiments/full_action/FAX_V7_PROTOCOL.md` and
+> `docs/science/FAX7_QUEUE_MANIFEST.json`. HUMAN labels are pending; no FAX7
+> detector inspection, fresh continuity result, overlay promotion, Event
+> Logic validation, or pose resume is claimed.
+
 > Prep-to-trusted-subcore continuity V1 development probe (2026-09-28):
 > two-endpoint person-instance path competition on consumed FAX2 205 and FAX6
 > 745/850 yields 850 connected with a 0.984 s explicit NULL interval,
