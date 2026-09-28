@@ -1,21 +1,36 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> FAX8 fresh authority (2026-09-28): six HUMAN-complete session-disjoint
+> dives, digest `a31d5bcf…`; four selected flights, two upstream FSR
+> surfacing failures. The sole machine-flagged mixed edge, 2134, is a
+> one-person rotation artifact on raw visual review; the instance bridge
+> abstains and no trusted selected subcore is available. Thus the fresh
+> true merge/split prep-to-subcore denominator is zero again. V1 selected
+> coverage is 17/32 prep, 35/36 flight, 3/3 immediate post (55/71 sampled
+> full-action); V3/V4 are 16/32, 26/36, 2/3 (44/71). Target-near S3 prep
+> candidates appear on 21/32 selected samples. No sampled physical
+> wrong-person link is confirmed, but a reduction cannot be estimated.
+> General overlay pilot, Event Logic, and pose remain gated. Readout:
+> `docs/science/DIVE_ANALYZER_FAX8_PREP_CONTINUITY_FRESH_READOUT.md`.
+
 > FAX7 fresh blind authority sealed (2026-09-28): six session-disjoint dives,
 > 182 HUMAN records plus events, digest `b71b950e…`; five selected flights,
 > one separate FSR surfacing failure. No selected flight had a qualifying
 > mixed edge, so fresh prep-to-subcore connection outcomes have denominator
 > zero. Clean controls gave 37/60 correct prep centers, 22 prep abstentions,
-> one wrong-person prep center at 884 f210 / 7.007 s, 45/45 selected flight,
+> one center miss at 884 f210 / 7.007 s, 45/45 selected flight,
 > and 5/5 immediate post. A post-seal S3 candidate audit found a target-near
 > prep box on 51/60 samples, including 13/16 on 884 versus only 1/16
-> correctly associated: association and perception must be measured
-> separately. Report: `docs/science/DIVE_ANALYZER_FAX7_PREP_CONTINUITY_FRESH_READOUT.md`.
+> center-localized: association and perception must be measured
+> separately. The 884 asserted box covers the HUMAN-labeled left diver's
+> lower body; it is a same-person partial-box error, not a physical switch.
+> Report: `docs/science/DIVE_ANALYZER_FAX7_PREP_CONTINUITY_FRESH_READOUT.md`.
 > General overlay pilot, Event Logic, and pose remain gated.
 >
 > FAX8 raw-only DEVELOPMENT queue prepared (2026-09-28): 907/s54, 1257/s79,
 > 1463/s90, 1849/s107, 2134/s130, 2398/s153, all selected from unused
 > original raw contact sheets with distinct sessions before FAX8 inference.
-> HUMAN annotation is pending. Queue and gate:
+> The sealed result above supersedes this queue-only status. Queue and gate:
 > `docs/science/FAX8_QUEUE_MANIFEST.json`,
 > `experiments/full_action/FAX_V8_PROTOCOL.md`. No FAX8 result is claimed.
 
