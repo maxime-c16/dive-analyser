@@ -1,5 +1,19 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> Prep-to-trusted-subcore continuity V1 development probe (2026-09-28):
+> two-endpoint person-instance path competition on consumed FAX2 205 and FAX6
+> 745/850 yields 850 connected with a 0.984 s explicit NULL interval,
+> 745 honestly unresolved due to competing prep ancestor, and 205 honestly
+> unresolved rather than asserting V1's 26 wrong-person prep overlaps.
+> Consumed mixed FAX6 sampled coverage is 10/19 prep, 8/18 physically correct
+> flight masks, 2/2 immediate post; wrong-person assertions observed 0.
+> **No fresh session-disjoint HUMAN authority was available or sealed**:
+> unused raw-screened source videos and B2 read credentials are absent in
+> this workspace. This is not a safety or pilot gate. General full-action
+> overlay, Event Logic validation, and pose/geometry remain paused. No
+> frozen method or protected authority was changed. Report:
+> `docs/science/DIVE_ANALYZER_PREP_TO_SUBCORE_CONTINUITY_DEV_V1.md`.
+
 > FAX6 fresh mixed-interval gate (2026-09-27): blind HUMAN authority sealed
 > at `9965c978`, digest `a719d25f…`, four new sessions, two qualifying
 > mixed selected flights (745, 850), one clean selected flight (772), one
