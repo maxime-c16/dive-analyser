@@ -1,5 +1,27 @@
 # PROJECT_STATE.md — Dive Analyser / DiveSensei
 
+> Clean-track pose feasibility (2026-09-28): pose is phase-gated viable only.
+> DEVELOPMENT HUMAN-validated same-person DiveTracks (FAX7 digest b71b950e,
+> FAX8 digest a31d5bcf; primary 47/s15, 952/s58, 1257/s79, 2120/s129 plus
+> supplemental 1849/s107, 2134/s130) tested with bounded yolov8n-pose vs
+> yolov8m-pose, HQ raw vs proxy 360p, plus seg spot check. PREP/standing
+> reliable (proxy 0.83-1.00 except tiny-1257 0.00; HQ 0.64-1.00); flight
+> proxy 0.00-0.33 (except 1849 0.89) vs HQ 0.11-0.78 (except 1849 1.00,
+> 2134 0.00); POST ~0. When matched, limbs 95-100% but head 10-86% and
+> L/R flips 17-42% in flight, torso CV 0.09-0.33, jitter 0.13-0.38
+> torsos/frame, shoulder/hip CV 0.50-0.75. HQ materially improves recall
+> and continuity (e.g. dense 1849 25-86pct, 2120 29-65pct) but does not fix
+> rotation/inversion/pike geometry. Masks fail concurrently with pose.
+> No stable full-action body geometry can be derived; normalization by
+> body scale is not yet stable. Next: pose hardening + landmark
+> integration before geometry (phase/HQ gating, L/R disambiguation,
+> rotation-robust model/diving fine-tune); no overlay promotion, no Event
+> Logic tuning. True-merge continuity result at ca5bab9 preserved
+> (dev-only prep_to_subcore_v1_dev, no raw-verified true merge/split in
+> authorized corpus). Report:
+> docs/science/DIVE_ANALYZER_CLEAN_TRACK_POSE_FEASIBILITY.md.
+> Gate: SUPERVISOR_REVIEW_AFTER_CLEAN_TRACK_POSE_FEASIBILITY.
+
 > Detailed supervisor handoff for the completed FAX7/FAX8
 > prep-to-subcore cycle: `docs/science/DIVE_ANALYZER_PREP_TO_SUBCORE_CONTINUITY_DETAILED_SUPERVISOR_OUTPUT.md`.
 > The connection remains unproven on fresh true merge/split data; general
