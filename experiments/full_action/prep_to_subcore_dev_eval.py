@@ -39,7 +39,8 @@ def main():
         mask_obs = {int(k): tuple(z['box']) + (z['conf'],)
                     for k, z in b['trajectory'].items()}
         prep_obs = ({int(k): tuple(z['box']) + (z['conf'],)
-                     for k, z in v['trajectory'].items() if int(k) < x['edge']}
+                     for k, z in v['trajectory'].items()
+                     if int(k) < decision['prep_anchor_frame']}
                     if decision['state'] == 'CONNECTED_WITH_NULL_INTERVAL' else {})
         flight_labels = {f: a for phase, rows in phases.items()
                          if phase.endswith('/8') for f, a in rows.items()}

@@ -15,7 +15,7 @@
 > 745/850 yields 850 connected with a 0.984 s explicit NULL interval,
 > 745 honestly unresolved due to competing prep ancestor, and 205 honestly
 > unresolved rather than asserting V1's 26 wrong-person prep overlaps.
-> Consumed mixed FAX6 sampled coverage is 10/19 prep, 8/18 physically correct
+> Consumed mixed FAX6 sampled coverage under strict interval NULL is 9/19 prep, 8/18 physically correct
 > flight masks, 2/2 immediate post; wrong-person assertions observed 0.
 > **No fresh session-disjoint HUMAN authority was available or sealed**:
 > unused raw-screened source videos and B2 read credentials are absent in
