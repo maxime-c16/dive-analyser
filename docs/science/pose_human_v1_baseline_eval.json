@@ -1,0 +1,1953 @@
+{
+  "queue_sha256": "89e2b9141da4840d4d2f2639a55425227231f2917ea267ca3787ee371ab823ac",
+  "labels_sha256": "96abeae0fb89a108b64c6f0e68434b580f5aed813cfd2d780cebea1325b55549",
+  "weights_sha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212",
+  "detected_frames": 13,
+  "total_frames": 16,
+  "predictions": {
+    "2134_fl_f00230": {
+      "detected": true,
+      "track_distance": 0.10151083228992365,
+      "box_conf": 0.35406413674354553,
+      "joints": {
+        "left_shoulder": {
+          "x": 610.2781372070312,
+          "y": 408.19915771484375,
+          "conf": 0.08292627334594727
+        },
+        "right_shoulder": {
+          "x": 576.80712890625,
+          "y": 410.2388916015625,
+          "conf": 0.15568582713603973
+        },
+        "left_elbow": {
+          "x": 571.7601318359375,
+          "y": 462.8809814453125,
+          "conf": 0.30400434136390686
+        },
+        "right_elbow": {
+          "x": 519.8463745117188,
+          "y": 479.8214416503906,
+          "conf": 0.39648905396461487
+        },
+        "left_wrist": {
+          "x": 583.440673828125,
+          "y": 508.7767639160156,
+          "conf": 0.6601730585098267
+        },
+        "right_wrist": {
+          "x": 569.7334594726562,
+          "y": 529.0777587890625,
+          "conf": 0.6977218389511108
+        },
+        "left_hip": {
+          "x": 604.41796875,
+          "y": 507.88165283203125,
+          "conf": 0.7564479112625122
+        },
+        "right_hip": {
+          "x": 582.5489501953125,
+          "y": 512.5532836914062,
+          "conf": 0.7910796403884888
+        },
+        "left_knee": {
+          "x": 587.689453125,
+          "y": 563.8579711914062,
+          "conf": 0.9577878713607788
+        },
+        "right_knee": {
+          "x": 582.6366577148438,
+          "y": 574.352783203125,
+          "conf": 0.9607512950897217
+        },
+        "left_ankle": {
+          "x": 606.2559204101562,
+          "y": 710.9796752929688,
+          "conf": 0.8844286203384399
+        },
+        "right_ankle": {
+          "x": 615.91845703125,
+          "y": 725.1572875976562,
+          "conf": 0.8916437029838562
+        }
+      }
+    },
+    "2134_fl_f00247": {
+      "detected": false,
+      "reason": "zero_detections"
+    },
+    "2134_fl_f00264": {
+      "detected": true,
+      "track_distance": 0.04433795112290766,
+      "box_conf": 0.5742731094360352,
+      "joints": {
+        "left_shoulder": {
+          "x": 427.1854248046875,
+          "y": 425.41424560546875,
+          "conf": 0.9879783391952515
+        },
+        "right_shoulder": {
+          "x": 439.4300842285156,
+          "y": 425.1446228027344,
+          "conf": 0.6047475337982178
+        },
+        "left_elbow": {
+          "x": 413.523193359375,
+          "y": 463.3871765136719,
+          "conf": 0.9904690384864807
+        },
+        "right_elbow": {
+          "x": 440.7176208496094,
+          "y": 457.18798828125,
+          "conf": 0.21194906532764435
+        },
+        "left_wrist": {
+          "x": 395.41558837890625,
+          "y": 492.8872985839844,
+          "conf": 0.9527631402015686
+        },
+        "right_wrist": {
+          "x": 412.0323486328125,
+          "y": 489.14129638671875,
+          "conf": 0.20375199615955353
+        },
+        "left_hip": {
+          "x": 459.9189147949219,
+          "y": 487.5986328125,
+          "conf": 0.9689419269561768
+        },
+        "right_hip": {
+          "x": 468.1471252441406,
+          "y": 488.1037902832031,
+          "conf": 0.8159151673316956
+        },
+        "left_knee": {
+          "x": 417.8671875,
+          "y": 498.07769775390625,
+          "conf": 0.8954005837440491
+        },
+        "right_knee": {
+          "x": 424.48468017578125,
+          "y": 498.6616516113281,
+          "conf": 0.5065741539001465
+        },
+        "left_ankle": {
+          "x": 471.5552673339844,
+          "y": 512.7598266601562,
+          "conf": 0.6879844069480896
+        },
+        "right_ankle": {
+          "x": 475.4398498535156,
+          "y": 508.6895751953125,
+          "conf": 0.37930959463119507
+        }
+      }
+    },
+    "2134_fl_f00280": {
+      "detected": false,
+      "reason": "zero_detections"
+    },
+    "1257_fl_f00157": {
+      "detected": true,
+      "track_distance": 0.001650130807293702,
+      "box_conf": 0.8349524140357971,
+      "joints": {
+        "left_shoulder": {
+          "x": 469.5760192871094,
+          "y": 669.0337524414062,
+          "conf": 0.6538327932357788
+        },
+        "right_shoulder": {
+          "x": 463.9716796875,
+          "y": 663.988037109375,
+          "conf": 0.9730691313743591
+        },
+        "left_elbow": {
+          "x": 454.2752380371094,
+          "y": 649.0440673828125,
+          "conf": 0.4060176908969879
+        },
+        "right_elbow": {
+          "x": 454.5920715332031,
+          "y": 631.4343872070312,
+          "conf": 0.9725745320320129
+        },
+        "left_wrist": {
+          "x": 451.08135986328125,
+          "y": 623.09912109375,
+          "conf": 0.4272841513156891
+        },
+        "right_wrist": {
+          "x": 450.157958984375,
+          "y": 603.7083129882812,
+          "conf": 0.938154399394989
+        },
+        "left_hip": {
+          "x": 469.37884521484375,
+          "y": 723.3587646484375,
+          "conf": 0.9673272967338562
+        },
+        "right_hip": {
+          "x": 464.1190185546875,
+          "y": 721.0160522460938,
+          "conf": 0.9922675490379333
+        },
+        "left_knee": {
+          "x": 459.150146484375,
+          "y": 774.1575317382812,
+          "conf": 0.9442827701568604
+        },
+        "right_knee": {
+          "x": 457.02630615234375,
+          "y": 774.4451904296875,
+          "conf": 0.9871804118156433
+        },
+        "left_ankle": {
+          "x": 428.90716552734375,
+          "y": 807.2750244140625,
+          "conf": 0.8459542989730835
+        },
+        "right_ankle": {
+          "x": 428.0221862792969,
+          "y": 812.4052734375,
+          "conf": 0.9357906579971313
+        }
+      }
+    },
+    "1257_fl_f00167": {
+      "detected": true,
+      "track_distance": 0.019049577891069737,
+      "box_conf": 0.8952649235725403,
+      "joints": {
+        "left_shoulder": {
+          "x": 493.44378662109375,
+          "y": 579.9976806640625,
+          "conf": 0.9513002038002014
+        },
+        "right_shoulder": {
+          "x": 489.16961669921875,
+          "y": 580.4951171875,
+          "conf": 0.9884948134422302
+        },
+        "left_elbow": {
+          "x": 517.920654296875,
+          "y": 579.8910522460938,
+          "conf": 0.8058807849884033
+        },
+        "right_elbow": {
+          "x": 517.43212890625,
+          "y": 573.4301147460938,
+          "conf": 0.9770515561103821
+        },
+        "left_wrist": {
+          "x": 544.3406982421875,
+          "y": 567.4315795898438,
+          "conf": 0.8276891708374023
+        },
+        "right_wrist": {
+          "x": 543.67578125,
+          "y": 564.158935546875,
+          "conf": 0.967452347278595
+        },
+        "left_hip": {
+          "x": 519.670654296875,
+          "y": 623.3280029296875,
+          "conf": 0.9530313611030579
+        },
+        "right_hip": {
+          "x": 516.2451782226562,
+          "y": 628.299072265625,
+          "conf": 0.9779766201972961
+        },
+        "left_knee": {
+          "x": 539.4337158203125,
+          "y": 582.5755004882812,
+          "conf": 0.934866726398468
+        },
+        "right_knee": {
+          "x": 537.5255126953125,
+          "y": 588.3507690429688,
+          "conf": 0.9704683423042297
+        },
+        "left_ankle": {
+          "x": 573.192626953125,
+          "y": 609.111572265625,
+          "conf": 0.914722204208374
+        },
+        "right_ankle": {
+          "x": 572.890869140625,
+          "y": 614.4453735351562,
+          "conf": 0.9469103813171387
+        }
+      }
+    },
+    "1257_fl_f00177": {
+      "detected": true,
+      "track_distance": 0.017790572275411254,
+      "box_conf": 0.471730500459671,
+      "joints": {
+        "left_shoulder": {
+          "x": 572.3991088867188,
+          "y": 616.6851806640625,
+          "conf": 0.25824493169784546
+        },
+        "right_shoulder": {
+          "x": 568.6145629882812,
+          "y": 615.3734130859375,
+          "conf": 0.260538250207901
+        },
+        "left_elbow": {
+          "x": 595.0037231445312,
+          "y": 601.10791015625,
+          "conf": 0.3315874934196472
+        },
+        "right_elbow": {
+          "x": 590.3734741210938,
+          "y": 599.0387573242188,
+          "conf": 0.382232129573822
+        },
+        "left_wrist": {
+          "x": 659.3231201171875,
+          "y": 556.453125,
+          "conf": 0.5131864547729492
+        },
+        "right_wrist": {
+          "x": 656.0857543945312,
+          "y": 558.2896728515625,
+          "conf": 0.4877574145793915
+        },
+        "left_hip": {
+          "x": 596.394287109375,
+          "y": 624.8612060546875,
+          "conf": 0.33643126487731934
+        },
+        "right_hip": {
+          "x": 593.3800659179688,
+          "y": 628.336669921875,
+          "conf": 0.3262276351451874
+        },
+        "left_knee": {
+          "x": 592.4572143554688,
+          "y": 601.501953125,
+          "conf": 0.2515376806259155
+        },
+        "right_knee": {
+          "x": 588.0331420898438,
+          "y": 605.246337890625,
+          "conf": 0.23112797737121582
+        },
+        "left_ankle": {
+          "x": 626.149658203125,
+          "y": 580.4046630859375,
+          "conf": 0.2807902693748474
+        },
+        "right_ankle": {
+          "x": 617.011962890625,
+          "y": 579.9534301757812,
+          "conf": 0.2549861967563629
+        }
+      }
+    },
+    "1257_fl_f00188": {
+      "detected": true,
+      "track_distance": 0.002121044588067007,
+      "box_conf": 0.8840128183364868,
+      "joints": {
+        "left_shoulder": {
+          "x": 632.4672241210938,
+          "y": 836.484130859375,
+          "conf": 0.9831207990646362
+        },
+        "right_shoulder": {
+          "x": 630.765625,
+          "y": 831.2098388671875,
+          "conf": 0.9485564231872559
+        },
+        "left_elbow": {
+          "x": 614.6837158203125,
+          "y": 824.6854858398438,
+          "conf": 0.9580129981040955
+        },
+        "right_elbow": {
+          "x": 650.6600341796875,
+          "y": 797.950439453125,
+          "conf": 0.8149166107177734
+        },
+        "left_wrist": {
+          "x": 592.9771728515625,
+          "y": 820.5107421875,
+          "conf": 0.9354825615882874
+        },
+        "right_wrist": {
+          "x": 669.9315185546875,
+          "y": 747.00439453125,
+          "conf": 0.8319027423858643
+        },
+        "left_hip": {
+          "x": 638.84228515625,
+          "y": 784.3450927734375,
+          "conf": 0.9743421077728271
+        },
+        "right_hip": {
+          "x": 637.842041015625,
+          "y": 783.5758056640625,
+          "conf": 0.9560925960540771
+        },
+        "left_knee": {
+          "x": 640.7623901367188,
+          "y": 757.3893432617188,
+          "conf": 0.9753243923187256
+        },
+        "right_knee": {
+          "x": 639.8153076171875,
+          "y": 755.5393676757812,
+          "conf": 0.9586242437362671
+        },
+        "left_ankle": {
+          "x": 657.6036987304688,
+          "y": 720.7770385742188,
+          "conf": 0.9835851192474365
+        },
+        "right_ankle": {
+          "x": 663.2606201171875,
+          "y": 718.2230224609375,
+          "conf": 0.9768537878990173
+        }
+      }
+    },
+    "2120_fl_f00270": {
+      "detected": true,
+      "track_distance": 0.01267063626177704,
+      "box_conf": 0.8702460527420044,
+      "joints": {
+        "left_shoulder": {
+          "x": 469.4817199707031,
+          "y": 1309.161865234375,
+          "conf": 0.9051417112350464
+        },
+        "right_shoulder": {
+          "x": 464.2631530761719,
+          "y": 1305.2626953125,
+          "conf": 0.9915035963058472
+        },
+        "left_elbow": {
+          "x": 479.58612060546875,
+          "y": 1278.958740234375,
+          "conf": 0.7611954808235168
+        },
+        "right_elbow": {
+          "x": 478.23162841796875,
+          "y": 1273.2314453125,
+          "conf": 0.9894445538520813
+        },
+        "left_wrist": {
+          "x": 494.6548156738281,
+          "y": 1237.3839111328125,
+          "conf": 0.761008620262146
+        },
+        "right_wrist": {
+          "x": 488.54339599609375,
+          "y": 1235.1041259765625,
+          "conf": 0.9719575643539429
+        },
+        "left_hip": {
+          "x": 430.6293640136719,
+          "y": 1389.4859619140625,
+          "conf": 0.9912817478179932
+        },
+        "right_hip": {
+          "x": 423.78314208984375,
+          "y": 1386.5029296875,
+          "conf": 0.9972109198570251
+        },
+        "left_knee": {
+          "x": 407.84661865234375,
+          "y": 1451.485595703125,
+          "conf": 0.987968921661377
+        },
+        "right_knee": {
+          "x": 406.274169921875,
+          "y": 1456.2861328125,
+          "conf": 0.9961639642715454
+        },
+        "left_ankle": {
+          "x": 394.5171203613281,
+          "y": 1518.74560546875,
+          "conf": 0.9498446583747864
+        },
+        "right_ankle": {
+          "x": 393.8898620605469,
+          "y": 1531.3681640625,
+          "conf": 0.9733109474182129
+        }
+      }
+    },
+    "2120_fl_f00288": {
+      "detected": true,
+      "track_distance": 0.019839976790903394,
+      "box_conf": 0.884293794631958,
+      "joints": {
+        "left_shoulder": {
+          "x": 531.9348754882812,
+          "y": 1186.527099609375,
+          "conf": 0.8933627009391785
+        },
+        "right_shoulder": {
+          "x": 539.32763671875,
+          "y": 1191.4326171875,
+          "conf": 0.9896285533905029
+        },
+        "left_elbow": {
+          "x": 526.86328125,
+          "y": 1217.270751953125,
+          "conf": 0.5934361219406128
+        },
+        "right_elbow": {
+          "x": 540.0910034179688,
+          "y": 1234.51123046875,
+          "conf": 0.9809101223945618
+        },
+        "left_wrist": {
+          "x": 542.036865234375,
+          "y": 1221.446533203125,
+          "conf": 0.6718968152999878
+        },
+        "right_wrist": {
+          "x": 548.724853515625,
+          "y": 1223.1365966796875,
+          "conf": 0.9590878486633301
+        },
+        "left_hip": {
+          "x": 452.1380615234375,
+          "y": 1196.9373779296875,
+          "conf": 0.96113121509552
+        },
+        "right_hip": {
+          "x": 455.40338134765625,
+          "y": 1197.3377685546875,
+          "conf": 0.9842527508735657
+        },
+        "left_knee": {
+          "x": 509.741455078125,
+          "y": 1227.5001220703125,
+          "conf": 0.970332145690918
+        },
+        "right_knee": {
+          "x": 509.69952392578125,
+          "y": 1230.5491943359375,
+          "conf": 0.9912440776824951
+        },
+        "left_ankle": {
+          "x": 468.39752197265625,
+          "y": 1265.118408203125,
+          "conf": 0.9317534565925598
+        },
+        "right_ankle": {
+          "x": 461.39056396484375,
+          "y": 1275.5472412109375,
+          "conf": 0.9644427299499512
+        }
+      }
+    },
+    "2120_fl_f00297": {
+      "detected": true,
+      "track_distance": 0.00466504350154524,
+      "box_conf": 0.8925014734268188,
+      "joints": {
+        "left_shoulder": {
+          "x": 563.4699096679688,
+          "y": 1188.846435546875,
+          "conf": 0.9456751942634583
+        },
+        "right_shoulder": {
+          "x": 584.36181640625,
+          "y": 1172.891357421875,
+          "conf": 0.9897879362106323
+        },
+        "left_elbow": {
+          "x": 536.6400146484375,
+          "y": 1208.38330078125,
+          "conf": 0.8318418860435486
+        },
+        "right_elbow": {
+          "x": 542.7747802734375,
+          "y": 1191.60009765625,
+          "conf": 0.9786158800125122
+        },
+        "left_wrist": {
+          "x": 512.9232177734375,
+          "y": 1239.11181640625,
+          "conf": 0.7939299941062927
+        },
+        "right_wrist": {
+          "x": 526.5127563476562,
+          "y": 1227.5972900390625,
+          "conf": 0.9481753706932068
+        },
+        "left_hip": {
+          "x": 511.2613830566406,
+          "y": 1141.7391357421875,
+          "conf": 0.9806022644042969
+        },
+        "right_hip": {
+          "x": 523.1272583007812,
+          "y": 1131.5087890625,
+          "conf": 0.9904416799545288
+        },
+        "left_knee": {
+          "x": 520.8515625,
+          "y": 1195.1630859375,
+          "conf": 0.9784884452819824
+        },
+        "right_knee": {
+          "x": 521.3152465820312,
+          "y": 1185.80859375,
+          "conf": 0.989957869052887
+        },
+        "left_ankle": {
+          "x": 495.00933837890625,
+          "y": 1231.509521484375,
+          "conf": 0.9327957630157471
+        },
+        "right_ankle": {
+          "x": 486.96551513671875,
+          "y": 1228.546142578125,
+          "conf": 0.9587544798851013
+        }
+      }
+    },
+    "47_fl_f00304": {
+      "detected": true,
+      "track_distance": 0.020906694333940844,
+      "box_conf": 0.3026536703109741,
+      "joints": {
+        "left_shoulder": {
+          "x": 304.3782958984375,
+          "y": 510.1299743652344,
+          "conf": 0.07376504689455032
+        },
+        "right_shoulder": {
+          "x": 305.03179931640625,
+          "y": 506.58599853515625,
+          "conf": 0.1015828549861908
+        },
+        "left_elbow": {
+          "x": 312.51019287109375,
+          "y": 524.3287353515625,
+          "conf": 0.06340457499027252
+        },
+        "right_elbow": {
+          "x": 323.36505126953125,
+          "y": 516.14990234375,
+          "conf": 0.11580627411603928
+        },
+        "left_wrist": {
+          "x": 383.6449890136719,
+          "y": 535.572021484375,
+          "conf": 0.22002850472927094
+        },
+        "right_wrist": {
+          "x": 385.661376953125,
+          "y": 535.1162719726562,
+          "conf": 0.24932071566581726
+        },
+        "left_hip": {
+          "x": 326.8188781738281,
+          "y": 527.4315185546875,
+          "conf": 0.12521974742412567
+        },
+        "right_hip": {
+          "x": 328.8658447265625,
+          "y": 531.5001831054688,
+          "conf": 0.14128099381923676
+        },
+        "left_knee": {
+          "x": 335.9449462890625,
+          "y": 507.0404052734375,
+          "conf": 0.3694767653942108
+        },
+        "right_knee": {
+          "x": 340.16900634765625,
+          "y": 512.90234375,
+          "conf": 0.39002734422683716
+        },
+        "left_ankle": {
+          "x": 390.0682678222656,
+          "y": 530.8765869140625,
+          "conf": 0.5258634090423584
+        },
+        "right_ankle": {
+          "x": 388.5670471191406,
+          "y": 539.38671875,
+          "conf": 0.533764123916626
+        }
+      }
+    },
+    "47_fl_f00309": {
+      "detected": true,
+      "track_distance": 0.016439239481825112,
+      "box_conf": 0.34797215461730957,
+      "joints": {
+        "left_shoulder": {
+          "x": 431.8780517578125,
+          "y": 629.7923583984375,
+          "conf": 0.13751143217086792
+        },
+        "right_shoulder": {
+          "x": 447.404052734375,
+          "y": 639.7959594726562,
+          "conf": 0.21005380153656006
+        },
+        "left_elbow": {
+          "x": 405.37457275390625,
+          "y": 587.3124389648438,
+          "conf": 0.22039130330085754
+        },
+        "right_elbow": {
+          "x": 400.6508483886719,
+          "y": 599.2494506835938,
+          "conf": 0.26428064703941345
+        },
+        "left_wrist": {
+          "x": 357.60699462890625,
+          "y": 546.1395263671875,
+          "conf": 0.37504568696022034
+        },
+        "right_wrist": {
+          "x": 347.72174072265625,
+          "y": 547.95556640625,
+          "conf": 0.47122177481651306
+        },
+        "left_hip": {
+          "x": 433.41705322265625,
+          "y": 608.0139770507812,
+          "conf": 0.6414342522621155
+        },
+        "right_hip": {
+          "x": 444.62725830078125,
+          "y": 611.5568237304688,
+          "conf": 0.707036018371582
+        },
+        "left_knee": {
+          "x": 405.10546875,
+          "y": 585.9566650390625,
+          "conf": 0.8307310342788696
+        },
+        "right_knee": {
+          "x": 422.43511962890625,
+          "y": 610.6280517578125,
+          "conf": 0.8648136258125305
+        },
+        "left_ankle": {
+          "x": 378.0497131347656,
+          "y": 542.4733276367188,
+          "conf": 0.9181033968925476
+        },
+        "right_ankle": {
+          "x": 381.9710693359375,
+          "y": 580.84375,
+          "conf": 0.9259790182113647
+        }
+      }
+    },
+    "47_fl_f00324": {
+      "detected": false,
+      "reason": "zero_detections"
+    },
+    "952_fl_f00391": {
+      "detected": true,
+      "track_distance": 0.009011508610246757,
+      "box_conf": 0.583854615688324,
+      "joints": {
+        "left_shoulder": {
+          "x": 517.0186157226562,
+          "y": 614.7032470703125,
+          "conf": 0.9547622799873352
+        },
+        "right_shoulder": {
+          "x": 481.5475158691406,
+          "y": 591.373291015625,
+          "conf": 0.887829601764679
+        },
+        "left_elbow": {
+          "x": 505.59271240234375,
+          "y": 629.23681640625,
+          "conf": 0.8812300562858582
+        },
+        "right_elbow": {
+          "x": 407.92584228515625,
+          "y": 597.3676147460938,
+          "conf": 0.6706638932228088
+        },
+        "left_wrist": {
+          "x": 424.62896728515625,
+          "y": 561.8759155273438,
+          "conf": 0.8812510967254639
+        },
+        "right_wrist": {
+          "x": 354.83953857421875,
+          "y": 560.4381103515625,
+          "conf": 0.6843766570091248
+        },
+        "left_hip": {
+          "x": 401.3710632324219,
+          "y": 619.9685668945312,
+          "conf": 0.9078598022460938
+        },
+        "right_hip": {
+          "x": 381.4781188964844,
+          "y": 597.671630859375,
+          "conf": 0.8543806076049805
+        },
+        "left_knee": {
+          "x": 335.09625244140625,
+          "y": 552.6680908203125,
+          "conf": 0.8694374561309814
+        },
+        "right_knee": {
+          "x": 314.38787841796875,
+          "y": 542.1388549804688,
+          "conf": 0.8077443242073059
+        },
+        "left_ankle": {
+          "x": 242.5832061767578,
+          "y": 536.7108764648438,
+          "conf": 0.8452388644218445
+        },
+        "right_ankle": {
+          "x": 250.00831604003906,
+          "y": 544.6065063476562,
+          "conf": 0.7881178259849548
+        }
+      }
+    },
+    "952_fl_f00399": {
+      "detected": true,
+      "track_distance": 0.0313984314511903,
+      "box_conf": 0.7550493478775024,
+      "joints": {
+        "left_shoulder": {
+          "x": 515.89453125,
+          "y": 619.81640625,
+          "conf": 0.9101173281669617
+        },
+        "right_shoulder": {
+          "x": 535.5814208984375,
+          "y": 614.8094482421875,
+          "conf": 0.9426183104515076
+        },
+        "left_elbow": {
+          "x": 411.60992431640625,
+          "y": 580.8635864257812,
+          "conf": 0.7802296876907349
+        },
+        "right_elbow": {
+          "x": 459.73858642578125,
+          "y": 604.982666015625,
+          "conf": 0.7765756845474243
+        },
+        "left_wrist": {
+          "x": 273.8153991699219,
+          "y": 529.8265380859375,
+          "conf": 0.7552176117897034
+        },
+        "right_wrist": {
+          "x": 392.1725158691406,
+          "y": 552.46630859375,
+          "conf": 0.7435122132301331
+        },
+        "left_hip": {
+          "x": 391.6952819824219,
+          "y": 565.30810546875,
+          "conf": 0.884586751461029
+        },
+        "right_hip": {
+          "x": 400.3663024902344,
+          "y": 551.4916381835938,
+          "conf": 0.8854783177375793
+        },
+        "left_knee": {
+          "x": 347.2525939941406,
+          "y": 548.452880859375,
+          "conf": 0.7898895144462585
+        },
+        "right_knee": {
+          "x": 344.43109130859375,
+          "y": 546.97216796875,
+          "conf": 0.7945610284805298
+        },
+        "left_ankle": {
+          "x": 255.74195861816406,
+          "y": 495.5677795410156,
+          "conf": 0.734398603439331
+        },
+        "right_ankle": {
+          "x": 264.40496826171875,
+          "y": 513.3685302734375,
+          "conf": 0.7223636507987976
+        }
+      }
+    }
+  },
+  "visible_joint_rows": [
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "right_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "right_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_wrist",
+      "state": "predicted",
+      "error_torso": 2.0419832061959835,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 1.8700792289786026,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_hip",
+      "state": "predicted",
+      "error_torso": 0.7583725908155597,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.9534299445229797,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00230",
+      "challenge": "inversion",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 0.09116545498204712,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00247",
+      "challenge": "inversion",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00247",
+      "challenge": "inversion",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00247",
+      "challenge": "inversion",
+      "joint": "left_hip",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00247",
+      "challenge": "inversion",
+      "joint": "left_knee",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00247",
+      "challenge": "inversion",
+      "joint": "left_ankle",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_shoulder",
+      "state": "predicted",
+      "error_torso": 0.022862736198662813,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_elbow",
+      "state": "predicted",
+      "error_torso": 0.09095211875582866,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_wrist",
+      "state": "predicted",
+      "error_torso": 0.05399613101777244,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_hip",
+      "state": "predicted",
+      "error_torso": 0.016039314817146443,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.6612877606624632,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00264",
+      "challenge": "inversion",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 2.095166033480333,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "right_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_hip",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_knee",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "left_ankle",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2134_fl_f00280",
+      "challenge": "inversion",
+      "joint": "right_ankle",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.15314574644354673,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 0.04047862548062702,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.13889203103417858,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.042040357609507584,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.13052649658383372,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00157",
+      "challenge": "small_flight",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.18894929641028038,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.06032175465639643,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 0.09036716151631592,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.05947274362125626,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.10248012142569356,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.1575980283741083,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00167",
+      "challenge": "small_flight",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.2329295439368756,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_hip",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_knee",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00177",
+      "challenge": "small_flight",
+      "joint": "right_ankle",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.21665025715597294,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 1.0506824088643156,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 1.8839363011108592,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.1817439547979799,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.5527973760602033,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 0.708723555162982,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "1257_fl_f00188",
+      "challenge": "small_flight",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.5938988608721327,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.10996458065697656,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 0.0931367111255307,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "left_wrist",
+      "state": "predicted",
+      "error_torso": 0.03992204952584213,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.08463734626250435,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.1212967630747505,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.006311693084651972,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00270",
+      "challenge": "compact_pike",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.1615429068955713,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.08691571322305156,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 0.031947092824491645,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.49647873847661866,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.022825501090658264,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.21837383975142166,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.1312677165740574,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00288",
+      "challenge": "compact_pike",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.13763529708364156,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_shoulder",
+      "state": "predicted",
+      "error_torso": 0.27822992090686827,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_elbow",
+      "state": "predicted",
+      "error_torso": 0.28531494149399006,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.08913188269429467,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_hip",
+      "state": "predicted",
+      "error_torso": 0.22736000478674664,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_knee",
+      "state": "predicted",
+      "error_torso": 0.2746409515237788,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "2120_fl_f00297",
+      "challenge": "compact_pike",
+      "joint": "right_ankle",
+      "state": "predicted",
+      "error_torso": 0.10740325123630556,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_hip",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_knee",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00304",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 1.57726176839874,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_hip",
+      "state": "predicted",
+      "error_torso": 0.16889029274143275,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.3540028677886242,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00309",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 0.56166083028695,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_shoulder",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_elbow",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "right_wrist",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_hip",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_knee",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "47_fl_f00324",
+      "challenge": "horizontal_rotation_entry",
+      "joint": "left_ankle",
+      "state": "missing",
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_shoulder",
+      "state": "predicted",
+      "error_torso": 0.6020600289376505,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_elbow",
+      "state": "predicted",
+      "error_torso": 1.0995729659864883,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_wrist",
+      "state": "predicted",
+      "error_torso": 0.5747947658380608,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_hip",
+      "state": "predicted",
+      "error_torso": 0.22724105256063595,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.2445330096813967,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00391",
+      "challenge": "horizontal_rotation",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 0.18173255432069657,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_shoulder",
+      "state": "predicted",
+      "error_torso": 0.08671313763724053,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_elbow",
+      "state": "predicted",
+      "error_torso": 0.5829563421832977,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_wrist",
+      "state": "predicted",
+      "error_torso": 1.8260791228049948,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "right_wrist",
+      "state": "predicted",
+      "error_torso": 0.7223516912925583,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_hip",
+      "state": "predicted",
+      "error_torso": 0.5541249711576702,
+      "pck_0_2": false,
+      "pck_0_5": false,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_knee",
+      "state": "predicted",
+      "error_torso": 0.06259355619799993,
+      "pck_0_2": true,
+      "pck_0_5": true,
+      "opposite_side_closer": false,
+      "scale_type": "human_torso"
+    },
+    {
+      "frame": "952_fl_f00399",
+      "challenge": "horizontal_rotation",
+      "joint": "left_ankle",
+      "state": "predicted",
+      "error_torso": 0.42050771962083966,
+      "pck_0_2": false,
+      "pck_0_5": true,
+      "opposite_side_closer": true,
+      "scale_type": "human_torso"
+    }
+  ]
+}
