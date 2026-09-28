@@ -12,6 +12,8 @@
 > promotion. Instance bridge remains development-only. Event Logic/pose
 > stay frozen. Report:
 > `docs/science/DIVE_ANALYZER_FAX_V6_INSTANCE_FRESH_GATE.md`.
+> Detailed supervisor handoff:
+> `docs/science/DIVE_ANALYZER_FAX_V6_DETAILED_SUPERVISOR_OUTPUT.md`.
 
 > FAX6 blind HUMAN gate prepared before detector inspection (2026-09-27): four new
 > session-disjoint raw-screened dives 649/s45, 745/s48, 772/s49, 850/s52.
