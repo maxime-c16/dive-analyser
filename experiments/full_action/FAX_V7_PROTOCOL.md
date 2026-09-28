@@ -26,6 +26,14 @@ Annotation UI source SHA256
 `5102898b85cbcbd2297952a36e450594e019a1d30134e81f389a7fdc0cd5b12b`.
 Frozen prep-to-subcore development method SHA256
 `b71b3f3b4aa61d10fcef30809ecf87e750f30e0e3ac0c147b5a4a95d1319e404`.
+Pre-registered evaluator SHA256 identities before HUMAN sealing or model
+inspection: S3 cache
+`0d761bca04e453f099074bab2cc909366b8c3bee8ff45a4e88d9a6cbb5ac6a35`,
+FAX controls
+`6163bde45751c3969a2de44b40367850755d9bc9af8e6082613a4e6eaa457f77`,
+and prep-to-subcore evaluation
+`177beb3ba0e6039e9e43bf898526f534c36dd026ca12fa66c8c0cbd1bd4b688b`.
+The S3 cache script refuses to run before the HUMAN manifest is sealed.
 No changes to S3, FSR, FAX history, instance-bridge V1, Event Logic, pose,
 Media Backbone, or protected HUMAN authorities.
 
