@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))
+    # TTL bound for dataset-revision-keyed full-history payloads (analytics,
+    # journey milestones). The revision key handles app-side edits/deletes;
+    # the TTL alone bounds scripts that bypass ORM row events.
+    analytics_cache_ttl_seconds: int = int(os.getenv("ANALYTICS_CACHE_TTL_SECONDS", "60"))
     personal_dive_value_enabled: bool = os.getenv("PERSONAL_DIVE_VALUE_ENABLED", "false").lower() == "true"
     personal_dive_value_cache_ttl_seconds: int = int(os.getenv("PERSONAL_DIVE_VALUE_CACHE_TTL_SECONDS", "120"))
     database_pool_size: int = int(os.getenv("DATABASE_POOL_SIZE", "5"))

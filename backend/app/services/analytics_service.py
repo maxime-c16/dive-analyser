@@ -5,8 +5,10 @@ from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from app.config import get_settings
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
+from app.services.dataset_cache import cache_key, revision_cached
 from app.services.diver_identity import get_primary_diver
 from app.services.performance_scoring import dive_score_10, is_success
 from app.services.difficulty_adjustment import difficulty_summary
@@ -56,7 +58,9 @@ class AnalyticsService:
         """Attach transparent DD-aware descriptive fields to mixed-dive views."""
         return difficulty_summary(dives)
 
-    def get_overall_stats(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
+
+
+    def _compute_overall_stats(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
         """Get overall performance statistics"""
         dives = self._get_analytics_dives(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id)
 
@@ -89,7 +93,9 @@ class AnalyticsService:
             "dd_reference": difficulty["dd_reference"],
         }
 
-    def get_stats_by_height(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
+
+
+    def _compute_stats_by_height(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
         """Get statistics broken down by height"""
         dives = self._get_analytics_dives(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id)
         grouped: Dict[str, List[Dive]] = {}
@@ -116,7 +122,9 @@ class AnalyticsService:
 
         return stats_by_height
 
-    def get_stats_by_direction(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
+
+
+    def _compute_stats_by_direction(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Dict[str, Any]:
         """Get statistics broken down by direction (1xx-5xx)"""
         dives = self._get_analytics_dives(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id)
         stats_by_direction: Dict[str, Any] = {}
@@ -137,7 +145,9 @@ class AnalyticsService:
 
         return stats_by_direction
 
-    def get_monthly_stats(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> List[Dict[str, Any]]:
+
+
+    def _compute_monthly_stats(self, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> List[Dict[str, Any]]:
         """Get statistics broken down by month"""
         dives = self._get_analytics_dives(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id)
 
@@ -166,7 +176,9 @@ class AnalyticsService:
 
         return result
 
-    def get_trending_dives(self, limit: int = 5, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> List[Dict[str, Any]]:
+
+
+    def _compute_trending_dives(self, limit: int = 5, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> List[Dict[str, Any]]:
         """Get dives with highest recent improvement"""
         dives = sorted(
             self._get_analytics_dives(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
@@ -199,3 +211,53 @@ class AnalyticsService:
         # Sort by improvement and return top N
         improvements.sort(key=lambda x: x["improvement"], reverse=True)
         return improvements[:limit]
+
+    ANALYTICS_CACHE_SCHEMA = "analytics-revision-cache-v1"
+
+    def _cached_result(self, name: str, compute, **scope) -> Any:
+        settings = get_settings()
+        ttl = float(getattr(settings, "analytics_cache_ttl_seconds", 0) or 0)
+        if ttl <= 0:
+            return compute()
+        key = cache_key(self.ANALYTICS_CACHE_SCHEMA, name, tuple(sorted((k, v) for k, v in scope.items())))
+        return revision_cached(key, compute, db=self.db, ttl_seconds=ttl)
+
+    def get_overall_stats(self, exclude_lineup=True, diver_scope="self", diver_id=None) -> Any:
+        """Cached with the dataset revision; the compute body holds the domain logic."""
+        return self._cached_result(
+            "get_overall_stats",
+            lambda: self._compute_overall_stats(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
+            exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id,
+        )
+
+    def get_stats_by_height(self, exclude_lineup=True, diver_scope="self", diver_id=None) -> Any:
+        """Cached with the dataset revision; the compute body holds the domain logic."""
+        return self._cached_result(
+            "get_stats_by_height",
+            lambda: self._compute_stats_by_height(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
+            exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id,
+        )
+
+    def get_stats_by_direction(self, exclude_lineup=True, diver_scope="self", diver_id=None) -> Any:
+        """Cached with the dataset revision; the compute body holds the domain logic."""
+        return self._cached_result(
+            "get_stats_by_direction",
+            lambda: self._compute_stats_by_direction(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
+            exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id,
+        )
+
+    def get_monthly_stats(self, exclude_lineup=True, diver_scope="self", diver_id=None) -> Any:
+        """Cached with the dataset revision; the compute body holds the domain logic."""
+        return self._cached_result(
+            "get_monthly_stats",
+            lambda: self._compute_monthly_stats(exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
+            exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id,
+        )
+
+    def get_trending_dives(self, limit: int = 5, exclude_lineup: bool = True, diver_scope: str = "self", diver_id: int | None = None) -> Any:
+        """Cached with the dataset revision; the compute body holds the domain logic."""
+        return self._cached_result(
+            "get_trending_dives",
+            lambda: self._compute_trending_dives(limit=limit, exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id),
+            limit=limit, exclude_lineup=exclude_lineup, diver_scope=diver_scope, diver_id=diver_id,
+        )
