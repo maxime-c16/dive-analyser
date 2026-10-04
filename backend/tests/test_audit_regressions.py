@@ -166,6 +166,33 @@ def test_backbone_cache_is_bounded_and_can_be_disabled(test_db, backbone_clock, 
     assert (test_db.get_bind(), "disabled") not in media._backbone_id_cache
 
 
+def test_poster_only_asset_never_reports_poster_as_playback(test_db, backbone_clock):
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+
+    asset = PhotosAsset(video_uuid="clip")
+    test_db.add(asset)
+    test_db.flush()
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="p" * 64, rendition="poster",
+        storage_path="/tmp/poster.jpg", content_type="image/jpeg", size_bytes=1,
+    ))
+    test_db.commit()
+
+    # Poster ready, proxy still rendering, no B2 copy: not playable yet.
+    status = media._status_for_asset(test_db, asset)
+    assert status.status == "missing"
+    assert status.playback_url is None
+    assert status.poster_url is not None
+
+    # A verified B2 copy must win over the poster while the proxy renders.
+    revision = add_revision(test_db, "clip", "d" * 64)
+    backbone_clock[0] += 30
+    status = media._status_for_asset(test_db, asset)
+    assert status.status == "ready"
+    assert status.playback_url == f"/api/v1/media/revisions/{revision}/play"
+
+
 @pytest.mark.parametrize("path", [
     "/api/v1/dives", "/api/v1/dive-analysis/103B", "/api/v1/dive-analysis/103B/phases",
     "/api/v1/analytics/overall", "/api/v1/personal-dive-value/recent",

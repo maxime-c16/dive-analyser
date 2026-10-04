@@ -233,11 +233,13 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
     if (phase.kind === 'ready') setDecodeError(true)
   }
 
-  // Retry playback in place — reloads the existing source. Never creates a
-  // new media job; preparation authority stays with the backend status.
+  // Retry playback by re-checking status rather than reloading the same
+  // source: the backend may now point at a different rendition, and B2
+  // grants are short-lived presigned redirects. Never creates a new media
+  // job; preparation authority stays with the backend status.
   const retryPlayback = () => {
     setDecodeError(false)
-    videoRef.current?.load()
+    retryStatusCheck()
   }
 
   const preparing = phase.kind === 'preparing' ? phase : null
