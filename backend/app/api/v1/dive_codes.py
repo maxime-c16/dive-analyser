@@ -17,9 +17,10 @@ from app.schemas.dive_code import (
 )
 from app.services.dive_code_parser import DiveCodeParser
 from app.services.dive_code_validator import DiveCodeValidator
+from app.services.workspace_access import require_workspace_read
 from app.models import FINADiveCode
 
-router = APIRouter(prefix="/dive-codes", tags=["dive-codes"], dependencies=[Depends(require_owner_for_mutation)])
+router = APIRouter(prefix="/dive-codes", tags=["dive-codes"], dependencies=[Depends(require_owner_for_mutation), Depends(require_workspace_read)])
 
 
 @router.post("/parse", response_model=DiveCodeParsed)
