@@ -85,7 +85,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    # Single worker: the websocket manager and playback metrics are
+    # process-local, so multi-worker deployment would split-brain sync
+    # events per worker. Event-loop blocking work is offloaded instead.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     deploy:
       resources:
         limits:

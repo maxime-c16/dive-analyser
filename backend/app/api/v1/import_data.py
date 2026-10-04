@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.write_guard import require_owner_for_mutation
+from app.security import verify_api_key
 from app.services.import_service import ImportService, find_latest_json
 
 router = APIRouter(dependencies=[Depends(require_owner_for_mutation)])
@@ -42,6 +43,7 @@ def find_json_file() -> str:
 async def sync_data(
     db: Session = Depends(get_db),
     force_refresh: bool = False,
+    _: dict = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """
     Sync dive data from the latest JSON file into the database.
@@ -77,6 +79,7 @@ async def sync_data(
 @router.post("/clear", tags=["import"])
 async def clear_data(
     db: Session = Depends(get_db),
+    _: dict = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """
     Clear all dive and session data from the database.

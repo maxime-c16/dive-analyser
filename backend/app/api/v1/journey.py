@@ -23,9 +23,10 @@ from app.services.milestones import (
 from app.services.performance_scoring import athlete_score_10
 from app.services.dd_overview_service import DDOverviewService
 from app.services.dive_eligibility import is_performance_attempt
+from app.services.workspace_access import require_workspace_read
 from app.services.dataset_cache import cache_key, revision_cached
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_workspace_read)])
 
 
 def get_dd_progression(db: Session) -> dict:

@@ -249,10 +249,15 @@ class DiveAnalysisService:
             job_map.setdefault(job.photos_asset_id, job)
         return entry_map, job_map
 
-    def serialize_attempts(self, dives: list[Dive]) -> list[dict]:
+    def serialize_attempts(
+        self, dives: list[Dive], period_map: dict[int, list[TrainingPeriod]] | None = None
+    ) -> list[dict]:
         rolling = rolling_median(dives)
         entries, jobs = self.media_maps(dives)
-        _, period_map = self.matching_periods(dives)
+        # period_map can be shared from the caller that already computed it
+        # for the cached analysis payload; recompute only when not given.
+        if period_map is None:
+            _, period_map = self.matching_periods(dives)
         result = []
         for dive in dives:
             cached = entries.get(dive.photos_asset_id, []) if dive.photos_asset_id else []

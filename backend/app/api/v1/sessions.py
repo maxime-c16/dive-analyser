@@ -8,13 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.write_guard import effective_diver_scope, require_owner_for_mutation
+from app.services.workspace_access import require_workspace_read
 from app.models.session import Session as SessionModel
 from app.models.dive import Dive
 from app.schemas.session import SessionCreate, SessionUpdate
 from app.services.diver_identity import get_primary_diver
 from app.services.performance_scoring import dive_score_10, is_success
 
-router = APIRouter(dependencies=[Depends(require_owner_for_mutation)])
+router = APIRouter(dependencies=[Depends(require_owner_for_mutation), Depends(require_workspace_read)])
 
 
 def _is_real_dive(dive: Dive) -> bool:

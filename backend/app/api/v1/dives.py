@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.strategy_options import Load
 
 from app.database import get_db
 from app.services.write_guard import effective_diver_scope, optional_session_user, require_owner_for_mutation
@@ -18,6 +19,22 @@ from app.services.world_aquatics_dd import REFERENCE_ID
 
 router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(require_owner_for_mutation)])
 
+# Library/workflow payload surface: exactly the columns the UI reads
+# (Library, session view, review viewer) plus divider/lineup scoping.
+# Cuts multi-KB TEXT columns (phase_insight, video_path, captions-adjacent
+# audit fields) out of the 5,000-row Library response.
+LIST_COLUMN_NAMES = (
+    "id", "session_id", "dive_code", "dive_number", "position", "direction",
+    "performance", "performance_numeric",
+    "phase1_performance", "phase1_numeric", "phase2_performance", "phase2_numeric",
+    "height", "platform_type",
+    "is_lineup", "is_sync", "is_smack",
+    "raw_caption", "notes", "person_name",
+    "video_uuid", "photos_asset_id", "diver_id",
+    "dive_datetime", "created_at", "updated_at",
+)
+LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
+
 
 def _public_dive(dive: Dive) -> dict:
     """Serialize a dive with formula DD as the live display source of truth.
@@ -25,8 +42,12 @@ def _public_dive(dive: Dive) -> dict:
     ``dives.official_dd`` is retained as a migration/audit column and can be
     null for older imports. Returning it directly made the library disagree
     with analytics, which already uses the versioned rulebook calculation.
+
+    Serialization is whitelisted to LIST_COLUMN_NAMES (the columns any UI
+    flow reads); internal audit columns (phase_insight, video_path, DD
+    migration/verification bookkeeping, emotion capture) are held back.
     """
-    payload = {column.key: getattr(dive, column.key) for column in Dive.__table__.columns}
+    payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
     live_dd = formula_dd(dive)
     payload["official_dd"] = live_dd
     payload["official_dd_source"] = REFERENCE_ID if live_dd is not None else None
@@ -46,7 +67,7 @@ def list_dives(
     exclude_lineup: bool = Query(False, description="Exclude lineup dives"),
     exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
     diver_scope: str = Query("self", pattern="^(self|all)$", description="Default to the primary diver; use all only intentionally"),
-    limit: int = Query(100, description="Limit results"),
+    limit: int = Query(100, ge=1, le=5000, description="Limit results"),
     offset: int = Query(0, description="Offset for pagination"),
 ):
     """
@@ -88,7 +109,15 @@ def list_dives(
 
     # Order by date and id descending. Many Photos videos can share the same
     # second-level timestamp, so id gives deterministic newest-first ties.
-    dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
+    # load_only keeps the SELECT to the Library surface instead of dragging
+    # every TEXT column across 5,000 rows.
+    dives = (
+        query.options(Load(Dive).load_only(*LIST_COLUMNS))
+        .order_by(Dive.dive_datetime.desc(), Dive.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return [_public_dive(dive) for dive in dives]
 
 

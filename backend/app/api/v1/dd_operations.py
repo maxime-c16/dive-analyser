@@ -12,9 +12,10 @@ from app.services.dd_lookup_manager import DDLookupManager
 from app.services.dd_auto_assign import DDAutoAssigner
 from app.services.dd_overview_service import DDOverviewService
 from app.services.world_aquatics_dd import OfficialDDUndefined, calculate_official_dd
+from app.services.workspace_access import require_workspace_read
 
 
-router = APIRouter(prefix="/dd", tags=["dd"], dependencies=[Depends(require_owner_for_mutation)])
+router = APIRouter(prefix="/dd", tags=["dd"], dependencies=[Depends(require_owner_for_mutation), Depends(require_workspace_read)])
 
 
 @router.get("/overview")

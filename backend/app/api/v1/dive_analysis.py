@@ -83,6 +83,7 @@ def _build_analysis(db: Session, dive_code: str, filters: dict, *, include_attem
     dives = service.query_dives(code, filters) if core is None or include_attempts else []
     query_ms = (perf_counter() - query_started) * 1000
     calculation_started = perf_counter()
+    period_map = None
     if core is None:
         current_summary = summarize(dives, threshold, weighting)
         previous_dives, previous_summary, previous_range = [], None, None
@@ -104,7 +105,10 @@ def _build_analysis(db: Session, dive_code: str, filters: dict, *, include_attem
         }
         set_cached_analysis(db, key, filters, core)
     calculation_ms = (perf_counter() - calculation_started) * 1000
-    attempts = service.serialize_attempts(dives) if include_attempts else []
+    attempts = (
+        service.serialize_attempts(dives, period_map=period_map)
+        if include_attempts else []
+    )
     # Serialize before commit expires the eagerly loaded attempts/relationships.
     if not cache_hit:
         db.commit()

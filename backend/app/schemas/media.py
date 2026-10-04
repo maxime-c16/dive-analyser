@@ -49,6 +49,10 @@ class MediaRequest(BaseModel):
     reason: Optional[str] = Field("user_view", max_length=40)
 
 
+class MediaStatusBatchRequest(BaseModel):
+    video_uuids: List[str] = Field(..., max_length=1000, min_length=1)
+
+
 class MediaRequestResponse(MediaStatusResponse):
     media_key: str
     created_job: bool = False
