@@ -99,6 +99,43 @@ def test_journey_milestones_detect_once_per_dataset_state(api_client_with_ttl, t
         assert _CountingDetector.detect_calls == 1
 
 
+def test_primary_diver_switch_busts_self_scope_cache(api_client_with_ttl, test_db):
+    """Review repro: two divers, primary switched via PUT /divers — self-
+    scope analytics must follow the resolved primary immediately, since the
+    dives-table revision alone never changes on a diver edit."""
+    from app.models.diver import Diver
+
+    good = Diver(display_name="Good", canonical_name="good", is_primary_user=True, active=True)
+    poor = Diver(display_name="Poor", canonical_name="poor", is_primary_user=False, active=True)
+    test_db.add_all([good, poor])
+    test_db.commit()
+    dives = seed_history(test_db, 2)
+    for dive in dives:
+        dive.diver_id = good.id
+    test_db.commit()
+
+    before = api_client_with_ttl.get("/api/v1/analytics/overall", params={"diver_scope": "self"}).json()
+    assert before["total_dives"] == 2
+
+    switched = api_client_with_ttl.put(
+        f"/api/v1/divers/{poor.id}",
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+        json={"is_primary_user": True},
+    )
+    assert switched.status_code in (200, 201)
+
+    after = api_client_with_ttl.get("/api/v1/analytics/overall", params={"diver_scope": "self"}).json()
+    assert after["total_dives"] == 0, after
+    # And the old diver's cache entry is not resurrected by a switch back.
+    api_client_with_ttl.put(
+        f"/api/v1/divers/{good.id}",
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+        json={"is_primary_user": True},
+    )
+    back = api_client_with_ttl.get("/api/v1/analytics/overall", params={"diver_scope": "self"}).json()
+    assert back["total_dives"] == 2
+
+
 def test_sessions_page_loads_dives_once(api_client_with_ttl, test_db):
     seed_history(test_db, 5)
     statements = []

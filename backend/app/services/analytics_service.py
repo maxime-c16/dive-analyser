@@ -8,7 +8,7 @@ from sqlalchemy import func
 from app.config import get_settings
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
-from app.services.dataset_cache import cache_key, revision_cached
+from app.services.dataset_cache import cache_key, diver_dataset_revision, revision_cached
 from app.services.diver_identity import get_primary_diver
 from app.services.performance_scoring import dive_score_10, is_success
 from app.services.difficulty_adjustment import difficulty_summary
@@ -219,7 +219,13 @@ class AnalyticsService:
         ttl = float(getattr(settings, "analytics_cache_ttl_seconds", 0) or 0)
         if ttl <= 0:
             return compute()
-        key = cache_key(self.ANALYTICS_CACHE_SCHEMA, name, tuple(sorted((k, v) for k, v in scope.items())))
+        key_parts = [name, tuple(sorted((k, v) for k, v in scope.items()))]
+        # Self-scope (no explicit diver id) resolves the primary diver during
+        # computation; the primary can switch without any dives row changing,
+        # so the diver-table revision joins the key.
+        if scope.get("diver_id") is None and scope.get("diver_scope") != "all":
+            key_parts.append(diver_dataset_revision(self.db))
+        key = cache_key(self.ANALYTICS_CACHE_SCHEMA, *key_parts)
         return revision_cached(key, compute, db=self.db, ttl_seconds=ttl)
 
     def get_overall_stats(self, exclude_lineup=True, diver_scope="self", diver_id=None) -> Any:

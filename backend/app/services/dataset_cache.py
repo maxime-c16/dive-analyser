@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.dive import Dive
+from app.models.diver import Diver
 
 _CACHE_MAX_ENTRIES = 256
 _store: OrderedDict = OrderedDict()
@@ -36,6 +37,20 @@ def dive_dataset_revision(db: Session) -> tuple[int, int | None, Any]:
     """Cheap dataset revision stamp over the dives table."""
     row = db.execute(
         select(func.count(Dive.id), func.max(Dive.id), func.max(Dive.updated_at))
+    ).one()
+    return (int(row[0]), row[1], row[2])
+
+
+def diver_dataset_revision(db: Session) -> tuple[int, int | None, Any]:
+    """Revision stamp over the divers table.
+
+    Self-scoped analytics depend on diver identity (the resolved primary
+    diver), which lives in divers rows: switching the primary diver changes
+    the result without touching dives. Keyed with the dives revision, this
+    busts caches on diver edits/deletes too.
+    """
+    row = db.execute(
+        select(func.count(Diver.id), func.max(Diver.id), func.max(Diver.updated_at))
     ).one()
     return (int(row[0]), row[1], row[2])
 
