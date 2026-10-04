@@ -176,3 +176,7 @@ def test_media_jobs_wires_materializer_timeout(monkeypatch):
     materializer = captured["materializer"]
     assert materializer is not None
     assert materializer.export_timeout_seconds == 900
+    # An explicit --library keeps osxphotos away from the Photos container
+    # plist, whose App Data consent prompt hangs every export under launchd.
+    assert materializer.library_path == "/x"
+    assert "--library" in materializer._build_command(Path("/tmp/out"), "A" * 8)
