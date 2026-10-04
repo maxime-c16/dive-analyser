@@ -145,14 +145,11 @@ function Analytics() {
   return (
     <div className="app-page">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-app-text">Detailed Analytics</h1>
-        <p className="text-app-muted mt-1">Deep dive into your performance metrics</p>
-      </div>
+      <h1 className="text-3xl font-bold text-app-text">Analytics</h1>
 
       {/* Performance Over Time */}
       <div className="app-panel">
-        <div className="mb-4"><h2 className="text-xl font-semibold text-app-text">Performance Over Time</h2><p className="mt-1 text-sm text-app-muted">Execution remains on its calibrated 0–10 scale. Difficulty is shown separately as official DD context.</p></div>
+        <h2 className="mb-4 text-xl font-semibold text-app-text">Performance Over Time</h2>
         <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={monthlyChartData}>
             <defs>
@@ -194,7 +191,7 @@ function Analytics() {
       {/* Height Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-1">Performance by Height</h2><p className="mb-4 text-sm text-app-muted">{performanceName}; tooltip includes average DD and coverage.</p>
+          <h2 className="text-xl font-semibold text-app-text mb-4">Performance by Height</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
@@ -242,7 +239,7 @@ function Analytics() {
       {/* Direction Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-1">Direction comparison</h2><p className="mb-4 text-sm text-app-muted">{performanceName}</p>
+          <h2 className="text-xl font-semibold text-app-text mb-4">Direction comparison</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={directionChartData}>
               <PolarGrid stroke="rgba(82,96,105,.35)" />
@@ -281,7 +278,7 @@ function Analytics() {
 
       {/* Trending Dives */}
       <div className="app-panel">
-        <h2 className="text-xl font-semibold text-app-text mb-4">Trending Dives (Biggest Improvements)</h2>
+        <h2 className="text-xl font-semibold text-app-text mb-4">Biggest Improvements</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {trendingDives.slice(0, 5).map((dive, index) => (
             <div
@@ -312,7 +309,7 @@ function Analytics() {
           ))}
         </div>
         {trendingDives.length === 0 && (
-          <p className="text-app-muted text-center py-8">Not enough data to show trends yet</p>
+          <p className="text-app-muted text-center py-8">No trends yet.</p>
         )}
       </div>
 
@@ -321,7 +318,6 @@ function Analytics() {
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">Average Performance</h3>
           <p className="text-3xl font-bold text-app-accent">{avgPerformance.toFixed(2)}</p>
-          <p className="text-app-muted text-sm mt-1">Calibrated 0-10 scale</p>
         </div>
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">Average Success Rate</h3>
@@ -331,7 +327,6 @@ function Analytics() {
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">Heights Trained</h3>
           <p className="text-3xl font-bold text-app-accent">{Object.keys(heightStats).length}</p>
-          <p className="text-app-muted text-sm mt-1">Different platforms</p>
         </div>
       </div>
     </div>

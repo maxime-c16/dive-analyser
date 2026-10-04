@@ -63,14 +63,14 @@ describe('RepresentativeMedia', () => {
     expect(screen.getAllByText('Typical').length).toBeGreaterThan(0)
     expect(screen.getByText('A 1 · B 0 · C 0 · D 0')).toBeInTheDocument()
     expect(screen.getByText('ok')).toBeInTheDocument()
-    expect(screen.getByText('0 of 3 playable · Poster 0/3 · Video 0/3')).toBeInTheDocument()
+    expect(screen.getByText('Poster 0/3 · Video 0/3')).toBeInTheDocument()
   })
 
   it('shows unavailable reason and bounded replacement without passive POST', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     renderPage()
     expect((await screen.findAllByText('Photos did not provide a usable video file for this attempt.')).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Use Find replacement/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Find a replacement/).length).toBeGreaterThan(0)
     expect(screen.queryByText(/Prepare All/i)).not.toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'POST')).toHaveLength(0)
     await userEvent.click(screen.getAllByRole('button', { name: 'Find replacement' })[0])

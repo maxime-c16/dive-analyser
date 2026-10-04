@@ -49,9 +49,6 @@ export default function Login() {
           <ShieldCheck className="h-5 w-5 text-app-accent" />
           <span className="text-lg font-semibold text-app-text">Dive Analyser</span>
         </div>
-        <p className="mb-6 text-sm text-app-muted">
-          Sign in to access your workspace
-        </p>
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
           Email
@@ -86,7 +83,7 @@ export default function Login() {
             onChange={e => setRememberMe(e.target.checked)}
             className="h-4 w-4 rounded-sm border border-app-strong bg-app-panel-elevated accent-app-accent"
           />
-          <span className="text-sm text-app-muted">Keep me signed in for 30 days</span>
+          <span className="text-sm text-app-muted">Stay signed in for 30 days</span>
         </label>
 
         {error && (

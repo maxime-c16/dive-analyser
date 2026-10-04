@@ -44,10 +44,7 @@ function MentalBlockIndicator() {
   if (blocks.length === 0) {
     return (
       <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />No Mental Blocks Detected</div>
-        <p className="text-green-300 text-sm mt-1">
-          You're progressing smoothly! Keep challenging yourself.
-        </p>
+        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />No mental blocks detected</div>
       </div>
     )
   }
@@ -116,14 +113,6 @@ function MentalBlockIndicator() {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                {/* Encouragement */}
-                <div className="bg-green-500/10 border border-green-500/30 rounded p-3">
-                  <p className="text-green-300 text-sm">
-                    <strong>Remember:</strong> Mental blocks are natural and temporary. Every breakthrough starts with
-                    facing a challenge. You've overcome obstacles before; you can do this too.
-                  </p>
                 </div>
 
                 {/* Action Button */}

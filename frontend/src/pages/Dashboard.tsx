@@ -160,7 +160,7 @@ function Dashboard() {
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-app-muted">Loading your diving data...</p>
+          <p className="text-xl text-app-muted">Loading…</p>
         </div>
       </div>
     );
@@ -240,14 +240,9 @@ function Dashboard() {
     <div className="app-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-app-text">
-            Training Dashboard
-          </h1>
-          <p className="text-app-muted mt-1 text-sm md:text-base">
-            Your diving performance at a glance
-          </p>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-bold text-app-text">
+          Training Dashboard
+        </h1>
         <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-app-muted">
           <div>Last updated: {format(new Date(), "PPp")}</div>
           {currentSync && (
@@ -270,7 +265,6 @@ function Dashboard() {
         <MetricCard
           title="Total Dives"
           value={stats?.total_dives || 0}
-          subtitle="Personal attempts"
           color="accent"
           icon={Waves}
         />
@@ -295,7 +289,6 @@ function Dashboard() {
           <MetricCard
             title="Avg DD"
             value={stats.avg_dd.toFixed(1)}
-            subtitle="Difficulty degree"
             color="accent"
             icon={Zap}
           />
@@ -304,7 +297,6 @@ function Dashboard() {
           <MetricCard
             title="Max DD"
             value={stats.max_dd.toFixed(1)}
-            subtitle="Highest difficulty"
             color="accent"
             icon={Flame}
           />
@@ -312,7 +304,6 @@ function Dashboard() {
         <MetricCard
           title="Training Sessions"
           value={stats?.total_sessions || 0}
-          subtitle="Total days"
           color="accent"
           icon={CalendarDays}
         />
@@ -330,19 +321,12 @@ function Dashboard() {
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[.14em] text-app-accent">
-                Personal history signal
-              </p>
               <h2
                 id="dashboard-personal-value"
-                className="mt-1 text-xl font-semibold text-app-text"
+                className="text-xl font-semibold text-app-text"
               >
-                Attempts worth revisiting
+                Personal Dive Value
               </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-app-muted">
-                Personal Dive Value reflects execution, DD, and earlier personal
-                context. It is not an official score or prediction.
-              </p>
             </div>
             <div className="text-right text-sm">
               <div className="text-2xl font-semibold tabular-nums text-app-text">
@@ -363,7 +347,7 @@ function Dashboard() {
           <div
             className="mt-5 h-56"
             role="img"
-            aria-label="Recent Personal Dive Value history. Select a point in dive analysis to inspect the exact explanation."
+            aria-label="Recent Personal Dive Value history"
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={personalValueChartData}>
@@ -716,7 +700,7 @@ function MetricCard({
 }: {
   title: string;
   value: string | number;
-  subtitle: string;
+  subtitle?: string;
   color: "accent" | "success";
   trend?: "up" | "down" | "neutral";
   icon: LucideIcon;
@@ -744,9 +728,11 @@ function MetricCard({
           >
             {value}
           </p>
-          <p className="min-h-4 break-words text-xs leading-4 text-app-muted mt-1">
-            {subtitle}
-          </p>
+          {subtitle && (
+            <p className="break-words text-xs leading-4 text-app-muted mt-1">
+              {subtitle}
+            </p>
+          )}
         </div>
         {React.createElement(icon, {
           className: `h-5 w-5 shrink-0 ${valueColors[color]}`,

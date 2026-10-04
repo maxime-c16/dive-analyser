@@ -7,13 +7,7 @@ import JourneyWithSync from "../components/JourneyWithSync";
 import MentalBlockIndicator from "../components/MentalBlockIndicator";
 import { useSyncStatus } from "../hooks/useSyncStatus";
 import DDWorkspace from "../components/DDWorkspace";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Brain,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { AlertTriangle, Brain } from "lucide-react";
 
 interface JourneyData {
   overview: {
@@ -157,10 +151,6 @@ function Journey() {
           <h1 className="text-3xl font-semibold sm:text-4xl">
             Your Diving Journey
           </h1>
-          <p className="mt-2 max-w-2xl text-app-muted">
-            Your story written in water. Every attempt, every breakthrough,
-            every moment that shaped you.
-          </p>
         </div>
       </div>
 
@@ -313,13 +303,7 @@ function Journey() {
           {activeTab === "timeline" && (
             <>
               <div className="mb-6 flex flex-col gap-3 border-b border-app pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold">Milestones</h2>
-                  <p className="mt-1 text-sm text-app-muted">
-                    Recorded breakthroughs and progress points. Open any item
-                    for the full context.
-                  </p>
-                </div>
+                <h2 className="text-2xl font-semibold">Milestones</h2>
                 <div className="flex items-center gap-3">
                   <label className="text-sm text-app-muted">Show:</label>
                   <select
@@ -344,13 +328,9 @@ function Journey() {
           {activeTab === "phases" && phaseData && (
             <div className="space-y-6">
               <div className="app-panel p-4 sm:p-6">
-                <h2 className="text-2xl font-semibold mb-2">
+                <h2 className="text-2xl font-semibold mb-4">
                   Two-Phase Dive Analysis
                 </h2>
-                <p className="app-section-copy mb-4">
-                  Separates takeoff quality from landing quality to identify
-                  specific strengths and areas for improvement.
-                </p>
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-6 pb-6 border-b border-app sm:grid-cols-4 sm:gap-4">
@@ -535,17 +515,13 @@ function Journey() {
               </div>
 
               <div className="app-panel p-4 sm:p-6">
-                <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
+                <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold">
                   <Brain
                     className="h-6 w-6 text-app-accent"
                     aria-hidden="true"
                   />
-                  Your Psychological Profile
+                  Psychological Profile
                 </h2>
-                <p className="app-section-copy mb-6">
-                  Understanding your emotions, confidence, and mental blocks
-                  helps you grow as a diver.
-                </p>
 
                 {journeyData?.psychological ? (
                   <>
@@ -570,9 +546,6 @@ function Journey() {
                                 2,
                               )
                             : "1.0"}
-                        </div>
-                        <div className="text-xs text-app-muted mt-1">
-                          Coefficient ratio
                         </div>
                       </div>
                       <div className="border border-green-500/30 bg-green-500/10 p-4">
@@ -613,22 +586,15 @@ function Journey() {
                           Mental Block Detected
                         </div>
                         <p className="text-app-text text-sm">
-                          You've been attempting the same maximum difficulty for
-                          3+ months. This is a natural plateau! Consider:
+                          Same max difficulty for 3+ months.
                         </p>
-                        <ul className="text-app-text text-sm list-disc list-inside mt-2 space-y-1">
-                          <li>Taking a break and returning refreshed</li>
-                          <li>Focusing on form on easier dives</li>
-                          <li>Using visualization and mental rehearsal</li>
-                          <li>Building confidence with supervised attempts</li>
-                        </ul>
                       </div>
                     )}
 
                     {/* Confidence Over Time */}
                     <div className="border border-app bg-app-panel-elevated p-4">
                       <h3 className="text-lg font-bold text-green-400 mb-3">
-                        Your Growth Arc
+                        Growth
                       </h3>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -675,25 +641,6 @@ function Journey() {
                             {journeyData.growth.improvement > 0 ? "+" : ""}
                             {journeyData.growth.improvement.toFixed(2)} points
                           </div>
-                          <div className="text-app-muted text-sm mt-1">
-                            {journeyData.growth.trajectory === "improving" ? (
-                              <span className="inline-flex items-center gap-1">
-                                <TrendingUp className="h-4 w-4" />
-                                You&apos;re getting better
-                              </span>
-                            ) : journeyData.growth.trajectory ===
-                              "plateauing" ? (
-                              <span className="inline-flex items-center gap-1">
-                                <ArrowRight className="h-4 w-4" />
-                                Holding steady
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1">
-                                <TrendingDown className="h-4 w-4" />
-                                Room for growth
-                              </span>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -701,9 +648,7 @@ function Journey() {
                   </>
                 ) : (
                   <div className="text-center py-8 text-app-muted">
-                    <div className="animate-pulse">
-                      Loading your psychological profile...
-                    </div>
+                    No psychology data.
                   </div>
                 )}
               </div>

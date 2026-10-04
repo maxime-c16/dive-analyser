@@ -30,7 +30,7 @@ export const SyncNotifications: React.FC = () => {
           id: `${Date.now()}-started`,
           type: 'info',
           title: 'Sync Started',
-          message: `Syncing ${lastEvent.data.total_videos} videos...`,
+          message: `${lastEvent.data.total_videos} videos`,
           duration: 3000,
         }
         break
@@ -40,7 +40,7 @@ export const SyncNotifications: React.FC = () => {
           id: `${Date.now()}-complete`,
           type: 'success',
           title: 'Sync Complete',
-          message: `Successfully synced ${lastEvent.data.synced_count} videos`,
+          message: `${lastEvent.data.synced_count} videos synced`,
           duration: 5000,
         }
         break
@@ -50,7 +50,7 @@ export const SyncNotifications: React.FC = () => {
           id: `${Date.now()}-error`,
           type: 'error',
           title: 'Sync Error',
-          message: lastEvent.data.error || 'An error occurred during sync',
+          message: lastEvent.data.error || 'Sync failed',
           duration: 7000,
         }
         break
@@ -59,7 +59,7 @@ export const SyncNotifications: React.FC = () => {
         toast = {
           id: `${Date.now()}-milestone`,
           type: 'success',
-          title: 'Milestone Unlocked',
+          title: 'Milestone',
           message: lastEvent.data.title,
           duration: 5000,
         }

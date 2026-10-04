@@ -59,7 +59,6 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
               <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
               <div>
                 <div className="font-semibold text-green-400">Connected</div>
-                <div className="text-sm text-app-muted">Real-time sync active</div>
               </div>
             </>
           ) : (
@@ -68,7 +67,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
               <div>
                 <div className="font-semibold text-red-400">Disconnected</div>
                 <div className="text-sm text-app-muted">
-                  {connectionError || 'Attempting to reconnect...'}
+                  {connectionError || 'Reconnecting…'}
                 </div>
               </div>
             </>

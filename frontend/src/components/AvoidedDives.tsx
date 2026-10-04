@@ -100,8 +100,7 @@ function AvoidedDives() {
     return (
       <div className="text-center py-12 bg-app-panel border border-app rounded-lg">
         <CheckCircle2 className="mx-auto mb-4 h-7 w-7 text-green-400" aria-hidden="true" />
-        <p className="text-app-text mb-2 font-semibold">No avoided dives detected</p>
-        <p className="text-app-muted text-sm">You're keeping up with your dives. That's consistency.</p>
+        <p className="text-app-text font-semibold">No avoided dives.</p>
       </div>
     )
   }
@@ -113,9 +112,9 @@ function AvoidedDives() {
       {/* Header and Filter */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Patterns in Your Practice</h2>
+          <h2 className="text-2xl font-bold mb-2">Avoided Dives</h2>
           <p className="text-app-muted text-sm">
-            {data.total_avoided} dive{data.total_avoided !== 1 ? 's' : ''} haven't been attempted recently.
+            {data.total_avoided} dive{data.total_avoided !== 1 ? 's' : ''} not attempted recently.
           </p>
         </div>
         <div className="flex gap-2">
@@ -150,11 +149,6 @@ function AvoidedDives() {
             Difficulty
           </button>
         </div>
-      </div>
-
-      {/* Encouragement Message */}
-      <div className="border border-app-accent bg-app-accent-soft rounded-lg p-4">
-        <p className="text-app-text italic text-center">{data.encouragement}</p>
       </div>
 
       {/* Avoided Dives List */}
@@ -209,29 +203,6 @@ function AvoidedDives() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Insight Box */}
-      <div className="bg-app-panel border border-app rounded-lg p-6">
-        <h3 className="font-bold mb-3 text-app-text">Understanding These Patterns</h3>
-        <ul className="space-y-2 text-sm text-app-text">
-          <li className="flex gap-2">
-            <span className="text-app-accent">→</span>
-            <span><strong>Avoidance Score</strong> combines how long it's been and how difficult the dive is. Higher = stronger pattern of avoidance.</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-app-accent">→</span>
-            <span><strong>High Difficulty</strong> dives (70%+) might warrant focused practice or technique refinement before returning.</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-app-accent">→</span>
-            <span><strong>Mixed Results</strong> dives (50-70%) often benefit from lineups or partial attempts to rebuild confidence.</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-app-accent">→</span>
-            <span><strong>Low Difficulty</strong> dives (under 50%) are worth revisiting — they're often easier than you remember.</span>
-          </li>
-        </ul>
       </div>
     </div>
   )

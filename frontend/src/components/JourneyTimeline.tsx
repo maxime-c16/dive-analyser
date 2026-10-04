@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ChevronDown, ChevronRight, Flag, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, Flag } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { Link } from 'react-router-dom'
 
@@ -51,10 +51,10 @@ function MilestoneRow({ milestone }: { milestone: Milestone }) {
 
 function JourneyTimeline({ milestones }: JourneyTimelineProps) {
   const sorted = [...milestones].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  if (!sorted.length) return <div className="border border-app bg-app-panel p-8 text-center"><Flag className="mx-auto h-5 w-5 text-app-muted" /><p className="mt-3 font-medium text-app-text">No milestones match this filter.</p><p className="mt-1 text-sm text-app-muted">Lower the significance threshold to include more recorded progress.</p></div>
+  if (!sorted.length) return <div className="border border-app bg-app-panel p-8 text-center"><Flag className="mx-auto h-5 w-5 text-app-muted" /><p className="mt-3 font-medium text-app-text">No milestones match this filter.</p></div>
 
   const major = sorted.filter((milestone) => milestone.significance >= 4).length
-  return <section aria-label="Milestone history"><div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-app pb-3"><p className="text-sm text-app-muted"><span className="font-semibold text-app-text">{sorted.length}</span> milestones · {major} major or notable</p><p className="inline-flex items-center gap-2 text-xs text-app-muted"><Sparkles className="h-4 w-4 text-app-accent" />Newest first</p></div><div className="space-y-3">{sorted.map((milestone, index) => <MilestoneRow key={`${milestone.date}-${milestone.dive_code}-${index}`} milestone={milestone} />)}</div></section>
+  return <section aria-label="Milestone history"><div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-app pb-3"><p className="text-sm text-app-muted"><span className="font-semibold text-app-text">{sorted.length}</span> milestones · {major} major or notable</p></div><div className="space-y-3">{sorted.map((milestone, index) => <MilestoneRow key={`${milestone.date}-${milestone.dive_code}-${index}`} milestone={milestone} />)}</div></section>
 }
 
 export default JourneyTimeline

@@ -1,6 +1,6 @@
 import React from 'react'
 import { format, parseISO } from 'date-fns'
-import { BarChart3, Timer, TrendingUp } from 'lucide-react'
+import { BarChart3, TrendingUp } from 'lucide-react'
 
 interface JourneyData {
   overview: {
@@ -26,16 +26,6 @@ interface JourneyNarrativeProps {
 }
 
 function JourneyNarrative({ data }: JourneyNarrativeProps) {
-  const getTrajectorySentence = (trajectory: string): string => {
-    if (trajectory === 'improving') {
-      return 'Your trajectory is upward. You are getting better.'
-    } else if (trajectory === 'plateauing') {
-      return 'You\'ve reached a plateau. This is where the real work begins — consolidating what you\'ve learned.'
-    } else {
-      return 'You\'ve been struggling. This is temporary. Every master has been here.'
-    }
-  }
-
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* Main Narrative */}
@@ -79,29 +69,26 @@ function JourneyNarrative({ data }: JourneyNarrativeProps) {
 
         {/* Trajectory Summary */}
         <div className="border border-app bg-app-panel p-6">
-          <h3 className="text-lg font-bold mb-4">Your Current Trajectory</h3>
+          <h3 className="text-lg font-bold mb-4">Trajectory</h3>
           <div className={`rounded-lg p-4 mb-4 ${
             data.growth.trajectory === 'improving' ? 'bg-green-500/10 border border-green-500/30' :
             data.growth.trajectory === 'plateauing' ? 'bg-amber-500/10 border border-amber-500/30' :
             'border border-red-500/30 bg-red-500/10'
           }`}>
-            <div className={`font-bold mb-2 ${
+            <div className={`font-bold ${
               data.growth.trajectory === 'improving' ? 'text-green-400' :
               data.growth.trajectory === 'plateauing' ? 'text-amber-400' :
               'text-red-400'
             }`}>
               {data.growth.trajectory.charAt(0).toUpperCase() + data.growth.trajectory.slice(1)}
             </div>
-            <p className="text-app-text text-sm">
-              {getTrajectorySentence(data.growth.trajectory)}
-            </p>
           </div>
         </div>
       </div>
 
       {/* Timeline Stats */}
       <div className="border border-app bg-app-panel p-6">
-        <h3 className="text-lg font-bold mb-6">Your Journey Timeline</h3>
+        <h3 className="text-lg font-bold mb-6">Timeline</h3>
         <div className="grid md:grid-cols-3 gap-6">
           <div>
             <div className="text-app-muted text-sm mb-2">Training Span</div>
@@ -125,27 +112,10 @@ function JourneyNarrative({ data }: JourneyNarrativeProps) {
         </div>
       </div>
 
-      {/* Insight Cards */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="border border-app bg-app-panel-elevated p-4">
-          <div className="mb-2 flex items-center gap-2 font-bold text-app-accent"><BarChart3 className="h-4 w-4" aria-hidden="true" />Total Attempts</div>
-          <p className="text-app-text">
-            You've completed <span className="font-bold text-app-accent">{data.overview.total_dives}</span> total dive attempts across <span className="font-bold text-app-accent">{data.overview.unique_dive_combinations}</span> different dives.
-          </p>
-        </div>
-
-        <div className="border border-app bg-app-panel-elevated p-4">
-          <div className="mb-2 flex items-center gap-2 font-bold text-app-accent"><Timer className="h-4 w-4" aria-hidden="true" />Training Duration</div>
-          <p className="text-app-text">
-            You've been training for <span className="font-bold text-app-accent">{Math.floor(data.overview.days_of_training / 30)} months</span> and <span className="font-bold text-app-accent">{data.overview.days_of_training % 30} days</span>.
-          </p>
-        </div>
-      </div>
-
-      {/* Closing Thought */}
-      <div className="border border-app bg-app-panel p-6 text-center">
-        <p className="text-app-text italic">
-          "Every expert was once a beginner. You're building something that lasts — skill, confidence, and the character forged in the attempt."
+      <div className="border border-app bg-app-panel-elevated p-4">
+        <div className="mb-2 flex items-center gap-2 font-bold text-app-accent"><BarChart3 className="h-4 w-4" aria-hidden="true" />Total Attempts</div>
+        <p className="text-app-text">
+          <span className="font-bold text-app-accent">{data.overview.total_dives}</span> attempts · <span className="font-bold text-app-accent">{data.overview.unique_dive_combinations}</span> different dives
         </p>
       </div>
     </div>
