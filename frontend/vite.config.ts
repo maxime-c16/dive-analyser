@@ -26,10 +26,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     strictPort: false,
-    // HMR configuration - DISABLED in Docker
-    // The frontend app connects to backend via PROXY_TARGET
-    // For local development: remove DOCKER_ENV variable
-    hmr: false,
+    // Use Vite's default HMR in development, including Docker.
     watch: {
       usePolling: true,
     },

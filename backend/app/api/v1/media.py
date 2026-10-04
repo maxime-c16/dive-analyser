@@ -5,7 +5,9 @@ This API is intentionally parallel to legacy /videos routes. A video_uuid means
 """
 
 from pathlib import Path
+from collections import OrderedDict
 import threading
+from time import monotonic
 from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -236,12 +238,11 @@ def _serve_media_file(path: Path, content_type: str, request: Request, head_only
     )
 
 
-# In-process cache: video_uuid -> MediaRevision.id (int) or None.
-# Avoids repeated JOIN queries against media_revisions/media_blob_locations
-# that would otherwise hold a DB connection open in "idle in transaction"
-# state after each status check, blocking UPDATE media_jobs queries.
-# Per-worker; persists until restart.  Thread-safe.
-_backbone_id_cache: dict = {}
+# Bound both positive and negative lookups so new verified revisions become
+# visible across workers without a restart. Database sessions are closed by
+# get_db; this cache only saves repeated lookup queries.
+_BACKBONE_CACHE_MAX_ENTRIES = 1024
+_backbone_id_cache: OrderedDict = OrderedDict()
 _backbone_id_cache_lock = threading.Lock()
 
 
@@ -249,20 +250,24 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
     """Return the B2 playback URL for the most-recent verified PROD backbone
     revision of *video_uuid*, or None if no such revision exists.
 
-    Result is cached in-process per video_uuid so the JOIN query runs at
-    most once per worker restart per video — eliminates the "idle in
-    transaction" DB connection leak that occurred when the query result was
-    not cached and the connection was held open between status calls.
+    Both missing and available revisions are cached for a bounded interval.
+    Playback still enforces current authorization and verified storage state.
     """
     settings = get_settings()
     if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
         return None
 
-    # Fast path: already in cache (including explicit None for no-backbone dives)
+    cache_key = (db.get_bind(), video_uuid)
+    now = monotonic()
+    ttl = settings.media_backbone_lookup_cache_ttl_seconds
+    # Including database identity prevents results leaking between databases.
     with _backbone_id_cache_lock:
-        if video_uuid in _backbone_id_cache:
-            cached = _backbone_id_cache[video_uuid]
-            return f"/api/v1/media/revisions/{cached}/play" if cached is not None else None
+        cached = _backbone_id_cache.get(cache_key)
+        if ttl > 0 and cached and now < cached[0]:
+            _backbone_id_cache.move_to_end(cache_key)
+            revision_id = cached[1]
+            return f"/api/v1/media/revisions/{revision_id}/play" if revision_id is not None else None
+        _backbone_id_cache.pop(cache_key, None)
 
     # Slow path: query the DB once, then cache the result
     row = db.execute(
@@ -279,7 +284,11 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
     ).scalar_one_or_none()
 
     with _backbone_id_cache_lock:
-        _backbone_id_cache[video_uuid] = row
+        if ttl > 0:
+            _backbone_id_cache[cache_key] = (monotonic() + ttl, row)
+            _backbone_id_cache.move_to_end(cache_key)
+            while len(_backbone_id_cache) > _BACKBONE_CACHE_MAX_ENTRIES:
+                _backbone_id_cache.popitem(last=False)
 
     return f"/api/v1/media/revisions/{row}/play" if row is not None else None
 

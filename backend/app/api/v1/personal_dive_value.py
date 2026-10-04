@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
+from app.services.workspace_access import require_workspace_user
 from app.models.dive import Dive
 from app.services.personal_dive_value import PersonalDiveValueError, PersonalDiveValueService, VERSION
 from app.services.dive_analysis_service import is_analytics_dive
 
-router = APIRouter(tags=["personal-dive-value"])
+router = APIRouter(tags=["personal-dive-value"], dependencies=[Depends(require_workspace_user)])
 
 
 def _enabled() -> None:

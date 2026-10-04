@@ -5,13 +5,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.workspace_access import require_workspace_user
 from app.services.analytics_service import AnalyticsService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_workspace_user)])
 
 
 @router.get("/overall", tags=["analytics"])
-async def get_overall_stats(
+def get_overall_stats(
     exclude_lineup: bool = True,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
@@ -25,7 +26,7 @@ async def get_overall_stats(
 
 
 @router.get("/by-height", tags=["analytics"])
-async def get_stats_by_height(
+def get_stats_by_height(
     exclude_lineup: bool = True,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
@@ -39,7 +40,7 @@ async def get_stats_by_height(
 
 
 @router.get("/by-direction", tags=["analytics"])
-async def get_stats_by_direction(
+def get_stats_by_direction(
     exclude_lineup: bool = True,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
@@ -53,7 +54,7 @@ async def get_stats_by_direction(
 
 
 @router.get("/monthly", tags=["analytics"])
-async def get_monthly_stats(
+def get_monthly_stats(
     exclude_lineup: bool = True,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
@@ -67,7 +68,7 @@ async def get_monthly_stats(
 
 
 @router.get("/trending", tags=["analytics"])
-async def get_trending_dives(
+def get_trending_dives(
     limit: int = 5,
     exclude_lineup: bool = True,
     diver_scope: str = Query("self", pattern="^(self|all)$"),

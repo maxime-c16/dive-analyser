@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import {
   Routes,
   Route,
@@ -8,6 +8,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import Login from "./pages/Login";
+import Dives from "./pages/Dives";
 import { useAuth } from "./contexts/AuthContext";
 import {
   BarChart3,
@@ -22,16 +23,15 @@ import {
   Waves,
   X,
 } from "lucide-react";
-import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
-import Dives from "./pages/Dives";
-import Sessions from "./pages/Sessions";
-import Journey from "./pages/Journey";
-import DiveAnalysis from "./pages/DiveAnalysis";
-import RepresentativeMedia from "./pages/RepresentativeMedia";
-import MediaRecall from "./pages/MediaRecall";
-import P5Canary from "./pages/P5Canary";
-import Admin from "./pages/Admin";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Sessions = lazy(() => import("./pages/Sessions"));
+const Journey = lazy(() => import("./pages/Journey"));
+const DiveAnalysis = lazy(() => import("./pages/DiveAnalysis"));
+const RepresentativeMedia = lazy(() => import("./pages/RepresentativeMedia"));
+const MediaRecall = lazy(() => import("./pages/MediaRecall"));
+const P5Canary = lazy(() => import("./pages/P5Canary"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 /** Library is the product home; everything else is secondary or operational. */
 const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
@@ -415,27 +415,29 @@ function Router() {
         element={
           <AuthGuard>
             <Layout>
-              <Routes>
-                <Route path="/" element={<RootRedirect />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/journey" element={<Journey />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/dives" element={<Dives />} />
-                <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
-                <Route
-                  path="/media/representatives"
-                  element={<RepresentativeMedia />}
-                />
-                <Route path="/media/recall" element={<MediaRecall />} />
-                <Route path="/media/p5-canary" element={<P5Canary />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/sessions" element={<Sessions />} />
-                <Route
-                  path="/competitions"
-                  element={<CompetitionsRedirect />}
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">Loading page…</p>}>
+                <Routes>
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/journey" element={<Journey />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/dives" element={<Dives />} />
+                  <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
+                  <Route
+                    path="/media/representatives"
+                    element={<RepresentativeMedia />}
+                  />
+                  <Route path="/media/recall" element={<MediaRecall />} />
+                  <Route path="/media/p5-canary" element={<P5Canary />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/sessions" element={<Sessions />} />
+                  <Route
+                    path="/competitions"
+                    element={<CompetitionsRedirect />}
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </Layout>
           </AuthGuard>
         }

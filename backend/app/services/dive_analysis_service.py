@@ -279,9 +279,10 @@ class DiveAnalysisService:
             })
         return result
 
-    def breakdown(self, dives: list[Dive], dimension: str, success_threshold: str, weighting: Weighting) -> list[dict]:
+    def breakdown(self, dives: list[Dive], dimension: str, success_threshold: str, weighting: Weighting, *, period_map: dict | None = None) -> list[dict]:
         groups: dict[tuple[str, int | None], list[Dive]] = defaultdict(list)
-        _, period_map = self.matching_periods(dives)
+        if dimension == "training_period" and period_map is None:
+            _, period_map = self.matching_periods(dives)
         for dive in dives:
             if dimension == "modifier": labels = [(m.modifier_code, None) for m in dive.modifiers] or [("No modifiers", None)]
             elif dimension == "sync": labels = [("SYNC" if dive.is_sync else "Individual", None)]
