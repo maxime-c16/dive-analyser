@@ -92,7 +92,7 @@ change does not deploy the app or modify running containers.
 
 ## Validation on this box (2026-10-04)
 
-- Backend: **671 passed**, 6 explicit live-DB skips, 23 performance tests
+- Backend: **685 passed**, 6 explicit live-DB skips, 23 performance tests
   deselected; zero failures/errors.
 - Agent: **272 passed**, including catalog and media safety; zero skips/failures.
 - Frontend: **126 passed** across 11 test files; TypeScript/Vite production build passed.
