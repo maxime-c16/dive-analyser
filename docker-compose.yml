@@ -66,6 +66,9 @@ services:
       # P5 user auth + B2 playback canary (feature flags default OFF/fail-closed)
       USER_AUTH_ENABLED: "${USER_AUTH_ENABLED:-false}"
       B2_PLAYBACK_CANARY_ENABLED: "${B2_PLAYBACK_CANARY_ENABLED:-false}"
+      # Friend access: invite-gated self-registration (fail-closed both ways)
+      FRIEND_REGISTRATION_ENABLED: "${FRIEND_REGISTRATION_ENABLED:-false}"
+      FRIEND_INVITE_CODES: ${FRIEND_INVITE_CODES:-}
       AUTH_COOKIE_NAME: "${AUTH_COOKIE_NAME:-da_session}"
       AUTH_COOKIE_SECURE: "${AUTH_COOKIE_SECURE:-true}"
       AUTH_SESSION_TTL_SECONDS: "${AUTH_SESSION_TTL_SECONDS:-604800}"
