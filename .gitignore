@@ -33,6 +33,14 @@ playwright-report/
 /logs/
 *.log
 
+# Audit trail appended by the pytest suite on every run (see ci/gate.sh). The
+# pre-existing audit_20260131.jsonl stays tracked; only new dated files are
+# runtime debris.
+backend/logs/audit/audit_*.jsonl
+
+# vitest cache, if ever written from the repo root
+/.vite/
+
 # ---- Data: dumps, backups, media, import data (runtime data, never source) ----
 /backups/
 /media/
