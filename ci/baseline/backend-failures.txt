@@ -1,0 +1,56 @@
+# Known-failing backend tests — the CI ratchet baseline.
+#
+# ci/gate.sh runs `pytest tests/ -m "not performance"` and fails ONLY on tests
+# that are broken but NOT listed here. Everything below is pre-existing
+# breakage that predates CI.
+#
+# These are product-drift defects, not infrastructure noise:
+#   * ResultsAggregator / JudgePanelDatabase tests construct services with the
+#     pre-refactor signature (`ResultsAggregator(settings)`); the classes now
+#     require a `db` argument. 14 errors.
+#   * Several FINA fixtures re-insert dive codes that conftest.py has already
+#     seeded, tripping `UNIQUE constraint failed: fina_dive_codes.dive_code`.
+#   * DD normalisation / adjusted-execution assertions disagree with the
+#     current service behaviour.
+#
+# Verified deterministic: the same 31 ids fail on repeated runs of the full
+# suite, so a ratchet on this set is safe (no flapping).
+#
+# MAINTENANCE
+#   * Fix a test -> delete its line here. The gate reports surplus baseline
+#     entries as warnings so this list can only shrink.
+#   * Accept a new failure deliberately -> append the id, in a reviewed commit.
+#   * Never add an id just to make the gate green without a comment saying why.
+#
+# Generated against: python 3.11.2, requirements.txt as of this commit.
+tests/test_dive_analysis_api.py::test_attempt_and_summary_expose_formula_dd_adjusted_execution
+tests/test_dive_analysis_service.py::test_difficulty_adjusted_execution_is_explicit_and_not_a_raw_score_replacement
+tests/test_fina_sprint1_foundation.py::TestDDLookupModel::test_create_dd_lookup_1m_springboard
+tests/test_fina_sprint1_foundation.py::TestDDLookupModel::test_create_multiple_heights
+tests/test_fina_sprint1_foundation.py::TestFINADiveCodeModel::test_create_forward_dive_101b
+tests/test_fina_sprint1_foundation.py::TestFINADiveCodeModel::test_create_multiple_dives
+tests/test_fina_sprint1_foundation.py::TestFINAValidator::test_dd_value_validation_invalid
+tests/test_fina_sprint3_dd.py::TestDDCalculator::test_estimate_dd_from_components
+tests/test_fina_sprint3_dd.py::TestDDCalculator::test_lookup_dd_all_heights
+tests/test_fina_sprint3_dd.py::TestDDCalculator::test_lookup_dd_height_normalization
+tests/test_fina_sprint3_dd.py::TestDDCalculator::test_validate_dd_value_invalid
+tests/test_fina_sprint3_dd.py::TestDDIntegration::test_dd_height_normalization_flow
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_add_judge_score
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_add_judge_score_invalid
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_calculate_panel_average
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_calculate_panel_average_incomplete
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_create_judge_panel_11_judges
+tests/test_fina_sprint4_scoring.py::TestJudgePanelDatabase::test_create_judge_panel_7_judges
+tests/test_fina_sprint7_events.py::TestEventManager::test_add_competitor
+tests/test_fina_sprint7_events.py::TestEventManager::test_create_event
+tests/test_fina_sprint7_events.py::TestEventManager::test_create_heat
+tests/test_fina_sprint7_events.py::TestEventManager::test_create_round
+tests/test_fina_sprint7_events.py::TestEventManager::test_finalize_event
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_aggregate_scores
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_calculate_session_total
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_export_csv
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_export_json
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_generate_leaderboard
+tests/test_fina_sprint8_results.py::TestResultsAggregator::test_rank_competitors
+tests/test_media_catalog.py::test_catalog_summary_and_population_plan_are_read_only_and_storage_gated
+tests/test_p8_user_admin.py::test_revoke_all_sessions_counts

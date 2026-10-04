@@ -63,7 +63,9 @@ describe('minimal IA routing', () => {
 
   it('/dashboard resolves to the Dashboard (secondary, not home)', async () => {
     renderAt('/dashboard')
-    expect(await screen.findByRole('heading', { name: 'Training Dashboard' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading page')
+    // The cold dynamic import includes chart modules transformed by Vitest.
+    expect(await screen.findByRole('heading', { name: 'Training Dashboard' }, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('Library is the primary navigation destination', async () => {
@@ -119,7 +121,7 @@ describe('minimal IA routing', () => {
     renderAt('/competitions')
     // The redirect lands on Journey (no duplicate Competitions destination).
     expect(
-      await screen.findByRole('heading', { name: 'Your Diving Journey' }),
+      await screen.findByRole('heading', { name: 'Your Diving Journey' }, { timeout: 5000 }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
   })

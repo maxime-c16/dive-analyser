@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     media_backbone_dev_bucket: str = os.getenv("MEDIA_BACKBONE_DEV_BUCKET", "diveanalyzer-dev-media")
     media_backbone_prod_bucket: str = os.getenv("MEDIA_BACKBONE_PROD_BUCKET", "diveanalyzer-prod-media")
     media_backbone_object_prefix: str = os.getenv("MEDIA_BACKBONE_OBJECT_PREFIX", "blobs/sha256")
+    media_backbone_lookup_cache_ttl_seconds: int = 30
 
     # P5 user authentication + B2 playback canary. Feature flags default
     # FALSE (fail closed); the legacy unauthenticated app is untouched while

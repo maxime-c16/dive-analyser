@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models.cache import AnalyticsCache
 from app.models.diver import Diver, DiverAlias
+from app.services.dive_analysis_cache import ANALYSIS_CACHE_PREFIX
 
 
 def canonicalize_name(value: str) -> str:
@@ -66,4 +67,4 @@ def resolve_diver(db: Session, person_name: str | None, *, create: bool = True) 
 
 
 def invalidate_analysis_cache(db: Session) -> None:
-    db.execute(delete(AnalyticsCache).where(AnalyticsCache.cache_key.like("dive-analysis:v2:%")))
+    db.execute(delete(AnalyticsCache).where(AnalyticsCache.cache_key.startswith(ANALYSIS_CACHE_PREFIX)))

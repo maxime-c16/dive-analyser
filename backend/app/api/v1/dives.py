@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.workspace_access import require_workspace_user
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.schemas.dive import DiveCreate, DiveUpdate
@@ -14,7 +15,7 @@ from app.services.diver_identity import get_primary_diver, invalidate_analysis_c
 from app.services.difficulty_adjustment import formula_dd
 from app.services.world_aquatics_dd import REFERENCE_ID
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_workspace_user)])
 
 
 def _public_dive(dive: Dive) -> dict:
@@ -32,7 +33,7 @@ def _public_dive(dive: Dive) -> dict:
 
 
 @router.get("")
-async def list_dives(
+def list_dives(
     db: Session = Depends(get_db),
     session_id: Optional[int] = Query(None, description="Filter by session ID"),
     dive_code: Optional[str] = Query(None, description="Filter by dive code"),
@@ -87,7 +88,7 @@ async def list_dives(
 
 
 @router.post("", status_code=201)
-async def create_dive(
+def create_dive(
     dive: DiveCreate,
     db: Session = Depends(get_db),
 ):
@@ -132,7 +133,7 @@ async def create_dive(
 
 
 @router.get("/{dive_id}")
-async def get_dive(
+def get_dive(
     dive_id: int,
     db: Session = Depends(get_db),
 ):
@@ -146,7 +147,7 @@ async def get_dive(
 
 
 @router.put("/{dive_id}")
-async def update_dive(
+def update_dive(
     dive_id: int,
     dive_update: DiveUpdate,
     db: Session = Depends(get_db),
@@ -174,7 +175,7 @@ async def update_dive(
 
 
 @router.delete("/{dive_id}", status_code=204)
-async def delete_dive(
+def delete_dive(
     dive_id: int,
     db: Session = Depends(get_db),
 ):
