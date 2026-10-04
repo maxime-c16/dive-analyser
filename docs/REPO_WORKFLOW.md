@@ -1,0 +1,181 @@
+# Repo, sync & deploy workflow
+
+**Read this before touching git, pushing, or deploying.** It applies to humans
+and agents alike, on every machine in the fleet.
+
+## The rules
+
+1. **GitHub is the single source of truth.**
+   `https://github.com/maxime-c16/dive-analyser`, default branch `master`.
+   Every checkout's `origin` points at GitHub. No machine pushes to or pulls
+   from another machine.
+2. **Work on a branch, merge through a PR, deploy from `master`.**
+   `ci/ship.sh` refuses to deploy a commit that is not on `origin/master`
+   unless you pass `--allow-unmerged`.
+3. **Never edit, commit, or run `git checkout` in the live directories.**
+   - Server: `deb-serv:~/dive-analyser` is what docker-compose runs. It sits on
+     a *detached HEAD* at the deployed commit, and only `ci/ship.sh` changes it.
+   - Mac: `/Users/Shared/services/data/diveanalyzer/code` is what the agent
+     runs. It isn't a git repo, and only `ci/ship.sh mac` changes it.
+4. **Deploy with `ci/ship.sh`**, never by hand (`git pull` in the live dir,
+   copying files, `docker build` ...).
+5. **Never put data in git.** That includes media, `runs/`, model weights,
+   `.env` files and Photos exports. `.gitignore` covers the known paths. If
+   you create a new data directory, add it there.
+6. **Don't use bare `git stash` / `git stash pop`.** Worktrees share one stash
+   stack. Make a WIP commit on your branch instead.
+
+## Machines
+
+| Machine | ssh alias | Role | Checkouts |
+|---|---|---|---|
+| MacBook Air (`macbook-air-de-maxime4`) | — | Main dev machine | `~/.perso/t3/dive-analyser` + t3 worktrees under `~/.t3/worktrees/dive-analyser/` |
+| `deb-serv` 192.168.1.57, user `mcauchy` | `diveanalyzer-server` | App host: Postgres, FastAPI, frontend, nginx (6090/6443), Tailscale Funnel proxy (6091) | **live:** `~/dive-analyser` · dev worktrees: `~/.t3/worktrees/dive-analyser/*`, `~/dive-analyser-worktrees/*` |
+| `mac-server` 192.168.1.19, user `divesensei` (`mac-media-01`) | `diveanalyzer-mac` | Media worker: Photos ingest, posters/proxies, source vault | **live:** `/Users/Shared/services/data/diveanalyzer/code` · no dev clone yet (see below) |
+
+The ssh aliases are defined in `~/.ssh/config` on the MacBook Air (key
+`~/.ssh/qwokka`). `ci/ship.sh` uses them. You can override them with
+`DIVE_SERVER_SSH` / `DIVE_MAC_SSH`.
+
+## Day-to-day
+
+### Start a change (any machine)
+
+```bash
+git fetch origin
+git worktree add ../dive-analyser-worktrees/<topic> -b <topic> origin/master
+cd ../dive-analyser-worktrees/<topic>
+```
+
+On the server, create worktrees from `~/dive-analyser` (they share its
+`.git`). Don't edit `~/dive-analyser` itself. t3 creates its own worktrees
+under `~/.t3/worktrees/`, which is fine.
+
+### Finish a change
+
+```bash
+git push -u origin <topic>          # pre-push hook runs ci/gate.sh if installed
+gh pr create --fill                 # then merge on GitHub
+```
+
+Other machines pick the change up with `git fetch origin`. Nothing else needs
+syncing: no mirrors, no copying.
+
+### Deploy
+
+```bash
+ci/ship.sh status                   # what runs where vs origin/master
+ci/ship.sh server --dry-run         # plan + warnings, changes nothing
+ci/ship.sh server                   # app stack on deb-serv
+ci/ship.sh mac                      # media agent on mac-media-01
+ci/ship.sh all                      # server, then mac (mac skipped if server fails)
+```
+
+Run it from any checkout that can fetch GitHub: the MacBook Air or
+`deb-serv`. It can't run on the Mac worker until that machine has GitHub
+credentials (see below).
+
+**Server deploy** (`ci/ship.sh server`):
+
+1. Refuses if the live checkout has *any* local change or untracked file,
+   or if its HEAD isn't on GitHub (that would lose work).
+2. Takes a lock (`~/.cache/dive-ci/deploy.lock`), then
+   `git checkout --detach <sha>` in `~/dive-analyser`.
+3. Runs that commit's `ci/deploy.sh`: gate (fast + frontend tiers), build
+   images tagged `sha-<sha>`, recreate the backend and frontend containers,
+   reload both nginx front doors (LAN `dive-analyser-nginx-1` and Funnel
+   `dive-funnel-funnel-proxy-1`; they cache container IPs), and health-check
+   over HTTPS.
+4. If anything fails, it restores the previous images *and* the previous
+   checkout, then recreates the backend. The backend bind-mounts
+   `./backend`, so source and image have to roll back together.
+5. Appends a line to `~/.cache/dive-ci/deploys.log`.
+
+**Mac deploy** (`ci/ship.sh mac`):
+
+1. Streams `git archive <sha> mac-agent` to the Mac over ssh. The Mac
+   doesn't need GitHub access for this.
+2. Backs up the current `code/` dir to
+   `/Users/Shared/services/data/diveanalyzer/releases/code-backup-*.tgz`
+   (keeps the last 5).
+3. Syncs `mac-agent/src/` exactly and updates the top-level files. Leaves
+   `logs/` and old local backups alone. Reinstalls dependencies only if
+   `requirements.txt` changed.
+4. Restarts the `com.diveanalyzer.agent` LaunchAgent and checks that the pid
+   stays stable for 20 s. If not, it restores the backup and restarts again.
+5. Writes `code/.deployed-sha` and appends to `releases/deploys.log`.
+
+### Not automatic: `ship.sh` warns, you act
+
+| Changed path | Action needed after a server deploy |
+|---|---|
+| `backend/migrations/*.sql` | Apply by hand against Postgres. There's no migration runner. |
+| `docker-compose.yml`, `nginx/` | `docker-compose up -d nginx` (or `docker-compose exec nginx nginx -s reload`) |
+| `ops/tailscale/` | `docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate` |
+| `mac-agent/` | `ci/ship.sh mac` |
+| `ops/*.sh` | Nothing to do. Cron runs them from `~/dive-analyser`, so the server deploy updates them. |
+
+### Rollback
+
+Deploy the previous commit. It's still on `master`, so no extra flags:
+
+```bash
+ci/ship.sh status                       # or: ssh diveanalyzer-server tail ~/.cache/dive-ci/deploys.log
+ci/ship.sh server --ref <previous-sha>
+ci/ship.sh mac    --ref <previous-sha>
+```
+
+## Working on the Mac worker
+
+The Mac has no working clone yet, and no GitHub credentials (the repo is
+**private**). To work there, set up access once and clone fresh:
+
+```bash
+gh auth login                      # or add an SSH key to GitHub
+git clone https://github.com/maxime-c16/dive-analyser.git ~/src/dive-analyser
+```
+
+(`~/dive-analyser` on the Mac is a legacy *bare* mirror of the server, not a
+working copy. Don't use it.) Never edit
+`/Users/Shared/services/data/diveanalyzer/code` directly.
+
+`mac-agent/install.sh` and `mac-agent/upgrade.sh` target `~/.diveanalyzer`
+(a personal install). They aren't used for `mac-media-01`, which lives under
+`/Users/Shared/services/...`. Use `ci/ship.sh mac`.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `live dir has local changes` | Someone edited the live checkout. Move the work to a worktree: tracked edits → commit on a branch there; untracked data → somewhere outside the repo or `.gitignore`. Then `git checkout -- . && git clean` *only what you moved*. |
+| `another deploy holds ... deploy.lock` | Check no deploy is running (`ps`), then `rmdir` the lock. |
+| `is not on origin/master` | Merge the PR, or `--allow-unmerged` for a deliberate branch deploy. |
+| `this host cannot reach GitHub` | Server: `gh auth status`. Mac: no credentials, so run `ship.sh` from the laptop. |
+| `ship.sh status` shows image sha `unlabeled` | The image was built before `ci/deploy.sh` existed. The next deploy labels it. |
+
+## Legacy: do not use
+
+These came from the pre-GitHub era. They're kept only as backups:
+
+- Mac bare repos: `~/dive-analyser` (mirror of the server) and
+  `/Users/Shared/services/data/diveanalyzer-source-backups/dive-analyser-2026-09-05.git`
+  (+ `sanitized-current.bundle`).
+- MacBook Air `~/.perso/diveanalyzer-perception(.git)` and `~/.perso/diveanalyzer`.
+- Branch `uiux-overhaul-pro-app`. It was the old "canonical" branch; `master`
+  has superseded it.
+
+## One-time migration (2026-10-04)
+
+Already done. Recorded here so the state of each host can be explained:
+
+- Server `~/dive-analyser`: remote `github` renamed to `origin`, and
+  `mac-mirror` removed. Month-old untracked leftovers (landmark-pilot scripts,
+  `D5_ANNOTATION_BATCH/frames`, two `runs/` dirs) moved to
+  `~/dive-analyser-archive/live-dir-leftovers-2026-10-04/`. Five tracked files
+  that had been deleted in the working tree were restored. `ops/tailscale/`
+  (live Funnel proxy config) was committed to git.
+- Mac: nothing changed. Its git copies are legacy bare mirrors, all of whose
+  commits are on GitHub.
+- Verified before migrating: every commit on the server and the Mac was
+  already on GitHub except local branch `hurdle-identity-v2` (1 commit), which
+  was pushed.

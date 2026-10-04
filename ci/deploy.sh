@@ -29,11 +29,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Two distinct roots, deliberately not conflated:
 #   ROOT        the source tree we build from and check for cleanliness
 #   COMPOSE_DIR the deployment directory holding docker-compose.yml
-# These are the same directory in the normal case (deployed from a checkout),
-# but can differ — e.g. building from a worktree into the live deployment dir.
+# In normal use (via ci/ship.sh) both are the live checkout. COMPOSE_DIR
+# defaults to the live dir rather than ROOT so that running this from a
+# worktree can never bring up a second compose project named after it. Note
+# the backend bind-mounts ./backend from COMPOSE_DIR, so deploy through
+# ci/ship.sh, which checks out the commit there first.
 ROOT="${DIVE_SOURCE_ROOT:-$(ci_repo_root)}"
-COMPOSE_DIR="${DIVE_DEPLOY_ROOT:-$ROOT}"
-
 COMPOSE_DIR="${DIVE_DEPLOY_ROOT:-/home/mcauchy/dive-analyser}"
 COMPOSE="${DIVE_COMPOSE_CMD:-docker-compose}"
 PROJECT="${DIVE_COMPOSE_PROJECT:-dive-analyser}"
@@ -108,6 +109,23 @@ prev_backend_id="$(docker image inspect "$BACKEND_IMAGE:latest" \
 [ -n "$prev_frontend_id" ] && ci_log "current frontend image: ${prev_frontend_id:7:12}"
 [ -n "$prev_backend_id" ]  && ci_log "current backend image:  ${prev_backend_id:7:12}"
 
+# Both nginx front doors (LAN :6443 and the Tailscale Funnel proxy) resolve
+# upstream container addresses at startup, so they must be reloaded whenever
+# backend/frontend are recreated or they keep proxying to stale IPs.
+reload_proxies() {
+    local c
+    for c in dive-analyser-nginx-1 dive-funnel-funnel-proxy-1; do
+        [ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" = "true" ] || continue
+        if docker exec "$c" nginx -t >/dev/null 2>&1 && docker exec "$c" nginx -s reload >/dev/null 2>&1; then
+            ci_ok "reloaded $c"
+        else
+            ci_warn "could not reload $c — check: docker exec $c nginx -t"
+        fi
+    done
+}
+
+# Restores the previous images and EXITS non-zero: a deploy that needed a
+# rollback is a failed deploy, whether or not the rollback itself succeeded.
 rollback() {
     local why="$1"
     ci_err "deploy verification FAILED ($why) — rolling back"
@@ -121,6 +139,7 @@ rollback() {
         compose up -d --no-deps --force-recreate backend >/dev/null 2>&1
         ci_log "rolled backend back to ${prev_backend_id:7:12}"
     fi
+    reload_proxies
     # Confirm recovery on whatever this deploy actually touched, rather than
     # always on the backend.
     local recovered=1
@@ -134,7 +153,7 @@ rollback() {
     fi
     [ "$recovered" -eq 1 ] \
         && ci_warn "rollback complete — the previous version is serving again"
-    return 1
+    exit 1
 }
 
 # ------------------------------------------------------------ 4. build
@@ -186,6 +205,7 @@ svc_list=""
 compose up -d --no-deps --force-recreate $svc_list \
     || rollback "compose up failed"
 ci_ok "containers recreated: $svc_list"
+reload_proxies
 
 # ------------------------------------------------------ 6. verify + rollback
 

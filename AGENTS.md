@@ -2,6 +2,16 @@
 
 This folder is home. Treat it that way.
 
+## Git, sync & deploy (read before any git or deploy action)
+
+Full guide: **`docs/REPO_WORKFLOW.md`**. The short version:
+
+- **GitHub (`maxime-c16/dive-analyser`, branch `master`) is the only source of truth.** `origin` = GitHub everywhere; no host-to-host pushes.
+- Work in a branch/worktree off `origin/master` → push → PR → merge.
+- **Never edit, commit or `git checkout` in the live dirs**: `deb-serv:~/dive-analyser` (detached HEAD = deployed commit) and the Mac's `/Users/Shared/services/data/diveanalyzer/code`.
+- Deploy only with `ci/ship.sh status | server | mac | all` (`--dry-run` first). Server-side SQL migrations, nginx and `ops/tailscale` changes are **not** auto-applied — `ship.sh` warns; follow the table in the guide.
+- Never commit data (media, `runs/`, weights, `.env`). Never use bare `git stash` (shared across worktrees).
+
 ## First Run
 
 If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out who you are, then delete it. You won't need it again.
