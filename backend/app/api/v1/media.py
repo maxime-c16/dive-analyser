@@ -6,6 +6,7 @@ This API is intentionally parallel to legacy /videos routes. A video_uuid means
 
 from pathlib import Path
 from collections import OrderedDict
+import asyncio
 import threading
 from time import monotonic
 from datetime import date, datetime, time
@@ -557,6 +558,15 @@ async def list_media_agents(db: Session = Depends(get_db)):
     return {"agents": [public_agent_status(agent) for agent in agents], "read_only": True}
 
 
+def _advance_background_media_work(db: Session) -> None:
+    """Advance agent-side asynchronous media workflows (catalog rollovers,
+    resolution upgrades). The upgrade path verifies 720p artifacts with a
+    full-file SHA-256, so the work runs on a worker thread instead of the
+    event loop."""
+    advance_armed_catalog_population_rollovers(db)
+    advance_resolution_upgrade_runs(db)
+
+
 @router.post("/agents/heartbeat")
 async def media_agent_heartbeat(
     request: MediaAgentHeartbeatRequest,
@@ -567,8 +577,7 @@ async def media_agent_heartbeat(
         agent = update_agent_heartbeat(db, request, api_key["key"])
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    advance_armed_catalog_population_rollovers(db)
-    advance_resolution_upgrade_runs(db)
+    await asyncio.to_thread(_advance_background_media_work, db)
     db.commit()
     return public_agent_status(agent)
 
@@ -873,7 +882,7 @@ async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db
     run = db.get(MediaResolutionUpgradeRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="resolution_upgrade_run_not_found")
-    advance_resolution_upgrade_runs(db)
+    await asyncio.to_thread(_advance_background_media_work, db)
     db.commit()
     return resolution_upgrade_summary(db, run)
 
@@ -1070,7 +1079,9 @@ async def upload_job_artifact(
         tmp_path.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
 
-    actual_checksum = sha256_file(tmp_path)
+    # Full-artifact reads belong on a worker thread: hashing gigabyte-scale
+    # proxies on the loop stalls every concurrent request.
+    actual_checksum = await asyncio.to_thread(sha256_file, tmp_path)
     if actual_checksum != checksum_sha256:
         tmp_path.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded checksum mismatch")
@@ -1103,7 +1114,11 @@ async def finalize_job_artifact(
     if job.claimed_by != request.agent_id:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
 
-    entry = finalize_cache_entry(
+    # Verify + promote touches the filesystem (full-file hash, move, chmod);
+    # run the whole routine off the loop. The session is touched only inside
+    # this call while the coroutine is suspended.
+    entry = await asyncio.to_thread(
+        finalize_cache_entry,
         db=db,
         job=job,
         checksum_sha256=request.checksum_sha256,

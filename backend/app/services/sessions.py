@@ -21,6 +21,12 @@ from app.models.user_auth import AppUser, UserSession
 
 SESSION_TOKEN_BYTES = 32  # 256-bit raw token
 
+# Throttle for the per-request last_used_at bookkeeping write: resolving a
+# live session must not turn every authenticated request into a database
+# UPDATE + transaction commit. One write per interval is ample precision
+# for "when was this session last used".
+LAST_USED_WRITE_SECONDS = 60
+
 
 def generate_session_token() -> str:
     """Cryptographically random, URL-safe raw session token."""
@@ -70,7 +76,9 @@ def resolve_session(
     """Resolve a raw cookie token to a live (session, user) pair.
 
     Denied when: token missing/malformed, no matching hash, revoked,
-    or expired. Updates last_used_at for live sessions.
+    or expired. Updates last_used_at for live sessions, throttled to one
+    write per LAST_USED_WRITE_SECONDS so read requests do not each pay a
+    commit.
     """
     if not raw_token or len(raw_token) > 512:
         return None
@@ -87,8 +95,14 @@ def resolve_session(
     user = db.get(AppUser, session.user_id)
     if user is None or not user.is_active:
         return None
-    session.last_used_at = datetime.utcnow()
-    db.commit()
+    now = datetime.utcnow()
+    if (
+        session.last_used_at is None
+        or (now - session.last_used_at).total_seconds()
+        >= LAST_USED_WRITE_SECONDS
+    ):
+        session.last_used_at = now
+        db.commit()
     return session, user
 
 
