@@ -179,12 +179,14 @@ def test_registration_success_creates_friend_and_logs_in(client, db):
 
     user = db.query(AppUser).filter_by(email="friend@example.test").one()
     assert user.role == "friend"
-    assert db.query(UserDiverAccess).filter_by(user_id=user.id).all() == []
+    assert len(db.query(UserDiverAccess).filter_by(user_id=user.id).all()) == 1
+    assert user.is_admin is False
 
     me = client.get("/api/v1/auth/me")
     assert me.status_code == 200
     assert me.json()["role"] == "friend"
-    assert me.json()["divers"] == []
+    assert len(me.json()["divers"]) == 1
+    assert me.json()["is_admin"] is False
 
 
 def test_registration_rejects_duplicate_email(client):
@@ -208,9 +210,9 @@ def test_registration_status_endpoint(client, flags):
 # ---------------------------------------------------------------- friend reads
 
 
-def test_friend_lists_everyones_dives_by_default(client):
+def test_member_lists_public_dives_in_community(client):
     assert _register(client).status_code == 201
-    r = client.get("/api/v1/dives", params={"limit": 100, "exclude_lineup": False})
+    r = client.get("/api/v1/dives", params={"limit": 100, "exclude_lineup": False, "diver_scope": "all"})
     assert r.status_code == 200
     codes = {d["dive_code"] for d in r.json()}
     assert {"101B", "201C"} <= codes
@@ -222,22 +224,22 @@ def test_friend_can_check_others_video(client):
     assert r.status_code == 200
 
 
-def test_owner_without_binding_cannot_check_others_video(client):
+def test_owner_can_check_others_public_video(client):
     assert _login(client, "owner@example.test", OWNER_PASSWORD).status_code == 200
     r = client.get("/api/v1/videos/check/video-uuid-diver-two-bbbbbbbbbbbbbbbb")
-    assert r.status_code == 404
+    assert r.status_code == 200
 
 
-def test_friend_sessions_default_to_all(client):
+def test_member_sessions_community_scope(client):
     assert _register(client).status_code == 201
-    r = client.get("/api/v1/sessions", params={"limit": 100})
+    r = client.get("/api/v1/sessions", params={"limit": 100, "diver_scope": "all"})
     assert r.status_code == 200
     assert len(r.json()) >= 1
 
 
-def test_friend_analytics_default_to_all(client):
+def test_member_analytics_community_scope(client):
     assert _register(client).status_code == 201
-    r = client.get("/api/v1/analytics/overall")
+    r = client.get("/api/v1/analytics/overall?diver_scope=all")
     assert r.status_code == 200
     # Both divers' dives are counted for friends without asking for all.
     assert r.json()["total_dives"] == 2
@@ -266,9 +268,9 @@ def _dive_payload(db):
     }
 
 
-def test_friend_cannot_create_dive_or_session(client, db):
+def test_member_can_create_own_dive_but_not_shared_session(client, db):
     assert _register(client).status_code == 201
-    assert client.post("/api/v1/dives", json=_dive_payload(db)).status_code == 403
+    assert client.post("/api/v1/dives", json=_dive_payload(db)).status_code == 201
     assert (
         client.post("/api/v1/sessions", json={"date": str(datetime.now().date())}).status_code
         == 403

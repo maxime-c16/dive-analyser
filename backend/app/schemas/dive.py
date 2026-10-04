@@ -1,7 +1,7 @@
 """Dive request/response schemas"""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -31,12 +31,15 @@ class DiveBase(BaseModel):
 class DiveCreate(DiveBase):
     """Dive creation schema"""
 
+    diver_id: Optional[int] = None
+    visibility: Literal["public", "private"] = "public"
     session_id: int = Field(..., description="Session ID")
 
 
 class DiveUpdate(BaseModel):
     """Dive update schema (all fields optional)"""
 
+    visibility: Optional[Literal["public", "private"]] = None
     performance: Optional[str] = None
     performance_numeric: Optional[int] = None
     notes: Optional[str] = None

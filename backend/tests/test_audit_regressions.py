@@ -214,9 +214,9 @@ def test_workspace_requires_live_login_only_when_enabled(api_client, test_db, mo
     test_db.add(user)
     test_db.commit()
     token, _ = create_session(test_db, user_id=user.id, ttl_seconds=3600)
-    # No UserDiverAccess grant: authenticated users share the workspace.
+    # No diver grant: members see public data, while operational sync is administrative.
     headers = {"Cookie": f"{settings.auth_cookie_name}={token}"}
-    assert api_client.get(path, headers=headers).status_code == 200
+    assert api_client.get(path, headers=headers).status_code == (403 if path.startswith("/api/v1/ws/") else 200)
     revoke_session_by_raw_token(test_db, token)
     assert api_client.get(path, headers=headers).status_code == 401
 
@@ -298,7 +298,7 @@ def test_sync_ws_requires_live_login_when_auth_enabled(api_client, test_db, monk
         with api_client.websocket_connect("/api/v1/ws/sync?client_id=anon"):
             pass
 
-    user = AppUser(email="ws@example.test", display_name="Ws user")
+    user = AppUser(email="ws@example.test", display_name="Ws user", is_admin=True)
     test_db.add(user)
     test_db.commit()
     token, _ = create_session(test_db, user_id=user.id, ttl_seconds=3600)

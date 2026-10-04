@@ -5,19 +5,24 @@ import { SyncStatusProvider } from './contexts/SyncStatusContext'
 import SyncNotifications from './components/SyncNotifications'
 import MilestoneNotifier from './components/MilestoneNotifier'
 import SyncErrorHandler from './components/SyncErrorHandler'
-import { AuthProvider } from './contexts/AuthContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+
+function MemberSyncBoundary({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  return user?.is_admin ? <SyncStatusProvider>{children}</SyncStatusProvider> : <>{children}</>
+}
 
 function App() {
   return (
     <AuthProvider>
-      <SyncStatusProvider>
+      <MemberSyncBoundary>
         <BrowserRouter>
           <Router />
         </BrowserRouter>
         <SyncNotifications />
         <MilestoneNotifier />
         <SyncErrorHandler />
-      </SyncStatusProvider>
+      </MemberSyncBoundary>
     </AuthProvider>
   )
 }

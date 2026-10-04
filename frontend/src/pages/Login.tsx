@@ -111,7 +111,7 @@ export default function Login() {
           <p className="mt-5 text-center text-sm text-app-muted">
             New here?{' '}
             <Link to="/register" className="text-app-accent hover:underline">
-              Create a friend account
+              Create a member account
             </Link>
           </p>
         )}

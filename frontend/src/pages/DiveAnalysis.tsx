@@ -427,7 +427,7 @@ export default function DiveAnalysis() {
   const { diveCode = '' } = useParams(), navigate = useNavigate(), location = useLocation(), [searchParams, setSearchParams] = usePreservedSearchParams()
   const { user } = useAuth()
   // Friends see everyone's dives by default (no diver bindings held).
-  const defaultScope = user?.role === 'friend' ? 'all' : 'self'
+  const defaultScope = (!user || user.divers?.length) ? 'self' : 'all'
   const [data, setData] = useState<AnalysisData | null>(null), [divers, setDivers] = useState<Diver[]>([]), [periods, setPeriods] = useState<TrainingPeriod[]>([])
   const [representatives, setRepresentatives] = useState<RepresentativeCard[]>([])
   const [personalValues, setPersonalValues] = useState<PersonalDiveValue[] | null>(null)

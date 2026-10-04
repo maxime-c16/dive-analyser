@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }] } }) }))
+
 import RepresentativeMedia from './RepresentativeMedia'
 import { getMacMediaStatus, getRepresentativeCoverage, getReplacementCandidates, getRepresentatives, replaceRepresentative } from '../services/representativeMediaApi'
 

@@ -141,6 +141,7 @@ def cmd_create_user(db, args) -> None:
         email=email,
         display_name=args.display_name or email.split("@")[0],
         role=role,
+        is_admin=(role == ROLE_OWNER),
         is_active=not args.disabled,
     )
     db.add(user)
@@ -178,10 +179,11 @@ def cmd_set_role(db, args) -> None:
     if role not in (ROLE_OWNER, ROLE_FRIEND):
         print(f"ERROR: --role must be '{ROLE_OWNER}' or '{ROLE_FRIEND}'", file=sys.stderr)
         sys.exit(2)
-    if user.role == role:
+    if user.role == role and bool(user.is_admin) == (role == ROLE_OWNER):
         print(f"OK no-op: user_id={user.id} already role={role}")
         return
     user.role = role
+    user.is_admin = role == ROLE_OWNER
     db.commit()
     revoked = sessions_authority.revoke_all_user_sessions(db, user.id)
     _audit(

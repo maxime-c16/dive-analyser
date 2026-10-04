@@ -16,6 +16,8 @@ class Dive(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
 
+    visibility = Column(String(10), nullable=False, default="public", index=True)
+
     # Core dive info
     dive_code = Column(String(10), nullable=False, index=True)
     dive_number = Column(String(5), nullable=True)
@@ -91,6 +93,7 @@ class Dive(Base):
 
     # Constraints and indexes
     __table_args__ = (
+        CheckConstraint("visibility IN ('public', 'private')", name="ck_dives_visibility"),
         CheckConstraint("direction >= 1 AND direction <= 5", name="check_direction"),
         CheckConstraint("performance IN ('F', 'B', 'M', 'G', 'P')", name="check_performance"),
         CheckConstraint("performance_numeric >= 0 AND performance_numeric <= 4", name="check_performance_numeric"),

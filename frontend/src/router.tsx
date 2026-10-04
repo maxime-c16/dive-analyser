@@ -206,7 +206,7 @@ function MobileNavigation() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
-  const friend = user?.role === "friend";
+  const friend = !user?.is_admin;
   const currentLabel = routeLabels[location.pathname] ?? "Workspace";
 
   useEffect(() => {
@@ -306,7 +306,7 @@ function MobileNavigation() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const friend = user?.role === "friend";
+  const friend = !user?.is_admin;
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link">
@@ -350,7 +350,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             <div className="mt-auto border-t border-app pt-4">
               <div className="truncate px-3 text-xs text-app-muted">
                 {user?.display_name ?? user?.email}
-                {friend ? " · friend" : ""}
+                {friend ? " · member" : " · admin"}
               </div>
               <nav aria-label="Account navigation" className="mt-2 space-y-1">
                 <AppNavLink to="/account" label="Account" icon={UserRound} />
@@ -429,7 +429,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 /** Keep friends out of owner operations (Media recall, System). */
 function OwnerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (user?.role === "friend") {
+  if (!user?.is_admin) {
     return <Navigate to="/dives" replace />;
   }
   return <>{children}</>;

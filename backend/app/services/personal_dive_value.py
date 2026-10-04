@@ -177,11 +177,13 @@ class PersonalDiveValueService:
 
     def recent_values(self, limit: int) -> list[dict]:
         """Return a bounded series, cached until its source data changes or expires."""
+        if self.db.info.get("member_access") and not self.db.info["member_access"]["diver_ids"]:
+            return []
         primary = get_primary_diver(self.db)
         # A timestamp alone misses deletion of any row except the newest.
         # Include row count and identity scope, and isolate separate databases.
         source_count, source_version = self.db.query(func.count(Dive.id), func.max(Dive.updated_at)).one()
-        cache_key = (self.db.get_bind(), primary.id, limit, source_count, source_version)
+        cache_key = (self.db.get_bind(), primary.id, limit, source_count, source_version, str(self.db.info.get("member_access")))
         now = monotonic()
         ttl = get_settings().personal_dive_value_cache_ttl_seconds
         with _recent_values_cache_lock:

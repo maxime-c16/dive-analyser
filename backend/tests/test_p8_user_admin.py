@@ -118,10 +118,10 @@ def _seed_world(db, cache_file):
     s2 = SessionModel(date=(now - timedelta(days=1)).date(), location="Pool")
     db.add_all([s1, s2])
     db.flush()
-    dive_a = Dive(session_id=s1.id, dive_code="101B", performance="G",
+    dive_a = Dive(visibility="private", session_id=s1.id, dive_code="101B", performance="G",
                   performance_numeric=3, height="1m", video_uuid=UUID_A,
                   diver_id=d1.id, dive_datetime=now - timedelta(hours=1))
-    dive_b = Dive(session_id=s2.id, dive_code="101B", performance="G",
+    dive_b = Dive(visibility="private", session_id=s2.id, dive_code="101B", performance="G",
                   performance_numeric=3, height="1m", video_uuid=UUID_B,
                   diver_id=d2.id, dive_datetime=now - timedelta(hours=2))
     db.add_all([dive_a, dive_b])

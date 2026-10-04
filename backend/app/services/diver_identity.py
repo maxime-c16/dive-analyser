@@ -20,6 +20,13 @@ def display_name(value: str) -> str:
 
 
 def get_primary_diver(db: Session) -> Diver:
+    context = db.info.get("member_access")
+    if context:
+        from fastapi import HTTPException
+        diver = db.execute(select(Diver).where(Diver.id.in_(context["diver_ids"])).order_by(Diver.id)).scalars().first()
+        if diver is None:
+            raise HTTPException(403, "This account has no linked diver")
+        return diver
     diver = db.execute(select(Diver).where(Diver.is_primary_user.is_(True)).order_by(Diver.id)).scalars().first()
     if diver:
         return diver

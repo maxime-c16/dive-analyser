@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string
   display_name: string
   role: 'owner' | 'friend'
+  is_admin?: boolean
   divers: { diver_id: number; access_kind: string }[]
 }
 
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user_id: data.user_id,
           email: data.email,
           display_name: data.display_name ?? data.email,
+          is_admin: data.is_admin === true,
           role: data.role === 'friend' ? 'friend' : 'owner',
           divers: Array.isArray(data.divers) ? data.divers : [],
         })

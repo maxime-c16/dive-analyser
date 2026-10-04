@@ -1,32 +1,4 @@
-"""Read-only enforcement for friend-role browser users (FRIEND ACCESS V1).
-
-Friends see everything but change nothing. This module is the single
-implementation of that rule:
-
-- safe methods (GET/HEAD/OPTIONS) always pass through — reads are open to
-  whatever each route already allows;
-- while ``USER_AUTH_ENABLED=false`` everything passes through (legacy open
-  LAN app; also the emergency rollback state);
-- while enabled, any state-changing browser request needs a live session
-  (this also closes the pre-existing anonymous-write hole on routers that
-  never had an auth dependency, e.g. sessions), and a friend-role user is
-  denied unless the call is on the viewing-support allowlist below.
-
-Machine-to-machine routes (X-API-Key) pass through on a VALIDATED key
-(the route's own verify_api_key still enforces authorization; presence
-alone is never trusted), so shared routers keep serving the Mac agent
-while USER_AUTH_ENABLED=true. The allowlist below only names browser
-viewing-support calls:
-
-- POST /api/v1/media/<uuid>/request — enqueue a poster/proxy rendition so
-  the viewer can play it (no dive data changes);
-- POST /api/v1/media/events/viewed — playback telemetry touch;
-- POST /api/v1/media/status/batch — read-only grid thumbnail summary
-  (playback still authorizes at the /play route when fetched).
-
-Auth routes (/api/v1/auth/*) never attach this guard: login, registration
-and password change are the friend flows themselves.
-"""
+"""Resource ownership for member writes; separate system administration."""
 
 from typing import Optional
 
@@ -39,7 +11,6 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.user_auth import AppUser
 from app.services import sessions
-from app.services.user_access import is_friend_user
 
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -84,10 +55,10 @@ def _valid_machine_api_key(request: Request) -> bool:
     return False
 
 
-def require_owner_for_mutation(
+async def require_owner_for_mutation(
     request: Request, db: Session = Depends(get_db)
 ) -> Optional[AppUser]:
-    """Router-level dependency: friends (and anonymous) cannot mutate.
+    """Require explicit ownership for dive writes and admin capability otherwise.
 
     Returns the resolved user (or None for safe methods / auth-disabled)
     so handlers can also adapt read behaviour (e.g. default diver scope).
@@ -109,10 +80,25 @@ def require_owner_for_mutation(
             status.HTTP_401_UNAUTHORIZED, "Authentication required"
         )
     _session, user = resolved
-    if is_friend_user(user) and not _friend_write_allowed(request.scope.get("path", "")):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "Friends have read-only access"
-        )
+    path = request.scope.get("path", "")
+    if path == "/api/v1/dives" or (path.startswith("/api/v1/dives/") and path.rsplit("/", 1)[-1].isdigit()):
+        if path != "/api/v1/dives":
+            from app.models.dive import Dive
+            from app.services.dive_access import require_dive_owner
+            dive = db.query(Dive).filter(Dive.id == int(path.rsplit("/", 1)[-1])).first()
+            if dive is None:
+                raise HTTPException(404, "Dive not found")
+            require_dive_owner(db, user, dive)
+        return user
+    if _friend_write_allowed(path):
+        return user
+    # Every other operation remains administrative until it has an explicit
+    # resource policy. Ordinary members cannot mutate shared sessions/catalogs.
+    if not user.is_admin:
+        raise HTTPException(403, "Administrative access required")
+    context = db.info.get("member_access")
+    if context:
+        context["system_mutation"] = True
     return user
 
 
@@ -122,7 +108,7 @@ def optional_session_user(
     """Best-effort current user for read handlers (never raises).
 
     Returns None when auth is disabled or the request carries no live
-    session. Lets list endpoints default friends to the all-divers scope.
+    session.
     """
     try:
         if not get_settings().user_auth_enabled:
@@ -139,10 +125,5 @@ def optional_session_user(
 
 
 def effective_diver_scope(request: Request, db: Session, diver_scope: str) -> str:
-    """Friends see everyone's dives by default: an explicit "self" scope is
-    treated as "all" for friend-role users (they hold no diver bindings, so
-    "self" would otherwise show them an empty subset). Owners are
-    unaffected; explicit "selected"/"all" pass through untouched."""
-    if diver_scope == "self" and is_friend_user(optional_session_user(request, db)):
-        return "all"
+    """Preserve the requested view; account ownership is enforced separately."""
     return diver_scope

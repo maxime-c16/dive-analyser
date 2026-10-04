@@ -56,6 +56,7 @@ def analysis_filters(
         "date_from": parsed_from, "date_to": parsed_to, "height": height, "platform_type": platform_type,
         "position": position, "modifiers": sorted({item.upper() for item in modifiers}), "modifier_mode": modifier_mode,
         "is_sync": is_sync, "diver_scope": "selected" if diver_ids else diver_scope, "diver_ids": sorted(set(diver_ids)), "diver": diver,
+        "viewer_access": db.info.get("member_access"),
         "performance": sorted({item.upper() for item in performance}), "session_id": session_id,
         "training_period_ids": sorted(set(training_period_ids)), "success_threshold": success_threshold, "weighting": weighting,
     }

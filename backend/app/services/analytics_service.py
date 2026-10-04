@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.services.dataset_cache import cache_key, diver_dataset_revision, revision_cached
+from app.services.dive_access import apply_self_scope
 from app.services.diver_identity import get_primary_diver
 from app.services.performance_scoring import dive_score_10, is_success
 from app.services.difficulty_adjustment import difficulty_summary
@@ -48,8 +49,12 @@ class AnalyticsService:
         if diver_id is not None:
             query = query.filter(Dive.diver_id == diver_id)
         elif diver_scope != "all":
-            primary = get_primary_diver(self.db)
-            query = query.filter((Dive.diver_id == primary.id) | ((Dive.diver_id == None) & (Dive.person_name == None)))
+            scoped = apply_self_scope(self.db, query)
+            if scoped is not None:
+                query = scoped
+            else:
+                primary = get_primary_diver(self.db)
+                query = query.filter((Dive.diver_id == primary.id) | ((Dive.diver_id == None) & (Dive.person_name == None)))
 
         return [dive for dive in query.all() if self._is_real_dive(dive)]
 

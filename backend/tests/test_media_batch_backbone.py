@@ -62,8 +62,13 @@ def _seed_backbone_assets(test_db, count):
                 object_key=sha, verified=True,
             ),
         ])
-    primary = test_db.query(Dive).first()
-    assert primary is None or True  # dives not needed for this route
+    primary = get_primary_diver(test_db)
+    session = TrainingSession(date=datetime.utcnow().date(), location="Batch test")
+    test_db.add(session)
+    test_db.flush()
+    for index in range(count):
+        test_db.add(Dive(session_id=session.id, diver_id=primary.id,
+                         video_uuid=f"clip-{index}", visibility="public", performance="G", performance_numeric=3, dive_code="101B", height="3m", dive_datetime=datetime.utcnow()))
     test_db.commit()
 
 
@@ -126,7 +131,7 @@ def test_authenticated_friend_can_read_status_batch(api_client, test_db, monkeyp
         )
         assert response.status_code == 200, response.text
         body = response.json()
-        assert body["friend-missing"]["status"] == "missing"
+        assert "friend-missing" not in body  # Unknown/unlinked media is not disclosed.
         # The mutation guard must still reject genuinely state-changing calls.
         assert api_client.post(
             "/api/v1/media/nonexistent-uuid/request",

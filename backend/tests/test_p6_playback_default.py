@@ -109,6 +109,7 @@ def _seed_world(db, tmp_path):
 
     def _dive(uuid, code, diver, session_row, hours_ago):
         return Dive(
+            visibility="private",
             session_id=session_row.id,
             dive_code=code,
             performance="G",

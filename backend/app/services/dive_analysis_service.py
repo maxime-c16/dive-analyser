@@ -215,8 +215,12 @@ class DiveAnalysisService:
         elif filters.get("diver"):
             stmt = stmt.where(Dive.person_name == filters["diver"])
         elif filters.get("diver_scope", "self") == "self":
-            primary = get_primary_diver(self.db)
-            stmt = stmt.where(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
+            context = self.db.info.get("member_access")
+            if context:
+                stmt = stmt.where(Dive.diver_id.in_(context["diver_ids"]))
+            else:
+                primary = get_primary_diver(self.db)
+                stmt = stmt.where(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
         if filters.get("performance"):
             stmt = stmt.where(Dive.performance.in_(filters["performance"]))
         dives = list(self.db.execute(stmt.order_by(Dive.dive_datetime.asc(), Dive.id.asc())).scalars().unique().all())
@@ -279,7 +283,7 @@ class DiveAnalysisService:
                 # current attempt-detail display stale.
                 "official_dd": formula_dd(dive),
                 "dd_reference": "ffn_world_aquatics_diving_2022_2025_appendix_1_3",
-                "raw_caption": dive.raw_caption, "notes": dive.notes, "video_uuid": dive.video_uuid,
+                "raw_caption": dive.raw_caption if not self.db.info.get("member_access") or dive.diver_id in self.db.info["member_access"]["diver_ids"] else None, "notes": dive.notes if not self.db.info.get("member_access") or dive.diver_id in self.db.info["member_access"]["diver_ids"] else None, "video_uuid": dive.video_uuid,
                 "media": {"status": "ready" if proxy else job.status if job else "missing", "poster_url": playback_url(poster.id) if poster else None, "playback_url": playback_url(proxy.id) if proxy else None, "can_request": bool(dive.video_uuid), "job_id": job.id if job else None, "job_error": job.last_error if job else None},
             })
         return result

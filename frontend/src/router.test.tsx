@@ -8,7 +8,7 @@ import Router, { CompetitionsRedirect, breadcrumbTrail } from './router'
 vi.mock('./contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useAuth: () => ({
-    user: { user_id: 1, email: 'test@example.com' },
+    user: { user_id: 1, email: 'test@example.com', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }] },
     checking: false,
     refresh: async () => {},
   }),

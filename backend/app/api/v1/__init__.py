@@ -1,12 +1,13 @@
 """API v1 routes"""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.services.dive_access import member_access_context
 
 # Import route modules
 from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback
 
 # Create v1 router
-v1_router = APIRouter(prefix="/api/v1")
+v1_router = APIRouter(prefix="/api/v1", dependencies=[Depends(member_access_context)])
 
 # Include sub-routers
 v1_router.include_router(health.router, tags=["health"])
