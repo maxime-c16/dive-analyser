@@ -1,10 +1,14 @@
 """WebSocket endpoint for real-time sync status updates."""
 
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
 from fastapi.exceptions import WebSocketException
 import uuid
 
+from app.config import get_settings
+from app.database import SessionLocal
+from app.services import sessions as session_service
+from app.services.workspace_access import require_workspace_user
 from app.services.sync_status import (
     get_ws_manager,
     get_status_tracker,
@@ -13,6 +17,25 @@ from app.services.sync_status import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["websocket"])
+
+
+def _ws_session_ok(websocket: WebSocket) -> bool:
+    """Session-boundary check for the sync websocket.
+
+    WS connections share the workspace data scope, so the boundary mirrors
+    require_workspace_user: mandatory only when user auth is ENABLED
+    (legacy flag-off access preserved). The cookie is resolved against its
+    own short-lived session so the request session is never held for the
+    whole websocket lifetime.
+    """
+    settings = get_settings()
+    if not settings.user_auth_enabled:
+        return True
+    with SessionLocal() as db:
+        resolved = session_service.resolve_session(
+            db, websocket.cookies.get(settings.auth_cookie_name)
+        )
+    return resolved is not None
 
 
 @router.websocket("/sync")
@@ -46,6 +69,14 @@ async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(N
     # Generate client_id if not provided
     if not client_id:
         client_id = str(uuid.uuid4())[:8]
+
+    if not _ws_session_ok(websocket):
+        # No live session while auth is enabled: reject the upgrade before
+        # accepting. 1008 (policy violation) tells the front end to stop
+        # retrying the same unauthenticated state.
+        logger.warning("Sync websocket rejected: no live session (client_id=%s)", client_id)
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     ws_manager = get_ws_manager()
     status_tracker = get_status_tracker()
@@ -82,8 +113,8 @@ async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(N
 
             elif message_type == "get_status" and sync_id:
                 # Client requesting sync status
-                status = status_tracker.get_status(sync_id)
-                if status:
+                tracked = status_tracker.get_status(sync_id)
+                if tracked:
                     # Send status back to client
                     import json
                     from app.services.sync_status import SyncEvent
@@ -92,7 +123,7 @@ async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(N
                         type=SyncEventType.HEARTBEAT,
                         timestamp=__import__("datetime").datetime.utcnow().isoformat(),
                         sync_id=sync_id,
-                        data=status.to_dict(),
+                        data=tracked.to_dict(),
                     )
                     await websocket.send_text(event.to_json())
 
@@ -110,7 +141,7 @@ async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(N
             pass
 
 
-@router.get("/sync/status")
+@router.get("/sync/status", dependencies=[Depends(require_workspace_user)])
 async def get_all_sync_statuses():
     """
     Get status of all active syncs.
@@ -131,7 +162,7 @@ async def get_all_sync_statuses():
     }
 
 
-@router.get("/sync/status/{sync_id}")
+@router.get("/sync/status/{sync_id}", dependencies=[Depends(require_workspace_user)])
 async def get_sync_status(sync_id: str):
     """
     Get status of a specific sync.

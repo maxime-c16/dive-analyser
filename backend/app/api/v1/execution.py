@@ -11,9 +11,10 @@ from app.services.execution_fault_detector import ExecutionFaultDetector, Execut
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.models.execution_fault import ExecutionFault
+from app.services.workspace_access import require_workspace_user
 
 
-router = APIRouter(prefix="/execution", tags=["execution"], dependencies=[Depends(require_owner_for_mutation)])
+router = APIRouter(prefix="/execution", tags=["execution"], dependencies=[Depends(require_owner_for_mutation), Depends(require_workspace_user)])
 
 
 class ExecutionMetricsInput(BaseModel):
