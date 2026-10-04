@@ -86,9 +86,11 @@ credentials (see below).
    reload both nginx front doors (LAN `dive-analyser-nginx-1` and Funnel
    `dive-funnel-funnel-proxy-1`; they cache container IPs), and health-check
    over HTTPS.
-4. If anything fails, it restores the previous images *and* the previous
-   checkout, then recreates the backend. The backend bind-mounts
-   `./backend`, so source and image have to roll back together.
+4. If anything fails, it restores the previous checkout. If the failure came
+   after the containers were swapped, it also restores the previous images
+   and recreates the backend: the backend bind-mounts `./backend`, so source
+   and image have to roll back together. A gate or build failure restarts
+   nothing.
 5. Appends a line to `~/.cache/dive-ci/deploys.log`.
 
 **Mac deploy** (`ci/ship.sh mac`):
@@ -151,6 +153,7 @@ working copy. Don't use it.) Never edit
 | `another deploy holds ... deploy.lock` | Check no deploy is running (`ps`), then `rmdir` the lock. |
 | `is not on origin/master` | Merge the PR, or `--allow-unmerged` for a deliberate branch deploy. |
 | `this host cannot reach GitHub` | Server: `gh auth status`. Mac: no credentials, so run `ship.sh` from the laptop. |
+| Gate fails with `npm ci` `EACCES` in `frontend/node_modules` | Files left root-owned by an old dev container: `sudo chown -R mcauchy:mcauchy ~/dive-analyser/frontend/node_modules` (fixed once on 2026-10-04). |
 | `ship.sh status` shows image sha `unlabeled` | The image was built before `ci/deploy.sh` existed. The next deploy labels it. |
 
 ## Legacy: do not use
