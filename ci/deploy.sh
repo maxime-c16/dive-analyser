@@ -189,7 +189,7 @@ rollback() {
 if [ "$ONLY" != "backend" ]; then
     ci_step "build: frontend production image"
     if [ "$DRY_RUN" -eq 1 ]; then
-        ci_warn "would run: docker build -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
+        ci_warn "would run: docker build --no-cache -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
     else
         # --no-cache: the daemon's layer cache once shipped a stale frontend
         # bundle (COPY/npm-run-build cache-hit on changed sources), so
