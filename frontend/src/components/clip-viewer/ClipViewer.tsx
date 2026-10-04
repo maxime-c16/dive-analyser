@@ -8,6 +8,8 @@ import { inertExcept, trapTabKey } from "../../utils/a11y";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
 import ClipMetadataSummary from "./ClipMetadataSummary";
+import DiveManagement from "./DiveManagement";
+import DiveVisibilityControl from "./DiveVisibilityControl";
 import ClipDetails from "./ClipDetails";
 
 const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
@@ -21,6 +23,8 @@ export default function ClipViewer({
   onMove,
   playbackRate,
   onPlaybackRateChange,
+  onUpdate,
+  onDelete,
 }: {
   attempt: Attempt;
   attempts: Attempt[];
@@ -28,12 +32,17 @@ export default function ClipViewer({
   onMove: (attempt: Attempt) => void;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
+  onUpdate?: (attempt: Attempt) => void;
+  onDelete?: () => void;
 }) {
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
+  const [manageOpen, setManageOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => { setManageOpen(false); }, [attempt.id]);
 
   // Focus enters the review surface on open; the Library stays mounted below.
   useEffect(() => {
@@ -179,6 +188,11 @@ export default function ClipViewer({
               <div className="mt-3">
                 <ClipMetadataSummary attempt={attempt} />
               </div>
+              <div className="mt-2 flex items-center gap-3 text-xs text-app-muted">
+                {attempt.can_manage && onUpdate ? <DiveVisibilityControl key={attempt.id} attempt={attempt} onUpdate={onUpdate} /> : <span>{attempt.visibility === 'private' ? 'Private' : 'Public'}</span>}
+                {attempt.can_manage && onUpdate && onDelete && <button type="button" aria-expanded={manageOpen} onClick={() => setManageOpen(open => !open)} className="h-8 rounded border border-app px-2 text-xs text-app-text">Manage dive</button>}
+              </div>
+              {manageOpen && attempt.can_manage && onUpdate && onDelete && <DiveManagement key={attempt.id} attempt={attempt} onUpdate={onUpdate} onDelete={onDelete} />}
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-app pt-3">
                 <button
                   type="button"

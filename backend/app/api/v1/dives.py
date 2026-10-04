@@ -13,6 +13,7 @@ from app.services.workspace_access import require_workspace_user
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.schemas.dive import DiveCreate, DiveUpdate
+from app.services.dive_access import apply_self_scope, owned_diver_ids, require_dive_owner
 from app.services.diver_identity import get_primary_diver, invalidate_analysis_cache, resolve_diver
 from app.services.difficulty_adjustment import formula_dd
 from app.services.world_aquatics_dd import REFERENCE_ID
@@ -24,7 +25,7 @@ router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(requir
 # Cuts multi-KB TEXT columns (phase_insight, video_path, captions-adjacent
 # audit fields) out of the 5,000-row Library response.
 LIST_COLUMN_NAMES = (
-    "id", "session_id", "dive_code", "dive_number", "position", "direction",
+    "visibility", "id", "session_id", "dive_code", "dive_number", "position", "direction",
     "performance", "performance_numeric",
     "phase1_performance", "phase1_numeric", "phase2_performance", "phase2_numeric",
     "height", "platform_type",
@@ -36,7 +37,7 @@ LIST_COLUMN_NAMES = (
 LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
 
 
-def _public_dive(dive: Dive) -> dict:
+def _public_dive(dive: Dive, db: Session) -> dict:
     """Serialize a dive with formula DD as the live display source of truth.
 
     ``dives.official_dd`` is retained as a migration/audit column and can be
@@ -48,6 +49,12 @@ def _public_dive(dive: Dive) -> dict:
     migration/verification bookkeeping, emotion capture) are held back.
     """
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
+    context = db.info.get("member_access")
+    payload["can_comment"] = True  # Capability for the next discussion phase.
+    payload["can_manage"] = context is None or dive.diver_id in context["diver_ids"] or (context.get("is_admin") and dive.diver_id is None)
+    if context and not payload["can_manage"]:
+        for key in ("notes", "raw_caption", "video_path", "video_filename", "pre_dive_emotion", "post_dive_emotion", "confidence_rating"):
+            payload.pop(key, None)
     live_dd = formula_dd(dive)
     payload["official_dd"] = live_dd
     payload["official_dd_source"] = REFERENCE_ID if live_dd is not None else None
@@ -75,12 +82,16 @@ def list_dives(
     """
     query = db.query(Dive)
 
-    # Friends see everyone's dives by default (no diver bindings held).
+    # My dives follows verified account ownership; Community follows visibility.
     effective_scope = effective_diver_scope(request, db, diver_scope)
 
     if effective_scope == "self":
-        primary = get_primary_diver(db)
-        query = query.filter(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
+        scoped = apply_self_scope(db, query)
+        if scoped is not None:
+            query = scoped
+        else:
+            primary = get_primary_diver(db)
+            query = query.filter(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
 
     # Apply filters
     if session_id is not None:
@@ -109,21 +120,14 @@ def list_dives(
 
     # Order by date and id descending. Many Photos videos can share the same
     # second-level timestamp, so id gives deterministic newest-first ties.
-    # load_only keeps the SELECT to the Library surface instead of dragging
-    # every TEXT column across 5,000 rows.
-    dives = (
-        query.options(Load(Dive).load_only(*LIST_COLUMNS))
-        .order_by(Dive.dive_datetime.desc(), Dive.id.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
-    return [_public_dive(dive) for dive in dives]
+    dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
+    return [_public_dive(dive, db) for dive in dives]
 
 
 @router.post("", status_code=201)
 def create_dive(
     dive: DiveCreate,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -135,9 +139,21 @@ def create_dive(
         raise HTTPException(status_code=404, detail=f"Session {dive.session_id} not found")
 
     # Create dive
-    diver_record = resolve_diver(db, dive.person_name)
+    user = getattr(request.state, "member_user", None)
+    if user:
+        from app.models.diver import Diver
+        ids = owned_diver_ids(db, user.id)
+        diver_id = dive.diver_id if dive.diver_id is not None else (ids[0] if len(ids) == 1 else None)
+        if diver_id not in ids:
+            raise HTTPException(403, "Choose a diver you own")
+        diver_record = db.get(Diver, diver_id)
+        if dive.video_uuid or dive.video_path or dive.video_filename:
+            raise HTTPException(403, "Media must be attached through trusted ingestion")
+    else:
+        diver_record = resolve_diver(db, dive.person_name)
     db_dive = Dive(
         session_id=dive.session_id,
+        visibility=dive.visibility,
         dive_code=dive.dive_code,
         dive_number=dive.dive_number,
         position=dive.position,
@@ -150,7 +166,7 @@ def create_dive(
         is_sync=dive.is_sync,
         is_smack=dive.is_smack,
         raw_caption=dive.raw_caption,
-        person_name=dive.person_name,
+        person_name=diver_record.display_name if user else dive.person_name,
         diver_id=diver_record.id if diver_record else None,
         notes=dive.notes,
         video_uuid=dive.video_uuid,
@@ -163,7 +179,7 @@ def create_dive(
     invalidate_analysis_cache(db)
     db.commit()
     db.refresh(db_dive)
-    return _public_dive(db_dive)
+    return _public_dive(db_dive, db)
 
 
 @router.get("/{dive_id}")
@@ -177,7 +193,7 @@ def get_dive(
     dive = db.query(Dive).filter(Dive.id == dive_id).first()
     if not dive:
         raise HTTPException(status_code=404, detail=f"Dive {dive_id} not found")
-    return _public_dive(dive)
+    return _public_dive(dive, db)
 
 
 @router.put("/{dive_id}")
@@ -195,6 +211,10 @@ def update_dive(
 
     # Update only provided fields
     update_data = dive_update.model_dump(exclude_unset=True)
+    if db.info.get("member_access") and "person_name" in update_data:
+        raise HTTPException(403, "Diver reassignment requires an operator")
+    if update_data.get("visibility", "public") is None:
+        raise HTTPException(422, "Visibility cannot be null")
     for field, value in update_data.items():
         setattr(dive, field, value)
     if "person_name" in update_data:
@@ -205,7 +225,7 @@ def update_dive(
     invalidate_analysis_cache(db)
     db.commit()
     db.refresh(dive)
-    return _public_dive(dive)
+    return _public_dive(dive, db)
 
 
 @router.delete("/{dive_id}", status_code=204)

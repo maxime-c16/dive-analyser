@@ -72,18 +72,18 @@ export default function Account() {
           </div>
           <span
             className={`ml-auto border px-2 py-1 text-xs font-medium ${
-              user?.role === 'friend'
+              !user?.is_admin
                 ? 'border-app-accent text-app-accent'
                 : 'border-app text-app-muted'
             }`}
           >
-            {user?.role === 'friend' ? 'Friend · read-only' : 'Owner'}
+            {!user?.is_admin ? 'Member' : 'Administrator'}
           </span>
         </div>
-        {user?.role === 'friend' && (
+        {!user?.is_admin && (
           <p className="mt-3 text-sm leading-6 text-app-muted">
-            Friend accounts can view every diver's dives and videos but cannot
-            change anything. Forgotten passwords need an owner reset.
+            You can view public dives shared by members and manage your own dives.
+            Private dives are visible only to their owners. Forgotten passwords need an administrator reset.
           </p>
         )}
       </section>

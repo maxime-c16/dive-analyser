@@ -29,6 +29,7 @@ Security properties:
 
 import datetime
 import hmac
+from uuid import uuid4
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -358,6 +359,11 @@ async def register(
     user = AppUser(email=email, display_name=display_name[:120], role=ROLE_FRIEND)
     db.add(user)
     db.flush()
+    from app.models.diver import Diver
+    diver = Diver(display_name=user.display_name, canonical_name=f"member-{user.id}-{uuid4().hex}", is_primary_user=False)
+    db.add(diver)
+    db.flush()
+    db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER"))
     db.add(
         UserCredential(
             user_id=user.id,
@@ -564,6 +570,7 @@ async def me(
         "email": user.email,
         "display_name": user.display_name,
         "role": getattr(user, "role", "owner"),
+        "is_admin": bool(user.is_admin),
         "divers": [
             {
                 "diver_id": row.diver_id,

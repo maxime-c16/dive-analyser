@@ -30,10 +30,14 @@ class DDOverviewService:
         if diver_id is not None:
             statement = statement.where(Dive.diver_id == diver_id)
         elif scope != "all":
-            primary = get_primary_diver(self.db)
-            statement = statement.where(
-                or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None)))
-            )
+            context = self.db.info.get("member_access")
+            if context:
+                statement = statement.where(Dive.diver_id.in_(context["diver_ids"]))
+            else:
+                primary = get_primary_diver(self.db)
+                statement = statement.where(
+                    or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None)))
+                )
         dives = list(self.db.execute(statement.order_by(Dive.dive_datetime.asc(), Dive.id.asc())).scalars())
 
         rows: list[dict] = []

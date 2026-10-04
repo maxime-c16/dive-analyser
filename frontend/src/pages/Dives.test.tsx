@@ -34,7 +34,7 @@ it('defaults to primary diver and exposes other divers only intentionally', asyn
   renderPage()
   expect((await screen.findAllByText('103C')).length).toBeGreaterThan(0)
   const ownCodeCount = screen.getAllByText('103B').length
-  await userEvent.click(screen.getByRole('button', { name: 'Everyone' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Community' }))
   expect((await screen.findAllByText('103B')).length).toBeGreaterThan(ownCodeCount)
 })
 
@@ -99,7 +99,7 @@ it('Library loading, empty and error states are distinguishable and announced', 
 
 it('groups attempts per dive code and opens an attempt from its history', async () => {
   renderPage()
-  await userEvent.click(await screen.findByRole('button', { name: 'Everyone' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Community' }))
   await userEvent.click(screen.getByRole('button', { name: 'Code view' }))
   expect(await screen.findByText(/2 attempts/)).toBeInTheDocument()
   expect(screen.getByText(/1 attempts/)).toBeInTheDocument()

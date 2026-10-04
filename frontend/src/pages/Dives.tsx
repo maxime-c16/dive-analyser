@@ -180,7 +180,7 @@ export default function Dives() {
   const viewerReturnAttemptRef = useRef<number | null>(null);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
-  const scope = (searchParams.get("scope") || (user?.role === "friend" ? "all" : "self")) as Scope;
+  const scope = (searchParams.get("scope") || ((!user || user.is_admin) ? "self" : "all")) as Scope;
   const heightFilter = searchParams.get("height") || "";
   const contextFilter = searchParams.get("context") || "";
   const performanceFilter = searchParams.get("performance") || "";
@@ -233,8 +233,10 @@ export default function Dives() {
   const filtered = useMemo(
     () =>
       dives.filter((dive) => {
-        if (scope === "self" && primaryId && dive.diver_id !== primaryId)
-          return false;
+        if (scope === "self") {
+          if (user && !user.divers.some(binding => binding.access_kind === 'OWNER' && binding.diver_id === dive.diver_id)) return false;
+          if (!user && primaryId && dive.diver_id !== primaryId) return false;
+        }
         if (
           heightFilter &&
           normalizedHeight(dive.height) !== normalizedHeight(heightFilter)
@@ -287,6 +289,7 @@ export default function Dives() {
       dives,
       scope,
       primaryId,
+      user,
       heightFilter,
       contextFilter,
       performanceFilter,
@@ -455,7 +458,7 @@ export default function Dives() {
             {(
               [
                 ["self", "My dives"],
-                ["all", "Everyone"],
+                ["all", "Community"],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -689,6 +692,8 @@ export default function Dives() {
           onMove={moveToClip}
           playbackRate={playbackRate}
           onPlaybackRateChange={setPlaybackRate}
+          onUpdate={updated => setDives(current => current.map(dive => dive.id === updated.id ? updated as Dive : dive))}
+          onDelete={() => { setDives(current => current.filter(dive => dive.id !== selected.id)); closeViewer(); }}
         />
       )}
     </div>

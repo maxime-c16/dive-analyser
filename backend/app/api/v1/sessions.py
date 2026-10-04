@@ -25,6 +25,9 @@ def _is_real_dive(dive: Dive) -> bool:
 def _scope_filter(db: Session, diver_scope: str):
     if diver_scope == "all":
         return None
+    context = db.info.get("member_access")
+    if context:
+        return Dive.diver_id.in_(context["diver_ids"])
     primary = get_primary_diver(db)
     # Unattributed legacy attempts remain part of the primary user's history.
     return or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None)))
@@ -36,6 +39,7 @@ def _apply_live_stats(session: SessionModel, dives: list[Dive]) -> dict[str, Any
     analytics_dives = [d for d in personal_dives if _is_real_dive(d)]
 
     payload = {column.name: getattr(session, column.name) for column in SessionModel.__table__.columns}
+    payload.pop("notes", None)  # Shared session notes are operator metadata.
     payload["total_dives"] = len(dives)
     payload["total_personal_dives"] = len(analytics_dives)
     if analytics_dives:

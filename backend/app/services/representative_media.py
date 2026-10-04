@@ -32,6 +32,9 @@ READY_REMAP_REASON = "auto_ready_media_remap"
 
 
 def _self_diver_predicate(db: Session):
+    context = db.info.get("member_access")
+    if context:
+        return Dive.diver_id.in_(context["diver_ids"])
     primary = get_primary_diver(db)
     return (Dive.diver_id == primary.id) | (Dive.diver_id.is_(None) & Dive.person_name.is_(None))
 

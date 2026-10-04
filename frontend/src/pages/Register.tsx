@@ -76,7 +76,7 @@ export default function Register() {
           <span className="text-lg font-semibold text-app-text">Dive Analyser</span>
         </div>
         <p className="mb-6 text-sm text-app-muted">
-          Friend account — view every dive, read-only.
+          Member account — view public dives and manage your own.
         </p>
 
         {open === false && (
@@ -161,7 +161,7 @@ export default function Register() {
           className="touch-target inline-flex w-full items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 py-2.5 text-sm font-semibold text-app-text disabled:opacity-60"
         >
           <UserPlus className="h-4 w-4" />
-          {busy ? 'Creating account…' : 'Create friend account'}
+          {busy ? 'Creating account…' : 'Create member account'}
         </button>
 
         <p className="mt-5 text-center text-sm text-app-muted">

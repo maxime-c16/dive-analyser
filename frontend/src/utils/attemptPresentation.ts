@@ -3,6 +3,8 @@ import { performanceScore10 } from "./performanceScoring";
 import { divePositionName } from "./divePosition";
 
 export type Attempt = {
+  visibility?: "public" | "private";
+  can_manage?: boolean;
   id: number;
   dive_code: string;
   performance: string;

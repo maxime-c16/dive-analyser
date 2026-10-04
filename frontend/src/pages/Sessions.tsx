@@ -38,7 +38,7 @@ function Sessions() {
   const [limit, setLimit] = useState(50);
   // Friends see everyone's dives by default (no diver bindings held).
   const [diverScope, setDiverScope] = useState<"self" | "all">(
-    user?.role === "friend" ? "all" : "self",
+    (!user || user.divers?.length) ? "self" : "all",
   );
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 

@@ -73,8 +73,10 @@ def _detected_milestones(db: Session, attempts: List[DiveAttempt]) -> List:
 
 def get_attempts(db: Session) -> List[DiveAttempt]:
     """Convert database records to DiveAttempt objects for personal dives only."""
-    dives = db.query(Dive).filter(
-        Dive.person_name.is_(None),  # Personal dives only
+    query = db.query(Dive)
+    context = db.info.get("member_access")
+    query = query.filter(Dive.diver_id.in_(context["diver_ids"])) if context else query.filter(Dive.person_name.is_(None))
+    dives = query.filter(
         Dive.dive_code.isnot(None),
         Dive.performance.isnot(None),
         Dive.is_lineup.is_(False),

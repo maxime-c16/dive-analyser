@@ -106,6 +106,7 @@ def _seed_world(db):
     db.add_all([s1, s2])
     db.flush()
     dive_a = Dive(
+            visibility="private",
         session_id=s1.id,
         dive_code="101B",
         performance="G",
@@ -116,6 +117,7 @@ def _seed_world(db):
         dive_datetime=now - timedelta(hours=1),
     )
     dive_b = Dive(
+            visibility="private",
         session_id=s2.id,
         dive_code="101B",
         performance="G",
@@ -126,6 +128,7 @@ def _seed_world(db):
         dive_datetime=now - timedelta(hours=2),
     )
     dive_dev_only = Dive(
+            visibility="private",
         session_id=s1.id,
         dive_code="201B",
         performance="B",
@@ -136,6 +139,7 @@ def _seed_world(db):
         dive_datetime=now - timedelta(hours=3),
     )
     dive_unverified = Dive(
+            visibility="private",
         session_id=s1.id,
         dive_code="301B",
         performance="B",
@@ -146,6 +150,7 @@ def _seed_world(db):
         dive_datetime=now - timedelta(hours=4),
     )
     dive_ambiguous = Dive(
+            visibility="private",
         session_id=s1.id,
         dive_code="401B",
         performance="B",
@@ -428,7 +433,7 @@ def test_wrong_owner_playback_denied_idor(client, db, fake_presign):
     assert "location" not in r.headers
     grant = db.query(MediaPlaybackGrant).one()
     assert grant.outcome == "DENIED"
-    assert grant.denial_reason == "no_owner_access"
+    assert grant.denial_reason == "unknown_revision"  # Private revisions are not discoverable.
     assert not fake_presign
 
 

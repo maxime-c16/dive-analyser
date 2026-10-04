@@ -20,6 +20,7 @@ from app.database import get_db
 from app.services.write_guard import effective_diver_scope, require_owner_for_mutation
 from app.models.media import MediaAgent, MediaCacheEntry, MediaJob, RecalledMediaSource
 from app.models.photos_asset import PhotosAsset
+from app.models.dive import Dive
 from app.schemas.media import MediaRequest, MediaRequestResponse, MediaStatusResponse, MediaStatusBatchRequest
 from app.schemas.media import (
     MediaJobFailRequest,
@@ -1026,6 +1027,11 @@ async def get_media_status_batch(
         if video_uuid and video_uuid not in seen:
             seen.append(video_uuid)
     seen = seen[:MAX_STATUS_BATCH]
+    if db.info.get("member_access"):
+        # Filter before consulting the process-wide backbone cache: a revision
+        # cached by its owner must never identify a private clip to a member.
+        allowed = set(db.execute(select(Dive.video_uuid).where(Dive.video_uuid.in_(seen))).scalars())
+        seen = [video_uuid for video_uuid in seen if video_uuid in allowed]
 
     entries_by_asset: dict[int, list] = defaultdict(list)
     uuid_by_asset: dict[int, str] = {}

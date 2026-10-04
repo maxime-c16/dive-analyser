@@ -68,7 +68,9 @@ def revision_cached(
     restart computes again, which is always safe.
     """
     revision = dive_dataset_revision(db)
-    cache_key = (key, revision)
+    context = db.info.get("member_access")
+    audience = (context["user_id"], context["diver_ids"], context.get("is_admin", False)) if context else None
+    cache_key = (key, revision, audience)
     now_monotonic = _monotonic()
     with _lock:
         cached = _store.get(cache_key)

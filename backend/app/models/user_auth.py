@@ -38,12 +38,9 @@ from sqlalchemy import (
 from app.database import Base
 
 
-# AppUser roles (FRIEND ACCESS V1):
-# - ROLE_OWNER  — full access; media playback requires an explicit OWNER
-#                 UserDiverAccess row per diver (unchanged P5 behaviour).
-# - ROLE_FRIEND — invite-gated self-registration; sees every diver's
-#                 dives/media by default (no bindings needed); read-only at
-#                 the API boundary (app/services/write_guard.py).
+# Legacy role labels remain compatible with existing accounts and CLI tooling.
+# Dive ownership always comes from UserDiverAccess. is_admin independently
+# controls workspace operations; neither legacy role grants dive ownership.
 ROLE_OWNER = "owner"
 ROLE_FRIEND = "friend"
 USER_ROLES = (ROLE_OWNER, ROLE_FRIEND)
@@ -56,6 +53,7 @@ class AppUser(Base):
     email = Column(String(255), nullable=False, index=True)
     display_name = Column(String(120), nullable=False)
     role = Column(String(20), nullable=False, default=ROLE_OWNER)
+    is_admin = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(

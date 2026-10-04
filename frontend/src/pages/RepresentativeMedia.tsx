@@ -314,7 +314,7 @@ export default function RepresentativeMedia() {
               <div className="grid gap-4 p-4 lg:grid-cols-3">
                 {ROLE_ORDER.map((role) => {
                   const rep = group.representatives.find((item) => item.role === role)
-                  return rep ? <RepresentativeCardView key={role} code={group.dive_code} rep={rep} onFindReplacement={findReplacement} readOnly={friend} /> : <div key={role} className="border border-app p-4 text-sm text-app-muted"><AlertTriangle className="mb-3 h-4 w-4" />No {role === 'median' ? 'Typical' : role} representative selected.</div>
+                  return rep ? <RepresentativeCardView key={role} code={group.dive_code} rep={rep} onFindReplacement={findReplacement} readOnly={!user?.is_admin} /> : <div key={role} className="border border-app p-4 text-sm text-app-muted"><AlertTriangle className="mb-3 h-4 w-4" />No {role === 'median' ? 'Typical' : role} representative selected.</div>
                 })}
               </div>
             </div>
