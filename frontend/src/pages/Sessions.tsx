@@ -3,7 +3,6 @@ import { api } from "../services/api";
 import { format, parseISO, isToday, isYesterday, isThisWeek } from "date-fns";
 import {
   CalendarDays,
-  ChevronRight,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -152,14 +151,7 @@ function Sessions() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-app-text">Training Sessions</h1>
-          <p className="text-app-muted mt-1">
-            {diverScope === "self"
-              ? "Your training history by day"
-              : "All authorized divers by day"}
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-app-text">Training Sessions</h1>
 
         {/* Quick Stats */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-4">
@@ -349,15 +341,6 @@ function Sessions() {
                           diverScope={diverScope}
                         />
                       </div>
-
-                      {/* Click hint */}
-                      <div className="mt-3 inline-flex items-center gap-1 text-xs text-app-accent">
-                        View details{" "}
-                        <ChevronRight
-                          className="h-3.5 w-3.5"
-                          aria-hidden="true"
-                        />
-                      </div>
                     </button>
                   );
                 })}
@@ -374,10 +357,7 @@ function Sessions() {
             className="mx-auto mb-4 h-12 w-12 text-app-muted"
             aria-hidden="true"
           />
-          <p className="text-app-muted text-xl">No sessions found</p>
-          <p className="text-app-muted mt-2">
-            Start training to see your sessions here
-          </p>
+          <p className="text-app-muted text-xl">No sessions yet.</p>
         </div>
       )}
 

@@ -59,10 +59,7 @@ function RepresentativeCardView({
   return (
     <article className="border border-app bg-app-panel-elevated">
       <div className="flex items-start justify-between gap-3 border-b border-app px-4 py-3">
-        <div>
-          <h3 className="font-semibold text-app-text">{rep.label}</h3>
-          <p className="mt-1 text-xs text-app-muted">Selected from the recorded score distribution</p>
-        </div>
+        <h3 className="font-semibold text-app-text">{rep.label}</h3>
         <span className={`text-xs font-medium ${stateClass(rep.media.state)}`}>{mediaLabel}</span>
       </div>
       {rep.media.poster_url ? (
@@ -85,10 +82,10 @@ function RepresentativeCardView({
             <summary className="cursor-pointer text-sm text-red-300">{failure.message}</summary>
             <p className="mt-2 text-xs leading-5 text-app-muted">{failure.detail}</p>
             {failure.code === 'materialization_only_placeholders' && (
-              <p className="mt-2 text-xs leading-5 text-app-muted">Use Find replacement. Retry this same clip only after opening it in Photos on the Mac and confirming it downloads.</p>
+              <p className="mt-2 text-xs leading-5 text-app-muted">Find a replacement, or retry once the clip downloads in Photos on the Mac.</p>
             )}
             {(failure.code === 'permission_required' || failure.code === 'photos_access_denied' || failure.code === 'osxphotos_export_timeout' || failure.code === 'osxphotos_export_failed') && (
-              <p className="mt-2 text-xs leading-5 text-app-muted">Check Photos permissions on the Mac, run a read-only Photos query, then retry this rendition once.</p>
+              <p className="mt-2 text-xs leading-5 text-app-muted">Check Photos permissions on the Mac, then retry.</p>
             )}
           </details>
         )}
@@ -128,8 +125,8 @@ function CandidatePanel({
           <button type="button" onClick={onClose} className="border border-app px-3 py-1.5 text-sm text-app-muted">Close</button>
         </div>
         <div className="mt-5 space-y-3">
-          {loading && <p className="text-sm text-app-muted">Finding the best bounded replacements…</p>}
-          {!loading && !candidates.length && <p className="text-sm text-app-muted">No unused candidate remains for this score band.</p>}
+          {loading && <p className="text-sm text-app-muted">Loading…</p>}
+          {!loading && !candidates.length && <p className="text-sm text-app-muted">No unused candidates.</p>}
           {candidates.map((candidate) => (
             <div key={candidate.candidate.id} className="border border-app p-4">
               <div className="flex items-start justify-between gap-3">
@@ -232,7 +229,6 @@ export default function RepresentativeMedia() {
     <div className="mx-auto w-full max-w-[1480px] space-y-6">
       <header className="border-b border-app pb-5">
         <h1 className="text-3xl font-semibold tracking-tight text-app-text">Representative Media</h1>
-        <p className="mt-2 text-sm text-app-muted">Low, typical, and high recorded attempts for each exact canonical dive code.</p>
       </header>
 
       {data && (
@@ -250,7 +246,7 @@ export default function RepresentativeMedia() {
       )}
 
       {coverage && (
-        <section className="grid gap-px border border-app md:grid-cols-5">
+        <section className="grid gap-px border border-app md:grid-cols-4">
           <div className="bg-app-panel p-4">
             <div className="text-xs text-app-muted">Zero-ready audit</div>
             <div className="mt-2 text-sm text-app-text">A {coverage.summary.zero_ready_categories.A || 0} · B {coverage.summary.zero_ready_categories.B || 0} · C {coverage.summary.zero_ready_categories.C || 0} · D {coverage.summary.zero_ready_categories.D || 0}</div>
@@ -258,10 +254,6 @@ export default function RepresentativeMedia() {
           <div className="bg-app-panel p-4">
             <div className="text-xs text-app-muted">Placeholder failures</div>
             <div className="mt-2 text-sm text-app-text">{(coverage.summary.failure_breakdown.materialized_video_not_found || 0) + (coverage.summary.failure_breakdown.materialization_only_placeholders || 0)}</div>
-          </div>
-          <div className="bg-app-panel p-4">
-            <div className="text-xs text-app-muted">Read-only report</div>
-            <div className="mt-2 text-sm text-app-text">{coverage.read_only ? 'No jobs created' : 'Mutable'}</div>
           </div>
           <div className="bg-app-panel p-4">
             <div className="text-xs text-app-muted">Viable zero-ready candidates</div>
@@ -289,8 +281,8 @@ export default function RepresentativeMedia() {
         </div>
       </section>
 
-      {loading && !data && <div className="border-y border-app py-16 text-center text-sm text-app-muted">Loading representative media...</div>}
-      {refreshing && data && <div className="sticky top-0 z-30 border border-app-accent/40 bg-app-panel/95 px-4 py-2 text-center text-xs text-app-muted backdrop-blur" role="status">Updating representative coverage without leaving your place…</div>}
+      {loading && !data && <div className="border-y border-app py-16 text-center text-sm text-app-muted">Loading…</div>}
+      {refreshing && data && <div className="sticky top-0 z-30 border border-app-accent/40 bg-app-panel/95 px-4 py-2 text-center text-xs text-app-muted backdrop-blur" role="status">Refreshing…</div>}
       {error && <div className="border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-300">{error}</div>}
 
       {data && (
@@ -309,7 +301,7 @@ export default function RepresentativeMedia() {
             <div key={group.dive_code} className="border border-app bg-app-panel">
               <div className="flex flex-wrap items-center gap-3 border-b border-app px-5 py-4">
                 <Link to={`/dives/analysis/${group.dive_code}`} className="touch-target inline-flex items-center text-xl font-semibold text-app-text">{group.dive_code}</Link>
-                <span className="text-sm text-app-muted">{group.coverage.proxy_ready} of {group.coverage.total} playable · Poster {group.coverage.poster_ready}/{group.coverage.total} · Video {group.coverage.proxy_ready}/{group.coverage.total}</span>
+                <span className="text-sm text-app-muted">Poster {group.coverage.poster_ready}/{group.coverage.total} · Video {group.coverage.proxy_ready}/{group.coverage.total}</span>
                 {!group.coverage.fully_ready && <span className="ml-auto inline-flex items-center gap-2 text-xs text-app-muted"><ShieldAlert className="h-4 w-4" />Coverage incomplete</span>}
               </div>
               <div className="grid gap-4 p-4 lg:grid-cols-3">
@@ -320,7 +312,7 @@ export default function RepresentativeMedia() {
               </div>
             </div>
           ))}
-          {!data.dives.length && <div className="border border-app p-8 text-center text-sm text-app-muted"><Search className="mx-auto mb-3 h-5 w-5" />No representatives match the active filters.</div>}
+          {!data.dives.length && <div className="border border-app p-8 text-center text-sm text-app-muted"><Search className="mx-auto mb-3 h-5 w-5" />No matches.</div>}
         </section>
       )}
 

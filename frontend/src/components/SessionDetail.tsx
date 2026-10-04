@@ -143,7 +143,6 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
     performance: performanceScore10(dive.performance, dive.phase1_performance, dive.phase2_performance),
     success: isSuccessfulPerformance(dive.performance) ? 1 : 0,
   }))
-  const ddCoverage = dives.length ? Math.round((dives.filter((dive) => dive.official_dd != null).length / dives.length) * 100) : 0
 
   // Calculate comparison metrics
   const calculateTrend = (current: number | undefined, previous: number | undefined) => {
@@ -292,7 +291,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                     ) : (
                       <div className="text-center text-app-muted">
                         <Film className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">Select a dive with a video indicator to play it.</p>
+                        <p className="text-sm">No video selected.</p>
                       </div>
                     )}
                   </div>
@@ -303,8 +302,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Execution flow with separate difficulty context */}
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-app-text mb-1">Performance Flow</h4>
-                  <p className="mb-4 text-xs text-app-muted">Execution /10 · official DD available for {ddCoverage}% of attempts</p>
+                  <h4 className="text-lg font-semibold text-app-text mb-4">Performance Flow</h4>
                   {performanceFlow.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={performanceFlow}>
@@ -350,7 +348,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               {previousSession && (
                 <div className="bg-app-accent-soft border border-app-accent rounded-lg p-4">
                   <h4 className="text-lg font-semibold text-app-text mb-4">Comparison with Previous Session</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <p className="text-app-muted text-xs uppercase mb-2">Total Dives</p>
                       <div className="flex items-center gap-2">
@@ -376,18 +374,6 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         {successTrend && <TrendIndicator trend={successTrend} />}
                       </div>
                     </div>
-                    {perfTrend && successTrend && (
-                      <div>
-                        <p className="text-app-muted text-xs uppercase mb-2">Overall</p>
-                        <p className="text-app-text font-bold">
-                          {perfTrend.isPositive && successTrend.isPositive
-                            ? '✨ Great Session!'
-                            : perfTrend.isPositive || successTrend.isPositive
-                            ? '→ Steady Progress'
-                            : 'Keep pushing'}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

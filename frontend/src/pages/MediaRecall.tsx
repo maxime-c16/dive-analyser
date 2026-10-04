@@ -69,10 +69,7 @@ export default function MediaRecall() {
   return (
     <div className="mx-auto max-w-[1320px] space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-app pb-5">
-        <div>
-          <h1 className="text-2xl font-semibold text-app-text">Media recall</h1>
-          <p className="mt-1 max-w-2xl text-sm text-app-muted">Selective source recovery for requested dives. Loading this page never creates media jobs.</p>
-        </div>
+        <h1 className="text-2xl font-semibold text-app-text">Media recall</h1>
         <button type="button" onClick={() => void refresh()} className="flex items-center gap-2 border border-app bg-app-panel px-3 py-2 text-sm text-app-text" disabled={loading}>
           <RefreshCw className="h-4 w-4" /> Refresh
         </button>
@@ -92,13 +89,13 @@ export default function MediaRecall() {
       {(primary?.photos_access_status !== 'ok' || storage?.internal.historical_recall_paused) && (
         <div className="flex gap-3 border border-amber-700/50 bg-amber-950/15 px-4 py-3 text-sm text-amber-100">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{primary?.photos_access_status !== 'ok' ? `Recall remains disabled while Photos access is ${primary?.photos_access_status ?? 'unknown'}.` : 'Historical recall is paused by the internal free-space gate.'} Existing Debian playback remains available.</span>
+          <span>{primary?.photos_access_status !== 'ok' ? `Recall remains disabled while Photos access is ${primary?.photos_access_status ?? 'unknown'}.` : 'Historical recall is paused by the internal free-space gate.'}</span>
         </div>
       )}
 
       <section aria-label="Captioned media catalog" className="border border-app bg-app-panel">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-app px-4 py-3">
-          <div><h2 className="font-semibold text-app-text">Captioned video catalog</h2><p className="mt-1 text-sm text-app-muted">A metadata-only inventory. Cataloging never recalls source files or creates media jobs.</p></div>
+          <h2 className="font-semibold text-app-text">Captioned video catalog</h2>
           <button type="button" onClick={() => void handleStartCatalog()} disabled={catalogActive || primary?.photos_access_status !== 'ok'} className="border border-app-strong px-3 py-2 text-sm text-app-text disabled:cursor-not-allowed disabled:opacity-40">{catalogActive ? 'Catalog running' : 'Start catalog'}</button>
         </div>
         <div className="grid gap-px bg-[var(--app-border)] sm:grid-cols-2 lg:grid-cols-5">
@@ -106,18 +103,18 @@ export default function MediaRecall() {
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">Observed</div><div className="mt-1 font-medium text-app-text">{catalogSummary?.total ?? catalogRun?.observed_count ?? 0}</div><div className="mt-1 text-xs text-app-muted">Checkpoint {catalogRun?.checkpoint ?? 0}</div></div>
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">Eligible</div><div className="mt-1 font-medium text-app-text">{catalogSummary?.eligibility.eligible ?? catalogRun?.eligible_count ?? 0}</div><div className="mt-1 text-xs text-app-muted">Mapped and parseable</div></div>
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">Playable</div><div className="mt-1 font-medium text-app-text">{catalogSummary?.media.ready ?? 0}</div><div className="mt-1 text-xs text-app-muted">Poster + proxy ready</div></div>
-          <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">Excluded</div><div className="mt-1 font-medium text-app-text">{catalogSummary?.eligibility.excluded ?? catalogRun?.excluded_count ?? 0}</div><div className="mt-1 text-xs text-app-muted">Fully accounted for</div></div>
+          <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">Excluded</div><div className="mt-1 font-medium text-app-text">{catalogSummary?.eligibility.excluded ?? catalogRun?.excluded_count ?? 0}</div></div>
         </div>
         {catalogRun?.pause_reason && <div className="border-t border-app px-4 py-3 text-sm text-amber-200">Paused: {catalogRun.pause_reason.split('_').join(' ')}</div>}
       </section>
 
       <section className="border border-app bg-app-panel p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold text-app-text">Rolling population plan</h2><p className="text-sm text-app-muted">Models one active source and creates no jobs, recalls, or files.</p></div><button type="button" disabled={!catalogSummary?.catalog_revision} onClick={() => void planCatalogPopulation().then(setPopulationPlan).catch((e) => setError(String(e)))} className="border border-app-strong px-3 py-2 text-sm text-app-text disabled:opacity-40">Plan population</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-app-text">Rolling population plan</h2><button type="button" disabled={!catalogSummary?.catalog_revision} onClick={() => void planCatalogPopulation().then(setPopulationPlan).catch((e) => setError(String(e)))} className="border border-app-strong px-3 py-2 text-sm text-app-text disabled:opacity-40">Plan population</button></div>
         {populationPlan && <div className="mt-4 grid gap-3 border-t border-app pt-4 text-sm sm:grid-cols-2 lg:grid-cols-5"><div><span className="text-app-muted">Eligible</span><div>{populationPlan.total_eligible_assets}</div></div><div><span className="text-app-muted">Already ready</span><div>{populationPlan.already_fully_ready}</div></div><div><span className="text-app-muted">Rolling peak</span><div>{bytes(populationPlan.estimated_mac_rolling_peak_bytes)}</div></div><div><span className="text-app-muted">Projected free</span><div>{bytes(populationPlan.projected_free_bytes_at_peak)}</div></div><div><span className="text-app-muted">Execution</span><div>{populationPlan.execution_allowed ? 'Allowed' : `Paused: ${populationPlan.blocked_reasons.join(', ').split('_').join(' ')}`}</div></div></div>}
       </section>
 
       <section className="border border-app bg-app-panel p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold text-app-text">Zero-ready Typical plan</h2><p className="text-sm text-app-muted">Dry run only, maximum six dive codes. Creates no jobs or files.</p></div><button type="button" onClick={() => void planRecallBatch().then(setPlan).catch((e) => setError(String(e)))} className="border border-app-strong px-3 py-2 text-sm text-app-text">Plan bounded batch</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-app-text">Zero-ready Typical plan</h2><button type="button" onClick={() => void planRecallBatch().then(setPlan).catch((e) => setError(String(e)))} className="border border-app-strong px-3 py-2 text-sm text-app-text">Plan bounded batch</button></div>
         {plan && <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4"><div><span className="text-app-muted">Items</span><div>{plan.items.length}</div></div><div><span className="text-app-muted">Peak</span><div>{bytes(plan.estimated_temporary_peak_bytes)}</div></div><div><span className="text-app-muted">Projected free</span><div>{bytes(plan.projected_free_bytes)}</div></div><div><span className="text-app-muted">Gate</span><div>{plan.quota_result}</div></div></div>}
       </section>
 
@@ -151,8 +148,8 @@ export default function MediaRecall() {
             </tbody>
           </table>
         </div>
-        {!loading && items.length === 0 && <div className="border border-app p-8 text-center text-sm text-app-muted">No recall items match the current bounded manifest.</div>}
-        {loading && <div className="border border-app p-8 text-center text-sm text-app-muted">Loading operational state…</div>}
+        {!loading && items.length === 0 && <div className="border border-app p-8 text-center text-sm text-app-muted">No recall items.</div>}
+        {loading && <div className="border border-app p-8 text-center text-sm text-app-muted">Loading…</div>}
       </section>
     </div>
   )

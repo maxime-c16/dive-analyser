@@ -294,16 +294,9 @@ function Layout({ children }: { children: React.ReactNode }) {
         <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label="Workspace sidebar">
           <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6">
             <div className="border-b border-app pb-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-app-muted">
+              <div className="text-xl font-semibold text-app-text">
                 Dive Analyser
               </div>
-              <div className="mt-2 text-xl font-semibold text-app-text">
-                Training Workspace
-              </div>
-              <p className="mt-2 text-sm leading-6 text-app-muted">
-                Your clips live in the Library. Review, analysis, and history
-                branch out from there.
-              </p>
             </div>
 
             <nav className="mt-6 space-y-1" aria-label="Primary navigation">
@@ -330,9 +323,6 @@ function Layout({ children }: { children: React.ReactNode }) {
               <OperationsDisclosure />
             </div>
 
-            <div className="mt-auto border-t border-app pt-4 text-xs leading-5 text-app-muted">
-              LAN / WireGuard workspace
-            </div>
           </div>
         </aside>
 
@@ -372,8 +362,7 @@ function NotFound() {
     <div className="app-panel mx-auto mt-10 max-w-lg py-10 text-center">
       <h1 className="text-2xl font-semibold text-app-text">Page not found</h1>
       <p className="mt-2 text-sm leading-6 text-app-muted">
-        This address doesn&rsquo;t match a page in the workspace. Your clips are
-        in the Library.
+        Nothing lives at this address.
       </p>
       <Link
         to="/dives"

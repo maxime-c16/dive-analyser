@@ -501,14 +501,9 @@ export default function Dives() {
     <div className="mx-auto max-w-[1440px] pb-10">
       <header className="flex flex-col gap-4 border-b border-app pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-medium text-app-muted">Dive library</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
             Library
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-app-muted">
-            Search by code, position, height, context, rating, or modifier.
-            Open a tile to review that exact attempt.
-          </p>
         </div>
         <div className="flex gap-2 text-sm">
           <div className="border border-app bg-app-panel px-3 py-2">
@@ -543,8 +538,8 @@ export default function Dives() {
           <input
             value={query}
             onChange={(event) => update({ q: event.target.value })}
-            className="app-input w-full pl-11 pr-4 text-base"
-            placeholder="Try 103, 103B, 103 Pike, or 103B DB"
+            className="app-input w-full !pl-11 pr-4 text-base"
+            placeholder="103, 103B, 103 Pike, 103B DB"
             aria-label="Search dives"
           />
         </label>
@@ -635,7 +630,7 @@ export default function Dives() {
           className="border-y border-app py-20 text-center text-sm text-app-muted"
           role="status"
         >
-          Loading your dive library…
+          Loading…
         </div>
       )}
       {error && (
@@ -655,18 +650,7 @@ export default function Dives() {
       )}
       {!loading && !error && (
         <section className="mt-8">
-          <div className="flex items-end justify-between gap-3 border-b border-app pb-3">
-            <div>
-              <h2 className="text-lg font-semibold text-app-text">
-                All matching attempts
-              </h2>
-              <p className="mt-1 text-xs text-app-muted">
-                {filtered.length} attempts ·{" "}
-                {scope === "self"
-                  ? "your training history"
-                  : "all authorized divers"}
-              </p>
-            </div>
+          <div className="hidden items-center justify-end gap-3 border-b border-app pb-3 sm:flex">
             <div className="hidden items-center gap-1 sm:flex">
               <button
                 type="button"
@@ -690,9 +674,6 @@ export default function Dives() {
             <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
                 No attempts match this search.
-              </p>
-              <p className="mt-2 text-sm text-app-muted">
-                Try a shorter code, remove a modifier, or switch scope.
               </p>
               {(activeFilters > 0 || scope !== "self") && (
                 <button

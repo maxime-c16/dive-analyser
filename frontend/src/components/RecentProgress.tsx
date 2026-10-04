@@ -139,7 +139,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden="true" />
           <div>
             <p className="text-amber-400 text-sm font-semibold">No sessions in the last 7 days</p>
-            <p className="text-amber-300/70 text-xs">Showing most recent training week: {weekLabel}</p>
+            <p className="text-amber-300/70 text-xs">Showing {weekLabel}</p>
           </div>
         </div>
       )}
@@ -220,7 +220,6 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
         <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
           <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">Sessions</p>
           <p className="text-3xl sm:text-4xl font-bold text-app-text mt-3">{recentSessions.length}</p>
-          <p className="text-app-accent text-xs mt-3">Recent</p>
         </div>
       </div>
 
@@ -312,9 +311,6 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                   </div>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-app">
-                  <p className="text-xs text-app-accent hover:text-app-text transition">View Details →</p>
-                </div>
               </button>
             )
           })}

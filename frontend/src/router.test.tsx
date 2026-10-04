@@ -47,6 +47,9 @@ beforeEach(() => {
         },
       })
     }
+    if (url === '/api/v1/dd/overview') {
+      return Promise.resolve({ data: { timeline: [], inventory: [], height_breakdown: [], undefined_reasons: [], reference: { label: '' }, summary: { attempt_count: 0, defined_attempt_count: 0, undefined_attempt_count: 0, unique_dive_count: 0, median_dd: null, max_dd: null, legacy_mismatch_count: 0 } } })
+    }
     return Promise.resolve({ data: [] })
   })
 })

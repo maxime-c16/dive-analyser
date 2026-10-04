@@ -47,7 +47,7 @@ describe('Per-dive intelligence V2', () => {
   it('keyboard attempt row opens exact attempt', async () => { renderPage(); await openSection(/^Attempts to review/); await screen.findByText('Progression'); const rows = screen.getAllByRole('row'); const sourceRow = rows.find((row) => row.textContent?.includes('1 Jan 2026')); fireEvent.keyDown(sourceRow!, { key: 'Enter' }); expect(screen.getByRole('heading', { name: '103B · 7.0' })).toBeInTheDocument() })
   it('shows structured straight-jump error clearly', async () => { vi.mocked(getDiveAnalysis).mockRejectedValue(new Error('Straight jumps are excluded from performance analytics.')); renderPage('/dives/analysis/100B'); expect(await screen.findByRole('alert')).toHaveTextContent('Straight jumps are excluded') })
   it('uses normalized diver IDs and training period IDs', async () => { renderPage(); await openSection(/^Filters/); await screen.findByText('Progression'); await userEvent.selectOptions(screen.getByLabelText('Diver scope'), 'selected'); await userEvent.selectOptions(screen.getByLabelText('Selected divers'), '2'); await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('diver_ids=2')); await userEvent.selectOptions(screen.getByLabelText('Training period'), '4'); expect(screen.getByTestId('location')).toHaveTextContent('training_period_ids=4') })
-  it('reports missing phase values instead of zero', async () => { renderPage(); await openSection(/^Phase analysis/); expect(await screen.findByText('1 scored · 1 missing · rolling five-attempt median')).toBeInTheDocument() })
+  it('reports missing phase values instead of zero', async () => { renderPage(); await openSection(/^Phase analysis/); expect(await screen.findByText('1 scored · 1 missing')).toBeInTheDocument() })
   it('uses natural position names while retaining canonical filter values', async () => {
     renderPage()
     await openSection(/^Filters/)
@@ -76,7 +76,7 @@ describe('Per-dive intelligence V2', () => {
     expect(screen.getByText('Progression')).toBeInTheDocument()
   })
   it('offers the same range view for phase timelines using their parent sessions', async () => { renderPage(); await openSection(/^Phase analysis/); await screen.findByText('Phase analysis'); await userEvent.selectOptions(screen.getByLabelText('Phase chart view'), 'range'); expect(screen.getByTestId('location')).toHaveTextContent('phase_view=range'); expect((await screen.findAllByTestId('session-range')).length).toBeGreaterThanOrEqual(3) })
-  it('surfaces notable attempts without recalculating the formula in the browser', async () => { renderPage(); await openSection(/^Personal review priority/); expect(await screen.findByText('Attempts worth revisiting')).toBeInTheDocument(); expect(screen.getByText('Most notable in this view')).toBeInTheDocument() })
+  it('surfaces notable attempts without recalculating the formula in the browser', async () => { renderPage(); await openSection(/^Personal review priority/); expect(await screen.findByRole('heading', { name: 'Personal Dive Value' })).toBeInTheDocument(); expect(screen.getByText('Most notable in this view')).toBeInTheDocument() })
   it('persists split mode and exposes mixed-context groups', async () => { renderPage(); await openSection(/^Comparison/); await screen.findByText('Mixed comparison context'); await openSection(/^Progression/); await userEvent.selectOptions(screen.getByLabelText('Split progression by'), 'height'); expect(screen.getByTestId('location')).toHaveTextContent('split_by=height') })
 })
 
@@ -164,7 +164,7 @@ describe('UI-U7 progressive disclosure and review continuity', () => {
     const empty: AnalysisData = { ...payload, sample: { ...summary, attempt_count: 0, session_count: 0 }, summary: { ...summary, attempt_count: 0, session_count: 0, scored_attempt_count: 0 }, attempts: [] }
     vi.mocked(getDiveAnalysis).mockResolvedValue(empty)
     renderPage()
-    expect(await screen.findByTestId('analysis-unavailable')).toHaveTextContent('No analysis for this view yet.')
+    expect(await screen.findByTestId('analysis-unavailable')).toHaveTextContent('No attempts in this view.')
     expect(screen.queryByTestId('analysis-key-summary')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Progression/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Representative attempts/ })).not.toBeInTheDocument()
@@ -192,6 +192,6 @@ describe('UI-U7 progressive disclosure and review continuity', () => {
     renderPage()
     expect(await screen.findByTestId('analysis-scope')).toHaveTextContent('2 attempts in 2 sessions')
     expect(screen.getByTestId('analysis-key-summary')).toHaveTextContent('103B')
-    expect(screen.getByRole('button', { name: /never describes only the selected clip/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Comparison & history/ })).toBeInTheDocument()
   })
 })

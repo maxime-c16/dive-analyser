@@ -121,7 +121,7 @@ function P5Canary() {
   }, []);
 
   if (!checked) {
-    return <div className="text-sm text-app-muted">Checking session…</div>;
+    return <div className="text-sm text-app-muted">Loading…</div>;
   }
 
   if (!user) {
@@ -131,12 +131,7 @@ function P5Canary() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Media player</h1>
-          <p className="text-sm text-app-muted">
-            Sign in to watch your dives. Playback uses short-lived, private links.
-          </p>
-        </div>
+        <h1 className="text-lg font-semibold">Media player</h1>
         <button
           type="button"
           onClick={async () => {
@@ -157,7 +152,7 @@ function P5Canary() {
 
       {revisions.length === 0 ? (
         <div className="border border-app bg-app-panel p-4 text-sm text-app-muted">
-          No authorized media found for this account.
+          No media.
         </div>
       ) : (
         <div className="grid gap-4">

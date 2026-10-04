@@ -162,7 +162,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
 
               {error.retryCount >= 3 && (
                 <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-xs text-amber-300">
-                  Maximum retry attempts reached. Please contact support if the issue persists.
+                  Maximum retries reached.
                 </div>
               )}
             </div>

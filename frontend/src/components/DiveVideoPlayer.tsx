@@ -245,11 +245,11 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
   const preparing = phase.kind === 'preparing' ? phase : null
   const preparingText = preparing
     ? preparing.stopped
-      ? `${preparationLabel(preparing.state)} — status checks stopped. Connection problem.`
+      ? `${preparationLabel(preparing.state)} — status checks stopped`
       : stale
         ? `${preparationLabel(preparing.state)} — connection interrupted`
         : preparing.longRunning
-          ? 'Still preparing this clip'
+          ? 'Still preparing'
           : `Preparing media: ${preparationLabel(preparing.state)}`
     : null
 
@@ -261,9 +261,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
           <div className="max-w-sm text-center">
             <LogIn className="mx-auto mb-3 h-10 w-10 text-app-accent" />
             <p className="mb-2 font-semibold text-app-text">Sign in to play</p>
-            <p className="mb-4 text-sm text-app-muted">
-              Your session has expired. Sign in to watch your clips.
-            </p>
+            <p className="mb-4 text-sm text-app-muted">Session expired.</p>
             <Link
               to="/login"
               state={{ from: window.location.pathname }}
@@ -303,7 +301,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
           role="status"
         >
           <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
-          <p className="mt-3 text-sm text-app-text">Checking media status…</p>
+          <p className="mt-3 text-sm text-app-text">Checking…</p>
           {lastPreparingLabelRef.current && (
             <p className="mt-1 text-xs text-app-muted">
               Last known state: {lastPreparingLabelRef.current}
@@ -345,12 +343,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
         >
           <div className="max-w-sm px-6 text-center">
             <WifiOff className="mx-auto mb-3 h-10 w-10 text-app-muted" />
-            <p className="mb-2 font-semibold text-app-text">
-              Couldn&rsquo;t check media availability
-            </p>
-            <p className="mb-4 text-sm text-app-muted">
-              The media status check failed. Check your connection and try
-              again.
+            <p className="mb-4 font-semibold text-app-text">
+              Media status check failed
             </p>
             <button
               type="button"
@@ -395,11 +389,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
           role="alert"
         >
           <div className="max-w-sm px-6 text-center">
-            <p className="mb-2 font-semibold text-app-text">
-              Video could not be loaded
-            </p>
-            <p className="mb-4 text-sm text-app-muted">
-              Playback failed for this clip. You can try loading it again.
+            <p className="mb-4 font-semibold text-app-text">
+              Video failed to load
             </p>
             <button
               type="button"
@@ -421,12 +412,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
         >
           <div className="max-w-sm text-center">
             <Clock className="mx-auto mb-3 h-10 w-10 text-app-accent" />
-            <p className="mb-2 font-semibold text-app-text">
-              Clip is not cached yet
-            </p>
-            <p className="mb-4 text-sm text-app-muted">
-              Request a lightweight proxy. The Mac agent will prepare it when
-              online.
+            <p className="mb-4 font-semibold text-app-text">
+              Clip not cached
             </p>
             <button
               type="button"
