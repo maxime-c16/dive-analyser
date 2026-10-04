@@ -58,6 +58,11 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+// Cold lazy-route imports (charts, transformed by Vitest) can take well over
+// 5s on the shared 2-CPU server while the gate runs next to production.
+const LAZY_ROUTE_WAIT = 20_000
+const LAZY_ROUTE_TEST_TIMEOUT = 30_000
+
 describe('minimal IA routing', () => {
   it('root resolves to the Library', async () => {
     renderAt('/')
@@ -68,8 +73,8 @@ describe('minimal IA routing', () => {
     renderAt('/dashboard')
     expect(screen.getByRole('status')).toHaveTextContent('Loading page')
     // The cold dynamic import includes chart modules transformed by Vitest.
-    expect(await screen.findByRole('heading', { name: 'Training Dashboard' }, { timeout: 5000 })).toBeInTheDocument()
-  })
+    expect(await screen.findByRole('heading', { name: 'Training Dashboard' }, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
+  }, LAZY_ROUTE_TEST_TIMEOUT)
 
   it('Library is the primary navigation destination', async () => {
     renderAt('/dives')
@@ -124,10 +129,10 @@ describe('minimal IA routing', () => {
     renderAt('/competitions')
     // The redirect lands on Journey (no duplicate Competitions destination).
     expect(
-      await screen.findByRole('heading', { name: 'Your Diving Journey' }, { timeout: 5000 }),
+      await screen.findByRole('heading', { name: 'Your Diving Journey' }, { timeout: LAZY_ROUTE_WAIT }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
-  })
+  }, LAZY_ROUTE_TEST_TIMEOUT)
 
   it('/competitions preserves the query string across the redirect', () => {
     function LocationProbe() {
