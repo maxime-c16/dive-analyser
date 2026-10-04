@@ -76,7 +76,7 @@ def test_catalog_preserves_invalid_straight_and_missing_mapping_exclusions(test_
 
 
 def test_catalog_summary_and_population_plan_are_read_only_and_storage_gated(test_db):
-    _seed_agent(test_db, free_bytes=31 * 1024**3)
+    _seed_agent(test_db, free_bytes=4 * 1024**3)
     asset, _, local_uuid = _seed_linked_dive(test_db)
     run = start_catalog_run(test_db, "mac-media-01"); run.status = "cataloging"
     ingest_catalog_chunk(test_db, run, [_record(local_uuid)], 1)

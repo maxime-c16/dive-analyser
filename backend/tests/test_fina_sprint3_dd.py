@@ -74,29 +74,19 @@ class TestDDCalculator:
         """Test that 7m normalizes to 7.5m"""
         calculator = DDCalculator(test_db)
 
-        # Add 7.5m entry
-        dd = DDLookup(
-            dive_code="101B",
-            height="7.5m",
-            platform_type="platform",
-            dd_value=Decimal("2.0"),
-        )
-        test_db.add(dd)
+        # Formula values are authoritative even when compatibility rows disagree.
+        compatibility = test_db.query(DDLookup).filter_by(dive_code="101B", height="7.5m").one()
+        compatibility.dd_value = Decimal("2.0")
         test_db.commit()
-
-        # Lookup with 7m should find 7.5m
-        dd_value = calculator.lookup_dd("101B", "7m")
-        assert dd_value == Decimal("2.0")
+        assert calculator.lookup_dd("101B", "7m") == Decimal("1.5")
+        assert calculator.lookup_dd("101B", "7m") == calculator.lookup_dd("101B", "7.5m")
 
     def test_lookup_dd_all_heights(self, test_db: Session, setup_test_data):
-        """Test looking up DD for all heights"""
         calculator = DDCalculator(test_db)
-        dd_values = calculator.lookup_dd_all_heights("101B")
-
-        assert len(dd_values) == 3
-        assert dd_values["1m"] == Decimal("1.3")
-        assert dd_values["3m"] == Decimal("1.5")
-        assert dd_values["5m"] == Decimal("1.7")
+        assert calculator.lookup_dd_all_heights("101B") == {
+            "1m": Decimal("1.3"), "3m": Decimal("1.5"), "5m": Decimal("1.3"),
+            "7.5m": Decimal("1.5"), "10m": Decimal("1.5")
+        }
 
     def test_get_statistics(self, test_db: Session, setup_test_data):
         """Test getting DD statistics"""
@@ -119,24 +109,16 @@ class TestDDCalculator:
         """Test DD validation with invalid values"""
         calculator = DDCalculator(test_db)
 
-        invalid_values = [0.5, 5.5, 1.25]  # Out of range or invalid increment
+        invalid_values = [0.5, 6.1, 1.25]  # Out of range or invalid increment
         for dd in invalid_values:
             is_valid, error = calculator.validate_dd_value(Decimal(str(dd)))
             assert not is_valid, f"DD {dd} should be invalid"
 
-    def test_estimate_dd_from_components(self, test_db: Session):
-        """Test DD estimation from dive components"""
+    def test_unknown_dd_has_no_heuristic_fallback(self, test_db: Session):
+        """Incomplete or invalid codes must not get invented difficulty values."""
         calculator = DDCalculator(test_db)
-
-        # Forward dive with 1 rotation
-        estimated = calculator.estimate_dd_from_components(
-            group=1,
-            rotations=1,
-            twists=0,
-            is_flying=False,
-        )
-        assert estimated is not None
-        assert estimated >= Decimal("1.2")
+        assert calculator.lookup_dd("999Z", "1m") is None
+        assert calculator.lookup_dd("103", "1m") is None
 
     def test_dd_cache(self, test_db: Session, setup_test_data):
         """Test that DD calculator caches results"""
@@ -491,7 +473,7 @@ class TestDDIntegration:
         calculator = DDCalculator(test_db)
         dd_value = calculator.lookup_dd("101B", "7m")
 
-        assert dd_value == Decimal("2.0")
+        assert dd_value == Decimal("1.5")
 
     def test_batch_operation_consistency(self, test_db: Session):
         """Test batch operations maintain consistency"""

@@ -13,66 +13,23 @@ from app.database import Base, SessionLocal
 
 
 @pytest.fixture
-def db():
-    """Create test database"""
-    engine = SessionLocal().get_bind()
-    Base.metadata.create_all(engine)
-    db = SessionLocal()
-    yield db
-    db.close()
-    Base.metadata.drop_all(engine)
+def db(test_db):
+    """Use the isolated per-test database rather than the app's global engine."""
+    return test_db
 
 
 @pytest.fixture
-def setup_test_data(db: Session):
-    """Set up test dives, dive codes, and DD lookups"""
-    # Create FINA dive code (Group 1 = Forward, direction=1, 1 somersault, Tuck position)
-    fina_code = FINADiveCode(
-        dive_code="101B",
-        group=1,
-        direction=1,
-        has_flying=0,
-        rotations=1,  # 1 somersault = 2 half rotations, but rotations field is actually full rotations
-        twists=0,
-        position="B"  # B = Pike position (not Tuck)
-    )
-    db.add(fina_code)
-
-    # Create session
-    session = SessionModel()
-    db.add(session)
-    db.flush()
-
-    # Create dive
+def setup_test_data(db: Session, sample_session):
+    fina_code = db.query(FINADiveCode).filter_by(dive_code="101B").one()
+    dd_lookup = db.query(DDLookup).filter_by(dive_code="101B", height="1m").one()
     dive = Dive(
-        session_id=session.id,
-        dive_code="101B",
-        position="B",
-        direction=1,
-        performance="G",
-        performance_numeric=3,
-        height="1m",
-        platform_type="springboard",
-        dive_datetime=db.query(SessionModel).first().created_at
+        session_id=sample_session.id, dive_code="101B", position="B", direction=1,
+        performance="G", performance_numeric=3, height="1m", platform_type="springboard",
+        dive_datetime=sample_session.created_at,
     )
     db.add(dive)
-    db.flush()
-
-    # Create DD lookup
-    dd_lookup = DDLookup(
-        dive_code="101B",
-        height="1m",
-        dd_value=Decimal("1.3")
-    )
-    db.add(dd_lookup)
     db.commit()
-
-    return {
-        "dive": dive,
-        "session": session,
-        "fina_code": fina_code,
-        "dd_lookup": dd_lookup
-    }
+    return {"dive": dive, "session": sample_session, "fina_code": fina_code, "dd_lookup": dd_lookup}
 
 
 class TestJudgeScoreValidation:

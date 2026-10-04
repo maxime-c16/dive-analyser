@@ -19,6 +19,13 @@ from app.services.fina_validator import FINAValidator, FINAValidationError
 class TestFINADiveCodeModel:
     """Test FINADiveCode model - basic creation"""
 
+    @pytest.fixture(autouse=True)
+    def empty_catalog(self, test_db):
+        """Creation tests own their rows; the shared fixture already seeds these."""
+        test_db.query(DDLookup).delete()
+        test_db.query(FINADiveCode).delete()
+        test_db.commit()
+
     def test_create_forward_dive_101b(self, test_db: Session):
         """Test creating a valid forward dive (101B)"""
         dive = FINADiveCode(
@@ -61,6 +68,13 @@ class TestFINADiveCodeModel:
 
 class TestDDLookupModel:
     """Test DDLookup model - basic creation"""
+
+    @pytest.fixture(autouse=True)
+    def empty_catalog(self, test_db):
+        """Creation tests own their rows; the shared fixture already seeds these."""
+        test_db.query(DDLookup).delete()
+        test_db.query(FINADiveCode).delete()
+        test_db.commit()
 
     @pytest.fixture
     def sample_fina_dive(self, test_db: Session):
@@ -315,8 +329,8 @@ class TestFINAValidator:
 
     def test_dd_value_validation_invalid(self, validator: FINAValidator):
         """Test rejecting invalid DD values"""
-        assert validator.validate_dd_value(Decimal("1.0")) is False
-        assert validator.validate_dd_value(Decimal("4.2")) is False
+        assert validator.validate_dd_value(Decimal("0.9")) is False
+        assert validator.validate_dd_value(Decimal("6.1")) is False
         assert validator.validate_dd_value("invalid") is False
 
     def test_invalid_height_in_lookup(self, validator: FINAValidator):

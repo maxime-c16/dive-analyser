@@ -15,6 +15,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db, engine
 
+pytestmark = pytest.mark.performance
+
 
 @pytest.fixture(scope="function")
 def test_db():

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "test:ci": "vitest run --maxWorkers=1 --minWorkers=1 --no-file-parallelism"
   },
   "dependencies": {
     "axios": "^1.6.2",
