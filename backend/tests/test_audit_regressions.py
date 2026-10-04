@@ -84,7 +84,9 @@ def test_cache_miss_does_not_reload_each_attempt_after_commit(test_db, count):
     assert tables["dive_modifiers"] == 1
     assert tables["sessions"] == 1
     assert tables["divers"] == 1
-    assert tables["training_periods"] == 2
+    # matching_periods is computed once for the payload and shared with
+    # attempt serialization; the pre-fix behavior queried it twice.
+    assert tables["training_periods"] == 1
 
 
 def test_cached_detail_free_endpoints_skip_attempt_queries(api_client, test_db, monkeypatch):
