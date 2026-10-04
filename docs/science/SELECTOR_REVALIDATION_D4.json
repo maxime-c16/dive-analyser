@@ -1,0 +1,365 @@
+{
+  "label": "SELECTOR_REVALIDATION_D4",
+  "date": "2026-09-08",
+  "detector": "DIVER_DETECTOR_D4_A_V8N",
+  "development_dives": [
+    133,
+    311,
+    524,
+    676,
+    1040,
+    2169,
+    2341,
+    2387,
+    2541,
+    2555,
+    2625,
+    2680
+  ],
+  "op_conf": 0.05,
+  "gate_threshold": 0.8,
+  "results": {
+    "S0": {
+      "name": "top-conf",
+      "accuracy": 0.7097,
+      "correct": 22,
+      "total": 31,
+      "per_dive": {
+        "1040": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "133": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2169": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2341": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2387": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2541": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2555": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2625": {
+          "correct": 0,
+          "total": 2,
+          "phases": [
+            "apex",
+            "water_contact"
+          ]
+        },
+        "2680": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "311": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "524": {
+          "correct": 2,
+          "total": 2,
+          "phases": [
+            "apex",
+            "takeoff"
+          ]
+        },
+        "676": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        }
+      }
+    },
+    "S1": {
+      "name": "Viterbi",
+      "accuracy": 0.6129,
+      "correct": 19,
+      "total": 31,
+      "per_dive": {
+        "1040": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "133": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2169": {
+          "correct": 0,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2341": {
+          "correct": 1,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2387": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2541": {
+          "correct": 3,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2555": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2625": {
+          "correct": 0,
+          "total": 2,
+          "phases": [
+            "apex",
+            "water_contact"
+          ]
+        },
+        "2680": {
+          "correct": 0,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "311": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "524": {
+          "correct": 2,
+          "total": 2,
+          "phases": [
+            "apex",
+            "takeoff"
+          ]
+        },
+        "676": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        }
+      }
+    },
+    "S3": {
+      "name": "persist",
+      "accuracy": 0.6129,
+      "correct": 19,
+      "total": 31,
+      "per_dive": {
+        "1040": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "133": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2169": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2341": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2387": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2541": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2555": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "2625": {
+          "correct": 0,
+          "total": 2,
+          "phases": [
+            "apex",
+            "water_contact"
+          ]
+        },
+        "2680": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "311": {
+          "correct": 1,
+          "total": 2,
+          "phases": [
+            "takeoff",
+            "water_contact"
+          ]
+        },
+        "524": {
+          "correct": 2,
+          "total": 2,
+          "phases": [
+            "apex",
+            "takeoff"
+          ]
+        },
+        "676": {
+          "correct": 2,
+          "total": 3,
+          "phases": [
+            "apex",
+            "takeoff",
+            "water_contact"
+          ]
+        }
+      },
+      "status": "HYPOTHESIS_ONLY"
+    }
+  },
+  "selectors_passing_gate": [],
+  "best_selector": "S0",
+  "best_accuracy": 0.7097,
+  "notes": [
+    "S1 (Viterbi) is the frozen V2 selector.",
+    "S3 documented as HYPOTHESIS_ONLY in D3 sanity freeze.",
+    "Gate 80% matches Phase M spec in SUPERVISOR_TASK_PACKET."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "label": "PHASE_U_TEST_SPECIFICATIONS_V1",
+  "created": "2026-09-06T10:24:38Z",
+  "tests": [
+    {
+      "id": "U1_PTS_EVALUATOR",
+      "name": "V2 PTS reference evaluator correctness",
+      "description": "Verify that V2 frame_pts_seconds values map correctly to the actual displayed frame for each dive",
+      "method": "Compare V2 PTS annotation frame index to ffprobe-reported PTS for that frame; tolerance 1/2 frame duration",
+      "authority": "TEMPORAL_LANDMARK_GROUND_TRUTH_V2_PTS_REPAIR.json per_file_checksums",
+      "status": "IMPLICIT_IN_EXISTING_REEVALUATION",
+      "evidence": "BASELINE_A_V2_REFERENCE_REEVALUATION.json verified during V2 repair phase"
+    },
+    {
+      "id": "U2_SPLIT_FIREWALL",
+      "name": "INTERNAL_EVAL label firewall",
+      "description": "Verify that no INTERNAL_EVAL localization annotation was used for method development decisions",
+      "method": "Check git log: INTERNAL_EVAL labels created only after all DEVELOPMENT-based decisions (phases A-L) were committed",
+      "authority": "LOCALIZATION_ANNOTATIONS_V1_FREEZE.json frozen_at timestamp vs INTERNAL_EVAL annotation timestamps",
+      "status": "VERIFIED",
+      "evidence": "INTERNAL_EVAL labels written after DEVELOPMENT_DESIGN method freeze; localization server enforces split-level access tokens"
+    },
+    {
+      "id": "U3_LOCALIZATION_FREEZE_INTEGRITY",
+      "name": "Localization annotation freeze integrity",
+      "description": "Verify SHA256 of all annotation files matches the freeze manifest",
+      "method": "For each file in LOCALIZATION_ANNOTATIONS_V1_FREEZE.json, compute SHA256 and compare to stored hash",
+      "authority": "LOCALIZATION_ANNOTATIONS_V1_FREEZE.json",
+      "status": "AUTOMATED_BELOW"
+    },
+    {
+      "id": "U4_DETECTOR_WEIGHTS_INTEGRITY",
+      "name": "Frozen detector weights integrity",
+      "description": "Verify SHA256 of yolov8n.pt matches frozen detector manifest",
+      "method": "sha256(yolov8n.pt) == f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "expected_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "status": "AUTOMATED_BELOW"
+    },
+    {
+      "id": "U5_NO_TIMESTAMP_MODIFICATION",
+      "name": "Human timestamp immutability",
+      "description": "Verify that human annotation timestamps were not modified in V2 repair",
+      "method": "For each DEVELOPMENT_DESIGN and INTERNAL_EVAL annotation, compare V1 timestamp_seconds to V2 YAML timestamp_seconds; they must be equal",
+      "authority": "Maintainer authorization: preserve timestamps in V2 repair",
+      "status": "AUTOMATED_BELOW"
+    }
+  ],
+  "test_results": {
+    "U3": {
+      "pass": true,
+      "failures": []
+    },
+    "U4": {
+      "pass": true,
+      "expected": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "actual": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+    },
+    "U5": {
+      "pass": true,
+      "failures": []
+    }
+  },
+  "all_pass": true,
+  "summary": "3/3 tests pass"
+}

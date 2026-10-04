@@ -3,8 +3,11 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from time import perf_counter
 from fastapi import FastAPI
+from sqlalchemy.engine import make_url
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import init_db, get_db
@@ -43,10 +46,17 @@ def run_auto_import():
         logger.info("No dive metadata JSON found for auto-import")
         return
 
-    # Run import
-    logger.info(f"Auto-importing data from: {json_path}")
     db = SessionLocal()
+    lock_key = 834927
+    locked = False
     try:
+        # Multiple Uvicorn workers start independently. Only one may import,
+        # otherwise they can compete to update every session at startup.
+        locked = bool(db.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": lock_key}).scalar())
+        if not locked:
+            logger.info("Auto-import skipped; another backend worker owns the import lock")
+            return
+        logger.info(f"Auto-importing data from: {json_path}")
         service = ImportService(db)
         stats = service.import_from_json(json_path)
         logger.info(f"Auto-import complete: {stats['sessions_created']} sessions, {stats['dives_created']} dives created, {stats['dives_skipped']} skipped")
@@ -55,6 +65,8 @@ def run_auto_import():
     except Exception as e:
         logger.error(f"Auto-import failed: {e}")
     finally:
+        if locked:
+            db.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": lock_key})
         db.close()
 
 
@@ -64,7 +76,8 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Diving Analytics API")
     init_db()
-    logger.info(f"Connected to database: {settings.database_url}")
+    db_url = make_url(settings.database_url)
+    logger.info("Connected to database: %s", db_url.render_as_string(hide_password=True))
 
     # Auto-import data on startup
     run_auto_import()
@@ -86,11 +99,56 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class _SlowRequestLogger:
+    """Pure ASGI slow-request logger.
+
+    Replaces the former @app.middleware("http") / BaseHTTPMiddleware approach
+    that caused SQLAlchemy sessions to leak when clients disconnected (HTTP
+    499).  BaseHTTPMiddleware defers dependency-generator teardown (db.close)
+    until the response body is consumed by the middleware coroutine; a client
+    disconnect means that never happens, leaving connections "idle in
+    transaction" with row-level locks until Postgres kills them.
+
+    This middleware awaits the inner ASGI app directly so teardown runs as
+    part of the normal request lifecycle and is unaffected by client drops.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started_at = perf_counter()
+        status_code = 0
+
+        async def send_with_capture(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 0)
+            await send(message)
+
+        await self.app(scope, receive, send_with_capture)
+        elapsed_ms = (perf_counter() - started_at) * 1000
+        if elapsed_ms >= settings.slow_request_log_ms:
+            logger.warning(
+                "Slow request: %s %s -> %s in %.1fms",
+                scope.get("method", "?"),
+                scope.get("path", "?"),
+                status_code,
+                elapsed_ms,
+            )
+
+
+app.add_middleware(_SlowRequestLogger)
 
 
 # Health check endpoint

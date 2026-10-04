@@ -1,0 +1,14 @@
+{
+  "label": "PHASE_T_EXTERNAL_DATA_DECISION_V1",
+  "created": "2026-09-06T10:22:45Z",
+  "datasets_considered": [
+    "FineDiving-HM",
+    "FineDiving-Pose"
+  ],
+  "decision": "NOT_JUSTIFIED_AT_360P",
+  "rationale": "FineDiving and similar datasets contain high-resolution diving video. At 360p proxy scale, diver appears at ~5-15% of frame height. Training on high-resolution diving data and applying at 360p would maintain the domain gap. External data becomes relevant if: (a) original resolution processing is enabled, or (b) a 360p-specific diving detection dataset is created. Phase L domain adaptation on in-distribution 360p crops is a more appropriate first step.",
+  "reconsider_when": [
+    "Original resolution (1080p/4K) video processing is enabled",
+    "Phase L shows VIABLE fine-tuning but lacks sufficient training data (N < 100 dives)"
+  ]
+}

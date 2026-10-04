@@ -1,0 +1,490 @@
+{
+  "dives": [
+    {
+      "dive_id": 133,
+      "dive_code": "301B",
+      "apparatus": "springboard_3mp",
+      "n_frames": 178,
+      "d1_gate_pass": true,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": true,
+      "static_lock_suspected": false,
+      "static_lock_std": 0.05313,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0091,
+          "iou": 0.8648,
+          "material_fail": false,
+          "gt_cx": 0.7364,
+          "gt_cy": 0.4001,
+          "sel_cx": 0.7334,
+          "sel_cy": 0.4087,
+          "sel_conf": 0.9738,
+          "_frame_index": 53
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0283,
+          "iou": 0.6501,
+          "material_fail": false,
+          "gt_cx": 0.6336,
+          "gt_cy": 0.3705,
+          "sel_cx": 0.6566,
+          "sel_cy": 0.387,
+          "sel_conf": 0.2803,
+          "_frame_index": 62
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0073,
+          "iou": 0.8852,
+          "material_fail": false,
+          "gt_cx": 0.4638,
+          "gt_cy": 0.6411,
+          "sel_cx": 0.46,
+          "sel_cy": 0.6348,
+          "sel_conf": 0.4131,
+          "_frame_index": 88
+        }
+      },
+      "gt": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "water_contact": 2.95027
+      },
+      "v21": {
+        "context": "STANDING",
+        "takeoff_t": 1.634967,
+        "apex_t": 2.2022,
+        "wc_t": 2.936267,
+        "err_takeoff": -0.1653,
+        "err_apex": 0.1186,
+        "err_wc": -0.014
+      },
+      "s1": {
+        "context": "STANDING",
+        "ref_bbox_h_norm": 0.19009366565280492,
+        "takeoff_t": 1.968633,
+        "apex_t": 2.2022,
+        "wc_t": 2.936267,
+        "err_takeoff": 0.1684,
+        "err_apex": 0.1186,
+        "err_wc": -0.014
+      },
+      "s2": {
+        "context": "STANDING",
+        "takeoff_threshold_used": 0.018000000000000002,
+        "takeoff_t": 1.6016,
+        "apex_t": 2.2022,
+        "wc_t": 2.936267,
+        "err_takeoff": -0.1987,
+        "err_apex": 0.1186,
+        "err_wc": -0.014
+      },
+      "status": "EVALUATED"
+    },
+    {
+      "dive_id": 311,
+      "dive_code": "401C",
+      "apparatus": "springboard_3mp",
+      "n_frames": 577,
+      "d1_gate_pass": true,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": false,
+      "static_lock_std": 0.19466,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0213,
+          "iou": 0.8188,
+          "material_fail": false,
+          "gt_cx": 0.3108,
+          "gt_cy": 0.1292,
+          "sel_cx": 0.3321,
+          "sel_cy": 0.1292,
+          "sel_conf": 0.408,
+          "_frame_index": 412
+        },
+        "apex": {
+          "available": false
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.7203,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.7032,
+          "gt_cy": 0.528,
+          "sel_cx": 0.1127,
+          "sel_cy": 0.9406,
+          "sel_conf": 0.108,
+          "_frame_index": 444
+        }
+      },
+      "gt": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "water_contact": 14.821262
+      },
+      "v21": {
+        "context": "STANDING",
+        "takeoff_t": null,
+        "apex_t": null,
+        "wc_t": null,
+        "err_takeoff": null,
+        "err_apex": null,
+        "err_wc": null
+      },
+      "s1": {
+        "context": "STANDING",
+        "ref_bbox_h_norm": 0.2532879935370551,
+        "takeoff_t": null,
+        "apex_t": null,
+        "wc_t": null,
+        "err_takeoff": null,
+        "err_apex": null,
+        "err_wc": null
+      },
+      "s2": {
+        "context": "STANDING",
+        "takeoff_threshold_used": 0.018000000000000002,
+        "takeoff_t": null,
+        "apex_t": null,
+        "wc_t": null,
+        "err_takeoff": null,
+        "err_apex": null,
+        "err_wc": null
+      },
+      "status": "EVALUATED"
+    },
+    {
+      "dive_id": 524,
+      "dive_code": "103B",
+      "apparatus": "springboard_3m",
+      "n_frames": 716,
+      "d1_gate_pass": false,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": true,
+      "static_lock_suspected": true,
+      "static_lock_std": 0.00043,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.3431,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.6309,
+          "gt_cy": 0.4093,
+          "sel_cx": 0.9222,
+          "sel_cy": 0.5906,
+          "sel_conf": 0.0704,
+          "_frame_index": 348
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.4254,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.5534,
+          "gt_cy": 0.3792,
+          "sel_cx": 0.9219,
+          "sel_cy": 0.5916,
+          "sel_conf": 0.075,
+          "_frame_index": 379
+        },
+        "water_contact": {
+          "available": false
+        }
+      },
+      "status": "EXCLUDED_STATIC_LOCK"
+    },
+    {
+      "dive_id": 676,
+      "dive_code": "301A",
+      "apparatus": "springboard_3m",
+      "n_frames": 222,
+      "d1_gate_pass": false,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": false,
+      "static_lock_std": 0.0985,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.5573,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.6068,
+          "gt_cy": 0.3075,
+          "sel_cx": 0.0735,
+          "sel_cy": 0.4693,
+          "sel_conf": 0.0568,
+          "_frame_index": 106
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0042,
+          "iou": 0.8533,
+          "material_fail": false,
+          "gt_cx": 0.5121,
+          "gt_cy": 0.2649,
+          "sel_cx": 0.5163,
+          "sel_cy": 0.2652,
+          "sel_conf": 0.9312,
+          "_frame_index": 116
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.2519,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.3232,
+          "gt_cy": 0.4922,
+          "sel_cx": 0.0724,
+          "sel_cy": 0.4694,
+          "sel_conf": 0.0623,
+          "_frame_index": 145
+        }
+      },
+      "status": "EXCLUDED_D1_GATE_FAIL"
+    },
+    {
+      "dive_id": 1040,
+      "dive_code": "102C",
+      "apparatus": "springboard_1m",
+      "n_frames": 332,
+      "d1_gate_pass": false,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": false,
+      "static_lock_std": 0.01857,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.2361,
+          "iou": 0.0281,
+          "material_fail": true,
+          "gt_cx": 0.1958,
+          "gt_cy": 0.4786,
+          "sel_cx": 0.3964,
+          "sel_cy": 0.3541,
+          "sel_conf": 0.069,
+          "_frame_index": 133
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0082,
+          "iou": 0.9098,
+          "material_fail": false,
+          "gt_cx": 0.3184,
+          "gt_cy": 0.3852,
+          "sel_cx": 0.3266,
+          "sel_cy": 0.3849,
+          "sel_conf": 0.8871,
+          "_frame_index": 143
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.3264,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.6572,
+          "gt_cy": 0.5667,
+          "sel_cx": 0.4154,
+          "sel_cy": 0.3474,
+          "sel_conf": 0.1286,
+          "_frame_index": 162
+        }
+      },
+      "status": "EXCLUDED_D1_GATE_FAIL"
+    },
+    {
+      "dive_id": 2387,
+      "dive_code": "5411C",
+      "apparatus": "springboard_1m",
+      "n_frames": 748,
+      "d1_gate_pass": true,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": false,
+      "static_lock_std": 0.03296,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.0331,
+          "iou": 0.4122,
+          "material_fail": false,
+          "gt_cx": 0.6362,
+          "gt_cy": 0.4036,
+          "sel_cx": 0.605,
+          "sel_cy": 0.3927,
+          "sel_conf": 0.483,
+          "_frame_index": 134
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.037,
+          "iou": 0.5043,
+          "material_fail": false,
+          "gt_cx": 0.51,
+          "gt_cy": 0.3188,
+          "sel_cx": 0.542,
+          "sel_cy": 0.3375,
+          "sel_conf": 0.4399,
+          "_frame_index": 144
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.5478,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.3469,
+          "gt_cy": 0.4893,
+          "sel_cx": 0.8889,
+          "sel_cy": 0.4101,
+          "sel_conf": 0.0843,
+          "_frame_index": 164
+        }
+      },
+      "gt": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "water_contact": 5.499937
+      },
+      "v21": {
+        "context": "STANDING",
+        "takeoff_t": 4.2042,
+        "apex_t": 4.8048,
+        "wc_t": 9.242567,
+        "err_takeoff": -0.2791,
+        "err_apex": -0.0285,
+        "err_wc": null
+      },
+      "s1": {
+        "context": "STANDING",
+        "ref_bbox_h_norm": 0.16436877780490453,
+        "takeoff_t": 4.237567,
+        "apex_t": 4.8048,
+        "wc_t": 9.242567,
+        "err_takeoff": -0.2457,
+        "err_apex": -0.0285,
+        "err_wc": null
+      },
+      "s2": {
+        "context": "STANDING",
+        "takeoff_threshold_used": 0.018000000000000002,
+        "takeoff_t": 4.2042,
+        "apex_t": 4.8048,
+        "wc_t": 9.242567,
+        "err_takeoff": -0.2791,
+        "err_apex": -0.0285,
+        "err_wc": null
+      },
+      "status": "EVALUATED"
+    },
+    {
+      "dive_id": 2625,
+      "dive_code": "103B",
+      "apparatus": "springboard_5m",
+      "n_frames": 365,
+      "d1_gate_pass": false,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": true,
+      "static_lock_std": 0.00022,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": false
+        },
+        "apex": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.1632,
+          "iou": 0.0361,
+          "material_fail": false,
+          "gt_cx": 0.9595,
+          "gt_cy": 0.149,
+          "sel_cx": 0.8192,
+          "sel_cy": 0.0657,
+          "sel_conf": 0.6248,
+          "_frame_index": 167
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.6847,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.7046,
+          "gt_cy": 0.7406,
+          "sel_cx": 0.8216,
+          "sel_cy": 0.0659,
+          "sel_conf": 0.5918,
+          "_frame_index": 222
+        }
+      },
+      "status": "EXCLUDED_STATIC_LOCK"
+    },
+    {
+      "dive_id": 2680,
+      "dive_code": "010C",
+      "apparatus": "springboard_5m",
+      "n_frames": 653,
+      "d1_gate_pass": false,
+      "d1_gate_any_ref": true,
+      "d1_gate_wc_pass": false,
+      "static_lock_suspected": true,
+      "static_lock_std": 0.00018,
+      "d1_gate_detail": {
+        "takeoff": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.1598,
+          "iou": 0.0,
+          "material_fail": false,
+          "gt_cx": 0.7851,
+          "gt_cy": 0.3155,
+          "sel_cx": 0.7136,
+          "sel_cy": 0.1726,
+          "sel_conf": 0.073,
+          "_frame_index": 200
+        },
+        "apex": {
+          "available": false
+        },
+        "water_contact": {
+          "available": true,
+          "detected": true,
+          "center_dist_norm": 0.396,
+          "iou": 0.0,
+          "material_fail": true,
+          "gt_cx": 0.6974,
+          "gt_cy": 0.568,
+          "sel_cx": 0.7144,
+          "sel_cy": 0.1724,
+          "sel_conf": 0.0748,
+          "_frame_index": 241
+        }
+      },
+      "status": "EXCLUDED_STATIC_LOCK"
+    }
+  ]
+}

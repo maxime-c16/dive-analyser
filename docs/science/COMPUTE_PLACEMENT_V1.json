@@ -1,0 +1,46 @@
+{
+  "label": "COMPUTE_PLACEMENT_V1",
+  "date": "2026-09-09",
+  "machines": {
+    "M2_MacBook_Air": {
+      "role": "PRIMARY_ML_COMPUTE",
+      "description": "Apple M2 MacBook Air \u2014 authorized for all heavy D5 inference and training",
+      "constraints": "ALL D5 inference/training runs here. arm64/MPS. caffeinate -i -s for long runs.",
+      "authorized_tasks": [
+        "D5 inference",
+        "EL evaluation",
+        "training (future)",
+        "Paris trajectory"
+      ],
+      "device": "mps",
+      "torch_backend": "MPS (Apple Silicon)"
+    },
+    "Intel_Mac_192_168_1_19": {
+      "role": "INGESTION_EDGE",
+      "description": "Intel Mac @ 192.168.1.19 \u2014 ingestion pipeline only",
+      "constraints": "NO sustained D5 inference. No training. Ingestion/transcoding only.",
+      "authorized_tasks": [
+        "Video ingestion",
+        "Proxy generation",
+        "File transfer"
+      ]
+    },
+    "Server_192_168_1_57": {
+      "role": "CANONICAL_GIT_AUTHORITY",
+      "description": "Debian 12 server @ 192.168.1.57 \u2014 canonical repo (diveanalyzer-server:dive-analyser)",
+      "constraints": "NO sustained D5 inference. 2-core server. Git mirror + Docker only.",
+      "authorized_tasks": [
+        "Git canonical repo",
+        "Docker services",
+        "Database (PostgreSQL)"
+      ]
+    }
+  },
+  "process_constraints": [
+    "ONE VIDEO AT A TIME \u2014 no bulk frame materialization",
+    "No raw videos in Git",
+    "No duplicate large model binaries in Git",
+    "caffeinate -i -s for runs >5 minutes",
+    "Proxy videos via SSH copy from server, not stored in Git"
+  ]
+}

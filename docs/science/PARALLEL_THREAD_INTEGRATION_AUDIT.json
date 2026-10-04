@@ -1,0 +1,63 @@
+{
+  "label": "PARALLEL_THREAD_INTEGRATION_AUDIT",
+  "created_at_utc": "2026-09-09T14:45:00Z",
+  "status": "INTEGRATED_LINEAR_HISTORY",
+  "canonical_repository": "diveanalyzer-server:dive-analyser",
+  "canonical_branch": "uiux-overhaul-pro-app",
+  "canonical_head_at_audit": "30267b1958970e3bd7c98b7d6dfafdfa49978b4c",
+  "mac_working_copy": "/Users/maximecauchy/.perso/diveanalyzer-perception (symlink ~/dive-analyser -> this copy)",
+  "authorities": {
+    "event_logic_thread": {
+      "reported_head": "30267b1958970e3bd7c98b7d6dfafdfa49978b4c",
+      "head_is_ancestor_of_canonical": true,
+      "artifacts_retained": [
+        "experiments/landmark_pilot/proposer_event_logic_v3_c0.py",
+        "experiments/landmark_pilot/proposer_event_logic_v3_d0.py",
+        "experiments/landmark_pilot/test_event_logic_v3_c.py",
+        "experiments/landmark_pilot/test_event_logic_v3_d0.py",
+        "docs/science/EVENT_LOGIC_V3_D0_FREEZE.json",
+        "docs/science/EL_V3D_REVISED_DEVELOPMENT_EVAL_V1.json",
+        "docs/science/HURDLE_OBSERVABILITY_V3D_ANALYSIS_V1.json",
+        "docs/science/HURDLE_FINAL_TAKEOFF_OBSERVABILITY_AND_V3_D_REPORT.md"
+      ]
+    },
+    "hq_media_thread": {
+      "reported_head": "9881813956de5aa51be0f78109c7a58cb771f801",
+      "head_is_ancestor_of_canonical": true,
+      "parent_of_event_logic_head": true,
+      "artifacts_retained": [
+        "docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json",
+        "docs/science/HIGHRES_ANALYSIS_SOURCE_MANIFEST_V1.json",
+        "docs/science/HIGHRES_QUALITY_AUDIT_D5_CANARY_V1.json",
+        "docs/science/ICLOUD_HIGHRES_ANALYSIS_SOURCE_RECOVERY_V1_REPORT.md",
+        "docs/science/PHOTOS_TCC_CLIENT_V1.json",
+        "experiments/landmark_pilot/highres_recovery_v1.py",
+        "experiments/landmark_pilot/highres_export_launchagent_worker_v1.py",
+        "experiments/landmark_pilot/test_highres_recovery_v1.py"
+      ],
+      "uncommitted_stable_artifacts_preserved_in_this_integration": [
+        "experiments/landmark_pilot/hq_temporal_alignment_v1.py",
+        "runs/hq_rep_v1/alignment_controls.json",
+        "runs/hq_rep_v1/alignment_quarantine_v0.json",
+        "runs/hq_rep_v1/alignment_quarantine_v1.json"
+      ],
+      "in_flight_files_left_untracked_for_hq_thread_author": [
+        "experiments/landmark_pilot/hq_scale_match_v1.py",
+        "experiments/landmark_pilot/hq_representation_audit_v1.py"
+      ]
+    }
+  },
+  "reconciliation_method": "No merge/rebase required: 9881813 (HQ/media) is the direct parent of 30267b1 (Event Logic V3-D0). Both reported HEADs verified as ancestors of canonical HEAD via git merge-base --is-ancestor. Server HEAD == Mac mirror HEAD == canonical HEAD at audit time; tracked worktree clean on both.",
+  "quarantined_hq_assets": {
+    "dives": [311, 524],
+    "status": "TEMPORAL_MISMATCH_QUARANTINED",
+    "rule": "Excluded from all Event Logic read-only HQ usage in this thread; no quarantine-lifting attempted."
+  },
+  "project_state_authoritative_outcomes": {
+    "event_logic": "V3-D0 frozen (board-rise gate + STANDING fallback), status corrected to V3_D0_EXPERIMENTAL_FROZEN_DEVELOPMENT_BASELINE (not production-promoted)",
+    "hq_media": "ANALYSIS_SOURCE_HQ_V1 FROZEN_WITH_PER_ASSET_TEMPORAL_AUTHORITY; 2 assets quarantined (311, 524)",
+    "file": "docs/PROJECT_STATE.md"
+  },
+  "scientific_ownership_rule": "Event Logic and HQ/media remain distinct authorities. HQ is consumed read-only (frozen manifest). No scientific result was altered to achieve Git integration.",
+  "media_excluded_from_commits": "runs/hq_rep_v1/pulled_proxies/*.mp4, runs/hq_rep_v1/sheets/*.png, runs/highres_recovery_v1/batch_media/** remain untracked or tracked-as-evidence per media policy; no media bytes committed in this integration."
+}

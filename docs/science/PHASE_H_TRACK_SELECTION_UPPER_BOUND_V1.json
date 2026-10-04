@@ -1,0 +1,290 @@
+{
+  "label": "PHASE_H_TRACK_SELECTION_UPPER_BOUND_V1",
+  "created": "2026-09-06T09:46:05.599840+00:00",
+  "h1_note": "Current confidence-sum selector results from BASELINE_CC2_DESIGN_RESULTS_V1.json",
+  "h2_note": "Oracle: diver detectable (IoU50 or center recall <=0.5diag) at landmark frame via F1 detector",
+  "h1_per_dive": {
+    "2661": {
+      "takeoff": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "apex": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "water_contact": {
+        "status": "UNCERTAIN_PREDICTION"
+      }
+    },
+    "2680": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 5.4635,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": null,
+        "within": null,
+        "serious": false
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 6.8666,
+        "within": false,
+        "serious": true
+      }
+    },
+    "2353": {
+      "takeoff": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "apex": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "water_contact": {
+        "status": "UNCERTAIN_PREDICTION"
+      }
+    },
+    "2341": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 3.45,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 2.7167,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 2.7333,
+        "within": false,
+        "serious": true
+      }
+    },
+    "524": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 3.7167,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 2.4834,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 2.9833,
+        "within": false,
+        "serious": true
+      }
+    },
+    "2625": {
+      "takeoff": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "apex": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "water_contact": {
+        "status": "UNCERTAIN_PREDICTION"
+      }
+    },
+    "2169": {
+      "takeoff": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "apex": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "water_contact": {
+        "status": "UNCERTAIN_PREDICTION"
+      }
+    },
+    "1040": {
+      "takeoff": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "apex": {
+        "status": "UNCERTAIN_PREDICTION"
+      },
+      "water_contact": {
+        "status": "UNCERTAIN_PREDICTION"
+      }
+    },
+    "676": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 3.5369,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 2.3023,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 2.5358,
+        "within": false,
+        "serious": true
+      }
+    },
+    "133": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 1.7684,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 0.4671,
+        "within": true,
+        "serious": false
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 0.8008,
+        "within": true,
+        "serious": false
+      }
+    },
+    "311": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 13.7471,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": null,
+        "within": null,
+        "serious": false
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 1.3347,
+        "within": false,
+        "serious": true
+      }
+    },
+    "2541": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 9.6096,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 9.743,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 3.9039,
+        "within": false,
+        "serious": true
+      }
+    },
+    "2387": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 9.3761,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 9.6763,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 16.2496,
+        "within": false,
+        "serious": true
+      }
+    },
+    "2555": {
+      "takeoff": {
+        "status": "PREDICTED",
+        "time_err_s": 4.1144,
+        "within": false,
+        "serious": true
+      },
+      "apex": {
+        "status": "PREDICTED",
+        "time_err_s": 4.544,
+        "within": false,
+        "serious": true
+      },
+      "water_contact": {
+        "status": "PREDICTED",
+        "time_err_s": 4.5378,
+        "within": false,
+        "serious": true
+      }
+    }
+  },
+  "h2_per_landmark": {
+    "takeoff": {
+      "detectable": [
+        311,
+        2555
+      ],
+      "not_detectable": [
+        2680,
+        2341,
+        524,
+        676,
+        133,
+        2541,
+        2387
+      ],
+      "iou50_count": 2
+    },
+    "apex": {
+      "detectable": [
+        2341,
+        2541,
+        2387,
+        2555
+      ],
+      "not_detectable": [
+        524,
+        676,
+        133
+      ],
+      "iou50_count": 1
+    },
+    "water_contact": {
+      "detectable": [
+        133,
+        311
+      ],
+      "not_detectable": [
+        2680,
+        2341,
+        676,
+        2541,
+        2387,
+        2555
+      ],
+      "iou50_count": 0
+    }
+  }
+}

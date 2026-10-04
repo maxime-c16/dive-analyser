@@ -1,0 +1,81 @@
+{
+  "label": "BASELINE_C_FREEZE_V1",
+  "created": "2026-09-06T02:53:34Z",
+  "algorithm": "BASELINE_C_YOLO_BYTETRACK_V1",
+  "selected_variant": "C2",
+  "variant_rationale": "C2 (temporal priors) chosen over C1 (trajectory-only) because it adds ordering-violation protection. On DESIGN set C1\u2261C2 since all 9 predictions satisfied T<A<W.",
+  "implementation_file": "experiments/landmark_pilot/proposer_baseline_c.py",
+  "implementation_version": "v1.0.0",
+  "git_branch": "uiux-overhaul-pro-app",
+  "detector": {
+    "model_name": "yolov8n",
+    "weights_url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt",
+    "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+    "weights_size_bytes": 6259416,
+    "ultralytics_version": "8.3.253",
+    "torch_version": "2.10.0+cu128",
+    "imgsz": 640,
+    "conf_threshold": 0.1,
+    "iou_threshold": 0.45,
+    "classes": [
+      0
+    ],
+    "note": "COCO class 0 (person). CPU inference (GTX 850M sm_50 incompatible with PyTorch 2.10+)."
+  },
+  "tracker": {
+    "algorithm": "ByteTrack",
+    "config": "bytetrack.yaml (Ultralytics built-in)",
+    "min_conf": 0.1,
+    "select_strategy": "longest_x_conf",
+    "vid_stride": 1
+  },
+  "feature_extraction": {
+    "y_norm_convention": "center_y_px / frame_height, inverted (1=top, 0=bottom)",
+    "height_norm": "bbox_height_px / frame_height",
+    "interp_max_gap": 15,
+    "smooth_window": 11,
+    "smooth_poly": 3
+  },
+  "event_rules": {
+    "takeoff": {
+      "strategy": "C-TAKEOFF-V2: gap_re_acquisition_heuristic + velocity_fallback",
+      "y_threshold": 0.3,
+      "min_sustained": 6,
+      "gap_min": 8,
+      "board_delta": 0.08
+    },
+    "apex": {
+      "strategy": "max_y_norm_after_takeoff",
+      "search_start_offset": 10,
+      "search_end_fraction": 0.92
+    },
+    "water_contact": {
+      "strategy": "first_y_below_threshold_after_apex_or_track_end",
+      "y_threshold": 0.15
+    }
+  },
+  "temporal_priors": {
+    "enabled": true,
+    "t2a_min_frames": 8,
+    "t2a_max_frames": 300,
+    "a2w_min_frames": 4,
+    "a2w_max_frames": 400,
+    "fps_reference": 30.0
+  },
+  "uncertainty_rules": [
+    "trajectory_coverage < 0.10 (low detection)",
+    "no_track_found",
+    "ordering violation (T >= A or A >= W)",
+    "temporal prior violated (t2a or a2w out of range)",
+    "yolo_error"
+  ],
+  "development_basis": "DEVELOPMENT_DESIGN only. INTERNAL_EVAL human labels NOT accessed.",
+  "proposer_fingerprint": "b4afd8ae85878308ad0abb445f4da7fe708cd4a9b5987a57b120419176f2bd41",
+  "hardware": "deb-serv Pentium 3550M @ 2.30GHz, CPU-only inference",
+  "environment": {
+    "python": "3.11.2",
+    "ultralytics": "8.3.253",
+    "torch": "2.10.0+cu128",
+    "venv": "experiments/landmark_pilot/venv_c (--system-site-packages)"
+  }
+}

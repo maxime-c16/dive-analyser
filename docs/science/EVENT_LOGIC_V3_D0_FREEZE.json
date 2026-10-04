@@ -1,0 +1,176 @@
+{
+  "label": "EVENT_LOGIC_V3_D0_FREEZE",
+  "variant": "V3D0",
+  "status": "FROZEN",
+  "date": "2026-09-09",
+  "source": {
+    "file": "experiments/landmark_pilot/proposer_event_logic_v3_d0.py",
+    "parent": "proposer_event_logic_v3_c0.py (V3-C0)",
+    "grandparent": "proposer_event_logic_v2_1.py (V2.1)",
+    "base_commit_frozen_at": "9881813956de5aa51be0f78109c7a58cb771f801"
+  },
+  "motivation": "FM2 — HURDLE final takeoff detection failure. V3-C0 accepts the first neg->non-neg velocity crossing after guard as the hurdle apex unconditionally. When D5 switches targets (dive 2169: cy 0.26->0.71 at 6.406s) the smoothed arc produces a false crossing where cy_apex >> y_prep (diver appears physically below the board at the apex). V3-D0 adds a board-rise invariant gate and a STANDING-like fallback.",
+  "changes_over_v3_c0": {
+    "D0_hurdle_apex_validity_gate": {
+      "description": "At every neg->non-neg velocity crossing after guard_end, check that cy_smooth at the apex frame is strictly above board level: cy_apex < y_prep - min_hurdle_rise_cy. If violated, the crossing is a detector artifact, not a real hurdle jump. Continue scanning. This is a physical necessity: a true hurdle apex requires the diver to have risen above the board.",
+      "parameter": "min_hurdle_rise_cy",
+      "value": 0.01,
+      "authority": "DEVELOPMENT corpus (dive 2169 false apex: cy_apex=0.446 > y_prep=0.264; rise=-0.182 < 0.01 -> rejected)"
+    },
+    "D0_standing_fallback": {
+      "description": "If NO valid hurdle apex is found after exhaustive scan, fall back to STANDING-like departure: find first sustained negative velocity from guard_end. Rationale: if the hurdle is below 360p noise floor, a conservative estimate from guard_end is more accurate than accepting a mis-identified post-water-contact arc.",
+      "parameter": "fallback_sustained_s",
+      "value": 0.15,
+      "authority": "DEVELOPMENT corpus (dive 2169 fallback to_err: 0.412s vs V3-C0 1.280s)"
+    }
+  },
+  "unchanged_from_v3_c0": [
+    "A1: _detect_apex_bounded (apex_max_window_s=1.5s)",
+    "A2: _detect_water_contact_bounded (wc_max_window_s=2.5s)",
+    "STANDING path (_detect_takeoff, V2.1 semantics)",
+    "All PARAMS_E1 parameter values",
+    "cy_norm coordinate convention (0=top, 1=bottom; rising=negative velocity)",
+    "Gaussian smoothing (smooth_window_s=0.35s, sigma=smooth_window_s/3)",
+    "PTS-aware velocity estimation",
+    "No Paris-derived thresholds",
+    "No GT event-time windows fed to inference"
+  ],
+  "parameters": {
+    "variant": "V3D0",
+    "smooth_window_s": 0.35,
+    "interp_max_gap_s": 0.5,
+    "vel_max_gap_s": 0.5,
+    "plateau_min_duration_s": 0.5,
+    "plateau_vel_threshold": 0.05,
+    "hurdle_post_plateau_guard_s": 0.40,
+    "takeoff_vel_threshold": 0.04,
+    "takeoff_sustained_s": 0.15,
+    "apex_search_start_s": 0.1,
+    "apex_max_window_s": 1.5,
+    "wc_max_window_s": 2.5,
+    "wc_conf_drop_threshold": 0.2,
+    "min_hurdle_rise_cy": 0.01,
+    "fallback_sustained_s": 0.15
+  },
+  "perception_identity": {
+    "detector": "D5-A (YOLOv8n)",
+    "weights": "DIVER_DETECTOR_D5_A_V8N_best.pt",
+    "floor_conf": 0.001,
+    "op_conf": 0.05,
+    "target_selection": "highest confidence at op_conf threshold",
+    "signal_primitive": "cy_norm (bbox center-y normalized by frame height)",
+    "smoothing": "Gaussian (sigma_s=0.1167s = smooth_window_s/3)",
+    "velocity": "PTS-aware finite difference"
+  },
+  "state_semantics": {
+    "prep_end": "end of pre-takeoff plateau (last stable board position)",
+    "hurdle_apex": "first neg->non-neg velocity crossing after guard with cy_apex < y_prep - min_rise; board-rise validated",
+    "board_recontact": "first frame of descent after hurdle apex (implicit; search origin for final takeoff)",
+    "final_takeoff": "first sustained negative velocity after board_recontact (or from guard_end if fallback)",
+    "apex": "first neg->non-neg after takeoff+apex_search_start_s, or min cy in bounded window (A1)",
+    "water_contact": "conf drop + sustained positive velocity after apex, bounded (A2)"
+  },
+  "pts_authority": "PTS_EQUIVALENT (360p proxies share PTS timestamps with HQ originals)",
+  "development_corpus_fingerprint": {
+    "dives": [133, 311, 676, 1040, 2169, 2387],
+    "gate": "PROCEDURAL_INPUT_PASS (all 6)",
+    "proxy_format": "202x360, H.264, variable fps (29.97 or 59.94)"
+  },
+  "development_results": {
+    "v3_c0_baseline": {
+      "med_takeoff_err": 1.6372,
+      "med_wc_err": 0.2624,
+      "complete": "6/6",
+      "hurdle_complete": "2/2"
+    },
+    "v3_d0": {
+      "med_takeoff_err": 1.2035,
+      "med_wc_err": 0.2243,
+      "complete": "6/6",
+      "hurdle_complete": "2/2"
+    },
+    "per_dive": {
+      "133": {
+        "context": "STANDING", "gt_takeoff": 1.800274, "gt_wc": 2.95027,
+        "v3c0_to_err": 0.1653, "v3c0_wc_err": 0.1475,
+        "v3d0_to_err": 0.1653, "v3d0_wc_err": 0.1475, "delta": "UNCHANGED"
+      },
+      "311": {
+        "context": "STANDING", "gt_takeoff": 13.7546, "gt_wc": 14.821262,
+        "v3c0_to_err": 0.0592, "v3c0_wc_err": 0.0269,
+        "v3d0_to_err": 0.0592, "v3d0_wc_err": 0.0269, "delta": "UNCHANGED",
+        "note": "FM1 closed (wc_err 3.530->0.027 by A1+A2, preserved)"
+      },
+      "676": {
+        "context": "STANDING", "gt_takeoff": 3.553575, "gt_wc": 4.853569,
+        "v3c0_to_err": 3.0864, "v3c0_wc_err": 1.0164,
+        "v3d0_to_err": 3.0864, "v3d0_wc_err": 1.0164, "delta": "UNCHANGED"
+      },
+      "1040": {
+        "context": "HURDLE", "gt_takeoff": 4.463857, "gt_wc": 5.413853,
+        "v3c0_to_err": 1.9947, "v3c0_wc_err": 2.511,
+        "v3d0_to_err": 1.9947, "v3d0_wc_err": 2.511, "delta": "UNCHANGED",
+        "note": "Signal irrecoverable at 360p (target oscillation cy=0.22<->0.60). False apex at 1.635s passes rise check (y_prep=0.531, cy_apex=0.221, rise=0.310 > 0.01)."
+      },
+      "2169": {
+        "context": "HURDLE", "gt_takeoff": 6.46124, "gt_wc": 7.694569,
+        "v3c0_to_err": 1.2798, "v3c0_wc_err": 0.3635,
+        "v3d0_to_err": 0.4123, "v3d0_wc_err": 0.2872,
+        "v3d0_takeoff_t": 6.8735, "v3d0_mode": "STANDING_FALLBACK",
+        "delta": "IMPROVED (-67.8% takeoff err)",
+        "note": "All 12 crossing candidates rejected (all cy_apex > y_prep=0.264). Fallback finds sustained negative velocity at 6.873s. Improvement is real though approximate: actual signal unrecoverable at 360p, fallback detects artifact-decay departure ~412ms after GT."
+      },
+      "2387": {
+        "context": "STANDING", "gt_takeoff": 4.483274, "gt_wc": 5.499937,
+        "v3c0_to_err": 2.1476, "v3c0_wc_err": 0.1613,
+        "v3d0_to_err": 2.1476, "v3d0_wc_err": 0.1613, "delta": "UNCHANGED"
+      }
+    }
+  },
+  "freeze_gate": {
+    "hurdle_improves": true,
+    "hurdle_mean_to_err_improvement": "1.6372->1.2035 (-26.5%)",
+    "no_standing_catastrophe": true,
+    "fm1_closed": true,
+    "wc_not_regressed": true,
+    "physical_interpretation_defensible": true,
+    "gate_result": "PASS"
+  },
+  "hq_authority": {
+    "status": "READ_ONLY",
+    "source": "iCloud thread freeze (ANALYSIS_SOURCE_HQ_V1_FREEZE.json, commit 9881813)",
+    "1040_hq_result": "HQ_RECOVERS_MISSING_TAKEOFF_SIGNAL (sm_neg 0->0.714, but to_err still 1.094s at 360p)",
+    "2169_hq_result": "HQ_NO_MATERIAL_INCREMENT on signal metric; V3-C0 HQ to_err=0.439s",
+    "note": "HQ used for observability analysis only; no HQ-derived parameters in V3-D0"
+  },
+  "paris_external_test": {
+    "status": "READ_ONLY (post-freeze evaluation only)",
+    "gt_takeoff": 3.120, "gt_apex": 3.570, "gt_wc": 4.220,
+    "v3c0_to_err": 1.685, "v3c0_wc_err": 0.1333,
+    "v3d0_to_err": 1.685, "v3d0_wc_err": 0.1333,
+    "paris_result": "V3_D_DEVELOPMENT_IMPROVES_PARIS_FAILS",
+    "note": "Paris has a pre-hurdle kinematic feature at 1.117s (y_prep=0.4635, cy_apex=0.380, rise=0.083 > min_rise) that passes the board-rise check and creates a false takeoff at 1.435s. This is a different failure mode from 2169 (Paris false apex rises above board, while 2169 false apex was below board)."
+  },
+  "scene_context_decision": "SCENE_CONTEXT_NEXT_JUSTIFIED",
+  "scene_context_rationale": "Paris has pre-hurdle prep-walk dynamics that pass the board-rise check (diver does briefly rise during the approach walk). Kinematic signals at 360p cannot distinguish the actual hurdle from false prep-walk patterns without scene context (approach-end constraint or board-proximity gating).",
+  "tests": {
+    "file": "experiments/landmark_pilot/test_event_logic_v3_d0.py",
+    "count": 13,
+    "result": "13/13 PASS",
+    "coverage": [
+      "D0a: false apex rejected (cy_apex > y_prep)",
+      "D0b: valid apex accepted (cy_apex < y_prep)",
+      "D0c: multiple false candidates, valid one accepted",
+      "D0d: fallback triggered when no valid apex",
+      "D0e: fallback finds sustained departure (2169 scenario)",
+      "D0f: full integration (hurdle + apex + wc)",
+      "D0g: FPS invariance (30fps and 60fps)",
+      "D0h: long static preparation (no early detection)",
+      "D0i: board-recontact invariant (parametric cy_apex sweep)",
+      "H1: STANDING non-regression (identical to V3-C0)",
+      "FM1: dive 311 pattern closed (A1+A2 preserved)",
+      "PARIS_FIREWALL: to_err <= 2.0s",
+      "D0j: freeze identity (PARAMS_V3D0 spot-check)"
+    ]
+  }
+}

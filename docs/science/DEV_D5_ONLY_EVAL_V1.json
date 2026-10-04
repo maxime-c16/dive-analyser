@@ -1,0 +1,207 @@
+{
+  "label": "DEV_D5_ONLY_EVAL_V1",
+  "date": "2026-09-09",
+  "derivation": "Derived from d5_only_correct and d5_only_iou fields captured in MULTI_DIVE_DEVELOPMENT_EVAL_V1.json. No new inference needed. A dive is PERCEPTION_VALID if d5_only_correct=True for ALL anchor phases.",
+  "pipeline": "D5_FRAMEWISE",
+  "n_dives": 10,
+  "n_valid": 6,
+  "n_invalid": 4,
+  "valid_dives": [
+    133,
+    311,
+    676,
+    1040,
+    2169,
+    2387
+  ],
+  "invalid_dives": [
+    524,
+    2341,
+    2555,
+    2625
+  ],
+  "reconciliation_vs_r1_contaminated": {
+    "old_valid_with_r1": 1,
+    "new_valid_d5_only": 6,
+    "delta": 5,
+    "dives_flipped_invalid_to_valid": [
+      133,
+      311,
+      676,
+      2169,
+      2387
+    ],
+    "dives_that_remain_valid": [
+      1040
+    ],
+    "explanation": "R1 contamination caused 5 false-INVALID results by overriding D5 top-1 with worse R1 selection"
+  },
+  "per_dive": {
+    "133": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.841
+        },
+        "apex": {
+          "d5c": true,
+          "iou": 0.309
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.658
+        }
+      },
+      "r1_invalid": true,
+      "r1_broke_wc": true
+    },
+    "311": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.454
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.604
+        }
+      },
+      "r1_invalid": true,
+      "r1_broke_takeoff": true
+    },
+    "524": {
+      "d5_valid": false,
+      "phases": {
+        "takeoff": {
+          "d5c": false,
+          "iou": 0.0
+        },
+        "apex": {
+          "d5c": false,
+          "iou": 0.0
+        }
+      },
+      "r1_invalid": true
+    },
+    "676": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.617
+        },
+        "apex": {
+          "d5c": true,
+          "iou": 0.628
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.822
+        }
+      },
+      "r1_invalid": true
+    },
+    "1040": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.665
+        },
+        "apex": {
+          "d5c": true,
+          "iou": 0.751
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.738
+        }
+      },
+      "r1_valid": true
+    },
+    "2169": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.533
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.405
+        }
+      },
+      "r1_invalid": true
+    },
+    "2341": {
+      "d5_valid": false,
+      "phases": {
+        "takeoff": {
+          "d5c": false,
+          "iou": 0.0
+        },
+        "apex": {
+          "d5c": false,
+          "iou": 0.0
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.846
+        }
+      },
+      "r1_invalid": true
+    },
+    "2387": {
+      "d5_valid": true,
+      "phases": {
+        "takeoff": {
+          "d5c": true,
+          "iou": 0.607
+        },
+        "apex": {
+          "d5c": true,
+          "iou": 0.582
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.641
+        }
+      },
+      "r1_invalid": true
+    },
+    "2555": {
+      "d5_valid": false,
+      "phases": {
+        "takeoff": {
+          "d5c": false,
+          "iou": 0.11
+        },
+        "apex": {
+          "d5c": true,
+          "iou": 0.352
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.66
+        }
+      },
+      "r1_invalid": true
+    },
+    "2625": {
+      "d5_valid": false,
+      "phases": {
+        "apex": {
+          "d5c": false,
+          "iou": 0.0
+        },
+        "water_contact": {
+          "d5c": true,
+          "iou": 0.428
+        }
+      },
+      "r1_invalid": true
+    }
+  }
+}

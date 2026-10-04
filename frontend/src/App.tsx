@@ -5,18 +5,20 @@ import { SyncStatusProvider } from './contexts/SyncStatusContext'
 import SyncNotifications from './components/SyncNotifications'
 import MilestoneNotifier from './components/MilestoneNotifier'
 import SyncErrorHandler from './components/SyncErrorHandler'
-import './App.css'
+import { AuthProvider } from './contexts/AuthContext'
 
 function App() {
   return (
-    <SyncStatusProvider>
-      <BrowserRouter>
-        <Router />
-      </BrowserRouter>
-      <SyncNotifications />
-      <MilestoneNotifier />
-      <SyncErrorHandler />
-    </SyncStatusProvider>
+    <AuthProvider>
+      <SyncStatusProvider>
+        <BrowserRouter>
+          <Router />
+        </BrowserRouter>
+        <SyncNotifications />
+        <MilestoneNotifier />
+        <SyncErrorHandler />
+      </SyncStatusProvider>
+    </AuthProvider>
   )
 }
 

@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_hurdle_flight_0138",
+  "dive_id": "PARIS_2819",
+  "phase": "hurdle_flight",
+  "frame_index": 138,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 2.3,
+  "actual_pts_s": 2.301667,
+  "image_sha256": "5d119ee1842382ce9dd2c2f5c7ce7ae01b378d6e769c9f972e723a6f75d61dd5",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    614.1074856046065,
+    387.23608445297504,
+    859.2610364683302,
+    840.2591170825336
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:58:48.037358+00:00"
+}

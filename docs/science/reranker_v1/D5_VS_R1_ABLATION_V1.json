@@ -1,0 +1,314 @@
+{
+  "label": "D5_VS_R1_ABLATION_V1",
+  "date": "2026-09-09",
+  "n_frames": 36,
+  "P0_D5_only": {
+    "top1_recall": 0.3333,
+    "top3_recall": 0.4444,
+    "mrr": 0.4051
+  },
+  "P1_D5_plus_R1": {
+    "top1_recall": 0.2778,
+    "top3_recall": 0.3333,
+    "mrr": 0.3609
+  },
+  "delta_top1": -0.0556,
+  "r1_helped": 10,
+  "r1_hurt": 13,
+  "r1_neutral": 9,
+  "r1_recovered": 0,
+  "r1_lost": 0,
+  "material_threshold": 0.05,
+  "r1_adds_value": false,
+  "per_frame": {
+    "1040_apex": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.7509,
+      "p1_iou": 0.4039,
+      "gt_found": true,
+      "n_candidates": 103
+    },
+    "1040_takeoff": {
+      "p0_rank": 28,
+      "p1_rank": 6,
+      "p0_iou": 0.4244,
+      "p1_iou": 0.4302,
+      "gt_found": true,
+      "n_candidates": 103
+    },
+    "1040_water_contact": {
+      "p0_rank": 38,
+      "p1_rank": 29,
+      "p0_iou": 0.5765,
+      "p1_iou": 0.4697,
+      "gt_found": true,
+      "n_candidates": 103
+    },
+    "133_apex": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.3086,
+      "p1_iou": 0.5909,
+      "gt_found": true,
+      "n_candidates": 64
+    },
+    "133_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.4304,
+      "p1_iou": 0.5103,
+      "gt_found": true,
+      "n_candidates": 64
+    },
+    "133_water_contact": {
+      "p0_rank": 5,
+      "p1_rank": 16,
+      "p0_iou": 0.4466,
+      "p1_iou": 0.3522,
+      "gt_found": true,
+      "n_candidates": 64
+    },
+    "2169_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 5,
+      "p0_iou": 0.5326,
+      "p1_iou": 0.5326,
+      "gt_found": true,
+      "n_candidates": 97
+    },
+    "2169_water_contact": {
+      "p0_rank": 5,
+      "p1_rank": 10,
+      "p0_iou": 0.3813,
+      "p1_iou": 0.3142,
+      "gt_found": true,
+      "n_candidates": 97
+    },
+    "2341_apex": {
+      "p0_rank": 85,
+      "p1_rank": 36,
+      "p0_iou": 0.1207,
+      "p1_iou": 0.1207,
+      "gt_found": true,
+      "n_candidates": 146
+    },
+    "2341_takeoff": {
+      "p0_rank": 28,
+      "p1_rank": 41,
+      "p0_iou": 0.3199,
+      "p1_iou": 0.476,
+      "gt_found": true,
+      "n_candidates": 146
+    },
+    "2341_water_contact": {
+      "p0_rank": null,
+      "p1_rank": null,
+      "p0_iou": 0.0,
+      "p1_iou": 0.0,
+      "gt_found": false,
+      "n_candidates": 146
+    },
+    "2353_apex": {
+      "p0_rank": 2,
+      "p1_rank": 12,
+      "p0_iou": 0.4568,
+      "p1_iou": 0.4568,
+      "gt_found": true,
+      "n_candidates": 151
+    },
+    "2353_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.3047,
+      "p1_iou": 0.3047,
+      "gt_found": true,
+      "n_candidates": 151
+    },
+    "2353_water_contact": {
+      "p0_rank": 38,
+      "p1_rank": 15,
+      "p0_iou": 0.1042,
+      "p1_iou": 0.331,
+      "gt_found": true,
+      "n_candidates": 151
+    },
+    "2387_apex": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.5822,
+      "p1_iou": 0.446,
+      "gt_found": true,
+      "n_candidates": 88
+    },
+    "2387_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.3446,
+      "p1_iou": 0.3797,
+      "gt_found": true,
+      "n_candidates": 88
+    },
+    "2387_water_contact": {
+      "p0_rank": 18,
+      "p1_rank": 38,
+      "p0_iou": 0.3073,
+      "p1_iou": 0.3073,
+      "gt_found": true,
+      "n_candidates": 88
+    },
+    "2541_apex": {
+      "p0_rank": 3,
+      "p1_rank": 3,
+      "p0_iou": 0.6685,
+      "p1_iou": 0.3088,
+      "gt_found": true,
+      "n_candidates": 92
+    },
+    "2541_takeoff": {
+      "p0_rank": 3,
+      "p1_rank": 6,
+      "p0_iou": 0.3813,
+      "p1_iou": 0.4911,
+      "gt_found": true,
+      "n_candidates": 92
+    },
+    "2541_water_contact": {
+      "p0_rank": 28,
+      "p1_rank": 1,
+      "p0_iou": 0.3082,
+      "p1_iou": 0.3111,
+      "gt_found": true,
+      "n_candidates": 92
+    },
+    "2555_apex": {
+      "p0_rank": 1,
+      "p1_rank": 2,
+      "p0_iou": 0.3517,
+      "p1_iou": 0.7181,
+      "gt_found": true,
+      "n_candidates": 71
+    },
+    "2555_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.1728,
+      "p1_iou": 0.4238,
+      "gt_found": true,
+      "n_candidates": 71
+    },
+    "2555_water_contact": {
+      "p0_rank": 13,
+      "p1_rank": 7,
+      "p0_iou": 0.3452,
+      "p1_iou": 0.3049,
+      "gt_found": true,
+      "n_candidates": 71
+    },
+    "2625_apex": {
+      "p0_rank": 63,
+      "p1_rank": 91,
+      "p0_iou": 0.3304,
+      "p1_iou": 0.3304,
+      "gt_found": true,
+      "n_candidates": 111
+    },
+    "2625_water_contact": {
+      "p0_rank": null,
+      "p1_rank": null,
+      "p0_iou": 0.0,
+      "p1_iou": 0.0,
+      "gt_found": false,
+      "n_candidates": 111
+    },
+    "2661_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 5,
+      "p0_iou": 0.5305,
+      "p1_iou": 0.4252,
+      "gt_found": true,
+      "n_candidates": 103
+    },
+    "2661_water_contact": {
+      "p0_rank": null,
+      "p1_rank": null,
+      "p0_iou": 0.0,
+      "p1_iou": 0.0,
+      "gt_found": false,
+      "n_candidates": 103
+    },
+    "2680_takeoff": {
+      "p0_rank": 26,
+      "p1_rank": 1,
+      "p0_iou": 0.3351,
+      "p1_iou": 0.4617,
+      "gt_found": true,
+      "n_candidates": 113
+    },
+    "2680_water_contact": {
+      "p0_rank": null,
+      "p1_rank": null,
+      "p0_iou": 0.0,
+      "p1_iou": 0.0,
+      "gt_found": false,
+      "n_candidates": 113
+    },
+    "311_takeoff": {
+      "p0_rank": 1,
+      "p1_rank": 4,
+      "p0_iou": 0.4543,
+      "p1_iou": 0.5735,
+      "gt_found": true,
+      "n_candidates": 74
+    },
+    "311_water_contact": {
+      "p0_rank": 18,
+      "p1_rank": 10,
+      "p0_iou": 0.4792,
+      "p1_iou": 0.4792,
+      "gt_found": true,
+      "n_candidates": 74
+    },
+    "524_apex": {
+      "p0_rank": 3,
+      "p1_rank": 4,
+      "p0_iou": 0.8983,
+      "p1_iou": 0.8983,
+      "gt_found": true,
+      "n_candidates": 128
+    },
+    "524_takeoff": {
+      "p0_rank": 19,
+      "p1_rank": 8,
+      "p0_iou": 0.4339,
+      "p1_iou": 0.3291,
+      "gt_found": true,
+      "n_candidates": 128
+    },
+    "676_apex": {
+      "p0_rank": 1,
+      "p1_rank": 1,
+      "p0_iou": 0.628,
+      "p1_iou": 0.3376,
+      "gt_found": true,
+      "n_candidates": 89
+    },
+    "676_takeoff": {
+      "p0_rank": 60,
+      "p1_rank": 48,
+      "p0_iou": 0.15,
+      "p1_iou": 0.15,
+      "gt_found": true,
+      "n_candidates": 89
+    },
+    "676_water_contact": {
+      "p0_rank": 5,
+      "p1_rank": 10,
+      "p0_iou": 0.5448,
+      "p1_iou": 0.3653,
+      "gt_found": true,
+      "n_candidates": 89
+    }
+  },
+  "paris_firewall": "VERIFIED \u2014 no Paris frames in DEVELOPMENT evaluation"
+}

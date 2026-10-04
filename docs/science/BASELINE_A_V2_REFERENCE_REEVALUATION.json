@@ -1,0 +1,582 @@
+{
+  "label": "BASELINE_A_V2_REFERENCE_REEVALUATION",
+  "source_eval": "BASELINE_A_EVALUATION_V1.json",
+  "v2_authority": "TEMPORAL_LANDMARK_GROUND_TRUTH_V2_PTS_REPAIR.json",
+  "note": "Frozen predictions unchanged; only reference authority changes. Time-domain primary.",
+  "per_dive": {
+    "2661": {
+      "fps": 59.9401,
+      "takeoff": {
+        "a_frame": 608,
+        "a_ts_s": 10.1435,
+        "v2_frame": 1008,
+        "v2_pts_s": 16.8168,
+        "v1_h_frame": 1009,
+        "time_err_v2_s": 6.6733,
+        "frame_err_v2": 400,
+        "v1_frame_err": 401,
+        "v1_time_err_s": 6.69,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "evaluable": false
+      },
+      "water_contact": {
+        "a_frame": 800,
+        "a_ts_s": 13.3467,
+        "v2_frame": 1055,
+        "v2_pts_s": 17.6009,
+        "v1_h_frame": 1056,
+        "time_err_v2_s": 4.2543,
+        "frame_err_v2": 255,
+        "v1_frame_err": 256,
+        "v1_time_err_s": 4.2709,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2680": {
+      "fps": 59.9083,
+      "takeoff": {
+        "a_frame": 264,
+        "a_ts_s": 4.4067,
+        "v2_frame": 200,
+        "v2_pts_s": 3.3333,
+        "v1_h_frame": 200,
+        "time_err_v2_s": 1.0734,
+        "frame_err_v2": 64,
+        "v1_frame_err": 64,
+        "v1_time_err_s": 1.0683,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "evaluable": false
+      },
+      "water_contact": {
+        "a_frame": 308,
+        "a_ts_s": 5.1412,
+        "v2_frame": 241,
+        "v2_pts_s": 4.0167,
+        "v1_h_frame": 241,
+        "time_err_v2_s": 1.1245,
+        "frame_err_v2": 67,
+        "v1_frame_err": 67,
+        "v1_time_err_s": 1.1184,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2353": {
+      "fps": 59.9401,
+      "takeoff": {
+        "a_frame": 288,
+        "a_ts_s": 4.8048,
+        "v2_frame": 341,
+        "v2_pts_s": 5.689,
+        "v1_h_frame": 342,
+        "time_err_v2_s": 0.8842,
+        "frame_err_v2": 53,
+        "v1_frame_err": 54,
+        "v1_time_err_s": 0.9009,
+        "serious_v2": false,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 288,
+        "a_ts_s": 4.8048,
+        "v2_frame": 376,
+        "v2_pts_s": 6.2729,
+        "v1_h_frame": 377,
+        "time_err_v2_s": 1.4681,
+        "frame_err_v2": 88,
+        "v1_frame_err": 89,
+        "v1_time_err_s": 1.4848,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 288,
+        "a_ts_s": 4.8048,
+        "v2_frame": 412,
+        "v2_pts_s": 6.8735,
+        "v1_h_frame": 413,
+        "time_err_v2_s": 2.0687,
+        "frame_err_v2": 124,
+        "v1_frame_err": 125,
+        "v1_time_err_s": 2.0854,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2341": {
+      "fps": 60.0,
+      "takeoff": {
+        "a_frame": 120,
+        "a_ts_s": 2.0,
+        "v2_frame": 214,
+        "v2_pts_s": 3.5667,
+        "v1_h_frame": 214,
+        "time_err_v2_s": 1.5667,
+        "frame_err_v2": 94,
+        "v1_frame_err": 94,
+        "v1_time_err_s": 1.5667,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 120,
+        "a_ts_s": 2.0,
+        "v2_frame": 237,
+        "v2_pts_s": 3.95,
+        "v1_h_frame": 237,
+        "time_err_v2_s": 1.95,
+        "frame_err_v2": 117,
+        "v1_frame_err": 117,
+        "v1_time_err_s": 1.95,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 120,
+        "a_ts_s": 2.0,
+        "v2_frame": 275,
+        "v2_pts_s": 4.5833,
+        "v1_h_frame": 275,
+        "time_err_v2_s": 2.5833,
+        "frame_err_v2": 155,
+        "v1_frame_err": 155,
+        "v1_time_err_s": 2.5833,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "524": {
+      "fps": 60.0,
+      "takeoff": {
+        "a_frame": 468,
+        "a_ts_s": 7.8,
+        "v2_frame": 348,
+        "v2_pts_s": 5.8,
+        "v1_h_frame": 349,
+        "time_err_v2_s": 2.0,
+        "frame_err_v2": 120,
+        "v1_frame_err": 119,
+        "v1_time_err_s": 1.9833,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 520,
+        "a_ts_s": 8.6667,
+        "v2_frame": 379,
+        "v2_pts_s": 6.3167,
+        "v1_h_frame": 380,
+        "time_err_v2_s": 2.35,
+        "frame_err_v2": 141,
+        "v1_frame_err": 140,
+        "v1_time_err_s": 2.3333,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 520,
+        "a_ts_s": 8.6667,
+        "v2_frame": 425,
+        "v2_pts_s": 7.0833,
+        "v1_h_frame": 426,
+        "time_err_v2_s": 1.5833,
+        "frame_err_v2": 95,
+        "v1_frame_err": 94,
+        "v1_time_err_s": 1.5667,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2625": {
+      "fps": 59.9401,
+      "takeoff": {
+        "evaluable": false
+      },
+      "apex": {
+        "a_frame": 188,
+        "a_ts_s": 3.1365,
+        "v2_frame": 167,
+        "v2_pts_s": 2.7861,
+        "v1_h_frame": 167,
+        "time_err_v2_s": 0.3503,
+        "frame_err_v2": 21,
+        "v1_frame_err": 21,
+        "v1_time_err_s": 0.3503,
+        "serious_v2": false,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 188,
+        "a_ts_s": 3.1365,
+        "v2_frame": 222,
+        "v2_pts_s": 3.7037,
+        "v1_h_frame": 222,
+        "time_err_v2_s": 0.5672,
+        "frame_err_v2": 34,
+        "v1_frame_err": 34,
+        "v1_time_err_s": 0.5672,
+        "serious_v2": false,
+        "evaluable": true
+      }
+    },
+    "2169": {
+      "fps": 59.9401,
+      "takeoff": {
+        "a_frame": 484,
+        "a_ts_s": 8.0747,
+        "v2_frame": 387,
+        "v2_pts_s": 6.4565,
+        "v1_h_frame": 388,
+        "time_err_v2_s": 1.6183,
+        "frame_err_v2": 97,
+        "v1_frame_err": 96,
+        "v1_time_err_s": 1.6016,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 524,
+        "a_ts_s": 8.7421,
+        "v2_frame": 405,
+        "v2_pts_s": 6.7568,
+        "v1_h_frame": 406,
+        "time_err_v2_s": 1.9853,
+        "frame_err_v2": 119,
+        "v1_frame_err": 118,
+        "v1_time_err_s": 1.9686,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 528,
+        "a_ts_s": 8.8088,
+        "v2_frame": 461,
+        "v2_pts_s": 7.691,
+        "v1_h_frame": 462,
+        "time_err_v2_s": 1.1178,
+        "frame_err_v2": 67,
+        "v1_frame_err": 66,
+        "v1_time_err_s": 1.1011,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "1040": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 184,
+        "a_ts_s": 6.1395,
+        "v2_frame": 133,
+        "v2_pts_s": 4.4378,
+        "v1_h_frame": 268,
+        "time_err_v2_s": 1.7017,
+        "frame_err_v2": 51,
+        "v1_frame_err": 84,
+        "v1_time_err_s": 2.8028,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 268,
+        "a_ts_s": 8.9423,
+        "v2_frame": 143,
+        "v2_pts_s": 4.7714,
+        "v1_h_frame": 288,
+        "time_err_v2_s": 4.1708,
+        "frame_err_v2": 125,
+        "v1_frame_err": 20,
+        "v1_time_err_s": 0.6673,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 268,
+        "a_ts_s": 8.9423,
+        "v2_frame": 162,
+        "v2_pts_s": 5.4054,
+        "v1_h_frame": 325,
+        "time_err_v2_s": 3.5369,
+        "frame_err_v2": 106,
+        "v1_frame_err": 57,
+        "v1_time_err_s": 1.9019,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "676": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 56,
+        "a_ts_s": 1.8685,
+        "v2_frame": 106,
+        "v2_pts_s": 3.5369,
+        "v1_h_frame": 213,
+        "time_err_v2_s": 1.6683,
+        "frame_err_v2": 50,
+        "v1_frame_err": 157,
+        "v1_time_err_s": 5.2386,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 172,
+        "a_ts_s": 5.7391,
+        "v2_frame": 116,
+        "v2_pts_s": 3.8705,
+        "v1_h_frame": 233,
+        "time_err_v2_s": 1.8685,
+        "frame_err_v2": 56,
+        "v1_frame_err": 61,
+        "v1_time_err_s": 2.0354,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 220,
+        "a_ts_s": 7.3407,
+        "v2_frame": 145,
+        "v2_pts_s": 4.8382,
+        "v1_h_frame": 291,
+        "time_err_v2_s": 2.5025,
+        "frame_err_v2": 75,
+        "v1_frame_err": 71,
+        "v1_time_err_s": 2.369,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "133": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 116,
+        "a_ts_s": 3.8705,
+        "v2_frame": 53,
+        "v2_pts_s": 1.7684,
+        "v1_h_frame": 108,
+        "time_err_v2_s": 2.1021,
+        "frame_err_v2": 63,
+        "v1_frame_err": 8,
+        "v1_time_err_s": 0.2669,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 160,
+        "a_ts_s": 5.3387,
+        "v2_frame": 62,
+        "v2_pts_s": 2.0687,
+        "v1_h_frame": 125,
+        "time_err_v2_s": 3.2699,
+        "frame_err_v2": 98,
+        "v1_frame_err": 35,
+        "v1_time_err_s": 1.1678,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 164,
+        "a_ts_s": 5.4721,
+        "v2_frame": 88,
+        "v2_pts_s": 2.9363,
+        "v1_h_frame": 177,
+        "time_err_v2_s": 2.5359,
+        "frame_err_v2": 76,
+        "v1_frame_err": 13,
+        "v1_time_err_s": 0.4338,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "311": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 380,
+        "a_ts_s": 12.6793,
+        "v2_frame": 412,
+        "v2_pts_s": 13.7471,
+        "v1_h_frame": 825,
+        "time_err_v2_s": 1.0677,
+        "frame_err_v2": 32,
+        "v1_frame_err": 445,
+        "v1_time_err_s": 14.8482,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "evaluable": false
+      },
+      "water_contact": {
+        "a_frame": 428,
+        "a_ts_s": 14.2809,
+        "v2_frame": 444,
+        "v2_pts_s": 14.8148,
+        "v1_h_frame": 889,
+        "time_err_v2_s": 0.5339,
+        "frame_err_v2": 16,
+        "v1_frame_err": 461,
+        "v1_time_err_s": 15.382,
+        "serious_v2": false,
+        "evaluable": true
+      }
+    },
+    "2541": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 580,
+        "a_ts_s": 19.3527,
+        "v2_frame": 525,
+        "v2_pts_s": 17.5175,
+        "v1_h_frame": 1051,
+        "time_err_v2_s": 1.8352,
+        "frame_err_v2": 55,
+        "v1_frame_err": 471,
+        "v1_time_err_s": 15.7157,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 620,
+        "a_ts_s": 20.6874,
+        "v2_frame": 539,
+        "v2_pts_s": 17.9846,
+        "v1_h_frame": 1079,
+        "time_err_v2_s": 2.7027,
+        "frame_err_v2": 81,
+        "v1_frame_err": 459,
+        "v1_time_err_s": 15.3153,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 624,
+        "a_ts_s": 20.8208,
+        "v2_frame": 558,
+        "v2_pts_s": 18.6186,
+        "v1_h_frame": 1119,
+        "time_err_v2_s": 2.2022,
+        "frame_err_v2": 66,
+        "v1_frame_err": 495,
+        "v1_time_err_s": 16.5165,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2387": {
+      "fps": 29.97,
+      "takeoff": {
+        "a_frame": 212,
+        "a_ts_s": 7.0737,
+        "v2_frame": 134,
+        "v2_pts_s": 4.4711,
+        "v1_h_frame": 269,
+        "time_err_v2_s": 2.6026,
+        "frame_err_v2": 78,
+        "v1_frame_err": 57,
+        "v1_time_err_s": 1.9019,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 224,
+        "a_ts_s": 7.4741,
+        "v2_frame": 144,
+        "v2_pts_s": 4.8048,
+        "v1_h_frame": 290,
+        "time_err_v2_s": 2.6693,
+        "frame_err_v2": 80,
+        "v1_frame_err": 66,
+        "v1_time_err_s": 2.2022,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 248,
+        "a_ts_s": 8.2749,
+        "v2_frame": 164,
+        "v2_pts_s": 5.4721,
+        "v1_h_frame": 330,
+        "time_err_v2_s": 2.8028,
+        "frame_err_v2": 84,
+        "v1_frame_err": 82,
+        "v1_time_err_s": 2.7361,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    },
+    "2555": {
+      "fps": 59.2613,
+      "takeoff": {
+        "a_frame": 220,
+        "a_ts_s": 3.7124,
+        "v2_frame": 257,
+        "v2_pts_s": 4.3,
+        "v1_h_frame": 259,
+        "time_err_v2_s": 0.5876,
+        "frame_err_v2": 37,
+        "v1_frame_err": 39,
+        "v1_time_err_s": 0.6581,
+        "serious_v2": false,
+        "evaluable": true
+      },
+      "apex": {
+        "a_frame": 564,
+        "a_ts_s": 9.5172,
+        "v2_frame": 382,
+        "v2_pts_s": 6.3833,
+        "v1_h_frame": 384,
+        "time_err_v2_s": 3.1338,
+        "frame_err_v2": 182,
+        "v1_frame_err": 180,
+        "v1_time_err_s": 3.0374,
+        "serious_v2": true,
+        "evaluable": true
+      },
+      "water_contact": {
+        "a_frame": 664,
+        "a_ts_s": 11.2046,
+        "v2_frame": 574,
+        "v2_pts_s": 9.5833,
+        "v1_h_frame": 576,
+        "time_err_v2_s": 1.6213,
+        "frame_err_v2": 90,
+        "v1_frame_err": 88,
+        "v1_time_err_s": 1.4849,
+        "serious_v2": true,
+        "evaluable": true
+      }
+    }
+  },
+  "aggregate_v2": {
+    "takeoff": {
+      "n": 13,
+      "median_time_err_s": 1.668,
+      "mean_time_err_s": 1.952,
+      "serious_rate": 0.846
+    },
+    "apex": {
+      "n": 11,
+      "median_time_err_s": 2.35,
+      "mean_time_err_s": 2.356,
+      "serious_rate": 0.909
+    },
+    "water_contact": {
+      "n": 14,
+      "median_time_err_s": 2.202,
+      "mean_time_err_s": 2.074,
+      "serious_rate": 0.857
+    },
+    "all_phases": {
+      "n": 38,
+      "median_time_err_s": 1.985,
+      "mean_time_err_s": 2.114,
+      "serious_rate": 0.868
+    }
+  }
+}

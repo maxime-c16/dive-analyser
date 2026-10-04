@@ -31,12 +31,12 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
         {isConnected ? (
           <>
             <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
-            <span className="text-xs text-gray-400">Connected</span>
+            <span className="text-xs text-app-muted">Connected</span>
           </>
         ) : (
           <>
             <WifiOff className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-gray-400">Offline</span>
+            <span className="text-xs text-app-muted">Offline</span>
           </>
         )}
       </div>
@@ -59,7 +59,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
               <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
               <div>
                 <div className="font-semibold text-green-400">Connected</div>
-                <div className="text-sm text-gray-400">Real-time sync active</div>
+                <div className="text-sm text-app-muted">Real-time sync active</div>
               </div>
             </>
           ) : (
@@ -67,7 +67,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
               <WifiOff className="w-5 h-5 text-red-400" />
               <div>
                 <div className="font-semibold text-red-400">Disconnected</div>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-app-muted">
                   {connectionError || 'Attempting to reconnect...'}
                 </div>
               </div>
@@ -78,10 +78,10 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
 
       {/* Current Sync Operation */}
       {currentSync && (
-        <div className="rounded-lg p-4 border border-cyan-500/20 bg-cyan-500/5 space-y-3">
+        <div className="rounded-lg p-4 border border-app-accent bg-app-accent-soft space-y-3">
           <div className="flex items-center gap-3">
             {currentSync.status === 'in_progress' ? (
-              <Download className="w-5 h-5 text-cyan-400 animate-spin" />
+              <Download className="w-5 h-5 text-app-accent animate-spin" />
             ) : currentSync.status === 'complete' ? (
               <CheckCircle className="w-5 h-5 text-green-400" />
             ) : currentSync.status === 'error' ? (
@@ -95,7 +95,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
                   ? 'Sync in Progress'
                   : `Sync ${currentSync.status}`}
               </div>
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-app-muted">
                 ID: {currentSync.sync_id.substring(0, 8)}...
               </div>
             </div>
@@ -105,16 +105,16 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
           {currentSync.status === 'in_progress' && (
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-app-text">
                   {currentSync.synced_count} / {currentSync.total_videos}
                 </span>
-                <span className="text-sm font-semibold text-cyan-400">
+                <span className="text-sm font-semibold text-app-accent">
                   {currentSync.progress_percent}%
                 </span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-app-border rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-cyan-400 to-blue-400 h-full transition-all duration-300"
+                  className="bg-app-accent h-full transition-all duration-300"
                   style={{ width: `${currentSync.progress_percent}%` }}
                 />
               </div>
@@ -130,16 +130,16 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="bg-gray-800/50 rounded p-2">
-              <div className="text-gray-400">Synced</div>
-              <div className="font-bold text-cyan-400">{currentSync.synced_count}</div>
+            <div className="bg-app-panel-elevated rounded p-2">
+              <div className="text-app-muted">Synced</div>
+              <div className="font-bold text-app-accent">{currentSync.synced_count}</div>
             </div>
-            <div className="bg-gray-800/50 rounded p-2">
-              <div className="text-gray-400">Errors</div>
+            <div className="bg-app-panel-elevated rounded p-2">
+              <div className="text-app-muted">Errors</div>
               <div className="font-bold text-red-400">{currentSync.error_count}</div>
             </div>
-            <div className="bg-gray-800/50 rounded p-2">
-              <div className="text-gray-400">Duration</div>
+            <div className="bg-app-panel-elevated rounded p-2">
+              <div className="text-app-muted">Duration</div>
               <div className="font-bold text-amber-400">
                 {currentSync.duration_seconds.toFixed(1)}s
               </div>
@@ -158,19 +158,19 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             {recentMilestones.map((milestone, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-2 p-2 bg-gray-800/50 rounded border border-green-500/10"
+                className="flex items-start gap-2 p-2 bg-app-panel-elevated rounded border border-green-500/10"
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-green-300 text-sm truncate">
                     {milestone.title}
                   </div>
-                  <div className="text-xs text-gray-400 line-clamp-2">
+                  <div className="text-xs text-app-muted line-clamp-2">
                     {milestone.narrative}
                   </div>
                 </div>
                 <button
                   onClick={() => removeMilestone(idx)}
-                  className="text-gray-400 hover:text-gray-300 flex-shrink-0"
+                  className="text-app-muted hover:text-app-text flex-shrink-0"
                   aria-label="Dismiss milestone"
                 >
                   <X className="w-4 h-4" />

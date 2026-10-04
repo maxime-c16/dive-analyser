@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.dive import Dive
 from app.models.execution_fault import ExecutionFault
 from app.models.fina_dive_code import FINADiveCode
+from app.services.performance_scoring import athlete_score_10, dive_score_10
 
 
 @dataclass
@@ -108,7 +109,7 @@ class ExecutionFaultDetector:
                 entry_angle_degrees=metrics.get("phase1_entry_angle", 0) if metrics else 0,
                 height_achieved=metrics.get("phase1_height", 100) if metrics else 100,
                 spin_consistency=metrics.get("phase1_spin_consistency", 0.8) if metrics else 0.8,
-                overall_score=float(dive.phase1_numeric) * 2.5,  # 0-4 -> 0-10
+                overall_score=athlete_score_10(dive.phase1_performance),
             )
             phase1_faults = self.detect_faults_by_phase(1, phase1_metrics, fina_code)
 
@@ -121,7 +122,7 @@ class ExecutionFaultDetector:
                 entry_angle_degrees=metrics.get("phase2_entry_angle", 0) if metrics else 0,
                 height_achieved=metrics.get("phase2_height", 100) if metrics else 100,
                 spin_consistency=metrics.get("phase2_spin_consistency", 0.8) if metrics else 0.8,
-                overall_score=float(dive.phase2_numeric) * 2.5,  # 0-4 -> 0-10
+                overall_score=athlete_score_10(dive.phase2_performance),
             )
             phase2_faults = self.detect_faults_by_phase(2, phase2_metrics, fina_code)
 
@@ -134,7 +135,7 @@ class ExecutionFaultDetector:
                 total_points_deducted += Decimal(str(fault.points_deducted))
 
         # Calculate adjusted score
-        base_score = float(dive.performance_numeric) * 2.5  # 0-4 -> 0-10
+        base_score = dive_score_10(dive)
         adjusted_score = max(Decimal("0.0"), Decimal(str(base_score)) - total_points_deducted)
 
         # Detect systematic patterns across both phases

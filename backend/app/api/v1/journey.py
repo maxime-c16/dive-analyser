@@ -6,7 +6,6 @@ This isn't analytics. This is your story.
 
 from datetime import datetime, timedelta
 from typing import List, Optional
-from collections import defaultdict
 from dateutil.relativedelta import relativedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -14,67 +13,39 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.dive import Dive
-from app.models.journey import Journey
 from app.services.milestones import (
     MilestoneDetector,
     JourneyNarrator,
     DiveAttempt,
     MilestoneType,
 )
+from app.services.performance_scoring import athlete_score_10
+from app.services.dd_overview_service import DDOverviewService
+from app.services.dive_eligibility import is_performance_attempt
 
 router = APIRouter()
 
 
 def get_dd_progression(db: Session) -> dict:
-    """Calculate monthly DD progression from dive data."""
-    dives = db.query(Dive).filter(
-        Dive.person_name.is_(None),
-        Dive.dive_code.isnot(None),
-        Dive.official_dd.isnot(None),
-        Dive.dive_datetime.isnot(None),
-    ).order_by(Dive.dive_datetime.asc()).all()
-
-    if not dives:
-        return {"months": [], "current_max": 0, "highest_achieved": 0}
-
-    # Group by month
-    monthly = defaultdict(list)
-    for dive in dives:
-        month_key = dive.dive_datetime.strftime("%Y-%m")
-        monthly[month_key].append(dive.official_dd)
-
-    # Build progression
+    """Compatibility payload sourced from the same live DD formula as the UI."""
+    overview = DDOverviewService(db).overview(scope="self")
     months = []
-    max_dd = 0
-    highest_dd = 0
-
-    for month_key in sorted(monthly.keys()):
-        dd_values = monthly[month_key]
-        month_max = max(dd_values)
-        max_dd = month_max
-        highest_dd = max(highest_dd, month_max)
-
-        # Detect breakthroughs (new personal record)
-        breakthrough = []
-        if month_max > max([m['max_dd'] for m in months], default=0):
-            breakthrough = [f"New Personal Best: {month_max}"]
-
-        # Format month name
-        month_date = datetime.strptime(month_key, "%Y-%m")
-        month_name = month_date.strftime("%b %Y")
-
+    highest_dd = 0.0
+    for item in overview["timeline"]:
+        month_max = item["max_dd"]
+        if month_max is not None and month_max > highest_dd:
+            highest_dd = month_max
+            breakthroughs = [f"New personal best: {month_max:.1f}"]
+        else:
+            breakthroughs = []
         months.append({
-            "month": month_name,
-            "max_dd": round(month_max, 1),
-            "attempts": len(dd_values),
-            "breakthroughs": breakthrough,
+            "month": datetime.strptime(item["month"], "%Y-%m").strftime("%b %Y"),
+            "max_dd": month_max or 0,
+            "attempts": item["attempt_count"],
+            "breakthroughs": breakthroughs,
         })
-
-    return {
-        "months": months,
-        "current_max": round(max_dd, 1) if max_dd else 0,
-        "highest_achieved": round(highest_dd, 1) if highest_dd else 0,
-    }
+    current_max = months[-1]["max_dd"] if months else 0
+    return {"months": months, "current_max": current_max, "highest_achieved": highest_dd}
 
 
 def get_attempts(db: Session) -> List[DiveAttempt]:
@@ -82,7 +53,8 @@ def get_attempts(db: Session) -> List[DiveAttempt]:
     dives = db.query(Dive).filter(
         Dive.person_name.is_(None),  # Personal dives only
         Dive.dive_code.isnot(None),
-        Dive.performance.isnot(None)
+        Dive.performance.isnot(None),
+        Dive.is_lineup.is_(False),
     ).order_by(Dive.dive_datetime.asc()).all()
 
     return [
@@ -99,6 +71,7 @@ def get_attempts(db: Session) -> List[DiveAttempt]:
             phase2_performance=d.phase2_performance,
         )
         for d in dives
+        if is_performance_attempt(d)
     ]
 
 
@@ -151,24 +124,11 @@ def get_journey_summary(db: Session = Depends(get_db)):
 
     This is the big picture: your growth story.
     """
-    # Get or create active journey for mental blocks analysis
-    journey = db.query(Journey).filter(Journey.is_active == 1).first()
-    if not journey:
-        journey = Journey(
-            journey_code="personal_journey_1",
-            description="Personal dive training journey",
-            is_active=1
-        )
-        db.add(journey)
-        db.commit()
-        db.refresh(journey)
-    
     attempts = get_attempts(db)
 
     if not attempts:
         return {
             "message": "Your journey hasn't started yet.",
-            "journey_id": journey.id,  # ADDED: Include journey_id for mental-blocks endpoint
             "summary": {
                 "narrative": "Every expert was once a beginner. "
                             "The first dive is the hardest — not physically, but mentally. "
@@ -204,7 +164,6 @@ def get_journey_summary(db: Session = Depends(get_db)):
     }
 
     return {
-        "journey_id": journey.id,  # ADDED: Include journey_id for mental-blocks endpoint
         "overview": {
             "total_dives": total_dives,
             "unique_dive_combinations": unique_dives,
@@ -445,8 +404,8 @@ def get_phase_analysis(
         phase_combinations[combo] = phase_combinations.get(combo, 0) + 1
 
     # Calculate averages
-    phase1_values = [a.phase1_value for a in two_phase_dives if a.phase1_value is not None]
-    phase2_values = [a.phase2_value for a in two_phase_dives if a.phase2_value is not None]
+    phase1_values = [athlete_score_10(a.phase1_performance) for a in two_phase_dives if a.phase1_performance is not None]
+    phase2_values = [athlete_score_10(a.phase2_performance) for a in two_phase_dives if a.phase2_performance is not None]
 
     phase1_avg = sum(phase1_values) / len(phase1_values) if phase1_values else 0
     phase2_avg = sum(phase2_values) / len(phase2_values) if phase2_values else 0

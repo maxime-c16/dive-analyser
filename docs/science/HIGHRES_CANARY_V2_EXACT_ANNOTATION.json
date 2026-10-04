@@ -1,0 +1,62 @@
+{
+  "label": "HIGHRES_CANARY_V2_EXACT_ANNOTATION",
+  "annotation_schema_version": "v2_canary_pts_correct",
+  "annotator": "maxime@qwokka.fr",
+  "annotation_timestamp": "2026-09-06T17:48:41Z",
+  "source": {
+    "filename": "IMG_1937.mov",
+    "path": "/Users/maximecauchy/Downloads/IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "duration_s": 5.371667,
+    "n_frames": 322,
+    "pts_range": [
+      0.0,
+      5.355
+    ]
+  },
+  "apparatus": "springboard",
+  "height_m": 1,
+  "hurdle": true,
+  "initial_static": true,
+  "landmarks": {
+    "takeoff": {
+      "state": "HUMAN_SET",
+      "frame_index": 187,
+      "frame_pts_seconds": 3.12,
+      "category": "mandatory"
+    },
+    "apex": {
+      "state": "HUMAN_SET",
+      "frame_index": 214,
+      "frame_pts_seconds": 3.57,
+      "category": "mandatory"
+    },
+    "water_contact": {
+      "state": "HUMAN_SET",
+      "frame_index": 253,
+      "frame_pts_seconds": 4.22,
+      "category": "mandatory"
+    },
+    "hurdle_onset": {
+      "state": "HUMAN_SET",
+      "frame_index": 0,
+      "frame_pts_seconds": 0,
+      "category": "diagnostic_optional"
+    },
+    "board_recontact": {
+      "state": "HUMAN_SET",
+      "frame_index": 160,
+      "frame_pts_seconds": 2.668333,
+      "category": "diagnostic_optional"
+    }
+  },
+  "previous_approximate_annotation": {
+    "takeoff_s": 3.5,
+    "apex_s": 4.2,
+    "water_contact_s": 4.9,
+    "method": "direct_visual_inspection",
+    "annotation_date": "2026-09-06",
+    "status": "SUPERSEDED_BY_THIS_DOCUMENT",
+    "reason": "Not performed with PTS-correct tool; apparatus was incorrectly characterized"
+  }
+}

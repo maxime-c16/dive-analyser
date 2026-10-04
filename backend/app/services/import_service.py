@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from datetime import datetime, date
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -10,15 +11,12 @@ from sqlalchemy import func
 
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
+from app.services.performance_scoring import ORDINAL_SCORE, dive_score_10, is_success
+from app.services.diver_identity import invalidate_analysis_cache, resolve_diver
 
 # Performance letter to numeric mapping
-PERFORMANCE_MAP = {
-    'F': 0,  # Failed
-    'B': 1,  # Bad
-    'M': 2,  # Medium
-    'G': 3,  # Good
-    'P': 4,  # Perfect
-}
+PERFORMANCE_MAP = ORDINAL_SCORE
+CANONICAL_DIVE_CODE_RE = re.compile(r"^\d{3,4}[ABCD]$")
 
 
 class ImportService:
@@ -189,12 +187,18 @@ class ImportService:
         phase2_performance = dive_data.get('phase2_performance')
         phase2_numeric = dive_data.get('phase2_numeric')
 
+        person_name = dive_data.get('person')
+        diver = resolve_diver(self.db, person_name)
+        dive_code = str(dive_data.get('dive_code', '')).upper()
+        position = dive_data.get('position')
+        if not position and CANONICAL_DIVE_CODE_RE.fullmatch(dive_code):
+            position = dive_code[-1]
         dive = Dive(
             session_id=session_id,
-            dive_code=dive_data.get('dive_code', ''),
+            dive_code=dive_code,
             dive_number=dive_data.get('dive_number'),
-            position=dive_data.get('position'),
-            direction=self._get_direction(dive_data.get('dive_code', '')),
+            position=position,
+            direction=self._get_direction(dive_code),
             performance=performance,
             performance_numeric=performance_numeric,
             phase1_performance=phase1_performance,
@@ -207,7 +211,8 @@ class ImportService:
             is_sync=dive_data.get('sync', False),
             is_smack=dive_data.get('smack', False),
             raw_caption=dive_data.get('raw_caption'),
-            person_name=dive_data.get('person'),
+            person_name=person_name,
+            diver_id=diver.id if diver else None,
             notes=None,
             video_uuid=dive_data.get('uuid'),
             video_filename=dive_data.get('filename'),
@@ -216,6 +221,7 @@ class ImportService:
         )
 
         self.db.add(dive)
+        invalidate_analysis_cache(self.db)
         return dive
 
     def _update_session_stats(self) -> None:
@@ -235,11 +241,11 @@ class ImportService:
 
             # Average performance (personal dives only)
             if personal_dives:
-                avg_perf = sum(d.performance_numeric for d in personal_dives) / len(personal_dives)
+                avg_perf = sum(dive_score_10(d) for d in personal_dives) / len(personal_dives)
                 session.avg_performance = round(avg_perf, 2)
 
-                # Success rate (M or better = performance_numeric >= 2)
-                successful = sum(1 for d in personal_dives if d.performance_numeric >= 2)
+                # Success rate is still categorical: M/G/P are successful.
+                successful = sum(1 for d in personal_dives if is_success(d.performance))
                 session.success_rate = round((successful / len(personal_dives)) * 100, 1)
             else:
                 session.avg_performance = None

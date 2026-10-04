@@ -1,0 +1,26 @@
+{
+  "id": "1040_water_contact",
+  "dive_id": 1040,
+  "phase": "water_contact",
+  "frame_index": 162,
+  "split": "DEVELOPMENT_DESIGN",
+  "width": 202,
+  "height": 360,
+  "fps": 29.97002997002997,
+  "image_sha256": "f67be52a7760db3283d26359a601672c583acae61271b13d4d3d43259fd98ab1",
+  "media_sha256": "b93aca3d4920b48aa76964ebe6263a2405ddb1b6b6f5e629a292e163b68c249c",
+  "media_key": "9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e",
+  "temporal_annotation_sha256": "fe20f5a060bb4acc827837696da51176c4d2a257e3c62e798ef6eeb42983e179",
+  "representation": "proxy_360p_native_decoded_frame",
+  "bbox": [
+    100.54296875,
+    164.4140625,
+    164.95703125,
+    243.625
+  ],
+  "state": "HUMAN_REVIEWED",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-06T08:31:57.793368+00:00"
+}

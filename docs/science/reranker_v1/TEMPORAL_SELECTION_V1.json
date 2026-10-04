@@ -1,0 +1,26 @@
+{
+  "label": "TEMPORAL_SELECTION_V1",
+  "date": "2026-09-08",
+  "T0": {
+    "description": "Per-frame top-1 R1 candidate",
+    "DEV_TRAIN_top1": 1.0,
+    "DEV_VAL_top1": 0.8333333333333334,
+    "DEV_VAL_mrr": 0.8611111111111112
+  },
+  "T1": {
+    "description": "R1 + temporal continuity bonus",
+    "evaluation_status": "DEFERRED \u2014 requires full-video inference, not feasible with 3 anchor frames",
+    "rationale": "T1 cannot be rigorously evaluated on 3 anchor frames per dive. Viterbi spatial path was shown to regress with D4-era FPs. T0 achieves 100% DEV_TRAIN and 83.3% DEV_VAL, already a major improvement. T1 risk: propagating apex/water-contact FP errors across full trajectory."
+  },
+  "frozen_selector": "T0",
+  "frozen_selector_description": "Per-frame top-1 R1 (ResNet50 visual reranker) score",
+  "selector_gate": {
+    "DEV_VAL_top1_T0": 0.8333333333333334,
+    "DEV_VAL_top1_B0": 0.5,
+    "improvement": 0.33333333333333337
+  },
+  "paris_firewall": "Paris excluded from temporal analysis",
+  "paris_trajectory_gate": "TRAJECTORY_INPUT_FAIL (apex rank=2 after R1)",
+  "d5_required": true,
+  "d5_rationale": "Paris apex: D4_rank=10 \u2192 R1_rank=2. The apex target is visually distinct but not sufficiently so from spectators with the current DEVELOPMENT training distribution. D5 aims to add more apex/water-contact frames to improve R1 generalization and push the diver to rank 1 at Paris apex."
+}

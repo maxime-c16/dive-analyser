@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_takeoff_0187",
+  "dive_id": "PARIS_2819",
+  "phase": "takeoff",
+  "frame_index": 187,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 3.12,
+  "actual_pts_s": 3.12,
+  "image_sha256": "e4bb254ddb47b192290caffec0aed02dd9c1809c103abfc3d365470a71c27e53",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    522.9270633397313,
+    542.7207293666027,
+    819.9616122840691,
+    892.4280230326295
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:59:04.329993+00:00"
+}

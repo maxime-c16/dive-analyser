@@ -1,0 +1,21 @@
+{
+  "label": "PHASE_S_GENERALIZATION_DECISION",
+  "date": "2026-09-07",
+  "verdict": "TRAINING_PIPELINE_REPAIRED_AND_IN_DOMAIN_WORKS",
+  "secondary_finding": "MORE_DOMAIN_DIVERSITY_REQUIRED",
+  "evidence": {
+    "overfit_sanity": "PASS (amp=False: mean_pos_conf=0.91, 10/10 >0.25)",
+    "d3_in_domain_val_map50": 0.637,
+    "d3_in_domain_video": "97% detection rate (dive 192)",
+    "d3_paris_action_coverage": "7.5% (fails 80% threshold)",
+    "d3_paris_max_gap_s": 1.034,
+    "scene_prior": "SCENE_PRIOR_CANNOT_RECOVER_MISSING_DETECTION",
+    "trajectory_gate": "TRAJECTORY_INPUT_FAIL"
+  },
+  "key_repair": "MPS AMP bug (amp=True default) caused D2 training collapse. Fixed with amp=False.",
+  "remaining_gap": "D3 single-venue. Paris outdoor pool is out-of-distribution. Multi-domain data required for Paris generalization.",
+  "ruled_out": [
+    "CUSTOM_DETECTOR_APPROACH_INSUFFICIENT \u2014 pipeline CAN learn, just needs diverse data",
+    "EXTERNAL_GENERALIZATION_FAILURE_PRIMARY \u2014 in-domain confirmed working first"
+  ]
+}

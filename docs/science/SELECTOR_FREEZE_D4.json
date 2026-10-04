@@ -1,0 +1,43 @@
+{
+  "label": "SELECTOR_FREEZE_D4",
+  "date": "2026-09-08",
+  "phase": "N",
+  "status": "FROZEN",
+  "frozen_selector": "S0",
+  "frozen_selector_name": "top-conf",
+  "frozen_selector_description": "Select the highest-confidence detection at each anchor phase independently. No inter-phase trajectory reasoning.",
+  "accuracy_on_development": 0.7097,
+  "correct_on_development": 22,
+  "total_on_development": 31,
+  "gate_threshold": 0.80,
+  "gate_result": "FAIL",
+  "detector": "DIVER_DETECTOR_D4_A_V8N",
+  "vs_v2_frozen_selector": {
+    "v2_selector": "S1",
+    "v2_selector_name": "Viterbi",
+    "s1_accuracy_with_d4": 0.6129,
+    "s0_accuracy_with_d4": 0.7097,
+    "delta": 0.097,
+    "finding": "S1_REGRESSES_WITH_D4",
+    "root_cause": "D4 produces spatially plausible FPs (crowd, spectators) that confuse the Viterbi spatial cost. S0 top-conf avoids propagating early FP selections."
+  },
+  "selector_comparison": {
+    "S0": {"accuracy": 0.7097, "correct": 22, "total": 31, "rank": 1},
+    "S1": {"accuracy": 0.6129, "correct": 19, "total": 31, "rank": 2, "note": "V2-frozen Viterbi"},
+    "S3": {"accuracy": 0.6129, "correct": 19, "total": 31, "rank": 2, "note": "HYPOTHESIS_ONLY"}
+  },
+  "phase_o_paris_with_s0": {
+    "takeoff": "MATCH (IoU=0.387, same as S1 — S0 selects same top-1)",
+    "apex": "WRONG_TARGET (target at rank 10 in floor, S0 top-1 is also wrong)",
+    "water_contact": "WRONG_TARGET (target at rank 121 in floor, S0 top-1 is also wrong)",
+    "paris_trajectory": "TRAJECTORY_INPUT_FAIL",
+    "note": "Switching from S1 to S0 does not change Paris trajectory outcome."
+  },
+  "notes": [
+    "Gate 80% fails. No selector meets the Phase M1 gate threshold.",
+    "S0 is frozen as the D4-era canonical selector (replaces S1 from V2).",
+    "S1 regression is detector-era-specific: D4 FPs are spatially plausible, penalising Viterbi paths.",
+    "Phase O Paris TRAJECTORY_INPUT_FAIL result stands with S0.",
+    "Water-contact FPs across multiple dives remain a systematic D4 failure mode."
+  ]
+}

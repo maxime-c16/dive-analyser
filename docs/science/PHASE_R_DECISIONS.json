@@ -1,0 +1,64 @@
+{
+  "label": "PHASE_R_DECISIONS",
+  "date": "2026-09-07",
+  "packet": "SUPERVISOR_TASK_PACKET_POST_D3_SANITY",
+
+  "detector_decision": "D3_THRESHOLD_WAS_SUFFICIENT",
+  "detector_decision_evidence": {
+    "threshold_calibrated": "conf=0.05 (INTERNAL evidence only)",
+    "paris_action_window_coverage": "100% (64/64 frames)",
+    "paris_spectator_contamination": "0%",
+    "paris_trajectory_gate": "TRAJECTORY_INPUT_PASS",
+    "holdout_recall_at_conf_010": 0.761,
+    "holdout_recall_at_conf_005": 0.913,
+    "rationale": "D3 at conf=0.05 fully covers the Paris canary action window with zero spectator contamination. Detector generalizes adequately in terms of coverage. The remaining pipeline problem is trajectory quality (velocity resolution), not detector coverage."
+  },
+
+  "phases_skipped": {
+    "C_open_vocabulary": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "D_domain_inventory": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "E_dataset_design": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "F_human_gate": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "G_dataset_freeze": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "H_D4_training": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "I_D4_evaluation": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "J_second_architecture": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "K_freeze_cross_domain": "SKIPPED — Phase B passed TRAJECTORY_INPUT_PASS per packet instruction",
+    "L_paris_final_detector": "SKIPPED — D3.1 already evaluated at Phase B",
+    "Q_multi_dive_validation": "SKIPPED — Event Logic canary failed; multi-dive validation premature"
+  },
+
+  "target_selection": {
+    "method_chosen": "N0_FRAMEWISE (highest-conf + spatial continuity tie-break)",
+    "vs_bytetrack": "Identical performance (both 100% coverage, 0 spectator)",
+    "action_cy_mean": 0.395,
+    "action_cy_std": 0.002
+  },
+
+  "trajectory_gate": "TRAJECTORY_INPUT_PASS",
+  "trajectory_gate_details": {
+    "landmarks_present": true,
+    "action_window_coverage": "100%",
+    "max_gap_s": 0.0,
+    "spectator_contamination": "0%"
+  },
+
+  "event_logic_decision": "REAL_SIGNAL_CANARY_FAIL",
+  "event_logic_failure_analysis": {
+    "predicted_takeoff_error_s": 1.427,
+    "predicted_apex_error_s": 1.473,
+    "predicted_wc_error_s": 1.460,
+    "systematic_offset": "All predictions ~1.43–1.47s too late — same event structure found in post-dive portion",
+    "root_cause": "VELOCITY_RESOLUTION_INSUFFICIENT_AT_360P",
+    "detail": "At GT takeoff (3.120s), smoothed velocity = -0.011/s. Event Logic V2.1 requires takeoff_vel_threshold=0.04/s (sustained). The genuine dive flight arc generates only 0.011/s velocity at 360p resolution (7px vertical over 0.45s). Post-dive activity (t>4.5s) generates 0.045-0.096/s signals that the algorithm identifies as the dive sequence instead.",
+    "event_logic_NOT_modified": true,
+    "event_logic_sha256": "63cfadebfc8039319857c0497e5423754b7d575c45e26355f2f77e4c051cb073"
+  },
+
+  "next_required_work": [
+    "1. Process Paris canary at 1080p (original resolution) to get 3x velocity signal",
+    "2. OR: calibrate EL velocity thresholds for 360p input in a dedicated param set",
+    "3. Verify that at 1080p, velocity at takeoff exceeds 0.04/s threshold",
+    "4. Post-dive isolation (truncate trajectory at estimated water_contact) to avoid noise from subsequent activity"
+  ]
+}

@@ -1,0 +1,199 @@
+# Diving Analyser Mac Agent Configuration
+# Copy this file to ~/.diveanalyzer/config.yaml and customize
+
+server:
+  # REQUIRED: Server URL (must be HTTPS)
+  # Example: https://192.168.1.57:8000
+  url: "https://192.168.1.57:8000"
+
+  # REQUIRED: API Key for authentication
+  # Get this from your server administrator
+  # Must be at least 40 characters
+  api_key: "sk_live_your_api_key_here_minimum_40_characters"
+
+  # OPTIONAL: HTTP request timeout in seconds
+  # Default: 30 seconds
+  # Increase if server is slow or network is unreliable
+  timeout_seconds: 30
+  ca_cert_path: "/Users/Shared/services/data/diveanalyzer/state/diveanalyzer-ca.pem"
+
+agent:
+  id: "mac-media-01"
+  hostname: "mac-server.local"
+
+photos:
+  # OPTIONAL: Path to Photos library
+  # If omitted, auto-detects ~/Pictures/Photos Library.photoslibrary
+  # Can use ~ for home directory or absolute path
+  library_path: "~/Pictures/Photos Library.photoslibrary"
+
+sync:
+  enabled: true
+  # OPTIONAL: How often to check for new videos (in seconds)
+  # Default: 300 seconds (5 minutes)
+  # Minimum: 60 seconds (1 minute)
+  # Recommended: 300-600 seconds (5-10 minutes)
+  interval_seconds: 300
+
+  # OPTIONAL: How many videos to send per API request
+  # Default: 50 videos per batch
+  # Minimum: 1, Maximum: 200
+  # Smaller batches = more API calls but less server load
+  # Larger batches = fewer calls but more memory usage
+  batch_size: 50
+
+  # OPTIONAL: Maximum retry attempts for failed videos
+  # Default: 3 attempts
+  # Retries use exponential backoff: 1s, 2s, 4s, 8s, ...
+  max_retries: 3
+
+media:
+  enabled: false
+  interval_seconds: 300
+  max_jobs: 1
+  fail_unimplemented_jobs: true
+  allow_original: false
+  allow_icloud_download: false
+  allow_single_asset_materialization: false
+  materialization_dir: "~/.diveanalyzer/materialized_assets"
+  materialization_max_bytes: 2000000000
+  materialization_cleanup_after_success: true
+  temp_dir: "~/.diveanalyzer/media_tmp"
+  ffmpeg_path: "ffmpeg"
+  ffprobe_path: "ffprobe"
+  osxphotos_path: "osxphotos"
+  enforce_storage_thresholds: true
+  failed_diagnostics_dir: "~/.diveanalyzer/failed_diagnostics"
+  capabilities:
+    - poster
+    - proxy_360p
+    - proxy_720p
+  local_asset_overrides: {}
+  source_vault:
+    enabled: false
+    volume_uuid: "REPLACE_WITH_EXTERNAL_APFS_VOLUME_UUID"
+    root: "/Volumes/DiveSenseiMedia/recalled_sources/by_uuid"
+    incoming_root: "/Volumes/DiveSenseiMedia/incoming"
+    permanent_root: "/Volumes/DiveSenseiMedia/recalled_sources/by_uuid"
+    internal_warning_free_bytes: 32212254720
+    internal_pause_free_bytes: 23622320128
+    internal_stop_free_bytes: 16106127360
+    external_warning_free_percent: 20
+    external_pause_free_percent: 15
+    external_evict_free_percent: 10
+    external_stop_free_percent: 5
+
+logging:
+  # OPTIONAL: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  # Default: INFO
+  # Use DEBUG to see detailed extraction/sync process
+  # Use WARNING to see only important messages
+  level: "INFO"
+
+  # OPTIONAL: Log file path
+  # If omitted, logs only to console
+  # Can use ~ for home directory
+  file: "~/Library/Logs/diveanalyzer.log"
+
+  # OPTIONAL: Rotate log file at this size (in megabytes)
+  # Default: 10 MB
+  # When log exceeds this size, it's rotated and compressed
+  rotate_mb: 10
+
+  # OPTIONAL: Keep this many old log files
+  # Default: 5
+  # Older log files are automatically deleted
+  keep_files: 5
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+
+# EXAMPLE 1: Minimal configuration (required fields only)
+# Just save this and fill in your values:
+# ---
+# server:
+#   url: "https://your-server.com:8000"
+#   api_key: "your_40_character_api_key_here___"
+# ---
+
+# EXAMPLE 2: Development configuration (verbose logging, quick sync)
+# ---
+# server:
+#   url: "https://localhost:8000"
+#   api_key: "sk_test_development_key_12345678901234567890"
+#   timeout_seconds: 5  # Short timeout for testing
+#
+# sync:
+#   interval_seconds: 60  # Check every minute
+#   batch_size: 10       # Small batches for testing
+#
+# logging:
+#   level: "DEBUG"       # Verbose output
+#   file: "~/Library/Logs/diveanalyzer.log"
+# ---
+
+# EXAMPLE 3: Production configuration (reliable, monitored)
+# ---
+# server:
+#   url: "https://192.168.1.57:8000"
+#   api_key: "sk_live_your_production_api_key_here_40_chars_min"
+#   timeout_seconds: 30
+#
+# photos:
+#   library_path: "~/Pictures/Photos Library.photoslibrary"
+#
+# sync:
+#   interval_seconds: 300  # Check every 5 minutes
+#   batch_size: 50         # Reasonable batch size
+#   max_retries: 3
+#
+# logging:
+#   level: "INFO"
+#   file: "~/Library/Logs/diveanalyzer.log"
+#   rotate_mb: 10
+#   keep_files: 5
+# ---
+
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+
+# Problem: "server.url is required"
+# Solution: Make sure 'url' is present and uncommented under 'server:'
+
+# Problem: "API key too short"
+# Solution: Make sure api_key is at least 40 characters long
+
+# Problem: "Photos library not found"
+# Solution: Check that library_path exists. Find it with:
+#   find ~/Pictures -name "Photos Library*" -type d
+
+# Problem: "Connection timeout"
+# Solution: Check that server is running and reachable:
+#   curl -k https://192.168.1.57:8000/health
+#   (Use -k to ignore self-signed certificate)
+
+# Problem: "Invalid YAML syntax"
+# Solution: Make sure indentation is correct (use spaces, not tabs)
+#   Validate with: python -c "import yaml; yaml.safe_load(open('config.yaml'))"
+
+# ============================================================================
+# OBJECT-STORE MEDIA BACKBONE (media-backbone P1) — HARD OFF BY DEFAULT
+# ============================================================================
+# When disabled (default), NO object-store code participates in any ingest
+# path; production upload/serving behavior is unchanged.
+#
+# object_store:
+#   enabled: false                    # flip to true only at the P2 canary gate
+#   environment: dev                  # dev | prod (bucket cross-wiring is rejected)
+#   bucket: diveanalyzer-dev-media    # private bucket; name must contain the env token
+#   region: eu-central-003            # or endpoint_url: https://s3.eu-central-003.backblazeb2.com
+#   prefix: blobs/sha256              # deterministic, privacy-safe object keys
+#   state_dir: ~/.diveanalyzer/object_ingest_state
+#   temp_root: ~/.diveanalyzer/object_ingest_tmp
+#   min_free_disk_bytes: 10737418240  # guard: stop ingest before risking the disk
+#   presign_ttl_seconds: 3600         # short-TTL presigned GET (max 7 days)
+#   max_retries: 3
+# Credentials (NEVER in this file): B2_APPLICATION_KEY_ID / B2_APPLICATION_KEY
+# environment variables. Use a bucket-scoped application key, never the master key.

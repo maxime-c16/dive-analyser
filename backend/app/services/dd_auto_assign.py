@@ -1,12 +1,13 @@
 """DD Auto-Assignment Service - automatically assigns DD values based on dive code and height"""
 
+from datetime import datetime
 from typing import Optional, Dict, Tuple
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from app.models import Dive, DDLookup
+from app.models import Dive
 from app.services.dd_calculator import DDCalculator
-from app.services.dive_code_parser import DiveCodeParser
+from app.services.world_aquatics_dd import REFERENCE_ID
 
 
 class DDAssignmentError(Exception):
@@ -49,19 +50,18 @@ class DDAutoAssigner:
                     "error": f"No DD found for {dive.dive_code} at {dive.height}"
                 }
 
-            # Assign DD to dive
-            if hasattr(dive, "dd_value"):
-                dive.dd_value = dd_value
-                self.db.commit()
+            dive.official_dd = dd_value
+            dive.official_dd_verification_status = "official_formula"
+            dive.official_dd_source = REFERENCE_ID
+            dive.official_dd_assigned_at = datetime.utcnow()
+            self.db.commit()
 
-                return True, {
-                    "dive_id": dive_id,
-                    "dive_code": dive.dive_code,
-                    "height": dive.height,
-                    "dd_value": float(dd_value),
-                }
-
-            return False, {"error": "Dive model does not support dd_value"}
+            return True, {
+                "dive_id": dive_id,
+                "dive_code": dive.dive_code,
+                "height": dive.height,
+                "dd_value": float(dd_value),
+            }
 
         except Exception as e:
             return False, {"error": str(e)}
@@ -126,11 +126,7 @@ class DDAutoAssigner:
         dive_code: str,
         height: str,
     ) -> Optional[Decimal]:
-        """
-        Estimate DD using parser + calculator.
-
-        Returns: Estimated DD value, or None if not found
-        """
+        """Return a formula-defined DD, never an estimated value."""
         # Normalize height
         height = height.lower().strip()
         normalization = {"7m": "7.5m"}
@@ -141,21 +137,8 @@ class DDAutoAssigner:
         if dd_value:
             return dd_value
 
-        # Try to estimate from components
-        # First parse the dive code to get components
-        parsed = DiveCodeParser.parse(dive_code)
-        if not parsed.is_valid:
-            return None
-
-        # Estimate based on components
-        estimated = self.calculator.estimate_dd_from_components(
-            group=parsed.group,
-            rotations=1,  # Default
-            twists=0,
-            is_flying=False,
-        )
-
-        return estimated
+        # Official DD is a table/formula result, never a heuristic estimate.
+        return None
 
     def get_assignment_statistics(self, session_id: int) -> Dict:
         """Get statistics about DD assignments in a session"""
@@ -163,7 +146,7 @@ class DDAutoAssigner:
             dives = self.db.query(Dive).filter_by(session_id=session_id).all()
 
             total = len(dives)
-            with_dd = sum(1 for d in dives if hasattr(d, "dd_value") and d.dd_value)
+            with_dd = sum(1 for d in dives if d.official_dd is not None)
             without_dd = total - with_dd
 
             return {

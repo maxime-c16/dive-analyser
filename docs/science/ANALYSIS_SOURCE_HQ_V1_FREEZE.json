@@ -1,0 +1,44 @@
+{
+  "label": "ANALYSIS_SOURCE_HQ_V1_FREEZE",
+  "created_at_utc": "2026-09-09T09:35:07Z",
+  "status": "FROZEN_WITH_PER_ASSET_TEMPORAL_AUTHORITY",
+  "supersedes": {
+    "file": "docs/science/ANALYSIS_SOURCE_HQ_V1_FREEZE.json",
+    "previous_status": "NOT_FROZEN_CANARY_GATE_CLOSED",
+    "previous_commit": "f49db5f03715c001b662aa27e8a0d870bcd9fa81"
+  },
+  "definition": "Edited high-resolution Photos rendition exported through the authorized Aqua LaunchAgent PhotoKit path, with per-asset checksum, ffprobe metadata, and temporal mapping against the current 360p proxy.",
+  "canary_gate": {
+    "required_successful_aligned_or_mappable_canaries": 3,
+    "passed_canaries": [
+      133,
+      676,
+      2169
+    ],
+    "failed_canaries": [
+      311
+    ]
+  },
+  "label_transfer_policy": {
+    "PTS_EQUIVALENT": "allowed_direct",
+    "DETERMINISTICALLY_MAPPABLE": "allowed_only_through_explicit_mapping",
+    "NOT_EQUIVALENT": "prohibited"
+  },
+  "batch_summary": {
+    "unique_requested": 14,
+    "recovered_total": 14,
+    "recovered_aligned": 11,
+    "recovered_deterministic_mapping": 3,
+    "temporal_mismatch_quarantined": 0,
+    "total_durable_bytes": 355637796
+  },
+  "resolution_decision": "PRODUCTION_ANALYSIS_REPRESENTATION_REMAINS_PROXY_360P",
+  "detector_training_status": "NO_RETRAIN_AUTHORIZED",
+  "amendments": [
+    {
+      "at_utc": "2026-09-09T12:59:42Z",
+      "reason": "Quarantine lifts (311, 524) + 676 spatial map verification + representation decision",
+      "evidence": "docs/science/HIGHRES_QUARANTINE_FORENSICS_V1.json; docs/science/HQ_REPRESENTATION_DECISION_V1.json"
+    }
+  ]
+}

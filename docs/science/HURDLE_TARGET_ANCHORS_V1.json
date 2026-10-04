@@ -1,0 +1,574 @@
+{
+ "version": "HURDLE_TARGET_ANCHORS_V1",
+ "purpose": "Per-frame target-diver anchors for HURDLE identity repair (Phase A of HURDLE_TARGET_IDENTITY_REPAIR packet). Anchors define GT identity for A2/A3 classification only - never inference inputs.",
+ "coordinate_system": "normalized (cx,cy,bw,bh) on proxy frame; frame size per dive in frame_sizes",
+ "frame_sizes": {
+  "1040": [
+   202,
+   360
+  ],
+  "2169": [
+   202,
+   360
+  ],
+  "524": [
+   202,
+   360
+  ],
+  "2341": [
+   202,
+   360
+  ],
+  "2353": [
+   202,
+   360
+  ],
+  "2541": [
+   202,
+   360
+  ],
+  "2555": [
+   166,
+   360
+  ]
+ },
+ "annotation_fps": 60,
+ "gt_phase_times_s": {
+  "1040": {
+   "takeoff": 4.463857,
+   "apex": 4.797189,
+   "water_contact": 5.413853
+  },
+  "2169": {
+   "takeoff": 6.46124,
+   "apex": 6.761239,
+   "water_contact": 7.694569
+  },
+  "524": {
+   "takeoff": 5.810276,
+   "apex": 6.326941,
+   "water_contact": 7.093604
+  },
+  "2341": {
+   "takeoff": 3.572542,
+   "apex": 3.955874,
+   "water_contact": 4.589204
+  },
+  "2353": {
+   "takeoff": 5.696084,
+   "apex": 6.279415,
+   "water_contact": 6.879412
+  },
+  "2541": {
+   "takeoff": 17.518102,
+   "apex": 17.984766,
+   "water_contact": 18.65143
+  },
+  "2555": {
+   "takeoff": 4.313702,
+   "apex": 6.397027,
+   "water_contact": 9.597014
+  }
+ },
+ "eval_intervals_s": {
+  "1040": [
+   0.0,
+   6.413853
+  ],
+  "2169": [
+   0.0,
+   8.694569000000001
+  ],
+  "524": [
+   0.0,
+   8.093604
+  ],
+  "2341": [
+   0.0,
+   5.589204
+  ],
+  "2353": [
+   0.0,
+   7.879412
+  ],
+  "2541": [
+   9.518101999999999,
+   19.65143
+  ],
+  "2555": [
+   0.0,
+   10.597014
+  ]
+ },
+ "dives": {
+  "1040": {
+   "anchors": [
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 2.47,
+     "fx": 0.07,
+     "fy": 0.42,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 3.47,
+     "fx": 0.07,
+     "fy": 0.41,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 3.97,
+     "fx": 0.1,
+     "fy": 0.42,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 4.47,
+     "fx": 0.21,
+     "fy": 0.47,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders; approx body bbox fx1,fy1,fx2,fy2",
+     "box": [
+      0.124,
+      0.386,
+      0.298,
+      0.546
+     ]
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 4.8,
+     "fx": 0.32,
+     "fy": 0.33,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders; approx body bbox fx1,fy1,fx2,fy2",
+     "box": [
+      0.236,
+      0.275,
+      0.409,
+      0.386
+     ]
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.11,
+     "fx": 0.43,
+     "fy": 0.37,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders; approx body bbox fx1,fy1,fx2,fy2",
+     "box": [
+      0.384,
+      0.296,
+      0.483,
+      0.449
+     ]
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.3,
+     "fx": 0.4,
+     "fy": 0.36,
+     "ambiguous": false,
+     "note": "diver mid-fall, verified in zoom_1040_gaps.jpg"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.305,
+     "cx": 0.578,
+     "cy": 0.462,
+     "bw": 0.261,
+     "bh": 0.184,
+     "ambiguous": false,
+     "note": "diver box verified in zoom_1040_tail3.jpg (cand conf 0.24)"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.372,
+     "cx": 0.621,
+     "cy": 0.501,
+     "bw": 0.254,
+     "bh": 0.175,
+     "ambiguous": false,
+     "note": "diver box verified in zoom_1040_tail3.jpg (cand conf 0.27)"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.405,
+     "cx": 0.626,
+     "cy": 0.558,
+     "bw": 0.266,
+     "bh": 0.244,
+     "ambiguous": false,
+     "note": "diver box verified in zoom_1040_tail3.jpg (cand conf 0.56)"
+    }
+   ],
+   "notes": [
+    "prep: diver at left edge (fx~0.07-0.10) present in raw candidates only at conf 0.001-0.011 (one 0.076 hit @3.97); stable top-1 c00 (0.249,0.221) is a BACKGROUND structure box",
+    "flight: diver top-1 at takeoff (4.47 conf 0.352) but outranked ~4.7-5.4s by static red/yellow pool object at (0.27,0.60) (conf 0.13-0.35)"
+   ]
+  },
+  "2169": {
+   "anchors": [
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 6.2,
+     "fx": 0.38,
+     "fy": 0.3,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.2833,
+     "fi": 377,
+     "visibility": "not_visible",
+     "ambiguous": false,
+     "cx": 0.3762,
+     "cy": 0.3264,
+     "bw": 0.2772,
+     "bh": 0.1556,
+     "note": "takeoff offset -10 from gt_fi 387 (gt t 6.450)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.3833,
+     "fi": 383,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3589,
+     "cy": 0.2889,
+     "bw": 0.2624,
+     "bh": 0.1694,
+     "note": "takeoff offset -4 from gt_fi 387 (gt t 6.450)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.45,
+     "fi": 387,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3889,
+     "cy": 0.2886,
+     "bw": 0.1456,
+     "bh": 0.1142,
+     "note": "takeoff offset 0 from gt_fi 387 (gt t 6.450)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.5333,
+     "fi": 392,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3983,
+     "cy": 0.2886,
+     "bw": 0.1341,
+     "bh": 0.1184,
+     "note": "takeoff offset 5 from gt_fi 387 (gt t 6.450)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 7.4833,
+     "fi": 449,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.6345,
+     "cy": 0.5331,
+     "bw": 0.2257,
+     "bh": 0.2057,
+     "note": "water_contact offset -12 from gt_fi 461 (gt t 7.683)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 7.6,
+     "fi": 456,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.6733,
+     "cy": 0.6389,
+     "bw": 0.198,
+     "bh": 0.1972,
+     "note": "water_contact offset -5 from gt_fi 461 (gt t 7.683)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 7.6833,
+     "fi": 461,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.6658,
+     "cy": 0.6833,
+     "bw": 0.1931,
+     "bh": 0.1917,
+     "note": "water_contact offset 0 from gt_fi 461 (gt t 7.683)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 7.7667,
+     "fi": 466,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.6856,
+     "cy": 0.7181,
+     "bw": 0.1535,
+     "bh": 0.1111,
+     "note": "water_contact offset 5 from gt_fi 461 (gt t 7.683)"
+    }
+   ],
+   "notes": [
+    "apex (6.76s) anchor AMBIGUOUS - pending visual recheck",
+    "wc-0.3 eyeball (0.55,0.62) inconsistent with GT fall trend (expected ~(0.59,0.43)); flagged ambiguous, do not seed chain from it"
+   ]
+  },
+  "524": {
+   "anchors": [],
+   "notes": [
+    "all anchors AMBIGUOUS from proxy strips - resolve identity via HQ hflip spatial validation (runs/hq_rep_v1/scale_match_524_hflip.json) before use"
+   ]
+  },
+  "2341": {
+   "anchors": [
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 3.07,
+     "fx": 0.32,
+     "fy": 0.75,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 4.29,
+     "fx": 0.53,
+     "fy": 0.63,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 3.4,
+     "fi": 204,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3195,
+     "cy": 0.8156,
+     "bw": 0.0927,
+     "bh": 0.139,
+     "note": "takeoff offset -10 from gt_fi 214 (gt t 3.567)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 3.5,
+     "fi": 210,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.363,
+     "cy": 0.7625,
+     "bw": 0.1364,
+     "bh": 0.1133,
+     "note": "takeoff offset -4 from gt_fi 214 (gt t 3.567)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 3.65,
+     "fi": 219,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.4084,
+     "cy": 0.7347,
+     "bw": 0.2327,
+     "bh": 0.1667,
+     "note": "takeoff offset 5 from gt_fi 214 (gt t 3.567)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 3.7667,
+     "fi": 226,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.4257,
+     "cy": 0.7014,
+     "bw": 0.198,
+     "bh": 0.1333,
+     "note": "takeoff offset 12 from gt_fi 214 (gt t 3.567)"
+    }
+   ],
+   "notes": [
+    "at to+1.4 (4.97s) the original diver is in water and the NEXT diver is on the board - identity trap",
+    "wc-0.3 anchor eyeballed on a D5 candidate (cand 6) - verify in chain render"
+   ]
+  },
+  "2353": {
+   "anchors": [
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 5.2,
+     "fx": 0.13,
+     "fy": 0.44,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 6.1,
+     "fx": 0.17,
+     "fy": 0.47,
+     "ambiguous": true,
+     "note": "center eyeballed from strips2; conflicts with GT apex trend (fi368 (0.30,0.55)) - flagged, excluded from chain"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.1333,
+     "fi": 368,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.2995,
+     "cy": 0.5458,
+     "bw": 0.2822,
+     "bh": 0.0889,
+     "note": "apex offset -8 from gt_fi 376 (gt t 6.267)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.2167,
+     "fi": 373,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3094,
+     "cy": 0.5292,
+     "bw": 0.2822,
+     "bh": 0.0833,
+     "note": "apex offset -3 from gt_fi 376 (gt t 6.267)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.2667,
+     "fi": 376,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3045,
+     "cy": 0.5431,
+     "bw": 0.2921,
+     "bh": 0.0889,
+     "note": "apex offset 0 from gt_fi 376 (gt t 6.267)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.3333,
+     "fi": 380,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.3317,
+     "cy": 0.5375,
+     "bw": 0.297,
+     "bh": 0.0833,
+     "note": "apex offset 4 from gt_fi 376 (gt t 6.267)"
+    }
+   ],
+   "notes": [
+    "a second person stands near (0.13,0.45) through the whole video - identity trap",
+    "to+0.4 eyeball anchor (0.17,0.47) flagged ambiguous: conflicts with GT apex boxes; do not seed from it"
+   ]
+  },
+  "2541": {
+   "anchors": [
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 16.5,
+     "fx": 0.82,
+     "fy": 0.3,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 17.52,
+     "fx": 0.62,
+     "fy": 0.33,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 17.92,
+     "fx": 0.42,
+     "fy": 0.35,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    },
+    {
+     "source": "VISUAL_EVALUATOR",
+     "t_s": 18.35,
+     "fx": 0.37,
+     "fy": 0.55,
+     "ambiguous": false,
+     "note": "center eyeballed from strips2/zoom renders"
+    }
+   ],
+   "notes": [
+    "camera pans during flight; center-distance matching unreliable - prefer IoU/chain continuity",
+    "prep fx observed range 0.80-0.85"
+   ]
+  },
+  "2555": {
+   "anchors": [
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.2333,
+     "fi": 374,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.4849,
+     "cy": 0.3611,
+     "bw": 0.753,
+     "bh": 0.3194,
+     "note": "apex offset -8 from gt_fi 382 (gt t 6.367)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.3167,
+     "fi": 379,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.512,
+     "cy": 0.3569,
+     "bw": 0.7108,
+     "bh": 0.35,
+     "note": "apex offset -3 from gt_fi 382 (gt t 6.367)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.4333,
+     "fi": 386,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.497,
+     "cy": 0.3472,
+     "bw": 0.7048,
+     "bh": 0.3306,
+     "note": "apex offset 4 from gt_fi 382 (gt t 6.367)"
+    },
+    {
+     "source": "HUMAN_GT",
+     "t_s": 6.5333,
+     "fi": 392,
+     "visibility": "visible",
+     "ambiguous": false,
+     "cx": 0.5964,
+     "cy": 0.3444,
+     "bw": 0.6145,
+     "bh": 0.2917,
+     "note": "apex offset 10 from gt_fi 382 (gt t 6.367)"
+    }
+   ],
+   "notes": [
+    "Instagram Reels screen recording; huge diver, dense boxes; W=166"
+   ]
+  }
+ }
+}

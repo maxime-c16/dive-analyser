@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_approach_0060",
+  "dive_id": "PARIS_2819",
+  "phase": "approach",
+  "frame_index": 60,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 1.0,
+  "actual_pts_s": 1.0,
+  "image_sha256": "a56aaa8700f21ecd406c49123ef1773f0ca1ba7c16f0cc8fd8087c2eafa27b42",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    710.7437619961612,
+    511.1084452975048,
+    983.968330134357,
+    924.7456813819578
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:58:38.144327+00:00"
+}

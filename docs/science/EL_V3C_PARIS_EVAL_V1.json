@@ -1,0 +1,66 @@
+{
+  "label": "EL_V3C_PARIS_EVAL_V1",
+  "date": "2026-09-09",
+  "paris_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "dive_code": "5122D",
+  "context": "HURDLE",
+  "fps": 56.51697699890471,
+  "n_frames": 322,
+  "gt": {
+    "takeoff": 3.12,
+    "apex": 3.57,
+    "wc": 4.22
+  },
+  "v2_1": {
+    "variant": "V2.1",
+    "prep_end_t": 0.683333,
+    "takeoff_t": 1.435,
+    "apex_t": 1.618333,
+    "wc_t": 4.403333,
+    "complete": true,
+    "errors": {
+      "takeoff": 1.685,
+      "apex": 1.9517,
+      "wc": 0.1833
+    }
+  },
+  "v2_2": {
+    "variant": "V2.2",
+    "prep_end_t": 0.683333,
+    "takeoff_t": 1.785,
+    "apex_t": 2.018333,
+    "wc_t": 4.403333,
+    "complete": true,
+    "errors": {
+      "takeoff": 1.335,
+      "apex": 1.5517,
+      "wc": 0.1833
+    }
+  },
+  "v3_c0": {
+    "variant": "V3-C0",
+    "prep_end_t": 0.683333,
+    "takeoff_t": 1.435,
+    "apex_t": 1.618333,
+    "wc_t": 4.086667,
+    "complete": true,
+    "errors": {
+      "takeoff": 1.685,
+      "apex": 1.9517,
+      "wc": 0.1333
+    }
+  },
+  "v3_c1": {
+    "variant": "V3-C1",
+    "prep_end_t": 0.683333,
+    "takeoff_t": 2.936667,
+    "apex_t": 3.536667,
+    "wc_t": 4.403333,
+    "complete": true,
+    "errors": {
+      "takeoff": 0.1833,
+      "apex": 0.0333,
+      "wc": 0.1833
+    }
+  }
+}

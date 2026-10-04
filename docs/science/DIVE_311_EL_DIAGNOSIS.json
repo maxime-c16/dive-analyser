@@ -1,0 +1,77 @@
+{
+  "label": "DIVE_311_EL_DIAGNOSIS",
+  "date": "2026-09-09",
+  "dive_id": 311,
+  "code": "401C",
+  "context": "STANDING",
+  "supervisor_question": "~4 second failure diagnosis",
+  "d5_trajectory_quality": {
+    "n_total_frames": 577,
+    "n_det_frames": 358,
+    "det_rate": "62.0%",
+    "prep_phase_0_10s": {
+      "det_rate": "82%",
+      "cy_norm_range": [
+        0.1219,
+        0.1271
+      ],
+      "cy_norm_mean": 0.1243,
+      "verdict": "CORRECT \u2014 diver standing on board, highly stable position"
+    },
+    "approach_phase_10_14s": {
+      "det_rate": "37%",
+      "verdict": "DEGRADED \u2014 diver walking to/bouncing on board; D5 loses diver 63% of frames",
+      "impact": "Large gaps (>0.20s) prevent velocity calculation; prep_end detection fails"
+    },
+    "flight_phase_13_75_14_82s": {
+      "anchor_takeoff_fi_412": {
+        "cy_norm": 0.1467,
+        "conf": null,
+        "note": "NO_DET at GT takeoff frame"
+      },
+      "flight_observed": "cy_norm drops from 0.12 to 0.062 (apex at fi=422, t=14.081s)",
+      "target_switching": "Velocity oscillates \u00b11.7 cy_norm/s due to D5 switching between in-flight diver and board area",
+      "verdict": "TRAJECTORY_CHAOTIC \u2014 target switching invalidates flight velocity signal"
+    },
+    "post_wc_14_82s_plus": {
+      "cy_norm": "~0.11 (diver or pool-deck detection)",
+      "note": "Post-water-contact detections at same cy_norm as prep \u2014 confounds EL"
+    },
+    "d5_trajectory_verdict": "STRUCTURALLY_CORRECT_BUT_NOISY",
+    "note": "D5 correctly follows the diver when visible and detects the correct target at anchor frames. However, proxy resolution (202x360) causes flight-phase target switching and approach-phase detection gaps that break EL input quality."
+  },
+  "el_trace": {
+    "prep_end_search": {
+      "motion_vel_thresh": 0.02,
+      "observed": "prep_end returned at i=281, t=13.714s \u2014 just before actual takeoff!",
+      "root_cause": "10-14s approach phase has 63% NO_DET. Large gaps (>0.20s) between valid frames yield vel=None (skipped). Valid frames that DO appear in 10-14s remain at cy_norm\u22480.12, appearing as continued preparation. prep_end is only found at t=13.714s when velocity FIRST exceeds threshold due to actual takeoff motion being detected."
+    },
+    "takeoff_search": {
+      "search_start_t": 13.814,
+      "note": "Searches AFTER 13.814s \u2014 0.07s after actual GT takeoff (13.754s)",
+      "found": "Spurious takeoff at t=14.882s \u2014 after actual water contact (GT=14.821s)!",
+      "found_velocity": -0.0571,
+      "root_cause": "Actual takeoff (13.75-14.1s) shows chaotic velocity due to target switching. No sustained 0.15s window of v < -0.04 exists in the flight phase. First sustained negative window found AFTER water entry, from post-wc target changing position."
+    },
+    "el_v2_1_outcome": {
+      "takeoff": null,
+      "apex": null,
+      "water_contact": null,
+      "complete": false
+    },
+    "el_v2_2_outcome": {
+      "takeoff": null,
+      "apex": null,
+      "water_contact": null,
+      "complete": false
+    }
+  },
+  "diagnosis": {
+    "is_el_bug": false,
+    "is_perception_bug": false,
+    "root_cause": "PROXY_RESOLUTION_COVERAGE_GAP",
+    "explanation": "D5_FRAMEWISE at op_conf=0.05 on 202x360 @ 29.97fps proxy videos fails to maintain continuous detection through the 1-1.5s dive flight. During STANDING approach (10-14s), detection drops to 37%, breaking EL prep detection. During flight, target switching between diver and background causes velocity noise >1.0 cy_norm/s that overwhelms the 0.04 threshold signal. EL V2.1/V2.2 were designed for high-resolution trajectories with \u226590% flight coverage. The proxy proxy video format violates this assumption.",
+    "independent_of_el_parameters": true,
+    "supervisor_question_answered": "The '~4 second failure' is that EL finds prep_end at 13.714s (4 frames before actual takeoff) because the 10-14s approach gap makes preparation appear to extend to that point. EL then misses the actual takeoff and finds a spurious one at 14.882s (after water contact). This is an EL scope limitation on proxy-resolution trajectories, not an independent Event Logic failure specific to Dive 311."
+  }
+}

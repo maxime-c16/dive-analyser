@@ -1,0 +1,219 @@
+{
+  "label": "PROC_V3B_EVALUATION_V1",
+  "date": "2026-09-09",
+  "n_dives": 6,
+  "n_complete": 3,
+  "params_v3b": {
+    "variant": "V3B",
+    "smooth_window_s": 0.35,
+    "interp_max_gap_s": 0.3,
+    "vel_max_gap_s": 0.2,
+    "static_var_threshold": 0.0015,
+    "takeoff_vel_threshold": 0.04,
+    "takeoff_sustained_s": 0.15,
+    "takeoff_min_after_prep_s": 0.1,
+    "hurdle_post_plateau_guard_s": 0.4,
+    "apex_search_start_s": 0.08,
+    "water_line_cy_norm": 0.5,
+    "water_contact_method": "cy_threshold_or_dropout",
+    "water_contact_min_after_apex_s": 0.05,
+    "min_coverage_for_confident": 0.15,
+    "use_scene_priors": false,
+    "water_line_auto": false,
+    "apex_max_window_s": 1.5,
+    "wc_max_window_s": 2.5,
+    "motion_vel_thresh_factor_standing": 0.7,
+    "motion_vel_thresh_factor_hurdle": 0.5,
+    "static_min_duration_standing_s": 0.4,
+    "static_min_duration_hurdle_s": 0.5,
+    "wc_boundary_fallback_frac": 0.8
+  },
+  "per_dive": {
+    "133": {
+      "dive_id": 133,
+      "code": "301B",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "wc": 2.95027
+      },
+      "n_frames": 178,
+      "coverage": 0.5843,
+      "fps": 29.97,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": 1.134467,
+        "takeoff_t": 1.634967,
+        "apex_t": 2.369033,
+        "water_contact_t": 2.8028,
+        "complete": true,
+        "coverage": 0.5843,
+        "context_detected": "STANDING",
+        "errors": {
+          "takeoff": 0.1653,
+          "apex": 0.2854,
+          "wc": 0.1475
+        }
+      }
+    },
+    "311": {
+      "dive_id": 311,
+      "code": "401C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "wc": 14.821262
+      },
+      "n_frames": 577,
+      "coverage": 0.6205,
+      "fps": 29.97,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": 17.3173,
+        "takeoff_t": null,
+        "apex_t": null,
+        "water_contact_t": null,
+        "complete": false,
+        "coverage": 0.6205,
+        "context_detected": "STANDING",
+        "errors": {
+          "takeoff": null,
+          "apex": null,
+          "wc": null
+        }
+      }
+    },
+    "676": {
+      "dive_id": 676,
+      "code": "301A",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 3.553575,
+        "apex": 3.886907,
+        "wc": 4.853569
+      },
+      "n_frames": 222,
+      "coverage": 0.8153,
+      "fps": 29.97,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": null,
+        "takeoff_t": null,
+        "apex_t": null,
+        "water_contact_t": null,
+        "complete": false,
+        "coverage": 0.8153,
+        "context_detected": "STANDING",
+        "errors": {
+          "takeoff": null,
+          "apex": null,
+          "wc": null
+        }
+      }
+    },
+    "1040": {
+      "dive_id": 1040,
+      "code": "102C",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 4.463857,
+        "apex": 4.797189,
+        "wc": 5.413853
+      },
+      "n_frames": 332,
+      "coverage": 1.0,
+      "fps": 29.97,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": null,
+        "takeoff_t": null,
+        "apex_t": null,
+        "water_contact_t": null,
+        "complete": false,
+        "coverage": 1.0,
+        "context_detected": "HURDLE",
+        "errors": {
+          "takeoff": null,
+          "apex": null,
+          "wc": null
+        }
+      }
+    },
+    "2169": {
+      "dive_id": 2169,
+      "code": "101B",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 6.46124,
+        "apex": 6.761239,
+        "wc": 7.694569
+      },
+      "n_frames": 1078,
+      "coverage": 1.0,
+      "fps": 59.94,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": 5.9059,
+        "takeoff_t": 7.741067,
+        "apex_t": 8.008,
+        "water_contact_t": 8.05805,
+        "complete": true,
+        "coverage": 1.0,
+        "context_detected": "HURDLE",
+        "errors": {
+          "takeoff": 1.2798,
+          "apex": 1.2468,
+          "wc": 0.3635
+        }
+      }
+    },
+    "2387": {
+      "dive_id": 2387,
+      "code": "5411C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "wc": 5.499937
+      },
+      "n_frames": 748,
+      "coverage": 0.8917,
+      "fps": 29.97,
+      "video_size": [
+        202,
+        360
+      ],
+      "v3b": {
+        "prep_end_t": 1.9019,
+        "takeoff_t": 2.335667,
+        "apex_t": 2.869533,
+        "water_contact_t": 5.338667,
+        "complete": true,
+        "coverage": 0.8917,
+        "context_detected": "STANDING",
+        "errors": {
+          "takeoff": 2.1476,
+          "apex": 1.9637,
+          "wc": 0.1613
+        }
+      }
+    }
+  }
+}

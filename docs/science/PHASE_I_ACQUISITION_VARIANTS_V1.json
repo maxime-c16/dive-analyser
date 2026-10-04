@@ -1,0 +1,21 @@
+{
+  "label": "PHASE_I_ACQUISITION_VARIANTS_V1",
+  "created": "2026-09-06T10:02:07.943250+00:00",
+  "variants": {
+    "H1": "confidence-sum (current)",
+    "I1": "motion-coherent: vertical displacement + temporal span + water-exit, stationary rejection (disp<0.15)",
+    "I2": "flight-arc: apex detection (up-then-down trajectory), air/water corridor"
+  },
+  "note": "Evaluated on 3 DEVELOPMENT stage-trace dives only (133, 2555, 2541) due to compute constraints.",
+  "per_dive": {
+    "133": {
+      "error": "Invalid format specifier '.3f if h1r.get(\"selected_iou\") else \"none\"' for object of type 'float'"
+    },
+    "2555": {
+      "error": "Invalid format specifier '.3f if h1r.get(\"selected_iou\") else \"none\"' for object of type 'float'"
+    },
+    "2541": {
+      "error": "unsupported format string passed to NoneType.__format__"
+    }
+  }
+}

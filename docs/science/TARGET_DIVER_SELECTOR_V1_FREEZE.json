@@ -1,0 +1,61 @@
+{
+  "label": "TARGET_DIVER_SELECTOR_V1_FREEZE",
+  "date": "2026-09-08",
+  "chosen_selector": "S1_GLOBAL_PATH",
+  "rejected_selectors": {
+    "S0_HIGHEST_CONFIDENCE": "baseline; ALL correct_selection_rate=0.4839, HURDLE=0.0, coverage=0.9022 but confidently wrong-locks on both HURDLE dives with no failure signal",
+    "S2_TRACK_QUALITY_BYTETRACK": "ALL correct_selection_rate=0.2581, mean_target_coverage=0.1333 (catastrophic fragmentation into many short tracks) -- worse than S0 on every axis, rejected"
+  },
+  "selection_rationale": "S1 has a higher correct-identity rate than S0 (0.5161 vs 0.4839 ALL, n=33 evaluable DEVELOPMENT reference frames across 12 dives: 4 STANDING / 8 HURDLE, classified via the frozen Event Logic classify_context() applied to each dive's real dive code, not a hand guess). Context breakdown: STANDING 0.7273 (tied, both selectors); HURDLE 0.40 (S1) vs 0.35 (S0). S1 additionally fails safe (outputs NULL) on the one DEVELOPMENT trajectory (dive 2625, HURDLE) that is genuinely static throughout the whole sequence, instead of confidently reporting a wrong lock the way S0 does. Priority per packet: (1) correct identity -> S1 wins on ALL and HURDLE, ties on STANDING; (2) robustness -> S1's fail-safe NULL is preferred over S0's silent wrong-lock; (3) simplicity -> not decisive since S1 already wins on (1) and (2). S2 is disqualified outright by catastrophic coverage collapse (13% mean coverage). CORRECTION NOTE: an earlier working draft of this analysis mislabeled dive context (treated only 2 of the 12 dives as HURDLE using a hand-guessed dict instead of each dive's real code run through classify_context()); this freeze uses the corrected 4 STANDING / 8 HURDLE split.",
+  "detector_identity": {
+    "model": "DIVER_DETECTOR_D3_V8N",
+    "sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+    "conf_threshold": 0.05,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "reference": "docs/science/D3_1_OPERATING_POINT_FREEZE.json -- UNCHANGED by this packet"
+  },
+  "algorithm": "Deterministic Viterbi (dynamic programming) over per-frame states = {every raw D3.1 candidate at t} union {NULL}",
+  "scoring_terms": {
+    "observation": {
+      "candidate": "log(max(conf, 1e-6))",
+      "NULL": "LOG_NULL_OBS = -3.5 (fixed, ~log(0.03); competes with a very-low-confidence candidate)"
+    },
+    "transition": {
+      "candidate_i_to_candidate_j": "-W_DISP * min(disp_norm**2, DISP_CAP) - W_SCALE * min(dlog_bh**2, SCALE_CAP)",
+      "W_DISP": 40.0,
+      "DISP_CAP": 0.04,
+      "W_SCALE": 8.0,
+      "SCALE_CAP": 1.0,
+      "candidate_to_NULL_or_NULL_to_candidate": "-C_REACQUIRE = -3.0 (fixed)",
+      "NULL_to_NULL": "-C_NULL_HOLD = -0.3 (fixed, affordable long true gaps e.g. splash occlusion)"
+    },
+    "sequence_level_rejection": {
+      "rule": "Post-hoc, applied to the winning path AFTER Viterbi decoding, never as a per-step penalty. Compute the max cy_norm range within any 1.5s (STATIC_WINDOW_S) rolling window across the WHOLE selected sequence (NULL/gap frames skipped). If that max range is below STATIC_RANGE_MIN=0.03 EVERYWHERE (i.e. the path never shows coherent motion anywhere, not just near frame 0), the entire path is INVALID_STATIC_TRACK and is replaced with NULL for every frame.",
+      "critical_property": "A long static PREPARATION prefix followed by real coherent dive motion is NOT rejected -- the rolling window only needs to find sustained variation in ANY window anywhere in the sequence, independent of when it occurs.",
+      "bugfix_applied_this_cycle": "The pre-existing script computed and reported `flagged_invalid_static_track` as a diagnostic but never actually replaced the path with NULL when true (dive 2625 was still emitted as a confident wrong static lock despite being correctly flagged). Fixed in this packet: when flagged, path is now forced to all-NULL. This is a selector-algorithm correctness fix within Phase H's own explicit spec (reject whole-sequence static tracks), not a threshold/tuning change to Event Logic or the detector."
+    }
+  },
+  "null_state_semantics": "NULL is a first-class state in the Viterbi lattice at every frame (observation cost LOG_NULL_OBS, transition costs C_REACQUIRE/C_NULL_HOLD). Downstream a NULL frame means 'no target-diver estimate at this frame' -- it is never silently filled by interpolation or extrapolation at the selector level.",
+  "no_human_temporal_landmarks_used": true,
+  "environment": {
+    "python": "3.x via experiments/landmark_pilot/venv_c (isolated venv on diveanalyzer-server, NOT system python3)",
+    "key_packages": {
+      "torch": "2.10.0",
+      "torchvision": "0.25.0",
+      "ultralytics": "8.3.253",
+      "opencv-python": "5.0.0.93",
+      "numpy": "2.4.6",
+      "lap": "0.5.13"
+    },
+    "note": "system-wide python3 on diveanalyzer-server has NO lap/ultralytics installed (verified); no new scientific run in this packet depends on a system-wide --break-system-packages install. venv_c already had lap pinned from a prior cycle."
+  },
+  "development_authority_fingerprint": {
+    "corpus": "12 DEVELOPMENT dives: 133, 311, 524, 676, 1040, 2387, 2625, 2680, 2169, 2341, 2541, 2555",
+    "spatial_reference_frames_used": "docs/science/localization_annotations_v1/DEVELOPMENT_DESIGN/*.json (34 of 36 possible dive x phase frames annotated; 2169_apex and 524_water_contact are NOT_ANNOTATED and excluded from all rate denominators)",
+    "raw_candidates_source": "experiments/landmark_pilot/runs/target_selection_v1/{dive}_raw.json, produced by D3.1 at conf=0.05 via venv_c, frozen for this packet",
+    "comparison_result": "experiments/landmark_pilot/runs/target_selection_v1/phase_j_selector_comparison.json"
+  },
+  "paris_firewall": "Paris human spatial labels (Phase M onward) MUST NOT be used to adjust any parameter in this file. This freeze is final before Paris labels are ever opened. Enforced by test (see Phase V).",
+  "status": "FROZEN"
+}

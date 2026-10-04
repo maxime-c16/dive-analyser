@@ -1,0 +1,15 @@
+{
+  "label": "PHASE_N_COCO_TARGET_DIVER_AUDIT",
+  "date": "2026-09-07",
+  "model": "yolov8n (COCO-pretrained)",
+  "representation": "R360 (640x360, 322 frames)",
+  "conf_threshold_standard": 0.1,
+  "gt_takeoff_person_at_0_10": false,
+  "gt_apex_person_at_0_10": false,
+  "gt_wc_person_at_0_10": false,
+  "gt_diver_region_hits": 0,
+  "max_person_conf_in_action_window": 0.0224,
+  "note": "COCO detects 0 persons at conf>=0.10 in any action-window frame. At conf=0.001, persons detected at max_conf=0.022 (noise level). Person detections at cy~0.37-0.50 (mid-frame) across all frames at conf=0.001 \u2014 likely spectators in background but below operationally useful threshold.",
+  "prior_cycle_correction": "PHASE_K_D2_FREEZE claimed 'COCO yolov8n: 300/322 at detection_rate=0.932 (spectators)' based on V1 report. V1 used 1080p representation. At R360 (360p), spectators are too small for COCO to detect at useful confidence. Claim SUPERSEDED.",
+  "conclusion": "SCENE_PRIOR_CANNOT_RECOVER_MISSING_DETECTION"
+}

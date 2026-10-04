@@ -1,0 +1,43 @@
+dive_id: 1040
+annotation_schema_version: v2_pts_repair
+annotator: maxime
+annotation_timestamp: '2026-09-05T17:52:53Z'
+run_uuid: '14'
+media_checksum_sha256: 9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e
+landmarks:
+  takeoff:
+    state: HUMAN_CORRECTED
+    frame_index: 133
+    timestamp_seconds: 4.463857
+    auto_frame_index: 184
+    auto_timestamp_seconds: 6.1395
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN
+    v1_frame_index: 268
+    frame_pts_seconds: 4.437767
+  apex:
+    state: HUMAN_CORRECTED
+    frame_index: 143
+    timestamp_seconds: 4.797189
+    auto_frame_index: 268
+    auto_timestamp_seconds: 8.9423
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN
+    v1_frame_index: 288
+    frame_pts_seconds: 4.771433
+  water_contact:
+    state: HUMAN_CORRECTED
+    frame_index: 162
+    timestamp_seconds: 5.413853
+    auto_frame_index: 268
+    auto_timestamp_seconds: 8.9423
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN
+    v1_frame_index: 325
+    frame_pts_seconds: 5.4054
+split: DEVELOPMENT_DESIGN
+source_v1_sha256: 7a1c8038bb9f299a6338e860f43d44f2bfe2441354395e04b9206f8fe4945762
+input_media_sha256: b93aca3d4920b48aa76964ebe6263a2405ddb1b6b6f5e629a292e163b68c249c
+repair_authority: Maintainer authorization in perception decomposition thread, 2026-09-06
+repair_rule: Keep human timestamp and state; frame index is last presentation timestamp
+  <= human time

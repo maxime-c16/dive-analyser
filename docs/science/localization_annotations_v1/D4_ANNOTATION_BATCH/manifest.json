@@ -1,0 +1,1084 @@
+{
+  "label": "D4_ANNOTATION_BATCH",
+  "date": "2026-09-08",
+  "purpose": "Failure-driven frames for D4 detector reopen (DETECTOR_D4_REOPEN packet)",
+  "status": "PENDING_ANNOTATION",
+  "total_frames": 22,
+  "paris_firewall": "DEVELOPMENT_ONLY — Paris excluded",
+  "exhaustive_ceiling_finding": "D3 localizes target at conf=0.001 in 30/31 frames; failure is confidence calibration. D4 goal: push BELOW_THRESHOLD frames to TARGET_AVAILABLE by training on these failure frames.",
+  "primary_failure_dives": [
+    2341,
+    2555,
+    2680,
+    676,
+    2541
+  ],
+  "frames": [
+    {
+      "frame_id": "d2341_pre_flight_preparation",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 150,
+      "pts_approx_s": 2.5,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_flight_preparation",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2341_pre_flight_preparation.jpg",
+      "frame_sha256": "7f7cd2d04b302599e7c10064a9c2d29748e6d04ef0dbf43a4c6637033e4dca21",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.79331970214844,
+            147.43463134765625,
+            184.1973876953125,
+            171.487548828125
+          ],
+          "conf": 0.3777
+        },
+        {
+          "xyxy_px": [
+            47.840484619140625,
+            234.27713012695312,
+            96.9028091430664,
+            309.1523132324219
+          ],
+          "conf": 0.0689
+        },
+        {
+          "xyxy_px": [
+            71.42315673828125,
+            196.16915893554688,
+            88.5087661743164,
+            231.3925018310547
+          ],
+          "conf": 0.0622
+        },
+        {
+          "xyxy_px": [
+            81.20362091064453,
+            155.80113220214844,
+            93.62393951416016,
+            179.99447631835938
+          ],
+          "conf": 0.0614
+        },
+        {
+          "xyxy_px": [
+            19.74488067626953,
+            131.29058837890625,
+            43.354427337646484,
+            160.4962615966797
+          ],
+          "conf": 0.0574
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          48,
+          232.5,
+          97,
+          308.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:14.075125+00:00"
+      }
+    },
+    {
+      "frame_id": "d2341_pre_takeoff_board_approach",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 190,
+      "pts_approx_s": 3.167,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_takeoff_board_approach",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2341_pre_takeoff_board_approach.jpg",
+      "frame_sha256": "678efb193ba238fdce4c118502456d769db7b438d08e787b7b6afcd23c28dc2c",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.78823852539062,
+            147.39549255371094,
+            184.33880615234375,
+            171.6842041015625
+          ],
+          "conf": 0.4098
+        },
+        {
+          "xyxy_px": [
+            53.47479248046875,
+            248.11537170410156,
+            72.82733154296875,
+            292.759765625
+          ],
+          "conf": 0.3671
+        },
+        {
+          "xyxy_px": [
+            38.2396125793457,
+            246.92352294921875,
+            89.02995300292969,
+            309.1446533203125
+          ],
+          "conf": 0.1201
+        },
+        {
+          "xyxy_px": [
+            19.74040985107422,
+            131.28790283203125,
+            43.47135925292969,
+            160.47579956054688
+          ],
+          "conf": 0.0655
+        },
+        {
+          "xyxy_px": [
+            81.59278106689453,
+            156.59678649902344,
+            93.55078125,
+            180.03961181640625
+          ],
+          "conf": 0.0545
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          40,
+          246.5,
+          89,
+          308.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:26.514987+00:00"
+      }
+    },
+    {
+      "frame_id": "d2341_mid_flight_between_takeoff_apex",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 225,
+      "pts_approx_s": 3.75,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "mid_flight_between_takeoff_apex",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2341_mid_flight_between_takeoff_apex.jpg",
+      "frame_sha256": "b1e7659b3ebf8004cce5dd6e0a5142a0431a19cd85c263e5222cad8bc09da172",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.78453063964844,
+            147.4100799560547,
+            184.3686065673828,
+            171.6744842529297
+          ],
+          "conf": 0.4143
+        },
+        {
+          "xyxy_px": [
+            19.73136329650879,
+            131.3037109375,
+            43.43809127807617,
+            160.4866943359375
+          ],
+          "conf": 0.0627
+        },
+        {
+          "xyxy_px": [
+            81.1327133178711,
+            155.00775146484375,
+            93.72870635986328,
+            179.8556671142578
+          ],
+          "conf": 0.0596
+        },
+        {
+          "xyxy_px": [
+            74.50757598876953,
+            146.96620178222656,
+            95.30654907226562,
+            181.42413330078125
+          ],
+          "conf": 0.0517
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          63,
+          224.5,
+          109,
+          272.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:32.059617+00:00"
+      }
+    },
+    {
+      "frame_id": "d2341_post_apex_descending",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 255,
+      "pts_approx_s": 4.25,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "post_apex_descending",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2341_post_apex_descending.jpg",
+      "frame_sha256": "ecafb74bdd9208ca633e4be0f9fc40f7aa489f6f50b0a7ac3ef6ea65abf2e889",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.7646942138672,
+            147.43704223632812,
+            183.9324188232422,
+            170.85501098632812
+          ],
+          "conf": 0.3574
+        },
+        {
+          "xyxy_px": [
+            3.3925695419311523,
+            252.6769561767578,
+            46.087242126464844,
+            331.942138671875
+          ],
+          "conf": 0.2201
+        },
+        {
+          "xyxy_px": [
+            6.485036373138428,
+            285.95758056640625,
+            25.6015567779541,
+            334.2736511230469
+          ],
+          "conf": 0.0822
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          71,
+          230.5,
+          146,
+          279.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:39.590136+00:00"
+      }
+    },
+    {
+      "frame_id": "d2341_hard_negative_background",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 50,
+      "pts_approx_s": 0.833,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "hard_negative_background",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2341_hard_negative_background.jpg",
+      "frame_sha256": "0a4e94e580481516bff93754719f1cfa225da31deb7daec197ac214c2b995881",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.77598571777344,
+            147.44036865234375,
+            184.23309326171875,
+            171.48263549804688
+          ],
+          "conf": 0.4139
+        },
+        {
+          "xyxy_px": [
+            69.91777801513672,
+            270.48779296875,
+            107.08427429199219,
+            302.0605773925781
+          ],
+          "conf": 0.3417
+        },
+        {
+          "xyxy_px": [
+            0.0,
+            253.3844757080078,
+            20.674345016479492,
+            306.799560546875
+          ],
+          "conf": 0.1094
+        },
+        {
+          "xyxy_px": [
+            81.17868041992188,
+            155.78091430664062,
+            93.61483001708984,
+            179.9637451171875
+          ],
+          "conf": 0.0717
+        },
+        {
+          "xyxy_px": [
+            19.755510330200195,
+            131.3346710205078,
+            43.3801155090332,
+            160.45376586914062
+          ],
+          "conf": 0.0617
+        },
+        {
+          "xyxy_px": [
+            74.63990783691406,
+            147.0729217529297,
+            95.34465789794922,
+            182.06895446777344
+          ],
+          "conf": 0.0551
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          1,
+          249.5,
+          20,
+          308.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:48.404783+00:00"
+      }
+    },
+    {
+      "frame_id": "d2341_hard_negative_early_prep",
+      "dive_id": 2341,
+      "media_key": "3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc",
+      "frame_index": 100,
+      "pts_approx_s": 1.667,
+      "fps": 60.0,
+      "width": 202,
+      "height": 360,
+      "purpose": "hard_negative_early_prep",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2341_hard_negative_early_prep.jpg",
+      "frame_sha256": "a45c6fa6213e86ab1347a01db6d8d88062987af8496699388142c389b6891cfd",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            169.78277587890625,
+            147.44654846191406,
+            184.2183380126953,
+            171.46917724609375
+          ],
+          "conf": 0.4011
+        },
+        {
+          "xyxy_px": [
+            24.914365768432617,
+            249.91183471679688,
+            68.69635009765625,
+            302.2254333496094
+          ],
+          "conf": 0.2022
+        },
+        {
+          "xyxy_px": [
+            65.84455108642578,
+            274.08526611328125,
+            102.1438217163086,
+            304.10980224609375
+          ],
+          "conf": 0.0776
+        },
+        {
+          "xyxy_px": [
+            70.81362915039062,
+            195.74464416503906,
+            88.76528930664062,
+            233.58230590820312
+          ],
+          "conf": 0.065
+        },
+        {
+          "xyxy_px": [
+            81.18389892578125,
+            155.8486785888672,
+            93.60102844238281,
+            179.98585510253906
+          ],
+          "conf": 0.0626
+        },
+        {
+          "xyxy_px": [
+            19.7666015625,
+            131.32220458984375,
+            43.264930725097656,
+            160.48626708984375
+          ],
+          "conf": 0.0573
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          24,
+          249.5,
+          67,
+          302.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:11:57.588896+00:00"
+      }
+    },
+    {
+      "frame_id": "d2555_pre_takeoff_hurdle_approach",
+      "dive_id": 2555,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "frame_index": 200,
+      "pts_approx_s": 3.375,
+      "fps": 59.261,
+      "width": 166,
+      "height": 360,
+      "purpose": "pre_takeoff_hurdle_approach",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2555_pre_takeoff_hurdle_approach.jpg",
+      "frame_sha256": "8e9f54c9e53695c9ba74663e6cbcfee712da36e94054f84d3d910e93fc542a5d",
+      "d3_hints_at_conf005": [],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          36,
+          38.5,
+          115,
+          256.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:12:12.609970+00:00"
+      }
+    },
+    {
+      "frame_id": "d2555_mid_flight_after_takeoff",
+      "dive_id": 2555,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "frame_index": 300,
+      "pts_approx_s": 5.062,
+      "fps": 59.261,
+      "width": 166,
+      "height": 360,
+      "purpose": "mid_flight_after_takeoff",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2555_mid_flight_after_takeoff.jpg",
+      "frame_sha256": "4918e1aa17c2b24d0601293e86e1b9fe49f94e0dd08884b7c91d8f79ef30a3eb",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            112.41341400146484,
+            197.99319458007812,
+            144.73765563964844,
+            232.32276916503906
+          ],
+          "conf": 0.3052
+        },
+        {
+          "xyxy_px": [
+            71.23231506347656,
+            112.23951721191406,
+            151.43923950195312,
+            173.8019561767578
+          ],
+          "conf": 0.0771
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          0,
+          84.5,
+          165,
+          186.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:12:23.488709+00:00"
+      }
+    },
+    {
+      "frame_id": "d2555_descending_toward_water",
+      "dive_id": 2555,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "frame_index": 450,
+      "pts_approx_s": 7.593,
+      "fps": 59.261,
+      "width": 166,
+      "height": 360,
+      "purpose": "descending_toward_water",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2555_descending_toward_water.jpg",
+      "frame_sha256": "8a31e43ad0607d347950aaf63497d53bc018f0247e4457e7f2b16544aab570f0",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            23.638492584228516,
+            75.82203674316406,
+            114.59457397460938,
+            185.8768768310547
+          ],
+          "conf": 0.13
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          23.6385,
+          75.822,
+          114.5946,
+          185.8769
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:12:29.633595+00:00"
+      }
+    },
+    {
+      "frame_id": "d2555_hard_negative_background",
+      "dive_id": 2555,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "frame_index": 50,
+      "pts_approx_s": 0.844,
+      "fps": 59.261,
+      "width": 166,
+      "height": 360,
+      "purpose": "hard_negative_background",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2555_hard_negative_background.jpg",
+      "frame_sha256": "e9f050d37f0c5196c2a058bdcecb59af77e14dba8cc7d5bc76c0a776beb3f400",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            5.354894161224365,
+            254.99668884277344,
+            32.499820709228516,
+            285.9586486816406
+          ],
+          "conf": 0.1835
+        },
+        {
+          "xyxy_px": [
+            86.57511138916016,
+            142.38543701171875,
+            147.03695678710938,
+            261.6920166015625
+          ],
+          "conf": 0.1404
+        },
+        {
+          "xyxy_px": [
+            81.09230041503906,
+            52.12116622924805,
+            154.40435791015625,
+            161.37644958496094
+          ],
+          "conf": 0.1375
+        },
+        {
+          "xyxy_px": [
+            81.24252319335938,
+            279.207275390625,
+            125.42294311523438,
+            326.4407958984375
+          ],
+          "conf": 0.1142
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          82,
+          53.5,
+          156,
+          262.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:12:36.242726+00:00"
+      }
+    },
+    {
+      "frame_id": "d2555_hurdle_bouncing",
+      "dive_id": 2555,
+      "media_key": "dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44",
+      "frame_index": 130,
+      "pts_approx_s": 2.194,
+      "fps": 59.261,
+      "width": 166,
+      "height": 360,
+      "purpose": "hurdle_bouncing",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2555_hurdle_bouncing.jpg",
+      "frame_sha256": "de7e98a0c5c565cb13a43b3ad04ae2493f5c77d92790e9c85a98582756089dc5",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            71.7662124633789,
+            234.5961151123047,
+            98.11836242675781,
+            275.90130615234375
+          ],
+          "conf": 0.0686
+        },
+        {
+          "xyxy_px": [
+            61.162757873535156,
+            78.15946197509766,
+            166.0,
+            212.9510498046875
+          ],
+          "conf": 0.0589
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          46,
+          83.5,
+          163,
+          284.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:12:42.063501+00:00"
+      }
+    },
+    {
+      "frame_id": "d2680_pre_takeoff_approach",
+      "dive_id": 2680,
+      "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1",
+      "frame_index": 160,
+      "pts_approx_s": 2.671,
+      "fps": 59.908,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_takeoff_approach",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2680_pre_takeoff_approach.jpg",
+      "frame_sha256": "de7ac0209cd4eee56ea4a079e27eea9fa01c848cbc1a91e465b5b37219088261",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            123.77605438232422,
+            29.33323860168457,
+            165.2290802001953,
+            94.95244598388672
+          ],
+          "conf": 0.0663
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          146,
+          86.5,
+          179,
+          113.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:04.480735+00:00"
+      }
+    },
+    {
+      "frame_id": "d2680_post_takeoff_ascending",
+      "dive_id": 2680,
+      "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1",
+      "frame_index": 220,
+      "pts_approx_s": 3.672,
+      "fps": 59.908,
+      "width": 202,
+      "height": 360,
+      "purpose": "post_takeoff_ascending",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2680_post_takeoff_ascending.jpg",
+      "frame_sha256": "a099cf419f511388d96fbc2efe5afa218442074f0ae1fdb105a63cd51952c361",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            133.84512329101562,
+            122.05789947509766,
+            168.9664306640625,
+            170.1105194091797
+          ],
+          "conf": 0.4097
+        },
+        {
+          "xyxy_px": [
+            123.66514587402344,
+            29.589683532714844,
+            164.9813995361328,
+            94.6478500366211
+          ],
+          "conf": 0.0749
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          133.8451,
+          122.0579,
+          168.9664,
+          170.1105
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:09.587701+00:00"
+      }
+    },
+    {
+      "frame_id": "d2680_post_water_contact",
+      "dive_id": 2680,
+      "media_key": "d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1",
+      "frame_index": 260,
+      "pts_approx_s": 4.34,
+      "fps": 59.908,
+      "width": 202,
+      "height": 360,
+      "purpose": "post_water_contact",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2680_post_water_contact.jpg",
+      "frame_sha256": "0c1072f3fa7fae25885e0781f530495f5c39bc894a2662b50a0cd0fcee7067ad",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            122.91014862060547,
+            28.800458908081055,
+            166.19717407226562,
+            95.54595947265625
+          ],
+          "conf": 0.0709
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:22.491569+00:00"
+      }
+    },
+    {
+      "frame_id": "d676_pre_takeoff_board_stand",
+      "dive_id": 676,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "frame_index": 80,
+      "pts_approx_s": 2.669,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_takeoff_board_stand",
+      "has_diver_hint": true,
+      "frame_file": "frames/d676_pre_takeoff_board_stand.jpg",
+      "frame_sha256": "e297add341138bbab41f81f33e90d67c870d4152531ba777e9dcc45e3e158ce6",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            111.34054565429688,
+            69.52498626708984,
+            147.43785095214844,
+            128.8064422607422
+          ],
+          "conf": 0.1933
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          111.3405,
+          69.525,
+          147.4379,
+          128.8064
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:26.420568+00:00"
+      }
+    },
+    {
+      "frame_id": "d676_mid_flight_apex_region",
+      "dive_id": 676,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "frame_index": 125,
+      "pts_approx_s": 4.171,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "mid_flight_apex_region",
+      "has_diver_hint": true,
+      "frame_file": "frames/d676_mid_flight_apex_region.jpg",
+      "frame_sha256": "05abb9ef2ec91e1f31689bd8397b416e997105acf8d8c67bcdaf895280a9019a",
+      "d3_hints_at_conf005": [],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          59,
+          88.5,
+          126,
+          115.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:32.233492+00:00"
+      }
+    },
+    {
+      "frame_id": "d676_entering_water",
+      "dive_id": 676,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "frame_index": 165,
+      "pts_approx_s": 5.506,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "entering_water",
+      "has_diver_hint": true,
+      "frame_file": "frames/d676_entering_water.jpg",
+      "frame_sha256": "59594544feb79ccd3e832e575ee6c612dd3487255951ec7948779155c204cb17",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            0.0,
+            141.0867462158203,
+            30.061777114868164,
+            197.39654541015625
+          ],
+          "conf": 0.0636
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:35.806638+00:00"
+      }
+    },
+    {
+      "frame_id": "d676_hard_negative_early",
+      "dive_id": 676,
+      "media_key": "2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6",
+      "frame_index": 30,
+      "pts_approx_s": 1.001,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "hard_negative_early",
+      "has_diver_hint": null,
+      "frame_file": "frames/d676_hard_negative_early.jpg",
+      "frame_sha256": "fc875c4faf3c45aa9e79dabe7128ebd843b3501c8adb5924cf3258cd41f612e8",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            151.98696899414062,
+            67.26953125,
+            188.7761993408203,
+            127.53142547607422
+          ],
+          "conf": 0.073
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          151.987,
+          67.2695,
+          188.7762,
+          127.5314
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:39.682173+00:00"
+      }
+    },
+    {
+      "frame_id": "d2541_pre_takeoff_standing",
+      "dive_id": 2541,
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "frame_index": 500,
+      "pts_approx_s": 16.683,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_takeoff_standing",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2541_pre_takeoff_standing.jpg",
+      "frame_sha256": "5df76695562be1fbb6d56ba65d217a289e5d68a500a52dca2ab2efe16e396de1",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            113.51605987548828,
+            81.3350830078125,
+            152.80276489257812,
+            148.78424072265625
+          ],
+          "conf": 0.3969
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          113.5161,
+          81.3351,
+          152.8028,
+          148.7842
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:46.993612+00:00"
+      }
+    },
+    {
+      "frame_id": "d2541_mid_flight_between_apex_wc",
+      "dive_id": 2541,
+      "media_key": "cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358",
+      "frame_index": 548,
+      "pts_approx_s": 18.285,
+      "fps": 29.97,
+      "width": 202,
+      "height": 360,
+      "purpose": "mid_flight_between_apex_wc",
+      "has_diver_hint": true,
+      "frame_file": "frames/d2541_mid_flight_between_apex_wc.jpg",
+      "frame_sha256": "afbd690564172ddc979e1b717157e94963f1a5f847d0e787a69db578308011fb",
+      "d3_hints_at_conf005": [],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          58,
+          106.5,
+          135,
+          152.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:52.158827+00:00"
+      }
+    },
+    {
+      "frame_id": "d2625_pre_flight_hurdle",
+      "dive_id": 2625,
+      "media_key": "4dc9064e1692518c412a4e6e55f67f92d26959d2bfecb3147617e914da3d84fd",
+      "frame_index": 100,
+      "pts_approx_s": 1.668,
+      "fps": 59.94,
+      "width": 202,
+      "height": 360,
+      "purpose": "pre_flight_hurdle",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2625_pre_flight_hurdle.jpg",
+      "frame_sha256": "f6f14024a679c8b0c2c8ac4e4398ea49c784bf3384a88004702111e229379df6",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            136.0587615966797,
+            0.7579879760742188,
+            195.09654235839844,
+            46.6591911315918
+          ],
+          "conf": 0.5928
+        },
+        {
+          "xyxy_px": [
+            131.3446044921875,
+            48.205047607421875,
+            189.57826232910156,
+            130.0290069580078
+          ],
+          "conf": 0.1646
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "not_visible",
+        "bbox": null,
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:13:59.605630+00:00"
+      }
+    },
+    {
+      "frame_id": "d2169_hard_negative_before_dive",
+      "dive_id": 2169,
+      "media_key": "85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0",
+      "frame_index": 50,
+      "pts_approx_s": 0.834,
+      "fps": 59.94,
+      "width": 202,
+      "height": 360,
+      "purpose": "hard_negative_before_dive",
+      "has_diver_hint": null,
+      "frame_file": "frames/d2169_hard_negative_before_dive.jpg",
+      "frame_sha256": "6c5a1efd060b2947faab98431f2799f134d1ef4a3f762d72a362d798175f8ea6",
+      "d3_hints_at_conf005": [
+        {
+          "xyxy_px": [
+            47.73174285888672,
+            57.95844268798828,
+            100.82972717285156,
+            149.30477905273438
+          ],
+          "conf": 0.1392
+        },
+        {
+          "xyxy_px": [
+            155.87649536132812,
+            238.66001892089844,
+            193.7166290283203,
+            272.6781005859375
+          ],
+          "conf": 0.0961
+        },
+        {
+          "xyxy_px": [
+            52.28348922729492,
+            53.2166748046875,
+            80.58028411865234,
+            128.66375732421875
+          ],
+          "conf": 0.0614
+        },
+        {
+          "xyxy_px": [
+            157.09140014648438,
+            0.04149055480957031,
+            202.0,
+            45.39491653442383
+          ],
+          "conf": 0.053
+        }
+      ],
+      "annotation": {
+        "state": "HUMAN_REVIEWED",
+        "visibility": "visible",
+        "bbox": [
+          51,
+          52.5,
+          85,
+          133.5
+        ],
+        "annotator": "maxime",
+        "annotated_at": "2026-09-08T17:14:30.573374+00:00"
+      }
+    }
+  ]
+}

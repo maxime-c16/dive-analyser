@@ -1,0 +1,32 @@
+# diveanalyzer-tunnel.yml — named Cloudflare Zero-Trust tunnel config (P9 prep).
+#
+# MACHINE-SIDE PREPARED ARTIFACT — NOT installed/enabled until the single
+# HUMAN_PROVIDER_ACTION (docs/architecture/EXTERNAL_ACCESS_V1.md §6) is done.
+# The running cloudflared-navidrome.service (ephemeral quick tunnel, port
+# 4533) is a DIFFERENT service and must not be touched.
+#
+# After the human creates the tunnel `diveanalyzer` in the Cloudflare Zero
+# Trust dashboard and routes `dive.<domain>` -> http://localhost:6091 :
+#   1. copy this file to /etc/cloudflared/diveanalyzer.yml with the real
+#      hostname + tunnel id/credentials path,
+#   2. deploy nginx/conf.d/external.conf (loopback-only :6091 vhost),
+#   3. add https://dive.<domain> to CORS_ALLOW_ORIGINS (exact, no wildcard),
+#   4. enable the systemd unit ops/cloudflared/diveanalyzer-tunnel.service.
+#
+# Security model (EXTERNAL_ACCESS_V1 §2/§3): TLS terminates at Cloudflare;
+# the origin hop is loopback-only HTTP to a dedicated nginx vhost which
+# NEVER exposes adminer; the app's own AppUser session auth remains the
+# ONLY authentication layer (no Cloudflare Access gate on app paths unless
+# separately decided).
+
+tunnel: REPLACE_WITH_TUNNEL_ID
+credentials-file: /etc/cloudflared/diveanalyzer-tunnel-credentials.json
+metrics: 127.0.0.1:20019
+no-autoupdate: true
+
+ingress:
+  # Dive Analyzer (app owns authentication; Cloudflare protects exposure)
+  - hostname: dive.REPLACE_WITH_DOMAIN
+    service: http://localhost:6091
+  # catch-all must exist; anything unmatched is refused
+  - service: http_status:502

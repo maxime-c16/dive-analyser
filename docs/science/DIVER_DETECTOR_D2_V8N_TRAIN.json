@@ -1,0 +1,17 @@
+{
+  "label": "DIVER_DETECTOR_D2_V8N_TRAIN",
+  "date": "2026-09-07",
+  "model": "yolov8n",
+  "dataset": "DATASET_D2_FREEZE",
+  "device": "mps",
+  "imgsz": 640,
+  "batch": 8,
+  "train_frames": 32,
+  "val_frames": 7,
+  "elapsed_s": 83.8,
+  "best_model_local": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/2efa7a57-b514-4ccc-a9d3-782faded73f5/scratchpad/runs/DIVER_DETECTOR_D2_V8N/weights/best.pt",
+  "val_mAP50": 0.0732,
+  "val_mAP50_95": 0.0276,
+  "val_precision": 0.0029,
+  "val_recall": 0.8571
+}

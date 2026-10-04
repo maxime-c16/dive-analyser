@@ -1,0 +1,1167 @@
+{
+ "authority": {
+  "digest": "740bf71dd29ac3e20725b2d5076183f83be4c5a7ce77c3ce791624fd4e7d3101",
+  "label": "FLIGHT_GT_HUMAN_V1",
+  "protocol_doc": "docs/science/FLIGHT_SEARCH_RECOVERY_V1_PROTOCOL.md",
+  "protocol_sha256": "5c3fb3444e99b3aa4f08237f8aa607e50278150bf619d353218d8a77fd6e515c"
+ },
+ "funnel": {
+  "all": {
+   "FROZEN_V3:360": {
+    "F0_topK": 0,
+    "F1_final_top5": 2,
+    "S0_raw_presence_ge_0.75": 11,
+    "S1_lattice_presence_ge_0.75": 10,
+    "S2_graph_oracle": 9,
+    "S3_pool": 0,
+    "dives": 15
+   },
+   "FROZEN_V3:hq": {
+    "F0_topK": 0,
+    "F1_final_top5": 0,
+    "S0_raw_presence_ge_0.75": 8,
+    "S1_lattice_presence_ge_0.75": 8,
+    "S2_graph_oracle": 6,
+    "S3_pool": 0,
+    "dives": 9
+   },
+   "FSR_V1:360": {
+    "S0_raw_presence_ge_0.75": 11,
+    "S1_lattice_presence_ge_0.75": 11,
+    "S2_graph_oracle": 11,
+    "S3_pool": 3,
+    "S3b_any_candidate": 3,
+    "S4_top1": 2,
+    "S4_top10": 3,
+    "S4_top20": 3,
+    "S4_top3": 2,
+    "S4_top5": 3,
+    "dives": 15
+   },
+   "FSR_V1:360+hq": {
+    "S0_raw_presence_ge_0.75": 8,
+    "S3b_any_candidate": 4,
+    "S4_top1": 1,
+    "S4_top10": 4,
+    "S4_top20": 4,
+    "S4_top3": 1,
+    "S4_top5": 2,
+    "dives": 9
+   },
+   "FSR_V1:360@event9": {
+    "S2_graph_oracle": 7,
+    "S3_pool": 3,
+    "S4_top1": 2,
+    "S4_top10": 3,
+    "S4_top20": 3,
+    "S4_top3": 2,
+    "S4_top5": 3,
+    "dives": 9
+   },
+   "FSR_V1:hq": {
+    "S0_raw_presence_ge_0.75": 8,
+    "S1_lattice_presence_ge_0.75": 8,
+    "S2_graph_oracle": 8,
+    "S3_pool": 2,
+    "S3b_any_candidate": 2,
+    "S4_top1": 0,
+    "S4_top10": 2,
+    "S4_top20": 2,
+    "S4_top3": 0,
+    "S4_top5": 0,
+    "dives": 9
+   }
+  },
+  "strict": {
+   "FROZEN_V3:360": {
+    "F0_topK": 0,
+    "F1_final_top5": 2,
+    "S0_raw_presence_ge_0.75": 12,
+    "S1_lattice_presence_ge_0.75": 11,
+    "S2_graph_oracle": 10,
+    "S3_pool": 0,
+    "dives": 15
+   },
+   "FROZEN_V3:hq": {
+    "F0_topK": 0,
+    "F1_final_top5": 0,
+    "S0_raw_presence_ge_0.75": 9,
+    "S1_lattice_presence_ge_0.75": 9,
+    "S2_graph_oracle": 7,
+    "S3_pool": 0,
+    "dives": 9
+   },
+   "FSR_V1:360": {
+    "S0_raw_presence_ge_0.75": 12,
+    "S1_lattice_presence_ge_0.75": 12,
+    "S2_graph_oracle": 12,
+    "S3_pool": 3,
+    "S3b_any_candidate": 3,
+    "S4_top1": 2,
+    "S4_top10": 3,
+    "S4_top20": 3,
+    "S4_top3": 2,
+    "S4_top5": 3,
+    "dives": 15
+   },
+   "FSR_V1:360+hq": {
+    "S0_raw_presence_ge_0.75": 9,
+    "S3b_any_candidate": 4,
+    "S4_top1": 1,
+    "S4_top10": 4,
+    "S4_top20": 4,
+    "S4_top3": 1,
+    "S4_top5": 2,
+    "dives": 9
+   },
+   "FSR_V1:360@event9": {
+    "S2_graph_oracle": 8,
+    "S3_pool": 3,
+    "S4_top1": 2,
+    "S4_top10": 3,
+    "S4_top20": 3,
+    "S4_top3": 2,
+    "S4_top5": 3,
+    "dives": 9
+   },
+   "FSR_V1:hq": {
+    "S0_raw_presence_ge_0.75": 9,
+    "S1_lattice_presence_ge_0.75": 9,
+    "S2_graph_oracle": 9,
+    "S3_pool": 2,
+    "S3b_any_candidate": 2,
+    "S4_top1": 0,
+    "S4_top10": 2,
+    "S4_top20": 2,
+    "S4_top3": 0,
+    "S4_top5": 0,
+    "dives": 9
+   }
+  }
+ },
+ "gt_authority": {
+  "FLIGHT_GT_HUMAN_V1": {
+   "blind": "no detector/candidate/draft shown; every box human-drawn",
+   "digest": "740bf71dd29ac3e20725b2d5076183f83be4c5a7ce77c3ce791624fd4e7d3101",
+   "discarded_pre_fix_events": [
+    "FGT1_EV_1304_takeoff",
+    "FGT1_EV_1304_water_contact"
+   ],
+   "indep_flight_durations_s": {
+    "1304": 1.4333,
+    "2204": 1.2167,
+    "2223": 1.4833,
+    "2526": 1.1667,
+    "2583": 0.7341,
+    "2839": 1.9667
+   },
+   "items": 123,
+   "repeatability_center_dist_norm": [
+    0.0099,
+    0.0233,
+    0.0154,
+    0.0393,
+    null,
+    "VISIBILITY_DISAGREE"
+   ],
+   "superseded_items": 10,
+   "visibility": {
+    "ambiguous": 2,
+    "not_visible": 5,
+    "partial": 1,
+    "visible": 115
+   }
+  },
+  "pre_existing": {
+   "CHAIN_DERIVED": "hurdle target_chains_v1: evaluator-seeded, interpolated, snapped to D5 candidates; not human",
+   "D5_MINED_HUMAN": "hurdle HUMAN_GT seeds = D5 mining frames (+-15 frames around events), D5 training labels",
+   "LANDMARK_HUMAN": "takeoff/apex/entry boxes, HUMAN_REVIEWED but D4/D5 training (DEV_TRAIN) or validation (2341/2353) labels",
+   "LEVEL_A_HUMAN": "STANDING L1A, 1-3 anchors per flight, not detector training",
+   "VISUAL_EVALUATOR": "1040/2541 hurdle seeds eyeballed by an agent; not human"
+  },
+  "queue_items_on_D5_mined_frames": [
+   "FGT1_2353_f00368",
+   "FGT1_311_f00432"
+  ]
+ },
+ "loss_stage_classification": {
+  "360": {
+   "counts": {
+    "PROPOSAL_OBSERVATION_FAILURE": 4,
+    "SEARCH_CONSTRUCTION_FAILURE": 8,
+    "SURFACED_TOP5": 3
+   },
+   "per_dive": {
+    "1040": "SURFACED_TOP5",
+    "1304": "PROPOSAL_OBSERVATION_FAILURE",
+    "133": "PROPOSAL_OBSERVATION_FAILURE",
+    "2169": "SEARCH_CONSTRUCTION_FAILURE",
+    "2204": "PROPOSAL_OBSERVATION_FAILURE",
+    "2223": "SEARCH_CONSTRUCTION_FAILURE",
+    "2341": "SEARCH_CONSTRUCTION_FAILURE",
+    "2353": "SEARCH_CONSTRUCTION_FAILURE",
+    "2387": "SEARCH_CONSTRUCTION_FAILURE",
+    "2526": "SEARCH_CONSTRUCTION_FAILURE",
+    "2541": "SURFACED_TOP5",
+    "2583": "SEARCH_CONSTRUCTION_FAILURE",
+    "2839": "SEARCH_CONSTRUCTION_FAILURE",
+    "311": "PROPOSAL_OBSERVATION_FAILURE",
+    "676": "SURFACED_TOP5"
+   }
+  },
+  "360+hq": {
+   "counts": {
+    "PROPOSAL_OBSERVATION_FAILURE": 1,
+    "RANKING_FAILURE_FIXED_BY_RANKER_V2": 2,
+    "SEARCH_CONSTRUCTION_FAILURE": 4,
+    "SURFACED_TOP5": 2
+   },
+   "per_dive": {
+    "1040": "RANKING_FAILURE_FIXED_BY_RANKER_V2",
+    "133": "SEARCH_CONSTRUCTION_FAILURE",
+    "2169": "SEARCH_CONSTRUCTION_FAILURE",
+    "2341": "RANKING_FAILURE_FIXED_BY_RANKER_V2",
+    "2353": "SEARCH_CONSTRUCTION_FAILURE",
+    "2387": "SEARCH_CONSTRUCTION_FAILURE",
+    "2541": "SURFACED_TOP5",
+    "311": "PROPOSAL_OBSERVATION_FAILURE",
+    "676": "SURFACED_TOP5"
+   }
+  },
+  "hq": {
+   "counts": {
+    "PROPOSAL_OBSERVATION_FAILURE": 1,
+    "RANKING_FAILURE_FIXED_BY_RANKER_V2": 2,
+    "SEARCH_CONSTRUCTION_FAILURE": 6
+   },
+   "per_dive": {
+    "1040": "RANKING_FAILURE_FIXED_BY_RANKER_V2",
+    "133": "SEARCH_CONSTRUCTION_FAILURE",
+    "2169": "SEARCH_CONSTRUCTION_FAILURE",
+    "2341": "RANKING_FAILURE_FIXED_BY_RANKER_V2",
+    "2353": "SEARCH_CONSTRUCTION_FAILURE",
+    "2387": "SEARCH_CONSTRUCTION_FAILURE",
+    "2541": "SEARCH_CONSTRUCTION_FAILURE",
+    "311": "PROPOSAL_OBSERVATION_FAILURE",
+    "676": "SEARCH_CONSTRUCTION_FAILURE"
+   }
+  }
+ },
+ "packet": "DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1",
+ "per_dive": {
+  "1040": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 4,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": true,
+    "raw": 1.0
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 7,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 6,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": true,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "1304": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.0,
+    "best_candidate_pur": 0.0,
+    "first_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "flight_anchors": 9,
+   "unobserved_items": {},
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "133": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.714,
+    "pool": false,
+    "raw": 0.714
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.286,
+    "best_candidate_pur": 0.2857142857142857,
+    "first_rank": null,
+    "graph": false,
+    "lattice": 0.714,
+    "pool": false,
+    "raw": 0.714
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.571,
+    "best_candidate_pur": 0.5714285714285714,
+    "first_rank": null,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.571,
+    "best_candidate_pur": 0.5714285714285714,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2169": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.429,
+    "best_candidate_pur": 0.42857142857142855,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.571,
+    "best_candidate_pur": 0.5714285714285714,
+    "first_rank": null,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.571,
+    "best_candidate_pur": 0.5714285714285714,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2204": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.556,
+    "best_candidate_pur": 0.5555555555555556,
+    "first_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "flight_anchors": 9,
+   "unobserved_items": {},
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "2223": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 0.778,
+    "pool": false,
+    "raw": 0.778
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.444,
+    "best_candidate_pur": 0.4444444444444444,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.778,
+    "pool": false,
+    "raw": 0.778
+   },
+   "flight_anchors": 9,
+   "unobserved_items": {},
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "2341": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.714,
+    "best_candidate_pur": 0.7142857142857143,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 7,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 7,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": true,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2353": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.0,
+    "best_candidate_pur": null,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.286,
+    "best_candidate_pur": 0.2857142857142857,
+    "first_rank": null,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.286,
+    "best_candidate_pur": 0.2857142857142857,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 0.857
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2387": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.714,
+    "best_candidate_pur": 0.7142857142857143,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.714,
+    "best_candidate_pur": 0.7142857142857143,
+    "first_rank": null,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.429,
+    "best_candidate_pur": 0.42857142857142855,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2526": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 0.875,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.625,
+    "best_candidate_pur": 0.625,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 8,
+   "unobserved_items": {
+    "341": "ambiguous"
+   },
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "2541": {
+   "FROZEN_V3:360": {
+    "F1_rank": 4,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 1,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": true,
+    "raw": 1.0
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.857,
+    "best_candidate_pur": 0.8571428571428571,
+    "first_rank": 4,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.571,
+    "best_candidate_pur": 0.5714285714285714,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "2583": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.667,
+    "best_candidate_pur": 0.75,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 9,
+   "unobserved_items": {},
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "2839": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.444,
+    "pool": false,
+    "raw": 0.889
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.0,
+    "best_candidate_pur": null,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 0.889,
+    "pool": false,
+    "raw": 0.889
+   },
+   "flight_anchors": 9,
+   "unobserved_items": {},
+   "window_source": "FLIGHT_GT_HUMAN_V1_EVENTS"
+  },
+  "311": {
+   "FROZEN_V3:360": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 0.333,
+    "best_candidate_pur": 0.3333333333333333,
+    "first_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 0.333,
+    "best_candidate_pur": 0.3333333333333333,
+    "first_rank": null,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 0.667
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.333,
+    "best_candidate_pur": 0.3333333333333333,
+    "first_rank": null,
+    "graph": false,
+    "lattice": 0.667,
+    "pool": false,
+    "raw": 0.667
+   },
+   "flight_anchors": 3,
+   "unobserved_items": {
+    "416": "not_visible",
+    "420": "not_visible",
+    "424": "not_visible",
+    "428": "not_visible"
+   },
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  },
+  "676": {
+   "FROZEN_V3:360": {
+    "F1_rank": 4,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FROZEN_V3:hq": {
+    "F1_rank": null,
+    "graph": true,
+    "lattice": 0.857,
+    "pool": false,
+    "raw": 1.0
+   },
+   "FSR_V1:360": {
+    "best_candidate_cov": 1.0,
+    "best_candidate_pur": 1.0,
+    "first_rank": 1,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": true,
+    "raw": 1.0
+   },
+   "FSR_V1:360+hq": {
+    "best_candidate_cov": 1.0,
+    "best_candidate_pur": 1.0,
+    "first_rank": 1,
+    "graph": false,
+    "lattice": null,
+    "pool": null,
+    "raw": 1.0
+   },
+   "FSR_V1:hq": {
+    "best_candidate_cov": 0.714,
+    "best_candidate_pur": 0.7142857142857143,
+    "first_rank": null,
+    "graph": true,
+    "lattice": 1.0,
+    "pool": false,
+    "raw": 1.0
+   },
+   "flight_anchors": 7,
+   "unobserved_items": {},
+   "window_source": "DEVELOPMENT_DESIGN_EVENT_YAML"
+  }
+ },
+ "post_sealed_adaptive": {
+  "note": "Evaluated on FLIGHT_GT_HUMAN_V1 AFTER the frozen v1 result; adaptive, not promoted; needs fresh held-out confirmation.",
+  "osnet_appearance_auc_subject_vs_other_person": 0.586,
+  "ranker_v2_trim_and_rescore": {
+   "rank_v1|360+hq|DEV": {
+    "any": 6,
+    "n": 9,
+    "ranks": {
+     "1040": 7,
+     "133": 1,
+     "2169": 2,
+     "2341": 11,
+     "2353": null,
+     "2387": null,
+     "2541": 4,
+     "311": null,
+     "676": 1
+    },
+    "top1": 2,
+    "top5": 4
+   },
+   "rank_v1|360+hq|SEALED_BURNED": {
+    "any": 4,
+    "n": 9,
+    "ranks": {
+     "1040": 7,
+     "133": null,
+     "2169": null,
+     "2341": 7,
+     "2353": null,
+     "2387": null,
+     "2541": 4,
+     "311": null,
+     "676": 1
+    },
+    "top1": 1,
+    "top5": 2
+   },
+   "rank_v1|360|DEV": {
+    "any": 4,
+    "n": 9,
+    "ranks": {
+     "1040": 4,
+     "133": null,
+     "2169": 2,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2541": 1,
+     "311": null,
+     "676": 1
+    },
+    "top1": 2,
+    "top5": 4
+   },
+   "rank_v1|360|SEALED_BURNED": {
+    "any": 3,
+    "n": 15,
+    "ranks": {
+     "1040": 4,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 1,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    },
+    "top1": 2,
+    "top5": 3
+   },
+   "rank_v1|hq|DEV": {
+    "any": 5,
+    "n": 9,
+    "ranks": {
+     "1040": 6,
+     "133": 1,
+     "2169": 1,
+     "2341": 10,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": 1
+    },
+    "top1": 3,
+    "top5": 3
+   },
+   "rank_v1|hq|SEALED_BURNED": {
+    "any": 2,
+    "n": 9,
+    "ranks": {
+     "1040": 6,
+     "133": null,
+     "2169": null,
+     "2341": 7,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": null
+    },
+    "top1": 0,
+    "top5": 0
+   },
+   "rank_v2|360+hq|DEV": {
+    "any": 6,
+    "n": 9,
+    "ranks": {
+     "1040": 1,
+     "133": 1,
+     "2169": 1,
+     "2341": 1,
+     "2353": null,
+     "2387": null,
+     "2541": 1,
+     "311": null,
+     "676": 1
+    },
+    "top1": 6,
+    "top5": 6
+   },
+   "rank_v2|360+hq|SEALED_BURNED": {
+    "any": 4,
+    "n": 9,
+    "ranks": {
+     "1040": 1,
+     "133": null,
+     "2169": null,
+     "2341": 1,
+     "2353": null,
+     "2387": null,
+     "2541": 1,
+     "311": null,
+     "676": 1
+    },
+    "top1": 4,
+    "top5": 4
+   },
+   "rank_v2|360|DEV": {
+    "any": 5,
+    "n": 9,
+    "ranks": {
+     "1040": 1,
+     "133": null,
+     "2169": 1,
+     "2341": null,
+     "2353": null,
+     "2387": 1,
+     "2541": 1,
+     "311": null,
+     "676": 1
+    },
+    "top1": 5,
+    "top5": 5
+   },
+   "rank_v2|360|SEALED_BURNED": {
+    "any": 3,
+    "n": 15,
+    "ranks": {
+     "1040": 1,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 1,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    },
+    "top1": 3,
+    "top5": 3
+   },
+   "rank_v2|hq|DEV": {
+    "any": 3,
+    "n": 9,
+    "ranks": {
+     "1040": null,
+     "133": 1,
+     "2169": null,
+     "2341": 1,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": 1
+    },
+    "top1": 3,
+    "top5": 3
+   },
+   "rank_v2|hq|SEALED_BURNED": {
+    "any": 2,
+    "n": 9,
+    "ranks": {
+     "1040": 1,
+     "133": null,
+     "2169": null,
+     "2341": 1,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": null
+    },
+    "top1": 2,
+    "top5": 2
+   }
+  },
+  "search_variants": {
+   "fsr_probe_ev10": {
+    "360": {
+     "1040": null,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 1,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    }
+   },
+   "fsr_probe_ev20": {
+    "360": {
+     "1040": 4,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 2,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    }
+   },
+   "fsr_search_v1": {
+    "360": {
+     "1040": 4,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 1,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    },
+    "360+hq": {
+     "1040": 7,
+     "133": null,
+     "2169": null,
+     "2341": 7,
+     "2353": null,
+     "2387": null,
+     "2541": 4,
+     "311": null,
+     "676": 1
+    },
+    "hq": {
+     "1040": 6,
+     "133": null,
+     "2169": null,
+     "2341": 7,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": null
+    }
+   },
+   "fsr_search_v4": {
+    "360": {
+     "1040": null,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 1,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 1
+    }
+   },
+   "fsr_search_v4g": {
+    "360": {
+     "1040": null,
+     "1304": null,
+     "133": null,
+     "2169": null,
+     "2204": null,
+     "2223": null,
+     "2341": null,
+     "2353": null,
+     "2387": null,
+     "2526": null,
+     "2541": 3,
+     "2583": null,
+     "2839": null,
+     "311": null,
+     "676": 2
+    },
+    "360+hq": {
+     "1040": null,
+     "133": null,
+     "2169": 6,
+     "2341": 7,
+     "2353": null,
+     "2387": null,
+     "2541": 4,
+     "311": null,
+     "676": 3
+    },
+    "hq": {
+     "1040": null,
+     "133": null,
+     "2169": 2,
+     "2341": 5,
+     "2353": null,
+     "2387": null,
+     "2541": null,
+     "311": null,
+     "676": null
+    }
+   }
+  },
+  "synthetic_top1_recovered_of_10": {
+   "rank_v1": 6,
+   "rank_v2": 8
+  }
+ }
+}

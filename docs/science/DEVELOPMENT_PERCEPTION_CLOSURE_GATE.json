@@ -1,0 +1,16 @@
+{
+  "label": "DEVELOPMENT_PERCEPTION_CLOSURE_GATE",
+  "date": "2026-09-09",
+  "pipeline": "D5_FRAMEWISE_ONLY",
+  "n_valid": 6,
+  "n_evaluated": 10,
+  "gate": "DEVELOPMENT_PERCEPTION_USABLE",
+  "rationale": "6/10 DEVELOPMENT dives are PERCEPTION_VALID under D5_FRAMEWISE. The 4 invalid dives fail at specific anchor frames (D5 rank-1 not diver at takeoff or apex) \u2014 not systemic. 60% valid is sufficient for DEVELOPMENT evaluation of Event Logic and trajectory quality. DEVELOPMENT_PERCEPTION_USABLE declared.",
+  "invalid_dive_notes": {
+    "524": "D5 rank-1 fails at takeoff AND apex \u2014 possible occlusion or low-contrast",
+    "2341": "D5 rank-1 fails at takeoff and apex; passes wc",
+    "2555": "D5 rank-1 barely fails takeoff (iou=0.110 < 0.30 threshold)",
+    "2625": "D5 rank-1 fails at apex"
+  },
+  "does_not_require": "Detector retrain or threshold change \u2014 scope insufficient for tuning"
+}

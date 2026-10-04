@@ -1,0 +1,14 @@
+{
+  "label": "FLOOR_CONF_AUTHORITY_AUDIT",
+  "date": "2026-09-09",
+  "outcome": "0.001_ALREADY_DEVELOPMENT_AUTHORIZED",
+  "evidence": [
+    "phase_a_floor_audit.py: FLOOR_CONF = 0.001 (line 42), run on DEVELOPMENT data only",
+    "TARGET_DIVER_PERCEPTION_V1_FREEZE.json: floor_conf: 0.001 (line 65)",
+    "D5_VS_R1_ABLATION_V1.json: used 0.001 for candidate generation",
+    "phase_p_paris_d5.py: FLOOR_CONF = 0.001 \u2014 prior Paris eval used 0.001, wc best_iou=0.725"
+  ],
+  "conclusion": "0.001 was selected in D4 era, carried through D5 freeze, and evaluated in prior Paris D5 eval. Using 0.001 for corrected Paris closure is NOT Paris-derived tuning; it is correction of an execution mismatch.",
+  "correction_authorized": true,
+  "paris_reuse_authorized": "Yes \u2014 correcting an execution error, not tuning from Paris result"
+}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../services/api'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface MentalBlock {
   type: 'dd_plateau' | 'repeated_failure' | 'avoided_dive'
@@ -22,7 +23,7 @@ function MentalBlockIndicator() {
   const fetchMentalBlocks = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/v1/psychology/mental-blocks')
+      const response = await api.get('/api/v1/journey/mental-blocks')
       setBlocks(response.data.blocks || [])
       setError(null)
     } catch (err) {
@@ -36,14 +37,14 @@ function MentalBlockIndicator() {
 
   if (loading) {
     return (
-      <div className="animate-pulse bg-gray-800 rounded-lg p-4 h-24 border border-gray-700"></div>
+      <div className="animate-pulse bg-app-panel rounded-lg p-4 h-24 border border-app"></div>
     )
   }
 
   if (blocks.length === 0) {
     return (
       <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-        <div className="text-green-400 font-bold">✅ No Mental Blocks Detected</div>
+        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />No Mental Blocks Detected</div>
         <p className="text-green-300 text-sm mt-1">
           You're progressing smoothly! Keep challenging yourself.
         </p>
@@ -68,19 +69,19 @@ function MentalBlockIndicator() {
             >
               <div className="text-left">
                 <div className="text-yellow-400 font-bold flex items-center gap-2">
-                  <span>⚠️</span>
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   {block.type === 'dd_plateau' && 'Difficulty Plateau'}
                   {block.type === 'repeated_failure' && 'Repeated Failure Pattern'}
                   {block.type === 'avoided_dive' && 'Avoided Dive'}
                 </div>
                 <p className="text-yellow-300 text-sm mt-1">{block.description}</p>
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-app-muted mt-2">
                   {block.duration_months} month{block.duration_months !== 1 ? 's' : ''} • Affecting{' '}
                   {block.dives_affected.length} dive{block.dives_affected.length !== 1 ? 's' : ''}
                 </div>
               </div>
               <div className="text-xl text-yellow-400 ml-4">
-                {isExpanded ? '▼' : '▶'}
+                {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
               </div>
             </button>
 
@@ -108,7 +109,7 @@ function MentalBlockIndicator() {
                     {block.recommendations.map((rec, recIdx) => (
                       <div
                         key={recIdx}
-                        className="text-sm text-gray-300 flex items-start gap-2"
+                        className="text-sm text-app-text flex items-start gap-2"
                       >
                         <span className="text-green-400 font-bold mt-0.5">•</span>
                         <span>{rec}</span>
@@ -121,7 +122,7 @@ function MentalBlockIndicator() {
                 <div className="bg-green-500/10 border border-green-500/30 rounded p-3">
                   <p className="text-green-300 text-sm">
                     <strong>Remember:</strong> Mental blocks are natural and temporary. Every breakthrough starts with
-                    facing a challenge. You've overcome obstacles before—you can do this too! 💪
+                    facing a challenge. You've overcome obstacles before; you can do this too.
                   </p>
                 </div>
 
@@ -129,13 +130,13 @@ function MentalBlockIndicator() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => fetchMentalBlocks()}
-                    className="flex-1 py-2 px-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition-colors"
+                    className="flex-1 py-2 px-3 bg-app-panel-elevated border border-app-strong text-app-text rounded text-sm font-medium transition-colors"
                   >
                     Check Progress
                   </button>
                   <button
                     onClick={() => setExpanded(null)}
-                    className="flex-1 py-2 px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm font-medium transition-colors"
+                    className="flex-1 py-2 px-3 bg-app-panel border border-app hover:text-app-text text-app-text rounded text-sm font-medium transition-colors"
                   >
                     Dismiss
                   </button>

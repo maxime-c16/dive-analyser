@@ -1,0 +1,59 @@
+{
+  "label": "TARGET_DIVER_PERCEPTION_V1_FREEZE",
+  "date": "2026-09-09",
+  "status": "FROZEN",
+  "architecture": "D5_FRAMEWISE_SUFFICIENT",
+  "components": {
+    "detector": {
+      "name": "DIVER_DETECTOR_D5_A_V8N",
+      "path": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+      "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+      "training_from": "D4_TRANSFER",
+      "n_train": 55,
+      "n_val": 14
+    },
+    "reranker": null,
+    "temporal_continuity": null
+  },
+  "inference": {
+    "floor_conf": 0.001,
+    "op_conf": 0.05,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "floor_cap": 200,
+    "crop_padding_frac": 0.2,
+    "crop_size_px": 224,
+    "selector": "top1_d5_conf",
+    "preprocessing": "YOLO_default_letterbox_BGR"
+  },
+  "d5_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "floor_conf": 0.001,
+  "op_conf": 0.05,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "development_metrics": {
+    "D5_floor_recall": 0.9706,
+    "D5_op_recall": 0.8824,
+    "D5_top1_recall": 0.3333,
+    "D5_plus_R1_top1_recall": null,
+    "r1_delta_top1": null
+  },
+  "paris_anchors": {
+    "takeoff": {
+      "rank": 1,
+      "iou": 0.6926
+    },
+    "apex": {
+      "rank": 1,
+      "iou": 0.6457
+    },
+    "water_contact": {
+      "rank": 1,
+      "iou": 0.7246
+    }
+  },
+  "paris_anchor_selector": "D5_CONF_TOP1",
+  "paris_firewall": "VERIFIED \u2014 Paris used for post-freeze external evaluation only",
+  "development_firewall": "Groups DEV_TRAIN={1040,133,...} DEV_VAL={2341,2353} maintained",
+  "supersedes": "D4_ERA_SELECTOR (S0), D4_PROPOSAL_V1"
+}

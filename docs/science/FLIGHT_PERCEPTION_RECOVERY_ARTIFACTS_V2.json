@@ -1,0 +1,74 @@
+{
+  "canonical_server_mirror": "diveanalyzer-server:~/dive-analyser/runs/flight_perception_recovery_v2",
+  "canonical_server_verified": "S3 last.pt and all six CAND cache SHA-256 values verified equal to files listed here",
+  "files": {
+    "docs/science/flight_perception_recovery_v2_eval/D5_FGT3H.json": {
+      "sha256": "3ff5edeb60ef1b8dfd2a8cb33a1dfa7339a743078b20f02b49c2483b11ad42ba",
+      "size_bytes": 107320
+    },
+    "docs/science/flight_perception_recovery_v2_eval/FRESH_SUMMARY_V2.json": {
+      "sha256": "2a8490bde184c65600cf0f890764aed148d291aae9b339af127a013d403cb117",
+      "size_bytes": 58499
+    },
+    "docs/science/flight_perception_recovery_v2_eval/S2_COCOinit_DS1_FGT3H.json": {
+      "sha256": "6cdb0b10b19c6aed5c251e8025b9a2bcdc3ba8c9f42042194a55c27a29371027",
+      "size_bytes": 106017
+    },
+    "docs/science/flight_perception_recovery_v2_eval/S3_S2init_DS2_OOD_FGT3H.json": {
+      "sha256": "0160bb768300b847000a22176c5fb603cddabc90290f9338dfa9b9c4245edf4f",
+      "size_bytes": 106100
+    },
+    "runs/flight_perception_recovery_v2/FRESH_SUMMARY_V2.json": {
+      "sha256": "2a8490bde184c65600cf0f890764aed148d291aae9b339af127a013d403cb117",
+      "size_bytes": 58499
+    },
+    "runs/flight_perception_recovery_v2/MODEL_S3_REGISTRY.json": {
+      "sha256": "2c18a4f04059d7752ff4827bed8277051970537cfc07241e553edaac86d7c4cb",
+      "size_bytes": 614
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_D5_360.json": {
+      "sha256": "1fb3dd9104a06b9cc1796dc95749d2607c5bc3b146d3e098c2e74cad55ac655a",
+      "size_bytes": 80676505
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_D5_hq.json": {
+      "sha256": "4a7a4710cc52cc4dced811d97f158cd5e1ecfdb16943f67230b6ec3b8ae64b4c",
+      "size_bytes": 101198146
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_S2_COCOinit_DS1_360.json": {
+      "sha256": "590bbf0fc862e398da4c8b6899ca3fe9d03ca4ba2ff7ad5a8eaf079d4c6a68c2",
+      "size_bytes": 2543117
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_S2_COCOinit_DS1_hq.json": {
+      "sha256": "2b918752bc853fdd4e3520303cdb86aaa33576ed8a3918e828a792e52c7de88a",
+      "size_bytes": 2037733
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_S3_S2init_DS2_OOD_360.json": {
+      "sha256": "a1a75de61e8a25ebbefc2aefdd4efa84bd69c71dc10f95cedb92c8bfce4d215e",
+      "size_bytes": 2803545
+    },
+    "runs/flight_perception_recovery_v2/caches/CAND_S3_S2init_DS2_OOD_hq.json": {
+      "sha256": "36864d9bac1f142e1f28924f062db74f86a80f11316d6d2d2005fb8ab54bf887",
+      "size_bytes": 2532700
+    },
+    "runs/flight_perception_recovery_v2/downstream/D5_FGT3H.json": {
+      "sha256": "3ff5edeb60ef1b8dfd2a8cb33a1dfa7339a743078b20f02b49c2483b11ad42ba",
+      "size_bytes": 107320
+    },
+    "runs/flight_perception_recovery_v2/downstream/S2_COCOinit_DS1_FGT3H.json": {
+      "sha256": "6cdb0b10b19c6aed5c251e8025b9a2bcdc3ba8c9f42042194a55c27a29371027",
+      "size_bytes": 106017
+    },
+    "runs/flight_perception_recovery_v2/downstream/S3_S2init_DS2_OOD_FGT3H.json": {
+      "sha256": "0160bb768300b847000a22176c5fb603cddabc90290f9338dfa9b9c4245edf4f",
+      "size_bytes": 106100
+    },
+    "runs/flight_perception_recovery_v2/models/S3_S2init_DS2_OOD/weights/last.pt": {
+      "sha256": "3dc07f69cbe3824490f73c14a59ed328ff35fc2da48da2fd4e324acf9bcc4e9a",
+      "size_bytes": 6223786
+    }
+  },
+  "gt_freeze_commit": "0cfcc61f2481a44e35d51421d1b553b3dbe4f7ca",
+  "holdout_manifest_digest": "83326b04cdd745d3e003abb13c78262f00b207ffe7419677c5e2735b65ff2048",
+  "label": "FLIGHT_PERCEPTION_RECOVERY_ARTIFACTS_V2",
+  "model_selection_commit": "3317d9f2e4f8f2f1d2dfc61eefadea72af339065"
+}

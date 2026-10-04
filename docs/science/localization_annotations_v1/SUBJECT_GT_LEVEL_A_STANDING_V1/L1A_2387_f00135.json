@@ -1,0 +1,30 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  94,
+  88,
+  153,
+  182
+ ],
+ "created_at": "2026-09-13T14:29:00.734288+00:00",
+ "dive_id": 2387,
+ "family": "STANDING",
+ "frame_index": 135,
+ "height": 360,
+ "id": "L1A_2387_f00135",
+ "image_sha256": "40d76eb6f39c3c07f1249d9fc3502639d06b297cff87f8ab11cdcc3d52384872",
+ "media_sha256": "0a2826d7e501711b40756c7f18a8836511d56a125d46cebbdba26573b7a433f6",
+ "provenance": {
+  "origin": "NEW_LEVEL_A_ANNOTATION",
+  "queue": "SUBJECT_GT_LEVEL_A_QUEUE_STANDING_V1"
+ },
+ "pts_s": 4.5045,
+ "queue_reason": "level_a_base_grid_0.5s",
+ "reason": "level_a_base_grid_0.5s",
+ "rel_clip_time_s": 4.5045,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202
+}

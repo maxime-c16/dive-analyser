@@ -1,0 +1,299 @@
+{
+ "label": "V3D0_HURDLE_CORPUS_BASELINE_V1",
+ "date": "2026-09-09T12:02:58.086290+00:00",
+ "params": {
+  "variant": "V3D0",
+  "detector": "yolov8n",
+  "detector_imgsz": 640,
+  "detector_conf": 0.1,
+  "detector_iou": 0.45,
+  "detector_classes": [
+   0
+  ],
+  "tracker": "bytetrack",
+  "track_min_conf": 0.1,
+  "track_select_strategy": "longest_x_conf",
+  "smooth_window_s": 0.35,
+  "interp_max_gap_s": 0.3,
+  "vel_max_gap_s": 0.2,
+  "static_var_threshold": 0.0015,
+  "static_window_s": 0.4,
+  "static_min_duration_s": 0.25,
+  "takeoff_vel_threshold": 0.04,
+  "takeoff_sustained_s": 0.15,
+  "takeoff_min_after_prep_s": 0.1,
+  "hurdle_post_plateau_guard_s": 0.4,
+  "apex_search_start_s": 0.08,
+  "water_line_cy_norm": 0.5,
+  "water_contact_method": "cy_threshold_or_dropout",
+  "water_contact_min_after_apex_s": 0.05,
+  "min_coverage_for_confident": 0.15,
+  "max_takeoff_error_for_confident": 0.5,
+  "use_scene_priors": false,
+  "board_cx_min": 0.5,
+  "board_cx_max": 1.0,
+  "water_line_auto": false,
+  "apex_max_window_s": 1.5,
+  "wc_max_window_s": 2.5,
+  "min_hurdle_rise_cy": 0.01,
+  "fallback_sustained_s": 0.15
+ },
+ "traj_cache": "docs/science/DEV_HURDLE_TRAJ_CACHE_V2.json",
+ "traj_cache_sha256": "91ae4a5a63977e7996b75ca7a84f73c56bd0e5aa0b711d82ae36310ebaccae89",
+ "script_sha256": "f4b5f0f29430b2d2edb3bc8a1cfb5e1c8bd8ed9df9f98b2b359db8be03f750bf",
+ "model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+ "standing_reference": {
+  "133": 0.1653,
+  "311": 0.0592,
+  "676": 3.0864,
+  "2387": 2.1476
+ },
+ "status": "OK",
+ "warnings": [],
+ "hurdle_results": {
+  "1040": {
+   "code": "102C",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 0.433767,
+    "takeoff_t": 2.469133,
+    "apex_t": 2.635967,
+    "water_contact_t": 2.9029
+   },
+   "gt": {
+    "takeoff": 4.463857,
+    "apex": 4.797189,
+    "water_contact": 5.413853
+   },
+   "errors": {
+    "to_err": 1.9947,
+    "apex_err": 2.1612,
+    "wc_err": 2.511
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  },
+  "2169": {
+   "code": "101B",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 5.9059,
+    "takeoff_t": 6.873533,
+    "apex_t": 7.25725,
+    "water_contact_t": 7.4074
+   },
+   "gt": {
+    "takeoff": 6.46124,
+    "apex": 6.761239,
+    "water_contact": 7.694569
+   },
+   "errors": {
+    "to_err": 0.4123,
+    "apex_err": 0.496,
+    "wc_err": 0.2872
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  },
+  "524": {
+   "code": "103B",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 0.666667,
+    "takeoff_t": 1.066667,
+    "apex_t": 1.466667,
+    "water_contact_t": 2.416667
+   },
+   "gt": {
+    "takeoff": 5.810276,
+    "apex": 6.326941,
+    "water_contact": 7.093604
+   },
+   "errors": {
+    "to_err": 4.7436,
+    "apex_err": 4.8603,
+    "wc_err": 4.6769
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  },
+  "2341": {
+   "code": "101B",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 3.983333,
+    "takeoff_t": 4.583333,
+    "apex_t": 5.5,
+    "water_contact_t": 8.0
+   },
+   "gt": {
+    "takeoff": 3.572542,
+    "apex": 3.955874,
+    "water_contact": 4.589204
+   },
+   "errors": {
+    "to_err": 1.0108,
+    "apex_err": 1.5441,
+    "wc_err": 3.4108
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  },
+  "2353": {
+   "code": "101A",
+   "drill": true,
+   "predicted": {
+    "prep_end_t": 2.969633,
+    "takeoff_t": 3.887217,
+    "apex_t": 4.587917,
+    "water_contact_t": 4.637967
+   },
+   "gt": {
+    "takeoff": 5.696084,
+    "apex": 6.279415,
+    "water_contact": 6.879412
+   },
+   "errors": {
+    "to_err": 1.8089,
+    "apex_err": 1.6915,
+    "wc_err": 2.2414
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  },
+  "2541": {
+   "code": "5111B",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 2.035367,
+    "takeoff_t": 2.5025,
+    "apex_t": 2.635967,
+    "water_contact_t": 3.737067
+   },
+   "gt": {
+    "takeoff": 17.518102,
+    "apex": 17.984766,
+    "water_contact": 18.65143
+   },
+   "errors": {
+    "to_err": 15.0156,
+    "apex_err": 15.3488,
+    "wc_err": 14.9144
+   },
+   "coverage": 0.9928,
+   "context": "HURDLE"
+  },
+  "2555": {
+   "code": "5132D",
+   "drill": false,
+   "predicted": {
+    "prep_end_t": 0.566667,
+    "takeoff_t": 1.7,
+    "apex_t": 1.983333,
+    "water_contact_t": 2.116667
+   },
+   "gt": {
+    "takeoff": 4.313702,
+    "apex": 6.397027,
+    "water_contact": 9.597014
+   },
+   "errors": {
+    "to_err": 2.6137,
+    "apex_err": 4.4137,
+    "wc_err": 7.4803
+   },
+   "coverage": 1.0,
+   "context": "HURDLE"
+  }
+ },
+ "standing_results": {
+  "133": {
+   "code": "301B",
+   "predicted": {
+    "prep_end_t": 1.1011,
+    "takeoff_t": 1.634967,
+    "apex_t": 2.369033,
+    "water_contact_t": 2.8028
+   },
+   "gt": {
+    "takeoff": 1.800274,
+    "apex": 2.083607,
+    "water_contact": 2.95027
+   },
+   "errors": {
+    "to_err": 0.1653,
+    "apex_err": 0.2854,
+    "wc_err": 0.1475
+   },
+   "documented_to_err": 0.1653,
+   "reproduces_documented": true,
+   "coverage": 0.5843
+  },
+  "311": {
+   "code": "401C",
+   "predicted": {
+    "prep_end_t": 13.580233,
+    "takeoff_t": 13.8138,
+    "apex_t": 14.047367,
+    "water_contact_t": 14.848167
+   },
+   "gt": {
+    "takeoff": 13.7546,
+    "apex": null,
+    "water_contact": 14.821262
+   },
+   "errors": {
+    "to_err": 0.0592,
+    "apex_err": null,
+    "wc_err": 0.0269
+   },
+   "documented_to_err": 0.0592,
+   "reproduces_documented": true,
+   "coverage": 0.6205
+  },
+  "676": {
+   "code": "301A",
+   "predicted": {
+    "prep_end_t": 0.333667,
+    "takeoff_t": 0.467133,
+    "apex_t": 1.368033,
+    "water_contact_t": 3.837167
+   },
+   "gt": {
+    "takeoff": 3.553575,
+    "apex": 3.886907,
+    "water_contact": 4.853569
+   },
+   "errors": {
+    "to_err": 3.0864,
+    "apex_err": 2.5189,
+    "wc_err": 1.0164
+   },
+   "documented_to_err": 3.0864,
+   "reproduces_documented": true,
+   "coverage": 0.8153
+  },
+  "2387": {
+   "code": "5411C",
+   "predicted": {
+    "prep_end_t": 0.467133,
+    "takeoff_t": 2.335667,
+    "apex_t": 2.869533,
+    "water_contact_t": 5.338667
+   },
+   "gt": {
+    "takeoff": 4.483274,
+    "apex": 4.833273,
+    "water_contact": 5.499937
+   },
+   "errors": {
+    "to_err": 2.1476,
+    "apex_err": 1.9637,
+    "wc_err": 0.1613
+   },
+   "documented_to_err": 2.1476,
+   "reproduces_documented": true,
+   "coverage": 0.8917
+  }
+ }
+}

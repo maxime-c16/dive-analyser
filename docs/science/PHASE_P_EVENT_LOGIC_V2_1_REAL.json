@@ -1,0 +1,29 @@
+{
+  "label": "PHASE_P_EVENT_LOGIC_V2_1_REAL",
+  "date": "2026-09-07",
+  "event_logic_version": "V2.1",
+  "event_logic_sha256": "63cfadebfc8039319857c0497e5423754b7d575c45e26355f2f77e4c051cb073",
+  "trajectory_source": "PHASE_O_FULL_TRAJECTORY.json",
+  "dive_code": "5122D",
+  "gt_takeoff_s": 3.12,
+  "gt_apex_s": 3.57,
+  "gt_wc_s": 4.22,
+  "best_variant": "E1",
+  "best_result_summary": {
+    "context": "HURDLE",
+    "prep_end_t": 0.3184883720930233,
+    "takeoff_t": 4.547306201550388,
+    "apex_t": 5.042732558139535,
+    "water_contact_t": 5.679709302325581,
+    "confident": true
+  },
+  "errors": {
+    "takeoff": 1.4273,
+    "apex": 1.4727,
+    "water_contact": 1.4597
+  },
+  "max_error_s": 1.4727,
+  "all_detected": true,
+  "canary_result": "REAL_SIGNAL_CANARY_FAIL",
+  "pass_threshold_s": 0.5
+}

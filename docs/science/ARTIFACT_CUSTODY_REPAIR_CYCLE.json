@@ -1,0 +1,64 @@
+{
+  "label": "ARTIFACT_CUSTODY_V1_CLOSURE_REPAIR",
+  "date": "2026-09-09",
+  "frozen_models": {
+    "D5_A": {
+      "path": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+      "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+      "status": "FROZEN"
+    },
+    "R1_RERANKER": {
+      "path": "models/frozen/R1_RERANKER.pkl",
+      "sha256": "2a9af7b34ebfbc49fbb6a6a39632ae05fae2d1f6eab0b32ac43b9fe1800888e0",
+      "status": "REJECTED \u2014 retained for reference"
+    }
+  },
+  "frozen_el_modules": {
+    "proposer_event_logic_v2_1.py": {
+      "path": "experiments/landmark_pilot/proposer_event_logic_v2_1.py",
+      "sha256": "63cfadebfc8039319857c0497e5423754b7d575c45e26355f2f77e4c051cb073",
+      "status": "FROZEN",
+      "key_params": "takeoff_vel_threshold=0.04"
+    },
+    "proposer_event_logic_v2_2.py": {
+      "path": "experiments/landmark_pilot/proposer_event_logic_v2_2.py",
+      "sha256": "57285d36013239dbdfaaec8ffc7c994178c05ea92e0dbb8f396aab476c333424",
+      "status": "FROZEN",
+      "key_params": "takeoff_vel_threshold_bodylengths=0.55"
+    }
+  },
+  "perception_manifests": {
+    "TARGET_DIVER_PERCEPTION_V1_FINAL_FREEZE.json": "FROZEN \u2014 supersedes V1 freeze",
+    "EVENT_LOGIC_V2_1_FREEZE.json": "FROZEN (existing)",
+    "EVENT_LOGIC_V2_2_FREEZE.json": "FROZEN (existing)",
+    "PARIS_REAL_TARGET_TRAJECTORY_V1.json": "FROZEN \u2014 TRAJECTORY_INPUT_PASS confirmed"
+  },
+  "new_artifacts_this_cycle": [
+    "PERCEPTION_V1_CLOSURE_EXECUTION_AUDIT.json",
+    "FLOOR_CONF_AUTHORITY_AUDIT.json",
+    "TARGET_DIVER_PERCEPTION_V1_FINAL_FREEZE.json",
+    "DEV_D5_ONLY_EVAL_V1.json",
+    "DEVELOPMENT_PERCEPTION_CLOSURE_GATE.json",
+    "PARIS_FULL_TRAJECTORY_V2.json",
+    "PARIS_REAL_TARGET_TRAJECTORY_V1.json",
+    "PARIS_EVENT_LOGIC_REAL_TEST_V2.json",
+    "DEV_D5_ONLY_TRAJECTORIES_V1.json",
+    "DEV_EL_EVALUATION_V1.json",
+    "DIVE_311_EL_DIAGNOSIS.json",
+    "EL_V2_2_PROMOTION_STATUS.json",
+    "PERCEPTION_V1_CLOSURE_DECISION.json",
+    "DETECTOR_DEVELOPMENT_STATUS.json",
+    "R1_RERANKER_FINAL_STATUS.json",
+    "COMPUTE_PLACEMENT_V1.json",
+    "TOOLCHAIN_RESOURCE_VALIDATION_V1.json",
+    "PHASE_S_TEST_REGRESSION_REPAIR_CYCLE.json",
+    "PERCEPTION_V1_CLOSURE_REPAIR_AND_REAL_EVENT_LOGIC_REPORT.md"
+  ],
+  "paris_video": {
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "location": "NOT in repo \u2014 stored locally as IMG_1937.mov",
+    "note": "Paris video must not be committed to git"
+  },
+  "no_raw_video_in_git": true,
+  "no_duplicate_model_binaries_in_git": true
+}

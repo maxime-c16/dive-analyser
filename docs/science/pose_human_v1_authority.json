@@ -1,0 +1,836 @@
+{
+  "2134_fl_f00230": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 493.98,
+      "y": 550.07
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 407.86,
+      "y": 598.45
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 589.18,
+      "y": 655.9
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 495.5,
+      "y": 578.79
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 409.37,
+      "y": 612.05
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 453.19,
+      "y": 574.26
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 586.16,
+      "y": 578.79
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 608.82,
+      "y": 719.4
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 460.74,
+      "y": 599.96
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "2134_fl_f00247": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 498.24,
+      "y": 479.05
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 516.45,
+      "y": 441.32
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "occluded"
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 493.04,
+      "y": 432.21
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 435.81,
+      "y": 458.23
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 563.27,
+      "y": 415.3
+    },
+    "right_elbow": {
+      "state": "occluded"
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "2134_fl_f00264": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 425.56,
+      "y": 425.43
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 393.51,
+      "y": 496.22
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 373.48,
+      "y": 513.58
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 398.85,
+      "y": 530.94
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 410.87,
+      "y": 457.49
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 458.95,
+      "y": 488.2
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 322.72,
+      "y": 518.92
+    },
+    "right_elbow": {
+      "state": "occluded"
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "2134_fl_f00280": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 298.58,
+      "y": 601.64
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 274.96,
+      "y": 672.5
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 441.68,
+      "y": 622.48
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 298.58,
+      "y": 666.94
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 274.96,
+      "y": 630.82
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 386.11,
+      "y": 572.47
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 484.75,
+      "y": 664.16
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 315.25,
+      "y": 639.16
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 491.7,
+      "y": 653.05
+    }
+  },
+  "1257_fl_f00157": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 454.78,
+      "y": 662.53
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 444.23,
+      "y": 597.7
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 457.79,
+      "y": 766.55
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 453.27,
+      "y": 629.36
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 462.32,
+      "y": 722.83
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 430.66,
+      "y": 801.23
+    }
+  },
+  "1257_fl_f00167": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 491.22,
+      "y": 578.18
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 540.81,
+      "y": 565.2
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 539.63,
+      "y": 580.55
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 521.92,
+      "y": 572.28
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 516.02,
+      "y": 623.05
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 576.23,
+      "y": 602.98
+    }
+  },
+  "1257_fl_f00177": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 530.55,
+      "y": 640.82
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 572.22,
+      "y": 599.15
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 611.2,
+      "y": 584.36
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 550.71,
+      "y": 622
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 570.88,
+      "y": 617.97
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 650.18,
+      "y": 558.83
+    }
+  },
+  "1257_fl_f00188": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 617.23,
+      "y": 832.13
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 581.12,
+      "y": 824.66
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 658.33,
+      "y": 726.29
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 691.95,
+      "y": 692.67
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 592.33,
+      "y": 828.39
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 635.91,
+      "y": 772.36
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 684.48,
+      "y": 687.68
+    }
+  },
+  "2120_fl_f00270": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 494.08,
+      "y": 1233.47
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 457.8,
+      "y": 1296.49
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 484.53,
+      "y": 1227.74
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 406.23,
+      "y": 1456.91
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 478.8,
+      "y": 1264.02
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 411.96,
+      "y": 1384.34
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 389.05,
+      "y": 1516.11
+    }
+  },
+  "2120_fl_f00288": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 526.8,
+      "y": 1226.36
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 533.91,
+      "y": 1195.55
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 535.1,
+      "y": 1259.54
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 518.51,
+      "y": 1235.84
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 542.21,
+      "y": 1235.84
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 455.7,
+      "y": 1199.1
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 465.18,
+      "y": 1265.46
+    }
+  },
+  "2120_fl_f00297": {
+    "left_shoulder": {
+      "state": "occluded"
+    },
+    "left_wrist": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "occluded"
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 568.9,
+      "y": 1189.18
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 524.82,
+      "y": 1234.59
+    },
+    "right_knee": {
+      "state": "visible",
+      "x": 534.17,
+      "y": 1203.87
+    },
+    "left_elbow": {
+      "state": "occluded"
+    },
+    "left_hip": {
+      "state": "occluded"
+    },
+    "left_ankle": {
+      "state": "occluded"
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 540.85,
+      "y": 1214.55
+    },
+    "right_hip": {
+      "state": "visible",
+      "x": 506.13,
+      "y": 1138.43
+    },
+    "right_ankle": {
+      "state": "visible",
+      "x": 480.75,
+      "y": 1234.59
+    }
+  },
+  "47_fl_f00304": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 431.33,
+      "y": 582.78
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 504.67,
+      "y": 589
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 339.34,
+      "y": 510.69
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 508.39,
+      "y": 580.3
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 468.62,
+      "y": 585.27
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 377.87,
+      "y": 536.79
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 288.37,
+      "y": 485.83
+    },
+    "right_elbow": {
+      "state": "occluded"
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "47_fl_f00309": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 463.8,
+      "y": 664.7
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 504.76,
+      "y": 715.23
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 489.74,
+      "y": 667.43
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 383.25,
+      "y": 571.84
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 522.51,
+      "y": 708.4
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 487.01,
+      "y": 690.65
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 421.48,
+      "y": 604.61
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 336.82,
+      "y": 540.43
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 507.49,
+      "y": 683.82
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "47_fl_f00324": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 547.9,
+      "y": 1155.9
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 575.62,
+      "y": 1215.32
+    },
+    "right_shoulder": {
+      "state": "visible",
+      "x": 566.38,
+      "y": 1153.26
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 596.75,
+      "y": 1203.43
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 532.06,
+      "y": 1008
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 566.38,
+      "y": 1183.63
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 541.3,
+      "y": 1063.46
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 525.46,
+      "y": 945.94
+    },
+    "right_elbow": {
+      "state": "visible",
+      "x": 586.19,
+      "y": 1178.34
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "952_fl_f00391": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 474.17,
+      "y": 581.43
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 373.41,
+      "y": 569.57
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 314.14,
+      "y": 545.86
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "occluded"
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 414.9,
+      "y": 589.34
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 387.24,
+      "y": 605.15
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 235.11,
+      "y": 522.14
+    },
+    "right_elbow": {
+      "state": "occluded"
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  },
+  "952_fl_f00399": {
+    "left_shoulder": {
+      "state": "visible",
+      "x": 509.98,
+      "y": 624.23
+    },
+    "left_wrist": {
+      "state": "visible",
+      "x": 426.38,
+      "y": 559.43
+    },
+    "left_knee": {
+      "state": "visible",
+      "x": 351.13,
+      "y": 544.8
+    },
+    "right_shoulder": {
+      "state": "occluded"
+    },
+    "right_wrist": {
+      "state": "visible",
+      "x": 453.55,
+      "y": 548.98
+    },
+    "right_knee": {
+      "state": "occluded"
+    },
+    "left_elbow": {
+      "state": "visible",
+      "x": 457.73,
+      "y": 599.15
+    },
+    "left_hip": {
+      "state": "visible",
+      "x": 432.65,
+      "y": 588.69
+    },
+    "left_ankle": {
+      "state": "visible",
+      "x": 282.16,
+      "y": 519.71
+    },
+    "right_elbow": {
+      "state": "occluded"
+    },
+    "right_hip": {
+      "state": "occluded"
+    },
+    "right_ankle": {
+      "state": "occluded"
+    }
+  }
+}

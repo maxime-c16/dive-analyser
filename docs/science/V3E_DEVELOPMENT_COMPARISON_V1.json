@@ -1,0 +1,571 @@
+{
+ "label": "V3E_DEVELOPMENT_COMPARISON_V1",
+ "date": "2026-09-09T12:47:06.414014+00:00",
+ "variants": {
+  "v3d0": "PARAMS_V3D0",
+  "v3e0": "PARAMS_V3E0"
+ },
+ "params_v3e0": {
+  "variant": "V3E0",
+  "detector": "yolov8n",
+  "detector_imgsz": 640,
+  "detector_conf": 0.1,
+  "detector_iou": 0.45,
+  "detector_classes": [
+   0
+  ],
+  "tracker": "bytetrack",
+  "track_min_conf": 0.1,
+  "track_select_strategy": "longest_x_conf",
+  "smooth_window_s": 0.35,
+  "interp_max_gap_s": 0.3,
+  "vel_max_gap_s": 0.2,
+  "static_var_threshold": 0.0015,
+  "static_window_s": 0.4,
+  "static_min_duration_s": 0.25,
+  "takeoff_vel_threshold": 0.04,
+  "takeoff_sustained_s": 0.15,
+  "takeoff_min_after_prep_s": 0.1,
+  "hurdle_post_plateau_guard_s": 0.4,
+  "apex_search_start_s": 0.08,
+  "water_line_cy_norm": 0.5,
+  "water_contact_method": "cy_threshold_or_dropout",
+  "water_contact_min_after_apex_s": 0.05,
+  "min_coverage_for_confident": 0.15,
+  "max_takeoff_error_for_confident": 0.5,
+  "use_scene_priors": false,
+  "board_cx_min": 0.5,
+  "board_cx_max": 1.0,
+  "water_line_auto": false,
+  "apex_max_window_s": 1.5,
+  "wc_max_window_s": 2.5,
+  "min_hurdle_rise_cy": 0.01,
+  "fallback_sustained_s": 0.15,
+  "board_ref_min_support_n": 5
+ },
+ "params_delta_vs_v3d0": {
+  "board_ref_min_support_n": {
+   "v3d0": "<absent>",
+   "v3e0": 5
+  },
+  "variant": {
+   "v3d0": "V3D0",
+   "v3e0": "V3E0"
+  }
+ },
+ "inputs": {
+  "hurdle_cache": "docs/science/DEV_HURDLE_TRAJ_CACHE_V2.json",
+  "hurdle_cache_sha256": "91ae4a5a63977e7996b75ca7a84f73c56bd0e5aa0b711d82ae36310ebaccae89",
+  "standing_cache": "docs/science/STANDING_TRAJ_CACHE_V2.json",
+  "standing_cache_sha256": "e83bbeb5c914a6e907653e6b1b7878c8802720397958d0489dc3475b385ce4d9",
+  "documented_baseline": "docs/science/V3D0_HURDLE_CORPUS_BASELINE_V1.json",
+  "documented_baseline_sha256": "c3d9192d9e8211a1c3f10480ba4bb346ee1f43fe62c354ac43ce41a1356261dd",
+  "board_reference_audit": "docs/science/BOARD_REFERENCE_AUDIT_V1.json",
+  "board_reference_audit_sha256": "adab2978d554850099e82cf67c5fcfc27d5083fa6adf9788fb035c4b50d61e39",
+  "twod_approach_audit": "docs/science/TWOD_APPROACH_AUDIT_V1.json",
+  "twod_approach_audit_sha256": "aafd80d3e0eda1a139bf60467770a43e52cb3073dea4f303bca4ae3924d14c39"
+ },
+ "gt_role": "error reporting only; never a detector input",
+ "hurdle_results": {
+  "1040": {
+   "code": "102C",
+   "drill": false,
+   "gt": {
+    "takeoff": 4.463857,
+    "apex": 4.797189,
+    "water_contact": 5.413853
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 0.433767,
+     "takeoff_t": 2.469133,
+     "apex_t": 2.635967,
+     "water_contact_t": 2.9029
+    },
+    "errors": {
+     "to_err": 1.9947,
+     "apex_err": 2.1612,
+     "wc_err": 2.511
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 0.433767,
+     "takeoff_t": 10.2102,
+     "apex_t": 10.543867,
+     "water_contact_t": 11.011
+    },
+    "errors": {
+     "to_err": 5.7463,
+     "apex_err": 5.7467,
+     "wc_err": 5.5971
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.2207765430212021,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 5
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 3.7516,
+    "behavior_changed": true
+   }
+  },
+  "2169": {
+   "code": "101B",
+   "drill": false,
+   "gt": {
+    "takeoff": 6.46124,
+    "apex": 6.761239,
+    "water_contact": 7.694569
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 5.9059,
+     "takeoff_t": 6.873533,
+     "apex_t": 7.25725,
+     "water_contact_t": 7.4074
+    },
+    "errors": {
+     "to_err": 0.4123,
+     "apex_err": 0.496,
+     "wc_err": 0.2872
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 5.9059,
+     "takeoff_t": 6.873533,
+     "apex_t": 7.25725,
+     "water_contact_t": 7.4074
+    },
+    "errors": {
+     "to_err": 0.4123,
+     "apex_err": 0.496,
+     "wc_err": 0.2872
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.26256588101387024,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 338
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  },
+  "524": {
+   "code": "103B",
+   "drill": false,
+   "gt": {
+    "takeoff": 5.810276,
+    "apex": 6.326941,
+    "water_contact": 7.093604
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 0.666667,
+     "takeoff_t": 1.066667,
+     "apex_t": 1.466667,
+     "water_contact_t": 2.416667
+    },
+    "errors": {
+     "to_err": 4.7436,
+     "apex_err": 4.8603,
+     "wc_err": 4.6769
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 0.666667,
+     "takeoff_t": 1.066667,
+     "apex_t": 1.466667,
+     "water_contact_t": 2.416667
+    },
+    "errors": {
+     "to_err": 4.7436,
+     "apex_err": 4.8603,
+     "wc_err": 4.6769
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.2624489665031433,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 29
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  },
+  "2341": {
+   "code": "101B",
+   "drill": false,
+   "gt": {
+    "takeoff": 3.572542,
+    "apex": 3.955874,
+    "water_contact": 4.589204
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 3.983333,
+     "takeoff_t": 4.583333,
+     "apex_t": 5.5,
+     "water_contact_t": 8.0
+    },
+    "errors": {
+     "to_err": 1.0108,
+     "apex_err": 1.5441,
+     "wc_err": 3.4108
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 3.983333,
+     "takeoff_t": 4.583333,
+     "apex_t": 5.5,
+     "water_contact_t": 8.0
+    },
+    "errors": {
+     "to_err": 1.0108,
+     "apex_err": 1.5441,
+     "wc_err": 3.4108
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.11128052324056625,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 239
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  },
+  "2353": {
+   "code": "101A",
+   "drill": true,
+   "gt": {
+    "takeoff": 5.696084,
+    "apex": 6.279415,
+    "water_contact": 6.879412
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 2.969633,
+     "takeoff_t": 3.887217,
+     "apex_t": 4.587917,
+     "water_contact_t": 4.637967
+    },
+    "errors": {
+     "to_err": 1.8089,
+     "apex_err": 1.6915,
+     "wc_err": 2.2414
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 2.969633,
+     "takeoff_t": 3.887217,
+     "apex_t": 4.587917,
+     "water_contact_t": 4.637967
+    },
+    "errors": {
+     "to_err": 1.8089,
+     "apex_err": 1.6915,
+     "wc_err": 2.2414
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.6337400078773499,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 164
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  },
+  "2541": {
+   "code": "5111B",
+   "drill": false,
+   "gt": {
+    "takeoff": 17.518102,
+    "apex": 17.984766,
+    "water_contact": 18.65143
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 2.035367,
+     "takeoff_t": 2.5025,
+     "apex_t": 2.635967,
+     "water_contact_t": 3.737067
+    },
+    "errors": {
+     "to_err": 15.0156,
+     "apex_err": 15.3488,
+     "wc_err": 14.9144
+    },
+    "complete_triplet": true,
+    "coverage": 0.9928
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 2.035367,
+     "takeoff_t": 2.5025,
+     "apex_t": 2.635967,
+     "water_contact_t": 3.737067
+    },
+    "errors": {
+     "to_err": 15.0156,
+     "apex_err": 15.3488,
+     "wc_err": 14.9144
+    },
+    "complete_triplet": true,
+    "coverage": 0.9928,
+    "board_ref": 0.028812397161794415,
+    "board_ref_mode": "HISTORICAL_FALLBACK",
+    "board_ref_n_support": 0
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  },
+  "2555": {
+   "code": "5132D",
+   "drill": false,
+   "gt": {
+    "takeoff": 4.313702,
+    "apex": 6.397027,
+    "water_contact": 9.597014
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 0.566667,
+     "takeoff_t": 1.7,
+     "apex_t": 1.983333,
+     "water_contact_t": 2.116667
+    },
+    "errors": {
+     "to_err": 2.6137,
+     "apex_err": 4.4137,
+     "wc_err": 7.4803
+    },
+    "complete_triplet": true,
+    "coverage": 1.0
+   },
+   "v3e0": {
+    "predicted": {
+     "prep_end_t": 0.566667,
+     "takeoff_t": 1.7,
+     "apex_t": 1.983333,
+     "water_contact_t": 2.116667
+    },
+    "errors": {
+     "to_err": 2.6137,
+     "apex_err": 4.4137,
+     "wc_err": 7.4803
+    },
+    "complete_triplet": true,
+    "coverage": 1.0,
+    "board_ref": 0.6095914840698242,
+    "board_ref_mode": "B1R",
+    "board_ref_n_support": 6
+   },
+   "v3d0_reproduces_documented_baseline": true,
+   "delta": {
+    "to_err": 0.0,
+    "behavior_changed": false
+   }
+  }
+ },
+ "standing_results": {
+  "133": {
+   "code": "301B",
+   "gt": {
+    "takeoff": 1.800274,
+    "apex": 2.083607,
+    "water_contact": 2.95027
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 1.1011,
+     "takeoff_t": 1.634967,
+     "apex_t": 2.369033,
+     "water_contact_t": 2.8028
+    },
+    "errors": {
+     "to_err": 0.1653,
+     "apex_err": 0.2854,
+     "wc_err": 0.1475
+    }
+   },
+   "v3e0_identical_to_v3d0": true
+  },
+  "311": {
+   "code": "401C",
+   "gt": {
+    "takeoff": 13.7546,
+    "apex": null,
+    "water_contact": 14.821262
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 13.580233,
+     "takeoff_t": 13.8138,
+     "apex_t": 14.047367,
+     "water_contact_t": 14.848167
+    },
+    "errors": {
+     "to_err": 0.0592,
+     "apex_err": null,
+     "wc_err": 0.0269
+    }
+   },
+   "v3e0_identical_to_v3d0": true
+  },
+  "676": {
+   "code": "301A",
+   "gt": {
+    "takeoff": 3.553575,
+    "apex": 3.886907,
+    "water_contact": 4.853569
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 0.333667,
+     "takeoff_t": 0.467133,
+     "apex_t": 1.368033,
+     "water_contact_t": 3.837167
+    },
+    "errors": {
+     "to_err": 3.0864,
+     "apex_err": 2.5189,
+     "wc_err": 1.0164
+    }
+   },
+   "v3e0_identical_to_v3d0": true
+  },
+  "2387": {
+   "code": "5411C",
+   "gt": {
+    "takeoff": 4.483274,
+    "apex": 4.833273,
+    "water_contact": 5.499937
+   },
+   "v3d0": {
+    "predicted": {
+     "prep_end_t": 0.467133,
+     "takeoff_t": 2.335667,
+     "apex_t": 2.869533,
+     "water_contact_t": 5.338667
+    },
+    "errors": {
+     "to_err": 2.1476,
+     "apex_err": 1.9637,
+     "wc_err": 0.1613
+    }
+   },
+   "v3e0_identical_to_v3d0": true
+  }
+ },
+ "aggregates": {
+  "hurdle_catastrophic_to_err_gt_2p5s": {
+   "v3d0": {
+    "all": 3,
+    "non_drill": 3
+   },
+   "v3e0": {
+    "all": 4,
+    "non_drill": 4
+   }
+  },
+  "hurdle_complete_triplets": {
+   "v3d0": "7/7",
+   "v3e0": "7/7"
+  },
+  "improved_non_drill_dives": [],
+  "regressed_non_drill_dives": [
+   "1040"
+  ],
+  "behavior_changed_dives": [
+   "1040"
+  ]
+ },
+ "k2_standing_identity": "PASS (byte-identical, asserted)",
+ "freeze_gate": {
+  "criteria": {
+   "hurdle_improvement_beyond_single_dive": {
+    "pass": false,
+    "improved_non_drill": [],
+    "regressed_non_drill": [
+     "1040"
+    ],
+    "behavior_changed_dives": [
+     "1040"
+    ],
+    "note": "Requires generalizable HURDLE improvement (more than one dive, no non-drill regression). V3-E0 changes behaviour on ['1040'] only and REGRESSES it (V3-D0 1.9947 -> V3-E0 5.7463); zero dives improved."
+   },
+   "no_standing_regression": {
+    "pass": true,
+    "note": "K2 byte-identity assertion passed on all 4 STANDING dives."
+   },
+   "fm1_closed": {
+    "pass": true,
+    "wc_err": 0.0269,
+    "threshold": 0.1,
+    "note": "Dive 311 wc_err must stay <= 0.1s (A1+A2 unchanged in V3-E0)."
+   },
+   "terminal_wc_stable": {
+    "pass": false,
+    "regressed_non_drill": [
+     "1040"
+    ],
+    "tolerance_s": 0.25,
+    "note": "No non-drill HURDLE wc_err may worsen by more than 0.25s. 1040 wc_err 2.511 -> 5.5971."
+   },
+   "mechanism_physically_interpretable": {
+    "pass": true,
+    "note": "B1r is a physical board level (robust stable-support cluster median of raw cy); the gate keeps the D0 board-rise invariant semantics."
+   },
+   "no_paris_influence": {
+    "pass": true,
+    "note": "DEVELOPMENT-only derivation; Paris firewall verified statically by test_event_logic_v3_e.py (forbidden constant set + no reference to the Paris trajectory artifact in this eval script)."
+   }
+  },
+  "gate_result": "FAIL",
+  "decision": "MORE_HURDLE_GT_REQUIRED",
+  "note": "HURDLE evidence remains too small: the B1r reference is valid (audit) but the D0 first-valid-crossing semantics convert the corrected board level into a LATER false acceptance on 1040 (post-water-contact flicker crossing at 9.343s, cy_apex=0.1949 < B1r 0.2208). One behavioural change on one dive, and it is a regression."
+ },
+ "v3_e1": {
+  "decision": "NOT_JUSTIFIED_BY_DEVELOPMENT_EVIDENCE",
+  "condition_a_resolved_to_err_gt_2s": [
+   "1040",
+   "524",
+   "2541",
+   "2555"
+  ],
+  "condition_a_note": "Partially met at most: 2541 excluded by rule (non-diver plateau); 1040 (5.7463) and 2555 (2.6137) are target-corruption-family failures; only 524 (4.7436, unchanged from V3-D0) is a candidate.",
+  "condition_b_note": "NOT met: TWOD_APPROACH_AUDIT_V1 found no dive APPROACH_END_OBSERVABLE_FROM_2D_TRAJECTORY (Phase H precondition failed); BOARD_REFERENCE_AUDIT_V1 validates only the B1r board level. No GT-blind, camera-agnostic end-of-board context cue is validated for 524/2555; building V3-E1 would require an unvalidated cue, which the gate forbids.",
+  "built": false
+ },
+ "paris_role": "not evaluated here; external read-only evaluation is phase_v3e_paris_eval.py (post-freeze-decision)"
+}

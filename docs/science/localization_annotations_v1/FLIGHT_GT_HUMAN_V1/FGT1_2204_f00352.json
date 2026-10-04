@@ -1,0 +1,28 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  29.6,
+  88.8,
+  131.6,
+  175.4
+ ],
+ "coordinate_frame": "proxy_pixels_202x360",
+ "created_at": "2026-09-25T21:57:57.112901+00:00",
+ "display_hq_sha256": null,
+ "dive_id": "2204",
+ "flight_fraction": "4/8",
+ "frame_index": 352,
+ "height": 360,
+ "id": "FGT1_2204_f00352",
+ "image_sha256": "bd72db37aa5ef5d707daf13f38802b29e55c9a38fae1870a760a7cceda6acf2a",
+ "media_sha256": "de7f769aa5e029b07efbf8faca73aca92c519580d6b11c8d96d4875356c115bd",
+ "method": "human_drawn_blind",
+ "pts_s": 5.866667,
+ "repeat_of": null,
+ "representation": "proxy_360p_native_decoded_frame_upscaled",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202,
+ "window_source": "HUMAN_EVENT_MARKED_IN_THIS_TOOL"
+}

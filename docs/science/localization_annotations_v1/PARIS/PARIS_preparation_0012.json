@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_preparation_0012",
+  "dive_id": "PARIS_2819",
+  "phase": "preparation",
+  "frame_index": 12,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 0.2,
+  "actual_pts_s": 0.2,
+  "image_sha256": "e238fa61d9af59175ede11b70ba67a1400323a1ab5e48d2d14b0548ab67c047f",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    848.1477927063339,
+    524.035508637236,
+    1031.5163147792707,
+    924.1698656429943
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:58:33.895485+00:00"
+}

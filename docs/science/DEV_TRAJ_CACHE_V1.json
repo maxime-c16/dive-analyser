@@ -1,0 +1,37 @@
+{
+  "label": "DEV_TRAJ_CACHE_V1",
+  "date": "2026-09-09",
+  "pipeline": "D5_FRAMEWISE_OP_CONF_0_05",
+  "per_dive": {
+    "133": {
+      "fps": 29.97002997002997,
+      "n_frames": 178,
+      "n_detected_op": 104
+    },
+    "311": {
+      "fps": 29.97002997002997,
+      "n_frames": 577,
+      "n_detected_op": 358
+    },
+    "676": {
+      "fps": 29.97002997002997,
+      "n_frames": 222,
+      "n_detected_op": 181
+    },
+    "1040": {
+      "fps": 29.97002997002997,
+      "n_frames": 332,
+      "n_detected_op": 332
+    },
+    "2169": {
+      "fps": 59.94005994005994,
+      "n_frames": 1078,
+      "n_detected_op": 1078
+    },
+    "2387": {
+      "fps": 29.97002997002997,
+      "n_frames": 748,
+      "n_detected_op": 667
+    }
+  }
+}

@@ -13,6 +13,16 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
+
+# Every test in this module asserts on wall-clock latency (34 timing
+# assertions across the TestPerformance* classes). The `performance` marker is
+# registered in conftest.py and the project's documented invocation is
+# `pytest -m "not performance"`, but the marker was never applied here, so
+# these load-sensitive assertions ran inside the correctness gate and flaked
+# depending on machine load. Apply it at module level so the filter works as
+# intended; run them explicitly with:
+#   pytest tests/test_performance_sync.py -m performance
+pytestmark = pytest.mark.performance
 from app.database import Base, get_db, engine
 
 

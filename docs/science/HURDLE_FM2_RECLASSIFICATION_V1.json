@@ -1,0 +1,51 @@
+{
+ "label": "HURDLE_FM2_RECLASSIFICATION_V1",
+ "date": "2026-09-09",
+ "packet": "HURDLE_TARGET_IDENTITY_REPAIR",
+ "prior_classification": "FM2 root cause: D5 target instability at 360p (target switching/oscillation) corrupting board level and departure detection (HURDLE_APPROACH_END_CONTEXT_AND_V3_E_REPORT sec 15)",
+ "new_evidence": "HURDLE_TARGET_IDENTITY_CLASSIFICATION_V1 (per-frame, frozen D5-A, GT chains from HUMAN_GT + verified visual anchors)",
+ "reclassification": {
+  "fm2_root_cause_corrected": "NOT oscillation/instability: SYSTEMATIC per-frame SELECTION failure - the op-point top-1 rides static background distractors that outrank the true diver continuously (longest wrong runs 33-363 frames; top-1 correct only 0.5-51.8% of GT frames)",
+  "detector_ceiling_refuted": "target present in raw floor proposals 100% of evaluable frames on ALL classified dives (1040 included - the FM3/raw-candidates-insufficient hypothesis is refuted; avail_floor=1.000)",
+  "per_dive": {
+   "1040": {
+    "d5_top1": 0.106,
+    "avail_floor": 1.0,
+    "verdict": "SELECTION_FAILURE (refuted candidates-insufficient)"
+   },
+   "2169": {
+    "d5_top1": 0.963,
+    "avail_floor": 1.0,
+    "verdict": "SELECTION_OK (FM2 not selection-driven here; failure was temporal artifact of trajectory, takeoff detectable)"
+   },
+   "2341": {
+    "d5_top1": 0.022,
+    "avail_floor": 1.0,
+    "verdict": "SELECTION_FAILURE (static structure (0.64,0.11) conf 0.403 outranks diver conf 0.003-0.05)"
+   },
+   "2353": {
+    "d5_top1": 0.005,
+    "avail_floor": 1.0,
+    "verdict": "SELECTION_FAILURE"
+   },
+   "2541": {
+    "d5_top1": 0.149,
+    "avail_floor": 1.0,
+    "verdict": "SELECTION_FAILURE (camera pan + distractors)"
+   },
+   "2555": {
+    "d5_top1": 0.518,
+    "avail_floor": 1.0,
+    "verdict": "PARTIAL_SELECTION_FAILURE (dense boxes; longest wrong 33)"
+   },
+   "524": {
+    "verdict": "UNRESOLVED (no usable anchors; HQ mapping self-validation FAILED - HQ boxes not usable)"
+   }
+  },
+  "consequence_for_event_logic": "FM2's board-level and departure detection operate on a trajectory that is predominantly the WRONG OBJECT on 4/6 classified dives (incl. 1040: frozen DEV_HURDLE_TRAJ_CACHE_V2 1040 trajectory cy=0.221 = the structure distractor, confirmed by V3-D0 replay). Repairing FM2 requires repairing per-frame selection first; neither robust board level (B1r) nor unbounded scan addresses the root cause."
+ },
+ "v3d0_replay": {
+  "artifact": "runs/hurdle_identity_v1/v3d0_replay_v1.json",
+  "result": "1040/2169 magnitudes reproduce the freeze exactly (sign convention differs); freeze validated; 5 HURDLE dives never had V3-D0 numbers (2341/2353/2541/2555/524 new)"
+ }
+}

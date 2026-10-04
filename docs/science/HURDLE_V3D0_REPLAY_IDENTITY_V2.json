@@ -1,0 +1,146 @@
+{
+ "label": "V3D0_REPLAY_IDENTITY_V2",
+ "packet": "HURDLE_TARGET_IDENTITY_V2",
+ "frozen_params": {
+  "apex_max_window_s": 1.5,
+  "apex_search_start_s": 0.08,
+  "board_cx_max": 1.0,
+  "board_cx_min": 0.5,
+  "detector": "yolov8n",
+  "detector_classes": [
+   0
+  ],
+  "detector_conf": 0.1,
+  "detector_imgsz": 640,
+  "detector_iou": 0.45,
+  "fallback_sustained_s": 0.15,
+  "hurdle_post_plateau_guard_s": 0.4,
+  "interp_max_gap_s": 0.3,
+  "max_takeoff_error_for_confident": 0.5,
+  "min_coverage_for_confident": 0.15,
+  "min_hurdle_rise_cy": 0.01,
+  "smooth_window_s": 0.35,
+  "static_min_duration_s": 0.25,
+  "static_var_threshold": 0.0015,
+  "static_window_s": 0.4,
+  "takeoff_min_after_prep_s": 0.1,
+  "takeoff_sustained_s": 0.15,
+  "takeoff_vel_threshold": 0.04,
+  "track_min_conf": 0.1,
+  "track_select_strategy": "longest_x_conf",
+  "tracker": "bytetrack",
+  "use_scene_priors": false,
+  "variant": "V3D0",
+  "vel_max_gap_s": 0.2,
+  "water_contact_method": "cy_threshold_or_dropout",
+  "water_contact_min_after_apex_s": 0.05,
+  "water_line_auto": false,
+  "water_line_cy_norm": 0.5,
+  "wc_max_window_s": 2.5
+ },
+ "trajectory_source": "docs/science/DEV_HURDLE_TRAJ_CACHE_V2.json (frozen)",
+ "dives": {
+  "1040": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 0.433767,
+    "takeoff_t": 2.469133,
+    "apex_t": 2.635967,
+    "water_contact_t": 2.9029
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": -1.9947,
+    "apex_t_err": -2.1612,
+    "water_contact_t_err": -2.511
+   },
+   "coverage": 1.0,
+   "n_frames": 332,
+   "n_valid": 332
+  },
+  "2169": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 5.9059,
+    "takeoff_t": 6.873533,
+    "apex_t": 7.25725,
+    "water_contact_t": 7.4074
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": 0.4123,
+    "apex_t_err": 0.496,
+    "water_contact_t_err": -0.2872
+   },
+   "coverage": 1.0,
+   "n_frames": 1078,
+   "n_valid": 1078
+  },
+  "2341": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 3.983333,
+    "takeoff_t": 4.583333,
+    "apex_t": 5.5,
+    "water_contact_t": 8.0
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": 1.0108,
+    "apex_t_err": 1.5441,
+    "water_contact_t_err": 3.4108
+   },
+   "coverage": 1.0,
+   "n_frames": 607,
+   "n_valid": 607
+  },
+  "2353": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 2.969633,
+    "takeoff_t": 3.887217,
+    "apex_t": 4.587917,
+    "water_contact_t": 4.637967
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": -1.8089,
+    "apex_t_err": -1.6915,
+    "water_contact_t_err": -2.2414
+   },
+   "coverage": 1.0,
+   "n_frames": 1437,
+   "n_valid": 1437
+  },
+  "2541": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 2.035367,
+    "takeoff_t": 2.5025,
+    "apex_t": 2.635967,
+    "water_contact_t": 3.737067
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": -15.0156,
+    "apex_t_err": -15.3488,
+    "water_contact_t_err": -14.9144
+   },
+   "coverage": 0.9928,
+   "n_frames": 975,
+   "n_valid": 968
+  },
+  "2555": {
+   "context": "HURDLE",
+   "events": {
+    "prep_end_t": 0.566667,
+    "takeoff_t": 1.7,
+    "apex_t": 1.983333,
+    "water_contact_t": 2.116667
+   },
+   "errors_vs_gt": {
+    "takeoff_t_err": -2.6137,
+    "apex_t_err": -4.4137,
+    "water_contact_t_err": -7.4803
+   },
+   "coverage": 1.0,
+   "n_frames": 722,
+   "n_valid": 722
+  }
+ }
+}

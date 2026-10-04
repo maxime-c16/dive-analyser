@@ -1,0 +1,70 @@
+{
+  "label": "TARGET_DIVER_PERCEPTION_V1_FINAL_FREEZE",
+  "date": "2026-09-09",
+  "status": "FROZEN",
+  "version": 2,
+  "supersedes": "TARGET_DIVER_PERCEPTION_V1_FREEZE.json",
+  "architecture": "D5_FRAMEWISE",
+  "r1_status": "REJECTED_NOT_USED",
+  "bytetrack_status": "NOT_IMPLEMENTED",
+  "selector": "D5_OP_CONF_TOP1",
+  "components": {
+    "detector": {
+      "name": "DIVER_DETECTOR_D5_A_V8N",
+      "path": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+      "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+      "training_from": "D4_TRANSFER",
+      "n_train": 55,
+      "n_val": 14
+    },
+    "reranker": null,
+    "temporal_continuity": null
+  },
+  "inference": {
+    "floor_conf": 0.001,
+    "op_conf": 0.05,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "floor_cap": 200,
+    "preprocessing": "YOLO_default_letterbox_BGR",
+    "selector": "D5_OP_CONF_TOP1",
+    "anchor_frame_extraction": "SEEK_BASED_cap_set_POS_FRAMES",
+    "r1_used": false,
+    "bytetrack_used": false
+  },
+  "d5_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "development_metrics_d5_only": {
+    "floor_recall": 0.9706,
+    "op_recall": 0.8824,
+    "top1_recall_floor_conf": 0.3333,
+    "multi_dive_valid": "6/10",
+    "multi_dive_valid_dives": [
+      133,
+      311,
+      676,
+      1040,
+      2169,
+      2387
+    ],
+    "multi_dive_invalid_dives": [
+      524,
+      2341,
+      2555,
+      2625
+    ]
+  },
+  "paris_canary": {
+    "trajectory_gate": "TRAJECTORY_INPUT_PASS",
+    "floor_conf_used": 0.001,
+    "anchor_extraction": "SEEK_BASED",
+    "c1_takeoff_iou": 0.379,
+    "c2_apex_iou": 0.417,
+    "c3_wc_iou": 0.324,
+    "c4_coverage": 1.0,
+    "c5_max_gap_s": 0.0,
+    "c6_wrong_target_s": 0.0
+  },
+  "paris_firewall": "VERIFIED \u2014 Paris used for post-freeze external evaluation only",
+  "development_firewall": "MAINTAINED \u2014 no Paris frames in training",
+  "no_paris_derived_parameters": true
+}

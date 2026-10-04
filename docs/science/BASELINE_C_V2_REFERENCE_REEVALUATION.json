@@ -1,0 +1,444 @@
+{
+  "label": "BASELINE_C_V2_REFERENCE_REEVALUATION",
+  "source_eval": "BASELINE_CC2_DESIGN_RESULTS_V1.json",
+  "v2_authority": "TEMPORAL_LANDMARK_GROUND_TRUTH_V2_PTS_REPAIR.json",
+  "note": "Frozen C2 variant predictions unchanged; only reference authority changes. Time-domain primary.",
+  "per_dive": {
+    "2661": {
+      "fps": 59.94005994005994,
+      "takeoff": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "no v2 reference"
+      },
+      "water_contact": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      }
+    },
+    "2680": {
+      "fps": 59.908256880733944,
+      "takeoff": {
+        "c_frame": 527,
+        "c_ts_s": 8.7968,
+        "v2_frame": 200,
+        "v2_pts_s": 3.3333,
+        "v1_h_frame": 200,
+        "time_err_v2_s": 5.4635,
+        "frame_err_v2": 327,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "no v2 reference"
+      },
+      "water_contact": {
+        "c_frame": 652,
+        "c_ts_s": 10.8833,
+        "v2_frame": 241,
+        "v2_pts_s": 4.0167,
+        "v1_h_frame": 241,
+        "time_err_v2_s": 6.8666,
+        "frame_err_v2": 411,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "2353": {
+      "fps": 59.94005994005994,
+      "takeoff": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "water_contact": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      }
+    },
+    "2341": {
+      "fps": 60.0,
+      "takeoff": {
+        "c_frame": 7,
+        "c_ts_s": 0.1167,
+        "v2_frame": 214,
+        "v2_pts_s": 3.5667,
+        "v1_h_frame": 214,
+        "time_err_v2_s": 3.45,
+        "frame_err_v2": 207,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 74,
+        "c_ts_s": 1.2333,
+        "v2_frame": 237,
+        "v2_pts_s": 3.95,
+        "v1_h_frame": 237,
+        "time_err_v2_s": 2.7167,
+        "frame_err_v2": 163,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 111,
+        "c_ts_s": 1.85,
+        "v2_frame": 275,
+        "v2_pts_s": 4.5833,
+        "v1_h_frame": 275,
+        "time_err_v2_s": 2.7333,
+        "frame_err_v2": 164,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "524": {
+      "fps": 60.0,
+      "takeoff": {
+        "c_frame": 125,
+        "c_ts_s": 2.0833,
+        "v2_frame": 348,
+        "v2_pts_s": 5.8,
+        "v1_h_frame": 349,
+        "time_err_v2_s": 3.7167,
+        "frame_err_v2": 223,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 230,
+        "c_ts_s": 3.8333,
+        "v2_frame": 379,
+        "v2_pts_s": 6.3167,
+        "v1_h_frame": 380,
+        "time_err_v2_s": 2.4834,
+        "frame_err_v2": 149,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 246,
+        "c_ts_s": 4.1,
+        "v2_frame": 425,
+        "v2_pts_s": 7.0833,
+        "v1_h_frame": 426,
+        "time_err_v2_s": 2.9833,
+        "frame_err_v2": 179,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "2625": {
+      "fps": 59.94005994005994,
+      "takeoff": {
+        "evaluable": false,
+        "reason": "no v2 reference"
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "water_contact": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      }
+    },
+    "2169": {
+      "fps": 59.94005994005994,
+      "takeoff": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "water_contact": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      }
+    },
+    "1040": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      },
+      "water_contact": {
+        "evaluable": false,
+        "reason": "applicability=UNCERTAIN"
+      }
+    },
+    "676": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "c_frame": 0,
+        "c_ts_s": 0.0,
+        "v2_frame": 106,
+        "v2_pts_s": 3.5369,
+        "v1_h_frame": 213,
+        "time_err_v2_s": 3.5369,
+        "frame_err_v2": 106,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 185,
+        "c_ts_s": 6.1728,
+        "v2_frame": 116,
+        "v2_pts_s": 3.8705,
+        "v1_h_frame": 233,
+        "time_err_v2_s": 2.3023,
+        "frame_err_v2": 69,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 221,
+        "c_ts_s": 7.374,
+        "v2_frame": 145,
+        "v2_pts_s": 4.8382,
+        "v1_h_frame": 291,
+        "time_err_v2_s": 2.5358,
+        "frame_err_v2": 76,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "133": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "c_frame": 0,
+        "c_ts_s": 0.0,
+        "v2_frame": 53,
+        "v2_pts_s": 1.7684,
+        "v1_h_frame": 108,
+        "time_err_v2_s": 1.7684,
+        "frame_err_v2": 53,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 48,
+        "c_ts_s": 1.6016,
+        "v2_frame": 62,
+        "v2_pts_s": 2.0687,
+        "v1_h_frame": 125,
+        "time_err_v2_s": 0.4671,
+        "frame_err_v2": 14,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": false
+      },
+      "water_contact": {
+        "c_frame": 112,
+        "c_ts_s": 3.7371,
+        "v2_frame": 88,
+        "v2_pts_s": 2.9363,
+        "v1_h_frame": 177,
+        "time_err_v2_s": 0.8008,
+        "frame_err_v2": 24,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": false
+      }
+    },
+    "311": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "c_frame": 0,
+        "c_ts_s": 0.0,
+        "v2_frame": 412,
+        "v2_pts_s": 13.7471,
+        "v1_h_frame": 825,
+        "time_err_v2_s": 13.7471,
+        "frame_err_v2": 412,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "evaluable": false,
+        "reason": "no v2 reference"
+      },
+      "water_contact": {
+        "c_frame": 484,
+        "c_ts_s": 16.1495,
+        "v2_frame": 444,
+        "v2_pts_s": 14.8148,
+        "v1_h_frame": 889,
+        "time_err_v2_s": 1.3347,
+        "frame_err_v2": 40,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "2541": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "c_frame": 237,
+        "c_ts_s": 7.9079,
+        "v2_frame": 525,
+        "v2_pts_s": 17.5175,
+        "v1_h_frame": 1051,
+        "time_err_v2_s": 9.6096,
+        "frame_err_v2": 288,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 247,
+        "c_ts_s": 8.2416,
+        "v2_frame": 539,
+        "v2_pts_s": 17.9846,
+        "v1_h_frame": 1079,
+        "time_err_v2_s": 9.743,
+        "frame_err_v2": 292,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 441,
+        "c_ts_s": 14.7147,
+        "v2_frame": 558,
+        "v2_pts_s": 18.6186,
+        "v1_h_frame": 1119,
+        "time_err_v2_s": 3.9039,
+        "frame_err_v2": 117,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "2387": {
+      "fps": 29.97002997002997,
+      "takeoff": {
+        "c_frame": 415,
+        "c_ts_s": 13.8472,
+        "v2_frame": 134,
+        "v2_pts_s": 4.4711,
+        "v1_h_frame": 269,
+        "time_err_v2_s": 9.3761,
+        "frame_err_v2": 281,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 434,
+        "c_ts_s": 14.4811,
+        "v2_frame": 144,
+        "v2_pts_s": 4.8048,
+        "v1_h_frame": 290,
+        "time_err_v2_s": 9.6763,
+        "frame_err_v2": 290,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 651,
+        "c_ts_s": 21.7217,
+        "v2_frame": 164,
+        "v2_pts_s": 5.4721,
+        "v1_h_frame": 330,
+        "time_err_v2_s": 16.2496,
+        "frame_err_v2": 487,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    },
+    "2555": {
+      "fps": 59.261285909712726,
+      "takeoff": {
+        "c_frame": 11,
+        "c_ts_s": 0.1856,
+        "v2_frame": 257,
+        "v2_pts_s": 4.3,
+        "v1_h_frame": 259,
+        "time_err_v2_s": 4.1144,
+        "frame_err_v2": 246,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "apex": {
+        "c_frame": 109,
+        "c_ts_s": 1.8393,
+        "v2_frame": 382,
+        "v2_pts_s": 6.3833,
+        "v1_h_frame": 384,
+        "time_err_v2_s": 4.544,
+        "frame_err_v2": 273,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      },
+      "water_contact": {
+        "c_frame": 299,
+        "c_ts_s": 5.0455,
+        "v2_frame": 574,
+        "v2_pts_s": 9.5833,
+        "v1_h_frame": 576,
+        "time_err_v2_s": 4.5378,
+        "frame_err_v2": 275,
+        "applicability": "APPLICABLE",
+        "evaluable": true,
+        "serious_v2": true
+      }
+    }
+  },
+  "aggregate_v2": {
+    "takeoff": {
+      "n": 9,
+      "median_time_err_s": 4.114,
+      "mean_time_err_s": 6.087,
+      "serious_rate": 1.0
+    },
+    "apex": {
+      "n": 7,
+      "median_time_err_s": 2.717,
+      "mean_time_err_s": 4.562,
+      "serious_rate": 0.857
+    },
+    "water_contact": {
+      "n": 9,
+      "median_time_err_s": 2.983,
+      "mean_time_err_s": 4.661,
+      "serious_rate": 0.889
+    },
+    "all_phases": {
+      "n": 25,
+      "median_time_err_s": 3.717,
+      "mean_time_err_s": 5.146,
+      "serious_rate": 0.92
+    }
+  }
+}

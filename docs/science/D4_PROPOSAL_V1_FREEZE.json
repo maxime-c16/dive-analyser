@@ -1,0 +1,51 @@
+{
+  "label": "D4_PROPOSAL_V1_FREEZE",
+  "date": "2026-09-08",
+  "status": "FROZEN",
+  "weights_file": "models/frozen/DIVER_DETECTOR_D4_A_V8N_best.pt",
+  "weights_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+  "weights_size_bytes": 6230186,
+  "model": "yolov8n",
+  "training": {
+    "dataset": "DIVER_LOCALIZATION_DATASET_D4",
+    "epochs_trained": 71,
+    "best_epoch": 46,
+    "device": "mps",
+    "amp": false,
+    "val_map50": 0.333,
+    "val_precision": 0.656,
+    "val_recall": 0.286,
+    "train_positives": 45,
+    "train_negatives": 17,
+    "key_repair": "amp=False (MPS AMP gradient collapse)"
+  },
+  "operating_threshold": 0.05,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "canonical_denominator": 31,
+  "raw_target_candidate_recall_canonical": 0.8065,
+  "phase_h1_gate": "FAIL",
+  "gate_threshold": 0.9,
+  "vs_d3": {
+    "d3_recall": 0.677,
+    "d4_recall": 0.806,
+    "delta": 0.129,
+    "regressions": 0
+  },
+  "canonical_failures": [
+    "2169_water_contact",
+    "2341_apex",
+    "2341_takeoff",
+    "2625_apex",
+    "2625_water_contact",
+    "2680_water_contact"
+  ],
+  "failure_analysis": {
+    "2341_apex_takeoff": "HOLDOUT_BY_DESIGN",
+    "2625_apex_water_contact": "ARCHITECTURAL_LIMIT (extreme edge/partial visibility)",
+    "2169_water_contact": "WATER_CONTACT_CALIBRATION",
+    "2680_water_contact": "WATER_CONTACT_CALIBRATION"
+  },
+  "paris_firewall": "Paris excluded from all training and threshold selection",
+  "key_finding": "Confidence calibration fixed for failure dives 2541,2555,676,2680_takeoff; recall +12.9pp with zero regressions"
+}

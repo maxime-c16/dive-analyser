@@ -1,0 +1,1151 @@
+"""Asynchronous media cache API.
+
+This API is intentionally parallel to legacy /videos routes. A video_uuid means
+"linked Photos asset"; only a ready media_cache_entry means "playable now".
+"""
+
+from pathlib import Path
+import threading
+from datetime import date, datetime, time
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import Response, StreamingResponse
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.media import MediaAgent, MediaJob, RecalledMediaSource
+from app.models.photos_asset import PhotosAsset
+from app.schemas.media import MediaRequest, MediaRequestResponse, MediaStatusResponse
+from app.schemas.media import (
+    MediaJobFailRequest,
+    MediaJobFinalizeRequest,
+    MediaJobFinalizeResponse,
+    MediaJobHeartbeatRequest,
+    MediaJobLeaseRequest,
+    MediaJobLeaseResponse,
+    MediaJobUploadResponse,
+    MediaCleanupResponse,
+    MediaPinResponse,
+    RepresentativePrepareRequest,
+    RepresentativeReplaceRequest,
+    RepresentativeReadyRemapRequest,
+    MediaAgentHeartbeatRequest,
+    RecalledSourceReportRequest,
+    RecallBatchPlanRequest,
+    CatalogRunStartRequest,
+    CatalogRunLeaseRequest,
+    CatalogChunkRequest,
+    CatalogCompleteRequest,
+    CatalogFailRequest,
+    CatalogPopulationPlanRequest,
+    CatalogPopulationStartRequest,
+    CatalogPopulationRolloverRequest,
+    ResolutionUpgradeStartRequest,
+)
+from app.security import verify_api_key
+from app.services.legacy_gate import require_legacy_media_user
+from app.services.user_access import can_user_access_cache_entry
+from app.services.media_cache import (
+    get_playable_entry,
+    cache_tmp_path,
+    cleanup_cache,
+    finalize_cache_entry,
+    playback_url,
+    ready_entries_for_asset,
+    ready_entry_for_key,
+    sha256_file,
+    set_cache_entry_pinned,
+    write_upload_chunk,
+    to_cache_summary,
+)
+from app.services.media_jobs import (
+    create_or_reuse_media_job,
+    fail_media_job,
+    heartbeat_media_job,
+    latest_active_job_for_asset,
+    lease_media_jobs,
+    mark_job_ready,
+    mark_job_uploaded,
+    to_job_summary,
+)
+from app.services.media_keys import build_media_key
+from app.services.media_agents import (
+    authenticate_media_agent,
+    public_agent_status,
+    report_recalled_source,
+    require_leasing_agent,
+    update_agent_heartbeat,
+)
+from app.services.media_recall import build_recall_manifest, plan_recall_batch
+from app.models.media_catalog import CaptionedMediaCatalog, MediaCatalogPopulationRun, MediaCatalogRun, MediaResolutionUpgradeRun
+from app.models.media_backbone import MediaBlobLocation, MediaRevision
+from app.config import get_settings
+from app.services.media_catalog import (
+    catalog_population_plan,
+    catalog_population_run_summary,
+    catalog_summary,
+    complete_catalog_run,
+    fail_catalog_run,
+    ingest_catalog_chunk,
+    lease_catalog_run,
+    start_catalog_run,
+    start_catalog_population_run,
+    resume_catalog_population_run,
+    arm_catalog_population_rollover,
+    advance_armed_catalog_population_rollovers,
+)
+from app.services.media_resolution_upgrade import (
+    advance_resolution_upgrade_runs,
+    resolution_upgrade_summary,
+    schedule_resolution_upgrade,
+)
+from app.services.representative_media import (
+    build_representative_media_manifest,
+    replacement_candidates,
+    replace_representative,
+    plan_ready_representative_remap,
+    remap_representatives_to_ready_media,
+    representative_coverage,
+    representative_gallery,
+)
+from app.services.representative_population import (
+    dry_run_tier1_population,
+    population_run_summary,
+    start_tier1_population,
+)
+
+router = APIRouter(prefix="/media", tags=["media"])
+
+
+RENDITION_PREFERENCE = {
+    "proxy_720p": 0,
+    "proxy_360p": 1,
+    "original": 2,
+    "poster": 3,
+}
+
+
+def _agent_auth(db: Session, agent_id: str, api_key: dict, leasing: bool = False):
+    try:
+        if leasing:
+            return require_leasing_agent(db, agent_id, api_key["key"])
+        return authenticate_media_agent(db, agent_id, api_key["key"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+def _asset_by_uuid(db: Session, video_uuid: str) -> PhotosAsset:
+    stmt = select(PhotosAsset).where(PhotosAsset.video_uuid == video_uuid)
+    asset = db.execute(stmt).scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photos asset not found")
+    return asset
+
+
+def _preferred_entry(entries):
+    playable = [entry for entry in entries if entry.rendition != "poster"]
+    candidates = playable or entries
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda entry: RENDITION_PREFERENCE.get(entry.rendition, 99))[0]
+
+
+def _poster_entry(entries):
+    for entry in entries:
+        if entry.rendition == "poster":
+            return entry
+    return None
+
+
+def _iter_file_range(path: Path, start: int, end: int, chunk_size: int = 1024 * 1024):
+    with path.open("rb") as file_obj:
+        file_obj.seek(start)
+        remaining = end - start + 1
+        while remaining > 0:
+            chunk = file_obj.read(min(chunk_size, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+def _media_headers(path: Path, content_type: str, content_length: int) -> dict[str, str]:
+    return {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, max-age=3600",
+        "Content-Disposition": f'inline; filename="{path.name}"',
+        "Content-Length": str(content_length),
+        "Content-Type": content_type,
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+
+def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False):
+    file_size = path.stat().st_size
+    headers = _media_headers(path, content_type, file_size)
+    range_header = request.headers.get("range")
+
+    if not range_header:
+        if head_only:
+            return Response(status_code=status.HTTP_200_OK, headers=headers)
+        return StreamingResponse(
+            _iter_file_range(path, 0, file_size - 1),
+            status_code=status.HTTP_200_OK,
+            media_type=content_type,
+            headers=headers,
+        )
+
+    if not range_header.startswith("bytes="):
+        raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+
+    start_text, _, end_text = range_header.removeprefix("bytes=").partition("-")
+    try:
+        if start_text:
+            start = int(start_text)
+            end = int(end_text) if end_text else file_size - 1
+        else:
+            suffix_length = int(end_text)
+            start = max(file_size - suffix_length, 0)
+            end = file_size - 1
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+
+    if start < 0 or end < start or start >= file_size:
+        raise HTTPException(
+            status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    end = min(end, file_size - 1)
+    range_length = end - start + 1
+    headers.update(
+        {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(range_length),
+        }
+    )
+    if head_only:
+        return Response(status_code=status.HTTP_206_PARTIAL_CONTENT, headers=headers)
+    return StreamingResponse(
+        _iter_file_range(path, start, end),
+        status_code=status.HTTP_206_PARTIAL_CONTENT,
+        media_type=content_type,
+        headers=headers,
+    )
+
+
+# In-process cache: video_uuid -> MediaRevision.id (int) or None.
+# Avoids repeated JOIN queries against media_revisions/media_blob_locations
+# that would otherwise hold a DB connection open in "idle in transaction"
+# state after each status check, blocking UPDATE media_jobs queries.
+# Per-worker; persists until restart.  Thread-safe.
+_backbone_id_cache: dict = {}
+_backbone_id_cache_lock = threading.Lock()
+
+
+def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
+    """Return the B2 playback URL for the most-recent verified PROD backbone
+    revision of *video_uuid*, or None if no such revision exists.
+
+    Result is cached in-process per video_uuid so the JOIN query runs at
+    most once per worker restart per video — eliminates the "idle in
+    transaction" DB connection leak that occurred when the query result was
+    not cached and the connection was held open between status calls.
+    """
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
+        return None
+
+    # Fast path: already in cache (including explicit None for no-backbone dives)
+    with _backbone_id_cache_lock:
+        if video_uuid in _backbone_id_cache:
+            cached = _backbone_id_cache[video_uuid]
+            return f"/api/v1/media/revisions/{cached}/play" if cached is not None else None
+
+    # Slow path: query the DB once, then cache the result
+    row = db.execute(
+        select(MediaRevision.id)
+        .join(
+            MediaBlobLocation,
+            (MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256)
+            & (MediaBlobLocation.environment == "prod")
+            & (MediaBlobLocation.verified == True),
+        )
+        .where(MediaRevision.video_uuid == video_uuid)
+        .order_by(MediaRevision.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    with _backbone_id_cache_lock:
+        _backbone_id_cache[video_uuid] = row
+
+    return f"/api/v1/media/revisions/{row}/play" if row is not None else None
+
+
+def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
+    entries = ready_entries_for_asset(db, asset.id)
+    preferred = _preferred_entry(entries)
+    poster = _poster_entry(entries)
+    job = latest_active_job_for_asset(db, asset.id)
+
+    if preferred:
+        # Local proxy cache ready — use it (best quality / smallest file).
+        status_value = "ready"
+        final_playback_url = playback_url(preferred.id)
+    else:
+        # No ready proxy.  Check backbone first so the user can play the
+        # original from B2 immediately, even if a transcoding job is queued.
+        # Once the proxy finishes, preferred will be set and we switch to it.
+        backbone_url = _backbone_playback_url(db, asset.video_uuid)
+        if backbone_url:
+            status_value = "ready"
+            final_playback_url = backbone_url
+        elif job:
+            # No backbone either — show the job's in-progress status.
+            status_value = job.status
+            final_playback_url = None
+        else:
+            status_value = "missing"
+            final_playback_url = None
+
+    return MediaStatusResponse(
+        video_uuid=asset.video_uuid,
+        status=status_value,
+        can_request=True,
+        preferred_rendition=preferred.rendition if preferred else None,
+        available_renditions=sorted({entry.rendition for entry in entries}),
+        playback_url=final_playback_url,
+        poster_url=playback_url(poster.id) if poster else None,
+        cache_entries=[to_cache_summary(entry) for entry in entries],
+        job=to_job_summary(job),
+        last_mac_seen_at=asset.last_seen_on_mac_at,
+    )
+
+
+def _media_error_code(error: str | None) -> str | None:
+    if not error:
+        return None
+    if "permission_required" in error:
+        return "permission_required"
+    if "photos_access_denied" in error:
+        return "photos_access_denied"
+    if "osxphotos_export_timeout" in error:
+        return "osxphotos_export_timeout"
+    if "materialization_only_placeholders" in error or "materialized_video_not_found" in error:
+        return "materialization_only_placeholders"
+    if "osxphotos_export_failed" in error:
+        return "osxphotos_export_failed"
+    return "media_unavailable"
+
+
+def _photos_access_status_from_jobs(db: Session) -> dict:
+    latest_error_job = db.execute(
+        select(MediaJob)
+        .where(MediaJob.last_error.isnot(None))
+        .order_by(MediaJob.updated_at.desc(), MediaJob.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    latest_ready_job = db.execute(
+        select(MediaJob)
+        .where(MediaJob.status == "ready")
+        .order_by(MediaJob.updated_at.desc(), MediaJob.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    error_code = _media_error_code(latest_error_job.last_error if latest_error_job else None)
+    if error_code == "permission_required":
+        access_status = "permission_required"
+    elif error_code == "photos_access_denied":
+        access_status = "denied"
+    elif latest_ready_job:
+        access_status = "ok"
+    else:
+        access_status = "unknown"
+
+    return {
+        "photos_access_status": access_status,
+        "last_successful_media_job_at": latest_ready_job.updated_at if latest_ready_job else None,
+        "last_permission_error_at": latest_error_job.updated_at if error_code in {"permission_required", "photos_access_denied"} and latest_error_job else None,
+        "last_materialization_success_at": latest_ready_job.updated_at if latest_ready_job else None,
+        "last_error_code": error_code,
+        "last_error_at": latest_error_job.updated_at if latest_error_job else None,
+        "generated_at": datetime.utcnow(),
+        "source": "media_job_history",
+    }
+
+
+@router.get("/representative-manifest")
+async def representative_media_manifest(
+    limit_codes: int | None = Query(None, ge=1, le=500),
+    include_sync_codes: bool = False,
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    diver_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Build a reviewed Tier 1 media-readiness manifest without creating jobs."""
+    return build_representative_media_manifest(
+        db,
+        limit_codes=limit_codes,
+        include_sync_codes=include_sync_codes,
+        diver_scope="selected" if diver_id else diver_scope,
+        diver_id=diver_id,
+    )
+
+
+@router.get("/representatives")
+async def representatives_gallery(
+    dive_code: str | None = None,
+    readiness: str | None = None,
+    selection_band: str | None = None,
+    height: str | None = None,
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    diver_id: int | None = None,
+    is_sync: bool | None = None,
+    has_proxy: bool | None = None,
+    has_poster: bool | None = None,
+    db: Session = Depends(get_db),
+):
+    """Return read-only representative media gallery state."""
+    return representative_gallery(
+        db,
+        dive_code=dive_code,
+        readiness=readiness,
+        selection_band=selection_band,
+        height=height,
+        diver_scope="selected" if diver_id else diver_scope,
+        diver_id=diver_id,
+        is_sync=is_sync,
+        has_proxy=has_proxy,
+        has_poster=has_poster,
+    )
+
+
+@router.get("/representatives/coverage")
+async def representatives_coverage(
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    diver_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Return read-only representative coverage and zero-ready audit state."""
+    return representative_coverage(db, diver_scope="selected" if diver_id else diver_scope, diver_id=diver_id)
+
+
+@router.get("/mac/status")
+async def mac_media_status(
+    db: Session = Depends(get_db),
+):
+    """Return inferred Mac Photos/media operational status without creating jobs."""
+    return _photos_access_status_from_jobs(db)
+
+
+@router.get("/representatives/{dive_code}/{role}/replacement-candidates")
+async def get_representative_replacement_candidates(
+    dive_code: str,
+    role: str,
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    diver_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Return at most five bounded replacement candidates without creating jobs."""
+    return {
+        "dive_code": dive_code.upper(),
+        "role": "median" if role == "typical" else role,
+        "candidates": replacement_candidates(db, dive_code, role, limit=5, diver_scope="selected" if diver_id else diver_scope, diver_id=diver_id),
+    }
+
+
+@router.post("/representatives/{dive_code}/{role}/replace")
+async def replace_representative_attempt(
+    dive_code: str,
+    role: str,
+    request: RepresentativeReplaceRequest,
+    db: Session = Depends(get_db),
+):
+    """Replace one representative role with an explicit bounded candidate."""
+    try:
+        result = replace_representative(
+            db,
+            dive_code=dive_code,
+            role=role,
+            replacement_dive_id=request.replacement_dive_id,
+            prepare=request.prepare,
+            renditions=request.renditions,
+            diver_scope="selected" if request.diver_id else request.diver_scope,
+            diver_id=request.diver_id,
+        )
+        db.commit()
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/representatives/remap-ready")
+async def remap_representatives_ready_media(
+    request: RepresentativeReadyRemapRequest,
+    db: Session = Depends(get_db),
+):
+    """Plan or apply a bounded, cache-only representative remap.
+
+    No media jobs are requested here: candidates must already have both
+    requested durable renditions ready.
+    """
+    scope = "selected" if request.diver_id else request.diver_scope
+    kwargs = {
+        "max_changes": request.max_changes,
+        "diver_scope": scope,
+        "diver_id": request.diver_id,
+    }
+    if request.dry_run:
+        return {
+            "dry_run": True,
+            "proposals": plan_ready_representative_remap(db, **kwargs),
+            "jobs_created": 0,
+        }
+    result = remap_representatives_to_ready_media(db, **kwargs)
+    db.commit()
+    return {"dry_run": False, **result}
+
+
+@router.post("/representative-manifest/prepare")
+async def prepare_representative_media(
+    request: RepresentativePrepareRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+):
+    """Dry-run or start a bounded Tier 1 representative media population run."""
+    try:
+        if request.dry_run:
+            return dry_run_tier1_population(db, tier=request.tier, renditions=request.renditions)
+        run = start_tier1_population(db, tier=request.tier, renditions=request.renditions)
+        db.commit()
+        return population_run_summary(db, run.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.get("/representative-manifest/runs/{run_id}")
+async def get_representative_population_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+):
+    """Return current status for a representative media population run."""
+    try:
+        summary = population_run_summary(db, run_id)
+        db.commit()
+        return summary
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Population run not found") from exc
+
+
+@router.get("/agents")
+async def list_media_agents(db: Session = Depends(get_db)):
+    """Return public operational state for allow-listed media agents."""
+    agents = db.execute(select(MediaAgent).order_by(MediaAgent.id)).scalars().all()
+    return {"agents": [public_agent_status(agent) for agent in agents], "read_only": True}
+
+
+@router.post("/agents/heartbeat")
+async def media_agent_heartbeat(
+    request: MediaAgentHeartbeatRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+):
+    try:
+        agent = update_agent_heartbeat(db, request, api_key["key"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    advance_armed_catalog_population_rollovers(db)
+    advance_resolution_upgrade_runs(db)
+    db.commit()
+    return public_agent_status(agent)
+
+
+@router.post("/agents/sources/report")
+async def report_media_source(
+    request: RecalledSourceReportRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+):
+    try:
+        source = report_recalled_source(db, request, api_key["key"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    db.commit()
+    return {
+        "source_id": source.id,
+        "video_uuid": source.video_uuid,
+        "agent_id": source.agent_id,
+        "retention_class": source.retention_class,
+        "active": source.active,
+    }
+
+
+@router.get("/agents/sources/{video_uuid}")
+async def recalled_source_status(video_uuid: str, db: Session = Depends(get_db)):
+    """Return source readiness without disclosing Mac filesystem paths."""
+    sources = db.execute(
+        select(RecalledMediaSource).where(
+            RecalledMediaSource.video_uuid == video_uuid,
+            RecalledMediaSource.active.is_(True),
+        ).order_by(RecalledMediaSource.validated_at.desc())
+    ).scalars().all()
+    return {
+        "video_uuid": video_uuid,
+        "available": bool(sources),
+        "sources": [
+            {
+                "id": source.id,
+                "agent_id": source.agent_id,
+                "source_kind": source.source_kind,
+                "size_bytes": source.size_bytes,
+                "checksum_sha256": source.checksum_sha256,
+                "retention_class": source.retention_class,
+                "validated_at": source.validated_at,
+                "last_seen_at": source.last_seen_at,
+            }
+            for source in sources
+        ],
+        "read_only": True,
+    }
+
+
+@router.get("/recall-manifest")
+async def recall_manifest(
+    limit: int = Query(25, ge=1, le=100),
+    priority_class: str | None = None,
+    dive_code: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    representative_role: str | None = Query(None, pattern="^(low|median|high)$"),
+    db: Session = Depends(get_db),
+):
+    """Return a bounded recall plan; never creates jobs or downloads."""
+    return build_recall_manifest(
+        db,
+        limit=limit,
+        priority_class=priority_class,
+        dive_code=dive_code,
+        date_from=datetime.combine(date_from, time.min) if date_from else None,
+        date_to=datetime.combine(date_to, time.max) if date_to else None,
+        representative_role=representative_role,
+    )
+
+
+@router.post("/recall-batches/plan")
+async def recall_batch_plan(request: RecallBatchPlanRequest, db: Session = Depends(get_db)):
+    """Calculate a bounded internal-storage plan without creating work."""
+    if not request.dry_run:
+        raise HTTPException(status_code=422, detail="recall_batch_execution_not_enabled")
+    return plan_recall_batch(db, priority=request.priority, limit=request.limit)
+
+
+def _catalog_run_public(run: MediaCatalogRun) -> dict:
+    return {
+        "id": run.id,
+        "agent_id": run.agent_id,
+        "status": run.status,
+        "catalog_revision": run.catalog_revision,
+        "checkpoint": run.checkpoint,
+        "observed_count": run.observed_count,
+        "eligible_count": run.eligible_count,
+        "excluded_count": run.excluded_count,
+        "error_count": run.error_count,
+        "photos_library_bytes_start": run.photos_library_bytes_start,
+        "photos_library_bytes_end": run.photos_library_bytes_end,
+        "free_bytes_start": run.free_bytes_start,
+        "free_bytes_end": run.free_bytes_end,
+        "pause_reason": run.pause_reason,
+        "last_error": run.last_error,
+        "started_at": run.started_at,
+        "completed_at": run.completed_at,
+        "created_at": run.created_at,
+    }
+
+
+@router.post("/catalog/runs")
+async def create_catalog_run(request: CatalogRunStartRequest, db: Session = Depends(get_db)):
+    """Request one full read-only catalog pass; creates no media jobs."""
+    try:
+        run = start_catalog_run(db, request.agent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(run)
+    return _catalog_run_public(run)
+
+
+@router.get("/catalog/runs/latest")
+async def latest_catalog_run(db: Session = Depends(get_db)):
+    run = db.execute(select(MediaCatalogRun).order_by(MediaCatalogRun.id.desc())).scalars().first()
+    return _catalog_run_public(run) if run else None
+
+
+@router.get("/catalog/runs/{run_id}")
+async def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
+    run = db.get(MediaCatalogRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="catalog_run_not_found")
+    return _catalog_run_public(run)
+
+
+@router.post("/catalog/runs/lease")
+async def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    _agent_auth(db, request.agent_id, api_key)
+    run = lease_catalog_run(db, request.agent_id)
+    db.commit()
+    return {"run": _catalog_run_public(run) if run else None}
+
+
+@router.post("/catalog/runs/{run_id}/chunks")
+async def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    _agent_auth(db, request.agent_id, api_key)
+    run = db.get(MediaCatalogRun, run_id)
+    if not run or run.agent_id != request.agent_id:
+        raise HTTPException(status_code=404, detail="catalog_run_not_found")
+    try:
+        result = ingest_catalog_chunk(db, run, [record.model_dump() for record in request.records], request.checkpoint)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    return result
+
+
+@router.post("/catalog/runs/{run_id}/complete")
+async def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    _agent_auth(db, request.agent_id, api_key)
+    run = db.get(MediaCatalogRun, run_id)
+    if not run or run.agent_id != request.agent_id:
+        raise HTTPException(status_code=404, detail="catalog_run_not_found")
+    try:
+        complete_catalog_run(db, run, request.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(run)
+    return _catalog_run_public(run)
+
+
+@router.post("/catalog/runs/{run_id}/fail")
+async def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    _agent_auth(db, request.agent_id, api_key)
+    run = db.get(MediaCatalogRun, run_id)
+    if not run or run.agent_id != request.agent_id:
+        raise HTTPException(status_code=404, detail="catalog_run_not_found")
+    fail_catalog_run(db, run, request.error, paused=request.paused)
+    db.commit()
+    return _catalog_run_public(run)
+
+
+@router.get("/catalog/summary")
+async def get_catalog_summary(revision: int | None = None, db: Session = Depends(get_db)):
+    return catalog_summary(db, revision)
+
+
+@router.get("/catalog/items")
+async def get_catalog_items(
+    eligibility: str | None = None,
+    exclusion_code: str | None = None,
+    limit: int = Query(100, ge=1, le=250),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    revision = db.execute(select(func.max(CaptionedMediaCatalog.catalog_revision))).scalar_one_or_none()
+    stmt = select(CaptionedMediaCatalog).where(CaptionedMediaCatalog.catalog_revision == revision)
+    if eligibility:
+        stmt = stmt.where(CaptionedMediaCatalog.eligibility == eligibility)
+    if exclusion_code:
+        stmt = stmt.where(CaptionedMediaCatalog.exclusion_code == exclusion_code)
+    rows = db.execute(stmt.order_by(CaptionedMediaCatalog.captured_at.desc(), CaptionedMediaCatalog.id).offset(offset).limit(limit)).scalars().all()
+    return {"read_only": True, "revision": revision, "offset": offset, "count": len(rows), "items": [
+        {"id": row.id, "canonical_video_uuid": row.canonical_video_uuid, "agent_local_uuid": row.agent_local_uuid,
+         "caption": row.raw_caption, "dive_code": row.canonical_dive_code, "captured_at": row.captured_at,
+         "eligibility": row.eligibility, "exclusion_code": row.exclusion_code, "media_state": row.media_state,
+         "poster_state": row.poster_state, "proxy_state": row.proxy_state, "photos_local_state": row.photos_local_state,
+         "representative_role": row.representative_role, "last_error_code": row.last_error_code}
+        for row in rows]}
+
+
+@router.post("/catalog/population-plan")
+async def population_plan(request: CatalogPopulationPlanRequest, db: Session = Depends(get_db)):
+    if not request.dry_run:
+        raise HTTPException(status_code=422, detail="catalog_population_execution_requires_staged_run")
+    try:
+        return catalog_population_plan(db, scope=request.scope)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/catalog/population-runs")
+async def start_population_run(request: CatalogPopulationStartRequest, db: Session = Depends(get_db)):
+    try:
+        run = start_catalog_population_run(
+            db, limit=request.limit, stage=request.stage,
+            catalog_item_ids=request.catalog_item_ids or None,
+        )
+        result = catalog_population_run_summary(db, run)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/catalog/population-runs/{run_id}")
+async def get_population_run(run_id: int, db: Session = Depends(get_db)):
+    run = db.get(MediaCatalogPopulationRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="catalog_population_run_not_found")
+    result = catalog_population_run_summary(db, run)
+    db.commit()
+    return result
+
+
+@router.post("/catalog/population-runs/{run_id}/resume")
+async def resume_population_run(run_id: int, db: Session = Depends(get_db)):
+    run = db.get(MediaCatalogPopulationRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="catalog_population_run_not_found")
+    try:
+        resume_catalog_population_run(db, run)
+        result = catalog_population_run_summary(db, run)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/catalog/population-runs/{run_id}/arm-rolling-successor")
+async def arm_population_rolling_successor(
+    run_id: int,
+    request: CatalogPopulationRolloverRequest,
+    db: Session = Depends(get_db),
+):
+    """Arm a bounded, checkpointed successor chain after the current run completes."""
+    run = db.get(MediaCatalogPopulationRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="catalog_population_run_not_found")
+    try:
+        arm_catalog_population_rollover(db, run, batch_limit=request.batch_limit)
+        db.commit()
+        return catalog_population_run_summary(db, run)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/resolution-upgrades")
+async def schedule_proxy_resolution_upgrade(
+    request: ResolutionUpgradeStartRequest,
+    db: Session = Depends(get_db),
+):
+    """Schedule a sequential 360p-to-720p replacement run."""
+    try:
+        run = schedule_resolution_upgrade(
+            db,
+            starts_after_population_run_id=request.starts_after_population_run_id,
+            scope=request.scope,
+        )
+        db.commit()
+        return resolution_upgrade_summary(db, run)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/resolution-upgrades/{run_id}")
+async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db)):
+    run = db.get(MediaResolutionUpgradeRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="resolution_upgrade_run_not_found")
+    advance_resolution_upgrade_runs(db)
+    db.commit()
+    return resolution_upgrade_summary(db, run)
+
+
+@router.get("/{video_uuid}/status")
+async def get_media_status(
+    video_uuid: str,
+    db: Session = Depends(get_db),
+) -> MediaStatusResponse:
+    """Return cache/job status for a Photos asset UUID."""
+    asset = _asset_by_uuid(db, video_uuid)
+    return _status_for_asset(db, asset)
+
+
+@router.post("/{video_uuid}/request")
+async def request_media(
+    video_uuid: str,
+    request: MediaRequest,
+    db: Session = Depends(get_db),
+) -> MediaRequestResponse:
+    """Create or reuse a media job for a specific rendition."""
+    asset = _asset_by_uuid(db, video_uuid)
+    media_key = build_media_key(asset.video_uuid, request.rendition)
+    entry = ready_entry_for_key(db, media_key)
+    if entry:
+        status_response = _status_for_asset(db, asset)
+        return MediaRequestResponse(
+            **status_response.model_dump(),
+            media_key=media_key,
+            created_job=False,
+            reused_job=False,
+            cache_hit=True,
+        )
+
+    media_key, job, created = create_or_reuse_media_job(
+        db=db,
+        asset=asset,
+        rendition=request.rendition,
+        reason=request.reason,
+    )
+    db.commit()
+    db.refresh(job)
+
+    status_response = _status_for_asset(db, asset)
+    return MediaRequestResponse(
+        **status_response.model_dump(),
+        media_key=media_key,
+        created_job=created,
+        reused_job=not created,
+        cache_hit=False,
+    )
+
+
+@router.api_route("/cache/{entry_id}/play", methods=["GET", "HEAD"])
+async def play_cached_media(
+    entry_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Serve a verified cached media artifact.
+
+    P6 legacy IDOR closure: while USER_AUTH_ENABLED the route requires a
+    live session and central OWNER authorization (via the deterministic
+    cache-entry → Photos asset → dive → diver chain) BEFORE any bytes are
+    served. With auth disabled the legacy behavior is preserved (rollback).
+    """
+    entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None:
+        decision = can_user_access_cache_entry(db, user, entry)
+        if not decision.allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    media_path = Path(entry.storage_path)
+    return _serve_media_file(
+        media_path,
+        entry.content_type or "application/octet-stream",
+        request,
+        head_only=request.method == "HEAD",
+    )
+
+
+@router.post("/events/viewed")
+async def mark_media_viewed(
+    request: Request,
+    entry_id: int,
+    db: Session = Depends(get_db),
+):
+    """Track a cache entry access without streaming the file."""
+    entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None:
+        decision = can_user_access_cache_entry(db, user, entry)
+        if not decision.allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return {
+        "entry_id": entry.id,
+        "last_accessed_at": entry.last_accessed_at,
+    }
+
+
+@router.post("/jobs/lease")
+async def lease_jobs(
+    request: MediaJobLeaseRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaJobLeaseResponse:
+    """Lease queued media jobs for a Mac agent."""
+    agent = _agent_auth(db, request.agent_id, api_key, leasing=True)
+    # Two concurrent assets are allowed only for the Mac canary. The agent and
+    # service both keep poster/proxy work for a single source serialized.
+    if request.max_jobs > 2:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="media_max_jobs_must_not_exceed_two")
+    if not set(request.capabilities).issubset(set(agent.capabilities or [])):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="media_agent_capability_mismatch")
+    jobs = lease_media_jobs(db, request)
+    db.commit()
+    return MediaJobLeaseResponse(jobs=jobs)
+
+
+@router.post("/jobs/{job_id}/heartbeat")
+async def heartbeat_job(
+    job_id: int,
+    request: MediaJobHeartbeatRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+):
+    """Update progress for a leased media job."""
+    try:
+        _agent_auth(db, request.agent_id, api_key)
+        job = heartbeat_media_job(db, job_id, request.agent_id, request.status, request.progress)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    db.commit()
+    return {"job_id": job.id, "status": job.status, "progress": job.progress}
+
+
+@router.post("/jobs/{job_id}/fail")
+async def fail_job(
+    job_id: int,
+    request: MediaJobFailRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+):
+    """Mark a leased media job failed or unavailable."""
+    try:
+        _agent_auth(db, request.agent_id, api_key)
+        job = fail_media_job(db, job_id, request.agent_id, request.error, request.status)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    db.commit()
+    return {"job_id": job.id, "status": job.status, "last_error": job.last_error}
+
+
+@router.post("/jobs/{job_id}/upload")
+async def upload_job_artifact(
+    job_id: int,
+    agent_id: str = Form(...),
+    checksum_sha256: str = Form(...),
+    size_bytes: int = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaJobUploadResponse:
+    """Upload a completed artifact for a leased media job."""
+    _agent_auth(db, agent_id, api_key)
+    job = db.get(MediaJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    if job.status not in {"claimed", "exporting", "transcoding", "uploading", "verifying"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot upload from status {job.status}")
+    if job.claimed_by != agent_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+
+    tmp_path = cache_tmp_path(job)
+    tmp_path.unlink(missing_ok=True)
+    actual_size = 0
+    try:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            actual_size += len(chunk)
+            write_upload_chunk(tmp_path, chunk)
+    finally:
+        await file.close()
+
+    if actual_size != size_bytes:
+        tmp_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
+
+    actual_checksum = sha256_file(tmp_path)
+    if actual_checksum != checksum_sha256:
+        tmp_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded checksum mismatch")
+
+    job = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes)
+    db.commit()
+    return MediaJobUploadResponse(
+        job_id=job.id,
+        status=job.status,
+        upload_tmp_path=job.upload_tmp_path,
+        size_bytes=size_bytes,
+        checksum_sha256=checksum_sha256,
+    )
+
+
+@router.post("/jobs/{job_id}/finalize")
+async def finalize_job_artifact(
+    job_id: int,
+    request: MediaJobFinalizeRequest,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaJobFinalizeResponse:
+    """Verify and promote an uploaded job artifact into the media cache."""
+    _agent_auth(db, request.agent_id, api_key)
+    job = db.get(MediaJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    if job.status != "verifying":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
+    if job.claimed_by != request.agent_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+
+    entry = finalize_cache_entry(
+        db=db,
+        job=job,
+        checksum_sha256=request.checksum_sha256,
+        size_bytes=request.size_bytes,
+        content_type=request.content_type,
+    )
+    mark_job_ready(db, job)
+    db.commit()
+    db.refresh(entry)
+    return MediaJobFinalizeResponse(
+        job_id=job.id,
+        status=job.status,
+        cache_entry_id=entry.id,
+        playback_url=playback_url(entry.id),
+    )
+
+
+@router.post("/cache/{entry_id}/pin")
+async def pin_cache_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaPinResponse:
+    """Prevent a cache entry from eviction."""
+    entry = set_cache_entry_pinned(db, entry_id, True)
+    db.commit()
+    return MediaPinResponse(entry_id=entry.id, pinned=entry.pinned)
+
+
+@router.post("/cache/{entry_id}/unpin")
+async def unpin_cache_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaPinResponse:
+    """Allow a cache entry to be evicted."""
+    entry = set_cache_entry_pinned(db, entry_id, False)
+    db.commit()
+    return MediaPinResponse(entry_id=entry.id, pinned=entry.pinned)
+
+
+@router.post("/cache/cleanup")
+async def cleanup_media_cache(
+    max_bytes: int | None = None,
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaCleanupResponse:
+    """Remove expired/unpinned media and optionally trim to max bytes."""
+    removed_entries, removed_bytes, remaining_bytes = cleanup_cache(db, max_bytes)
+    db.commit()
+    return MediaCleanupResponse(
+        removed_entries=removed_entries,
+        removed_bytes=removed_bytes,
+        remaining_bytes=remaining_bytes,
+    )

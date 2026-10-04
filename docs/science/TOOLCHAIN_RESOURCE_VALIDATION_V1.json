@@ -1,0 +1,32 @@
+{
+  "label": "TOOLCHAIN_RESOURCE_VALIDATION_V1",
+  "date": "2026-09-09",
+  "validated_on": "M2 MacBook Air (arm64, Apple Silicon)",
+  "python_env": ".venv (Python 3.x, virtualenv)",
+  "key_packages": {
+    "torch": "2.10.0",
+    "ultralytics": "8.3.253",
+    "mps_available": true,
+    "cv2": "OpenCV (system)"
+  },
+  "model_artifacts_verified": {
+    "DIVER_DETECTOR_D5_A_V8N_best.pt": {
+      "path": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+      "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+      "present": true
+    },
+    "R1_RERANKER.pkl": {
+      "path": "models/frozen/R1_RERANKER.pkl",
+      "present": true,
+      "status": "REJECTED \u2014 not used"
+    }
+  },
+  "frozen_el_modules": {
+    "proposer_event_logic_v2_1.py": "experiments/landmark_pilot/",
+    "proposer_event_logic_v2_2.py": "experiments/landmark_pilot/"
+  },
+  "canon_repo": "diveanalyzer-server:dive-analyser (192.168.1.57)",
+  "local_remote": "origin = diveanalyzer-server:dive-analyser",
+  "current_head": "755a64163fb9a58f718f2bba59f2f8a66a467f3a",
+  "branch": "uiux-overhaul-pro-app"
+}

@@ -1,0 +1,129 @@
+{
+ "label": "CACHE_READINESS_V1",
+ "packet": "HURDLE_TARGET_IDENTITY_V3",
+ "worktree": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3",
+ "checks": {
+  "d5_weights": {
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+   "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+   "expected": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+   "ok": true
+  },
+  "osnet_weights": {
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/models/reid/osnet_x1_0_market1501.pth",
+   "sha256": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+   "expected": "2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154",
+   "ok": true
+  },
+  "fullclip_cache": {
+   "model": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+   "model_sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+   "model_sha_ok": true,
+   "floor_conf": 0.001,
+   "floor_cap": 200,
+   "window_semantics": "FULL_CLIP_GT_FREE: every frame of the production clip is inferred; no GT event time defines the inference window"
+  },
+  "dive_1040": {
+   "proxy_sha256_ok": true,
+   "n_frames": 332,
+   "full_clip_coverage_ok": true,
+   "fps": 29.97003,
+   "interval_s": [
+    0.0,
+    11.044367
+   ],
+   "chain_pts_total": 161,
+   "chain_pts_resolved": 161,
+   "chain_resolution": 1.0
+  },
+  "dive_2169": {
+   "proxy_sha256_ok": true,
+   "n_frames": 1078,
+   "full_clip_coverage_ok": true,
+   "fps": 59.94006,
+   "interval_s": [
+    0.0,
+    17.96795
+   ],
+   "chain_pts_total": 434,
+   "chain_pts_resolved": 434,
+   "chain_resolution": 1.0
+  },
+  "dive_2341": {
+   "proxy_sha256_ok": true,
+   "n_frames": 607,
+   "full_clip_coverage_ok": true,
+   "fps": 60.0,
+   "interval_s": [
+    0.0,
+    10.1
+   ],
+   "chain_pts_total": 273,
+   "chain_pts_resolved": 273,
+   "chain_resolution": 1.0
+  },
+  "dive_2353": {
+   "proxy_sha256_ok": true,
+   "n_frames": 1437,
+   "full_clip_coverage_ok": true,
+   "fps": 59.94006,
+   "interval_s": [
+    0.0,
+    23.957267
+   ],
+   "chain_pts_total": 411,
+   "chain_pts_resolved": 411,
+   "chain_resolution": 1.0
+  },
+  "dive_2541": {
+   "proxy_sha256_ok": true,
+   "n_frames": 975,
+   "full_clip_coverage_ok": true,
+   "fps": 29.97003,
+   "interval_s": [
+    0.0,
+    32.499133
+   ],
+   "chain_pts_total": 262,
+   "chain_pts_resolved": 262,
+   "chain_resolution": 1.0
+  },
+  "dive_2555": {
+   "proxy_sha256_ok": true,
+   "n_frames": 722,
+   "full_clip_coverage_ok": true,
+   "fps": 59.261286,
+   "interval_s": [
+    0.0,
+    12.15
+   ],
+   "chain_pts_total": 336,
+   "chain_pts_resolved": 336,
+   "chain_resolution": 1.0
+  },
+  "r5a_trajectories": {
+   "exists": true,
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/runs/hurdle_identity_v1/R5A_TRAJECTORIES_V1.json"
+  },
+  "r5b_trajectories": {
+   "exists": true,
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/runs/hurdle_identity_v1/R5B_TRAJECTORIES_V1.json"
+  },
+  "r5a_eval": {
+   "exists": true,
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/docs/science/HURDLE_R5A_EVAL_V1.json"
+  },
+  "r5b_eval": {
+   "exists": true,
+   "path": "/Users/maximecauchy/.perso/diveanalyzer-prototype-v3/docs/science/HURDLE_R5B_EVAL_V1.json"
+  },
+  "excluded_524": {
+   "in_fullclip": false,
+   "in_chains": true
+  }
+ },
+ "status": "CACHE_READY",
+ "problems": [],
+ "d5_frames_rerun": 0,
+ "embeddings_reextracted": 0
+}

@@ -52,6 +52,8 @@ class Dive(Base):
     video_uuid = Column(String(100), unique=True, nullable=True, index=True)
     video_filename = Column(String(255), nullable=True)
     video_path = Column(Text, nullable=True)
+    photos_asset_id = Column(Integer, ForeignKey("photos_assets.id"), nullable=True, index=True)
+    diver_id = Column(Integer, ForeignKey("divers.id"), nullable=True, index=True)
 
     # Phase insight (coaching recommendation based on two-phase scores)
     phase_insight = Column(Text, nullable=True)  # e.g., "Focus on hurdle height"
@@ -70,6 +72,7 @@ class Dive(Base):
     official_dd_assigned_at = Column(DateTime, nullable=True)  # When official_dd was assigned
     official_dd_migration_id = Column(Integer, ForeignKey("migration_logs.id"), nullable=True)  # Migration that assigned this
     official_dd_verification_status = Column(String(20), nullable=True)  # "verified", "pending_review", "failed_lookup"
+    official_dd_source = Column(String(120), nullable=True)  # Versioned rulebook reference used for assignment
 
     # Sync tracking
     synced_at = Column(DateTime, nullable=True, index=True)  # When video was synced from mac-agent
@@ -82,6 +85,9 @@ class Dive(Base):
     # Relationships
     session = relationship("Session", back_populates="dives")
     execution_faults = relationship("ExecutionFault", back_populates="dive", cascade="all, delete-orphan")
+    photos_asset = relationship("PhotosAsset", back_populates="dives")
+    modifiers = relationship("DiveModifier", back_populates="dive", cascade="all, delete-orphan")
+    diver = relationship("Diver", back_populates="dives")
 
     # Constraints and indexes
     __table_args__ = (

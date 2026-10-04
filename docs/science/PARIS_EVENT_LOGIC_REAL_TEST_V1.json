@@ -1,0 +1,7 @@
+{
+  "label": "PARIS_EVENT_LOGIC_REAL_TEST_V1",
+  "date": "2026-09-09",
+  "trajectory_gate": "TRAJECTORY_INPUT_FAIL",
+  "status": "SKIPPED_PERCEPTION_FAIL",
+  "note": "EL evaluation requires TRAJECTORY_INPUT_PASS."
+}

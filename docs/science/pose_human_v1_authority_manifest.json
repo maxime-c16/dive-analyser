@@ -1,0 +1,19 @@
+{
+  "authority": "HUMAN_ANATOMICAL_POSE_V1",
+  "status": "FROZEN_PRE_MODEL_EVALUATION",
+  "annotator": "Maxime",
+  "frame_count": 16,
+  "joint_count_per_frame": 12,
+  "visible_joints": 113,
+  "occluded_joints": 79,
+  "not_visible_joints": 0,
+  "coordinate_frame": "decoded_raw_HQ_pixels",
+  "left_right": "diver_anatomical_side",
+  "head_face_excluded": true,
+  "queue_path": "docs/science/pose_human_v1_queue.json",
+  "queue_sha256": "89e2b9141da4840d4d2f2639a55425227231f2917ea267ca3787ee371ab823ac",
+  "labels_path": "docs/science/pose_human_v1_authority.json",
+  "labels_sha256": "96abeae0fb89a108b64c6f0e68434b580f5aed813cfd2d780cebea1325b55549",
+  "correction": "Before freeze, anatomical left/right were swapped on all six joint pairs for 47_fl_f00304, 47_fl_f00309, 47_fl_f00324 at Maxime request. Original draft backed up host-only.",
+  "scope": "Development-only five dives/five distinct sessions; hard frame selection; no protected data."
+}

@@ -21,7 +21,8 @@ class Session(Base):
     # Aggregated stats
     total_dives = Column(Integer, default=0)
     total_personal_dives = Column(Integer, default=0)
-    avg_performance = Column(Numeric(3, 2), nullable=True)
+    # Scores can reach 10.00; Numeric(3, 2) tops out at 9.99.
+    avg_performance = Column(Numeric(4, 2), nullable=True)
     success_rate = Column(Numeric(5, 2), nullable=True)
 
     # Timestamps

@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_water_contact_0253",
+  "dive_id": "PARIS_2819",
+  "phase": "water_contact",
+  "frame_index": 253,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 4.22,
+  "actual_pts_s": 4.22,
+  "image_sha256": "3a369223ba1a1f1656d942fccc22aa8cc1b97485924afd8f143529d2e9a936ff",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    302.1880998080614,
+    687.1785028790787,
+    525.8781190019193,
+    1076.6026871401152
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T12:00:00.386345+00:00"
+}

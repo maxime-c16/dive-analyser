@@ -1,0 +1,164 @@
+{
+ "FGT2H_EV_1555_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:34:35.658510+00:00",
+  "dive_id": "1555",
+  "event": "takeoff",
+  "frame_index": 173,
+  "pts_s": 2.883333
+ },
+ "FGT2H_EV_1555_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:36:40.127121+00:00",
+  "dive_id": "1555",
+  "event": "water_contact",
+  "frame_index": 239,
+  "pts_s": 3.983333
+ },
+ "FGT2H_EV_2257_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:37:41.227951+00:00",
+  "dive_id": "2257",
+  "event": "takeoff",
+  "frame_index": 284,
+  "pts_s": 4.738067
+ },
+ "FGT2H_EV_2257_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:37:50.623213+00:00",
+  "dive_id": "2257",
+  "event": "water_contact",
+  "frame_index": 349,
+  "pts_s": 5.822483
+ },
+ "FGT2H_EV_2288_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:38:59.985433+00:00",
+  "dive_id": "2288",
+  "event": "takeoff",
+  "frame_index": 188,
+  "pts_s": 3.136467
+ },
+ "FGT2H_EV_2288_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:39:09.573294+00:00",
+  "dive_id": "2288",
+  "event": "water_contact",
+  "frame_index": 247,
+  "pts_s": 4.120783
+ },
+ "FGT2H_EV_23_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:14:24.142409+00:00",
+  "dive_id": "23",
+  "event": "takeoff",
+  "frame_index": 322,
+  "pts_s": 5.372033
+ },
+ "FGT2H_EV_23_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:14:32.565033+00:00",
+  "dive_id": "23",
+  "event": "water_contact",
+  "frame_index": 381,
+  "pts_s": 6.35635
+ },
+ "FGT2H_EV_2498_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:40:18.505232+00:00",
+  "dive_id": "2498",
+  "event": "takeoff",
+  "frame_index": 48,
+  "pts_s": 0.8
+ },
+ "FGT2H_EV_2498_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:40:45.257904+00:00",
+  "dive_id": "2498",
+  "event": "water_contact",
+  "frame_index": 123,
+  "pts_s": 2.05
+ },
+ "FGT2H_EV_538_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:16:30.997047+00:00",
+  "dive_id": "538",
+  "event": "takeoff",
+  "frame_index": 304,
+  "pts_s": 5.066667
+ },
+ "FGT2H_EV_538_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:16:46.682289+00:00",
+  "dive_id": "538",
+  "event": "water_contact",
+  "frame_index": 374,
+  "pts_s": 6.233333
+ },
+ "FGT2H_EV_540_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:19:28.195813+00:00",
+  "dive_id": "540",
+  "event": "takeoff",
+  "frame_index": 147,
+  "pts_s": 2.45
+ },
+ "FGT2H_EV_540_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:20:40.645207+00:00",
+  "dive_id": "540",
+  "event": "water_contact",
+  "frame_index": 200,
+  "pts_s": 3.333333
+ },
+ "FGT2H_EV_66_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:15:34.614810+00:00",
+  "dive_id": "66",
+  "event": "takeoff",
+  "frame_index": 60,
+  "pts_s": 1.0
+ },
+ "FGT2H_EV_66_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:15:44.096930+00:00",
+  "dive_id": "66",
+  "event": "water_contact",
+  "frame_index": 146,
+  "pts_s": 2.433333
+ },
+ "FGT2H_EV_980_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:33:09.260851+00:00",
+  "dive_id": "980",
+  "event": "takeoff",
+  "frame_index": 41,
+  "pts_s": 1.368033
+ },
+ "FGT2H_EV_980_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-26T13:33:18.292205+00:00",
+  "dive_id": "980",
+  "event": "water_contact",
+  "frame_index": 74,
+  "pts_s": 2.469133
+ }
+}

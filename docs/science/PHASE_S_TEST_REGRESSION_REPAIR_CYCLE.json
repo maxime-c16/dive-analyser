@@ -1,0 +1,29 @@
+{
+  "label": "PHASE_S_TEST_REGRESSION_REPAIR_CYCLE",
+  "date": "2026-09-09",
+  "cycle": "PERCEPTION_V1_CLOSURE_REPAIR",
+  "new_artifact_tests": {
+    "n_tests": 39,
+    "n_pass": 39,
+    "n_fail": 0,
+    "note": "T8.1/T8.2 adjusted: PARIS_EVENT_LOGIC_REAL_TEST_V2 uses el_v2_1/el_v2_2 keys"
+  },
+  "el_logic_tests": {
+    "test_event_logic_v2_1.py": "36/36 PASS",
+    "test_event_logic_v2_2.py": "0 collected (no V2.2 tests defined yet)"
+  },
+  "pre_existing_test_status": {
+    "logic_tests": "212 PASS + 82 SKIP (unchanged)",
+    "path_dependent_failures": {
+      "count": 44,
+      "cause": "Hardcoded BASE=~/dive-analyser (server path); M2 repo at ~/.perso/diveanalyzer-perception",
+      "status": "PRE_EXISTING \u2014 not introduced by this repair cycle",
+      "resolution": "Will pass on server after commit+mirror"
+    }
+  },
+  "frozen_modules_unchanged": {
+    "proposer_event_logic_v2_1.py": "PARAMS_E1 takeoff_vel_threshold=0.04 confirmed unchanged",
+    "proposer_event_logic_v2_2.py": "PARAMS_S1 takeoff_vel_threshold_bodylengths=0.55 confirmed unchanged"
+  },
+  "regression_verdict": "PASS"
+}

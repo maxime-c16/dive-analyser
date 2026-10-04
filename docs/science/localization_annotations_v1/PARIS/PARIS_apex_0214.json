@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_apex_0214",
+  "dive_id": "PARIS_2819",
+  "phase": "apex",
+  "frame_index": 214,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 3.57,
+  "actual_pts_s": 3.57,
+  "image_sha256": "b32a538ab6f98b6eeb06e42c91b763120052250b070bc20d162bcfb172fedc4b",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    495.2015355086372,
+    353.478886756238,
+    665.7581573896354,
+    657.2360844529751
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:59:14.684658+00:00"
+}

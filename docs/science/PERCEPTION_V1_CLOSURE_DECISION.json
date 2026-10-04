@@ -1,0 +1,30 @@
+{
+  "label": "PERCEPTION_V1_CLOSURE_DECISION",
+  "date": "2026-09-09",
+  "decision": "PERCEPTION_CLOSED_EL_BLOCKED",
+  "perception_status": "CLOSED",
+  "el_status": "BLOCKED_BY_PROXY_RESOLUTION",
+  "selected_option": "OPTION_N3",
+  "option_n3_description": "Perception (D5_FRAMEWISE, TRAJECTORY_INPUT_PASS) is closed. Event Logic (V2.1/V2.2) is frozen but cannot be evaluated on proxy-resolution data. Full end-to-end evaluation requires full-resolution video ingestion.",
+  "evidence": {
+    "paris_trajectory_gate": "TRAJECTORY_INPUT_PASS",
+    "dev_perception_valid": "6/10",
+    "dev_el_complete": "0/6",
+    "el_failure_cause": "PROXY_RESOLUTION_COVERAGE_GAP (not EL bug, not perception bug)",
+    "paris_el_result": "BOTH_FAIL \u2014 Paris is 47.95fps/1080p, EL calibrated differently"
+  },
+  "what_is_closed": [
+    "D5-A detector: FROZEN at SHA 82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+    "D5_FRAMEWISE selector: FROZEN (top1_d5_conf)",
+    "FLOOR_CONF=0.001: FROZEN",
+    "OP_CONF=0.05: FROZEN",
+    "Paris trajectory gate: TRAJECTORY_INPUT_PASS CONFIRMED",
+    "R1 reranker: REJECTED, not part of perception pipeline"
+  ],
+  "what_remains_open": [
+    "Event Logic end-to-end evaluation on full-resolution video",
+    "EL V2.2 promotion evaluation on full-resolution trajectories",
+    "Full-resolution ingestion pathway"
+  ],
+  "gate": "SUPERVISOR_REVIEW_AFTER_PERCEPTION_V1_FINAL_CLOSURE"
+}

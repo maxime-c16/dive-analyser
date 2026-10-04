@@ -1,0 +1,92 @@
+{
+  "split_label": "TEMPORAL_LANDMARK_INTERNAL_EVAL_V1",
+  "description": "Scientific split of the 20-dive pilot into DEVELOPMENT_DESIGN (14) and INTERNAL_EVAL (6). Frozen before human annotation. Sessions kept whole. Split uses metadata/session grouping only \u2014 no annotation information used.",
+  "pilot_label": "TEMPORAL_LANDMARK_DEVELOPMENT_PILOT_V1",
+  "pilot_manifest": "docs/science/PILOT_MANIFEST_V1.json",
+  "created": "2026-09-05",
+  "split_method": "session_grouped",
+  "split_rationale": "INTERNAL_EVAL uses session 26 (2025-02-23, 4 dives: 160/191/192/169) plus session 51 (2025-05-27, 1 dive: 848) plus session 138 (2026-06-30, 1 dive: 2281). All three sessions are kept whole (no session split across sets). Selection used only session metadata and temporal ordering \u2014 not annotation correctness or landmark values. Canary dives 2661/2169/311/2555/2387 kept in DEVELOPMENT_DESIGN; canary dive 192 is in INTERNAL_EVAL.",
+  "leakage_controls": [
+    "Split determined before any human annotation was performed",
+    "INTERNAL_EVAL human labels must not be inspected for Baseline B parameter selection",
+    "Session grouping ensures dives from the same session cannot appear in both sets",
+    "No annotation errors or landmark ordering used as split criteria"
+  ],
+  "DEVELOPMENT_DESIGN": {
+    "count": 14,
+    "dive_ids": [
+      133,
+      311,
+      524,
+      676,
+      1040,
+      2169,
+      2341,
+      2353,
+      2387,
+      2541,
+      2555,
+      2625,
+      2661,
+      2680
+    ],
+    "sessions": [
+      25,
+      32,
+      39,
+      46,
+      66,
+      134,
+      148,
+      155,
+      144,
+      144,
+      155,
+      160,
+      156,
+      164
+    ],
+    "groups_covered": [
+      "0",
+      "1",
+      "3",
+      "4",
+      "5"
+    ],
+    "note": "Contains 5 of 6 proxy canary dives (2661, 2169, 311, 2555, 2387)"
+  },
+  "INTERNAL_EVAL": {
+    "count": 6,
+    "dive_ids": [
+      160,
+      169,
+      191,
+      192,
+      848,
+      2281
+    ],
+    "sessions": [
+      26,
+      26,
+      26,
+      26,
+      51,
+      138
+    ],
+    "groups_covered": [
+      "1",
+      "2",
+      "3",
+      "5"
+    ],
+    "note": "Contains 1 of 6 proxy canary dives (192). Session 26 block (4 dives) is a contiguous natural grouping from 2025-02-23."
+  },
+  "limitations": [
+    "INTERNAL_EVAL is NOT a general holdout set \u2014 it is a small internal check for this pilot only",
+    "6 dives is insufficient for broad generalization claims",
+    "Group 4 (401 dives) appears only in DEVELOPMENT_DESIGN (only 1 such dive: 311)",
+    "Group 0 (010 dives: 2661, 2680) appears only in DEVELOPMENT_DESIGN",
+    "No claim of broad generalization allowed from either subset"
+  ],
+  "split_fingerprint_sha256": "96f14ffcd11fb19fa91f8dbd09206c73757ddb628b43f4dbbbe1ac9a0633d582"
+}

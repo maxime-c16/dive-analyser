@@ -1,0 +1,257 @@
+{
+  "label": "BASELINE_C_C2_CANARY_RESULTS_V1",
+  "created": "2026-09-05T23:28:27Z",
+  "variant": "C2",
+  "set_label": "CANARY",
+  "fingerprint": "9734e672f602ac2de2d92cdd954b68272174eb15731715f5a7473f9de7d3a34a",
+  "ultralytics_version": "8.3.253",
+  "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+  "per_dive": {
+    "524": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 60.0,
+        "total_frames": 716,
+        "reason": "yolo_failed",
+        "variant": "C2"
+      }
+    },
+    "133": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 29.97002997002997,
+        "total_frames": 178,
+        "reason": "yolo_failed",
+        "variant": "C2"
+      }
+    },
+    "2541": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 29.97002997002997,
+        "total_frames": 975,
+        "reason": "yolo_failed",
+        "variant": "C2"
+      }
+    },
+    "2555": {
+      "takeoff": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "apex": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "water_contact": {
+        "frame": null,
+        "timestamp_s": null,
+        "confidence": 0.0,
+        "applicability": "UNCERTAIN"
+      },
+      "meta": {
+        "fps": 59.261285909712726,
+        "total_frames": 722,
+        "reason": "yolo_failed",
+        "variant": "C2"
+      }
+    }
+  },
+  "evaluation": {
+    "split_label": "CANARY",
+    "ordering_valid": 0,
+    "ordering_total": 0,
+    "per_landmark": {
+      "takeoff": {
+        "total": 4,
+        "evaluable": 0,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 0,
+        "frame_err": {
+          "n": 0,
+          "median": null,
+          "p90": null,
+          "max": null,
+          "min": null
+        }
+      },
+      "apex": {
+        "total": 4,
+        "evaluable": 0,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 0,
+        "frame_err": {
+          "n": 0,
+          "median": null,
+          "p90": null,
+          "max": null,
+          "min": null
+        }
+      },
+      "water_contact": {
+        "total": 4,
+        "evaluable": 0,
+        "uncertain": 4,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 0,
+        "frame_err": {
+          "n": 0,
+          "median": null,
+          "p90": null,
+          "max": null,
+          "min": null
+        }
+      }
+    },
+    "per_dive": {
+      "524": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 349,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 380,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 426,
+            "pred_frame": null
+          }
+        }
+      },
+      "133": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 108,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 125,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 177,
+            "pred_frame": null
+          }
+        }
+      },
+      "2541": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 1051,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 1079,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 1119,
+            "pred_frame": null
+          }
+        }
+      },
+      "2555": {
+        "per_lm": {
+          "takeoff": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 259,
+            "pred_frame": null
+          },
+          "apex": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 384,
+            "pred_frame": null
+          },
+          "water_contact": {
+            "evaluable": true,
+            "uncertain": true,
+            "h_frame": 576,
+            "pred_frame": null
+          }
+        }
+      }
+    }
+  }
+}

@@ -87,7 +87,7 @@ export const SyncNotifications: React.FC = () => {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`rounded-lg p-4 shadow-lg border flex items-start gap-3 pointer-events-auto animate-in fade-in slide-in-from-right-2 ${
+          className={`rounded-lg p-4 shadow-lg border flex items-start gap-3 pointer-events-auto  ${
             toast.type === 'success'
               ? 'bg-green-500/10 border-green-500/30'
               : toast.type === 'error'
@@ -136,14 +136,14 @@ export const SyncNotifications: React.FC = () => {
             >
               {toast.title}
             </div>
-            <div className="text-sm text-gray-300 line-clamp-2">
+            <div className="text-sm text-app-text line-clamp-2">
               {toast.message}
             </div>
           </div>
 
           <button
             onClick={() => removeToast(toast.id)}
-            className="text-gray-400 hover:text-gray-300 flex-shrink-0"
+            className="text-app-muted hover:text-app-text flex-shrink-0"
             aria-label="Dismiss notification"
           >
             <X className="w-4 h-4" />

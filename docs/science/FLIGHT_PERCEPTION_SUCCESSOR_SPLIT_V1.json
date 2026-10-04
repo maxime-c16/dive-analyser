@@ -1,0 +1,472 @@
+{
+ "base_commit": "f1066229e772080bbfd51aaf2ca34b700ab00174",
+ "created": "2026-09-26",
+ "eligibility_authority": {
+  "corpus": "canonical DB (read-only): 2832 dives / 172 sessions; eligible = sessions never used by any science artifact, production proxy_360p ready (SHA-verified vs media_cache_entries)",
+  "no_FINAL_HOLDOUT_exists": "no FINAL_HOLDOUT set exists in any science artifact (DIVE_ANALYZER_SUBJECT_RESOLUTION_COHORT_EXPANSION_V1 s.50)",
+  "precedent": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1 selected DEVELOPMENT dives from the canonical DB by product/session metadata",
+  "selection_inputs": "DB metadata + visual contact sheets of the raw proxies only (no detector output, no candidate, no search result for any new dive existed at selection time)",
+  "sessions_already_used_by_science": [
+   25,
+   26,
+   32,
+   39,
+   46,
+   51,
+   66,
+   81,
+   134,
+   137,
+   138,
+   144,
+   147,
+   148,
+   155,
+   156,
+   158,
+   160,
+   164,
+   169,
+   203
+  ],
+  "unused_proxy_candidates_from_previous_packet": {
+   "2498": "eligible -> FRESH_HOLDOUT",
+   "2584": "NOT eligible: session 158 = session of validation dive 2583; excluded from every role",
+   "2838": "eligible -> FRESH_HOLDOUT",
+   "540": "eligible -> FRESH_HOLDOUT",
+   "551": "eligible -> FRESH_HOLDOUT",
+   "66": "eligible -> FRESH_HOLDOUT"
+  },
+  "visual_exclusions": {
+   "1003": "filmed off a replay screen",
+   "1279": "clip is almost entirely post-entry",
+   "37": "no diver in frame",
+   "992": "filmed off a replay screen"
+  }
+ },
+ "fingerprint_sha256": "01c906c4ae0da42052391aa11a0b48022a45f7cd8444935e8dd692efd601dfea",
+ "label": "FLIGHT_PERCEPTION_SUCCESSOR_SPLIT_V1",
+ "leakage_controls": [
+  "whole sessions assigned to one role; holdout and new-train sessions disjoint from each other and from every previously used session",
+  "no random frame split; neighbouring frames never cross roles",
+  "holdout GT sealed: loader refuses unless the successor evaluation protocol is committed at HEAD",
+  "diver_id / athlete never used as detector supervision"
+ ],
+ "packet": "DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1",
+ "protected_never_touched": {
+  "FINAL_HOLDOUT": "none exists",
+  "INTERNAL_EVAL": [
+   160,
+   169,
+   191,
+   192,
+   848,
+   2281
+  ],
+  "INTERNAL_EVAL_sessions": [
+   26,
+   51,
+   138
+  ],
+  "Paris": [
+   2819
+  ],
+  "protected_dives": [
+   524,
+   2555
+  ]
+ },
+ "roles": {
+  "FRESH_FLIGHT_HOLDOUT": {
+   "athletes": [
+    "FANNY",
+    "MAT",
+    "MAXIME",
+    "SARA"
+   ],
+   "dives": [
+    {
+     "athlete": "MAXIME",
+     "code": "202C",
+     "date": "2024-11-26",
+     "dive_id": 23,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "3063e937fdd09f6d40e09067d8fa13dce9a1f7add8112f64a6b53cc42c628ec8",
+     "session": 9
+    },
+    {
+     "athlete": "FANNY",
+     "code": "301B",
+     "date": "2025-01-07",
+     "dive_id": 66,
+     "height": "3m",
+     "lineup": false,
+     "proxy_360p_sha256": "ae9255b9a1fd15a47dc31c58f50c4ca64ff167c9a59982dbca6abd03bbd316c6",
+     "session": 16
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "105C",
+     "date": "2025-04-29",
+     "dive_id": 538,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "4444ed40f1b7fd1a4eaddfbb98941c44c58345c759a09f87d8c3cae72f9f4cd7",
+     "session": 41
+    },
+    {
+     "athlete": "SARA",
+     "code": "102C",
+     "date": "2025-04-29",
+     "dive_id": 540,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "f291e0f56a40ff856a917004da6380d4d04eea37e07b14bf4413e46d06305497",
+     "session": 41
+    },
+    {
+     "athlete": "SARA",
+     "code": "102C",
+     "date": "2025-04-29",
+     "dive_id": 551,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "3164a0aadd670d6ecb753a7ea80fbd04fedd7c84fb9293ba7161a33991e529e1",
+     "session": 41
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "203C",
+     "date": "2025-06-21",
+     "dive_id": 980,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "0ade90bf0232d2c025f49b3543c9682ab642519906490704e9be21b6ec2ca604",
+     "session": 60
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "201A",
+     "date": "2025-10-14",
+     "dive_id": 1190,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "6f5f40ed2c3cc11bb9d1ca9f27b011e6d971c20cdb6d91507b997ceb8460a9db",
+     "session": 75
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "201A",
+     "date": "2025-10-14",
+     "dive_id": 1194,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "1d273fac75c52a4cab0dc9b51b6652d83c6a743630d54ded716e406f79633ad2",
+     "session": 75
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "201B",
+     "date": "2026-01-10",
+     "dive_id": 1555,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "f25b7746d4e5d6bed0f5e009df05f5d9c747ac534c8209db7f8bc12cdd39b841",
+     "session": 98
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5122D",
+     "date": "2026-04-21",
+     "dive_id": 2257,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "ed9413e401f83b8c84a098c6b1c31985c6163c5e0d16012fdb759503345e18cf",
+     "session": 131
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "401B",
+     "date": "2026-05-16",
+     "dive_id": 2288,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "956187141c561c5c05d8df164215dfd502806a1e50079d82527aa844a93f3020",
+     "session": 140
+    },
+    {
+     "athlete": "MAT",
+     "code": "105C",
+     "date": "2026-05-23",
+     "dive_id": 2498,
+     "height": "3m",
+     "lineup": false,
+     "proxy_360p_sha256": "946ff3dc57b5e4931b90a0bd3ab83fa7dfeaed24f00dccdda374b4ea7b970de1",
+     "session": 141
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "103B",
+     "date": "2026-07-25",
+     "dive_id": 2838,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "997d0f1d87974191d6a577a3f32dc86390650ede8201bd90838b2f93cfc4aca7",
+     "session": 202
+    }
+   ],
+   "rule": "sealed; human GT collected blind; never read by training/model-selection code; loaded only by the frozen final-eval after the successor protocol is committed",
+   "sessions": [
+    9,
+    16,
+    41,
+    60,
+    75,
+    98,
+    131,
+    140,
+    141,
+    202
+   ]
+  },
+  "MODEL_SELECTION_VALIDATION": {
+   "dives": [
+    1304,
+    2204,
+    2223,
+    2526,
+    2583,
+    2839
+   ],
+   "rule": "FLIGHT_GT_HUMAN_V1 (740bf71d) boxes/events on the 6 Level-B dives; not in any D-series training set; grouped by session (2204/2223 share s137); 2584 excluded (same session as 2583)",
+   "sessions": [
+    81,
+    137,
+    147,
+    158,
+    203
+   ]
+  },
+  "TRAIN_DESIGN_EXISTING": {
+   "caveat": "frozen D5 (82b420c4) was itself trained on 524/2555 labels; a successor initialised from D5 inherits that historical exposure (no evaluation in this packet touches 524/2555)",
+   "dives": [
+    133,
+    311,
+    676,
+    1040,
+    2169,
+    2341,
+    2353,
+    2387,
+    2541,
+    2625,
+    2661,
+    2680
+   ],
+   "excluded_from_new_training": [
+    524,
+    2555
+   ],
+   "rule": "historical D5 corpus images EXCLUDING protected 524/2555 + FLIGHT_GT_HUMAN_V1 boxes on the 9 event dives (burned for search selection -> reused as training data)"
+  },
+  "TRAIN_NEW_HUMAN_FLIGHT_LABELS": {
+   "dives": [
+    {
+     "athlete": "MAXIME",
+     "code": "301C",
+     "date": "2025-05-17",
+     "dive_id": 767,
+     "height": "3m",
+     "lineup": false,
+     "proxy_360p_sha256": "0f4eb3da03258af8df0bdfd4e1bc8e5db2c6d1ef1eb3eaf88bb9443a4d5ac17f",
+     "session": 48
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5221C",
+     "date": "2025-07-06",
+     "dive_id": 1007,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "ed12a6d28c95b2417b4ded955a041e79c55a6b4d7f29c20d6e79478fb4d2aa38",
+     "session": 62
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5231C",
+     "date": "2025-07-06",
+     "dive_id": 1009,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "a0522228671d2a4b085c5c3d6e85dfcebab7c632398ce6b6a41725f141c481e9",
+     "session": 62
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5221C",
+     "date": "2025-07-06",
+     "dive_id": 1010,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "0cc08b7aba7db390112754d854c9bb48b602436ce96762039826b1f0b2236f86",
+     "session": 62
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "104C",
+     "date": "2025-12-20",
+     "dive_id": 1520,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "ece803ba32e3799cc7012aa073379ce7e84abf799007122d7c4bc1c1d69603c1",
+     "session": 94
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "010B",
+     "date": "2026-03-14",
+     "dive_id": 2085,
+     "height": "5m",
+     "lineup": true,
+     "proxy_360p_sha256": "91c5f03dbfaefb26636622f85f006a53ca72b312922e6cb3745f25c93ad1db7d",
+     "session": 128
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "102B",
+     "date": "2026-07-20",
+     "dive_id": 2606,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "67c68eb419add9106704d54987917c15b7b09f956d5edeee54e74d45ce22a454",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5122D",
+     "date": "2026-07-20",
+     "dive_id": 2608,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "a27ee9312ccb3d165e0bf35c4ce310c52dd8d7f863ace23868d03bda581a1855",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "104B",
+     "date": "2026-07-20",
+     "dive_id": 2609,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "2c0cb455be9a25f5453adffb0e23c28096c815f83e2b737e5abd7f2f319b86ae",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "103B",
+     "date": "2026-07-20",
+     "dive_id": 2615,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "7a16f9adb10310293b382862555008cb225281dde6a11d9b9a7ef47af66df3ad",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "103B",
+     "date": "2026-07-20",
+     "dive_id": 2618,
+     "height": "3m",
+     "lineup": false,
+     "proxy_360p_sha256": "3cf31dd45fc5c1244e416edb932928f1d2b3fafd2e6fac7fd483b8854122a847",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "100B",
+     "date": "2026-07-20",
+     "dive_id": 2622,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "91301ee2fd91b8998309101d65cf899ff982729dec177201ec15abd2f42f53ff",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "5122D",
+     "date": "2026-07-20",
+     "dive_id": 2626,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "e24a2fc1e1e3fce497ca2e8291e1aecaf295a1f7240c086756ed2c7144a937bc",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "103B",
+     "date": "2026-07-20",
+     "dive_id": 2636,
+     "height": "5m",
+     "lineup": false,
+     "proxy_360p_sha256": "4e548979e271dbb6ded6135f443efeb7e37339bdd3bfe4bc41dc481c5cea8e88",
+     "session": 163
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "103B",
+     "date": "2026-08-11",
+     "dive_id": 2758,
+     "height": "3m",
+     "lineup": false,
+     "proxy_360p_sha256": "4524a24bbeedbc0a0517684ffe7603fe2190d3c11d3524fb623e573d566986ce",
+     "session": 167
+    },
+    {
+     "athlete": "MAXIME",
+     "code": "102B",
+     "date": "2026-08-11",
+     "dive_id": 2760,
+     "height": "1m",
+     "lineup": false,
+     "proxy_360p_sha256": "babc74e1088adc046df5ea325ae61e50b339899dbdf50ba772f0244195dcec2d",
+     "session": 167
+    }
+   ],
+   "rule": "new blind human flight boxes for training only",
+   "sessions": [
+    48,
+    62,
+    94,
+    128,
+    163,
+    167
+   ]
+  },
+  "UNUSED_RESERVE": {
+   "dives": [
+    37,
+    992,
+    1003,
+    1279,
+    2607,
+    2610,
+    2611,
+    2613,
+    2614,
+    2616,
+    2617,
+    2619,
+    2621,
+    2624,
+    2627,
+    2629,
+    2635,
+    2751,
+    2759
+   ],
+   "rule": "not used in any role"
+  }
+ },
+ "status": "FROZEN_BEFORE_ANY_NEW_LABEL_OR_TRAINING"
+}

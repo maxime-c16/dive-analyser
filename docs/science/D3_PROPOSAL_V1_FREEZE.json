@@ -1,0 +1,39 @@
+{
+  "label": "D3_PROPOSAL_V1_FREEZE",
+  "date": "2026-09-08",
+  "purpose": "Proposal threshold for TARGET_DIVER_SELECTION_V2. Separates \"candidate proposal recall\" from \"target selection\" per V2 packet design.",
+  "weights_sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+  "weights_path_primary": "deb-serv:~/dive-analyser/models/frozen/DIVER_DETECTOR_D3_V8N_best.pt",
+  "proposal_conf": 0.05,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "preprocessing": "YOLO default (letterbox to 640, RGB normalise)",
+  "note": "proposal_conf=0.05 is identical to the D3.1 operating point (D3_1_OPERATING_POINT_FREEZE.json). Lower thresholds were evaluated: conf=0.005 gives recall=77.4% (24/31) vs conf=0.05 recall=71.0% (22/31). The 2541 zero-detection frames (525, 558) have max_conf=0.039/0.011 below 0.05; at conf=0.005 they appear (candidates match GT). However ceiling at conf=0.005 (77.4%) remains below the 80% gate even with this improvement, because 7/9 miss frames are wrong-location (detector fires at wrong objects, not missing completely). Freezing at conf=0.05 avoids re-running full inference while acknowledging the 77% partial ceiling.",
+  "threshold_sweep_summary": {
+    "conf_0.005": {
+      "recall": 0.7742,
+      "n": 24,
+      "denom": 31,
+      "load_p50": 2,
+      "load_p90": "5-13 from sample"
+    },
+    "conf_0.01": {
+      "recall": 0.7419,
+      "n": 23,
+      "denom": 31
+    },
+    "conf_0.02": {
+      "recall": 0.7419,
+      "n": 23,
+      "denom": 31
+    },
+    "conf_0.05": {
+      "recall": 0.7097,
+      "n": 22,
+      "denom": 31
+    }
+  },
+  "a1_gate": "DETECTOR_REOPEN_REQUIRED (ceiling 77% < 80% at any practical threshold)",
+  "status": "FROZEN",
+  "reference_sweep": "experiments/landmark_pilot/runs/target_selection_v2/phase_a_threshold_sweep.json"
+}

@@ -1,313 +1,454 @@
-import React, { useRef, useState, useEffect } from 'react'
-import { X, Play, Pause, Volume2, VolumeX } from 'lucide-react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import {
+  getMediaStatus,
+  getPlaybackUrlFromStatus,
+  getPosterUrlFromStatus,
+  requestMedia as requestMediaRendition,
+  type MediaStatus,
+} from '../services/mediaApi'
+
+/**
+ * Frontend transport-failure policy (backend lifecycle semantics untouched):
+ *
+ * - Initial status lookup: bounded automatic retries, then a terminal
+ *   retryable-error state with a manual "Retry status check" action.
+ *   A failed status GET never submits a preparation request.
+ * - Active preparation polling: one or more transport failures preserve the
+ *   last known authoritative state and surface a "connection interrupted"
+ *   notice; after MAX_POLL_FAILURES consecutive failures the automatic loop
+ *   stops and a manual "Check status again" action is offered. No endless
+ *   spinner while errors are silently swallowed.
+ * - A legitimate long-running preparation is never marked failed; after
+ *   LONG_PREPARATION_MS the presentation honestly becomes "Still preparing
+ *   this clip" with an explicit "Check status now" affordance. No invented
+ *   progress percentages, no job cancellation.
+ * - Transport retry actions only re-run the status lookup. "Prepare clip" /
+ *   "Retry prepare" remain explicit user actions and are guarded against
+ *   duplicate submission.
+ */
+
+export const INITIAL_STATUS_ATTEMPTS = 3
+export const INITIAL_STATUS_RETRY_DELAY_MS = 600
+export const MAX_POLL_FAILURES = 5
+export const MEDIA_POLL_INTERVAL_MS = 3000
+export const LONG_PREPARATION_MS = 90_000
+
+const ACTIVE_PREPARATION_STATES = [
+  'queued',
+  'waiting_for_mac',
+  'claimed',
+  'exporting',
+  'transcoding',
+  'uploading',
+  'verifying',
+]
+
+type Phase =
+  | { kind: 'checking' }
+  | { kind: 'ready'; src: string }
+  | { kind: 'preparing'; state: string; longRunning: boolean; stopped: boolean }
+  | { kind: 'prepare-failed'; message: string }
+  | { kind: 'not-cached' }
+  | { kind: 'transport-failed' }
+
+function preparationLabel(state: string) {
+  return state.replace(/_/g, ' ')
+}
 
 interface DiveVideoPlayerProps {
   diveCode: string
   height: string
   videoUuid: string
-  onClose: () => void
+  playbackRate?: number
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, onClose }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: DiveVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [duration, setDuration] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
-  const [showControls, setShowControls] = useState(true)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>()
-  const [videoSrc, setVideoSrc] = useState<string | null>(null)
-  const [downloadStatus, setDownloadStatus] = useState<string | null>(null)
-  const pollRef = useRef<number | null>(null)
+  const { user, checking: authChecking } = useAuth()
+
+  const [phase, setPhase] = useState<Phase>({ kind: 'checking' })
+  const [stale, setStale] = useState(false)
+  const [posterSrc, setPosterSrc] = useState<string | null>(null)
+  const [canRequest, setCanRequest] = useState(false)
+  const [decodeError, setDecodeError] = useState(false)
+  const [isRequesting, setIsRequesting] = useState(false)
+  const [retryEpoch, setRetryEpoch] = useState(0)
+
+  const failuresRef = useRef(0)
+  const preparingSinceRef = useRef<number | null>(null)
+  const lastPreparingLabelRef = useRef<string | null>(null)
+  const requestingRef = useRef(false)
+
+  const applyStatus = useCallback((data: MediaStatus) => {
+    setCanRequest(Boolean(data.can_request))
+    setPosterSrc(getPosterUrlFromStatus(data))
+
+    const playbackUrl = getPlaybackUrlFromStatus(data)
+    if (data.status === 'ready' && playbackUrl) {
+      preparingSinceRef.current = null
+      lastPreparingLabelRef.current = null
+      setPhase({ kind: 'ready', src: playbackUrl })
+      return
+    }
+
+    if (ACTIVE_PREPARATION_STATES.includes(data.status)) {
+      if (preparingSinceRef.current === null) preparingSinceRef.current = Date.now()
+      const longRunning =
+        preparingSinceRef.current !== null &&
+        Date.now() - preparingSinceRef.current > LONG_PREPARATION_MS
+      lastPreparingLabelRef.current = preparationLabel(data.status)
+      setPhase({ kind: 'preparing', state: data.status, longRunning, stopped: false })
+      return
+    }
+
+    if (data.status === 'failed' || data.status === 'unavailable') {
+      preparingSinceRef.current = null
+      lastPreparingLabelRef.current = null
+      setPhase({
+        kind: 'prepare-failed',
+        message: data.job?.last_error || 'Media preparation failed',
+      })
+      return
+    }
+
+    preparingSinceRef.current = null
+    lastPreparingLabelRef.current = null
+    setPhase({ kind: 'not-cached' })
+  }, [])
+
+  // Initial status lookup with a bounded automatic retry window. Terminal
+  // transport failure is actionable (manual retry) — never an endless
+  // spinner, and never an automatic preparation request.
+  useEffect(() => {
+    let cancelled = false
+    failuresRef.current = 0
+    setStale(false)
+    setPhase({ kind: 'checking' })
+
+    const run = async (attempt: number) => {
+      try {
+        const data = await getMediaStatus(videoUuid)
+        if (cancelled) return
+        applyStatus(data)
+      } catch {
+        if (cancelled) return
+        if (attempt < INITIAL_STATUS_ATTEMPTS) {
+          window.setTimeout(() => {
+            if (!cancelled) run(attempt + 1)
+          }, INITIAL_STATUS_RETRY_DELAY_MS * attempt)
+        } else {
+          setPhase({ kind: 'transport-failed' })
+        }
+      }
+    }
+    run(1)
+    return () => {
+      cancelled = true
+    }
+  }, [videoUuid, retryEpoch, applyStatus])
+
+  // Status polling while the backend reports a legitimate active
+  // preparation state. Transport failures and backend lifecycle state are
+  // different concepts: transient failures preserve the last known state;
+  // consecutive failures terminalize the automatic loop.
+  const isPreparing = phase.kind === 'preparing'
+  const pollStopped = phase.kind === 'preparing' && phase.stopped
 
   useEffect(() => {
-    console.log(`[DiveVideoPlayer] Loading video: ${videoUuid}`)
-    const videoUrl = `/api/v1/videos/${videoUuid}`
-    console.log(`[DiveVideoPlayer] URL: ${videoUrl}`)
-
-    // Check availability and initiate download if needed
-    let cancelled = false
-    const startPolling = () => {
-      if (pollRef.current) return
-      pollRef.current = window.setInterval(async () => {
-        try {
-          const r = await fetch(`/api/v1/videos/check/${videoUuid}`)
-          const d = await r.json()
-          if (d.available) {
-            setVideoSrc(videoUrl)
-            setIsLoading(false)
-            setDownloadStatus(null)
-            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-          } else if (d.status && d.status === 'failed') {
-            setError('Download failed')
-            setIsLoading(false)
-            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-          }
-        } catch (e) {
-          // ignore and continue polling
-        }
-      }, 3000)
-    }
-
-    const check = async () => {
+    if (!isPreparing || pollStopped) return
+    let alive = true
+    const tick = async () => {
       try {
-        const res = await fetch(`/api/v1/videos/check/${videoUuid}`)
-        const data = await res.json()
-        if (data.available) {
-          if (!cancelled) {
-            setVideoSrc(videoUrl)
-            setIsLoading(false)
-            setDownloadStatus(null)
-          }
-        } else if (data.status && (data.status === 'queued' || data.status === 'downloading')) {
-          if (!cancelled) {
-            setDownloadStatus(data.status)
-            setIsLoading(true)
-            startPolling()
-          }
+        const data = await getMediaStatus(videoUuid)
+        if (!alive) return
+        failuresRef.current = 0
+        setStale(false)
+        applyStatus(data)
+      } catch {
+        if (!alive) return
+        failuresRef.current += 1
+        if (failuresRef.current >= MAX_POLL_FAILURES) {
+          setStale(false)
+          setPhase((prev) =>
+            prev.kind === 'preparing' ? { ...prev, stopped: true } : prev,
+          )
         } else {
-          // Not available; trigger backend to initiate download
-          const g = await fetch(videoUrl, { method: 'GET' })
-          if (g.status === 202) {
-            if (!cancelled) {
-              setDownloadStatus('downloading')
-              setIsLoading(true)
-              startPolling()
-            }
-          } else if (g.status === 200) {
-            if (!cancelled) {
-              setVideoSrc(videoUrl)
-              setIsLoading(false)
-            }
-          } else {
-            if (!cancelled) {
-              setError('Video not available')
-              setIsLoading(false)
-            }
-          }
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError('Error checking video availability')
-          setIsLoading(false)
+          setStale(true)
         }
       }
     }
-
-    check()
-
-    // Auto-hide controls after 3 seconds of inactivity (trainer focus mode)
-    const resetTimeout = () => {
-      setShowControls(true)
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
-      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
-    }
-
-    videoRef.current?.addEventListener('mousemove', resetTimeout)
-    videoRef.current?.addEventListener('click', resetTimeout)
-
+    const timer = window.setInterval(tick, MEDIA_POLL_INTERVAL_MS)
     return () => {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-      videoRef.current?.removeEventListener('mousemove', resetTimeout)
-      videoRef.current?.removeEventListener('click', resetTimeout)
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+      alive = false
+      window.clearInterval(timer)
     }
-  }, [videoUuid])
+  }, [isPreparing, pollStopped, videoUuid, applyStatus])
 
-  const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
+  useEffect(() => {
+    if (videoRef.current && phase.kind === 'ready') {
+      videoRef.current.load()
     }
-  }
+  }, [phase.kind, phase])
 
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime)
+  // Keep the requested playback speed applied across source loads and changes.
+  useEffect(() => {
+    const video = videoRef.current
+    if (video) video.playbackRate = playbackRate
+  }, [playbackRate, phase.kind])
+
+  // Manual re-check of media status. Status lookup only — never a
+  // preparation request.
+  const retryStatusCheck = () => setRetryEpoch((epoch) => epoch + 1)
+
+  // Explicit user action: request preparation via the authoritative
+  // endpoint (only where can_request allows it). Guarded against duplicate
+  // submission from double-click, rerender, or repeated retries.
+  const requestMedia = async () => {
+    if (requestingRef.current) return
+    requestingRef.current = true
+    setIsRequesting(true)
+    try {
+      const data = await requestMediaRendition(videoUuid, 'proxy_360p')
+      applyStatus(data)
+    } catch {
+      setPhase({
+        kind: 'prepare-failed',
+        message: 'Could not request media preparation',
+      })
+    } finally {
+      requestingRef.current = false
+      setIsRequesting(false)
     }
   }
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration)
-      console.log(`[DiveVideoPlayer] ✅ Metadata loaded: ${videoRef.current.duration}s`)
-    }
-    setIsLoading(false)
+    const video = videoRef.current
+    if (video) video.playbackRate = playbackRate
   }
 
-  const handleLoadStart = () => {
-    console.log(`[DiveVideoPlayer] Starting to load...`)
-    setIsLoading(true)
+  const handleDecodeError = () => {
+    if (phase.kind === 'ready') setDecodeError(true)
   }
 
-  const handleCanPlay = () => {
-    console.log(`[DiveVideoPlayer] ✅ Can play!`)
+  // Retry playback in place — reloads the existing source. Never creates a
+  // new media job; preparation authority stays with the backend status.
+  const retryPlayback = () => {
+    setDecodeError(false)
+    videoRef.current?.load()
   }
 
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value)
-    if (videoRef.current) {
-      videoRef.current.currentTime = newTime
-      setCurrentTime(newTime)
-    }
-  }
-
-  const handleVolumeToggle = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted
-      setIsMuted(!isMuted)
-    }
-  }
-
-  const handleError = (e: any) => {
-    console.error(`[DiveVideoPlayer] ❌ Error:`, e)
-    if (videoRef.current) {
-      console.error(`[DiveVideoPlayer] Error code:`, videoRef.current.error?.code)
-      console.error(`[DiveVideoPlayer] Error message:`, videoRef.current.error?.message)
-    }
-    setError('Video could not be loaded')
-    setIsLoading(false)
-  }
-
-  const formatTime = (time: number) => {
-    if (!time || isNaN(time)) return '0:00'
-    const minutes = Math.floor(time / 60)
-    const seconds = Math.floor(time % 60)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
+  const preparing = phase.kind === 'preparing' ? phase : null
+  const preparingText = preparing
+    ? preparing.stopped
+      ? `${preparationLabel(preparing.state)} — status checks stopped. Connection problem.`
+      : stale
+        ? `${preparationLabel(preparing.state)} — connection interrupted`
+        : preparing.longRunning
+          ? 'Still preparing this clip'
+          : `Preparing media: ${preparationLabel(preparing.state)}`
+    : null
 
   return (
-    <div className="relative w-full h-full bg-black rounded-lg overflow-hidden group">
-      {/* Video Element */}
+    <div className="relative h-full w-full overflow-hidden bg-black">
+      {/* Unauthenticated: session expired or never set — prompt to sign in. */}
+      {!authChecking && !user && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6">
+          <div className="max-w-sm text-center">
+            <LogIn className="mx-auto mb-3 h-10 w-10 text-app-accent" />
+            <p className="mb-2 font-semibold text-app-text">Sign in to play</p>
+            <p className="mb-4 text-sm text-app-muted">
+              Your session has expired. Sign in to watch your clips.
+            </p>
+            <Link
+              to="/login"
+              state={{ from: window.location.pathname }}
+              className="inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign in
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Safari owns the complete control surface for playable clips. */}
       <video
         ref={videoRef}
-        className="w-full h-full"
-        onTimeUpdate={handleTimeUpdate}
+        className="block h-full w-full bg-black object-contain"
+        src={phase.kind === 'ready' ? phase.src : undefined}
+        controls
+        playsInline
         onLoadedMetadata={handleLoadedMetadata}
-        onLoadStart={handleLoadStart}
-        onCanPlay={handleCanPlay}
-        onError={handleError}
-        crossOrigin="anonymous"
+        onError={handleDecodeError}
         preload="metadata"
-      >
-        {videoSrc ? <source src={videoSrc} type="video/mp4" /> : null}
-        Your browser does not support the video tag.
-      </video>
+        poster={posterSrc || undefined}
+        aria-label={`${diveCode} ${height} dive video`}
+      />
 
-      {/* Loading State */}
-      {isLoading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-          {downloadStatus && (
-            <div className="absolute bottom-6 text-center text-gray-200 text-sm">{downloadStatus === 'downloading' ? 'Downloading video…' : 'Queued for download'}</div>
+      {phase.kind === 'ready' && !decodeError && (
+        <p className="sr-only" role="status">
+          Media ready.
+        </p>
+      )}
+
+      {/* Initial status lookup in progress. */}
+      {phase.kind === 'checking' && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60"
+          role="status"
+        >
+          <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
+          <p className="mt-3 text-sm text-app-text">Checking media status…</p>
+          {lastPreparingLabelRef.current && (
+            <p className="mt-1 text-xs text-app-muted">
+              Last known state: {lastPreparingLabelRef.current}
+            </p>
           )}
         </div>
       )}
 
-      {/* Error State */}
-      {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
-          <div className="text-center">
-            <p className="text-gray-300 mb-2">No video available</p>
-            <p className="text-gray-500 text-sm">This dive video could not be loaded</p>
-          </div>
-        </div>
-      )}
-
-      {/* Controls Overlay */}
-      {!error && (
-        <>
-          {/* Video Info Header */}
-          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-4 z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white font-semibold">{diveCode}</p>
-                <p className="text-gray-300 text-sm">{height}</p>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 hover:bg-black/40 rounded-lg transition"
-              >
-                <X className="w-5 h-5 text-gray-300" />
-              </button>
-            </div>
-          </div>
-
-          {/* Main Controls - Bottom */}
+      {/* Active preparation: named backend states, honest connectivity. */}
+      {preparing && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60">
+          {!preparing.stopped && (
+            <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
+          )}
           <div
-            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity ${
-              showControls ? 'opacity-100' : 'opacity-0 hover:opacity-100'
-            }`}
+            className="absolute inset-x-4 bottom-6 text-center"
+            role={preparing.stopped ? 'alert' : 'status'}
           >
-            {/* Progress Bar */}
-            <div className="mb-4">
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                value={currentTime}
-                onChange={handleProgressChange}
-                className="w-full h-1 bg-gray-700 rounded-full cursor-pointer appearance-none accent-cyan-500"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Control Buttons */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {/* Play/Pause Button */}
-                <button
-                  onClick={handlePlayPause}
-                  className="p-2 hover:bg-white/20 rounded-lg transition"
-                >
-                  {isPlaying ? (
-                    <Pause className="w-5 h-5 text-white" />
-                  ) : (
-                    <Play className="w-5 h-5 text-white" />
-                  )}
-                </button>
-
-                {/* Volume Control */}
-                <button
-                  onClick={handleVolumeToggle}
-                  className="p-2 hover:bg-white/20 rounded-lg transition"
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-5 h-5 text-gray-300" />
-                  ) : (
-                    <Volume2 className="w-5 h-5 text-gray-300" />
-                  )}
-                </button>
-              </div>
-
-              {/* Duration Display */}
-              <span className="text-xs text-gray-400 font-mono">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
-            </div>
+            <p className="text-sm text-app-text">{preparingText}</p>
+            {(preparing.stopped || preparing.longRunning) && (
+              <button
+                type="button"
+                onClick={retryStatusCheck}
+                className="touch-target mt-3 inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {preparing.stopped ? 'Check status again' : 'Check status now'}
+              </button>
+            )}
           </div>
+        </div>
+      )}
 
-          {/* Center Play Button (Click to Play) */}
-          {!isPlaying && !error && (
+      {/* Terminal transport failure of the initial status lookup. */}
+      {phase.kind === 'transport-failed' && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
+          role="alert"
+        >
+          <div className="max-w-sm px-6 text-center">
+            <WifiOff className="mx-auto mb-3 h-10 w-10 text-app-muted" />
+            <p className="mb-2 font-semibold text-app-text">
+              Couldn&rsquo;t check media availability
+            </p>
+            <p className="mb-4 text-sm text-app-muted">
+              The media status check failed. Check your connection and try
+              again.
+            </p>
             <button
-              onClick={handlePlayPause}
-              className="absolute inset-0 flex items-center justify-center transition-all hover:bg-black/20"
+              type="button"
+              onClick={retryStatusCheck}
+              className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
             >
-              <div className="p-4 rounded-full bg-white/20 hover:bg-white/40 transition">
-                <Play className="w-12 h-12 text-white fill-white" />
-              </div>
+              <RefreshCw className="h-4 w-4" />
+              Retry status check
             </button>
-          )}
-        </>
+          </div>
+        </div>
+      )}
+
+      {/* Backend-reported preparation failure, or a failed prepare request. */}
+      {phase.kind === 'prepare-failed' && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
+          role="alert"
+        >
+          <div className="max-w-sm px-6 text-center">
+            <p className="mb-2 text-app-text">No video available</p>
+            <p className="mb-4 text-sm text-app-muted">{phase.message}</p>
+            {canRequest && (
+              <button
+                type="button"
+                onClick={requestMedia}
+                disabled={isRequesting}
+                className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <DownloadCloud className="h-4 w-4" />
+                {isRequesting ? 'Requesting…' : 'Retry prepare'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Video decode/load failure of an otherwise ready clip. */}
+      {phase.kind === 'ready' && decodeError && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
+          role="alert"
+        >
+          <div className="max-w-sm px-6 text-center">
+            <p className="mb-2 font-semibold text-app-text">
+              Video could not be loaded
+            </p>
+            <p className="mb-4 text-sm text-app-muted">
+              Playback failed for this clip. You can try loading it again.
+            </p>
+            <button
+              type="button"
+              onClick={retryPlayback}
+              className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clip exists but no rendition is prepared yet — explicit action. */}
+      {phase.kind === 'not-cached' && canRequest && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6"
+          role="status"
+        >
+          <div className="max-w-sm text-center">
+            <Clock className="mx-auto mb-3 h-10 w-10 text-app-accent" />
+            <p className="mb-2 font-semibold text-app-text">
+              Clip is not cached yet
+            </p>
+            <p className="mb-4 text-sm text-app-muted">
+              Request a lightweight proxy. The Mac agent will prepare it when
+              online.
+            </p>
+            <button
+              type="button"
+              onClick={requestMedia}
+              disabled={isRequesting}
+              className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <DownloadCloud className="h-4 w-4" />
+              {isRequesting ? 'Requesting…' : 'Prepare clip'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Media exists but cannot be requested right now — say so honestly. */}
+      {phase.kind === 'not-cached' && !canRequest && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6"
+          role="status"
+        >
+          <p className="max-w-sm text-center text-sm text-app-muted">
+            No playable media for this clip right now.
+          </p>
+        </div>
       )}
     </div>
   )

@@ -1,0 +1,45 @@
+{
+  "label": "MAP_676_V2_BLUR_VERIFIED",
+  "date": "2026-09-09",
+  "supersedes": "scale_match_676.json (wrong-direction y map; black-region sheet artifact confusion)",
+  "hq": "runs/highres_recovery_v1/batch_media/dive_676/edited_highres_rendition/IMG_2895_edited.mov",
+  "proxy": "runs/hq_rep_v1/pulled_proxies/2b/51/2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6.mp4",
+  "geometry": {
+    "hq_coded": "1136x1080 rotation=-90 -> display 1080x1136",
+    "proxy": "202x360, no rotation",
+    "verdict": "HQ display == uniform upscale (~5.347x) of proxy top band; full horizontal FOV; no hflip; vertical crop starts at proxy row ~1",
+    "proxy_to_hq_display_px": {
+      "x_hq": "x_px * 1080/202",
+      "y_hq": "(y_px - 1) * 1136/212.43"
+    },
+    "proxy_normalized_to_hq_normalized": {
+      "x_off": 0.0,
+      "x_span": 1.0,
+      "y_off": -0.00471,
+      "y_span": 1.69468
+    }
+  },
+  "verification": {
+    "method": "HQ downscaled to 202x212 (INTER_AREA), 9x9 Gaussian blur both sides, TM_CCOEFF_NORMED of HQ_small in full proxy frame",
+    "t3.5": {
+      "loc": [
+        0,
+        1
+      ],
+      "score": 0.9977
+    },
+    "t3.375": {
+      "loc": [
+        0,
+        1
+      ],
+      "score": 0.9957
+    },
+    "central_patch_t3.5": {
+      "x_offset": 0,
+      "score": 0.9982
+    },
+    "gt_box_overlay": "GT takeoff/apex/water_contact boxes mapped into HQ display frames land on the diver (sheets/676_gt_overlay_HQ.png)"
+  },
+  "note": "Prior patch-match failures were blur-asymmetry artifacts (HQ sharp vs proxy blurry); with blur equalization NCC is 0.998. Earlier 'black bottom 40%' in pair sheets was sheet-renderer padding, not video content (HQ row means 57-217 across all rows)."
+}

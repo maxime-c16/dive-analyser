@@ -1,0 +1,166 @@
+{
+ "label": "V3E_FREEZE_GATE_FAILED_V1",
+ "status": "GATE_FAILED",
+ "date": "2026-09-09T12:47:07.125014+00:00",
+ "variant": "V3E0",
+ "base_commit": "5177924",
+ "failed_criteria": {
+  "hurdle_improvement_beyond_single_dive": {
+   "pass": false,
+   "improved_non_drill": [],
+   "regressed_non_drill": [
+    "1040"
+   ],
+   "behavior_changed_dives": [
+    "1040"
+   ],
+   "note": "Requires generalizable HURDLE improvement (more than one dive, no non-drill regression). V3-E0 changes behaviour on ['1040'] only and REGRESSES it (V3-D0 1.9947 -> V3-E0 5.7463); zero dives improved."
+  },
+  "terminal_wc_stable": {
+   "pass": false,
+   "regressed_non_drill": [
+    "1040"
+   ],
+   "tolerance_s": 0.25,
+   "note": "No non-drill HURDLE wc_err may worsen by more than 0.25s. 1040 wc_err 2.511 -> 5.5971."
+  }
+ },
+ "passed_criteria": {
+  "no_standing_regression": {
+   "pass": true,
+   "note": "K2 byte-identity assertion passed on all 4 STANDING dives."
+  },
+  "fm1_closed": {
+   "pass": true,
+   "wc_err": 0.0269,
+   "threshold": 0.1,
+   "note": "Dive 311 wc_err must stay <= 0.1s (A1+A2 unchanged in V3-E0)."
+  },
+  "mechanism_physically_interpretable": {
+   "pass": true,
+   "note": "B1r is a physical board level (robust stable-support cluster median of raw cy); the gate keeps the D0 board-rise invariant semantics."
+  },
+  "no_paris_influence": {
+   "pass": true,
+   "note": "DEVELOPMENT-only derivation; Paris firewall verified statically by test_event_logic_v3_e.py (forbidden constant set + no reference to the Paris trajectory artifact in this eval script)."
+  }
+ },
+ "decision": "MORE_HURDLE_GT_REQUIRED",
+ "decision_note": "HURDLE DEVELOPMENT evidence remains too small: V3-E0 changes behaviour on exactly one dive (1040) and the change is a regression (to_err 1.9947 -> 5.7463: the corrected B1r board level lets a post-water-contact flicker crossing at 9.343s, cy_apex=0.1949 < B1r=0.2208, pass the D0 board-rise gate). Zero HURDLE dives improved. Additional HURDLE GT dives are required before any board-reference semantic can be frozen.",
+ "v3_e1": {
+  "decision": "NOT_JUSTIFIED_BY_DEVELOPMENT_EVIDENCE",
+  "condition_a_resolved_to_err_gt_2s": [
+   "1040",
+   "524",
+   "2541",
+   "2555"
+  ],
+  "condition_a_note": "Partially met at most: 2541 excluded by rule (non-diver plateau); 1040 (5.7463) and 2555 (2.6137) are target-corruption-family failures; only 524 (4.7436, unchanged from V3-D0) is a candidate.",
+  "condition_b_note": "NOT met: TWOD_APPROACH_AUDIT_V1 found no dive APPROACH_END_OBSERVABLE_FROM_2D_TRAJECTORY (Phase H precondition failed); BOARD_REFERENCE_AUDIT_V1 validates only the B1r board level. No GT-blind, camera-agnostic end-of-board context cue is validated for 524/2555; building V3-E1 would require an unvalidated cue, which the gate forbids.",
+  "built": false
+ },
+ "canonical_sources": {
+  "candidate": {
+   "file": "experiments/landmark_pilot/proposer_event_logic_v3_e0.py",
+   "sha256": "9be857cbf431eeadc32abf7cf83c51d8e7e7f5dab373fe4bcf0f1d78338390fc"
+  },
+  "parent_v3_d0": {
+   "file": "experiments/landmark_pilot/proposer_event_logic_v3_d0.py",
+   "sha256": "ca3efb02a8f03bb466d7121d8d7442850869e6984ca91d84f32f5c63e44fff44",
+   "note": "frozen V3-D0 source (unmodified)"
+  },
+  "evaluation": {
+   "file": "experiments/landmark_pilot/phase_v3e_eval.py",
+   "sha256": "083385d57fe2a785fcc78001a7bfd9359db8b0fc698b9f57541eea6dc6af80a7"
+  },
+  "tests": {
+   "file": "experiments/landmark_pilot/test_event_logic_v3_e.py",
+   "sha256": "335bbd0531e55d9bc0170e82bef045ae583e17bd40190b0d3b8821cd8c45fdd7"
+  }
+ },
+ "perception_identity": {
+  "detector": "D5-A (YOLOv8n)",
+  "weights": "DIVER_DETECTOR_D5_A_V8N_best.pt",
+  "floor_conf": 0.001,
+  "op_conf": 0.05,
+  "target_selection": "highest confidence at op_conf threshold",
+  "signal_primitive": "cy_norm (bbox center-y / frame height, 202x360 360p proxy)",
+  "note": "identical to the V3-D0 frozen perception identity; no HQ-derived parameter anywhere in V3-E0"
+ },
+ "parameters": {
+  "variant": "V3E0",
+  "detector": "yolov8n",
+  "detector_imgsz": 640,
+  "detector_conf": 0.1,
+  "detector_iou": 0.45,
+  "detector_classes": [
+   0
+  ],
+  "tracker": "bytetrack",
+  "track_min_conf": 0.1,
+  "track_select_strategy": "longest_x_conf",
+  "smooth_window_s": 0.35,
+  "interp_max_gap_s": 0.3,
+  "vel_max_gap_s": 0.2,
+  "static_var_threshold": 0.0015,
+  "static_window_s": 0.4,
+  "static_min_duration_s": 0.25,
+  "takeoff_vel_threshold": 0.04,
+  "takeoff_sustained_s": 0.15,
+  "takeoff_min_after_prep_s": 0.1,
+  "hurdle_post_plateau_guard_s": 0.4,
+  "apex_search_start_s": 0.08,
+  "water_line_cy_norm": 0.5,
+  "water_contact_method": "cy_threshold_or_dropout",
+  "water_contact_min_after_apex_s": 0.05,
+  "min_coverage_for_confident": 0.15,
+  "max_takeoff_error_for_confident": 0.5,
+  "use_scene_priors": false,
+  "board_cx_min": 0.5,
+  "board_cx_max": 1.0,
+  "water_line_auto": false,
+  "apex_max_window_s": 1.5,
+  "wc_max_window_s": 2.5,
+  "min_hurdle_rise_cy": 0.01,
+  "fallback_sustained_s": 0.15,
+  "board_ref_min_support_n": 5
+ },
+ "development_corpus_fingerprint": {
+  "hurdle_dives": [
+   "1040",
+   "2169",
+   "524",
+   "2341",
+   "2353",
+   "2541",
+   "2555"
+  ],
+  "hurdle_proxy_sha256": {
+   "1040": "b93aca3d4920b48aa76964ebe6263a2405ddb1b6b6f5e629a292e163b68c249c",
+   "2169": "40a3cd691436f7fbdbe1e04527cedb18516d64d38ae35d2854f1d9dbbe36f40a",
+   "524": "85c2c7edaf41a43ce76dd7dc5010fe74f40d709826fe61365c9af65d35ae841b",
+   "2341": "b25f08d4675855e203bef8fc773a6d0efa1d0f2eebb090e727c006bec683b4ec",
+   "2353": "71e3ac13e7bf468accd30d83db7e40c9d815924b92f127ccb31668329628360a",
+   "2541": "3d868b409a8e6ec891f4696ca2395d6224a0ebc660a1c9f74e83534188b6b137",
+   "2555": "7f5b9db03c6ec5e6095f66eaf35fe5cad20365d8436d4b6e7933033b8c096e1a"
+  },
+  "standing_dives": [
+   "133",
+   "311",
+   "676",
+   "2387"
+  ],
+  "standing_cache_sha256": "e83bbeb5c914a6e907653e6b1b7878c8802720397958d0489dc3475b385ce4d9",
+  "hurdle_cache_sha256": "91ae4a5a63977e7996b75ca7a84f73c56bd0e5aa0b711d82ae36310ebaccae89",
+  "gt_role": "error reporting only; never a detector input"
+ },
+ "comparison_artifact": {
+  "file": "docs/science/V3E_DEVELOPMENT_COMPARISON_V1.json",
+  "sha256": "60f6752127729646ec1a32ac288045a68813fc8232ec2a87c072d28ec7593d22"
+ },
+ "next_steps": [
+  "Phase N Paris external evaluation still executed READ-ONLY on the V3-E0 candidate for the record (docs/science/PARIS_EXTERNAL_V3E_EVAL_V1.json);",
+  "collect more HURDLE GT dives (MORE_HURDLE_GT_REQUIRED) before re-attempting any board-reference freeze;",
+  "candidate default remains frozen V3-D0 (EVENT_LOGIC_V3_D0_FREEZE.json)."
+ ]
+}

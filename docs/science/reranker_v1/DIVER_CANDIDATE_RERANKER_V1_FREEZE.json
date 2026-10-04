@@ -1,0 +1,114 @@
+{
+  "label": "DIVER_CANDIDATE_RERANKER_V1_FREEZE",
+  "date": "2026-09-08",
+  "status": "FROZEN",
+  "selected_reranker": "R1",
+  "pkl_path": "R1_RERANKER.pkl",
+  "pkl_sha256": "2a9af7b34ebfbc49fbb6a6a39632ae05fae2d1f6eab0b32ac43b9fe1800888e0",
+  "feature_model": "ResNet50_IMAGENET1K_V1",
+  "feature_dim": 2048,
+  "classifier": "ResNet50_frozen_LogisticRegression",
+  "gate": {
+    "gate": "PASS",
+    "b0_top1_val": 0.5,
+    "best_top1_val": 0.8333333333333334,
+    "improvement": 0.33333333333333337,
+    "material_threshold": 0.05,
+    "selected_reranker": "R1"
+  },
+  "DEV_VAL_metrics": {
+    "n_frames": 6,
+    "n_frames_with_positive": 6,
+    "top1_recall": 0.8333333333333334,
+    "top3_recall": 0.8333333333333334,
+    "top5_recall": 0.8333333333333334,
+    "top10_recall": 1.0,
+    "mrr": 0.8611111111111112,
+    "rank_mean": 1.8333333333333333,
+    "rank_median": 1.0,
+    "by_phase": {
+      "takeoff": {
+        "n": 2,
+        "top1": 1.0,
+        "top3": 1.0,
+        "mrr": 1.0
+      },
+      "apex": {
+        "n": 2,
+        "top1": 1.0,
+        "top3": 1.0,
+        "mrr": 1.0
+      },
+      "water_contact": {
+        "n": 2,
+        "top1": 0.5,
+        "top3": 0.5,
+        "mrr": 0.5833333333333334
+      }
+    }
+  },
+  "B0_DEV_VAL_metrics": {
+    "n_frames": 6,
+    "n_frames_with_positive": 6,
+    "top1_recall": 0.5,
+    "top3_recall": 0.6666666666666666,
+    "top5_recall": 0.8333333333333334,
+    "top10_recall": 1.0,
+    "mrr": 0.6527777777777778,
+    "rank_mean": 2.5,
+    "rank_median": 1.5,
+    "by_phase": {
+      "takeoff": {
+        "n": 2,
+        "top1": 0.5,
+        "top3": 1.0,
+        "mrr": 0.75
+      },
+      "apex": {
+        "n": 2,
+        "top1": 0.5,
+        "top3": 0.5,
+        "mrr": 0.5833333333333334
+      },
+      "water_contact": {
+        "n": 2,
+        "top1": 0.5,
+        "top3": 0.5,
+        "mrr": 0.625
+      }
+    }
+  },
+  "improvement_top1": 0.33333333333333337,
+  "pipeline_identity": {
+    "floor_conf": 0.001,
+    "nms_iou": 0.45,
+    "imgsz": 640,
+    "detector": "D4_PROPOSAL_V1",
+    "detector_sha256": "842291f1cd3c5ad086faa467ccaac197c56bdd63dcdd2b67a91c4a7d8fbc3aaa",
+    "crop_padding_frac": 0.2,
+    "crop_size_px": 224,
+    "feature_normalization": "ImageNet (mean=[0.485,0.456,0.406] std=[0.229,0.224,0.225])"
+  },
+  "grouped_split": {
+    "DEV_TRAIN": [
+      1040,
+      133,
+      2169,
+      2387,
+      2541,
+      2555,
+      2625,
+      2661,
+      2680,
+      311,
+      524,
+      676
+    ],
+    "DEV_VAL": [
+      2341,
+      2353
+    ]
+  },
+  "paris_firewall": "VERIFIED \u2014 Paris not used in training, tuning, or threshold selection",
+  "source_sha": "to_be_filled_at_commit"
+}

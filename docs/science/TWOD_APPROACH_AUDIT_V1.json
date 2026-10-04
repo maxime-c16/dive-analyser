@@ -1,0 +1,733 @@
+{
+ "label": "TWOD_APPROACH_AUDIT_V1",
+ "date": "2026-09-09T12:21:27.492789+00:00",
+ "gt_used": false,
+ "constants": {
+  "median_filter_half_s": 0.15,
+  "vx_hysteresis": 0.05,
+  "speed_thr": 0.1,
+  "speed_min_s": 0.3,
+  "end_cap_frac": 0.8,
+  "pca_iters": 3,
+  "slowdown_frac": 0.4,
+  "lookback_s": 2.0,
+  "class_thresholds": {
+   "inlier_observable": 0.75,
+   "progression_observable": 0.75,
+   "inlier_unreliable": 0.5,
+   "progression_unreliable": 0.5
+  }
+ },
+ "script_sha256": "676430b608081ce9c396c958d669a228214208e5c1fca829717aff561c91b4b4",
+ "traj_cache_sha256": "91ae4a5a63977e7996b75ca7a84f73c56bd0e5aa0b711d82ae36310ebaccae89",
+ "per_dive": {
+  "1040": {
+   "code": "102C",
+   "series_stats": {
+    "cx": {
+     "mean": 0.30102,
+     "std": 0.13345,
+     "min": 0.12341,
+     "max": 0.8555
+    },
+    "cy": {
+     "mean": 0.39481,
+     "std": 0.18154,
+     "min": 0.1027,
+     "max": 0.85806
+    },
+    "by": {
+     "mean": 0.49187,
+     "std": 0.17882,
+     "min": 0.20541,
+     "max": 1.0
+    },
+    "vx": {
+     "mean": 0.00047,
+     "std": 0.82711,
+     "min": -5.17597,
+     "max": 6.08369
+    },
+    "vy": {
+     "mean": 0.01114,
+     "std": 1.52586,
+     "min": -5.68021,
+     "max": 5.64676
+    },
+    "speed": {
+     "mean": 0.66803,
+     "std": 1.60195,
+     "min": 0.0,
+     "max": 6.08369
+    }
+   },
+   "direction_changes": {
+    "count": 15,
+    "flip_times": [
+     0.567233,
+     0.9009,
+     1.034367,
+     2.8028,
+     3.269933,
+     3.636967,
+     3.9039,
+     4.237567,
+     5.5055,
+     8.041367,
+     8.9089,
+     8.975633,
+     9.175833,
+     9.2092,
+     9.4094
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 6.2005
+   },
+   "approach_bounds": {
+    "start_i": 13,
+    "start_t": 0.433767,
+    "end_i": 262,
+    "end_t": 8.742067,
+    "window_s": 8.308,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": true,
+    "largest_sustained_v_event": {
+     "t_start": 8.775433,
+     "t_end": 9.7097,
+     "dur_s": 0.934,
+     "integral": 34.51
+    }
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": 85.42,
+    "inlier_fraction": 0.764,
+    "s_range": 0.39204,
+    "sustained_progression_fraction": 0.5,
+    "n_axis_samples": 250
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 6.773433,
+    "slowdown_rel_to_approach_end": 1.969,
+    "reversal_detected": true,
+    "reversal_t": 8.174833,
+    "detected": true
+   },
+   "classification": "MIXED_2D_OBSERVABILITY",
+   "justification": "inlier_frac=0.764 (thr 0.75/0.5), sustained_progression=0.5, terminal_detected=True (slowdown=True, reversal=True), window_s=8.31 \u2014 LARGEST-EVENT SELECTION SUSPECT: window > 60% of clip (post-water-contact flicker likely dominated the sustained-|v| integral)"
+  },
+  "2169": {
+   "code": "101B",
+   "series_stats": {
+    "cx": {
+     "mean": 0.51173,
+     "std": 0.22647,
+     "min": 0.17354,
+     "max": 0.84425
+    },
+    "cy": {
+     "mean": 0.49102,
+     "std": 0.20012,
+     "min": 0.26092,
+     "max": 0.75188
+    },
+    "by": {
+     "mean": 0.57568,
+     "std": 0.17968,
+     "min": 0.35741,
+     "max": 0.80202
+    },
+    "vx": {
+     "mean": 0.01523,
+     "std": 1.12119,
+     "min": -13.43376,
+     "max": 13.52946
+    },
+    "vy": {
+     "mean": 0.00316,
+     "std": 1.35245,
+     "min": -11.9356,
+     "max": 12.20521
+    },
+    "speed": {
+     "mean": 0.29483,
+     "std": 1.73191,
+     "min": 0.0,
+     "max": 17.99794
+    }
+   },
+   "direction_changes": {
+    "count": 13,
+    "flip_times": [
+     6.122783,
+     6.35635,
+     6.573233,
+     7.007,
+     7.791117,
+     7.841167,
+     7.874533,
+     8.05805,
+     12.3123,
+     14.848167,
+     15.1151,
+     16.66665,
+     17.650967
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 8.7632
+   },
+   "approach_bounds": {
+    "start_i": 354,
+    "start_t": 5.9059,
+    "end_i": 426,
+    "end_t": 7.1071,
+    "window_s": 1.201,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": false,
+    "largest_sustained_v_event": {
+     "t_start": 7.123783,
+     "t_end": 7.874533,
+     "dur_s": 0.751,
+     "integral": 20.6495
+    }
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": 93.28,
+    "inlier_fraction": 0.7397,
+    "s_range": 0.45177,
+    "sustained_progression_fraction": 0.6875,
+    "n_axis_samples": 73
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 5.9059,
+    "slowdown_rel_to_approach_end": 1.201,
+    "reversal_detected": true,
+    "reversal_t": 6.990317,
+    "detected": true
+   },
+   "classification": "MIXED_2D_OBSERVABILITY",
+   "justification": "inlier_frac=0.740 (thr 0.75/0.5), sustained_progression=0.6875, terminal_detected=True (slowdown=True, reversal=True), window_s=1.20"
+  },
+  "524": {
+   "code": "103B",
+   "series_stats": {
+    "cx": {
+     "mean": 0.25379,
+     "std": 0.24241,
+     "min": 0.14858,
+     "max": 0.83631
+    },
+    "cy": {
+     "mean": 0.35425,
+     "std": 0.21454,
+     "min": 0.262,
+     "max": 0.90362
+    },
+    "by": {
+     "mean": 0.46919,
+     "std": 0.20901,
+     "min": 0.37707,
+     "max": 1.0
+    },
+    "vx": {
+     "mean": -0.00021,
+     "std": 2.9133,
+     "min": -20.49185,
+     "max": 20.33571
+    },
+    "vy": {
+     "mean": 0.00028,
+     "std": 2.27586,
+     "min": -19.07845,
+     "max": 19.07263
+    },
+    "speed": {
+     "mean": 0.68329,
+     "std": 3.63317,
+     "min": 0.0,
+     "max": 27.90293
+    }
+   },
+   "direction_changes": {
+    "count": 11,
+    "flip_times": [
+     0.266667,
+     2.416667,
+     2.616667,
+     2.766667,
+     3.4,
+     3.733333,
+     4.133333,
+     8.883333,
+     8.933333,
+     8.966667,
+     9.016667
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 33.7515
+   },
+   "approach_bounds": {
+    "start_i": 40,
+    "start_t": 0.666667,
+    "end_i": 571,
+    "end_t": 9.516667,
+    "window_s": 8.85,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": true,
+    "largest_sustained_v_event": null
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": -57.88,
+    "inlier_fraction": 0.8365,
+    "s_range": 0.30757,
+    "sustained_progression_fraction": 0.4643,
+    "n_axis_samples": 532
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 7.516667,
+    "slowdown_rel_to_approach_end": 2.0,
+    "reversal_detected": false,
+    "reversal_t": null,
+    "detected": true
+   },
+   "classification": "APPROACH_END_NOT_RELIABLY_OBSERVABLE_FROM_2D_TRAJECTORY",
+   "justification": "inlier_frac=0.836 (thr 0.75/0.5), sustained_progression=0.4642857142857143, terminal_detected=True (slowdown=True, reversal=False), window_s=8.85 \u2014 LARGEST-EVENT SELECTION SUSPECT: window > 60% of clip (post-water-contact flicker likely dominated the sustained-|v| integral)"
+  },
+  "2341": {
+   "code": "101B",
+   "series_stats": {
+    "cx": {
+     "mean": 0.62718,
+     "std": 0.03624,
+     "min": 0.37597,
+     "max": 0.63552
+    },
+    "cy": {
+     "mean": 0.15542,
+     "std": 0.1694,
+     "min": 0.11127,
+     "max": 0.87501
+    },
+    "by": {
+     "mean": 0.26779,
+     "std": 0.16945,
+     "min": 0.22255,
+     "max": 0.97009
+    },
+    "vx": {
+     "mean": -0.0004,
+     "std": 0.61864,
+     "min": -7.61187,
+     "max": 7.60437
+    },
+    "vy": {
+     "mean": 0.00019,
+     "std": 2.36295,
+     "min": -22.09673,
+     "max": 21.70138
+    },
+    "speed": {
+     "mean": 0.29934,
+     "std": 2.42418,
+     "min": 0.0,
+     "max": 22.99762
+    }
+   },
+   "direction_changes": {
+    "count": 3,
+    "flip_times": [
+     4.5,
+     8.366667,
+     8.483333
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 3.1888
+   },
+   "approach_bounds": {
+    "start_i": 239,
+    "start_t": 3.983333,
+    "end_i": 259,
+    "end_t": 4.316667,
+    "window_s": 0.333,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": false,
+    "largest_sustained_v_event": {
+     "t_start": 4.333333,
+     "t_end": 4.65,
+     "dur_s": 0.317,
+     "integral": 7.3895
+    }
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": 155.36,
+    "inlier_fraction": 1.0,
+    "s_range": 0.00429,
+    "sustained_progression_fraction": 1.0,
+    "n_axis_samples": 21
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 4.166667,
+    "slowdown_rel_to_approach_end": 0.15,
+    "reversal_detected": false,
+    "reversal_t": null,
+    "detected": true
+   },
+   "classification": "APPROACH_END_NOT_RELIABLY_OBSERVABLE_FROM_2D_TRAJECTORY",
+   "justification": "inlier_frac=1.000 (thr 0.75/0.5), sustained_progression=1.0, terminal_detected=True (slowdown=True, reversal=False), window_s=0.33 \u2014 window < 1.0s, too short to support a coordinate"
+  },
+  "2353": {
+   "code": "101A",
+   "series_stats": {
+    "cx": {
+     "mean": 0.21788,
+     "std": 0.12086,
+     "min": 0.12856,
+     "max": 0.74915
+    },
+    "cy": {
+     "mean": 0.69735,
+     "std": 0.05018,
+     "min": 0.5299,
+     "max": 0.89428
+    },
+    "by": {
+     "mean": 0.8076,
+     "std": 0.05172,
+     "min": 0.57872,
+     "max": 0.99301
+    },
+    "vx": {
+     "mean": 0.00059,
+     "std": 1.60251,
+     "min": -16.75303,
+     "max": 16.52261
+    },
+    "vy": {
+     "mean": 0.00238,
+     "std": 0.49312,
+     "min": -5.15896,
+     "max": 7.94055
+    },
+    "speed": {
+     "mean": 0.23949,
+     "std": 1.65948,
+     "min": 0.0,
+     "max": 16.99774
+    }
+   },
+   "direction_changes": {
+    "count": 31,
+    "flip_times": [
+     2.018683,
+     3.036367,
+     4.070733,
+     4.237567,
+     5.7057,
+     6.2062,
+     7.023683,
+     7.35735,
+     7.6076,
+     8.95895,
+     11.077733,
+     12.429083,
+     13.06305,
+     13.830483,
+     14.4144,
+     14.998317,
+     15.46545,
+     15.749067,
+     15.9159,
+     16.132783,
+     16.66665,
+     17.450767,
+     17.6176,
+     17.9179,
+     20.303617,
+     20.937583,
+     21.087733,
+     22.605917,
+     22.856167,
+     23.27325,
+     23.57355
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 12.3925
+   },
+   "approach_bounds": {
+    "start_i": 178,
+    "start_t": 2.969633,
+    "end_i": 1148,
+    "end_t": 19.152467,
+    "window_s": 16.183,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": true,
+    "largest_sustained_v_event": null
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": -152.37,
+    "inlier_fraction": 0.7487,
+    "s_range": 0.60313,
+    "sustained_progression_fraction": 0.4611,
+    "n_axis_samples": 971
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 17.634283,
+    "slowdown_rel_to_approach_end": 1.518,
+    "reversal_detected": true,
+    "reversal_t": 19.035683,
+    "detected": true
+   },
+   "classification": "APPROACH_END_NOT_RELIABLY_OBSERVABLE_FROM_2D_TRAJECTORY",
+   "justification": "inlier_frac=0.749 (thr 0.75/0.5), sustained_progression=0.46107784431137727, terminal_detected=True (slowdown=True, reversal=True), window_s=16.18 \u2014 LARGEST-EVENT SELECTION SUSPECT: window > 60% of clip (post-water-contact flicker likely dominated the sustained-|v| integral)"
+  },
+  "2541": {
+   "code": "5111B",
+   "series_stats": {
+    "cx": {
+     "mean": 0.58546,
+     "std": 0.29021,
+     "min": 0.06565,
+     "max": 0.92832
+    },
+    "cy": {
+     "mean": 0.35431,
+     "std": 0.17945,
+     "min": 0.02817,
+     "max": 0.63243
+    },
+    "by": {
+     "mean": 0.43566,
+     "std": 0.2026,
+     "min": 0.0562,
+     "max": 0.69565
+    },
+    "vx": {
+     "mean": 0.02357,
+     "std": 1.42843,
+     "min": -11.37493,
+     "max": 11.74045
+    },
+    "vy": {
+     "mean": 0.0117,
+     "std": 1.24592,
+     "min": -9.00203,
+     "max": 8.98866
+    },
+    "speed": {
+     "mean": 0.42578,
+     "std": 1.8472,
+     "min": 0.0,
+     "max": 13.8166
+    }
+   },
+   "direction_changes": {
+    "count": 39,
+    "flip_times": [
+     3.069733,
+     4.037367,
+     4.437767,
+     5.1051,
+     5.872533,
+     6.339667,
+     6.8068,
+     7.007,
+     10.543867,
+     11.3113,
+     12.045367,
+     15.782433,
+     16.049367,
+     16.182833,
+     16.649967,
+     18.9189,
+     20.253567,
+     20.4204,
+     20.5205,
+     20.587233,
+     20.687333,
+     20.8208,
+     21.054367,
+     21.488133,
+     21.955267,
+     22.589233,
+     22.989633,
+     23.189833,
+     23.356667,
+     23.790433,
+     24.557867,
+     25.992633,
+     26.559867,
+     27.5275,
+     28.3283,
+     28.595233,
+     29.6296,
+     30.3303,
+     30.797433
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 8.1181
+   },
+   "approach_bounds": {
+    "start_i": 61,
+    "start_t": 2.035367,
+    "end_i": 604,
+    "end_t": 20.153467,
+    "window_s": 18.118,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": false,
+    "largest_sustained_v_event": {
+     "t_start": 20.186833,
+     "t_end": 20.754067,
+     "dur_s": 0.567,
+     "integral": 23.1451
+    }
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": 16.04,
+    "inlier_fraction": 0.5643,
+    "s_range": 0.86144,
+    "sustained_progression_fraction": 0.4053,
+    "n_axis_samples": 544
+   },
+   "terminal_region": {
+    "slowdown_detected": true,
+    "slowdown_t": 18.952267,
+    "slowdown_rel_to_approach_end": 1.201,
+    "reversal_detected": false,
+    "reversal_t": null,
+    "detected": true
+   },
+   "classification": "APPROACH_END_NOT_RELIABLY_OBSERVABLE_FROM_2D_TRAJECTORY",
+   "justification": "inlier_frac=0.564 (thr 0.75/0.5), sustained_progression=0.40532544378698226, terminal_detected=True (slowdown=True, reversal=False), window_s=18.12"
+  },
+  "2555": {
+   "code": "5132D",
+   "series_stats": {
+    "cx": {
+     "mean": 0.4818,
+     "std": 0.16332,
+     "min": 0.13864,
+     "max": 0.87937
+    },
+    "cy": {
+     "mean": 0.45531,
+     "std": 0.17522,
+     "min": 0.07698,
+     "max": 0.84272
+    },
+    "by": {
+     "mean": 0.58814,
+     "std": 0.17239,
+     "min": 0.15395,
+     "max": 0.93534
+    },
+    "vx": {
+     "mean": -0.0238,
+     "std": 1.48418,
+     "min": -13.81643,
+     "max": 13.33465
+    },
+    "vy": {
+     "mean": -0.00801,
+     "std": 1.70408,
+     "min": -19.62983,
+     "max": 11.59199
+    },
+    "speed": {
+     "mean": 0.91003,
+     "std": 2.06861,
+     "min": 0.0,
+     "max": 19.68209
+    }
+   },
+   "direction_changes": {
+    "count": 60,
+    "flip_times": [
+     0.083333,
+     0.183333,
+     0.216667,
+     0.4,
+     0.616667,
+     0.666667,
+     0.733333,
+     0.866667,
+     0.9,
+     1.2,
+     1.55,
+     1.6,
+     1.633333,
+     1.716667,
+     1.866667,
+     2.216667,
+     2.55,
+     2.683333,
+     2.716667,
+     3.566667,
+     3.633333,
+     3.666667,
+     3.95,
+     4.0,
+     4.033333,
+     4.15,
+     4.45,
+     4.75,
+     4.783333,
+     4.8,
+     4.95,
+     5.416667,
+     5.916667,
+     5.933333,
+     6.0,
+     6.116667,
+     6.683333,
+     7.416667,
+     7.516667,
+     7.783333,
+     7.866667,
+     7.883333,
+     8.2,
+     8.533333,
+     8.566667,
+     8.583333,
+     8.833333,
+     9.016667,
+     9.166667,
+     9.216667
+    ],
+    "hysteresis": 0.05,
+    "mean_abs_vx_rate": 27.6333
+   },
+   "approach_bounds": {
+    "start_i": 33,
+    "start_t": 0.566667,
+    "end_i": 35,
+    "end_t": 0.6,
+    "window_s": 0.033,
+    "end_cap_frac": 0.8,
+    "largest_event_selection_suspicious": false,
+    "largest_sustained_v_event": {
+     "t_start": 0.0,
+     "t_end": 3.216667,
+     "dur_s": 3.217,
+     "integral": 115.0549
+    }
+   },
+   "progress_coordinate": {
+    "axis_angle_deg": null,
+    "inlier_fraction": null,
+    "s_range": null,
+    "sustained_progression_fraction": null,
+    "n_axis_samples": 3
+   },
+   "terminal_region": {
+    "detected": false,
+    "note": "too few 2D samples"
+   },
+   "classification": "APPROACH_END_NOT_RELIABLY_OBSERVABLE_FROM_2D_TRAJECTORY",
+   "justification": "only 3 valid 2D samples in approach window"
+  }
+ }
+}

@@ -1,0 +1,15 @@
+{
+  "label": "PHASE_M_CANARY_CHECK",
+  "mode": "SYNTHETIC_TRAJECTORY",
+  "context": "HURDLE",
+  "prep_end_t": 0.48333333333333334,
+  "takeoff_t": 1.45,
+  "takeoff_error_s": -1.67,
+  "apex_t": 2.216666666666667,
+  "apex_error_s": -1.353,
+  "water_contact_t": 4.233333333333333,
+  "water_contact_type": "GENUINE",
+  "phase_n_cc3_water_classification": "END_OF_CLIP_COINCIDENCE",
+  "phase_n_v2_water_classification": "GENUINE",
+  "all_states_traversed": true
+}

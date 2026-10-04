@@ -1,0 +1,52 @@
+{
+ "label": "HURDLE_R4_APPEARANCE_REPAIR_RESULT_V1",
+ "date": "2026-09-09",
+ "packet": "HURDLE_TARGET_IDENTITY_REPAIR",
+ "task": "R4_APPEARANCE_AWARE_GLOBAL_PATH implementation + gate verdict",
+ "implementation": {
+  "script": "experiments/landmark_pilot/phase_hurdle_r4_identity_repair_v1.py + phase_hurdle_r4_tracks_v2.py",
+  "appearance": "frozen ResNet50 (IMAGENET1K_V1) avgpool 2048-d, L2-normalized, on 1.3x-padded candidate crops",
+  "selection": "Viterbi global path over frames x (top-12 floor candidates + NULL state)",
+  "priors": {
+   "E3": "continuity cost on center displacement + appearance cosine + switch penalty; transitions bounded to STEP_MAX_PATH=0.10 (no unbounded scan - V3-E0 lesson)",
+   "E4": "stiffer motion cost during prep (x2) + NULL in/out hysteresis (0.9/0.5) protecting the static prep identity",
+   "dive_event_track_pick": "peel K=8 disjoint tracks; select by max(2.0*dive_event + 0.5*coverage + 0.1*mean_conf - 2.0*max(jumpiness-0.02,0)) where dive_event = peak smoothed-cy downward displacement over 0.4-1.5s windows (capped)"
+  },
+  "hyperparam_grid": "w_conf in {0,0.02,0.05,0.1}; w_app in {0.5,1,2}; w_step in {0.5,1,2}; switch in {0.2,0.5}; NULL fixed"
+ },
+ "verdict": "FAIL - R4 cannot repair the identity failure",
+ "evidence": {
+  "appearance_non_discriminative": {
+   "method": "per-frame ResNet50 cosine: target-track self vs target-vs-top-distractor cross",
+   "finding": "cross-cos 0.60-1.00 approx equals self-cos 0.70-1.00 (e.g. 2353: cross 0.899-1.000 vs self 0.893-0.990); ImageNet ResNet50 on 360p crops cannot separate the diver from static background distractors",
+   "artifact": "runs/hurdle_identity_v1/ (diagnostic in packet session log)"
+  },
+  "conf_anti_informative": {
+   "finding": "the distractors outranking the target are STATIC background objects with TOP conf (2341: structure box at (0.64,0.11) conf 0.403 constant all video; 1040: structure (0.249,0.221) conf 0.13-0.14 + pool object (0.27,0.60) conf up to 0.56); conf emission therefore pulls the selector AWAY from the target"
+  },
+  "r4_best_vs_d5_top1_correct": {
+   "d5_baseline_mean": 0.2489,
+   "r4_best_mean": 0.213,
+   "r4_best_per_dive": {
+    "1040": 0.0,
+    "2169": 0.912,
+    "2341": 0.0,
+    "2353": 0.0,
+    "2541": 0.153
+   },
+   "grid_search": "192 configurations; best mean 0.213 < D5 0.249; R4 never exceeds the conf-only baseline on any classified dive"
+  }
+ },
+ "implications": [
+  "the identity failure is real and selection-dominated (target in floor proposals 100% of frames) but appearance-aware repair with frozen ImageNet features cannot fix it",
+  "remaining repair directions are outside this packet's authorization: (a) person-trained embedding (needs detector retraining - NO_RETRAIN_AUTHORIZED), (b) board-geometry anchoring (contaminated: the frozen board-level candidates ARE the distractors per Phase A), (c) GT-anchored seeding (forbidden as inference input)",
+  "2169 is the only dive where conf-based selection already works (top-1 correct 96.3%); R4 preserves it (0.91-0.96)"
+ ],
+ "artifacts": [
+  "runs/hurdle_identity_v1/r4_chains_v1.json",
+  "runs/hurdle_identity_v1/r4_feats_*.npz",
+  "runs/hurdle_identity_v1/r4_tracks_v1.json",
+  "runs/hurdle_identity_v1/r4_tracks_v2.json",
+  "runs/hurdle_identity_v1/r4_eval_v1.json"
+ ]
+}

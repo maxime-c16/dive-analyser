@@ -1,0 +1,16 @@
+{
+  "label": "PHASE_M_PARIS_V2_2_TEST",
+  "date": "2026-09-08",
+  "freeze_used": "EVENT_LOGIC_V2_2_FREEZE.json (S1_BODY_SCALE)",
+  "gt_reference": {"takeoff_s": 3.120, "apex_s": 3.570, "water_contact_s": 4.220},
+  "caveat": "CONFOUNDED_BY_UNRESOLVED_PERCEPTION_IDENTITY per PHASE_B_PARIS_SPARSE_IDENTITY_AUDIT.json. Executed for completeness per packet instruction ('the packet succeeds even if Paris still fails' / Phase M still required after freeze), NOT as a clean Event-Logic-only verdict.",
+  "trajectory_source": "Fresh N0 (d3_infer.py, same frozen D3.1 weights+operating point) re-inference over the verified original Paris source at native 1080x1920 (portrait), plus controlled 360p/720p re-renders -- NOT the historical PHASE_O_FULL_TRAJECTORY.json (which was produced by an undocumented, unrecovered script). Both are independent N0 implementations of the same documented methodology; exact frame-by-frame numbers differ, but both show the SAME qualitative failure (wrong-target lock).",
+  "results": {
+    "360p": {"v21": {"takeoff_err_s": -1.2848, "apex_err_s": -1.3344, "wc_err_s": -0.3161}, "s1_v2_2": {"takeoff_err_s": null, "apex_err_s": null, "wc_err_s": null, "note": "no landmark produced"}, "s2_v2_2": {"takeoff_err_s": -1.3182, "apex_err_s": -1.3344, "wc_err_s": -0.3161}},
+    "720p": {"v21": "no landmark produced", "s1_v2_2": "no landmark produced", "s2_v2_2": "no landmark produced"},
+    "native_1080p": {"v21": "no landmark produced", "s1_v2_2": "no landmark produced", "s2_v2_2": "no landmark produced"}
+  },
+  "canary_result": "REAL_SIGNAL_CANARY_FAIL",
+  "interpretation": "At every resolution, either the state machine fails to find any takeoff/apex/water_contact at all (720p, native_1080p -- the trajectory is too flat/static to trigger a velocity-crossing anywhere), or it finds landmarks 1.3s EARLY (360p -- a different systematic error direction than the previous cycle's +1.4s LATE result, because this fresh N0 run's false-positive lock happens to sit at a different point in the state machine's search). Neither failure mode is a meaningful measurement of V2.2's takeoff-threshold design: both trace back to PHASE_B_PARIS_SPARSE_IDENTITY_AUDIT.json's finding that the input trajectory is not, for most of the clip, the diver.",
+  "conclusion": "Paris external result remains REAL_SIGNAL_CANARY_FAIL, as it did for V2.1. This is scientifically expected and does not indict V2.2's DEVELOPMENT-validated design: Paris perception identity was never verified (Phase B/C), so no Event Logic variant can be fairly judged on it. Per the packet's success conditions, this is an acceptable, honestly-reported outcome ('the packet succeeds even if Paris still fails')."
+}

@@ -1,0 +1,110 @@
+{
+ "FGT1_EV_1304_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:08:22.989508+00:00",
+  "dive_id": "1304",
+  "event": "takeoff",
+  "frame_index": 100,
+  "pts_s": 3.333333
+ },
+ "FGT1_EV_1304_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:08:28.174551+00:00",
+  "dive_id": "1304",
+  "event": "water_contact",
+  "frame_index": 143,
+  "pts_s": 4.766667
+ },
+ "FGT1_EV_2204_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T21:57:29.004566+00:00",
+  "dive_id": "2204",
+  "event": "takeoff",
+  "frame_index": 315,
+  "pts_s": 5.25
+ },
+ "FGT1_EV_2204_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T21:57:37.353190+00:00",
+  "dive_id": "2204",
+  "event": "water_contact",
+  "frame_index": 388,
+  "pts_s": 6.466667
+ },
+ "FGT1_EV_2223_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T21:58:41.036495+00:00",
+  "dive_id": "2223",
+  "event": "takeoff",
+  "frame_index": 443,
+  "pts_s": 7.383333
+ },
+ "FGT1_EV_2223_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T21:58:48.370078+00:00",
+  "dive_id": "2223",
+  "event": "water_contact",
+  "frame_index": 532,
+  "pts_s": 8.866667
+ },
+ "FGT1_EV_2526_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T21:59:50.638470+00:00",
+  "dive_id": "2526",
+  "event": "takeoff",
+  "frame_index": 271,
+  "pts_s": 4.516667
+ },
+ "FGT1_EV_2526_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:00:00.065967+00:00",
+  "dive_id": "2526",
+  "event": "water_contact",
+  "frame_index": 341,
+  "pts_s": 5.683333
+ },
+ "FGT1_EV_2583_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:01:02.070952+00:00",
+  "dive_id": "2583",
+  "event": "takeoff",
+  "frame_index": 163,
+  "pts_s": 2.719383
+ },
+ "FGT1_EV_2583_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:01:10.839606+00:00",
+  "dive_id": "2583",
+  "event": "water_contact",
+  "frame_index": 207,
+  "pts_s": 3.45345
+ },
+ "FGT1_EV_2839_takeoff": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:02:06.176251+00:00",
+  "dive_id": "2839",
+  "event": "takeoff",
+  "frame_index": 333,
+  "pts_s": 11.1
+ },
+ "FGT1_EV_2839_water_contact": {
+  "annotator": "maxime",
+  "authority": "HUMAN_REVIEWED",
+  "created_at": "2026-09-25T22:02:14.973866+00:00",
+  "dive_id": "2839",
+  "event": "water_contact",
+  "frame_index": 392,
+  "pts_s": 13.066667
+ }
+}

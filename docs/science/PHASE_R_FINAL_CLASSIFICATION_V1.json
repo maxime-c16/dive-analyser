@@ -1,0 +1,120 @@
+{
+  "label": "PHASE_R_FINAL_CLASSIFICATION_V1",
+  "created": "2026-09-06T10:22:02Z",
+  "note": "Phase N (architecture decision) pending Phase L (domain adaptation) results; N filled as conditional.",
+  "failure_topology": [
+    {
+      "id": "SCALE_FAILURE",
+      "description": "360p proxy resolution renders diver as ~5-15% of frame height \u2014 below reliable detection threshold for COCO-trained YOLOv8n",
+      "evidence": [
+        "F1 IoU50 recall: 3/36 (8.3%) DEVELOPMENT; 0/18 INTERNAL_EVAL",
+        "Phase H: 78% of takeoff landmark frames undetectable by F1",
+        "Phase J: SAM2 tiny immediate collapse in 5/6 dives (tracking fails without visible diver signal)"
+      ]
+    },
+    {
+      "id": "DOMAIN_GAP",
+      "description": "YOLOv8n trained on COCO general person class; diving pool context and aerial diver scale distribution are out-of-distribution",
+      "evidence": [
+        "F1 center recall: 9/18 (50%) INTERNAL_EVAL \u2014 bounding box IoU near-zero despite center proximity; detection boxes systematically undersized",
+        "Phase L pending \u2014 domain adaptation feasibility TBD"
+      ]
+    },
+    {
+      "id": "ACQUISITION_FAILURE",
+      "description": "Track selection maximizes confidence-sum with no spatial/semantic constraint \u2014 bystanders on pool deck outcompete aerial diver",
+      "evidence": [
+        "Phase H H1 analysis: confidence-sum selector picks bystander in known-failure cases",
+        "Phase I: motion-coherent selector fails at 360p because diver displacement (~14% frame height) insufficient to distinguish from bystanders",
+        "Phase I: flight-arc selector fails because diver arc too small to segment reliably at 360p"
+      ]
+    },
+    {
+      "id": "TRACKING_COLLAPSE",
+      "description": "SAM2 video mask tracking collapses at frame 1 in 5/6 dives tested with tiny checkpoint; likely caused by low-resolution diver signal",
+      "evidence": [
+        "Phase J: dives 311, 2541, 2387, 2169 \u2192 IMMEDIATE_COLLAPSE (area=0 one frame after takeoff seed)",
+        "Phase J: dive 133 \u2192 SUCCESS (only case, likely favorable background/scale)",
+        "Phase J base_plus comparison: pending"
+      ]
+    }
+  ],
+  "primary_limiting_factor": "SCALE",
+  "primary_limiting_factor_rationale": "360p proxy resolution is the root cause: DOMAIN_GAP, ACQUISITION_FAILURE, and TRACKING_COLLAPSE are all downstream consequences. At original resolution (1080p/4K), diver occupies significantly more pixels, COCO recall improves, track selection is easier (more distinctive motion), and SAM2 tracking likely avoids immediate collapse. All other failure modes remain contingent on resolution.",
+  "scientific_questions": {
+    "Q1_original_resolution": {
+      "question": "Does original resolution materially affect temporal landmark detection?",
+      "answer": "YES \u2014 SCALE_FAILURE is the primary root cause. 360p proxies are insufficient.",
+      "confidence": "HIGH"
+    },
+    "Q2_track_selection": {
+      "question": "Does track selection affect performance?",
+      "answer": "YES \u2014 structural defect (confidence-sum, no spatial constraint) causes wrong-person selection. SECONDARY to detection failure (78% frames undetectable regardless of selection).",
+      "confidence": "HIGH"
+    },
+    "Q3_tracking": {
+      "question": "Does tracking (video mask) affect performance?",
+      "answer": "YES \u2014 SAM2 tiny collapses in 5/6 tested dives at 360p. Tracking is unreliable at this resolution. base_plus comparison pending.",
+      "confidence": "HIGH (tiny); PENDING (base_plus comparison)"
+    },
+    "Q4_domain_adaptation": {
+      "question": "Does domain adaptation affect performance?",
+      "answer": "PENDING \u2014 Phase L results required. If fine-tuning viable at 360p, detection recall may improve from 8.3% IoU50.",
+      "confidence": "PENDING"
+    },
+    "Q5_scene_geometry": {
+      "question": "Does scene geometry affect temporal landmark detection?",
+      "answer": "MARGINALLY \u2014 13/14 DEVELOPMENT dives use fixed camera (consistent board geometry). Board Y median=0.40 and water Y median=0.57 provide spatial priors, but cannot compensate for zero detection.",
+      "confidence": "MEDIUM"
+    },
+    "Q6_primary_factor": {
+      "question": "What is the primary limiting factor?",
+      "answer": "SCALE: 360p proxy resolution is the root constraint.",
+      "confidence": "HIGH"
+    },
+    "Q7_failure_topology": {
+      "question": "What is the failure topology?",
+      "answer": "SCALE_FAILURE \u2192 DOMAIN_GAP \u2192 ACQUISITION_FAILURE \u2192 TRACKING_COLLAPSE (cascade)",
+      "confidence": "HIGH"
+    },
+    "Q8_video_mask_justified": {
+      "question": "Is video mask tracking justified?",
+      "answer": "NO at 360p. SAM2 tiny IMMEDIATE_COLLAPSE in 5/6 dives (16.7% success). SAM2 base_plus replicates tiny collapse on same test cases (2387: COLLAPSE; 133: SUCCESS identical to tiny). Larger model capacity does not overcome the 360p resolution limit. Video mask tracking requires: (a) human oracle seed, (b) >360p resolution.",
+      "confidence": "HIGH (both tiny and base_plus tested)"
+    },
+    "Q9_architecture": {
+      "question": "What architecture is recommended?",
+      "answer": "CONDITIONAL: If Phase L (domain adaptation) NOT_VIABLE \u2192 PERCEPTION_STILL_INSUFFICIENT. If Phase L VIABLE \u2192 DETECTION_PLUS_LIGHTWEIGHT_TRACKING (with fine-tuned detector). Original resolution required for production.",
+      "confidence": "PENDING"
+    }
+  },
+  "performance_summary": {
+    "DEVELOPMENT": {
+      "baseline_A_median_err_s": 2.0,
+      "baseline_A_pct_serious": 87,
+      "baseline_C_CC2_pct_within_tolerance": 41,
+      "oracle_SAM2_tiny_diver_tracked_pct": 17
+    },
+    "INTERNAL_EVAL": {
+      "baseline_CC2_evaluable_pct": 33,
+      "baseline_CC2_pct_within_tolerance": 33,
+      "baseline_CC2_mean_err_s": 7.12
+    }
+  },
+  "J_summary": {
+    "J1_tiny": {
+      "total": 6,
+      "success": 1,
+      "collapse": 5,
+      "success_rate": 0.167
+    },
+    "J2_base_plus": {
+      "total": 2,
+      "success": 1,
+      "collapse": 1,
+      "notes": "matches tiny outcomes on same dives"
+    },
+    "finding": "Model size does not determine tracking success at 360p; resolution is the binding constraint"
+  },
+  "updated": "2026-09-06T10:25:11Z"
+}

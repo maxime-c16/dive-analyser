@@ -20,13 +20,61 @@ from fastapi.testclient import TestClient
 # Override environment to use test database
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["AUTO_IMPORT"] = "false"
+os.environ["MAC_AGENT_API_KEYS"] = ",".join([
+    "test-api-key-1234567890abcdef",
+    "test-api-key-perf-testing",
+    "personal-value-test-key",
+    "test-api-key-long-enough",
+    "test-api-key-integration-testing",
+    "k" * 48,
+])
 
 from app.main import app
 from app.database import Base, get_db
 from app.models.session import Session as SessionModel
 from app.models.dive import Dive
+from app.models import DDLookup
+from decimal import Decimal
 from tests.mock_server import MockHTTPClient, MockSyncServer
-from tests.fixtures import seed_test_database, clear_test_database
+from tests.fixtures import seed_test_database, clear_test_database, seed_fina_dive_codes
+
+
+# Helper function to seed DD lookups for tests
+def _seed_test_dd_lookups(db: Session) -> int:
+    """Seed test DD lookups for common test dives"""
+    test_dives = [
+        ("101B", ["1m", "3m", "5m", "7.5m", "10m"], [1.3, 1.5, 1.7, 2.0, 2.3]),
+        ("101C", ["1m", "3m", "5m", "7.5m", "10m"], [1.4, 1.6, 1.8, 2.1, 2.4]),
+        ("201B", ["1m", "3m", "5m", "7.5m", "10m"], [1.4, 1.6, 1.8, 2.1, 2.4]),
+        ("201C", ["1m", "3m", "5m", "7.5m", "10m"], [1.5, 1.7, 1.9, 2.2, 2.5]),
+        ("301B", ["1m", "3m", "5m", "7.5m", "10m"], [1.6, 1.8, 2.0, 2.3, 2.6]),
+        ("301C", ["1m", "3m", "5m", "7.5m", "10m"], [1.7, 1.9, 2.1, 2.4, 2.7]),
+        ("401B", ["1m", "3m", "5m", "7.5m", "10m"], [1.7, 1.9, 2.1, 2.4, 2.7]),
+        ("401C", ["1m", "3m", "5m", "7.5m", "10m"], [1.8, 2.0, 2.2, 2.5, 2.8]),
+        ("5231D", ["1m", "3m", "5m", "7.5m", "10m"], [1.9, 2.1, 2.3, 2.6, 2.9]),
+        ("5233D", ["1m", "3m", "5m", "7.5m", "10m"], [2.0, 2.2, 2.4, 2.7, 3.0]),
+    ]
+
+    count = 0
+    for dive_code, heights, dd_values in test_dives:
+        for height, dd_val in zip(heights, dd_values):
+            # Check if exists
+            existing = db.query(DDLookup).filter_by(dive_code=dive_code, height=height).first()
+            if existing:
+                continue
+
+            dd = DDLookup(
+                dive_code=dive_code,
+                height=height,
+                platform_type="springboard" if height in ["1m", "3m"] else "platform",
+                dd_value=Decimal(str(dd_val)),
+            )
+            db.add(dd)
+            count += 1
+
+    if count > 0:
+        db.commit()
+    return count
 
 
 # Test database setup
@@ -37,9 +85,11 @@ def test_db() -> Generator[Session, None, None]:
     Uses in-memory SQLite for speed.
     """
     # Create test engine (in-memory SQLite)
+    # Note: check_same_thread=False allows SQLite to be used across threads,
+    # which is needed for FastAPI's async dependency injection
     engine = create_engine(
         "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
+        connect_args={"check_same_thread": False, "timeout": 30},
         poolclass=StaticPool,
         echo=False,
     )
@@ -51,24 +101,51 @@ def test_db() -> Generator[Session, None, None]:
     TestingSessionLocal = sessionmaker(
         autocommit=False,
         autoflush=False,
-        bind=engine
+        bind=engine,
+        expire_on_commit=False,  # Don't expire objects after commit
     )
 
     # Create session instance
     db = TestingSessionLocal()
 
+    # Seed FINA dive codes
+    try:
+        seed_fina_dive_codes(db)
+    except Exception:
+        # If seeding fails (e.g., JSON file not found), continue anyway
+        # Tests that don't need FINA codes will pass, others will fail appropriately
+        pass
+
+    # Seed DD lookups for common test dives
+    try:
+        _seed_test_dd_lookups(db)
+    except Exception:
+        # If seeding fails, continue anyway
+        pass
+
     # Override dependency in FastAPI app
     def override_get_db():
-        # Don't close the session during testing; let the fixture cleanup handle it
-        yield db
+        # Yield a new session for each request to avoid cross-thread issues
+        # This is safer than sharing the same session
+        try:
+            yield db
+        finally:
+            # Don't close the session here, let the fixture cleanup handle it
+            pass
 
     app.dependency_overrides[get_db] = override_get_db
 
     yield db
 
     # Cleanup
-    db.close()
-    Base.metadata.drop_all(bind=engine)
+    try:
+        db.close()
+    except Exception:
+        pass
+    try:
+        Base.metadata.drop_all(bind=engine)
+    except Exception:
+        pass
     app.dependency_overrides.clear()
 
 

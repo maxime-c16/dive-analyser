@@ -1,0 +1,266 @@
+{
+  "task": "MEDIA_BACKBONE_P6_ACCELERATED_DEFAULT_PLAYBACK_V1_PLAYBACK_KEY",
+  "steps": {
+    "inventory_before": [
+      {
+        "keyName": "diveanalyzer-dev-canary",
+        "id": "003e2bb572cfba70000000003",
+        "capabilities": [
+          "listBuckets",
+          "writeBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": "ce32bbfbb597826caf0b0a17"
+      },
+      {
+        "keyName": "diveanalyzer-prod-agent",
+        "id": "003e2bb572cfba70000000004",
+        "capabilities": [
+          "listBuckets",
+          "writeBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": "7e720bcb6587827caf0b0a17"
+      },
+      {
+        "keyName": "p6-op-ephemeral",
+        "id": "003e2bb572cfba70000000008",
+        "capabilities": [
+          "listKeys",
+          "writeKeys",
+          "deleteKeys",
+          "listBuckets",
+          "writeBuckets",
+          "deleteBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "bypassGovernance",
+          "readBucketRetentions",
+          "writeBucketRetentions",
+          "readFileRetentions",
+          "writeFileRetentions",
+          "readFileLegalHolds",
+          "writeFileLegalHolds",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": null
+      },
+      {
+        "keyName": "diveanalyzer-prod-playback-v1",
+        "id": "003e2bb572cfba70000000009",
+        "capabilities": [
+          "readFiles"
+        ],
+        "bucketId": "7e720bcb6587827caf0b0a17"
+      }
+    ],
+    "create_key": {
+      "keyName": "diveanalyzer-prod-playback-v1",
+      "applicationKeyId": "003e2bb572cfba7000000000a",
+      "capabilities": [
+        "readFiles"
+      ],
+      "bucketId": "7e720bcb6587827caf0b0a17"
+    },
+    "playback_key_authorization": {
+      "status": 200,
+      "capabilities": [
+        "readFiles"
+      ],
+      "bucketId": "7e720bcb6587827caf0b0a17"
+    },
+    "s3_positive": {
+      "probe_object": "blobs/sha256/36/36a043b9af3a8356b928f953f177e35ccf1b307cbd35992880a9396072c39a7d.mov",
+      "list_files_ok": true,
+      "get": {
+        "status": 400,
+        "bytes": 198
+      },
+      "head": {
+        "status": 400
+      },
+      "presigned_get": {
+        "status": 400,
+        "bytes": 198,
+        "ttl": 120
+      },
+      "presigned_range": {
+        "status": 400,
+        "bytes": 198
+      }
+    },
+    "s3_negative": {
+      "put": {
+        "status": 403
+      },
+      "hide": {
+        "status": 401
+      },
+      "delete": {
+        "status": 400
+      },
+      "create_bucket": {
+        "status": 400
+      },
+      "other_bucket": {
+        "status": 400
+      }
+    },
+    "revoke_dev_agent": {
+      "status": 200,
+      "applicationKeyId": "003e2bb572cfba70000000001"
+    },
+    "inventory_after": [
+      {
+        "keyName": "diveanalyzer-dev-canary",
+        "id": "003e2bb572cfba70000000003",
+        "capabilities": [
+          "listBuckets",
+          "writeBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": "ce32bbfbb597826caf0b0a17"
+      },
+      {
+        "keyName": "diveanalyzer-prod-agent",
+        "id": "003e2bb572cfba70000000004",
+        "capabilities": [
+          "listBuckets",
+          "writeBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": "7e720bcb6587827caf0b0a17"
+      },
+      {
+        "keyName": "p6-op-ephemeral",
+        "id": "003e2bb572cfba70000000008",
+        "capabilities": [
+          "listKeys",
+          "writeKeys",
+          "deleteKeys",
+          "listBuckets",
+          "writeBuckets",
+          "deleteBuckets",
+          "readBuckets",
+          "listFiles",
+          "readFiles",
+          "shareFiles",
+          "writeFiles",
+          "deleteFiles",
+          "readBucketEncryption",
+          "writeBucketEncryption",
+          "readBucketLogging",
+          "writeBucketLogging",
+          "readBucketReplications",
+          "writeBucketReplications",
+          "readBucketNotifications",
+          "writeBucketNotifications",
+          "bypassGovernance",
+          "readBucketRetentions",
+          "writeBucketRetentions",
+          "readFileRetentions",
+          "writeFileRetentions",
+          "readFileLegalHolds",
+          "writeFileLegalHolds",
+          "readBucketLifecycleRules",
+          "writeBucketLifecycleRules"
+        ],
+        "bucketId": null
+      },
+      {
+        "keyName": "diveanalyzer-prod-playback-v1",
+        "id": "003e2bb572cfba70000000009",
+        "capabilities": [
+          "readFiles"
+        ],
+        "bucketId": "7e720bcb6587827caf0b0a17"
+      },
+      {
+        "keyName": "diveanalyzer-prod-playback-v1",
+        "id": "003e2bb572cfba7000000000a",
+        "capabilities": [
+          "readFiles"
+        ],
+        "bucketId": "7e720bcb6587827caf0b0a17"
+      }
+    ],
+    "object_lock": {
+      "bucket": "diveanalyzer-prod-media",
+      "objectLock": null,
+      "bucketId": "7e720bcb6587827caf0b0a17"
+    }
+  }
+}

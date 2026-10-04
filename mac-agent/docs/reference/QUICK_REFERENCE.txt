@@ -1,0 +1,223 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                  DIVING ANALYTICS SYSTEM - QUICK REFERENCE                    ║
+║                                                                               ║
+║  System Ready: January 7, 2026                                               ║
+║  Status: ✅ Operational and committed to Git                                ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+📊 YOUR PERFORMANCE AT A GLANCE
+────────────────────────────────────────────────────────────────────────────────
+
+  Total Dives:           1,290 personal dives tracked
+  Average Performance:   2.17/4.0 (Good-Medium range)
+  Success Rate:          80.5% (rated Medium or better)
+  Perfect Rate:          5.8%
+  Consistency:           77%
+
+  Top Dive:              201C (284 attempts, 22% of training)
+  Best Height:           Platform (5m+) avg 2.55
+  Training Focus:        Springboard (1m/3m) 85% of training
+
+  Special:               41 synchro dives, 41 belly flops
+
+
+🎯 QUICK COMMANDS
+────────────────────────────────────────────────────────────────────────────────
+
+  Run Full Analysis:
+    $ python dive_analytics.py
+
+  Run Weekly Scan:
+    $ bash weekly_scan.sh
+
+  Set Up Automation (Cron Job):
+    $ bash setup_cron.sh
+
+  View Latest Reports:
+    $ ls -la analytics/
+
+  View Logs:
+    $ tail -f logs/weekly_scan*.log
+
+
+📁 KEY FILES
+────────────────────────────────────────────────────────────────────────────────
+
+  DOCUMENTATION:
+    ✓ README_ANALYTICS_SETUP.md       - Complete system guide
+    ✓ FINAL_TRIAGE_REPORT.md          - Your performance analysis
+    ✓ ANALYTICS_SYSTEM_COMPLETE.md    - System overview
+    ✓ This file (QUICK_REFERENCE.txt)
+
+  SCRIPTS:
+    ✓ dive_analytics.py               - Analytics engine
+    ✓ batch_extract_metadata.py       - Library scanner
+    ✓ weekly_scan.sh                  - Automation pipeline
+    ✓ setup_cron.sh                   - Cron configuration
+
+  DATA:
+    ✓ dive_metadata_report_final.json - Latest dive data
+    ✓ analytics/                      - Analysis reports
+
+
+🚀 SETUP STEPS (If You Haven't Done Them)
+────────────────────────────────────────────────────────────────────────────────
+
+  1. Set up weekly automation (optional):
+     $ bash setup_cron.sh
+
+  2. Push to GitHub (when ready):
+     $ git remote add origin git@github.com:maxime-c16/diving-analyser.git
+     $ git branch -M main
+     $ git push -u origin main
+
+  3. Run analysis anytime:
+     $ python dive_analytics.py
+
+
+📈 INTERPRETING YOUR METRICS
+────────────────────────────────────────────────────────────────────────────────
+
+  Success Rate 80.5% means:
+    → 4 out of 5 dives are rated Medium or better
+    → 1 out of 5 dives rated Bad or Failed (improvement area)
+
+  Consistency 77% means:
+    → Your repeated dives have moderate consistency
+    → Some dives more reliable than others
+
+  Platform vs Springboard:
+    → Platform avg (2.55) > Springboard avg (2.09)
+    → You perform better on higher platforms (expected - harder)
+
+  Monthly Progression:
+    → October improved by +0.23 points
+    → December improved by +0.16 points
+    → Positive trend: You're improving!
+
+
+🎪 YOUR SPECIALIZATION
+────────────────────────────────────────────────────────────────────────────────
+
+  Top 5 Dives (% of total training):
+    1. 201C  - 22.0% (284 dives)      Your main focus
+    2. 301C  - 13.3% (172 dives)      Secondary dive
+    3. 103C  - 13.0% (168 dives)      Third most
+    4. 101B  - 11.9% (154 dives)      Fourth
+    5. 010B  -  6.6% (85 dives)       Lineup practice
+
+  Improvement Potential (room to grow toward Perfect):
+    → 201C: 1.72 points (best opportunity)
+    → 301C: 2.10 points (more room to improve)
+    → 103C: 1.89 points
+
+
+⭐ ACHIEVEMENTS
+────────────────────────────────────────────────────────────────────────────────
+
+  ✓ 1,290 dives documented
+  ✓ 248 training partners tracked separately
+  ✓ 80.5% success rate (excellent)
+  ✓ 77% consistency score (good)
+  ✓ Clear specialization (focused training)
+  ✓ Positive monthly progression
+
+
+🔍 WHERE TO LOOK FOR MORE INFO
+────────────────────────────────────────────────────────────────────────────────
+
+  Want detailed breakdown by height?
+    → FINAL_TRIAGE_REPORT.md (see "Performance By Height" section)
+
+  Want to understand the metrics?
+    → README_ANALYTICS_SETUP.md (see "Key Metrics Explained")
+
+  Want technical details?
+    → README_ANALYTICS_SETUP.md (see "Technical Details")
+
+  Want improvement recommendations?
+    → FINAL_TRIAGE_REPORT.md (see "Recommendations" section)
+
+
+📋 DIVING CAPTION FORMAT (For Future Entries)
+────────────────────────────────────────────────────────────────────────────────
+
+  Format: DIVECODE PERF [HEIGHT] [SYNC] [SMACK] [PERSON]
+
+  Examples:
+    101B M              → 101B dive, Medium, 1m (default)
+    202A G 3m           → 202A dive, Good, 3m springboard
+    5231D P 5m          → 5231D dive, Perfect, 5m platform
+    010B G              → Front lineup (010=front), Good
+    201BO M 3m          → 201B open pike, Medium, 3m
+    101B M FANNY        → 101B, Medium, with FANNY
+    101B M SYNC         → 101B, Medium, synchronized
+    103B F SMACK        → 103B, Failed, belly flop
+
+
+🛠️ TROUBLESHOOTING
+────────────────────────────────────────────────────────────────────────────────
+
+  "No module named 'osxphotos'"
+    → source venv/bin/activate && pip install osxphotos
+
+  Cron job not running?
+    → Check logs: tail -f logs/weekly_scan*.log
+    → Verify: crontab -l | grep diving
+
+  Reports not generating?
+    → Run manually: bash weekly_scan.sh
+    → Check errors in logs/
+
+  Photos library not found?
+    → Verify path: ls ~/Pictures/Photos\ Library.photoslibrary
+
+
+📞 COMMAND REFERENCE
+────────────────────────────────────────────────────────────────────────────────
+
+  Analysis:
+    python dive_analytics.py [--input FILE] [--output-dir DIR]
+
+  Scanning:
+    python batch_extract_metadata.py --library PATH --output FILE
+
+  Automation:
+    bash weekly_scan.sh
+    bash setup_cron.sh
+
+  Git:
+    git status                    # Check changes
+    git log --oneline            # View commits
+    git push -u origin main      # Push to GitHub
+
+
+🎓 RESEARCH SOURCES
+────────────────────────────────────────────────────────────────────────────────
+
+  • World Aquatics Diving System
+  • Diving Performance Prediction (MEAT algorithm)
+  • Judge Scoring Data Quality Analysis
+  • Sports Analytics Metrics Research
+  • Swimming Performance Tracking Studies
+
+
+🏊 YOU'RE ALL SET!
+────────────────────────────────────────────────────────────────────────────────
+
+  Your diving analytics system is:
+    ✓ Fully installed and operational
+    ✓ Initially audited (1,290 dives analyzed)
+    ✓ Ready for weekly automation
+    ✓ Committed to Git
+    ✓ Ready to push to GitHub
+
+  Next step: Push to GitHub
+    $ git push -u origin main
+
+  Questions? See README_ANALYTICS_SETUP.md for detailed documentation.
+
+  Happy diving! 🏊
+
+────────────────────────────────────────────────────────────────────────────────
+Generated: January 7, 2026 | System v1.0 | Status: Operational

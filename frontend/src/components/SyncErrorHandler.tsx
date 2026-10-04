@@ -83,7 +83,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
       {errors.map((error) => (
         <div
           key={error.id}
-          className="rounded-lg border border-red-500/30 bg-red-500/10 overflow-hidden shadow-lg animate-in fade-in slide-in-from-left-2"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 overflow-hidden shadow-lg "
         >
           {/* Error Header */}
           <div className="p-4 flex items-start gap-3">
@@ -91,14 +91,14 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
 
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-red-300 text-sm">Sync Error</h4>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-app-muted mt-1">
                 {new Date(error.timestamp).toLocaleTimeString()}
               </p>
             </div>
 
             <button
               onClick={() => removeError(error.id)}
-              className="text-gray-400 hover:text-gray-300 flex-shrink-0"
+              className="text-app-muted hover:text-app-text flex-shrink-0"
               aria-label="Dismiss error"
             >
               <X className="w-4 h-4" />
@@ -110,7 +110,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
             onClick={() => toggleExpanded(error.id)}
             className="w-full px-4 py-2 flex items-center gap-2 bg-red-500/5 border-t border-red-500/20 hover:bg-red-500/10 transition-colors text-left"
           >
-            <span className="flex-1 text-sm text-gray-300 truncate">
+            <span className="flex-1 text-sm text-app-text truncate">
               {error.message}
             </span>
             {error.expanded ? (
@@ -122,22 +122,22 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
 
           {/* Expanded Details */}
           {error.expanded && (
-            <div className="px-4 py-3 bg-black/20 space-y-3 border-t border-red-500/20">
+            <div className="px-4 py-3 bg-app-bg space-y-3 border-t border-red-500/20">
               <div>
-                <div className="text-xs text-gray-400 mb-1">Sync ID</div>
-                <code className="text-xs text-gray-300 bg-black/50 p-2 rounded block font-mono break-all">
+                <div className="text-xs text-app-muted mb-1">Sync ID</div>
+                <code className="text-xs text-app-text bg-app-bg p-2 rounded block font-mono break-all">
                   {error.syncId}
                 </code>
               </div>
 
               <div>
-                <div className="text-xs text-gray-400 mb-1">Error Message</div>
-                <p className="text-xs text-red-200 bg-black/50 p-2 rounded">
+                <div className="text-xs text-app-muted mb-1">Error Message</div>
+                <p className="text-xs text-red-200 bg-app-bg p-2 rounded">
                   {error.message}
                 </p>
               </div>
 
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-app-muted">
                 Retry Attempts: <span className="font-bold">{error.retryCount}</span>
               </div>
 
@@ -154,7 +154,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
 
                 <button
                   onClick={() => removeError(error.id)}
-                  className="flex-1 py-2 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm font-medium transition-colors"
+                  className="flex-1 py-2 px-3 bg-app-panel border border-app hover:text-app-text rounded text-sm font-medium transition-colors"
                 >
                   Dismiss
                 </button>

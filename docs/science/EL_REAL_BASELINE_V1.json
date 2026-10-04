@@ -1,0 +1,226 @@
+{
+  "label": "EL_REAL_BASELINE_V1",
+  "date": "2026-09-09",
+  "description": "Canonical V2.1 + V2.2 baseline on DEVELOPMENT procedurally-valid trajectories",
+  "n_proc_valid_dives": 6,
+  "v2_1_complete": 6,
+  "v2_2_complete": 5,
+  "per_dive": {
+    "133": {
+      "dive_id": 133,
+      "code": "301B",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "wc": 2.95027
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 1.1011,
+        "takeoff_t": 1.634967,
+        "apex_t": 2.369033,
+        "wc_t": 2.8028,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.1653,
+          "apex": 0.2854,
+          "wc": 0.1475
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 1.1011,
+        "takeoff_t": null,
+        "apex_t": null,
+        "wc_t": null,
+        "complete": false,
+        "errors": {
+          "takeoff": null,
+          "apex": null,
+          "wc": null
+        }
+      }
+    },
+    "311": {
+      "dive_id": 311,
+      "code": "401C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "wc": 14.821262
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 13.580233,
+        "takeoff_t": 13.8138,
+        "apex_t": 14.047367,
+        "wc_t": 18.351667,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.0592,
+          "apex": null,
+          "wc": 3.5304
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 13.580233,
+        "takeoff_t": 14.8148,
+        "apex_t": 16.7167,
+        "wc_t": 18.351667,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.0602,
+          "apex": null,
+          "wc": 3.5304
+        }
+      }
+    },
+    "676": {
+      "dive_id": 676,
+      "code": "301A",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 3.553575,
+        "apex": 3.886907,
+        "wc": 4.853569
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 0.333667,
+        "takeoff_t": 0.467133,
+        "apex_t": 1.368033,
+        "wc_t": 5.6056,
+        "complete": true,
+        "errors": {
+          "takeoff": 3.0864,
+          "apex": 2.5189,
+          "wc": 0.752
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 0.333667,
+        "takeoff_t": 0.5005,
+        "apex_t": 1.368033,
+        "wc_t": 5.6056,
+        "complete": true,
+        "errors": {
+          "takeoff": 3.0531,
+          "apex": 2.5189,
+          "wc": 0.752
+        }
+      }
+    },
+    "1040": {
+      "dive_id": 1040,
+      "code": "102C",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 4.463857,
+        "apex": 4.797189,
+        "wc": 5.413853
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 0.433767,
+        "takeoff_t": 2.469133,
+        "apex_t": 2.635967,
+        "wc_t": 2.9029,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.9947,
+          "apex": 2.1612,
+          "wc": 2.511
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 0.433767,
+        "takeoff_t": 3.136467,
+        "apex_t": 3.5035,
+        "wc_t": 4.738067,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.3274,
+          "apex": 1.2937,
+          "wc": 0.6758
+        }
+      }
+    },
+    "2169": {
+      "dive_id": 2169,
+      "code": "101B",
+      "context": "HURDLE",
+      "gt": {
+        "takeoff": 6.46124,
+        "apex": 6.761239,
+        "wc": 7.694569
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 5.9059,
+        "takeoff_t": 7.741067,
+        "apex_t": 8.008,
+        "wc_t": 8.05805,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.2798,
+          "apex": 1.2468,
+          "wc": 0.3635
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 5.9059,
+        "takeoff_t": 7.75775,
+        "apex_t": 8.008,
+        "wc_t": 8.05805,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.2965,
+          "apex": 1.2468,
+          "wc": 0.3635
+        }
+      }
+    },
+    "2387": {
+      "dive_id": 2387,
+      "code": "5411C",
+      "context": "STANDING",
+      "gt": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "wc": 5.499937
+      },
+      "v2_1": {
+        "variant": "V2.1",
+        "prep_end_t": 0.467133,
+        "takeoff_t": 2.335667,
+        "apex_t": 2.869533,
+        "wc_t": 5.538867,
+        "complete": true,
+        "errors": {
+          "takeoff": 2.1476,
+          "apex": 1.9637,
+          "wc": 0.0389
+        }
+      },
+      "v2_2": {
+        "variant": "V2.2",
+        "prep_end_t": 0.467133,
+        "takeoff_t": 2.469133,
+        "apex_t": 2.869533,
+        "wc_t": 5.538867,
+        "complete": true,
+        "errors": {
+          "takeoff": 2.0141,
+          "apex": 1.9637,
+          "wc": 0.0389
+        }
+      }
+    }
+  }
+}

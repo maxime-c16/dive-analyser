@@ -1,0 +1,17 @@
+{
+  "label": "PHASE_B_DETECTION_VERIFY",
+  "conf": 0.05,
+  "spectator_cy_thresh": 0.7,
+  "gt_takeoff_frame": 176,
+  "gt_apex_frame": 202,
+  "gt_wc_frame": 239,
+  "action_window_total": 64,
+  "action_window_diver_region_primary": 64,
+  "action_window_diver_region_pct": 1.0,
+  "action_dets_total": 372,
+  "action_dets_spectator": 0,
+  "outside_dets_total": 1806,
+  "outside_dets_spectator": 0,
+  "action_cy_mean": 0.4383,
+  "action_cy_max": 0.5029
+}

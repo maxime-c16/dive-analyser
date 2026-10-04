@@ -1,0 +1,1203 @@
+{
+  "label": "BASELINE_A_EVALUATION_V1",
+  "ground_truth_fingerprint": "2832b31104e969cc0fcabc9b50b2a05e95d3f9883c822077c105b832029e364f",
+  "per_dive": {
+    "2661": {
+      "dive_id": 2661,
+      "dive_code": "010B",
+      "height": "3m",
+      "session": 156,
+      "fps": 59.9401,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": 1009,
+          "a_frame": 608,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.4992,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 401,
+          "time_err": 6.69,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": null,
+          "a_frame": 768,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.6656,
+          "appl_err": true,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": 1056,
+          "a_frame": 800,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.1231,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 256,
+          "time_err": 4.2709,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2680": {
+      "dive_id": 2680,
+      "dive_code": "010C",
+      "height": "5m",
+      "session": 164,
+      "fps": 59.9083,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 200,
+          "a_frame": 264,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 64,
+          "time_err": 1.0683,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "a_frame": 304,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5878,
+          "appl_err": true,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 241,
+          "a_frame": 308,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 67,
+          "time_err": 1.1184,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2353": {
+      "dive_id": 2353,
+      "dive_code": "101A",
+      "height": "1m",
+      "session": 155,
+      "fps": 59.9401,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 342,
+          "a_frame": 288,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 54,
+          "time_err": 0.9009,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 377,
+          "a_frame": 288,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 89,
+          "time_err": 1.4848,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 413,
+          "a_frame": 288,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 125,
+          "time_err": 2.0854,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2281": {
+      "dive_id": 2281,
+      "dive_code": "104B",
+      "height": "1m",
+      "session": 138,
+      "fps": 59.9452,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 212,
+          "a_frame": 296,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5075,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 84,
+          "time_err": 1.4013,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 241,
+          "a_frame": 328,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0984,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 87,
+          "time_err": 1.4513,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 282,
+          "a_frame": 1064,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0723,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 782,
+          "time_err": 13.0453,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2341": {
+      "dive_id": 2341,
+      "dive_code": "101B",
+      "height": "1m",
+      "session": 148,
+      "fps": 60.0,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 214,
+          "a_frame": 120,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 94,
+          "time_err": 1.5667,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 237,
+          "a_frame": 120,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 117,
+          "time_err": 1.95,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 275,
+          "a_frame": 120,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 155,
+          "time_err": 2.5833,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "524": {
+      "dive_id": 524,
+      "dive_code": "103B",
+      "height": "3m",
+      "session": 39,
+      "fps": 60.0,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 349,
+          "a_frame": 468,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 119,
+          "time_err": 1.9833,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 380,
+          "a_frame": 520,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 140,
+          "time_err": 2.3333,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 426,
+          "a_frame": 520,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 94,
+          "time_err": 1.5667,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2625": {
+      "dive_id": 2625,
+      "dive_code": "103B",
+      "height": "5m",
+      "session": 160,
+      "fps": 59.9401,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "a_frame": 176,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": true,
+          "evaluable": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 167,
+          "a_frame": 188,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 21,
+          "time_err": 0.3503,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 222,
+          "a_frame": 188,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 34,
+          "time_err": 0.5672,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2169": {
+      "dive_id": 2169,
+      "dive_code": "101B",
+      "height": "5m",
+      "session": 134,
+      "fps": 59.9401,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 388,
+          "a_frame": 484,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 96,
+          "time_err": 1.6016,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 406,
+          "a_frame": 524,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5987,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 118,
+          "time_err": 1.9686,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 462,
+          "a_frame": 528,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 66,
+          "time_err": 1.1011,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "1040": {
+      "dive_id": 1040,
+      "dive_code": "102C",
+      "height": "1m",
+      "session": 66,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 268,
+          "a_frame": 184,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 84,
+          "time_err": 2.8028,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 288,
+          "a_frame": 268,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 20,
+          "time_err": 0.6673,
+          "within": false,
+          "serious": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 325,
+          "a_frame": 268,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 57,
+          "time_err": 1.9019,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "160": {
+      "dive_id": 160,
+      "dive_code": "202A",
+      "height": "1m",
+      "session": 26,
+      "fps": 59.9401,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 512,
+          "a_frame": 140,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 372,
+          "time_err": 6.2062,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 535,
+          "a_frame": 508,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 27,
+          "time_err": 0.4505,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 568,
+          "a_frame": 556,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0696,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 12,
+          "time_err": 0.2002,
+          "within": false,
+          "serious": false
+        }
+      }
+    },
+    "191": {
+      "dive_id": 191,
+      "dive_code": "202B",
+      "height": "1m",
+      "session": 26,
+      "fps": 59.9401,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 128,
+          "a_frame": 212,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.6018,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 84,
+          "time_err": 1.4014,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 153,
+          "a_frame": 228,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5747,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 75,
+          "time_err": 1.2512,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 197,
+          "a_frame": 256,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0013,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 59,
+          "time_err": 0.9843,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "192": {
+      "dive_id": 192,
+      "dive_code": "203C",
+      "height": "1m",
+      "session": 26,
+      "fps": 59.9401,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 938,
+          "a_frame": 1128,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.4998,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 190,
+          "time_err": 3.1698,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 965,
+          "a_frame": 1172,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.3032,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 207,
+          "time_err": 3.4535,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 999,
+          "a_frame": 2396,
+          "a_appl": "APPLICABLE",
+          "a_conf": 1.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 1397,
+          "time_err": 23.3066,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "676": {
+      "dive_id": 676,
+      "dive_code": "301A",
+      "height": "3m",
+      "session": 46,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 213,
+          "a_frame": 56,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 157,
+          "time_err": 5.2386,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 233,
+          "a_frame": 172,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.7906,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 61,
+          "time_err": 2.0354,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 291,
+          "a_frame": 220,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 71,
+          "time_err": 2.369,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "133": {
+      "dive_id": 133,
+      "dive_code": "301B",
+      "height": "3mp",
+      "session": 25,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 108,
+          "a_frame": 116,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.4955,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 8,
+          "time_err": 0.2669,
+          "within": false,
+          "serious": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 125,
+          "a_frame": 160,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5258,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 35,
+          "time_err": 1.1678,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 177,
+          "a_frame": 164,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 13,
+          "time_err": 0.4338,
+          "within": false,
+          "serious": false
+        }
+      }
+    },
+    "848": {
+      "dive_id": 848,
+      "dive_code": "302C",
+      "height": "1m",
+      "session": 51,
+      "fps": 60.0,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 180,
+          "a_frame": 108,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 72,
+          "time_err": 1.2,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 204,
+          "a_frame": 108,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 96,
+          "time_err": 1.6,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 246,
+          "a_frame": 508,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 262,
+          "time_err": 4.3667,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "311": {
+      "dive_id": 311,
+      "dive_code": "401C",
+      "height": "3mp",
+      "session": 32,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 825,
+          "a_frame": 380,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 445,
+          "time_err": 14.8482,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "a_frame": 428,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": true,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 889,
+          "a_frame": 428,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 461,
+          "time_err": 15.382,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "169": {
+      "dive_id": 169,
+      "dive_code": "5222A",
+      "height": "1m",
+      "session": 26,
+      "fps": 59.9225,
+      "split": "EVAL",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 555,
+          "a_frame": 152,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 403,
+          "time_err": 6.7254,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 570,
+          "a_frame": 152,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 418,
+          "time_err": 6.9757,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 610,
+          "a_frame": 604,
+          "a_appl": "UNCERTAIN",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 6,
+          "time_err": 0.1001,
+          "within": false,
+          "serious": false
+        }
+      }
+    },
+    "2541": {
+      "dive_id": 2541,
+      "dive_code": "5111B",
+      "height": "1m",
+      "session": 144,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1051,
+          "a_frame": 580,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.4998,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 471,
+          "time_err": 15.7157,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1079,
+          "a_frame": 620,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.3248,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 459,
+          "time_err": 15.3153,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1119,
+          "a_frame": 624,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.0,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 495,
+          "time_err": 16.5165,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2387": {
+      "dive_id": 2387,
+      "dive_code": "5411C",
+      "height": "1m",
+      "session": 144,
+      "fps": 29.97,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 269,
+          "a_frame": 212,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5376,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 57,
+          "time_err": 1.9019,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 290,
+          "a_frame": 224,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.3069,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 66,
+          "time_err": 2.2022,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 330,
+          "a_frame": 248,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.6945,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 82,
+          "time_err": 2.7361,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2555": {
+      "dive_id": 2555,
+      "dive_code": "5132D",
+      "height": "3m",
+      "session": 155,
+      "fps": 59.2613,
+      "split": "DEV",
+      "landmarks": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 259,
+          "a_frame": 220,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5006,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 39,
+          "time_err": 0.6581,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 384,
+          "a_frame": 564,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.5039,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 180,
+          "time_err": 3.0374,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 576,
+          "a_frame": 664,
+          "a_appl": "APPLICABLE",
+          "a_conf": 0.2238,
+          "appl_err": false,
+          "evaluable": true,
+          "frame_err": 88,
+          "time_err": 1.4849,
+          "within": false,
+          "serious": true
+        }
+      }
+    }
+  },
+  "aggregate": {
+    "ALL-20": {
+      "takeoff": {
+        "total": 20,
+        "evaluable": 19,
+        "not_eval": 1,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 18,
+        "appl_err": 1,
+        "frame_err": {
+          "n": 19,
+          "mean": 173.37,
+          "median": 94,
+          "p90": 445,
+          "max": 471,
+          "min": 8
+        },
+        "time_err": {
+          "n": 19,
+          "mean": 3.97,
+          "median": 1.9,
+          "p90": 14.85,
+          "max": 15.72,
+          "min": 0.27
+        }
+      },
+      "apex": {
+        "total": 20,
+        "evaluable": 17,
+        "not_eval": 3,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 16,
+        "appl_err": 3,
+        "frame_err": {
+          "n": 17,
+          "mean": 130.35,
+          "median": 89,
+          "p90": 418,
+          "max": 459,
+          "min": 20
+        },
+        "time_err": {
+          "n": 17,
+          "mean": 2.81,
+          "median": 1.95,
+          "p90": 6.98,
+          "max": 15.32,
+          "min": 0.35
+        }
+      },
+      "water_contact": {
+        "total": 20,
+        "evaluable": 20,
+        "not_eval": 0,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 17,
+        "appl_err": 0,
+        "frame_err": {
+          "n": 20,
+          "mean": 229.1,
+          "median": 85.0,
+          "p90": 782,
+          "max": 1397,
+          "min": 6
+        },
+        "time_err": {
+          "n": 20,
+          "mean": 4.81,
+          "median": 1.99,
+          "p90": 16.52,
+          "max": 23.31,
+          "min": 0.1
+        }
+      }
+    },
+    "DEV-14": {
+      "takeoff": {
+        "total": 14,
+        "evaluable": 13,
+        "not_eval": 1,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 12,
+        "appl_err": 1,
+        "frame_err": {
+          "n": 13,
+          "mean": 160.69,
+          "median": 94,
+          "p90": 445,
+          "max": 471,
+          "min": 8
+        },
+        "time_err": {
+          "n": 13,
+          "mean": 4.25,
+          "median": 1.9,
+          "p90": 14.85,
+          "max": 15.72,
+          "min": 0.27
+        }
+      },
+      "apex": {
+        "total": 14,
+        "evaluable": 11,
+        "not_eval": 3,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 10,
+        "appl_err": 3,
+        "frame_err": {
+          "n": 11,
+          "mean": 118.73,
+          "median": 89,
+          "p90": 180,
+          "max": 459,
+          "min": 20
+        },
+        "time_err": {
+          "n": 11,
+          "mean": 2.96,
+          "median": 1.97,
+          "p90": 3.04,
+          "max": 15.32,
+          "min": 0.35
+        }
+      },
+      "water_contact": {
+        "total": 14,
+        "evaluable": 14,
+        "not_eval": 0,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 13,
+        "appl_err": 0,
+        "frame_err": {
+          "n": 14,
+          "mean": 147.43,
+          "median": 85.0,
+          "p90": 461,
+          "max": 495,
+          "min": 13
+        },
+        "time_err": {
+          "n": 14,
+          "mean": 3.87,
+          "median": 1.99,
+          "p90": 15.38,
+          "max": 16.52,
+          "min": 0.43
+        }
+      }
+    },
+    "EVAL-6": {
+      "takeoff": {
+        "total": 6,
+        "evaluable": 6,
+        "not_eval": 0,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 6,
+        "appl_err": 0,
+        "frame_err": {
+          "n": 6,
+          "mean": 200.83,
+          "median": 137.0,
+          "p90": 403,
+          "max": 403,
+          "min": 72
+        },
+        "time_err": {
+          "n": 6,
+          "mean": 3.35,
+          "median": 2.29,
+          "p90": 6.73,
+          "max": 6.73,
+          "min": 1.2
+        }
+      },
+      "apex": {
+        "total": 6,
+        "evaluable": 6,
+        "not_eval": 0,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 6,
+        "appl_err": 0,
+        "frame_err": {
+          "n": 6,
+          "mean": 151.67,
+          "median": 91.5,
+          "p90": 418,
+          "max": 418,
+          "min": 27
+        },
+        "time_err": {
+          "n": 6,
+          "mean": 2.53,
+          "median": 1.53,
+          "p90": 6.98,
+          "max": 6.98,
+          "min": 0.45
+        }
+      },
+      "water_contact": {
+        "total": 6,
+        "evaluable": 6,
+        "not_eval": 0,
+        "within": 0,
+        "within_pct": 0.0,
+        "serious": 4,
+        "appl_err": 0,
+        "frame_err": {
+          "n": 6,
+          "mean": 419.67,
+          "median": 160.5,
+          "p90": 1397,
+          "max": 1397,
+          "min": 6
+        },
+        "time_err": {
+          "n": 6,
+          "mean": 7.0,
+          "median": 2.68,
+          "p90": 23.31,
+          "max": 23.31,
+          "min": 0.1
+        }
+      }
+    }
+  }
+}

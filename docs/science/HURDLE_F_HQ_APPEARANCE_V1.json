@@ -1,0 +1,152 @@
+{
+ "label": "F_HQ_APPEARANCE_V1",
+ "packet": "HURDLE_TARGET_IDENTITY_V2",
+ "semantics": "D5 proposals stay frozen proxy_360p; HQ used for appearance embedding ONLY (no D5-on-HQ)",
+ "spatial_map": "identity {0,1,0,1} per interop authority",
+ "temporal_map": "PTS_EQUIVALENT (per-dive PTS list mapping)",
+ "dives": {
+  "1040": {
+   "n_samples": 23,
+   "hq_pts_misses": 0,
+   "hq_display_size": [
+    1080,
+    1920
+   ],
+   "hq_rotation": -90,
+   "E1_proxy360": {
+    "n_same_pairs": 253,
+    "cos_same_mean": 0.8089,
+    "cos_cross_mean": 0.6299,
+    "separation_margin": 0.1791,
+    "roc_auc": 0.7658,
+    "nn_retrieval_rate": 1.0
+   },
+   "E1_hq_mapped": {
+    "n_same_pairs": 253,
+    "cos_same_mean": 0.8727,
+    "cos_cross_mean": 0.7388,
+    "separation_margin": 0.1339,
+    "roc_auc": 0.8498,
+    "nn_retrieval_rate": 1.0
+   }
+  },
+  "2169": {
+   "n_samples": 29,
+   "hq_pts_misses": 0,
+   "hq_display_size": [
+    418,
+    742
+   ],
+   "hq_rotation": -90,
+   "E1_proxy360": {
+    "n_same_pairs": 406,
+    "cos_same_mean": 0.9241,
+    "cos_cross_mean": 0.6666,
+    "separation_margin": 0.2576,
+    "roc_auc": 0.9579,
+    "nn_retrieval_rate": 1.0
+   },
+   "E1_hq_mapped": {
+    "n_same_pairs": 406,
+    "cos_same_mean": 0.9376,
+    "cos_cross_mean": 0.7166,
+    "separation_margin": 0.221,
+    "roc_auc": 0.9514,
+    "nn_retrieval_rate": 1.0
+   }
+  },
+  "2341": {
+   "n_samples": 19,
+   "hq_pts_misses": 0,
+   "hq_display_size": [
+    1080,
+    1920
+   ],
+   "hq_rotation": -90,
+   "E1_proxy360": {
+    "n_same_pairs": 171,
+    "cos_same_mean": 0.8636,
+    "cos_cross_mean": 0.6217,
+    "separation_margin": 0.2419,
+    "roc_auc": 0.9817,
+    "nn_retrieval_rate": 1.0
+   },
+   "E1_hq_mapped": {
+    "n_same_pairs": 171,
+    "cos_same_mean": 0.8976,
+    "cos_cross_mean": 0.6421,
+    "separation_margin": 0.2555,
+    "roc_auc": 0.9948,
+    "nn_retrieval_rate": 1.0
+   }
+  },
+  "2353": {
+   "n_samples": 28,
+   "hq_pts_misses": 0,
+   "hq_display_size": [
+    708,
+    1260
+   ],
+   "hq_rotation": -90,
+   "E1_proxy360": {
+    "n_same_pairs": 378,
+    "cos_same_mean": 0.8879,
+    "cos_cross_mean": 0.6703,
+    "separation_margin": 0.2175,
+    "roc_auc": 0.9751,
+    "nn_retrieval_rate": 1.0
+   },
+   "E1_hq_mapped": {
+    "n_same_pairs": 378,
+    "cos_same_mean": 0.8887,
+    "cos_cross_mean": 0.7195,
+    "separation_margin": 0.1692,
+    "roc_auc": 0.9395,
+    "nn_retrieval_rate": 1.0
+   }
+  },
+  "2541": {
+   "n_samples": 38,
+   "hq_pts_misses": 0,
+   "hq_display_size": [
+    1080,
+    1920
+   ],
+   "hq_rotation": -90,
+   "E1_proxy360": {
+    "n_same_pairs": 703,
+    "cos_same_mean": 0.8974,
+    "cos_cross_mean": 0.6397,
+    "separation_margin": 0.2576,
+    "roc_auc": 0.9343,
+    "nn_retrieval_rate": 1.0
+   },
+   "E1_hq_mapped": {
+    "n_same_pairs": 703,
+    "cos_same_mean": 0.9203,
+    "cos_cross_mean": 0.7043,
+    "separation_margin": 0.216,
+    "roc_auc": 0.9254,
+    "nn_retrieval_rate": 0.9737
+   }
+  },
+  "2555": {
+   "error": "insufficient HQ-mapped frames",
+   "misses": 18
+  }
+ },
+ "E1_proxy360_primary_aggregate": {
+  "cos_same_mean": 0.8764,
+  "cos_cross_mean": 0.6456,
+  "separation_margin": 0.2307,
+  "roc_auc": 0.923,
+  "nn_retrieval_rate": 1.0
+ },
+ "E1_hq_mapped_primary_aggregate": {
+  "cos_same_mean": 0.9034,
+  "cos_cross_mean": 0.7043,
+  "separation_margin": 0.1991,
+  "roc_auc": 0.9322,
+  "nn_retrieval_rate": 0.9947
+ }
+}

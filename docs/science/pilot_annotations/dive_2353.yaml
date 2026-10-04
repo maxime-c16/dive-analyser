@@ -1,0 +1,31 @@
+dive_id: 2353
+annotation_schema_version: v1
+annotator: maxime
+annotation_timestamp: '2026-09-05T17:55:13Z'
+run_uuid: '8'
+media_checksum_sha256: 66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542
+landmarks:
+  takeoff:
+    state: HUMAN_CORRECTED
+    frame_index: 342
+    timestamp_seconds: 5.696084
+    auto_frame_index: 288
+    auto_timestamp_seconds: 4.8048
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN
+  apex:
+    state: HUMAN_CORRECTED
+    frame_index: 377
+    timestamp_seconds: 6.279415
+    auto_frame_index: 288
+    auto_timestamp_seconds: 4.8048
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN
+  water_contact:
+    state: HUMAN_CORRECTED
+    frame_index: 413
+    timestamp_seconds: 6.879412
+    auto_frame_index: 288
+    auto_timestamp_seconds: 4.8048
+    auto_confidence: 0.0
+    auto_applicability: UNCERTAIN

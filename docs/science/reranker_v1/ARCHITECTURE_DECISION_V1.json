@@ -1,0 +1,19 @@
+{
+  "label": "ARCHITECTURE_DECISION_V1",
+  "date": "2026-09-08",
+  "decision": "D5_PLUS_CANDIDATE_RERANKER_SUFFICIENT",
+  "rationale": "D5-A achieves TRAJECTORY_INPUT_PASS on Paris with all 3 anchor phases at rank 1 (takeoff IoU=0.693, apex IoU=0.646, water_contact IoU=0.725). The detector alone (D5-A at conf\u22650.001, top-1) now identifies the correct diver without requiring the R1 reranker for the external canary. The R1 reranker is retained as a safety layer for robustness in other venues. Development floor recall is 97.1% (+0 net vs 100% D4 floor \u2014 one apex frame lost). Development op_conf recall improved from 85.3% to 88.2% (+2.9pp). Water_contact systematic failure is RESOLVED: mean rank 5.6 \u2192 1.1. Apex systematic failure is RESOLVED: mean rank 1.7 \u2192 1.5 (dev) and D4_rank=10 \u2192 D5_rank=1 (Paris). CONCLUSION: D5 data specifically targeting failure frames has resolved the ranking bottleneck at the detector confidence level. The pipeline D5-A + R1 reranker + T0 selector is sufficient for cross-venue deployment.",
+  "pipeline": {
+    "detector": "DIVER_DETECTOR_D5_A_V8N_best.pt",
+    "reranker": "R1 (ResNet50 + LogReg, DEV_VAL top-1=83.3%)",
+    "selector": "T0 (per-frame R1 top-1)"
+  },
+  "key_metrics": {
+    "dev_floor_recall": 0.9705882352941176,
+    "dev_op_recall": 0.8823529411764706,
+    "paris_trajectory_gate": "TRAJECTORY_INPUT_PASS",
+    "paris_apex_rank": 1,
+    "paris_wc_rank": 1
+  },
+  "paris_firewall": "Paris evaluation only. No training data from Paris."
+}

@@ -1,0 +1,18 @@
+{
+  "label": "PHASE_N_ARCHITECTURE_DECISION_V1",
+  "created": "2026-09-06T10:30:05Z",
+  "decision": "DETECTION_PLUS_LIGHTWEIGHT_TRACKING",
+  "rationale": "Phase L shows domain adaptation is viable: fine-tuned YOLOv8n achieves 9\u00d7 improvement in IoU50 recall over frozen COCO weights on DEVELOPMENT val dives. Given viable detection, the architecture should be: (1) fine-tuned YOLOv8n per-frame detector (L1 config), (2) ByteTrack for lightweight inter-frame consistency. SAM2 video mask tracking is explicitly rejected: J1/J2 show IMMEDIATE_COLLAPSE at 360p for both tiny and base_plus \u2014 model size does not overcome the resolution limit. PER_FRAME_DETECTION_SUFFICIENT is rejected: frozen F1 recall=8.3% is insufficient even with fine-tuning alone. PERCEPTION_STILL_INSUFFICIENT is superseded: domain adaptation demonstrated viable.",
+  "rejected_options": {
+    "PER_FRAME_DETECTION_SUFFICIENT": "Frozen F1 only 8.3% IoU50; fine-tuned model still benefits from temporal consistency",
+    "VIDEO_MASK_TRACKING_JUSTIFIED": "SAM2 collapses at 360p for 5/6 tiny dives, same for base_plus",
+    "PERCEPTION_STILL_INSUFFICIENT": "Superseded by Phase L VIABLE result"
+  },
+  "next_steps": [
+    "Train final L1 model on full 38 DEVELOPMENT frames (no val split, max training data)",
+    "Integrate with ByteTrack in proposer_baseline_cc3 or equivalent",
+    "Evaluate on INTERNAL_EVAL with V2 PTS ground truth",
+    "Target: >=50% within-tolerance rate to clear production bar"
+  ],
+  "caveat": "360p proxy scale remains the fundamental constraint. Detection recall on unseen pools/cameras unknown. Original resolution processing would substantially improve all metrics."
+}

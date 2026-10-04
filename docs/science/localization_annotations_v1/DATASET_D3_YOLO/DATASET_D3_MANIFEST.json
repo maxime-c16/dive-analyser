@@ -1,0 +1,68 @@
+{
+  "label": "DIVER_LOCALIZATION_DATASET_D3",
+  "date": "2026-09-07",
+  "class_def": "class 0 = visible_diver (every clearly visible diver in frame)",
+  "hard_negatives_included": true,
+  "split_policy": "LATE temporal bucket -> holdout; EARLY+MID -> train/val",
+  "training_repair": "amp=False (MPS AMP suppresses classification gradient)",
+  "synchronized_diving_audit": "No synchronized diving in corpus (all codes are individual dives)",
+  "splits": {
+    "train": {
+      "positive": 32,
+      "negative": 14,
+      "total": 46
+    },
+    "val": {
+      "positive": 7,
+      "negative": 3,
+      "total": 10
+    },
+    "holdout": {
+      "positive": 46,
+      "negative": 18,
+      "total": 64
+    }
+  },
+  "neg_train_sources": [
+    "d1976_f1",
+    "d1405_f0",
+    "d0207_f1",
+    "d0169_f1",
+    "d1038_f1",
+    "d1038_f0",
+    "d1072_f1",
+    "d0297_f1",
+    "d0298_f1",
+    "d0052_f1",
+    "d0885_f1",
+    "d1499_f1",
+    "d1187_f1",
+    "d0509_f1"
+  ],
+  "neg_val_sources": [
+    "d1405_f1",
+    "d0558_f1",
+    "d0509_f0"
+  ],
+  "neg_holdout_sources": [
+    "d2612_f0",
+    "d2612_f1",
+    "d2586_f1",
+    "d1777_f0",
+    "d1777_f1",
+    "d2623_f1",
+    "d2565_f1",
+    "d2679_f1",
+    "d2646_f0",
+    "d2626_f0",
+    "d2644_f1",
+    "d2637_f1",
+    "d2666_f0",
+    "d2616_f0",
+    "d2616_f1",
+    "d1576_f1",
+    "d2155_f1",
+    "d1709_f1"
+  ],
+  "base_positives": "DATASET_D2_FREEZE (85 images, same split)"
+}

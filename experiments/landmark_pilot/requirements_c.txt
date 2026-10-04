@@ -1,0 +1,23 @@
+# Baseline C isolated experiment environment
+# Do NOT install these in the production backend container.
+# Must be run in venv_c (--system-site-packages for PyTorch access)
+# 
+# Create: python3 -m venv venv_c --system-site-packages
+#         pip install -r requirements_c.txt
+
+# Core scientific
+ultralytics==8.3.253
+lap==0.5.13
+numpy==2.4.6
+scipy==1.17.0
+opencv-python-headless==5.0.0.93
+
+# DB access
+psycopg2-binary==2.9.12
+
+# Inherited from system site-packages (user local):
+#   torch==2.10.0+cu128 (installed in ~/.local/lib/python3.11/site-packages)
+#   torchvision==0.25.0
+# 
+# Note: GTX 850M (sm_50) is NOT compatible with PyTorch 2.10 (requires sm_70+)
+# Inference runs on CPU. Expected performance: ~4-8s per video-frame at imgsz=192.

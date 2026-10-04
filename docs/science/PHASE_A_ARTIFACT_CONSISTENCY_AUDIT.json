@@ -1,0 +1,28 @@
+{
+  "label": "PHASE_A_ARTIFACT_CONSISTENCY_AUDIT",
+  "date": "2026-09-08",
+  "packet": "REAL_TRAJECTORY_EVENT_LOGIC_V2_2",
+  "verified_head_at_start": "0540e346bf41975c72624134c3e24c6106c26531",
+  "reconciliation": {
+    "action_window_frames": {
+      "canonical_value": 64,
+      "source": "PHASE_B_PARIS_D3_1_FREEZE.json (action_window_total_frames=64, action_window_detected_frames=64) and PHASE_MN_TARGET_SELECTION.json (n0_metrics.aw_total=64, n1_metrics.aw_total=64) agree exactly.",
+      "supervisor_packet_claim_of_67": "NOT FOUND in any frozen docs/science/*.json or *.md artifact as of this audit (grep across all docs/science files for '67' matched only unrelated BASELINE_A frame_err fields and PHASE_EF frame_idx values, none of which is an action-window count). Treated as a stale/incorrect figure in the packet text, not a live discrepancy between artifacts. Canonical value is 64."
+    },
+    "coverage_100pct": {
+      "value": "action_window_detected_frames / action_window_total_frames = 64/64 = 1.0, consistent across PHASE_B_PARIS_D3_1_FREEZE.json and PHASE_MN_TARGET_SELECTION.json.",
+      "caveat": "This coverage metric means '>=1 detector candidate existed in the frame', NOT 'the selected candidate was the diver'. Phase B/C of this packet found the SELECTED candidate is a persistent wrong-target lock for most of the action window (see PHASE_B_PARIS_SPARSE_IDENTITY_AUDIT.json). Coverage and identity are different claims; PROJECT_STATE.md's phrasing conflated them and is corrected in this cycle's report."
+    },
+    "primary_candidate_in_diver_region_64_64": {
+      "source": "PROJECT_STATE.md science-layer notes: 'Primary candidate in diver region: 64/64.' matches the same 64-frame action window; 'diver region' was operationalized as cy_norm <= 0.70 (a coarse vertical-band plausibility filter), not identity verification against a human-reviewed box. All 64 selected candidates in the action window satisfy cy_norm<=0.70 (true, since the persistent false-positive lock sits at cy_norm ~0.32-0.40, itself within that band) -- so this statement is numerically correct but does not establish target identity, which is exactly the gap Phase B/C is required to close.",
+      "n_total_detections_2178": "docs/science/PERCEPTION_V4_CROSS_VENUE_GENERALIZATION_REPORT.md's '2178 detections' / 'all in diver region' refers to the SUM of ALL raw class-0 candidate boxes across all 322 frames at conf=0.05 (mean candidates/frame from D3_1_OPERATING_POINT_FREEZE.json calibration_decision_rationale = 3.0/frame; 3.0*322=966, order-of-magnitude consistent with a several-per-frame count over 322 frames -- exact figure not independently reproduced in this audit, but 2178 is a raw-candidate total, not an action-window or trajectory-point count, and must not be conflated with the 64-frame action window)."
+    },
+    "n0_vs_n1_frame_counts": {
+      "n0_total_hits": 322,
+      "n1_total_hits": 255,
+      "explanation": "n0_total_hits=322 is the count of frames (out of the full 322-frame video) where the framewise+continuity selector had >=1 candidate to pick from (100% of frames). n1_total_hits=255 is the count of frames where ByteTrack's own association produced a live tracked box (ByteTrack drops frames while a track is unconfirmed/lost and re-acquiring, so its per-frame yield over the whole video is lower than raw per-frame detection). Both methods nonetheless report identical aw_coverage=64/64=1.0 in the 64-frame action window AND, as newly confirmed by this audit (Phase B/C, re-inference), select the SAME wrong static-background object for nearly that entire window (PHASE_MN_TARGET_SELECTION.json n1_target_track_id=18 persists across the window exactly like N0's fixed-location lock) -- N0 and N1 appearing 'equivalent' in the prior evaluation was not evidence that continuity-based selection is reliable; it is evidence that BOTH methods failed identically."
+    }
+  },
+  "detector_rerun_performed": false,
+  "note": "No detector re-inference was needed to resolve Phase A; all reconciliation used existing frozen artifacts. Fresh D3.1 re-inference WAS performed for Phase B/C target-identity audit (see PHASE_B_PARIS_SPARSE_IDENTITY_AUDIT.json), which is a distinct requirement, not a Phase A rerun."
+}

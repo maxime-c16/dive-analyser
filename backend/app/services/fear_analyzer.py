@@ -11,6 +11,7 @@ from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.models.journey import Journey, JourneyMilestone
 from app.models.emotional_state import EmotionalState
+from app.services.dive_eligibility import is_performance_attempt
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class FearAnalyzer:
             select(Dive).where(Dive.is_lineup == False).order_by(Dive.dive_datetime.asc())
         ).scalars().all()
 
+        dives = [dive for dive in dives if is_performance_attempt(dive)]
         if not dives:
             return {
                 "avoided_dives": [],
@@ -67,7 +69,7 @@ class FearAnalyzer:
                 successful_dives[key] += 1
 
         # Find the highest DD dives attempted
-        max_official_dd = max([d.official_dd for d in dives if d.official_dd], default=0)
+        max_official_dd = float(max([d.official_dd for d in dives if d.official_dd], default=0))
 
         # Detect avoided dives
         avoided_dives = []
@@ -116,8 +118,8 @@ class FearAnalyzer:
         # Sort by avoidance score
         avoided_dives.sort(key=lambda x: x["avoidance_score"], reverse=True)
 
-        # Calculate DD gap (ensure numeric types are consistent)
-        dd_gap = float(max_official_dd or 0) - max([d["official_dd"] for d in avoided_dives], default=0.0)
+        # Calculate DD gap
+        dd_gap = max_official_dd - (max([d["official_dd"] for d in avoided_dives], default=0))
 
         # Extract confidence blocks
         confidence_blocks = self._extract_confidence_blocks(avoided_dives)
@@ -157,6 +159,7 @@ class FearAnalyzer:
             )
         ).scalars().all()
 
+        dives = [dive for dive in dives if is_performance_attempt(dive)]
         if not dives:
             return {
                 "fear_coefficient": 0,
@@ -262,6 +265,7 @@ class FearAnalyzer:
             select(Dive).where(Dive.is_lineup == False)
         ).scalars().all()
 
+        dives = [dive for dive in dives if is_performance_attempt(dive)]
         if not dives:
             return {
                 "high_fear_dives": [],
@@ -369,6 +373,7 @@ class FearAnalyzer:
             ).order_by(Dive.dive_datetime.asc())
         ).scalars().all()
 
+        recent_dives = [dive for dive in recent_dives if is_performance_attempt(dive)]
         if not recent_dives:
             return {
                 "daily_trend": [],

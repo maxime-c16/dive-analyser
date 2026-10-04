@@ -1,0 +1,39 @@
+{
+  "label": "EVENT_LOGIC_V2_1_FREEZE",
+  "status": "FROZEN",
+  "date": "2026-09-06",
+  "author": "maxime@qwokka.fr",
+  "supersedes": "EVENT_LOGIC_V2_FREEZE.json",
+  "supersession_reason": "V2 _detect_takeoff HURDLE used physical y convention (global min y = highest point) but phase_m_canary_check.py passes cy_norm directly (y=0=top). Global-min-y finds the FLIGHT apex (lower cy_norm ~0.12) rather than the HURDLE apex (~0.18), triggering false board_recontact near flight apex and failing to find final takeoff. V2 also had _detect_apex fallback finding max-y instead of min-y in cy_norm. V2.1 fixes both using cy_norm convention throughout.",
+  "source_file": "experiments/landmark_pilot/proposer_event_logic_v2_1.py",
+  "source_sha256": "63cfadebfc8039319857c0497e5423754b7d575c45e26355f2f77e4c051cb073",
+  "test_file": "experiments/landmark_pilot/test_event_logic_v2_1.py",
+  "test_sha256": "1d2d8829c2322bbf89eabf3407611ab511792d4333e34a20288cb9d8082db596",
+  "test_count": 36,
+  "test_status": "ALL_PASS",
+  "trajectory_families": {
+    "H1_STANDING": "static plateau + sustained negative velocity (cy_norm)",
+    "H2_HURDLE": "plateau + hurdle ascent (y↓) + descent (y↑) + board loading + final takeoff (y↓ strongly) + flight + water",
+    "H3_LONG_PREP_HURDLE": "2.0s extended preparation + H2 structure"
+  },
+  "key_fixes": {
+    "_detect_takeoff_HURDLE_apex": "FIRST local minimum via first neg→non-neg velocity crossing (NOT global min y). Correct even when flight apex has lower cy_norm than hurdle apex.",
+    "_detect_takeoff_HURDLE_board_recontact": "Directly from the velocity crossing frame (no second search loop needed).",
+    "_detect_apex": "First neg→pos velocity crossing after takeoff; fallback = min y in [takeoff, takeoff+window].",
+    "coordinate_convention": "cy_norm throughout: 0=top of frame. Rising diver = NEGATIVE velocity. Apex = minimum cy_norm. Water contact = y > water_line_cy_norm."
+  },
+  "phase_m_regression": {
+    "description": "Non-sinusoidal hurdle trajectory in cy_norm; no false board_recontact",
+    "status": "PASS",
+    "note": "Phase M original failure (sinusoidal trajectory) documented in PHASE_M_CANARY_CHECK_AUDIT.json. V2.1 test uses physically correct trajectory."
+  },
+  "known_limitations": [
+    "Canary ground-truth evaluation still blocked by perception: L1 produces 0 detections on Paris canary.",
+    "V2.1 tested only on synthetic trajectories (H1/H2/H3). Real-world trajectory required after detector repair.",
+    "hurdle_post_plateau_guard_s parameter must exceed total preparation plateau duration; H3 (2.0s prep) uses default=3.5s which absorbs it.",
+    "Water contact via cy_norm threshold is pool/framing dependent; E2 water_line_auto mitigates but not selected for INTERNAL_EVAL.",
+    "Board re-contact via first velocity crossing may be fragile if hurdle is very low or trajectory is noisy."
+  ],
+  "evaluation_gate": "PERCEPTION_STILL_INSUFFICIENT — cannot evaluate on real canary until detector repaired",
+  "next_gate": "SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1"
+}

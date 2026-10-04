@@ -1,0 +1,55 @@
+# nginx/conf.d/external.conf — external-hostname vhost for the Dive Analyzer
+# Cloudflare tunnel (P9 machine-side prep).
+#
+# NOT DEPLOYED until the single HUMAN_PROVIDER_ACTION completes
+# (docs/architecture/EXTERNAL_ACCESS_V1.md §6). When deployed, the real
+# hostname replaces dive.REPLACE_WITH_DOMAIN.
+#
+# Properties (packet §19/§20/§21/§42):
+# - listens ONLY on 127.0.0.1:6091 (cloudflared reaches it locally; this
+#   vhost is not reachable from the LAN, never from the WAN)
+# - serves only the SPA and the API — /adminer/ is explicitly refused
+# - passes Host $http_host (P8 port-preserving Origin fix) and the
+#   forwarded headers; client IP trust stays anchored to nginx
+#   (X-Forwarded-For first element) as in P8
+# - X-Forwarded-Proto: cloudflared sets https at the edge; nginx forwards
+#   the scheme it saw — the backend Origin validation accepts the EXACT
+#   external origin from CORS_ALLOW_ORIGINS (added at activation)
+# - HTTPS is mandatory at the edge (Cloudflare); cookies stay
+#   Secure/HttpOnly/SameSite=Strict (backend policy, unchanged)
+
+server {
+    listen 127.0.0.1:6091;
+    server_name dive.REPLACE_WITH_DOMAIN;
+
+    # API endpoints -> FastAPI backend
+    location /api/ {
+        proxy_pass http://backend/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 60s;
+    }
+
+    # Operator tools must never be externally routable
+    location /adminer/ {
+        return 404;
+    }
+
+    # Static files and React app
+    location / {
+        proxy_pass http://frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        error_page 404 /index.html;
+    }
+}

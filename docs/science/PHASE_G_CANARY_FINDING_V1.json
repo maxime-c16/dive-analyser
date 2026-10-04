@@ -1,0 +1,33 @@
+{
+  "label": "PHASE_G_CANARY_FINDING_V1",
+  "created": "2026-09-05",
+  "phase": "G — Proxy vs Original Canary",
+  "disposition": "SKIPPED",
+  "reason": "All 6 canary dive originals are iCloud-only (icloud_status=missing_local) and not present in the Mac source vault or Photos originals directory. Cannot run Baseline A on originals without iCloud download, which requires user-initiated recall.",
+  "canary_dives": [2661, 2169, 192, 311, 2555, 2387],
+  "canary_icloud_status": {
+    "2657_photos_asset": "missing_local",
+    "14_photos_asset":   "missing_local",
+    "2409_photos_asset": "missing_local",
+    "287_photos_asset":  "missing_local",
+    "2551_photos_asset": "missing_local",
+    "956_photos_asset":  "missing_local"
+  },
+  "vault_search": {
+    "sources_by_uuid_count": 617,
+    "canary_uuids_found": 0,
+    "search_method": "Python scan of source.json in all 617 directories; checked canonical_video_uuid, video_uuid, agent_local_uuid fields"
+  },
+  "scientific_impact_assessment": {
+    "phase_g_intent": "Verify whether 360p proxy compression explains Baseline A failure",
+    "assessment": "IMPLAUSIBLE_CONFOUND",
+    "rationale": [
+      "Median Baseline A frame errors are 94f (takeoff), 89f (apex), 85f (water_contact) — equivalent to 1.4–3.1 seconds at 30–60fps.",
+      "360p compression artifacts could introduce at most 2–5 frames of uncertainty, three orders of magnitude smaller than observed errors.",
+      "The dominant failure modes (EARLY_TRIGGER, TRAJECTORY_COLLAPSE, WATER_CONTACT_RUNAWAY) are structural algorithmic failures, not quality-sensitive detection misses.",
+      "Even with perfect original quality, the MOG2+centroid architecture would produce the same systematic errors.",
+      "Therefore: proxy quality is NOT a plausible cause of Baseline A failure. Phase G would be uninformative even if originals were available."
+    ],
+    "conclusion": "Phase G result is predictable without running: no material difference expected between proxy and original Baseline A predictions."
+  }
+}

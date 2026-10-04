@@ -1,0 +1,56 @@
+{
+  "label": "PARIS_PROC_EL_EVALUATION_V1",
+  "date": "2026-09-09",
+  "paris_video": "/Users/maximecauchy/Downloads/IMG_1937.mov",
+  "fps": 56.517,
+  "n_frames": 322,
+  "n_op_detected": 322,
+  "op_coverage": 1.0,
+  "gt": {
+    "takeoff": 3.12,
+    "apex": 3.57,
+    "wc": 4.22
+  },
+  "dive_code": "5122D",
+  "procedural_gate": "PROCEDURAL_INPUT_PASS",
+  "procedural_fail_reasons": [],
+  "procedural_windows": {
+    "C1_prep": {
+      "coverage": 1.0
+    },
+    "C2_pretakeoff": {
+      "coverage": 1.0,
+      "longest_gap_s": 0.0
+    },
+    "flight": {
+      "coverage": 1.0,
+      "longest_gap_s": 0.0
+    }
+  },
+  "v3_evaluated": false,
+  "v3_reason": "V3_COMPLETE(3/6) < V2.1_COMPLETE(5/6): V3 not promoted, not evaluated on Paris",
+  "el_v2_1": {
+    "prep_end_t": 0.683333,
+    "takeoff_t": 1.435,
+    "apex_t": 1.618333,
+    "water_contact_t": 4.403333,
+    "complete": true,
+    "errors": {
+      "takeoff": 1.685,
+      "apex": 1.9517,
+      "wc": 0.1833
+    }
+  },
+  "el_v2_2": {
+    "prep_end_t": 0.683333,
+    "takeoff_t": 1.785,
+    "apex_t": 2.018333,
+    "water_contact_t": 4.403333,
+    "complete": true,
+    "errors": {
+      "takeoff": 1.335,
+      "apex": 1.5517,
+      "wc": 0.1833
+    }
+  }
+}

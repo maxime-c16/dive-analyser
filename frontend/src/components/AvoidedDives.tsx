@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../services/api'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface AvoidedDive {
   dive_code: string
@@ -82,7 +82,7 @@ function AvoidedDives() {
     return (
       <div className="animate-pulse space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-24 bg-gray-700 rounded"></div>
+          <div key={i} className="h-24 bg-app-panel-elevated rounded"></div>
         ))}
       </div>
     )
@@ -98,10 +98,10 @@ function AvoidedDives() {
 
   if (!data || data.total_avoided === 0) {
     return (
-      <div className="text-center py-12 bg-gray-900/50 border border-gray-700 rounded-lg">
-        <div className="text-gray-400 mb-4">✅</div>
-        <p className="text-gray-300 mb-2 font-semibold">No avoided dives detected</p>
-        <p className="text-gray-500 text-sm">You're keeping up with your dives. That's consistency.</p>
+      <div className="text-center py-12 bg-app-panel border border-app rounded-lg">
+        <CheckCircle2 className="mx-auto mb-4 h-7 w-7 text-green-400" aria-hidden="true" />
+        <p className="text-app-text mb-2 font-semibold">No avoided dives detected</p>
+        <p className="text-app-muted text-sm">You're keeping up with your dives. That's consistency.</p>
       </div>
     )
   }
@@ -114,7 +114,7 @@ function AvoidedDives() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold mb-2">Patterns in Your Practice</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-app-muted text-sm">
             {data.total_avoided} dive{data.total_avoided !== 1 ? 's' : ''} haven't been attempted recently.
           </p>
         </div>
@@ -123,8 +123,8 @@ function AvoidedDives() {
             onClick={() => setSortBy('score')}
             className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
               sortBy === 'score'
-                ? 'bg-cyan-500 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-app-accent text-app-bg'
+                : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
             Avoidance Score
@@ -133,8 +133,8 @@ function AvoidedDives() {
             onClick={() => setSortBy('days')}
             className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
               sortBy === 'days'
-                ? 'bg-cyan-500 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-app-accent text-app-bg'
+                : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
             Days Away
@@ -143,8 +143,8 @@ function AvoidedDives() {
             onClick={() => setSortBy('difficulty')}
             className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
               sortBy === 'difficulty'
-                ? 'bg-cyan-500 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-app-accent text-app-bg'
+                : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
             Difficulty
@@ -153,8 +153,8 @@ function AvoidedDives() {
       </div>
 
       {/* Encouragement Message */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-lg p-4">
-        <p className="text-gray-300 italic text-center">{data.encouragement}</p>
+      <div className="border border-app-accent bg-app-accent-soft rounded-lg p-4">
+        <p className="text-app-text italic text-center">{data.encouragement}</p>
       </div>
 
       {/* Avoided Dives List */}
@@ -162,49 +162,49 @@ function AvoidedDives() {
         {sorted.map((dive, index) => (
           <div
             key={`${dive.dive_code}-${dive.height}-${index}`}
-            className={`border border-gray-700 rounded-lg overflow-hidden transition-all hover:border-gray-600 ${getDifficultyBg(dive.failure_rate / 100)}`}
+            className={`border border-app rounded-lg overflow-hidden transition-all hover:border-app-strong ${getDifficultyBg(dive.failure_rate / 100)}`}
           >
             <div className="p-4 md:p-6 space-y-3">
               {/* Top Row: Code, Days, Difficulty */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
-                  <div className="text-2xl font-bold text-cyan-400">
+                  <div className="text-2xl font-bold text-app-accent">
                     {dive.dive_code}
-                    <span className="text-lg text-gray-400 ml-2">{dive.height}</span>
+                    <span className="text-lg text-app-muted ml-2">{dive.height}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div>
-                    <div className="text-gray-400 text-xs mb-1">Days Without Attempt</div>
+                    <div className="text-app-muted text-xs mb-1">Days Without Attempt</div>
                     <div className="font-bold text-amber-400">{dive.days_since_attempt} days</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-xs mb-1">Attempts</div>
-                    <div className="font-bold text-gray-300">{dive.total_attempts}</div>
+                    <div className="text-app-muted text-xs mb-1">Attempts</div>
+                    <div className="font-bold text-app-text">{dive.total_attempts}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-xs mb-1">Difficulty</div>
+                    <div className="text-app-muted text-xs mb-1">Difficulty</div>
                     <div className={`font-bold ${getDifficultyColor(dive.failure_rate / 100)}`}>
                       {Math.round(dive.failure_rate)}%
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-xs mb-1">Avoidance Score</div>
-                    <div className="font-bold text-gray-300">{dive.avoidance_score.toFixed(1)}</div>
+                    <div className="text-app-muted text-xs mb-1">Avoidance Score</div>
+                    <div className="font-bold text-app-text">{dive.avoidance_score.toFixed(1)}</div>
                   </div>
                 </div>
               </div>
 
               {/* Message */}
-              <div className="border-t border-gray-700 pt-3">
-                <p className="text-gray-300 text-sm">{dive.message}</p>
+              <div className="border-t border-app pt-3">
+                <p className="text-app-text text-sm">{dive.message}</p>
               </div>
 
               {/* Last Performance */}
-              <div className="flex items-center gap-2 text-xs text-gray-400">
+              <div className="flex items-center gap-2 text-xs text-app-muted">
                 <AlertCircle size={14} />
-                <span>Last performance: <span className="font-mono text-gray-300">{getPerformanceLabel(dive.last_performance)}</span></span>
+                <span>Last performance: <span className="font-mono text-app-text">{getPerformanceLabel(dive.last_performance)}</span></span>
               </div>
             </div>
           </div>
@@ -212,23 +212,23 @@ function AvoidedDives() {
       </div>
 
       {/* Insight Box */}
-      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <h3 className="font-bold mb-3 text-gray-200">Understanding These Patterns</h3>
-        <ul className="space-y-2 text-sm text-gray-300">
+      <div className="bg-app-panel border border-app rounded-lg p-6">
+        <h3 className="font-bold mb-3 text-app-text">Understanding These Patterns</h3>
+        <ul className="space-y-2 text-sm text-app-text">
           <li className="flex gap-2">
-            <span className="text-cyan-400">→</span>
+            <span className="text-app-accent">→</span>
             <span><strong>Avoidance Score</strong> combines how long it's been and how difficult the dive is. Higher = stronger pattern of avoidance.</span>
           </li>
           <li className="flex gap-2">
-            <span className="text-cyan-400">→</span>
+            <span className="text-app-accent">→</span>
             <span><strong>High Difficulty</strong> dives (70%+) might warrant focused practice or technique refinement before returning.</span>
           </li>
           <li className="flex gap-2">
-            <span className="text-cyan-400">→</span>
+            <span className="text-app-accent">→</span>
             <span><strong>Mixed Results</strong> dives (50-70%) often benefit from lineups or partial attempts to rebuild confidence.</span>
           </li>
           <li className="flex gap-2">
-            <span className="text-cyan-400">→</span>
+            <span className="text-app-accent">→</span>
             <span><strong>Low Difficulty</strong> dives (under 50%) are worth revisiting — they're often easier than you remember.</span>
           </li>
         </ul>

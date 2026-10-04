@@ -5,8 +5,8 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.models import DDLookup, FINADiveCode
-from app.services.dive_code_parser import DiveCodeParser
+from app.models import FINADiveCode
+from app.services.world_aquatics_dd import OfficialDDUndefined, calculate_official_dd, normalize_height
 
 
 class DDCalculationError(Exception):
@@ -15,7 +15,7 @@ class DDCalculationError(Exception):
 
 
 class DDCalculator:
-    """Calculates DD values for dives based on FINA official tables"""
+    """Calculates DD values from the versioned World Aquatics component rules."""
 
     def __init__(self, db: Session):
         """Initialize calculator with database session"""
@@ -33,7 +33,9 @@ class DDCalculator:
         Returns:
             DD value as Decimal (e.g., Decimal("1.3")), or None if not found
         """
-        # Normalize height (7m → 7.5m)
+        # The rulebook formula is authoritative. The legacy database table is
+        # intentionally not a silent fallback because it is incomplete and
+        # contains historical manually-seeded values.
         height = self._normalize_height(height)
 
         # Create cache key
@@ -41,14 +43,10 @@ class DDCalculator:
         if cache_key in self._dd_cache:
             return self._dd_cache[cache_key]
 
-        # Query database
-        dd_lookup = (
-            self.db.query(DDLookup)
-            .filter_by(dive_code=dive_code, height=height)
-            .first()
-        )
-
-        result = dd_lookup.dd_value if dd_lookup else None
+        try:
+            result = calculate_official_dd(dive_code, height).dd
+        except OfficialDDUndefined:
+            result = None
 
         # Cache result
         self._dd_cache[cache_key] = result
@@ -60,13 +58,11 @@ class DDCalculator:
 
         Returns: Dict mapping height → DD value
         """
-        lookups = (
-            self.db.query(DDLookup)
-            .filter_by(dive_code=dive_code)
-            .all()
-        )
-
-        result = {lookup.height: lookup.dd_value for lookup in lookups}
+        result: Dict[str, Decimal] = {}
+        for height in ("1m", "3m", "5m", "7.5m", "10m"):
+            dd_value = self.lookup_dd(dive_code, height)
+            if dd_value is not None:
+                result[height] = dd_value
         return result
 
     def lookup_dd_by_group(self, group: int, height: str) -> List[Dict]:
@@ -110,21 +106,11 @@ class DDCalculator:
         """
         height = self._normalize_height(height)
 
-        lookups = (
-            self.db.query(DDLookup)
-            .filter_by(height=height)
-            .all()
-        )
+        dives = self.db.query(FINADiveCode).all()
+        values = [float(value) for dive in dives if (value := self.lookup_dd(dive.dive_code, height)) is not None]
 
-        if not lookups:
-            return {
-                "count": 0,
-                "min": None,
-                "max": None,
-                "average": None,
-            }
-
-        values = [float(lookup.dd_value) for lookup in lookups]
+        if not values:
+            return {"count": 0, "min": None, "max": None, "average": None}
 
         return {
             "count": len(values),
@@ -137,7 +123,8 @@ class DDCalculator:
         """
         Validate that a DD value is within FINA acceptable range.
 
-        DD values typically range from 1.2 to 4.1+
+        This guards manually entered compatibility values. Formula-derived
+        values are produced directly by ``calculate_official_dd``.
 
         Args:
             dd_value: The DD value to validate
@@ -153,8 +140,8 @@ class DDCalculator:
         if dd_float < 1.0:
             return False, f"DD value must be >= 1.0, got {dd_float}"
 
-        if dd_float > 5.0:
-            return False, f"DD value must be <= 5.0, got {dd_float}"
+        if dd_float > 6.0:
+            return False, f"DD value must be <= 6.0, got {dd_float}"
 
         # Check increment (should be in 0.1 increments for FINA)
         # Allow small float precision errors
@@ -164,81 +151,23 @@ class DDCalculator:
 
         return True, None
 
-    def estimate_dd_from_components(
-        self,
-        group: int,
-        rotations: int,
-        twists: int = 0,
-        is_flying: bool = False,
-    ) -> Optional[Decimal]:
-        """
-        Estimate DD based on dive components (simplified heuristic).
-
-        This is a rough estimation and should not replace official FINA tables.
-
-        Args:
-            group: FINA group (1-6)
-            rotations: Number of half rotations
-            twists: Number of half twists (group 5 only)
-            is_flying: Whether dive has flying action
-
-        Returns:
-            Estimated DD value, or None if not possible
-        """
-        # Base DD values by complexity
-        base_dd = {
-            1: Decimal("1.3"),  # Forward
-            2: Decimal("1.4"),  # Back
-            3: Decimal("1.5"),  # Reverse
-            4: Decimal("1.6"),  # Inward
-            5: Decimal("2.0"),  # Twisting
-            6: Decimal("2.5"),  # Armstand
-        }
-
-        if group not in base_dd:
-            return None
-
-        dd = base_dd[group]
-
-        # Add for rotations (simplified: 0.3 per rotation)
-        if rotations > 1:
-            dd += Decimal("0.3") * (rotations - 1)
-
-        # Add for twists (simplified: 0.4 per twist)
-        if twists > 0:
-            dd += Decimal("0.4") * twists
-
-        # Add for flying (simplified: 0.2)
-        if is_flying:
-            dd += Decimal("0.2")
-
-        # Round to nearest 0.1
-        return (dd * 10).quantize(Decimal("1")) / 10
-
     def _normalize_height(self, height: str) -> str:
         """Normalize height (7m → 7.5m for FINA standard)"""
-        height = height.lower().strip()
-
-        normalization = {
-            "7m": "7.5m",
-        }
-
-        return normalization.get(height, height)
+        return normalize_height(height)
 
     def get_all_dds(self) -> List[Dict]:
-        """Get all DD values from database"""
-        lookups = self.db.query(DDLookup).all()
-
-        return [
-            {
-                "dive_code": lookup.dive_code,
-                "height": lookup.height,
-                "platform_type": lookup.platform_type,
-                "dd_value": float(lookup.dd_value),
-                "effective_date": lookup.effective_date.isoformat() if lookup.effective_date else None,
-            }
-            for lookup in lookups
-        ]
+        """Return formula-defined values for the maintained dive-code catalogue."""
+        entries: List[Dict] = []
+        for dive in self.db.query(FINADiveCode).order_by(FINADiveCode.dive_code).all():
+            for height, dd_value in self.lookup_dd_all_heights(dive.dive_code).items():
+                entries.append({
+                    "dive_code": dive.dive_code,
+                    "height": height,
+                    "platform_type": "springboard" if height in ("1m", "3m") else "platform",
+                    "dd_value": float(dd_value),
+                    "reference": "formula",
+                })
+        return entries
 
     def clear_cache(self):
         """Clear the DD cache"""

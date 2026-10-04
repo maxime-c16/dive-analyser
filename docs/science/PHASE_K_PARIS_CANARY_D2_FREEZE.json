@@ -1,0 +1,79 @@
+{
+  "label": "PHASE_K_PARIS_CANARY_D2_FREEZE",
+  "date": "2026-09-07",
+  "phase": "K",
+  "pipeline_gate": "SUPERVISOR_REVIEW_AFTER_REAL_SIGNAL_HIGHRES_V1",
+  "model": "DIVER_DETECTOR_D2_V8N",
+  "weights_sha_prefix": "488828723dff1be6",
+  "canary": {
+    "dive_id": 2819,
+    "filename": "IMG_1937.mov",
+    "sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+    "representation": "R360 (640\u00d7360 landscape, 322 frames)",
+    "gt_takeoff_s": 3.12,
+    "gt_apex_s": 3.57,
+    "gt_water_contact_s": 4.22,
+    "firewall": "PARIS_CANARY_READ_ONLY_NO_TUNING"
+  },
+  "inference_config": {
+    "conf": 0.25,
+    "iou": 0.45,
+    "imgsz": 640,
+    "device": "mps"
+  },
+  "results_conf_0_25": {
+    "n_frames": 322,
+    "n_detected": 0,
+    "detection_rate": 0.0,
+    "gt_takeoff_detected": false,
+    "gt_apex_detected": false,
+    "gt_water_contact_detected": false
+  },
+  "diagnostic_conf_0_10": {
+    "n_frames": 322,
+    "n_detected": 0,
+    "detection_rate": 0.0,
+    "note": "Lowered to conf=0.10 for diagnostic only; no tuning. Still 0 detections."
+  },
+  "comparison_with_prior_detectors": {
+    "L1_on_canary": {
+      "n_detected": 0,
+      "detection_rate": 0.0,
+      "source": "REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md"
+    },
+    "COCO_yolov8n_on_canary": {
+      "n_detected": "300/322",
+      "detection_rate": 0.932,
+      "note": "Detects spectators/bystanders, NOT the diver. Dominant detection is stationary spectator.",
+      "source": "REAL_SIGNAL_EVENT_LOGIC_AND_HIGHRES_PIPELINE_V1_REPORT.md"
+    },
+    "D2_on_canary": {
+      "n_detected": 0,
+      "detection_rate": 0.0,
+      "verdict": "SAME_FAILURE_MODE_AS_L1"
+    }
+  },
+  "failure_analysis": {
+    "root_cause": "Single-venue training distribution. All 32 training frames from one pool. Paris canary is different venue (Paris outdoor pool), different background, crowd, pool color, lighting.",
+    "d2_improvement_over_l1": "D2 gained 51 new training frames but remained single-venue. No domain shift coverage. Paris canary domain gap unchanged.",
+    "implied_decision": "PERCEPTION_STILL_INSUFFICIENT_FOR_EXTERNAL_GENERALIZATION"
+  },
+  "phase_l_to_p_collapse": {
+    "reason": "Phase L (tracking), M (scene prior), N (trajectory), O (event mechanism), P (event test) all require detections as input. D2 produces 0 detections on the canary. These phases collapse.",
+    "trajectory_available": false,
+    "event_logic_evaluable_on_real_signal": false
+  },
+  "decision": "PROCEED_TO_PHASE_Q_INTERNAL_EVAL",
+  "notes": [
+    "Paris firewall maintained: no tuning or threshold changes driven by canary results.",
+    "R360 SHA differs from prior Phase M (ccf32520 vs 4d7ddb03) due to ffmpeg version difference; both are correct landscape rotations of the same source file.",
+    "D2 recall=0.857 (val) / 0.630 (holdout) are model.val() metrics computed over threshold scan, not video inference. SUPERVISOR_CORRECTION: The canary failure classification has been revised from \"domain generalization failure\" to \"training collapse / non-discriminative training\" \u2014 the model cannot discriminate even its own training images (best_epoch=1, train_precision=0.003, max_conf=0.013 uniform on all scenes). External generalization cannot yet be meaningfully assessed until in-distribution discrimination is established."
+  ],
+  "supervisor_a1_correction": {
+    "date": "2026-09-07",
+    "original_failure_taxonomy": "domain_generalization_failure",
+    "corrected_failure_taxonomy": "D2_TRAINING_COLLAPSE_OR_SEVERE_UNDERFIT",
+    "rationale": "train_precision=0.003, best_epoch=1, max_conf=0.013 uniform. Model non-discriminative on own training set. Venue generalization question is premature.",
+    "preserve_audit_trail": true
+  }
+}

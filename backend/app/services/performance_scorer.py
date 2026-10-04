@@ -318,12 +318,9 @@ class PerformanceScorer:
             # Get DD value
             dd_lookup = self.dd_calculator.lookup_dd(dive.dive_code, dive.height)
             if dd_lookup is None:
-                # Try to estimate DD
-                dd_lookup = self.dd_calculator.estimate_dd_from_components(
-                    dive.dive_code, dive.height
-                )
-                if dd_lookup is None:
-                    return None
+                # Undefined codes must not acquire a made-up DD.  The caller
+                # can surface the structured undefined state instead.
+                return None
 
             dd = Decimal(str(dd_lookup))
 

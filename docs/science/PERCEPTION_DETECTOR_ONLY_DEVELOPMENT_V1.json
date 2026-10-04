@@ -1,0 +1,3187 @@
+[
+  {
+    "id": "2661_takeoff",
+    "dive_id": 2661,
+    "phase": "takeoff",
+    "frame_index": 1008,
+    "representation": "F1_360p_full",
+    "image_sha256": "f483a9778cc1b544e0361a9c1cac89e3687eb159153e07b6870e496cb3e4fa1e",
+    "candidates": [
+      {
+        "xyxy": [
+          130.65328979492188,
+          216.26751708984375,
+          161.44522094726562,
+          242.23414611816406
+        ],
+        "conf": 0.4340384006500244
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 26.5078125,
+      "height_px": 31.984375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 96.80313866130743,
+        "center_error_diagonals": 2.3302969829393905,
+        "confidence": 0.4340384006500244
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 96.80313866130743,
+        "center_error_diagonals": 2.3302969829393905,
+        "confidence": 0.4340384006500244
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "61d462f3f285fb08af67b0ad295dbce587f1f1569472b6dd2e76c24b832f1b3d"
+  },
+  {
+    "id": "2661_takeoff",
+    "dive_id": 2661,
+    "phase": "takeoff",
+    "frame_index": 1008,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "f483a9778cc1b544e0361a9c1cac89e3687eb159153e07b6870e496cb3e4fa1e",
+    "candidates": [
+      {
+        "xyxy": [
+          132.17286682128906,
+          216.00538635253906,
+          160.60353088378906,
+          237.18884658813477
+        ],
+        "conf": 0.32876166701316833
+      },
+      {
+        "xyxy": [
+          144.28553771972656,
+          216.16216278076172,
+          160.4853057861328,
+          232.6818084716797
+        ],
+        "conf": 0.18535751104354858
+      },
+      {
+        "xyxy": [
+          99.1485366821289,
+          142.58746337890625,
+          103.8878402709961,
+          153.12791442871094
+        ],
+        "conf": 0.11312651634216309
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 26.5078125,
+      "height_px": 31.984375,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.05891989531404866,
+        "center_error_px": 6.349043450746778,
+        "center_error_diagonals": 0.1528375732690989,
+        "confidence": 0.11312651634216309
+      },
+      "closest_center_candidate": {
+        "iou": 0.05891989531404866,
+        "center_error_px": 6.349043450746778,
+        "center_error_diagonals": 0.1528375732690989,
+        "confidence": 0.11312651634216309
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "61d462f3f285fb08af67b0ad295dbce587f1f1569472b6dd2e76c24b832f1b3d"
+  },
+  {
+    "id": "2661_water_contact",
+    "dive_id": 2661,
+    "phase": "water_contact",
+    "frame_index": 1055,
+    "representation": "F1_360p_full",
+    "image_sha256": "f4627f14d53d339b103ee5fe3464b388aabb6d0ae83a02de87cea4d199305e29",
+    "candidates": [
+      {
+        "xyxy": [
+          139.3532257080078,
+          217.18487548828125,
+          182.71066284179688,
+          241.8514404296875
+        ],
+        "conf": 0.4870363473892212
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 24.9921875,
+      "height_px": 52.83984375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 97.98294409293571,
+        "center_error_diagonals": 1.6762920941305244,
+        "confidence": 0.4870363473892212
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 97.98294409293571,
+        "center_error_diagonals": 1.6762920941305244,
+        "confidence": 0.4870363473892212
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "4b3287b74c77573a9304facd3f64a0630e791e07012448607a9dc127994e5a3f"
+  },
+  {
+    "id": "2661_water_contact",
+    "dive_id": 2661,
+    "phase": "water_contact",
+    "frame_index": 1055,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "f4627f14d53d339b103ee5fe3464b388aabb6d0ae83a02de87cea4d199305e29",
+    "candidates": [
+      {
+        "xyxy": [
+          155.7280731201172,
+          217.37938690185547,
+          182.00257873535156,
+          237.78875350952148
+        ],
+        "conf": 0.10703414678573608
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 24.9921875,
+      "height_px": 52.83984375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 104.4332213946498,
+        "center_error_diagonals": 1.7866434307423058,
+        "confidence": 0.10703414678573608
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 104.4332213946498,
+        "center_error_diagonals": 1.7866434307423058,
+        "confidence": 0.10703414678573608
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "4b3287b74c77573a9304facd3f64a0630e791e07012448607a9dc127994e5a3f"
+  },
+  {
+    "id": "2680_takeoff",
+    "dive_id": 2680,
+    "phase": "takeoff",
+    "frame_index": 200,
+    "representation": "F1_360p_full",
+    "image_sha256": "0072662b30546008ba3f0b4b96ddd9056a230edbfbbbbe3e164bf75da4377a62",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 35.93359375,
+      "height_px": 31.56640625,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "c29c3ba4c437195e408d0ac77f5d202a0cb040b68b6d2ee8ce9c803cf3c415b2"
+  },
+  {
+    "id": "2680_takeoff",
+    "dive_id": 2680,
+    "phase": "takeoff",
+    "frame_index": 200,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "0072662b30546008ba3f0b4b96ddd9056a230edbfbbbbe3e164bf75da4377a62",
+    "candidates": [
+      {
+        "xyxy": [
+          120.31875610351562,
+          204.30432891845703,
+          127.58734130859375,
+          217.0251121520996
+        ],
+        "conf": 0.32170334458351135
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 35.93359375,
+      "height_px": 31.56640625,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 103.08525814657564,
+        "center_error_diagonals": 2.155265182563385,
+        "confidence": 0.32170334458351135
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 103.08525814657564,
+        "center_error_diagonals": 2.155265182563385,
+        "confidence": 0.32170334458351135
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "c29c3ba4c437195e408d0ac77f5d202a0cb040b68b6d2ee8ce9c803cf3c415b2"
+  },
+  {
+    "id": "2680_water_contact",
+    "dive_id": 2680,
+    "phase": "water_contact",
+    "frame_index": 241,
+    "representation": "F1_360p_full",
+    "image_sha256": "5141ac8af2e429fdf09323dbec1c201efc64b6611cfc5d296ac80bbc94809194",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 26.703125,
+      "height_px": 61.4765625,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "976c39d01aa4a9830052087e7801ebca302d4ab4694c3e58170c310ff206c500"
+  },
+  {
+    "id": "2680_water_contact",
+    "dive_id": 2680,
+    "phase": "water_contact",
+    "frame_index": 241,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "5141ac8af2e429fdf09323dbec1c201efc64b6611cfc5d296ac80bbc94809194",
+    "candidates": [
+      {
+        "xyxy": [
+          120.2566146850586,
+          204.33639907836914,
+          126.36055755615234,
+          216.33605194091797
+        ],
+        "conf": 0.1476435512304306
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 26.703125,
+      "height_px": 61.4765625,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 18.514247180106537,
+        "center_error_diagonals": 0.2762267020003182,
+        "confidence": 0.1476435512304306
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 18.514247180106537,
+        "center_error_diagonals": 0.2762267020003182,
+        "confidence": 0.1476435512304306
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "976c39d01aa4a9830052087e7801ebca302d4ab4694c3e58170c310ff206c500"
+  },
+  {
+    "id": "2353_takeoff",
+    "dive_id": 2353,
+    "phase": "takeoff",
+    "frame_index": 341,
+    "representation": "F1_360p_full",
+    "image_sha256": "113a4140b88b5530af72460c0344839cd7662a03d269b856a94c61a79cd2375e",
+    "candidates": [
+      {
+        "xyxy": [
+          137.36404418945312,
+          288.9851379394531,
+          149.0752716064453,
+          299.22412109375
+        ],
+        "conf": 0.41009849309921265
+      },
+      {
+        "xyxy": [
+          170.82949829101562,
+          291.9822692871094,
+          180.4994659423828,
+          301.9035949707031
+        ],
+        "conf": 0.2550269663333893
+      },
+      {
+        "xyxy": [
+          169.2351531982422,
+          292.0119934082031,
+          189.31300354003906,
+          303.2948303222656
+        ],
+        "conf": 0.1479818969964981
+      },
+      {
+        "xyxy": [
+          22.80084991455078,
+          239.38233947753906,
+          39.748924255371094,
+          285.6527099609375
+        ],
+        "conf": 0.10431796312332153
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 45.26171875,
+      "height_px": 49.6796875,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.024342571393315287,
+        "center_error_px": 46.11334796065482,
+        "center_error_diagonals": 0.6861456183877832,
+        "confidence": 0.10431796312332153
+      },
+      "closest_center_candidate": {
+        "iou": 0.024342571393315287,
+        "center_error_px": 46.11334796065482,
+        "center_error_diagonals": 0.6861456183877832,
+        "confidence": 0.10431796312332153
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d16b197e4e819e8d99b65acbb8758f36a57299a71a0e9436fb091a0f595c0d0f"
+  },
+  {
+    "id": "2353_takeoff",
+    "dive_id": 2353,
+    "phase": "takeoff",
+    "frame_index": 341,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "113a4140b88b5530af72460c0344839cd7662a03d269b856a94c61a79cd2375e",
+    "candidates": [
+      {
+        "xyxy": [
+          137.89434814453125,
+          289.0035934448242,
+          148.3851776123047,
+          298.8513412475586
+        ],
+        "conf": 0.5912693738937378
+      },
+      {
+        "xyxy": [
+          195.95028686523438,
+          283.9021911621094,
+          201.94773864746094,
+          306.0570526123047
+        ],
+        "conf": 0.45769447088241577
+      },
+      {
+        "xyxy": [
+          22.317625045776367,
+          249.9075469970703,
+          38.837162017822266,
+          286.29222869873047
+        ],
+        "conf": 0.3826029896736145
+      },
+      {
+        "xyxy": [
+          166.98654174804688,
+          292.29935455322266,
+          190.19723510742188,
+          303.79735565185547
+        ],
+        "conf": 0.2695964574813843
+      },
+      {
+        "xyxy": [
+          171.316162109375,
+          292.3246612548828,
+          180.36842346191406,
+          302.2045135498047
+        ],
+        "conf": 0.26029425859451294
+      },
+      {
+        "xyxy": [
+          120.57372283935547,
+          264.15948486328125,
+          124.91217803955078,
+          279.0747299194336
+        ],
+        "conf": 0.19423088431358337
+      },
+      {
+        "xyxy": [
+          117.60323333740234,
+          264.0369873046875,
+          123.50617980957031,
+          278.5645217895508
+        ],
+        "conf": 0.15504999458789825
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 45.26171875,
+      "height_px": 49.6796875,
+      "candidate_count": 7,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 120.48254275314979,
+        "center_error_diagonals": 1.7927253703814259,
+        "confidence": 0.5912693738937378
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 51.57890683437313,
+        "center_error_diagonals": 0.7674706455023191,
+        "confidence": 0.3826029896736145
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d16b197e4e819e8d99b65acbb8758f36a57299a71a0e9436fb091a0f595c0d0f"
+  },
+  {
+    "id": "2353_apex",
+    "dive_id": 2353,
+    "phase": "apex",
+    "frame_index": 376,
+    "representation": "F1_360p_full",
+    "image_sha256": "52dc8c3ec24fd08588730dc18918b46666239bbe4f33717ac187ef28adcd4600",
+    "candidates": [
+      {
+        "xyxy": [
+          23.035667419433594,
+          234.1135711669922,
+          44.07038497924805,
+          284.79083251953125
+        ],
+        "conf": 0.43947502970695496
+      },
+      {
+        "xyxy": [
+          137.39804077148438,
+          289.021728515625,
+          149.12210083007812,
+          299.1936950683594
+        ],
+        "conf": 0.3861856758594513
+      },
+      {
+        "xyxy": [
+          170.80825805664062,
+          292.4215087890625,
+          181.59930419921875,
+          303.0999450683594
+        ],
+        "conf": 0.25244140625
+      },
+      {
+        "xyxy": [
+          168.5625457763672,
+          272.2569274902344,
+          175.94635009765625,
+          282.4827880859375
+        ],
+        "conf": 0.11023907363414764
+      },
+      {
+        "xyxy": [
+          168.26316833496094,
+          292.50091552734375,
+          189.74383544921875,
+          304.2940673828125
+        ],
+        "conf": 0.10051279515028
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 55.1328125,
+      "height_px": 38.8125,
+      "candidate_count": 5,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 71.14376245599739,
+        "center_error_diagonals": 1.055164904957108,
+        "confidence": 0.43947502970695496
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 71.14376245599739,
+        "center_error_diagonals": 1.055164904957108,
+        "confidence": 0.43947502970695496
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "46ee0bb1162998602d1ac7fdd2972e40aa1bc99aecc1dba56ce9d99f9c56b0f0"
+  },
+  {
+    "id": "2353_apex",
+    "dive_id": 2353,
+    "phase": "apex",
+    "frame_index": 376,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "52dc8c3ec24fd08588730dc18918b46666239bbe4f33717ac187ef28adcd4600",
+    "candidates": [
+      {
+        "xyxy": [
+          22.892406463623047,
+          229.89400482177734,
+          44.609073638916016,
+          285.14111328125
+        ],
+        "conf": 0.5588555932044983
+      },
+      {
+        "xyxy": [
+          138.5469512939453,
+          288.95862579345703,
+          148.8334197998047,
+          298.77159118652344
+        ],
+        "conf": 0.49782344698905945
+      },
+      {
+        "xyxy": [
+          196.23854064941406,
+          284.18556213378906,
+          201.92233276367188,
+          305.6727752685547
+        ],
+        "conf": 0.3233196437358856
+      },
+      {
+        "xyxy": [
+          172.16729736328125,
+          292.5570297241211,
+          181.2408905029297,
+          302.51000213623047
+        ],
+        "conf": 0.32171115279197693
+      },
+      {
+        "xyxy": [
+          120.83409881591797,
+          264.48826599121094,
+          124.7969741821289,
+          278.7704162597656
+        ],
+        "conf": 0.16010257601737976
+      },
+      {
+        "xyxy": [
+          117.61182403564453,
+          264.01454162597656,
+          123.7828140258789,
+          278.59183502197266
+        ],
+        "conf": 0.1340123414993286
+      },
+      {
+        "xyxy": [
+          139.95370483398438,
+          270.13297271728516,
+          144.56057739257812,
+          280.43544006347656
+        ],
+        "conf": 0.12812849879264832
+      },
+      {
+        "xyxy": [
+          119.56102752685547,
+          297.1081848144531,
+          128.9033660888672,
+          318.1426696777344
+        ],
+        "conf": 0.10966791957616806
+      },
+      {
+        "xyxy": [
+          154.2122344970703,
+          270.6896743774414,
+          159.4003143310547,
+          282.14656829833984
+        ],
+        "conf": 0.10791496187448502
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 55.1328125,
+      "height_px": 38.8125,
+      "candidate_count": 9,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 69.33003425395563,
+        "center_error_diagonals": 1.0282646922067757,
+        "confidence": 0.5588555932044983
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 69.33003425395563,
+        "center_error_diagonals": 1.0282646922067757,
+        "confidence": 0.5588555932044983
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "46ee0bb1162998602d1ac7fdd2972e40aa1bc99aecc1dba56ce9d99f9c56b0f0"
+  },
+  {
+    "id": "2353_water_contact",
+    "dive_id": 2353,
+    "phase": "water_contact",
+    "frame_index": 412,
+    "representation": "F1_360p_full",
+    "image_sha256": "58795ba78d3115482c1d17b414f2ab5b924f9130d90248e0d143731bd0094186",
+    "candidates": [
+      {
+        "xyxy": [
+          22.776931762695312,
+          236.04241943359375,
+          43.78171920776367,
+          284.9355773925781
+        ],
+        "conf": 0.6300639510154724
+      },
+      {
+        "xyxy": [
+          170.9296417236328,
+          292.7046203613281,
+          180.87831115722656,
+          302.6280212402344
+        ],
+        "conf": 0.20947560667991638
+      },
+      {
+        "xyxy": [
+          138.60470581054688,
+          289.93646240234375,
+          149.6341552734375,
+          299.2381286621094
+        ],
+        "conf": 0.17104539275169373
+      },
+      {
+        "xyxy": [
+          169.8051300048828,
+          292.4267272949219,
+          189.97767639160156,
+          304.26519775390625
+        ],
+        "conf": 0.10510347783565521
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 21.10546875,
+      "height_px": 63.58984375,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 41.0096155212061,
+        "center_error_diagonals": 0.6120763800248173,
+        "confidence": 0.6300639510154724
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 41.0096155212061,
+        "center_error_diagonals": 0.6120763800248173,
+        "confidence": 0.6300639510154724
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "db0c2bf59a570d0da81cdb12626b7f328a47ad47aa7bf2383af8af5e95f03ddb"
+  },
+  {
+    "id": "2353_water_contact",
+    "dive_id": 2353,
+    "phase": "water_contact",
+    "frame_index": 412,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "58795ba78d3115482c1d17b414f2ab5b924f9130d90248e0d143731bd0094186",
+    "candidates": [
+      {
+        "xyxy": [
+          22.76807975769043,
+          228.66556549072266,
+          45.85747528076172,
+          284.4281768798828
+        ],
+        "conf": 0.593852162361145
+      },
+      {
+        "xyxy": [
+          139.40194702148438,
+          290.16697692871094,
+          149.5965118408203,
+          298.6311340332031
+        ],
+        "conf": 0.3646193742752075
+      },
+      {
+        "xyxy": [
+          172.1128692626953,
+          292.82044982910156,
+          181.07003784179688,
+          302.8539123535156
+        ],
+        "conf": 0.33592748641967773
+      },
+      {
+        "xyxy": [
+          198.53900146484375,
+          286.1275634765625,
+          201.91944885253906,
+          304.2084045410156
+        ],
+        "conf": 0.2958395779132843
+      },
+      {
+        "xyxy": [
+          195.12387084960938,
+          284.86964416503906,
+          201.92051696777344,
+          306.33673095703125
+        ],
+        "conf": 0.12238389253616333
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 21.10546875,
+      "height_px": 63.58984375,
+      "candidate_count": 5,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 39.79474142188964,
+        "center_error_diagonals": 0.593944150998895,
+        "confidence": 0.593852162361145
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 39.79474142188964,
+        "center_error_diagonals": 0.593944150998895,
+        "confidence": 0.593852162361145
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "db0c2bf59a570d0da81cdb12626b7f328a47ad47aa7bf2383af8af5e95f03ddb"
+  },
+  {
+    "id": "2341_takeoff",
+    "dive_id": 2341,
+    "phase": "takeoff",
+    "frame_index": 214,
+    "representation": "F1_360p_full",
+    "image_sha256": "8d45d4381fedeecc0a0598d86df7b4b78abc875b833e0e8cd2467a7d8f756221",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 61.99609375,
+      "height_px": 67.34375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "8f9ec413098f3f6f383565f63b124cfa9b669345fe2343b0fd1ac125b628a56a"
+  },
+  {
+    "id": "2341_takeoff",
+    "dive_id": 2341,
+    "phase": "takeoff",
+    "frame_index": 214,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "8d45d4381fedeecc0a0598d86df7b4b78abc875b833e0e8cd2467a7d8f756221",
+    "candidates": [
+      {
+        "xyxy": [
+          59.04017639160156,
+          255.76641082763672,
+          84.32363891601562,
+          293.32786560058594
+        ],
+        "conf": 0.2911061644554138
+      },
+      {
+        "xyxy": [
+          69.5462875366211,
+          256.5224304199219,
+          83.73667907714844,
+          269.7610321044922
+        ],
+        "conf": 0.15086671710014343
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 61.99609375,
+      "height_px": 67.34375,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.22746644036408492,
+        "center_error_px": 2.53490331952887,
+        "center_error_diagonals": 0.02769320212697544,
+        "confidence": 0.2911061644554138
+      },
+      "closest_center_candidate": {
+        "iou": 0.22746644036408492,
+        "center_error_px": 2.53490331952887,
+        "center_error_diagonals": 0.02769320212697544,
+        "confidence": 0.2911061644554138
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "8f9ec413098f3f6f383565f63b124cfa9b669345fe2343b0fd1ac125b628a56a"
+  },
+  {
+    "id": "2341_apex",
+    "dive_id": 2341,
+    "phase": "apex",
+    "frame_index": 237,
+    "representation": "F1_360p_full",
+    "image_sha256": "ff5aa6a469b5d538f58ac05467e98b7adc472fe6a77273fedd9ebdcb939a96f0",
+    "candidates": [
+      {
+        "xyxy": [
+          84.77021026611328,
+          221.5375213623047,
+          102.25592803955078,
+          253.19119262695312
+        ],
+        "conf": 0.1805659979581833
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 28.43359375,
+      "height_px": 42.8671875,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.40638700257762767,
+        "center_error_px": 8.979488691037053,
+        "center_error_diagonals": 0.17456266044228577,
+        "confidence": 0.1805659979581833
+      },
+      "closest_center_candidate": {
+        "iou": 0.40638700257762767,
+        "center_error_px": 8.979488691037053,
+        "center_error_diagonals": 0.17456266044228577,
+        "confidence": 0.1805659979581833
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "7f2ae7048d03b8eb3b29454d54aa9318c2b07e0feb034cb3c2cc26238db3420d"
+  },
+  {
+    "id": "2341_apex",
+    "dive_id": 2341,
+    "phase": "apex",
+    "frame_index": 237,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "ff5aa6a469b5d538f58ac05467e98b7adc472fe6a77273fedd9ebdcb939a96f0",
+    "candidates": [
+      {
+        "xyxy": [
+          86.80516052246094,
+          221.7879638671875,
+          102.03152465820312,
+          252.67393493652344
+        ],
+        "conf": 0.13287585973739624
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 28.43359375,
+      "height_px": 42.8671875,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.3501717298373015,
+        "center_error_px": 8.724203771862726,
+        "center_error_diagonals": 0.16959988180363728,
+        "confidence": 0.13287585973739624
+      },
+      "closest_center_candidate": {
+        "iou": 0.3501717298373015,
+        "center_error_px": 8.724203771862726,
+        "center_error_diagonals": 0.16959988180363728,
+        "confidence": 0.13287585973739624
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "7f2ae7048d03b8eb3b29454d54aa9318c2b07e0feb034cb3c2cc26238db3420d"
+  },
+  {
+    "id": "2341_water_contact",
+    "dive_id": 2341,
+    "phase": "water_contact",
+    "frame_index": 275,
+    "representation": "F1_360p_full",
+    "image_sha256": "e0c4820a80b2be53f3834b71542f6cfee57e10e14f23a4afa9f679d2825010a8",
+    "candidates": [
+      {
+        "xyxy": [
+          24.936830520629883,
+          256.6353759765625,
+          54.443119049072266,
+          331.47265625
+        ],
+        "conf": 0.42357221245765686
+      },
+      {
+        "xyxy": [
+          0.9342520236968994,
+          257.4661560058594,
+          15.736043930053711,
+          301.31793212890625
+        ],
+        "conf": 0.19017678499221802
+      },
+      {
+        "xyxy": [
+          20.492612838745117,
+          267.0102844238281,
+          32.835330963134766,
+          291.06939697265625
+        ],
+        "conf": 0.10280657559633255
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 56.01953125,
+      "height_px": 78.65625,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 90.63762214363263,
+        "center_error_diagonals": 0.938607961006873,
+        "confidence": 0.42357221245765686
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 90.63762214363263,
+        "center_error_diagonals": 0.938607961006873,
+        "confidence": 0.42357221245765686
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "5b52e6ad3593c8556faaea1d59d27b53b1b1e0d2a7c86110c055bc334a630ef8"
+  },
+  {
+    "id": "2341_water_contact",
+    "dive_id": 2341,
+    "phase": "water_contact",
+    "frame_index": 275,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "e0c4820a80b2be53f3834b71542f6cfee57e10e14f23a4afa9f679d2825010a8",
+    "candidates": [
+      {
+        "xyxy": [
+          0.015700340270996094,
+          258.77886962890625,
+          15.41057300567627,
+          296.87171173095703
+        ],
+        "conf": 0.20367629826068878
+      },
+      {
+        "xyxy": [
+          15.982807159423828,
+          256.4588088989258,
+          52.56717300415039,
+          331.4232940673828
+        ],
+        "conf": 0.1622951477766037
+      },
+      {
+        "xyxy": [
+          110.4573745727539,
+          269.1551055908203,
+          134.82669067382812,
+          337.4253845214844
+        ],
+        "conf": 0.15666046738624573
+      },
+      {
+        "xyxy": [
+          31.097793579101562,
+          256.7507019042969,
+          50.420875549316406,
+          317.1175842285156
+        ],
+        "conf": 0.1255434900522232
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 56.01953125,
+      "height_px": 78.65625,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.3775741999799118,
+        "center_error_px": 7.2720780191181476,
+        "center_error_diagonals": 0.07530681145839052,
+        "confidence": 0.15666046738624573
+      },
+      "closest_center_candidate": {
+        "iou": 0.3775741999799118,
+        "center_error_px": 7.2720780191181476,
+        "center_error_diagonals": 0.07530681145839052,
+        "confidence": 0.15666046738624573
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "5b52e6ad3593c8556faaea1d59d27b53b1b1e0d2a7c86110c055bc334a630ef8"
+  },
+  {
+    "id": "524_takeoff",
+    "dive_id": 524,
+    "phase": "takeoff",
+    "frame_index": 348,
+    "representation": "F1_360p_full",
+    "image_sha256": "4ccb16293eb5a01c01c28eb2807d55e917d7991667db830d2e262ce9090f353d",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 37.1484375,
+      "height_px": 43.27734375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "c8989d38831f7c9fccb25853c944032c1a6597e8dd382fb935684c559b2c7c5b"
+  },
+  {
+    "id": "524_takeoff",
+    "dive_id": 524,
+    "phase": "takeoff",
+    "frame_index": 348,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "4ccb16293eb5a01c01c28eb2807d55e917d7991667db830d2e262ce9090f353d",
+    "candidates": [
+      {
+        "xyxy": [
+          127.60057830810547,
+          160.01490783691406,
+          133.517578125,
+          174.08888244628906
+        ],
+        "conf": 0.22018589079380035
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 37.1484375,
+      "height_px": 43.27734375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.032402887694448705,
+        "center_error_px": 19.950068413338307,
+        "center_error_diagonals": 0.3497894478830084,
+        "confidence": 0.22018589079380035
+      },
+      "closest_center_candidate": {
+        "iou": 0.032402887694448705,
+        "center_error_px": 19.950068413338307,
+        "center_error_diagonals": 0.3497894478830084,
+        "confidence": 0.22018589079380035
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "c8989d38831f7c9fccb25853c944032c1a6597e8dd382fb935684c559b2c7c5b"
+  },
+  {
+    "id": "524_apex",
+    "dive_id": 524,
+    "phase": "apex",
+    "frame_index": 379,
+    "representation": "F1_360p_full",
+    "image_sha256": "56111a586b5e40298f0ac62d29f4e2163bb69d3e47f845226210f9d7f1feab95",
+    "candidates": [
+      {
+        "xyxy": [
+          125.89997100830078,
+          159.1307373046875,
+          133.64389038085938,
+          174.62217712402344
+        ],
+        "conf": 0.3058381974697113
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 40.078125,
+      "height_px": 33.234375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 35.30032154809936,
+        "center_error_diagonals": 0.678002885512459,
+        "confidence": 0.3058381974697113
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 35.30032154809936,
+        "center_error_diagonals": 0.678002885512459,
+        "confidence": 0.3058381974697113
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "47953881002a54d4d2df32ef4a8ada6d91afa306f514e06841271c6e64f4547c"
+  },
+  {
+    "id": "524_apex",
+    "dive_id": 524,
+    "phase": "apex",
+    "frame_index": 379,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "56111a586b5e40298f0ac62d29f4e2163bb69d3e47f845226210f9d7f1feab95",
+    "candidates": [
+      {
+        "xyxy": [
+          125.4167251586914,
+          159.6139678955078,
+          133.7951202392578,
+          173.2890853881836
+        ],
+        "conf": 0.4692027270793915
+      },
+      {
+        "xyxy": [
+          168.3740692138672,
+          158.9627227783203,
+          175.9805450439453,
+          175.76412963867188
+        ],
+        "conf": 0.3420815169811249
+      },
+      {
+        "xyxy": [
+          124.77645874023438,
+          160.8177947998047,
+          130.06771850585938,
+          176.17391967773438
+        ],
+        "conf": 0.11549694836139679
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 40.078125,
+      "height_px": 33.234375,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 34.85017152794228,
+        "center_error_diagonals": 0.669356986574566,
+        "confidence": 0.4692027270793915
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 34.85017152794228,
+        "center_error_diagonals": 0.669356986574566,
+        "confidence": 0.4692027270793915
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "47953881002a54d4d2df32ef4a8ada6d91afa306f514e06841271c6e64f4547c"
+  },
+  {
+    "id": "524_water_contact",
+    "dive_id": 524,
+    "phase": "water_contact",
+    "frame_index": 425,
+    "representation": "F1_360p_full",
+    "image_sha256": "e34e9521141c100d066e12ea42739f1ac669490661eb5bb6384f3e3cedf50d31",
+    "candidates": [
+      {
+        "xyxy": [
+          125.73248291015625,
+          159.7364044189453,
+          133.71339416503906,
+          174.9357147216797
+        ],
+        "conf": 0.12467818707227707
+      }
+    ],
+    "metrics": {
+      "evaluable": false,
+      "reason": "no_visible_reference_box"
+    },
+    "localization_sha256": "6a9472f9bc29c3bed6dbab303b64db0c4013143a6bf4544f47a0e3a791217036"
+  },
+  {
+    "id": "524_water_contact",
+    "dive_id": 524,
+    "phase": "water_contact",
+    "frame_index": 425,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "e34e9521141c100d066e12ea42739f1ac669490661eb5bb6384f3e3cedf50d31",
+    "candidates": [
+      {
+        "xyxy": [
+          127.92521667480469,
+          159.9571533203125,
+          133.7635040283203,
+          175.7142791748047
+        ],
+        "conf": 0.2944340407848358
+      },
+      {
+        "xyxy": [
+          167.84719848632812,
+          158.4380340576172,
+          176.51756286621094,
+          175.1433563232422
+        ],
+        "conf": 0.10172775387763977
+      }
+    ],
+    "metrics": {
+      "evaluable": false,
+      "reason": "no_visible_reference_box"
+    },
+    "localization_sha256": "6a9472f9bc29c3bed6dbab303b64db0c4013143a6bf4544f47a0e3a791217036"
+  },
+  {
+    "id": "2625_apex",
+    "dive_id": 2625,
+    "phase": "apex",
+    "frame_index": 167,
+    "representation": "F1_360p_full",
+    "image_sha256": "e0cfead7d68e9c57465598172ce403b347cd3f2d873f7d45fa6bd920bf9340be",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 16.37890625,
+      "height_px": 38.375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "565a5b2763d9d03cc8ee72d99c8bf2460b349f591c317e869a74a4dbbb19806f"
+  },
+  {
+    "id": "2625_apex",
+    "dive_id": 2625,
+    "phase": "apex",
+    "frame_index": 167,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "e0cfead7d68e9c57465598172ce403b347cd3f2d873f7d45fa6bd920bf9340be",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 16.37890625,
+      "height_px": 38.375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "565a5b2763d9d03cc8ee72d99c8bf2460b349f591c317e869a74a4dbbb19806f"
+  },
+  {
+    "id": "2625_water_contact",
+    "dive_id": 2625,
+    "phase": "water_contact",
+    "frame_index": 222,
+    "representation": "F1_360p_full",
+    "image_sha256": "c391c84cfa2b76c56409e60a43aa8f793db6815da9bb722be5dcaef9d6a7ae6b",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 71.31640625,
+      "height_px": 67.0703125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "3041524cbb8e23f2a962d6398d53eca08653d814bddb397984c57fb689772975"
+  },
+  {
+    "id": "2625_water_contact",
+    "dive_id": 2625,
+    "phase": "water_contact",
+    "frame_index": 222,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "c391c84cfa2b76c56409e60a43aa8f793db6815da9bb722be5dcaef9d6a7ae6b",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 71.31640625,
+      "height_px": 67.0703125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "3041524cbb8e23f2a962d6398d53eca08653d814bddb397984c57fb689772975"
+  },
+  {
+    "id": "2169_takeoff",
+    "dive_id": 2169,
+    "phase": "takeoff",
+    "frame_index": 387,
+    "representation": "F1_360p_full",
+    "image_sha256": "030e1e65455ba9c0d11c65677b5d28656779978efcf1edac3260f6e5930cb366",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 57.734375,
+      "height_px": 57.93359375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "de474da06a035867147e02eea08ea9aa92853e0b2dac0dbcde6fe9bb5e50f09c"
+  },
+  {
+    "id": "2169_takeoff",
+    "dive_id": 2169,
+    "phase": "takeoff",
+    "frame_index": 387,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "030e1e65455ba9c0d11c65677b5d28656779978efcf1edac3260f6e5930cb366",
+    "candidates": [
+      {
+        "xyxy": [
+          177.55857849121094,
+          256.32581329345703,
+          184.95892333984375,
+          267.7523422241211
+        ],
+        "conf": 0.12598712742328644
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 57.734375,
+      "height_px": 57.93359375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 189.08885492902098,
+        "center_error_diagonals": 2.3118900538787948,
+        "confidence": 0.12598712742328644
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 189.08885492902098,
+        "center_error_diagonals": 2.3118900538787948,
+        "confidence": 0.12598712742328644
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "de474da06a035867147e02eea08ea9aa92853e0b2dac0dbcde6fe9bb5e50f09c"
+  },
+  {
+    "id": "2169_apex",
+    "dive_id": 2169,
+    "phase": "apex",
+    "frame_index": 405,
+    "representation": "F1_360p_full",
+    "image_sha256": "6ba5db7edb0d855de7f5175c88b0b8b1aaf773b95d978abfa9c61458d301d2f1",
+    "candidates": [],
+    "metrics": {
+      "evaluable": false,
+      "reason": "no_visible_reference_box"
+    },
+    "localization_sha256": "ced878789f1abb59efd5c6b88d42ada307509553ce324112d58a36effb93f729"
+  },
+  {
+    "id": "2169_apex",
+    "dive_id": 2169,
+    "phase": "apex",
+    "frame_index": 405,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "6ba5db7edb0d855de7f5175c88b0b8b1aaf773b95d978abfa9c61458d301d2f1",
+    "candidates": [
+      {
+        "xyxy": [
+          177.4462432861328,
+          256.67799377441406,
+          183.4547576904297,
+          267.27063751220703
+        ],
+        "conf": 0.12199865281581879
+      }
+    ],
+    "metrics": {
+      "evaluable": false,
+      "reason": "no_visible_reference_box"
+    },
+    "localization_sha256": "ced878789f1abb59efd5c6b88d42ada307509553ce324112d58a36effb93f729"
+  },
+  {
+    "id": "2169_water_contact",
+    "dive_id": 2169,
+    "phase": "water_contact",
+    "frame_index": 461,
+    "representation": "F1_360p_full",
+    "image_sha256": "e971241bb52442a103dc270d00a13de38fe68c1c502b793e7681a1c417896b95",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 32.5390625,
+      "height_px": 79.98828125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "3ccda9e70d83f8a8ce43651b7f91294c5417c6ca9926429767e03633f99d6227"
+  },
+  {
+    "id": "2169_water_contact",
+    "dive_id": 2169,
+    "phase": "water_contact",
+    "frame_index": 461,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "e971241bb52442a103dc270d00a13de38fe68c1c502b793e7681a1c417896b95",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 32.5390625,
+      "height_px": 79.98828125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "3ccda9e70d83f8a8ce43651b7f91294c5417c6ca9926429767e03633f99d6227"
+  },
+  {
+    "id": "1040_takeoff",
+    "dive_id": 1040,
+    "phase": "takeoff",
+    "frame_index": 133,
+    "representation": "F1_360p_full",
+    "image_sha256": "ed140829bbdece7d4dac52eee8162e74b7ed9b47c1cb74d5cfef5f409540e751",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 74.5078125,
+      "height_px": 95.75,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "e610cbd3cb061b55ccbc08a014f7616199c81f0a8fca150ba05476bd9a47f701"
+  },
+  {
+    "id": "1040_takeoff",
+    "dive_id": 1040,
+    "phase": "takeoff",
+    "frame_index": 133,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "ed140829bbdece7d4dac52eee8162e74b7ed9b47c1cb74d5cfef5f409540e751",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 74.5078125,
+      "height_px": 95.75,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "e610cbd3cb061b55ccbc08a014f7616199c81f0a8fca150ba05476bd9a47f701"
+  },
+  {
+    "id": "1040_apex",
+    "dive_id": 1040,
+    "phase": "apex",
+    "frame_index": 143,
+    "representation": "F1_360p_full",
+    "image_sha256": "2c8f014d100e91d626a9303544604759e2be6faa9da368dc76e5fee708a3c16c",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 61.27734375,
+      "height_px": 57.80078125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "2bfbf09945c4accdcbe9fb18c95982c0245a0b2b534da03e4c65e9fe8466cec4"
+  },
+  {
+    "id": "1040_apex",
+    "dive_id": 1040,
+    "phase": "apex",
+    "frame_index": 143,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "2c8f014d100e91d626a9303544604759e2be6faa9da368dc76e5fee708a3c16c",
+    "candidates": [
+      {
+        "xyxy": [
+          167.9630889892578,
+          149.38864135742188,
+          178.2628936767578,
+          171.81105041503906
+        ],
+        "conf": 0.1013578251004219
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 61.27734375,
+      "height_px": 57.80078125,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 110.98513814610567,
+        "center_error_diagonals": 1.317537007838888,
+        "confidence": 0.1013578251004219
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 110.98513814610567,
+        "center_error_diagonals": 1.317537007838888,
+        "confidence": 0.1013578251004219
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "2bfbf09945c4accdcbe9fb18c95982c0245a0b2b534da03e4c65e9fe8466cec4"
+  },
+  {
+    "id": "1040_water_contact",
+    "dive_id": 1040,
+    "phase": "water_contact",
+    "frame_index": 162,
+    "representation": "F1_360p_full",
+    "image_sha256": "f67be52a7760db3283d26359a601672c583acae61271b13d4d3d43259fd98ab1",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 64.4140625,
+      "height_px": 79.2109375,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "afe9ea910b0084daa10ee4e4afe6dd0adb5d2935422e6bce83642cbfd431d3cf"
+  },
+  {
+    "id": "1040_water_contact",
+    "dive_id": 1040,
+    "phase": "water_contact",
+    "frame_index": 162,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "f67be52a7760db3283d26359a601672c583acae61271b13d4d3d43259fd98ab1",
+    "candidates": [
+      {
+        "xyxy": [
+          127.59581756591797,
+          175.56625366210938,
+          136.56427001953125,
+          180.0
+        ],
+        "conf": 0.3200175166130066
+      },
+      {
+        "xyxy": [
+          167.98095703125,
+          149.39862060546875,
+          177.87806701660156,
+          171.8048095703125
+        ],
+        "conf": 0.1285715401172638
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 64.4140625,
+      "height_px": 79.2109375,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.007793320000107694,
+        "center_error_px": 26.244956813721753,
+        "center_error_diagonals": 0.25706216392569237,
+        "confidence": 0.3200175166130066
+      },
+      "closest_center_candidate": {
+        "iou": 0.007793320000107694,
+        "center_error_px": 26.244956813721753,
+        "center_error_diagonals": 0.25706216392569237,
+        "confidence": 0.3200175166130066
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "afe9ea910b0084daa10ee4e4afe6dd0adb5d2935422e6bce83642cbfd431d3cf"
+  },
+  {
+    "id": "676_takeoff",
+    "dive_id": 676,
+    "phase": "takeoff",
+    "frame_index": 106,
+    "representation": "F1_360p_full",
+    "image_sha256": "972409e63137965c1f87e5cfc1889f4a03a12a8f002a9a38961e4f14a15ff127",
+    "candidates": [
+      {
+        "xyxy": [
+          159.52340698242188,
+          152.60507202148438,
+          192.11671447753906,
+          199.77137756347656
+        ],
+        "conf": 0.6296449303627014
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.86328125,
+      "height_px": 48.1484375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 84.41616341400676,
+        "center_error_diagonals": 1.3504679246077718,
+        "confidence": 0.6296449303627014
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 84.41616341400676,
+        "center_error_diagonals": 1.3504679246077718,
+        "confidence": 0.6296449303627014
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "31111abb7da805976b18714dc047b727cf82d6c3c513ce5c015c55015b7bd557"
+  },
+  {
+    "id": "676_takeoff",
+    "dive_id": 676,
+    "phase": "takeoff",
+    "frame_index": 106,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "972409e63137965c1f87e5cfc1889f4a03a12a8f002a9a38961e4f14a15ff127",
+    "candidates": [
+      {
+        "xyxy": [
+          161.5865020751953,
+          152.16747665405273,
+          192.3743438720703,
+          199.08544158935547
+        ],
+        "conf": 0.5188891887664795
+      },
+      {
+        "xyxy": [
+          169.64183044433594,
+          151.93385314941406,
+          192.70657348632812,
+          179.87893676757812
+        ],
+        "conf": 0.4884081482887268
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.86328125,
+      "height_px": 48.1484375,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 84.72155025064177,
+        "center_error_diagonals": 1.355353424147124,
+        "confidence": 0.5188891887664795
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 80.52186750293488,
+        "center_error_diagonals": 1.2881679869638258,
+        "confidence": 0.4884081482887268
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "31111abb7da805976b18714dc047b727cf82d6c3c513ce5c015c55015b7bd557"
+  },
+  {
+    "id": "676_apex",
+    "dive_id": 676,
+    "phase": "apex",
+    "frame_index": 116,
+    "representation": "F1_360p_full",
+    "image_sha256": "177a643e75f2c6100adf55cbde78d759a9147bd20ca7e9cfb89f9170839fd176",
+    "candidates": [
+      {
+        "xyxy": [
+          160.43565368652344,
+          152.5425262451172,
+          192.28298950195312,
+          199.77590942382812
+        ],
+        "conf": 0.5955900549888611
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.1484375,
+      "height_px": 50.046875,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 108.83766342688997,
+        "center_error_diagonals": 1.712908814848547,
+        "confidence": 0.5955900549888611
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 108.83766342688997,
+        "center_error_diagonals": 1.712908814848547,
+        "confidence": 0.5955900549888611
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "2b1b9280594cca8c3bc1290910e5c8674c40a3f7dfc422299fc0c93822b7751d"
+  },
+  {
+    "id": "676_apex",
+    "dive_id": 676,
+    "phase": "apex",
+    "frame_index": 116,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "177a643e75f2c6100adf55cbde78d759a9147bd20ca7e9cfb89f9170839fd176",
+    "candidates": [
+      {
+        "xyxy": [
+          168.19178771972656,
+          152.3543243408203,
+          192.7401885986328,
+          198.7334213256836
+        ],
+        "conf": 0.35627633333206177
+      },
+      {
+        "xyxy": [
+          176.9494171142578,
+          161.89840698242188,
+          192.91461181640625,
+          180.0
+        ],
+        "conf": 0.11372601985931396
+      },
+      {
+        "xyxy": [
+          161.04823303222656,
+          178.32483673095703,
+          168.26136779785156,
+          186.6712875366211
+        ],
+        "conf": 0.11314428597688675
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.1484375,
+      "height_px": 50.046875,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 111.18605987737274,
+        "center_error_diagonals": 1.749868345714377,
+        "confidence": 0.35627633333206177
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 106.49051798448919,
+        "center_error_diagonals": 1.6759689725969666,
+        "confidence": 0.11314428597688675
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "2b1b9280594cca8c3bc1290910e5c8674c40a3f7dfc422299fc0c93822b7751d"
+  },
+  {
+    "id": "676_water_contact",
+    "dive_id": 676,
+    "phase": "water_contact",
+    "frame_index": 145,
+    "representation": "F1_360p_full",
+    "image_sha256": "c4e4c65ca9171492786dcd00d91728e315dee224f655868a68090146485592ed",
+    "candidates": [
+      {
+        "xyxy": [
+          168.66749572753906,
+          151.44406127929688,
+          194.06288146972656,
+          199.48733520507812
+        ],
+        "conf": 0.6272426247596741
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 46.31640625,
+      "height_px": 60.07421875,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 116.08318199849832,
+        "center_error_diagonals": 1.5303113516953555,
+        "confidence": 0.6272426247596741
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 116.08318199849832,
+        "center_error_diagonals": 1.5303113516953555,
+        "confidence": 0.6272426247596741
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "32ea66d10fc743ebcef37efe28d8d04f696a2172eb263fee10dd98fa40d86e23"
+  },
+  {
+    "id": "676_water_contact",
+    "dive_id": 676,
+    "phase": "water_contact",
+    "frame_index": 145,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "c4e4c65ca9171492786dcd00d91728e315dee224f655868a68090146485592ed",
+    "candidates": [
+      {
+        "xyxy": [
+          168.243408203125,
+          151.14648818969727,
+          194.28184509277344,
+          198.4108123779297
+        ],
+        "conf": 0.7010697722434998
+      },
+      {
+        "xyxy": [
+          178.51467895507812,
+          161.942138671875,
+          193.92628479003906,
+          179.84622192382812
+        ],
+        "conf": 0.11619918793439865
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 46.31640625,
+      "height_px": 60.07421875,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 115.99292327756264,
+        "center_error_diagonals": 1.5291214812691711,
+        "confidence": 0.7010697722434998
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 115.99292327756264,
+        "center_error_diagonals": 1.5291214812691711,
+        "confidence": 0.7010697722434998
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "32ea66d10fc743ebcef37efe28d8d04f696a2172eb263fee10dd98fa40d86e23"
+  },
+  {
+    "id": "133_takeoff",
+    "dive_id": 133,
+    "phase": "takeoff",
+    "frame_index": 53,
+    "representation": "F1_360p_full",
+    "image_sha256": "9b7227afb9e3b8b91f38d1f69b02d0ba309723106e050244f4cce987a32718aa",
+    "candidates": [
+      {
+        "xyxy": [
+          124.72148895263672,
+          195.8668670654297,
+          134.95993041992188,
+          227.7239227294922
+        ],
+        "conf": 0.1862838715314865
+      },
+      {
+        "xyxy": [
+          134.43679809570312,
+          204.87571716308594,
+          141.6397247314453,
+          226.93035888671875
+        ],
+        "conf": 0.14100441336631775
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 53.328125,
+      "height_px": 63.8515625,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 70.34107286846044,
+        "center_error_diagonals": 0.8455267606183107,
+        "confidence": 0.1862838715314865
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 70.34107286846044,
+        "center_error_diagonals": 0.8455267606183107,
+        "confidence": 0.1862838715314865
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d262fae8dd501b887ec70681850a6f8440abdb0ae7b1e35aea4d3faecc99e79e"
+  },
+  {
+    "id": "133_takeoff",
+    "dive_id": 133,
+    "phase": "takeoff",
+    "frame_index": 53,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "9b7227afb9e3b8b91f38d1f69b02d0ba309723106e050244f4cce987a32718aa",
+    "candidates": [
+      {
+        "xyxy": [
+          190.76278686523438,
+          131.4689483642578,
+          201.9536895751953,
+          166.0806884765625
+        ],
+        "conf": 0.11523638665676117
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 53.328125,
+      "height_px": 63.8515625,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 47.83076535730053,
+        "center_error_diagonals": 0.5749442031696153,
+        "confidence": 0.11523638665676117
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 47.83076535730053,
+        "center_error_diagonals": 0.5749442031696153,
+        "confidence": 0.11523638665676117
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d262fae8dd501b887ec70681850a6f8440abdb0ae7b1e35aea4d3faecc99e79e"
+  },
+  {
+    "id": "133_apex",
+    "dive_id": 133,
+    "phase": "apex",
+    "frame_index": 62,
+    "representation": "F1_360p_full",
+    "image_sha256": "751addda3e42bed45acc418ce4e8f425f187a645b48f29293e194c3443424625",
+    "candidates": [
+      {
+        "xyxy": [
+          123.60367584228516,
+          196.1343994140625,
+          135.01864624023438,
+          227.54022216796875
+        ],
+        "conf": 0.2721269130706787
+      },
+      {
+        "xyxy": [
+          134.00003051757812,
+          204.76815795898438,
+          141.81248474121094,
+          226.93768310546875
+        ],
+        "conf": 0.23037515580654144
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 51.984375,
+      "height_px": 46.96484375,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 78.47144331718157,
+        "center_error_diagonals": 1.1200984267907979,
+        "confidence": 0.2721269130706787
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 78.47144331718157,
+        "center_error_diagonals": 1.1200984267907979,
+        "confidence": 0.2721269130706787
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d417402676b894db687b31833e296976bc348543f4a9d9eef1a3bbf6c1cb8116"
+  },
+  {
+    "id": "133_apex",
+    "dive_id": 133,
+    "phase": "apex",
+    "frame_index": 62,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "751addda3e42bed45acc418ce4e8f425f187a645b48f29293e194c3443424625",
+    "candidates": [
+      {
+        "xyxy": [
+          191.03912353515625,
+          131.57705688476562,
+          201.95669555664062,
+          166.21273803710938
+        ],
+        "conf": 0.12488850206136703
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 51.984375,
+      "height_px": 46.96484375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 70.24130230457826,
+        "center_error_diagonals": 1.0026217039118528,
+        "confidence": 0.12488850206136703
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 70.24130230457826,
+        "center_error_diagonals": 1.0026217039118528,
+        "confidence": 0.12488850206136703
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d417402676b894db687b31833e296976bc348543f4a9d9eef1a3bbf6c1cb8116"
+  },
+  {
+    "id": "133_water_contact",
+    "dive_id": 133,
+    "phase": "water_contact",
+    "frame_index": 88,
+    "representation": "F1_360p_full",
+    "image_sha256": "14ff575ded3555c196649cafaa116150b8a50bbcbaea19e85331545ff963fe92",
+    "candidates": [
+      {
+        "xyxy": [
+          122.40530395507812,
+          195.93728637695312,
+          134.76609802246094,
+          227.73617553710938
+        ],
+        "conf": 0.3795166611671448
+      },
+      {
+        "xyxy": [
+          133.87025451660156,
+          204.33651733398438,
+          142.2979736328125,
+          227.03616333007812
+        ],
+        "conf": 0.21967749297618866
+      },
+      {
+        "xyxy": [
+          88.63493347167969,
+          205.8552703857422,
+          107.41801452636719,
+          261.8199462890625
+        ],
+        "conf": 0.10750377178192139
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 54.04296875,
+      "height_px": 85.609375,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.22720626426820992,
+        "center_error_px": 5.309900262143802,
+        "center_error_diagonals": 0.05244846049604157,
+        "confidence": 0.10750377178192139
+      },
+      "closest_center_candidate": {
+        "iou": 0.22720626426820992,
+        "center_error_px": 5.309900262143802,
+        "center_error_diagonals": 0.05244846049604157,
+        "confidence": 0.10750377178192139
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "db3ae314f2105a7dc58f95779b1ee100bf3d7da1340627e475bbe07f1ca370b4"
+  },
+  {
+    "id": "133_water_contact",
+    "dive_id": 133,
+    "phase": "water_contact",
+    "frame_index": 88,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "14ff575ded3555c196649cafaa116150b8a50bbcbaea19e85331545ff963fe92",
+    "candidates": [
+      {
+        "xyxy": [
+          90.75979614257812,
+          205.72679901123047,
+          107.1547622680664,
+          259.98059844970703
+        ],
+        "conf": 0.33678314089775085
+      },
+      {
+        "xyxy": [
+          123.28800964355469,
+          195.43712615966797,
+          133.4878387451172,
+          227.52928161621094
+        ],
+        "conf": 0.18087084591388702
+      },
+      {
+        "xyxy": [
+          117.8233413696289,
+          195.99994087219238,
+          127.50592041015625,
+          227.24286651611328
+        ],
+        "conf": 0.1072700023651123
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 54.04296875,
+      "height_px": 85.609375,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.19225611259406417,
+        "center_error_px": 5.6666771942372485,
+        "center_error_diagonals": 0.05597251931164862,
+        "confidence": 0.33678314089775085
+      },
+      "closest_center_candidate": {
+        "iou": 0.19225611259406417,
+        "center_error_px": 5.6666771942372485,
+        "center_error_diagonals": 0.05597251931164862,
+        "confidence": 0.33678314089775085
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "db3ae314f2105a7dc58f95779b1ee100bf3d7da1340627e475bbe07f1ca370b4"
+  },
+  {
+    "id": "311_takeoff",
+    "dive_id": 311,
+    "phase": "takeoff",
+    "frame_index": 412,
+    "representation": "F1_360p_full",
+    "image_sha256": "204a14847915c8263b445ca214d2a60a62e426890de760e07c3e88c443083c76",
+    "candidates": [
+      {
+        "xyxy": [
+          41.06338119506836,
+          0.1246347427368164,
+          101.5401611328125,
+          83.95610046386719
+        ],
+        "conf": 0.59246826171875
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 58.62890625,
+      "height_px": 93.01953125,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.6849609006625482,
+        "center_error_px": 9.623309549318709,
+        "center_error_diagonals": 0.08752087108768951,
+        "confidence": 0.59246826171875
+      },
+      "closest_center_candidate": {
+        "iou": 0.6849609006625482,
+        "center_error_px": 9.623309549318709,
+        "center_error_diagonals": 0.08752087108768951,
+        "confidence": 0.59246826171875
+      },
+      "recalled_iou50": true,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "d38f1f59c684c5bde99201e3a1cb0ff420f028bf485b0ee0a2c2b6441cfbca96"
+  },
+  {
+    "id": "311_takeoff",
+    "dive_id": 311,
+    "phase": "takeoff",
+    "frame_index": 412,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "204a14847915c8263b445ca214d2a60a62e426890de760e07c3e88c443083c76",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 58.62890625,
+      "height_px": 93.01953125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "d38f1f59c684c5bde99201e3a1cb0ff420f028bf485b0ee0a2c2b6441cfbca96"
+  },
+  {
+    "id": "311_water_contact",
+    "dive_id": 311,
+    "phase": "water_contact",
+    "frame_index": 444,
+    "representation": "F1_360p_full",
+    "image_sha256": "27dc8a67eba32e7b36cbf848280012f3ec524319c65d41b36f27f0690b999a0d",
+    "candidates": [
+      {
+        "xyxy": [
+          62.04228210449219,
+          0.16539573669433594,
+          89.9303207397461,
+          62.66100311279297
+        ],
+        "conf": 0.6479528546333313
+      },
+      {
+        "xyxy": [
+          118.95026397705078,
+          162.78146362304688,
+          164.33966064453125,
+          214.1527862548828
+        ],
+        "conf": 0.2899017333984375
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 83.83984375,
+      "height_px": 81.5546875,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.3410167956217088,
+        "center_error_px": 1.6798035457019107,
+        "center_error_diagonals": 0.014361866915549068,
+        "confidence": 0.2899017333984375
+      },
+      "closest_center_candidate": {
+        "iou": 0.3410167956217088,
+        "center_error_px": 1.6798035457019107,
+        "center_error_diagonals": 0.014361866915549068,
+        "confidence": 0.2899017333984375
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "3bfb652a83ef28ce7470f727a0b64f342f2c9e546a0cca18f885cb5d4f0ad528"
+  },
+  {
+    "id": "311_water_contact",
+    "dive_id": 311,
+    "phase": "water_contact",
+    "frame_index": 444,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "27dc8a67eba32e7b36cbf848280012f3ec524319c65d41b36f27f0690b999a0d",
+    "candidates": [
+      {
+        "xyxy": [
+          63.36268997192383,
+          0.7228754758834839,
+          91.36353302001953,
+          62.34678268432617
+        ],
+        "conf": 0.6283202767372131
+      },
+      {
+        "xyxy": [
+          118.80409240722656,
+          163.32466888427734,
+          164.84674072265625,
+          214.2198944091797
+        ],
+        "conf": 0.1760888248682022
+      },
+      {
+        "xyxy": [
+          149.24185180664062,
+          180.7933776974678,
+          161.2435302734375,
+          215.24811553955078
+        ],
+        "conf": 0.10842005163431168
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 83.83984375,
+      "height_px": 81.5546875,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.34271881750189664,
+        "center_error_px": 1.3440723805527957,
+        "center_error_diagonals": 0.011491456071607764,
+        "confidence": 0.1760888248682022
+      },
+      "closest_center_candidate": {
+        "iou": 0.34271881750189664,
+        "center_error_px": 1.3440723805527957,
+        "center_error_diagonals": 0.011491456071607764,
+        "confidence": 0.1760888248682022
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "3bfb652a83ef28ce7470f727a0b64f342f2c9e546a0cca18f885cb5d4f0ad528"
+  },
+  {
+    "id": "2541_takeoff",
+    "dive_id": 2541,
+    "phase": "takeoff",
+    "frame_index": 525,
+    "representation": "F1_360p_full",
+    "image_sha256": "1db1271ff40e2ed72dd20becbf01ad7d2921fba5586b897b7e3bbc5521754e97",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 51.81640625,
+      "height_px": 101.5078125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "6e189a9d12638a810a05770ca87e0da7d7daeccb7c27563650ae29e078b0a21a"
+  },
+  {
+    "id": "2541_takeoff",
+    "dive_id": 2541,
+    "phase": "takeoff",
+    "frame_index": 525,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "1db1271ff40e2ed72dd20becbf01ad7d2921fba5586b897b7e3bbc5521754e97",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 51.81640625,
+      "height_px": 101.5078125,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "6e189a9d12638a810a05770ca87e0da7d7daeccb7c27563650ae29e078b0a21a"
+  },
+  {
+    "id": "2541_apex",
+    "dive_id": 2541,
+    "phase": "apex",
+    "frame_index": 539,
+    "representation": "F1_360p_full",
+    "image_sha256": "30b436cb1a504135863f9d04f1a962160142d4452a5cc27a14515797db4cbab3",
+    "candidates": [
+      {
+        "xyxy": [
+          85.97230529785156,
+          94.21373748779297,
+          117.82112121582031,
+          143.6255645751953
+        ],
+        "conf": 0.2847677767276764
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 75.4921875,
+      "height_px": 59.375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.34262552052320694,
+        "center_error_px": 6.015173106669559,
+        "center_error_diagonals": 0.06262931052213153,
+        "confidence": 0.2847677767276764
+      },
+      "closest_center_candidate": {
+        "iou": 0.34262552052320694,
+        "center_error_px": 6.015173106669559,
+        "center_error_diagonals": 0.06262931052213153,
+        "confidence": 0.2847677767276764
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "76365943fd8e444ac02c3963b6e5287a4a79fb953714698dcfb0c957990d6f76"
+  },
+  {
+    "id": "2541_apex",
+    "dive_id": 2541,
+    "phase": "apex",
+    "frame_index": 539,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "30b436cb1a504135863f9d04f1a962160142d4452a5cc27a14515797db4cbab3",
+    "candidates": [
+      {
+        "xyxy": [
+          87.38917541503906,
+          94.47270202636719,
+          117.90514373779297,
+          142.88095092773438
+        ],
+        "conf": 0.2756258547306061
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 75.4921875,
+      "height_px": 59.375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.3282747051862887,
+        "center_error_px": 5.994438170106176,
+        "center_error_diagonals": 0.06241342067862146,
+        "confidence": 0.2756258547306061
+      },
+      "closest_center_candidate": {
+        "iou": 0.3282747051862887,
+        "center_error_px": 5.994438170106176,
+        "center_error_diagonals": 0.06241342067862146,
+        "confidence": 0.2756258547306061
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "76365943fd8e444ac02c3963b6e5287a4a79fb953714698dcfb0c957990d6f76"
+  },
+  {
+    "id": "2541_water_contact",
+    "dive_id": 2541,
+    "phase": "water_contact",
+    "frame_index": 558,
+    "representation": "F1_360p_full",
+    "image_sha256": "21a97744f93dcfc000e5c25b847f72f0f489c548a78b865a9a614849443a12ea",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 55.37109375,
+      "height_px": 86.16015625,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "0dfd52d27b2dd1f856060107707448f245f979ee39155e7bae06e55246bfe92f"
+  },
+  {
+    "id": "2541_water_contact",
+    "dive_id": 2541,
+    "phase": "water_contact",
+    "frame_index": 558,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "21a97744f93dcfc000e5c25b847f72f0f489c548a78b865a9a614849443a12ea",
+    "candidates": [
+      {
+        "xyxy": [
+          71.40436553955078,
+          143.50411987304688,
+          87.781982421875,
+          179.48875427246094
+        ],
+        "conf": 0.19405199587345123
+      },
+      {
+        "xyxy": [
+          58.092201232910156,
+          180.57893562316895,
+          74.75923919677734,
+          217.12165069580078
+        ],
+        "conf": 0.12171313911676407
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 55.37109375,
+      "height_px": 86.16015625,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.12766435524121877,
+        "center_error_px": 23.58082770793214,
+        "center_error_diagonals": 0.23024012857124518,
+        "confidence": 0.12171313911676407
+      },
+      "closest_center_candidate": {
+        "iou": 0.12353164425055686,
+        "center_error_px": 16.34744827301226,
+        "center_error_diagonals": 0.15961435445813632,
+        "confidence": 0.19405199587345123
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "0dfd52d27b2dd1f856060107707448f245f979ee39155e7bae06e55246bfe92f"
+  },
+  {
+    "id": "2387_takeoff",
+    "dive_id": 2387,
+    "phase": "takeoff",
+    "frame_index": 134,
+    "representation": "F1_360p_full",
+    "image_sha256": "e889d6dd3a42cdd611136bd75de547ccc810712eb91c14cac5e76b1aeeed06d3",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 58.265625,
+      "height_px": 94.19140625,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "5f68c2e1f3f2e8b7e73918226c60d3d5af55e124e94295eaf9e1fb0b19cc2e3b"
+  },
+  {
+    "id": "2387_takeoff",
+    "dive_id": 2387,
+    "phase": "takeoff",
+    "frame_index": 134,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "e889d6dd3a42cdd611136bd75de547ccc810712eb91c14cac5e76b1aeeed06d3",
+    "candidates": [
+      {
+        "xyxy": [
+          121.29146575927734,
+          187.9220962524414,
+          128.64297485351562,
+          205.4806671142578
+        ],
+        "conf": 0.3017694056034088
+      },
+      {
+        "xyxy": [
+          138.62583923339844,
+          184.46631813049316,
+          144.85427856445312,
+          205.50769233703613
+        ],
+        "conf": 0.14517904818058014
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 58.265625,
+      "height_px": 94.19140625,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.008861339228756778,
+        "center_error_px": 51.4226811011454,
+        "center_error_diagonals": 0.4642877571795058,
+        "confidence": 0.14517904818058014
+      },
+      "closest_center_candidate": {
+        "iou": 0.008861339228756778,
+        "center_error_px": 51.4226811011454,
+        "center_error_diagonals": 0.4642877571795058,
+        "confidence": 0.14517904818058014
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "5f68c2e1f3f2e8b7e73918226c60d3d5af55e124e94295eaf9e1fb0b19cc2e3b"
+  },
+  {
+    "id": "2387_apex",
+    "dive_id": 2387,
+    "phase": "apex",
+    "frame_index": 144,
+    "representation": "F1_360p_full",
+    "image_sha256": "5a25f4e450faf9e0ce18aaca59e0c376044edefabef10b3a345ae63d7487400b",
+    "candidates": [
+      {
+        "xyxy": [
+          83.15436553955078,
+          102.85430908203125,
+          120.69571685791016,
+          143.60171508789062
+        ],
+        "conf": 0.23756767809391022
+      },
+      {
+        "xyxy": [
+          172.75222778320312,
+          110.0613784790039,
+          201.6563720703125,
+          146.84657287597656
+        ],
+        "conf": 0.23291689157485962
+      },
+      {
+        "xyxy": [
+          172.2234649658203,
+          109.13215637207031,
+          201.7253875732422,
+          204.76539611816406
+        ],
+        "conf": 0.21666733920574188
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 70.19921875,
+      "height_px": 53.01171875,
+      "candidate_count": 3,
+      "best_iou_candidate": {
+        "iou": 0.37883773719544583,
+        "center_error_px": 8.520067931590509,
+        "center_error_diagonals": 0.09685540248435211,
+        "confidence": 0.23756767809391022
+      },
+      "closest_center_candidate": {
+        "iou": 0.37883773719544583,
+        "center_error_px": 8.520067931590509,
+        "center_error_diagonals": 0.09685540248435211,
+        "confidence": 0.23756767809391022
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "a6b283521d3917b8d316cf364c747f870bf3af35c25b07a074c154e617ba2c59"
+  },
+  {
+    "id": "2387_apex",
+    "dive_id": 2387,
+    "phase": "apex",
+    "frame_index": 144,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "5a25f4e450faf9e0ce18aaca59e0c376044edefabef10b3a345ae63d7487400b",
+    "candidates": [
+      {
+        "xyxy": [
+          138.57723999023438,
+          184.87894439697266,
+          145.15423583984375,
+          205.82262420654297
+        ],
+        "conf": 0.4080764353275299
+      },
+      {
+        "xyxy": [
+          171.5326690673828,
+          109.49517822265625,
+          201.8657989501953,
+          176.72731018066406
+        ],
+        "conf": 0.39802026748657227
+      },
+      {
+        "xyxy": [
+          121.41533660888672,
+          187.91275787353516,
+          128.65248107910156,
+          205.2843780517578
+        ],
+        "conf": 0.29641592502593994
+      },
+      {
+        "xyxy": [
+          82.26600646972656,
+          102.6201400756836,
+          119.67909240722656,
+          143.23617553710938
+        ],
+        "conf": 0.273461252450943
+      },
+      {
+        "xyxy": [
+          167.38467407226562,
+          168.37210083007812,
+          176.7270965576172,
+          198.08934020996094
+        ],
+        "conf": 0.20579873025417328
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 70.19921875,
+      "height_px": 53.01171875,
+      "candidate_count": 5,
+      "best_iou_candidate": {
+        "iou": 0.3812426588462453,
+        "center_error_px": 8.403457110994673,
+        "center_error_diagonals": 0.09552978066378384,
+        "confidence": 0.273461252450943
+      },
+      "closest_center_candidate": {
+        "iou": 0.3812426588462453,
+        "center_error_px": 8.403457110994673,
+        "center_error_diagonals": 0.09552978066378384,
+        "confidence": 0.273461252450943
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "a6b283521d3917b8d316cf364c747f870bf3af35c25b07a074c154e617ba2c59"
+  },
+  {
+    "id": "2387_water_contact",
+    "dive_id": 2387,
+    "phase": "water_contact",
+    "frame_index": 164,
+    "representation": "F1_360p_full",
+    "image_sha256": "489a3ec238cd962d5cc505b57306e1638168b1d6c849971cb51be8e06ed2fa11",
+    "candidates": [
+      {
+        "xyxy": [
+          157.7987518310547,
+          129.62986755371094,
+          201.43067932128906,
+          179.5660858154297
+        ],
+        "conf": 0.21683381497859955
+      },
+      {
+        "xyxy": [
+          150.06495666503906,
+          49.8175048828125,
+          201.76939392089844,
+          205.44818115234375
+        ],
+        "conf": 0.18482063710689545
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.08984375,
+      "height_px": 109.14453125,
+      "candidate_count": 2,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 111.65019726709069,
+        "center_error_diagonals": 0.9630549366459286,
+        "confidence": 0.21683381497859955
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 111.65019726709069,
+        "center_error_diagonals": 0.9630549366459286,
+        "confidence": 0.21683381497859955
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "6725b9fa39e070b7bbaf754f2e3452ab0a4eca8f127f34054946ec68e88cda58"
+  },
+  {
+    "id": "2387_water_contact",
+    "dive_id": 2387,
+    "phase": "water_contact",
+    "frame_index": 164,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "489a3ec238cd962d5cc505b57306e1638168b1d6c849971cb51be8e06ed2fa11",
+    "candidates": [
+      {
+        "xyxy": [
+          139.11343383789062,
+          185.25276947021484,
+          145.6898956298828,
+          205.2563934326172
+        ],
+        "conf": 0.22673320770263672
+      },
+      {
+        "xyxy": [
+          159.66200256347656,
+          129.61685180664062,
+          201.876220703125,
+          179.9681854248047
+        ],
+        "conf": 0.17878875136375427
+      },
+      {
+        "xyxy": [
+          59.835411071777344,
+          181.28330051898956,
+          71.55810546875,
+          220.74948120117188
+        ],
+        "conf": 0.1320250928401947
+      },
+      {
+        "xyxy": [
+          159.305419921875,
+          45.348670959472656,
+          201.93417358398438,
+          178.56480407714844
+        ],
+        "conf": 0.10309606045484543
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 39.08984375,
+      "height_px": 109.14453125,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.10843928083462209,
+        "center_error_px": 25.24667752467886,
+        "center_error_diagonals": 0.21776887116361962,
+        "confidence": 0.1320250928401947
+      },
+      "closest_center_candidate": {
+        "iou": 0.10843928083462209,
+        "center_error_px": 25.24667752467886,
+        "center_error_diagonals": 0.21776887116361962,
+        "confidence": 0.1320250928401947
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "6725b9fa39e070b7bbaf754f2e3452ab0a4eca8f127f34054946ec68e88cda58"
+  },
+  {
+    "id": "2555_takeoff",
+    "dive_id": 2555,
+    "phase": "takeoff",
+    "frame_index": 257,
+    "representation": "F1_360p_full",
+    "image_sha256": "0011d036a8fdc41d2cdbfa5499ca6948bc85ba83a3bf9a95be78181a503fe623",
+    "candidates": [
+      {
+        "xyxy": [
+          0.0,
+          31.038230895996094,
+          100.25424194335938,
+          291.5513610839844
+        ],
+        "conf": 0.730855405330658
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 126.73828125,
+      "height_px": 255.8984375,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.774062385206492,
+        "center_error_px": 13.668698856335972,
+        "center_error_diagonals": 0.0478656807933764,
+        "confidence": 0.730855405330658
+      },
+      "closest_center_candidate": {
+        "iou": 0.774062385206492,
+        "center_error_px": 13.668698856335972,
+        "center_error_diagonals": 0.0478656807933764,
+        "confidence": 0.730855405330658
+      },
+      "recalled_iou50": true,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "f13208ad7f7e849004d66761260cabb2cabb6d74467c5ba5892b92b210900d59"
+  },
+  {
+    "id": "2555_takeoff",
+    "dive_id": 2555,
+    "phase": "takeoff",
+    "frame_index": 257,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "0011d036a8fdc41d2cdbfa5499ca6948bc85ba83a3bf9a95be78181a503fe623",
+    "candidates": [
+      {
+        "xyxy": [
+          15.750197410583496,
+          69.77873229980469,
+          98.16375732421875,
+          179.8139190673828
+        ],
+        "conf": 0.5014147758483887
+      },
+      {
+        "xyxy": [
+          20.244373321533203,
+          111.0935230255127,
+          38.58757781982422,
+          136.81216049194336
+        ],
+        "conf": 0.2789212465286255
+      },
+      {
+        "xyxy": [
+          146.62510681152344,
+          301.21051025390625,
+          160.75662231445312,
+          317.08094787597656
+        ],
+        "conf": 0.13044175505638123
+      },
+      {
+        "xyxy": [
+          120.39837646484375,
+          31.88333511352539,
+          128.04249572753906,
+          40.19768524169922
+        ],
+        "conf": 0.12486550956964493
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 126.73828125,
+      "height_px": 255.8984375,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.27961135998250214,
+        "center_error_px": 33.72510824119399,
+        "center_error_diagonals": 0.1181001412615642,
+        "confidence": 0.5014147758483887
+      },
+      "closest_center_candidate": {
+        "iou": 0.27961135998250214,
+        "center_error_px": 33.72510824119399,
+        "center_error_diagonals": 0.1181001412615642,
+        "confidence": 0.5014147758483887
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "f13208ad7f7e849004d66761260cabb2cabb6d74467c5ba5892b92b210900d59"
+  },
+  {
+    "id": "2555_apex",
+    "dive_id": 2555,
+    "phase": "apex",
+    "frame_index": 382,
+    "representation": "F1_360p_full",
+    "image_sha256": "4e2694479a8ad29599b545bbd5ea7dc949d8a0b3085fdefb5986969055cf6776",
+    "candidates": [
+      {
+        "xyxy": [
+          40.871612548828125,
+          79.98141479492188,
+          140.07225036621094,
+          184.68325805664062
+        ],
+        "conf": 0.8013901114463806
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 117.984375,
+      "height_px": 125.0078125,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.704218030035643,
+        "center_error_px": 4.307929273094113,
+        "center_error_diagonals": 0.02506166463020396,
+        "confidence": 0.8013901114463806
+      },
+      "closest_center_candidate": {
+        "iou": 0.704218030035643,
+        "center_error_px": 4.307929273094113,
+        "center_error_diagonals": 0.02506166463020396,
+        "confidence": 0.8013901114463806
+      },
+      "recalled_iou50": true,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "1d458206b90d3eac3c75cbee125ee5292063fb75ad514da39fd2dc0ffde0df74"
+  },
+  {
+    "id": "2555_apex",
+    "dive_id": 2555,
+    "phase": "apex",
+    "frame_index": 382,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "4e2694479a8ad29599b545bbd5ea7dc949d8a0b3085fdefb5986969055cf6776",
+    "candidates": [
+      {
+        "xyxy": [
+          5.531695365905762,
+          261.18975830078125,
+          25.40837860107422,
+          269.9483642578125
+        ],
+        "conf": 0.5597965717315674
+      },
+      {
+        "xyxy": [
+          43.33651351928711,
+          81.70101165771484,
+          139.38497924804688,
+          176.00433349609375
+        ],
+        "conf": 0.21071915328502655
+      },
+      {
+        "xyxy": [
+          120.38936614990234,
+          31.784107208251953,
+          128.07850646972656,
+          40.004783630371094
+        ],
+        "conf": 0.1264350414276123
+      },
+      {
+        "xyxy": [
+          11.483409881591797,
+          290.2889175415039,
+          18.450096130371094,
+          302.51505279541016
+        ],
+        "conf": 0.1160023882985115
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 117.984375,
+      "height_px": 125.0078125,
+      "candidate_count": 4,
+      "best_iou_candidate": {
+        "iou": 0.614123577329296,
+        "center_error_px": 4.244085045405335,
+        "center_error_diagonals": 0.02469024659581238,
+        "confidence": 0.21071915328502655
+      },
+      "closest_center_candidate": {
+        "iou": 0.614123577329296,
+        "center_error_px": 4.244085045405335,
+        "center_error_diagonals": 0.02469024659581238,
+        "confidence": 0.21071915328502655
+      },
+      "recalled_iou50": true,
+      "recalled_center_half_diagonal": true
+    },
+    "localization_sha256": "1d458206b90d3eac3c75cbee125ee5292063fb75ad514da39fd2dc0ffde0df74"
+  },
+  {
+    "id": "2555_water_contact",
+    "dive_id": 2555,
+    "phase": "water_contact",
+    "frame_index": 574,
+    "representation": "F1_360p_full",
+    "image_sha256": "a91bf558ccd78ee51ca59d6674a167cae67201777783e1520c72955fe7cdadf6",
+    "candidates": [],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 82.59375,
+      "height_px": 104.25,
+      "candidate_count": 0,
+      "best_iou_candidate": null,
+      "closest_center_candidate": null,
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "1af4ddc2a634bdbf3abbb20fa74bcb17d14cfbe87848af5ec26f0c10856c650c"
+  },
+  {
+    "id": "2555_water_contact",
+    "dive_id": 2555,
+    "phase": "water_contact",
+    "frame_index": 574,
+    "representation": "F2_360p_fixed_vertical_slices",
+    "image_sha256": "a91bf558ccd78ee51ca59d6674a167cae67201777783e1520c72955fe7cdadf6",
+    "candidates": [
+      {
+        "xyxy": [
+          119.79096984863281,
+          32.3670539855957,
+          127.89864349365234,
+          39.764652252197266
+        ],
+        "conf": 0.17474792897701263
+      }
+    ],
+    "metrics": {
+      "evaluable": true,
+      "width_px": 82.59375,
+      "height_px": 104.25,
+      "candidate_count": 1,
+      "best_iou_candidate": {
+        "iou": 0.0,
+        "center_error_px": 193.83064741184916,
+        "center_error_diagonals": 1.457340744764869,
+        "confidence": 0.17474792897701263
+      },
+      "closest_center_candidate": {
+        "iou": 0.0,
+        "center_error_px": 193.83064741184916,
+        "center_error_diagonals": 1.457340744764869,
+        "confidence": 0.17474792897701263
+      },
+      "recalled_iou50": false,
+      "recalled_center_half_diagonal": false
+    },
+    "localization_sha256": "1af4ddc2a634bdbf3abbb20fa74bcb17d14cfbe87848af5ec26f0c10856c650c"
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "label": "HIGHRES_RECOVERY_BATCH_V1",
+  "date": "2026-09-09",
+  "status": "BATCH_NOT_STARTED_CANARY_GATE_CLOSED",
+  "canonical_repo": "mcauchy@192.168.1.57:/home/mcauchy/dive-analyser",
+  "branch": "uiux-overhaul-pro-app",
+  "authorized_scope": {
+    "TRAIN": [133, 311, 524, 676, 1040, 2169, 2387, 2541, 2555, 2625, 2661, 2680],
+    "DEV_EVAL": [133, 311, 676, 1040, 2169, 2387],
+    "DEV_VAL_INCLUDED_IN_TRAIN_LINEAGE": [2341, 2353],
+    "excluded": {
+      "FINAL_HOLDOUT": [],
+      "PROTECTED_F0_HOLDOUT": [],
+      "UNRELATED_FULL_CORPUS": "excluded",
+      "PARIS_IMG_1937_DIVE_2819": "excluded_independent_user_supplied_highres_source"
+    }
+  },
+  "totals": {
+    "unique_assets": 14,
+    "estimated_original_bytes": 300208320,
+    "estimated_storage": "0.30 GB from Photos metadata; edited rendition size unknown until export",
+    "download_started": false,
+    "recovered": 0,
+    "failed": 0
+  },
+  "gate": {
+    "canary_required_successes": 3,
+    "canary_successes": 0,
+    "reason": "PhotoKit export/download requires macOS Photos TCC authorization for the SSH-launched osxphotos process."
+  },
+  "items": [
+    {"dive_id": 133, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 622, "agent_id": "mac-media-01", "photos_local_uuid": "ABD32644-4536-416F-9572-86849FCF15B5", "cloud_guid": "AU6xXzdChT7yKifrguxqf1Io1rO0", "current_proxy": "/app/media-cache/proxy_360p/c2/62/c26271fda2aaa252e1dd9eb3c43a8f5374f69fea667b07fdcd1768240a9649eb.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 2316774, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 311, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 287, "agent_id": "mac-media-01", "photos_local_uuid": "D0C33293-F4B7-4A57-9368-9C53BFC32033", "cloud_guid": "AXmuUmf/q68eUpM9ptYEMDccfVKe", "current_proxy": "/app/media-cache/proxy_360p/dc/1d/dc1d176ed1ed24e004a6634f0ee91ae3e5150645a85380f33db399f55bedf10c.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 19262140, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 524, "role": "TRAIN", "photos_asset_id": 226, "agent_id": "mac-media-01", "photos_local_uuid": "ADA74E55-A410-4918-8C27-218C9D44240B", "cloud_guid": "AX6u13qbBEfJIXLoIG+bmYvTtFMP", "current_proxy": "/app/media-cache/proxy_360p/55/2d/552d34613e606af9241e4a561c65a3dfb374479205b2dd76543fbdb8a376029f.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 676, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 1526, "agent_id": "mac-media-01", "photos_local_uuid": "AA890D9A-A8AE-44C4-B6A4-C82BDAD56F46", "cloud_guid": "AbVbkHIz0V81372ETk06lS2juBvP", "current_proxy": "/app/media-cache/proxy_360p/2b/51/2b512f91e6b244198942b974b9438163a12ece12c1422aa33dd93c966304d1f6.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 7607751, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 1040, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 501, "agent_id": "mac-media-01", "photos_local_uuid": "F956BFFA-C8F4-40BF-B46C-60A56940A761", "cloud_guid": "AUZDSPR4FnhSD9pFL1szmUn6q08C", "current_proxy": "/app/media-cache/proxy_360p/9c/b4/9cb42af1a2aa79bb3a11a07c8b29baaf8c00d5ebda68826eb4c52c5a9202324e.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 11377900, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2169, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 14, "agent_id": "mac-media-01", "photos_local_uuid": "B6AC3A80-752B-439F-A927-01550A6F52C1", "cloud_guid": "Ae7JP/e4EcLL3eOc8nye9m0PhMyk", "current_proxy": "/app/media-cache/proxy_360p/85/c8/85c81842b1f892d0919d8db1dcaee3ed01a93d294d3cc350643b198988e844b0.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 35181366, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2341, "role": "TRAIN", "train_split": "DEV_VAL", "photos_asset_id": 1705, "agent_id": "mac-media-01", "photos_local_uuid": "2E8AB91E-1548-4DDB-B5DF-7F32C0386C64", "cloud_guid": "Ac9M7vjZ+kbEoXIheI2JpS39YGVR", "current_proxy": "/app/media-cache/proxy_360p/3e/01/3e01c635ade0139c1ad3eb39fed14790c06d7c64972169af1b8ced04d0aeeafc.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2353, "role": "TRAIN", "train_split": "DEV_VAL", "photos_asset_id": 2404, "agent_id": "mac-media-01", "photos_local_uuid": "75F08B66-2658-46EE-8930-C1CC520848B7", "cloud_guid": "AVJlHeaXwJImx/kDOhGsmncKDaEc", "current_proxy": "/app/media-cache/proxy_360p/66/b3/66b33471a330fe0a92e9f8ef8bb0ee4b717b47be0cb158806b020f635efa3542.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2387, "role": "DEV_EVAL", "train_role": "TRAIN", "photos_asset_id": 956, "agent_id": "mac-media-01", "photos_local_uuid": "51BDE272-B56F-411A-997C-5B2277127CA5", "cloud_guid": "AT54f+wWQ6BRG6HFzdLqA0gVGFVF", "current_proxy": "/app/media-cache/proxy_360p/e7/bb/e7bb8646edf66df370f0ff4958c1bf4736cb41df0e461428084fa6fa6486fc4a.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2541, "role": "TRAIN", "photos_asset_id": 2384, "agent_id": "mac-media-01", "photos_local_uuid": "A4E41E78-9BE5-4FD2-97F7-982EC51B46B2", "cloud_guid": "AaAGIEKCxW5BVMFKIs2/48k0L+Bc", "current_proxy": "/app/media-cache/proxy_360p/cf/92/cf92e9a817dfb9e5ad0ff553bb545cc63719fa25770514ec11126618c0578358.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2555, "role": "TRAIN", "photos_asset_id": 2551, "agent_id": "mac-media-01", "photos_local_uuid": "1FBF7764-0257-4AC1-8634-B99C0FA80949", "cloud_guid": "AfCjmznQMenL7umy+DXcFgXCCL9f", "current_proxy": "/app/media-cache/proxy_360p/dd/7a/dd7a8621a89bd00af627560e2121dec4bacecb313d8b5ecd5027d91f2f9c9e44.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 23337553, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2625, "role": "TRAIN", "photos_asset_id": 2621, "agent_id": "mac-media-01", "photos_local_uuid": "3B65107B-CE67-480A-9CE6-C1CF7F54A19B", "cloud_guid": "ASkQwlPjrEBLAHMj9rK+QCXPXKYg", "current_proxy": "/app/media-cache/proxy_360p/4d/c9/4dc9064e1692518c412a4e6e55f67f92d26959d2bfecb3147617e914da3d84fd.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": 12604799, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2661, "role": "TRAIN", "photos_asset_id": 2657, "agent_id": "mac-media-01", "photos_local_uuid": "D73DB757-0A6F-40BD-A167-D3A3753B617F", "cloud_guid": "AaHCqMrnlt53koLs+jazI3e58AvC", "current_proxy": "/app/media-cache/proxy_360p/23/b1/23b13b30ebf4915a039bef8d0eff9c31a6a19df8142bb781ed5895290f203184.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"},
+    {"dive_id": 2680, "role": "TRAIN", "photos_asset_id": 2676, "agent_id": "mac-media-01", "photos_local_uuid": "61CEDB4F-CDED-4E05-9D28-223E3DD26D8B", "cloud_guid": "Abg+RPi9SEDu7M0S4sxlhIzIZUqC", "current_proxy": "/app/media-cache/proxy_360p/d8/87/d887b0fd8e173c80885dcd5fd15222c6202998a53bc6d493c571656a3f6661a1.mp4", "expected_source_status": "cloud_only", "download_needed": true, "estimated_size_bytes": null, "recovery_status": "NOT_REQUESTED_GATE_CLOSED"}
+  ]
+}

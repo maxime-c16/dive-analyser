@@ -1,0 +1,44 @@
+{
+  "label": "PHASE_T_EVENT_LOGIC_DECISION",
+  "date": "2026-09-07",
+  "phase": "T",
+
+  "current_state": {
+    "mechanism": "Event Logic V2.1",
+    "source_file": "experiments/landmark_pilot/proposer_event_logic_v2_1.py",
+    "source_sha_prefix": "see EVENT_LOGIC_V2_1_FREEZE.json",
+    "test_suite": "test_event_logic_v2_1.py",
+    "test_count": 36,
+    "tests_pass": 36,
+    "freeze_document": "EVENT_LOGIC_V2_1_FREEZE.json"
+  },
+
+  "oracle_trajectory_test": {
+    "status": "CONFIRMED_PASSING",
+    "description": "Synthetic trajectory constructed from GT timestamps passes all V2.1 state machine transitions",
+    "takeoff_detected": true,
+    "apex_detected": true,
+    "water_contact_detected": true,
+    "source": "PHASE_M_CANARY_CHECK_AUDIT.json (prior session)"
+  },
+
+  "real_signal_test": {
+    "status": "NOT_EVALUABLE",
+    "reason": "No trajectory extractable from D2 detector on Paris canary (0 detections at useful conf threshold)",
+    "blocker": "PERCEPTION_STILL_INSUFFICIENT"
+  },
+
+  "decision": {
+    "event_logic_status": "FROZEN_PENDING_PERCEPTION_PREREQUISITE",
+    "action": "Do NOT modify V2.1 to compensate for perception failures",
+    "rationale": [
+      "V2.1 passes all 36 synthetic + unit tests",
+      "Oracle trajectory test confirms mechanism is correct",
+      "Modification without real-signal ground truth risks introducing incorrect physics assumptions",
+      "Invariant: do not optimize Event Logic before trajectory"
+    ],
+    "next_trigger": "Re-evaluate V2.1 on real signal once SCENE_PRIOR_SPATIAL_FILTER_WITH_COCO produces a usable trajectory OR multi-domain training data improves detection"
+  },
+
+  "firewall_note": "Event Logic V2.1 has NOT been modified based on Paris canary results. Paris firewall maintained."
+}

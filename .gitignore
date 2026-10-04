@@ -1,0 +1,141 @@
+# ============================================================================
+# .gitignore — canonical runtime source baseline (2026-09-05, task P0.5)
+# Runtime secrets, databases, media, caches, backups and generated files stay
+# on the host but OUTSIDE source control. See
+# docs/audits/CANONICAL_RUNTIME_SOURCE_BASELINE_2026-09-05.md for rationale.
+# ============================================================================
+
+# ---- Runtime secrets (never commit; runtime file stays on disk) ----
+.env
+.env.local
+.env.*.local
+
+# ---- macOS metadata ----
+.DS_Store
+._*
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# ---- Node / frontend build output (reproducible via frontend/Dockerfile.deploy) ----
+node_modules/
+/frontend/dist/
+frontend/test-results/
+playwright-report/
+
+# ---- Logs / runtime state ----
+/logs/
+*.log
+
+# Audit trail appended by the pytest suite on every run (see ci/gate.sh). The
+# pre-existing audit_20260131.jsonl stays tracked; only new dated files are
+# runtime debris.
+backend/logs/audit/audit_*.jsonl
+
+# vitest cache, if ever written from the repo root
+/.vite/
+
+# ---- Data: dumps, backups, media, import data (runtime data, never source) ----
+/backups/
+/media/
+/reports/
+/memory/
+*.dump
+*.bak
+
+# ---- Test artifacts ----
+/test-results/
+
+# ---- Editor / agent backups, stray copies ----
+.codex-backup-*/
+*.transfer-check
+/backend/media_cache.py
+/backend/media_resolution_upgrade.py
+
+# ---- nginx TLS material (keys/certs live on host only) ----
+/nginx/ssl/
+
+# ---- Root-level session-report debris (Feb-2026 agent-session era).
+# Kept on disk for the operator; intentionally not source authority.
+/*.md
+/*.txt
+/test-*.sh
+/test-*.py
+/test-*.js
+/*.spec.ts
+/comprehensive_bug_report.py
+
+# ---- Additional exclusions (P0.5 reconciliation) ----
+/ops/*.env
+/frontend/.codex-*
+/backend/add_media_resolution_upgrade_runs.sql
+/test_*
+
+# ---- Experiment venvs and ML model weights (large binaries, not source) ----
+venv_c/
+*.pt
+
+# ---- TARGET_DIVER_SELECTION_V1: raw source video staged for Paris frame extraction ----
+experiments/landmark_pilot/paris_source/
+*.mov
+
+# ---- Subject Resolution V1: host caches and large binaries (never in Git) ----
+runs/hurdle_identity_v1/
+runs/hurdle_prototype_v3/*.npz
+models/reid/
+
+# ---- Subject Candidate Quality V3: host caches and run outputs (never in Git) ----
+runs/subject_resolution/
+runs/subject_gt_level_a_v1/
+runs/subject_candidate_quality_v3/
+
+# ---- Subject Conditioned Identity L0: run outputs (never in Git) ----
+runs/subject_identity_l0/
+runs/multi_track_action_v1/
+
+# ---- Action-Spanning Track Association V2: run outputs (never in Git) ----
+runs/action_span_assoc_v2/
+
+# ---- Flight-Anchored Trajectory V3: run outputs (never in Git) ----
+runs/flight_anchored_traj_v3/
+
+# ---- UI-U1/U2: authenticated E2E session state (runtime-only, never in Git) ----
+frontend/playwright/.auth/
+runs/flight_path_recall_audit_v1/
+runs/flight_anchored_traj_v3_1_bf/
+runs/flight_anchored_traj_v3_1_bfc/
+runs/flight_anchored_traj_v3_1_bfcd/
+runs/flight_anchored_traj_v3_1_bfd/
+
+# DIVE_ANALYZER_FLIGHT_SEARCH_RECOVERY_V1 run outputs + HQ candidate caches (host-only)
+runs/flight_search_recovery_v1/
+
+# DIVE_ANALYZER_FLIGHT_PERCEPTION_SUCCESSOR_V1 host artifacts (datasets, caches, checkpoints, media)
+runs/flight_perception_successor_v1/
+media/fps_v1/
+
+# Flight perception recovery V2 host artifacts and local predecessor mounts
+/runs/flight_perception_recovery_v2/
+/runs/flight_perception_successor_v1
+/media/fps_v1
+
+# Selected DiveTrack V1 host-only caches, HUMAN annotation drafts, and overlays
+/runs/selected_divetrack_v1/
+
+# Full-action trajectory V1 host artifacts (FAX tracks, FAT2 caches/sealed/annotation drafts, S3 weights)
+runs/full_action_fax_v1/
+runs/fat2_annotation/
+runs/s3_weights/
+runs/full_action_fat3/
+runs/fat3_annotation/
+runs/fat3_media/
+runs/fax_v2_media/
+runs/fax_v2_annotation/
+runs/fax_v2/
+runs/full_action_fax_v2/

@@ -1,0 +1,34 @@
+"""Ingestion state machine states."""
+
+from enum import Enum
+
+
+class IngestState(str, Enum):
+    DISCOVERED = "DISCOVERED"
+    CAPTION_CAPTURED = "CAPTION_CAPTURED"
+    MEDIA_REQUESTED = "MEDIA_REQUESTED"
+    MEDIA_MATERIALIZED = "MEDIA_MATERIALIZED"
+    LOCAL_HASHED = "LOCAL_HASHED"
+    REMOTE_UPLOAD_STARTED = "REMOTE_UPLOAD_STARTED"
+    REMOTE_UPLOADED = "REMOTE_UPLOADED"
+    REMOTE_VERIFIED = "REMOTE_VERIFIED"
+    DB_COMMITTED = "DB_COMMITTED"
+    CACHE_CLEANED = "CACHE_CLEANED"
+    QUARANTINED = "QUARANTINED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (IngestState.CACHE_CLEANED, IngestState.QUARANTINED)
+
+
+NEXT_STATE = {
+    IngestState.DISCOVERED: IngestState.CAPTION_CAPTURED,
+    IngestState.CAPTION_CAPTURED: IngestState.MEDIA_REQUESTED,
+    IngestState.MEDIA_REQUESTED: IngestState.MEDIA_MATERIALIZED,
+    IngestState.MEDIA_MATERIALIZED: IngestState.LOCAL_HASHED,
+    IngestState.LOCAL_HASHED: IngestState.REMOTE_UPLOAD_STARTED,
+    IngestState.REMOTE_UPLOAD_STARTED: IngestState.REMOTE_UPLOADED,
+    IngestState.REMOTE_UPLOADED: IngestState.REMOTE_VERIFIED,
+    IngestState.REMOTE_VERIFIED: IngestState.DB_COMMITTED,
+    IngestState.DB_COMMITTED: IngestState.CACHE_CLEANED,
+}

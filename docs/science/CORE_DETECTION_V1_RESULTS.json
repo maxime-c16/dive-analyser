@@ -1,0 +1,122 @@
+{
+  "packet": "CORE_DETECTION_V1_P0_P1",
+  "gate": "SUPERVISOR_REVIEW_AFTER_CORE_DETECTION_V1_P1",
+  "session": {
+    "file": "IMG_0543-7294485222.MOV",
+    "duration_s": 3892.35,
+    "sha256_local": "f78338124a09f34055c70e02bc8b53ed4bf103d1fcef989944b611db376608fb",
+    "probe": {
+      "duration": 3892.35,
+      "width": 1920,
+      "height": 1080,
+      "avg_frame_rate": "666560/11121",
+      "r_frame_rate": "60000/1001",
+      "codec": "hevc",
+      "has_audio": true,
+      "audio_codec": "aac",
+      "size_bytes": "7294485222"
+    },
+    "scan": {
+      "n_thumbnails": 7785,
+      "fps": 2.0,
+      "size": [
+        480,
+        854
+      ]
+    }
+  },
+  "corpus_readiness": "RAW_SESSION_CORPUS_PARTIAL",
+  "gt_recovery": {
+    "clips_total": 19,
+    "recovered": 11,
+    "weak": 8,
+    "failed": 0,
+    "primary_gt_dives_after_merge": 10,
+    "captioned_direct": 3,
+    "note": "verifier v2 (derivative-signature clusters + path score + ambiguity margin + raw block NCC floor); two clips cover the same dive (merged); 9 clips remain WEAK (ambiguous similar-dive clusters), diagnostics only"
+  },
+  "metrics_baseline_v0_visual_only": {
+    "gt_dives_primary": 10,
+    "event_recall": 0.5,
+    "missed_dives": 5,
+    "matched": 5,
+    "candidates_total": 36,
+    "false_positives": 31,
+    "false_positives_per_session": 31,
+    "false_positives_per_hour": 28.67162511079425,
+    "precision": 0.1388888888888889
+  },
+  "metrics_final_visual_plus_audio": {
+    "gt_dives_primary": 10,
+    "event_recall": 0.9,
+    "missed_dives": 1,
+    "matched": 9,
+    "candidates_total": 106,
+    "false_positives": 97,
+    "false_positives_per_session": 97,
+    "false_positives_per_hour": 89.71443986280782,
+    "precision": 0.08490566037735849
+  },
+  "event_timing": {
+    "median_abs_error_vs_window_center_s": 4.0,
+    "p90_abs_error_vs_window_center_s": 6.550000000000001
+  },
+  "containment": {
+    "matched_evaluated": 9,
+    "full_dive_containment_recall": 0.0,
+    "entry_visible_rate": 0.2222222222222222,
+    "preparation_visible_rate": 1.0,
+    "median_excess_duration_s": 1.5
+  },
+  "audio_fusion": {
+    "used": true,
+    "hops": 15569,
+    "median_onset_pos": 0.1160736083984375,
+    "sigma_pos": 0.11173377327919005
+  },
+  "missed_dives": [
+    {
+      "dive_id": null,
+      "clip": "IMG_0543.MOV",
+      "authority": "DETERMINISTICALLY_RECOVERED_GT",
+      "window": [
+        2188.0,
+        2196.5
+      ],
+      "category": "VISUAL_ENTRY_NOT_SALIENT"
+    }
+  ],
+  "false_positive_summary": {
+    "count": 97,
+    "in_first_130s": 5,
+    "in_last_200s": 6,
+    "score_quantiles_p50_p90_p99_p100": [
+      6.43,
+      20.53,
+      197.13,
+      241.33
+    ]
+  },
+  "failure_taxonomy_observed": {
+    "VISUAL_ENTRY_NOT_SALIENT": "misses where eventness peak (144-256) stayed below the pre-registered z=4.0 threshold (276); the remaining miss also had audio onset z~3.5",
+    "UNRELATED_SPLASH": "FPs: low-score audio blips (median z 6.4) across the session + large camera-handling transients at session start/end"
+  },
+  "representation_verdict": "360P_SUFFICIENT_FOR_SPOTTING_WITH_CAVEATS",
+  "representation_note": "480px grayscale thumbnails + audio detected 9/10 primary-GT dives; the missed dive was also weak in audio; no higher-res reprocessing was needed to reach the recall target, but precision/containment failures are representation-independent",
+  "p1_verdict": "CORE_DETECTION_P1_PARTIAL",
+  "verdict_rationale": "Pre-registered event recall target 0.90 reached exactly (9/10) on the single authorized session, but only with audio fusion; visual-only recall 0.50. Precision 0.085 (97 FPs, ~90/hour) and full-dive containment 0.0 (event_time anchors at the splash peak; pre-registered [t-8s,t+6s] window vs clip-extent GT) fail the 'rough clip containing the complete dive' half of the north star. Single-session corpus (PARTIAL) limits generalization.",
+  "deviations_from_initial_protocol": [
+    "ALIGNMENT_VERIFIER_V2: v1 raw-thumbnail NCC matching is undiscriminating in the static pool scene (median NCC ~0.99; verified false peaks in empty segments). v2 uses temporal-derivative signature votes, offset clustering, path-score ranking, ambiguity margin, and a raw block-NCC floor. Registered before event-level evaluation; thresholds in protocol.py.",
+    "AUDIO_FUSION_IMPLEMENTATION_FIX: the onset score is one-sided, so full-series median/MAD degenerate to 0 and smoothing dilutes sparse transients ~5x. Robust stats taken over positive support; audio z rectified at 0; per-visual-bin max fusion without pre-smoothing. The pre-registered rule 'fusion = max of visual-z and audio-z' is preserved.",
+    "BAND_FREEZE: water_band [0.50,0.66], board_band [0.28,0.48] frozen from frame inspection at t=1657 before event-level evaluation (portrait geometry).",
+    "SERVER_SHA256_SKIPPED: server-side hash of the raw session timed out (>600s); identity rests on exact byte size + local sha256 + ffprobe match."
+  ],
+  "artifacts": {
+    "session_results": "experiments/core_detection/runs/session_IMG_0543/CORE_DETECTION_V1_SESSION_RESULTS.json",
+    "alignment_report": "experiments/core_detection/runs/session_IMG_0543/ALIGNMENT_REPORT.json",
+    "corpus": "docs/science/CORE_DETECTION_V1_CORPUS.json",
+    "protocol_constants": "experiments/core_detection/protocol.py",
+    "tests": "experiments/core_detection/tests/test_core_detection_v1.py (16/16 pass)"
+  },
+  "media_note": "No media in Git. Raw session + intermediates under ~/.perso/core_detection_media/ (outside repo)."
+}

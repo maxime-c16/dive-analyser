@@ -1,0 +1,150 @@
+{
+ "label": "PARIS_EXTERNAL_V3E_EVAL_V1",
+ "paris_role": "EXTERNAL_REPORT_ONLY",
+ "date": "2026-09-09T12:41:52.746527+00:00",
+ "absolute_rule": "no tuning after seeing Paris; the Paris numbers in this artifact never feed any parameter; the V3-E0 candidate and its parameters were fully determined by DEVELOPMENT artifacts BEFORE this evaluation (freeze-decision artifact: V3E_FREEZE_GATE_FAILED_V1.json, decision MORE_HURDLE_GT_REQUIRED)",
+ "gt": {
+  "takeoff": 3.12,
+  "apex": 3.57,
+  "water_contact": 4.22
+ },
+ "gt_role": "report-only error referencing; never an input",
+ "input": {
+  "file": "docs/science/PARIS_FULL_TRAJECTORY_V2.json",
+  "sha256": "bf7c0b373e343660eff53960707b2da49626b44bb79b32a90b296ce29bb68946",
+  "dive_code": "5122D",
+  "n_frames": 182,
+  "pts_span_s": [
+   2.2825,
+   5.4851
+  ],
+  "video_size": "1080x1920",
+  "fps": 56.517
+ },
+ "params_used": {
+  "v3d0": {
+   "variant": "V3D0",
+   "detector": "yolov8n",
+   "detector_imgsz": 640,
+   "detector_conf": 0.1,
+   "detector_iou": 0.45,
+   "detector_classes": [
+    0
+   ],
+   "tracker": "bytetrack",
+   "track_min_conf": 0.1,
+   "track_select_strategy": "longest_x_conf",
+   "smooth_window_s": 0.35,
+   "interp_max_gap_s": 0.3,
+   "vel_max_gap_s": 0.2,
+   "static_var_threshold": 0.0015,
+   "static_window_s": 0.4,
+   "static_min_duration_s": 0.25,
+   "takeoff_vel_threshold": 0.04,
+   "takeoff_sustained_s": 0.15,
+   "takeoff_min_after_prep_s": 0.1,
+   "hurdle_post_plateau_guard_s": 0.4,
+   "apex_search_start_s": 0.08,
+   "water_line_cy_norm": 0.5,
+   "water_contact_method": "cy_threshold_or_dropout",
+   "water_contact_min_after_apex_s": 0.05,
+   "min_coverage_for_confident": 0.15,
+   "max_takeoff_error_for_confident": 0.5,
+   "use_scene_priors": false,
+   "board_cx_min": 0.5,
+   "board_cx_max": 1.0,
+   "water_line_auto": false,
+   "apex_max_window_s": 1.5,
+   "wc_max_window_s": 2.5,
+   "min_hurdle_rise_cy": 0.01,
+   "fallback_sustained_s": 0.15
+  },
+  "v3e0": {
+   "variant": "V3E0",
+   "detector": "yolov8n",
+   "detector_imgsz": 640,
+   "detector_conf": 0.1,
+   "detector_iou": 0.45,
+   "detector_classes": [
+    0
+   ],
+   "tracker": "bytetrack",
+   "track_min_conf": 0.1,
+   "track_select_strategy": "longest_x_conf",
+   "smooth_window_s": 0.35,
+   "interp_max_gap_s": 0.3,
+   "vel_max_gap_s": 0.2,
+   "static_var_threshold": 0.0015,
+   "static_window_s": 0.4,
+   "static_min_duration_s": 0.25,
+   "takeoff_vel_threshold": 0.04,
+   "takeoff_sustained_s": 0.15,
+   "takeoff_min_after_prep_s": 0.1,
+   "hurdle_post_plateau_guard_s": 0.4,
+   "apex_search_start_s": 0.08,
+   "water_line_cy_norm": 0.5,
+   "water_contact_method": "cy_threshold_or_dropout",
+   "water_contact_min_after_apex_s": 0.05,
+   "min_coverage_for_confident": 0.15,
+   "max_takeoff_error_for_confident": 0.5,
+   "use_scene_priors": false,
+   "board_cx_min": 0.5,
+   "board_cx_max": 1.0,
+   "water_line_auto": false,
+   "apex_max_window_s": 1.5,
+   "wc_max_window_s": 2.5,
+   "min_hurdle_rise_cy": 0.01,
+   "fallback_sustained_s": 0.15,
+   "board_ref_min_support_n": 5
+  },
+  "note": "identical to the DEVELOPMENT-evaluated parameter dicts; no Paris-derived value anywhere"
+ },
+ "approach_progression_note": "Phase H precondition not met (TWOD_APPROACH_AUDIT_V1: no dive qualifies as APPROACH_END_OBSERVABLE_FROM_2D_TRAJECTORY; s(t) not reliably extractable at 360p). No 2D approach-progress gate is used; the Paris pre-hurdle walk dynamics remain a known failure mode of the D0 first-valid-crossing semantics (documented in EVENT_LOGIC_V3_D0_FREEZE.json). Report-only observation here.",
+ "v3d0": {
+  "predicted": {
+   "prep_end_t": 2.5479,
+   "takeoff_t": 4.5119,
+   "apex_t": 5.025,
+   "water_contact_t": null
+  },
+  "errors": {
+   "to_err": 1.3919,
+   "apex_err": 1.455,
+   "wc_err": null
+  }
+ },
+ "v3e0": {
+  "predicted": {
+   "prep_end_t": 2.5479,
+   "takeoff_t": 4.5119,
+   "apex_t": 5.025,
+   "water_contact_t": null
+  },
+  "errors": {
+   "to_err": 1.3919,
+   "apex_err": 1.455,
+   "wc_err": null
+  },
+  "board_ref": 0.35009540114156334,
+  "board_ref_mode": "HISTORICAL_FALLBACK",
+  "board_ref_n_support": 1,
+  "board_recontact_t": 3.6803,
+  "crossing_trace": [
+   {
+    "t": 3.6803,
+    "cy_apex": 0.3067969947358025,
+    "board_ref": 0.35009540114156334,
+    "rise_cy": 0.0433,
+    "gate_passed": true,
+    "accepted": true
+   }
+  ],
+  "crossing_trace_summary": "1 neg->non-neg crossings scanned after guard_end; 1 accepted (first accepted at t=3.6803s, cy_apex=0.3068, rise_cy=0.0433); the D0 semantics accept the FIRST gate-passing crossing and then search sustained negative velocity from the recontact, so a pre-hurdle prep-walk rise that passes the gate captures the whole downstream chain."
+ },
+ "prep_end_behaviour": {
+  "v3d0_prep_end_t": 2.5479,
+  "v3e0_prep_end_t": 2.5479,
+  "note": "prep_end is shared V2.1 semantics; identical in both variants on the same arrays."
+ },
+ "verdict": "report-only; Paris is an external canary and is never used for parameter selection (Paris firewall)"
+}

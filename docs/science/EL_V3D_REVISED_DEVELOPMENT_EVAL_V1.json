@@ -1,0 +1,383 @@
+{
+  "label": "EL_V3D_REVISED_DEVELOPMENT_EVAL_V1",
+  "date": "2026-09-09",
+  "params_v3d0": {
+    "variant": "V3D0",
+    "detector": "yolov8n",
+    "detector_imgsz": 640,
+    "detector_conf": 0.1,
+    "detector_iou": 0.45,
+    "detector_classes": [
+      0
+    ],
+    "tracker": "bytetrack",
+    "track_min_conf": 0.1,
+    "track_select_strategy": "longest_x_conf",
+    "smooth_window_s": 0.35,
+    "interp_max_gap_s": 0.3,
+    "vel_max_gap_s": 0.2,
+    "static_var_threshold": 0.0015,
+    "static_window_s": 0.4,
+    "static_min_duration_s": 0.25,
+    "takeoff_vel_threshold": 0.04,
+    "takeoff_sustained_s": 0.15,
+    "takeoff_min_after_prep_s": 0.1,
+    "hurdle_post_plateau_guard_s": 0.4,
+    "apex_search_start_s": 0.08,
+    "water_line_cy_norm": 0.5,
+    "water_contact_method": "cy_threshold_or_dropout",
+    "water_contact_min_after_apex_s": 0.05,
+    "min_coverage_for_confident": 0.15,
+    "max_takeoff_error_for_confident": 0.5,
+    "use_scene_priors": false,
+    "board_cx_min": 0.5,
+    "board_cx_max": 1.0,
+    "water_line_auto": false,
+    "apex_max_window_s": 1.5,
+    "wc_max_window_s": 2.5,
+    "min_hurdle_rise_cy": 0.01,
+    "fallback_sustained_s": 0.15
+  },
+  "params_v3d1": {
+    "variant": "V3D1",
+    "detector": "yolov8n",
+    "detector_imgsz": 640,
+    "detector_conf": 0.1,
+    "detector_iou": 0.45,
+    "detector_classes": [
+      0
+    ],
+    "tracker": "bytetrack",
+    "track_min_conf": 0.1,
+    "track_select_strategy": "longest_x_conf",
+    "smooth_window_s": 0.35,
+    "interp_max_gap_s": 0.3,
+    "vel_max_gap_s": 0.2,
+    "static_var_threshold": 0.0015,
+    "static_window_s": 0.4,
+    "static_min_duration_s": 0.25,
+    "takeoff_vel_threshold": 0.04,
+    "takeoff_sustained_s": 0.15,
+    "takeoff_min_after_prep_s": 0.1,
+    "hurdle_post_plateau_guard_s": 0.4,
+    "apex_search_start_s": 0.08,
+    "water_line_cy_norm": 0.5,
+    "water_contact_method": "cy_threshold_or_dropout",
+    "water_contact_min_after_apex_s": 0.05,
+    "min_coverage_for_confident": 0.15,
+    "max_takeoff_error_for_confident": 0.5,
+    "use_scene_priors": false,
+    "board_cx_min": 0.5,
+    "board_cx_max": 1.0,
+    "water_line_auto": false,
+    "apex_max_window_s": 1.5,
+    "wc_max_window_s": 2.5,
+    "min_hurdle_rise_cy": 0.01,
+    "fallback_sustained_s": 0.25
+  },
+  "development_eval": {
+    "133": {
+      "dive_id": 133,
+      "code": "301B",
+      "context": "STANDING",
+      "fps": 29.97002997002997,
+      "gt": {
+        "takeoff": 1.800274,
+        "apex": 2.083607,
+        "wc": 2.95027
+      },
+      "v3_c0": {
+        "takeoff_t": 1.634967,
+        "apex_t": 2.369033,
+        "wc_t": 2.8028,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.1653,
+          "apex": 0.2854,
+          "wc": 0.1475
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 1.634967,
+        "apex_t": 2.369033,
+        "wc_t": 2.8028,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.1653,
+          "apex": 0.2854,
+          "wc": 0.1475
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 1.634967,
+        "apex_t": 2.369033,
+        "wc_t": 2.8028,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.1653,
+          "apex": 0.2854,
+          "wc": 0.1475
+        }
+      }
+    },
+    "311": {
+      "dive_id": 311,
+      "code": "401C",
+      "context": "STANDING",
+      "fps": 29.97002997002997,
+      "gt": {
+        "takeoff": 13.7546,
+        "apex": null,
+        "wc": 14.821262
+      },
+      "v3_c0": {
+        "takeoff_t": 13.8138,
+        "apex_t": 14.047367,
+        "wc_t": 14.848167,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.0592,
+          "apex": null,
+          "wc": 0.0269
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 13.8138,
+        "apex_t": 14.047367,
+        "wc_t": 14.848167,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.0592,
+          "apex": null,
+          "wc": 0.0269
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 13.8138,
+        "apex_t": 14.047367,
+        "wc_t": 14.848167,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.0592,
+          "apex": null,
+          "wc": 0.0269
+        }
+      }
+    },
+    "676": {
+      "dive_id": 676,
+      "code": "301A",
+      "context": "STANDING",
+      "fps": 29.97002997002997,
+      "gt": {
+        "takeoff": 3.553575,
+        "apex": 3.886907,
+        "wc": 4.853569
+      },
+      "v3_c0": {
+        "takeoff_t": 0.467133,
+        "apex_t": 1.368033,
+        "wc_t": 3.837167,
+        "complete": true,
+        "errors": {
+          "takeoff": 3.0864,
+          "apex": 2.5189,
+          "wc": 1.0164
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 0.467133,
+        "apex_t": 1.368033,
+        "wc_t": 3.837167,
+        "complete": true,
+        "errors": {
+          "takeoff": 3.0864,
+          "apex": 2.5189,
+          "wc": 1.0164
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 0.467133,
+        "apex_t": 1.368033,
+        "wc_t": 3.837167,
+        "complete": true,
+        "errors": {
+          "takeoff": 3.0864,
+          "apex": 2.5189,
+          "wc": 1.0164
+        }
+      }
+    },
+    "1040": {
+      "dive_id": 1040,
+      "code": "102C",
+      "context": "HURDLE",
+      "fps": 29.97002997002997,
+      "gt": {
+        "takeoff": 4.463857,
+        "apex": 4.797189,
+        "wc": 5.413853
+      },
+      "v3_c0": {
+        "takeoff_t": 2.469133,
+        "apex_t": 2.635967,
+        "wc_t": 2.9029,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.9947,
+          "apex": 2.1612,
+          "wc": 2.511
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 2.469133,
+        "apex_t": 2.635967,
+        "wc_t": 2.9029,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.9947,
+          "apex": 2.1612,
+          "wc": 2.511
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 2.469133,
+        "apex_t": 2.635967,
+        "wc_t": 2.9029,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.9947,
+          "apex": 2.1612,
+          "wc": 2.511
+        }
+      }
+    },
+    "2169": {
+      "dive_id": 2169,
+      "code": "101B",
+      "context": "HURDLE",
+      "fps": 59.94005994005994,
+      "gt": {
+        "takeoff": 6.46124,
+        "apex": 6.761239,
+        "wc": 7.694569
+      },
+      "v3_c0": {
+        "takeoff_t": 7.741067,
+        "apex_t": 8.008,
+        "wc_t": 8.05805,
+        "complete": true,
+        "errors": {
+          "takeoff": 1.2798,
+          "apex": 1.2468,
+          "wc": 0.3635
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 6.873533,
+        "apex_t": 7.25725,
+        "wc_t": 7.4074,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.4123,
+          "apex": 0.496,
+          "wc": 0.2872
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 6.873533,
+        "apex_t": 7.25725,
+        "wc_t": 7.4074,
+        "complete": true,
+        "errors": {
+          "takeoff": 0.4123,
+          "apex": 0.496,
+          "wc": 0.2872
+        }
+      }
+    },
+    "2387": {
+      "dive_id": 2387,
+      "code": "5411C",
+      "context": "STANDING",
+      "fps": 29.97002997002997,
+      "gt": {
+        "takeoff": 4.483274,
+        "apex": 4.833273,
+        "wc": 5.499937
+      },
+      "v3_c0": {
+        "takeoff_t": 2.335667,
+        "apex_t": 2.869533,
+        "wc_t": 5.338667,
+        "complete": true,
+        "errors": {
+          "takeoff": 2.1476,
+          "apex": 1.9637,
+          "wc": 0.1613
+        }
+      },
+      "v3_d0": {
+        "takeoff_t": 2.335667,
+        "apex_t": 2.869533,
+        "wc_t": 5.338667,
+        "complete": true,
+        "errors": {
+          "takeoff": 2.1476,
+          "apex": 1.9637,
+          "wc": 0.1613
+        }
+      },
+      "v3_d1": {
+        "takeoff_t": 2.335667,
+        "apex_t": 2.869533,
+        "wc_t": 5.338667,
+        "complete": true,
+        "errors": {
+          "takeoff": 2.1476,
+          "apex": 1.9637,
+          "wc": 0.1613
+        }
+      }
+    }
+  },
+  "freeze_gates": {
+    "v3_d0": true,
+    "v3_d1": true
+  },
+  "paris_results": {
+    "v3_c0": {
+      "takeoff_t": 1.435,
+      "apex_t": 1.618333,
+      "wc_t": 4.086667,
+      "complete": true,
+      "errors": {
+        "takeoff": 1.685,
+        "apex": 1.9517,
+        "wc": 0.1333
+      }
+    },
+    "v3_d0": {
+      "takeoff_t": 1.435,
+      "apex_t": 1.618333,
+      "wc_t": 4.086667,
+      "complete": true,
+      "errors": {
+        "takeoff": 1.685,
+        "apex": 1.9517,
+        "wc": 0.1333
+      }
+    },
+    "v3_d1": {
+      "takeoff_t": 1.435,
+      "apex_t": 1.618333,
+      "wc_t": 4.086667,
+      "complete": true,
+      "errors": {
+        "takeoff": 1.685,
+        "apex": 1.9517,
+        "wc": 0.1333
+      }
+    }
+  }
+}

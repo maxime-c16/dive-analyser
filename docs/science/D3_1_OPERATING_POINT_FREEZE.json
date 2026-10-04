@@ -1,0 +1,32 @@
+{
+  "label": "D3_1_OPERATING_POINT_FREEZE",
+  "date": "2026-09-07",
+  "model": "DIVER_DETECTOR_D3_V8N",
+  "weights_sha256": "bf6415fb63aa311f45262e555899d3023dd3d05d43a5e0d69b5e86c342e1a77d",
+  "weights_path_local": "/private/tmp/claude-501/-Users-maximecauchy--perso-diveanalyzer/41096d47-755f-4843-9b56-3aecdee13d2e/scratchpad/runs/DIVER_DETECTOR_D3_V8N/weights/best.pt",
+  "conf_threshold": 0.05,
+  "nms_iou": 0.45,
+  "imgsz": 640,
+  "preprocessing": "YOLO default (letterbox to 640, RGB normalise)",
+  "selection_semantics": "visible_diver (class 0) — every legitimately visible diver in frame; target-athlete identity resolved downstream",
+  "calibration_dataset": "DIVER_LOCALIZATION_DATASET_D3",
+  "calibration_dataset_fingerprint": "DATASET_D3_MANIFEST.json",
+  "calibration_decision_rationale": {
+    "conf=0.05_holdout_recall": 0.913,
+    "conf=0.10_holdout_recall": 0.761,
+    "recall_delta": "+0.152 (significant)",
+    "conf=0.05_holdout_f1": 0.832,
+    "conf=0.10_holdout_f1": 0.769,
+    "conf=0.05_fp_neg_rate": 0.722,
+    "conf=0.05_cand_per_frame": 3.0,
+    "val_recall_at_0.05": 0.714,
+    "val_recall_at_0.10": 0.714,
+    "val_regression": "none",
+    "conf=0.01_rejected": "catastrophic candidate explosion (9-13/frame, 100% neg-frame FP rate)",
+    "conf=0.10_rejected": "15pp lower holdout recall — insufficient for high-recall gate",
+    "application_constraint": "high recall tolerated; false candidates filtered by downstream temporal selection"
+  },
+  "threshold_grid_evaluated": [0.01, 0.05, 0.10, 0.15, 0.20, 0.25],
+  "status": "FROZEN",
+  "note": "Weights unchanged from D3. Operating point calibrated using INTERNAL data only. Paris was NOT used for calibration."
+}

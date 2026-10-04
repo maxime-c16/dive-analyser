@@ -1,0 +1,636 @@
+{
+  "label": "BASELINE_B_EVALUATION_V1",
+  "created": "2026-09-05",
+  "per_dive": {
+    "133": {
+      "split": "DEV",
+      "applicability": "UNCERTAIN",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 108,
+          "b_frame": 95,
+          "evaluable": true,
+          "frame_err": 13,
+          "within": false,
+          "serious": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 125,
+          "b_frame": 107,
+          "evaluable": true,
+          "frame_err": 18,
+          "within": false,
+          "serious": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 177,
+          "b_frame": 107,
+          "evaluable": true,
+          "frame_err": 70,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "160": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 512,
+          "b_frame": 518,
+          "evaluable": true,
+          "frame_err": 6,
+          "within": false,
+          "serious": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 535,
+          "b_frame": 542,
+          "evaluable": true,
+          "frame_err": 7,
+          "within": true,
+          "serious": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 568,
+          "b_frame": 623,
+          "evaluable": true,
+          "frame_err": 55,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "169": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 555,
+          "b_frame": 575,
+          "evaluable": true,
+          "frame_err": 20,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 570,
+          "b_frame": 590,
+          "evaluable": true,
+          "frame_err": 20,
+          "within": false,
+          "serious": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 610,
+          "b_frame": 624,
+          "evaluable": true,
+          "frame_err": 14,
+          "within": false,
+          "serious": false
+        }
+      }
+    },
+    "191": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 128,
+          "b_frame": 122,
+          "evaluable": true,
+          "frame_err": 6,
+          "within": false,
+          "serious": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 153,
+          "b_frame": 242,
+          "evaluable": true,
+          "frame_err": 89,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 197,
+          "b_frame": 250,
+          "evaluable": true,
+          "frame_err": 53,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "192": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 938,
+          "b_frame": 934,
+          "evaluable": true,
+          "frame_err": 4,
+          "within": true,
+          "serious": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 965,
+          "b_frame": 2439,
+          "evaluable": true,
+          "frame_err": 1474,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 999,
+          "b_frame": 2499,
+          "evaluable": true,
+          "frame_err": 1500,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "311": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 825,
+          "b_frame": 397,
+          "evaluable": true,
+          "frame_err": 428,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "b_frame": 399,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 889,
+          "b_frame": 477,
+          "evaluable": true,
+          "frame_err": 412,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "524": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 349,
+          "b_frame": 78,
+          "evaluable": true,
+          "frame_err": 271,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 380,
+          "b_frame": 490,
+          "evaluable": true,
+          "frame_err": 110,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 426,
+          "b_frame": 607,
+          "evaluable": true,
+          "frame_err": 181,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "676": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 213,
+          "b_frame": 117,
+          "evaluable": true,
+          "frame_err": 96,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 233,
+          "b_frame": 170,
+          "evaluable": true,
+          "frame_err": 63,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 291,
+          "b_frame": 177,
+          "evaluable": true,
+          "frame_err": 114,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "848": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 180,
+          "b_frame": 496,
+          "evaluable": true,
+          "frame_err": 316,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 204,
+          "b_frame": 520,
+          "evaluable": true,
+          "frame_err": 316,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 246,
+          "b_frame": 528,
+          "evaluable": true,
+          "frame_err": 282,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "1040": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 268,
+          "b_frame": 89,
+          "evaluable": true,
+          "frame_err": 179,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 288,
+          "b_frame": 264,
+          "evaluable": true,
+          "frame_err": 24,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 325,
+          "b_frame": 287,
+          "evaluable": true,
+          "frame_err": 38,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2169": {
+      "split": "DEV",
+      "applicability": "UNCERTAIN",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 388,
+          "b_frame": 469,
+          "evaluable": true,
+          "frame_err": 81,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 406,
+          "b_frame": null,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 462,
+          "b_frame": 474,
+          "evaluable": true,
+          "frame_err": 12,
+          "within": false,
+          "serious": false
+        }
+      }
+    },
+    "2281": {
+      "split": "EVAL",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 212,
+          "b_frame": 62,
+          "evaluable": true,
+          "frame_err": 150,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 241,
+          "b_frame": 235,
+          "evaluable": true,
+          "frame_err": 6,
+          "within": true,
+          "serious": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 282,
+          "b_frame": 1092,
+          "evaluable": true,
+          "frame_err": 810,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2341": {
+      "split": "DEV",
+      "applicability": "UNCERTAIN",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 214,
+          "b_frame": 269,
+          "evaluable": true,
+          "frame_err": 55,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 237,
+          "b_frame": null,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 275,
+          "b_frame": 275,
+          "evaluable": true,
+          "frame_err": 0,
+          "within": true,
+          "serious": false
+        }
+      }
+    },
+    "2353": {
+      "split": "DEV",
+      "applicability": "UNCERTAIN",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 342,
+          "b_frame": null,
+          "evaluable": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 377,
+          "b_frame": null,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 413,
+          "b_frame": null,
+          "evaluable": false
+        }
+      }
+    },
+    "2387": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 269,
+          "b_frame": 134,
+          "evaluable": true,
+          "frame_err": 135,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 290,
+          "b_frame": 229,
+          "evaluable": true,
+          "frame_err": 61,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 330,
+          "b_frame": 278,
+          "evaluable": true,
+          "frame_err": 52,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2541": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1051,
+          "b_frame": 64,
+          "evaluable": true,
+          "frame_err": 987,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1079,
+          "b_frame": 542,
+          "evaluable": true,
+          "frame_err": 537,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 1119,
+          "b_frame": 916,
+          "evaluable": true,
+          "frame_err": 203,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2555": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 259,
+          "b_frame": 0,
+          "evaluable": true,
+          "frame_err": 259,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 384,
+          "b_frame": 567,
+          "evaluable": true,
+          "frame_err": 183,
+          "within": false,
+          "serious": true
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 576,
+          "b_frame": 664,
+          "evaluable": true,
+          "frame_err": 88,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2625": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "b_frame": 227,
+          "evaluable": false
+        },
+        "apex": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 167,
+          "b_frame": null,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 222,
+          "b_frame": 248,
+          "evaluable": true,
+          "frame_err": 26,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2661": {
+      "split": "DEV",
+      "applicability": "APPLICABLE",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": 1009,
+          "b_frame": 30,
+          "evaluable": true,
+          "frame_err": 979,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": null,
+          "b_frame": 251,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_ACCEPTED",
+          "h_frame": 1056,
+          "b_frame": 265,
+          "evaluable": true,
+          "frame_err": 791,
+          "within": false,
+          "serious": true
+        }
+      }
+    },
+    "2680": {
+      "split": "DEV",
+      "applicability": "UNCERTAIN",
+      "per_lm": {
+        "takeoff": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 200,
+          "b_frame": 247,
+          "evaluable": true,
+          "frame_err": 47,
+          "within": false,
+          "serious": true
+        },
+        "apex": {
+          "h_state": "NOT_APPLICABLE",
+          "h_frame": null,
+          "b_frame": 259,
+          "evaluable": false
+        },
+        "water_contact": {
+          "h_state": "HUMAN_CORRECTED",
+          "h_frame": 241,
+          "b_frame": 259,
+          "evaluable": true,
+          "frame_err": 18,
+          "within": false,
+          "serious": true
+        }
+      }
+    }
+  }
+}

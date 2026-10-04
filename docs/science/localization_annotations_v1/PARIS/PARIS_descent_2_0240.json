@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_descent_2_0240",
+  "dive_id": "PARIS_2819",
+  "phase": "descent_2",
+  "frame_index": 240,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 4.0,
+  "actual_pts_s": 4.003333,
+  "image_sha256": "992941cea780f1bf4b100fd2b01febf4838a7677802fa3ba9d2067b99da70745",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    243.29654510556622,
+    535.8973128598849,
+    643.5892514395393,
+    766.6410748560461
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:59:51.669866+00:00"
+}

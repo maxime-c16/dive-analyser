@@ -1,0 +1,69 @@
+{
+ "label": "PERCEPTION_PRIORITY_MATRIX_V1",
+ "date": "2026-09-11",
+ "scale": "1-5, higher is better; cost/risk dims pre-inverted so higher=cheaper/lower-risk",
+ "weights": {
+  "product_impact": 0.25,
+  "expected_information_gain": 0.2,
+  "dependency_readiness": 0.1,
+  "data_readiness": 0.1,
+  "implementation_cost": 0.1,
+  "compute_cost": 0.05,
+  "scientific_uncertainty_resolved": 0.1,
+  "low_overfit_risk": 0.1
+ },
+ "candidates": {
+  "TARGET_IDENTITY_V1_LEARNED": {
+   "product_impact": 3,
+   "expected_information_gain": 4,
+   "dependency_readiness": 4,
+   "data_readiness": 4,
+   "implementation_cost": 3,
+   "compute_cost": 4,
+   "scientific_uncertainty_resolved": 3,
+   "low_overfit_risk": 2,
+   "evidence": "OSNet frozen features discriminative at 360p (margin 0.203, AUC 0.902) yet GT-free association failed; GT chains exist for 6 dives; V2-V4 GT-free gates all FAILED (V4_FREEZE_GATE_VERDICT: GATE_FAILED 0/4); single athlete/venue, 6 labeled dives -> overfit risk high",
+   "weighted_total": 3.35
+  },
+  "CORE_DETECTION_V1": {
+   "product_impact": 5,
+   "expected_information_gain": 5,
+   "dependency_readiness": 4,
+   "data_readiness": 2,
+   "implementation_cost": 3,
+   "compute_cost": 3,
+   "scientific_uncertainty_resolved": 3,
+   "low_overfit_risk": 4,
+   "evidence": "packet North Star (detect -> rough clip -> refine); family-agnostic; frozen D5 floor coverage 100% suggests spotting feasibility; NOT_STARTED today; media backbone P10 provides durable original bytes; no raw-session event labels exist",
+   "weighted_total": 4.0
+  },
+  "SUPPORTED_FAMILY_TEMPORAL_PIPELINE": {
+   "product_impact": 3,
+   "expected_information_gain": 3,
+   "dependency_readiness": 5,
+   "data_readiness": 5,
+   "implementation_cost": 4,
+   "compute_cost": 4,
+   "scientific_uncertainty_resolved": 4,
+   "low_overfit_risk": 4,
+   "evidence": "STANDING: EL complete 4/4 on frozen V3-C0 baseline; but 2/4 dives have takeoff err > 2s; capped by trajectory authority; no new deps; limited new science",
+   "weighted_total": 3.75
+  },
+  "MEDIA_QUALITY_PERCEPTION_REBASE": {
+   "product_impact": 2,
+   "expected_information_gain": 2,
+   "dependency_readiness": 4,
+   "data_readiness": 4,
+   "implementation_cost": 4,
+   "compute_cost": 5,
+   "scientific_uncertainty_resolved": 4,
+   "low_overfit_risk": 5,
+   "evidence": "HQ_REPRESENTATION_DECISION_V1 already frozen (360p production, HQ archival); remaining gap is an ops decision (durable 360p tier in B2), not science",
+   "weighted_total": 3.25
+  }
+ },
+ "decision": {
+  "primary": "PRIORITY_CORE_DETECTION_V1",
+  "secondary_parallel": "TARGET_IDENTITY_V1_LEARNED background line: assemble crop/embedding dataset from existing GT chains + OSNet cache; evaluation-only, no freeze"
+ }
+}

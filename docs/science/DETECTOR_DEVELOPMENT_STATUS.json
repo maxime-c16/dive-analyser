@@ -1,0 +1,22 @@
+{
+  "label": "DETECTOR_DEVELOPMENT_STATUS",
+  "date": "2026-09-09",
+  "detector": "DIVER_DETECTOR_D5_A_V8N",
+  "status": "CLOSED",
+  "sha256": "82b420c4583f8271b1eb3429b14dadf0a1e27477249de7b6a0b9d42a788dcf25",
+  "path": "models/frozen/DIVER_DETECTOR_D5_A_V8N_best.pt",
+  "performance": {
+    "floor_recall": "97.1% at conf=0.001 (DEVELOPMENT)",
+    "op_recall": "88.2% at conf=0.05 (DEVELOPMENT)",
+    "dev_anchor_top1": "33.3% (36 canonical frames)",
+    "paris_gate": "TRAJECTORY_INPUT_PASS (C1/C2/C3 all IoU\u22650.30)",
+    "dev_perception_valid": "6/10 dives"
+  },
+  "training_lineage": "D4_TRANSFER \u2192 D5_A (55 train, 14 val)",
+  "reopen_criteria": [
+    "dev_perception_valid < 5/10 at next DEVELOPMENT revision",
+    "Paris C1/C2/C3 any fails at IoU<0.20",
+    "New dive class added outside current distribution"
+  ],
+  "action": "NO_ACTION_REQUIRED \u2014 detector work closed"
+}

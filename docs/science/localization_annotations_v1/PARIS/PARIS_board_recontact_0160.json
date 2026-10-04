@@ -1,0 +1,27 @@
+{
+  "id": "PARIS_board_recontact_0160",
+  "dive_id": "PARIS_2819",
+  "phase": "board_recontact",
+  "frame_index": 160,
+  "split": "PARIS",
+  "width": 1080,
+  "height": 1920,
+  "target_time_s": 2.668,
+  "actual_pts_s": 2.668333,
+  "image_sha256": "06010ef6e3c579dd2b804db0f654dc1ff155b182a73981b4582d3a2f677b8b93",
+  "media_sha256": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "media_source": "IMG_1937.mov (native, no proxy)",
+  "representation": "native_resolution_pts_exact_decoded_frame",
+  "bbox": [
+    602.9942418426103,
+    553.4165067178503,
+    852.7399232245681,
+    890.2831094049905
+  ],
+  "state": "HUMAN_REVIEWED",
+  "image_ext": "jpg",
+  "visibility": "visible",
+  "note": "",
+  "annotator": "maxime",
+  "reviewed_at": "2026-09-08T11:58:56.903050+00:00"
+}

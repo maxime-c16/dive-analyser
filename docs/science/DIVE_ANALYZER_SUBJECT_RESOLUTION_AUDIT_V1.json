@@ -1,0 +1,314 @@
+{
+ "label": "DIVE_ANALYZER_SUBJECT_RESOLUTION_AUDIT_V1",
+ "phase1_subject_authority": {
+  "SUBJECT_AUTHORITY_MISSING": 0,
+  "SUBJECT_AUTHORITY_PARTIAL": 7,
+  "SUBJECT_AUTHORITY_STRONG": 2798,
+  "notes": [
+   "diver_id set + FK-valid on 2805/2805 dives; video_uuid UNIQUE 1:1",
+   "person_name cross-check consistent on 299/299 non-null rows",
+   "diver_id=19 (RIP) is a caption-parsing phantom (rip entry), 6 clips; true subject = default athlete by the no-name caption convention",
+   "ambiguous person tokens: [1928]"
+  ],
+  "total": 2805
+ },
+ "phase2_4_5_6_annotated_corpus": {
+  "failure_counts": {
+   "AMBIGUOUS": 2,
+   "EVENT_LOGIC_DOWNSTREAM": 2,
+   "NONE": 2,
+   "NON_PERSON_CONFUSION": 1,
+   "SUBJECT_DISAMBIGUATION_FAILURE": 3,
+   "TRACK_FRAGMENTATION": 1
+  },
+  "gt_reconciliation": {
+   "TARGET_GT_MATCHES_PRODUCT_SUBJECT": 10,
+   "TARGET_GT_PRODUCT_SUBJECT_CONFLICT": 1,
+   "TARGET_GT_PRODUCT_SUBJECT_UNKNOWN": 1
+  },
+  "gt_reconciliation_note": "Historical target GT (anchors/chains) was annotated as 'the diver performing this clip's dive' - i.e. the product subject - on all dives with usable anchors. The only conflict is semantic: 2169's diver_id=19 is the misparsed RIP-entry token; the GT itself is correct. No GT reinterpretation performed.",
+  "per_dive": {
+   "1040": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 193,
+    "d5_top1_correct_rate": 0.1056,
+    "failure_primary": "NON_PERSON_CONFUSION",
+    "longest_wrong_run": 122,
+    "n_anchor_notes_traps": 2,
+    "n_gt_anchors": 10,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "V4 family benchmark: persistent_bystander 9, fast_mover 67, next_diver 52 candidate families; top-1 = static structure box (0.249,0.221)",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "NON_PERSON_FALSE_POSITIVE"
+   },
+   "133": {
+    "anchor_availability": "STRONG_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 0,
+    "d5_top1_correct_rate": null,
+    "failure_primary": "NONE",
+    "longest_wrong_run": null,
+    "n_anchor_notes_traps": 0,
+    "n_gt_anchors": 0,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "STANDING family; annotated anchors valid; no second diving actor recorded in any artifact",
+    "target_avail_floor": null,
+    "wrong_object_class": null
+   },
+   "2169": {
+    "anchor_availability": "STRONG_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 522,
+    "d5_top1_correct_rate": 0.9631,
+    "failure_primary": "TRACK_FRAGMENTATION",
+    "longest_wrong_run": 11,
+    "n_anchor_notes_traps": 2,
+    "n_gt_anchors": 9,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "bystander 56 / fast_mover 40 / next_diver 46; top-1 correct 0.963 (control)",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "NONE"
+   },
+   "2341": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 336,
+    "d5_top1_correct_rate": 0.022,
+    "failure_primary": "SUBJECT_DISAMBIGUATION_FAILURE",
+    "longest_wrong_run": 260,
+    "n_anchor_notes_traps": 2,
+    "n_gt_anchors": 6,
+    "product_subject_diver_id": 7,
+    "scene_class": "MULTIPLE_DIVE_ACTORS_SEQUENTIAL",
+    "scene_evidence": "recorded identity trap: 'at to+1.4s the original diver is in water and the NEXT diver is on the board' (HURDLE_TARGET_ANCHORS_V1 notes); static structure box top-1 conf 0.403",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "NON_PERSON_FALSE_POSITIVE"
+   },
+   "2353": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 473,
+    "d5_top1_correct_rate": 0.0049,
+    "failure_primary": "SUBJECT_DISAMBIGUATION_FAILURE",
+    "longest_wrong_run": 363,
+    "n_anchor_notes_traps": 2,
+    "n_gt_anchors": 6,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "recorded identity trap: 'a second person stands near (0.13,0.45) through the whole video' (persistent bystander)",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "BYSTANDER_NON_DIVER"
+   },
+   "2387": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 0,
+    "d5_top1_correct_rate": null,
+    "failure_primary": "EVENT_LOGIC_DOWNSTREAM",
+    "longest_wrong_run": null,
+    "n_anchor_notes_traps": 0,
+    "n_gt_anchors": 0,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "STANDING context (5411C); counterexample to code proxy",
+    "target_avail_floor": null,
+    "wrong_object_class": null
+   },
+   "2541": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 303,
+    "d5_top1_correct_rate": 0.1489,
+    "failure_primary": "SUBJECT_DISAMBIGUATION_FAILURE",
+    "longest_wrong_run": 173,
+    "n_anchor_notes_traps": 2,
+    "n_gt_anchors": 4,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "camera pan + distractors; fast_mover 100, next_diver 73 candidate families",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "AMBIGUOUS"
+   },
+   "2555": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 635,
+    "d5_top1_correct_rate": 0.5179,
+    "failure_primary": "AMBIGUOUS",
+    "longest_wrong_run": 33,
+    "n_anchor_notes_traps": 1,
+    "n_gt_anchors": 4,
+    "product_subject_diver_id": 3,
+    "scene_class": "AMBIGUOUS",
+    "scene_evidence": "Instagram screen recording, W=166, dense boxes; outside detector/ReID/shape domain (V2 \u00a711)",
+    "target_avail_floor": 1.0,
+    "wrong_object_class": "AMBIGUOUS"
+   },
+   "311": {
+    "anchor_availability": "STRONG_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 0,
+    "d5_top1_correct_rate": null,
+    "failure_primary": "NONE",
+    "longest_wrong_run": null,
+    "n_anchor_notes_traps": 0,
+    "n_gt_anchors": 0,
+    "product_subject_diver_id": 1,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "STANDING family; annotated anchors valid",
+    "target_avail_floor": null,
+    "wrong_object_class": null
+   },
+   "524": {
+    "anchor_availability": "NO_RELIABLE_IDENTITY_ANCHOR",
+    "chain_frames": 486,
+    "d5_top1_correct_rate": null,
+    "failure_primary": "AMBIGUOUS",
+    "longest_wrong_run": 0,
+    "n_anchor_notes_traps": 1,
+    "n_gt_anchors": 0,
+    "product_subject_diver_id": 1,
+    "scene_class": "AMBIGUOUS",
+    "scene_evidence": "AUTHORITY_CONFLICT_EXCLUDED; no usable anchors",
+    "target_avail_floor": null,
+    "wrong_object_class": null
+   },
+   "676": {
+    "anchor_availability": "WEAK_IDENTITY_ANCHOR_AVAILABLE",
+    "chain_frames": 0,
+    "d5_top1_correct_rate": null,
+    "failure_primary": "EVENT_LOGIC_DOWNSTREAM",
+    "longest_wrong_run": null,
+    "n_anchor_notes_traps": 0,
+    "n_gt_anchors": 0,
+    "product_subject_diver_id": 7,
+    "scene_class": "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR",
+    "scene_evidence": "STANDING; diver present at HQ IoU 0.63-0.72 but outranked; no second diver recorded",
+    "target_avail_floor": null,
+    "wrong_object_class": null
+   }
+  },
+  "scene_counts": {
+   "AMBIGUOUS": 2,
+   "MULTIPLE_DIVE_ACTORS_SEQUENTIAL": 1,
+   "MULTIPLE_PERSONS_SINGLE_DIVE_ACTOR": 8
+  }
+ },
+ "phase3_multi_diver": {
+  "caveat": [
+   "caption-timestamp pairs within 20s are a NECESSARY-not-sufficient proxy for a second diving actor INSIDE the clip; visual truth requires decode (not performed corpus-wide)",
+   "annotated-corpus scene classification (Phase 3) is the visual evidence; product-wide prevalence stays UNCERTAIN"
+  ],
+  "clips_with_other_diver_pair_within_20s": 695,
+  "clips_with_other_diver_pair_within_20s_nonsync_primary": 382,
+  "dives_in_multi_diver_sessions": 929,
+  "lineup_dives": 346,
+  "primary_diver_clips_in_multi_diver_sessions": 636,
+  "sessions_multi_diver": 36,
+  "sync_dives": 100,
+  "sync_dives_other_diver_id": 31
+ },
+ "phase7_gallery": {
+  "clips_per_diver": {
+   "1": 2511,
+   "10": 1,
+   "11": 9,
+   "12": 1,
+   "13": 2,
+   "14": 31,
+   "16": 1,
+   "17": 9,
+   "18": 12,
+   "19": 6,
+   "2": 1,
+   "20": 57,
+   "21": 1,
+   "22": 6,
+   "23": 1,
+   "24": 1,
+   "3": 1,
+   "4": 4,
+   "5": 1,
+   "6": 1,
+   "7": 128,
+   "8": 3,
+   "9": 17
+  },
+  "divers_with_ge2_clips": 13,
+  "divers_with_ge2_dates": 8,
+  "note": "Maxime 2511 clips / 169 sessions; FANNY 128/21; SARA 57/9; MAT 31; RIP(phantom) 6; gallery feasible at metadata level"
+ },
+ "phase9_diagnostic": {
+  "h1b_cross_clip": {
+   "1040->2169": 0.0,
+   "1040->2353": 0.0,
+   "1040->2541": 0.0199,
+   "2169->1040": 0.0,
+   "2169->2353": 0.0735,
+   "2169->2541": 0.01,
+   "2353->1040": 0.0,
+   "2353->2169": 0.0,
+   "2353->2541": 0.0,
+   "2541->1040": 0.0,
+   "2541->2169": 0.0,
+   "2541->2353": 0.0
+  },
+  "osnet_cache_sha256": "48ab9bd3805342a1fc5c87a7b868afe94289ea25e8b3054172d8f8a97405f1b0",
+  "per_dive": {
+   "1040": {
+    "H0_d5_top1_rate": 0.1056,
+    "H1a_subject_top1_rate": 0.0,
+    "H1a_subject_top3_rate": 0.0065,
+    "n_eval_frames": 154,
+    "n_ref_crops": 75,
+    "subject_diver_id": 1
+   },
+   "2169": {
+    "H0_d5_top1_rate": 0.9631,
+    "H1a_subject_top1_rate": 0.8797,
+    "H1a_subject_top3_rate": 0.908,
+    "n_eval_frames": 424,
+    "n_ref_crops": 209,
+    "subject_diver_id": 1
+   },
+   "2341": {
+    "H0_d5_top1_rate": 0.022,
+    "H1a_subject_top1_rate": 0.3643,
+    "H1a_subject_top3_rate": 0.5874,
+    "n_eval_frames": 269,
+    "n_ref_crops": 135,
+    "subject_diver_id": 7
+   },
+   "2353": {
+    "H0_d5_top1_rate": 0.0049,
+    "H1a_subject_top1_rate": 0.7304,
+    "H1a_subject_top3_rate": 0.777,
+    "n_eval_frames": 408,
+    "n_ref_crops": 189,
+    "subject_diver_id": 1
+   },
+   "2541": {
+    "H0_d5_top1_rate": 0.1489,
+    "H1a_subject_top1_rate": 0.005,
+    "H1a_subject_top3_rate": 0.0299,
+    "n_eval_frames": 201,
+    "n_ref_crops": 121,
+    "subject_diver_id": 1
+   },
+   "2555": {
+    "H0_d5_top1_rate": 0.5179,
+    "H1a_subject_top1_rate": 0.0241,
+    "H1a_subject_top3_rate": 0.0452,
+    "n_eval_frames": 332,
+    "n_ref_crops": 92,
+    "subject_diver_id": 3
+   },
+   "524": {
+    "error": "no_reference_crops_in_window"
+   }
+  },
+  "protocol": {
+   "H0": "historical frozen D5 op-point top-1 correctness (existing artifact)",
+   "H1a": "frozen OSNet cosine retrieval against a same-clip preparation-window reference (GT-chain crops, first 40% of eval interval; stand-in for known-subject reference)",
+   "H1b": "same retrieval with a cross-clip reference from another dive of the same diver (gallery feasibility probe)",
+   "encoder": "OSNet x1.0 Market-1501 frozen (weights sha 2809d3227f7d078f6045f7feb874a34d0684f0e0057b264b99adccf7d4519154)",
+   "gt_usage": "reference window + evaluation only; full candidate ocean scored per frame; no candidate manufacturing"
+  },
+  "verdict": "SUBJECT_MATCHING_SIGNAL_WEAK"
+ }
+}

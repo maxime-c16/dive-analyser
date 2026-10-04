@@ -352,7 +352,7 @@ class TestDiveCodeAPI:
         )
         assert response.status_code == 400
 
-    def test_validate_endpoint_valid(self):
+    def test_validate_endpoint_valid(self, test_db):
         """POST /dive-codes/validate - valid code"""
         response = client.post(
             "/api/v1/dive-codes/validate",
@@ -361,7 +361,8 @@ class TestDiveCodeAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["dive_code"] == "101B"
-        # May not be in database but structure is valid
+        # Should be in database since test_db fixture seeds official codes
+        assert data["is_official_fina"]
 
     def test_validate_endpoint_invalid_structure(self):
         """POST /dive-codes/validate - invalid structure"""
@@ -376,72 +377,38 @@ class TestDiveCodeAPI:
 
     def test_reference_endpoint_all_dives(self, test_db):
         """GET /dive-codes/reference - get all dives"""
-        # Load some test dives
-        for code in ["101B", "5231D", "6031A"]:
-            group = int(code[0])
-            direction = int(code[1]) if group != 6 else 0
-            position = code[-1]
-            rotations = 1
-            dive = FINADiveCode(
-                dive_code=code,
-                group=group,
-                direction=direction,
-                position=position,
-                rotations=rotations,
-            )
-            test_db.add(dive)
-        test_db.commit()
-
+        # The test_db fixture already seeds all official FINA codes
+        # Just verify we can retrieve them
         response = client.get("/api/v1/dive-codes/reference")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) >= 3
+        # Should have at least the seeded codes (142+ official dives)
+        assert len(data) >= 100
 
     def test_reference_endpoint_filter_by_group(self, test_db):
         """GET /dive-codes/reference - filter by group"""
-        # Add test dives
-        for i, code in enumerate(["101B", "201C", "301A"], 1):
-            group = i
-            direction = i
-            position = code[-1]
-            dive = FINADiveCode(
-                dive_code=code,
-                group=group,
-                direction=direction,
-                position=position,
-                rotations=1,
-            )
-            test_db.add(dive)
-        test_db.commit()
-
+        # The test_db fixture already seeds all official FINA codes
+        # Test filtering by group 1 (Forward dives)
         response = client.get("/api/v1/dive-codes/reference?group=1")
         assert response.status_code == 200
         data = response.json()
         assert all(d["group"] == 1 for d in data)
+        # Should have multiple group 1 dives seeded
+        assert len(data) > 0
 
     def test_get_dive_endpoint_found(self, test_db):
         """GET /dive-codes/{code} - dive found"""
-        dive = FINADiveCode(
-            dive_code="101B",
-            group=1,
-            direction=1,
-            position="B",
-            rotations=1,
-            official_name="Forward Dive",
-            group_name="Forward Dives",
-            position_name="Pike",
-        )
-        test_db.add(dive)
-        test_db.commit()
-
+        # The test_db fixture already seeds 101B and all official FINA codes
+        # Just verify we can retrieve it
         response = client.get("/api/v1/dive-codes/101B")
         assert response.status_code == 200
         data = response.json()
         assert data["dive_code"] == "101B"
         assert data["official_name"] == "Forward Dive"
+        assert data["group"] == 1
 
-    def test_get_dive_endpoint_not_found(self):
+    def test_get_dive_endpoint_not_found(self, test_db):
         """GET /dive-codes/{code} - dive not found"""
         response = client.get("/api/v1/dive-codes/999Z")
         assert response.status_code == 404
@@ -472,26 +439,14 @@ class TestDiveCodeAPI:
 
     def test_official_only_endpoint(self, test_db):
         """GET /dive-codes/official-only/all - get official dives"""
-        # Add test dives
-        for code in ["101A", "101B", "201C"]:
-            group = int(code[0])
-            direction = int(code[1])
-            position = code[-1]
-            dive = FINADiveCode(
-                dive_code=code,
-                group=group,
-                direction=direction,
-                position=position,
-                rotations=1,
-            )
-            test_db.add(dive)
-        test_db.commit()
-
+        # The test_db fixture already seeds all official FINA codes
+        # Just verify the endpoint works and returns all seeded dives
         response = client.get("/api/v1/dive-codes/official-only/all")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) >= 3
+        # Should have at least the seeded official codes (142+)
+        assert len(data) >= 100
 
 
 # ============================================================================

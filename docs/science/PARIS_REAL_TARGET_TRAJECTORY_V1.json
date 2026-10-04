@@ -1,0 +1,37 @@
+{
+  "label": "PARIS_REAL_TARGET_TRAJECTORY_V1",
+  "date": "2026-09-09",
+  "status": "FROZEN",
+  "supersedes": "PARIS_FULL_TRAJECTORY_V1.json (TRAJECTORY_INPUT_FAIL)",
+  "source_artifact": "PARIS_FULL_TRAJECTORY_V2.json",
+  "paris_sha": "d122262be8e7a8721ab2f6a71721bb3544403da78324138d026360ef9820eaae",
+  "pipeline": "D5_FRAMEWISE_ONLY",
+  "r1_used": false,
+  "floor_conf": 0.001,
+  "op_conf": 0.05,
+  "anchor_extraction": "SEEK_BASED_cap_set_POS_FRAMES",
+  "canonical_anchor_frame_indices": {
+    "takeoff": 176,
+    "apex": 201,
+    "water_contact": 238
+  },
+  "six_criteria": {
+    "c1_takeoff_identity": true,
+    "c1_iou": 0.379,
+    "c2_apex_identity": true,
+    "c2_iou": 0.417,
+    "c3_wc_identity": true,
+    "c3_iou": 0.324,
+    "c4_flight_coverage": 1.0,
+    "c4_pass": true,
+    "c5_max_gap_s": 0.0,
+    "c5_pass": true,
+    "c6_max_wrong_run_s": 0.0,
+    "c6_pass": true
+  },
+  "trajectory_gate": "TRAJECTORY_INPUT_PASS",
+  "n_flight_frames": 68,
+  "fps": 56.517,
+  "video_size": "1080x1920",
+  "note_on_previous_c3_failure": "PARIS_FULL_TRAJECTORY_V1.json C3 failed (IoU=0.1087) due to two compounding bugs: (1) FLOOR_CONF=0.01 instead of frozen 0.001, and (2) sequential-read frame drift (3 frames before canonical GT fi=238). The corrected run with FLOOR_CONF=0.001 and seek-based extraction yields IoU=0.324 at fi=238. The 'best_iou=0.7246' from phase_p_paris_d5.py was a pool-best metric, not rank-1 IoU."
+}

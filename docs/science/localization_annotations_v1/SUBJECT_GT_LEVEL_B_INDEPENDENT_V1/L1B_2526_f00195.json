@@ -1,0 +1,47 @@
+{
+ "annotator": "maxime",
+ "authority": "HUMAN_REVIEWED",
+ "bbox": [
+  37,
+  218,
+  76,
+  317
+ ],
+ "close_pair_evidence": {
+  "from_base_frame": 180,
+  "pairs": [
+   {
+    "confs": [
+     0.419,
+     0.1996
+    ],
+    "dist_norm": 0.0534,
+    "iou": 0.4895
+   }
+  ]
+ },
+ "created_at": "2026-09-20T17:19:42.899028+00:00",
+ "dive_id": 2526,
+ "diver": "MAT",
+ "family": "HURDLE_ORDINARY",
+ "frame_index": 195,
+ "height": 360,
+ "id": "L1B_2526_f00195",
+ "image_sha256": "c635318c26e4f1bab4d153191cce969e0468f5b087b52a8accec155264aa8fe4",
+ "media_sha256": "82276c05f79a84a1160791825d533de9f55299d99c9188725d0a743d4d279e05",
+ "method": "human_drawn_or_corrected",
+ "provenance": {
+  "d5_cache_sha256": "d945fc04001569c620dee8817bf11ad894373000437bfc6516b6b2540a5f8d8f",
+  "origin": "NEW_LEVEL_B_ANNOTATION",
+  "packet": "DIVE_ANALYZER_INDEPENDENT_SUBJECT_GT_EXPANSION_V1",
+  "queue": "SUBJECT_GT_LEVEL_B_QUEUE_INDEPENDENT_V1"
+ },
+ "pts_s": 3.25,
+ "queue_reason": "level_b_close_person_extra_0.25s",
+ "reason": "level_b_close_person_extra_0.25s",
+ "rel_clip_time_s": 3.25,
+ "representation": "proxy_360p_native_decoded_frame",
+ "source_identity": "intended Dive Analyzer subject (diver performing the dive)",
+ "visibility": "visible",
+ "width": 202
+}
