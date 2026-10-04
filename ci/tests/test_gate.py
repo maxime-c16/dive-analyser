@@ -158,7 +158,9 @@ class EnvironmentCacheTests(unittest.TestCase):
             (root / 'backend').mkdir()
             for req in [root / 'ci/requirements-agent.txt', root / 'backend/requirements.txt']:
                 req.write_text('# first dependency set\n')
-            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+            env['DIVE_CI_CACHE'] = str(root / 'cache')
+            subprocess.run(['git', 'init', '-q'], cwd=root, env=env, check=True)
             script = r"""
 source "$1/lib.sh"
 # Real environments, without ensurepip overhead: installation is mocked below.
@@ -187,8 +189,6 @@ for label in agent backend; do
     [ "$first" = "$reused" ] || exit 1
 done
 """
-            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
-            env['DIVE_CI_CACHE'] = str(root / 'cache')
             run = subprocess.run(['bash', '-c', script, '_', str(CI)], cwd=root, env=env,
                                  capture_output=True, text=True, timeout=60)
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
