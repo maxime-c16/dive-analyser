@@ -322,13 +322,15 @@ characteristics, athlete-vs-self comparison). **Partially underway — Perceptio
 
 ## Canonical repository
 
-- **`mcauchy@192.168.1.57:~/dive-analyser`** (Debian 12, host `deb-serv`) — the ONLY
-  canonical Git repository. Branch `uiux-overhaul-pro-app`. HEAD: `e3c6cc4` → updated this cycle.
-  No remotes.
-- Mac bare mirror: `~/.perso/diveanalyzer-perception.git` (cloned from server).
-- Mac working copy: `~/.perso/diveanalyzer-perception`. Remote `origin` → server. Remote `mac-mirror` → bare mirror.
-- Local Mac working copy `~/.perso/diveanalyzer` is **NOT a git repo** — only a partial
-  reference slice; never treat it as canonical.
+- **GitHub `maxime-c16/dive-analyser`, branch `master`** — the ONLY source of truth
+  (since 2026-10-04). Every checkout's `origin` is GitHub; no host-to-host pushes.
+  Sync, branching and deploy rules: **`docs/REPO_WORKFLOW.md`** (deploy via `ci/ship.sh`).
+- Live (deploy-only) checkouts: `deb-serv:~/dive-analyser` (detached HEAD at the
+  deployed commit) and Mac `/Users/Shared/services/data/diveanalyzer/code` (not git;
+  `.deployed-sha` records the commit). Never edit either.
+- The old server-canonical branch `uiux-overhaul-pro-app` and the Mac bare mirrors
+  (`~/.perso/diveanalyzer-perception(.git)`, `diveanalyzer-source-backups/*.git`) are
+  legacy backups only.
 - SSH access (passwordless from Maxime's MacBook Air only): key `~/.ssh/qwokka`
   installed in both hosts' `authorized_keys`; aliases in `~/.ssh/config`:
   `ssh diveanalyzer-server` (= `mcauchy@192.168.1.57`),

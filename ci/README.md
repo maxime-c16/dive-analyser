@@ -90,8 +90,14 @@ hook; `DIVE_CI_TIERS='fast' git push` overrides tier selection. Increase a
 command timeout with `DIVE_CI_TIMEOUT` (seconds), or override `NODE_OPTIONS`
 when running on a larger machine.
 
-The existing `ci/deploy.sh` is preserved from the original pipeline. This
-change does not deploy the app or modify running containers.
+## Deploys
+
+Deploy only through `ci/ship.sh` (`status | server | mac | all`, `--dry-run`
+first). It ships exact commits from GitHub `origin/master`, checks the commit
+out in the live server dir, and calls `ci/deploy.sh`, which runs the
+`fast frontend` gate, builds SHA-labelled images, swaps containers, reloads
+both nginx proxies, health-checks (LAN and public Funnel) and rolls back on
+failure. Rules, hosts and rollback: `docs/REPO_WORKFLOW.md`.
 
 ## Validation on this box (2026-10-04)
 
