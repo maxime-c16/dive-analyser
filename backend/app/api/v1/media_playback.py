@@ -58,6 +58,7 @@ from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.models.user_auth import AppUser, MediaPlaybackGrant
 from app.api.v1.auth import get_current_user
 from app.services import b2_presign, legacy_media, playback_metrics
+from app.services.offload import run_to_completion
 from app.services.user_access import (
     DENY_NO_DIVER_CHAIN,
     DENY_NO_OWNER_ACCESS,
@@ -203,9 +204,12 @@ async def _serve_legacy_fallback(
     reason: str,
 ):
     """Authorized legacy playback, streamed server-side with Range."""
-    # Resolution probes the filesystem (os.path.exists/stat per candidate);
-    # keep those blocking calls off the event loop.
-    source = await asyncio.to_thread(legacy_media.resolve_legacy_media_source, db, revision)
+    # Resolution probes the filesystem (os.path.exists/stat per candidate)
+    # against the request session; keep it off the loop and let it finish
+    # even when the awaiting handler is cancelled mid-way.
+    source = await run_to_completion(asyncio.to_thread(
+        legacy_media.resolve_legacy_media_source, db, revision
+    ))
     if source is None:
         metrics.legacy_fallback_failures.inc()
         if reason == "presign_unavailable":
@@ -293,11 +297,11 @@ async def play_media_revision(
         # the event loop so a provider hiccup cannot stall every other
         # request handled by this worker.
         head_started = playback_metrics.now_ms()
-        await asyncio.to_thread(
+        await run_to_completion(asyncio.to_thread(
             b2_presign.head_object,
             bucket=location.bucket,
             object_key=location.object_key,
-        )
+        ))
         metrics.presign_latency.observe(playback_metrics.now_ms() - head_started)
         presign_started = playback_metrics.now_ms()
         presign = b2_presign.presign_get(
