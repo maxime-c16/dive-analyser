@@ -22,7 +22,6 @@ from app.main import app
 # depending on machine load. Apply it at module level so the filter works as
 # intended; run them explicitly with:
 #   pytest tests/test_performance_sync.py -m performance
-pytestmark = pytest.mark.performance
 from app.database import Base, get_db, engine
 
 pytestmark = pytest.mark.performance
