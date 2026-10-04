@@ -191,7 +191,14 @@ if [ "$ONLY" != "backend" ]; then
     if [ "$DRY_RUN" -eq 1 ]; then
         ci_warn "would run: docker build -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
     else
+        # --no-cache: the daemon's layer cache once shipped a stale frontend
+        # bundle (COPY/npm-run-build cache-hit on changed sources), so
+        # /register + /account 404'd into the login redirect while the
+        # deploy reported success. Health checks only probe status codes
+        # and cannot catch content staleness, so always rebuild frontend
+        # from scratch. Deploys are infrequent; correctness beats minutes.
         ci_run build-frontend docker build \
+            --no-cache \
             -f "$ROOT/frontend/Dockerfile.deploy" \
             -t "$FRONTEND_IMAGE:sha-$sha" \
             --label "dive.analyser/sha=$sha" \
