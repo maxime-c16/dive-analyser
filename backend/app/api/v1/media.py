@@ -162,34 +162,61 @@ def _poster_entry(entries):
     return None
 
 
-def _thumbnail_status_for_entries(
-    db: Session, video_uuid: str, entries: list
-) -> dict:
-    """Compact per-asset thumbnail payload for the Library grid.
+_UNSET_BACKBONE = object()
 
-    Same source decision as _status_for_asset (preferred playable rendition
-    wins; backbone B2 next) minus cache_entries/job detail: the grid only
-    needs a poster, a playable URL and readiness.
+
+def _backbone_revision_ids_bulk(db: Session, video_uuids: list[str]) -> dict[str, "int | None"]:
+    """Newest verified PROD revision id per uuid, resolved in ONE query.
+
+    Mirrors _backbone_playback_url's decision (join verified PROD locations,
+    newest revision per uuid) and populates the same bounded cache so the
+    single-asset path sees warm entries afterwards. Called by the batch
+    thumbnail route; the graph of cached (positive AND negative) entries
+    keeps the no-row case from re-querying.
     """
-    preferred = _preferred_entry(entries)
-    poster = _poster_entry(entries)
-    if preferred:
-        playback = playback_url(preferred.id)
-        status_value = "ready"
-    else:
-        backbone = _backbone_playback_url(db, video_uuid)
-        if backbone:
-            playback = backbone
-            status_value = "ready"
-        else:
-            playback = None
-            status_value = "missing"
-    return {
-        "video_uuid": video_uuid,
-        "status": status_value,
-        "poster_url": playback_url(poster.id) if poster else None,
-        "playback_url": playback,
-    }
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
+        return {}
+    now = monotonic()
+    ttl = settings.media_backbone_lookup_cache_ttl_seconds
+    binder = db.get_bind()
+
+    fresh: list[str] = []
+    resolved: dict[str, "int | None"] = {}
+    with _backbone_id_cache_lock:
+        for video_uuid in video_uuids:
+            cache_key = (binder, video_uuid)
+            cached = _backbone_id_cache.get(cache_key)
+            if ttl > 0 and cached and now < cached[0]:
+                _backbone_id_cache.move_to_end(cache_key)
+                resolved[video_uuid] = cached[1]
+            else:
+                _backbone_id_cache.pop(cache_key, None)
+                fresh.append(video_uuid)
+
+    if fresh:
+        revision_ids = {}
+        for row in db.execute(
+            select(MediaRevision.video_uuid, func.max(MediaRevision.id))
+            .join(
+                MediaBlobLocation,
+                (MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256)
+                & (MediaBlobLocation.environment == "prod")
+                & (MediaBlobLocation.verified == True),
+            )
+            .where(MediaRevision.video_uuid.in_(fresh))
+            .group_by(MediaRevision.video_uuid)
+        ).all():
+            revision_ids[row[0]] = row[1]
+        for video_uuid in fresh:
+            revision_id = revision_ids.get(video_uuid)
+            resolved[video_uuid] = revision_id
+            with _backbone_id_cache_lock:
+                if ttl > 0:
+                    _backbone_id_cache[(binder, video_uuid)] = (monotonic() + ttl, revision_id)
+                    while len(_backbone_id_cache) > _BACKBONE_CACHE_MAX_ENTRIES:
+                        _backbone_id_cache.popitem(last=False)
+    return resolved
 
 
 def _iter_file_range(path: Path, start: int, end: int, chunk_size: int = 1024 * 1024):
@@ -931,6 +958,38 @@ async def get_media_status(
     return _status_for_asset(db, asset)
 
 
+def _thumbnail_status_for_entries(
+    db: Session, video_uuid: str, entries: list, backbone_url: "str | None | object" = _UNSET_BACKBONE,
+) -> dict:
+    """Compact per-asset thumbnail payload for the Library grid.
+
+    Same source decision as _status_for_asset (preferred playable rendition
+    wins; backbone B2 next) minus cache_entries/job detail: the grid only
+    needs a poster, a playable URL and readiness. `backbone_url` lets the
+    batch route pass one bulk-resolved decision instead of a per-uuid
+    lookup; _UNSET_BACKBONE keeps the single-asset fallback behavior.
+    """
+    preferred = _preferred_entry(entries)
+    poster = _poster_entry(entries)
+    if preferred:
+        playback = playback_url(preferred.id)
+        status_value = "ready"
+    else:
+        backbone = _backbone_playback_url(db, video_uuid) if backbone_url is _UNSET_BACKBONE else backbone_url
+        if backbone:
+            playback = backbone
+            status_value = "ready"
+        else:
+            playback = None
+            status_value = "missing"
+    return {
+        "video_uuid": video_uuid,
+        "status": status_value,
+        "poster_url": playback_url(poster.id) if poster else None,
+        "playback_url": playback,
+    }
+
+
 @router.post("/status/batch")
 async def get_media_status_batch(
     request: MediaStatusBatchRequest,
@@ -968,11 +1027,19 @@ async def get_media_status_batch(
             for row in rows:
                 entries_by_asset[row.photos_asset_id].append(row)
 
+    # Cold backbone lookups (auth+B2 enabled, no local proxy) resolve in ONE
+    # grouped query instead of a per-uuid revision lookup; the shared cache
+    # is warmed either way.
+    backbone_by_uuid = _backbone_revision_ids_bulk(db, seen)
     result: dict[str, dict] = {}
     for video_uuid in seen:
         asset_id = next((aid for aid, uid in uuid_by_asset.items() if uid == video_uuid), None)
         entries = entries_by_asset.get(asset_id, []) if asset_id else []
-        result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries)
+        revision_id = backbone_by_uuid.get(video_uuid)
+        backbone_url = (
+            f"/api/v1/media/revisions/{revision_id}/play" if revision_id is not None else None
+        ) if revision_id is not None or video_uuid in backbone_by_uuid else _UNSET_BACKBONE
+        result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, backbone_url)
     return result
 
 
