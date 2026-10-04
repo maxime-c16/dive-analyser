@@ -208,6 +208,10 @@ select {
     border-color: var(--app-accent);
   }
 
+  .bg-app-accent {
+    background-color: var(--app-accent);
+  }
+
   .bg-app-accent-soft {
     background-color: rgba(84, 190, 171, 0.1);
   }

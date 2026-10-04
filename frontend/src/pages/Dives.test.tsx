@@ -94,3 +94,28 @@ it('Library loading, empty and error states are distinguishable and announced', 
   expect(alert).toHaveTextContent('The dive library could not be loaded.')
   expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
 })
+
+// ---- Library views: mobile clip wall + by-code summary ----
+
+it('groups attempts per dive code and opens an attempt from its history', async () => {
+  renderPage()
+  await userEvent.click(await screen.findByRole('button', { name: 'Everyone' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Code view' }))
+  expect(await screen.findByText(/2 attempts/)).toBeInTheDocument()
+  expect(screen.getByText(/1 attempts/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Open 103B attempt$/ })).toBeNull()
+  await userEvent.click(screen.getAllByRole('button', { name: /Open 103C attempt from/ })[0])
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  expect(screen.getByText('Native player uuid-2')).toBeInTheDocument()
+})
+
+it('the mobile switch toggles between the clip wall and the code summary', async () => {
+  renderPage()
+  const clips = await screen.findByRole('button', { name: 'Clips' })
+  expect(clips).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(screen.getByRole('button', { name: 'By code' }))
+  expect(screen.getByRole('button', { name: 'By code' })).toHaveAttribute('aria-pressed', 'true')
+  expect((await screen.findAllByText(/attempts · last/)).length).toBe(2)
+  await userEvent.click(screen.getByRole('button', { name: 'Clips' }))
+  expect(screen.queryByText(/attempts · last/)).toBeNull()
+})

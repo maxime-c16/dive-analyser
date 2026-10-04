@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Film, LayoutGrid, List, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Hash, LayoutGrid, List, Search, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
 import ClipViewer from "../components/clip-viewer/ClipViewer";
@@ -15,115 +15,16 @@ import {
   performanceLabel,
   type Attempt,
 } from "../utils/attemptPresentation";
-import { cachedPreview, getPreview, type MediaPreview } from "../utils/mediaPreview";
+import DiveThumbnail from "../components/DiveThumbnail";
+import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
 
 type Dive = Attempt;
 type Diver = { id: number; display_name: string; is_primary_user: boolean };
 type Scope = "self" | "all";
-type View = "grid" | "list";
+type View = "grid" | "list" | "codes";
 
 function normalizedHeight(value: string) {
   return value.replace(/\s/g, "").toLowerCase();
-}
-
-function DiveThumbnail({
-  dive,
-  compact = false,
-}: {
-  dive: Dive;
-  compact?: boolean;
-}) {
-  const [preview, setPreview] = useState<MediaPreview | null>(() =>
-    dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
-  );
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!dive.video_uuid) return;
-    // If already cached, apply immediately — no network request needed.
-    const cached = cachedPreview(dive.video_uuid);
-    if (cached) {
-      setPreview(cached);
-      return;
-    }
-    // Gate the fetch behind IntersectionObserver so we only hit the
-    // backend for thumbnails that are actually near the viewport.
-    // Without this, opening the Dives page fires 2000+ concurrent
-    // status requests and exhausts the DB connection pool.
-    const container = containerRef.current;
-    if (!container) return;
-    let active = true;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          observer.disconnect();
-          getPreview(dive.video_uuid!).then((result) => {
-            if (active) setPreview(result);
-          });
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    observer.observe(container);
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [dive.video_uuid]);
-  return (
-    <div
-      ref={containerRef}
-      className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
-    >
-      {preview?.posterUrl ? (
-        // Poster image from local media cache — instant, lightweight
-        <img
-          src={preview.posterUrl}
-          alt={`Poster for ${dive.dive_code}`}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-      ) : preview?.videoThumbUrl ? (
-        // No poster in cache but B2 video available — render first frame
-        // via <video preload="metadata">. The backend generates a fresh
-        // presigned URL each time the browser follows the proxy link, so
-        // the cached videoThumbUrl path never goes stale.
-        <video
-          src={preview.videoThumbUrl}
-          preload="metadata"
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-          onLoadedMetadata={(e) => {
-            // Nudge past frame 0 to guarantee the first frame renders
-            // instead of a black placeholder on WebKit/Chrome.
-            (e.currentTarget as HTMLVideoElement).currentTime = 0.001;
-          }}
-        />
-      ) : (
-        // No media at all — show the dive code as a visual placeholder
-        <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
-          <span className="font-mono text-xl font-semibold tracking-tight text-app-muted">
-            {dive.dive_code}
-          </span>
-        </div>
-      )}
-      {dive.video_uuid &&
-        (compact ? (
-          <span
-            className={`absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-black/40 ${preview?.ready ? "bg-app-accent" : "bg-app-muted"}`}
-            title={preview?.ready ? "Video ready" : "Video linked"}
-            aria-label={preview?.ready ? "Video ready" : "Video linked"}
-          />
-        ) : (
-          <span
-            className={`absolute bottom-2 right-2 inline-flex items-center gap-1 border px-1.5 py-1 text-[10px] font-medium ${preview?.ready ? "border-app-accent bg-[#10221f]/95 text-app-accent" : "border-app bg-black/70 text-app-muted"}`}
-          >
-            <Film className="h-3 w-3" />
-            {preview?.ready ? "Ready" : "Linked"}
-          </span>
-        ))}
-    </div>
-  );
 }
 
 function ScoreBadge({ dive }: { dive: Dive }) {
@@ -272,6 +173,7 @@ export default function Dives() {
   const [reloadKey, setReloadKey] = useState(0);
   const [shown, setShown] = useState(48);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollAnchorRef = useRef<number | null>(null);
   const viewerReturnAttemptRef = useRef<number | null>(null);
   const query = searchParams.get("q") || "";
@@ -442,9 +344,16 @@ export default function Dives() {
     if (attemptId === null) return;
     viewerReturnAttemptRef.current = null;
     requestAnimationFrame(() => {
-      const card = document.querySelector<HTMLElement>(
-        `[data-attempt-id="${attemptId}"]`,
-      );
+      // Grid mode renders both desktop cards and mobile tiles; pick the
+      // one that is actually displayed.
+      const matches = [
+        ...document.querySelectorAll<HTMLElement>(
+          `[data-attempt-id="${attemptId}"]`,
+        ),
+      ];
+      const card =
+        matches.find((element) => element.getClientRects().length > 0) ||
+        matches[0];
       if (card) {
         card.focus({ preventScroll: true });
         return;
@@ -499,13 +408,35 @@ export default function Dives() {
 
   return (
     <div className="mx-auto max-w-[1440px] pb-10">
-      <header className="flex flex-col gap-4 border-b border-app pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex items-end justify-between gap-4 border-b border-app pb-3 sm:pb-5">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">
             Library
           </h1>
+          <p className="mt-0.5 text-xs text-app-muted sm:hidden">
+            <strong className="text-app-text">{filtered.length}</strong> attempts ·{" "}
+            <strong className="text-app-text">{codeCount}</strong> codes
+          </p>
         </div>
-        <div className="flex gap-2 text-sm">
+        <div className="flex h-9 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
+          {(
+            [
+              ["grid", "Clips"],
+              ["codes", "By code"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => update({ view: value === "grid" ? null : value })}
+              aria-pressed={(view === "codes") === (value === "codes")}
+              className={`min-h-0 border px-3 text-xs ${(view === "codes") === (value === "codes") ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden gap-2 text-sm sm:flex">
           <div className="border border-app bg-app-panel px-3 py-2">
             <span className="text-app-muted">Attempts </span>
             <strong className="ml-1 text-app-text">{filtered.length}</strong>
@@ -516,113 +447,148 @@ export default function Dives() {
           </div>
         </div>
       </header>
-      <section className="mt-5 space-y-3" aria-label="Dive library filters">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => update({ scope: "self" })}
-            className={`touch-target border px-3 text-sm ${scope === "self" ? "border-app-accent bg-app-panel text-app-accent" : "border-app bg-app-panel text-app-muted"}`}
-          >
-            My dives
-          </button>
-          <button
-            type="button"
-            onClick={() => update({ scope: "all" })}
-            className={`touch-target border px-3 text-sm ${scope === "all" ? "border-app-accent bg-app-panel text-app-accent" : "border-app bg-app-panel text-app-muted"}`}
-          >
-            Everyone
-          </button>
-        </div>
-        <label className="relative block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-app-muted" />
-          <input
-            value={query}
-            onChange={(event) => update({ q: event.target.value })}
-            className="app-input w-full !pl-11 pr-4 text-base"
-            placeholder="103, 103B, 103 Pike, 103B DB"
-            aria-label="Search dives"
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(10rem,1.25fr)_auto]">
-          <label className="min-w-0 text-xs text-app-muted sm:shrink-0">
-            Height
-            <select
-              aria-label="Height"
-              value={heightFilter}
-              onChange={(event) => update({ height: event.target.value })}
-              className="app-input mt-1 block w-full py-1.5 text-sm sm:min-w-32"
-            >
-              <option value="">All heights</option>
-              {heights.map((height) => (
-                <option key={height} value={height}>
-                  {height}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="min-w-0 text-xs text-app-muted sm:shrink-0">
-            Context
-            <select
-              aria-label="Context"
-              value={contextFilter}
-              onChange={(event) => update({ context: event.target.value })}
-              className="app-input mt-1 block w-full py-1.5 text-sm sm:min-w-36"
-            >
-              <option value="">Individual + SYNC</option>
-              <option value="individual">Individual only</option>
-              <option value="sync">SYNC only</option>
-            </select>
-          </label>
-          <label className="min-w-0 text-xs text-app-muted sm:shrink-0">
-            Rating
-            <select
-              aria-label="Rating"
-              value={performanceFilter}
-              onChange={(event) => update({ performance: event.target.value })}
-              className="app-input mt-1 block w-full py-1.5 text-sm sm:min-w-32"
-            >
-              <option value="">All ratings</option>
-              {PERFORMANCE.map((item) => (
-                <option key={item} value={item}>
-                  {item} · {performanceLabel[item]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="min-w-0 text-xs text-app-muted sm:shrink-0">
-            Modifiers
-            <div className="mt-1 grid h-11 grid-cols-3 gap-1 border border-app bg-app-panel p-1">
-              {MODIFIERS.map((modifier) => (
-                <button
-                  key={modifier}
-                  type="button"
-                  onClick={() =>
-                    update({
-                      modifiers: modifiers.includes(modifier)
-                        ? modifiers
-                            .filter((item) => item !== modifier)
-                            .join(",") || null
-                        : [...modifiers, modifier].join(","),
-                    })
-                  }
-                  className={`min-h-0 border px-1 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
-                >
-                  {modifier}
-                </button>
-              ))}
-            </div>
+      <section className="mt-4 space-y-2" aria-label="Dive library filters">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
+            {(
+              [
+                ["self", "My dives"],
+                ["all", "Everyone"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => update({ scope: value })}
+                aria-pressed={scope === value}
+                className={`min-h-0 flex-1 border px-3 text-sm ${scope === value ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <div className="col-span-2 sm:col-span-1 sm:shrink-0 sm:self-end">
+          <label className="relative block min-w-0 flex-1 sm:min-w-[14rem]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
+            <input
+              value={query}
+              onChange={(event) => update({ q: event.target.value })}
+              className="app-input h-11 w-full !pl-10 pr-4 text-sm"
+              placeholder="Search: 103, 103B, 103 Pike, 103B DB"
+              aria-label="Search dives"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            className={`touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+            aria-label="Filters"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-accent px-1 text-[10px] font-semibold text-black">
+                {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0)}
+              </span>
+            )}
+          </button>
+          <div className="hidden shrink-0 items-center gap-1 sm:flex">
             <button
               type="button"
-              onClick={reset}
-              disabled={!activeFilters && scope === "self"}
-              className="touch-target inline-flex w-full items-center justify-center gap-2 border border-app bg-app-panel px-3 text-sm text-app-muted disabled:opacity-35 sm:w-auto"
+              onClick={() => update({ view: "grid" })}
+              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+              aria-label="Grid view"
             >
-              <SlidersHorizontal className="h-4 w-4" />
-              Reset
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => update({ view: "list" })}
+              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+              aria-label="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => update({ view: "codes" })}
+              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "codes" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+              aria-label="Code view"
+            >
+              <Hash className="h-4 w-4" />
             </button>
           </div>
+        </div>
+        <div className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
+          <select
+            aria-label="Height"
+            value={heightFilter}
+            onChange={(event) => update({ height: event.target.value })}
+            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+          >
+            <option value="">All heights</option>
+            {heights.map((height) => (
+              <option key={height} value={height}>
+                {height}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Context"
+            value={contextFilter}
+            onChange={(event) => update({ context: event.target.value })}
+            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+          >
+            <option value="">Individual + SYNC</option>
+            <option value="individual">Individual only</option>
+            <option value="sync">SYNC only</option>
+          </select>
+          <select
+            aria-label="Rating"
+            value={performanceFilter}
+            onChange={(event) => update({ performance: event.target.value })}
+            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+          >
+            <option value="">All ratings</option>
+            {PERFORMANCE.map((item) => (
+              <option key={item} value={item}>
+                {item} · {performanceLabel[item]}
+              </option>
+            ))}
+          </select>
+          <div
+            role="group"
+            aria-label="Modifiers"
+            className="flex h-11 gap-1 border border-app bg-app-panel p-1"
+          >
+            {MODIFIERS.map((modifier) => (
+              <button
+                key={modifier}
+                type="button"
+                onClick={() =>
+                  update({
+                    modifiers: modifiers.includes(modifier)
+                      ? modifiers
+                          .filter((item) => item !== modifier)
+                          .join(",") || null
+                      : [...modifiers, modifier].join(","),
+                  })
+                }
+                aria-pressed={modifiers.includes(modifier)}
+                className={`min-h-0 min-w-10 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+              >
+                {modifier}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={reset}
+            disabled={!activeFilters && scope === "self"}
+            className="touch-target col-span-2 inline-flex items-center justify-center gap-2 px-2 text-sm text-app-muted hover:text-app-text disabled:hidden disabled:opacity-35 sm:disabled:inline-flex"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Reset
+          </button>
         </div>
       </section>
       {loading && (
@@ -649,27 +615,7 @@ export default function Dives() {
         </div>
       )}
       {!loading && !error && (
-        <section className="mt-8">
-          <div className="hidden items-center justify-end gap-3 border-b border-app pb-3 sm:flex">
-            <div className="hidden items-center gap-1 sm:flex">
-              <button
-                type="button"
-                onClick={() => update({ view: "grid" })}
-                className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => update({ view: "list" })}
-                className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-                aria-label="List view"
-              >
-                <List className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+        <section className="mt-3 border-t border-app pt-3 sm:mt-5 sm:pt-5">
           {filtered.length === 0 ? (
             <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
@@ -687,41 +633,49 @@ export default function Dives() {
               )}
             </div>
           ) : (
-            <>
-              {view === "grid" && (
-                <div className="mt-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {visible.map((dive) => (
-                    <AttemptCard
-                      key={dive.id}
-                      dive={dive}
-                      onOpen={() => openClip(dive)}
-                    />
-                  ))}
-                </div>
-              )}
-              <div
-                className={`mt-4 border border-app bg-app-panel ${view === "grid" ? "sm:hidden" : ""}`}
-              >
-                {visible.map((dive) => (
-                  <AttemptRow
-                    key={dive.id}
-                    dive={dive}
-                    onOpen={() => openClip(dive)}
-                  />
-                ))}
-              </div>
-              {shown < filtered.length && (
-                <div className="mt-5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShown((count) => count + 48)}
-                    className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
-                  >
-                    Show 48 more attempts
-                  </button>
-                </div>
-              )}
-            </>
+            view === "codes" ? (
+              <CodesLayout attempts={filtered} onOpen={openClip} />
+            ) : (
+              <>
+                {view === "grid" ? (
+                  <>
+                    <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {visible.map((dive) => (
+                        <AttemptCard
+                          key={dive.id}
+                          dive={dive}
+                          onOpen={() => openClip(dive)}
+                        />
+                      ))}
+                    </div>
+                    <div className="sm:hidden">
+                      <WallLayout attempts={visible} onOpen={openClip} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="border border-app bg-app-panel">
+                    {visible.map((dive) => (
+                      <AttemptRow
+                        key={dive.id}
+                        dive={dive}
+                        onOpen={() => openClip(dive)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {shown < filtered.length && (
+                  <div className="mt-5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShown((count) => count + 48)}
+                      className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
+                    >
+                      Show 48 more attempts
+                    </button>
+                  </div>
+                )}
+              </>
+            )
           )}
         </section>
       )}
