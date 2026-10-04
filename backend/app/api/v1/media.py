@@ -146,11 +146,12 @@ def _asset_by_uuid(db: Session, video_uuid: str) -> PhotosAsset:
 
 
 def _preferred_entry(entries):
+    # Never fall back to the poster: the Mac agent finishes it before the
+    # proxy, and a JPEG playback_url makes the <video> element fail to decode.
     playable = [entry for entry in entries if entry.rendition != "poster"]
-    candidates = playable or entries
-    if not candidates:
+    if not playable:
         return None
-    return sorted(candidates, key=lambda entry: RENDITION_PREFERENCE.get(entry.rendition, 99))[0]
+    return sorted(playable, key=lambda entry: RENDITION_PREFERENCE.get(entry.rendition, 99))[0]
 
 
 def _poster_entry(entries):

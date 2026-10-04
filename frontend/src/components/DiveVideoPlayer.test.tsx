@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import DiveVideoPlayer, {
@@ -175,7 +175,7 @@ it('Retry prepare remains an explicit action and is also duplicate-guarded', asy
   expect(await screen.findByRole('status')).toHaveTextContent('Preparing media: queued')
 })
 
-it('a video decode error exposes an accessible retry that reloads playback without new jobs', async () => {
+it('a video decode error exposes an accessible retry that re-checks status without new jobs', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const loadSpy = vi.spyOn(HTMLMediaElement.prototype, 'load')
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
@@ -183,11 +183,12 @@ it('a video decode error exposes an accessible retry that reloads playback witho
   fireEvent.error(video)
   const alert = screen.getByRole('alert')
   expect(alert).toHaveTextContent('Video could not be loaded')
+  loadSpy.mockClear()
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  expect(loadSpy).toHaveBeenCalled()
+  await waitFor(() => expect(getMediaStatus).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(loadSpy).toHaveBeenCalled())
   expect(requestMedia).not.toHaveBeenCalled()
-  expect(getMediaStatus).toHaveBeenCalledOnce()
 })
 
 it('media readiness is announced once and preparation states use status semantics', async () => {
