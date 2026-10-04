@@ -6,6 +6,7 @@ This API is intentionally parallel to legacy /videos routes. A video_uuid means
 
 from pathlib import Path
 from collections import OrderedDict
+import asyncio
 import threading
 from time import monotonic
 from datetime import date, datetime, time
@@ -81,6 +82,7 @@ from app.services.media_agents import (
     update_agent_heartbeat,
 )
 from app.services.media_recall import build_recall_manifest, plan_recall_batch
+from app.services.offload import run_to_completion
 from app.models.media_catalog import CaptionedMediaCatalog, MediaCatalogPopulationRun, MediaCatalogRun, MediaResolutionUpgradeRun
 from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.config import get_settings
@@ -566,20 +568,37 @@ async def list_media_agents(db: Session = Depends(get_db)):
     return {"agents": [public_agent_status(agent) for agent in agents], "read_only": True}
 
 
+def _advance_background_media_work(db: Session) -> None:
+    """Advance agent-side asynchronous media workflows (catalog rollovers,
+    resolution upgrades). The upgrade path verifies 720p artifacts with a
+    full-file SHA-256, so the work runs on a worker thread instead of the
+    event loop, and the caller commits inside the same cancellation-safe
+    unit."""
+    advance_armed_catalog_population_rollovers(db)
+    advance_resolution_upgrade_runs(db)
+    db.commit()
+
+
 @router.post("/agents/heartbeat")
 async def media_agent_heartbeat(
     request: MediaAgentHeartbeatRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
 ):
-    try:
+    # Heartbeat bookkeeping, background advancement and the commit form one
+    # cancellation-safe unit: cancelling the response mid-advancement must
+    # not strand a half-run or an uncommitted row behind session teardown.
+    def _apply_and_advance():
         agent = update_agent_heartbeat(db, request, api_key["key"])
+        _advance_background_media_work(db)
+        # Attribute access lazily reloads the expired row inside this worker.
+        return public_agent_status(agent)
+
+    try:
+        status_payload = await run_to_completion(asyncio.to_thread(_apply_and_advance))
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
-    advance_armed_catalog_population_rollovers(db)
-    advance_resolution_upgrade_runs(db)
-    db.commit()
-    return public_agent_status(agent)
+    return status_payload
 
 
 @router.post("/agents/sources/report")
@@ -882,8 +901,7 @@ async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db
     run = db.get(MediaResolutionUpgradeRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="resolution_upgrade_run_not_found")
-    advance_resolution_upgrade_runs(db)
-    db.commit()
+    await run_to_completion(asyncio.to_thread(_advance_background_media_work, db))
     return resolution_upgrade_summary(db, run)
 
 
@@ -1079,13 +1097,24 @@ async def upload_job_artifact(
         tmp_path.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
 
-    actual_checksum = sha256_file(tmp_path)
-    if actual_checksum != checksum_sha256:
-        tmp_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded checksum mismatch")
+    # Full-artifact reads belong on a worker thread: hashing gigabyte-scale
+    # proxies on the loop stalls every concurrent request. Verify + accept
+    # (hash, mark uploaded, commit) is one cancellation-safe unit so a
+    # cancelled upload never leaves an unverified-accepted artifact or a
+    # half transaction behind the session teardown.
+    def _verify_and_accept():
+        actual_checksum = sha256_file(tmp_path)
+        if actual_checksum != checksum_sha256:
+            tmp_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded checksum mismatch",
+            )
+        accepted = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes)
+        db.commit()
+        return accepted
 
-    job = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes)
-    db.commit()
+    job = await run_to_completion(asyncio.to_thread(_verify_and_accept))
     return MediaJobUploadResponse(
         job_id=job.id,
         status=job.status,
@@ -1112,15 +1141,25 @@ async def finalize_job_artifact(
     if job.claimed_by != request.agent_id:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
 
-    entry = finalize_cache_entry(
-        db=db,
-        job=job,
-        checksum_sha256=request.checksum_sha256,
-        size_bytes=request.size_bytes,
-        content_type=request.content_type,
-    )
-    mark_job_ready(db, job)
-    db.commit()
+    # Verify + promote touches the filesystem (full-file hash, move, chmod).
+    # The whole semantic unit - verify, promote, mark ready, commit - runs
+    # to completion on a worker even when this handler is cancelled mid-
+    # way: an abandoned finalize must never leave the job in `verifying`
+    # with its temp file already moved, nor half a transaction behind the
+    # session teardown.
+    def _finalize_and_commit():
+        entry = finalize_cache_entry(
+            db=db,
+            job=job,
+            checksum_sha256=request.checksum_sha256,
+            size_bytes=request.size_bytes,
+            content_type=request.content_type,
+        )
+        mark_job_ready(db, job)
+        db.commit()
+        return entry
+
+    entry = await run_to_completion(asyncio.to_thread(_finalize_and_commit))
     db.refresh(entry)
     return MediaJobFinalizeResponse(
         job_id=job.id,
