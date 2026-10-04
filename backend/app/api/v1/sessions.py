@@ -84,11 +84,23 @@ async def list_sessions(
     query = query.join(Dive, Dive.session_id == SessionModel.id).filter(*session_filter).distinct()
 
     sessions = query.order_by(SessionModel.date.desc()).offset(offset).limit(limit).all()
+    if not sessions:
+        return []
+
+    # One paged dive load for the whole session page instead of one query
+    # per listed session (N+1). Stats stay computed by the same Python
+    # scoring, only the loading is batched.
+    dives_by_session: dict[int, list[Dive]] = {}
+    for dive in (
+        db.query(Dive)
+        .filter(Dive.session_id.in_([session.id for session in sessions]))
+        .filter(*session_filter)
+        .all()
+    ):
+        dives_by_session.setdefault(dive.session_id, []).append(dive)
+
     return [
-        _apply_live_stats(
-            session,
-            db.query(Dive).filter(Dive.session_id == session.id, *session_filter).all(),
-        )
+        _apply_live_stats(session, dives_by_session.get(session.id, []))
         for session in sessions
     ]
 

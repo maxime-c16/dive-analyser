@@ -9,6 +9,7 @@ from typing import List, Optional
 from dateutil.relativedelta import relativedelta
 
 from fastapi import APIRouter, Depends, Query
+from app.config import get_settings
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -23,6 +24,7 @@ from app.services.performance_scoring import athlete_score_10
 from app.services.dd_overview_service import DDOverviewService
 from app.services.dive_eligibility import is_performance_attempt
 from app.services.workspace_access import require_workspace_read
+from app.services.dataset_cache import cache_key, revision_cached
 
 router = APIRouter(dependencies=[Depends(require_workspace_read)])
 
@@ -47,6 +49,26 @@ def get_dd_progression(db: Session) -> dict:
         })
     current_max = months[-1]["max_dd"] if months else 0
     return {"months": months, "current_max": current_max, "highest_achieved": highest_dd}
+
+
+def _detected_milestones(db: Session, attempts: List[DiveAttempt]) -> List:
+    """Dataset-revision-cached full detection.
+
+    MilestoneDetector is quadratic in history size and the journey page
+    invokes it from several endpoints; the dataset revision (count + max id
+    + max updated_at) invalidates on import, edit and delete alike, so the
+    detection runs once per dataset state instead of once per request.
+    """
+    settings = get_settings()
+    ttl = float(getattr(settings, "analytics_cache_ttl_seconds", 0) or 0)
+    if ttl <= 0:
+        return MilestoneDetector(attempts).detect_all()
+    return revision_cached(
+        cache_key("journey-milestones-v1"),
+        lambda: MilestoneDetector(attempts).detect_all(),
+        db=db,
+        ttl_seconds=ttl,
+    )
 
 
 def get_attempts(db: Session) -> List[DiveAttempt]:
@@ -100,8 +122,7 @@ def get_milestones(
             "milestones": [],
         }
 
-    detector = MilestoneDetector(attempts)
-    milestones = detector.detect_all()
+    milestones = _detected_milestones(db, attempts)
 
     # Filter
     if dive_code:
@@ -137,8 +158,7 @@ def get_journey_summary(db: Session = Depends(get_db)):
             }
         }
 
-    detector = MilestoneDetector(attempts)
-    milestones = detector.detect_all()
+    milestones = _detected_milestones(db, attempts)
     narrator = JourneyNarrator(milestones)
 
     # Basic stats
@@ -211,8 +231,7 @@ def get_dive_story(
         }
 
     # Get milestones for this dive
-    detector = MilestoneDetector(attempts)
-    all_milestones = detector.detect_all()
+    all_milestones = _detected_milestones(db, attempts)
     narrator = JourneyNarrator(all_milestones)
 
     story = narrator.generate_dive_story(dive_code, height)
@@ -259,8 +278,7 @@ def get_breakthroughs(
     if not attempts:
         return {"breakthroughs": [], "message": "No breakthroughs yet. Keep showing up."}
 
-    detector = MilestoneDetector(attempts)
-    milestones = detector.detect_all()
+    milestones = _detected_milestones(db, attempts)
 
     # Filter to breakthrough types
     breakthrough_types = {
