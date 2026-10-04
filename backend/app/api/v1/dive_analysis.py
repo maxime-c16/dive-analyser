@@ -8,10 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.workspace_access import require_workspace_user
 from app.services.dive_analysis_cache import ANALYTICS_VERSION, analysis_cache_key, get_cached_analysis, set_cached_analysis
 from app.services.dive_analysis_service import DiveAnalysisService, build_insights, canonical_dive_code, is_analytics_dive, phase_analysis, summarize, trend
 
-router = APIRouter(prefix="/dive-analysis", tags=["dive-analysis"])
+router = APIRouter(prefix="/dive-analysis", tags=["dive-analysis"], dependencies=[Depends(require_workspace_user)])
 
 
 def _parse_date_bound(value: str | None, *, end_of_day: bool = False) -> datetime | None:
@@ -64,17 +65,17 @@ def _validate_code(value: str) -> str:
     return code
 
 
-def _build_analysis(db: Session, dive_code: str, filters: dict) -> dict:
+def _build_analysis(db: Session, dive_code: str, filters: dict, *, include_attempts: bool = True) -> dict:
     started = perf_counter()
     code = _validate_code(dive_code)
     service = DiveAnalysisService(db)
-    query_started = perf_counter()
-    dives = service.query_dives(code, filters)
-    query_ms = (perf_counter() - query_started) * 1000
     weighting, threshold = filters["weighting"], filters["success_threshold"]
     key = analysis_cache_key(code, filters, weighting)
     core = get_cached_analysis(db, key)
     cache_hit = core is not None
+    query_started = perf_counter()
+    dives = service.query_dives(code, filters) if core is None or include_attempts else []
+    query_ms = (perf_counter() - query_started) * 1000
     calculation_started = perf_counter()
     if core is None:
         current_summary = summarize(dives, threshold, weighting)
@@ -86,61 +87,63 @@ def _build_analysis(db: Session, dive_code: str, filters: dict) -> dict:
             previous_dives = service.query_dives(code, filters, date_from=previous_from, date_to=previous_to)
             previous_summary = summarize(previous_dives, threshold, weighting)
             previous_range = {"date_from": previous_from, "date_to": previous_to}
-        periods, _ = service.matching_periods(dives)
+        periods, period_map = service.matching_periods(dives)
         core = {
             "summary": current_summary, "trend": trend(dives),
             "comparison": {"current": current_summary, "previous": previous_summary, "previous_range": previous_range},
-            "breakdowns": {dimension: service.breakdown(dives, dimension, threshold, weighting) for dimension in ("modifier", "height", "position", "sync", "diver", "training_period")},
+            "breakdowns": {dimension: service.breakdown(dives, dimension, threshold, weighting, period_map=period_map) for dimension in ("modifier", "height", "position", "sync", "diver", "training_period")},
             "phases": phase_analysis(dives, previous_dives),
             "insights": build_insights(current_summary, previous_summary, dives, previous_dives),
             "training_periods": [{"id": period.id, "name": period.name, "period_type": period.period_type, "start_date": period.start_date, "end_date": period.end_date} for period in periods],
         }
         set_cached_analysis(db, key, filters, core)
-        db.commit()
     calculation_ms = (perf_counter() - calculation_started) * 1000
-    attempts = service.serialize_attempts(dives)
+    attempts = service.serialize_attempts(dives) if include_attempts else []
+    # Serialize before commit expires the eagerly loaded attempts/relationships.
+    if not cache_hit:
+        db.commit()
     total_ms = (perf_counter() - started) * 1000
     return {
         "generated_at": datetime.utcnow(), "analytics_version": ANALYTICS_VERSION, "dive_code": code,
         "filters": filters, "weighting_mode": "session_weighted" if weighting == "sessions" else "attempt_weighted",
         "sample": {key: core["summary"][key] for key in ("attempt_count", "session_count", "scored_attempt_count", "unscored_attempt_count", "first_attempt_at", "last_attempt_at")},
         **core, "attempts": attempts,
-        "observability": {"cache": "hit" if cache_hit else "miss", "query_ms": round(query_ms, 2), "calculation_ms": round(calculation_ms, 2), "total_ms": round(total_ms, 2), "result_attempts": len(attempts)},
+        "observability": {"cache": "hit" if cache_hit else "miss", "query_ms": round(query_ms, 2), "calculation_ms": round(calculation_ms, 2), "total_ms": round(total_ms, 2), "result_attempts": core["summary"]["attempt_count"]},
     }
 
 
 @router.get("/{dive_code}")
-async def analyze_dive(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+def analyze_dive(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
     return _build_analysis(db, dive_code, filters)
 
 
 @router.get("/{dive_code}/attempts")
-async def analysis_attempts(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+def analysis_attempts(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
     result = _build_analysis(db, dive_code, filters)
     return {key: result[key] for key in ("generated_at", "analytics_version", "dive_code", "filters", "weighting_mode", "sample", "attempts", "observability")}
 
 
 @router.get("/{dive_code}/phases")
-async def analysis_phases(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
-    result = _build_analysis(db, dive_code, filters)
+def analysis_phases(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+    result = _build_analysis(db, dive_code, filters, include_attempts=False)
     return {key: result[key] for key in ("generated_at", "analytics_version", "dive_code", "filters", "weighting_mode", "sample", "phases", "observability")}
 
 
 @router.get("/{dive_code}/insights")
-async def analysis_insights(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
-    result = _build_analysis(db, dive_code, filters)
+def analysis_insights(dive_code: str, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+    result = _build_analysis(db, dive_code, filters, include_attempts=False)
     return {key: result[key] for key in ("generated_at", "analytics_version", "dive_code", "filters", "weighting_mode", "sample", "insights", "observability")}
 
 
 @router.get("/{dive_code}/breakdown")
-async def analysis_breakdown(dive_code: str, dimension: Literal["modifier", "height", "position", "sync", "diver", "training_period"], filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
-    result = _build_analysis(db, dive_code, filters)
+def analysis_breakdown(dive_code: str, dimension: Literal["modifier", "height", "position", "sync", "diver", "training_period"], filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+    result = _build_analysis(db, dive_code, filters, include_attempts=False)
     return {"generated_at": result["generated_at"], "analytics_version": ANALYTICS_VERSION, "dive_code": result["dive_code"], "filters": result["filters"], "weighting_mode": result["weighting_mode"], "dimension": dimension, "groups": result["breakdowns"][dimension], "observability": result["observability"]}
 
 
 @router.get("/{dive_code}/compare")
-async def analysis_compare(dive_code: str, dimension: Literal["modifier", "height", "position", "sync", "diver", "training_period", "date_period"], equivalent_only: bool = False, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
-    result = _build_analysis(db, dive_code, filters)
+def analysis_compare(dive_code: str, dimension: Literal["modifier", "height", "position", "sync", "diver", "training_period", "date_period"], equivalent_only: bool = False, filters: dict = Depends(analysis_filters), db: Session = Depends(get_db)):
+    result = _build_analysis(db, dive_code, filters, include_attempts=False)
     if dimension == "date_period":
         groups = [{"context": "Selected period", **result["comparison"]["current"]}, {"context": "Previous equal period", **result["comparison"]["previous"]}] if result["comparison"]["previous"] else []
     else:

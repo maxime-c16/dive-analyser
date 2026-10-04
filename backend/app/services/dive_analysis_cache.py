@@ -14,11 +14,12 @@ from app.models.cache import AnalyticsCache
 
 logger = logging.getLogger(__name__)
 ANALYTICS_VERSION = "2.1"
+ANALYSIS_CACHE_PREFIX = "dive-analysis:"
 
 
 def analysis_cache_key(dive_code: str, filters: dict, weighting: str) -> str:
     payload = json.dumps(jsonable_encoder({"dive_code": dive_code, "filters": filters, "weighting": weighting, "analytics_version": ANALYTICS_VERSION}), sort_keys=True, separators=(",", ":"))
-    return f"dive-analysis:v2.1:{hashlib.sha256(payload.encode()).hexdigest()}"
+    return f"{ANALYSIS_CACHE_PREFIX}v{ANALYTICS_VERSION}:{hashlib.sha256(payload.encode()).hexdigest()}"
 
 
 def get_cached_analysis(db: Session, cache_key: str) -> dict | None:
