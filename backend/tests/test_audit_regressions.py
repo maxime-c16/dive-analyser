@@ -196,6 +196,9 @@ def test_poster_only_asset_never_reports_poster_as_playback(test_db, backbone_cl
 @pytest.mark.parametrize("path", [
     "/api/v1/dives", "/api/v1/dive-analysis/103B", "/api/v1/dive-analysis/103B/phases",
     "/api/v1/analytics/overall", "/api/v1/personal-dive-value/recent",
+    "/api/v1/sessions", "/api/v1/journey", "/api/v1/dive-codes/reference",
+    "/api/v1/dd/overview", "/api/v1/execution/fault-categories",
+    "/api/v1/training-periods", "/api/v1/ws/sync/status",
 ])
 def test_workspace_requires_live_login_only_when_enabled(api_client, test_db, monkeypatch, path):
     seed_dives(test_db, 1)
@@ -216,7 +219,92 @@ def test_workspace_requires_live_login_only_when_enabled(api_client, test_db, mo
     assert api_client.get(path, headers=headers).status_code == 401
 
 
+def test_machine_key_mutations_bypass_the_read_boundary(api_client, monkeypatch):
+    """Auth-on machine calls must reach key-authenticated mutations without a
+    browser cookie: the read boundary passes non-safe methods through to the
+    route's own authorization (require_owner_for_mutation + verify_api_key)."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "user_auth_enabled", True)
+    payload = {
+        "name": "Winter block", "period_type": "training_block",
+        "start_date": "2026-01-01", "end_date": "2026-02-01",
+    }
+    created = api_client.post(
+        "/api/v1/training-periods", json=payload,
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert created.status_code == 201, created.text
+    period_id = created.json()["id"]
+    updated = api_client.put(
+        f"/api/v1/training-periods/{period_id}", json={**payload, "name": "Spring block"},
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Spring block"
+    deleted = api_client.delete(
+        f"/api/v1/training-periods/{period_id}",
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert deleted.status_code in (200, 204)
+    # The read boundary still applies when auth is on.
+    assert api_client.get("/api/v1/training-periods").status_code == 401
+
+
 def test_workspace_rejects_unauthenticated_writes(api_client, monkeypatch):
     monkeypatch.setattr(get_settings(), "user_auth_enabled", True)
     assert api_client.put("/api/v1/dives/1", json={"notes": "anonymous"}).status_code == 401
     assert api_client.delete("/api/v1/dives/1").status_code == 401
+
+
+def test_import_mutations_require_machine_key(api_client, monkeypatch):
+    monkeypatch.setenv("MAC_AGENT_API_KEYS", "")
+    get_settings.cache_clear()
+    try:
+        assert api_client.post("/api/v1/import/clear").status_code == 401
+        assert api_client.post("/api/v1/import/sync").status_code == 401
+    finally:
+        monkeypatch.setenv("MAC_AGENT_API_KEYS", "test-api-key-1234567890abcdef")
+        get_settings.cache_clear()
+    try:
+        assert api_client.post("/api/v1/import/clear", headers={"X-API-Key": "wrong"}).status_code == 401
+        assert api_client.post("/api/v1/import/sync", headers={"X-API-Key": "test-api-key-1234567890abcdef"}).status_code == 404
+    finally:
+        monkeypatch.setenv(
+            "MAC_AGENT_API_KEYS",
+            "test-api-key-1234567890abcdef,test-api-key-perf-testing,personal-value-test-key,"
+            "test-api-key-long-enough,test-api-key-integration-testing," + "k" * 48,
+        )
+        get_settings.cache_clear()
+    assert api_client.get("/api/v1/import/status").status_code == 200
+
+
+def test_sync_ws_requires_live_login_when_auth_enabled(api_client, test_db, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "user_auth_enabled", True)
+
+    from starlette.testclient import WebSocketDisconnect
+    from app.api.v1 import ws_sync
+
+    # The handshake resolves cookies via the app's own SessionLocal; the
+    # fixture database lives on its own engine, so point the factory there.
+    TestingSessionLocal = sessionmaker(
+        autocommit=False, autoflush=False, bind=test_db.get_bind()
+    )
+    monkeypatch.setattr(ws_sync, "SessionLocal", TestingSessionLocal)
+
+    with pytest.raises(WebSocketDisconnect):
+        with api_client.websocket_connect("/api/v1/ws/sync?client_id=anon"):
+            pass
+
+    user = AppUser(email="ws@example.test", display_name="Ws user")
+    test_db.add(user)
+    test_db.commit()
+    token, _ = create_session(test_db, user_id=user.id, ttl_seconds=3600)
+    headers = {"Cookie": f"{settings.auth_cookie_name}={token}"}
+    try:
+        with api_client.websocket_connect(
+            "/api/v1/ws/sync?client_id=authed", headers=headers
+        ) as ws:
+            ws.send_text('{"type": "heartbeat"}')
+    finally:
+        revoke_session_by_raw_token(test_db, token)
