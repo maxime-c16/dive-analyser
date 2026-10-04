@@ -100,25 +100,33 @@ pipe_to() {
     fi
 }
 
-origin_is_github() {
-    case "$(git -C "$ROOT" remote get-url origin 2>/dev/null)" in
-        *github.com*"$GITHUB_SLUG"*) return 0 ;;
+# Exact canonical URL forms only: a substring match would also accept
+# look-alike hosts, forks with a suffix, or local paths.
+is_canonical_url() {
+    case "$1" in
+        https://github.com/$GITHUB_SLUG|https://github.com/$GITHUB_SLUG.git) return 0 ;;
+        git@github.com:$GITHUB_SLUG|git@github.com:$GITHUB_SLUG.git) return 0 ;;
+        ssh://git@github.com/$GITHUB_SLUG|ssh://git@github.com/$GITHUB_SLUG.git) return 0 ;;
     esac
     return 1
+}
+
+origin_is_github() {
+    is_canonical_url "$(git -C "$ROOT" remote get-url origin 2>/dev/null)"
 }
 
 # Resolve REF to a full sha that is on GitHub. Sets SHA and SHORT.
 resolve_ref() {
     origin_is_github \
         || ci_die "this checkout's 'origin' is not GitHub ($GITHUB_SLUG) — see docs/REPO_WORKFLOW.md"
-    git -C "$ROOT" fetch --quiet origin \
+    git -C "$ROOT" fetch --quiet --prune origin \
         || ci_die "git fetch origin failed — this host cannot reach GitHub"
     SHA="$(git -C "$ROOT" rev-parse --verify --quiet "${REF}^{commit}")" \
         || ci_die "cannot resolve ref '$REF'"
     SHORT="${SHA:0:7}"
     if ! git -C "$ROOT" merge-base --is-ancestor "$SHA" origin/master; then
         if [ "$ALLOW_UNMERGED" -eq 1 ]; then
-            [ -n "$(git -C "$ROOT" branch -r --contains "$SHA" 2>/dev/null)" ] \
+            [ -n "$(git -C "$ROOT" branch -r --contains "$SHA" --list 'origin/*' 2>/dev/null)" ] \
                 || ci_die "$SHORT is not on GitHub at all — push it first"
             ci_warn "$SHORT is NOT on origin/master (--allow-unmerged)"
         else
@@ -164,7 +172,7 @@ exit 0
 
 do_status() {
     origin_is_github || ci_warn "this checkout's origin is not GitHub"
-    git -C "$ROOT" fetch --quiet origin || ci_warn "git fetch origin failed"
+    git -C "$ROOT" fetch --quiet --prune origin || ci_warn "git fetch origin failed"
     ci_step "GitHub (source of truth)"
     printf '  origin/master   %s\n' "$(git -C "$ROOT" log -1 --format='%h %s (%cr)' origin/master)"
     ci_step "this checkout ($(hostname -s))"
@@ -187,27 +195,59 @@ STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"
 LOCK="$STATE/deploy.lock"
 cd "$LIVE" || { echo "✗ live dir $LIVE missing"; exit 3; }
 
+# Lock before reading any state, so a concurrent deploy cannot change HEAD or
+# the images between our snapshot and our rollback.
+if [ "$dry_run" != 1 ]; then
+    mkdir "$LOCK" 2>/dev/null || { echo "✗ another deploy holds $LOCK (remove it if stale)"; exit 3; }
+    trap "rmdir \"$LOCK\"" EXIT
+fi
+
 case "$(git remote get-url origin 2>/dev/null)" in
-    *github.com*maxime-c16/dive-analyser*) ;;
+    https://github.com/maxime-c16/dive-analyser|https://github.com/maxime-c16/dive-analyser.git) ;;
+    git@github.com:maxime-c16/dive-analyser|git@github.com:maxime-c16/dive-analyser.git) ;;
+    ssh://git@github.com/maxime-c16/dive-analyser|ssh://git@github.com/maxime-c16/dive-analyser.git) ;;
     *) echo "✗ $LIVE origin is not GitHub — run the one-time migration in docs/REPO_WORKFLOW.md"; exit 3 ;;
 esac
-if [ -n "$(git status --porcelain)" ]; then
+# A failing `git status` (e.g. core.bare flipped to true) must not read as clean.
+if [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" != true ]; then
+    echo "✗ $LIVE is not a usable work tree (git config core.bare = $(git config core.bare))."
+    echo "  If core.bare is true, fix with: git -C $LIVE config core.bare false"
+    exit 3
+fi
+porcelain="$(git status --porcelain)" || { echo "✗ git status failed in $LIVE"; exit 3; }
+if [ -n "$porcelain" ]; then
     echo "✗ $LIVE has local changes. The live checkout is deploy-only; move this work"
     echo "  to a worktree (docs/REPO_WORKFLOW.md) and retry:"
     git status --short | head -20 | sed "s/^/    /"
     exit 3
 fi
 
-git fetch --quiet origin || { echo "✗ server cannot fetch GitHub"; exit 3; }
+git fetch --quiet --prune origin || { echo "✗ server cannot fetch GitHub"; exit 3; }
 git cat-file -e "$sha^{commit}" 2>/dev/null || { echo "✗ $sha not found after fetch"; exit 3; }
 prev="$(git rev-parse HEAD)"
-if [ -z "$(git branch -r --contains "$prev" 2>/dev/null)" ]; then
+if [ -z "$(git branch -r --contains "$prev" --list "origin/*" 2>/dev/null)" ]; then
     echo "✗ live HEAD ${prev:0:7} is not on GitHub (someone committed in the live dir)."
     echo "  Push it from a worktree first so it is not lost, then retry."
     exit 3
 fi
-if [ "$prev" = "$sha" ] && [ "$force" != 1 ]; then
-    echo "✓ server already at ${sha:0:7} — nothing to do (use --force to redeploy)"
+# HEAD alone is not deployment state (a --frontend-only deploy moves HEAD but
+# leaves the backend image old), so also require every requested service to
+# run an image labelled with this commit.
+services="frontend backend"
+case " $* " in
+    *" --frontend-only "*) services="frontend" ;;
+    *" --backend-only "*)  services="backend" ;;
+esac
+up_to_date=0
+if [ "$prev" = "$sha" ]; then
+    up_to_date=1
+    for svc in $services; do
+        label="$(docker inspect "dive-analyser-$svc-1" --format "{{index .Config.Labels \"dive.analyser/sha\"}}" 2>/dev/null)"
+        case "$sha" in "$label"?*|"$label") [ -n "$label" ] || up_to_date=0 ;; *) up_to_date=0 ;; esac
+    done
+fi
+if [ "$up_to_date" = 1 ] && [ "$force" != 1 ]; then
+    echo "✓ server already at ${sha:0:7} ($services) — nothing to do (use --force to redeploy)"
     exit 0
 fi
 
@@ -226,9 +266,6 @@ if [ "$dry_run" = 1 ]; then
     echo "  dry run: would check out ${sha:0:7} (detached) in $LIVE and run ci/deploy.sh $*"
     exit 0
 fi
-
-mkdir "$LOCK" 2>/dev/null || { echo "✗ another deploy holds $LOCK (remove it if stale)"; exit 3; }
-trap "rmdir \"$LOCK\"" EXIT
 
 git checkout --quiet --detach "$sha" || { echo "✗ checkout failed"; exit 3; }
 DIVE_DEPLOY_ROOT="$LIVE" ./ci/deploy.sh "$@"
@@ -258,22 +295,31 @@ do_server() {
 # ---------------------------------------------------------------------- mac
 
 # The Mac has no GitHub credentials, so the exact commit is streamed to it
-# with git archive. Args: sha dry_run force
+# with git archive into a per-invocation stage dir. Args: sha dry_run force stage
 mac_script='
 set -uo pipefail
-sha="$1"; dry_run="$2"; force="$3"
+sha="$1"; dry_run="$2"; force="$3"; STAGE="$4"
 BASE=/Users/Shared/services/data/diveanalyzer
 CODE="$BASE/code"
+VENV="$BASE/venv"
 REL="$BASE/releases"
-STAGE="$REL/incoming-$sha"
 LABEL=com.diveanalyzer.agent
 SVC="gui/$(id -u)/$LABEL"
 LOCK="$REL/deploy.lock"
 
+# Lock before reading prev/need_pip so a concurrent deploy cannot invalidate
+# them. The stage dir is unique to this invocation, so cleanup is always safe.
+if [ "$dry_run" != 1 ]; then
+    mkdir "$LOCK" 2>/dev/null || { echo "✗ another deploy holds $LOCK (remove it if stale)"; rm -rf "$STAGE"; exit 3; }
+    trap "rm -rf \"$STAGE\"; rmdir \"$LOCK\"" EXIT
+else
+    trap "rm -rf \"$STAGE\"" EXIT
+fi
+
 prev="$(cat "$CODE/.deployed-sha" 2>/dev/null || echo unknown)"
 if [ "$prev" = "$sha" ] && [ "$force" != 1 ]; then
     echo "✓ mac agent already at ${sha:0:7} — nothing to do (use --force to redeploy)"
-    rm -rf "$STAGE"; exit 0
+    exit 0
 fi
 [ -d "$STAGE/mac-agent/src" ] || { echo "✗ staged code missing at $STAGE"; exit 3; }
 
@@ -284,22 +330,29 @@ diff -rq -x __pycache__ "$CODE/src" "$STAGE/mac-agent/src" 2>/dev/null | sed "s/
 
 if [ "$dry_run" = 1 ]; then
     echo "  dry run: would sync mac-agent/ into $CODE and restart $LABEL"
-    rm -rf "$STAGE"; exit 0
+    exit 0
 fi
-
-mkdir "$LOCK" 2>/dev/null || { echo "✗ another deploy holds $LOCK (remove it if stale)"; exit 3; }
-trap "rmdir \"$LOCK\"" EXIT
 
 backup="$REL/code-backup-$(date +%Y%m%dT%H%M%S)-${prev:0:7}.tgz"
 tar -czf "$backup" -C "$BASE" --exclude "__pycache__" --exclude "code/logs" code \
     || { echo "✗ backup failed — nothing changed"; exit 3; }
 echo "  backup: $backup"
+# The LaunchAgent runs $VENV/bin/python, so a dependency change must roll back
+# together with the code. APFS clone (cp -c) makes this snapshot near-free.
+if [ "$need_pip" = 1 ]; then
+    rm -rf "$VENV.rollback"
+    cp -cR "$VENV" "$VENV.rollback" 2>/dev/null || cp -R "$VENV" "$VENV.rollback" \
+        || { echo "✗ venv snapshot failed — nothing changed"; exit 3; }
+fi
 
 restore() {
     echo "✗ $1 — restoring previous code"
     rm -rf "$CODE.failed" && mv "$CODE" "$CODE.failed" && tar -xzf "$backup" -C "$BASE"
     [ -d "$CODE.failed/logs" ] && mv "$CODE.failed/logs" "$CODE/logs" 2>/dev/null
     rm -rf "$CODE.failed"
+    if [ "$need_pip" = 1 ] && [ -d "$VENV.rollback" ]; then
+        rm -rf "$VENV" && mv "$VENV.rollback" "$VENV"
+    fi
     launchctl kickstart -k "$SVC"
     printf "%s mac %s -> %s FAILED (%s) by %s\n" "$(date -u +%FT%TZ)" "${prev:0:7}" "${sha:0:7}" "$1" "${SHIP_FROM:-?}" >>"$REL/deploys.log"
     exit 1
@@ -328,7 +381,7 @@ if [ -z "$pid1" ] || [ "$pid1" != "$pid2" ]; then
 fi
 echo "✓ agent running (pid $pid2) at ${sha:0:7}"
 
-rm -rf "$STAGE"
+rm -rf "$VENV.rollback"
 ls -1t "$REL"/code-backup-*.tgz 2>/dev/null | tail -n +6 | while read -r old; do rm -f "$old"; done
 printf "%s mac %s -> %s ok by %s\n" "$(date -u +%FT%TZ)" "${prev:0:7}" "${sha:0:7}" "${SHIP_FROM:-?}" >>"$REL/deploys.log"
 exit 0
@@ -336,11 +389,11 @@ exit 0
 
 do_mac() {
     ci_step "mac: deploy agent $SHORT"
-    local stage="/Users/Shared/services/data/diveanalyzer/releases/incoming-$SHA"
+    local stage="/Users/Shared/services/data/diveanalyzer/releases/incoming-$SHORT-$$-$RANDOM"
     git -C "$ROOT" archive --format=tar "$SHA" mac-agent \
         | pipe_to mac "mkdir -p '$stage' && LC_ALL=C tar -x -C '$stage'" \
         || ci_die "could not stage $SHORT on the mac"
-    run_on mac "$mac_script" "$SHA" "$DRY_RUN" "$FORCE"
+    run_on mac "$mac_script" "$SHA" "$DRY_RUN" "$FORCE" "$stage"
 }
 
 # --------------------------------------------------------------------- main

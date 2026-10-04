@@ -47,6 +47,9 @@ BACKEND_HEALTH="${DIVE_BACKEND_HEALTH:-http://127.0.0.1:6002/api/v1/health}"
 FRONTEND_HEALTH="${DIVE_FRONTEND_HEALTH:-https://127.0.0.1:6443/health}"
 PROXY_API_HEALTH="${DIVE_PROXY_API_HEALTH:-https://127.0.0.1:6443/api/v1/health}"
 HEALTH_RETRIES="${DIVE_HEALTH_RETRIES:-90}"
+FUNNEL_PROXY="${DIVE_FUNNEL_PROXY:-dive-funnel-funnel-proxy-1}"
+FUNNEL_LOGIN="${DIVE_FUNNEL_LOGIN:-http://127.0.0.1:6091/login}"
+FUNNEL_API_PROBE="${DIVE_FUNNEL_API_PROBE:-http://127.0.0.1:6091/api/v1/auth/me}"
 
 SKIP_GATE=0
 ONLY=""
@@ -112,16 +115,38 @@ prev_backend_id="$(docker image inspect "$BACKEND_IMAGE:latest" \
 # Both nginx front doors (LAN :6443 and the Tailscale Funnel proxy) resolve
 # upstream container addresses at startup, so they must be reloaded whenever
 # backend/frontend are recreated or they keep proxying to stale IPs.
+# Returns non-zero if a running proxy could not be reloaded.
 reload_proxies() {
-    local c
-    for c in dive-analyser-nginx-1 dive-funnel-funnel-proxy-1; do
+    local c rc=0
+    for c in dive-analyser-nginx-1 "$FUNNEL_PROXY"; do
         [ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" = "true" ] || continue
         if docker exec "$c" nginx -t >/dev/null 2>&1 && docker exec "$c" nginx -s reload >/dev/null 2>&1; then
             ci_ok "reloaded $c"
         else
-            ci_warn "could not reload $c — check: docker exec $c nginx -t"
+            ci_err "could not reload $c — check: docker exec $c nginx -t"
+            rc=1
         fi
     done
+    return "$rc"
+}
+
+funnel_running() {
+    [ "$(docker inspect -f '{{.State.Running}}' "$FUNNEL_PROXY" 2>/dev/null)" = "true" ]
+}
+
+# The public proxy gates /api behind a session, so an anonymous probe should
+# get 401 from the backend; 502/504 means nginx still targets a stale address.
+wait_funnel_api() {
+    local code deadline=$(( $(date +%s) + HEALTH_RETRIES ))
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$FUNNEL_API_PROBE" 2>/dev/null)"
+        case "$code" in
+            200|401) ci_ok "public proxy -> backend answered $code ($FUNNEL_API_PROBE)"; return 0 ;;
+        esac
+        sleep 3
+    done
+    ci_err "public proxy -> backend never answered 200/401 (last: ${code:-none})"
+    return 1
 }
 
 # Restores the previous images and EXITS non-zero: a deploy that needed a
@@ -139,10 +164,10 @@ rollback() {
         compose up -d --no-deps --force-recreate backend >/dev/null 2>&1
         ci_log "rolled backend back to ${prev_backend_id:7:12}"
     fi
-    reload_proxies
+    local recovered=1
+    reload_proxies || recovered=0
     # Confirm recovery on whatever this deploy actually touched, rather than
     # always on the backend.
-    local recovered=1
     if [ "$ONLY" != "frontend" ]; then
         ci_wait_http "$BACKEND_HEALTH" "backend(rollback)" "$HEALTH_RETRIES" \
             || { ci_err "rollback did NOT restore a healthy backend — manual intervention needed"; recovered=0; }
@@ -151,8 +176,11 @@ rollback() {
         ci_wait_http "$FRONTEND_HEALTH" "frontend(rollback)" "$HEALTH_RETRIES" \
             || { ci_err "rollback did NOT restore a serving frontend — manual intervention needed"; recovered=0; }
     fi
-    [ "$recovered" -eq 1 ] \
-        && ci_warn "rollback complete — the previous version is serving again"
+    if [ "$recovered" -eq 1 ]; then
+        ci_warn "rollback complete — the previous version is serving again"
+    else
+        ci_err "rollback incomplete — manual intervention needed"
+    fi
     exit 1
 }
 
@@ -169,8 +197,7 @@ if [ "$ONLY" != "backend" ]; then
             --label "dive.analyser/sha=$sha" \
             "$ROOT/frontend" \
             || ci_die "frontend image build failed — previous images untouched"
-        docker tag "$FRONTEND_IMAGE:sha-$sha" "$FRONTEND_IMAGE:latest"
-        ci_ok "frontend image built and tagged :latest"
+        ci_ok "frontend image built ($FRONTEND_IMAGE:sha-$sha)"
     fi
 fi
 
@@ -185,8 +212,7 @@ if [ "$ONLY" != "frontend" ]; then
             --label "dive.analyser/sha=$sha" \
             "$ROOT/backend" \
             || ci_die "backend image build failed — previous images untouched"
-        docker tag "$BACKEND_IMAGE:sha-$sha" "$BACKEND_IMAGE:latest"
-        ci_ok "backend image built and tagged :latest"
+        ci_ok "backend image built ($BACKEND_IMAGE:sha-$sha)"
     fi
 fi
 
@@ -194,6 +220,11 @@ if [ "$DRY_RUN" -eq 1 ]; then
     ci_step "dry run complete — nothing was deployed"
     exit 0
 fi
+
+# Move :latest only once every requested build succeeded, so a failed build
+# can never leave a half-new :latest behind as the next rollback target.
+[ "$ONLY" != "backend" ]  && docker tag "$FRONTEND_IMAGE:sha-$sha" "$FRONTEND_IMAGE:latest"
+[ "$ONLY" != "frontend" ] && docker tag "$BACKEND_IMAGE:sha-$sha" "$BACKEND_IMAGE:latest"
 
 # ------------------------------------------------------------ 5. swap
 
@@ -205,7 +236,7 @@ svc_list=""
 compose up -d --no-deps --force-recreate $svc_list \
     || rollback "compose up failed"
 ci_ok "containers recreated: $svc_list"
-reload_proxies
+reload_proxies || rollback "nginx proxy reload failed"
 
 # ------------------------------------------------------ 6. verify + rollback
 
@@ -225,6 +256,17 @@ fi
 if [ "$ONLY" != "backend" ]; then
     ci_wait_http "$FRONTEND_HEALTH" "frontend serving" "$HEALTH_RETRIES" \
         || rollback "frontend not serving"
+fi
+
+# Public Tailscale Funnel path (only when that proxy is deployed on this host).
+if funnel_running; then
+    if [ "$ONLY" != "frontend" ]; then
+        wait_funnel_api || rollback "API not reachable through the public proxy"
+    fi
+    if [ "$ONLY" != "backend" ]; then
+        ci_wait_http "$FUNNEL_LOGIN" "public proxy -> frontend" "$HEALTH_RETRIES" \
+            || rollback "frontend not reachable through the public proxy"
+    fi
 fi
 
 compose ps 2>/dev/null | sed 's/^/    /' || true
