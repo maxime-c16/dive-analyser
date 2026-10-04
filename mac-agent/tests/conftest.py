@@ -7,6 +7,20 @@ from typing import List, Dict, Any
 from unittest.mock import AsyncMock, MagicMock
 import json
 
+# Portable tests must never open a real Photos library. Keep native integration
+# available on macOS; on Linux expose an import boundary that fails if used.
+import sys
+from types import ModuleType
+
+if sys.platform != "darwin":
+    photos_boundary = ModuleType("osxphotos")
+
+    def native_photos_unavailable(*args, **kwargs):
+        raise RuntimeError("real Photos access requires macOS; use a test reader")
+
+    photos_boundary.PhotosDB = native_photos_unavailable
+    sys.modules["osxphotos"] = photos_boundary
+
 from src.config import ServerConfig, SyncConfig
 from src.sync_client import SyncClient
 from src.types import SyncResult

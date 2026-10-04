@@ -71,13 +71,14 @@ def test_weighting_period_phase_endpoints_and_cache(api_client, test_db):
     assert any(group["context"] == "Winter" for group in periods)
 
 
-def test_attempt_and_summary_expose_formula_dd_adjusted_execution(api_client, test_db):
+def test_attempt_and_summary_expose_formula_dd_as_context(api_client, test_db):
     seed_attempts(test_db)
     response = api_client.get("/api/v1/dive-analysis/103B?diver_scope=all").json()
     assert response["summary"]["dd_coverage_rate"] == 100.0
     first = response["attempts"][0]
     assert first["official_dd"] == 1.7
-    assert first["dd_adjusted_execution"] == round(first["performance_numeric"] * first["official_dd"], 2)
+    assert "dd_adjusted_execution" not in first
+    assert 0 <= first["performance_numeric"] <= 10
     assert first["dd_reference"] == "ffn_world_aquatics_diving_2022_2025_appendix_1_3"
 
 

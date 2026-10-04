@@ -391,8 +391,9 @@ def test_security_audit_trail_records_lifecycle_events(db, flags, fake_presign,
         assert "brand-new-password" not in blob
 
 
-def test_revoke_all_sessions_counts(db):
-    b_client, _ = _client_as(db, None, None, "user-b@example.test")
+def test_revoke_all_sessions_counts(db, flags, fake_presign):
+    b_client, response = _client_as(db, flags, fake_presign, "user-b@example.test")
+    assert response.status_code == 200
     user = db.query(AppUser).filter_by(email="user-b@example.test").one()
     assert sessions_authority.revoke_all_user_sessions(db, user.id) >= 1
     assert sessions_authority.revoke_all_user_sessions(db, user.id) == 0

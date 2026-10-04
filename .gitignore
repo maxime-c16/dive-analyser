@@ -31,6 +31,7 @@ playwright-report/
 
 # ---- Logs / runtime state ----
 /logs/
+/backend/logs/
 *.log
 
 # Audit trail appended by the pytest suite on every run (see ci/gate.sh). The

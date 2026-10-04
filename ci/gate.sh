@@ -3,19 +3,19 @@
 #
 # Why this exists in this shape
 # ----------------------------
-# There is no CI provider for this repo: the only git remote is an SSH bare
-# repo on a LAN Mac, so there is no hosted runner to delegate to. The
-# enforcement point is therefore a git hook calling this script.
+# The enforcement point is a local pre-push hook. No daemon or hosted
+# service is needed; the same entrypoint can run on a hosted runner later.
 #
 # The host is small (2 CPU, ~1.9 GB free RAM, production stack co-resident),
 # so checks are ordered by cost and the cheap ones run first. A typo should
 # fail in seconds, not after the three-minute backend suite.
 #
 # Usage:
-#   ci/gate.sh                    # fast + frontend + backend  (pre-push default)
+#   ci/gate.sh                    # fast + frontend + backend + agent
 #   ci/gate.sh fast               # static guards only (~1s)
-#   ci/gate.sh frontend           # vitest + tsc
-#   ci/gate.sh backend            # pytest, compared against the known-failure baseline
+#   ci/gate.sh frontend           # single-worker vitest + production build
+#   ci/gate.sh backend            # isolated pytest, zero failures
+#   ci/gate.sh agent              # portable Mac-agent tests
 #   ci/gate.sh images             # docker build of the deployable images
 #   ci/gate.sh all                # everything
 #   ci/gate.sh tiers -- <paths>   # print the tiers needed for those changed paths
@@ -29,12 +29,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib.sh"
 
 ROOT="$(ci_repo_root)"
-BASELINE="$ROOT/ci/baseline/backend-failures.txt"
+export CI=true NO_COLOR=1
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}"
 
 # Tiers that only need re-running when their inputs change.
-FAST_PATHS='^(docs/|models/|\.gitignore$)'
 FRONTEND_PATHS='^(frontend/|nginx/|docker-compose\.yml|package-lock)'
-BACKEND_PATHS='^(backend/|mac-agent/|docker-compose\.yml|docker/|layer2/)'
+BACKEND_PATHS='^(backend/|docker-compose\.yml|docker/|layer2/)'
 IMAGES_PATHS='^(backend/Dockerfile|frontend/Dockerfile|docker-compose\.yml|nginx/|backend/requirements\.txt|frontend/package-lock\.json)'
 
 # ===========================================================================
@@ -43,6 +44,7 @@ IMAGES_PATHS='^(backend/Dockerfile|frontend/Dockerfile|docker-compose\.yml|nginx
 tier_fast() {
     ci_step "fast: static guards"
     local failures=0 warns=0
+    ci_run gate-self-tests python3 -m unittest discover -s "$ROOT/ci/tests" -q || failures=$((failures+1))
     local note rc
 
     # -- shell syntax of every script the pipeline depends on --------------
@@ -60,45 +62,38 @@ tier_fast() {
 
     # -- compose file still resolves ---------------------------------------
     note="docker-compose.yml resolves"
-    if ( cd "$ROOT" && docker-compose config -q ) >/dev/null 2>&1; then
+    if ( cd "$ROOT" && ci_compose config -q ) >/dev/null 2>&1; then
         ci_ok "$note"
     else
-        ci_err "$note — 'docker-compose config' failed"; failures=$((failures+1))
+        ci_err "$note — 'ci_compose config' failed"; failures=$((failures+1))
     fi
 
-    # -- every compose build context points at a real Dockerfile ------------
+    # Compose's resolved build definitions must point at existing Dockerfiles.
     note="compose build contexts exist"
-    rc=0
-    local ctx df
-    while read -r ctx df; do
-        [ -z "$ctx" ] && continue
-        # `docker-compose config` prints contexts as absolute paths; relative
-        # ones stay relative to the repo root.
-        case "$ctx" in
-            /*) abs="$ctx" ;;
-            *)  abs="$ROOT/${ctx#./}" ;;
-        esac
-        if [ ! -f "$abs/$df" ]; then
-            ci_err "compose builds $ctx/$df which does not exist"
-            rc=1
-        fi
-    done < <(cd "$ROOT" && docker-compose config 2>/dev/null \
-        | python3 -c '
-import sys, yaml
-try:
-    doc = yaml.safe_load(sys.stdin) or {}
-except Exception:
-    sys.exit(0)
-for svc in (doc.get("services") or {}).values():
-    b = svc.get("build")
-    if isinstance(b, dict):
-        print(b.get("context", "."), b.get("dockerfile", "Dockerfile"))
-')
-    if [ "$rc" -eq 0 ]; then
+    local config_file
+    config_file=$(mktemp)
+    if ci_compose config >"$config_file" 2>/dev/null &&
+       python3 - "$config_file" "$ROOT" <<'PYCODE'
+import sys
+from pathlib import Path
+import yaml
+with open(sys.argv[1]) as stream:
+    doc = yaml.safe_load(stream)
+for service in doc["services"].values():
+    build = service.get("build")
+    if build:
+        context = build if isinstance(build, str) else build.get("context", ".")
+        dockerfile = "Dockerfile" if isinstance(build, str) else build.get("dockerfile", "Dockerfile")
+        path = Path(sys.argv[2]) / context / dockerfile
+        if not path.is_file():
+            raise SystemExit(f"missing compose Dockerfile: {path}")
+PYCODE
+    then
         ci_ok "$note"
     else
-        ci_err "$note"; failures=$((failures+1))
+        ci_err "$note (requires Python PyYAML)"; failures=$((failures+1))
     fi
+    unlink "$config_file"
 
     # -- no TLS private keys or real .env files tracked in git -------------
     # frontend/.env is intentionally tracked (VITE_* build-time constants,
@@ -144,10 +139,10 @@ for svc in (doc.get("services") or {}).values():
 # Tier: frontend — vitest + tsc. ~1 min warm.
 # ===========================================================================
 tier_frontend() {
-    ci_step "frontend: vitest + typecheck"
+    ci_step "frontend: single-worker vitest + production build"
     local py rc
 
-    if ! ci_have npm; then ci_record frontend SKIP "npm not installed"; return 0; fi
+    if ! ci_have npm; then ci_record frontend FAIL "npm not installed"; return 1; fi
 
     ci_frontend_ready || ci_frontend_install
 
@@ -160,7 +155,7 @@ tier_frontend() {
     # from the repo root silently collects the wrong files and skips
     # src/test/setup.ts.
     ci_run frontend-vitest \
-        bash -c 'cd "$1" && CI=true NO_COLOR=1 npx vitest run --reporter=basic' \
+        bash -c 'cd "$1" && CI=true NO_COLOR=1 npm run --silent test:ci' \
         _ "$ROOT/frontend" \
         || rc=1
 
@@ -169,126 +164,49 @@ tier_frontend() {
         return 1
     fi
 
-    ci_run frontend-typecheck \
-        bash -c 'cd "$1" && NO_COLOR=1 npm run --silent typecheck' \
+    ci_run frontend-build \
+        bash -c 'cd "$1" && NO_COLOR=1 npm run --silent build' \
         _ "$ROOT/frontend" \
-        || { ci_record frontend FAIL "tsc --noEmit failed"; return 1; }
+        || { ci_record frontend FAIL "production build failed"; return 1; }
 
-    ci_record frontend PASS "126 unit tests + typecheck clean"
+    ci_record frontend PASS "unit tests + TypeScript + production bundle clean"
     return 0
 }
 
 # ===========================================================================
-# Tier: backend — pytest measured against the known-failure baseline.
-#
-# The suite has real, pre-existing breakage that is product drift rather than
-# infrastructure noise (e.g. ResultsAggregator.__init__ grew a `db`
-# argument; some fixtures re-insert seeded FINA dive codes and trip the UNIQUE
-# constraint). Gating on the raw exit code would mean a permanently red
-# pipeline that everyone learns to ignore.
-#
-# So the gate is a ratchet: the known-bad set is checked in, and the build
-# fails only on *newly* broken tests. Fixing a test and dropping it from the
-# baseline is a deliberate, reviewable act.
+# Tier: backend — all portable API/service tests. No failure baseline.
 # ===========================================================================
 
-# Extract normalised test ids from pytest's short summary.
-ci_pytest_ids() {
-    grep -E '^(FAILED|ERROR) ' "$1" \
-        | awk '{ print $2 }' \
-        | grep -E '\.py::' \
-        | sed 's/[[:space:]]*$//' \
-        | sort -u
+tier_backend() {
+    ci_step "backend: isolated pytest (zero failures required)"
+    ci_backend_python
+    local result="$(ci_cache_dir)/logs/backend-results.json" rc=0
+    mkdir -p "$(dirname "$result")"
+    # Overwrite stale results before launching; a crashed run cannot reuse a pass.
+    printf '{}' >"$result"
+    ( cd "$ROOT/backend" &&
+      export DATABASE_URL="sqlite:///:memory:" AUTO_IMPORT=false DB_TEST=0
+      export PYTHONPATH="$ROOT:$ROOT/backend" DIVE_CI_RESULT_FILE="$result"
+      ci_run backend-pytest "$CI_BACKEND_PYTHON" -m pytest tests/ \
+        -p ci.pytest_results -m "not performance" -q --tb=short \
+        --strict-markers --asyncio-mode=auto \
+        -W error::pytest.PytestUnhandledCoroutineWarning
+    ) || rc=$?
+    "$CI_BACKEND_PYTHON" "$ROOT/ci/check-results.py" "$result" "$rc" \
+        || { ci_record backend FAIL "failures or incomplete run"; return 1; }
+    ci_record backend PASS "zero failures; complete run"
 }
 
-tier_backend() {
-    ci_step "backend: pytest vs known-failure baseline"
-    local py log rc new_ids
-    ci_backend_python
-    py="$CI_BACKEND_PYTHON"
-    log="$(ci_cache_dir)/logs/backend-pytest.log"
-    mkdir -p "$(dirname "$log")"
-
-    # There is no pytest.ini/tox.ini/pyproject in this repo, so the marker
-    # filter has to be given explicitly. -m "not performance" keeps the slow
-    # load tests out of the gate.
-    set +e
-    ( cd "$ROOT/backend" && command nice -n 10 "$py" -m pytest tests/ \
-        -m "not performance" -q --tb=short -p no:cacheprovider -p no:warnings \
-        >"$log" 2>&1 )
-    rc=$?
-    set -e
-
-    # --- fail-safe guard -------------------------------------------------
-    # If pytest never actually ran (bad interpreter, crash, missing plugin)
-    # there are no FAILED/ERROR lines, which would compare equal to a clean
-    # run and report a false green. Only pytest exit code 1 means "tests ran
-    # and some failed"; 0 means clean; anything else is infrastructure.
-    if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
-        ci_err "pytest exited $rc (not 0 or 1) — the suite did not run properly"
-        ci_err "last 20 lines of $log:"
-        tail -20 "$log" >&2
-        ci_record backend FAIL "pytest infrastructure error (exit $rc)"
-        return 1
-    fi
-    # Under -q the trailing count line carries no "=====" decoration, e.g.
-    #   17 failed, 660 passed, 19 skipped, 14 errors in 185.63s (0:03:05)
-    # so match the count tokens rather than pytest's section banners.
-    if ! grep -qE '[0-9]+ (passed|failed|errors?|skipped|xfailed|xpassed)|no tests ran' "$log"; then
-        ci_err "pytest produced no recognisable summary — refusing to report a pass"
-        ci_err "last 20 lines of $log:"
-        tail -20 "$log" >&2
-        ci_record backend FAIL "pytest produced no summary (refusing false green)"
-        return 1
-    fi
-
-    tail -1 "$log"
-    ci_log "full pytest log: $log"
-
-    local actual; actual="$(mktemp)"
-    ci_pytest_ids "$log" >"$actual"
-
-    local known; known="$(mktemp)"
-    if [ -f "$BASELINE" ]; then
-        grep -vE '^\s*(#|$)' "$BASELINE" | sort -u >"$known"
-    else
-        : >"$known"
-    fi
-
-    # Newly broken: failing now, absent from the baseline.
-    new_ids="$(comm -23 "$actual" "$known")"
-    # Repaired: in the baseline, passing now. Worth surfacing so the baseline
-    # can shrink, but not blocking on its own.
-    local fixed; fixed="$(comm -13 "$actual" "$known")"
-
-    local n_new n_known n_fixed
-    # Count from the files, not from the temp-file paths held in the variables.
-    n_new="$(comm -23 "$actual" "$known" | grep -c . || true)"
-    n_known="$(grep -c . "$known" || true)"
-    n_fixed="$(comm -13 "$actual" "$known" | grep -c . || true)"
-
-    local rc_final=0
-    if [ "$n_new" -gt 0 ]; then
-        ci_err "$n_new newly broken test(s):"
-        while IFS= read -r id; do [ -n "$id" ] && printf '      %s\n' "$id" >&2; done <<<"$new_ids"
-        ci_err "either fix them, or if intentional add them to ci/baseline/backend-failures.txt"
-        rc_final=1
-    fi
-
-    if [ "$n_fixed" -gt 0 ]; then
-        ci_warn "$n_fixed baseline entry(ies) now pass — remove them to keep the baseline honest:"
-        while IFS= read -r id; do [ -n "$id" ] && printf '      %s\n' "$id" >&2; done <<<"$fixed"
-    fi
-
-    if [ "$rc_final" -eq 0 ]; then
-        ci_ok "no new failures (${n_known} known-failure(s) baselined)"
-        ci_record backend PASS "no new failures (${n_known} baselined, ${n_fixed} newly fixed)"
-    else
-        ci_record backend FAIL "$n_new new failure(s) beyond ${n_known} baselined"
-    fi
-
-    rm -f "$actual" "$known"
-    return "$rc_final"
+# Portable agent logic: no Photos library, credentials, network or transcodes.
+tier_agent() {
+    ci_step "agent: caption parsing, sync, ingest and source-vault safety"
+    ci_agent_python
+    ( cd "$ROOT/mac-agent" &&
+      ci_run agent-pytest "$CI_AGENT_PYTHON" -m pytest tests/ -q --tb=short \
+        --strict-markers --asyncio-mode=auto \
+        -W error::pytest.PytestUnhandledCoroutineWarning
+    ) || { ci_record agent FAIL "portable agent tests failed"; return 1; }
+    ci_record agent PASS "agent tests clean with isolated native boundaries"
 }
 
 # ===========================================================================
@@ -296,8 +214,8 @@ tier_backend() {
 # ===========================================================================
 tier_images() {
     ci_step "images: docker build"
-    if ! ci_have docker; then ci_record images SKIP "docker not available"; return 0; fi
-    local rc=0 tag="ci-build-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo local)"
+    if ! ci_have docker; then ci_record images FAIL "docker not available"; return 1; fi
+    local rc=0 tag="ci-build-$(git -C "$ROOT" rev-parse --short HEAD)-$$"
 
     # Frontend production image. This is the artifact that actually gets
     # deployed (compose references it by tag and has no build section for it),
@@ -312,7 +230,7 @@ tier_images() {
         -t "dive-analyser-backend:$tag" "$ROOT/backend" \
         || { rc=1; ci_err "backend image build failed"; }
 
-    docker image rm -f "dive-analyser-frontend:$tag" "dive-analyser-backend:$tag" \
+    docker image rm "dive-analyser-frontend:$tag" "dive-analyser-backend:$tag" \
         >/dev/null 2>&1 || true
 
     if [ "$rc" -ne 0 ]; then
@@ -330,7 +248,11 @@ cmd_tiers() {
     [ "${1:-}" = "--" ] && shift
     local out="fast" f
     for f in "$@"; do
-        if printf '%s' "$f" | grep -qE "$BACKEND_PATHS";   then out="$out backend";   fi
+        case "$f" in
+            ci/*) out="$out frontend backend agent" ;;
+            mac-agent/*) out="$out agent" ;;
+        esac
+        if printf '%s' "$f" | grep -qE "$BACKEND_PATHS"; then out="$out backend"; fi
         if printf '%s' "$f" | grep -qE "$FRONTEND_PATHS"; then out="$out frontend"; fi
         if printf '%s' "$f" | grep -qE "$IMAGES_PATHS";    then out="$out images";    fi
     done
@@ -358,9 +280,10 @@ main() {
         fast)     spec="fast" ;;
         frontend) spec="fast frontend" ;;
         backend)  spec="fast backend" ;;
+        agent)    spec="fast agent" ;;
         images)   spec="fast images" ;;
-        all)      spec="fast frontend backend images" ;;
-        default)  spec="${DIVE_CI_TIERS:-fast frontend backend}" ;;
+        all)      spec="fast frontend backend agent images" ;;
+        default)  spec="${DIVE_CI_TIERS:-fast frontend backend agent}" ;;
     esac
 
     # Validate the whole spec before doing any work, so a typo costs a second
@@ -368,10 +291,14 @@ main() {
     local t
     for t in $spec; do
         case "$t" in
-            fast|frontend|backend|images) ;;
-            *) ci_die "unknown tier: '$t' in '$spec' (use fast|frontend|backend|images|all|tiers)" ;;
+            fast|frontend|backend|agent|images) ;;
+            *) ci_die "unknown tier: '$t' in '$spec' (use fast|frontend|backend|agent|images|all|tiers)" ;;
         esac
     done
+
+    mkdir -p "$(ci_cache_dir)"
+    exec 9>"$(ci_cache_dir)/gate.lock"
+    flock -n 9 || ci_die "another CI gate is running; retry when it finishes"
 
     printf '%sdive-analyser CI%s  %s%d CIUs · %s\n' \
         "$C_BLU" "$C_OFF" "$C_DIM" "$(nproc)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -382,6 +309,7 @@ main() {
             fast)     tier_fast     || rc_any=1 ;;
             frontend) tier_frontend || rc_any=1 ;;
             backend)  tier_backend  || rc_any=1 ;;
+            agent)    tier_agent    || rc_any=1 ;;
             images)   tier_images   || rc_any=1 ;;
             *) ci_die "unknown tier: $t" ;;
         esac

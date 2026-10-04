@@ -55,7 +55,7 @@ def test_two_phase_attempt_uses_weighted_precise_score():
     assert result["average"] == 5.62
 
 
-def test_difficulty_adjusted_execution_is_explicit_and_not_a_raw_score_replacement():
+def test_difficulty_is_context_and_does_not_multiply_execution():
     easy_high_execution = attempt(1, 0, "P")  # 103B at 1m: DD 1.7
     difficult_lower_execution = attempt(2, 1, "G")
     difficult_lower_execution.dive_code = "309B"
@@ -64,8 +64,8 @@ def test_difficulty_adjusted_execution_is_explicit_and_not_a_raw_score_replaceme
     assert result["average"] == 8.5
     assert result["average_dd"] == 3.2
     assert result["dd_coverage_rate"] == 100.0
-    # 7.0 × 4.7 outranks 10.0 × 1.7 in the separate DD-adjusted index.
-    assert result["dd_adjusted_execution_average"] == 24.95
+    assert result["max_dd"] == 4.7
+    assert "dd_adjusted_execution_average" not in result
     assert result["dd_reference"] == "ffn_world_aquatics_diving_2022_2025_appendix_1_3"
 
 

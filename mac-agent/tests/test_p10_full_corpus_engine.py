@@ -25,6 +25,21 @@ from src.ingest.migration_full import (
 )
 
 
+@pytest.fixture(autouse=True)
+def probe_synthetic_media(monkeypatch):
+    """These migration fixtures are bytes, not MOV files; fake the probe too.
+
+    Container/content-type behavior has separate adapter tests. This suite
+    verifies journaling, verification, dedupe and provenance without ffprobe.
+    """
+    def probe(path, ffprobe_path):
+        assert Path(path).is_file()
+        return {"container": "mov,mp4,m4a,3gp,3g2,mj2", "codec": "h264",
+                "width": 1920, "height": 1080, "duration_seconds": 1.0}
+
+    monkeypatch.setattr(mf, "ffprobe_metadata", probe)
+
+
 class FakeStore:
     """Fake B2 store: records ops, holds bytes by key."""
 

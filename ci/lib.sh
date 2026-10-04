@@ -56,7 +56,8 @@ ci_run() {
     local start elapsed rc
     start=$(date +%s)
     set +e
-    if command nice -n 10 "$@"; then rc=0; else rc=$?; fi
+    if command nice -n 10 timeout --signal=TERM --kill-after=10s "${DIVE_CI_TIMEOUT:-900}" "$@" >"$log" 2>&1; then rc=0; else rc=$?; fi
+    tail -20 "$log"
     set -e
     elapsed=$(( $(date +%s) - start ))
 
@@ -102,20 +103,21 @@ ci_backend_python() {
     local root cache venv stamp reqhash
     root="$(ci_repo_root)"
     cache="$(ci_cache_dir)"
-    venv="$cache/venv-backend"
+    # A different requirements set gets a fresh environment, so pip cannot
+    # retain packages removed by another branch. Include the interpreter in
+    # the key and keep the old cache intact for worktrees using that set.
+    reqhash="$(ci_python_env_hash "$root/backend/requirements.txt")"
+    venv="$cache/venv-backend-$reqhash"
     stamp="$venv/.requirements.sha256"
-
-    [ -d "$cache" ] || mkdir -p "$cache"
-
+    mkdir -p "$cache"
     if [ ! -x "$venv/bin/python" ]; then
-        ci_log "creating backend venv (first run, this takes a minute)"
-        python3 -m venv "$venv" || { ci_die "failed to create venv at $venv"; }
+        ci_log "creating backend venv (first run for this dependency set)"
+        python3 -m venv "$venv" || ci_die "failed to create venv at $venv"
     fi
 
-    reqhash="$(sha256sum "$root/backend/requirements.txt" | cut -d' ' -f1)"
     if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$reqhash" ]; then
         ci_log "installing backend dependencies (requirements.txt changed)"
-        "$venv/bin/pip" install --quiet --disable-pip-version-check \
+        ci_run backend-dependencies "$venv/bin/pip" install --quiet --disable-pip-version-check \
             -r "$root/backend/requirements.txt" \
             || ci_die "backend dependency install failed"
         printf '%s' "$reqhash" >"$stamp"
@@ -131,12 +133,12 @@ ci_frontend_ready() {
     local root cache stamp lockhash
     root="$(ci_repo_root)"
     cache="$(ci_cache_dir)"
-    stamp="$cache/node_modules.sha256"
+    stamp="$root/frontend/node_modules/.dive-ci.sha256"
 
     [ -d "$root/frontend/node_modules" ] || return 1
     [ -f "$stamp" ] || return 1
 
-    lockhash="$(sha256sum "$root/frontend/package-lock.json" | cut -d' ' -f1)"
+    lockhash="$(ci_frontend_hash "$root")"
     [ "$(cat "$stamp")" = "$lockhash" ] || return 1
     return 0
 }
@@ -150,8 +152,7 @@ ci_frontend_install() {
     ci_log "installing frontend dependencies (npm ci)"
     ( cd "$root/frontend" && command nice -n 10 npm ci --no-audit --no-fund ) \
         || ci_die "npm ci failed"
-    sha256sum "$root/frontend/package-lock.json" | cut -d' ' -f1 \
-        >"$cache/node_modules.sha256"
+    ci_frontend_hash "$root" >"$root/frontend/node_modules/.dive-ci.sha256"
 }
 
 # --------------------------------------------------------------- utilities
@@ -162,7 +163,7 @@ ci_have() { command -v "$1" >/dev/null 2>&1; }
 #   ci_wait_http <url> <label> [timeout-seconds] [curl extra args...]
 ci_wait_http() {
     local url="$1" label="$2" timeout="${3:-60}"; shift 3 || true
-    local deadline elapsed=$0
+    local deadline
     deadline=$(( $(date +%s) + timeout ))
     while [ "$(date +%s)" -lt "$deadline" ]; do
         if curl -fsSk -m 5 "$@" "$url" >/dev/null 2>&1; then
@@ -173,4 +174,39 @@ ci_wait_http() {
     done
     ci_err "$label never returned 200 within ${timeout}s ($url)"
     return 1
+}
+CI_AGENT_PYTHON=""
+ci_agent_python() {
+    local root cache venv stamp reqhash
+    root="$(ci_repo_root)"
+    cache="$(ci_cache_dir)"
+    reqhash="$(ci_python_env_hash "$root/ci/requirements-agent.txt")"
+    venv="$cache/venv-agent-$reqhash"
+    stamp="$venv/.requirements.sha256"
+    mkdir -p "$cache"
+    [ -x "$venv/bin/python" ] || python3 -m venv "$venv" || ci_die "agent venv creation failed"
+
+    if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$reqhash" ]; then
+        ci_run agent-dependencies "$venv/bin/pip" install --quiet --disable-pip-version-check \
+            -r "$root/ci/requirements-agent.txt" || ci_die "agent dependencies failed"
+        printf '%s' "$reqhash" >"$stamp"
+    fi
+    CI_AGENT_PYTHON="$venv/bin/python"
+}
+
+ci_frontend_hash() {
+    { sha256sum "$1/frontend/package-lock.json" "$1/frontend/package.json"; node --version; } | sha256sum | cut -d' ' -f1
+}
+
+ci_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    else
+        docker-compose "$@"
+    fi
+}
+
+# Version the cache scheme so existing in-place environments are not reused.
+ci_python_env_hash() {
+    { printf 'isolated-venv-v1\n'; cat "$1"; python3 -c 'import sys; print(sys.executable); print(sys.version)'; } | sha256sum | cut -d' ' -f1
 }

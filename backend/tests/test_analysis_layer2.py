@@ -1197,7 +1197,7 @@ class TestBaselineCSerializationAndFingerprint(unittest.TestCase):
 # Integration tests (require DB) — skip unless DB_TEST=1
 # ===========================================================================
 
-SKIP_DB = not os.getenv("DB_TEST")
+SKIP_DB = os.getenv("DB_TEST") != "1"
 
 
 @pytest.mark.skipif(SKIP_DB, reason="DB_TEST not set; skipping DB integration tests")

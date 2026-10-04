@@ -16,6 +16,8 @@ import time
 import uuid
 from datetime import datetime
 
+pytestmark = pytest.mark.performance
+
 
 class MockWebSocketClient:
     """Mock WebSocket client for testing"""
