@@ -341,24 +341,43 @@ cmd_tiers() {
 # ===========================================================================
 
 main() {
-    local tiers="${1:-default}"
+    # `tiers` is a subcommand that reports which tiers a set of paths needs.
+    if [ "${1:-}" = "tiers" ]; then
+        cmd_tiers "${@:2}"
+        return 0
+    fi
 
-    case "$tiers" in
-        tiers) cmd_tiers "${@:2}"; return 0 ;;
-        fast)     tiers="fast" ;;
-        frontend) tiers="fast frontend" ;;
-        backend)  tiers="fast backend" ;;
-        images)   tiers="fast images" ;;
-        all)      tiers="fast frontend backend images" ;;
-        default)  tiers="${DIVE_CI_TIERS:-fast frontend backend}" ;;
-        *) ci_die "unknown tier: $tiers (use fast|frontend|backend|images|all|tiers)" ;;
+    # Join *all* arguments. The pre-push hook invokes this as
+    # `gate.sh fast backend frontend`, so reading only $1 would silently drop
+    # every tier after the first and let an ungated change through.
+    local spec="${*:-default}"
+
+    # Single-word conveniences expand to a full tier set; a multi-word spec is
+    # taken as-is.
+    case "$spec" in
+        fast)     spec="fast" ;;
+        frontend) spec="fast frontend" ;;
+        backend)  spec="fast backend" ;;
+        images)   spec="fast images" ;;
+        all)      spec="fast frontend backend images" ;;
+        default)  spec="${DIVE_CI_TIERS:-fast frontend backend}" ;;
     esac
+
+    # Validate the whole spec before doing any work, so a typo costs a second
+    # instead of failing three minutes in.
+    local t
+    for t in $spec; do
+        case "$t" in
+            fast|frontend|backend|images) ;;
+            *) ci_die "unknown tier: '$t' in '$spec' (use fast|frontend|backend|images|all|tiers)" ;;
+        esac
+    done
 
     printf '%sdive-analyser CI%s  %s%d CIUs · %s\n' \
         "$C_BLU" "$C_OFF" "$C_DIM" "$(nproc)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
-    local t rc_any=0
-    for t in $tiers; do
+    local rc_any=0
+    for t in $spec; do
         case "$t" in
             fast)     tier_fast     || rc_any=1 ;;
             frontend) tier_frontend || rc_any=1 ;;
