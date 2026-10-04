@@ -9,6 +9,7 @@ with its temp file promoted, or a half transaction.
 
 import asyncio
 import hashlib
+import threading
 
 import pytest
 
@@ -16,7 +17,8 @@ from app.api.v1 import media as media_api
 from app.config import get_settings
 from app.models.media import MediaJob
 from app.models.photos_asset import PhotosAsset
-from app.services.offload import run_to_completion
+from app.schemas.media import MediaJobFinalizeRequest
+from app.services import media_cache
 
 
 def _seed_verifying_job(test_db, cache_root):
@@ -38,7 +40,8 @@ def _seed_verifying_job(test_db, cache_root):
 
 
 @pytest.mark.asyncio
-async def test_cancelled_finalize_runs_to_completion(test_db, tmp_path, monkeypatch):
+@pytest.mark.parametrize("cancel_count", [1, 2])
+async def test_cancelled_finalize_runs_to_completion(test_db, tmp_path, monkeypatch, cancel_count):
     """run_to_completion: cancel the awaiter mid-work; the cancellation
     only re-raises after the unit — here the finalize+commit — finished,
     mirroring the guard that must sit between the worker and get_db
@@ -48,31 +51,41 @@ async def test_cancelled_finalize_runs_to_completion(test_db, tmp_path, monkeypa
     settings.media_cache_root = str(tmp_path)
     try:
         job = _seed_verifying_job(test_db, tmp_path)
-        ran = {"finalize": 0}
+        job_id = job.id
+        started, release, finished = threading.Event(), threading.Event(), threading.Event()
+        original_hash = media_cache.sha256_file
 
-        def finalize_flow():
-            ran["finalize"] += 1
-            checksum = hashlib.sha256(b"tiny").hexdigest()
-            entry = media_api.finalize_cache_entry(
-                db=test_db, job=job, checksum_sha256=checksum,
-                size_bytes=4, content_type="video/mp4",
-            )
-            media_api.mark_job_ready(test_db, job)
-            test_db.commit()
-            return entry
+        def blocked_hash(path):
+            started.set()
+            try:
+                assert release.wait(5), "test did not release the hashing worker"
+                return original_hash(path)
+            finally:
+                finished.set()
 
-        async def awaiting_handler():
-            return await run_to_completion(asyncio.to_thread(finalize_flow))
-
-        handler = asyncio.ensure_future(awaiting_handler())
-        await asyncio.sleep(0.001)  # let the worker enter the slow block
-        handler.cancel()
+        monkeypatch.setattr(media_cache, "sha256_file", blocked_hash)
+        monkeypatch.setattr(media_api, "_agent_auth", lambda *args, **kwargs: None)
+        request = MediaJobFinalizeRequest(
+            agent_id="agent-x", checksum_sha256=hashlib.sha256(b"tiny").hexdigest(),
+            size_bytes=4, content_type="video/mp4",
+        )
+        handler = asyncio.create_task(media_api.finalize_job_artifact(
+            job_id, request, test_db, {"key": "test"},
+        ))
+        try:
+            assert await asyncio.to_thread(started.wait, 5)
+            for _ in range(cancel_count):
+                handler.cancel()
+                await asyncio.sleep(0)
+            assert not handler.done(), "handler exited before its worker finished"
+        finally:
+            release.set()
         with pytest.raises(asyncio.CancelledError):
             await handler
 
-        assert ran["finalize"] == 1
+        assert finished.is_set()
         test_db.expire_all()
-        refreshed = test_db.get(MediaJob, job.id)
+        refreshed = test_db.get(MediaJob, job_id)
         assert refreshed.status == "ready"
     finally:
         settings.media_cache_root = saved_root

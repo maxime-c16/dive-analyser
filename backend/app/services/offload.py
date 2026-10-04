@@ -26,8 +26,17 @@ async def run_to_completion(awaitable):
     get_db dependency teardown) happens strictly after the work done.
     """
     task = asyncio.ensure_future(awaitable)
-    try:
-        return await asyncio.shield(task)
-    except asyncio.CancelledError:
-        await task
-        raise
+    cancellation = None
+    while True:
+        try:
+            result = await asyncio.shield(task)
+        except asyncio.CancelledError as exc:
+            if task.cancelled():
+                raise
+            # Keep every wait shielded: shutdown or a surrounding cancel
+            # scope can cancel the handler again while we drain the worker.
+            cancellation = exc
+        else:
+            if cancellation is not None:
+                raise cancellation
+            return result
