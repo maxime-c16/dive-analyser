@@ -101,11 +101,15 @@ def _registration_open() -> bool:
 
 
 def _invite_valid(submitted: str) -> bool:
-    submitted = (submitted or "").strip()
-    if not submitted:
+    # Byte comparison: str compare_digest raises TypeError on non-ASCII
+    # input, which would 500 instead of returning the normal 403 (and skip
+    # the failure ledger). UTF-8 bytes compare safely for any input, and a
+    # configured non-ASCII code keeps working for the correct submission.
+    candidate = (submitted or "").strip().encode("utf-8")
+    if not candidate:
         return False
     return any(
-        hmac.compare_digest(submitted, code)
+        hmac.compare_digest(candidate, code.encode("utf-8"))
         for code in get_settings().configured_friend_invite_codes
     )
 
@@ -335,16 +339,20 @@ async def register(
         auth_metrics.get_auth_metrics().login_rate_limited.inc()
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, _TOO_MANY_ATTEMPTS)
 
+    # Invite first: checking duplicates before the invite lets anyone
+    # without a code distinguish existing emails (409) from unknown ones
+    # (403) — the same existence oracle login deliberately avoids. Only a
+    # caller demonstrating a valid invite may learn an email is taken.
+    if not _invite_valid(request_body.invite_code):
+        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid invite code")
+
     email = request_body.email.strip().lower()
     if db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None:
         _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
         raise HTTPException(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         )
-
-    if not _invite_valid(request_body.invite_code):
-        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid invite code")
 
     display_name = (request_body.display_name or "").strip() or email.split("@")[0]
     user = AppUser(email=email, display_name=display_name[:120], role=ROLE_FRIEND)

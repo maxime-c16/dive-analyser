@@ -23,11 +23,13 @@ from app.database import Base, get_db
 from app.main import app
 from app.models.dive import Dive
 from app.models.diver import Diver
+from app.models.media import MediaAgent
 from app.models.session import Session as SessionModel
 from app.models.user_auth import AppUser, UserCredential, UserDiverAccess
 from app.services.passwords import hash_password
 
 INVITE = "friends-invite-test-code"
+MACHINE_KEY = "k" * 48
 OWNER_PASSWORD = "correct-horse-battery-owner"
 FRIEND_PASSWORD = "correct-horse-battery-friend"
 
@@ -100,17 +102,20 @@ def flags():
         settings.auth_cookie_secure,
         settings.friend_registration_enabled,
         settings.friend_invite_codes,
+        settings.mac_agent_api_keys,
     )
     settings.user_auth_enabled = True
     settings.auth_cookie_secure = False
     settings.friend_registration_enabled = True
     settings.friend_invite_codes = INVITE
+    settings.mac_agent_api_keys = MACHINE_KEY
     yield settings
     (
         settings.user_auth_enabled,
         settings.auth_cookie_secure,
         settings.friend_registration_enabled,
         settings.friend_invite_codes,
+        settings.mac_agent_api_keys,
     ) = saved
 
 
@@ -316,3 +321,67 @@ def test_change_password_rejects_wrong_current(client):
         json={"current_password": "not-the-password", "new_password": "brand-new-friend-password"},
     )
     assert r.status_code == 401
+
+
+# ---------------------------------------------------------------- review fixes
+
+
+def test_registration_invite_checked_before_email_oracle(client):
+    # Without a valid invite, an existing and an unknown email must be
+    # indistinguishable (no user-existence oracle).
+    existing = _register(client, email="owner@example.test", invite_code="bogus-code")
+    assert existing.status_code == 403
+    assert existing.json()["detail"] == "Invalid invite code"
+    unknown = _register(client, email="nobody-here@example.test", invite_code="bogus-code")
+    assert unknown.status_code == 403
+    assert unknown.json() == existing.json()
+
+
+def test_registration_non_ascii_invite_rejected_not_500(client, db):
+    from app.models.user_auth import LoginAttempt
+
+    before = db.query(LoginAttempt).count()
+    r = _register(client, email="new-friend@example.test", invite_code="invité-☃-wrong")
+    assert r.status_code == 403
+    assert r.json()["detail"] == "Invalid invite code"
+    # The failure still reaches the brute-force ledger.
+    assert db.query(LoginAttempt).count() == before + 1
+
+
+def test_registration_non_ascii_configured_code_works(client, flags):
+    flags.friend_invite_codes = "codé-amis-☃"
+    r = _register(client, invite_code="codé-amis-☃")
+    assert r.status_code == 201, r.text
+    assert r.json()["role"] == "friend"
+
+
+def test_machine_heartbeat_works_when_auth_on(client, db, flags):
+    import hashlib
+
+    db.add(
+        MediaAgent(
+            id="mac-media-01",
+            hostname="mac-server.local",
+            api_key_sha256=hashlib.sha256(MACHINE_KEY.encode()).hexdigest(),
+            active=True,
+            leasing_enabled=True,
+            capabilities=["poster", "proxy_360p"],
+        )
+    )
+    db.commit()
+    body = {
+        "agent_id": "mac-media-01",
+        "hostname": "mac-server.local",
+        "capabilities": ["poster"],
+        "photos_access_status": "ok",
+    }
+    # Machine caller: valid API key, no browser session.
+    ok = client.post(
+        "/api/v1/media/agents/heartbeat", json=body, headers={"X-API-Key": MACHINE_KEY}
+    )
+    assert ok.status_code == 200, ok.text
+    # Invalid key without a session is still denied (no presence bypass).
+    denied = client.post(
+        "/api/v1/media/agents/heartbeat", json=body, headers={"X-API-Key": "wrong-key"}
+    )
+    assert denied.status_code == 401

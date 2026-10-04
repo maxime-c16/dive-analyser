@@ -12,8 +12,11 @@ implementation of that rule:
   never had an auth dependency, e.g. sessions), and a friend-role user is
   denied unless the call is on the viewing-support allowlist below.
 
-Machine-to-machine routes (X-API-Key) are unaffected: browsers never carry
-that key, so the allowlist below only names browser viewing-support calls:
+Machine-to-machine routes (X-API-Key) pass through on a VALIDATED key
+(the route's own verify_api_key still enforces authorization; presence
+alone is never trusted), so shared routers keep serving the Mac agent
+while USER_AUTH_ENABLED=true. The allowlist below only names browser
+viewing-support calls:
 
 - POST /api/v1/media/<uuid>/request — enqueue a poster/proxy rendition so
   the viewer can play it (no dive data changes);
@@ -24,6 +27,8 @@ and password change are the friend flows themselves.
 """
 
 from typing import Optional
+
+import hmac
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -52,6 +57,25 @@ def _friend_write_allowed(path: str) -> bool:
     return False
 
 
+def _valid_machine_api_key(request: Request) -> bool:
+    """True when the request carries a VALID machine API key.
+
+    Machine routes (Mac agent ingest, job leasing, heartbeats) share routers
+    with browser routes and authenticate via X-API-Key, not the session
+    cookie. The key itself is validated here (compare-only, never trusted
+    by presence); the route's own ``verify_api_key`` dependency still
+    enforces authorization. Byte comparison avoids the ASCII-only
+    TypeError of str compare_digest on non-ASCII header values.
+    """
+    presented = (request.headers.get("x-api-key") or "").encode("utf-8")
+    if not presented:
+        return False
+    for configured in get_settings().configured_api_keys:
+        if hmac.compare_digest(presented, configured.encode("utf-8")):
+            return True
+    return False
+
+
 def require_owner_for_mutation(
     request: Request, db: Session = Depends(get_db)
 ) -> Optional[AppUser]:
@@ -63,6 +87,10 @@ def require_owner_for_mutation(
     if request.method in _SAFE_METHODS:
         return None
     if not get_settings().user_auth_enabled:
+        return None
+    if _valid_machine_api_key(request):
+        # Machine-to-machine call: the route's own verify_api_key still
+        # enforces key authorization; the browser guard steps aside.
         return None
     settings = get_settings()
     resolved = sessions.resolve_session(
