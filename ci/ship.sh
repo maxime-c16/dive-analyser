@@ -267,18 +267,27 @@ if [ "$dry_run" = 1 ]; then
     exit 0
 fi
 
+backend_container() { docker inspect -f "{{.Id}}" dive-analyser-backend-1 2>/dev/null; }
+backend_before="$(backend_container)"
 git checkout --quiet --detach "$sha" || { echo "✗ checkout failed"; exit 3; }
 DIVE_DEPLOY_ROOT="$LIVE" ./ci/deploy.sh "$@"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    # ci/deploy.sh restores the previous images; the backend also bind-mounts
-    # ./backend from this checkout, so the source must go back too.
     git checkout --quiet --detach "$prev"
-    docker-compose up -d --no-deps --force-recreate backend >/dev/null 2>&1
-    for c in dive-analyser-nginx-1 dive-funnel-funnel-proxy-1; do
-        docker exec "$c" nginx -s reload >/dev/null 2>&1
-    done
-    echo "✗ deploy failed — live checkout and backend restored to ${prev:0:7}"
+    if [ "$(backend_container)" = "$backend_before" ]; then
+        # Failed before the swap (gate/build): the running backend was never
+        # touched, so restarting it would only cause downtime.
+        echo "✗ deploy failed before the swap — nothing restarted; live checkout back at ${prev:0:7}"
+    else
+        # ci/deploy.sh restored the previous images; the backend also
+        # bind-mounts ./backend from this checkout, so recreate it on the
+        # restored source and point both proxies at the new container.
+        docker-compose up -d --no-deps --force-recreate backend >/dev/null 2>&1
+        for c in dive-analyser-nginx-1 dive-funnel-funnel-proxy-1; do
+            docker exec "$c" nginx -s reload >/dev/null 2>&1
+        done
+        echo "✗ deploy failed — live checkout and backend restored to ${prev:0:7}"
+    fi
     result="FAILED"
 else
     result="ok"
