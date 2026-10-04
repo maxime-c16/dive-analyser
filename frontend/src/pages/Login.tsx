@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { LogIn, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -9,10 +9,18 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [registrationOpen, setRegistrationOpen] = useState(false)
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string })?.from ?? '/'
+
+  useEffect(() => {
+    fetch('/api/v1/auth/registration-status', { credentials: 'same-origin' })
+      .then((res) => (res.ok ? res.json() : { registration_enabled: false }))
+      .then((data) => setRegistrationOpen(Boolean(data.registration_enabled)))
+      .catch(() => setRegistrationOpen(false))
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,6 +106,15 @@ export default function Login() {
           <LogIn className="h-4 w-4" />
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+
+        {registrationOpen && (
+          <p className="mt-5 text-center text-sm text-app-muted">
+            New here?{' '}
+            <Link to="/register" className="text-app-accent hover:underline">
+              Create a friend account
+            </Link>
+          </p>
+        )}
       </form>
     </div>
   )

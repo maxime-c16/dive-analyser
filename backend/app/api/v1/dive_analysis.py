@@ -4,11 +4,12 @@ from datetime import datetime, time, timedelta
 from time import perf_counter
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.workspace_access import require_workspace_user
+from app.services.write_guard import effective_diver_scope
 from app.services.dive_analysis_cache import ANALYTICS_VERSION, analysis_cache_key, get_cached_analysis, set_cached_analysis
 from app.services.dive_analysis_service import DiveAnalysisService, build_insights, canonical_dive_code, is_analytics_dive, phase_analysis, summarize, trend
 
@@ -26,6 +27,8 @@ def _parse_date_bound(value: str | None, *, end_of_day: bool = False) -> datetim
 
 
 def analysis_filters(
+    request: Request,
+    db: Session = Depends(get_db),
     date_from: str | None = None,
     date_to: str | None = None,
     height: str | None = None,
@@ -46,6 +49,9 @@ def analysis_filters(
     parsed_from, parsed_to = _parse_date_bound(date_from), _parse_date_bound(date_to, end_of_day=True)
     if parsed_from and parsed_to and parsed_from > parsed_to:
         raise HTTPException(status_code=422, detail={"code": "invalid_date_range", "message": "date_from must be before date_to"})
+    if not diver_ids:
+        # Friends see everyone's dives by default (no diver bindings held).
+        diver_scope = effective_diver_scope(request, db, diver_scope)
     return {
         "date_from": parsed_from, "date_to": parsed_to, "height": height, "platform_type": platform_type,
         "position": position, "modifiers": sorted({item.upper() for item in modifiers}), "modifier_mode": modifier_mode,

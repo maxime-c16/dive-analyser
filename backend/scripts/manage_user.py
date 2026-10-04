@@ -9,8 +9,9 @@ and introduces NO web admin role: operator administration stays off the
 browser surface until a dedicated admin domain exists.
 
 Subcommands:
-    create-user      --email E [--diver-id N | --diver-canonical-name NAME]
+    create-user      --email E [--role owner|friend] [--diver-id N | --diver-canonical-name NAME]
                      [--display-name D] [--disabled] [--actor-note NOTE]
+    set-role         --email E --role owner|friend (revokes ALL sessions)
     disable          --email E   (deny login + revoke ALL sessions)
     enable           --email E
     reset-password   --email E   (getpass; revokes ALL sessions)
@@ -52,6 +53,8 @@ from app.models.dive import Dive
 from app.models.diver import Diver
 from app.models.media_backbone import MediaRevision
 from app.models.user_auth import (
+    ROLE_FRIEND,
+    ROLE_OWNER,
     AppUser,
     UserCredential,
     UserDiverAccess,
@@ -124,11 +127,20 @@ def cmd_create_user(db, args) -> None:
     if db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None:
         print(f"ERROR: user {email} already exists", file=sys.stderr)
         sys.exit(2)
-    diver = _resolve_diver(db, args.diver_id, args.diver_canonical_name)
+    role = (getattr(args, "role", None) or ROLE_OWNER).strip().lower()
+    if role not in (ROLE_OWNER, ROLE_FRIEND):
+        print(f"ERROR: --role must be '{ROLE_OWNER}' or '{ROLE_FRIEND}'", file=sys.stderr)
+        sys.exit(2)
+    # Owners need an explicit diver binding; friends see every diver by
+    # default and take no binding.
+    diver = None
+    if role == ROLE_OWNER or args.diver_id or args.diver_canonical_name:
+        diver = _resolve_diver(db, args.diver_id, args.diver_canonical_name)
     password = _prompt_password()
     user = AppUser(
         email=email,
         display_name=args.display_name or email.split("@")[0],
+        role=role,
         is_active=not args.disabled,
     )
     db.add(user)
@@ -140,22 +152,48 @@ def cmd_create_user(db, args) -> None:
             password_algo=ALGORITHM_LABEL,
         )
     )
-    db.add(
-        UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER")
-    )
+    if diver is not None:
+        db.add(
+            UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER")
+        )
     db.commit()
     _audit(
         db,
         security_audit_log.EVENT_USER_CREATED,
         user_id=user.id,
-        diver_id=diver.id,
-        metadata={"active": not args.disabled},
+        diver_id=diver.id if diver is not None else None,
+        metadata={"active": not args.disabled, "role": role},
         note=args.actor_note,
     )
     print(
-        f"OK created user_id={user.id} diver_id={diver.id} "
-        f"access_kind=OWNER active={not args.disabled}"
+        f"OK created user_id={user.id} role={role} "
+        f"diver_id={diver.id if diver is not None else None} "
+        f"access_kind={'OWNER' if diver is not None else 'none'} active={not args.disabled}"
     )
+
+
+def cmd_set_role(db, args) -> None:
+    user = _get_user(db, args.email)
+    role = args.role.strip().lower()
+    if role not in (ROLE_OWNER, ROLE_FRIEND):
+        print(f"ERROR: --role must be '{ROLE_OWNER}' or '{ROLE_FRIEND}'", file=sys.stderr)
+        sys.exit(2)
+    if user.role == role:
+        print(f"OK no-op: user_id={user.id} already role={role}")
+        return
+    user.role = role
+    db.commit()
+    revoked = sessions_authority.revoke_all_user_sessions(db, user.id)
+    _audit(
+        db,
+        security_audit_log.EVENT_OWNERSHIP_GRANTED
+        if role == ROLE_OWNER
+        else security_audit_log.EVENT_OWNERSHIP_REVOKED,
+        user_id=user.id,
+        metadata={"new_role": role, "revoked_sessions": revoked},
+        note=args.actor_note,
+    )
+    print(f"OK user_id={user.id} role={role} revoked_sessions={revoked}")
 
 
 def cmd_set_active(db, args, active: bool) -> None:
@@ -282,7 +320,7 @@ def cmd_list_users(db, args) -> None:
             is not None
         )
         print(
-            f"user_id={user.id} email={user.email} active={user.is_active} "
+            f"user_id={user.id} email={user.email} role={user.role} active={user.is_active} "
             f"credential={has_credential} live_sessions={live} diver_ids={divers}"
         )
 
@@ -338,11 +376,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("create-user", help="create a user (+credential, +OWNER binding)")
     add_email(p)
+    p.add_argument("--role", default="owner", help="owner (default) or friend (read-only, sees all divers)")
     p.add_argument("--diver-id", type=int, default=None)
     p.add_argument("--diver-canonical-name", default=None)
     p.add_argument("--display-name", default=None)
     p.add_argument("--disabled", action="store_true")
     p.set_defaults(func=lambda db, a: cmd_create_user(db, a))
+
+    p = sub.add_parser("set-role", help="change a user's role (revokes all sessions)")
+    add_email(p)
+    p.add_argument("--role", required=True, help="owner or friend")
+    p.set_defaults(func=cmd_set_role)
 
     p = sub.add_parser("disable", help="deny login + revoke all sessions")
     add_email(p)

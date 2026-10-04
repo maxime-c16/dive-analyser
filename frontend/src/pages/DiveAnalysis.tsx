@@ -19,6 +19,7 @@ import {
 import { getRepresentatives, type RepresentativeCard } from '../services/representativeMediaApi'
 import { getPersonalDiveValues, type PersonalDiveValue } from '../services/personalDiveValueApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
+import { useAuth } from '../contexts/AuthContext'
 import { DIVE_POSITION_NAMES, divePositionName } from '../utils/divePosition'
 
 const MODIFIERS = ['DB', 'SD', 'HU']
@@ -55,7 +56,10 @@ type TimelinePoint = {
   sessionAttemptCount?: number
 }
 
-export function filtersFromSearchParams(params: URLSearchParams): DiveAnalysisFilters {
+export function filtersFromSearchParams(
+  params: URLSearchParams,
+  defaultScope: DiveAnalysisFilters['diver_scope'] = 'self',
+): DiveAnalysisFilters {
   return {
     date_from: params.get('date_from') || undefined,
     date_to: params.get('date_to') || undefined,
@@ -65,7 +69,7 @@ export function filtersFromSearchParams(params: URLSearchParams): DiveAnalysisFi
     modifiers: params.getAll('modifiers'),
     modifier_mode: (params.get('modifier_mode') as DiveAnalysisFilters['modifier_mode']) || 'any',
     is_sync: params.has('is_sync') ? params.get('is_sync') === 'true' : undefined,
-    diver_scope: (params.get('diver_scope') as DiveAnalysisFilters['diver_scope']) || (params.has('diver_ids') ? 'selected' : 'self'),
+    diver_scope: (params.get('diver_scope') as DiveAnalysisFilters['diver_scope']) || (params.has('diver_ids') ? 'selected' : defaultScope),
     diver_ids: params.getAll('diver_ids').map(Number).filter(Number.isFinite),
     training_period_ids: params.getAll('training_period_ids').map(Number).filter(Number.isFinite),
     success_threshold: (params.get('success_threshold') as 'M' | 'G' | 'P') || 'G',
@@ -421,6 +425,9 @@ function PersonalValueHistory({ values, attempts, onOpen }: { values: PersonalDi
 
 export default function DiveAnalysis() {
   const { diveCode = '' } = useParams(), navigate = useNavigate(), location = useLocation(), [searchParams, setSearchParams] = usePreservedSearchParams()
+  const { user } = useAuth()
+  // Friends see everyone's dives by default (no diver bindings held).
+  const defaultScope = user?.role === 'friend' ? 'all' : 'self'
   const [data, setData] = useState<AnalysisData | null>(null), [divers, setDivers] = useState<Diver[]>([]), [periods, setPeriods] = useState<TrainingPeriod[]>([])
   const [representatives, setRepresentatives] = useState<RepresentativeCard[]>([])
   const [personalValues, setPersonalValues] = useState<PersonalDiveValue[] | null>(null)
@@ -430,7 +437,7 @@ export default function DiveAnalysis() {
   const returnFocus = useRef<Element | null>(null)
   const loadedDiveCode = useRef<string | null>(null)
   const dataFilterKey = useMemo(() => analysisFilterSearchKey(searchParams), [searchParams])
-  const filters = useMemo(() => filtersFromSearchParams(new URLSearchParams(dataFilterKey)), [dataFilterKey])
+  const filters = useMemo(() => filtersFromSearchParams(new URLSearchParams(dataFilterKey), defaultScope), [dataFilterKey, defaultScope])
   const chartView = ((searchParams.get('chart_view') as ChartView) || (data && data.summary.attempt_count > 120 ? 'session' : 'attempts')) as ChartView
   const phaseView = ((searchParams.get('phase_view') as ChartView) || 'attempts') as ChartView
   const splitBy = ((searchParams.get('split_by') as SplitMode) || 'none') as SplitMode

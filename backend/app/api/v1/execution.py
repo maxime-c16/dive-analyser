@@ -6,13 +6,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.services.execution_fault_detector import ExecutionFaultDetector, ExecutionMetrics
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.models.execution_fault import ExecutionFault
 
 
-router = APIRouter(prefix="/execution", tags=["execution"])
+router = APIRouter(prefix="/execution", tags=["execution"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 class ExecutionMetricsInput(BaseModel):

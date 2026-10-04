@@ -3,6 +3,7 @@ import { ChevronRight, Hash, LayoutGrid, List, Search, SlidersHorizontal } from 
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
 import ClipViewer from "../components/clip-viewer/ClipViewer";
+import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
 import { divePositionCode } from "../utils/divePosition";
 import {
@@ -166,6 +167,7 @@ function parseSearch(value: string) {
 
 export default function Dives() {
   const [searchParams, setSearchParams] = usePreservedSearchParams();
+  const { user } = useAuth();
   const [dives, setDives] = useState<Dive[]>([]);
   const [divers, setDivers] = useState<Diver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,7 +180,7 @@ export default function Dives() {
   const viewerReturnAttemptRef = useRef<number | null>(null);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
-  const scope = (searchParams.get("scope") || "self") as Scope;
+  const scope = (searchParams.get("scope") || (user?.role === "friend" ? "all" : "self")) as Scope;
   const heightFilter = searchParams.get("height") || "";
   const contextFilter = searchParams.get("context") || "";
   const performanceFilter = searchParams.get("performance") || "";

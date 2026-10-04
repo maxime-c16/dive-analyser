@@ -99,9 +99,20 @@ class Settings(BaseSettings):
     b2_playback_key_id: str = os.getenv("B2_PLAYBACK_KEY_ID", "")
     b2_playback_key_secret: str = os.getenv("B2_PLAYBACK_KEY_SECRET", "")
 
+    # Friend access (invite-gated self-registration + read-only role).
+    # Fail closed: registration is OFF unless explicitly enabled AND at
+    # least one invite code is configured. Codes are shared secrets —
+    # compare-only, never logged, runtime .env only (never in Git).
+    friend_registration_enabled: bool = os.getenv("FRIEND_REGISTRATION_ENABLED", "false").lower() == "true"
+    friend_invite_codes: str = os.getenv("FRIEND_INVITE_CODES", "")
+
     @property
     def configured_api_keys(self) -> List[str]:
         return [key.strip() for key in self.mac_agent_api_keys.split(",") if key.strip()]
+
+    @property
+    def configured_friend_invite_codes(self) -> List[str]:
+        return [code.strip() for code in self.friend_invite_codes.split(",") if code.strip()]
 
     @property
     def cors_origins(self) -> List[str]:

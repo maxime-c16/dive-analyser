@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.models.dive import Dive
 from app.models.emotional_state import EmotionalState, RecoveryPlan
 from app.models.journey import Journey
@@ -16,7 +17,7 @@ from app.services.fear_analyzer import FearAnalyzer
 from app.services.journey_service import JourneyService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/psychology", tags=["psychology"])
+router = APIRouter(prefix="/psychology", tags=["psychology"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 # Schema models for request/response

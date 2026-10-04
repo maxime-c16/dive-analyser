@@ -7,10 +7,11 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.services.performance_scorer import PerformanceScorer
 from app.models.dive import Dive
 
-router = APIRouter(prefix="/scoring", tags=["scoring"])
+router = APIRouter(prefix="/scoring", tags=["scoring"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 class JudgeScoreInput(BaseModel):

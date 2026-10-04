@@ -35,7 +35,7 @@ from app.models.dive import Dive
 from app.models.media import MediaCacheEntry
 from app.models.media_backbone import MediaRevision
 from app.models.photos_asset import PhotosAsset
-from app.models.user_auth import AppUser, UserDiverAccess
+from app.models.user_auth import ROLE_FRIEND, AppUser, UserDiverAccess
 
 ACCESS_KIND_OWNER = "OWNER"
 
@@ -90,15 +90,35 @@ def user_has_diver_access(
     return row is not None
 
 
+def is_friend_user(user: Optional[AppUser]) -> bool:
+    """True for an active friend-role user (FRIEND ACCESS V1).
+
+    Friends see every diver's dives/media by default with no explicit
+    bindings; read-only enforcement lives in app/services/write_guard.py.
+    """
+    return (
+        user is not None
+        and bool(user.is_active)
+        and getattr(user, "role", None) == ROLE_FRIEND
+    )
+
+
 def can_user_access_media(
     db: Session, user: AppUser, media_revision: Optional[MediaRevision]
 ) -> MediaAccessDecision:
     """THE central P5 authorization policy. Every playback resolution goes
-    through this function; no route may bypass it."""
+    through this function; no route may bypass it.
+
+    FRIEND ACCESS V1: an active friend-role user is allowed for any
+    EXISTING revision (unknown revisions still deny — no existence oracle
+    change). Owner behaviour is unchanged (explicit OWNER binding)."""
     if media_revision is None:
         return MediaAccessDecision(False, DENY_UNKNOWN_REVISION)
     if user is None or not user.is_active:
         return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
+    if is_friend_user(user):
+        diver_id = resolve_media_diver_owner(db, media_revision)
+        return MediaAccessDecision(True, "allowed", diver_id)
     diver_id = resolve_media_diver_owner(db, media_revision)
     if diver_id is None:
         return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
@@ -131,12 +151,21 @@ def can_user_access_video(
     ALLOW iff the same rule as can_user_access_media, entered through the
     dive chain directly. No legacy fallbacks: no primary-user shortcut, no
     LAN locality, no UUID secrecy.
-    """
+
+    FRIEND ACCESS V1: friends are allowed for any KNOWN video UUID."""
     if user is None or not user.is_active:
         return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
     diver_id = resolve_video_diver_owner(db, video_uuid)
     if diver_id is None:
+        if is_friend_user(user):
+            # The UUID still has to resolve to a real dive row (unknown
+            # UUIDs deny); the diver binding is what friends skip.
+            dive = db.query(Dive).filter(Dive.video_uuid == video_uuid).one_or_none()
+            if dive is not None:
+                return MediaAccessDecision(True, "allowed", None)
         return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
+    if is_friend_user(user):
+        return MediaAccessDecision(True, "allowed", diver_id)
     if not user_has_diver_access(db, user.id, diver_id):
         return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS, diver_id)
     return MediaAccessDecision(True, "allowed", diver_id)
@@ -165,11 +194,26 @@ def resolve_cache_entry_diver_owner(
 def can_user_access_cache_entry(
     db: Session, user: AppUser, entry: Optional[MediaCacheEntry]
 ) -> MediaAccessDecision:
-    """Central policy for media-cache (poster/proxy) playback (P6)."""
+    """Central policy for media-cache (poster/proxy) playback (P6).
+
+    FRIEND ACCESS V1: friends are allowed for any resolvable entry."""
     if entry is None:
         return MediaAccessDecision(False, DENY_UNKNOWN_REVISION)
     if user is None or not user.is_active:
         return MediaAccessDecision(False, DENY_NO_OWNER_ACCESS)
+    if is_friend_user(user):
+        diver_id = resolve_cache_entry_diver_owner(db, entry)
+        if diver_id is None:
+            # Entry must still resolve to a real asset (unknown entries
+            # deny); only the diver binding is skipped for friends.
+            asset = db.get(PhotosAsset, entry.photos_asset_id) if entry.photos_asset_id else None
+            if asset is None or not asset.video_uuid:
+                return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
+            dive = db.query(Dive).filter(Dive.video_uuid == asset.video_uuid).one_or_none()
+            if dive is None:
+                return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)
+            return MediaAccessDecision(True, "allowed", None)
+        return MediaAccessDecision(True, "allowed", diver_id)
     diver_id = resolve_cache_entry_diver_owner(db, entry)
     if diver_id is None:
         return MediaAccessDecision(False, DENY_NO_DIVER_CHAIN)

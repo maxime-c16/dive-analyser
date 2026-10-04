@@ -25,6 +25,7 @@ EVENT_USER_CREATED = "user_created"
 EVENT_USER_DISABLED = "user_disabled"
 EVENT_USER_ENABLED = "user_enabled"
 EVENT_PASSWORD_RESET = "password_reset"
+EVENT_PASSWORD_CHANGED = "password_changed"
 EVENT_SESSION_REVOKED = "session_revoked"
 EVENT_OWNERSHIP_GRANTED = "ownership_granted"
 EVENT_OWNERSHIP_REVOKED = "ownership_revoked"
@@ -32,6 +33,7 @@ EVENT_LOGIN_RATE_LIMITED = "login_rate_limited"
 
 # actor_context values.
 ACTOR_OPERATOR_CLI = "operator-cli"
+ACTOR_SELF_REGISTRATION = "self-registration"
 ACTOR_SYSTEM = "system"
 
 
