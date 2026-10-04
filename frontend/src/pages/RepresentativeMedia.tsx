@@ -15,6 +15,7 @@ import {
   type RepresentativeRole,
 } from '../services/representativeMediaApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
+import { useAuth } from '../contexts/AuthContext'
 
 const ROLE_ORDER: RepresentativeRole[] = ['low', 'median', 'high']
 const VIABILITY_LABELS: Record<string, string> = {
@@ -41,10 +42,12 @@ function RepresentativeCardView({
   code,
   rep,
   onFindReplacement,
+  readOnly,
 }: {
   code: string
   rep: RepresentativeCard
   onFindReplacement: (code: string, role: RepresentativeRole) => void
+  readOnly: boolean
 }) {
   const failure = rep.media.failure
   const posterReady = rep.media.renditions.poster.status === 'ready'
@@ -93,7 +96,7 @@ function RepresentativeCardView({
           {rep.media.playback_url && <a href={rep.media.playback_url} className="touch-target inline-flex items-center gap-2 border border-app-accent bg-app-accent px-3 py-1.5 text-xs font-semibold text-black"><Film className="h-3.5 w-3.5" />Play</a>}
           <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">Open attempt</Link>
           {(rep.media.state === 'partial' || rep.media.state === 'missing') && <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">Prepare one</Link>}
-          {rep.replacement.available && <button type="button" onClick={() => onFindReplacement(code, rep.role)} className="touch-target border border-app px-3 py-1.5 text-xs text-app-muted">Find replacement</button>}
+          {rep.replacement.available && !readOnly && <button type="button" onClick={() => onFindReplacement(code, rep.role)} className="touch-target border border-app px-3 py-1.5 text-xs text-app-muted">Find replacement</button>}
         </div>
       </div>
     </article>
@@ -155,6 +158,10 @@ function CandidatePanel({
 
 export default function RepresentativeMedia() {
   const [searchParams, setSearchParams] = usePreservedSearchParams()
+  const { user } = useAuth()
+  // Friends see everyone's dives by default; replacement is owner-only.
+  const friend = user?.role === 'friend'
+  const scopeDefault = searchParams.get('diver_scope') || (searchParams.get('diver_id') ? 'selected' : (friend ? 'all' : 'self'))
   const [data, setData] = useState<RepresentativeGallery | null>(null)
   const [coverage, setCoverage] = useState<RepresentativeCoverage | null>(null)
   const [macStatus, setMacStatus] = useState<MacMediaStatus | null>(null)
@@ -274,8 +281,8 @@ export default function RepresentativeMedia() {
           <label className="text-xs text-app-muted">Readiness<select value={searchParams.get('readiness') || ''} onChange={(event) => update('readiness', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="">All</option><option value="ready">Ready</option><option value="partial">Partial</option><option value="replacement_available">Replacement available</option><option value="replacement_exhausted">Replacement exhausted</option><option value="missing">Missing</option></select></label>
           <label className="text-xs text-app-muted">Role<select value={searchParams.get('selection_band') || ''} onChange={(event) => update('selection_band', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="">All</option><option value="low">Low</option><option value="median">Typical</option><option value="high">High</option></select></label>
           <label className="text-xs text-app-muted">Height<input value={searchParams.get('height') || ''} onChange={(event) => update('height', event.target.value)} className="app-input mt-1 w-full text-sm" placeholder="1m" /></label>
-          <label className="text-xs text-app-muted">Diver scope<select value={searchParams.get('diver_scope') || (searchParams.get('diver_id') ? 'selected' : 'self')} onChange={(event) => { const next = new URLSearchParams(searchParams); next.delete('diver_id'); event.target.value === 'self' ? next.delete('diver_scope') : next.set('diver_scope', event.target.value); setSearchParams(next) }} className="app-input mt-1 w-full text-sm"><option value="self">My dives</option><option value="all">All divers</option><option value="selected">Selected diver ID</option></select></label>
-          <label className="text-xs text-app-muted">Diver ID<input disabled={(searchParams.get('diver_scope') || (searchParams.get('diver_id') ? 'selected' : 'self')) !== 'selected'} value={searchParams.get('diver_id') || ''} onChange={(event) => update('diver_id', event.target.value)} className="app-input mt-1 w-full text-sm disabled:opacity-45" placeholder="1" /></label>
+          <label className="text-xs text-app-muted">Diver scope<select value={scopeDefault} onChange={(event) => { const next = new URLSearchParams(searchParams); next.delete('diver_id'); event.target.value === 'self' ? next.delete('diver_scope') : next.set('diver_scope', event.target.value); setSearchParams(next) }} className="app-input mt-1 w-full text-sm"><option value="self">My dives</option><option value="all">All divers</option><option value="selected">Selected diver ID</option></select></label>
+          <label className="text-xs text-app-muted">Diver ID<input disabled={scopeDefault !== 'selected'} value={searchParams.get('diver_id') || ''} onChange={(event) => update('diver_id', event.target.value)} className="app-input mt-1 w-full text-sm disabled:opacity-45" placeholder="1" /></label>
           <label className="text-xs text-app-muted">Sort<select value={sortMode} onChange={(event) => update('sort', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="needs_coverage">Needs coverage</option><option value="dive_code">Dive code</option><option value="fully_ready">Fully ready</option><option value="recently_updated">Recently updated</option></select></label>
           <button type="button" onClick={() => load()} className="mt-5 inline-flex items-center justify-center gap-2 border border-app px-3 py-2 text-sm text-app-muted"><RefreshCw className="h-4 w-4" />Refresh</button>
         </div>
@@ -307,7 +314,7 @@ export default function RepresentativeMedia() {
               <div className="grid gap-4 p-4 lg:grid-cols-3">
                 {ROLE_ORDER.map((role) => {
                   const rep = group.representatives.find((item) => item.role === role)
-                  return rep ? <RepresentativeCardView key={role} code={group.dive_code} rep={rep} onFindReplacement={findReplacement} /> : <div key={role} className="border border-app p-4 text-sm text-app-muted"><AlertTriangle className="mb-3 h-4 w-4" />No {role === 'median' ? 'Typical' : role} representative selected.</div>
+                  return rep ? <RepresentativeCardView key={role} code={group.dive_code} rep={rep} onFindReplacement={findReplacement} readOnly={friend} /> : <div key={role} className="border border-app p-4 text-sm text-app-muted"><AlertTriangle className="mb-3 h-4 w-4" />No {role === 'median' ? 'Typical' : role} representative selected.</div>
                 })}
               </div>
             </div>

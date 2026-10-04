@@ -13,6 +13,7 @@ import {
 import SessionDetail from "../components/SessionDetail";
 import RecentProgress from "../components/RecentProgress";
 import SessionDirectionIndicator from "../components/SessionDirectionIndicator";
+import { useAuth } from "../contexts/AuthContext";
 import {
   performanceBorder,
   performanceColor,
@@ -30,11 +31,15 @@ interface Session {
 }
 
 function Sessions() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(50);
-  const [diverScope, setDiverScope] = useState<"self" | "all">("self");
+  // Friends see everyone's dives by default (no diver bindings held).
+  const [diverScope, setDiverScope] = useState<"self" | "all">(
+    user?.role === "friend" ? "all" : "self",
+  );
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   useEffect(() => {

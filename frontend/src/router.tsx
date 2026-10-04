@@ -8,6 +8,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Dives from "./pages/Dives";
 import { useAuth } from "./contexts/AuthContext";
 import {
@@ -20,6 +21,7 @@ import {
   HardDriveDownload,
   ShieldCheck,
   Menu,
+  UserRound,
   Waves,
   X,
 } from "lucide-react";
@@ -32,6 +34,7 @@ const RepresentativeMedia = lazy(() => import("./pages/RepresentativeMedia"));
 const MediaRecall = lazy(() => import("./pages/MediaRecall"));
 const P5Canary = lazy(() => import("./pages/P5Canary"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Account = lazy(() => import("./pages/Account"));
 
 /** Library is the product home; everything else is secondary or operational. */
 const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
@@ -59,6 +62,7 @@ const routeLabels: Record<string, string> = {
   "/media/recall": "Media recall",
   "/media/p5-canary": "Player canary",
   "/admin": "System",
+  "/account": "Account",
   "/sessions": "Sessions",
 };
 
@@ -164,6 +168,8 @@ export function breadcrumbTrail(pathname: string): Crumb[] {
       return [{ label: "Player canary" }];
     case "/admin":
       return [{ label: "System" }];
+    case "/account":
+      return [{ label: "Account" }];
     default: {
       const last = pathname.split("/").filter(Boolean).pop();
       return [{ label: last ? last.replace(/-/g, " ") : "Library" }];
@@ -199,6 +205,8 @@ function Breadcrumbs() {
 function MobileNavigation() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
+  const friend = user?.role === "friend";
   const currentLabel = routeLabels[location.pathname] ?? "Workspace";
 
   useEffect(() => {
@@ -276,8 +284,20 @@ function MobileNavigation() {
             ))}
           </nav>
           <div className="mt-5">
-            <OperationsDisclosure compact />
+            <NavLink
+              to="/account"
+              onClick={() => setOpen(false)}
+              className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-text"
+            >
+              <UserRound className="h-5 w-5" />
+              <span>Account</span>
+            </NavLink>
           </div>
+          {!friend && (
+            <div className="mt-5">
+              <OperationsDisclosure compact />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -285,6 +305,8 @@ function MobileNavigation() {
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const friend = user?.role === "friend";
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link">
@@ -319,8 +341,20 @@ function Layout({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
 
-            <div className="mt-6">
-              <OperationsDisclosure />
+            {!friend && (
+              <div className="mt-6">
+                <OperationsDisclosure />
+              </div>
+            )}
+
+            <div className="mt-auto border-t border-app pt-4">
+              <div className="truncate px-3 text-xs text-app-muted">
+                {user?.display_name ?? user?.email}
+                {friend ? " · friend" : ""}
+              </div>
+              <nav aria-label="Account navigation" className="mt-2 space-y-1">
+                <AppNavLink to="/account" label="Account" icon={UserRound} />
+              </nav>
             </div>
 
           </div>
@@ -392,11 +426,51 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Keep friends out of owner operations (Media recall, System). */
+function OwnerGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role === "friend") {
+    return <Navigate to="/dives" replace />;
+  }
+  return <>{children}</>;
+}
+
+/** Logged-in visitors never need the auth pages. */
+function AnonymousOnly({ children }: { children: React.ReactNode }) {
+  const { user, checking } = useAuth();
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
+        Loading…
+      </div>
+    );
+  }
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Routes>
-      {/* Login is outside the Layout and needs no auth */}
-      <Route path="/login" element={<Login />} />
+      {/* Login / register live outside the Layout and need no auth */}
+      <Route
+        path="/login"
+        element={
+          <AnonymousOnly>
+            <Login />
+          </AnonymousOnly>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <AnonymousOnly>
+            <Register />
+          </AnonymousOnly>
+        }
+      />
 
       {/* All other routes require a live session */}
       <Route
@@ -416,9 +490,24 @@ function Router() {
                     path="/media/representatives"
                     element={<RepresentativeMedia />}
                   />
-                  <Route path="/media/recall" element={<MediaRecall />} />
+                  <Route
+                    path="/media/recall"
+                    element={
+                      <OwnerGuard>
+                        <MediaRecall />
+                      </OwnerGuard>
+                    }
+                  />
                   <Route path="/media/p5-canary" element={<P5Canary />} />
-                  <Route path="/admin" element={<Admin />} />
+                  <Route
+                    path="/admin"
+                    element={
+                      <OwnerGuard>
+                        <Admin />
+                      </OwnerGuard>
+                    }
+                  />
+                  <Route path="/account" element={<Account />} />
                   <Route path="/sessions" element={<Sessions />} />
                   <Route
                     path="/competitions"

@@ -1,11 +1,12 @@
 """API endpoints for DD (Difficulty Degree) operations"""
 
 from typing import List, Dict, Literal
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
 from app.database import get_db
+from app.services.write_guard import effective_diver_scope, require_owner_for_mutation
 from app.services.dd_calculator import DDCalculator
 from app.services.dd_lookup_manager import DDLookupManager
 from app.services.dd_auto_assign import DDAutoAssigner
@@ -13,16 +14,18 @@ from app.services.dd_overview_service import DDOverviewService
 from app.services.world_aquatics_dd import OfficialDDUndefined, calculate_official_dd
 
 
-router = APIRouter(prefix="/dd", tags=["dd"])
+router = APIRouter(prefix="/dd", tags=["dd"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 @router.get("/overview")
 async def get_dd_overview(
+    request: Request,
     diver_id: int | None = Query(None),
     scope: Literal["self", "all"] = Query("self"),
     db: Session = Depends(get_db),
 ) -> Dict:
     """Return a live, attempt-traceable DD view from the versioned formula."""
+    scope = effective_diver_scope(request, db, scope)
     return DDOverviewService(db).overview(diver_id=diver_id, scope=scope)
 
 

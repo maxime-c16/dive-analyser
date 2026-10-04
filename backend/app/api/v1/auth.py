@@ -28,6 +28,7 @@ Security properties:
 """
 
 import datetime
+import hmac
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -38,13 +39,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.models.user_auth import (
+    ROLE_FRIEND,
     AppUser,
     LoginAttempt,
     UserCredential,
     UserDiverAccess,
     UserSession,
 )
-from app.services.passwords import ALGORITHM_LABEL, verify_password
+from app.services.passwords import ALGORITHM_LABEL, hash_password, verify_password
 from app.services import sessions
 from app.services import auth_metrics, security_audit_log
 from app.services.user_access import user_has_diver_access
@@ -74,6 +76,60 @@ class LoginRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=1, max_length=1024)
     remember_me: bool = False
+
+
+class RegisterRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=10, max_length=1024)
+    display_name: Optional[str] = Field(None, min_length=1, max_length=120)
+    invite_code: str = Field(..., min_length=1, max_length=255)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=1024)
+    new_password: str = Field(..., min_length=10, max_length=1024)
+
+
+def _registration_open() -> bool:
+    """Friend self-registration is available only when explicitly enabled
+    AND at least one invite code is configured (fail closed both ways)."""
+    settings = get_settings()
+    return bool(
+        settings.friend_registration_enabled
+        and settings.configured_friend_invite_codes
+    )
+
+
+def _invite_valid(submitted: str) -> bool:
+    # Byte comparison: str compare_digest raises TypeError on non-ASCII
+    # input, which would 500 instead of returning the normal 403 (and skip
+    # the failure ledger). UTF-8 bytes compare safely for any input, and a
+    # configured non-ASCII code keeps working for the correct submission.
+    candidate = (submitted or "").strip().encode("utf-8")
+    if not candidate:
+        return False
+    return any(
+        hmac.compare_digest(candidate, code.encode("utf-8"))
+        for code in get_settings().configured_friend_invite_codes
+    )
+
+
+def _register_rate_limited(db: Session, client_ip: str) -> bool:
+    """Bounded per-source registration throttle (same rolling window as
+    login). Counts failed registrations only; successes don't lock out."""
+    settings = get_settings()
+    window_start = _window_start()
+    failures = (
+        db.query(LoginAttempt)
+        .filter(
+            LoginAttempt.identifier == "friend-register",
+            LoginAttempt.client_ip == client_ip,
+            LoginAttempt.success.is_(False),
+            LoginAttempt.created_at >= window_start,
+        )
+        .count()
+    )
+    return failures >= max(settings.auth_login_ip_max_failures, 1)
 
 
 def _secure_headers(response: Response) -> None:
@@ -248,6 +304,144 @@ def _origin_allowed(request: Request) -> bool:
     return origin.rstrip("/").lower() in {c.rstrip("/").lower() for c in candidates}
 
 
+@router.get("/registration-status")
+async def registration_status(response: Response):
+    """Public: is friend self-registration currently open?
+
+    Reveals only the open/closed bit (never codes, never user data) so the
+    login page can show or hide the registration link.
+    """
+    _secure_headers(response)
+    return {"registration_enabled": bool(_auth_enabled() and _registration_open())}
+
+
+@router.post("/register", status_code=201)
+async def register(
+    request_body: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Friend self-registration (FRIEND ACCESS V1).
+
+    Invite-gated, rate-limited, fail-closed. Creates a friend-role user
+    (read-only, sees every diver by default, no diver bindings) and logs
+    them straight in. Owners can only be provisioned by the operator CLI —
+    this endpoint never creates them.
+    """
+    if not _auth_enabled() or not _registration_open():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    if not _origin_allowed(request):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Origin not allowed")
+
+    client_ip = _client_ip(request)
+    if _register_rate_limited(db, client_ip):
+        auth_metrics.get_auth_metrics().login_rate_limited.inc()
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, _TOO_MANY_ATTEMPTS)
+
+    # Invite first: checking duplicates before the invite lets anyone
+    # without a code distinguish existing emails (409) from unknown ones
+    # (403) — the same existence oracle login deliberately avoids. Only a
+    # caller demonstrating a valid invite may learn an email is taken.
+    if not _invite_valid(request_body.invite_code):
+        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid invite code")
+
+    email = request_body.email.strip().lower()
+    if db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None:
+        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "An account with this email already exists"
+        )
+
+    display_name = (request_body.display_name or "").strip() or email.split("@")[0]
+    user = AppUser(email=email, display_name=display_name[:120], role=ROLE_FRIEND)
+    db.add(user)
+    db.flush()
+    db.add(
+        UserCredential(
+            user_id=user.id,
+            password_hash=hash_password(request_body.password),
+            password_algo=ALGORITHM_LABEL,
+        )
+    )
+    db.commit()
+    _record_attempt(db, "friend-register", success=True, client_ip=client_ip)
+    auth_metrics.get_auth_metrics().login_success.inc()
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_USER_CREATED,
+        actor_context=security_audit_log.ACTOR_SELF_REGISTRATION,
+        target_user_id=user.id,
+        metadata={"role": ROLE_FRIEND},
+    )
+    settings = get_settings()
+    raw_token, _session = sessions.create_session(
+        db,
+        user_id=user.id,
+        ttl_seconds=int(settings.auth_session_ttl_seconds),
+        revoke_existing=True,
+    )
+    _set_session_cookie(response, raw_token)
+    _secure_headers(response)
+    return {"user_id": user.id, "email": email, "role": ROLE_FRIEND}
+
+
+@router.post("/change-password")
+async def change_password(
+    request_body: ChangePasswordRequest,
+    request: Request,
+    response: Response,
+    user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Self-service password change (owners and friends alike).
+
+    Requires the current password; rotates the session (all other sessions
+    are revoked and a fresh cookie is issued) so a changed password
+    immediately locks out any other holder of the old session.
+    """
+    if not _origin_allowed(request):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Origin not allowed")
+
+    client_ip = _client_ip(request)
+    identifier = f"change-password:{user.id}"
+    if _rate_limited(db, identifier, client_ip):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, _TOO_MANY_ATTEMPTS)
+
+    credential = (
+        db.query(UserCredential).filter(UserCredential.user_id == user.id).one_or_none()
+    )
+    if (
+        credential is None
+        or credential.password_algo != ALGORITHM_LABEL
+        or not verify_password(credential.password_hash, request_body.current_password)
+    ):
+        _record_attempt(db, identifier, success=False, client_ip=client_ip)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, _GENERIC_LOGIN_FAILURE)
+
+    credential.password_hash = hash_password(request_body.new_password)
+    credential.password_algo = ALGORITHM_LABEL
+    db.commit()
+    _record_attempt(db, identifier, success=True, client_ip=client_ip)
+    settings = get_settings()
+    raw_token, _session = sessions.create_session(
+        db,
+        user_id=user.id,
+        ttl_seconds=int(settings.auth_session_ttl_seconds),
+        revoke_existing=True,
+    )
+    _set_session_cookie(response, raw_token)
+    _secure_headers(response)
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_PASSWORD_CHANGED,
+        actor_context="user",
+        target_user_id=user.id,
+    )
+    return {"ok": True}
+
+
 @router.post("/login")
 async def login(
     request_body: LoginRequest,
@@ -369,6 +563,7 @@ async def me(
         "user_id": user.id,
         "email": user.email,
         "display_name": user.display_name,
+        "role": getattr(user, "role", "owner"),
         "divers": [
             {
                 "diver_id": row.diver_id,

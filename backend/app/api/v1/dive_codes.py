@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.schemas.dive_code import (
     DiveCodeInput,
     DiveCodeParsed,
@@ -18,7 +19,7 @@ from app.services.dive_code_parser import DiveCodeParser
 from app.services.dive_code_validator import DiveCodeValidator
 from app.models import FINADiveCode
 
-router = APIRouter(prefix="/dive-codes", tags=["dive-codes"])
+router = APIRouter(prefix="/dive-codes", tags=["dive-codes"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 @router.post("/parse", response_model=DiveCodeParsed)

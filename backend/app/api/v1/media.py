@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import effective_diver_scope, require_owner_for_mutation
 from app.models.media import MediaAgent, MediaJob, RecalledMediaSource
 from app.models.photos_asset import PhotosAsset
 from app.schemas.media import MediaRequest, MediaRequestResponse, MediaStatusResponse
@@ -117,7 +118,7 @@ from app.services.representative_population import (
     start_tier1_population,
 )
 
-router = APIRouter(prefix="/media", tags=["media"])
+router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
 
 
 RENDITION_PREFERENCE = {
@@ -387,6 +388,7 @@ def _photos_access_status_from_jobs(db: Session) -> dict:
 
 @router.get("/representative-manifest")
 async def representative_media_manifest(
+    request: Request,
     limit_codes: int | None = Query(None, ge=1, le=500),
     include_sync_codes: bool = False,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
@@ -394,6 +396,7 @@ async def representative_media_manifest(
     db: Session = Depends(get_db),
 ):
     """Build a reviewed Tier 1 media-readiness manifest without creating jobs."""
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     return build_representative_media_manifest(
         db,
         limit_codes=limit_codes,
@@ -405,6 +408,7 @@ async def representative_media_manifest(
 
 @router.get("/representatives")
 async def representatives_gallery(
+    request: Request,
     dive_code: str | None = None,
     readiness: str | None = None,
     selection_band: str | None = None,
@@ -417,6 +421,7 @@ async def representatives_gallery(
     db: Session = Depends(get_db),
 ):
     """Return read-only representative media gallery state."""
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     return representative_gallery(
         db,
         dive_code=dive_code,
@@ -433,11 +438,13 @@ async def representatives_gallery(
 
 @router.get("/representatives/coverage")
 async def representatives_coverage(
+    request: Request,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
     db: Session = Depends(get_db),
 ):
     """Return read-only representative coverage and zero-ready audit state."""
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     return representative_coverage(db, diver_scope="selected" if diver_id else diver_scope, diver_id=diver_id)
 
 
@@ -453,11 +460,13 @@ async def mac_media_status(
 async def get_representative_replacement_candidates(
     dive_code: str,
     role: str,
+    request: Request,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
     db: Session = Depends(get_db),
 ):
     """Return at most five bounded replacement candidates without creating jobs."""
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     return {
         "dive_code": dive_code.upper(),
         "role": "median" if role == "typical" else role,

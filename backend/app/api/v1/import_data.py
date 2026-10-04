@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.services.import_service import ImportService, find_latest_json
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_owner_for_mutation)])
 
 # Default paths to look for JSON data
 JSON_PATHS = [

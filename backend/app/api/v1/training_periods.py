@@ -8,11 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import require_owner_for_mutation
 from app.models.training_period import TrainingPeriod
 from app.security import verify_api_key
 from app.services.diver_identity import invalidate_analysis_cache
 
-router = APIRouter(prefix="/training-periods", tags=["training-periods"])
+router = APIRouter(prefix="/training-periods", tags=["training-periods"], dependencies=[Depends(require_owner_for_mutation)])
 PERIOD_TYPES = {"season", "training_block", "competition_preparation", "return_to_training", "custom"}
 
 

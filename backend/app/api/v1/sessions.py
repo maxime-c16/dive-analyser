@@ -2,18 +2,19 @@
 
 from typing import Any, List, Optional
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import effective_diver_scope, require_owner_for_mutation
 from app.models.session import Session as SessionModel
 from app.models.dive import Dive
 from app.schemas.session import SessionCreate, SessionUpdate
 from app.services.diver_identity import get_primary_diver
 from app.services.performance_scoring import dive_score_10, is_success
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_owner_for_mutation)])
 
 
 def _is_real_dive(dive: Dive) -> bool:
@@ -54,6 +55,7 @@ def _apply_live_stats(session: SessionModel, dives: list[Dive]) -> dict[str, Any
 
 @router.get("")
 async def list_sessions(
+    request: Request,
     db: Session = Depends(get_db),
     date_from: Optional[date] = Query(None, description="Filter sessions from date"),
     date_to: Optional[date] = Query(None, description="Filter sessions until date"),
@@ -64,6 +66,7 @@ async def list_sessions(
     """
     List all training sessions
     """
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     query = db.query(SessionModel)
     scope = _scope_filter(db, diver_scope)
 
@@ -118,6 +121,7 @@ async def create_session(
 @router.get("/{session_id}")
 async def get_session(
     session_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     diver_scope: str = Query("self", pattern="^(self|all)$"),
 ):
@@ -127,6 +131,7 @@ async def get_session(
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    diver_scope = effective_diver_scope(request, db, diver_scope)
     scope = _scope_filter(db, diver_scope)
     filters = [Dive.session_id == session.id, Dive.is_lineup.is_(False)]
     if scope is not None:

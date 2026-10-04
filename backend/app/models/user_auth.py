@@ -38,12 +38,24 @@ from sqlalchemy import (
 from app.database import Base
 
 
+# AppUser roles (FRIEND ACCESS V1):
+# - ROLE_OWNER  — full access; media playback requires an explicit OWNER
+#                 UserDiverAccess row per diver (unchanged P5 behaviour).
+# - ROLE_FRIEND — invite-gated self-registration; sees every diver's
+#                 dives/media by default (no bindings needed); read-only at
+#                 the API boundary (app/services/write_guard.py).
+ROLE_OWNER = "owner"
+ROLE_FRIEND = "friend"
+USER_ROLES = (ROLE_OWNER, ROLE_FRIEND)
+
+
 class AppUser(Base):
     __tablename__ = "app_users"
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), nullable=False, index=True)
     display_name = Column(String(120), nullable=False)
+    role = Column(String(20), nullable=False, default=ROLE_OWNER)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(

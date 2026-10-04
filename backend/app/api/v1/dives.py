@@ -2,11 +2,12 @@
 
 from typing import List, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.write_guard import effective_diver_scope, optional_session_user, require_owner_for_mutation
 from app.services.workspace_access import require_workspace_user
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
@@ -15,7 +16,7 @@ from app.services.diver_identity import get_primary_diver, invalidate_analysis_c
 from app.services.difficulty_adjustment import formula_dd
 from app.services.world_aquatics_dd import REFERENCE_ID
 
-router = APIRouter(dependencies=[Depends(require_workspace_user)])
+router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(require_owner_for_mutation)])
 
 
 def _public_dive(dive: Dive) -> dict:
@@ -34,6 +35,7 @@ def _public_dive(dive: Dive) -> dict:
 
 @router.get("")
 def list_dives(
+    request: Request,
     db: Session = Depends(get_db),
     session_id: Optional[int] = Query(None, description="Filter by session ID"),
     dive_code: Optional[str] = Query(None, description="Filter by dive code"),
@@ -52,7 +54,10 @@ def list_dives(
     """
     query = db.query(Dive)
 
-    if diver_scope == "self":
+    # Friends see everyone's dives by default (no diver bindings held).
+    effective_scope = effective_diver_scope(request, db, diver_scope)
+
+    if effective_scope == "self":
         primary = get_primary_diver(db)
         query = query.filter(or_(Dive.diver_id == primary.id, (Dive.diver_id.is_(None) & Dive.person_name.is_(None))))
 
