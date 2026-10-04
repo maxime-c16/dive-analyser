@@ -103,17 +103,18 @@ ci_backend_python() {
     local root cache venv stamp reqhash
     root="$(ci_repo_root)"
     cache="$(ci_cache_dir)"
-    venv="$cache/venv-backend"
+    # A different requirements set gets a fresh environment, so pip cannot
+    # retain packages removed by another branch. Include the interpreter in
+    # the key and keep the old cache intact for worktrees using that set.
+    reqhash="$(ci_python_env_hash "$root/backend/requirements.txt")"
+    venv="$cache/venv-backend-$reqhash"
     stamp="$venv/.requirements.sha256"
-
-    [ -d "$cache" ] || mkdir -p "$cache"
-
+    mkdir -p "$cache"
     if [ ! -x "$venv/bin/python" ]; then
-        ci_log "creating backend venv (first run, this takes a minute)"
-        python3 -m venv "$venv" || { ci_die "failed to create venv at $venv"; }
+        ci_log "creating backend venv (first run for this dependency set)"
+        python3 -m venv "$venv" || ci_die "failed to create venv at $venv"
     fi
 
-    reqhash="$(sha256sum "$root/backend/requirements.txt" | cut -d' ' -f1)"
     if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$reqhash" ]; then
         ci_log "installing backend dependencies (requirements.txt changed)"
         ci_run backend-dependencies "$venv/bin/pip" install --quiet --disable-pip-version-check \
@@ -179,11 +180,12 @@ ci_agent_python() {
     local root cache venv stamp reqhash
     root="$(ci_repo_root)"
     cache="$(ci_cache_dir)"
-    venv="$cache/venv-agent"
+    reqhash="$(ci_python_env_hash "$root/ci/requirements-agent.txt")"
+    venv="$cache/venv-agent-$reqhash"
     stamp="$venv/.requirements.sha256"
     mkdir -p "$cache"
     [ -x "$venv/bin/python" ] || python3 -m venv "$venv" || ci_die "agent venv creation failed"
-    reqhash="$(sha256sum "$root/ci/requirements-agent.txt" | cut -d' ' -f1)"
+
     if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$reqhash" ]; then
         ci_run agent-dependencies "$venv/bin/pip" install --quiet --disable-pip-version-check \
             -r "$root/ci/requirements-agent.txt" || ci_die "agent dependencies failed"
@@ -202,4 +204,9 @@ ci_compose() {
     else
         docker-compose "$@"
     fi
+}
+
+# Version the cache scheme so existing in-place environments are not reused.
+ci_python_env_hash() {
+    { printf 'isolated-venv-v1\n'; cat "$1"; python3 -c 'import sys; print(sys.executable); print(sys.version)'; } | sha256sum | cut -d' ' -f1
 }

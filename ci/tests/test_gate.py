@@ -75,9 +75,9 @@ class HookTests(unittest.TestCase):
         self.git('commit', '-qm', message)
         return self.git('rev-parse', 'HEAD')
 
-    def run_hook(self, old=None, new=None):
+    def run_hook(self, old=None, new=None, ref="refs/heads/test"):
         zero = '0' * 40
-        line = f'refs/heads/test {new or self.git("rev-parse", "HEAD")} refs/heads/test {old or zero}\n'
+        line = f'{ref} {new or self.git("rev-parse", "HEAD")} {ref} {old or zero}\n'
         return subprocess.run(['bash', str(CI / 'pre-push'), 'origin'], input=line,
                               cwd=self.root, env=self.env, text=True, capture_output=True)
 
@@ -91,6 +91,14 @@ class HookTests(unittest.TestCase):
         run = self.run_hook()
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn('backend', run.stdout)
+
+    def test_annotated_tag_at_head_is_tested(self):
+        self.git('tag', '-a', 'v1', '-m', 'release')
+        tag_sha = self.git('rev-parse', 'v1')
+        self.assertNotEqual(tag_sha, self.git('rev-parse', 'HEAD'))
+        run = self.run_hook(new=tag_sha, ref='refs/tags/v1')
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn('fast', run.stdout)
 
     def test_dirty_tree_and_other_ref_block(self):
         old = self.git('rev-parse', 'HEAD')
@@ -139,6 +147,51 @@ class HookTests(unittest.TestCase):
                               env=self.env, stdout=subprocess.DEVNULL)
         self.assertFalse(hook.exists())
         self.assertEqual(len(list(hook.parent.glob('pre-push.disabled.*'))), 1)
+
+
+class EnvironmentCacheTests(unittest.TestCase):
+    def test_requirements_change_creates_a_clean_environment(self):
+        """Use real empty venvs: no package downloads needed for this check."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'ci').mkdir()
+            (root / 'backend').mkdir()
+            for req in [root / 'ci/requirements-agent.txt', root / 'backend/requirements.txt']:
+                req.write_text('# first dependency set\n')
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            script = r"""
+source "$1/lib.sh"
+# Real environments, without ensurepip overhead: installation is mocked below.
+python3() {
+    if [ "$1" = -m ] && [ "$2" = venv ]; then
+        command python3 -m venv --without-pip "$3"
+    else
+        command python3 "$@"
+    fi
+}
+# Dependency content is comments only; skip network to test cache isolation.
+ci_run() { return 0; }
+for label in agent backend; do
+    "ci_${label}_python"
+    if [ "$label" = agent ]; then first=$CI_AGENT_PYTHON; req=ci/requirements-agent.txt;
+    else first=$CI_BACKEND_PYTHON; req=backend/requirements.txt; fi
+    "$first" -c 'from pathlib import Path; import sysconfig; Path(sysconfig.get_paths()["purelib"], "removed_dependency.py").write_text("stale = True")'
+    printf '# second dependency set\n' >"$req"
+    "ci_${label}_python"
+    if [ "$label" = agent ]; then second=$CI_AGENT_PYTHON; else second=$CI_BACKEND_PYTHON; fi
+    [ "$first" != "$second" ] || exit 1
+    "$second" -c 'import importlib.util; assert importlib.util.find_spec("removed_dependency") is None'
+    printf '# first dependency set\n' >"$req"
+    "ci_${label}_python"
+    if [ "$label" = agent ]; then reused=$CI_AGENT_PYTHON; else reused=$CI_BACKEND_PYTHON; fi
+    [ "$first" = "$reused" ] || exit 1
+done
+"""
+            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+            env['DIVE_CI_CACHE'] = str(root / 'cache')
+            run = subprocess.run(['bash', '-c', script, '_', str(CI)], cwd=root, env=env,
+                                 capture_output=True, text=True, timeout=60)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
 if __name__ == '__main__':

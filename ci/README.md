@@ -49,7 +49,8 @@ Dockerfile and dependency changes also build images.
 The hook examines all commits introduced by a new branch, not just its tip.
 Existing refs use the old/new tree diff, including force pushes. Unknown ranges
 run all tiers. Deleting a ref needs no tests. Filenames are read with NUL
-separators. A push must match HEAD in a clean worktree so checks test the actual
+separators. Annotated tags are peeled to their commit before checking HEAD. A push must
+match HEAD in a clean worktree so checks test the actual
 pushed code. The hook blocks if its gate is absent.
 
 Hooks are shared by all worktrees. Install this hook after merging `ci/` into
@@ -57,7 +58,9 @@ branches you push from; other branches without `ci/` will be blocked. The
 installer preserves unrelated hooks and uses atomic replacement. Uninstall
 moves the managed hook aside rather than deleting it.
 
-Python dependencies live in separate cached backend/agent venvs. Agent tests
+Python dependencies live in separate backend/agent venvs keyed by requirements
+content and interpreter identity. Changing or removing dependencies creates a
+fresh environment; switching back reuses the matching cache. Agent tests
 use their own compatible HTTPX dependency without installing native osxphotos.
 Frontend installs use `npm ci`; cache stamps live inside that worktree's
 node_modules and cover both manifests plus the Node version. Caches/logs are
@@ -96,7 +99,7 @@ change does not deploy the app or modify running containers.
   deselected; zero failures/errors.
 - Agent: **272 passed**, including catalog and media safety; zero skips/failures.
 - Frontend: **126 passed** across 11 test files; TypeScript/Vite production build passed.
-- Gate/hook regression suite: **12 passed**; source syntax and whitespace checks passed.
+- Gate/hook regression suite: **14 passed**; source syntax and whitespace checks passed.
 
 The updated shared pre-push hook is installed and verified against `ci/pre-push`.
 Its push-range and clean-tree checks are active. Worktrees on branches without
