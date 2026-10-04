@@ -248,6 +248,10 @@ class MediaJobProcessor:
                 osxphotos_path=self.config.media.osxphotos_path,
                 use_photokit=self.config.media.materialization_use_photokit,
                 export_timeout_seconds=self.config.media.materialization_timeout_seconds,
+                # Without an explicit library osxphotos reads the Photos
+                # container plist, which macOS 15 App Data protection blocks
+                # on an unanswerable consent prompt under launchd.
+                library_path=self.config.photos.library_path,
             )
         exporter = MediaExporter(
             reader,

@@ -1086,6 +1086,7 @@ def mode_run(config, video_uuid: str, env_file: str | None = None, request_reaso
                 max_bytes=int(getattr(config.media, "materialization_max_bytes", 2_000_000_000)),
                 osxphotos_path=getattr(config.media, "osxphotos_path", "osxphotos"),
                 use_photokit=bool(getattr(config.media, "materialization_use_photokit", False)),
+                library_path=config.photos.library_path,
             )
 
             import asyncio as _asyncio
