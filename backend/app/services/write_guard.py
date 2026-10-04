@@ -20,7 +20,9 @@ viewing-support calls:
 
 - POST /api/v1/media/<uuid>/request — enqueue a poster/proxy rendition so
   the viewer can play it (no dive data changes);
-- POST /api/v1/media/events/viewed — playback telemetry touch.
+- POST /api/v1/media/events/viewed — playback telemetry touch;
+- POST /api/v1/media/status/batch — read-only grid thumbnail summary
+  (playback still authorizes at the /play route when fetched).
 
 Auth routes (/api/v1/auth/*) never attach this guard: login, registration
 and password change are the friend flows themselves.
@@ -42,7 +44,13 @@ from app.services.user_access import is_friend_user
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 _FRIEND_WRITE_PREFIX = "/api/v1/media/"
-_FRIEND_WRITE_EXACT = frozenset({"/api/v1/media/events/viewed"})
+_FRIEND_WRITE_EXACT = frozenset({
+    "/api/v1/media/events/viewed",
+    # POST /api/v1/media/status/batch — grid thumbnail transport; a
+    # read-only summary whose per-entry playback still enforces access
+    # through the /play route at fetch time.
+    "/api/v1/media/status/batch",
+})
 
 
 def _friend_write_allowed(path: str) -> bool:
