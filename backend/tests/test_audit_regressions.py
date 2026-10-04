@@ -219,6 +219,37 @@ def test_workspace_requires_live_login_only_when_enabled(api_client, test_db, mo
     assert api_client.get(path, headers=headers).status_code == 401
 
 
+def test_machine_key_mutations_bypass_the_read_boundary(api_client, monkeypatch):
+    """Auth-on machine calls must reach key-authenticated mutations without a
+    browser cookie: the read boundary passes non-safe methods through to the
+    route's own authorization (require_owner_for_mutation + verify_api_key)."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "user_auth_enabled", True)
+    payload = {
+        "name": "Winter block", "period_type": "training_block",
+        "start_date": "2026-01-01", "end_date": "2026-02-01",
+    }
+    created = api_client.post(
+        "/api/v1/training-periods", json=payload,
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert created.status_code == 201, created.text
+    period_id = created.json()["id"]
+    updated = api_client.put(
+        f"/api/v1/training-periods/{period_id}", json={**payload, "name": "Spring block"},
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Spring block"
+    deleted = api_client.delete(
+        f"/api/v1/training-periods/{period_id}",
+        headers={"X-API-Key": "test-api-key-1234567890abcdef"},
+    )
+    assert deleted.status_code in (200, 204)
+    # The read boundary still applies when auth is on.
+    assert api_client.get("/api/v1/training-periods").status_code == 401
+
+
 def test_workspace_rejects_unauthenticated_writes(api_client, monkeypatch):
     monkeypatch.setattr(get_settings(), "user_auth_enabled", True)
     assert api_client.put("/api/v1/dives/1", json={"notes": "anonymous"}).status_code == 401
