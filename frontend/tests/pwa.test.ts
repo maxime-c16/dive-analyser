@@ -51,6 +51,18 @@ describe("home-screen web app scope", () => {
     ).toBe(true);
   });
 
+  it("is served with the manifest content type", () => {
+    // The base nginx image has no .webmanifest mapping and sends
+    // X-Content-Type-Options: nosniff, so without this browsers may refuse
+    // to parse the manifest and the scope fix silently stops working.
+    const nginxConf = fs.readFileSync(
+      path.join(frontendDir, "nginx.conf"),
+      "utf8",
+    );
+    expect(nginxConf).toContain("application/manifest+json");
+    expect(nginxConf).toContain("webmanifest");
+  });
+
   it("declares the manifest and iOS standalone tags in index.html", () => {
     expect(indexHtml).toContain('rel="manifest"');
     expect(indexHtml).toContain('name="mobile-web-app-capable"');
