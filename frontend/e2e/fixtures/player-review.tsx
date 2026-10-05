@@ -36,8 +36,20 @@ const states = new Map<
 >();
 import type { Comment } from "../../src/components/clip-viewer/useDiveSocial";
 const discussion = new Map<number, Comment[]>();
+const shareCounts = new Map<number, number>();
 api.defaults.adapter = async (config) => {
   const id = Number(config.url?.match(/dives\/(\d+)/)?.[1] || 1);
+  if (config.url?.endsWith('/shares')) {
+    let data: unknown;
+    if (config.method === 'post') {
+      shareCounts.set(id, (shareCounts.get(id) ?? 0) + 1);
+      data = { path: `/share/${id}#review-only` };
+    } else if (config.method === 'delete') {
+      shareCounts.set(id, 0);
+      data = {};
+    } else data = { active_count: shareCounts.get(id) ?? 0 };
+    return { data, status: 200, statusText: 'OK', headers: {}, config };
+  }
   if (!states.has(id))
     states.set(id, { liked: false, like_count: 12, comment_count: 2 });
   if (!discussion.has(id))

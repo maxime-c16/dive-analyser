@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ShareDiveButton from './ShareDiveButton';
 import { api } from '../../services/api';
 vi.mock('../../services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
@@ -9,6 +9,7 @@ beforeEach(() => {
   vi.stubGlobal('ClipboardItem', undefined);
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
 });
+afterEach(() => { vi.useRealTimers(); });
 it('creates and copies one link despite repeated clicks while saving', async () => {
   let resolve!: (value: { data: { path: string } }) => void;
   vi.mocked(api.post).mockReturnValue(new Promise(done => { resolve = done; }));
@@ -20,6 +21,7 @@ it('creates and copies one link despite repeated clicks while saving', async () 
   await screen.findByText('Link copied');
   expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${location.origin}/share/7#secret`);
   fireEvent.click(button);
+  fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
   await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2));
   expect(api.post).toHaveBeenCalledTimes(1);
 });
@@ -30,6 +32,7 @@ it('keeps the committed link when clipboard permission fails and allows revocati
   render(<ShareDiveButton id={42} />);
   fireEvent.click(screen.getByRole('button', { name: 'Share dive' }));
   expect(await screen.findByRole('textbox', { name: 'Share link' })).toHaveValue(`${location.origin}/share/7#secret`);
+  fireEvent.click(screen.getByRole('button', { name: 'Share dive' }));
   fireEvent.click(screen.getByRole('button', { name: 'Revoke shared links' }));
   await screen.findByText('Shared links revoked');
   expect(api.delete).toHaveBeenCalledWith('/api/v1/dives/42/shares');
@@ -58,8 +61,39 @@ it('revokes existing links after closing and reopening without creating another 
   first.unmount();
   vi.mocked(api.get).mockResolvedValue({ data: { active_count: 1 } });
   render(<ShareDiveButton id={42} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Revoke shared links' }));
+  await act(async () => {});
+  expect(screen.queryByRole('group', { name: 'Video sharing' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Share dive' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Revoke shared links' }));
   await screen.findByText('Shared links revoked');
   expect(api.delete).toHaveBeenCalledWith('/api/v1/dives/42/shares');
   expect(api.post).toHaveBeenCalledTimes(1);
+});
+
+
+it('dismisses copied-link feedback after three seconds without losing link management', async () => {
+  vi.useFakeTimers();
+  vi.mocked(api.post).mockResolvedValue({ data: { path: '/share/7#secret' } });
+  render(<ShareDiveButton id={42} />);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Share dive' })));
+  expect(screen.getByText('Link copied')).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(3000));
+  expect(screen.queryByRole('group', { name: 'Video sharing' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Share dive' }));
+  expect(screen.getByRole('button', { name: 'Revoke shared links' })).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(3000));
+  expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
+});
+
+it('keeps manual-copy feedback until dismissed and returns focus to Share', async () => {
+  vi.useFakeTimers();
+  vi.mocked(api.post).mockResolvedValue({ data: { path: '/share/7#secret' } });
+  vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('denied'));
+  render(<ShareDiveButton id={42} />);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Share dive' })));
+  act(() => vi.advanceTimersByTime(10000));
+  expect(screen.getByRole('textbox', { name: 'Share link' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss sharing notification' }));
+  expect(screen.queryByRole('group', { name: 'Video sharing' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Share dive' })).toHaveFocus();
 });
