@@ -3,7 +3,7 @@ import { KeyRound, LogOut, Pencil, RefreshCw, Search, UserPlus, Users } from 'lu
 import {
   bindDiver,
   createUser,
-  listDivers,
+  listAllDivers,
   listUsers,
   resetPassword,
   revokeSessions,
@@ -75,12 +75,12 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
             q: query.trim() || undefined,
             is_active: statusFilter === 'all' ? undefined : statusFilter === 'active',
           }),
-          listDivers(),
+          listAllDivers(),
         ])
         if (signal?.aborted) return
         setUsers(directory.users)
         setTotal(directory.total)
-        setDivers(diverDirectory.divers)
+        setDivers(diverDirectory)
       } catch (reason) {
         if ((reason as Error).name !== 'AbortError' && !signal?.aborted) {
           setNotice({ kind: 'error', text: reason instanceof Error ? reason.message : 'Unable to load users' })

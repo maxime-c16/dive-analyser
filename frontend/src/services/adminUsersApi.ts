@@ -120,6 +120,33 @@ export function unbindDiver(userId: number, diverId: number): Promise<{ ok: true
   return request(`/api/v1/admin/users/${userId}/divers/${diverId}`, { method: 'DELETE' })
 }
 
-export function listDivers(): Promise<{ divers: AdminDiver[] }> {
-  return request<{ divers: AdminDiver[] }>('/api/v1/admin/divers')
+export interface AdminDiverList {
+  divers: AdminDiver[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/** Bounded page of the diver directory (default: first 200). */
+export function listDivers(params?: { limit?: number; offset?: number }): Promise<AdminDiverList> {
+  const search = new URLSearchParams()
+  if (params?.limit !== undefined) search.set('limit', String(params.limit))
+  if (params?.offset !== undefined) search.set('offset', String(params.offset))
+  const suffix = search.toString()
+  return request<AdminDiverList>(`/api/v1/admin/divers${suffix ? `?${suffix}` : ''}`)
+}
+
+const DIVER_PAGE_SIZE = 200
+const DIVER_MAX_PAGES = 5
+
+/** Full diver directory for the binding UI, paged through boundedly. */
+export async function listAllDivers(): Promise<AdminDiver[]> {
+  const all: AdminDiver[] = []
+  for (let page = 0; page < DIVER_MAX_PAGES; page += 1) {
+    const chunk = await listDivers({ limit: DIVER_PAGE_SIZE, offset: page * DIVER_PAGE_SIZE })
+    all.push(...chunk.divers)
+    const total = chunk.total ?? all.length
+    if (all.length >= total || chunk.divers.length < DIVER_PAGE_SIZE) break
+  }
+  return all
 }

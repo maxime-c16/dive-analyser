@@ -47,8 +47,11 @@ function installFetch(handler?: (url: string, init?: RequestInit) => unknown) {
     if (href.startsWith('/api/v1/admin/users')) {
       return new Response(JSON.stringify(mockDirectory()), { status: 200 })
     }
-    if (href === '/api/v1/admin/divers') {
-      return new Response(JSON.stringify({ divers }), { status: 200 })
+    if (href.startsWith('/api/v1/admin/divers')) {
+      return new Response(
+        JSON.stringify({ divers, total: divers.length, limit: 200, offset: 0 }),
+        { status: 200 },
+      )
     }
     return new Response('{}', { status: 404 })
   })

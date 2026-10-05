@@ -566,16 +566,25 @@ def unbind_diver(
 
 @router.get("/divers")
 def list_divers_for_admin(
+    limit: int = Query(_MAX_LIST_LIMIT, ge=1, le=_MAX_LIST_LIMIT),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _admin: AppUser = Depends(require_admin),
 ):
-    """Full diver directory for the binding UI (bounded).
+    """Full diver directory for the binding UI (bounded pages).
 
     The request-wide member scoping would otherwise hide divers the admin
     has no binding for; it is lifted for this admin-only read.
     """
     with _unscoped_divers(db):
-        rows = db.query(Diver).order_by(Diver.id.asc()).limit(_MAX_LIST_LIMIT).all()
+        total = db.query(func.count(Diver.id)).scalar() or 0
+        rows = (
+            db.query(Diver)
+            .order_by(Diver.id.asc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
         bound = {
             row.diver_id
             for row in db.query(UserDiverAccess.diver_id)
@@ -592,5 +601,8 @@ def list_divers_for_admin(
                 "bound_to_user": row.id in bound,
             }
             for row in rows
-        ]
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     }

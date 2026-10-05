@@ -395,10 +395,15 @@ def test_bind_unbind_diver_idempotent(admin_client, db):
 def test_admin_diver_directory_lists_all_divers(admin_client, db, flags):
     body = admin_client.get("/api/v1/admin/divers").json()
     assert body["divers"]
+    assert body["total"] == len(body["divers"]) == 1
+    assert body["limit"] == 200 and body["offset"] == 0
     entry = body["divers"][0]
     assert set(entry) >= {"diver_id", "display_name", "canonical_name",
                           "active", "bound_to_user"}
     assert any(d["bound_to_user"] for d in body["divers"])
+    second = admin_client.get("/api/v1/admin/divers",
+                              params={"limit": 1, "offset": 5}).json()
+    assert second["divers"] == [] and second["total"] == 1
 
     diver = _login(db, "diver@example.test")
     assert diver.get("/api/v1/admin/divers").status_code == 403
