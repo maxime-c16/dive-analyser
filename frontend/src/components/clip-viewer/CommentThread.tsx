@@ -71,9 +71,9 @@ export default function CommentThread({ comment, diveId, onDelete, onCountChange
         <div className="clip-comment-actions">
           <button type="button" aria-label={`Like comment by ${comment.author}`} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
             const { data } = await api.put<Comment>(`/api/v1/dives/${diveId}/comments/${comment.id}/like`, { liked: !comment.liked });
-            if (alive.current) onChange(data);
+            if (alive.current) onChange({ ...latestComment.current, liked: data.liked, like_count: data.like_count });
           })}><Heart size={16} fill={comment.liked ? "currentColor" : "none"} />{comment.like_count ?? 0}</button>
-          <button type="button" aria-expanded={nested ? undefined : open} onClick={() => {
+          <button type="button" disabled={busy} aria-expanded={nested ? undefined : open} onClick={() => {
             if (nested) { onReply?.(comment.author); return; }
             setOpen(true);
             if (!open) void load();
@@ -85,7 +85,7 @@ export default function CommentThread({ comment, diveId, onDelete, onCountChange
     </article>
     {error && <p role="alert">{error} {open && <button onClick={() => void load()}>Retry replies</button>}</p>}
     {!nested && <>
-      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? "Hide replies" : `View replies (${comment.reply_count})`}</button>}
+      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? "Hide replies" : `View replies (${comment.reply_count})`}</button>}
       {open && <div className="clip-thread-replies">
         {replies.map(reply => <CommentThread key={reply.id} comment={reply} diveId={diveId} nested onReply={author => { setBody(previous => previous || `@${author} `); input.current?.focus(); }} onCountChange={onCountChange} onChange={updated => {
           replyMutations.current.set(updated.id, updated);
