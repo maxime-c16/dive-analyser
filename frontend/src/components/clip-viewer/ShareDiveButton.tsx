@@ -6,23 +6,30 @@ export default function ShareDiveButton({ id }: { id: number }) {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState('');
   const [message, setMessage] = useState('');
+  const [hasShares, setHasShares] = useState(false);
   const pending = useRef(false);
+  const mutationVersion = useRef(0);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
+    const version = mutationVersion.current;
+    api.get<{ active_count: number }>(`/api/v1/dives/${id}/shares`)
+      .then(({ data }) => { if (mounted.current && mutationVersion.current === version) setHasShares(data.active_count > 0); })
+      .catch(() => { /* Sharing remains usable if the status lookup fails. */ });
     return () => { mounted.current = false; };
   }, []);
   // Parent keys this component by dive ID, so each dive has its own link.
   const share = async () => {
     if (pending.current) return;
     pending.current = true;
+    mutationVersion.current += 1;
     setBusy(true);
     setMessage('');
     const link = url ? Promise.resolve(url) : api
       .post<{ path: string }>(`/api/v1/dives/${id}/shares`)
       .then(({ data }) => {
         const value = new URL(data.path, window.location.origin).href;
-        if (mounted.current) setUrl(value);
+        if (mounted.current) { setUrl(value); setHasShares(true); }
         return value;
       });
     try {
@@ -48,14 +55,19 @@ export default function ShareDiveButton({ id }: { id: number }) {
     <button type="button" aria-label="Share dive" disabled={busy} onClick={() => void share()}>
       <Share2 size={25} /><span>{busy ? 'Sharing…' : 'Share'}</span>
     </button>
-    {message && <div className="clip-share-result" role="status">
-      <p>{message}</p>
+    {(message || hasShares) && <div className="clip-share-result" role="status">
+      <p>{message || 'Shared links active'}</p>
       {url && message !== 'Link copied' && <input aria-label="Share link" value={url} readOnly onFocus={event => event.target.select()} />}
-      {url && <button type="button" onClick={async () => {
+      {hasShares && <button type="button" disabled={busy} onClick={async () => {
+        if (pending.current) return;
+        pending.current = true;
+    mutationVersion.current += 1;
+        setBusy(true);
         try {
           await api.delete(`/api/v1/dives/${id}/shares`);
-          setUrl(''); setMessage('Shared links revoked');
-        } catch { setMessage('Could not revoke links. Try again.'); }
+          if (mounted.current) { setUrl(''); setHasShares(false); setMessage('Shared links revoked'); }
+        } catch { if (mounted.current) setMessage('Could not revoke links. Try again.'); }
+        finally { pending.current = false; if (mounted.current) setBusy(false); }
       }}>Revoke shared links</button>}
     </div>}
   </>;

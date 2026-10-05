@@ -4,7 +4,9 @@ Owners can use **Share** directly below Comments in the dive player. The first
 click creates and commits a unique capability, then copies the link. Subsequent
 clicks in that player copy the same link. If clipboard access is denied or the
 browser is on plain HTTP, the committed link appears for manual copying.
-**Revoke shared links** invalidates every link for that dive.
+**Revoke shared links** invalidates every link for that dive. Reopening the
+player checks for active links and exposes revocation without creating a new
+capability.
 
 Anyone holding the complete link can open the selected video without an
 account. Links support multiple guests and remain valid until revoked, the

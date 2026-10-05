@@ -190,3 +190,17 @@ def test_guest_comment_pagination_and_cross_dive_deletion(workspace):
         assert len({row['id'] for row in first['items'] + second['items']}) == 55
         assert second['next_before'] is None
         assert guest.delete(base + f'/comments/{hidden_id}').status_code == 404
+
+
+def test_share_status_is_owner_only_and_tracks_revocation(workspace):
+    _, login, dives, _, _ = workspace
+    url = f'/api/v1/dives/{dives["alice-public"]}/shares'
+    assert login('alice').get(url).json() == {'active_count': 0}
+    issue(login, dives['alice-public'])
+    response = login('alice').get(url)
+    assert response.json() == {'active_count': 1}
+    assert response.headers['cache-control'] == 'private, no-store'
+    assert login('bob').get(url).status_code == 403
+    assert login('bob').get(f'/api/v1/dives/{dives["alice-private"]}/shares').status_code == 404
+    assert login('alice').delete(url).status_code == 204
+    assert login('alice').get(url).json() == {'active_count': 0}

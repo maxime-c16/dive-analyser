@@ -81,6 +81,13 @@ def create_share(dive_id: int, request: Request, response: Response, db: Session
     return dict(path=f'/share/{share.id}#{token}')
 
 
+@router.get('/dives/{dive_id}/shares')
+def share_status(dive_id: int, request: Request, response: Response, db: Session = Depends(get_db)):
+    owner(dive_id, request, db)
+    secure_headers(response)
+    return dict(active_count=db.query(func.count(DiveShare.id)).filter_by(dive_id=dive_id, revoked_at=None).scalar())
+
+
 @router.delete('/dives/{dive_id}/shares', status_code=204, dependencies=[Depends(same_origin)])
 def revoke_shares(dive_id: int, request: Request, db: Session = Depends(get_db)):
     owner(dive_id, request, db)
