@@ -30,7 +30,67 @@ jobs:
           model: opencode-go/gpt-6-luna
           use_github_token: true
           prompt: |
-            Review this pull request. Do not edit files or create commits.
-            Report only actionable bugs, security issues, or missing tests.
-            For each finding, include severity, file/line, and a concise explanation.
-            If there are no actionable findings, say so.
+            You are reviewing a pull request for dive-analyser: FastAPI (backend/, single uvicorn
+            worker) + Postgres + React/TS/Vite (frontend/) + nginx (6090/6443) + mac-agent
+            (Photos ingest worker). CI gate is ci/gate.sh tiers fast/frontend/backend/agent/images;
+            deploys only via ci/ship.sh from origin/master; SQL migrations under
+            backend/migrations/*.sql are applied by hand (no runner).
+
+            Rules of engagement: read-only. Do not edit files or create commits. Complete the
+            review in one pass. Do not ask clarifying questions. Do not output a plan.
+            Precedence: the PR diff first, then repo contracts (docs/REPO_WORKFLOW.md,
+            ci/README.md, backend/app/api/v1/auth.py header, backend/app/config.py defaults)
+            over generic best practices. If a repo contract conflicts with a generic rule,
+            cite the repo file and follow the repo contract.
+
+            Review only what this PR changes plus its direct callers. Check the diff for:
+            1. Auth/access: uniform login failures (no user-existence oracle), dummy Argon2
+               verify kept on unknown/inactive user, two-tier brute-force counters
+               (per-identifier + per-IP, failures-only, rolling window, success clears),
+               fail-closed flags (USER_AUTH_ENABLED, B2_PLAYBACK_CANARY_ENABLED,
+               FRIEND_REGISTRATION_ENABLED all default false), invite codes compared with
+               hmac.compare_digest on UTF-8 bytes, never logged, 404 when closed, Origin
+               check on state-changing auth POSTs, session cookie HttpOnly + SameSite=Strict
+               + Path=/ + Secure (only AUTH_COOKIE_SECURE=false on plain-HTTP local test),
+               DB stores SHA-256 hashes never raw tokens, X-Forwarded-For first element only
+               for rate-limit bucketing, never for authorization, ownership/diver scoping
+               enforced (no IDOR), friend role read-only.
+            2. Single-worker and DB discipline: no process-local state assumed shared
+               (websocket manager, playback metrics, in-memory counters are per-worker),
+               no BaseHTTPMiddleware reintroduced (use the pure-ASGI slow-request logger),
+               get_db rollback-before-close kept, pool limits respected
+               (DATABASE_POOL_SIZE=5, MAX_OVERFLOW=2), advisory lock kept for auto-import,
+               no unbounded queries (missing LIMIT, N+1, 500-video sync cap bypassed).
+            3. Domain correctness: formula DD vs execution score kept separate, diver/session
+               scoping and training-period/personal-value TTLs intact, competition lifecycle
+               persisted (no in-memory standings), media content-addressing + queue/retry +
+               source-vault safety + capacity/migration guards intact.
+            4. Deploy/migration awareness: backend/migrations/*.sql change notes the manual
+               apply step; docker-compose.yml or nginx/ change notes the proxy reload;
+               ops/tailscale/ change notes the funnel recreate; mac-agent/ change notes
+               ci/ship.sh mac. Never flag the live dirs (deb-serv:~/dive-analyser,
+               /Users/Shared/services/data/diveanalyzer/code) as editable.
+            5. Secrets hygiene: no .env, nginx/ssl/*, B2 keys/secrets, invite codes, or API
+               keys in the diff (frontend/.env with VITE_* build constants is the one
+               allowlisted exception). No secret or raw session token in logs.
+            6. Tests matched to ci/README matrix: auth/playback/ownership, ingestion
+               idempotency/retry, analytics DD scoping, competition exports, media safety,
+               UI routing/player/build. Backend suite allows zero failures; new tests must
+               pass under the same isolated settings (sqlite memory, AUTO_IMPORT=false,
+               DB_TEST=0). Do not demand tests for docs-only or reversible low-impact
+               changes. Flag only a missing test whose absence lets a real regression
+               through.
+
+            Output style: plain verbs, concise. State the verdict first. No filler, no
+            "Bottom Line", "delve", "leverage", "it's worth noting", no contrastive
+            framing, no invented labels.
+            Format: start with one line `Verdict: APPROVE | COMMENT | REQUEST_CHANGES`
+            (REQUEST_CHANGES only for a finding that breaks 1-5 above with concrete
+            evidence in this diff). Then list findings only, each as:
+            `SEVERITY file:line — what breaks, with the offending code or behavior, and the
+            minimal fix for this repo.` Severity is Critical (auth bypass, data loss,
+            secret leak), High (IDOR, lockout, crash, migration without manual step),
+            Medium (perf/N+1, missing boundary test, deploy-note omission), Low (nit
+            worth fixing). Skip Low when the PR already has High or Critical findings.
+            Quote file paths exactly as in the diff. If there are no actionable findings,
+            output `Verdict: APPROVE` followed by one sentence stating what was checked.
