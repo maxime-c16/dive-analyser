@@ -847,13 +847,70 @@
 }
 
 .clip-share-result {
-  position: absolute; right: 64px; bottom: 0;
-  width: min(260px, calc(100vw - 110px)); padding: 12px;
-  border-radius: 12px; background: rgba(10, 15, 23, .96);
-  font-size: 13px; color: white; z-index: 5;
+  position: fixed;
+  top: calc(84px + env(safe-area-inset-top));
+  left: max(20px, env(safe-area-inset-left));
+  right: max(20px, env(safe-area-inset-right));
+  width: auto;
+  max-width: 380px;
+  margin-inline: auto;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: #0d1113d9;
+  border: 1px solid #ffffff30;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px #0004;
+  font-size: 14px;
+  color: white;
+  text-align: left;
+  z-index: 5;
 }
-.clip-share-result input { width: 100%; margin: 8px 0; padding: 8px; background: #172233; color: white; }
-.clip-actions .clip-share-result button { width: auto; min-height: 44px; font-size: 12px; text-decoration: underline; }
+.clip-share-result-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.clip-share-result p {
+  flex: 1;
+  margin: 0;
+  line-height: 1.5;
+}
+.clip-share-result input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff12;
+  font-size: 16px;
+  color: white;
+}
+.clip-actions .clip-share-result button {
+  min-height: 44px;
+  min-width: 44px;
+  flex-direction: row;
+  font-size: 13px;
+  text-shadow: none;
+}
+.clip-actions .clip-share-close {
+  flex-shrink: 0;
+}
+.clip-actions .clip-share-close svg {
+  width: 18px;
+  height: 18px;
+}
+.clip-share-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  border-top: 1px solid #ffffff1f;
+}
+.clip-share-menu button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .shared-dive { min-height: 100dvh; background: #090e17; color: #eef3fa; padding: 24px; }
 .shared-dive header, .shared-dive-layout { max-width: 1000px; margin: 0 auto; }
 .shared-dive h1 { margin: 8px 0 20px; font-size: 24px; }
