@@ -223,7 +223,7 @@ function MobileNavigation() {
   }, []);
 
   return (
-    <div className="sticky top-0 z-40 border-b border-app bg-app lg:hidden">
+    <div className="sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
       <div className="flex h-14 items-center justify-between px-4">
         <Link
           to="/dives"
@@ -251,7 +251,7 @@ function MobileNavigation() {
       {open && (
         <div
           id="mobile-navigation"
-          className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-app bg-app p-4 shadow-[0_18px_40px_rgba(0,0,0,.35)]"
+          className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-app bg-app p-4 pb-safe shadow-[0_18px_40px_rgba(0,0,0,.35)]"
         >
           <nav aria-label="Primary navigation" className="grid gap-2">
             {primaryNav.map(({ to, label, icon: Icon }) => (
@@ -317,7 +317,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       </a>
       <div className="flex min-h-screen w-full">
         <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label="Workspace sidebar">
-          <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6">
+          <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6 pt-safe">
             <div className="border-b border-app pb-5">
               <div className="text-xl font-semibold text-app-text">
                 Dive Analyser

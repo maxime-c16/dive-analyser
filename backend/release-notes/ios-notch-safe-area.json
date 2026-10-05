@@ -1,0 +1,8 @@
+{
+  "id": "ios-notch-safe-area",
+  "date": "2026-10-05",
+  "title": "iPhone top bar no longer hidden behind the notch",
+  "body": "On iPhone, the top panel now clears the clock and Dynamic Island when the app is installed on your home screen. Nothing is occluded anymore.",
+  "audience": "all",
+  "components": ["frontend"]
+}
