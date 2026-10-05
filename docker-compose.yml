@@ -151,6 +151,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Byte-serving X-Accel-Redirect for cached media; the backend keeps
+      # auth/path-verification, nginx streams the file itself.
+      - ./media/cache:/app/media-cache:ro
     depends_on:
       - backend
       - frontend

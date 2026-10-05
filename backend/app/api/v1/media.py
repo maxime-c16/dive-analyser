@@ -9,6 +9,7 @@ from collections import OrderedDict, defaultdict
 import asyncio
 import threading
 from time import monotonic
+from urllib.parse import quote
 from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -246,9 +247,35 @@ def _media_headers(path: Path, content_type: str, content_length: int) -> dict[s
     }
 
 
+def _x_accel_uri_for(path: Path) -> str | None:
+    """Return the nginx-internal URI when the file lives in the cache root.
+
+    Byte serving then leaves Python entirely: nginx streams range requests
+    straight from disk with sendfile, Last-Modified/ETag/304-rounds included.
+    Any file outside the cache root (legacy revisions, guest shares rooted
+    elsewhere) keeps the previous Python streaming path.
+    """
+    settings = get_settings()
+    if not settings.media_xaccel_enabled:
+        return None
+    try:
+        relative = path.resolve().relative_to(Path(settings.media_cache_root).resolve())
+    except ValueError:
+        return None
+    return settings.media_xaccel_prefix + quote(str(relative), safe="/")
+
+
 def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False):
     file_size = path.stat().st_size
     headers = _media_headers(path, content_type, file_size)
+    redirect_uri = None if head_only else _x_accel_uri_for(path)
+
+    if redirect_uri is not None:
+        headers["X-Accel-Redirect"] = redirect_uri
+        # Content-Type is preserved from the upstream response by nginx;
+        # the transfer itself is not read into this process.
+        return Response(status_code=status.HTTP_200_OK, headers=headers, media_type=content_type)
+
     range_header = request.headers.get("range")
 
     if not range_header:

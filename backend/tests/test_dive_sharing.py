@@ -1,6 +1,7 @@
 """Real guest cookies exercise the video-only capability boundary."""
 from urllib.parse import urlsplit
 from fastapi.testclient import TestClient
+from app.config import get_settings
 from app.main import app
 from app.models.dive import Dive
 from app.models.dive_share import DiveShare, DiveGuest
@@ -22,6 +23,10 @@ def enter(client, base, token):
 
 def test_multi_guest_video_only_access_and_stable_identity(workspace):
     db, login, dives, _, _ = workspace
+    # Range byte assertions need the in-process streaming path (the TestClient
+    # cannot honor X-Accel-Redirect); the accel redirect is asserted after.
+    saved_accel = get_settings().media_xaccel_enabled
+    get_settings().media_xaccel_enabled = False
     dive_id = dives['alice-private']
     base, token = issue(login, dive_id)
     assert db.get(Dive, dive_id).visibility == 'private'
@@ -54,8 +59,29 @@ def test_multi_guest_video_only_access_and_stable_identity(workspace):
         other_base, other_token = issue(login, dives['alice-public'])
         assert first.get(other_base + '/video').status_code == 404
         assert first.post(other_base + '/visit', headers={'X-Dive-Share': token}).status_code == 404
-        enter(first, other_base, other_token)
-        assert first.get(other_base + '/video').status_code == 200
+    enter(first, other_base, other_token)
+    assert first.get(other_base + '/video').status_code == 200
+    get_settings().media_xaccel_enabled = saved_accel
+
+
+def test_guest_video_serves_approved_share_through_accel_redirect(workspace):
+    """With accel on, an authorized guest stream leaves Python as an
+    internal redirect aimed at the same cache root; no bytes, no presign."""
+    db, login, dives, _, _ = workspace
+    saved_accel = get_settings().media_xaccel_enabled
+    get_settings().media_xaccel_enabled = True
+    try:
+        dive_id = dives['alice-private']
+        base, token = issue(login, dive_id)
+        with TestClient(app, base_url='https://testserver') as guest:
+            identity = enter(guest, base, token)
+            response = guest.get(identity['video_url'], headers={'Range': 'bytes=0-5'})
+            assert response.status_code == 200
+            redirect = response.headers['X-Accel-Redirect']
+            assert redirect.startswith('/internal-media-cache/')
+            assert '..' not in redirect
+    finally:
+        get_settings().media_xaccel_enabled = saved_accel
 
 
 def test_guest_social_shared_with_members_and_author_deletion(workspace):
