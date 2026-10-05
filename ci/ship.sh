@@ -189,6 +189,14 @@ do_status() {
 # Args: sha dry_run force [deploy.sh flags...]
 server_script='
 set -uo pipefail
+# Runtime upload secrets live outside the deployed checkout. Export them for
+# Compose on deploy and rollback; never echo or trace their values.
+UPLOAD_ENV="$HOME/.config/diveanalyzer/browser-upload.env"
+if [ -f "$UPLOAD_ENV" ]; then
+    set -a
+    . "$UPLOAD_ENV"
+    set +a
+fi
 sha="$1"; dry_run="$2"; force="$3"; shift 3
 LIVE="${DIVE_LIVE_DIR:-$HOME/dive-analyser}"
 STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"

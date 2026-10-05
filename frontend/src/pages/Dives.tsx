@@ -16,6 +16,7 @@ import {
   performanceLabel,
   type Attempt,
 } from "../utils/attemptPresentation";
+import AddVideos from "../components/AddVideos";
 import DiveThumbnail from "../components/DiveThumbnail";
 import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
 
@@ -70,7 +71,7 @@ function AttemptCard({
           <ScoreBadge dive={dive} />
         </div>
         <p className="mt-3 truncate text-xs text-app-muted">
-          {attemptSummary(dive)}
+          {dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
         </p>
         {!compact && (
           <div className="mt-3 flex items-center justify-between border-t border-app pt-3 text-xs">
@@ -106,7 +107,7 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
           <ScoreBadge dive={dive} />
         </div>
         <p className="mt-1 truncate text-xs text-app-muted">
-          {attemptSummary(dive)}
+          {dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
         </p>
         <p className="mt-1 text-xs text-app-muted sm:hidden">
           {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm")}
@@ -452,6 +453,7 @@ export default function Dives() {
           </div>
         </div>
       </header>
+      <div className="mt-3"><AddVideos onAdded={() => { setReloadKey(key => key + 1); }} /></div>
       <section className="mt-4 space-y-2" aria-label="Dive library filters">
         <div className="flex flex-wrap items-center gap-2">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>

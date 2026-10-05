@@ -182,3 +182,18 @@ Already done. Recorded here so the state of each host can be explained:
 - Verified before migrating: every commit on the server and the Mac was
   already on GitHub except local branch `hurdle-identity-v2` (1 commit), which
   was pushed.
+
+### Browser video uploads
+
+The backend needs `ffmpeg`/`ffprobe` (included in its image) and a dedicated
+B2 credential with write/read access to the selected media bucket:
+`B2_UPLOAD_KEY_ID`, `B2_UPLOAD_KEY_SECRET`, `B2_UPLOAD_REGION`, optional
+`B2_UPLOAD_ENDPOINT_URL`, and `B2_UPLOAD_ENVIRONMENT=prod` in production
+(default: `dev`). Keep these in the deployment environment, never in Git.
+On the server, store these values in `~/.config/diveanalyzer/browser-upload.env`
+with mode `600`. `ci/ship.sh server` loads this file for deployment and rollback,
+so secrets stay outside the live checkout. The existing playback credential remains read-only. Browser imports fail
+without publishing a dive if B2 upload or full-byte verification fails.
+Originals are registered in the existing media backbone; pinned local
+originals, H.264 previews and posters live in the persistent media-cache volume.
+Each clip is capped at 1 GB. No SQL migration is required.

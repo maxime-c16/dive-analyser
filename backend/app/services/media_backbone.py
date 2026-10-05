@@ -239,6 +239,7 @@ def commit_verified_ingest(
     parsed_json: dict[str, Any] | None = None,
     ingest_impl_version: str = "media_backbone_v1",
     environment: str = "dev",
+    commit: bool = True,
 ) -> dict[str, Any]:
     if not verified:
         raise ValueError("refusing to commit unverified ingest (roundtrip verification required)")
@@ -382,7 +383,10 @@ def commit_verified_ingest(
         # resolved through a separate caption path; never downgrade.
         pass
 
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return {
         "video_uuid": video_uuid,
         "blob_sha256": blob.sha256,

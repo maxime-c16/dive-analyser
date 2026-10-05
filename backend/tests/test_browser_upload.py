@@ -1,0 +1,129 @@
+from tests.test_member_dive_visibility import workspace
+
+
+def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_path):
+    from app.services import browser_upload
+    db, login, _, users, _ = workspace
+    from app.services.dive_access import owned_diver_ids
+    owner = owned_diver_ids(db, users['bob'].id)[0]
+    folder = tmp_path / 'prepared'
+    folder.mkdir()
+    for name in ('source', 'video.mp4', 'poster.jpg'):
+        (folder / name).write_bytes(b'test')
+    import boto3
+    from app.config import get_settings
+    settings = get_settings()
+    for key, value in [('b2_upload_key_id', 'test'), ('b2_upload_key_secret', 'test'), ('b2_upload_region', 'test')]:
+        monkeypatch.setattr(settings, key, value)
+    class Stream:
+        def iter_chunks(self, chunk_size):
+            yield b'test'
+        def close(self):
+            pass
+    class Client:
+        def upload_file(self, *args, **kwargs):
+            pass
+        def get_object(self, **kwargs):
+            return {'Body': Stream()}
+    monkeypatch.setattr(boto3, 'client', lambda *a, **kw: Client())
+    calls = []
+    def prepare(file):
+        calls.append(file.filename)
+        return folder, 4
+    monkeypatch.setattr(browser_upload, 'prepare_video', prepare)
+    fields = dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owner), upload_id='12345678-1234-1234-1234-123456789012')
+    client = login('bob')
+    response = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
+    assert response.status_code == 201, response.text
+    record = response.json()
+    assert record['diver_id'] == owner
+    assert record['person_name'] == 'bob'
+    assert record['visibility'] == 'private'
+    from app.models.media_backbone import MediaRevision, MediaBlobLocation
+    assert db.query(MediaRevision).filter_by(video_uuid=record['video_uuid']).one().rendition_semantics == 'browser_original'
+    assert db.query(MediaBlobLocation).one().verified is True
+    retry = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video')})
+    assert retry.status_code == 201 and retry.json()['id'] == record['id']
+    assert len(calls) == 1
+    status = client.get(f"/api/v1/media/{record['video_uuid']}/status")
+    assert status.status_code == 200, status.text
+    assert status.json()['status'] == 'ready'
+    assert status.json()['poster_url']
+    assert login('alice').get(f"/api/v1/dives/{record['id']}").status_code == 404
+    fields['diver_id'] = str(owned_diver_ids(db, users['alice'].id)[0])
+    assert login('bob').post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mp4', b'video')}).status_code == 403
+    assert len(calls) == 1
+
+
+def test_browser_upload_validates_before_processing(workspace):
+    _, login, _, _, _ = workspace
+    response = login('viewer').post('/api/v1/dives/upload', data=dict(dive_code='bad', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id='1', upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    assert response.status_code == 422
+
+
+def test_b2_failure_does_not_publish_clip(workspace, monkeypatch, tmp_path):
+    from app.services import browser_upload
+    from fastapi import HTTPException
+    from app.models.dive import Dive
+    from app.services.dive_access import owned_diver_ids
+    db, login, _, users, _ = workspace
+    folder = tmp_path / 'failed-upload'
+    folder.mkdir()
+    for name in ('source', 'video.mp4', 'poster.jpg'):
+        (folder / name).write_bytes(b'video')
+    monkeypatch.setattr(browser_upload, 'prepare_video', lambda file: (folder, 5))
+    def fail(*args):
+        raise HTTPException(503, 'Video storage unavailable; please retry')
+    monkeypatch.setattr(browser_upload, 'persist_original', fail)
+    before = db.query(Dive).count()
+    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    assert response.status_code == 503
+    assert db.query(Dive).count() == before
+    assert not folder.exists()
+
+
+def test_b2_original_is_roundtrip_verified_before_registration(monkeypatch, tmp_path):
+    import io
+    import boto3
+    from app.config import get_settings
+    from app.services import browser_upload, media_backbone
+    import pytest
+    from fastapi import HTTPException
+    settings = get_settings()
+    for key, value in [('b2_upload_key_id', 'test'), ('b2_upload_key_secret', 'test'), ('b2_upload_region', 'test')]:
+        monkeypatch.setattr(settings, key, value)
+    (tmp_path / 'source').write_bytes(b'original video bytes')
+    calls = []
+    class Stream(io.BytesIO):
+        def iter_chunks(self, chunk_size):
+            yield self.read()
+    class Client:
+        def upload_file(self, *args, **kwargs):
+            calls.append('upload')
+        def get_object(self, **kwargs):
+            return {'Body': Stream(b'original video bytes')}
+    monkeypatch.setattr(boto3, 'client', lambda *a, **kw: Client())
+    monkeypatch.setattr(media_backbone, 'commit_verified_ingest', lambda *a, **kw: calls.append(kw))
+    browser_upload.persist_original(None, 'video-id', tmp_path)
+    assert calls[0] == 'upload'
+    assert calls[1]['rendition_semantics'] == 'browser_original'
+    assert calls[1]['commit'] is False
+    monkeypatch.setattr(Client, 'get_object', lambda *a, **kw: {'Body': Stream(b'corrupt')})
+    with pytest.raises(HTTPException) as error:
+        browser_upload.persist_original(None, 'video-id', tmp_path)
+    assert error.value.status_code == 502
+    assert len(calls) == 3  # second upload, no second registration
+
+
+def test_upload_rejects_empty_and_non_video_inputs_before_processing(monkeypatch, tmp_path):
+    import io
+    import pytest
+    from fastapi import HTTPException, UploadFile
+    from app.config import get_settings
+    from app.services.browser_upload import prepare_video
+    monkeypatch.setattr(get_settings(), 'media_cache_root', str(tmp_path))
+    for filename, content in [('empty.mp4', b''), ('playlist.m3u8', b'#EXTM3U')]:
+        with pytest.raises(HTTPException) as error:
+            prepare_video(UploadFile(file=io.BytesIO(content), filename=filename))
+        assert error.value.status_code == 422
+    assert not list((tmp_path / 'browser-uploads').iterdir())

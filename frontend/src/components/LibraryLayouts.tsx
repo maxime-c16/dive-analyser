@@ -78,6 +78,7 @@ export function WallLayout({
             </div>
             <div className="truncate text-[10px] text-white/70">
               {format(parseISO(a.dive_datetime), "d MMM")} · {a.height}
+              {a.person_name && <span className="block truncate">{a.person_name}</span>}
             </div>
           </div>
           <div className={`absolute inset-x-0 bottom-0 h-1 ${ratingDot[a.performance]}`} />
