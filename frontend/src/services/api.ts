@@ -1,3 +1,5 @@
+import { clearLibraryCache } from './libraryCache'
+import { clearIntentData } from './intentCache'
 import axios, { AxiosInstance } from 'axios'
 
 // Default to a relative API path so the browser uses the dev server proxy.
@@ -13,10 +15,26 @@ const api: AxiosInstance = axios.create({
   },
 })
 
+function invalidateReads() {
+  clearIntentData()
+  clearLibraryCache()
+}
+
+// Invalidate before writes and after success: concurrent reads cannot refill
+// the cache with data fetched while a mutation was still in progress.
+api.interceptors.request.use((config) => {
+  if (config.method && !['get', 'head', 'options'].includes(config.method.toLowerCase())) invalidateReads()
+  return config
+})
+
 // Add request interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.method && !['get', 'head', 'options'].includes(response.config.method.toLowerCase())) invalidateReads()
+    return response
+  },
   (error) => {
+    if ([401, 403].includes(error.response?.status)) invalidateReads()
     console.error('API Error:', error.response?.status, error.response?.data)
     return Promise.reject(error)
   }

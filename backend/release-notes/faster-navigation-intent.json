@@ -1,0 +1,10 @@
+{
+  "id": "faster-navigation-intent",
+  "date": "2026-10-05",
+  "title": "Faster page navigation",
+  "body": "The Library remembers your loaded dives when you return or reload, and refreshes older lists in the background. Navigation prepares pages when you pause over a link, focus it or touch it. Thumbnails use posters without downloading video previews, and media status requests stay batched.",
+  "audience": "all",
+  "components": [
+    "frontend"
+  ]
+}

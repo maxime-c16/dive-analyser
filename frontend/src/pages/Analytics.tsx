@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { api } from '../services/api'
+import { getNavigationData } from '../services/navigationData'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, RadarChart, Radar,
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart,
@@ -81,10 +81,10 @@ function Analytics() {
       try {
         setLoading(true)
         const [monthlyRes, heightRes, directionRes, trendingRes] = await Promise.all([
-          api.get('/api/v1/analytics/monthly'),
-          api.get('/api/v1/analytics/by-height'),
-          api.get('/api/v1/analytics/by-direction'),
-          api.get('/api/v1/analytics/trending?limit=10'),
+          getNavigationData('/api/v1/analytics/monthly'),
+          getNavigationData('/api/v1/analytics/by-height'),
+          getNavigationData('/api/v1/analytics/by-direction'),
+          getNavigationData('/api/v1/analytics/trending?limit=10'),
         ])
         setMonthlyStats(monthlyRes.data)
         setHeightStats(heightRes.data)

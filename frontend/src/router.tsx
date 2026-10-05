@@ -10,7 +10,8 @@ import {
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
-import SharedDive from "./pages/SharedDive";
+import { useNavigationIntent } from "./hooks/useNavigationIntent";
+
 import { useAuth } from "./contexts/AuthContext";
 import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
 import {
@@ -27,16 +28,41 @@ import {
   Waves,
   X,
 } from "lucide-react";
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const Sessions = lazy(() => import("./pages/Sessions"));
-const Journey = lazy(() => import("./pages/Journey"));
-const DiveAnalysis = lazy(() => import("./pages/DiveAnalysis"));
-const RepresentativeMedia = lazy(() => import("./pages/RepresentativeMedia"));
-const MediaRecall = lazy(() => import("./pages/MediaRecall"));
-const P5Canary = lazy(() => import("./pages/P5Canary"));
-const Admin = lazy(() => import("./pages/Admin"));
-const Account = lazy(() => import("./pages/Account"));
+const loadSharedDive = () => import("./pages/SharedDive");
+const SharedDive = lazy(loadSharedDive);
+const loadDashboard = () => import("./pages/Dashboard");
+const Dashboard = lazy(loadDashboard);
+const loadAnalytics = () => import("./pages/Analytics");
+const Analytics = lazy(loadAnalytics);
+const loadSessions = () => import("./pages/Sessions");
+const Sessions = lazy(loadSessions);
+const loadJourney = () => import("./pages/Journey");
+const Journey = lazy(loadJourney);
+const loadDiveAnalysis = () => import("./pages/DiveAnalysis");
+const DiveAnalysis = lazy(loadDiveAnalysis);
+const loadRepresentativeMedia = () => import("./pages/RepresentativeMedia");
+const RepresentativeMedia = lazy(loadRepresentativeMedia);
+const loadMediaRecall = () => import("./pages/MediaRecall");
+const MediaRecall = lazy(loadMediaRecall);
+const loadP5Canary = () => import("./pages/P5Canary");
+const P5Canary = lazy(loadP5Canary);
+const loadAdmin = () => import("./pages/Admin");
+const Admin = lazy(loadAdmin);
+const loadAccount = () => import("./pages/Account");
+const Account = lazy(loadAccount);
+
+const routeLoaders: Record<string, () => Promise<unknown>> = {
+  '/dashboard': loadDashboard, '/analytics': loadAnalytics,
+  '/sessions': loadSessions, '/journey': loadJourney,
+  '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
+  '/admin': loadAdmin, '/account': loadAccount,
+};
+
+function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
+  const path = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
+  const intent = useNavigationIntent(path, routeLoaders[path]);
+  return <NavLink {...intent} {...props} />;
+}
 
 /** Library is the product home; everything else is secondary or operational. */
 const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
@@ -81,7 +107,7 @@ function AppNavLink({
   emphasis = false,
 }: NavItem & { emphasis?: boolean }) {
   return (
-    <NavLink
+    <IntentNavLink
       to={to}
       end={to === "/"}
       className={({ isActive }) =>
@@ -96,7 +122,7 @@ function AppNavLink({
     >
       <Icon className={emphasis ? "h-5 w-5" : "h-4 w-4"} />
       <span>{label}</span>
-    </NavLink>
+    </IntentNavLink>
   );
 }
 
@@ -255,7 +281,7 @@ function MobileNavigation() {
         >
           <nav aria-label="Primary navigation" className="grid gap-2">
             {primaryNav.map(({ to, label, icon: Icon }) => (
-              <NavLink
+              <IntentNavLink
                 key={to}
                 to={to}
                 onClick={() => setOpen(false)}
@@ -265,7 +291,7 @@ function MobileNavigation() {
               >
                 <Icon className="h-5 w-5" />
                 <span>{label}</span>
-              </NavLink>
+              </IntentNavLink>
             ))}
           </nav>
           <p className="mb-2 mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
@@ -273,7 +299,7 @@ function MobileNavigation() {
           </p>
           <nav aria-label="Secondary navigation" className="grid gap-2">
             {secondaryNav.map(({ to, label, icon: Icon }) => (
-              <NavLink
+              <IntentNavLink
                 key={to}
                 to={to}
                 onClick={() => setOpen(false)}
@@ -283,18 +309,18 @@ function MobileNavigation() {
               >
                 <Icon className="h-5 w-5" />
                 <span>{label}</span>
-              </NavLink>
+              </IntentNavLink>
             ))}
           </nav>
           <div className="mt-5">
-            <NavLink
+            <IntentNavLink
               to="/account"
               onClick={() => setOpen(false)}
               className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-text"
             >
               <UserRound className="h-5 w-5" />
               <span>Account</span>
-            </NavLink>
+            </IntentNavLink>
           </div>
           {!friend && (
             <div className="mt-5">
@@ -458,7 +484,7 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Routes>
-      <Route path="/share/:shareId" element={<SharedDive />} />
+      <Route path="/share/:shareId" element={<Suspense fallback={<p role="status">Loading page…</p>}><SharedDive /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"

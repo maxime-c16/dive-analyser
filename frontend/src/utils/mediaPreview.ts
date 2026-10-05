@@ -1,4 +1,3 @@
-import { getMediaStatus } from "../services/mediaApi";
 
 export type MediaPreview = {
   posterUrl: string | null;
@@ -19,6 +18,7 @@ const BATCH_MAX = 100;
 type PendingEntry = { videoUuid: string; resolve: (preview: MediaPreview) => void };
 const batchQueue: PendingEntry[] = [];
 const inFlight = new Map<string, Promise<MediaPreview>>();
+let flushing = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getPreview(videoUuid: string): Promise<MediaPreview> {
@@ -48,10 +48,7 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
   }
   return {
     posterUrl: status.poster_url || null,
-    // When no poster exists, use the playback URL so DiveThumbnail can
-    // render a <video preload="metadata"> that shows the first frame.
-    // The proxy URL never expires (backend generates a fresh presign each
-    // time the browser hits it), so it's safe to cache indefinitely.
+    // Keep playback availability for the viewer; Library tiles use posters only.
     videoThumbUrl: !status.poster_url && status.playback_url ? status.playback_url : null,
     ready: Boolean(status.playback_url),
   };
@@ -64,17 +61,22 @@ function settle(entry: PendingEntry, preview: MediaPreview) {
 }
 
 function scheduleFlush() {
-  if (flushTimer !== null) return;
+  if (flushTimer !== null || flushing) return;
   flushTimer = setTimeout(() => {
     flushTimer = null;
-    const entries = batchQueue.splice(0, batchQueue.length);
-    if (entries.length === 0) return;
-    for (const chunk of chunkOf(entries, BATCH_MAX)) {
-      // Sequential chunks keep request pressure bounded; a grid bigger than
-      // one batch fills in as each chunk lands.
-      void flushChunk(chunk);
-    }
+    void drainQueue();
   }, BATCH_FLUSH_MS);
+}
+
+async function drainQueue() {
+  flushing = true;
+  try {
+    while (batchQueue.length) {
+      await flushChunk(batchQueue.splice(0, BATCH_MAX));
+    }
+  } finally {
+    flushing = false;
+  }
 }
 
 async function flushChunk(entries: PendingEntry[]): Promise<void> {
@@ -88,8 +90,8 @@ async function flushChunk(entries: PendingEntry[]): Promise<void> {
     if (!response.ok) throw new Error(`media status batch failed: ${response.status}`);
     payload = (await response.json()) as Record<string, StatusShape>;
   } catch {
-    // Transport failure: fall back to the single-asset endpoint so the
-    // grid still fills progressively instead of staying empty.
+    // Keep placeholders on transport failure. Never fan a failed batch
+    // out into up to 100 individual requests against an overloaded server.
   }
   if (payload !== null) {
     // The backend answers for every requested uuid; unknown assets report
@@ -100,21 +102,8 @@ async function flushChunk(entries: PendingEntry[]): Promise<void> {
     }
     return;
   }
-  await Promise.all(
-    entries.map(async (entry) => {
-      try {
-        settle(entry, previewFromStatus(entry.videoUuid, await getMediaStatus(entry.videoUuid)));
-      } catch {
-        settle(entry, { ...CREATED });
-      }
-    }),
-  );
-}
-
-function chunkOf<T>(list: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < list.length; index += size) {
-    chunks.push(list.slice(index, index + size));
+  for (const entry of entries) {
+    inFlight.delete(entry.videoUuid);
+    entry.resolve({ ...CREATED });
   }
-  return chunks;
 }

@@ -59,23 +59,6 @@ export default function DiveThumbnail({
           className="h-full w-full object-cover"
           loading="lazy"
         />
-      ) : preview?.videoThumbUrl ? (
-        // No poster in cache but B2 video available — render first frame
-        // via <video preload="metadata">. The backend generates a fresh
-        // presigned URL each time the browser follows the proxy link, so
-        // the cached videoThumbUrl path never goes stale.
-        <video
-          src={preview.videoThumbUrl}
-          preload="metadata"
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-          onLoadedMetadata={(e) => {
-            // Nudge past frame 0 to guarantee the first frame renders
-            // instead of a black placeholder on WebKit/Chrome.
-            (e.currentTarget as HTMLVideoElement).currentTime = 0.001;
-          }}
-        />
       ) : (
         // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
