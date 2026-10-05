@@ -1,8 +1,9 @@
 """Dive CRUD endpoints"""
 
 from typing import List, Optional
+from pathlib import Path
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, File, Form, UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.strategy_options import Load
@@ -180,6 +181,78 @@ def create_dive(
     db.commit()
     db.refresh(db_dive)
     return _public_dive(db_dive, db)
+
+
+@router.post("/upload", status_code=201)
+def upload_dive(
+    request: Request,
+    file: UploadFile = File(...),
+    dive_code: str = Form(..., pattern=r"^[1-5][0-9]{2,3}[ABCD]$"),
+    height: str = Form(..., pattern=r"^(1|3|5|7\.5|10)m$"),
+    performance: str = Form(..., pattern=r"^[FBMGP]$"),
+    dive_datetime: datetime = Form(...),
+    visibility: str = Form("private", pattern=r"^(public|private)$"),
+    notes: str = Form("", max_length=2000),
+    diver_id: int = Form(...),
+    upload_id: str = Form(..., pattern=r"^[a-f0-9-]{36}$"),
+    db: Session = Depends(get_db),
+):
+    from uuid import UUID, uuid5, NAMESPACE_URL
+    from sqlalchemy import select
+    from app.models.diver import Diver
+    from app.models.photos_asset import PhotosAsset
+    from app.services.browser_upload import prepare_video, cache_upload, cleanup_upload, persist_original
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    if diver_id not in owned_diver_ids(db, user.id):
+        raise HTTPException(403, "Choose a diver you own")
+    try:
+        UUID(upload_id)
+    except ValueError:
+        raise HTTPException(422, "Invalid upload identity")
+    video_uuid = str(uuid5(NAMESPACE_URL, f"browser:{user.id}:{upload_id}"))
+    existing = db.query(Dive).filter(Dive.video_uuid == video_uuid).first()
+    if existing:
+        return _public_dive(existing, db)
+    diver = db.get(Diver, diver_id)
+    folder, size = prepare_video(file)
+    try:
+        # Sessions are shared calendar days. Use a Core lookup so a day with
+        # only another member's private clips is reused without exposing them.
+        day = dive_datetime.date()
+        session_id = db.execute(select(SessionModel.__table__.c.id).where(SessionModel.__table__.c.date == day)).scalar_one_or_none()
+        if session_id is None:
+            # Two members can upload on the same day concurrently.
+            if db.get_bind().dialect.name in ("postgresql", "sqlite"):
+                if db.get_bind().dialect.name == "postgresql":
+                    from sqlalchemy.dialects.postgresql import insert
+                else:
+                    from sqlalchemy.dialects.sqlite import insert
+                db.execute(insert(SessionModel.__table__).values(date=day).on_conflict_do_nothing(index_elements=["date"]))
+                session_id = db.execute(select(SessionModel.__table__.c.id).where(SessionModel.__table__.c.date == day)).scalar_one()
+            else:
+                session = SessionModel(date=day)
+                db.add(session)
+                db.flush()
+                session_id = session.id
+        asset = PhotosAsset(video_uuid=video_uuid, original_filename=Path(file.filename or 'video').name[:255], media_type='video', file_size_bytes=size, photos_created_at=dive_datetime)
+        db.add(asset)
+        db.flush()
+        record = Dive(session_id=session_id, diver_id=diver_id, person_name=diver.display_name, visibility=visibility, dive_code=dive_code, dive_number=dive_code[:-1], position=dive_code[-1], direction=int(dive_code[0]), performance=performance, performance_numeric='FBMGP'.index(performance), height=height, platform_type='springboard' if height in ('1m', '3m') else 'platform', notes=notes, dive_datetime=dive_datetime, video_uuid=video_uuid, photos_asset_id=asset.id)
+        db.add(record)
+        cache_upload(db, asset, folder)
+        db.flush()
+        persist_original(db, video_uuid, folder)
+        invalidate_analysis_cache(db)
+        db.commit()
+    except BaseException:
+        db.rollback()
+        cleanup_upload(folder)
+        raise
+    # Once committed, a response failure must never remove durable media.
+    db.refresh(record)
+    return _public_dive(record, db)
 
 
 @router.get("/{dive_id}")

@@ -81,8 +81,8 @@ async def require_owner_for_mutation(
         )
     _session, user = resolved
     path = request.scope.get("path", "")
-    if path == "/api/v1/dives" or (path.startswith("/api/v1/dives/") and path.rsplit("/", 1)[-1].isdigit()):
-        if path != "/api/v1/dives":
+    if path in ("/api/v1/dives", "/api/v1/dives/upload") or (path.startswith("/api/v1/dives/") and path.rsplit("/", 1)[-1].isdigit()):
+        if path not in ("/api/v1/dives", "/api/v1/dives/upload"):
             from app.models.dive import Dive
             from app.services.dive_access import require_dive_owner
             dive = db.query(Dive).filter(Dive.id == int(path.rsplit("/", 1)[-1])).first()

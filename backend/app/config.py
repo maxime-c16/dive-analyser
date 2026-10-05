@@ -98,6 +98,12 @@ class Settings(BaseSettings):
     # B2 playback presign (runtime credential only — never in Git; the
     # playback key is least-privilege readFiles on the PROD bucket).
     media_playback_presign_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS", "120"))
+    # Dedicated upload credential, separate from read-only playback.
+    b2_upload_key_id: str = os.getenv("B2_UPLOAD_KEY_ID", "")
+    b2_upload_key_secret: str = os.getenv("B2_UPLOAD_KEY_SECRET", "")
+    b2_upload_region: str = os.getenv("B2_UPLOAD_REGION", "")
+    b2_upload_endpoint_url: str = os.getenv("B2_UPLOAD_ENDPOINT_URL", "")
+    b2_upload_environment: str = os.getenv("B2_UPLOAD_ENVIRONMENT", "dev")
     b2_playback_region: str = os.getenv("B2_PLAYBACK_REGION", "")
     b2_playback_endpoint_url: str = os.getenv("B2_PLAYBACK_ENDPOINT_URL", "")
     b2_playback_key_id: str = os.getenv("B2_PLAYBACK_KEY_ID", "")

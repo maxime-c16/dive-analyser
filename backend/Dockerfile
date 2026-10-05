@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install system dependencies (minimal)
 RUN apk add --no-cache \
+    ffmpeg \
     gcc \
     musl-dev \
     postgresql-client \
