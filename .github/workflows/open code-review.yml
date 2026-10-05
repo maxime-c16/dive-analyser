@@ -52,7 +52,7 @@ jobs:
                hmac.compare_digest on UTF-8 bytes, never logged, 404 when closed, Origin
                check on state-changing auth POSTs, session cookie HttpOnly + SameSite=Strict
                + Path=/ + Secure (only AUTH_COOKIE_SECURE=false on plain-HTTP local test),
-               DB stores SHA-256 hashes never raw tokens,                X-Forwarded-For first element only
+               DB stores SHA-256 hashes, never raw tokens. X-Forwarded-For first element only
                for rate-limit bucketing, never for authorization, ownership/diver scoping
                enforced (no IDOR). Role model (do not over-read "read-only"): the
                diver/friend role has no admin/operational capability, but dive writes
