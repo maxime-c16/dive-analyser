@@ -18,6 +18,21 @@ vi.mock('../services/mediaApi', async (importOriginal) => {
 const missing = { video_uuid: 'uuid', status: 'missing', can_request: true, available_renditions: [], playback_url: null, poster_url: null, job: null }
 const transcoding = { ...missing, status: 'transcoding', can_request: false }
 const ready = { ...missing, status: 'ready', playback_url: '/cached.mp4' }
+it('autoplays immersive clips with sound enabled by default', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+  expect(video.autoplay).toBe(true)
+  expect(video.muted).toBe(false)
+  expect(video.defaultMuted).toBe(false)
+  expect(screen.getByRole('button', { name: 'Mute video' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Mute video' }))
+  expect(video.muted).toBe(true)
+  fireEvent.volumeChange(video)
+  fireEvent.click(screen.getByRole('button', { name: 'Unmute video' }))
+  expect(video.muted).toBe(false)
+})
 beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
 afterEach(() => { vi.useRealTimers() })
 
