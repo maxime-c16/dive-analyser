@@ -36,6 +36,9 @@ const MediaRecall = lazy(() => import("./pages/MediaRecall"));
 const P5Canary = lazy(() => import("./pages/P5Canary"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Account = lazy(() => import("./pages/Account"));
+const ProfilePreview = lazy(
+  () => import("./pages/profile-preview/ProfilePreview")
+);
 
 /** Library is the product home; everything else is secondary or operational. */
 const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
@@ -471,6 +474,15 @@ function Router() {
           <AnonymousOnly>
             <Register />
           </AnonymousOnly>
+        }
+      />
+
+      <Route
+        path="/profile-preview"
+        element={
+          <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">Loading preview…</p>}>
+            <ProfilePreview />
+          </Suspense>
         }
       />
 
