@@ -271,6 +271,23 @@ echo "$changed" | grep -q "^mac-agent/" && \
     echo "! mac-agent/ changed — the worker needs its own deploy: ci/ship.sh mac"
 
 if [ "$dry_run" = 1 ]; then
+    # Run the generator belonging to the target commit, without checking it
+    # out in the live directory. Partial deploys keep the other service SHA.
+    generator="$(mktemp "$STATE/release-plan.XXXXXX")" || exit 3
+    if git show "$sha:ci/release-notes.py" >"$generator" 2>/dev/null; then
+        frontend_ref="$sha"; backend_ref="$sha"
+        case " $* " in
+            *" --backend-only "*) frontend_ref="$(docker inspect dive-analyser-frontend-1 --format "{{index .Config.Labels \"dive.analyser/sha\"}}")" ;;
+            *" --frontend-only "*) backend_ref="$(docker inspect dive-analyser-backend-1 --format "{{index .Config.Labels \"dive.analyser/sha\"}}")" ;;
+        esac
+        echo "  planned whats new catalog (required services must be delivered):"
+        python3 "$generator" build --root "$LIVE" --frontend "$frontend_ref" --backend "$backend_ref"
+        plan_rc=$?
+        unlink "$generator"
+        [ "$plan_rc" = 0 ] || { echo "✗ update catalog validation failed"; exit 3; }
+    else
+        unlink "$generator"
+    fi
     echo "  dry run: would check out ${sha:0:7} (detached) in $LIVE and run ci/deploy.sh $*"
     exit 0
 fi

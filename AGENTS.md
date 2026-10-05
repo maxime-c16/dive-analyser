@@ -12,6 +12,16 @@ Full guide: **`docs/REPO_WORKFLOW.md`**. The short version:
 - Deploy only with `ci/ship.sh status | server | mac | all` (`--dry-run` first). Server-side SQL migrations, nginx and `ops/tailscale` changes are **not** auto-applied — `ship.sh` warns; follow the table in the guide.
 - Never commit data (media, `runs/`, weights, `.env`). Never use bare `git stash` (shared across worktrees).
 
+## User-visible release notes
+
+For a user-visible PR, add an immutable JSON file to `backend/release-notes/`.
+Use the schema and examples in `docs/RELEASE_NOTES.md`. Write a short benefit
+in plain language; list every server service required by the feature. Never
+edit/delete a published note or include secrets. For an internal-only PR,
+state `Release notes: none — <reason>` in the PR description. `ci/ship.sh`
+previews the catalog on `--dry-run` and publishes it after successful checks;
+no separate release-writing step is needed at deploy time.
+
 ## First Run
 
 If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out who you are, then delete it. You won't need it again.
