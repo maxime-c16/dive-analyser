@@ -737,3 +737,27 @@
 @media (max-width: 599px) {
   .clip-speed-indicator { top: calc(80px + env(safe-area-inset-top)); }
 }
+
+.clip-share-result {
+  position: absolute; right: 64px; bottom: 0;
+  width: min(260px, calc(100vw - 110px)); padding: 12px;
+  border-radius: 12px; background: rgba(10, 15, 23, .96);
+  font-size: 13px; color: white; z-index: 5;
+}
+.clip-share-result input { width: 100%; margin: 8px 0; padding: 8px; background: #172233; color: white; }
+.clip-actions .clip-share-result button { width: auto; min-height: 44px; font-size: 12px; text-decoration: underline; }
+.shared-dive { min-height: 100dvh; background: #090e17; color: #eef3fa; padding: 24px; }
+.shared-dive header, .shared-dive-layout { max-width: 1000px; margin: 0 auto; }
+.shared-dive h1 { margin: 8px 0 20px; font-size: 24px; }
+.shared-dive-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr); gap: 24px; }
+.shared-dive-video video { display: block; width: 100%; max-height: 75dvh; background: black; border-radius: 12px; }
+.shared-dive-actions { display: flex; gap: 16px; padding: 12px 0; }
+.shared-dive button { min-height: 44px; padding: 8px 12px; border: 1px solid #394759; border-radius: 8px; }
+.shared-dive button:disabled { opacity: .5; }
+.shared-dive-actions button { display: flex; align-items: center; gap: 8px; }
+.shared-dive-discussion > p { margin-bottom: 20px; color: #adb9cb; }
+@media (max-width: 700px) {
+  .shared-dive { padding: 16px; }
+  .shared-dive-layout { grid-template-columns: 1fr; gap: 12px; }
+  .shared-dive-video video { max-height: 65dvh; }
+}

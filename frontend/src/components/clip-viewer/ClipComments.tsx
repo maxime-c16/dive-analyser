@@ -7,9 +7,13 @@ import type { Comment } from "./useDiveSocial";
 export default function ClipComments({
   id,
   onCountChange,
+  basePath = `/api/v1/dives/${id}`,
+  guestId,
 }: {
   id: number;
   onCountChange: (delta: number) => void;
+  basePath?: string;
+  guestId?: number;
 }) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -33,7 +37,7 @@ export default function ClipComments({
       const { data } = await api.get<{
         items: Comment[];
         next_before: number | null;
-      }>(`/api/v1/dives/${id}/comments`, {
+      }>(`${basePath}/comments`, {
         params: cursor ? { before: cursor } : {},
       });
       if (!mounted.current || request !== latestLoad.current) return;
@@ -66,7 +70,7 @@ export default function ClipComments({
       mounted.current = false;
       latestLoad.current += 1;
     };
-  }, [id]);
+  }, [id, basePath]);
   return (
     <div className="clip-comments">
       <form
@@ -77,7 +81,7 @@ export default function ClipComments({
           setError("");
           try {
             const { data } = await api.post<Comment>(
-              `/api/v1/dives/${id}/comments`,
+              `${basePath}/comments`,
               { body: body.trim() },
             );
             if (!mounted.current || activeId.current !== id) return;
@@ -136,7 +140,7 @@ export default function ClipComments({
             </time>
             <p>{comment.body}</p>
           </div>
-          {(comment.user_id === user?.user_id || user?.is_admin) && (
+          {(guestId !== undefined ? comment.guest_id === guestId : (comment.user_id === user?.user_id || user?.is_admin)) && (
             <button
               type="button"
               aria-label={`Delete comment by ${comment.author}`}
@@ -145,7 +149,7 @@ export default function ClipComments({
                 setBusy(true);
                 try {
                   await api.delete(
-                    `/api/v1/dives/${id}/comments/${comment.id}`,
+                    `${basePath}/comments/${comment.id}`,
                   );
                   if (!mounted.current || activeId.current !== id) return;
                   pendingMutations.current.set(comment.id, null);

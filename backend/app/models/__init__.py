@@ -127,3 +127,5 @@ from app.models.analysis import (
 )
 
 from app.models.dive_social import DiveLike, DiveComment
+
+from app.models.dive_share import DiveShare, DiveGuest, DiveGuestLike, DiveGuestAccess

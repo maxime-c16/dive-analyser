@@ -106,6 +106,7 @@ async def member_access_context(request: HTTPConnection, db: Session = Depends(g
     from app.services.write_guard import _valid_machine_api_key
     path = request.url.path
     if (not get_settings().user_auth_enabled or path.startswith("/api/v1/auth/")
+            or path.startswith("/api/v1/shared-dives/")
             or path.startswith("/api/v1/health") or _valid_machine_api_key(request)):
         yield
         return
