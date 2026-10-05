@@ -15,8 +15,10 @@ export interface AdminUser {
   revoked_sessions?: number
   /** Directory rows carry this; the manage panel loads the id list via getUser. */
   diver_count?: number
-  /** Present on detail/create/update payloads only. */
+  /** Present on detail/create/update payloads only (capped list). */
   diver_ids?: number[]
+  /** Total binding count on detail payloads; >= diver_ids.length. */
+  diver_binding_total?: number
 }
 
 export interface AdminDiver {

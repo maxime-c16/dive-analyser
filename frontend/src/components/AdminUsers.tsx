@@ -69,6 +69,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
   const selected = users.find(u => u.user_id === selectedId) ?? null
   const isSelf = selected !== null && selected.user_id === currentUserId
   const bindings = detail?.user_id === selectedId ? (detail.diver_ids ?? []) : []
+  const bindingTotal = detail?.user_id === selectedId ? (detail.diver_binding_total ?? bindings.length) : bindings.length
 
   const refreshDetail = useCallback(async (userId: number, signal?: AbortSignal) => {
     setDetailLoading(true)
@@ -523,6 +524,10 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
             {detailLoading ? (
               <p className="mt-2 text-sm text-app-muted">Loading bindings…</p>
             ) : (
+            <>
+            {bindingTotal > bindings.length && (
+              <p className="mt-1 text-xs text-app-muted">Showing {bindings.length} of {bindingTotal} bindings.</p>
+            )}
             <ul className="mt-2 space-y-1.5">
               {divers.map(d => {
                 const bound = bindings.includes(d.diver_id)
@@ -565,6 +570,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                 )
               })}
             </ul>
+            </>
             )}
           </div>
 

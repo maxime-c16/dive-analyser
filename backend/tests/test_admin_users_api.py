@@ -188,7 +188,26 @@ def test_get_user_detail(admin_client):
     assert body["email"] == "admin@example.test"
     assert body["is_admin"] is True
     assert len(body["diver_ids"]) == 1
+    assert body["diver_binding_total"] == 1
     assert admin_client.get("/api/v1/admin/users/999999").status_code == 404
+
+
+def test_binding_list_is_capped_but_total_reported(admin_client, db):
+    from app.api.v1 import admin_users as admin_api
+
+    target = db.query(AppUser).filter_by(email="diver@example.test").one()
+    for i in range(admin_api._MAX_BINDING_IDS + 5):
+        diver = Diver(display_name=f"Bulk {i}", canonical_name=f"bulk-{i}",
+                      is_primary_user=False)
+        db.add(diver)
+        db.flush()
+        db.add(UserDiverAccess(user_id=target.id, diver_id=diver.id,
+                              access_kind="OWNER"))
+    db.commit()
+
+    body = admin_client.get(f"/api/v1/admin/users/{target.id}").json()
+    assert body["diver_binding_total"] == admin_api._MAX_BINDING_IDS + 5
+    assert len(body["diver_ids"]) == admin_api._MAX_BINDING_IDS
 
 
 # ---------------------------------------------------------- create

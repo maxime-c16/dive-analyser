@@ -27,8 +27,11 @@ Ownership model (repo contract, not a policy choice of this module):
   self-registered diver (auth.py register creates a friend + OWNER
   binding). Pinned by test_member_dive_visibility.py
   (test_ownership_writes_and_shared_session_protection: friend-role bob
-  PUTs his own dive → 200, alice's → 403) and by
-  test_admin_users_api.py
+  PUTs his own dive → 200, alice's → 403), by test_friend_access.py
+  (test_member_can_create_own_dive_but_not_shared_session: a freshly
+  registered friend POSTs /api/v1/dives → 201 yet POSTs /api/v1/sessions
+  → 403 — "read-only" means no shared/admin writes, not no own-dive
+  writes), and by test_admin_users_api.py
   (test_admin_bound_diver_manages_own_dives_only pins this endpoint to
   the same behavior).
 - Role controls the administration capability (is_admin), never dive
@@ -65,6 +68,7 @@ from app.services.passwords import ALGORITHM_LABEL, hash_password
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 _MAX_LIST_LIMIT = 200
+_MAX_BINDING_IDS = 200
 
 # Public role labels: exactly two roles exist — administrator or diver
 # (diver = regular logged-in user). Stored values stay owner/friend for
@@ -189,9 +193,36 @@ def _diver_ids_for_user(db: Session, user_id: int) -> List[int]:
         db.query(UserDiverAccess.diver_id)
         .filter(UserDiverAccess.user_id == user_id)
         .order_by(UserDiverAccess.diver_id.asc())
+        .limit(_MAX_BINDING_IDS)
         .all()
     )
     return [diver_id for (diver_id,) in rows]
+
+
+def _diver_binding_total(db: Session, user_id: int) -> int:
+    return (
+        db.query(func.count(UserDiverAccess.diver_id))
+        .filter(UserDiverAccess.user_id == user_id)
+        .scalar()
+        or 0
+    )
+
+
+def _detail_for_user(db: Session, user: AppUser) -> dict:
+    """Single-user payload: bounded binding list plus its total.
+
+    Per-user binding sets are tiny (an account normally owns one diver);
+    the list is still capped so the response stays bounded, and the total
+    tells the UI whether the cap cut anything off.
+    """
+    counts = _live_session_counts(db, [user.id])
+    payload = _serialize_user(
+        user,
+        diver_ids=_diver_ids_for_user(db, user.id),
+        live_sessions=counts.get(user.id, 0),
+    )
+    payload["diver_binding_total"] = _diver_binding_total(db, user.id)
+    return payload
 
 
 def _serialize_user(
@@ -309,12 +340,7 @@ def get_user(
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    counts = _live_session_counts(db, [user.id])
-    return _serialize_user(
-        user,
-        diver_ids=_diver_ids_for_user(db, user.id),
-        live_sessions=counts.get(user.id, 0),
-    )
+    return _detail_for_user(db, user)
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
@@ -383,12 +409,7 @@ def create_user(
         target_diver_id=diver.id if diver is not None else None,
         metadata={"role": role, "active": bool(body.is_active)},
     )
-    counts = _live_session_counts(db, [user.id])
-    return _serialize_user(
-        user,
-        diver_ids=_diver_ids_for_user(db, user.id),
-        live_sessions=counts.get(user.id, 0),
-    )
+    return _detail_for_user(db, user)
 
 
 @router.patch("/users/{user_id}")
@@ -496,12 +517,7 @@ def update_user(
             metadata={"fields": sorted(profile_fields)},
         )
     db.refresh(user)
-    counts = _live_session_counts(db, [user.id])
-    payload = _serialize_user(
-        user,
-        diver_ids=_diver_ids_for_user(db, user.id),
-        live_sessions=counts.get(user.id, 0),
-    )
+    payload = _detail_for_user(db, user)
     payload["revoked_sessions"] = revoked
     return payload
 
