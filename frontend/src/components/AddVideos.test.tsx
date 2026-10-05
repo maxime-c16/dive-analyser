@@ -41,3 +41,15 @@ describe('browser clip stack', () => {
     expect((vi.mocked(api.post).mock.calls[1][1] as FormData).get('upload_id')).toBe(first.get('upload_id'))
   })
 })
+
+it('accepts armstand codes in the browser form', async () => {
+  vi.mocked(api.post).mockReset().mockResolvedValue({ data: {} })
+  render(<AddVideos onAdded={vi.fn()} />)
+  select()
+  const code = screen.getByLabelText('Code') as HTMLInputElement
+  fireEvent.change(code, { target: { value: '603B' } })
+  expect(code.checkValidity()).toBe(true)
+  fireEvent.click(screen.getByText('Save and next'))
+  await screen.findByText('Video 2 / 2')
+  expect((vi.mocked(api.post).mock.calls[0][1] as FormData).get('dive_code')).toBe('603B')
+})

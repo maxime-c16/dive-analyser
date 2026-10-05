@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from app.config import get_settings
 from app.models.media import MediaCacheEntry
+from app.services.media_keys import build_media_key
 
 MAX_BYTES = 1024 * 1024 * 1024
 
@@ -36,10 +37,21 @@ def prepare_video(file):
             raise HTTPException(422, 'Empty video')
         probe = subprocess.run(['ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', demuxer, '-show_streams', '-show_format', '-of', 'json', str(source)], capture_output=True, timeout=30)
         metadata = json.loads(probe.stdout) if probe.returncode == 0 else {}
-        if not any(s.get('codec_type') == 'video' for s in metadata.get('streams', [])):
+        video_stream = next((stream for stream in metadata.get('streams', []) if stream.get('codec_type') == 'video'), None)
+        if video_stream is None:
             raise HTTPException(422, 'The file is not a readable video')
+        filters = []
+        color_args = []
+        if video_stream.get('color_transfer') in ('smpte2084', 'arib-std-b67'):
+            # Convert PQ/HLG HDR to SDR for web playback. The B2 original
+            # retains all source bytes and color metadata.
+            filters.extend(['zscale=t=linear:npl=100', 'format=gbrpf32le',
+                            'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0',
+                            'zscale=t=bt709:m=bt709:r=tv'])
+            color_args = ['-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709']
+        filters.extend(["scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", 'format=yuv420p'])
         proxy = folder / 'video.mp4'
-        result = subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-protocol_whitelist', 'file,pipe', '-f', demuxer, '-i', str(source), '-map', '0:v:0', '-map', '0:a:0?', '-vf', "scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', str(proxy)], capture_output=True, timeout=600)
+        result = subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-protocol_whitelist', 'file,pipe', '-f', demuxer, '-i', str(source), '-map', '0:v:0', '-map', '0:a:0?', '-vf', ','.join(filters), '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p', '-threads', '1', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', *color_args, str(proxy)], capture_output=True, timeout=600)
         if result.returncode:
             raise HTTPException(422, 'Unable to prepare this video')
         poster = folder / 'poster.jpg'
@@ -64,7 +76,7 @@ def cleanup_upload(folder):
 def cache_upload(db, asset, folder):
     for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('video.mp4', 'proxy_720p', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
         path = folder / name
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=hashlib.sha256(f'{asset.video_uuid}:{rendition}'.encode()).hexdigest(), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=True))
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=True))
 
 
 def persist_original(db, video_uuid, folder):

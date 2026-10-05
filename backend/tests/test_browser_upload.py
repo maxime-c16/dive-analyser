@@ -1,7 +1,12 @@
+import pytest
+
 from tests.test_member_dive_visibility import workspace
 
 
-def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_path):
+@pytest.mark.parametrize(('code', 'direction', 'height'), [
+    ('103B', 1, '3m'), ('5231D', 2, '10m'), ('603B', None, '10m'),
+])
+def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_path, code, direction, height):
     from app.services import browser_upload
     db, login, _, users, _ = workspace
     from app.services.dive_access import owned_diver_ids
@@ -31,7 +36,7 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
         calls.append(file.filename)
         return folder, 4
     monkeypatch.setattr(browser_upload, 'prepare_video', prepare)
-    fields = dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owner), upload_id='12345678-1234-1234-1234-123456789012')
+    fields = dict(dive_code=code, height=height, performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owner), upload_id='12345678-1234-1234-1234-123456789012')
     client = login('bob')
     response = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
     assert response.status_code == 201, response.text
@@ -39,6 +44,9 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     assert record['diver_id'] == owner
     assert record['person_name'] == 'bob'
     assert record['visibility'] == 'private'
+    assert record['direction'] == direction
+    assert record['dive_code'] == code
+    assert record['platform_type'] == ('platform' if height == '10m' else 'springboard')
     from app.models.media_backbone import MediaRevision, MediaBlobLocation
     assert db.query(MediaRevision).filter_by(video_uuid=record['video_uuid']).one().rendition_semantics == 'browser_original'
     assert db.query(MediaBlobLocation).one().verified is True
@@ -49,6 +57,14 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     assert status.status_code == 200, status.text
     assert status.json()['status'] == 'ready'
     assert status.json()['poster_url']
+    from app.models.media import MediaJob
+    jobs_before = db.query(MediaJob).count()
+    for rendition in ('poster', 'proxy_720p'):
+        request = client.post(f"/api/v1/media/{record['video_uuid']}/request", json={'rendition': rendition})
+        assert request.status_code == 200, request.text
+        assert request.json()['cache_hit'] is True
+        assert request.json()['created_job'] is False
+    assert db.query(MediaJob).count() == jobs_before
     assert login('alice').get(f"/api/v1/dives/{record['id']}").status_code == 404
     fields['diver_id'] = str(owned_diver_ids(db, users['alice'].id)[0])
     assert login('bob').post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mp4', b'video')}).status_code == 403
@@ -127,3 +143,53 @@ def test_upload_rejects_empty_and_non_video_inputs_before_processing(monkeypatch
             prepare_video(UploadFile(file=io.BytesIO(content), filename=filename))
         assert error.value.status_code == 422
     assert not list((tmp_path / 'browser-uploads').iterdir())
+
+
+def test_invalid_structural_code_is_rejected_before_video_processing(workspace, monkeypatch):
+    from app.services import browser_upload
+    from app.services.dive_access import owned_diver_ids
+    db, login, _, users, _ = workspace
+    def unexpected_prepare(file):
+        raise AssertionError('Invalid codes must not process video')
+    monkeypatch.setattr(browser_upload, 'prepare_video', unexpected_prepare)
+    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code='5501D', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    assert response.status_code == 422
+    assert 'direction' in response.json()['detail']
+
+
+@pytest.mark.parametrize('transfer', [None, 'smpte2084', 'arib-std-b67'])
+def test_ten_bit_video_becomes_browser_compatible_sdr(tmp_path, monkeypatch, transfer):
+    import json
+    import shutil
+    import subprocess
+    from fastapi import UploadFile
+    from app.config import get_settings
+    from app.services.browser_upload import prepare_video, cleanup_upload
+    if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+        pytest.skip('Real video regression requires ffmpeg and ffprobe')
+    source = tmp_path / 'ten-bit.mp4'
+    colors = ['-color_primaries', 'bt2020', '-color_trc', transfer, '-colorspace', 'bt2020nc'] if transfer else []
+    source_filter = 'format=yuv420p10le'
+    if transfer:
+        source_filter += f',setparams=color_primaries=bt2020:color_trc={transfer}:colorspace=bt2020nc'
+    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=64x64:d=0.2', '-vf', source_filter, '-c:v', 'libx265', '-threads', '1', '-x265-params', 'pools=1:frame-threads=1:log-level=error', '-tag:v', 'hvc1', *colors, str(source)], check=True, capture_output=True, timeout=30)
+    input_stream = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', str(source)]))['streams'][0]
+    assert input_stream['pix_fmt'] == 'yuv420p10le'
+    if transfer:
+        assert input_stream['color_transfer'] == transfer
+    monkeypatch.setattr(get_settings(), 'media_cache_root', str(tmp_path / 'cache'))
+    with source.open('rb') as file:
+        folder, _ = prepare_video(UploadFile(file=file, filename=source.name))
+    try:
+        stream = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', str(folder / 'video.mp4')]))['streams'][0]
+        assert stream['codec_name'] == 'h264'
+        assert stream['profile'] == 'Main'
+        assert stream['pix_fmt'] == 'yuv420p'
+        if transfer:
+            assert stream['color_transfer'] == 'bt709'
+            assert stream['color_primaries'] == 'bt709'
+            assert stream['color_space'] == 'bt709'
+        assert (folder / 'poster.jpg').stat().st_size > 0
+        assert (folder / 'source').read_bytes() == source.read_bytes()
+    finally:
+        cleanup_upload(folder)
