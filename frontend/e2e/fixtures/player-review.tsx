@@ -34,16 +34,8 @@ const states = new Map<
   number,
   { liked: boolean; like_count: number; comment_count: number }
 >();
-const discussion = new Map<
-  number,
-  Array<{
-    id: number;
-    body: string;
-    author: string;
-    user_id: number;
-    created_at: string;
-  }>
->();
+import type { Comment } from "../../src/components/clip-viewer/useDiveSocial";
+const discussion = new Map<number, Comment[]>();
 api.defaults.adapter = async (config) => {
   const id = Number(config.url?.match(/dives\/(\d+)/)?.[1] || 1);
   if (!states.has(id))
@@ -51,14 +43,14 @@ api.defaults.adapter = async (config) => {
   if (!discussion.has(id))
     discussion.set(id, [
       {
-        id: 2,
+        id: 2, liked: false, like_count: 0, reply_count: 0,
         body: "The entry is getting cleaner. Keep that line!",
         author: "Camille",
         user_id: 2,
         created_at: "2026-10-05T09:00:00Z",
       },
       {
-        id: 1,
+        id: 1, liked: false, like_count: 0, reply_count: 0,
         body: "One more rep. Focus on the opening.",
         author: "Reviewer",
         user_id: 1,
@@ -67,7 +59,14 @@ api.defaults.adapter = async (config) => {
     ]);
   const state = states.get(id)!;
   let data: unknown = { ...state };
-  if (config.url?.endsWith("/like")) {
+  if (/comments\/\d+\/like$/.test(config.url || "")) {
+    const commentId = Number(config.url!.split("/").slice(-2)[0]);
+    const row = discussion.get(id)!.find(item => item.id === commentId)!;
+    const { liked } = JSON.parse(config.data);
+    row.like_count = (row.like_count ?? 0) + Number(liked) - Number(row.liked ?? false);
+    row.liked = liked;
+    data = { ...row };
+  } else if (config.url?.endsWith("/like")) {
     const { liked } = JSON.parse(config.data);
     state.like_count += Number(liked) - Number(state.liked);
     state.liked = liked;
@@ -77,21 +76,30 @@ api.defaults.adapter = async (config) => {
       data = {
         id: Date.now(),
         body: JSON.parse(config.data).body,
+        parent_id: JSON.parse(config.data).parent_id ?? null,
+        liked: false, like_count: 0, reply_count: 0,
         author: "Reviewer",
         user_id: 1,
         created_at: new Date().toISOString(),
       };
       discussion.get(id)!.unshift(data as never);
+      const parentId = (data as Comment).parent_id;
+      const parent = discussion.get(id)!.find(row => row.id === parentId);
+      if (parent) parent.reply_count = (parent.reply_count ?? 0) + 1;
       state.comment_count++;
     } else if (config.method === "delete") {
-      discussion.set(
-        id,
-        discussion
-          .get(id)!
-          .filter((item) => item.id !== Number(config.url.split("/").pop())),
-      );
-      state.comment_count--;
-    } else data = { items: discussion.get(id), next_before: null };
+      const commentId = Number(config.url.split("/").pop());
+      const rows = discussion.get(id)!;
+      const removed = rows.filter(row => row.id === commentId || row.parent_id === commentId);
+      const parent = rows.find(row => row.id === removed[0]?.parent_id);
+      if (parent) parent.reply_count = Math.max(0, (parent.reply_count ?? 0) - 1);
+      discussion.set(id, rows.filter(row => row.id !== commentId && row.parent_id !== commentId));
+      state.comment_count -= removed.length;
+    } else {
+      const parentId = config.params?.parent_id ?? null;
+      const items = discussion.get(id)!.filter(row => (row.parent_id ?? null) === parentId);
+      data = { items: items.map(row => ({ ...row })), next_before: null };
+    }
   }
   return { data, status: 200, statusText: "OK", headers: {}, config };
 };

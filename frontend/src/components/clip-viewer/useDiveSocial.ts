@@ -12,6 +12,10 @@ export type Comment = {
   user_id: number | null;
   guest_id?: number | null;
   created_at: string;
+  parent_id?: number | null;
+  liked?: boolean;
+  like_count?: number;
+  reply_count?: number;
 };
 
 export function useDiveSocial(id: number, basePath = `/api/v1/dives/${id}`) {

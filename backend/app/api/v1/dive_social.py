@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.dive import Dive
-from app.models.dive_social import DiveComment, DiveLike
+from app.models.dive_social import DiveComment, DiveLike, DiveCommentLike, DiveGuestCommentLike
 from app.models.user_auth import AppUser
 from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.services.write_guard import optional_session_user
@@ -34,11 +34,22 @@ class LikeInput(BaseModel):
 
 class CommentInput(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
+    parent_id: int | None = Field(default=None, gt=0)
 
 
-def comment_payload(row, author):
+def reaction_identity(user):
+    if isinstance(user, DiveGuest):
+        return DiveGuestCommentLike, dict(guest_id=user.id)
+    return DiveCommentLike, dict(user_id=user.id)
+
+
+def comment_payload(row, author, db, user, stats=None):
+    reaction_model, identity = reaction_identity(user)
     return dict(id=row.id, body=row.body, author=author, user_id=row.user_id,
-                guest_id=row.guest_id, created_at=row.created_at.isoformat() + 'Z')
+                guest_id=row.guest_id, created_at=row.created_at.isoformat() + 'Z', parent_id=row.parent_id,
+                liked=(row.id in stats['liked']) if stats is not None else db.query(reaction_model).filter_by(comment_id=row.id, **identity).first() is not None,
+                like_count=stats['likes'].get(row.id, 0) if stats is not None else (db.query(func.count(DiveCommentLike.user_id)).filter_by(comment_id=row.id).scalar() + db.query(func.count(DiveGuestCommentLike.guest_id)).filter_by(comment_id=row.id).scalar()),
+                reply_count=stats['replies'].get(row.id, 0) if stats is not None else db.query(func.count(DiveComment.id)).filter_by(parent_id=row.id).scalar())
 
 
 @router.get('/{dive_id}/social')
@@ -67,12 +78,26 @@ def like(dive_id: int, payload: LikeInput, user=Depends(visible_dive), db: Sessi
 
 
 @router.get('/{dive_id}/comments')
-def comments(dive_id: int, before: int | None = None, user=Depends(visible_dive), db: Session = Depends(get_db)):
+def comments(dive_id: int, before: int | None = None, parent_id: int | None = None, user=Depends(visible_dive), db: Session = Depends(get_db)):
     query = db.query(DiveComment, func.coalesce(AppUser.display_name, DiveGuest.display_name)).outerjoin(AppUser, AppUser.id == DiveComment.user_id).outerjoin(DiveGuest, DiveGuest.id == DiveComment.guest_id).filter(DiveComment.dive_id == dive_id)
+    if parent_id is not None:
+        parent = db.query(DiveComment).filter_by(id=parent_id, dive_id=dive_id, parent_id=None).first()
+        if parent is None:
+            raise HTTPException(404, 'Thread not found')
+    query = query.filter(DiveComment.parent_id == parent_id)
     if before is not None:
         query = query.filter(DiveComment.id < before)
     rows = query.order_by(DiveComment.id.desc()).limit(51).all()
-    return dict(items=[comment_payload(row, author) for row, author in rows[:50]],
+    ids = [row.id for row, _ in rows[:50]]
+    reaction_model, identity = reaction_identity(user)
+    stats = dict(
+        liked={item[0] for item in db.query(reaction_model.comment_id).filter(reaction_model.comment_id.in_(ids)).filter_by(**identity).all()},
+        likes=dict(db.query(DiveCommentLike.comment_id, func.count(DiveCommentLike.user_id)).filter(DiveCommentLike.comment_id.in_(ids)).group_by(DiveCommentLike.comment_id).all()),
+        replies=dict(db.query(DiveComment.parent_id, func.count(DiveComment.id)).filter(DiveComment.parent_id.in_(ids)).group_by(DiveComment.parent_id).all()),
+    )
+    for comment_id, count in db.query(DiveGuestCommentLike.comment_id, func.count(DiveGuestCommentLike.guest_id)).filter(DiveGuestCommentLike.comment_id.in_(ids)).group_by(DiveGuestCommentLike.comment_id).all():
+        stats['likes'][comment_id] = stats['likes'].get(comment_id, 0) + count
+    return dict(items=[comment_payload(row, author, db, user, stats) for row, author in rows[:50]],
                 next_before=rows[49][0].id if len(rows) > 50 else None)
 
 
@@ -81,11 +106,18 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
     body = payload.body.strip()
     if not body:
         raise HTTPException(422, 'Comment cannot be blank')
-    row = DiveComment(dive_id=dive_id, user_id=user.id, body=body)
+    parent = None
+    if payload.parent_id is not None:
+        parent = db.query(DiveComment).filter_by(id=payload.parent_id, dive_id=dive_id).first()
+        if parent is None:
+            raise HTTPException(404, 'Comment not found')
+    author_identity = dict(guest_id=user.id) if isinstance(user, DiveGuest) else dict(user_id=user.id)
+    row = DiveComment(dive_id=dive_id, **author_identity, body=body,
+                      parent_id=(parent.parent_id or parent.id) if parent else None)
     db.add(row)
     db.commit()
     db.refresh(row)
-    return comment_payload(row, user.display_name)
+    return comment_payload(row, user.display_name, db, user)
 
 
 @router.delete('/{dive_id}/comments/{comment_id}', status_code=204)
@@ -93,7 +125,34 @@ def delete_comment(dive_id: int, comment_id: int, user=Depends(visible_dive), db
     row = db.query(DiveComment).filter_by(id=comment_id, dive_id=dive_id).first()
     if row is None:
         raise HTTPException(404, 'Comment not found')
-    if row.user_id != user.id and not user.is_admin:
+    owns_comment = row.guest_id == user.id if isinstance(user, DiveGuest) else row.user_id == user.id
+    if not owns_comment and not getattr(user, 'is_admin', False):
         raise HTTPException(403, 'Only the author can delete this comment')
-    db.delete(row)
+    # Explicit deletion also works in SQLite tests without FK cascades enabled.
+    ids = [row.id] + [item[0] for item in db.query(DiveComment.id).filter_by(parent_id=row.id).all()]
+    db.query(DiveCommentLike).filter(DiveCommentLike.comment_id.in_(ids)).delete(synchronize_session=False)
+    db.query(DiveGuestCommentLike).filter(DiveGuestCommentLike.comment_id.in_(ids)).delete(synchronize_session=False)
+    db.query(DiveComment).filter(DiveComment.id.in_(ids)).delete(synchronize_session=False)
     db.commit()
+
+
+@router.put('/{dive_id}/comments/{comment_id}/like')
+def like_comment(dive_id: int, comment_id: int, payload: LikeInput, user=Depends(visible_dive), db: Session = Depends(get_db)):
+    row = db.query(DiveComment).filter_by(id=comment_id, dive_id=dive_id).first()
+    if row is None:
+        raise HTTPException(404, 'Comment not found')
+    reaction_model, identity = reaction_identity(user)
+    existing = db.query(reaction_model).filter_by(comment_id=comment_id, **identity).first()
+    if payload.liked and existing is None:
+        db.add(reaction_model(comment_id=comment_id, **identity))
+    elif not payload.liked and existing is not None:
+        db.delete(existing)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if not db.query(reaction_model).filter_by(comment_id=comment_id, **identity).first():
+            raise
+    author_model = DiveGuest if row.guest_id is not None else AppUser
+    author = db.query(author_model.display_name).filter_by(id=row.guest_id or row.user_id).scalar()
+    return comment_payload(row, author, db, user)

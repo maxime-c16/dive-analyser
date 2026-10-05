@@ -151,7 +151,7 @@ export default function ImmersiveControls({
       >
         {paused && (
           <span className="clip-play-indicator">
-            <Play size={30} fill="currentColor" />
+            <Play size={48} strokeWidth={3} fill="currentColor" />
           </span>
         )}
         {heart && (
@@ -165,7 +165,7 @@ export default function ImmersiveControls({
           aria-label={paused ? "Resume playback" : "Pause playback"}
           onClick={toggle}
         >
-          {paused ? <Play size={18} /> : <Pause size={18} />}
+          {paused ? <Play size={20} strokeWidth={3} fill="currentColor" /> : <Pause size={20} strokeWidth={3} />}
         </button>
         <span className="clip-time">
           {Math.floor(progress)} / {Math.floor(duration)}s

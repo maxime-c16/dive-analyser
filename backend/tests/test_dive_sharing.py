@@ -204,3 +204,34 @@ def test_share_status_is_owner_only_and_tracks_revocation(workspace):
     assert login('bob').get(f'/api/v1/dives/{dives["alice-private"]}/shares').status_code == 404
     assert login('alice').delete(url).status_code == 204
     assert login('alice').get(url).json() == {'active_count': 0}
+
+
+def test_guest_threads_and_comment_reactions_keep_identity_and_scope(workspace):
+    _, login, dives, _, _ = workspace
+    dive_id = dives['alice-public']
+    member_url = f'/api/v1/dives/{dive_id}'
+    root = login('alice').post(member_url + '/comments', json={'body': 'Member thread'}).json()
+    base, token = issue(login, dive_id)
+    with TestClient(app, base_url='https://testserver') as first, TestClient(app, base_url='https://testserver') as second:
+        identity = enter(first, base, token)
+        enter(second, base, token)
+        reply = first.post(base + '/comments', json={'body': 'Guest reply', 'parent_id': root['id']}).json()
+        assert reply['parent_id'] == root['id']
+        assert reply['guest_id'] == identity['guest_id'] and reply['user_id'] is None
+        reaction = base + f"/comments/{root['id']}/like"
+        for _ in range(2):
+            assert first.put(reaction, json={'liked': True}).json()['like_count'] == 1
+        assert second.get(base + '/comments').json()['items'][0]['liked'] is False
+        member = login('alice').put(member_url + f"/comments/{root['id']}/like", json={'liked': True}).json()
+        assert member['like_count'] == 2
+        assert first.put(reaction, json={'liked': False}).json()['like_count'] == 1
+        assert first.get(base + f"/comments?parent_id={root['id']}").json()['items'][0]['id'] == reply['id']
+        assert second.delete(base + f"/comments/{reply['id']}").status_code == 403
+        assert first.delete(base + f"/comments/{root['id']}").status_code == 403
+        other_base, other_token = issue(login, dives['alice-private'])
+        assert first.put(other_base + f"/comments/{root['id']}/like", json={'liked': True}).status_code == 404
+        enter(first, other_base, other_token)
+        assert first.post(other_base + '/comments', json={'body': 'Wrong dive', 'parent_id': root['id']}).status_code == 404
+        assert first.put(other_base + f"/comments/{root['id']}/like", json={'liked': True}).status_code == 404
+        assert first.delete(base + f"/comments/{reply['id']}").status_code == 204
+        assert login('alice').get(member_url + '/comments').json()['items'][0]['reply_count'] == 0

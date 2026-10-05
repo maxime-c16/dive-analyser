@@ -27,7 +27,7 @@ from app.services.dive_access import can_manage_dive, require_dive_owner
 from app.services.write_guard import optional_session_user
 from app.services import legacy_media, b2_presign
 from app.api.v1.auth import _origin_allowed
-from app.api.v1.dive_social import LikeInput, CommentInput, comments, comment_payload
+from app.api.v1.dive_social import LikeInput, CommentInput, comments, comment, delete_comment, like_comment
 from app.api.v1.media import _serve_media_file
 from app.api.v1.media_playback import _resolve_verified_prod_location, DENY_STORAGE_AMBIGUOUS
 
@@ -177,34 +177,27 @@ def guest_like(payload: LikeInput, access=Depends(guest_access), db: Session = D
 
 
 @router.get('/shared-dives/{share_id}/comments')
-def guest_comments(before: int | None = None, access=Depends(guest_access), db: Session = Depends(get_db)):
+def guest_comments(before: int | None = None, parent_id: int | None = None, access=Depends(guest_access), db: Session = Depends(get_db)):
     dive, guest = access
-    return comments(dive.id, before, guest, db)
+    return comments(dive.id, before=before, parent_id=parent_id, user=guest, db=db)
 
 
 @router.post('/shared-dives/{share_id}/comments', status_code=201)
 def guest_comment(payload: CommentInput, access=Depends(guest_access), db: Session = Depends(get_db)):
     dive, guest = access
-    body = payload.body.strip()
-    if not body:
-        raise HTTPException(422, 'Comment cannot be blank')
-    row = DiveComment(dive_id=dive.id, guest_id=guest.id, body=body)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return comment_payload(row, guest.display_name)
+    return comment(dive.id, payload, guest, db)
 
 
 @router.delete('/shared-dives/{share_id}/comments/{comment_id}', status_code=204)
 def guest_delete_comment(comment_id: int, access=Depends(guest_access), db: Session = Depends(get_db)):
     dive, guest = access
-    row = db.query(DiveComment).filter_by(id=comment_id, dive_id=dive.id).first()
-    if row is None:
-        raise HTTPException(404, 'Comment not found')
-    if row.guest_id != guest.id:
-        raise HTTPException(403, 'Only the author can delete this comment')
-    db.delete(row)
-    db.commit()
+    return delete_comment(dive.id, comment_id, guest, db)
+
+
+@router.put('/shared-dives/{share_id}/comments/{comment_id}/like')
+def guest_like_comment(comment_id: int, payload: LikeInput, access=Depends(guest_access), db: Session = Depends(get_db)):
+    dive, guest = access
+    return like_comment(dive.id, comment_id, payload, guest, db)
 
 
 @router.get('/shared-dives/{share_id}/video')

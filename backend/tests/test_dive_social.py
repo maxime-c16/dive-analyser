@@ -56,3 +56,52 @@ def test_comment_pagination_has_no_duplicates(workspace):
     assert len(second['items']) == 5
     assert len({row['id'] for row in first['items'] + second['items']}) == 55
     assert second['next_before'] is None
+
+
+def test_comment_threads_likes_and_cross_dive_scope(workspace):
+    _, login, dives, _, _ = workspace
+    client = login('bob')
+    url = f"/api/v1/dives/{dives['alice-public']}"
+    root = client.post(url + '/comments', json={'body': 'Great entry'}).json()
+    reply = client.post(url + '/comments', json={'body': 'Thanks!', 'parent_id': root['id']}).json()
+    nested = client.post(url + '/comments', json={'body': 'Keep it up', 'parent_id': reply['id']}).json()
+    assert reply['parent_id'] == nested['parent_id'] == root['id']
+    roots = client.get(url + '/comments').json()['items']
+    assert len(roots) == 1 and roots[0]['reply_count'] == 2
+    replies = client.get(url + f"/comments?parent_id={root['id']}").json()['items']
+    assert {row['id'] for row in replies} == {reply['id'], nested['id']}
+    reaction = url + f"/comments/{reply['id']}/like"
+    for _ in range(2):
+        response = client.put(reaction, json={'liked': True})
+        assert response.status_code == 200
+        assert response.json()['like_count'] == 1
+    assert login('alice').get(url + f"/comments?parent_id={root['id']}").json()['items'][1]['liked'] is False
+    assert login('bob').put(reaction, json={'liked': False}).json()['like_count'] == 0
+    other = f"/api/v1/dives/{dives['bob-public']}"
+    assert client.post(other + '/comments', json={'body': 'Wrong dive', 'parent_id': root['id']}).status_code == 404
+    assert client.put(other + f"/comments/{root['id']}/like", json={'liked': True}).status_code == 404
+    assert client.get(other + f"/comments?parent_id={root['id']}").status_code == 404
+    private = f"/api/v1/dives/{dives['alice-private']}"
+    assert client.put(private + f"/comments/{root['id']}/like", json={'liked': True}).status_code == 404
+    assert client.delete(url + f"/comments/{root['id']}").status_code == 204
+    assert client.get(url + '/social').json()['comment_count'] == 0
+    assert client.put(reaction, json={'liked': True}).status_code == 404
+
+
+def test_replies_are_paginated_separately_and_likes_cascade(workspace):
+    from app.models.dive_social import DiveComment, DiveCommentLike
+    db, login, dives, users, _ = workspace
+    client = login('bob')
+    url = f"/api/v1/dives/{dives['alice-public']}"
+    root = client.post(url + '/comments', json={'body': 'Thread'}).json()
+    db.add_all([DiveComment(dive_id=dives['alice-public'], user_id=users['bob'].id, body=str(i), parent_id=root['id']) for i in range(55)])
+    db.commit()
+    first = client.get(url + f"/comments?parent_id={root['id']}").json()
+    second = client.get(url + f"/comments?parent_id={root['id']}&before={first['next_before']}").json()
+    assert len(first['items']) == 50 and len(second['items']) == 5
+    assert len({row['id'] for row in first['items'] + second['items']}) == 55
+    liked_id = first['items'][0]['id']
+    assert client.put(url + f'/comments/{liked_id}/like', json={'liked': True}).status_code == 200
+    assert client.delete(url + f"/comments/{root['id']}").status_code == 204
+    assert db.query(DiveCommentLike).count() == 0
+    assert client.get(url + '/social').json()['comment_count'] == 0
