@@ -361,7 +361,7 @@ export default function ClipViewer({
             <button
               type="button"
               tabIndex={-1}
-              className="clip-panel-scrim"
+              className={`clip-panel-scrim ${commentsOpen ? "clip-comments-scrim" : ""}`}
               aria-label="Close details and comments"
               onClick={closePanel}
             />
