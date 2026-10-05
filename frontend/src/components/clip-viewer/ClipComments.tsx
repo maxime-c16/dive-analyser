@@ -19,7 +19,14 @@ export default function ClipComments({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const mounted = useRef(true);
+  const activeId = useRef(id);
+  activeId.current = id;
+  const latestLoad = useRef(0);
+  // Changes made after a read starts must win over that read's snapshot.
+  const pendingMutations = useRef(new Map<number, Comment | null>());
   const load = async (cursor?: number) => {
+    const request = ++latestLoad.current;
+    pendingMutations.current.clear();
     setLoading(true);
     setError("");
     try {
@@ -29,15 +36,27 @@ export default function ClipComments({
       }>(`/api/v1/dives/${id}/comments`, {
         params: cursor ? { before: cursor } : {},
       });
-      if (!mounted.current) return;
-      setComments((previous) =>
-        cursor ? [...previous, ...data.items] : data.items,
-      );
+      if (!mounted.current || request !== latestLoad.current) return;
+      const mutations = new Map(pendingMutations.current);
+      setComments((previous) => {
+        const rows = new Map(
+          (cursor ? [...previous, ...data.items] : data.items).map((item) => [
+            item.id,
+            item,
+          ]),
+        );
+        for (const [commentId, comment] of mutations) {
+          if (comment) rows.set(commentId, comment);
+          else rows.delete(commentId);
+        }
+        return [...rows.values()].sort((a, b) => b.id - a.id);
+      });
       setBefore(data.next_before);
     } catch {
-      if (mounted.current) setError("Could not load comments.");
+      if (mounted.current && request === latestLoad.current)
+        setError("Could not load comments.");
     } finally {
-      if (mounted.current) setLoading(false);
+      if (mounted.current && request === latestLoad.current) setLoading(false);
     }
   };
   useEffect(() => {
@@ -45,6 +64,7 @@ export default function ClipComments({
     void load();
     return () => {
       mounted.current = false;
+      latestLoad.current += 1;
     };
   }, [id]);
   return (
@@ -60,8 +80,12 @@ export default function ClipComments({
               `/api/v1/dives/${id}/comments`,
               { body: body.trim() },
             );
-            if (!mounted.current) return;
-            setComments((previous) => [data, ...previous]);
+            if (!mounted.current || activeId.current !== id) return;
+            pendingMutations.current.set(data.id, data);
+            setComments((previous) => [
+              data,
+              ...previous.filter((item) => item.id !== data.id),
+            ]);
             setBody("");
             onCountChange(1);
           } catch {
@@ -123,7 +147,8 @@ export default function ClipComments({
                   await api.delete(
                     `/api/v1/dives/${id}/comments/${comment.id}`,
                   );
-                  if (!mounted.current) return;
+                  if (!mounted.current || activeId.current !== id) return;
+                  pendingMutations.current.set(comment.id, null);
                   setComments((previous) =>
                     previous.filter((item) => item.id !== comment.id),
                   );
