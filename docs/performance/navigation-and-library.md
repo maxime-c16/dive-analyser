@@ -69,7 +69,7 @@ Tests verify 205 lookups become three serialized batches and 48 lookups during
 a 503 become one failed batch rather than an individual-request burst.
 
 Baseline entry JavaScript was 356.35 kB / 109.84 kB gzip. Candidate entry is
-approximately 316 kB / 100 kB gzip (about 11% raw / 9% gzip smaller). This is the
+approximately 317 kB / 100 kB gzip (about 11% raw / 9% gzip smaller). This is the
 entry chunk, not the sum of every asset eventually loaded by every route.
 
 ## Read-only production check

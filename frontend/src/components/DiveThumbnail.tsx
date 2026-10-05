@@ -62,9 +62,11 @@ export default function DiveThumbnail({
       ) : (
         // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
-          <span className="font-mono text-xl font-semibold tracking-tight text-app-muted">
-            {dive.dive_code}
-          </span>
+          {!compact && (
+            <span className="font-mono text-xl font-semibold tracking-tight text-app-muted">
+              {dive.dive_code}
+            </span>
+          )}
         </div>
       )}
       {dive.video_uuid &&
