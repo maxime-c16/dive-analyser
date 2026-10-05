@@ -27,6 +27,38 @@ const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
 const INTERACTIVE_TARGET =
   'input, textarea, select, button, a, video, [contenteditable="true"], [role="slider"], [role="combobox"]';
 
+// TikTok-style vertical feed transition: a short compositor-only enter slide
+// on mobile when the selected dive changes (swipe up/down, Previous/Next).
+// transform/opacity only, ~240ms, mobile-only, skipped under
+// prefers-reduced-motion. No data-layer change: library/media caches,
+// neighbor prefetch and DiveVideoPlayer loading flow are untouched.
+export const CLIP_SLIDE_DISTANCE_PX = 56;
+export const CLIP_SLIDE_DURATION_MS = 240;
+const MOBILE_SLIDE_QUERY = "(max-width: 599px)";
+
+export function slideKeyframes(direction: -1 | 1): Keyframe[] {
+  return [
+    { transform: `translateY(${direction * CLIP_SLIDE_DISTANCE_PX}px)`, opacity: "0.4" },
+    { transform: "translateY(0)", opacity: "1" },
+  ];
+}
+
+export function shouldPlaySlideAnimation(): boolean {
+  try {
+    const reduce =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
+      false;
+    if (reduce) return false;
+    // Mobile-only, matching the max-width:599px mobile styles. An unknown
+    // viewport (e.g. jsdom) defaults to playing so tests can observe it.
+    return (
+      window.matchMedia?.(MOBILE_SLIDE_QUERY).matches ?? true
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function ClipViewer({
   attempt,
   attempts,
@@ -66,6 +98,8 @@ export default function ClipViewer({
   } = useDiveSocial(attempt.id);
   const descriptionGesture = useRef<number | null>(null);
   const descriptionSwiped = useRef(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const prevIndexRef = useRef(index);
   const panelOpen = detailsOpen || commentsOpen || manageOpen;
   const panelRef = useRef<HTMLElement>(null);
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
@@ -155,6 +189,31 @@ export default function ClipViewer({
     });
   }, [attempts, index]);
 
+  // Feed-style enter animation: purely visual, no extra render (direct DOM
+  // mutation + Web Animations API) and no effect on loading or caching.
+  useEffect(() => {
+    const prev = prevIndexRef.current;
+    if (prev === index) return;
+    const direction: -1 | 1 = index > prev ? 1 : -1;
+    prevIndexRef.current = index;
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.dataset.slide = direction === 1 ? "next" : "prev";
+    if (
+      typeof stage.animate === "function" &&
+      shouldPlaySlideAnimation()
+    ) {
+      try {
+        stage.animate(slideKeyframes(direction), {
+          duration: CLIP_SLIDE_DURATION_MS,
+          easing: "cubic-bezier(0.22, 0.9, 0.28, 1)",
+        });
+      } catch {
+        // Animation is progressive enhancement; navigation already happened.
+      }
+    }
+  }, [index]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -242,6 +301,7 @@ export default function ClipViewer({
         </header>
         <div className="clip-layout">
           <div
+            ref={stageRef}
             className="clip-stage"
             data-orientation={aspectRatio > 1 ? "landscape" : "portrait"}
             style={{ "--clip-aspect": aspectRatio } as React.CSSProperties}

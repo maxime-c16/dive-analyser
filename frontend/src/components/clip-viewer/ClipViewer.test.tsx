@@ -281,3 +281,153 @@ it('swiping up the description expands details without the following click closi
   expect(button).toHaveAttribute('aria-expanded', 'true')
   expect(document.getElementById('clip-viewer-details')).not.toHaveAttribute('hidden')
 })
+
+// ---- Mobile feed-style slide animation (Instagram/TikTok-like) ----
+
+import { CLIP_SLIDE_DISTANCE_PX, CLIP_SLIDE_DURATION_MS } from './ClipViewer'
+
+function stubSlideEnvironment({ mobile, reduce }: { mobile: boolean; reduce: boolean }) {
+  const animateMock = vi.fn(() => ({ finished: Promise.resolve() }))
+  const animateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate')
+  Object.defineProperty(HTMLElement.prototype, 'animate', {
+    configurable: true,
+    writable: true,
+    value: animateMock,
+  })
+  const matchMediaDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes('max-width')
+        ? mobile
+        : query.includes('reduce')
+          ? reduce
+          : false,
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent() { return false },
+    }),
+  })
+  return {
+    animateMock,
+    restore() {
+      if (animateDescriptor) Object.defineProperty(HTMLElement.prototype, 'animate', animateDescriptor)
+      else delete (HTMLElement.prototype as { animate?: unknown }).animate
+      if (matchMediaDescriptor) Object.defineProperty(window, 'matchMedia', matchMediaDescriptor)
+      else delete (window as { matchMedia?: unknown }).matchMedia
+    },
+  }
+}
+
+function renderAt(index: number) {
+  return render(
+    <MemoryRouter>
+      <ClipViewer
+        attempt={attempts[index]}
+        attempts={attempts}
+        onClose={() => {}}
+        onMove={() => {}}
+        playbackRate={1}
+        onPlaybackRateChange={() => {}}
+      />
+    </MemoryRouter>,
+  )
+}
+
+it('slides the stage up on next and down on previous without new network calls', () => {
+  const env = stubSlideEnvironment({ mobile: true, reduce: false })
+  try {
+    const view = renderAt(1)
+    const stage = document.querySelector('.clip-stage') as HTMLElement
+    expect(stage).not.toBeNull()
+    expect(env.animateMock).not.toHaveBeenCalled()
+
+    view.rerender(
+      <MemoryRouter>
+        <ClipViewer
+          attempt={attempts[2]}
+          attempts={attempts}
+          onClose={() => {}}
+          onMove={() => {}}
+          playbackRate={1}
+          onPlaybackRateChange={() => {}}
+        />
+      </MemoryRouter>,
+    )
+    expect(stage.dataset.slide).toBe('next')
+    expect(env.animateMock).toHaveBeenCalledTimes(1)
+    const [nextFrames, nextOptions] = env.animateMock.mock.calls[0] as unknown as [Keyframe[], KeyframeAnimationOptions]
+    expect(JSON.stringify(nextFrames)).toContain(`translateY(${CLIP_SLIDE_DISTANCE_PX}px)`)
+    expect(nextOptions.duration).toBe(CLIP_SLIDE_DURATION_MS)
+    // Compositor-only properties: no layout-thrash-inducing width/height/top.
+    expect(JSON.stringify(nextFrames)).not.toMatch(/width|height|top|left/)
+
+    view.rerender(
+      <MemoryRouter>
+        <ClipViewer
+          attempt={attempts[1]}
+          attempts={attempts}
+          onClose={() => {}}
+          onMove={() => {}}
+          playbackRate={1}
+          onPlaybackRateChange={() => {}}
+        />
+      </MemoryRouter>,
+    )
+    expect(stage.dataset.slide).toBe('prev')
+    expect(env.animateMock).toHaveBeenCalledTimes(2)
+    const [prevFrames] = env.animateMock.mock.calls[1] as unknown as [Keyframe[], KeyframeAnimationOptions]
+    expect(JSON.stringify(prevFrames)).toContain(`translateY(${-CLIP_SLIDE_DISTANCE_PX}px)`)
+  } finally {
+    env.restore()
+  }
+})
+
+it('skips the slide animation under prefers-reduced-motion', () => {
+  const env = stubSlideEnvironment({ mobile: true, reduce: true })
+  try {
+    const view = renderAt(1)
+    view.rerender(
+      <MemoryRouter>
+        <ClipViewer
+          attempt={attempts[2]}
+          attempts={attempts}
+          onClose={() => {}}
+          onMove={() => {}}
+          playbackRate={1}
+          onPlaybackRateChange={() => {}}
+        />
+      </MemoryRouter>,
+    )
+    expect(env.animateMock).not.toHaveBeenCalled()
+  } finally {
+    env.restore()
+  }
+})
+
+it('skips the slide animation on desktop viewports', () => {
+  const env = stubSlideEnvironment({ mobile: false, reduce: false })
+  try {
+    const view = renderAt(1)
+    view.rerender(
+      <MemoryRouter>
+        <ClipViewer
+          attempt={attempts[2]}
+          attempts={attempts}
+          onClose={() => {}}
+          onMove={() => {}}
+          playbackRate={1}
+          onPlaybackRateChange={() => {}}
+        />
+      </MemoryRouter>,
+    )
+    expect(env.animateMock).not.toHaveBeenCalled()
+  } finally {
+    env.restore()
+  }
+})
