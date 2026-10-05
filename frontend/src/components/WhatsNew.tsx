@@ -55,6 +55,10 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   const unread = !!manifest?.notes.some(note => !state?.seen.includes(note.id))
 
   useEffect(() => {
+    if (toast && (!compatible || toast.some(note => !manifest?.notes.some(active => active.id === note.id)))) setToast(null)
+  }, [manifest, compatible, toast])
+
+  useEffect(() => {
     const abort = new AbortController()
     let loading = false
     const load = async () => {
@@ -158,7 +162,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 export function WhatsNewButton({ compact = false }: { compact?: boolean }) {
   const { open, unread } = useContext(Context)
   return <button aria-label="What's new" onClick={open} className={`flex min-h-11 items-center gap-2 border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left'}`}>
-    <Sparkles className="h-4 w-4" /><span>What's new</span>{unread && <span aria-label="Unread updates" className="ml-auto h-1.5 w-1.5 rounded-full bg-app-accent" />}
+    <Sparkles className="h-4 w-4 shrink-0" /><span className={compact ? 'hidden sm:inline' : ''}>What's new</span>{unread && <span aria-label="Unread updates" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-app-accent" />}
   </button>
 }
 

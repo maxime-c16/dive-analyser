@@ -61,6 +61,11 @@ class ReleaseNotesTests(unittest.TestCase):
             self.build(self.first, 'HEAD')
 
     def test_note_schema_rejects_invalid_dependencies_and_ids(self):
-        for bad in [dict(components=[]), dict(components=['mac']), dict(audience='secret'), dict(title=''), dict(id='../first')]:
+        for bad in [dict(components=[]), dict(components=['mac']), dict(audience='secret'), dict(title=''), dict(id='../first'), dict(date='20261005')]:
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 notes.validate({**self.note, **bad}, 'first.json')
+
+    def test_published_note_cannot_be_deleted(self):
+        (self.root / notes.NOTE_DIR / 'first.json').unlink()
+        with self.assertRaises(ValueError):
+            notes.check_tree(self.root)

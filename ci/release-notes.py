@@ -16,6 +16,8 @@ def validate(note, filename):
         raise ValueError(f'{filename}: expected {sorted(FIELDS)}')
     if not isinstance(note['id'], str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', note['id']) or filename != note['id'] + '.json':
         raise ValueError(f'{filename}: id must match filename')
+    if not isinstance(note['date'], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', note['date']):
+        raise ValueError(f'{filename}: date must use YYYY-MM-DD')
     datetime.date.fromisoformat(note['date'])
     for field, maximum in [('title', 100), ('body', 600)]:
         if not isinstance(note[field], str) or not 1 <= len(note[field].strip()) <= maximum:
@@ -33,6 +35,13 @@ def git(root, *args):
 
 
 def check_tree(root):
+    baseline = 'origin/master'
+    if subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', baseline],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+        baseline = 'HEAD'
+    for filename in git(root, 'ls-tree', '-r', '--name-only', baseline, '--', NOTE_DIR).splitlines():
+        if filename.endswith('.json') and not (root / filename).is_file():
+            raise ValueError(f'{filename}: published notes cannot be deleted')
     for path in sorted((root / NOTE_DIR).glob('*.json')):
         validate(json.loads(path.read_text()), path.name)
         # Existing notes are immutable: corrections receive a new ID.

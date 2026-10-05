@@ -61,6 +61,26 @@ describe('update hints', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  it('shows only newly arrived notes after the cooldown expires', async () => {
+    localStorage.setItem(key, JSON.stringify({ seen: ['first'], lastShown: Date.now() - 86_400_001 }))
+    current = manifest([second, note])
+    mount(); await screen.findByRole('status')
+    expect(screen.getByRole('status')).toHaveTextContent(second.title)
+    expect(screen.getByRole('status')).not.toHaveTextContent(note.title)
+  })
+
+  it('removes an ineligible hint on rollback without resetting the cooldown', async () => {
+    mount(); await screen.findByRole('status')
+    const claimed = localStorage.getItem(key)
+    current = manifest([])
+    await act(async () => { window.dispatchEvent(new Event('focus')) })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(localStorage.getItem(key)).toEqual(claimed)
+    current = manifest()
+    await act(async () => { window.dispatchEvent(new Event('focus')) })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('keeps manual history when storage is unavailable', async () => {
     vi.spyOn(localStorage, 'getItem').mockImplementation(() => { throw new Error('blocked') })
     mount(); await waitFor(() => expect(fetch).toHaveBeenCalled())
