@@ -10,7 +10,7 @@ const adminUser = {
   role: 'owner',
   is_admin: true,
   is_active: true,
-  diver_ids: [10],
+  diver_count: 1,
   live_sessions: 1,
   created_at: '2026-01-01T00:00:00',
 }
@@ -22,10 +22,13 @@ const diverUser = {
   role: 'friend',
   is_admin: false,
   is_active: true,
-  diver_ids: [10],
+  diver_count: 1,
   live_sessions: 1,
   created_at: '2026-01-02T00:00:00',
 }
+
+const diverDetail = { ...diverUser, diver_ids: [10] }
+const adminDetail = { ...adminUser, diver_ids: [10] }
 
 const divers = [
   { diver_id: 10, display_name: 'Aqua', canonical_name: 'aqua', active: true, bound_to_user: true },
@@ -43,6 +46,13 @@ function installFetch(handler?: (url: string, init?: RequestInit) => unknown) {
     if (handler) {
       const custom = handler(href, init as RequestInit)
       if (custom !== undefined) return new Response(JSON.stringify(custom), { status: 200 })
+    }
+    const method = (init as RequestInit | undefined)?.method
+    if (href === '/api/v1/admin/users/2' && (!method || method === 'GET')) {
+      return new Response(JSON.stringify(diverDetail), { status: 200 })
+    }
+    if (href === '/api/v1/admin/users/1' && (!method || method === 'GET')) {
+      return new Response(JSON.stringify(adminDetail), { status: 200 })
     }
     if (href.startsWith('/api/v1/admin/users')) {
       return new Response(JSON.stringify(mockDirectory()), { status: 200 })
@@ -169,6 +179,17 @@ describe('AdminUsers', () => {
     fireEvent.change(await screen.findByLabelText('New password'), { target: { value: 'brand-new-password-99' } })
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('2 session(s) signed out'))
+  })
+
+  it('loads bindings from the user detail endpoint, not the directory list', async () => {
+    const { calls } = installFetch()
+    render(<AdminUsers currentUserId={1} />)
+    await screen.findByText('diver@example.test')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Manage' })[1])
+    await screen.findByRole('button', { name: 'Unbind' })
+    expect(
+      calls.some(c => c.url === '/api/v1/admin/users/2' && !c.init?.method),
+    ).toBe(true)
   })
 
   it('binds and unbinds divers', async () => {

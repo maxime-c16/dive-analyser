@@ -166,21 +166,32 @@ def _live_session_counts(db: Session, user_ids: List[int]) -> Dict[int, int]:
     return {user_id: count for user_id, count in rows}
 
 
-def _diver_ids_for_users(
-    db: Session, user_ids: List[int]
-) -> Dict[int, List[int]]:
+def _diver_binding_counts(db: Session, user_ids: List[int]) -> Dict[int, int]:
+    """Per-user binding counts for the directory list (one bounded row per user).
+
+    The full binding id lists are served per user by GET /admin/users/{id},
+    so the directory payload never embeds an unbounded association list.
+    """
     if not user_ids:
         return {}
     rows = (
-        db.query(UserDiverAccess.user_id, UserDiverAccess.diver_id)
+        db.query(UserDiverAccess.user_id, func.count(UserDiverAccess.diver_id))
         .filter(UserDiverAccess.user_id.in_(user_ids))
+        .group_by(UserDiverAccess.user_id)
+        .all()
+    )
+    return {user_id: count for user_id, count in rows}
+
+
+def _diver_ids_for_user(db: Session, user_id: int) -> List[int]:
+    """Binding id list for one user (single-user detail endpoints only)."""
+    rows = (
+        db.query(UserDiverAccess.diver_id)
+        .filter(UserDiverAccess.user_id == user_id)
         .order_by(UserDiverAccess.diver_id.asc())
         .all()
     )
-    mapping: Dict[int, List[int]] = {user_id: [] for user_id in user_ids}
-    for user_id, diver_id in rows:
-        mapping.setdefault(user_id, []).append(diver_id)
-    return mapping
+    return [diver_id for (diver_id,) in rows]
 
 
 def _serialize_user(
@@ -200,6 +211,21 @@ def _serialize_user(
         "live_sessions": int(live_sessions),
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
+
+
+def _serialize_user_row(
+    user: AppUser,
+    *,
+    diver_count: int,
+    live_sessions: int,
+) -> dict:
+    """Directory row: counts only, no association lists."""
+    payload = _serialize_user(
+        user, diver_ids=[], live_sessions=live_sessions
+    )
+    del payload["diver_ids"]
+    payload["diver_count"] = int(diver_count)
+    return payload
 
 
 def _normalize_email(raw: str) -> str:
@@ -239,7 +265,11 @@ def list_users(
     db: Session = Depends(get_db),
     _admin: AppUser = Depends(require_admin),
 ):
-    """Bounded administrator user directory (no secrets)."""
+    """Bounded administrator user directory (no secrets).
+
+    Rows carry binding *counts*; the binding id lists live behind
+    GET /admin/users/{id} so the directory never embeds association lists.
+    """
     query = db.query(AppUser)
     if is_active is not None:
         query = query.filter(AppUser.is_active.is_(bool(is_active)))
@@ -253,12 +283,12 @@ def list_users(
     rows = query.order_by(AppUser.id.asc()).offset(offset).limit(limit).all()
     ids = [row.id for row in rows]
     counts = _live_session_counts(db, ids)
-    divers = _diver_ids_for_users(db, ids)
+    binding_counts = _diver_binding_counts(db, ids)
     return {
         "users": [
-            _serialize_user(
+            _serialize_user_row(
                 row,
-                diver_ids=divers.get(row.id, []),
+                diver_count=binding_counts.get(row.id, 0),
                 live_sessions=counts.get(row.id, 0),
             )
             for row in rows
@@ -275,14 +305,14 @@ def get_user(
     db: Session = Depends(get_db),
     _admin: AppUser = Depends(require_admin),
 ):
+    """Single-user detail, including the binding id list for the manage panel."""
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     counts = _live_session_counts(db, [user.id])
-    divers = _diver_ids_for_users(db, [user.id])
     return _serialize_user(
         user,
-        diver_ids=divers.get(user.id, []),
+        diver_ids=_diver_ids_for_user(db, user.id),
         live_sessions=counts.get(user.id, 0),
     )
 
@@ -334,6 +364,13 @@ def create_user(
         )
     )
     if diver is not None:
+        # OWNER is the single ownership kind in this repo: the binding scopes
+        # the account to this diver's dives only. Same grant as
+        # manage_user.cmd_bind (no role check there either) and auth.register
+        # (every self-registered diver is friend-role + OWNER-bound, and
+        # manages their own dives — see the ownership model above and
+        # test_admin_bound_diver_manages_own_dives_only). Role is not checked
+        # here: role gates administration (is_admin), never dive ownership.
         db.add(
             UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER")
         )
@@ -347,10 +384,9 @@ def create_user(
         metadata={"role": role, "active": bool(body.is_active)},
     )
     counts = _live_session_counts(db, [user.id])
-    divers = _diver_ids_for_users(db, [user.id])
     return _serialize_user(
         user,
-        diver_ids=divers.get(user.id, []),
+        diver_ids=_diver_ids_for_user(db, user.id),
         live_sessions=counts.get(user.id, 0),
     )
 
@@ -406,6 +442,11 @@ def update_user(
                 detail="You cannot remove your own administrator role",
             )
         if role != user.role or bool(user.is_admin) != (role == ROLE_OWNER):
+            # Role gates administration only. Bindings are left untouched on
+            # purpose — same as manage_user.cmd_set_role: a demoted
+            # administrator keeps their own diver (loses admin access, not
+            # their dives), and promoting never grants dive ownership.
+            # Stripping bindings here would destroy dive ownership data.
             user.role = role
             user.is_admin = role == ROLE_OWNER
             role_changed = True
@@ -456,10 +497,9 @@ def update_user(
         )
     db.refresh(user)
     counts = _live_session_counts(db, [user.id])
-    divers = _diver_ids_for_users(db, [user.id])
     payload = _serialize_user(
         user,
-        diver_ids=divers.get(user.id, []),
+        diver_ids=_diver_ids_for_user(db, user.id),
         live_sessions=counts.get(user.id, 0),
     )
     payload["revoked_sessions"] = revoked

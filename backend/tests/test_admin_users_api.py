@@ -162,9 +162,12 @@ def test_list_users_bounded_with_search_and_filter(admin_client, db):
         "admin@example.test", "diver@example.test"}
     for entry in body["users"]:
         assert "password_hash" not in entry
+        assert "diver_ids" not in entry
         assert set(entry) >= {"user_id", "email", "display_name", "role",
-                              "is_admin", "is_active", "diver_ids",
+                              "is_admin", "is_active", "diver_count",
                               "live_sessions", "created_at"}
+    counts = {u["email"]: u["diver_count"] for u in body["users"]}
+    assert counts == {"admin@example.test": 1, "diver@example.test": 0}
 
     assert admin_client.get(
         "/api/v1/admin/users", params={"q": "DIVER"}
@@ -184,6 +187,7 @@ def test_get_user_detail(admin_client):
     body = admin_client.get(f"/api/v1/admin/users/{me['user_id']}").json()
     assert body["email"] == "admin@example.test"
     assert body["is_admin"] is True
+    assert len(body["diver_ids"]) == 1
     assert admin_client.get("/api/v1/admin/users/999999").status_code == 404
 
 

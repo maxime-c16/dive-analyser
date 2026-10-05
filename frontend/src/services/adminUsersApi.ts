@@ -10,10 +10,13 @@ export interface AdminUser {
   role: StoredRole
   is_admin: boolean
   is_active: boolean
-  diver_ids: number[]
   live_sessions: number
   created_at: string | null
   revoked_sessions?: number
+  /** Directory rows carry this; the manage panel loads the id list via getUser. */
+  diver_count?: number
+  /** Present on detail/create/update payloads only. */
+  diver_ids?: number[]
 }
 
 export interface AdminDiver {
@@ -73,6 +76,10 @@ export function listUsers(params?: {
   if (params?.offset !== undefined) search.set('offset', String(params.offset))
   const suffix = search.toString()
   return request<AdminUserList>(`/api/v1/admin/users${suffix ? `?${suffix}` : ''}`)
+}
+
+export function getUser(userId: number): Promise<AdminUser> {
+  return request<AdminUser>(`/api/v1/admin/users/${userId}`)
 }
 
 export function createUser(body: {

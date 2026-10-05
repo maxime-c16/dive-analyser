@@ -3,6 +3,7 @@ import { KeyRound, LogOut, Pencil, RefreshCw, Search, UserPlus, Users } from 'lu
 import {
   bindDiver,
   createUser,
+  getUser,
   listAllDivers,
   listUsers,
   resetPassword,
@@ -44,6 +45,8 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<Notice>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [detail, setDetail] = useState<AdminUser | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -65,6 +68,21 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
 
   const selected = users.find(u => u.user_id === selectedId) ?? null
   const isSelf = selected !== null && selected.user_id === currentUserId
+  const bindings = detail?.user_id === selectedId ? (detail.diver_ids ?? []) : []
+
+  const refreshDetail = useCallback(async (userId: number, signal?: AbortSignal) => {
+    setDetailLoading(true)
+    try {
+      const loaded = await getUser(userId)
+      if (!signal?.aborted) setDetail(loaded)
+    } catch (reason) {
+      if ((reason as Error).name !== 'AbortError' && !signal?.aborted) {
+        setNotice({ kind: 'error', text: reason instanceof Error ? reason.message : 'Unable to load user' })
+      }
+    } finally {
+      if (!signal?.aborted) setDetailLoading(false)
+    }
+  }, [])
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
@@ -99,6 +117,16 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
   }, [refresh])
 
   useEffect(() => {
+    if (selectedId === null) {
+      setDetail(null)
+      return
+    }
+    const controller = new AbortController()
+    void refreshDetail(selectedId, controller.signal)
+    return () => controller.abort()
+  }, [selectedId, refreshDetail])
+
+  useEffect(() => {
     if (selected) {
       setEditName(selected.display_name)
       setEditEmail(selected.email)
@@ -115,6 +143,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
       const result = await action()
       setNotice({ kind: 'ok', text: okText(result) })
       await refresh()
+      if (selectedId !== null) await refreshDetail(selectedId)
     } catch (reason) {
       setNotice({ kind: 'error', text: reason instanceof Error ? reason.message : 'Action failed' })
     } finally {
@@ -334,7 +363,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                       {user.is_active ? 'Active' : 'Disabled'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-app-muted">{user.diver_ids.length}</td>
+                  <td className="px-4 py-3 tabular-nums text-app-muted">{user.diver_count ?? '—'}</td>
                   <td className="px-4 py-3 tabular-nums text-app-muted">{user.live_sessions}</td>
                   <td className="px-4 py-3 text-right">
                     <button
@@ -488,12 +517,15 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
               <Users className="h-4 w-4 text-app-accent" aria-hidden />
               Diver bindings
             </h4>
-            {selected.diver_ids.length === 0 && editRole === 'administrator' && (
+            {bindings.length === 0 && editRole === 'administrator' && !detailLoading && (
               <p className="mt-1 text-xs text-amber-200">Administrators without a diver binding cannot own dives — bind one below.</p>
             )}
+            {detailLoading ? (
+              <p className="mt-2 text-sm text-app-muted">Loading bindings…</p>
+            ) : (
             <ul className="mt-2 space-y-1.5">
               {divers.map(d => {
-                const bound = selected.diver_ids.includes(d.diver_id)
+                const bound = bindings.includes(d.diver_id)
                 return (
                   <li key={d.diver_id} className="flex items-center justify-between gap-3 border border-app px-3 py-2 text-sm">
                     <span className="min-w-0">
@@ -533,6 +565,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                 )
               })}
             </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2 border-t border-app pt-4">
