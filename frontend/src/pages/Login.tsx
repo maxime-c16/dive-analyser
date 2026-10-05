@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { LogIn, ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Login() {
@@ -13,6 +14,7 @@ export default function Login() {
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useTranslation()
   const from = (location.state as { from?: string })?.from ?? '/'
 
   useEffect(() => {
@@ -34,14 +36,14 @@ export default function Login() {
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
       })
       if (!res.ok) {
-        setError('Invalid email or password')
+        setError(t('login.invalidCredentials'))
         return
       }
       setPassword('')
       await refresh()
       navigate(from, { replace: true })
     } catch {
-      setError('Network error — please try again')
+      setError(t('login.networkError'))
     } finally {
       setBusy(false)
     }
@@ -59,7 +61,7 @@ export default function Login() {
         </div>
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Email
+          {t('login.email')}
         </label>
         <input
           type="email"
@@ -72,7 +74,7 @@ export default function Login() {
         />
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Password
+          {t('login.password')}
         </label>
         <input
           type="password"
@@ -91,7 +93,7 @@ export default function Login() {
             onChange={e => setRememberMe(e.target.checked)}
             className="h-4 w-4 rounded-sm border border-app-strong bg-app-panel-elevated accent-app-accent"
           />
-          <span className="text-sm text-app-muted">Stay signed in for 30 days</span>
+          <span className="text-sm text-app-muted">{t('login.staySignedIn')}</span>
         </label>
 
         {error && (
@@ -104,14 +106,14 @@ export default function Login() {
           className="touch-target inline-flex w-full items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 py-2.5 text-sm font-semibold text-app-text disabled:opacity-60"
         >
           <LogIn className="h-4 w-4" />
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? t('login.signingIn') : t('login.submit')}
         </button>
 
         {registrationOpen && (
           <p className="mt-5 text-center text-sm text-app-muted">
-            New here?{' '}
+            {t('login.newHere')}{' '}
             <Link to="/register" className="text-app-accent hover:underline">
-              Create a diver account
+              {t('login.createDiverAccount')}
             </Link>
           </p>
         )}

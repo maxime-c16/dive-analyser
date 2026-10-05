@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
@@ -32,11 +33,12 @@ function normalizedHeight(value: string) {
 }
 
 function ScoreBadge({ dive }: { dive: Dive }) {
+  const { t } = useTranslation();
   return (
     <span
       className={`inline-flex border px-2 py-1 text-xs font-medium ${performanceClass[dive.performance] || performanceClass.M}`}
     >
-      {performanceLabel[dive.performance] || dive.performance}
+      {performanceLabel(dive.performance) || dive.performance}
     </span>
   );
 }
@@ -50,6 +52,7 @@ function AttemptCard({
   onOpen: () => void;
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
   const score = attemptScore(dive);
   return (
     <button
@@ -57,7 +60,7 @@ function AttemptCard({
       onClick={onOpen}
       data-attempt-id={dive.id}
       className={`group min-w-0 overflow-hidden border border-app bg-app-panel text-left transition-colors hover:border-app-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${compact ? "w-[13.5rem] shrink-0 sm:w-[15rem]" : ""}`}
-      aria-label={`Open ${dive.dive_code} attempt from ${format(parseISO(dive.dive_datetime), "d MMM yyyy")}`}
+      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy") })}
     >
       <DiveThumbnail dive={dive} />
       <div className="p-3">
@@ -77,7 +80,7 @@ function AttemptCard({
         </p>
         {!compact && (
           <div className="mt-3 flex items-center justify-between border-t border-app pt-3 text-xs">
-            <span className="text-app-muted">Score</span>
+            <span className="text-app-muted">{t("dives.score")}</span>
             <span className="font-semibold text-app-text">
               {score.toFixed(1)} / 10
             </span>
@@ -89,6 +92,7 @@ function AttemptCard({
 }
 
 function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
+  const { t } = useTranslation();
   const score = attemptScore(dive);
   return (
     <button
@@ -96,7 +100,7 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
       onClick={onOpen}
       data-attempt-id={dive.id}
       className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
-      aria-label={`Open ${dive.dive_code} attempt`}
+      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: "" })}
     >
       <div className="aspect-video overflow-hidden border border-app">
         <DiveThumbnail dive={dive} compact />
@@ -176,6 +180,7 @@ export default function Dives() {
 }
 
 function DiveLibrary() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = usePreservedSearchParams();
   const { user } = useAuth();
   const cacheKey = libraryKey(user);
@@ -237,7 +242,7 @@ function DiveLibrary() {
         }
       })
       .catch(() => {
-        if (active) setError(snapshot ? "Showing saved dives. The library could not be refreshed." : "The dive library could not be loaded.");
+        if (active) setError(snapshot ? t("dives.errorSaved") : t("dives.errorLoad"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -435,17 +440,17 @@ function DiveLibrary() {
       <header className="flex items-end justify-between gap-4 border-b border-app pb-3 sm:pb-5">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">
-            Library
+            {t("nav.dives")}
           </h1>
           <p className="mt-0.5 text-xs text-app-muted sm:hidden">
-            <strong className="text-app-text">{filtered.length}</strong> attempts ·{" "}
-            <strong className="text-app-text">{codeCount}</strong> codes
+            <strong className="text-app-text">{filtered.length}</strong> {t("dives.attempts")} ·{" "}
+            <strong className="text-app-text">{codeCount}</strong> {t("dives.codes")}
           </p>
         </div>
         <button
           type="button"
-          aria-label="Refresh library"
-          title="Refresh library"
+          aria-label={t("dives.refresh")}
+          title={t("dives.refresh")}
           disabled={loading}
           onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
           className="touch-target ml-auto inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
@@ -455,8 +460,8 @@ function DiveLibrary() {
         <div className="flex h-9 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
           {(
             [
-              ["grid", "Clips"],
-              ["codes", "By code"],
+              ["grid", t("dives.viewClips")],
+              ["codes", t("dives.viewByCode")],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -472,23 +477,23 @@ function DiveLibrary() {
         </div>
         <div className="hidden gap-2 text-sm sm:flex">
           <div className="border border-app bg-app-panel px-3 py-2">
-            <span className="text-app-muted">Attempts </span>
+            <span className="text-app-muted">{t("dives.attempts")} </span>
             <strong className="ml-1 text-app-text">{filtered.length}</strong>
           </div>
           <div className="border border-app bg-app-panel px-3 py-2">
-            <span className="text-app-muted">Codes </span>
+            <span className="text-app-muted">{t("dives.codes")} </span>
             <strong className="ml-1 text-app-text">{codeCount}</strong>
           </div>
         </div>
       </header>
       <div className="mt-3"><AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} /></div>
-      <section className="mt-4 space-y-2" aria-label="Dive library filters">
+      <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
         <div className="flex flex-wrap items-center gap-2">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
             {(
               [
-                ["self", "My dives"],
-                ["all", "Community"],
+                ["self", t("dives.myDives")],
+                ["all", t("dives.community")],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -508,8 +513,8 @@ function DiveLibrary() {
               value={query}
               onChange={(event) => update({ q: event.target.value })}
               className="app-input h-11 w-full !pl-10 pr-4 text-sm"
-              placeholder="Search: 103, 103B, 103 Pike, 103B DB"
-              aria-label="Search dives"
+              placeholder={t("dives.searchPlaceholder")}
+              aria-label={t("dives.searchAria")}
             />
           </label>
           <button
@@ -517,7 +522,7 @@ function DiveLibrary() {
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
             className={`touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-            aria-label="Filters"
+            aria-label={t("dives.filters")}
           >
             <SlidersHorizontal className="h-4 w-4" />
             {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (
@@ -531,7 +536,7 @@ function DiveLibrary() {
               type="button"
               onClick={() => update({ view: "grid" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label="Grid view"
+              aria-label={t("dives.gridView")}
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
@@ -539,7 +544,7 @@ function DiveLibrary() {
               type="button"
               onClick={() => update({ view: "list" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label="List view"
+              aria-label={t("dives.listView")}
             >
               <List className="h-4 w-4" />
             </button>
@@ -547,7 +552,7 @@ function DiveLibrary() {
               type="button"
               onClick={() => update({ view: "codes" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "codes" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label="Code view"
+              aria-label={t("dives.codeView")}
             >
               <Hash className="h-4 w-4" />
             </button>
@@ -555,12 +560,12 @@ function DiveLibrary() {
         </div>
         <div className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
           <select
-            aria-label="Height"
+            aria-label={t("dives.heightFilter")}
             value={heightFilter}
             onChange={(event) => update({ height: event.target.value })}
             className="app-input h-11 w-full py-0 text-sm sm:w-auto"
           >
-            <option value="">All heights</option>
+            <option value="">{t("dives.allHeights")}</option>
             {heights.map((height) => (
               <option key={height} value={height}>
                 {height}
@@ -568,31 +573,31 @@ function DiveLibrary() {
             ))}
           </select>
           <select
-            aria-label="Context"
+            aria-label={t("dives.contextFilter")}
             value={contextFilter}
             onChange={(event) => update({ context: event.target.value })}
             className="app-input h-11 w-full py-0 text-sm sm:w-auto"
           >
-            <option value="">Individual + SYNC</option>
-            <option value="individual">Individual only</option>
-            <option value="sync">SYNC only</option>
+            <option value="">{t("dives.contextAll")}</option>
+            <option value="individual">{t("dives.contextIndividual")}</option>
+            <option value="sync">{t("dives.contextSync")}</option>
           </select>
           <select
-            aria-label="Rating"
+            aria-label={t("dives.ratingFilter")}
             value={performanceFilter}
             onChange={(event) => update({ performance: event.target.value })}
             className="app-input h-11 w-full py-0 text-sm sm:w-auto"
           >
-            <option value="">All ratings</option>
+            <option value="">{t("dives.allRatings")}</option>
             {PERFORMANCE.map((item) => (
               <option key={item} value={item}>
-                {item} · {performanceLabel[item]}
+                {item} · {performanceLabel(item)}
               </option>
             ))}
           </select>
           <div
             role="group"
-            aria-label="Modifiers"
+            aria-label={t("dives.modifiers")}
             className="flex h-11 gap-1 border border-app bg-app-panel p-1"
           >
             {MODIFIERS.map((modifier) => (
@@ -622,7 +627,7 @@ function DiveLibrary() {
             className="touch-target col-span-2 inline-flex items-center justify-center gap-2 px-2 text-sm text-app-muted hover:text-app-text disabled:hidden disabled:opacity-35 sm:disabled:inline-flex"
           >
             <SlidersHorizontal className="h-4 w-4" />
-            Reset
+            {t("common.reset")}
           </button>
         </div>
       </section>
@@ -631,7 +636,7 @@ function DiveLibrary() {
           className="border-y border-app py-20 text-center text-sm text-app-muted"
           role="status"
         >
-          Loading…
+          {t("common.loading")}
         </div>
       )}
       {error && (
@@ -645,7 +650,7 @@ function DiveLibrary() {
             onClick={() => { clearLibraryCache(); setReloadKey((key) => key + 1); }}
             className="touch-target mt-3 inline-flex items-center gap-2 border border-red-300/50 bg-black/30 px-3 text-sm text-red-50"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       )}
@@ -654,7 +659,7 @@ function DiveLibrary() {
           {filtered.length === 0 ? (
             <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
-                No attempts match this search.
+                {t("dives.noMatches")}
               </p>
               {(activeFilters > 0 || scope !== "self") && (
                 <button
@@ -663,7 +668,7 @@ function DiveLibrary() {
                   className="touch-target mt-4 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent"
                 >
                   <SlidersHorizontal className="h-4 w-4" />
-                  Clear filters
+                  {t("dives.clearFilters")}
                 </button>
               )}
             </div>
@@ -705,7 +710,7 @@ function DiveLibrary() {
                       onClick={() => setShown((count) => count + 48)}
                       className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
                     >
-                      Show 48 more attempts
+                      {t("dives.showMoreAttempts")}
                     </button>
                   </div>
                 )}
@@ -715,7 +720,7 @@ function DiveLibrary() {
         </section>
       )}
       {selected && (
-        <Suspense fallback={<p role="status" className="py-4 text-app-muted">Opening video…</p>}>
+        <Suspense fallback={<p role="status" className="py-4 text-app-muted">{t("dives.openingVideo")}</p>}>
           <ClipViewer
           attempt={selected}
           attempts={filtered}

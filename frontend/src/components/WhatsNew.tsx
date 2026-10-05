@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, X } from 'lucide-react'
@@ -43,6 +44,7 @@ export function WhatsNewProvider({ children }: { children: React.ReactNode }) {
 }
 
 function AccountUpdates({ accountId, children }: { accountId: number; children: React.ReactNode }) {
+  const { t } = useTranslation()
   const key = `dive-analyser:updates:v1:${accountId}`
   const [manifest, setManifest] = useState<Manifest | null>(null)
   const [state, setState] = useState(() => readState(key))
@@ -155,11 +157,11 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
     {children}
     {toast && compatible && <div role="status" className="fixed bottom-5 left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />Your library just got an update</h2>
-        <button aria-label="Dismiss update notification" onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
+        <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />{t('whatsNew.updateHeadline')}</h2>
+        <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
       </div>
-      <p className="mb-4 mt-2 text-sm text-app-muted">{toast.length === 1 ? toast[0].title : `${toast.length} improvements are ready to explore.`}</p>
-      <button onClick={openToast} className="min-h-11 bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">See what's new →</button>
+      <p className="mb-4 mt-2 text-sm text-app-muted">{toast.length === 1 ? toast[0].title : t('whatsNew.improvementsReady', { count: toast.length })}</p>
+      <button onClick={openToast} className="min-h-11 bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">{t('whatsNew.seeWhatsNew')}</button>
     </div>}
     {panel && <UpdatePanel manifest={panel} compatible={buildSha === 'dev' || !panel.frontend_sha || panel.frontend_sha === buildSha} close={closePanel} />}
   </Context.Provider>
@@ -167,12 +169,14 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 
 export function WhatsNewButton({ compact = false }: { compact?: boolean }) {
   const { open, unread } = useContext(Context)
-  return <button aria-label="What's new" onClick={open} className={`flex min-h-11 items-center gap-2 border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left'}`}>
-    <Sparkles className="h-4 w-4 shrink-0" /><span className={compact ? 'hidden sm:inline' : ''}>What's new</span>{unread && <span aria-label="Unread updates" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-app-accent" />}
+  const { t } = useTranslation()
+  return <button data-testid="whats-new-button" aria-label={t('whatsNew.buttonAria')} onClick={open} className={`flex min-h-11 items-center gap-2 border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left'}`}>
+    <Sparkles className="h-4 w-4 shrink-0" /><span className={compact ? 'hidden sm:inline' : ''}>{t('whatsNew.title')}</span>{unread && <span aria-label={t('whatsNew.unread')} className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-app-accent" />}
   </button>
 }
 
 function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; compatible: boolean; close: () => void }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLElement>(null)
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
@@ -197,7 +201,8 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
       document.removeEventListener('keydown', keyboard)
       if (previousFocus?.isConnected) previousFocus.focus()
       else {
-        const historyButton = Array.from(root?.querySelectorAll<HTMLButtonElement>('button[aria-label="What\'s new"]') || [])
+        // Language-agnostic: the button label is localized, so target the test id.
+        const historyButton = Array.from(root?.querySelectorAll<HTMLButtonElement>('[data-testid="whats-new-button"]') || [])
           .find(button => button.getClientRects().length > 0)
         ;(historyButton || document.getElementById('main-content'))?.focus()
       }
@@ -206,7 +211,7 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
   return createPortal(<div className="fixed inset-0 z-[70]">
     <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
     <section ref={ref} role="dialog" aria-modal="true" aria-labelledby="updates-title" className="absolute inset-y-0 right-0 w-full overflow-y-auto border-l border-app-strong bg-app-panel p-6 shadow-2xl sm:w-[450px] sm:p-8">
-      <div className="mb-8 flex items-center justify-between"><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">What's new</h2><button aria-label="Close update details" onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
+      <div className="mb-8 flex items-center justify-between"><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">{t('whatsNew.title')}</h2><button aria-label={t('whatsNew.close')} onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
       {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">A newer version is available</h3><p className="text-sm text-app-muted">Reload when you're ready to see the latest improvements.</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>Reload app</button></>
         : manifest.notes.length ? manifest.notes.map((note, index) => <article key={note.id} className="border-b border-app py-6 first:pt-0">
           <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-app-accent">{note.date}{index === 0 ? ' · Latest update' : ''}</p>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import React, { useState, useEffect } from 'react'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { AlertCircle, RotateCw, ChevronDown, ChevronUp, X } from 'lucide-react'
@@ -18,6 +19,7 @@ interface ErrorDetail {
 export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
   maxErrors = 5,
 }) => {
+  const { t } = useTranslation()
   const { currentSync, lastEvent } = useSyncStatus()
   const [errors, setErrors] = useState<ErrorDetail[]>([])
 
@@ -90,7 +92,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
 
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-red-300 text-sm">Sync Error</h4>
+              <h4 className="font-semibold text-red-300 text-sm">{t("sync.error")}</h4>
               <p className="text-xs text-app-muted mt-1">
                 {new Date(error.timestamp).toLocaleTimeString()}
               </p>
@@ -99,7 +101,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
             <button
               onClick={() => removeError(error.id)}
               className="text-app-muted hover:text-app-text flex-shrink-0"
-              aria-label="Dismiss error"
+              aria-label={t("sync.dismissError")}
             >
               <X className="w-4 h-4" />
             </button>

@@ -38,7 +38,7 @@ function RatingBar({ attempts }: { attempts: Attempt[] }) {
             key={p}
             className={ratingDot[p]}
             style={{ width: `${(n / attempts.length) * 100}%` }}
-            title={`${performanceLabel[p]}: ${n}`}
+            title={`${performanceLabel(p)}: ${n}`}
           />
         ) : null;
       })}

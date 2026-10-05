@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -78,6 +79,7 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
 }) {
+  const { t } = useTranslation();
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
@@ -285,15 +287,15 @@ export default function ClipViewer({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Back to Library"
+            aria-label={t("notFound.backToLibrary")}
             className="clip-back"
           >
             <ArrowLeft size={20} />
-            <span>Library</span>
+            <span>{t("nav.dives")}</span>
           </button>
           <div className="clip-header-label">
             <span className="clip-live-dot" />
-            DIVE REVIEW
+            {t("clipViewer.diveReview")}
           </div>
           <span className="clip-counter">
             {index + 1} / {total}
@@ -320,14 +322,14 @@ export default function ClipViewer({
               />
             ) : (
               <div className="clip-no-media">
-                No linked clip for this attempt.
+                {t("clipViewer.noLinkedClip")}
               </div>
             )}
             <div className="clip-stage-shade" />
             <div className="clip-actions">
               <button
                 type="button"
-                aria-label="Like dive"
+                aria-label={t("clipViewer.likeDive")}
                 aria-pressed={social?.liked ?? false}
                 disabled={!social || socialBusy}
                 onClick={() => void like(!social?.liked)}
@@ -336,12 +338,12 @@ export default function ClipViewer({
                   size={25}
                   fill={social?.liked ? "currentColor" : "none"}
                 />
-                <span>{social?.like_count ?? "Like"}</span>
+                <span>{social?.like_count ?? t("clipViewer.like")}</span>
               </button>
               <button
                 type="button"
                 ref={commentsButtonRef}
-                aria-label="Comments"
+                aria-label={t("clipViewer.comments")}
                 aria-expanded={commentsOpen}
                 aria-controls="clip-review-panel"
                 onClick={() => {
@@ -351,23 +353,23 @@ export default function ClipViewer({
                 }}
               >
                 <MessageCircle size={25} />
-                <span>{social?.comment_count ?? "Comments"}</span>
+                <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
               {attempt.can_manage && attempt.video_uuid && <ShareDiveButton key={attempt.id} id={attempt.id} />}
               <Link
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}
-                aria-label="Analysis"
+                aria-label={t("clipViewer.analysis")}
               >
                 <BarChart3 size={25} />
-                <span>Analysis</span>
+                <span>{t("clipViewer.analysis")}</span>
               </Link>
             </div>
             <div className="clip-caption">
               <div className="clip-caption-eyebrow">
                 {attempt.height} <span>·</span> {attempt.platform_type}{" "}
                 <span>·</span>{" "}
-                {attempt.visibility === "private" ? "Private" : "Public"}
+                {attempt.visibility === "private" ? t("clipViewer.private") : t("clipViewer.public")}
               </div>
               <h2 id="clip-viewer-title">
                 {attempt.dive_code}
@@ -406,15 +408,15 @@ export default function ClipViewer({
                 <span>
                   {attempt.notes ||
                     attempt.raw_caption ||
-                    "Every dive, a little further."}
+                    t("clipViewer.defaultCaption")}
                 </span>
                 <strong>
-                  Details <ChevronUp size={14} />
+                  {t("clipViewer.details")} <ChevronUp size={14} />
                 </strong>
               </button>
               {socialError && (
                 <p className="clip-social-error" role="alert">
-                  {socialError} <button onClick={retry}>Retry</button>
+                  {socialError} <button onClick={retry}>{t("common.retry")}</button>
                 </p>
               )}
             </div>
@@ -424,7 +426,7 @@ export default function ClipViewer({
               type="button"
               tabIndex={-1}
               className={`clip-panel-scrim ${commentsOpen ? "clip-comments-scrim" : ""}`}
-              aria-label="Close details and comments"
+              aria-label={t("clipViewer.closeDetailsAndComments")}
               onClick={closePanel}
             />
           )}
@@ -433,19 +435,19 @@ export default function ClipViewer({
             tabIndex={-1}
             id="clip-review-panel"
             className={`clip-panel ${panelOpen ? "is-open" : ""} ${commentsOpen ? "clip-panel-comments" : ""}`}
-            aria-label={commentsOpen ? "Comments" : "Dive details"}
+            aria-label={commentsOpen ? t("clipViewer.comments") : t("clipViewer.diveDetails")}
           >
             <div className="clip-panel-heading">
               <div>
                 <span className="clip-eyebrow">
-                  {commentsOpen ? "DISCUSSION" : "THE ATTEMPT"}
+                  {commentsOpen ? t("clipViewer.discussion") : t("clipViewer.theAttempt")}
                 </span>
-                <h3>{commentsOpen ? "Comments" : attempt.dive_code}</h3>
+                <h3>{commentsOpen ? t("clipViewer.comments") : attempt.dive_code}</h3>
               </div>
               <button
                 type="button"
                 className="clip-panel-close"
-                aria-label="Close panel"
+                aria-label={t("clipViewer.closePanel")}
                 onClick={closePanel}
               >
                 <X size={20} />
@@ -474,11 +476,11 @@ export default function ClipViewer({
                 <>
                   <ClipMetadataSummary attempt={attempt} />
                   <div className="clip-panel-description">
-                    <span className="clip-eyebrow">DESCRIPTION</span>
+                    <span className="clip-eyebrow">{t("clipViewer.description")}</span>
                     <p>
                       {attempt.notes ||
                         attempt.raw_caption ||
-                        "No description for this attempt."}
+                        t("clipViewer.noDescription")}
                     </p>
                   </div>
                   <ClipDetails attempt={attempt} open={detailsOpen} />
@@ -492,9 +494,8 @@ export default function ClipViewer({
                     ) : (
                       <span>
                         {attempt.visibility === "private"
-                          ? "Private"
-                          : "Public"}{" "}
-                        dive
+                          ? t("clipViewer.privateDive")
+                          : t("clipViewer.publicDive")}
                       </span>
                     )}
                     {attempt.can_manage && onUpdate && onDelete && (
@@ -503,7 +504,7 @@ export default function ClipViewer({
                         aria-expanded={manageOpen}
                         onClick={() => setManageOpen((open) => !open)}
                       >
-                        Manage dive
+                        {t("clipViewer.manageDive")}
                       </button>
                     )}
                   </div>

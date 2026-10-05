@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 
 interface MonthlyStats {
   month: string
@@ -53,14 +54,6 @@ const COLORS = {
   blue: '#3b82f6',
 }
 
-const DIRECTION_NAMES: { [key: string]: string } = {
-  '1': 'Forward',
-  '2': 'Back',
-  '3': 'Reverse',
-  '4': 'Inward',
-  '5': 'Twist',
-}
-
 const HEIGHT_COLORS: { [key: string]: string } = {
   '1M': '#54beab', // app accent
   '3M': '#22c55e',
@@ -70,6 +63,7 @@ const HEIGHT_COLORS: { [key: string]: string } = {
 }
 
 function Analytics() {
+  const { t } = useTranslation()
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [heightStats, setHeightStats] = useState<HeightStats>({})
   const [directionStats, setDirectionStats] = useState<DirectionStats>({})
@@ -121,7 +115,7 @@ function Analytics() {
   })
 
   const directionChartData = Object.entries(directionStats).map(([dir, data]) => ({
-    name: DIRECTION_NAMES[dir] || `Dir ${dir}`,
+    name: t(`groups.${dir}`, { defaultValue: `${t('dashboard.dirFallback')} ${dir}` }),
     fullMark: 4,
     dives: data.total_dives,
     performance: data.avg_performance,
@@ -135,7 +129,7 @@ function Analytics() {
     monthLabel: format(parseISO(m.month + '-01'), 'MMM yy'),
   }))
   const performanceKey = 'avg_performance'
-  const performanceName = 'Average execution /10'
+  const performanceName = t('analytics.avgExecutionPer10')
   const groupPerformanceKey = 'performance'
 
   // Calculate averages for comparison
@@ -145,11 +139,11 @@ function Analytics() {
   return (
     <div className="app-page">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-app-text">Analytics</h1>
+      <h1 className="text-3xl font-bold text-app-text">{t('nav.analytics')}</h1>
 
       {/* Performance Over Time */}
       <div className="app-panel">
-        <h2 className="mb-4 text-xl font-semibold text-app-text">Performance Over Time</h2>
+        <h2 className="mb-4 text-xl font-semibold text-app-text">{t('analytics.performanceOverTime')}</h2>
         <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={monthlyChartData}>
             <defs>
@@ -182,7 +176,7 @@ function Analytics() {
               stroke={COLORS.success}
               strokeWidth={2}
               dot={{ fill: COLORS.success }}
-              name="Success Rate %"
+              name={t("analytics.successRatePct")}
             />
           </ComposedChart>
         </ResponsiveContainer></div>
@@ -191,7 +185,7 @@ function Analytics() {
       {/* Height Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-4">Performance by Height</h2>
+          <h2 className="text-xl font-semibold text-app-text mb-4">{t('dashboard.performanceByHeight')}</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
@@ -212,7 +206,7 @@ function Analytics() {
         </div>
 
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-4">Success Rate by Height</h2>
+          <h2 className="text-xl font-semibold text-app-text mb-4">{t('analytics.successRateByHeight')}</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
@@ -223,7 +217,7 @@ function Analytics() {
                 formatter={(value: number) => `${value.toFixed(1)}%`}
               />
               <Legend />
-              <Bar dataKey="successRate" name="Success Rate %" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="successRate" name={t("analytics.successRatePct")} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -239,7 +233,7 @@ function Analytics() {
       {/* Direction Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-4">Direction comparison</h2>
+          <h2 className="text-xl font-semibold text-app-text mb-4">{t('analytics.directionComparison')}</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={directionChartData}>
               <PolarGrid stroke="rgba(82,96,105,.35)" />
@@ -261,7 +255,7 @@ function Analytics() {
         </div>
 
         <div className="app-panel">
-          <h2 className="text-xl font-semibold text-app-text mb-4">Volume by Direction</h2>
+          <h2 className="text-xl font-semibold text-app-text mb-4">{t('analytics.volumeByDirection')}</h2>
           <div className="app-chart"><ResponsiveContainer width="100%" height={300}>
             <BarChart data={directionChartData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(82,96,105,.35)" />
@@ -270,7 +264,7 @@ function Analytics() {
               <Tooltip
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
               />
-              <Bar dataKey="dives" fill={COLORS.purple} radius={[0, 4, 4, 0]} name="Total Dives" />
+              <Bar dataKey="dives" fill={COLORS.purple} radius={[0, 4, 4, 0]} name={t("dashboard.totalDives")} />
             </BarChart>
           </ResponsiveContainer></div>
         </div>
@@ -278,7 +272,7 @@ function Analytics() {
 
       {/* Trending Dives */}
       <div className="app-panel">
-        <h2 className="text-xl font-semibold text-app-text mb-4">Biggest Improvements</h2>
+        <h2 className="text-xl font-semibold text-app-text mb-4">{t('analytics.biggestImprovements')}</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {trendingDives.slice(0, 5).map((dive, index) => (
             <div
@@ -297,11 +291,11 @@ function Analytics() {
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-app-muted">
-                  <span>Recent Avg:</span>
+                  <span>{t('analytics.recentAvg')}:</span>
                   <span className="text-app-text">{dive.recent_avg.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-app-muted">
-                  <span>Attempts:</span>
+                  <span>{t('analysis.attempts')}:</span>
                   <span className="text-app-text">{dive.total_attempts}</span>
                 </div>
               </div>
@@ -309,23 +303,23 @@ function Analytics() {
           ))}
         </div>
         {trendingDives.length === 0 && (
-          <p className="text-app-muted text-center py-8">No trends yet.</p>
+          <p className="text-app-muted text-center py-8">{t('analytics.noTrends')}</p>
         )}
       </div>
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="app-panel">
-          <h3 className="text-app-muted text-sm mb-1">Average Performance</h3>
+          <h3 className="text-app-muted text-sm mb-1">{t('analytics.averagePerformance')}</h3>
           <p className="text-3xl font-bold text-app-accent">{avgPerformance.toFixed(2)}</p>
         </div>
         <div className="app-panel">
-          <h3 className="text-app-muted text-sm mb-1">Average Success Rate</h3>
+          <h3 className="text-app-muted text-sm mb-1">{t('analytics.averageSuccessRate')}</h3>
           <p className="text-3xl font-bold text-green-400">{avgSuccessRate.toFixed(1)}%</p>
-          <p className="text-app-muted text-sm mt-1">Medium or better</p>
+          <p className="text-app-muted text-sm mt-1">{t('dashboard.successRateSubtitle')}</p>
         </div>
         <div className="app-panel">
-          <h3 className="text-app-muted text-sm mb-1">Heights Trained</h3>
+          <h3 className="text-app-muted text-sm mb-1">{t('analytics.heightsTrained')}</h3>
           <p className="text-3xl font-bold text-app-accent">{Object.keys(heightStats).length}</p>
         </div>
       </div>

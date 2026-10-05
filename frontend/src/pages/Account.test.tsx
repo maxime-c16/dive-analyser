@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { I18nProvider } from "../i18n/I18nProvider";
 import Account, { initials } from "./Account";
 
 const signOut = vi.fn();
@@ -23,12 +24,14 @@ vi.mock("../contexts/AuthContext", () => ({
 
 function renderAccount(initial = "/account") {
   return render(
-    <MemoryRouter initialEntries={[initial]}>
-      <Routes>
-        <Route path="/account" element={<Account />} />
-        <Route path="/login" element={<p>Login page</p>} />
-      </Routes>
-    </MemoryRouter>
+    <I18nProvider>
+      <MemoryRouter initialEntries={[initial]}>
+        <Routes>
+          <Route path="/account" element={<Account />} />
+          <Route path="/login" element={<p>Login page</p>} />
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>
   );
 }
 

@@ -1,0 +1,8 @@
+{
+  "id": "french-language-setting",
+  "date": "2026-10-06",
+  "title": "Nouveau : l'app parle aussi français / The app now speaks French",
+  "body": "Choose French or English in Profile & settings, or follow your device. Dive names follow World Aquatics French terminology (saut périlleux, vrille, équilibre, pris au vol). Milestones, sessions, analytics and the library are localized; system operations screens and release notes stay English for now. / Dans Profil et réglages, choisissez la langue ; les noms de plongeons suivent la terminologie française de World Aquatics.",
+  "audience": "all",
+  "components": ["frontend"]
+}

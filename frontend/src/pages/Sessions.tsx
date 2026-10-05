@@ -13,6 +13,7 @@ import {
 import SessionDetail from "../components/SessionDetail";
 import RecentProgress from "../components/RecentProgress";
 import SessionDirectionIndicator from "../components/SessionDirectionIndicator";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 import {
   performanceBorder,
@@ -31,6 +32,7 @@ interface Session {
 }
 
 function Sessions() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ function Sessions() {
       setError(null);
     } catch (err) {
       console.error("Error fetching sessions:", err);
-      setError("Failed to load sessions");
+      setError("sessions.errorLoad");
     } finally {
       setLoading(false);
     }
@@ -85,8 +87,8 @@ function Sessions() {
 
   const getDateLabel = (dateStr: string) => {
     const date = parseISO(dateStr);
-    if (isToday(date)) return "Today";
-    if (isYesterday(date)) return "Yesterday";
+    if (isToday(date)) return t("sessions.today");
+    if (isYesterday(date)) return t("sessions.yesterday");
     return format(date, "EEEE, MMMM d");
   };
 
@@ -154,22 +156,22 @@ function Sessions() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-app-text">Training Sessions</h1>
+        <h1 className="text-3xl font-bold text-app-text">{t("sessions.title")}</h1>
 
         {/* Quick Stats */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-4">
           <div className="app-panel min-w-0 px-3 py-2 sm:px-4">
-            <span className="text-app-muted text-sm">Sessions</span>
+            <span className="text-app-muted text-sm">{t("sessions.sessions")}</span>
             <span className="app-kpi-value ml-2">{stats.totalSessions}</span>
           </div>
           <div className="app-panel min-w-0 px-3 py-2 sm:px-4">
-            <span className="text-app-muted text-sm">Total Dives</span>
+            <span className="text-app-muted text-sm">{t("dashboard.totalDives")}</span>
             <span className="app-kpi-value ml-2 text-app-accent">
               {stats.totalDives}
             </span>
           </div>
           <div className="app-panel col-span-2 min-w-0 px-3 py-2 sm:col-span-1 sm:px-4">
-            <span className="text-app-muted text-sm">Average per session</span>
+            <span className="text-app-muted text-sm">{t("sessions.avgPerSession")}</span>
             <span className="app-kpi-value ml-2 text-app-text">
               {stats.avgDivesPerSession.toFixed(1)}
             </span>
@@ -180,7 +182,7 @@ function Sessions() {
       <div
         className="inline-flex w-full border border-app bg-app-panel p-1 sm:w-auto"
         role="group"
-        aria-label="Session diver scope"
+        aria-label={t("sessions.scopeAria")}
       >
         <button
           type="button"
@@ -188,7 +190,7 @@ function Sessions() {
           className={`touch-target flex-1 gap-2 px-3 text-sm sm:flex-none ${diverScope === "self" ? "bg-app-panel-elevated text-app-accent" : "text-app-muted"}`}
         >
           <UserRound className="h-4 w-4" />
-          My dives
+          {t("dives.myDives")}
         </button>
         <button
           type="button"
@@ -196,7 +198,7 @@ function Sessions() {
           className={`touch-target flex-1 gap-2 px-3 text-sm sm:flex-none ${diverScope === "all" ? "bg-app-panel-elevated text-app-accent" : "text-app-muted"}`}
         >
           <Users className="h-4 w-4" />
-          Everyone
+          {t("sessions.everyone")}
         </button>
       </div>
 
@@ -218,7 +220,7 @@ function Sessions() {
       {/* Error */}
       {error && (
         <div className="border border-red-500/30 bg-red-500/10 p-4 text-red-400">
-          {error}
+          {t(error ?? "sessions.errorLoad")}
         </div>
       )}
 
@@ -231,7 +233,7 @@ function Sessions() {
                 <span className="w-2 h-2 bg-app-accent rounded-full"></span>
                 {month}
                 <span className="text-sm font-normal text-app-muted">
-                  ({monthSessions.length} sessions)
+                  ({monthSessions.length} {t("sessions.sessions")})
                 </span>
               </h2>
 
@@ -276,15 +278,15 @@ function Sessions() {
                             </p>
                             <p className="text-xs text-app-muted">
                               {diverScope === "self"
-                                ? "My attempts"
-                                : "In scope"}
+                                ? t("sessions.myAttempts")
+                                : t("sessions.inScope")}
                             </p>
                           </div>
                           <div className="text-center">
                             <p className="app-kpi-value text-2xl text-app-accent">
                               {session.total_personal_dives}
                             </p>
-                            <p className="text-xs text-app-muted">Scored</p>
+                            <p className="text-xs text-app-muted">{t("analysis.scored")}</p>
                           </div>
                           <div className="text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -295,7 +297,7 @@ function Sessions() {
                               </p>
                               {trend && <TrendIndicator trend={trend} />}
                             </div>
-                            <p className="text-xs text-app-muted">Avg Perf</p>
+                            <p className="text-xs text-app-muted">{t("dashboard.avgPerformance")}</p>
                           </div>
                           <div className="text-center">
                             <span
@@ -306,7 +308,7 @@ function Sessions() {
                                 : "-"}
                             </span>
                             <p className="text-xs text-app-muted mt-1">
-                              Success
+                              {t("analysis.success")}
                             </p>
                           </div>
                         </div>
@@ -360,7 +362,7 @@ function Sessions() {
             className="mx-auto mb-4 h-12 w-12 text-app-muted"
             aria-hidden="true"
           />
-          <p className="text-app-muted text-xl">No sessions yet.</p>
+          <p className="text-app-muted text-xl">{t("sessions.none")}</p>
         </div>
       )}
 
@@ -371,7 +373,7 @@ function Sessions() {
             onClick={() => setLimit(limit + 50)}
             className="border border-app bg-app-panel px-6 py-2 text-app-text transition-colors hover:border-app-accent hover:bg-app-panel-elevated"
           >
-            Load more sessions
+            {t("sessions.loadMore")}
           </button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { Heart, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 /** One gesture owner keeps taps, double taps, holds and swipes mutually exclusive. */
@@ -13,6 +14,7 @@ export default function ImmersiveControls({
   onLike: () => void;
   onNavigate: (direction: -1 | 1) => void;
 }) {
+  const { t } = useTranslation();
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -80,7 +82,7 @@ export default function ImmersiveControls({
       <button
         type="button"
         className="clip-gesture"
-        aria-label={paused ? "Play video" : "Pause video"}
+        aria-label={paused ? t('clipViewer.play') : t('clipViewer.pause')}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
           if (!event.isPrimary || event.button !== 0) return;
@@ -162,7 +164,7 @@ export default function ImmersiveControls({
       <div className="clip-transport">
         <button
           type="button"
-          aria-label={paused ? "Resume playback" : "Pause playback"}
+          aria-label={paused ? t('clipViewer.resume') : t('clipViewer.pause')}
           onClick={toggle}
         >
           {paused ? <Play size={20} strokeWidth={3} fill="currentColor" /> : <Pause size={20} strokeWidth={3} />}
@@ -172,7 +174,7 @@ export default function ImmersiveControls({
         </span>
         <button
           type="button"
-          aria-label={muted ? "Unmute video" : "Mute video"}
+          aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
           onClick={() => {
             if (videoRef.current)
               videoRef.current.muted = !videoRef.current.muted;
@@ -184,7 +186,7 @@ export default function ImmersiveControls({
       <input
         className="clip-progress"
         type="range"
-        aria-label="Video position"
+        aria-label={t('clipViewer.videoPosition')}
         min={0}
         max={duration || 1}
         step={0.01}

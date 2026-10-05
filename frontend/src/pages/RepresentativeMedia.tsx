@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Film, RefreshCw, Search, ShieldAlert } from 'lucide-react'
 import {
@@ -49,6 +50,7 @@ function RepresentativeCardView({
   onFindReplacement: (code: string, role: RepresentativeRole) => void
   readOnly: boolean
 }) {
+  const { t } = useTranslation()
   const failure = rep.media.failure
   const posterReady = rep.media.renditions.poster.status === 'ready'
   const proxyReady = rep.media.renditions.proxy_360p.status === 'ready'
@@ -68,7 +70,7 @@ function RepresentativeCardView({
       {rep.media.poster_url ? (
         <img src={rep.media.poster_url} alt={`${code} ${rep.label} representative poster`} className="aspect-video w-full object-cover" />
       ) : (
-        <div className="flex aspect-video items-center justify-center bg-black/35 text-xs text-app-muted">No poster ready</div>
+        <div className="flex aspect-video items-center justify-center bg-black/35 text-xs text-app-muted">{t('analysis.noPoster')}</div>
       )}
       <div className="space-y-3 p-4 text-sm">
         <div>
@@ -77,26 +79,26 @@ function RepresentativeCardView({
           <div className="mt-1 text-app-muted">{rep.attempt.diver?.display_name || 'Unassigned'} · {rep.attempt.modifiers.join(', ') || 'No modifiers'}</div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="border border-app p-2"><span className="text-app-muted">Poster</span><div className="mt-1 text-app-text">{rep.media.renditions.poster.status}</div></div>
-          <div className="border border-app p-2"><span className="text-app-muted">Proxy</span><div className="mt-1 text-app-text">{rep.media.renditions.proxy_360p.status}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{rep.media.renditions.poster.status}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{rep.media.renditions.proxy_360p.status}</div></div>
         </div>
         {failure && (
           <details className="border border-app p-3">
             <summary className="cursor-pointer text-sm text-red-300">{failure.message}</summary>
             <p className="mt-2 text-xs leading-5 text-app-muted">{failure.detail}</p>
             {failure.code === 'materialization_only_placeholders' && (
-              <p className="mt-2 text-xs leading-5 text-app-muted">Find a replacement, or retry once the clip downloads in Photos on the Mac.</p>
+              <p className="mt-2 text-xs leading-5 text-app-muted">{t('repMedia.findOrRetry')}</p>
             )}
             {(failure.code === 'permission_required' || failure.code === 'photos_access_denied' || failure.code === 'osxphotos_export_timeout' || failure.code === 'osxphotos_export_failed') && (
-              <p className="mt-2 text-xs leading-5 text-app-muted">Check Photos permissions on the Mac, then retry.</p>
+              <p className="mt-2 text-xs leading-5 text-app-muted">{t('repMedia.checkPermissions')}</p>
             )}
           </details>
         )}
         <div className="flex flex-wrap gap-2 pt-1">
           {rep.media.playback_url && <a href={rep.media.playback_url} className="touch-target inline-flex items-center gap-2 border border-app-accent bg-app-accent px-3 py-1.5 text-xs font-semibold text-black"><Film className="h-3.5 w-3.5" />Play</a>}
-          <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">Open attempt</Link>
-          {(rep.media.state === 'partial' || rep.media.state === 'missing') && <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">Prepare one</Link>}
-          {rep.replacement.available && !readOnly && <button type="button" onClick={() => onFindReplacement(code, rep.role)} className="touch-target border border-app px-3 py-1.5 text-xs text-app-muted">Find replacement</button>}
+          <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">{t('analysis.openAttempt')}</Link>
+          {(rep.media.state === 'partial' || rep.media.state === 'missing') && <Link to={`/dives/analysis/${code}?attempt=${rep.attempt.id}`} className="touch-target inline-flex items-center border border-app px-3 py-1.5 text-xs text-app-muted">{t('repMedia.prepareOne')}</Link>}
+          {rep.replacement.available && !readOnly && <button type="button" onClick={() => onFindReplacement(code, rep.role)} className="touch-target border border-app px-3 py-1.5 text-xs text-app-muted">{t('analysis.findReplacement')}</button>}
         </div>
       </div>
     </article>
@@ -116,27 +118,28 @@ function CandidatePanel({
   onClose: () => void
   onReplace: (candidate: ReplacementCandidate, prepare: boolean) => void
 }) {
+  const { t } = useTranslation()
   if (!selected) return null
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <aside role="dialog" aria-modal="true" aria-label="Replacement candidates" className="h-full w-full max-w-xl overflow-y-auto border-l border-app bg-app-panel p-4 sm:p-5">
+      <aside role="dialog" aria-modal="true" aria-label={t('repMedia.candidatesAria')} className="h-full w-full max-w-xl overflow-y-auto border-l border-app bg-app-panel p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 border-b border-app pb-4">
           <div>
-            <h2 className="text-xl font-semibold text-app-text">Replacement candidates</h2>
+            <h2 className="text-xl font-semibold text-app-text">{t('repMedia.candidates')}</h2>
             <p className="mt-1 text-sm text-app-muted">{selected.code} · {selected.role === 'median' ? 'Typical' : selected.role}</p>
           </div>
-          <button type="button" onClick={onClose} className="border border-app px-3 py-1.5 text-sm text-app-muted">Close</button>
+          <button type="button" onClick={onClose} className="border border-app px-3 py-1.5 text-sm text-app-muted">{t('common.close')}</button>
         </div>
         <div className="mt-5 space-y-3">
-          {loading && <p className="text-sm text-app-muted">Loading…</p>}
-          {!loading && !candidates.length && <p className="text-sm text-app-muted">No unused candidates.</p>}
+          {loading && <p className="text-sm text-app-muted">{t('common.loading')}</p>}
+          {!loading && !candidates.length && <p className="text-sm text-app-muted">{t('repMedia.noCandidates')}</p>}
           {candidates.map((candidate) => (
             <div key={candidate.candidate.id} className="border border-app p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-semibold text-app-text">{candidate.candidate.score_10.toFixed(1)} / {candidate.candidate.performance}</div>
                   <div className="mt-1 text-sm text-app-muted">{formatDate(candidate.candidate.dive_datetime)} · {candidate.candidate.height} · {candidate.candidate.is_sync ? 'SYNC' : 'Individual'}</div>
-                  <div className="mt-1 text-xs text-app-muted">Score distance {candidate.similarity.score_distance.toFixed(1)} · {VIABILITY_LABELS[candidate.media_viability] || candidate.media_viability}</div>
+                  <div className="mt-1 text-xs text-app-muted">{t('repMedia.scoreDistance')} {candidate.similarity.score_distance.toFixed(1)} · {VIABILITY_LABELS[candidate.media_viability] || candidate.media_viability}</div>
                   <div className="mt-1 text-xs text-app-muted">{candidate.ready_renditions.length ? `${candidate.ready_renditions.join(', ')} already ready` : 'No cached rendition'} · prior attempts {candidate.materialization_history.attempt_count}</div>
                 </div>
                 <div className="text-right text-xs text-app-muted">
@@ -145,8 +148,8 @@ function CandidatePanel({
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={() => onReplace(candidate, false)} className="border border-app-accent px-3 py-1.5 text-xs text-app-accent">Use without preparing</button>
-                <button type="button" onClick={() => onReplace(candidate, true)} className="border border-app px-3 py-1.5 text-xs text-app-muted">Use and prepare missing</button>
+                <button type="button" onClick={() => onReplace(candidate, false)} className="border border-app-accent px-3 py-1.5 text-xs text-app-accent">{t('repMedia.useWithoutPreparing')}</button>
+                <button type="button" onClick={() => onReplace(candidate, true)} className="border border-app px-3 py-1.5 text-xs text-app-muted">{t('repMedia.useAndPrepare')}</button>
               </div>
             </div>
           ))}
@@ -157,6 +160,7 @@ function CandidatePanel({
 }
 
 export default function RepresentativeMedia() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = usePreservedSearchParams()
   const { user } = useAuth()
   // Friends see everyone's dives by default; replacement is owner-only.
@@ -235,7 +239,7 @@ export default function RepresentativeMedia() {
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-6">
       <header className="border-b border-app pb-5">
-        <h1 className="text-3xl font-semibold tracking-tight text-app-text">Representative Media</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-app-text">{t('nav.representatives')}</h1>
       </header>
 
       {data && (

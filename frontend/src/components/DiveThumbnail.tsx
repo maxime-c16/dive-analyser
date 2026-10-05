@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import React, { useEffect, useRef, useState } from "react";
 import { Film } from "lucide-react";
 import { cachedPreview, getPreview, type MediaPreview } from "../utils/mediaPreview";
@@ -10,6 +11,7 @@ export default function DiveThumbnail({
   dive: Attempt;
   compact?: boolean;
 }) {
+  const { t } = useTranslation()
   const [preview, setPreview] = useState<MediaPreview | null>(() =>
     dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
   );
@@ -55,7 +57,7 @@ export default function DiveThumbnail({
         // Poster image from local media cache — instant, lightweight
         <img
           src={preview.posterUrl}
-          alt={`Poster for ${dive.dive_code}`}
+          alt={t('thumbnail.posterFor', { code: dive.dive_code })}
           className="h-full w-full object-cover"
           loading="lazy"
         />
@@ -73,15 +75,15 @@ export default function DiveThumbnail({
         (compact ? (
           <span
             className={`absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-black/40 ${preview?.ready ? "bg-app-accent" : "bg-app-muted"}`}
-            title={preview?.ready ? "Video ready" : "Video linked"}
-            aria-label={preview?.ready ? "Video ready" : "Video linked"}
+            title={preview?.ready ? t('thumbnail.ready') : t('thumbnail.linked')}
+            aria-label={preview?.ready ? t('thumbnail.ready') : t('thumbnail.linked')}
           />
         ) : (
           <span
             className={`absolute bottom-2 right-2 inline-flex items-center gap-1 border px-1.5 py-1 text-[10px] font-medium ${preview?.ready ? "border-app-accent bg-[#10221f]/95 text-app-accent" : "border-app bg-black/70 text-app-muted"}`}
           >
             <Film className="h-3 w-3" />
-            {preview?.ready ? "Ready" : "Linked"}
+            {preview?.ready ? t('thumbnail.ready') : t('thumbnail.linked')}
           </span>
         ))}
     </div>

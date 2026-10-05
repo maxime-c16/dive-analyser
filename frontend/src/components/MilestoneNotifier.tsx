@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSyncStatus } from '../hooks/useSyncStatus'
+import { milestoneDisplay } from '../i18n/milestones'
 import { Star, Award, Zap, Trophy, X } from 'lucide-react'
 
 interface MilestoneAlert {
@@ -17,6 +19,7 @@ interface MilestoneAlert {
 export const MilestoneNotifier: React.FC<{ maxVisible?: number }> = ({
   maxVisible = 3,
 }) => {
+  const { t } = useTranslation()
   const { recentMilestones, removeMilestone } = useSyncStatus()
   const [alerts, setAlerts] = useState<MilestoneAlert[]>([])
 
@@ -42,11 +45,12 @@ export const MilestoneNotifier: React.FC<{ maxVisible?: number }> = ({
           icon = <Star className="w-8 h-8" />
       }
 
+      const display = milestoneDisplay(milestone)
       return {
         id: `milestone-${milestone.date}-${idx}`,
         type: milestone.type,
-        title: milestone.title,
-        narrative: milestone.narrative,
+        title: display.title,
+        narrative: display.narrative,
         icon,
       }
     })
@@ -76,7 +80,7 @@ export const MilestoneNotifier: React.FC<{ maxVisible?: number }> = ({
               <button
                 onClick={() => handleDismiss(idx)}
                 className="text-app-muted hover:text-app-text flex-shrink-0"
-                aria-label="Dismiss milestone"
+                aria-label={t('milestones.dismiss')}
               >
                 <X className="w-5 h-5" />
               </button>

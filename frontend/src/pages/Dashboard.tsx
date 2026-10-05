@@ -21,6 +21,7 @@ import {
   Legend,
 } from "recharts";
 import { format, parseISO } from "date-fns";
+import { useTranslation } from "react-i18next";
 import {
   BarChart3,
   CalendarDays,
@@ -87,13 +88,10 @@ const COLORS = {
   pink: "#ec4899", // pink-500
 };
 
-const DIRECTION_NAMES: { [key: string]: string } = {
-  "1": "Forward",
-  "2": "Back",
-  "3": "Reverse",
-  "4": "Inward",
-  "5": "Twist",
-};
+/**
+ * Direction stat keys ("1"-"5") resolve onto the localized group names via
+ * the `groups.*` keys at render time.
+ */
 
 const PERFORMANCE_COLORS = {
   P: "#22c55e",
@@ -104,6 +102,14 @@ const PERFORMANCE_COLORS = {
 };
 
 function Dashboard() {
+  const { t } = useTranslation();
+  const performanceLabelLocalized: Record<string, string> = {
+    P: t("performance.P"),
+    G: t("performance.G"),
+    M: t("performance.M"),
+    B: `${t("performance.B")}/${t("performance.F")}`,
+    BF: `${t("performance.B")}/${t("performance.F")}`,
+  };
   const { currentSync, isConnected } = useSyncStatus();
   const [stats, setStats] = useState<OverallStats | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
@@ -147,7 +153,7 @@ function Dashboard() {
         setError(null);
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to load dashboard data");
+        setError("dashboard.errorLoad");
       } finally {
         setLoading(false);
       }
@@ -160,7 +166,7 @@ function Dashboard() {
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-app-muted">Loading…</p>
+          <p className="text-xl text-app-muted">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -170,12 +176,12 @@ function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
-          <p className="text-2xl text-red-400 mb-4">{error}</p>
+          <p className="text-2xl text-red-400 mb-4">{t(error ?? "dashboard.errorLoad")}</p>
           <button
             onClick={() => window.location.reload()}
             className="border border-app-accent bg-app-accent px-6 py-2 font-medium text-app-bg transition-colors hover:brightness-110"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       </div>
@@ -197,7 +203,7 @@ function Dashboard() {
 
   const directionChartData = Object.entries(directionStats).map(
     ([dir, data]) => ({
-      name: DIRECTION_NAMES[dir] || `Dir ${dir}`,
+      name: t(`groups.${dir}`, { defaultValue: `${t("dashboard.dirFallback")} ${dir}` }),
       dives: data.total_dives,
       performance: data.avg_performance,
       successRate: data.success_rate,
@@ -219,21 +225,21 @@ function Dashboard() {
   // Approximate tag distribution until the API exposes raw performance buckets.
   const performanceData = [
     {
-      name: "Perfect",
+      name: performanceLabelLocalized.P,
       value: Math.round((stats?.success_rate || 0) * 0.3),
       color: PERFORMANCE_COLORS.P,
     },
     {
-      name: "Good",
+      name: performanceLabelLocalized.G,
       value: Math.round((stats?.success_rate || 0) * 0.7 - 20),
       color: PERFORMANCE_COLORS.G,
     },
     {
-      name: "Medium",
+      name: performanceLabelLocalized.M,
       value: Math.round(100 - (stats?.success_rate || 0) - 5),
       color: PERFORMANCE_COLORS.M,
     },
-    { name: "Bad/Failed", value: 5, color: PERFORMANCE_COLORS.F },
+    { name: performanceLabelLocalized.BF, value: 5, color: PERFORMANCE_COLORS.F },
   ].filter((d) => d.value > 0);
 
   return (
@@ -241,13 +247,13 @@ function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-app-text">
-          Training Dashboard
+          {t("dashboard.title")}
         </h1>
         <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-app-muted">
-          <div>Last updated: {format(new Date(), "PPp")}</div>
+          <div>{t("dashboard.lastUpdated")} : {format(new Date(), "PPp")}</div>
           {currentSync && (
             <div className="text-app-accent">
-              Sync: {currentSync.progress_percent}%
+              {t("dashboard.syncProgress")} : {currentSync.progress_percent}%
             </div>
           )}
         </div>
@@ -263,15 +269,15 @@ function Dashboard() {
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-2 md:gap-4">
         <MetricCard
-          title="Total Dives"
+          title={t("dashboard.totalDives")}
           value={stats?.total_dives || 0}
           color="accent"
           icon={Waves}
         />
         <MetricCard
-          title="Success Rate"
+          title={t("dashboard.successRate")}
           value={`${stats?.success_rate?.toFixed(1) || 0}%`}
-          subtitle="Medium or better"
+          subtitle={t("dashboard.successRateSubtitle")}
           color="success"
           trend={
             stats?.success_rate && stats.success_rate > 75 ? "up" : "neutral"
@@ -279,15 +285,15 @@ function Dashboard() {
           icon={Target}
         />
         <MetricCard
-          title="Avg Performance"
+          title={t("dashboard.avgPerformance")}
           value={stats?.avg_performance?.toFixed(2) || "0.00"}
-          subtitle="Calibrated /10"
+          subtitle={t("dashboard.avgPerformanceSubtitle")}
           color="accent"
           icon={BarChart3}
         />
         {stats?.avg_dd !== undefined && stats.avg_dd > 0 && (
           <MetricCard
-            title="Avg DD"
+            title={t("dashboard.avgDD")}
             value={stats.avg_dd.toFixed(1)}
             color="accent"
             icon={Zap}
@@ -295,14 +301,14 @@ function Dashboard() {
         )}
         {stats?.max_dd !== undefined && stats.max_dd > 0 && (
           <MetricCard
-            title="Max DD"
+            title={t("dashboard.maxDD")}
             value={stats.max_dd.toFixed(1)}
             color="accent"
             icon={Flame}
           />
         )}
         <MetricCard
-          title="Training Sessions"
+          title={t("dashboard.trainingSessions")}
           value={stats?.total_sessions || 0}
           color="accent"
           icon={CalendarDays}
@@ -325,7 +331,7 @@ function Dashboard() {
                 id="dashboard-personal-value"
                 className="text-xl font-semibold text-app-text"
               >
-                Personal Dive Value
+                {t("dashboard.personalDiveValue")}
               </h2>
             </div>
             <div className="text-right text-sm">
@@ -336,18 +342,18 @@ function Dashboard() {
                   ),
                 ).toFixed(0)}
                 <span className="ml-1 text-xs font-normal text-app-muted">
-                  highest recent
+                  {t("dashboard.highestRecent")}
                 </span>
               </div>
               <div className="mt-1 text-xs text-app-muted">
-                {personalValueChartData.length} latest eligible attempts
+                {`${personalValueChartData.length} ${t("dashboard.latestEligibleAttempts")}`}
               </div>
             </div>
           </div>
           <div
             className="mt-5 h-56"
             role="img"
-            aria-label="Recent Personal Dive Value history"
+            aria-label={t("dashboard.personalValueHistoryAria")}
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={personalValueChartData}>
@@ -374,7 +380,7 @@ function Dashboard() {
                     item: { payload?: (typeof personalValueChartData)[number] },
                   ) => [
                     `${value} / 100 · ${item.payload?.primary_signal || "Emerging"} · ${item.payload?.dive_code}`,
-                    "Personal Dive Value",
+                    t("dashboard.personalDiveValue"),
                   ]}
                 />
                 <Line
@@ -384,7 +390,7 @@ function Dashboard() {
                   strokeWidth={2.5}
                   dot={{ r: 3, fill: "#54beab" }}
                   activeDot={{ r: 5 }}
-                  name="Personal Dive Value"
+                  name={t("dashboard.personalDiveValue")}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -397,7 +403,7 @@ function Dashboard() {
         {/* Monthly Progression */}
         <div className="app-panel">
           <h2 className="text-xl font-semibold text-app-text mb-4">
-            Monthly Progression
+            {t("dashboard.monthlyProgression")}
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={monthlyChartData}>
@@ -432,7 +438,7 @@ function Dashboard() {
                 stroke={COLORS.primary}
                 fillOpacity={1}
                 fill="url(#colorDives)"
-                name="Dives"
+                name={t("dashboard.dives")}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -441,7 +447,7 @@ function Dashboard() {
         {/* Performance by Height */}
         <div className="app-panel">
           <h2 className="text-xl font-semibold text-app-text mb-4">
-            Performance by Height
+            {t("dashboard.performanceByHeight")}
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={heightChartData} layout="vertical">
@@ -469,9 +475,9 @@ function Dashboard() {
                 formatter={(value: number, name: string) => [
                   name === "performance" ? value.toFixed(2) : value,
                   name === "performance"
-                    ? "Avg Performance"
+                    ? t("dashboard.avgPerformance")
                     : name === "dives"
-                      ? "Total Dives"
+                      ? t("dashboard.totalDives")
                       : name,
                 ]}
               />
@@ -479,7 +485,7 @@ function Dashboard() {
                 dataKey="performance"
                 fill={COLORS.primary}
                 radius={[0, 4, 4, 0]}
-                name="Avg Performance"
+                name={t("dashboard.avgPerformance")}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -491,7 +497,7 @@ function Dashboard() {
         {/* Direction Breakdown */}
         <div className="app-panel">
           <h2 className="text-xl font-semibold text-app-text mb-4">
-            By Direction
+            {t("dashboard.byDirection")}
           </h2>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={directionChartData}>
@@ -517,7 +523,7 @@ function Dashboard() {
                 dataKey="dives"
                 fill={COLORS.purple}
                 radius={[4, 4, 0, 0]}
-                name="Dives"
+                name={t("dashboard.dives")}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -526,7 +532,7 @@ function Dashboard() {
         {/* Success Rate Trend */}
         <div className="app-panel">
           <h2 className="text-xl font-semibold text-app-text mb-4">
-            Success Rate Trend
+            {t("dashboard.successRateTrend")}
           </h2>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={monthlyChartData}>
@@ -555,7 +561,7 @@ function Dashboard() {
                 }}
                 formatter={(value: number) => [
                   `${value.toFixed(1)}%`,
-                  "Success Rate",
+                  t("dashboard.successRate"),
                 ]}
               />
               <Area
@@ -572,7 +578,7 @@ function Dashboard() {
         {/* Height Distribution Pie */}
         <div className="app-panel">
           <h2 className="text-xl font-semibold text-app-text mb-4">
-            Training Focus
+            {t("dashboard.trainingFocus")}
           </h2>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
@@ -616,12 +622,12 @@ function Dashboard() {
       {/* Recent Sessions */}
       <div className="app-panel">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="app-section-title">Recent Training Sessions</h2>
+          <h2 className="app-section-title">{t("dashboard.recentSessions")}</h2>
           <a
             href="/sessions"
             className="text-app-accent hover:text-app-text text-sm"
           >
-            View all →
+            {t("dashboard.viewAll")}
           </a>
         </div>
         <div className="grid gap-2 sm:hidden">
@@ -637,13 +643,13 @@ function Dashboard() {
                   </h3>
                   <p className="mt-1 text-xs text-app-muted">
                     {session.total_dives} dives · {session.total_personal_dives}{" "}
-                    personal
+                    {t("dashboard.personal")}
                   </p>
                 </div>
                 <SuccessRateBadge value={session.success_rate} />
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-app-muted">Average performance</span>
+                <span className="text-app-muted">{t("dashboard.averagePerformance")}</span>
                 <PerformanceBadge value={session.avg_performance} />
               </div>
             </article>
@@ -653,11 +659,11 @@ function Dashboard() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-app text-sm text-app-muted">
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Dives</th>
-                <th className="pb-3 font-medium">Personal</th>
-                <th className="pb-3 font-medium">Avg Performance</th>
-                <th className="pb-3 font-medium">Success Rate</th>
+                <th className="pb-3 font-medium">{t("dashboard.date")}</th>
+                <th className="pb-3 font-medium">{t("dashboard.dives")}</th>
+                <th className="pb-3 font-medium">{t("dashboard.personal")}</th>
+                <th className="pb-3 font-medium">{t("dashboard.avgPerformance")}</th>
+                <th className="pb-3 font-medium">{t("dashboard.successRate")}</th>
               </tr>
             </thead>
             <tbody>

@@ -21,7 +21,7 @@ export default function ClipMetadataSummary({ attempt }: { attempt: Attempt }) {
         <span
           className={`inline-flex border px-2 py-1 text-xs font-medium ${performanceClass[attempt.performance] || performanceClass.M}`}
         >
-          {performanceLabel[attempt.performance] || attempt.performance}
+          {performanceLabel(attempt.performance) || attempt.performance}
         </span>
         <span className="text-sm font-semibold text-app-text">
           {score.toFixed(1)} / 10
