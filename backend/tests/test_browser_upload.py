@@ -145,16 +145,18 @@ def test_upload_rejects_empty_and_non_video_inputs_before_processing(monkeypatch
     assert not list((tmp_path / 'browser-uploads').iterdir())
 
 
-def test_invalid_structural_code_is_rejected_before_video_processing(workspace, monkeypatch):
+@pytest.mark.parametrize('code', ['5501D', '6031B'])
+def test_invalid_structural_code_is_rejected_before_video_processing(workspace, monkeypatch, code):
     from app.services import browser_upload
     from app.services.dive_access import owned_diver_ids
     db, login, _, users, _ = workspace
     def unexpected_prepare(file):
         raise AssertionError('Invalid codes must not process video')
     monkeypatch.setattr(browser_upload, 'prepare_video', unexpected_prepare)
-    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code='5501D', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code=code, height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
     assert response.status_code == 422
-    assert 'direction' in response.json()['detail']
+    if code == '5501D':
+        assert 'direction' in response.json()['detail']
 
 
 @pytest.mark.parametrize('transfer', [None, 'smpte2084', 'arib-std-b67'])

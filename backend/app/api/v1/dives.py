@@ -187,7 +187,7 @@ def create_dive(
 def upload_dive(
     request: Request,
     file: UploadFile = File(...),
-    dive_code: str = Form(..., pattern=r"^[1-6][0-9]{2,3}[ABCD]$"),
+    dive_code: str = Form(..., pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCD]$"),
     height: str = Form(..., pattern=r"^(1|3|5|7\.5|10)m$"),
     performance: str = Form(..., pattern=r"^[FBMGP]$"),
     dive_datetime: datetime = Form(...),

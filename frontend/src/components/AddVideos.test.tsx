@@ -47,6 +47,8 @@ it('accepts armstand codes in the browser form', async () => {
   render(<AddVideos onAdded={vi.fn()} />)
   select()
   const code = screen.getByLabelText('Code') as HTMLInputElement
+  fireEvent.change(code, { target: { value: '6031B' } })
+  expect(code.checkValidity()).toBe(false)
   fireEvent.change(code, { target: { value: '603B' } })
   expect(code.checkValidity()).toBe(true)
   fireEvent.click(screen.getByText('Save and next'))
