@@ -18,20 +18,95 @@ vi.mock('../services/mediaApi', async (importOriginal) => {
 const missing = { video_uuid: 'uuid', status: 'missing', can_request: true, available_renditions: [], playback_url: null, poster_url: null, job: null }
 const transcoding = { ...missing, status: 'transcoding', can_request: false }
 const ready = { ...missing, status: 'ready', playback_url: '/cached.mp4' }
-it('autoplays immersive clips with sound enabled by default', async () => {
+it('immersive clips attempt autoplay with sound on metadata load', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
-  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
-  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
-  await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
-  expect(video.autoplay).toBe(true)
-  expect(video.muted).toBe(false)
-  expect(video.defaultMuted).toBe(false)
-  expect(screen.getByRole('button', { name: 'Mute video' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Mute video' }))
-  expect(video.muted).toBe(true)
-  fireEvent.volumeChange(video)
-  fireEvent.click(screen.getByRole('button', { name: 'Unmute video' }))
-  expect(video.muted).toBe(false)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    expect(video.autoplay).toBe(true)
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+    // Sound stays on when the browser allows unmuted autoplay.
+    expect(video.muted).toBe(false)
+    expect(screen.getByRole('button', { name: 'Mute video' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mute video' }))
+    expect(video.muted).toBe(true)
+    fireEvent.volumeChange(video)
+    fireEvent.click(screen.getByRole('button', { name: 'Unmute video' }))
+    expect(video.muted).toBe(false)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+it('immersive clips fall back to muted autoplay when sound is blocked', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    fireEvent.loadedMetadata(video)
+    // First attempt (with sound) rejected → muted retry still starts the clip.
+    await waitFor(() => expect(playSpy).toHaveBeenCalledTimes(2))
+    expect(video.muted).toBe(true)
+    fireEvent.volumeChange(video)
+    expect(screen.getByRole('button', { name: 'Unmute video' })).toBeInTheDocument()
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+it('immersive canplay nudges a still-paused clip', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    fireEvent.canPlay(video)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+it('immersive canplay never overrides an intentional pause', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+    fireEvent.play(video)
+    fireEvent.pause(video)
+    playSpy.mockClear()
+    // A later canplay (e.g. after seeking) must not resume playback.
+    fireEvent.canPlay(video)
+    await act(async () => {})
+    expect(playSpy).not.toHaveBeenCalled()
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+it('non-immersive clips never attempt autoplay', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    expect(video.autoplay).toBe(false)
+    fireEvent.loadedMetadata(video)
+    fireEvent.canPlay(video)
+    await act(async () => {})
+    expect(playSpy).not.toHaveBeenCalled()
+  } finally {
+    playSpy.mockRestore()
+  }
 })
 beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
 afterEach(() => { vi.useRealTimers() })

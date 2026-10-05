@@ -86,6 +86,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const preparingSinceRef = useRef<number | null>(null)
   const lastPreparingLabelRef = useRef<string | null>(null)
   const requestingRef = useRef(false)
+  // Startup-only autoplay guards: the canplay retry must never override an
+  // intentional pause (e.g. a later canplay after seeking).
+  const hasPlayedRef = useRef(false)
+  const userPausedRef = useRef(false)
 
   const applyStatus = useCallback((data: MediaStatus) => {
     setCanRequest(Boolean(data.can_request))
@@ -130,6 +134,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   useEffect(() => {
     let cancelled = false
     failuresRef.current = 0
+    hasPlayedRef.current = false
+    userPausedRef.current = false
     setStale(false)
     setDecodeError(false)
     setPosterSrc(null)
@@ -233,13 +239,69 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     }
   }
 
+  // Autoplay with sound is blocked by browsers until the user has interacted
+  // with the domain (NotAllowedError). Since the clip source arrives
+  // asynchronously (after the media-status lookup), the autoPlay attribute
+  // alone never starts playback — and the previous fire-and-forget play()
+  // left the clip paused when sound was blocked. Try with sound first to
+  // preserve sound-by-default, then fall back to muted autoplay so the clip
+  // still starts; the viewer can unmute from ImmersiveControls.
+  const attemptImmersiveAutoplay = (video: HTMLVideoElement) => {
+    try {
+      const attempt = video.play()
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => {
+          try {
+            video.muted = true
+          } catch {
+            /* ignore */
+          }
+          try {
+            const retry = video.play()
+            if (retry && typeof retry.catch === 'function') retry.catch(() => {})
+          } catch {
+            /* ignore */
+          }
+        })
+      }
+    } catch {
+      /* play() threw synchronously — leave the native affordance */
+    }
+  }
+
   const handleLoadedMetadata = () => {
     const video = videoRef.current
     if (video) {
       if (video.videoHeight) onAspectRatioChange?.(video.videoWidth / video.videoHeight)
       video.playbackRate = playbackRate
-      if (immersive) void video.play().catch(() => {})
+      if (immersive) attemptImmersiveAutoplay(video)
     }
+  }
+
+  const handleCanPlay = () => {
+    const video = videoRef.current
+    // Startup-only safety net for the case where loadedmetadata fired before
+    // playback was possible. Never overrides an intentional pause: once the
+    // clip has played or the viewer has paused, later canplay events (e.g.
+    // after seeking) must not resume playback.
+    if (
+      video &&
+      immersive &&
+      video.paused &&
+      !video.ended &&
+      !hasPlayedRef.current &&
+      !userPausedRef.current
+    ) {
+      attemptImmersiveAutoplay(video)
+    }
+  }
+
+  const handlePlay = () => {
+    hasPlayedRef.current = true
+  }
+
+  const handlePause = () => {
+    userPausedRef.current = true
   }
 
   const handleDecodeError = () => {
@@ -297,8 +359,11 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         loop={immersive}
         playsInline
         onLoadedMetadata={handleLoadedMetadata}
+        onCanPlay={handleCanPlay}
+        onPlay={handlePlay}
+        onPause={handlePause}
         onError={handleDecodeError}
-        preload="metadata"
+        preload={immersive ? 'auto' : 'metadata'}
         poster={posterSrc || undefined}
         aria-label={`${diveCode} ${height} dive video`}
       />
