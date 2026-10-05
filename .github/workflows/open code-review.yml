@@ -52,9 +52,19 @@ jobs:
                hmac.compare_digest on UTF-8 bytes, never logged, 404 when closed, Origin
                check on state-changing auth POSTs, session cookie HttpOnly + SameSite=Strict
                + Path=/ + Secure (only AUTH_COOKIE_SECURE=false on plain-HTTP local test),
-               DB stores SHA-256 hashes never raw tokens, X-Forwarded-For first element only
+               DB stores SHA-256 hashes, never raw tokens. X-Forwarded-For first element only
                for rate-limit bucketing, never for authorization, ownership/diver scoping
-               enforced (no IDOR), friend role read-only.
+               enforced (no IDOR). Role model (do not over-read "read-only"): the
+               diver/friend role has no admin/operational capability, but dive writes
+               are ownership-scoped and role-independent — a diver-role account with an
+               OWNER binding to a diver manages that diver's dives and nothing else.
+               Pinned: auth.py register() creates every self-registered diver as
+               friend-role + OWNER-bound; test_friend_access.py asserts friend POST
+               /api/v1/dives → 201 yet POST /api/v1/sessions → 403; and
+               test_member_dive_visibility.py asserts friend PUT own dive → 200 vs
+               another's → 403. Never flag an OWNER grant to a diver-role account,
+               a role change that preserves bindings (same as manage_user cmd_set_role),
+               or a bound diver writing their own dives.
             2. Single-worker and DB discipline: no process-local state assumed shared
                (websocket manager, playback metrics, in-memory counters are per-worker),
                no BaseHTTPMiddleware reintroduced (use the pure-ASGI slow-request logger),
