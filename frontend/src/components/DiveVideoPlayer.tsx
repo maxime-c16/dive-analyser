@@ -294,7 +294,6 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         src={phase.kind === 'ready' ? phase.src : undefined}
         controls={!immersive}
         autoPlay={immersive}
-        muted={immersive}
         loop={immersive}
         playsInline
         onLoadedMetadata={handleLoadedMetadata}

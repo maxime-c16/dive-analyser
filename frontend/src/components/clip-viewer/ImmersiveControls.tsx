@@ -14,7 +14,7 @@ export default function ImmersiveControls({
   onNavigate: (direction: -1 | 1) => void;
 }) {
   const [paused, setPaused] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [holding, setHolding] = useState(false);
