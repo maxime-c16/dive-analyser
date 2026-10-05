@@ -202,6 +202,7 @@ if [ "$ONLY" != "backend" ]; then
             -f "$ROOT/frontend/Dockerfile.deploy" \
             -t "$FRONTEND_IMAGE:sha-$sha" \
             --label "dive.analyser/sha=$sha" \
+            --build-arg "APP_SHA=$(git -C "$ROOT" rev-parse HEAD)" \
             "$ROOT/frontend" \
             || ci_die "frontend image build failed — previous images untouched"
         ci_ok "frontend image built ($FRONTEND_IMAGE:sha-$sha)"
@@ -277,6 +278,31 @@ if funnel_running; then
 fi
 
 compose ps 2>/dev/null | sed 's/^/    /' || true
+
+# Publish only after every health check succeeded. The API reads this file
+# from its existing persistent media-cache volume, never from source files.
+# Rollbacks leave the previous manifest intact; successful explicit rollbacks
+# rebuild the catalog from the SHA labels of the services actually running.
+ci_step "publish: what's new"
+updates_tmp="$(mktemp "$(ci_cache_dir)/release-notes.XXXXXX")" || rollback "cannot stage update manifest"
+frontend_sha="$(docker inspect dive-analyser-frontend-1 --format '{{index .Config.Labels "dive.analyser/sha"}}')"
+backend_sha="$(docker inspect dive-analyser-backend-1 --format '{{index .Config.Labels "dive.analyser/sha"}}')"
+if ! python3 "$ROOT/ci/release-notes.py" build --root "$ROOT" \
+    --frontend "$frontend_sha" --backend "$backend_sha" --output "$updates_tmp"; then
+    unlink "$updates_tmp"
+    rollback "cannot build update manifest"
+fi
+# docker cp owns the staged file as root; the API runs as diver and must read it.
+chmod 644 "$updates_tmp" || rollback "cannot set update manifest permissions"
+if ! docker cp "$updates_tmp" dive-analyser-backend-1:/app/media-cache/release-notes.pending.json; then
+    unlink "$updates_tmp"
+    rollback "cannot stage update manifest in backend"
+fi
+unlink "$updates_tmp"
+docker exec dive-analyser-backend-1 python -c \
+    'import os; os.replace("/app/media-cache/release-notes.pending.json", "/app/media-cache/release-notes.json")' \
+    || rollback "cannot publish update manifest"
+ci_ok "update catalog published"
 
 # ------------------------------------------------------------ 7. tidy up
 

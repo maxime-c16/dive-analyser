@@ -6,6 +6,8 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+ARG APP_SHA=dev
+ENV VITE_APP_SHA=$APP_SHA
 RUN npm run build
 
 FROM nginx:1.27-alpine

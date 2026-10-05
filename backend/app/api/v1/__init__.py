@@ -37,3 +37,6 @@ v1_router.include_router(dive_social.router, tags=["dive-discussion"])
 
 from app.api.v1 import dive_sharing
 v1_router.include_router(dive_sharing.router, tags=['dive-sharing'])
+
+from app.api.v1 import updates
+v1_router.include_router(updates.router, tags=['updates'])

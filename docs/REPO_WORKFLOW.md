@@ -75,6 +75,13 @@ Run it from any checkout that can fetch GitHub: the MacBook Air or
 `deb-serv`. It can't run on the Mac worker until that machine has GitHub
 credentials (see below).
 
+User-visible PRs include a small immutable note in `backend/release-notes/`.
+`ship.sh server --dry-run` previews eligible notes; successful deployment
+publishes the catalog automatically after health checks, using the running
+service SHA labels. The app groups updates into a dismissible hint with a
+24-hour cooldown and keeps a manual history. Schema, partial deployments,
+rollback, and internal-only PRs: `docs/RELEASE_NOTES.md`.
+
 **Server deploy** (`ci/ship.sh server`):
 
 1. Refuses if the live checkout has *any* local change or untracked file,

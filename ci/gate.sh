@@ -45,6 +45,7 @@ tier_fast() {
     ci_step "fast: static guards"
     local failures=0 warns=0
     ci_run gate-self-tests python3 -m unittest discover -s "$ROOT/ci/tests" -q || failures=$((failures+1))
+    ci_run release-notes python3 "$ROOT/ci/release-notes.py" validate || failures=$((failures+1))
     local note rc
 
     # -- shell syntax of every script the pipeline depends on --------------

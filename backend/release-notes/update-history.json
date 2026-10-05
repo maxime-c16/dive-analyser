@@ -1,0 +1,8 @@
+{
+  "id": "update-history",
+  "date": "2026-10-05",
+  "title": "Keep up with what's new",
+  "body": "Find recent improvements in What's new. Update hints are dismissible and grouped, and the history stays available whenever you want to read it.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

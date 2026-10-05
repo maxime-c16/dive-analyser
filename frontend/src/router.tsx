@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 import Dives from "./pages/Dives";
 import SharedDive from "./pages/SharedDive";
 import { useAuth } from "./contexts/AuthContext";
+import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
 import {
   BarChart3,
   BookOpen,
@@ -231,6 +232,7 @@ function MobileNavigation() {
           Dive Analyser
         </Link>
         <div className="flex items-center gap-2">
+          <WhatsNewButton compact />
           <span className="max-w-36 truncate text-sm text-app-muted">
             {currentLabel}
           </span>
@@ -349,6 +351,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             )}
 
             <div className="mt-auto border-t border-app pt-4">
+              <div className="mb-3"><WhatsNewButton /></div>
               <div className="truncate px-3 text-xs text-app-muted">
                 {user?.display_name ?? user?.email}
                 {friend ? " · member" : " · admin"}
@@ -479,7 +482,7 @@ function Router() {
         path="*"
         element={
           <AuthGuard>
-            <Layout>
+            <WhatsNewProvider><Layout>
               <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">Loading page…</p>}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
@@ -518,7 +521,7 @@ function Router() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </Layout>
+            </Layout></WhatsNewProvider>
           </AuthGuard>
         }
       />
