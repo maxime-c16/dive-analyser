@@ -22,6 +22,9 @@ import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
+import { useNavigationIntent } from "../../hooks/useNavigationIntent";
+import { defaultAnalysisFilters, warmDiveAnalysis } from "../../services/diveAnalysisApi";
+import { useAuth } from "../../contexts/AuthContext";
 import "./clipViewer.css";
 
 const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
@@ -97,6 +100,18 @@ export default function ClipViewer({
     busy: socialBusy,
     retry,
   } = useDiveSocial(attempt.id);
+  const { user } = useAuth();
+  // Hover/pointer-down on the Analysis action speculatively prepares the
+  // analysis result so the destination page meets ready data instead of
+  // opening on a compute round-trip. Consume-once: the page's own call
+  // takes over; retries fall back to its normal fetch.
+  const analysisIntent = useNavigationIntent(
+    `/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`,
+    () => {
+      warmDiveAnalysis(attempt.dive_code, defaultAnalysisFilters(user?.divers?.length ? 'self' : 'all'));
+      return Promise.resolve();
+    },
+  );
   const descriptionGesture = useRef<number | null>(null);
   const descriptionSwiped = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -359,6 +374,7 @@ export default function ClipViewer({
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}
                 aria-label="Analysis"
+                {...analysisIntent}
               >
                 <BarChart3 size={25} />
                 <span>Analysis</span>
