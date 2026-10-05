@@ -354,7 +354,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <div className="mb-3"><WhatsNewButton /></div>
               <div className="truncate px-3 text-xs text-app-muted">
                 {user?.display_name ?? user?.email}
-                {friend ? " · member" : " · admin"}
+                {friend ? " · diver" : " · administrator"}
               </div>
               <nav aria-label="Account navigation" className="mt-2 space-y-1">
                 <AppNavLink to="/account" label="Account" icon={UserRound} />

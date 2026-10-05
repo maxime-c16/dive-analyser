@@ -20,8 +20,9 @@ from app.models.security_audit_log import SecurityAuditEvent
 
 logger = logging.getLogger(__name__)
 
-# Event vocabulary (packet §26 + user_enabled).
+# Event vocabulary (packet §26 + user_enabled + user_updated).
 EVENT_USER_CREATED = "user_created"
+EVENT_USER_UPDATED = "user_updated"
 EVENT_USER_DISABLED = "user_disabled"
 EVENT_USER_ENABLED = "user_enabled"
 EVENT_PASSWORD_RESET = "password_reset"

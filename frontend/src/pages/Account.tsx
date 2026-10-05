@@ -113,7 +113,7 @@ export default function Account() {
   const [busy, setBusy] = useState(false)
 
   const displayName = user?.display_name ?? user?.email ?? ''
-  const isMember = !user?.is_admin
+  const isDiver = !user?.is_admin
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -218,16 +218,24 @@ export default function Account() {
                 </div>
                 <span
                   className={`ml-auto shrink-0 border px-2 py-1 text-xs font-medium ${
-                    isMember ? 'border-app-accent text-app-accent' : 'border-app text-app-muted'
+                    isDiver ? 'border-app-accent text-app-accent' : 'border-app text-app-muted'
                   }`}
                 >
-                  {isMember ? 'Member' : 'Administrator'}
+                  {isDiver ? 'Diver' : 'Administrator'}
                 </span>
               </div>
-              {isMember && (
+              {isDiver && (
                 <p className="mt-3 text-sm leading-6 text-app-muted">
-                  You can view public dives shared by members and manage your own dives.
+                  You can view public dives shared by divers and manage your own dives.
                   Private dives are visible only to their owners. Forgotten passwords need an administrator reset.
+                </p>
+              )}
+              {!isDiver && (
+                <p className="mt-3 text-sm leading-6 text-app-muted">
+                  <a href="/admin" className="text-app-accent underline underline-offset-2">
+                    Manage users in Administration
+                  </a>{' '}
+                  — create diver and administrator accounts, reset passwords, and manage diver bindings.
                 </p>
               )}
               <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-app-muted">
