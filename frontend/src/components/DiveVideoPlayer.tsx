@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import ImmersiveControls from './clip-viewer/ImmersiveControls'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getMediaStatus,
@@ -63,9 +64,13 @@ interface DiveVideoPlayerProps {
   height: string
   videoUuid: string
   playbackRate?: number
+  immersive?: boolean
+  onAspectRatioChange?: (ratio: number) => void
+  onLike?: () => void
+  onNavigate?: (direction: -1 | 1) => void
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {} }: DiveVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const { user, checking: authChecking } = useAuth()
 
@@ -126,6 +131,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
     let cancelled = false
     failuresRef.current = 0
     setStale(false)
+    setDecodeError(false)
+    setPosterSrc(null)
     setPhase({ kind: 'checking' })
 
     const run = async (attempt: number) => {
@@ -191,12 +198,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
     if (videoRef.current && phase.kind === 'ready') {
       videoRef.current.load()
     }
-  }, [phase.kind, phase])
+  }, [phase.kind === 'ready' ? phase.src : null])
 
   // Keep the requested playback speed applied across source loads and changes.
   useEffect(() => {
     const video = videoRef.current
-    if (video) video.playbackRate = playbackRate
+    if (video) {
+      video.playbackRate = playbackRate
+    }
   }, [playbackRate, phase.kind])
 
   // Manual re-check of media status. Status lookup only — never a
@@ -226,7 +235,11 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
 
   const handleLoadedMetadata = () => {
     const video = videoRef.current
-    if (video) video.playbackRate = playbackRate
+    if (video) {
+      if (video.videoHeight) onAspectRatioChange?.(video.videoWidth / video.videoHeight)
+      video.playbackRate = playbackRate
+      if (immersive) void video.play().catch(() => {})
+    }
   }
 
   const handleDecodeError = () => {
@@ -274,12 +287,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
         </div>
       )}
 
-      {/* Safari owns the complete control surface for playable clips. */}
+      {/* Native controls remain available in embedded analysis views. */}
       <video
         ref={videoRef}
-        className="block h-full w-full bg-black object-contain"
+        className={`block h-full w-full bg-black ${immersive ? "clip-video" : "object-contain"}`}
         src={phase.kind === 'ready' ? phase.src : undefined}
-        controls
+        controls={!immersive}
+        autoPlay={immersive}
+        muted={immersive}
+        loop={immersive}
         playsInline
         onLoadedMetadata={handleLoadedMetadata}
         onError={handleDecodeError}
@@ -287,6 +303,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1 }: Dive
         poster={posterSrc || undefined}
         aria-label={`${diveCode} ${height} dive video`}
       />
+
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} />}
 
       {phase.kind === 'ready' && !decodeError && (
         <p className="sr-only" role="status">

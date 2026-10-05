@@ -125,3 +125,5 @@ from app.models.analysis import (
     AnalysisComparisonArtifact,
     AnalysisComparisonMetric,
 )
+
+from app.models.dive_social import DiveLike, DiveComment

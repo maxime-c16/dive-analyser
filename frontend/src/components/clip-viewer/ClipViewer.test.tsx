@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import ClipViewer from './ClipViewer'
 
+vi.mock('../../services/api', () => ({ api: { get: vi.fn().mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }), put: vi.fn() } }))
+
 vi.mock('../DiveVideoPlayer', () => ({
   default: ({ diveCode, videoUuid, playbackRate }: { diveCode: string; videoUuid: string; playbackRate: number }) => (
     <div data-testid="player">
@@ -13,6 +15,9 @@ vi.mock('../DiveVideoPlayer', () => ({
     </div>
   ),
 }))
+
+import { api } from '../../services/api'
+beforeEach(() => { vi.mocked(api.get).mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }) })
 
 import type { Attempt } from '../../utils/attemptPresentation'
 
@@ -231,8 +236,8 @@ it('the dialog itself is never inert', () => {
 it('Tab wraps from the last control back to the first inside the viewer', () => {
   const { container } = renderClipViewer(1)
   const dialog = screen.getByRole('dialog')
-  const analysis = screen.getByRole('link', { name: 'Analysis' })
-  analysis.focus()
+  const next = screen.getByRole('button', { name: 'Next' })
+  next.focus()
   fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: 'Tab' })
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to Library' }))
   expect(dialog.contains(document.activeElement)).toBe(true)
@@ -243,7 +248,7 @@ it('Shift+Tab wraps from the first control to the last inside the viewer', () =>
   const back = screen.getByRole('button', { name: 'Back to Library' })
   back.focus()
   fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: 'Tab', shiftKey: true })
-  expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Analysis' }))
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Next' }))
 })
 
 it('Tab from outside the viewer is pulled back into the first control', () => {

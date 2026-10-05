@@ -31,3 +31,6 @@ v1_router.include_router(dive_codes.router, tags=["dive-codes"])
 v1_router.include_router(dd_operations.router, tags=["dd"])
 v1_router.include_router(execution.router, tags=["execution"])
 v1_router.include_router(analysis.router)
+
+from app.api.v1 import dive_social
+v1_router.include_router(dive_social.router, tags=["dive-discussion"])

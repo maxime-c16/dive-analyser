@@ -1,0 +1,69 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../../services/api";
+export type Social = {
+  liked: boolean;
+  like_count: number;
+  comment_count: number;
+};
+export type Comment = {
+  id: number;
+  body: string;
+  author: string;
+  user_id: number;
+  created_at: string;
+};
+
+export function useDiveSocial(id: number) {
+  const [social, setSocial] = useState<Social | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const activeId = useRef(id);
+  activeId.current = id;
+  const pending = useRef(false);
+  const [epoch, setEpoch] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setSocial(null);
+    setError("");
+    api
+      .get<Social>(`/api/v1/dives/${id}/social`)
+      .then(({ data }) => {
+        if (alive) setSocial(data);
+      })
+      .catch(() => {
+        if (alive) setError("Reactions unavailable. Try again.");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id, epoch]);
+  const like = useCallback(
+    async (liked: boolean) => {
+      if (!social || pending.current || social.liked === liked) return;
+      pending.current = true;
+      setBusy(true);
+      setError("");
+      try {
+        const { data } = await api.put<Social>(`/api/v1/dives/${id}/like`, {
+          liked,
+        });
+        if (activeId.current === id) setSocial(data);
+      } catch {
+        if (activeId.current === id)
+          setError("Could not save your like. Try again.");
+      } finally {
+        pending.current = false;
+        setBusy(false);
+      }
+    },
+    [id, social],
+  );
+  return {
+    social,
+    setSocial,
+    like,
+    error,
+    busy,
+    retry: () => setEpoch((value) => value + 1),
+  };
+}
