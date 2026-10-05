@@ -54,13 +54,16 @@ describe("home-screen web app scope", () => {
   it("is served with the manifest content type", () => {
     // The base nginx image has no .webmanifest mapping and sends
     // X-Content-Type-Options: nosniff, so without this browsers may refuse
-    // to parse the manifest and the scope fix silently stops working.
+    // to parse the manifest and the scope fix silently stops working. This
+    // must be an exact-match location with default_type: a server-level
+    // `types {}` block would replace every inherited MIME mapping.
     const nginxConf = fs.readFileSync(
       path.join(frontendDir, "nginx.conf"),
       "utf8",
     );
-    expect(nginxConf).toContain("application/manifest+json");
-    expect(nginxConf).toContain("webmanifest");
+    expect(nginxConf).toContain("location = /manifest.webmanifest");
+    expect(nginxConf).toContain("default_type application/manifest+json");
+    expect(nginxConf).not.toMatch(/^\s*types\s*\{/m);
   });
 
   it("declares the manifest and iOS standalone tags in index.html", () => {
