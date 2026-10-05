@@ -53,9 +53,21 @@ def check_tree(root):
 
 
 def build(root, refs):
-    refs = {service: git(root, 'rev-parse', '--verify', f'{ref}^{{commit}}') for service, ref in refs.items()}
+    resolved = {}
+    for service, ref in refs.items():
+        # Legacy images may be unlabeled, and an unreachable SHA cannot prove
+        # feature availability. Omit their notes without blocking the rollout.
+        try:
+            resolved[service] = subprocess.check_output(
+                ['git', '-C', str(root), 'rev-parse', '--verify', f'{ref}^{{commit}}'],
+                text=True, stderr=subprocess.DEVNULL).strip()
+        except subprocess.CalledProcessError:
+            resolved[service] = ''
+    refs = resolved
     candidates = {}
     for ref in set(refs.values()):
+        if not ref:
+            continue
         paths = git(root, 'ls-tree', '-r', '--name-only', ref, '--', NOTE_DIR).splitlines()
         for path in paths:
             if not path.endswith('.json'):
@@ -71,12 +83,14 @@ def build(root, refs):
             candidates[note['id']] = (note, added)
     notes = []
     for note, introduced in candidates.values():
-        if all(component in refs and subprocess.run(
+        if all(refs.get(component) and subprocess.run(
             ['git', '-C', str(root), 'merge-base', '--is-ancestor', introduced, refs[component]],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
                for component in note['components']):
             notes.append(note)
     notes.sort(key=lambda note: (note['date'], note['id']), reverse=True)
+    if not refs.get('frontend'):
+        notes = []  # No reliable frontend identity for the client version guard.
     return {'schema': 1, 'frontend_sha': refs['frontend'], 'notes': notes[:100]}
 
 
@@ -91,7 +105,7 @@ def main():
     if args.command == 'validate':
         check_tree(args.root)
         return
-    if not args.frontend or not args.backend:
+    if args.frontend is None or args.backend is None:
         parser.error('build requires --frontend and --backend')
     manifest = build(args.root, {'frontend': args.frontend, 'backend': args.backend})
     rendered = json.dumps(manifest, ensure_ascii=False, indent=2) + '\n'

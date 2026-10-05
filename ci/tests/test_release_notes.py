@@ -69,3 +69,15 @@ class ReleaseNotesTests(unittest.TestCase):
         (self.root / notes.NOTE_DIR / 'first.json').unlink()
         with self.assertRaises(ValueError):
             notes.check_tree(self.root)
+
+    def test_legacy_unlabeled_services_do_not_block_partial_deployment(self):
+        frontend_note = {**self.note, 'id': 'frontend-only', 'components': ['frontend']}
+        self.write(frontend_note)
+        current = self.commit()
+        for unknown in ['', '<no value>', 'unreachable-sha']:
+            with self.subTest(unknown=unknown):
+                self.assertEqual(self.build(current, unknown)['notes'], [frontend_note])
+                self.assertEqual(self.build(unknown, current)['notes'], [])
+                command = ['python3', str(Path(notes.__file__)), 'build', '--root', str(self.root),
+                           '--frontend', current, '--backend', unknown]
+                self.assertEqual(json.loads(subprocess.check_output(command, text=True))['notes'], [frontend_note])

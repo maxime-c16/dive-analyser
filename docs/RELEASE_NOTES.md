@@ -33,6 +33,9 @@ fails the deployment and restores the previous images, leaving the previous
 catalog intact. Explicit rollback recomputes eligibility from the services that
 actually run. No Compose changes or SQL migration are needed. `--force` produces
 the same note IDs and does not create another announcement.
+Legacy services without a usable SHA label are treated as unavailable for
+note eligibility; they never block a partial deploy. An unknown frontend SHA
+keeps the entire catalog quiet until its identity is known.
 
 The UI polls the authenticated `/api/v1/updates` once a minute while visible,
 and on focus. It groups unseen notes into one hint and durably claims a
