@@ -19,7 +19,7 @@ function queueable(url: string, ok = true) {
 }
 
 it("fetches each warm URL at most once with a low priority", async () => {
-  const fetcher = vi.fn(() => queueable("/play"));
+  const fetcher = vi.fn((url: string) => queueable(url));
   vi.stubGlobal("fetch", fetcher);
   const { warmPlaybackBytes } = await import("./playbackWarming");
   warmPlaybackBytes("/a");
