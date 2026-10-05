@@ -207,4 +207,34 @@ describe('AdminUsers', () => {
       expect(calls.some(c => c.url === '/api/v1/admin/users/2/divers/10' && c.init?.method === 'DELETE')).toBe(true),
     )
   })
+
+  it('reports an already-bound diver instead of a misleading success', async () => {
+    const noBindings = { ...diverUser, diver_ids: [], diver_binding_total: 0 }
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: unknown, init?: unknown) => {
+      const href = String(url)
+      const method = (init as RequestInit | undefined)?.method
+      if (href === '/api/v1/admin/users/2/divers' && method === 'POST') {
+        return new Response(JSON.stringify({ ok: true, bound: true, noop: true }), { status: 200 })
+      }
+      if (href === '/api/v1/admin/users/2' && (!method || method === 'GET')) {
+        return new Response(JSON.stringify(noBindings), { status: 200 })
+      }
+      if (href.startsWith('/api/v1/admin/users')) {
+        return new Response(JSON.stringify(mockDirectory()), { status: 200 })
+      }
+      if (href.startsWith('/api/v1/admin/divers')) {
+        return new Response(
+          JSON.stringify({ divers, total: divers.length, limit: 200, offset: 0 }),
+          { status: 200 },
+        )
+      }
+      return new Response('{}', { status: 404 })
+    })
+    void spy
+    render(<AdminUsers currentUserId={1} />)
+    await screen.findByText('diver@example.test')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Manage' })[1])
+    fireEvent.click(await screen.findByRole('button', { name: 'Bind' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Already bound to Aqua'))
+  })
 })

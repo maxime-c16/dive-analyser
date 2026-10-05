@@ -679,6 +679,7 @@ def list_divers_for_admin(
             row.diver_id
             for row in db.query(UserDiverAccess.diver_id)
             .filter(UserDiverAccess.diver_id.in_([row.id for row in rows]))
+            .distinct()
             .all()
         }
     return {

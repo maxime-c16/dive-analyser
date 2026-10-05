@@ -544,7 +544,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                         onClick={() =>
                           void runMutation(
                             () => unbindDiver(selected.user_id, d.diver_id),
-                            () => `Unbound ${d.display_name}`,
+                            result => (result.noop ? `No binding to ${d.display_name} existed` : `Unbound ${d.display_name}`),
                           )
                         }
                         className="touch-target shrink-0 border border-app px-3 text-xs text-app-muted hover:text-app-text disabled:opacity-60"
@@ -558,7 +558,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                         onClick={() =>
                           void runMutation(
                             () => bindDiver(selected.user_id, d.diver_id),
-                            () => `Bound ${d.display_name}`,
+                            result => (result.noop ? `Already bound to ${d.display_name}` : `Bound ${d.display_name}`),
                           )
                         }
                         className="touch-target shrink-0 border border-app-accent px-3 text-xs text-app-accent disabled:opacity-60"
