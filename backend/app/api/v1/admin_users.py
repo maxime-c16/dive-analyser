@@ -350,10 +350,13 @@ def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     is_self = user.id == admin.id
 
+    profile_fields: List[str] = []
     if body.display_name is not None:
         name = body.display_name.strip()
         if not name:
             raise HTTPException(status_code=400, detail="Display name cannot be empty")
+        if name[:120] != user.display_name:
+            profile_fields.append("display_name")
         user.display_name = name[:120]
 
     if body.email is not None:
@@ -369,6 +372,7 @@ def update_user(
                     status_code=409, detail="An account with this email already exists"
                 )
             user.email = email
+            profile_fields.append("email")
 
     role_changed = False
     if body.role is not None:
@@ -422,6 +426,14 @@ def update_user(
             actor_context=_actor(admin),
             target_user_id=user.id,
             metadata={"revoked_sessions": revoked},
+        )
+    if profile_fields:
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_USER_UPDATED,
+            actor_context=_actor(admin),
+            target_user_id=user.id,
+            metadata={"fields": sorted(profile_fields)},
         )
     db.refresh(user)
     counts = _live_session_counts(db, [user.id])

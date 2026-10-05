@@ -137,16 +137,22 @@ export function listDivers(params?: { limit?: number; offset?: number }): Promis
 }
 
 const DIVER_PAGE_SIZE = 200
-const DIVER_MAX_PAGES = 5
 
-/** Full diver directory for the binding UI, paged through boundedly. */
+/** Full diver directory for the binding UI, paged through the reported total.
+ *
+ * Every page is bounded (200 rows); the loop ends when the loaded count
+ * reaches the reported total or a page comes back short (offset past the
+ * last row), so it always terminates.
+ */
 export async function listAllDivers(): Promise<AdminDiver[]> {
   const all: AdminDiver[] = []
-  for (let page = 0; page < DIVER_MAX_PAGES; page += 1) {
-    const chunk = await listDivers({ limit: DIVER_PAGE_SIZE, offset: page * DIVER_PAGE_SIZE })
+  let offset = 0
+  for (;;) {
+    const chunk = await listDivers({ limit: DIVER_PAGE_SIZE, offset })
     all.push(...chunk.divers)
     const total = chunk.total ?? all.length
     if (all.length >= total || chunk.divers.length < DIVER_PAGE_SIZE) break
+    offset += DIVER_PAGE_SIZE
   }
   return all
 }

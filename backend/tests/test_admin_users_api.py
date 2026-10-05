@@ -1,5 +1,4 @@
 """Admin user-management API tests.
-
 Covers the browser surface for the administrator role (two roles only:
 administrator or diver): auth guards, bounded listing, create/update with
 public role labels, disable/enable + role change session revocation,
@@ -11,6 +10,7 @@ real routes, no live provider.
 """
 
 import pytest
+from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,6 +19,8 @@ from sqlalchemy.pool import StaticPool
 from app.config import get_settings
 from app.database import Base, get_db
 from app.main import app
+from app.models.dive import Dive
+from app.models.session import Session as SessionModel
 from app.models.diver import Diver
 from app.models.security_audit_log import SecurityAuditEvent
 from app.models.user_auth import (
@@ -58,18 +60,7 @@ def db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[
-            Diver.__table__,
-            AppUser.__table__,
-            UserCredential.__table__,
-            UserSession.__table__,
-            UserDiverAccess.__table__,
-            LoginAttempt.__table__,
-            SecurityAuditEvent.__table__,
-        ],
-    )
+    Base.metadata.create_all(engine)
     TestingSession = sessionmaker(bind=engine)
     session = TestingSession()
     diver = Diver(display_name="Aqua Diver", canonical_name="aqua-diver",
@@ -407,3 +398,69 @@ def test_admin_diver_directory_lists_all_divers(admin_client, db, flags):
 
     diver = _login(db, "diver@example.test")
     assert diver.get("/api/v1/admin/divers").status_code == 403
+
+
+def test_profile_update_is_audited(admin_client, db):
+    target = db.query(AppUser).filter_by(email="diver@example.test").one()
+    updated = admin_client.patch(
+        f"/api/v1/admin/users/{target.id}",
+        json={"display_name": "Audited Name"},
+    )
+    assert updated.status_code == 200
+    events = [e for e in db.query(SecurityAuditEvent).all()
+              if e.event_type == "user_updated"
+              and e.target_user_id == target.id]
+    assert len(events) == 1
+    assert events[0].actor_context.startswith("admin:")
+    assert "display_name" in (events[0].metadata_json or "")
+    assert "Audited Name" not in (events[0].metadata_json or "")
+
+    # A no-op save records nothing.
+    admin_client.patch(f"/api/v1/admin/users/{target.id}",
+                       json={"display_name": "Audited Name"})
+    assert sum(1 for e in db.query(SecurityAuditEvent).all()
+               if e.event_type == "user_updated"
+               and e.target_user_id == target.id) == 1
+
+
+def test_admin_bound_diver_manages_own_dives_only(admin_client, db, flags):
+    """Equivalence with the CLI + self-registration authorities.
+
+    A diver-role account bound through the new admin endpoint behaves
+    exactly like a CLI-bound or self-registered diver (see
+    test_member_dive_visibility.py): it manages the bound diver's dives
+    and is denied on other divers' dives. The endpoint introduces no new
+    privilege — bindings remain the single ownership mechanism.
+    """
+    now = datetime.utcnow()
+    training = SessionModel(date=now.date(), location="Pool")
+    db.add(training)
+    db.flush()
+    other = Diver(display_name="Other", canonical_name="other-diver",
+                  is_primary_user=False)
+    db.add(other)
+    db.flush()
+    own_id, other_id = None, None
+    for diver_id, uuid in ((_diver_id(db), "own-dive-uuid"), (other.id, "other-dive-uuid")):
+        dive = Dive(session_id=training.id, dive_code="101B", performance="G",
+                    performance_numeric=3, height="1m", video_uuid=uuid,
+                    diver_id=diver_id, visibility="public",
+                    dive_datetime=now)
+        db.add(dive)
+        db.flush()
+        if uuid == "own-dive-uuid":
+            own_id = dive.id
+        else:
+            other_id = dive.id
+    db.commit()
+
+    target = db.query(AppUser).filter_by(email="diver@example.test").one()
+    bound = admin_client.post(f"/api/v1/admin/users/{target.id}/divers",
+                              json={"diver_id": _diver_id(db)})
+    assert bound.json()["bound"] is True
+
+    diver = _login(db, "diver@example.test")
+    own = diver.put(f"/api/v1/dives/{own_id}", json={"notes": "my edit"})
+    assert own.status_code == 200, own.text
+    assert diver.put(f"/api/v1/dives/{other_id}",
+                     json={"notes": "not mine"}).status_code == 403
