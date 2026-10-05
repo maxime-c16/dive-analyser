@@ -233,12 +233,51 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     }
   }
 
+  // Autoplay with sound is blocked by browsers until the user has interacted
+  // with the domain (NotAllowedError). Since the clip source arrives
+  // asynchronously (after the media-status lookup), the autoPlay attribute
+  // alone never starts playback — and the previous fire-and-forget play()
+  // left the clip paused when sound was blocked. Try with sound first to
+  // preserve sound-by-default, then fall back to muted autoplay so the clip
+  // still starts; the viewer can unmute from ImmersiveControls.
+  const attemptImmersiveAutoplay = (video: HTMLVideoElement) => {
+    try {
+      const attempt = video.play()
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => {
+          try {
+            video.muted = true
+          } catch {
+            /* ignore */
+          }
+          try {
+            const retry = video.play()
+            if (retry && typeof retry.catch === 'function') retry.catch(() => {})
+          } catch {
+            /* ignore */
+          }
+        })
+      }
+    } catch {
+      /* play() threw synchronously — leave the native affordance */
+    }
+  }
+
   const handleLoadedMetadata = () => {
     const video = videoRef.current
     if (video) {
       if (video.videoHeight) onAspectRatioChange?.(video.videoWidth / video.videoHeight)
       video.playbackRate = playbackRate
-      if (immersive) void video.play().catch(() => {})
+      if (immersive) attemptImmersiveAutoplay(video)
+    }
+  }
+
+  const handleCanPlay = () => {
+    const video = videoRef.current
+    // Safety net for the case where loadedmetadata fired before playback was
+    // possible: only nudge a still-paused immersive clip.
+    if (video && immersive && video.paused && !video.ended) {
+      attemptImmersiveAutoplay(video)
     }
   }
 
@@ -297,8 +336,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         loop={immersive}
         playsInline
         onLoadedMetadata={handleLoadedMetadata}
+        onCanPlay={handleCanPlay}
         onError={handleDecodeError}
-        preload="metadata"
+        preload={immersive ? 'auto' : 'metadata'}
         poster={posterSrc || undefined}
         aria-label={`${diveCode} ${height} dive video`}
       />
