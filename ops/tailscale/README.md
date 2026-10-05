@@ -5,7 +5,8 @@ Activated on 2026-10-04 at:
 **https://dive-analyser.tail32dd14.ts.net/**
 
 Tailscale Funnel provides HTTPS and a stable hostname on the free Personal
-plan. Visitors only need a browser and an existing Dive Analyzer account;
+plan. Visitors need a browser and either an existing Dive Analyzer account
+or a shared-video link;
 they do not need Tailscale or WireGuard. The server must remain online.
 Funnel has provider bandwidth limits. B2 playback redirects send video bytes
 directly from B2 to the viewer.
@@ -31,8 +32,11 @@ The backend runtime `.env` includes
 `https://dive-analyser.tail32dd14.ts.net` in `CORS_ALLOW_ORIGINS`.
 `USER_AUTH_ENABLED=true` and secure session cookies must stay enabled.
 
-All external API routes except the login/me/logout endpoints require an
-active session via nginx `auth_request`. This also protects historical
+External API routes require an active session via nginx `auth_request`,
+except the authentication/registration endpoints and `/api/v1/shared-dives/`.
+The `/share/` page is also public: its URL-fragment secret is exchanged for
+a guest grant, which the backend validates for each shared-video request.
+An invalid or revoked link grants no access. This also protects historical
 analytics endpoints without backend session dependencies. Media ownership
 authorization remains enforced by the backend. Database Adminer and API
 documentation are refused on the public proxy. Caller-supplied forwarding
@@ -86,3 +90,12 @@ sudo tailscale funnel --https=443 off
 Disable Funnel **before** ever turning off backend user authentication.
 The existing Cloudflare artifacts and architecture audit are historical
 preparation; Funnel removes the need for their owned-domain provider step.
+
+To check guest routing without creating a grant or accessing a video:
+
+```sh
+python3 ops/tailscale/check_guest_routes.py https://dive-analyser.tail32dd14.ts.net
+```
+
+After changing this proxy configuration, deploy with `ci/ship.sh` and recreate
+the Funnel proxy as described in `docs/REPO_WORKFLOW.md`.
