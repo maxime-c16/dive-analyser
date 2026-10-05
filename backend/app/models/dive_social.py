@@ -15,6 +15,13 @@ class DiveComment(Base):
     id = Column(Integer, primary_key=True)
     dive_id = Column(Integer, ForeignKey('dives.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('app_users.id', ondelete='CASCADE'), nullable=False)
+    parent_id = Column(Integer, ForeignKey('dive_comments.id', ondelete='CASCADE'), nullable=True, index=True)
     body = Column(String(2000), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (CheckConstraint('length(body) BETWEEN 1 AND 2000', name='ck_dive_comment_length'),)
+
+
+class DiveCommentLike(Base):
+    __tablename__ = 'dive_comment_likes'
+    comment_id = Column(Integer, ForeignKey('dive_comments.id', ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey('app_users.id', ondelete='CASCADE'), primary_key=True)

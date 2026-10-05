@@ -11,6 +11,10 @@ export type Comment = {
   author: string;
   user_id: number;
   created_at: string;
+  parent_id?: number | null;
+  liked?: boolean;
+  like_count?: number;
+  reply_count?: number;
 };
 
 export function useDiveSocial(id: number) {

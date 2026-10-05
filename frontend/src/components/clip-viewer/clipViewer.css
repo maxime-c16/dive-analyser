@@ -817,3 +817,31 @@
 @media (max-width: 599px) {
   .clip-speed-indicator { top: calc(80px + env(safe-area-inset-top)); }
 }
+
+.clip-comment .clip-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.clip-comment .clip-comment-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.clip-comment-actions button[aria-pressed="true"] {
+  color: var(--app-accent);
+}
+.clip-thread-toggle {
+  min-height: 44px;
+  color: var(--app-accent);
+  font-size: 13px;
+}
+.clip-thread-replies {
+  margin-left: 18px;
+  padding-left: 14px;
+  border-left: 1px solid #ffffff26;
+}
+.clip-thread-replies form {
+  padding: 16px 0;
+}

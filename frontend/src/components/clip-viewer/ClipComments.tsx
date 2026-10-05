@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { api } from "../../services/api";
-import { useAuth } from "../../contexts/AuthContext";
+import CommentThread from "./CommentThread";
 import type { Comment } from "./useDiveSocial";
 
 export default function ClipComments({
@@ -11,7 +11,6 @@ export default function ClipComments({
   id: number;
   onCountChange: (delta: number) => void;
 }) {
-  const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [before, setBefore] = useState<number | null>(null);
   const [body, setBody] = useState("");
@@ -125,46 +124,20 @@ export default function ClipComments({
         </div>
       )}
       {comments.map((comment) => (
-        <article key={comment.id} className="clip-comment">
-          <div className="clip-avatar">
-            {comment.author.slice(0, 1).toUpperCase()}
-          </div>
-          <div>
-            <strong>{comment.author}</strong>
-            <time dateTime={comment.created_at}>
-              {new Date(comment.created_at).toLocaleDateString()}
-            </time>
-            <p>{comment.body}</p>
-          </div>
-          {(comment.user_id === user?.user_id || user?.is_admin) && (
-            <button
-              type="button"
-              aria-label={`Delete comment by ${comment.author}`}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await api.delete(
-                    `/api/v1/dives/${id}/comments/${comment.id}`,
-                  );
-                  if (!mounted.current || activeId.current !== id) return;
-                  pendingMutations.current.set(comment.id, null);
-                  setComments((previous) =>
-                    previous.filter((item) => item.id !== comment.id),
-                  );
-                  onCountChange(-1);
-                } catch {
-                  if (mounted.current)
-                    setError("Could not delete your comment.");
-                } finally {
-                  if (mounted.current) setBusy(false);
-                }
-              }}
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </article>
+        <CommentThread key={comment.id} comment={comment} diveId={id}
+          onCountChange={onCountChange}
+          onChange={updated => {
+            pendingMutations.current.set(updated.id, updated);
+            setComments(rows => rows.map(row => row.id === updated.id ? updated : row));
+          }}
+          onDelete={async () => {
+            await api.delete(`/api/v1/dives/${id}/comments/${comment.id}`);
+            if (!mounted.current || activeId.current !== id) return;
+            pendingMutations.current.set(comment.id, null);
+            setComments(rows => rows.filter(row => row.id !== comment.id));
+            onCountChange(-1 - (comment.reply_count ?? 0));
+          }}
+        />
       ))}
       {before && (
         <button

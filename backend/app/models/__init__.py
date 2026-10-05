@@ -126,4 +126,4 @@ from app.models.analysis import (
     AnalysisComparisonMetric,
 )
 
-from app.models.dive_social import DiveLike, DiveComment
+from app.models.dive_social import DiveLike, DiveComment, DiveCommentLike
