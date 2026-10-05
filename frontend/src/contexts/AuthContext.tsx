@@ -1,3 +1,5 @@
+import { clearLibraryCache } from '../services/libraryCache'
+import { clearIntentData } from '../services/intentCache'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
 export interface AuthUser {
@@ -32,10 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
 
   const refresh = async () => {
+    clearIntentData()
     try {
       const res = await fetch('/api/v1/auth/me', { credentials: 'same-origin' })
       if (res.ok) {
         const data = await res.json()
+        clearIntentData()
         setUser({
           user_id: data.user_id,
           email: data.email,
@@ -45,16 +49,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           divers: Array.isArray(data.divers) ? data.divers : [],
         })
       } else {
+        clearLibraryCache()
         setUser(null)
       }
     } catch {
+      clearLibraryCache()
       setUser(null)
     } finally {
+      clearIntentData()
       setChecking(false)
     }
   }
 
   const signOut = async () => {
+    clearIntentData()
+    clearLibraryCache()
     try {
       await fetch('/api/v1/auth/logout', {
         method: 'POST',
@@ -63,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Cookie is HttpOnly; a network failure still means dropping local state.
     } finally {
+      clearLibraryCache()
       setUser(null)
     }
   }

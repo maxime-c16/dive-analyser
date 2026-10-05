@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { getNavigationData } from "../services/navigationData";
 import { useSyncStatus } from "../hooks/useSyncStatus";
 import SyncStatus from "../components/SyncStatus";
 import DDProgressionChart from "../components/DDProgressionChart";
@@ -128,11 +128,11 @@ function Dashboard() {
           sessionsRes,
           personalResult,
         ] = await Promise.all([
-          api.get("/api/v1/analytics/overall"),
-          api.get("/api/v1/analytics/monthly"),
-          api.get("/api/v1/analytics/by-height"),
-          api.get("/api/v1/analytics/by-direction"),
-          api.get("/api/v1/sessions?limit=100"),
+          getNavigationData("/api/v1/analytics/overall"),
+          getNavigationData("/api/v1/analytics/monthly"),
+          getNavigationData("/api/v1/analytics/by-height"),
+          getNavigationData("/api/v1/analytics/by-direction"),
+          getNavigationData("/api/v1/sessions?limit=100"),
           getRecentPersonalDiveValues(60).catch(() => ({
             version: "v1",
             values: [],

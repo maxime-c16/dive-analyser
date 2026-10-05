@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { getNavigationData } from "../services/navigationData";
 import { format, parseISO, isToday, isYesterday, isThisWeek } from "date-fns";
 import {
   CalendarDays,
@@ -49,9 +49,7 @@ function Sessions() {
   const fetchSessions = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/v1/sessions", {
-        params: { limit, diver_scope: diverScope },
-      });
+      const response = await getNavigationData("/api/v1/sessions", { limit, diver_scope: diverScope });
       setSessions(response.data);
       setError(null);
     } catch (err) {

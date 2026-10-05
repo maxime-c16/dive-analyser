@@ -1,8 +1,8 @@
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Hash, LayoutGrid, List, Search, SlidersHorizontal } from "lucide-react";
+import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
-import ClipViewer from "../components/clip-viewer/ClipViewer";
+import { clearLibraryCache, libraryKey, loadLibraryCache, readLibraryCache } from "../services/libraryCache";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
 import { divePositionCode } from "../utils/divePosition";
@@ -19,6 +19,8 @@ import {
 import AddVideos from "../components/AddVideos";
 import DiveThumbnail from "../components/DiveThumbnail";
 import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
+
+const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
 
 type Dive = Attempt;
 type Diver = { id: number; display_name: string; is_primary_user: boolean };
@@ -166,12 +168,21 @@ function parseSearch(value: string) {
   return { code, height, sync, modifiers, performance, position, text };
 }
 
+// Recreate local UI state when account/access bindings change; old attempts
+// must not remain visible for a render while an effect resets their list.
 export default function Dives() {
+  const { user } = useAuth();
+  return <DiveLibrary key={libraryKey(user) ?? 'anonymous'} />;
+}
+
+function DiveLibrary() {
   const [searchParams, setSearchParams] = usePreservedSearchParams();
   const { user } = useAuth();
-  const [dives, setDives] = useState<Dive[]>([]);
-  const [divers, setDivers] = useState<Diver[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = libraryKey(user);
+  const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
+  const [dives, setDives] = useState<Dive[]>(cached?.dives ?? []);
+  const [divers, setDivers] = useState<Diver[]>(cached?.divers ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [shown, setShown] = useState(48);
@@ -204,22 +215,29 @@ export default function Dives() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    Promise.all([
-      api.get("/api/v1/dives", {
-        params: { limit: 5000, exclude_lineup: true, diver_scope: "all" },
-      }),
-      api.get("/api/v1/divers"),
-    ])
-      .then(([diveResponse, diverResponse]) => {
+    const snapshot = readLibraryCache(cacheKey);
+    setDives(snapshot?.dives ?? []);
+    setDivers(snapshot?.divers ?? []);
+    setLoading(!snapshot);
+    setError(null);
+    loadLibraryCache(cacheKey, async () => {
+      const [diveResponse, diverResponse] = await Promise.all([
+        api.get("/api/v1/dives", {
+          params: { limit: 5000, exclude_lineup: true, diver_scope: "all" },
+        }),
+        api.get("/api/v1/divers"),
+      ]);
+      return { dives: diveResponse.data, divers: diverResponse.data };
+    })
+      .then(({ dives, divers }) => {
         if (active) {
-          setDives(diveResponse.data);
-          setDivers(diverResponse.data);
+          setDives(dives);
+          setDivers(divers);
           setError(null);
         }
       })
       .catch(() => {
-        if (active) setError("The dive library could not be loaded.");
+        if (active) setError(snapshot ? "Showing saved dives. The library could not be refreshed." : "The dive library could not be loaded.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -227,7 +245,7 @@ export default function Dives() {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, cacheKey]);
 
   const primaryId = divers.find((diver) => diver.is_primary_user)?.id;
   const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
@@ -424,6 +442,16 @@ export default function Dives() {
             <strong className="text-app-text">{codeCount}</strong> codes
           </p>
         </div>
+        <button
+          type="button"
+          aria-label="Refresh library"
+          title="Refresh library"
+          disabled={loading}
+          onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
+          className="touch-target ml-auto inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
         <div className="flex h-9 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
           {(
             [
@@ -453,7 +481,7 @@ export default function Dives() {
           </div>
         </div>
       </header>
-      <div className="mt-3"><AddVideos onAdded={() => { setReloadKey(key => key + 1); }} /></div>
+      <div className="mt-3"><AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} /></div>
       <section className="mt-4 space-y-2" aria-label="Dive library filters">
         <div className="flex flex-wrap items-center gap-2">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
@@ -614,14 +642,14 @@ export default function Dives() {
           <p>{error}</p>
           <button
             type="button"
-            onClick={() => setReloadKey((key) => key + 1)}
+            onClick={() => { clearLibraryCache(); setReloadKey((key) => key + 1); }}
             className="touch-target mt-3 inline-flex items-center gap-2 border border-red-300/50 bg-black/30 px-3 text-sm text-red-50"
           >
             Retry
           </button>
         </div>
       )}
-      {!loading && !error && (
+      {!loading && (!error || dives.length > 0) && (
         <section className="mt-3 border-t border-app pt-3 sm:mt-5 sm:pt-5">
           {filtered.length === 0 ? (
             <div className="border-b border-app py-16 text-center" role="status">
@@ -687,16 +715,18 @@ export default function Dives() {
         </section>
       )}
       {selected && (
-        <ClipViewer
+        <Suspense fallback={<p role="status" className="py-4 text-app-muted">Opening video…</p>}>
+          <ClipViewer
           attempt={selected}
           attempts={filtered}
           onClose={closeViewer}
           onMove={moveToClip}
           playbackRate={playbackRate}
           onPlaybackRateChange={setPlaybackRate}
-          onUpdate={updated => setDives(current => current.map(dive => dive.id === updated.id ? updated as Dive : dive))}
-          onDelete={() => { setDives(current => current.filter(dive => dive.id !== selected.id)); closeViewer(); }}
-        />
+          onUpdate={updated => { clearLibraryCache(); setDives(current => current.map(dive => dive.id === updated.id ? updated as Dive : dive)); }}
+          onDelete={() => { clearLibraryCache(); setDives(current => current.filter(dive => dive.id !== selected.id)); closeViewer(); }}
+          />
+        </Suspense>
       )}
     </div>
   );
