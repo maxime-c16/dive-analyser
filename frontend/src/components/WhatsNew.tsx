@@ -124,10 +124,16 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   }, [manifest, compatible, toast, panel, tick, key])
 
   const acknowledge = (notes: UpdateNote[]) => {
-    const latest = readState(key)
-    if (!latest) return
-    const next = { ...latest, seen: Array.from(new Set([...latest.seen, ...notes.map(note => note.id)])) }
-    try { localStorage.setItem(key, JSON.stringify(next)); setState(next) } catch { setState(null) }
+    const save = () => {
+      const latest = readState(key)
+      if (!latest) return
+      const next = { ...latest, seen: Array.from(new Set([...latest.seen, ...notes.map(note => note.id)])) }
+      try { localStorage.setItem(key, JSON.stringify(next)); setState(next) } catch { setState(null) }
+    }
+    // Reads and cooldown claims use the same cross-tab lock so neither can
+    // overwrite the other tab's newly acknowledged IDs or display timestamp.
+    if (navigator.locks) void navigator.locks.request(key, save).catch(() => setState(null))
+    else save()
   }
   const dismiss = () => { if (toast) acknowledge(toast); setToast(null) }
   const open = () => {
@@ -147,7 +153,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 
   return <Context.Provider value={{ open, unread: unread || !compatible }}>
     {children}
-    {toast && compatible && <div role="status" className="fixed bottom-5 left-4 right-4 z-40 border border-app-strong border-l-2 border-l-app-accent bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
+    {toast && compatible && <div role="status" className="fixed bottom-5 left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
       <div className="flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />Your library just got an update</h2>
         <button aria-label="Dismiss update notification" onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
@@ -189,7 +195,12 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
       if (root) root.inert = oldInert || false
       document.body.style.overflow = overflow
       document.removeEventListener('keydown', keyboard)
-      previousFocus?.focus()
+      if (previousFocus?.isConnected) previousFocus.focus()
+      else {
+        const historyButton = Array.from(root?.querySelectorAll<HTMLButtonElement>('button[aria-label="What\'s new"]') || [])
+          .find(button => button.getClientRects().length > 0)
+        ;(historyButton || document.getElementById('main-content'))?.focus()
+      }
     }
   }, [close])
   return createPortal(<div className="fixed inset-0 z-[70]">
