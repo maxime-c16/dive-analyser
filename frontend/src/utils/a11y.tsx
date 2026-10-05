@@ -67,7 +67,7 @@ export function trapTabKey(
   ).filter(
     (element) =>
       !element.hasAttribute("disabled") &&
-      !element.closest("[hidden]") &&
+      !element.closest("[hidden], [inert]") &&
       element.getAttribute("aria-hidden") !== "true",
   );
   if (focusable.length === 0) {

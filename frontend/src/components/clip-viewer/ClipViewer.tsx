@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronDown } from "lucide-react";
+import {
+  ArrowLeft,
+  BarChart3,
+  Heart,
+  MessageCircle,
+  X,
+  ChevronUp,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
@@ -11,6 +18,9 @@ import ClipMetadataSummary from "./ClipMetadataSummary";
 import DiveManagement from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
 import ClipDetails from "./ClipDetails";
+import ClipComments from "./ClipComments";
+import { useDiveSocial } from "./useDiveSocial";
+import "./clipViewer.css";
 
 const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
 const INTERACTIVE_TARGET =
@@ -40,9 +50,74 @@ export default function ClipViewer({
   const location = useLocation();
   const [manageOpen, setManageOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(9 / 16);
+  const [wide, setWide] = useState(
+    () => window.matchMedia?.("(min-width: 1024px)").matches ?? true,
+  );
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const {
+    social,
+    setSocial,
+    like,
+    error: socialError,
+    busy: socialBusy,
+    retry,
+  } = useDiveSocial(attempt.id);
+  const descriptionGesture = useRef<number | null>(null);
+  const descriptionSwiped = useRef(false);
+  const panelOpen = detailsOpen || commentsOpen || manageOpen;
+  const panelRef = useRef<HTMLElement>(null);
+  const detailsButtonRef = useRef<HTMLButtonElement>(null);
+  const commentsButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLButtonElement | null>(null);
+  const closePanel = () => {
+    returnFocus.current = (
+      commentsOpen ? commentsButtonRef : detailsButtonRef
+    ).current;
+    setDetailsOpen(false);
+    setCommentsOpen(false);
+    setManageOpen(false);
+  };
+  const navigate = (direction: -1 | 1) => {
+    const next = attempts[index + direction];
+    if (next) onMove(next);
+  };
   const dialogRef = useRef<HTMLElement>(null);
 
-  useEffect(() => { setManageOpen(false); }, [attempt.id]);
+  useEffect(() => {
+    setManageOpen(false);
+    setDetailsOpen(false);
+    setCommentsOpen(false);
+    setAspectRatio(9 / 16);
+  }, [attempt.id]);
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(min-width: 1024px)");
+    if (!media) return;
+    const update = () => setWide(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!panelRef.current) return;
+    panelRef.current.toggleAttribute("inert", !wide && !panelOpen);
+  }, [wide, panelOpen]);
+  useEffect(() => {
+    if (panelOpen && panelRef.current) {
+      const restore = inertExcept(panelRef.current);
+      // The backdrop remains a pointer dismissal target, outside the Tab order.
+      dialogRef.current?.querySelector('.clip-panel-scrim')?.removeAttribute('inert');
+      return restore;
+    }
+  }, [panelOpen]);
+
+  useEffect(() => {
+    if (panelOpen) panelRef.current?.focus({ preventScroll: true });
+    else if (returnFocus.current) {
+      returnFocus.current.focus({ preventScroll: true });
+      returnFocus.current = null;
+    }
+  }, [panelOpen]);
 
   // Focus enters the review surface on open; the Library stays mounted below.
   useEffect(() => {
@@ -83,11 +158,12 @@ export default function ClipViewer({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        if (panelOpen) closePanel();
+        else onClose();
         return;
       }
       if (event.key === "Tab") {
-        const dialog = dialogRef.current;
+        const dialog = panelOpen ? panelRef.current : dialogRef.current;
         if (dialog) trapTabKey(dialog, event);
         return;
       }
@@ -109,13 +185,19 @@ export default function ClipViewer({
         }
         return;
       }
-      if (event.key === " " && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (
+        event.key === " " &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey
+      ) {
         if (element?.closest(INTERACTIVE_TARGET)) return;
         const video = dialogRef.current?.querySelector("video");
         if (!video) return;
         event.preventDefault();
         if (video.paused) {
-          video.play();
+          void video.play()?.catch(() => {});
         } else {
           video.pause();
         }
@@ -123,10 +205,13 @@ export default function ClipViewer({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, onMove, attempts, index, total]);
+  }, [onClose, onMove, attempts, index, total, panelOpen]);
 
   return (
-    <div className="fixed inset-0 z-50 overscroll-none bg-app" role="presentation">
+    <div
+      className="fixed inset-0 z-50 overscroll-none bg-app"
+      role="presentation"
+    >
       <section
         ref={dialogRef}
         tabIndex={-1}
@@ -134,93 +219,260 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className="flex h-[100dvh] w-full flex-col overflow-hidden bg-app outline-none"
+        className="clip-viewer"
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-app px-3 py-2.5 sm:px-6 sm:py-3">
+        <header className="clip-header">
           <button
             type="button"
             onClick={onClose}
-            className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 text-sm text-app-text"
             aria-label="Back to Library"
+            className="clip-back"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Library
+            <ArrowLeft size={20} />
+            <span>Library</span>
           </button>
-          <h2
-            id="clip-viewer-title"
-            className="min-w-0 truncate text-center font-mono text-lg font-semibold tracking-tight text-app-text sm:text-xl"
-          >
-            {attempt.dive_code}
-          </h2>
-          <p className="hidden shrink-0 text-sm text-app-muted md:block">
-            {attemptDate(attempt, "d MMM yyyy · HH:mm")}
-          </p>
-          <div className="w-[2.75rem] shrink-0 md:hidden" aria-hidden="true" />
+          <div className="clip-header-label">
+            <span className="clip-live-dot" />
+            DIVE REVIEW
+          </div>
+          <span className="clip-counter">
+            {index + 1} / {total}
+          </span>
         </header>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
-          <div className="flex w-full shrink-0 justify-center bg-black sm:min-h-0 sm:flex-1 sm:overflow-hidden">
-            <div className="aspect-video w-full sm:mx-auto sm:h-full sm:max-w-[76rem]">
-              {attempt.video_uuid ? (
-                <DiveVideoPlayer
-                  key={attempt.id}
-                  diveCode={attempt.dive_code}
-                  height={attempt.height}
-                  videoUuid={attempt.video_uuid}
-                  playbackRate={playbackRate}
+        <div className="clip-layout">
+          <div
+            className="clip-stage"
+            data-orientation={aspectRatio > 1 ? "landscape" : "portrait"}
+            style={{ "--clip-aspect": aspectRatio } as React.CSSProperties}
+          >
+            {attempt.video_uuid ? (
+              <DiveVideoPlayer
+                key={attempt.id}
+                diveCode={attempt.dive_code}
+                height={attempt.height}
+                videoUuid={attempt.video_uuid}
+                playbackRate={playbackRate}
+                immersive
+                onAspectRatioChange={setAspectRatio}
+                onLike={() => void like(true)}
+                onNavigate={navigate}
+              />
+            ) : (
+              <div className="clip-no-media">
+                No linked clip for this attempt.
+              </div>
+            )}
+            <div className="clip-stage-shade" />
+            <div className="clip-actions">
+              <button
+                type="button"
+                aria-label="Like dive"
+                aria-pressed={social?.liked ?? false}
+                disabled={!social || socialBusy}
+                onClick={() => void like(!social?.liked)}
+              >
+                <Heart
+                  size={25}
+                  fill={social?.liked ? "currentColor" : "none"}
                 />
-              ) : (
-                <div className="flex h-full items-center justify-center border border-app bg-app-panel text-sm text-app-muted">
-                  No linked clip for this attempt.
-                </div>
+                <span>{social?.like_count ?? "Like"}</span>
+              </button>
+              <button
+                type="button"
+                ref={commentsButtonRef}
+                aria-label="Comments"
+                aria-expanded={commentsOpen}
+                aria-controls="clip-review-panel"
+                onClick={() => {
+                  setCommentsOpen(!commentsOpen);
+                  setDetailsOpen(false);
+                  setManageOpen(false);
+                }}
+              >
+                <MessageCircle size={25} />
+                <span>{social?.comment_count ?? "Comments"}</span>
+              </button>
+              <Link
+                to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
+                state={{ returnTo: `${location.pathname}${location.search}` }}
+                aria-label="Analysis"
+              >
+                <BarChart3 size={25} />
+                <span>Analysis</span>
+              </Link>
+            </div>
+            <div className="clip-caption">
+              <div className="clip-caption-eyebrow">
+                {attempt.height} <span>·</span> {attempt.platform_type}{" "}
+                <span>·</span>{" "}
+                {attempt.visibility === "private" ? "Private" : "Public"}
+              </div>
+              <h2 id="clip-viewer-title">
+                {attempt.dive_code}
+                <span>{attemptDate(attempt)}</span>
+              </h2>
+              <button
+                ref={detailsButtonRef}
+                type="button"
+                className="clip-description"
+                aria-expanded={detailsOpen}
+                aria-controls="clip-viewer-details"
+                onPointerDown={(event) => {
+                  descriptionSwiped.current = false;
+                  descriptionGesture.current = event.clientY;
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                }}
+                onPointerUp={(event) => {
+                  if (
+                    descriptionGesture.current !== null &&
+                    descriptionGesture.current - event.clientY > 30
+                  ) {
+                    descriptionSwiped.current = true;
+                    setDetailsOpen(true);
+                    setCommentsOpen(false);
+                  }
+                  descriptionGesture.current = null;
+                }}
+                onPointerCancel={() => { descriptionGesture.current = null; }}
+                onClick={(event) => {
+                  if (event.detail !== 0 && descriptionSwiped.current) return;
+                  setDetailsOpen(!detailsOpen);
+                  setCommentsOpen(false);
+                  setManageOpen(false);
+                }}
+              >
+                <span>
+                  {attempt.notes ||
+                    attempt.raw_caption ||
+                    "Every dive, a little further."}
+                </span>
+                <strong>
+                  Details <ChevronUp size={14} />
+                </strong>
+              </button>
+              {socialError && (
+                <p className="clip-social-error" role="alert">
+                  {socialError} <button onClick={retry}>Retry</button>
+                </p>
               )}
             </div>
           </div>
-          <div className="w-full shrink-0 border-t border-app bg-app">
-            <div className="mx-auto w-full max-w-[76rem] px-3 pb-3 pt-3 sm:px-6 sm:pb-4">
-              <ClipViewerNavigation
-                index={index}
-                total={total}
-                onPrevious={() => index > 0 && onMove(attempts[index - 1])}
-                onNext={() => index < total - 1 && onMove(attempts[index + 1])}
-                playbackRate={playbackRate}
-                onPlaybackRateChange={onPlaybackRateChange}
-              />
-              <div className="mt-3">
-                <ClipMetadataSummary attempt={attempt} />
+          {panelOpen && (
+            <button
+              type="button"
+              tabIndex={-1}
+              className="clip-panel-scrim"
+              aria-label="Close details and comments"
+              onClick={closePanel}
+            />
+          )}
+          <aside
+            ref={panelRef}
+            tabIndex={-1}
+            id="clip-review-panel"
+            className={`clip-panel ${panelOpen ? "is-open" : ""}`}
+            aria-label={commentsOpen ? "Comments" : "Dive details"}
+          >
+            <div className="clip-panel-heading">
+              <div>
+                <span className="clip-eyebrow">
+                  {commentsOpen ? "DISCUSSION" : "THE ATTEMPT"}
+                </span>
+                <h3>{commentsOpen ? "Comments" : attempt.dive_code}</h3>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-app-muted">
-                {attempt.can_manage && onUpdate ? <DiveVisibilityControl key={attempt.id} attempt={attempt} onUpdate={onUpdate} /> : <span>{attempt.visibility === 'private' ? 'Private' : 'Public'}</span>}
-                {attempt.can_manage && onUpdate && onDelete && <button type="button" aria-expanded={manageOpen} onClick={() => setManageOpen(open => !open)} className="h-8 rounded border border-app px-2 text-xs text-app-text">Manage dive</button>}
-              </div>
-              {manageOpen && attempt.can_manage && onUpdate && onDelete && <DiveManagement key={attempt.id} attempt={attempt} onUpdate={onUpdate} onDelete={onDelete} />}
-              <div className="mt-3 flex items-center justify-between gap-2 border-t border-app pt-3">
-                <button
-                  type="button"
-                  onClick={() => setDetailsOpen((open) => !open)}
-                  aria-expanded={detailsOpen}
-                  aria-controls="clip-viewer-details"
-                  className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 text-sm text-app-text"
-                >
-                  Details
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-                <Link
-                  to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
-                  state={{ returnTo: `${location.pathname}${location.search}` }}
-                  className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 text-sm text-app-text"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  Analysis
-                </Link>
-              </div>
-              <div className="mt-3">
-                <ClipDetails attempt={attempt} open={detailsOpen} />
-              </div>
+              <button
+                type="button"
+                className="clip-panel-close"
+                aria-label="Close panel"
+                onClick={closePanel}
+              >
+                <X size={20} />
+              </button>
             </div>
-          </div>
+            <div className="clip-panel-scroll">
+              {commentsOpen ? (
+                <ClipComments
+                  key={attempt.id}
+                  id={attempt.id}
+                  onCountChange={(delta) =>
+                    setSocial((value) =>
+                      value
+                        ? {
+                            ...value,
+                            comment_count: Math.max(
+                              0,
+                              value.comment_count + delta,
+                            ),
+                          }
+                        : value,
+                    )
+                  }
+                />
+              ) : (
+                <>
+                  <ClipMetadataSummary attempt={attempt} />
+                  <div className="clip-panel-description">
+                    <span className="clip-eyebrow">DESCRIPTION</span>
+                    <p>
+                      {attempt.notes ||
+                        attempt.raw_caption ||
+                        "No description for this attempt."}
+                    </p>
+                  </div>
+                  <ClipDetails attempt={attempt} open={detailsOpen} />
+                  <div className="clip-management">
+                    {attempt.can_manage && onUpdate ? (
+                      <DiveVisibilityControl
+                        key={attempt.id}
+                        attempt={attempt}
+                        onUpdate={onUpdate}
+                      />
+                    ) : (
+                      <span>
+                        {attempt.visibility === "private"
+                          ? "Private"
+                          : "Public"}{" "}
+                        dive
+                      </span>
+                    )}
+                    {attempt.can_manage && onUpdate && onDelete && (
+                      <button
+                        type="button"
+                        aria-expanded={manageOpen}
+                        onClick={() => setManageOpen((open) => !open)}
+                      >
+                        Manage dive
+                      </button>
+                    )}
+                  </div>
+                  {manageOpen && attempt.can_manage && onUpdate && onDelete && (
+                    <DiveManagement
+                      key={attempt.id}
+                      attempt={attempt}
+                      onUpdate={onUpdate}
+                      onDelete={onDelete}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+            <p className="clip-gesture-hint">
+              Tap to pause · Double tap to like
+              <br />
+              Hold for 2× · Swipe to change dive
+            </p>
+          </aside>
         </div>
+        <footer className="clip-navigation">
+          <ClipViewerNavigation
+            index={index}
+            total={total}
+            onPrevious={() => navigate(-1)}
+            onNext={() => navigate(1)}
+            playbackRate={playbackRate}
+            onPlaybackRateChange={onPlaybackRateChange}
+          />
+        </footer>
       </section>
     </div>
   );

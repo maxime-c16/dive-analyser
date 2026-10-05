@@ -9,10 +9,10 @@ import { MemoryRouter } from 'react-router-dom'
 import type { Attempt } from '../../utils/attemptPresentation'
 import api from '../../services/api'
 
-vi.mock('../../services/api', () => ({ default: { put: vi.fn(), delete: vi.fn() } }))
+vi.mock('../../services/api', () => { const api = { get: vi.fn(), put: vi.fn(), delete: vi.fn() }; return { default: api, api } })
 vi.mock('../DiveVideoPlayer', () => ({ default: () => <div>Video</div> }))
 const attempt: Attempt = { id: 7, dive_code: '101B', performance: 'G', performance_numeric: 3, height: '3m', dive_datetime: '2026-10-04T10:00:00', session_id: 1, is_lineup: false, is_sync: false, platform_type: 'springboard', official_dd: 1.5, visibility: 'public', can_manage: true, notes: 'My note' }
-beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(api.get).mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }) })
 
 it('saves personal notes and updates the reader only after success', async () => {
   const onUpdate = vi.fn()
@@ -43,7 +43,7 @@ it('requires a second confirmation before deleting and keeps the reader on failu
 it('hides management controls for another member’s public dive', () => {
   render(<MemoryRouter><ClipViewer attempt={{ ...attempt, can_manage: false }} attempts={[attempt]} onClose={vi.fn()} onMove={vi.fn()} playbackRate={1} onPlaybackRateChange={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Manage dive' })).not.toBeInTheDocument()
-  expect(screen.getByText('Public')).toBeInTheDocument()
+  expect(screen.getByText('Public dive')).toBeInTheDocument()
 })
 
 

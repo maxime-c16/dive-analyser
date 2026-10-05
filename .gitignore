@@ -140,3 +140,6 @@ runs/fax_v2_media/
 runs/fax_v2_annotation/
 runs/fax_v2/
 runs/full_action_fax_v2/
+
+# Local review footage (never commit source media)
+frontend/public/player-review.mp4
