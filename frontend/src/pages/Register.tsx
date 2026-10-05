@@ -76,12 +76,12 @@ export default function Register() {
           <span className="text-lg font-semibold text-app-text">Dive Analyser</span>
         </div>
         <p className="mb-6 text-sm text-app-muted">
-          Member account — view public dives and manage your own.
+          Diver account — view public dives and manage your own.
         </p>
 
         {open === false && (
           <p className="mb-4 border border-amber-700/60 bg-amber-950/20 p-3 text-sm text-amber-100">
-            Registration is currently closed. Ask the owner for a current invite code.
+            Registration is currently closed. Ask an administrator for a current invite code.
           </p>
         )}
 
@@ -145,7 +145,7 @@ export default function Register() {
           type="text"
           value={inviteCode}
           onChange={e => setInviteCode(e.target.value)}
-          placeholder="Shared by the owner"
+          placeholder="Shared by an administrator"
           autoComplete="off"
           className="mb-5 w-full border border-app bg-app-panel-elevated px-3 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-app-accent"
           required
@@ -161,7 +161,7 @@ export default function Register() {
           className="touch-target inline-flex w-full items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 py-2.5 text-sm font-semibold text-app-text disabled:opacity-60"
         >
           <UserPlus className="h-4 w-4" />
-          {busy ? 'Creating account…' : 'Create member account'}
+          {busy ? 'Creating account…' : 'Create diver account'}
         </button>
 
         <p className="mt-5 text-center text-sm text-app-muted">

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from app.services.dive_access import member_access_context
 
 # Import route modules
-from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback
+from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback, admin_users
 
 # Create v1 router
 v1_router = APIRouter(prefix="/api/v1", dependencies=[Depends(member_access_context)])
@@ -25,6 +25,7 @@ v1_router.include_router(videos.router, tags=["videos"])
 v1_router.include_router(media.router, tags=["media"])
 v1_router.include_router(media_backbone.router, tags=["media-backbone"])
 v1_router.include_router(auth.router, tags=["auth"])
+v1_router.include_router(admin_users.router, tags=["admin"])
 v1_router.include_router(media_playback.router, tags=["media-playback"])
 v1_router.include_router(ws_sync.router, tags=["websocket"])
 v1_router.include_router(dive_codes.router, tags=["dive-codes"])

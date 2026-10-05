@@ -58,7 +58,7 @@ describe("Account (final V2)", () => {
     renderAccount();
     expect(screen.getByText("Alex Moreau")).toBeInTheDocument();
     expect(screen.getByText("alex.moreau@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Member")).toBeInTheDocument();
+    expect(screen.getByText("Diver")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Security" }));
     expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();

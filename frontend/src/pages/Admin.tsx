@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Radio, RefreshCw, Server, Video } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
+import { useAuth } from '../contexts/AuthContext'
+import AdminUsers from '../components/AdminUsers'
 
 function bytes(value?: number | null) {
   if (value == null) return 'Unknown'
@@ -35,6 +37,8 @@ function Progress({ done, total }: { done: number; total: number }) {
 }
 
 export default function Admin() {
+  const { user } = useAuth()
+  const [tab, setTab] = useState<'users' | 'system'>('users')
   const [status, setStatus] = useState<OperationsStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,10 +63,42 @@ export default function Admin() {
   const runningWorkflows = status?.workflows.filter((workflow) => workflow.status === 'running') ?? []
 
   return <div className="ops-workspace mx-auto max-w-[1420px] space-y-6">
-    <header className="border-b border-app pb-5 sm:flex sm:items-end sm:justify-between">
-      <div><h1 className="text-3xl font-semibold tracking-tight text-app-text">Operations</h1></div>
-      <button type="button" onClick={() => void refresh()} disabled={loading} className="touch-target mt-4 inline-flex items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 text-sm font-medium text-app-text disabled:opacity-50 sm:mt-0"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
+    <header className="border-b border-app pb-5">
+      <div><h1 className="text-3xl font-semibold tracking-tight text-app-text">Administration</h1></div>
+      <nav aria-label="Administration sections" className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTab('users')}
+          aria-current={tab === 'users' ? 'true' : undefined}
+          className={`touch-target inline-flex items-center gap-2 border px-4 text-sm font-medium ${
+            tab === 'users' ? 'border-app-strong bg-app-panel text-app-text' : 'border-app text-app-muted hover:text-app-text'
+          }`}
+        >
+          <Users className="h-4 w-4" aria-hidden />
+          Users
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('system')}
+          aria-current={tab === 'system' ? 'true' : undefined}
+          className={`touch-target inline-flex items-center gap-2 border px-4 text-sm font-medium ${
+            tab === 'system' ? 'border-app-strong bg-app-panel text-app-text' : 'border-app text-app-muted hover:text-app-text'
+          }`}
+        >
+          <Server className="h-4 w-4" aria-hidden />
+          System
+        </button>
+      </nav>
     </header>
+
+    {tab === 'users' ? (
+      <AdminUsers currentUserId={user?.user_id} />
+    ) : (
+    <>
+    <div className="sm:flex sm:items-end sm:justify-between">
+      <h2 className="text-xl font-semibold text-app-text">Operations</h2>
+      <button type="button" onClick={() => void refresh()} disabled={loading} className="touch-target mt-4 inline-flex items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 text-sm font-medium text-app-text disabled:opacity-50 sm:mt-0"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
+    </div>
 
     {error && <div role="alert" className="flex gap-3 border border-amber-700/60 bg-amber-950/20 p-4 text-sm text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
     {loading && !status && <div className="border border-app bg-app-panel p-10 text-center text-sm text-app-muted">Loading…</div>}
@@ -95,5 +131,7 @@ export default function Admin() {
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-app pt-4 text-xs text-app-muted"><span>Generated {stamp(status.generated_at)}</span></footer>
     </>}
+    </>
+    )}
   </div>
 }

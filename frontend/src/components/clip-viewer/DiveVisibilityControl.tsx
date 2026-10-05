@@ -23,7 +23,7 @@ export default function DiveVisibilityControl({ attempt, onUpdate }: {
   }
 
   return <span className="inline-flex items-center gap-2">
-    <select aria-label="Dive visibility" title="Public: signed-in members. Private: only you."
+    <select aria-label="Dive visibility" title="Public: signed-in divers. Private: only you."
       value={attempt.visibility ?? 'public'} disabled={busy}
       onChange={event => void change(event.target.value as 'public' | 'private')}
       className="h-8 w-auto rounded border border-app bg-app-panel px-2 text-xs text-app-text">
