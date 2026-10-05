@@ -1,0 +1,1 @@
+{"audience": "all", "body": "Swiping up or down between dives now glides to the next clip, TikTok-style. Only on phones, and it respects reduced-motion settings. Loading and offline caching work exactly as before.", "components": ["frontend"], "date": "2026-10-05", "id": "mobile-dive-feed-slide", "title": "Smooth dive-to-dive gliding on phones"}
