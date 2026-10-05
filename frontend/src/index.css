@@ -235,6 +235,20 @@ select {
   }
 }
 
+/* iOS PWA runs edge-to-edge (viewport-fit=cover + black-translucent
+   status bar), so content must clear the notch/Dynamic Island itself.
+   Safe-area padding only applies where the inset is non-zero, so
+   browser tabs and Android remain pixel-identical. */
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 @layer components {
   .app-page {
     @apply space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-8;
