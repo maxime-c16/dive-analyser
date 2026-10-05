@@ -681,6 +681,10 @@
   }
 }
 @media (min-width: 1024px) {
+  .clip-caption h2 {
+    font-size: 22px;
+    gap: 10px;
+  }
   .clip-layout {
     justify-content: center;
   }
@@ -691,6 +695,35 @@
       calc(100vw - 360px)
     );
     border-left: 1px solid var(--app-border);
+  }
+}
+/* Touch devices retain their captions. Keyboard focus reveals desktop actions. */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .clip-stage-shade,
+  .clip-actions,
+  .clip-caption {
+    opacity: 0;
+  }
+  .clip-actions,
+  .clip-caption .clip-description,
+  .clip-caption .clip-social-error {
+    pointer-events: none;
+  }
+  .clip-stage:hover .clip-stage-shade,
+  .clip-stage:hover .clip-actions,
+  .clip-stage:hover .clip-caption,
+  .clip-stage:focus-within .clip-stage-shade,
+  .clip-stage:focus-within .clip-actions,
+  .clip-stage:focus-within .clip-caption {
+    opacity: 1;
+  }
+  .clip-stage:hover .clip-actions,
+  .clip-stage:hover .clip-description,
+  .clip-stage:hover .clip-social-error,
+  .clip-stage:focus-within .clip-actions,
+  .clip-stage:focus-within .clip-description,
+  .clip-stage:focus-within .clip-social-error {
+    pointer-events: auto;
   }
 }
 @media (min-width: 600px) and (max-width: 1023px) and (min-height: 600px) {

@@ -1,4 +1,4 @@
-export type MediaRendition = 'poster' | 'proxy_360p'
+export type MediaRendition = 'poster' | 'proxy_360p' | 'proxy_720p'
 
 export type MediaStatus = {
   video_uuid: string
