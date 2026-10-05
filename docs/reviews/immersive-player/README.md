@@ -24,7 +24,7 @@ These are three responsive layouts of the same implementation, awaiting visual r
 
 ## Validation
 
-- Frontend: 136 tests passed; TypeScript and production build passed.
+- Frontend: 137 tests passed; TypeScript and production build passed.
 - Backend: 36 tests passed across `test_dive_social.py`, `test_member_dive_visibility.py` and `test_friend_access.py` (real sessions, visibility, persistence, author-only deletion, validation and pagination).
 - Browser: autoplay/mute, tap playback, double-tap like, 2×/restore, swipe, comments posting, details, Escape, backdrop dismissal and focus return checked. No horizontal overflow at 320×568, 844×390 or 1024×768.
 - `git diff --check` passed.

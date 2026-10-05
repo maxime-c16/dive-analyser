@@ -270,3 +270,14 @@ it('hidden Details content is never a Tab target', () => {
   focusables.forEach((element) => expect(element.closest('[hidden]')).toBeNull())
   expect(container).toBeInTheDocument()
 })
+
+
+it('swiping up the description expands details without the following click closing it', () => {
+  renderClipViewer(1)
+  const button = screen.getByRole('button', { name: /Details/ })
+  fireEvent(button, new MouseEvent('pointerdown', { bubbles: true, clientY: 300 }))
+  fireEvent(button, new MouseEvent('pointerup', { bubbles: true, clientY: 200 }))
+  fireEvent.click(button, { detail: 1 })
+  expect(button).toHaveAttribute('aria-expanded', 'true')
+  expect(document.getElementById('clip-viewer-details')).not.toHaveAttribute('hidden')
+})

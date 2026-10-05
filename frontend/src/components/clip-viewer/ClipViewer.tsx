@@ -64,6 +64,7 @@ export default function ClipViewer({
     retry,
   } = useDiveSocial(attempt.id);
   const descriptionGesture = useRef<number | null>(null);
+  const descriptionSwiped = useRef(false);
   const panelOpen = detailsOpen || commentsOpen || manageOpen;
   const panelRef = useRef<HTMLElement>(null);
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
@@ -317,19 +318,24 @@ export default function ClipViewer({
                 aria-expanded={detailsOpen}
                 aria-controls="clip-viewer-details"
                 onPointerDown={(event) => {
+                  descriptionSwiped.current = false;
                   descriptionGesture.current = event.clientY;
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
                 }}
                 onPointerUp={(event) => {
                   if (
                     descriptionGesture.current !== null &&
                     descriptionGesture.current - event.clientY > 30
                   ) {
+                    descriptionSwiped.current = true;
                     setDetailsOpen(true);
                     setCommentsOpen(false);
                   }
                   descriptionGesture.current = null;
                 }}
-                onClick={() => {
+                onPointerCancel={() => { descriptionGesture.current = null; }}
+                onClick={(event) => {
+                  if (event.detail !== 0 && descriptionSwiped.current) return;
                   setDetailsOpen(!detailsOpen);
                   setCommentsOpen(false);
                   setManageOpen(false);
