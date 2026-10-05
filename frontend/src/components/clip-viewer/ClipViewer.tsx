@@ -370,7 +370,7 @@ export default function ClipViewer({
             ref={panelRef}
             tabIndex={-1}
             id="clip-review-panel"
-            className={`clip-panel ${panelOpen ? "is-open" : ""}`}
+            className={`clip-panel ${panelOpen ? "is-open" : ""} ${commentsOpen ? "clip-panel-comments" : ""}`}
             aria-label={commentsOpen ? "Comments" : "Dive details"}
           >
             <div className="clip-panel-heading">
