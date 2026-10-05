@@ -220,7 +220,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     requestingRef.current = true
     setIsRequesting(true)
     try {
-      const data = await requestMediaRendition(videoUuid, 'proxy_360p')
+      const data = await requestMediaRendition(videoUuid, 'proxy_720p')
       applyStatus(data)
     } catch {
       setPhase({

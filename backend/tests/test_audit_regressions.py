@@ -310,3 +310,37 @@ def test_sync_ws_requires_live_login_when_auth_enabled(api_client, test_db, monk
             ws.send_text('{"type": "heartbeat"}')
     finally:
         revoke_session_by_raw_token(test_db, token)
+
+
+@pytest.mark.parametrize("rendition,has_backbone,expected", [
+    ("proxy_360p", True, "backbone"),
+    ("proxy_360p", False, "cache"),
+    ("proxy_720p", True, "cache"),
+    ("original", True, "cache"),
+])
+def test_playback_prefers_hq_over_preview(test_db, backbone_clock, rendition, has_backbone, expected):
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+
+    asset = PhotosAsset(video_uuid="hq-clip")
+    test_db.add(asset)
+    test_db.flush()
+    entry = MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="hq-" + rendition, rendition=rendition,
+        storage_path="/tmp/clip.mp4", content_type="video/mp4", size_bytes=1,
+    )
+    test_db.add(entry)
+    test_db.commit()
+    revision = add_revision(test_db, "hq-clip", "e" * 64) if has_backbone else None
+    url = f"/api/v1/media/revisions/{revision}/play" if expected == "backbone" else media.playback_url(entry.id)
+    result = media._status_for_asset(test_db, asset)
+    assert result.status == "ready"
+    assert result.playback_url == url
+    assert result.preferred_rendition == ("original" if expected == "backbone" else rendition)
+    batch = media._thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
+    assert batch["playback_url"] == url
+    bulk = media._thumbnail_status_for_entries(
+        test_db, asset.video_uuid, [entry],
+        backbone_url=f"/api/v1/media/revisions/{revision}/play" if has_backbone else None,
+    )
+    assert bulk["playback_url"] == url

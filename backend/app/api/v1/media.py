@@ -126,8 +126,8 @@ router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(requir
 
 RENDITION_PREFERENCE = {
     "proxy_720p": 0,
-    "proxy_360p": 1,
-    "original": 2,
+    "original": 1,
+    "proxy_360p": 2,
     "poster": 3,
 }
 
@@ -365,31 +365,29 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
 
-    if preferred:
-        # Local proxy cache ready — use it (best quality / smallest file).
+    # A cached 360p preview must not hide an available full-quality B2 source.
+    # Keep the compact, browser-ready 720p proxy first when it exists.
+    backbone_url = None
+    if not preferred or preferred.rendition not in {"proxy_720p", "original"}:
+        backbone_url = _backbone_playback_url(db, asset.video_uuid)
+    if backbone_url:
+        status_value = "ready"
+        final_playback_url = backbone_url
+    elif preferred:
         status_value = "ready"
         final_playback_url = playback_url(preferred.id)
+    elif job:
+        status_value = job.status
+        final_playback_url = None
     else:
-        # No ready proxy.  Check backbone first so the user can play the
-        # original from B2 immediately, even if a transcoding job is queued.
-        # Once the proxy finishes, preferred will be set and we switch to it.
-        backbone_url = _backbone_playback_url(db, asset.video_uuid)
-        if backbone_url:
-            status_value = "ready"
-            final_playback_url = backbone_url
-        elif job:
-            # No backbone either — show the job's in-progress status.
-            status_value = job.status
-            final_playback_url = None
-        else:
-            status_value = "missing"
-            final_playback_url = None
+        status_value = "missing"
+        final_playback_url = None
 
     return MediaStatusResponse(
         video_uuid=asset.video_uuid,
         status=status_value,
         can_request=True,
-        preferred_rendition=preferred.rendition if preferred else None,
+        preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries}),
         playback_url=final_playback_url,
         poster_url=playback_url(poster.id) if poster else None,
@@ -982,25 +980,20 @@ def _thumbnail_status_for_entries(
 ) -> dict:
     """Compact per-asset thumbnail payload for the Library grid.
 
-    Same source decision as _status_for_asset (preferred playable rendition
-    wins; backbone B2 next) minus cache_entries/job detail: the grid only
+    Same source decision as _status_for_asset (720p/original cache first,
+    then verified B2, then the 360p preview) minus cache_entries/job detail: the grid only
     needs a poster, a playable URL and readiness. `backbone_url` lets the
     batch route pass one bulk-resolved decision instead of a per-uuid
     lookup; _UNSET_BACKBONE keeps the single-asset fallback behavior.
     """
     preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)
-    if preferred:
-        playback = playback_url(preferred.id)
-        status_value = "ready"
-    else:
+    backbone = None
+    if not preferred or preferred.rendition not in {"proxy_720p", "original"}:
         backbone = _backbone_playback_url(db, video_uuid) if backbone_url is _UNSET_BACKBONE else backbone_url
-        if backbone:
-            playback = backbone
-            status_value = "ready"
-        else:
-            playback = None
-            status_value = "missing"
+    playback = backbone or (playback_url(preferred.id) if preferred else None)
+    status_value = "ready" if playback else "missing"
+
     return {
         "video_uuid": video_uuid,
         "status": status_value,
