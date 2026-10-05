@@ -17,6 +17,7 @@ import ClipViewerNavigation from "./ClipViewerNavigation";
 import ClipMetadataSummary from "./ClipMetadataSummary";
 import DiveManagement from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
+import FederateDiveControl from "./FederateDiveControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
@@ -484,11 +485,18 @@ export default function ClipViewer({
                   <ClipDetails attempt={attempt} open={detailsOpen} />
                   <div className="clip-management">
                     {attempt.can_manage && onUpdate ? (
-                      <DiveVisibilityControl
-                        key={attempt.id}
-                        attempt={attempt}
-                        onUpdate={onUpdate}
-                      />
+                      <>
+                        <DiveVisibilityControl
+                          key={`visibility-${attempt.id}`}
+                          attempt={attempt}
+                          onUpdate={onUpdate}
+                        />
+                        <FederateDiveControl
+                          key={`fediverse-${attempt.id}`}
+                          attempt={attempt}
+                          onUpdate={onUpdate}
+                        />
+                      </>
                     ) : (
                       <span>
                         {attempt.visibility === "private"

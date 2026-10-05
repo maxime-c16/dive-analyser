@@ -26,7 +26,7 @@ router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(requir
 # Cuts multi-KB TEXT columns (phase_insight, video_path, captions-adjacent
 # audit fields) out of the 5,000-row Library response.
 LIST_COLUMN_NAMES = (
-    "visibility", "id", "session_id", "dive_code", "dive_number", "position", "direction",
+    "visibility", "federate_enabled", "id", "session_id", "dive_code", "dive_number", "position", "direction",
     "performance", "performance_numeric",
     "phase1_performance", "phase1_numeric", "phase2_performance", "phase2_numeric",
     "height", "platform_type",
@@ -48,8 +48,17 @@ def _public_dive(dive: Dive, db: Session) -> dict:
     Serialization is whitelisted to LIST_COLUMN_NAMES (the columns any UI
     flow reads); internal audit columns (phase_insight, video_path, DD
     migration/verification bookkeeping, emotion capture) are held back.
+
+    federate_enabled is tolerant of pre-migration rows (missing attribute
+    reads as False) so a database without add_fediverse_optin.sql still
+    serializes instead of 500ing.
     """
-    payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
+    payload = {}
+    for name in LIST_COLUMN_NAMES:
+        if name == "federate_enabled":
+            payload[name] = bool(getattr(dive, name, False))
+        else:
+            payload[name] = getattr(dive, name)
     context = db.info.get("member_access")
     payload["can_comment"] = True  # Capability for the next discussion phase.
     payload["can_manage"] = context is None or dive.diver_id in context["diver_ids"] or (context.get("is_admin") and dive.diver_id is None)
