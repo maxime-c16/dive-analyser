@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.dive import Dive
 from app.models.dive_social import DiveComment, DiveLike
 from app.models.user_auth import AppUser
+from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.services.write_guard import optional_session_user
 
 router = APIRouter(prefix='/dives')
@@ -37,14 +38,14 @@ class CommentInput(BaseModel):
 
 def comment_payload(row, author):
     return dict(id=row.id, body=row.body, author=author, user_id=row.user_id,
-                created_at=row.created_at.isoformat() + 'Z')
+                guest_id=row.guest_id, created_at=row.created_at.isoformat() + 'Z')
 
 
 @router.get('/{dive_id}/social')
 def social(dive_id: int, user=Depends(visible_dive), db: Session = Depends(get_db)):
     return dict(
         liked=db.query(DiveLike).filter_by(dive_id=dive_id, user_id=user.id).first() is not None,
-        like_count=db.query(func.count(DiveLike.user_id)).filter_by(dive_id=dive_id).scalar(),
+        like_count=db.query(func.count(DiveLike.user_id)).filter_by(dive_id=dive_id).scalar() + db.query(func.count(DiveGuestLike.guest_id)).filter_by(dive_id=dive_id).scalar(),
         comment_count=db.query(func.count(DiveComment.id)).filter_by(dive_id=dive_id).scalar(),
     )
 
@@ -67,7 +68,7 @@ def like(dive_id: int, payload: LikeInput, user=Depends(visible_dive), db: Sessi
 
 @router.get('/{dive_id}/comments')
 def comments(dive_id: int, before: int | None = None, user=Depends(visible_dive), db: Session = Depends(get_db)):
-    query = db.query(DiveComment, AppUser.display_name).join(AppUser, AppUser.id == DiveComment.user_id).filter(DiveComment.dive_id == dive_id)
+    query = db.query(DiveComment, func.coalesce(AppUser.display_name, DiveGuest.display_name)).outerjoin(AppUser, AppUser.id == DiveComment.user_id).outerjoin(DiveGuest, DiveGuest.id == DiveComment.guest_id).filter(DiveComment.dive_id == dive_id)
     if before is not None:
         query = query.filter(DiveComment.id < before)
     rows = query.order_by(DiveComment.id.desc()).limit(51).all()

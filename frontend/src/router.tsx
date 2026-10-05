@@ -10,6 +10,7 @@ import {
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
+import SharedDive from "./pages/SharedDive";
 import { useAuth } from "./contexts/AuthContext";
 import {
   BarChart3,
@@ -454,6 +455,7 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Routes>
+      <Route path="/share/:shareId" element={<SharedDive />} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
