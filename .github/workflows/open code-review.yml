@@ -1,0 +1,32 @@
+name: OpenCode review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: opencode-go/gpt-6-luna
+          use_github_token: true
+          prompt: |
+            Review this pull request. Do not edit files or create commits.
+            Report only actionable bugs, security issues, or missing tests.
+            For each finding, include severity, file/line, and a concise explanation.
+            If there are no actionable findings, say so.
