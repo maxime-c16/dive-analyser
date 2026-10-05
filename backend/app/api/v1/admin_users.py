@@ -578,7 +578,9 @@ def list_divers_for_admin(
         rows = db.query(Diver).order_by(Diver.id.asc()).limit(_MAX_LIST_LIMIT).all()
         bound = {
             row.diver_id
-            for row in db.query(UserDiverAccess.diver_id).all()
+            for row in db.query(UserDiverAccess.diver_id)
+            .filter(UserDiverAccess.diver_id.in_([row.id for row in rows]))
+            .all()
         }
     return {
         "divers": [
