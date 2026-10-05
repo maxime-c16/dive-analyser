@@ -6,7 +6,8 @@ disabling is durable and auditable, exactly like the CLI.
 
 Security contract (same as backend/app/api/v1/auth.py header):
 - Authenticated session required (401 via get_current_user); administrator
-  role required on top (403 otherwise). Friends are read-only everywhere.
+  role required on top (403 otherwise). Diver-role accounts cannot reach
+  any endpoint in this module.
 - State-changing calls validate Origin (same policy as the auth routes).
 - Passwords enter only via the create/reset bodies, are hashed with the
   Argon2id password service, and never appear in logs or audit metadata.
@@ -17,6 +18,24 @@ Security contract (same as backend/app/api/v1/auth.py header):
 - An administrator cannot disable or demote their own account, and cannot
   reset their own password here (self-service change-password requires the
   current password). These guards prevent same-session lockout.
+
+Ownership model (repo contract, not a policy choice of this module):
+- Diver bindings (access_kind="OWNER") are the SINGLE dive-ownership
+  mechanism, independent of role. A diver-role account bound to a diver
+  manages that diver's dives and nothing else — exactly like a CLI-bound
+  account (scripts/manage_user.py cmd_bind performs no role check) or a
+  self-registered diver (auth.py register creates a friend + OWNER
+  binding). Pinned by test_member_dive_visibility.py
+  (test_ownership_writes_and_shared_session_protection: friend-role bob
+  PUTs his own dive → 200, alice's → 403) and by
+  test_admin_users_api.py
+  (test_admin_bound_diver_manages_own_dives_only pins this endpoint to
+  the same behavior).
+- Role controls the administration capability (is_admin), never dive
+  ownership: promoting/demoting neither adds nor strips diver bindings
+  (same as cmd_set_role), so a demoted administrator keeps their own
+  diver — they lose admin access, not their dives. Every grant, revoke
+  and role change is audit-logged for accountability.
 """
 
 import datetime
@@ -533,6 +552,9 @@ def bind_diver(
     )
     if existing is not None:
         return {"ok": True, "bound": True, "noop": True}
+    # OWNER is the single ownership kind (same as cmd_bind and register):
+    # the binding scopes the account to this diver's dives only. Role is
+    # not checked here — see the ownership model in the module docstring.
     db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER"))
     db.commit()
     security_audit_log.record_event(
