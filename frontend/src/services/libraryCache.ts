@@ -30,8 +30,14 @@ export function readLibraryCache(key: string | null): LibrarySnapshot | null {
   if (!memory) {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
-      if (stored && typeof stored.key === 'string' && Array.isArray(stored.snapshot?.dives) &&
-          Array.isArray(stored.snapshot?.divers) && Number.isFinite(stored.snapshot?.savedAt)) memory = stored;
+      const snapshot = stored?.snapshot;
+      if (typeof stored?.key === 'string' && Array.isArray(snapshot?.dives) &&
+          snapshot.dives.every((d: Attempt) => d && Number.isFinite(d.id) &&
+            typeof d.dive_code === 'string' && typeof d.height === 'string' &&
+            typeof d.dive_datetime === 'string' && Number.isFinite(Date.parse(d.dive_datetime))) &&
+          Array.isArray(snapshot?.divers) && snapshot.divers.every((d: LibrarySnapshot['divers'][number]) =>
+            d && Number.isFinite(d.id) && typeof d.display_name === 'string') &&
+          Number.isFinite(snapshot.savedAt)) memory = stored;
     } catch { /* Unavailable storage or corrupt snapshot: use the network. */ }
   }
   if (!memory) return null;

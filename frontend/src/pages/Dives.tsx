@@ -168,7 +168,14 @@ function parseSearch(value: string) {
   return { code, height, sync, modifiers, performance, position, text };
 }
 
+// Recreate local UI state when account/access bindings change; old attempts
+// must not remain visible for a render while an effect resets their list.
 export default function Dives() {
+  const { user } = useAuth();
+  return <DiveLibrary key={libraryKey(user) ?? 'anonymous'} />;
+}
+
+function DiveLibrary() {
   const [searchParams, setSearchParams] = usePreservedSearchParams();
   const { user } = useAuth();
   const cacheKey = libraryKey(user);

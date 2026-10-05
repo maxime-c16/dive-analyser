@@ -49,6 +49,11 @@ describe('Library cache', () => {
     await loadLibraryCache(key, () => Promise.resolve(data));
     expect(readLibraryCache(key)).not.toBeNull();
   });
+  it('rejects structurally invalid saved attempts before they can render', () => {
+    localStorage.setItem('dive-library-v1', JSON.stringify({ key,
+      snapshot: { dives: [{ id: 1 }], divers: [], savedAt: Date.now() } }));
+    expect(readLibraryCache(key)).toBeNull();
+  });
   it('ignores corrupt saved data', () => {
     localStorage.setItem('dive-library-v1', '{bad');
     expect(readLibraryCache(key)).toBeNull();

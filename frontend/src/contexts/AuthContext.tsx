@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/v1/auth/me', { credentials: 'same-origin' })
       if (res.ok) {
         const data = await res.json()
+        clearIntentData()
         setUser({
           user_id: data.user_id,
           email: data.email,
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearLibraryCache()
       setUser(null)
     } finally {
+      clearIntentData()
       setChecking(false)
     }
   }
