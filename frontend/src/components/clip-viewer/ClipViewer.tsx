@@ -11,6 +11,7 @@ import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
 import { getPreview } from "../../utils/mediaPreview";
+import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { inertExcept, trapTabKey } from "../../utils/a11y";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
@@ -182,11 +183,11 @@ export default function ClipViewer({
   }, []);
 
   // Warm the adjacent clips' poster/status cache so Previous/Next feel
-  // instant. Deduped and cached; no new caching architecture.
+  // instant. Deduped and cached; no new caching architecture. Status
+  // lookups resolve into warmed playback/poster bytes inside the browser
+  // HTTP cache, so swiping meets ready bytes without a fresh stream.
   useEffect(() => {
-    [attempts[index - 1], attempts[index + 1]].forEach((neighbor) => {
-      if (neighbor?.video_uuid) getPreview(neighbor.video_uuid);
-    });
+    warmAdjacentClips([attempts[index - 1]?.video_uuid, attempts[index + 1]?.video_uuid]);
   }, [attempts, index]);
 
   // Feed-style enter animation: purely visual, no extra render (direct DOM
