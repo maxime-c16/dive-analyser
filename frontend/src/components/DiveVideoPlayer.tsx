@@ -86,6 +86,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const preparingSinceRef = useRef<number | null>(null)
   const lastPreparingLabelRef = useRef<string | null>(null)
   const requestingRef = useRef(false)
+  // Startup-only autoplay guards: the canplay retry must never override an
+  // intentional pause (e.g. a later canplay after seeking).
+  const hasPlayedRef = useRef(false)
+  const userPausedRef = useRef(false)
 
   const applyStatus = useCallback((data: MediaStatus) => {
     setCanRequest(Boolean(data.can_request))
@@ -130,6 +134,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   useEffect(() => {
     let cancelled = false
     failuresRef.current = 0
+    hasPlayedRef.current = false
+    userPausedRef.current = false
     setStale(false)
     setDecodeError(false)
     setPosterSrc(null)
@@ -274,11 +280,28 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
 
   const handleCanPlay = () => {
     const video = videoRef.current
-    // Safety net for the case where loadedmetadata fired before playback was
-    // possible: only nudge a still-paused immersive clip.
-    if (video && immersive && video.paused && !video.ended) {
+    // Startup-only safety net for the case where loadedmetadata fired before
+    // playback was possible. Never overrides an intentional pause: once the
+    // clip has played or the viewer has paused, later canplay events (e.g.
+    // after seeking) must not resume playback.
+    if (
+      video &&
+      immersive &&
+      video.paused &&
+      !video.ended &&
+      !hasPlayedRef.current &&
+      !userPausedRef.current
+    ) {
       attemptImmersiveAutoplay(video)
     }
+  }
+
+  const handlePlay = () => {
+    hasPlayedRef.current = true
+  }
+
+  const handlePause = () => {
+    userPausedRef.current = true
   }
 
   const handleDecodeError = () => {
@@ -337,6 +360,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         playsInline
         onLoadedMetadata={handleLoadedMetadata}
         onCanPlay={handleCanPlay}
+        onPlay={handlePlay}
+        onPause={handlePause}
         onError={handleDecodeError}
         preload={immersive ? 'auto' : 'metadata'}
         poster={posterSrc || undefined}

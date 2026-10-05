@@ -72,6 +72,26 @@ it('immersive canplay nudges a still-paused clip', async () => {
     playSpy.mockRestore()
   }
 })
+it('immersive canplay never overrides an intentional pause', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+    fireEvent.play(video)
+    fireEvent.pause(video)
+    playSpy.mockClear()
+    // A later canplay (e.g. after seeking) must not resume playback.
+    fireEvent.canPlay(video)
+    await act(async () => {})
+    expect(playSpy).not.toHaveBeenCalled()
+  } finally {
+    playSpy.mockRestore()
+  }
+})
 it('non-immersive clips never attempt autoplay', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
