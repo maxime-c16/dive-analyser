@@ -160,3 +160,27 @@ it("opens and loads replies only after a pending like finishes", async () => {
   expect(await screen.findByText(reply.body)).toBeInTheDocument();
   expect(api.get).toHaveBeenLastCalledWith('/api/v1/dives/1/comments', { params: { parent_id: root.id, before: undefined } });
 });
+
+it("uses shared routes and guest ownership for thread actions", async () => {
+  const root = { ...comment, guest_id: null, reply_count: 0, liked: false };
+  const basePath = '/api/v1/shared-dives/9';
+  const guestReply = { ...comment, id: 13, author: 'Guest', user_id: null, guest_id: 7, parent_id: root.id, body: 'Guest reply' };
+  vi.mocked(api.get)
+    .mockResolvedValueOnce({ data: { items: [root], next_before: null } })
+    .mockResolvedValueOnce({ data: { items: [], next_before: null } });
+  vi.mocked(api.put).mockResolvedValueOnce({ data: { ...root, liked: true, like_count: 1 } });
+  vi.mocked(api.post).mockResolvedValueOnce({ data: guestReply });
+  render(<ClipComments id={1} basePath={basePath} guestId={7} onCountChange={vi.fn()} />);
+  await screen.findByText(root.body);
+  expect(screen.queryByRole('button', { name: 'Delete comment by Diver' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Like comment by Diver' }));
+  await screen.findByRole('button', { name: 'Like comment by Diver', pressed: true });
+  expect(api.put).toHaveBeenCalledWith(basePath + '/comments/12/like', { liked: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
+  await act(async () => {});
+  fireEvent.change(screen.getByLabelText('Reply to Diver'), { target: { value: guestReply.body } });
+  fireEvent.click(screen.getByRole('button', { name: 'Post reply to Diver' }));
+  await screen.findByText(guestReply.body);
+  expect(api.post).toHaveBeenCalledWith(basePath + '/comments', { body: guestReply.body, parent_id: root.id });
+  expect(screen.getByRole('button', { name: 'Delete comment by Guest' })).toBeInTheDocument();
+});

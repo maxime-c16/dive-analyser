@@ -9,7 +9,8 @@ export type Comment = {
   id: number;
   body: string;
   author: string;
-  user_id: number;
+  user_id: number | null;
+  guest_id?: number | null;
   created_at: string;
   parent_id?: number | null;
   liked?: boolean;
@@ -17,7 +18,7 @@ export type Comment = {
   reply_count?: number;
 };
 
-export function useDiveSocial(id: number) {
+export function useDiveSocial(id: number, basePath = `/api/v1/dives/${id}`) {
   const [social, setSocial] = useState<Social | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +31,7 @@ export function useDiveSocial(id: number) {
     setSocial(null);
     setError("");
     api
-      .get<Social>(`/api/v1/dives/${id}/social`)
+      .get<Social>(`${basePath}/social`)
       .then(({ data }) => {
         if (alive) setSocial(data);
       })
@@ -40,7 +41,7 @@ export function useDiveSocial(id: number) {
     return () => {
       alive = false;
     };
-  }, [id, epoch]);
+  }, [id, basePath, epoch]);
   const like = useCallback(
     async (liked: boolean) => {
       if (!social || pending.current || social.liked === liked) return;
@@ -48,7 +49,7 @@ export function useDiveSocial(id: number) {
       setBusy(true);
       setError("");
       try {
-        const { data } = await api.put<Social>(`/api/v1/dives/${id}/like`, {
+        const { data } = await api.put<Social>(`${basePath}/like`, {
           liked,
         });
         if (activeId.current === id) setSocial(data);
@@ -60,7 +61,7 @@ export function useDiveSocial(id: number) {
         setBusy(false);
       }
     },
-    [id, social],
+    [id, basePath, social],
   );
   return {
     social,

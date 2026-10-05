@@ -7,9 +7,13 @@ import type { Comment } from "./useDiveSocial";
 export default function ClipComments({
   id,
   onCountChange,
+  basePath = `/api/v1/dives/${id}`,
+  guestId,
 }: {
   id: number;
   onCountChange: (delta: number) => void;
+  basePath?: string;
+  guestId?: number;
 }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [before, setBefore] = useState<number | null>(null);
@@ -32,7 +36,7 @@ export default function ClipComments({
       const { data } = await api.get<{
         items: Comment[];
         next_before: number | null;
-      }>(`/api/v1/dives/${id}/comments`, {
+      }>(`${basePath}/comments`, {
         params: cursor ? { before: cursor } : {},
       });
       if (!mounted.current || request !== latestLoad.current) return;
@@ -65,7 +69,7 @@ export default function ClipComments({
       mounted.current = false;
       latestLoad.current += 1;
     };
-  }, [id]);
+  }, [id, basePath]);
   return (
     <div className="clip-comments">
       <form
@@ -76,7 +80,7 @@ export default function ClipComments({
           setError("");
           try {
             const { data } = await api.post<Comment>(
-              `/api/v1/dives/${id}/comments`,
+              `${basePath}/comments`,
               { body: body.trim() },
             );
             if (!mounted.current || activeId.current !== id) return;
@@ -124,20 +128,21 @@ export default function ClipComments({
         </div>
       )}
       {comments.map((comment) => (
-        <CommentThread key={comment.id} comment={comment} diveId={id}
+        <CommentThread key={comment.id} comment={comment} diveId={id} basePath={basePath} guestId={guestId}
           onCountChange={onCountChange}
           onChange={updated => {
             pendingMutations.current.set(updated.id, updated);
             setComments(rows => rows.map(row => row.id === updated.id ? updated : row));
           }}
           onDelete={async () => {
-            await api.delete(`/api/v1/dives/${id}/comments/${comment.id}`);
+            await api.delete(`${basePath}/comments/${comment.id}`);
             if (!mounted.current || activeId.current !== id) return;
             pendingMutations.current.set(comment.id, null);
             setComments(rows => rows.filter(row => row.id !== comment.id));
             onCountChange(-1 - (comment.reply_count ?? 0));
           }}
         />
+
       ))}
       {before && (
         <button

@@ -7,4 +7,9 @@ CREATE TABLE IF NOT EXISTS dive_comment_likes (
     user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
     PRIMARY KEY (comment_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS dive_guest_comment_likes (
+    comment_id INTEGER NOT NULL REFERENCES dive_comments(id) ON DELETE CASCADE,
+    guest_id INTEGER NOT NULL REFERENCES dive_guests(id) ON DELETE CASCADE,
+    PRIMARY KEY (comment_id, guest_id)
+);
 COMMIT;

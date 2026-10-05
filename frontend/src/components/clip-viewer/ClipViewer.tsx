@@ -19,6 +19,7 @@ import DiveManagement from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
+import ShareDiveButton from "./ShareDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
 import "./clipViewer.css";
 
@@ -292,6 +293,7 @@ export default function ClipViewer({
                 <MessageCircle size={25} />
                 <span>{social?.comment_count ?? "Comments"}</span>
               </button>
+              {attempt.can_manage && attempt.video_uuid && <ShareDiveButton key={attempt.id} id={attempt.id} />}
               <Link
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}
