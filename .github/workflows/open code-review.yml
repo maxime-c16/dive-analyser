@@ -17,7 +17,8 @@ jobs:
       # persist-credentials stays enabled (default): the review action
       # shells out to `git fetch origin <branch>`, which needs the
       # token-persisted auth from checkout.
-      - uses: actions/checkout@v6
+      # Pinned to the commit `v6` pointed at on 2026-10-05 (same reason).
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       # Pinned to the commit `latest` pointed at on 2026-10-05: same code,
       # but immune to upstream moves of the tag.
