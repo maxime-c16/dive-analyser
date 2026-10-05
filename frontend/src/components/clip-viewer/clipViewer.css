@@ -92,12 +92,9 @@
 .clip-play-indicator {
   width: 76px;
   height: 76px;
-  border-radius: 50%;
-  background: #0d11138c;
   display: grid;
   place-items: center;
-  backdrop-filter: blur(10px);
-  border: 1px solid #ffffff26;
+  filter: drop-shadow(0 2px 8px #0009);
 }
 .clip-heart {
   color: var(--app-accent);
@@ -187,6 +184,7 @@
   touch-action: none;
 }
 .clip-description > span {
+  min-width: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -509,17 +507,23 @@
   }
   .clip-counter {
     color: #d5e3e2;
-    font-size: 10px;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 20px;
+    background: #ffffff12;
+    border: 1px solid #ffffff26;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
   .clip-layout {
     height: 100%;
   }
   .clip-video {
-    object-fit: cover;
+    object-fit: contain;
   }
   .clip-caption {
-    left: 20px;
-    right: 82px;
+    left: max(24px, env(safe-area-inset-left));
+    right: max(100px, calc(76px + env(safe-area-inset-right)));
     bottom: calc(114px + env(safe-area-inset-bottom));
   }
   .clip-caption h2 {
@@ -532,14 +536,27 @@
   .clip-caption-eyebrow {
     font-size: 10px;
     gap: 6px;
+    flex-wrap: wrap;
   }
   .clip-description {
-    font-size: 11px;
+    font-size: 12px;
+    width: 100%;
   }
   .clip-actions {
-    right: 16px;
+    right: max(24px, env(safe-area-inset-right));
     bottom: calc(165px + env(safe-area-inset-bottom));
-    gap: 22px;
+    gap: 18px;
+  }
+  .clip-actions button,
+  .clip-actions a {
+    min-width: 52px;
+    min-height: 56px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .clip-actions svg {
+    width: 30px;
+    height: 30px;
   }
   .clip-transport {
     left: 12px;
