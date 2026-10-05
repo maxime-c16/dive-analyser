@@ -187,7 +187,7 @@ def create_dive(
 def upload_dive(
     request: Request,
     file: UploadFile = File(...),
-    dive_code: str = Form(..., pattern=r"^[1-5][0-9]{2,3}[ABCD]$"),
+    dive_code: str = Form(..., pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCD]$"),
     height: str = Form(..., pattern=r"^(1|3|5|7\.5|10)m$"),
     performance: str = Form(..., pattern=r"^[FBMGP]$"),
     dive_datetime: datetime = Form(...),
@@ -215,6 +215,10 @@ def upload_dive(
     existing = db.query(Dive).filter(Dive.video_uuid == video_uuid).first()
     if existing:
         return _public_dive(existing, db)
+    from app.services.dive_code_parser import DiveCodeParser
+    parsed = DiveCodeParser.parse(f"{dive_code} {performance} {height}")
+    if not parsed.is_valid:
+        raise HTTPException(422, parsed.error or "Invalid dive code")
     diver = db.get(Diver, diver_id)
     folder, size = prepare_video(file)
     try:
@@ -239,7 +243,18 @@ def upload_dive(
         asset = PhotosAsset(video_uuid=video_uuid, original_filename=Path(file.filename or 'video').name[:255], media_type='video', file_size_bytes=size, photos_created_at=dive_datetime)
         db.add(asset)
         db.flush()
-        record = Dive(session_id=session_id, diver_id=diver_id, person_name=diver.display_name, visibility=visibility, dive_code=dive_code, dive_number=dive_code[:-1], position=dive_code[-1], direction=int(dive_code[0]), performance=performance, performance_numeric='FBMGP'.index(performance), height=height, platform_type='springboard' if height in ('1m', '3m') else 'platform', notes=notes, dive_datetime=dive_datetime, video_uuid=video_uuid, photos_asset_id=asset.id)
+        record = Dive(
+            session_id=session_id, diver_id=diver_id, person_name=diver.display_name,
+            visibility=visibility, dive_code=parsed.dive_code,
+            dive_number=parsed.dive_code[:-1], position=parsed.position,
+            # The parser reports 0 for an unspecified armstand direction;
+            # the existing nullable DB field only stores directions 1–5.
+            direction=parsed.direction or None,
+            performance=parsed.performance, performance_numeric=parsed.performance_numeric,
+            height=parsed.height, platform_type=parsed.platform_type,
+            notes=notes, dive_datetime=dive_datetime,
+            video_uuid=video_uuid, photos_asset_id=asset.id,
+        )
         db.add(record)
         cache_upload(db, asset, folder)
         db.flush()
