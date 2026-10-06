@@ -48,6 +48,9 @@ services:
       PYTHONUNBUFFERED: 1
       LEGACY_MODE: "true"
       MEDIA_CACHE_ROOT: /app/media-cache
+      # Rollback knob for nginx byte-serving; default on. Requires the
+      # matching /internal-media-cache/ location and cache-root mount below.
+      MEDIA_XACCEL_ENABLED: ${MEDIA_XACCEL_ENABLED:-true}
       ANALYSIS_ARTIFACT_ROOT: /app/analysis-artifacts
       API_TITLE: Diving Analytics API
       API_VERSION: 1.0.0
