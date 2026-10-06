@@ -217,6 +217,9 @@ export default function ClipViewer({
   // The selection the live frame shows. Lags the `attempt` prop during a
   // commit snap; external changes (Back button, filters) adopt instantly.
   const displayedIdRef = useRef(attempt.id);
+  // Previous index inside the viewer, the swipe sign that steers the
+  // rolling warm window. null until the first adopt-effect runs.
+  const warmedIndexRef = useRef<number | null>(null);
   const [pagerEnabled, setPagerEnabled] = useState(shouldEnableFeedPager);
   const prevAttempt = index > 0 ? attempts[index - 1] : null;
   const nextAttempt = index < total - 1 ? attempts[index + 1] : null;
@@ -604,12 +607,20 @@ export default function ClipViewer({
     return inertExcept(dialog);
   }, []);
 
-  // Warm the adjacent clips so Previous/Next feel instant: their status
+  // Slide the rolling warm window so Previous/Next feel instant: status
   // lookups resolve into the shared preview cache (which the player seeds
-  // playback from), and their ready renditions download into the browser
-  // HTTP cache inside a bounded, low-priority byte warm.
+  // playback from), ready renditions download into the browser HTTP cache
+  // inside a bounded, low-priority byte warm, and stale neighbours are
+  // cancelled as the window moves.
   useEffect(() => {
-    warmAdjacentClips([attempts[index - 1]?.video_uuid, attempts[index + 1]?.video_uuid]);
+    const previous = warmedIndexRef.current;
+    warmedIndexRef.current = index;
+    const direction: -1 | 0 | 1 = previous === null || previous === index
+      ? 0
+      : index > previous
+        ? 1
+        : -1;
+    warmAdjacentClips({ attempts, index, direction });
   }, [attempts, index]);
 
   useEffect(() => {
