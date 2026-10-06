@@ -21,6 +21,9 @@ export default function ImmersiveControls({
   dragEnabled = false,
   onDragUpdate,
   onDragEnd,
+  onPinchStart,
+  onPinchUpdate,
+  onPinchEnd,
 }: {
   videoRef: RefObject<HTMLVideoElement>;
   playbackRate: number;
@@ -36,6 +39,15 @@ export default function ImmersiveControls({
   dragEnabled?: boolean;
   onDragUpdate?: (dy: number) => void;
   onDragEnd?: (result: FeedDragEnd) => void;
+  /**
+   * Instagram-style pinch, reported live so the parent can make the video
+   * follow the fingers: `ratio` is the current finger span over the span when
+   * the second finger landed (<1 = closing, >1 = spreading). The parent owns
+   * the visuals and decides what the release settles to.
+   */
+  onPinchStart?: () => void;
+  onPinchUpdate?: (ratio: number) => void;
+  onPinchEnd?: (cancelled: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [paused, setPaused] = useState(false);
@@ -64,6 +76,15 @@ export default function ImmersiveControls({
   dragEndRef.current = onDragEnd;
   const rateRef = useRef(playbackRate);
   rateRef.current = playbackRate;
+  const pinchStartRef = useRef(onPinchStart);
+  pinchStartRef.current = onPinchStart;
+  const pinchUpdateRef = useRef(onPinchUpdate);
+  pinchUpdateRef.current = onPinchUpdate;
+  const pinchEndRef = useRef(onPinchEnd);
+  pinchEndRef.current = onPinchEnd;
+  // Every finger currently on the surface, and the span of an active pinch.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ span: number } | null>(null);
 
   const toggle = () => {
     const video = videoRef.current;
@@ -114,6 +135,32 @@ export default function ImmersiveControls({
     });
     return true;
   };
+  const pinchSpan = () => {
+    const [a, b] = [...pointers.current.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+  /** A second finger lands: the one-finger gesture (tap, hold, drag) is over. */
+  const startPinch = () => {
+    clearTimeout(tapTimer.current);
+    tapTimer.current = undefined;
+    endDragGesture(true);
+    gesture.current = null;
+    const span = pinchSpan();
+    if (span <= 0 || pinch.current) return;
+    pinch.current = { span };
+    pinchStartRef.current?.();
+  };
+  const trackPinch = () => {
+    const state = pinch.current;
+    if (state) pinchUpdateRef.current?.(pinchSpan() / state.span);
+  };
+  const releasePointer = (pointerId: number, cancelled = false) => {
+    pointers.current.delete(pointerId);
+    if (pointers.current.size < 2 && pinch.current) {
+      pinch.current = null;
+      pinchEndRef.current?.(cancelled);
+    }
+  };
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -149,8 +196,17 @@ export default function ImmersiveControls({
         aria-label={paused ? t('clipViewer.play') : t('clipViewer.pause')}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
-          if (!event.isPrimary || event.button !== 0) return;
+          if (event.button !== 0) return;
           event.currentTarget.setPointerCapture?.(event.pointerId);
+          pointers.current.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+          });
+          if (pointers.current.size >= 2) {
+            startPinch();
+            return;
+          }
+          if (!event.isPrimary) return;
           gesture.current = {
             x: event.clientX,
             y: event.clientY,
@@ -170,6 +226,16 @@ export default function ImmersiveControls({
           }, 350);
         }}
         onPointerMove={(event) => {
+          if (pointers.current.has(event.pointerId)) {
+            pointers.current.set(event.pointerId, {
+              x: event.clientX,
+              y: event.clientY,
+            });
+          }
+          if (pinch.current) {
+            trackPinch();
+            return;
+          }
           if (!event.isPrimary) return;
           const start = gesture.current;
           if (!start) return;
@@ -197,15 +263,18 @@ export default function ImmersiveControls({
             dragUpdateRef.current?.(dy);
           }
         }}
-        onPointerCancel={() => {
+        onPointerCancel={(event) => {
+          releasePointer(event.pointerId, true);
           endDragGesture(true);
         }}
-        onLostPointerCapture={() => {
+        onLostPointerCapture={(event) => {
           // A real release fires pointerup first (gesture already cleared);
           // only a capture loss mid-drag counts as a cancellation.
+          releasePointer(event.pointerId, true);
           endDragGesture(true);
         }}
         onPointerUp={(event) => {
+          releasePointer(event.pointerId);
           if (!event.isPrimary) return;
           const start = gesture.current;
           gesture.current = null;

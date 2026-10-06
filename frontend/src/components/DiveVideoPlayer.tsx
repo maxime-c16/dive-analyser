@@ -72,9 +72,12 @@ interface DiveVideoPlayerProps {
   dragEnabled?: boolean
   onDragUpdate?: (dy: number) => void
   onDragEnd?: (result: FeedDragEnd) => void
+  onPinchStart?: () => void
+  onPinchUpdate?: (ratio: number) => void
+  onPinchEnd?: (cancelled: boolean) => void
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd }: DiveVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const { user, checking: authChecking } = useAuth()
 
@@ -400,7 +403,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         aria-label={`${diveCode} ${height} dive video`}
       />
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} />}
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}
