@@ -36,12 +36,14 @@ async function drain(url: string) {
     if (!response.ok || !response.body) return;
     // Content-Length pins the extreme case: abort before buffering anything.
     const declared = Number(response.headers.get("Content-Length") ?? "");
-    if (declared > MAX_WARM_BYTES) return;
-
-    // Consume through the cache as chunks arrive; a response abandoned
-    // mid-stream is not retained by the HTTP cache, so an aborted warm
-    // genuinely saves nothing — and costs no resident memory either.
     const reader = response.body.getReader();
+    if (declared > MAX_WARM_BYTES) {
+      // Abort the new fetch stream itself; skipping without cancel would
+      // leave the transfer draining network in the background.
+      await reader.cancel();
+      return;
+    }
+
     let received = 0;
     for (;;) {
       const { done, value } = await reader.read();
