@@ -13,8 +13,8 @@
  *   group 5:    [5][DIRECTION][UNITS][TWISTS][POSITION] — DIRECTION mirrors
  *               the groups (1 front, 2 back, 3 reverse, 4 inward); TWISTS
  *               counts half-twists (1 = ½ twist, 2 = 1 twist…).
- *   group 6:    [6][DIRECTION][UNITS][POSITION] (optionally with a twist digit
- *               before the position); armstand dives are platform-only.
+ *   group 6:    [6][DIRECTION][UNITS][POSITION] with DIRECTION 1-4 as in the
+ *               groups; armstand dives are platform-only.
  *
  * French naming follows the FFN French edition / Plongeon Canada usage:
  *   101A → "Plongeon en avant droit"
@@ -47,9 +47,11 @@ export type DiveParts = {
 const STANDARD_RE = /^([1-4])([01])([1-8])([ABCD])$/
 const TWISTING_RE = /^5([1-4])([1-8])([1-8])([ABCD])$/
 // Armstand codes are exactly four characters (backend fina_validator): a
-// fifth twist digit is not defined, so such codes stay unparsed (rendered
-// raw) rather than being silently named as a different dive.
-const ARMSTAND_RE = /^6([0-5])([1-8])([ABCD])$/
+// fifth twist digit is not defined. The backend also accepts directions 0
+// and 5, but the reference defines no name for them, so those codes (and any
+// fifth digit) stay unparsed and render raw rather than being silently named
+// as a different dive.
+const ARMSTAND_RE = /^6([1-4])([1-8])([ABCD])$/
 
 /** Parses FINA codes; returns null for anything the reference doesn't define. */
 export function parseDiveCode(code?: string | null): DiveParts | null {

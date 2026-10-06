@@ -31,6 +31,15 @@ describe('diveCodeName English', () => {
 
 
 describe('diveCodeName armstand codes', () => {
+  it('keeps armstand directions without a defined name raw', () => {
+    // The backend validator accepts directions 0-5; only 1-4 have names.
+    for (const code of ['601A', '651A', '652C']) {
+      expect(parseDiveCode(code)).toBeNull()
+      expect(diveCodeName(code, 'en')).toBe(code)
+      expect(diveCodeName(code, 'fr')).toBe(code)
+    }
+  })
+
   it('keeps five-character armstand codes raw', () => {
     // The backend validator accepts only four-character group-6 codes.
     for (const code of ['6103B', '6121D', '6121B']) {
