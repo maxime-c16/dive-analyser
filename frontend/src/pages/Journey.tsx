@@ -339,7 +339,7 @@ function Journey() {
                 <div className="grid grid-cols-2 gap-3 mb-6 pb-6 border-b border-app sm:grid-cols-4 sm:gap-4">
                   <div className="min-w-0">
                     <div className="text-app-muted text-sm mb-1">
-                      Total Dives
+                      {t("progress.totalDives")}
                     </div>
                     <div className="app-kpi-value text-2xl">
                       {phaseData.summary?.total_dives || 0}
@@ -434,7 +434,7 @@ function Journey() {
                             {score}
                           </div>
                           <div className="text-app-muted text-xs">
-                            {Number(count)} dives
+                            {t("progress.divesCount", { count: Number(count) })}
                           </div>
                         </div>
                       ))}
@@ -460,7 +460,7 @@ function Journey() {
                               {combo}
                             </div>
                             <div className="text-app-muted">
-                              {Number(count)} dives
+                              {t("progress.divesCount", { count: Number(count) })}
                             </div>
                           </div>
                         ))}

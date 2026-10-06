@@ -66,11 +66,11 @@ function RepresentativeCardView({
   return (
     <article className="border border-app bg-app-panel-elevated">
       <div className="flex items-start justify-between gap-3 border-b border-app px-4 py-3">
-        <h3 className="font-semibold text-app-text">{rep.label}</h3>
+        <h3 className="font-semibold text-app-text">{t(`repMedia.role.${rep.role}`)}</h3>
         <span className={`text-xs font-medium ${stateClass(rep.media.state)}`}>{mediaLabel}</span>
       </div>
       {rep.media.poster_url ? (
-        <img src={rep.media.poster_url} alt={t('repMedia.posterAlt', { code, label: rep.label })} className="aspect-video w-full object-cover" />
+        <img src={rep.media.poster_url} alt={t('repMedia.posterAlt', { code, label: t(`repMedia.role.${rep.role}`) })} className="aspect-video w-full object-cover" />
       ) : (
         <div className="flex aspect-video items-center justify-center bg-black/35 text-xs text-app-muted">{t('analysis.noPoster')}</div>
       )}
