@@ -6,16 +6,20 @@ import Account, { initials } from "./Account";
 
 const signOut = vi.fn();
 
+const mockAuthUser = vi.hoisted(() => ({
+  current: {
+    user_id: 7,
+    email: "alex.moreau@example.com",
+    display_name: "Alex Moreau",
+    role: "friend",
+    is_admin: false,
+    divers: [] as unknown[],
+  },
+}));
+
 vi.mock("../contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: {
-      user_id: 7,
-      email: "alex.moreau@example.com",
-      display_name: "Alex Moreau",
-      role: "friend",
-      is_admin: false,
-      divers: [],
-    },
+    user: mockAuthUser.current,
     checking: false,
     refresh: vi.fn(),
     signOut,
@@ -38,6 +42,14 @@ function renderAccount(initial = "/account") {
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
+  mockAuthUser.current = {
+    user_id: 7,
+    email: "alex.moreau@example.com",
+    display_name: "Alex Moreau",
+    role: "friend",
+    is_admin: false,
+    divers: [] as unknown[],
+  };
   // fetch is undefined in jsdom unless stubbed per-test
 });
 
@@ -134,6 +146,246 @@ describe("Account (final V2)", () => {
     expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
       weeklyDigest: true,
     });
+  });
+
+  it("loads server alert toggles and persists them via PUT", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const guest = await screen.findByRole("switch", { name: "Guest activity alerts" });
+    expect(guest).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(guest);
+    await waitFor(() => expect(guest).toHaveAttribute("aria-checked", "true"));
+    const put = calls.find(call => call.init?.method === "PUT");
+    expect(put?.url).toBe("/api/v1/notification-prefs");
+    expect(JSON.parse(put?.init?.body as string)).toEqual({ type: "guest_activity", enabled: true });
+  });
+
+  it("disables server toggles until the initial GET resolves", async () => {
+    let resolveGet!: (value: Response) => void;
+    const getPromise = new Promise<Response>(resolve => {
+      resolveGet = resolve;
+    });
+    const puts: RequestInit[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        puts.push(init);
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return getPromise;
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    // Server toggles render from the fallback cache but stay disabled
+    // while the initial GET is in flight — an early PUT could otherwise
+    // be overwritten by the stale GET response.
+    const guest = await screen.findByRole("switch", { name: "Guest activity alerts" });
+    const newVideo = screen.getByRole("switch", { name: "New video alerts" });
+    expect(guest).toBeDisabled();
+    expect(newVideo).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
+    // Local-only toggles have no GET: they stay interactive.
+    expect(screen.getByRole("switch", { name: "Email notifications" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Weekly digest" })).toBeEnabled();
+    expect(puts).toHaveLength(0);
+    resolveGet(
+      new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    await waitFor(() => expect(guest).toBeEnabled());
+    expect(newVideo).toBeEnabled();
+  });
+
+  it("falls back to the legacy milestone toggle when the API is down", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    expect(milestones).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent(/last known values/i);
+  });
+
+  it("pushes legacy milestoneAlerts=false to the server once on first sync", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    const first = renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    await waitFor(() => expect(milestones).toHaveAttribute("aria-checked", "false"));
+    const puts = calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(JSON.parse(puts[0].init?.body as string)).toEqual({ type: "milestone", enabled: false });
+    expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
+      milestoneMigrated: true,
+    });
+    first.unmount();
+    calls.length = 0;
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    await screen.findByRole("switch", { name: "Milestone alerts" });
+    // Let the GET settle, then a tick for any spurious migration PUT.
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(
+      calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT"),
+    ).toHaveLength(0);
+  });
+
+  it("skips the legacy migration when the server already has an explicit milestone override", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: true }));
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: false,
+            sync_error: true,
+            guest_activity: false,
+          },
+          explicit: ["milestone"],
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    // Server explicit false wins over legacy true: no PUT, server value shown.
+    await waitFor(() => expect(milestones).toHaveAttribute("aria-checked", "false"));
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(
+      calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT"),
+    ).toHaveLength(0);
+    expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
+      milestoneMigrated: true,
+    });
+  });
+
+  it("migrates legacy milestoneAlerts=false when the server has no explicit override", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+          explicit: [],
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    await waitFor(() => expect(milestones).toHaveAttribute("aria-checked", "false"));
+    const puts = calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(JSON.parse(puts[0].init?.body as string)).toEqual({ type: "milestone", enabled: false });
+    expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
+      milestoneMigrated: true,
+    });
+  });
+
+  it("does not show user A's cached prefs to user B when the API is down", async () => {
+    // User A (id 7) cached a distinctive value; the stale pre-scoping
+    // global key must also be ignored — it may hold another account's data.
+    localStorage.setItem("dive-analyser.notif-prefs.server.v1:7", JSON.stringify({ new_video: false }));
+    localStorage.setItem("dive-analyser.notif-prefs.server.v1", JSON.stringify({ new_video: false }));
+    mockAuthUser.current = {
+      ...mockAuthUser.current,
+      user_id: 9,
+      email: "bob@example.com",
+      display_name: "Bob",
+    };
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    // Server default for new_video is true; user A's cached false must not leak.
+    const newVideo = await screen.findByRole("switch", { name: "New video alerts" });
+    expect(newVideo).toHaveAttribute("aria-checked", "true");
   });
 
   it("warns that opt-in never publishes history and toggles the global switch", async () => {

@@ -256,6 +256,17 @@ def get_prefs(db: Session, user_id: int) -> Dict[str, bool]:
     return prefs
 
 
+def list_explicit_types(db: Session, user_id: int) -> List[str]:
+    """Types with a stored override row (explicit user choice, any value)."""
+    rows = (
+        db.query(NotificationPref.notif_type)
+        .filter_by(user_id=user_id)
+        .limit(len(NOTIF_TYPES))
+        .all()
+    )
+    return sorted({row[0] for row in rows if row[0] in NOTIF_TYPES})
+
+
 def set_pref(
     db: Session, user_id: int, type: str, enabled: bool
 ) -> NotificationPref:

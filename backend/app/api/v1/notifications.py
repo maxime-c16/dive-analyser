@@ -68,7 +68,10 @@ def read_all_notifications(
 
 @router.get("/notification-prefs")
 def get_prefs(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    return {"prefs": notification_service.get_prefs(db, user.id)}
+    return {
+        "prefs": notification_service.get_prefs(db, user.id),
+        "explicit": notification_service.list_explicit_types(db, user.id),
+    }
 
 
 @router.put("/notification-prefs")
