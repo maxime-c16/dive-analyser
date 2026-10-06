@@ -54,17 +54,22 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None) 
     serialization keeps working before ``add_fediverse_optin.sql`` is
     applied (missing tables read as OFF). List callers pass a batch map to
     avoid N+1 queries; single-dive callers fall back to one lookup.
+    The flag is owner-only: community viewers of a public dive always read
+    False, matching the owner-only per-dive fediverse endpoints.
     """
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
-    if federate_map is None:
-        from app.services.fediverse import per_dive_enabled
-
-        payload["federate_enabled"] = per_dive_enabled(db, dive.id)
-    else:
-        payload["federate_enabled"] = dive.id in federate_map
     context = db.info.get("member_access")
     payload["can_comment"] = True  # Capability for the next discussion phase.
     payload["can_manage"] = context is None or dive.diver_id in context["diver_ids"] or (context.get("is_admin") and dive.diver_id is None)
+    if payload["can_manage"]:
+        if federate_map is None:
+            from app.services.fediverse import per_dive_enabled
+
+            payload["federate_enabled"] = per_dive_enabled(db, dive.id)
+        else:
+            payload["federate_enabled"] = dive.id in federate_map
+    else:
+        payload["federate_enabled"] = False
     if context and not payload["can_manage"]:
         for key in ("notes", "raw_caption", "video_path", "video_filename", "pre_dive_emotion", "post_dive_emotion", "confidence_rating"):
             payload.pop(key, None)

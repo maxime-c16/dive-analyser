@@ -97,6 +97,11 @@ def test_dive_lists_expose_federate_flag(workspace):
     own = {row['id']: row for row in alice.get('/api/v1/dives').json()}
     assert own[dives['alice-public']]['federate_enabled'] is True
     assert own[dives['alice-private']]['federate_enabled'] is False
+    # Owner-only: community viewers of the public dive read OFF.
+    community = {row['id']: row for row in login('bob').get('/api/v1/dives?diver_scope=all').json()}
+    assert community[dives['alice-public']]['federate_enabled'] is False
+    assert community[dives['alice-public']]['can_manage'] is False
+    assert login('bob').get(f"/api/v1/dives/{dives['alice-public']}").json()['federate_enabled'] is False
 
 
 def test_pre_migration_schema_keeps_dives_serving(workspace):
