@@ -71,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     clearIntentData()
     clearLibraryCache()
+    // Sign-out begins here: tear warm transfers down before the network
+    // round-trip, so a stalled logout cannot keep signed-URL pulls running.
+    resetPlaybackWarming()
     try {
       await fetch('/api/v1/auth/logout', {
         method: 'POST',
