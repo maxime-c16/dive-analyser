@@ -54,12 +54,14 @@ const loadAdmin = () => import("./pages/Admin");
 const Admin = lazy(loadAdmin);
 const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
+const loadMemberProfile = () => import("./pages/MemberProfile");
+const MemberProfile = lazy(loadMemberProfile);
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/dashboard': loadDashboard, '/analytics': loadAnalytics,
   '/sessions': loadSessions, '/journey': loadJourney,
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
-  '/admin': loadAdmin, '/account': loadAccount,
+  '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile,
 };
 
 function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
@@ -211,6 +213,8 @@ export function breadcrumbTrail(
     case "/account":
       return [{ labelKey: "nav.account" }];
     default: {
+      const usersMatch = pathname.match(/^\/users\/(\d+)\/?$/);
+      if (usersMatch) return [{ labelKey: "nav.account", href: "/account" }, { labelKey: "profile.breadcrumb" }];
       const last = pathname.split("/").filter(Boolean).pop();
       return [{ label: last ? last.replace(/-/g, " ") : translate("nav.dives") }];
     }
@@ -563,6 +567,7 @@ function Router() {
                     }
                   />
                   <Route path="/account" element={<Account />} />
+                  <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<Sessions />} />
                   <Route
                     path="/competitions"

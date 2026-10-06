@@ -1,0 +1,251 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { CalendarDays } from 'lucide-react'
+import {
+  getUserProfile,
+  getUserActivity,
+  type MemberProfile as MemberProfileData,
+  type ActivityItem,
+} from '../services/activityApi'
+import { activityIcon } from '../components/activity/ActivityFeed'
+import MemberLink from '../components/activity/MemberLink'
+import { initials } from './Account'
+import { appLanguage } from '../utils/dateLocale'
+
+const PAGE_SIZE = 30
+
+// On another member's profile every row is their action: always show the
+// member's name with a third-person phrase.
+function ActorPhrase({ item }: { item: ActivityItem }) {
+  const { t } = useTranslation()
+  const nameNode = item.actor.user_id
+    ? <MemberLink userId={item.actor.user_id} className="font-semibold text-app-accent hover:underline">{item.actor.display_name}</MemberLink>
+    : <span className="font-semibold">{item.actor.display_name}</span>
+  return <>{nameNode} {t(`profile.trail.${item.kind}`)}</>
+}
+
+function ClipLink({ item }: { item: ActivityItem }) {
+  return (
+    // scope=all: the library defaults admins to their own bindings, which
+    // would silently discard clips the interaction points at.
+    <Link to={`/dives?clip=${item.dive.id}&scope=all`} className="text-app-muted underline underline-offset-2 hover:text-app-accent">
+      {item.dive.dive_code}{item.dive.height ? ` · ${item.dive.height}` : ''}
+      {item.dive.diver_name ? ` · ${item.dive.diver_name}` : ''}
+    </Link>
+  )
+}
+
+function ProfileHead({ profile }: { profile: MemberProfileData }) {
+  const { t } = useTranslation()
+  return (
+    <header className="mb-5 flex flex-wrap items-center gap-4 border-b border-app pb-4">
+      <div
+        aria-hidden
+        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-lg font-bold text-app-accent ring-1 ring-app-accent"
+      >
+        {initials(profile.display_name)}
+      </div>
+      <div className="min-w-0">
+        <h1 className="truncate text-2xl font-semibold tracking-tight text-app-text">{profile.display_name}</h1>
+        <p className="mt-0.5 flex items-center gap-2 text-sm text-app-muted">
+          <span className={`border px-2 py-0.5 text-xs font-medium ${profile.is_admin ? 'border-app text-app-muted' : 'border-app-accent text-app-accent'}`}>
+            {profile.is_admin ? t('roles.administrator') : t('roles.diver')}
+          </span>
+          {profile.joined_at && (
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+              <time dateTime={profile.joined_at}>{new Date(profile.joined_at).toLocaleDateString(appLanguage())}</time>
+            </span>
+          )}
+        </p>
+      </div>
+      {profile.divers.length > 0 && (
+        <p className="ml-auto text-sm text-app-muted">
+          {t('profile.diverOf')}{' '}
+          <Link to="/dives" className="text-app-accent hover:underline">
+            {profile.divers.map(diver => diver.display_name).join(', ')}
+          </Link>
+        </p>
+      )}
+    </header>
+  )
+}
+
+/** Vertical timeline: one rail, day headings, per-event times. */
+function ActivityTimeline({ items }: { items: ActivityItem[] }) {
+  const { t } = useTranslation()
+  const language = appLanguage()
+  const groups = new Map<string, ActivityItem[]>()
+  for (const item of items) {
+    const stamp = item.created_at ? new Date(item.created_at) : null
+    const dayKey = stamp ? stamp.toDateString() : '—'
+    groups.set(dayKey, [...(groups.get(dayKey) ?? []), item])
+  }
+  const dayLabel = (dayKey: string) => {
+    if (dayKey === '—') return ''
+    const today = new Date().toDateString()
+    if (dayKey === today) return t('profile.today')
+    const yesterday = new Date(Date.now() - 86400000).toDateString()
+    if (dayKey === yesterday) return t('profile.yesterday')
+    return new Date(dayKey).toLocaleDateString(language, { weekday: 'long', day: 'numeric', month: 'long' })
+  }
+  const clock = (item: ActivityItem) =>
+    item.created_at
+      ? new Date(item.created_at).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' })
+      : ''
+
+  return (
+    /* Rail geometry: every node (day dot, event icon) is centered on the
+       x=8px rail through the same translate-x-1/2 helper, so alignment
+       cannot drift between nodes. */
+    <ol className="relative">
+      {[...groups.entries()].map(([day, rows]) => (
+        <li key={day} className="relative pb-8 last:pb-0">
+          <span aria-hidden className="absolute left-[8px] top-3 bottom-0 w-px -translate-x-1/2 bg-[var(--app-border)]" />
+          <span
+            aria-hidden
+            className="absolute left-[8px] top-0 z-10 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-app-panel bg-app-accent"
+          />
+          <p className="pl-10 text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
+            {dayLabel(day)}
+          </p>
+          <ul className="mt-3 space-y-5 pl-10">
+            {rows.map(item => {
+              const Icon = activityIcon(item)
+              return (
+                <li key={item.key} className="relative flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="absolute left-[-42px] top-[3px] z-10 flex h-5 w-5 items-center justify-center rounded-full border border-app bg-app-panel text-app-muted"
+                  >
+                    <Icon className="h-3 w-3" />
+                  </span>
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-sm font-bold text-app-accent ring-1 ring-app"
+                  >
+                    {item.actor.display_name.trim()[0]?.toUpperCase() ?? '?'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-6 text-app-text">
+                      <ActorPhrase item={item} />{' '}
+                      <ClipLink item={item} />
+                    </p>
+                    {item.comment?.body && (
+                      <p className="mt-1 border-l-2 border-app-accent/50 pl-3 text-sm leading-6 text-app-muted">
+                        {item.comment.body}
+                      </p>
+                    )}
+                  </div>
+                  <time dateTime={item.created_at ?? undefined} className="shrink-0 pt-1 text-xs text-app-muted">
+                    {clock(item)}
+                  </time>
+                </li>
+              )
+            })}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+export default function MemberProfile() {
+  const { userId } = useParams()
+  const { t } = useTranslation()
+  const [profile, setProfile] = useState<MemberProfileData | null>(null)
+  const [notFound, setNotFound] = useState(false)
+  const [items, setItems] = useState<ActivityItem[]>([])
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!userId) return
+    let alive = true
+    setProfile(null)
+    setNotFound(false)
+    setError('')
+    setItems([])
+    setCursor(null)
+    setLoaded(false)
+    getUserProfile(Number(userId))
+      .then(data => {
+        if (!alive) return
+        setProfile(data)
+        return getUserActivity(Number(userId), { limit: PAGE_SIZE })
+      })
+      .then(page => {
+        if (!alive || !page) return
+        setItems(page.items)
+        setCursor(page.next_before)
+        setLoaded(true)
+      })
+      .catch((err: Error & { status?: number }) => {
+        if (!alive) return
+        if (err.status === 404) setNotFound(true)
+        else setError(t('profile.errorLoad'))
+        setLoaded(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [userId, t])
+
+  const loadOlder = () => {
+    if (!cursor || loadingMore || !userId) return
+    setLoadingMore(true)
+    getUserActivity(Number(userId), { before: cursor, limit: PAGE_SIZE })
+      .then(page => {
+        setItems(previous => [...previous, ...page.items])
+        setCursor(page.next_before)
+      })
+      .catch(() => setError(t('account.activity.errorLoad')))
+      .finally(() => setLoadingMore(false))
+  }
+
+  if (notFound) {
+    return (
+      <div className="mx-auto mt-10 max-w-lg py-10 text-center">
+        <h1 className="text-2xl font-semibold text-app-text">{t('profile.notFoundTitle')}</h1>
+        <Link to="/dives" className="touch-target mt-6 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent">
+          {t('notFound.backToLibrary')}
+        </Link>
+      </div>
+    )
+  }
+  if (!profile) {
+    return <p role="status" className="py-8 text-sm text-app-muted">{t('common.loadingPage')}</p>
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <ProfileHead profile={profile} />
+      <div className="border border-app bg-app-panel p-6">
+        {error && items.length === 0 ? (
+          <p role="alert" className="text-sm text-red-400">{error}</p>
+        ) : !loaded && items.length === 0 ? (
+          <p role="status" className="text-sm text-app-muted">{t('account.activity.loading')}</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-app-muted">{t('profile.emptyActivity')}</p>
+        ) : (
+          <>
+            <ActivityTimeline items={items} />
+            {cursor && (
+              <button
+                type="button"
+                onClick={loadOlder}
+                disabled={loadingMore}
+                className="touch-target mt-5 border border-app bg-app-panel-elevated px-4 py-2 text-sm font-medium text-app-text disabled:opacity-60"
+              >
+                {loadingMore ? t('account.activity.loading') : t('account.activity.loadOlder')}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

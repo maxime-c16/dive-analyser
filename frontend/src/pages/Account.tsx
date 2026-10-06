@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Globe, Globe2, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { Bell, Globe, Globe2, History, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { LANGUAGES, useLang } from '../i18n/I18nProvider'
 import type { LanguageCode } from '../i18n/prefs'
+import ActivitySection from '../components/activity/ActivitySection'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
 export function initials(name: string, fallbackEmail = ''): string {
@@ -103,6 +104,7 @@ const labelCls =
 
 const sections = [
   { id: 'profile', labelKey: 'account.sections.profile', icon: UserRound },
+  { id: 'activity', labelKey: 'account.sections.activity', icon: History },
   { id: 'notifications', labelKey: 'account.notifications', icon: Bell },
   { id: 'fediverse', labelKey: 'account.fediverse.section', icon: Globe2 },
   { id: 'security', labelKey: 'account.security', icon: KeyRound },
@@ -353,6 +355,8 @@ export default function Account() {
               </p>
             </section>
           )}
+
+          {section === 'activity' && <ActivitySection />}
 
           {section === 'notifications' && (
             <section aria-label={t('account.notificationsAria')} className="border border-app bg-app-panel p-5">

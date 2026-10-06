@@ -4,6 +4,7 @@ import { Heart, Send, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { appLanguage } from "../../utils/dateLocale";
+import MemberLink from "../activity/MemberLink";
 import type { Comment } from "./useDiveSocial";
 
 export default function CommentThread({ comment, diveId, basePath = `/api/v1/dives/${diveId}`, guestId, onDelete, onCountChange, onChange, onReply, nested = false }: {
@@ -70,7 +71,13 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
     <article className="clip-comment">
       <div className="clip-avatar">{comment.author.slice(0, 1).toUpperCase()}</div>
       <div>
-        <strong>{comment.author}</strong>
+        {comment.user_id ? (
+          <MemberLink userId={comment.user_id} className="comment-author-link" ariaLabel={t('comments.viewProfileBy', { author: comment.author })}>
+            <strong>{comment.author}</strong>
+          </MemberLink>
+        ) : (
+          <strong>{comment.author}</strong>
+        )}
         <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString(appLanguage())}</time>
         <p>{comment.body}</p>
         <div className="clip-comment-actions">

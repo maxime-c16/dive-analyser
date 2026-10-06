@@ -1,0 +1,8 @@
+{
+  "id": "profile-activity-history",
+  "date": "2026-10-06",
+  "title": "Your account page now keeps a history of interactions",
+  "body": "A new Activity section in Profile & settings lists likes and comments on your dives, plus everything you liked or commented on. Click a member's name to open their profile, or a clip reference to jump straight to it. Member profiles are now browsable at /users, with the member's recent activity on clips you can see.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
