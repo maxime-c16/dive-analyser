@@ -686,6 +686,10 @@ def test_cache_root_file_redirects_to_internal_media_location(client, db):
     assert "Cache-Control" in r.headers
     assert r.headers.get("Referrer-Policy") == "no-referrer"
     assert b"FAKELEGACYVIDEOBYTES" not in r.content
+    # The real body is empty and nginx owns the length: an upstream
+    # Content-Length made uvicorn abort every accelerated response with
+    # "Response content shorter than Content-Length" in production.
+    assert "Content-Length" not in r.headers
 
 
 def test_out_of_root_file_still_streams_through_python(client, db):

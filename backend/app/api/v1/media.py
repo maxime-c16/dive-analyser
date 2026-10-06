@@ -271,10 +271,15 @@ def _serve_media_file(path: Path, content_type: str, request: Request, head_only
     redirect_uri = None if head_only else _x_accel_uri_for(path)
 
     if redirect_uri is not None:
+        # The body is replaced by the file nginx serves, so this response
+        # must NOT carry Content-Length (its real body is empty): a declared
+        # length made uvicorn/h11 abort every accelerated response with
+        # "Response content shorter than Content-Length" in production, even
+        # with the default 0. A streamed body sets no length; nginx sets
+        # length and ranges itself from the file; identity headers stay.
+        headers.pop("Content-Length", None)
         headers["X-Accel-Redirect"] = redirect_uri
-        # Content-Type is preserved from the upstream response by nginx;
-        # the transfer itself is not read into this process.
-        return Response(status_code=status.HTTP_200_OK, headers=headers, media_type=content_type)
+        return StreamingResponse(iter(()), status_code=status.HTTP_200_OK, headers=headers)
 
     range_header = request.headers.get("range")
 
