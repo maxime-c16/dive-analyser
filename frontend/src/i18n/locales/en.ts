@@ -633,6 +633,7 @@ const en = {
     notCached: 'Clip not cached',
     prepareClip: 'Prepare clip',
     noPlayable: 'No playable media for this clip right now.',
+    posterUnavailable: 'No preview image available',
     states: {
       queued: 'queued',
       waiting_for_mac: 'waiting for mac',

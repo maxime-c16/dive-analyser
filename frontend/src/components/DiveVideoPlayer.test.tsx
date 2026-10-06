@@ -1,7 +1,8 @@
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest'
 import DiveVideoPlayer, {
   INITIAL_STATUS_ATTEMPTS,
   LONG_PREPARATION_MS,
@@ -19,6 +20,18 @@ vi.mock('../services/mediaApi', async (importOriginal) => {
 const missing = { video_uuid: 'uuid', status: 'missing', can_request: true, available_renditions: [], playback_url: null, poster_url: null, job: null }
 const transcoding = { ...missing, status: 'transcoding', can_request: false }
 const ready = { ...missing, status: 'ready', playback_url: '/cached.mp4' }
+
+// Drives the loadeddata/readyState fallback to a presented first frame
+// (HAVE_CURRENT_DATA + one compositor frame), revealing the cover and the
+// transport affordances.
+async function presentFirstFrame(video: HTMLVideoElement) {
+  Object.defineProperty(video, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_CURRENT_DATA })
+  fireEvent.loadedData(video)
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+  })
+}
+
 it('immersive clips attempt autoplay with sound on metadata load', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
@@ -31,6 +44,7 @@ it('immersive clips attempt autoplay with sound on metadata load', async () => {
     await waitFor(() => expect(playSpy).toHaveBeenCalled())
     // Sound stays on when the browser allows unmuted autoplay.
     expect(video.muted).toBe(false)
+    await presentFirstFrame(video)
     expect(screen.getByRole('button', { name: 'Mute video' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Mute video' }))
     expect(video.muted).toBe(true)
@@ -55,6 +69,7 @@ it('immersive clips fall back to muted autoplay when sound is blocked', async ()
     await waitFor(() => expect(playSpy).toHaveBeenCalledTimes(2))
     expect(video.muted).toBe(true)
     fireEvent.volumeChange(video)
+    await presentFirstFrame(video)
     expect(screen.getByRole('button', { name: 'Unmute video' })).toBeInTheDocument()
   } finally {
     playSpy.mockRestore()
@@ -110,7 +125,7 @@ it('non-immersive clips never attempt autoplay', async () => {
   }
 })
 beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 it('checks status passively without creating a job', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); expect(await screen.findByRole('button', { name: /Prepare clip/ })).toBeInTheDocument(); expect(getMediaStatus).toHaveBeenCalledOnce(); expect(requestMedia).not.toHaveBeenCalled() })
 it('Prepare clip explicitly creates one proxy request', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); await userEvent.click(await screen.findByRole('button', { name: /Prepare clip/ })); expect(requestMedia).toHaveBeenCalledOnce(); expect(requestMedia).toHaveBeenCalledWith('uuid', 'proxy_720p') })
@@ -362,4 +377,296 @@ it('a preview known to lack playback never fakes a ready clip', async () => {
   const video = screen.getByLabelText('103B 1m dive video')
   expect(video).not.toHaveAttribute('src')
   expect(video).toHaveAttribute('poster', '/seeded.jpg')
+})
+
+// ---- Incoming-clip cover: first paint through first presented frame ----
+//
+// The cover is the issue #57 guarantee: a known poster never disappears into
+// black before the incoming video presents its real first frame, across
+// synchronous seeds, source switches (A→B→A), decode retries and poster
+// failures — with stale frame callbacks unable to reveal another generation.
+
+async function seedPreviewNow(uuid: string, playbackUrl: string | null, posterUrl: string | null = '/seeded.jpg') {
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+    if (String(input).includes('/api/v1/media/status/batch')) {
+      return {
+        ok: true,
+        json: async () => ({
+          [uuid]: { status: playbackUrl ? 'ready' : 'missing', poster_url: posterUrl, playback_url: playbackUrl },
+        }),
+      }
+    }
+    return { ok: true, body: null, json: async () => ({}) }
+  }))
+  await act(async () => { await getPreview(uuid) })
+}
+
+const cover = () => document.querySelector('[data-testid="clip-cover"]')
+const coverImg = () => document.querySelector('[data-testid="clip-cover"] img')
+
+interface FrameStub {
+  request: Mock<[cb: (now: number) => void], number>
+  cancel: Mock<[handle: number], void>
+  callbacks: Array<((now: number) => void) | null>
+  cancelled: number[]
+  restore: () => void
+}
+
+/** Feature-detect override: makes the environment look like iOS Safari. */
+function stubFrameCallbacks(): FrameStub {
+  const callbacks: Array<((now: number) => void) | null> = []
+  const cancelled: number[] = []
+  const request = vi.fn((cb: (now: number) => void) => {
+    callbacks.push(cb)
+    return callbacks.length
+  })
+  const cancel = vi.fn((handle: number) => { cancelled.push(handle) })
+  const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>
+  const previous = {
+    r: Object.getOwnPropertyDescriptor(proto, 'requestVideoFrameCallback'),
+    c: Object.getOwnPropertyDescriptor(proto, 'cancelVideoFrameCallback'),
+  }
+  Object.defineProperty(proto, 'requestVideoFrameCallback', { configurable: true, value: request })
+  Object.defineProperty(proto, 'cancelVideoFrameCallback', { configurable: true, value: cancel })
+  return {
+    request, cancel, callbacks, cancelled,
+    restore() {
+      if (previous.r) Object.defineProperty(proto, 'requestVideoFrameCallback', previous.r)
+      else delete proto.requestVideoFrameCallback
+      if (previous.c) Object.defineProperty(proto, 'cancelVideoFrameCallback', previous.c)
+      else delete proto.cancelVideoFrameCallback
+    },
+  }
+}
+
+it('the very first render already carries the seeded poster, playback and cover', async () => {
+  await seedPreviewNow('ssr-seed', '/seeded.mp4')
+  // renderToString is only a first-paint probe; the client-only
+  // useLayoutEffect warning it emits is expected noise here.
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  try {
+    const html = renderToString(
+      <DiveVideoPlayer diveCode="103B" height="1m" videoUuid="ssr-seed" immersive />,
+    )
+    expect(html).toContain('src="/seeded.mp4"')
+    expect(html).toContain('poster="/seeded.jpg"')
+    expect(html).toContain('data-testid="clip-cover"')
+    expect(html).not.toContain('Checking')
+  } finally {
+    errorSpy.mockRestore()
+  }
+})
+
+it('a poster-only seed holds the cover through the initial status lookup', async () => {
+  await seedPreviewNow('checking-cover', null, '/seeded.jpg')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="checking-cover" immersive />)
+  expect(coverImg()).toHaveAttribute('src', '/seeded.jpg')
+  expect(screen.getByText('Checking…')).toBeInTheDocument()
+})
+
+it('metadata and canplay never reveal the cover; a decodable first frame does', async () => {
+  await seedPreviewNow('frame-delay', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="frame-delay" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(coverImg()).toHaveAttribute('src', '/seeded.jpg')
+  fireEvent.loadedMetadata(video)
+  fireEvent.canPlay(video)
+  await act(async () => {})
+  expect(cover()).toBeInTheDocument()
+  await presentFirstFrame(video)
+  expect(cover()).not.toBeInTheDocument()
+})
+
+it('an element that already holds decodable data reveals without waiting for an event', async () => {
+  await seedPreviewNow('data-ready', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'readyState')
+  Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+    configurable: true,
+    get: () => HTMLMediaElement.HAVE_CURRENT_DATA,
+  })
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="data-ready" immersive />)
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+    expect(cover()).not.toBeInTheDocument()
+  } finally {
+    if (descriptor) Object.defineProperty(HTMLMediaElement.prototype, 'readyState', descriptor)
+  }
+})
+
+it('rVFC reveals the first frame; source switches cancel stale callbacks across A→B→A', async () => {
+  await seedPreviewNow('rvfc-switch', '/a.mp4')
+  vi.useFakeTimers()
+  const frame = stubFrameCallbacks()
+  const registeredHandles = () => frame.request.mock.results.map((r) => r.value)
+  const fireActive = async () => {
+    const registered = frame.callbacks.filter(Boolean) as Array<(now: number) => void>
+    const active = registered[registered.length - 1]
+    await act(async () => { active(0) })
+  }
+  const fireAllButActive = async () => {
+    const registered = frame.callbacks.filter(Boolean) as Array<(now: number) => void>
+    for (const cb of registered.slice(0, -1)) await act(async () => { cb(0) })
+  }
+  try {
+    vi.mocked(getMediaStatus)
+      .mockResolvedValueOnce({ ...missing, status: 'ready', playback_url: '/a.mp4', poster_url: '/poster.jpg' })
+      .mockResolvedValueOnce({ ...missing, status: 'ready', playback_url: '/b.mp4', poster_url: '/poster.jpg' })
+      .mockResolvedValue({ ...missing, status: 'ready', playback_url: '/a.mp4', poster_url: '/poster.jpg' })
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="rvfc-switch" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(video).toHaveAttribute('src', '/a.mp4')
+    expect(coverImg()).toHaveAttribute('src', '/poster.jpg')
+    await fireActive()
+    expect(cover()).not.toBeInTheDocument()
+
+    // Entering the decode-error state restarts nothing behind the overlay:
+    // no new callback registration, no element reload.
+    const handlesBeforeError = registeredHandles().length
+    fireEvent.error(video)
+    expect(registeredHandles().length).toBe(handlesBeforeError)
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(video).toHaveAttribute('src', '/b.mp4')
+    // The cover holds again IMMEDIATELY, before any frame of the new source.
+    expect(coverImg()).toHaveAttribute('src', '/poster.jpg')
+    // Stale-safe handover: every superseded handle was cancelled, and firing
+    // stale callbacks never reveals the active source's cover.
+    expect(frame.cancelled).toEqual(expect.arrayContaining(registeredHandles().slice(0, -1)))
+    await fireAllButActive()
+    expect(cover()).toBeInTheDocument()
+    await fireActive()
+    expect(cover()).not.toBeInTheDocument()
+
+    // A→B→A: returning to an earlier URL is a fresh load generation; the
+    // presentation earned by /b.mp4 cannot satisfy the new /a.mp4 cycle.
+    fireEvent.error(video)
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(video).toHaveAttribute('src', '/a.mp4')
+    expect(cover()).toBeInTheDocument()
+    expect(frame.cancelled).toEqual(expect.arrayContaining(registeredHandles().slice(0, -1)))
+    await fireAllButActive()
+    expect(cover()).toBeInTheDocument()
+    await fireActive()
+    expect(cover()).not.toBeInTheDocument()
+  } finally {
+    vi.useRealTimers()
+    frame.restore()
+  }
+})
+
+it('a status-driven source switch holds the cover until the new source presents', async () => {
+  await seedPreviewNow('status-switch', '/a.mp4')
+  vi.useFakeTimers()
+  const frame = stubFrameCallbacks()
+  const fireActive = async () => {
+    const registered = frame.callbacks.filter(Boolean) as Array<(now: number) => void>
+    const active = registered[registered.length - 1]
+    await act(async () => { active(0) })
+  }
+  const fireAllButActive = async () => {
+    const registered = frame.callbacks.filter(Boolean) as Array<(now: number) => void>
+    for (const cb of registered.slice(0, -1)) await act(async () => { cb(0) })
+  }
+  try {
+    // The authoritative lookup fails terminally: the seeded playback stays
+    // playable, and the manual retry is the only status path forward.
+    vi.mocked(getMediaStatus).mockRejectedValue(new Error('network down'))
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="status-switch" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(video).toHaveAttribute('src', '/a.mp4')
+    expect(screen.getByRole('button', { name: 'Retry status check' })).toBeInTheDocument()
+    await fireActive()
+    expect(cover()).not.toBeInTheDocument()
+
+    // Retry: the authoritative answer switches the source to /b.mp4.
+    vi.mocked(getMediaStatus).mockReset()
+    vi.mocked(getMediaStatus).mockResolvedValue({ ...missing, status: 'ready', playback_url: '/b.mp4', poster_url: '/poster.jpg' })
+    fireEvent.click(screen.getByRole('button', { name: 'Retry status check' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(video).toHaveAttribute('src', '/b.mp4')
+    // Held synchronously with the switch — before any frame of /b.mp4.
+    expect(coverImg()).toHaveAttribute('src', '/poster.jpg')
+    // Stale callbacks of /a.mp4 can never drop the cover of /b.mp4.
+    await fireAllButActive()
+    expect(cover()).toBeInTheDocument()
+    await fireActive()
+    expect(cover()).not.toBeInTheDocument()
+  } finally {
+    vi.useRealTimers()
+    frame.restore()
+  }
+})
+
+it('a same-URL decode retry opens a new generation with a real element restart', async () => {
+  await seedPreviewNow('retry-same', '/same.mp4')
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...missing, status: 'ready', playback_url: '/same.mp4', poster_url: '/poster.jpg' })
+  const loadSpy = vi.spyOn(HTMLMediaElement.prototype, 'load')
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="retry-same" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  await presentFirstFrame(video)
+  expect(cover()).not.toBeInTheDocument()
+  const loadsAfterPresent = loadSpy.mock.calls.length
+
+  // Entering the decode-error state restarts nothing behind the overlay.
+  fireEvent.error(video)
+  expect(loadSpy).toHaveBeenCalledTimes(loadsAfterPresent)
+  expect(screen.getByRole('alert')).toHaveTextContent('Video failed to load')
+  // The deliberate retry re-opens the gate with a real load() restart, even
+  // though the URL is unchanged, and the cover holds until re-presentation.
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  await act(async () => {})
+  expect(loadSpy.mock.calls.length).toBeGreaterThan(loadsAfterPresent)
+  expect(coverImg()).toHaveAttribute('src', '/poster.jpg')
+  await presentFirstFrame(video)
+  expect(cover()).not.toBeInTheDocument()
+})
+
+it('a failed poster image degrades to an honest non-black placeholder', async () => {
+  await seedPreviewNow('poster-fail', '/seeded.mp4', '/broken.jpg')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="poster-fail" immersive />)
+  fireEvent.error(coverImg() as Element)
+  expect(cover()).toHaveTextContent('No preview image available')
+  expect(coverImg()).toBeNull()
+})
+
+it('a ready clip without any poster shows the placeholder instead of black', async () => {
+  await seedPreviewNow('poster-missing', '/seeded.mp4', null)
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="poster-missing" immersive />)
+  expect(cover()).toHaveTextContent('No preview image available')
+  expect(coverImg()).toBeNull()
+})
+
+it('non-immersive players never render the incoming-clip cover', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await screen.findByLabelText('103B 1m dive video')
+  await act(async () => {})
+  expect(cover()).toBeNull()
+})
+
+it('play/scrub affordances wait for the presented frame while gestures stay live', async () => {
+  await seedPreviewNow('affordance-gate', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="affordance-gate" immersive />)
+  // Gesture capture stays mounted for the pager handoff over the cover…
+  expect(document.querySelector('.clip-gesture')).not.toBeNull()
+  // …but the 0 / 0s transport, scrub bar and play indicator wait for readiness.
+  expect(document.querySelector('.clip-transport')).toBeNull()
+  expect(document.querySelector('.clip-progress')).toBeNull()
+  expect(document.querySelector('.clip-play-indicator')).toBeNull()
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  await presentFirstFrame(video)
+  expect(document.querySelector('.clip-transport')).not.toBeNull()
+  expect(document.querySelector('.clip-progress')).not.toBeNull()
+  expect(document.querySelector('.clip-play-indicator')).not.toBeNull()
 })

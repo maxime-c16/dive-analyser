@@ -16,6 +16,7 @@ const DRAG_ENGAGE_PX = 10;
 export default function ImmersiveControls({
   videoRef,
   playbackRate,
+  mediaPresented = true,
   onLike,
   onNavigate,
   dragEnabled = false,
@@ -27,6 +28,13 @@ export default function ImmersiveControls({
 }: {
   videoRef: RefObject<HTMLVideoElement>;
   playbackRate: number;
+  /**
+   * False until the video has presented its first real frame: the visible
+   * play indicator, transport and scrub wait for that moment, while the
+   * gesture surface (tap, double-tap like, hold, drag, pinch) stays live so
+   * the pager handoff works over the incoming-clip cover.
+   */
+  mediaPresented?: boolean;
   onLike: () => void;
   onNavigate: (direction: -1 | 1) => void;
   /**
@@ -319,7 +327,7 @@ export default function ImmersiveControls({
           if (event.detail === 0) toggle();
         }}
       >
-        {paused && (
+        {paused && mediaPresented && (
           <span className="clip-play-indicator">
             <Play size={48} strokeWidth={3} fill="currentColor" />
           </span>
@@ -329,42 +337,46 @@ export default function ImmersiveControls({
         )}
         {holding && <span className="clip-speed-indicator">2× speed</span>}
       </button>
-      <div className="clip-transport">
-        <button
-          type="button"
-          aria-label={paused ? t('clipViewer.resume') : t('clipViewer.pause')}
-          onClick={toggle}
-        >
-          {paused ? <Play size={20} strokeWidth={3} fill="currentColor" /> : <Pause size={20} strokeWidth={3} />}
-        </button>
-        <span className="clip-time">
-          {Math.floor(progress)} / {Math.floor(duration)}s
-        </span>
-        <button
-          type="button"
-          aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
-          onClick={() => {
-            if (videoRef.current)
-              videoRef.current.muted = !videoRef.current.muted;
-          }}
-        >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
-      </div>
-      <input
-        className="clip-progress"
-        type="range"
-        aria-label={t('clipViewer.videoPosition')}
-        min={0}
-        max={duration || 1}
-        step={0.01}
-        value={progress}
-        disabled={!duration}
-        onChange={(event) => {
-          if (videoRef.current)
-            videoRef.current.currentTime = Number(event.target.value);
-        }}
-      />
+      {mediaPresented && (
+        <>
+          <div className="clip-transport">
+            <button
+              type="button"
+              aria-label={paused ? t('clipViewer.resume') : t('clipViewer.pause')}
+              onClick={toggle}
+            >
+              {paused ? <Play size={20} strokeWidth={3} fill="currentColor" /> : <Pause size={20} strokeWidth={3} />}
+            </button>
+            <span className="clip-time">
+              {Math.floor(progress)} / {Math.floor(duration)}s
+            </span>
+            <button
+              type="button"
+              aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
+              onClick={() => {
+                if (videoRef.current)
+                  videoRef.current.muted = !videoRef.current.muted;
+              }}
+            >
+              {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+          <input
+            className="clip-progress"
+            type="range"
+            aria-label={t('clipViewer.videoPosition')}
+            min={0}
+            max={duration || 1}
+            step={0.01}
+            value={progress}
+            disabled={!duration}
+            onChange={(event) => {
+              if (videoRef.current)
+                videoRef.current.currentTime = Number(event.target.value);
+            }}
+          />
+        </>
+      )}
     </>
   );
 }
