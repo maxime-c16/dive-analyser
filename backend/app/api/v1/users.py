@@ -21,7 +21,7 @@ always involve a dive that is still visible to the requester, so the deep link
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import BigInteger, and_, cast, func, literal, or_, select, union_all
+from sqlalchemy import and_, func, literal, or_, select, union_all
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import get_current_user
@@ -39,45 +39,30 @@ router = APIRouter(prefix="/users")
 # they happened at this sentinel (oldest possible instant).
 _EPOCH = datetime(1970, 1, 1)
 _BODY_SNIPPET = 240
-# Stable per-row tiebreak for like arms (no primary key): unique within an arm
-# because (dive, actor) / (comment, actor) are the tables' composite keys.
-_SPAN = 1_000_000
 
 
 def _public_role(user: AppUser) -> str:
     return "administrator" if bool(user.is_admin) else "diver"
 
 
-def _tb_dive_user(model):
-    return cast(model.dive_id * _SPAN + model.user_id, BigInteger)
-
-
-def _tb_dive_guest(model):
-    return cast(model.dive_id * _SPAN + model.guest_id, BigInteger)
-
-
-def _tb_comment_user(model):
-    return cast(model.comment_id * _SPAN + model.user_id, BigInteger)
-
-
-def _tb_comment_guest(model):
-    return cast(model.comment_id * _SPAN + model.guest_id, BigInteger)
-
-
-def _arm(arm_no, kind, direction, when, tiebreak, dive_id, actor_user, actor_guest, comment_id):
+def _arm(arm_no, kind, direction, when, row_key, actor_key, dive_id, actor_user, actor_guest, comment_id):
     """One UNION arm with the uniform column contract of the merged feed.
 
-    arm_no is a fixed discriminator per arm: two rows from DIFFERENT arms can
-    tie on (sort_key, tiebreak) — e.g. a member like and a guest like on the
-    same dive recorded in the same second — so the (sort_key, tiebreak) pair
-    alone cannot order the feed deterministically.
+    Ordering uses separate scalar columns — (sort_key, arm_no, row_key,
+    actor_key) — never an arithmetic encoding: packed `id * span + actor`
+    expressions are computed in INT4 in Postgres and overflow for large ids,
+    and can collide when actor ids reach the span. row_key is the like or
+    comment row identity; actor_key pins the actor so two rows that share a
+    row (a member like and a guest like on the same dive in the same second)
+    still order deterministically.
     """
     return select(
         literal(kind).label("kind"),
         literal(direction).label("direction"),
         func.coalesce(when, _EPOCH).label("sort_key"),
-        tiebreak.label("tiebreak"),
         literal(arm_no).label("arm_no"),
+        row_key.label("row_key"),
+        actor_key.label("actor_key"),
         when.label("created_at"),
         dive_id.label("dive_id"),
         actor_user.label("actor_user_id"),
@@ -90,8 +75,8 @@ def _parse_cursor(raw: str | None):
     if raw is None:
         return None
     try:
-        stamp_text, arm_text, tiebreak_text = raw.split("|", 2)
-        return datetime.fromisoformat(stamp_text), int(arm_text), int(tiebreak_text)
+        stamp_text, arm_text, row_text, actor_text = raw.split("|", 3)
+        return datetime.fromisoformat(stamp_text), int(arm_text), int(row_text), int(actor_text)
     except (ValueError, TypeError):
         raise HTTPException(422, "Invalid cursor")
 
@@ -111,19 +96,19 @@ def _activity(db: Session, user: AppUser, *, direction: str, before: str | None,
     # Sent: actions by the actor (me, or the profile-page member).
     if direction in ("all", "sent"):
         arms.append(
-            _arm(0, "dive_like", "sent", DiveLike.created_at, _tb_dive_user(DiveLike),
+            _arm(0, "dive_like", "sent", DiveLike.created_at, DiveLike.dive_id, DiveLike.user_id,
                  DiveLike.dive_id, DiveLike.user_id, literal(None), literal(None))
             .select_from(DiveLike).join(Dive, Dive.id == DiveLike.dive_id)
             .where(DiveLike.user_id == actor, dive_is_visible())
         )
         arms.append(
-            _arm(1, "comment", "sent", DiveComment.created_at, cast(DiveComment.id, BigInteger),
+            _arm(1, "comment", "sent", DiveComment.created_at, DiveComment.id, DiveComment.user_id,
                  DiveComment.dive_id, DiveComment.user_id, literal(None), DiveComment.id)
             .select_from(DiveComment).join(Dive, Dive.id == DiveComment.dive_id)
             .where(DiveComment.user_id == actor, dive_is_visible())
         )
         arms.append(
-            _arm(2, "comment_like", "sent", DiveCommentLike.created_at, _tb_comment_user(DiveCommentLike),
+            _arm(2, "comment_like", "sent", DiveCommentLike.created_at, DiveCommentLike.comment_id, DiveCommentLike.user_id,
                  DiveComment.dive_id, DiveCommentLike.user_id, literal(None), DiveCommentLike.comment_id)
             .select_from(DiveCommentLike)
             .join(DiveComment, DiveComment.id == DiveCommentLike.comment_id)
@@ -135,31 +120,31 @@ def _activity(db: Session, user: AppUser, *, direction: str, before: str | None,
     # a third member's feed — their "received" side is not mine to see.
     if direction in ("all", "received") and actor_id is None:
         arms.append(
-            _arm(3, "dive_like", "received", DiveLike.created_at, _tb_dive_user(DiveLike),
+            _arm(3, "dive_like", "received", DiveLike.created_at, DiveLike.dive_id, DiveLike.user_id,
                  DiveLike.dive_id, DiveLike.user_id, literal(None), literal(None))
             .select_from(DiveLike).join(Dive, Dive.id == DiveLike.dive_id)
             .where(DiveLike.user_id != me, Dive.id.in_(my_dives))
         )
         arms.append(
-            _arm(4, "dive_like", "received", DiveGuestLike.created_at, _tb_dive_guest(DiveGuestLike),
+            _arm(4, "dive_like", "received", DiveGuestLike.created_at, DiveGuestLike.dive_id, DiveGuestLike.guest_id,
                  DiveGuestLike.dive_id, literal(None), DiveGuestLike.guest_id, literal(None))
             .select_from(DiveGuestLike).join(Dive, Dive.id == DiveGuestLike.dive_id)
             .where(Dive.id.in_(my_dives))
         )
         arms.append(
-            _arm(5, "comment", "received", DiveComment.created_at, cast(DiveComment.id, BigInteger),
+            _arm(5, "comment", "received", DiveComment.created_at, DiveComment.id, DiveComment.user_id,
                  DiveComment.dive_id, DiveComment.user_id, literal(None), DiveComment.id)
             .select_from(DiveComment).join(Dive, Dive.id == DiveComment.dive_id)
             .where(DiveComment.user_id != me, DiveComment.guest_id.is_(None), Dive.id.in_(my_dives))
         )
         arms.append(
-            _arm(6, "comment", "received", DiveComment.created_at, cast(DiveComment.id, BigInteger),
+            _arm(6, "comment", "received", DiveComment.created_at, DiveComment.id, func.coalesce(DiveComment.guest_id, 0),
                  DiveComment.dive_id, literal(None), DiveComment.guest_id, DiveComment.id)
             .select_from(DiveComment).join(Dive, Dive.id == DiveComment.dive_id)
             .where(DiveComment.guest_id.is_not(None), Dive.id.in_(my_dives))
         )
         arms.append(
-            _arm(7, "comment_like", "received", DiveCommentLike.created_at, _tb_comment_user(DiveCommentLike),
+            _arm(7, "comment_like", "received", DiveCommentLike.created_at, DiveCommentLike.comment_id, DiveCommentLike.user_id,
                  DiveComment.dive_id, DiveCommentLike.user_id, literal(None), DiveCommentLike.comment_id)
             .select_from(DiveCommentLike)
             .join(DiveComment, DiveComment.id == DiveCommentLike.comment_id)
@@ -167,7 +152,7 @@ def _activity(db: Session, user: AppUser, *, direction: str, before: str | None,
             .where(DiveCommentLike.user_id != me, DiveComment.user_id == me, dive_is_visible())
         )
         arms.append(
-            _arm(8, "comment_like", "received", DiveGuestCommentLike.created_at, _tb_comment_guest(DiveGuestCommentLike),
+            _arm(8, "comment_like", "received", DiveGuestCommentLike.created_at, DiveGuestCommentLike.comment_id, DiveGuestCommentLike.guest_id,
                  DiveComment.dive_id, literal(None), DiveGuestCommentLike.guest_id, DiveGuestCommentLike.comment_id)
             .select_from(DiveGuestCommentLike)
             .join(DiveComment, DiveComment.id == DiveGuestCommentLike.comment_id)
@@ -176,18 +161,21 @@ def _activity(db: Session, user: AppUser, *, direction: str, before: str | None,
         )
 
     cursor = _parse_cursor(before)
-    stamp, cursor_arm, cursor_tiebreak = cursor if cursor is not None else (None, None, None)
+    stamp, cursor_arm, cursor_row, cursor_actor = cursor if cursor is not None else (None, None, None, None)
     for index, arm in enumerate(arms):
         if stamp is not None:
-            # Strictly-older-than-cursor, three keys deep: (time, arm, tiebreak).
-            # Ties across arms reproduce the ORDER BY exactly, so no row is
-            # skipped at a page boundary and none repeats.
+            # Strictly-older-than-cursor, four keys deep: (time, arm, row,
+            # actor). Ties across arms reproduce the ORDER BY exactly, so no
+            # row is skipped at a page boundary and none repeats.
             arms[index] = arm.where(or_(
                 arm.selected_columns["sort_key"] < stamp,
                 and_(arm.selected_columns["sort_key"] == stamp, or_(
                     arm.selected_columns["arm_no"] < cursor_arm,
-                    and_(arm.selected_columns["arm_no"] == cursor_arm,
-                         arm.selected_columns["tiebreak"] < cursor_tiebreak),
+                    and_(arm.selected_columns["arm_no"] == cursor_arm, or_(
+                        arm.selected_columns["row_key"] < cursor_row,
+                        and_(arm.selected_columns["row_key"] == cursor_row,
+                             arm.selected_columns["actor_key"] < cursor_actor),
+                    )),
                 )),
             ))
     if not arms:
@@ -201,12 +189,13 @@ def _activity(db: Session, user: AppUser, *, direction: str, before: str | None,
     rows = db.connection().execute(
         merged.order_by(merged.selected_columns["sort_key"].desc(),
                         merged.selected_columns["arm_no"].desc(),
-                        merged.selected_columns["tiebreak"].desc()).limit(limit + 1)
+                        merged.selected_columns["row_key"].desc(),
+                        merged.selected_columns["actor_key"].desc()).limit(limit + 1)
     ).fetchall()
     has_more = len(rows) > limit
     rows = rows[:limit]
     last = rows[-1] if rows else None
-    next_before = (f"{last.sort_key.isoformat()}|{last.arm_no}|{last.tiebreak}"
+    next_before = (f"{last.sort_key.isoformat()}|{last.arm_no}|{last.row_key}|{last.actor_key}"
                    if has_more and last is not None else None)
     return dict(items=_hydrate(db, rows), next_before=next_before)
 
