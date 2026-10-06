@@ -62,3 +62,52 @@ it("warming failures never surface and every queued clip drains", async () => {
   for (let i = 1; i <= 5; i++) warmPlaybackBytes(`/x/${i}`);
   await vi.waitFor(() => expect(fetcher.mock.calls.length).toBe(5));
 });
+
+it("an oversized rendition is aborted with its stream closed", async () => {
+  let cancelCalls = 0;
+  let readCalls = 0;
+  const big = {
+    ok: true,
+    body: { getReader: () => ({
+      read: async () => {
+        readCalls += 1;
+        return { done: false, value: new Uint8Array(1024 * 1024) };
+      },
+      cancel: () => { cancelCalls += 1; return Promise.resolve(); },
+    }) },
+    headers: new Headers({ "Content-Length": String(1024 * 1024 * 1024) }),
+  };
+  const fetcher = vi.fn().mockResolvedValue(big);
+  vi.stubGlobal("fetch", fetcher);
+  const { warmPlaybackBytes } = await import("./playbackWarming");
+  warmPlaybackBytes("/huge-original.mp4");
+  await vi.advanceTimersByTimeAsync(0);
+  // Content-Length pins the gigabyte immediately: nothing buffered into
+  // memory, and the abandoned stream is cancelled — not left draining.
+  expect(readCalls).toBe(0);
+  expect(cancelCalls).toBe(1);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it("a warm that grows past the cap while streaming is cancelled mid-flight", async () => {
+  let cancelCalls = 0;
+  let stop = false;
+  const big = {
+    ok: true,
+    body: { getReader: () => ({
+      read: async () => {
+        if (stop) return { done: true };
+        // 2 MiB chunks: a 3 MiB cap trips while streaming, without Content-Length.
+        return { done: false, value: new Uint8Array(2 * 1024 * 1024) };
+      },
+      cancel: () => { cancelCalls += 1; return Promise.resolve(); },
+    }) },
+    headers: new Headers(),
+  };
+  const fetcher = vi.fn().mockResolvedValue(big);
+  vi.stubGlobal("fetch", fetcher);
+  const { warmPlaybackBytes } = await import("./playbackWarming");
+  warmPlaybackBytes("/stream-grow.mp4");
+  await vi.waitFor(() => expect(cancelCalls).toBe(1));
+  stop = true;
+});
