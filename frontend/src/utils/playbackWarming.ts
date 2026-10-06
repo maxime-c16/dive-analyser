@@ -15,9 +15,10 @@
 // `Cache-Control: private, max-age=3600`, so a finished GET seeds the
 // browser HTTP cache and the later `<video>` load for that clip resolves
 // without a network wait. Status can instead return a B2 redirect (an
-// explicit URL to Backblaze); such responses are still read the readable
-// way — no-cors opaque responses cannot expose Content-Length or support
-// the size checks below, so they are not used.
+// explicit URL to Backblaze); those cross-origin URLs are NOT warmed —
+// the bucket's intentionally absent CORS policy makes readable fetches
+// fail there, and no-cors opaque responses cannot support the size
+// checks below. B2-backed clips keep their player-driven streaming.
 //
 // The current clip is never freshly warmed: a speculative GET here would
 // only race its own playback load, so the warmer merely lets an
@@ -139,6 +140,22 @@ function isAbort(error: unknown): boolean {
 
 // Content-Length pins the extreme case: abort before buffering anything.
 // The streaming cap then catches responses that lie or grow while reading.
+// Content-Length pins the extreme case: abort before buffering anything.
+// The streaming cap then catches responses that lie or grow while reading.
+// Only same-origin/local URLs are warmed: a status can return a URL that
+// redirects to B2, where readable fetch dies on the bucket's (intentional,
+// see docs/architecture/EXTERNAL_ACCESS_V1.md) missing CORS policy. No-cors
+// opaque responses cannot support the size checks, so B2-backed clips are
+// left to the player's own <video> streaming instead of being warmed.
+function isWarmableUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 async function drain(url: string, signal: AbortSignal, kind: WarmKind): Promise<void> {
   const cap = kind === "video" ? MAX_WARM_BYTES : MAX_POSTER_BYTES;
   const response = await fetch(url, {
@@ -249,9 +266,11 @@ function pump() {
 }
 
 // Ask the shared preview cache for what this lane can prepare; B2 redirect
-// URLs flow through the same readable request path as local cache URLs.
-// Lookups are deduplicated per job (repeated window updates must not
-// re-enter one) and retried on rejection with bounded backoff.
+// URLs are recognised and skipped (no readable-fetch race against a bucket
+// without CORS). Lookups are deduplicated per job (repeated window updates
+// must not re-enter one) and retried on rejection with bounded backoff. A
+// batch resolution that still leaves the lane without a URL is retried the
+// same way, until the bound declares the clip unservable right now.
 function resolvePreview(job: WarmJob) {
   if (job.cancelled || job.preview) return;
   job.preview = getPreview(job.videoUuid)
@@ -264,13 +283,24 @@ function resolvePreview(job: WarmJob) {
       }
       const url = job.kind === "video" ? preview.playbackUrl : preview.posterUrl;
       if (!url) {
-        // Nothing this lane can prepare for this clip; stop tracking it.
-        dropJob(job);
+        // Nothing this lane can prepare for this clip — unless the empty
+        // preview itself came from a failed status round-trip, which
+        // mediaPreview swallows into placeholders. Those get the same
+        // bounded retry as a rejected lookup instead of a silent skip;
+        // genuinely missing assets exhaust the bound and drop.
+        resolvePreviewFailure(job);
         return;
       }
       job.url = url;
       job.state = "queued";
       job.previewRetries = 0;
+      if (!isWarmableUrl(url)) {
+        // B2-backed (cross-origin) rendition: the readable request path
+        // this warmer needs cannot succeed there (bucket CORS is
+        // intentionally absent), so leave the bytes to the player.
+        dropJob(job);
+        return;
+      }
       pump();
     })
     .catch(() => {
@@ -336,10 +366,20 @@ function enqueueClip(videoUuid: string, rank: number, isCurrent: boolean) {
     resolvePreview(upsertJob(kind, videoUuid, rank));
   }
 }
+
 // Called after every window recomputation: prune, enqueue, re-rank, restart.
 function refresh() {
+  pruneCooldowns();
   evictSpentLanded();
   pump();
+}
+
+// Bound the cooldown bookkeeping itself: an expired entry only ever means
+// "may retry now", never "remembered forever".
+function pruneCooldowns() {
+  for (const [key, expiry] of [...laneCooldown]) {
+    if (expiry <= Date.now()) laneCooldown.delete(key);
+  }
 }
 
 /**

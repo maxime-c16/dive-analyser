@@ -366,3 +366,86 @@ it("skips entirely under save-data so no runaway downloads start", async () => {
   }
   expect(calls.length).toBe(0);
 });
+
+it("a B2-backed cross-origin rendition is never warmed", async () => {
+  const { calls } = stubFetch();
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  const feed: Attempt[] = Array.from({ length: 6 }, (_, i) => ({
+    video_uuid: `b${i}`,
+  }));
+  previewMock.impl.mockImplementation((uuid: string) =>
+    Promise.resolve({
+      posterUrl: uuid === "b1"
+        ? "https://b2.example.com/poster/b1.jpg"
+        : `/poster/${uuid}`,
+      videoThumbUrl: null,
+      playbackUrl: uuid === "b1"
+        ? "https://b2.example.com/play/b1.mp4"
+        : `/play/${uuid}`,
+      ready: true,
+    }),
+  );
+  warmAdjacentClips({ attempts: feed, index: 0, direction: 1 });
+  await quiet(calls);
+  // u1's two lanes are skipped (cross-origin, bucket CORS intentionally
+  // absent) while the same-origin neighbours warm normally.
+  expect(calls.some((call) => call.url.includes("b2.example.com"))).toBe(false);
+  expect(calls.some((call) => call.url.includes("/play/b2"))).toBe(true);
+  expect(calls.some((call) => call.url.includes("/play/b1"))).toBe(false);
+});
+
+it("an empty preview from a failed status batch retries instead of skipping", async () => {
+  const { calls } = stubFetch();
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  // First two lookups resolve empty (mediaPreview swallows transport
+  // failures into placeholders), the third resolves real URLs.
+  let empty = 2;
+  previewMock.impl.mockImplementation((uuid: string) => {
+    if (uuid === "u1" && empty > 0) {
+      empty -= 1;
+      return Promise.resolve({
+        posterUrl: null,
+        videoThumbUrl: null,
+        playbackUrl: null,
+        ready: false,
+      });
+    }
+    return Promise.resolve(previewFor(uuid));
+  });
+  warmAdjacentClips({ attempts: attempts(10), index: 0, direction: 0 });
+  await quiet(calls);
+  await vi.advanceTimersByTimeAsync(1000);
+  await quiet(calls);
+  await vi.advanceTimersByTimeAsync(2000);
+  await quiet(calls);
+  // The retried lookup eventually feeds a real warm for u1.
+  expect(calls.some((call) => call.url === "/play/u1")).toBe(true);
+});
+
+it("an expired cooldown allows a fresh bounded burst (no permanent suppression)", async () => {
+  const fetcher = vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.reject(new TypeError("network down")),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  const feed = attempts(40);
+  // Park the u1 lanes in cooldown (initial + 2 retries each, then 20s TTL).
+  warmAdjacentClips({ attempts: feed, index: 0, direction: 0 });
+  await quiet(callsFor(fetcher));
+  await vi.advanceTimersByTimeAsync(3000);
+  await quiet(callsFor(fetcher));
+  const parked = fetcher.mock.calls.filter((c) => c[0] === "/play/u1").length;
+  expect(parked).toBe(3);
+  // Well past the 20s TTL the lane is again eligible: a fresh burst starts
+  // (1 attempt now), proving no entry outlives its expiry.
+  await vi.advanceTimersByTimeAsync(60_000);
+  warmAdjacentClips({ attempts: feed, index: 0, direction: 0 });
+  await quiet(callsFor(fetcher));
+  expect(fetcher.mock.calls.filter((c) => c[0] === "/play/u1").length)
+    .toBe(parked + 1);
+});
+
+function callsFor(fetcher: { mock: { calls: unknown[][] } }): Call[] {
+  void fetcher;
+  return [];
+}

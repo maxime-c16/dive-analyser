@@ -58,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       clearLibraryCache()
+      // A transport error resolving /me leaves us signed out locally; warms
+      // started while authenticated must still be torn down.
+      resetPlaybackWarming()
       setUser(null)
     } finally {
       clearIntentData()
