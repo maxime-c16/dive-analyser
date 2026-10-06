@@ -635,6 +635,7 @@ const fr = {
     notCached: 'Extrait non mis en cache',
     prepareClip: 'Préparer l’extrait',
     noPlayable: 'Aucun média lisible pour cet extrait pour le moment.',
+    posterUnavailable: 'Aucune image d’aperçu disponible',
     states: {
       queued: 'en file d’attente',
       waiting_for_mac: 'en attente du Mac',

@@ -1,5 +1,6 @@
 import { clearLibraryCache } from '../services/libraryCache'
 import { clearIntentData } from '../services/intentCache'
+import { resetPlaybackWarming } from '../utils/playbackWarming'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
 export interface AuthUser {
@@ -49,11 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           divers: Array.isArray(data.divers) ? data.divers : [],
         })
       } else {
+        // Signed-out responses tear down media authorization; any warm in
+        // flight must not keep pulling potentially signed URLs after that.
         clearLibraryCache()
+        resetPlaybackWarming()
         setUser(null)
       }
     } catch {
       clearLibraryCache()
+      // A transport error resolving /me leaves us signed out locally; warms
+      // started while authenticated must still be torn down.
+      resetPlaybackWarming()
       setUser(null)
     } finally {
       clearIntentData()
@@ -64,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     clearIntentData()
     clearLibraryCache()
+    // Sign-out begins here: tear warm transfers down before the network
+    // round-trip, so a stalled logout cannot keep signed-URL pulls running.
+    resetPlaybackWarming()
     try {
       await fetch('/api/v1/auth/logout', {
         method: 'POST',
@@ -73,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Cookie is HttpOnly; a network failure still means dropping local state.
     } finally {
       clearLibraryCache()
+      resetPlaybackWarming()
       setUser(null)
     }
   }
