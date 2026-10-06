@@ -353,6 +353,7 @@ export default function ImmersiveControls({
             <button
               type="button"
               aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
+              data-sound-toggle
               onClick={() => {
                 if (videoRef.current)
                   videoRef.current.muted = !videoRef.current.muted;

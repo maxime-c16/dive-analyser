@@ -725,6 +725,28 @@ it('a tap on the mute control keeps its own toggle semantics', async () => {
   }
 })
 
+it('gestures on other controls still restore sound', async () => {
+  await seedPreviewNow('other-control', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="other-control" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await presentFirstFrame(video)
+    // Only the sound toggle itself is exempt: a gesture starting on any
+    // other control (here the transport play button) restores sound.
+    const playToggle = document.querySelector('.clip-transport button') as Element
+    fireEvent.pointerDown(playToggle)
+    await waitFor(() => expect(video.muted).toBe(false))
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
 it('a status-driven source switch holds the cover until the new source presents', async () => {
   await seedPreviewNow('status-switch', '/a.mp4')
   vi.useFakeTimers()

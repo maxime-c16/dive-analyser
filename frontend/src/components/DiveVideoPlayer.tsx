@@ -470,15 +470,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     const video = videoRef.current
     if (!video) return
     const restore = (event: Event) => {
-      // Control taps keep their own semantics: pressing the transport's
-      // Unmute button must toggle to unmuted, not be pre-empted by an
-      // automatic unmute that its click then flips back to muted. Only
-      // taps on the content surface (the .clip-gesture layer over the
-      // video) restore sound. The gesture layer is itself a button, so it
-      // is explicitly allowed back in.
+      // The explicit sound toggle keeps its own semantics: it must toggle
+      // to unmuted, not be pre-empted by an automatic unmute that its click
+      // then flips back to muted. Every other first gesture (content taps,
+      // Like, play/pause, keypresses) restores sound.
       const target = event.target as HTMLElement | null
-      const control = target?.closest?.('button')
-      if (control && !control.classList.contains('clip-gesture')) return
+      if (target?.closest?.('[data-sound-toggle]')) return
       const current = videoRef.current
       if (current && current.muted) {
         current.muted = false
