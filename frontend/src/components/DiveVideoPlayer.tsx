@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Clock, DownloadCloud, ImageOff, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveControls'
@@ -57,6 +57,12 @@ type Phase =
   | { kind: 'not-cached' }
   | { kind: 'transport-failed' }
 
+// Feature detection for the first-frame presentation API (Safari/iOS).
+type FrameCallbackVideo = HTMLVideoElement & {
+  requestVideoFrameCallback?: (callback: (now: number) => void) => number
+  cancelVideoFrameCallback?: (handle: number) => void
+}
+
 function preparationLabel(state: string) {
   return state.replace(/_/g, ' ')
 }
@@ -93,14 +99,43 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const videoRef = useRef<HTMLVideoElement>(null)
   const { user, checking: authChecking } = useAuth()
 
-  const [phase, setPhase] = useState<Phase>({ kind: 'checking' })
+  // First-paint seed: the shared media-preview cache (warmed by Library
+  // tiles and the viewer's neighbor warm-up) is applied in the state
+  // initializers, so the very first render already carries the cached poster
+  // and playback URL instead of a checking spinner or a black frame. The
+  // authoritative status lookup below still runs and stays the lifecycle
+  // authority — the seed only decides what the first paint shows.
+  const initialSeed = videoUuid ? cachedPreview(videoUuid) : null
+  const [phase, setPhase] = useState<Phase>(() =>
+    videoUuid && initialSeed?.playbackUrl
+      ? { kind: 'ready', src: initialSeed.playbackUrl }
+      : { kind: 'checking' },
+  )
   const [stale, setStale] = useState(false)
-  const [posterSrc, setPosterSrc] = useState<string | null>(null)
+  const [posterSrc, setPosterSrc] = useState<string | null>(() =>
+    videoUuid ? initialSeed?.posterUrl ?? null : null,
+  )
+  const [posterFailed, setPosterFailed] = useState(false)
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
+
+  // Load identity of the first-frame gate: the ready source itself. Any
+  // identity change — source switch, leaving or re-entering ready, A→B→A —
+  // opens a new generation whose presentation flag is reset synchronously
+  // during this render (pre-paint), so a new load cycle can never be
+  // mistaken for the already-presented one and drop its cover. A
+  // decode-failure cycle resolves to null: entering the error state itself
+  // changes nothing behind the error overlay; the deliberate retry re-arms
+  // the gate and performs the real element restart.
+  const gateKey = phase.kind === 'ready' && !decodeError ? phase.src : null
+  const [gate, setGate] = useState(() => ({ key: gateKey, presented: false }))
+  if (gate.key !== gateKey) {
+    setGate({ key: gateKey, presented: false })
+  }
+  const framePresented = phase.kind === 'ready' && gate.presented && gate.key === gateKey
 
   const failuresRef = useRef(0)
   const preparingSinceRef = useRef<number | null>(null)
@@ -248,11 +283,73 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     }
   }, [isPreparing, pollStopped, videoUuid, applyStatus])
 
+  // A failed poster image only fails once per URL; a corrected status
+  // re-arms the image element.
   useEffect(() => {
-    if (videoRef.current && phase.kind === 'ready') {
-      videoRef.current.load()
+    setPosterFailed(false)
+  }, [posterSrc])
+
+  // First-frame presentation gate. The incoming-clip cover stays up until
+  // THIS clip's current source presents a decoded frame — requestVideoFrameCallback
+  // when the browser offers it, else a loadeddata / readyState fallback
+  // (HAVE_CURRENT_DATA, never loadedmetadata, never mere URL availability).
+  // Every armed generation restarts the element for real (video.load()),
+  // and callbacks are scoped to the load identity: a source change or
+  // unmount cancels the pending registration, so a late callback or event
+  // can never reveal another generation's cover. A paused element that
+  // already holds decodable data has presented that frame (e.g. blocked
+  // autoplay), so the same readiness check backstops the callback path.
+  useLayoutEffect(() => {
+    if (!gateKey) return
+    const video = videoRef.current
+    if (!video) return
+    video.load()
+    let cancelled = false
+    let raf = 0
+    let handle: number | undefined
+    let removeLoadedData: (() => void) | null = null
+    // HAVE_CURRENT_DATA: the frame at the current position is decodable.
+    // One compositor frame is granted before the cover is dropped.
+    const dataReady = () => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+    const reveal = () => {
+      // Identity-guarded: a late callback from an earlier generation cannot
+      // flip the current gate even if cancellation ever missed it.
+      if (!cancelled) {
+        setGate((current) =>
+          current.key === gateKey ? { key: current.key, presented: true } : current,
+        )
+      }
     }
-  }, [phase.kind === 'ready' ? phase.src : null])
+    const revealViaCompositor = () => {
+      if (typeof requestAnimationFrame === 'function') {
+        raf = requestAnimationFrame(() => {
+          if (!cancelled) reveal()
+        })
+      } else {
+        reveal()
+      }
+    }
+    const requestFrame = (video as FrameCallbackVideo).requestVideoFrameCallback?.bind(video)
+    if (typeof requestFrame === 'function') {
+      handle = requestFrame(() => reveal())
+      if (video.paused && dataReady()) revealViaCompositor()
+    } else {
+      const onLoadedData = () => {
+        if (dataReady()) revealViaCompositor()
+      }
+      video.addEventListener('loadeddata', onLoadedData)
+      removeLoadedData = () => video.removeEventListener('loadeddata', onLoadedData)
+      if (dataReady()) revealViaCompositor()
+    }
+    return () => {
+      cancelled = true
+      if (raf) cancelAnimationFrame(raf)
+      if (handle !== undefined) {
+        (video as FrameCallbackVideo).cancelVideoFrameCallback?.(handle)
+      }
+      removeLoadedData?.()
+    }
+  }, [gateKey])
 
   // Keep the requested playback speed applied across source loads and changes.
   useEffect(() => {
@@ -363,6 +460,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // job; preparation authority stays with the backend status.
   const retryPlayback = () => {
     setDecodeError(false)
+    // The decodeError flip reopens a fresh load generation: the element is
+    // reset by load() and the cover holds until the source re-presents.
     retryStatusCheck()
   }
 
@@ -381,6 +480,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           ? t('videoPlayer.stillPreparing')
           : t('videoPlayer.preparingMedia', { state: stateLabel(preparing.state) })
     : null
+
+  // The incoming-clip cover holds from the first paint — including a poster-
+  // only seed whose status lookup is still checking and an in-flight
+  // preparation — until the current source presents its first frame. Decode
+  // failures hand over to the load-failed state instead.
+  const coverHeld =
+    immersive &&
+    !decodeError &&
+    !framePresented &&
+    (phase.kind === 'checking' || phase.kind === 'preparing' || phase.kind === 'ready')
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -422,7 +531,30 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         aria-label={t('videoPlayer.videoAria', { code: diveCode, height })}
       />
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
+      {/* Incoming-clip cover: the cached poster held above the video from
+          the first paint until THIS source presents its first frame — the
+          same poster bytes and full-bleed cover crop the pager neighbor
+          frames show, so opening and swiping hand off without a black gap.
+          Missing or failed posters get an honest non-black placeholder. */}
+      {coverHeld && (
+        <div className="clip-cover" aria-hidden="true" data-testid="clip-cover">
+          {posterSrc && !posterFailed ? (
+            <img
+              src={posterSrc}
+              alt=""
+              draggable={false}
+              onError={() => setPosterFailed(true)}
+            />
+          ) : (
+            <div className="clip-cover-empty">
+              <ImageOff aria-hidden="true" size={28} />
+              <p>{t('videoPlayer.posterUnavailable')}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}

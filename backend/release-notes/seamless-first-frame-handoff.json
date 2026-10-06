@@ -1,0 +1,8 @@
+{
+  "id": "seamless-first-frame-handoff",
+  "date": "2026-10-06",
+  "title": "No more black flash when opening or swiping clips",
+  "body": "Opening a dive or swiping between clips now keeps showing the preview image until the video's first frame is actually on screen — the picture flows continuously from one clip to the next instead of dropping to black. Clips without a preview image show a clear placeholder rather than a black screen.",
+  "audience": "all",
+  "components": ["frontend"]
+}

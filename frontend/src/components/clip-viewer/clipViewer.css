@@ -434,6 +434,66 @@
   letter-spacing: 0;
   color: #ced7d9;
 }
+/* Incoming-clip cover (immersive DiveVideoPlayer): the cached poster held
+   above the video from the first paint until the source presents its real
+   first frame. The image uses the video's own presentation — full-bleed
+   `contain` on desktop, the contain picture box with its cover zoom and
+   live pinch pose on mobile — so the held poster and the incoming video
+   frame are pixel-aligned in both normal and pinch/clean states. The soft
+   panel behind it keeps a cold, missing or failed poster (and any letterbox
+   area) from flashing black. */
+.clip-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 100% at 50% 0%,
+    #15242c 0%,
+    #0d151b 60%,
+    #0b1014 100%
+  );
+}
+.clip-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.clip-cover-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  text-align: center;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+@media (max-width: 599px) {
+  /* Match the video's own mobile geometry — the contain picture box zoomed
+     by --clip-cover-scale, live pinch pose included. Keep in sync with
+     .clip-stage .clip-video above. */
+  .clip-stage .clip-cover img {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: var(--clip-pic-w, 100%);
+    height: var(--clip-pic-h, 100%);
+    object-fit: contain;
+    transform: scale(
+      calc(
+        var(--clip-cover-scale, 1) +
+          (1 - var(--clip-cover-scale, 1)) * var(--clip-p, 0) -
+          var(--clip-pinch-shrink, 0)
+      )
+    );
+    transform-origin: center;
+  }
+}
 @media (min-width: 1024px) {
   /* The stage is now nested in the viewport column: keep it full-height and
      horizontally centered like the old row layout did. */
