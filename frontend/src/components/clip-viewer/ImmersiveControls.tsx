@@ -3,16 +3,39 @@ import { useTranslation } from "react-i18next";
 import { Heart, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 /** One gesture owner keeps taps, double taps, holds and swipes mutually exclusive. */
+export interface FeedDragEnd {
+  /** Finger displacement in px when the gesture ended (negative = swiped up). */
+  dy: number;
+  /** Release velocity in px/ms, signed like dy (0 when cancelled). */
+  velocity: number;
+  cancelled: boolean;
+}
+
+const DRAG_ENGAGE_PX = 10;
+
 export default function ImmersiveControls({
   videoRef,
   playbackRate,
   onLike,
   onNavigate,
+  dragEnabled = false,
+  onDragUpdate,
+  onDragEnd,
 }: {
   videoRef: RefObject<HTMLVideoElement>;
   playbackRate: number;
   onLike: () => void;
   onNavigate: (direction: -1 | 1) => void;
+  /**
+   * Feed-pager mode (mobile): a vertically-dominant drag is reported to the
+   * parent frame-by-frame so the dive follows the finger, and the parent
+   * decides commit vs spring-back on release. When set, the legacy
+   * release-threshold swipe navigation is suppressed for consumed drags;
+   * taps, double-tap likes and holds are unchanged.
+   */
+  dragEnabled?: boolean;
+  onDragUpdate?: (dy: number) => void;
+  onDragEnd?: (result: FeedDragEnd) => void;
 }) {
   const { t } = useTranslation();
   const [paused, setPaused] = useState(false);
@@ -29,7 +52,16 @@ export default function ImmersiveControls({
     y: number;
     held: boolean;
     moved: boolean;
+    engaged: boolean;
+    lastDy: number;
+    samples: Array<{ y: number; t: number }>;
   } | null>(null);
+  const dragEnabledRef = useRef(dragEnabled);
+  dragEnabledRef.current = dragEnabled;
+  const dragUpdateRef = useRef(onDragUpdate);
+  dragUpdateRef.current = onDragUpdate;
+  const dragEndRef = useRef(onDragEnd);
+  dragEndRef.current = onDragEnd;
   const rateRef = useRef(playbackRate);
   rateRef.current = playbackRate;
 
@@ -49,6 +81,38 @@ export default function ImmersiveControls({
     clearTimeout(holdTimer.current);
     if (videoRef.current) videoRef.current.playbackRate = rateRef.current;
     setHolding(false);
+  };
+  /** Release velocity over the trailing samples, signed like dy (px/ms). */
+  const releaseVelocity = (samples: Array<{ y: number; t: number }>) => {
+    if (samples.length < 2) return 0;
+    const windowStart = samples[samples.length - 1].t - 120;
+    let first = samples[0];
+    for (const sample of samples) {
+      if (sample.t >= windowStart) {
+        first = sample;
+        break;
+      }
+    }
+    const last = samples[samples.length - 1];
+    const dt = last.t - first.t;
+    if (dt <= 0) return 0;
+    return (last.y - first.y) / dt;
+  };
+  /**
+   * Finish a drag-reported gesture. Returns true when the parent consumed
+   * the gesture (caller must skip the legacy swipe/tap branches).
+   */
+  const endDragGesture = (cancelled: boolean) => {
+    const start = gesture.current;
+    gesture.current = null;
+    cancelHold();
+    if (!start || !start.engaged || !dragEnabledRef.current) return false;
+    dragEndRef.current?.({
+      dy: start.lastDy,
+      velocity: cancelled ? 0 : releaseVelocity(start.samples),
+      cancelled,
+    });
+    return true;
   };
   useEffect(() => {
     const video = videoRef.current;
@@ -92,6 +156,9 @@ export default function ImmersiveControls({
             y: event.clientY,
             held: false,
             moved: false,
+            engaged: false,
+            lastDy: 0,
+            samples: [{ y: event.clientY, t: performance.now() }],
           };
           holdTimer.current = setTimeout(() => {
             if (!gesture.current || gesture.current.moved) return;
@@ -105,21 +172,38 @@ export default function ImmersiveControls({
         onPointerMove={(event) => {
           if (!event.isPrimary) return;
           const start = gesture.current;
-          if (
-            start &&
-            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12
-          ) {
+          if (!start) return;
+          const dy = event.clientY - start.y;
+          const dx = event.clientX - start.x;
+          if (!start.moved && Math.hypot(dx, dy) > 12) {
             start.moved = true;
             cancelHold();
           }
+          start.samples.push({ y: event.clientY, t: performance.now() });
+          if (start.samples.length > 6) start.samples.shift();
+          if (
+            dragEnabledRef.current &&
+            !start.engaged &&
+            !start.held &&
+            Math.abs(dy) > DRAG_ENGAGE_PX &&
+            Math.abs(dy) > Math.abs(dx) * 1.3
+          ) {
+            start.engaged = true;
+            start.moved = true;
+            cancelHold();
+          }
+          if (start.engaged) {
+            start.lastDy = dy;
+            dragUpdateRef.current?.(dy);
+          }
         }}
         onPointerCancel={() => {
-          gesture.current = null;
-          cancelHold();
+          endDragGesture(true);
         }}
         onLostPointerCapture={() => {
-          gesture.current = null;
-          cancelHold();
+          // A real release fires pointerup first (gesture already cleared);
+          // only a capture loss mid-drag counts as a cancellation.
+          endDragGesture(true);
         }}
         onPointerUp={(event) => {
           if (!event.isPrimary) return;
@@ -127,6 +211,21 @@ export default function ImmersiveControls({
           gesture.current = null;
           cancelHold();
           if (!start || start.held) return;
+          // Feed-pager drags are owned by the parent: it followed the finger
+          // live and decides commit vs spring-back from dy + velocity.
+          if (start.engaged && dragEnabledRef.current) {
+            clearTimeout(tapTimer.current);
+            tapTimer.current = undefined;
+            dragEndRef.current?.({
+              dy: event.clientY - start.y,
+              velocity: releaseVelocity([
+                ...start.samples,
+                { y: event.clientY, t: performance.now() },
+              ]),
+              cancelled: false,
+            });
+            return;
+          }
           const dy = event.clientY - start.y;
           const dx = event.clientX - start.x;
           if (Math.abs(dy) > 65 && Math.abs(dy) > Math.abs(dx) * 1.3) {

@@ -360,6 +360,90 @@
   height: 100%;
   color: var(--app-muted);
 }
+/* Feed-pager (mobile drag-follow): the live stage with warmed neighbor
+   posters parked above/below it. Frames move via transform only. */
+.clip-stage-viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+.clip-stage-viewport > .clip-stage {
+  min-height: 0;
+}
+.clip-stage-viewport.is-dragging > .clip-stage {
+  will-change: transform;
+}
+.clip-pager-neighbor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+.clip-pager-neighbor.is-prev {
+  transform: translateY(-100%);
+}
+.clip-pager-neighbor.is-next {
+  transform: translateY(100%);
+}
+.clip-pager-neighbor img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.clip-neighbor-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #0009,
+    transparent 30%,
+    transparent 55%,
+    #000c
+  );
+}
+.clip-neighbor-label {
+  position: absolute;
+  left: 24px;
+  bottom: 120px;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font:
+    600 28px ui-monospace,
+    monospace;
+  letter-spacing: -0.04em;
+  color: #f4f7f7;
+  text-shadow: 0 1px 8px #000;
+}
+.clip-neighbor-label span {
+  font:
+    11px system-ui,
+    sans-serif;
+  letter-spacing: 0;
+  color: #ced7d9;
+}
+@media (min-width: 1024px) {
+  /* The stage is now nested in the viewport column: keep it full-height and
+     horizontally centered like the old row layout did. */
+  .clip-stage-viewport {
+    align-items: center;
+  }
+  .clip-stage-viewport > .clip-stage {
+    height: 100%;
+  }
+}
 .clip-social-error {
   font-size: 11px;
   color: #f5d5bb;
