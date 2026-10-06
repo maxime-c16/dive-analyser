@@ -15,13 +15,14 @@ const REASON_LABEL: Record<string, string> = {
   global_opt_in_off: 'Turn on fediverse sharing in Profile & settings first.',
   dive_is_private: 'Only public dives can be federated. Private dives stay local.',
   per_dive_opt_in_off: 'Opt in this dive to allow a manual cross-post.',
-  eligible: 'Eligible for a manual cross-post (poster + caption + link).',
+  eligible: 'Eligible for a manual cross-post (poster + caption, no video link).',
 }
 
 /**
  * Per-dive fediverse override (Option 1: manual cross-post only).
  * - Only public dives can opt in; private is always blocked server-side too.
- * - Never attaches the original video: preview/copy is poster + caption + link.
+ * - Poster + caption only: no video and no Share/video link (a Share link
+ *   plays the original video).
  * - Wraps cleanly on phones/tablets: no hover-only affordances, full-width
  *   warning text, touch-sized toggle.
  */
@@ -105,7 +106,7 @@ export default function FederateDiveControl({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-medium text-app-text">Fediverse cross-post</div>
-          <div className="text-xs text-app-muted">Poster + caption + link. No video.</div>
+          <div className="text-xs text-app-muted">Poster + caption. No video, no video link.</div>
         </div>
         <button
           type="button"
@@ -145,8 +146,8 @@ export default function FederateDiveControl({
       )}
       {copied && (
         <p role="status" className="mt-1 text-xs text-app-muted">
-          Poster + caption + link copied. Paste your dive link from Share before posting — the original video is
-          never attached.
+          Poster + caption copied. Do not paste a Share link — it plays the original video. Attach the
+          poster image yourself when posting.
         </p>
       )}
       {error && (

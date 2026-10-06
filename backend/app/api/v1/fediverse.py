@@ -3,8 +3,9 @@
 Contract (mirrors the Settings UI warnings):
 1. Global opt-in toggle, default OFF, per user.
 2. Per-dive override — only visibility='public' dives can be federated.
-3. Cross-post payload is poster + caption + link. Never the original video:
-   video_uuid / bytes / presigned URLs are never included.
+3. Cross-post payload is poster + caption only. Never the original video and
+   never a video link: video_uuid / bytes / presigned URLs / Share links are
+   never included, because a Share link plays the original video.
 4. Turning the global toggle ON never publishes existing public dives.
    Each dive needs its own explicit opt-in afterwards; there is no backfill.
 
@@ -65,12 +66,14 @@ def _dive_or_404(db: Session, dive_id: int) -> Dive:
 def _cross_post_text(dive: Dive) -> str:
     caption = (dive.notes or dive.raw_caption or "Every dive, a little further.").strip()
     header = f"{dive.dive_code} · {dive.height}".strip()
-    # Link placeholder: the owner pastes the dive's own share/library link from
-    # the app. We never invent a public URL or expose video_uuid here.
+    # Poster + caption only. No link is included: the app has no public
+    # non-video dive page, and a Share link would play the original video,
+    # which contradicts the poster-only promise. The owner attaches the
+    # poster image themselves when posting.
     return (
         f"{header}\n{caption}\n\n"
-        f"Shared from my dive library (poster + caption + link — no original video). "
-        f"Paste your dive link from Share before posting."
+        f"Shared from my dive library (poster + caption — no video, no video link). "
+        f"Attach the poster image yourself when posting."
     ).strip()
 
 
@@ -123,8 +126,9 @@ def get_settings(request: Request, response: Response, db: Session = Depends(get
         # Explicit so clients can render the no-history warning verbatim.
         "auto_publishes_history": False,
         "mode": "manual-cross-post",
-        "payload": "poster-caption-link",
+        "payload": "poster-caption",
         "includes_video": False,
+        "includes_video_link": False,
     }
 
 
@@ -200,8 +204,10 @@ def cross_post(dive_id: int, request: Request, response: Response, db: Session =
         "text": status["preview"]["text"],
         "poster_kind": "poster",
         "includes_video": False,
+        "includes_video_link": False,
         "warning": (
-            "Poster + caption + link only — the original video is never attached. "
-            "Paste your dive link from Share before posting."
+            "Poster + caption only — no video and no video link. "
+            "Do not paste a Share link: it plays the original video. "
+            "Attach the poster image yourself when posting."
         ),
     }

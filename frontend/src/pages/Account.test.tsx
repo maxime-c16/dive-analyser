@@ -142,7 +142,8 @@ describe("Account (final V2)", () => {
     expect(
       await screen.findByText(/turning this on does not publish anything yet/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/poster \+ caption \+ link only/i)).toBeInTheDocument();
+    expect(screen.getByText(/poster \+ caption only/i)).toBeInTheDocument();
+    expect(screen.getByText(/never paste a share link/i)).toBeInTheDocument();
     expect(screen.getByText(/works the same on phones, tablets, and desktop/i)).toBeInTheDocument();
     const toggle = screen.getByRole("switch", { name: "Fediverse sharing" });
     expect(toggle).toHaveAttribute("aria-checked", "false");

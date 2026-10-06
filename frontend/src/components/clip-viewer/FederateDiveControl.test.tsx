@@ -61,7 +61,7 @@ describe('FederateDiveControl (Option 1)', () => {
     expect(screen.getByRole('switch', { name: /allow fediverse/i })).toBeDisabled()
   })
 
-  it('copies poster+caption+link text when eligible and never mentions video', async () => {
+  it('copies poster+caption text when eligible and never mentions video links', async () => {
     vi.mocked(api.get).mockResolvedValue({
       data: {
         enabled_global: true,
@@ -79,6 +79,6 @@ describe('FederateDiveControl (Option 1)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /copy cross-post/i })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /copy cross-post/i }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('101B · 3m\nNice dive'))
-    expect(screen.getByText(/original video is never attached/i)).toBeInTheDocument()
+    expect(screen.getByText(/do not paste a share link/i)).toBeInTheDocument()
   })
 })

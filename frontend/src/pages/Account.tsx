@@ -344,8 +344,9 @@ export default function Account() {
                 <strong className="font-semibold">Turning this on does not publish anything yet.</strong>{' '}
                 Your existing public dives stay local. Each dive needs its own opt-in afterwards, and only{' '}
                 <strong className="font-semibold">public</strong> dives can be federated — private dives are
-                never eligible. Cross-posts share <strong className="font-semibold">poster + caption + link only</strong>;
-                the original video is never attached.
+                never eligible. Cross-posts share <strong className="font-semibold">poster + caption only</strong>:
+                no video and no video link (a Share link plays the original video, so never paste one).
+                Attach the poster image yourself when posting.
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-4 py-2">
@@ -379,7 +380,7 @@ export default function Account() {
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-app-muted">
                 <li>Step 1: turn this on. Nothing is published.</li>
                 <li>Step 2: open a public dive → turn on “Fediverse cross-post” for that dive.</li>
-                <li>Step 3: use “Copy cross-post text”, paste your dive link from Share, then post it yourself.</li>
+                <li>Step 3: use “Copy cross-post text” and attach the poster image yourself. Never paste a Share link.</li>
               </ul>
               <p className="mt-3 text-xs leading-5 text-app-muted">
                 Works the same on phones, tablets, and desktop — this warning is always shown, with no

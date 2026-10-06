@@ -70,13 +70,19 @@ def test_owner_only_and_cross_post_excludes_video(workspace):
     assert preview['includes_video'] is False
     assert preview['includes_video_uuid'] is False
     assert 'video_uuid' not in preview['text']
+    # No Share/video link is suggested: Share links play the original video.
+    assert 'Share link' not in preview['text']
+    assert '/share/' not in preview['text']
     cross = alice.post(f'/api/v1/dives/{public}/fediverse/cross-post')
     assert cross.status_code == 200, cross.text
     body = cross.json()
     assert body['includes_video'] is False
+    assert body.get('includes_video_link') is False
     assert body['poster_kind'] == 'poster'
     assert 'video_uuid' not in body['text'].lower()
     assert 'alice-public-video' not in body['text']
+    assert '/share/' not in body['text'].lower()
+    assert 'do not paste a share link' in body['warning'].lower()
     # Anonymous and cross-origin writes fail closed.
     with TestClient(app, base_url='https://testserver') as anon:
         assert anon.get('/api/v1/fediverse/settings').status_code == 401
