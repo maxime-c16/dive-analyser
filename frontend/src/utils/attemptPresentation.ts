@@ -5,6 +5,7 @@ import { divePositionName } from "./divePosition";
 export type Attempt = {
   person_name?: string | null;
   visibility?: "public" | "private";
+  federate_enabled?: boolean;
   can_manage?: boolean;
   id: number;
   dive_code: string;

@@ -133,6 +133,27 @@ describe("Account (final V2)", () => {
     });
   });
 
+  it("warns that opt-in never publishes history and toggles the global switch", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ enabled: false }), { status: 200 }),
+    );
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Fediverse" }));
+    expect(
+      await screen.findByText(/turning this on does not publish anything yet/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/poster \+ caption only/i)).toBeInTheDocument();
+    expect(screen.getByText(/never paste a share link/i)).toBeInTheDocument();
+    expect(screen.getByText(/works the same on phones, tablets, and desktop/i)).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Fediverse sharing" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ enabled: true }), { status: 200 }),
+    );
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
+  });
+
   it("signs out and returns to login", async () => {
     signOut.mockResolvedValue(undefined);
     renderAccount();

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { Bell, Globe2, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
@@ -95,10 +95,71 @@ const labelCls =
 const sections = [
   { id: 'profile', label: 'Profile', icon: UserRound },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'fediverse', label: 'Fediverse', icon: Globe2 },
   { id: 'security', label: 'Security', icon: KeyRound },
 ] as const
 
 type SectionId = (typeof sections)[number]['id']
+
+/**
+ * Global fediverse opt-in (Option 1: manual cross-post only, default OFF).
+ * Server is the source of truth; turning it ON never publishes history —
+ * each public dive still needs its own per-dive opt-in.
+ */
+function useFediverseEnabled(active: boolean): {
+  enabled: boolean
+  loaded: boolean
+  busy: boolean
+  error: string
+  setEnabled: (next: boolean) => Promise<void>
+} {
+  const [enabled, setEnabledState] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (!active || loaded) return
+    let alive = true
+    fetch('/api/v1/fediverse/settings', { credentials: 'same-origin' })
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        if (alive) {
+          setEnabledState(!!data.enabled)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setError('Fediverse settings unavailable. Try again.')
+          setLoaded(true)
+        }
+      })
+    return () => {
+      alive = false
+    }
+  }, [active, loaded])
+  const setEnabled = async (next: boolean) => {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await fetch('/api/v1/fediverse/settings', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setEnabledState(!!data.enabled)
+    } catch {
+      setError('Could not save. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { enabled, loaded, busy, error, setEnabled }
+}
 
 export default function Account() {
   const { user, signOut } = useAuth()
@@ -114,6 +175,7 @@ export default function Account() {
 
   const displayName = user?.display_name ?? user?.email ?? ''
   const isDiver = !user?.is_admin
+  const fediverse = useFediverseEnabled(section === 'fediverse')
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -264,6 +326,66 @@ export default function Account() {
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {section === 'fediverse' && (
+            <section aria-label="Fediverse" className="border border-app bg-app-panel p-5">
+              <h2 className="font-semibold text-app-text">Fediverse sharing</h2>
+              <p className="mt-1 text-sm text-app-muted">
+                Manual cross-posts to open social apps (Mastodon, Pixelfed). Off by default.
+              </p>
+
+              <div
+                role="note"
+                aria-label="Turning on does not publish existing dives"
+                className="mt-3 w-full rounded border border-amber-300/40 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100"
+              >
+                <strong className="font-semibold">Turning this on does not publish anything yet.</strong>{' '}
+                Your existing public dives stay local. Each dive needs its own opt-in afterwards, and only{' '}
+                <strong className="font-semibold">public</strong> dives can be federated — private dives are
+                never eligible. Cross-posts share <strong className="font-semibold">poster + caption only</strong>:
+                no video and no video link (a Share link plays the original video, so never paste one).
+                Attach the poster image yourself when posting.
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-4 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-app-text">Fediverse sharing</div>
+                  <div className="text-xs text-app-muted">
+                    {fediverse.loaded
+                      ? fediverse.enabled
+                        ? 'On — you can opt in public dives one by one.'
+                        : 'Off — no dive can be cross-posted.'
+                      : 'Loading…'}
+                  </div>
+                </div>
+                <Toggle
+                  checked={fediverse.enabled}
+                  onChange={() => void fediverse.setEnabled(!fediverse.enabled)}
+                  label="Fediverse sharing"
+                />
+              </div>
+              {fediverse.busy && (
+                <p role="status" className="text-xs text-app-muted">
+                  Saving…
+                </p>
+              )}
+              {fediverse.error && (
+                <p role="alert" className="mt-1 text-sm text-red-400">
+                  {fediverse.error}
+                </p>
+              )}
+
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-app-muted">
+                <li>Step 1: turn this on. Nothing is published.</li>
+                <li>Step 2: open a public dive → turn on “Fediverse cross-post” for that dive.</li>
+                <li>Step 3: use “Copy cross-post text” and attach the poster image yourself. Never paste a Share link.</li>
+              </ul>
+              <p className="mt-3 text-xs leading-5 text-app-muted">
+                Works the same on phones, tablets, and desktop — this warning is always shown, with no
+                hover-only steps.
+              </p>
             </section>
           )}
 
