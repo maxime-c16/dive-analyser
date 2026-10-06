@@ -7,7 +7,7 @@ import { AlertCircle, RotateCw, ChevronDown, ChevronUp, X } from 'lucide-react'
 interface ErrorDetail {
   id: string
   timestamp: string
-  message: string
+  message: string | null // null: no backend message, translated at render
   syncId: string
   retryCount: number
   expanded: boolean
@@ -33,7 +33,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
       const newError: ErrorDetail = {
         id: `error-${Date.now()}`,
         timestamp: lastEvent.timestamp,
-        message: lastEvent.data.error || t('sync.unknownError'),
+        message: lastEvent.data.error || null,
         syncId: lastEvent.sync_id,
         retryCount: 0,
         expanded: true,
@@ -53,7 +53,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
         )
       }, 5000)
     }
-  }, [lastEvent, currentSync, maxErrors, t])
+  }, [lastEvent, currentSync, maxErrors])
 
   const toggleExpanded = (id: string) => {
     setErrors((prev) =>
@@ -114,7 +114,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
             className="w-full px-4 py-2 flex items-center gap-2 bg-red-500/5 border-t border-red-500/20 hover:bg-red-500/10 transition-colors text-left"
           >
             <span className="flex-1 text-sm text-app-text truncate">
-              {error.message}
+              {error.message ?? t('sync.unknownError')}
             </span>
             {error.expanded ? (
               <ChevronUp className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -136,7 +136,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
               <div>
                 <div className="text-xs text-app-muted mb-1">{t('sync.errorMessage')}</div>
                 <p className="text-xs text-red-200 bg-app-bg p-2 rounded">
-                  {error.message}
+                  {error.message ?? t('sync.unknownError')}
                 </p>
               </div>
 
