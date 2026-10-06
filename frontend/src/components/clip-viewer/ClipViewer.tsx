@@ -34,8 +34,9 @@ const INTERACTIVE_TARGET =
 // TikTok-style vertical feed transition: a short compositor-only enter slide
 // on mobile when the selected dive changes (swipe up/down, Previous/Next).
 // transform/opacity only, ~240ms, mobile-only, skipped under
-// prefers-reduced-motion. No data-layer change: library/media caches,
-// neighbor prefetch and DiveVideoPlayer loading flow are untouched.
+// prefers-reduced-motion. It is presentation-only — it adds no data-layer
+// work. (This file also seeds the player from the shared preview cache and
+// byte-warms ready neighbors; the loader changes live with that commit.)
 export const CLIP_SLIDE_DISTANCE_PX = 56;
 export const CLIP_SLIDE_DURATION_MS = 240;
 const MOBILE_SLIDE_QUERY = "(max-width: 599px)";
@@ -197,10 +198,10 @@ export default function ClipViewer({
     return inertExcept(dialog);
   }, []);
 
-  // Warm the adjacent clips' poster/status cache so Previous/Next feel
-  // instant. Deduped and cached; no new caching architecture. Status
-  // lookups resolve into warmed playback/poster bytes inside the browser
-  // HTTP cache, so swiping meets ready bytes without a fresh stream.
+  // Warm the adjacent clips so Previous/Next feel instant: their status
+  // lookups resolve into the shared preview cache (which the player seeds
+  // playback from), and their ready renditions download into the browser
+  // HTTP cache inside a bounded, low-priority byte warm.
   useEffect(() => {
     warmAdjacentClips([attempts[index - 1]?.video_uuid, attempts[index + 1]?.video_uuid]);
   }, [attempts, index]);

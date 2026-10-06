@@ -10,9 +10,22 @@ afterEach(() => {
 });
 
 function queueable(url: string, ok = true) {
+  // Full-shaped response: drain() must succeed end-to-end (one chunk, then
+  // done) exactly as the real low-priority fetch-and-read would.
+  let readCalls = 0;
   const response = {
     ok,
-    body: {},
+    headers: new Headers({ "Content-Length": "8" }),
+    body: {
+      getReader: () => ({
+        read: async () => {
+          const first = readCalls === 0;
+          readCalls += 1;
+          return first ? { done: false, value: new Uint8Array(8) } : { done: true, value: undefined };
+        },
+        cancel: () => Promise.resolve(),
+      }),
+    },
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
   };
   return { response, promise: Promise.resolve(response) };
