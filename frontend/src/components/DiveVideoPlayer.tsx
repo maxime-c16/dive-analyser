@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import ImmersiveControls from './clip-viewer/ImmersiveControls'
+import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveControls'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
 import {
@@ -69,9 +69,12 @@ interface DiveVideoPlayerProps {
   onAspectRatioChange?: (ratio: number) => void
   onLike?: () => void
   onNavigate?: (direction: -1 | 1) => void
+  dragEnabled?: boolean
+  onDragUpdate?: (dy: number) => void
+  onDragEnd?: (result: FeedDragEnd) => void
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {} }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd }: DiveVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const { user, checking: authChecking } = useAuth()
 
@@ -397,7 +400,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         aria-label={`${diveCode} ${height} dive video`}
       />
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} />}
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}

@@ -8,10 +8,42 @@ import ClipViewer from './ClipViewer'
 vi.mock('../../services/api', () => ({ api: { get: vi.fn().mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }), put: vi.fn() } }))
 
 vi.mock('../DiveVideoPlayer', () => ({
-  default: ({ diveCode, videoUuid, playbackRate }: { diveCode: string; videoUuid: string; playbackRate: number }) => (
+  default: (props: {
+    diveCode: string
+    videoUuid: string
+    playbackRate: number
+    dragEnabled?: boolean
+    onDragUpdate?: (dy: number) => void
+    onDragEnd?: (result: { dy: number; velocity: number; cancelled: boolean }) => void
+  }) => (
     <div data-testid="player">
-      {diveCode}:{videoUuid}:{playbackRate}
+      {props.diveCode}:{props.videoUuid}:{props.playbackRate}
       <video data-testid="player-video" />
+      {/* Stands in for the ImmersiveControls gesture surface (arbitration is
+          covered in ImmersiveControls.test.tsx): forwards raw pointer travel
+          as drag callbacks so pager tests can drive finger gestures. */}
+      <button
+        type="button"
+        aria-label="Test drag surface"
+        onPointerDown={(event) => {
+          event.currentTarget.dataset.startY = String(event.clientY)
+        }}
+        onPointerMove={(event) => {
+          const start = event.currentTarget.dataset.startY
+          if (start === undefined) return
+          props.onDragUpdate?.(event.clientY - Number(start))
+        }}
+        onPointerUp={(event) => {
+          const start = event.currentTarget.dataset.startY
+          delete event.currentTarget.dataset.startY
+          if (start === undefined) return
+          props.onDragEnd?.({
+            dy: event.clientY - Number(start),
+            velocity: 0,
+            cancelled: false,
+          })
+        }}
+      />
     </div>
   ),
 }))
@@ -282,18 +314,36 @@ it('swiping up the description expands details without the following click closi
   expect(document.getElementById('clip-viewer-details')).not.toHaveAttribute('hidden')
 })
 
-// ---- Mobile feed-style slide animation (Instagram/TikTok-like) ----
+// ---- Mobile feed-pager: the dive follows the finger (TikTok/Reels-like) ----
 
-import { CLIP_SLIDE_DISTANCE_PX, CLIP_SLIDE_DURATION_MS } from './ClipViewer'
+import { act } from 'react'
+import {
+  FEED_PUSH_DURATION_MS,
+  FEED_SPRING_DURATION_MS,
+  shouldCommitDrag,
+  shouldEnableFeedPager,
+} from './ClipViewer'
 
-function stubSlideEnvironment({ mobile, reduce }: { mobile: boolean; reduce: boolean }) {
-  const animateMock = vi.fn(() => ({ finished: Promise.resolve() }))
+function stubPagerEnvironment({ mobile, reduce }: { mobile: boolean; reduce: boolean }) {
+  const animateMock = vi.fn(() => ({}))
   const animateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate')
   Object.defineProperty(HTMLElement.prototype, 'animate', {
     configurable: true,
     writable: true,
     value: animateMock,
   })
+  const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get() { return 800 },
+  })
+  // jsdom has no PointerEvent, so fireEvent.pointer* would drop clientX/Y.
+  // A MouseEvent subclass carries them, mirroring ImmersiveControls.test.tsx.
+  class Pointer extends MouseEvent {
+    isPrimary = true
+    pointerId = 1
+  }
+  vi.stubGlobal('PointerEvent', Pointer)
   const matchMediaDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -316,22 +366,28 @@ function stubSlideEnvironment({ mobile, reduce }: { mobile: boolean; reduce: boo
   return {
     animateMock,
     restore() {
+      vi.unstubAllGlobals()
       if (animateDescriptor) Object.defineProperty(HTMLElement.prototype, 'animate', animateDescriptor)
       else delete (HTMLElement.prototype as { animate?: unknown }).animate
+      if (heightDescriptor) Object.defineProperty(HTMLElement.prototype, 'clientHeight', heightDescriptor)
+      else delete (HTMLElement.prototype as { clientHeight?: unknown }).clientHeight
       if (matchMediaDescriptor) Object.defineProperty(window, 'matchMedia', matchMediaDescriptor)
       else delete (window as { matchMedia?: unknown }).matchMedia
     },
   }
 }
 
-function renderAt(index: number) {
+function renderAt(
+  index: number,
+  handlers: { onClose?: () => void; onMove?: (a: Attempt) => void } = {},
+) {
   return render(
     <MemoryRouter>
       <ClipViewer
         attempt={attempts[index]}
         attempts={attempts}
-        onClose={() => {}}
-        onMove={() => {}}
+        onClose={handlers.onClose ?? (() => {})}
+        onMove={handlers.onMove ?? (() => {})}
         playbackRate={1}
         onPlaybackRateChange={() => {}}
       />
@@ -339,95 +395,209 @@ function renderAt(index: number) {
   )
 }
 
-it('slides the stage up on next and down on previous without new network calls', () => {
-  const env = stubSlideEnvironment({ mobile: true, reduce: false })
+/** A scripted finger: press at y=400, travel to y=400+dy, release. */
+function dragBy(surface: HTMLElement, dy: number) {
+  fireEvent.pointerDown(surface, { clientX: 100, clientY: 400, button: 0 })
+  fireEvent.pointerMove(surface, { clientX: 100, clientY: 400 + dy })
+  fireEvent.pointerUp(surface, { clientX: 100, clientY: 400 + dy })
+}
+
+function dragMoveOnly(surface: HTMLElement, dy: number) {
+  fireEvent.pointerDown(surface, { clientX: 100, clientY: 400, button: 0 })
+  fireEvent.pointerMove(surface, { clientX: 100, clientY: 400 + dy })
+}
+
+it('renders warmed neighbor frames around the live dive', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
   try {
-    const view = renderAt(1)
+    renderAt(1)
+    const prev = document.querySelector('.clip-pager-neighbor.is-prev') as HTMLElement
+    const next = document.querySelector('.clip-pager-neighbor.is-next') as HTMLElement
+    expect(prev?.dataset.neighbor).toBe('1')
+    expect(next?.dataset.neighbor).toBe('3')
+    expect(prev).toHaveAttribute('aria-hidden', 'true')
+    // Poster frames are never interactive: no Tab stop, no pointer target.
+    expect(prev.querySelectorAll('button, a, input, select').length).toBe(0)
+    expect(next.querySelectorAll('button, a, input, select').length).toBe(0)
+  } finally {
+    env.restore()
+  }
+})
+
+it('the dive follows the finger 1:1 without navigating mid-gesture', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  try {
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    const surface = screen.getByRole('button', { name: 'Test drag surface' })
     const stage = document.querySelector('.clip-stage') as HTMLElement
-    expect(stage).not.toBeNull()
-    expect(env.animateMock).not.toHaveBeenCalled()
-
-    view.rerender(
-      <MemoryRouter>
-        <ClipViewer
-          attempt={attempts[2]}
-          attempts={attempts}
-          onClose={() => {}}
-          onMove={() => {}}
-          playbackRate={1}
-          onPlaybackRateChange={() => {}}
-        />
-      </MemoryRouter>,
-    )
-    expect(stage.dataset.slide).toBe('next')
-    expect(env.animateMock).toHaveBeenCalledTimes(1)
-    const [nextFrames, nextOptions] = env.animateMock.mock.calls[0] as unknown as [Keyframe[], KeyframeAnimationOptions]
-    expect(JSON.stringify(nextFrames)).toContain(`translateY(${CLIP_SLIDE_DISTANCE_PX}px)`)
-    expect(nextOptions.duration).toBe(CLIP_SLIDE_DURATION_MS)
-    // Compositor-only properties: no layout-thrash-inducing width/height/top.
-    expect(JSON.stringify(nextFrames)).not.toMatch(/width|height|top|left/)
-
-    view.rerender(
-      <MemoryRouter>
-        <ClipViewer
-          attempt={attempts[1]}
-          attempts={attempts}
-          onClose={() => {}}
-          onMove={() => {}}
-          playbackRate={1}
-          onPlaybackRateChange={() => {}}
-        />
-      </MemoryRouter>,
-    )
-    expect(stage.dataset.slide).toBe('prev')
-    expect(env.animateMock).toHaveBeenCalledTimes(2)
-    const [prevFrames] = env.animateMock.mock.calls[1] as unknown as [Keyframe[], KeyframeAnimationOptions]
-    expect(JSON.stringify(prevFrames)).toContain(`translateY(${-CLIP_SLIDE_DISTANCE_PX}px)`)
+    const next = document.querySelector('.clip-pager-neighbor.is-next') as HTMLElement
+    dragMoveOnly(surface, -200)
+    expect(stage.style.transform).toBe('translateY(-200px)')
+    expect(next.style.transform).toBe('translateY(600px)')
+    expect(onMove).not.toHaveBeenCalled()
   } finally {
     env.restore()
   }
 })
 
-it('skips the slide animation under prefers-reduced-motion', () => {
-  const env = stubSlideEnvironment({ mobile: true, reduce: true })
+it('release past the threshold snaps through to the next dive', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
   try {
-    const view = renderAt(1)
-    view.rerender(
-      <MemoryRouter>
-        <ClipViewer
-          attempt={attempts[2]}
-          attempts={attempts}
-          onClose={() => {}}
-          onMove={() => {}}
-          playbackRate={1}
-          onPlaybackRateChange={() => {}}
-        />
-      </MemoryRouter>,
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    const surface = screen.getByRole('button', { name: 'Test drag surface' })
+    dragBy(surface, -300)
+    // Snap FIRST, selection swap only when the neighbor lands.
+    expect(onMove).not.toHaveBeenCalled()
+    expect(env.animateMock).toHaveBeenCalled()
+    const keyframes = env.animateMock.mock.calls.map(
+      (call) => JSON.stringify((call as unknown as [Keyframe[]])[0]),
     )
+    expect(keyframes.some((frames) => frames.includes('translateY(-800px)'))).toBe(true)
+    expect(keyframes.some((frames) => frames.includes('translateY(0)'))).toBe(true)
+    const durations = env.animateMock.mock.calls.map(
+      (call) => (call as unknown as [Keyframe[], KeyframeAnimationOptions])[1]?.duration,
+    )
+    expect(durations).toContain(FEED_PUSH_DURATION_MS)
+    act(() => vi.advanceTimersByTime(FEED_PUSH_DURATION_MS + 50))
+    expect(onMove).toHaveBeenCalledTimes(1)
+    expect(onMove).toHaveBeenCalledWith(attempts[2])
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
+it('a short drag springs back without navigating', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    const surface = screen.getByRole('button', { name: 'Test drag surface' })
+    const stage = document.querySelector('.clip-stage') as HTMLElement
+    dragBy(surface, -100)
+    expect(onMove).not.toHaveBeenCalled()
+    expect(env.animateMock).toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(FEED_SPRING_DURATION_MS + 50))
+    expect(onMove).not.toHaveBeenCalled()
+    expect(stage.style.transform).toBe('')
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
+it('dragging past the first dive rubber-bands and never commits', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    renderAt(0, { onMove })
+    expect(document.querySelector('.clip-pager-neighbor.is-prev')).toBeNull()
+    const surface = screen.getByRole('button', { name: 'Test drag surface' })
+    const stage = document.querySelector('.clip-stage') as HTMLElement
+    dragMoveOnly(surface, 200)
+    expect(stage.style.transform).toBe('translateY(70px)')
+    fireEvent.pointerUp(surface, { clientX: 100, clientY: 600 })
+    act(() => vi.advanceTimersByTime(FEED_SPRING_DURATION_MS + 50))
+    expect(onMove).not.toHaveBeenCalled()
+    expect(stage.style.transform).toBe('')
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
+it('Next takes the same push on mobile, minus the finger', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(onMove).not.toHaveBeenCalled()
+    expect(env.animateMock).toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(FEED_PUSH_DURATION_MS + 50))
+    expect(onMove).toHaveBeenCalledWith(attempts[2])
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
+it('reduced motion renders no pager and navigates instantly', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: true })
+  try {
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    expect(document.querySelector('.clip-pager-neighbor')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(onMove).toHaveBeenCalledWith(attempts[2])
     expect(env.animateMock).not.toHaveBeenCalled()
   } finally {
     env.restore()
   }
 })
 
-it('skips the slide animation on desktop viewports', () => {
-  const env = stubSlideEnvironment({ mobile: false, reduce: false })
+it('desktop falls back to instant navigation with no pager frames', () => {
+  const env = stubPagerEnvironment({ mobile: false, reduce: false })
   try {
-    const view = renderAt(1)
-    view.rerender(
-      <MemoryRouter>
-        <ClipViewer
-          attempt={attempts[2]}
-          attempts={attempts}
-          onClose={() => {}}
-          onMove={() => {}}
-          playbackRate={1}
-          onPlaybackRateChange={() => {}}
-        />
-      </MemoryRouter>,
-    )
+    const onMove = vi.fn()
+    renderAt(1, { onMove })
+    expect(document.querySelector('.clip-pager-neighbor')).toBeNull()
+    const surface = screen.getByRole('button', { name: 'Test drag surface' })
+    // The real gesture layer never reports drags on desktop (legacy swipe
+    // path instead); if one arrives, it resolves instantly with no animation.
+    dragBy(surface, -300)
+    expect(onMove).toHaveBeenCalledWith(attempts[2])
     expect(env.animateMock).not.toHaveBeenCalled()
   } finally {
     env.restore()
+  }
+})
+
+it('shouldCommitDrag commits on distance or a matching fling', () => {
+  // Quarter of an 800px stage commits regardless of (zero) velocity.
+  expect(shouldCommitDrag(-201, 800, 0)).toBe(true)
+  expect(shouldCommitDrag(201, 800, 0)).toBe(true)
+  expect(shouldCommitDrag(-200, 800, 0)).toBe(false)
+  // A fast fling commits a short drag when velocity matches its direction.
+  expect(shouldCommitDrag(-100, 800, -0.8)).toBe(true)
+  expect(shouldCommitDrag(-100, 800, 0.8)).toBe(false)
+  // Tiny drags never commit, however fast.
+  expect(shouldCommitDrag(-10, 800, -5)).toBe(false)
+  // Degenerate geometry never commits.
+  expect(shouldCommitDrag(-300, 0, 0)).toBe(false)
+})
+
+it('shouldEnableFeedPager is mobile-only and honors reduced motion', () => {
+  const matchMedia = window.matchMedia
+  const stub = (mobile: boolean, reduce: boolean) => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query.includes('max-width') ? mobile : reduce,
+        media: query,
+        onchange: null,
+        addEventListener() {},
+        removeEventListener() {},
+        dispatchEvent() { return false },
+      }),
+    })
+  }
+  try {
+    stub(true, false)
+    expect(shouldEnableFeedPager()).toBe(true)
+    stub(true, true)
+    expect(shouldEnableFeedPager()).toBe(false)
+    stub(false, false)
+    expect(shouldEnableFeedPager()).toBe(false)
+  } finally {
+    if (matchMedia === undefined) delete (window as { matchMedia?: unknown }).matchMedia
+    else Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: matchMedia })
   }
 })
