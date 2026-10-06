@@ -35,9 +35,9 @@ afterEach(() => {
 
 function previewFor(uuid: string) {
   return {
-    posterUrl: `/poster/${uuid}`,
+    posterUrl: `/api/v1/media/cache/${uuid}/poster`,
     videoThumbUrl: null,
-    playbackUrl: `/play/${uuid}`,
+    playbackUrl: `/api/v1/media/cache/${uuid}/play`,
     ready: true,
   };
 }
@@ -105,18 +105,18 @@ async function quiet(calls: Call[]) {
   await flush();
 }
 
-function clipOrder(calls: Call[], prefix = "/play/"): string[] {
+function clipOrder(calls: Call[], prefix = "/play"): string[] {
   return [
     ...new Set(
       calls
-        .filter((call) => call.url.startsWith(prefix))
-        .map((call) => call.url.slice(prefix.length)),
+        .filter((call) => call.url.includes(prefix))
+        .map((call) => call.url.match(/u\d+/)?.[0] ?? ""),
     ),
   ];
 }
 
-const videoCalls = (calls: Call[]) => calls.filter((c) => c.url.startsWith("/play/"));
-const posterCalls = (calls: Call[]) => calls.filter((c) => c.url.startsWith("/poster/"));
+const videoCalls = (calls: Call[]) => calls.filter((c) => c.url.includes("/play"));
+const posterCalls = (calls: Call[]) => calls.filter((c) => c.url.includes("/poster"));
 
 it("continues warming beyond 12 warmed URLs across 50 swipes", async () => {
   const { calls } = stubFetch();
@@ -138,14 +138,14 @@ it("forward window prepares next, next+2, previous and next+3 only", async () =>
   warmAdjacentClips({ attempts: attempts(20), index: 5, direction: 1 });
   await quiet(calls);
   expect(calls.map((call) => call.url).sort()).toEqual([
-    "/play/u4",
-    "/play/u6",
-    "/play/u7",
-    "/play/u8",
-    "/poster/u4",
-    "/poster/u6",
-    "/poster/u7",
-    "/poster/u8",
+    "/api/v1/media/cache/u4/play",
+    "/api/v1/media/cache/u4/poster",
+    "/api/v1/media/cache/u6/play",
+    "/api/v1/media/cache/u6/poster",
+    "/api/v1/media/cache/u7/play",
+    "/api/v1/media/cache/u7/poster",
+    "/api/v1/media/cache/u8/play",
+    "/api/v1/media/cache/u8/poster",
   ]);
 });
 
@@ -155,7 +155,7 @@ it("starts warms in priority order: next, next+2, previous, next+3", async () =>
   warmAdjacentClips({ attempts: attempts(20), index: 10, direction: 1 });
   await quiet(calls);
   expect(clipOrder(calls)).toEqual(["u11", "u12", "u9", "u13"]);
-  expect(clipOrder(calls, "/poster/")).toEqual(["u11", "u12", "u9", "u13"]);
+  expect(clipOrder(calls, "/poster")).toEqual(["u11", "u12", "u9", "u13"]);
 });
 
 it("a reverse direction prepares the two behind clips first", async () => {
@@ -208,7 +208,7 @@ it("stale completions of cancelled warms keep lane slots and successors safe", a
   let firstU11 = true;
   const { calls } = stubFetch({
     resolve: (url) => {
-      if (url === "/play/u11" && firstU11) {
+      if (url === "/api/v1/media/cache/u11/play" && firstU11) {
         firstU11 = false;
         return new Promise((resolve) => {
           releaseFirst.fn = () => resolve(okResponse(8));
@@ -229,13 +229,13 @@ it("stale completions of cancelled warms keep lane slots and successors safe", a
   // old u11 fetch is still pending underneath the cancelled job.
   warmAdjacentClips({ attempts: feed, index: 11, direction: -1 });
   await quiet(calls);
-  const freshU12 = videoCalls(calls).filter((c) => c.url === "/play/u12").length;
+  const freshU12 = videoCalls(calls).filter((c) => c.url === "/api/v1/media/cache/u12/play").length;
   expect(freshU12).toBe(2);
   releaseFirst.fn?.();
   await quiet(calls);
   // The stale success must not disturb the newer u12 work.
   const afterLate = videoCalls(calls).filter(
-    (c) => c.url === "/play/u12" && !c.signal.aborted,
+    (c) => c.url === "/api/v1/media/cache/u12/play" && !c.signal.aborted,
   ).length;
   expect(afterLate).toBe(freshU12);
 });
@@ -249,7 +249,7 @@ it("bounds retries with backoff, then cools the lane across repeated updates", a
   warmAdjacentClips({ attempts: attempts(10), index: 0, direction: 0 });
   await flush();
   const attemptsFor = () =>
-    fetcher.mock.calls.filter((call) => call[0] === "/play/u1").length;
+    fetcher.mock.calls.filter((call) => call[0] === "/api/v1/media/cache/u1/play").length;
   expect(attemptsFor()).toBe(1);
   await vi.advanceTimersByTimeAsync(1000);
   expect(attemptsFor()).toBe(2);
@@ -282,7 +282,7 @@ it("a permanent 404 warms once and is never retried", async () => {
 it("posters keep their own lane while both video transfers hang", async () => {
   const { calls } = stubFetch({
     resolve: (url) =>
-      url.startsWith("/play/") ? new Promise(() => {}) : okResponse(64),
+      url.includes("/play") ? new Promise(() => {}) : okResponse(64),
   });
   const { warmAdjacentClips } = await import("./playbackWarming");
   warmAdjacentClips({ attempts: attempts(20), index: 2, direction: 1 });
@@ -308,7 +308,7 @@ it("an oversized original aborts its stream and is never re-requested", async ()
     },
   });
   const { calls, fetcher } = stubFetch({
-    resolve: (url) => (url.startsWith("/play/") ? big() : okResponse(64)),
+    resolve: (url) => (url.includes("/play") ? big() : okResponse(64)),
   });
   const { warmAdjacentClips } = await import("./playbackWarming");
   warmAdjacentClips({ attempts: attempts(4), index: 0, direction: 0 });
@@ -377,11 +377,11 @@ it("a B2-backed cross-origin rendition is never warmed", async () => {
     Promise.resolve({
       posterUrl: uuid === "b1"
         ? "https://b2.example.com/poster/b1.jpg"
-        : `/poster/${uuid}`,
+        : `/api/v1/media/cache/${uuid}/poster`,
       videoThumbUrl: null,
       playbackUrl: uuid === "b1"
         ? "https://b2.example.com/play/b1.mp4"
-        : `/play/${uuid}`,
+        : `/api/v1/media/cache/${uuid}/play`,
       ready: true,
     }),
   );
@@ -390,8 +390,8 @@ it("a B2-backed cross-origin rendition is never warmed", async () => {
   // u1's two lanes are skipped (cross-origin, bucket CORS intentionally
   // absent) while the same-origin neighbours warm normally.
   expect(calls.some((call) => call.url.includes("b2.example.com"))).toBe(false);
-  expect(calls.some((call) => call.url.includes("/play/b2"))).toBe(true);
-  expect(calls.some((call) => call.url.includes("/play/b1"))).toBe(false);
+  expect(calls.some((call) => call.url.includes("/b2/play"))).toBe(true);
+  expect(calls.some((call) => call.url.includes("b1"))).toBe(false);
 });
 
 it("an empty preview from a failed status batch retries instead of skipping", async () => {
@@ -419,7 +419,7 @@ it("an empty preview from a failed status batch retries instead of skipping", as
   await vi.advanceTimersByTimeAsync(2000);
   await quiet(calls);
   // The retried lookup eventually feeds a real warm for u1.
-  expect(calls.some((call) => call.url === "/play/u1")).toBe(true);
+  expect(calls.some((call) => call.url === "/api/v1/media/cache/u1/play")).toBe(true);
 });
 
 it("an expired cooldown allows a fresh bounded burst (no permanent suppression)", async () => {
@@ -434,14 +434,14 @@ it("an expired cooldown allows a fresh bounded burst (no permanent suppression)"
   await quiet(callsFor(fetcher));
   await vi.advanceTimersByTimeAsync(3000);
   await quiet(callsFor(fetcher));
-  const parked = fetcher.mock.calls.filter((c) => c[0] === "/play/u1").length;
+  const parked = fetcher.mock.calls.filter((c) => c[0] === "/api/v1/media/cache/u1/play").length;
   expect(parked).toBe(3);
   // Well past the 20s TTL the lane is again eligible: a fresh burst starts
   // (1 attempt now), proving no entry outlives its expiry.
   await vi.advanceTimersByTimeAsync(60_000);
   warmAdjacentClips({ attempts: feed, index: 0, direction: 0 });
   await quiet(callsFor(fetcher));
-  expect(fetcher.mock.calls.filter((c) => c[0] === "/play/u1").length)
+  expect(fetcher.mock.calls.filter((c) => c[0] === "/api/v1/media/cache/u1/play").length)
     .toBe(parked + 1);
 });
 
@@ -449,3 +449,22 @@ function callsFor(fetcher: { mock: { calls: unknown[][] } }): Call[] {
   void fetcher;
   return [];
 }
+
+it("the same-origin revision route that redirects to B2 is not warmed either", async () => {
+  const { calls } = stubFetch();
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  previewMock.impl.mockImplementation((uuid: string) =>
+    Promise.resolve({
+      posterUrl: `/api/v1/media/cache/${uuid}/poster`,
+      videoThumbUrl: null,
+      playbackUrl: uuid === "u1"
+        ? "/api/v1/media/revisions/42/play"
+        : `/api/v1/media/cache/${uuid}/play`,
+      ready: true,
+    }),
+  );
+  warmAdjacentClips({ attempts: attempts(10), index: 0, direction: 0 });
+  await quiet(calls);
+  expect(calls.some((call) => call.url.includes("revisions"))).toBe(false);
+  expect(calls.some((call) => call.url === "/api/v1/media/cache/u2/play")).toBe(true);
+});

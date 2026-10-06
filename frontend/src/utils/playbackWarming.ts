@@ -142,15 +142,19 @@ function isAbort(error: unknown): boolean {
 // The streaming cap then catches responses that lie or grow while reading.
 // Content-Length pins the extreme case: abort before buffering anything.
 // The streaming cap then catches responses that lie or grow while reading.
-// Only same-origin/local URLs are warmed: a status can return a URL that
-// redirects to B2, where readable fetch dies on the bucket's (intentional,
-// see docs/architecture/EXTERNAL_ACCESS_V1.md) missing CORS policy. No-cors
-// opaque responses cannot support the size checks, so B2-backed clips are
-// left to the player's own <video> streaming instead of being warmed.
+// Only local media-cache URLs are warmed: a status can return a revision
+// route (`/api/v1/media/revisions/...`) that 302s to B2, where the
+// bucket's intentionally absent CORS policy (see
+// docs/architecture/EXTERNAL_ACCESS_V1.md) makes readable fetches fail.
+// No-cors opaque responses cannot support the size checks, so such clips
+// are left to the player's own <video> streaming instead of being warmed.
 function isWarmableUrl(url: string): boolean {
   try {
     const parsed = new URL(url, window.location.href);
-    return parsed.origin === window.location.origin;
+    return (
+      parsed.origin === window.location.origin &&
+      parsed.pathname.startsWith("/api/v1/media/cache/")
+    );
   } catch {
     return false;
   }
