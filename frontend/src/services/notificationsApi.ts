@@ -32,6 +32,11 @@ export type NotificationList = {
 
 export type NotificationPrefs = Record<string, boolean>
 
+export type NotificationPrefsResult = {
+  prefs: NotificationPrefs
+  explicit: string[]
+}
+
 async function readJson(response: Response): Promise<unknown> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
@@ -77,14 +82,20 @@ export async function markAllNotificationsRead(): Promise<{ marked: number }> {
   return { marked: typeof data.marked === 'number' ? data.marked : 0 }
 }
 
-export async function getNotificationPrefs(): Promise<NotificationPrefs> {
+export async function getNotificationPrefs(): Promise<NotificationPrefsResult> {
   const data = (await readJson(
     await fetch('/api/v1/notification-prefs', {
       credentials: 'same-origin',
       cache: 'no-store',
     }),
-  )) as { prefs: NotificationPrefs }
-  return data.prefs && typeof data.prefs === 'object' ? data.prefs : {}
+  )) as { prefs?: NotificationPrefs; explicit?: unknown }
+  const prefs = data.prefs && typeof data.prefs === 'object' ? data.prefs : {}
+  // `explicit` is additive (PR71 review): older servers omit it, in which
+  // case callers fall back to the pre-explicit migration behaviour.
+  const explicit = Array.isArray(data.explicit)
+    ? data.explicit.filter((entry): entry is string => typeof entry === 'string')
+    : []
+  return { prefs, explicit }
 }
 
 export async function setNotificationPref(

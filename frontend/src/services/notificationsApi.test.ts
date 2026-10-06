@@ -59,7 +59,7 @@ describe('notificationsApi', () => {
     })
   })
 
-  it('reads and writes prefs', async () => {
+  it('reads and writes prefs (explicit defaults to [] when absent)', async () => {
     const { getNotificationPrefs, setNotificationPref } = await import('./notificationsApi')
     mockFetch((url, init) => {
       if (init?.method === 'PUT') {
@@ -69,10 +69,22 @@ describe('notificationsApi', () => {
       }
       return { prefs: { milestone: true, guest_activity: false } }
     })
-    await expect(getNotificationPrefs()).resolves.toEqual({ milestone: true, guest_activity: false })
+    await expect(getNotificationPrefs()).resolves.toEqual({
+      prefs: { milestone: true, guest_activity: false },
+      explicit: [],
+    })
     await expect(setNotificationPref('guest_activity', true)).resolves.toEqual({
       type: 'guest_activity',
       enabled: true,
+    })
+  })
+
+  it('forwards the server explicit override list when present', async () => {
+    const { getNotificationPrefs } = await import('./notificationsApi')
+    mockFetch(() => ({ prefs: { milestone: false }, explicit: ['milestone', 'new_comment'] }))
+    await expect(getNotificationPrefs()).resolves.toEqual({
+      prefs: { milestone: false },
+      explicit: ['milestone', 'new_comment'],
     })
   })
 

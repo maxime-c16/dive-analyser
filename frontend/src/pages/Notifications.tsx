@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Bell, CheckCheck, Check, Film, RefreshCw } from 'lucide-react'
 import { useNotifications } from '../components/Notifications'
-import type { AppNotification } from '../services/notificationsApi'
+import { listNotifications, type AppNotification } from '../services/notificationsApi'
 
 function typeLabel(t: (key: string, options?: Record<string, unknown>) => string, type: string): string {
   return t(`notifications.types.${type}`, { defaultValue: type })
@@ -78,14 +78,42 @@ export default function Notifications() {
   const [busyId, setBusyId] = useState<number | null>(null)
   const [busyAll, setBusyAll] = useState(false)
   const [actionError, setActionError] = useState(false)
+  // Server-fetched unread page (limit 50, like the provider). The badge
+  // counts every unread row, but the provider only holds the 50 newest, so
+  // filtering it in memory would hide older unread rows. When the unread
+  // filter is on, refetch with unread_only=true instead; until the response
+  // arrives (or when it fails) fall back to the in-memory filter.
+  const [serverUnread, setServerUnread] = useState<AppNotification[] | null>(null)
 
-  const visible = unreadOnly ? items.filter(item => !item.read_at) : items
+  useEffect(() => {
+    if (!unreadOnly) {
+      setServerUnread(null)
+      return
+    }
+    let alive = true
+    void (async () => {
+      try {
+        const data = await listNotifications({ unreadOnly: true, limit: 50 })
+        if (alive) setServerUnread(data.items)
+      } catch {
+        if (alive) setServerUnread(null)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [unreadOnly])
+
+  const visible = unreadOnly
+    ? (serverUnread ?? items).filter(item => !item.read_at)
+    : items
 
   const handleMarkRead = async (id: number) => {
     setBusyId(id)
     setActionError(false)
     try {
       await markRead(id)
+      if (unreadOnly) setServerUnread(prev => (prev ? prev.filter(item => item.id !== id) : prev))
     } catch {
       setActionError(true)
     } finally {
@@ -98,6 +126,7 @@ export default function Notifications() {
     setActionError(false)
     try {
       await markAllRead()
+      if (unreadOnly) setServerUnread([])
     } catch {
       setActionError(true)
     } finally {

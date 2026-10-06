@@ -229,6 +229,85 @@ describe("Account (final V2)", () => {
     ).toHaveLength(0);
   });
 
+  it("skips the legacy migration when the server already has an explicit milestone override", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: true }));
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: false,
+            sync_error: true,
+            guest_activity: false,
+          },
+          explicit: ["milestone"],
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    // Server explicit false wins over legacy true: no PUT, server value shown.
+    await waitFor(() => expect(milestones).toHaveAttribute("aria-checked", "false"));
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(
+      calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT"),
+    ).toHaveLength(0);
+    expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
+      milestoneMigrated: true,
+    });
+  });
+
+  it("migrates legacy milestoneAlerts=false when the server has no explicit override", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+          explicit: [],
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    await waitFor(() => expect(milestones).toHaveAttribute("aria-checked", "false"));
+    const puts = calls.filter(call => call.url === "/api/v1/notification-prefs" && call.init?.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(JSON.parse(puts[0].init?.body as string)).toEqual({ type: "milestone", enabled: false });
+    expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
+      milestoneMigrated: true,
+    });
+  });
+
   it("warns that opt-in never publishes history and toggles the global switch", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ enabled: false }), { status: 200 }),

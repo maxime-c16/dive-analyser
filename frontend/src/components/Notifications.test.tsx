@@ -148,6 +148,18 @@ describe('Notifications page', () => {
     expect(screen.getByText('Personal best: 103B')).toBeInTheDocument()
   })
 
+  it('fetches unread_only from the server when the unread filter is active', async () => {
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(1\)/ }))
+    await waitFor(() => {
+      const urls = vi.mocked(fetch).mock.calls.map(([input]) =>
+        typeof input === 'string' ? input : input.toString(),
+      )
+      expect(urls.some(url => url.includes('unread_only=true'))).toBe(true)
+    })
+  })
+
   it('marks one notification read', async () => {
     renderPage()
     await screen.findByText('New comment on 103B')

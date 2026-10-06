@@ -113,15 +113,33 @@ function useServerNotifPrefs(active: boolean): {
     getNotificationPrefs()
       .then(async data => {
         if (!alive) return
+        const prefs = data?.prefs ?? {}
+        const explicit = Array.isArray(data?.explicit) ? data.explicit : []
         const next = { ...SERVER_NOTIF_DEFAULTS }
         for (const type of SERVER_NOTIF_TYPES) {
-          if (typeof data[type] === 'boolean') next[type] = data[type]
+          if (typeof prefs[type] === 'boolean') next[type] = prefs[type]
         }
-        // One-time push: a legacy per-device `milestoneAlerts=false` must win
-        // over the server default on the first successful sync. Only the key
-        // present in the stored blob counts (not the in-memory default), and
-        // the flag is set only when the PUT succeeds so a failure retries on
-        // the next sync.
+        // One-time push: a legacy per-device `milestoneAlerts` seeds the
+        // server `milestone` type only when the server holds no explicit
+        // override for it. An explicit server row always wins (it may come
+        // from another device), so the legacy value must not overwrite it.
+        // The local flag is set after a successful PUT *or* after skipping
+        // for an explicit override — in both cases this device must never
+        // migrate again. A failed PUT leaves the flag unset to retry next
+        // sync. Only the key present in the stored blob counts (not the
+        // in-memory default).
+        const markMigrated = () => {
+          try {
+            const rawCurrent = localStorage.getItem(PREFS_KEY)
+            const stored = rawCurrent ? (JSON.parse(rawCurrent) as Record<string, unknown>) : {}
+            localStorage.setItem(
+              PREFS_KEY,
+              JSON.stringify({ ...stored, milestoneMigrated: true }),
+            )
+          } catch {
+            // Flag write is best-effort; a miss simply retries next sync.
+          }
+        }
         try {
           const rawLegacy = localStorage.getItem(PREFS_KEY)
           if (rawLegacy) {
@@ -130,35 +148,30 @@ function useServerNotifPrefs(active: boolean): {
               parsed.milestoneMigrated !== true &&
               typeof parsed.milestoneAlerts === 'boolean'
             ) {
-              try {
-                const saved = await putNotificationPref(
-                  'milestone',
-                  parsed.milestoneAlerts,
-                )
-                if (!alive) return
-                next.milestone = !!saved.enabled
-              } catch {
-                // PUT failed: keep the server values on screen, leave the
-                // flag unset so the next sync retries.
-                if (!alive) return
-                setPrefs(next)
-                setLoaded(true)
+              if (explicit.includes('milestone')) {
+                markMigrated()
+              } else {
                 try {
-                  localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+                  const saved = await putNotificationPref(
+                    'milestone',
+                    parsed.milestoneAlerts,
+                  )
+                  if (!alive) return
+                  next.milestone = !!saved.enabled
                 } catch {
-                  // Cache is best-effort; the server already holds the truth.
+                  // PUT failed: keep the server values on screen, leave the
+                  // flag unset so the next sync retries.
+                  if (!alive) return
+                  setPrefs(next)
+                  setLoaded(true)
+                  try {
+                    localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+                  } catch {
+                    // Cache is best-effort; the server already holds the truth.
+                  }
+                  return
                 }
-                return
-              }
-              try {
-                const rawCurrent = localStorage.getItem(PREFS_KEY)
-                const stored = rawCurrent ? (JSON.parse(rawCurrent) as Record<string, unknown>) : {}
-                localStorage.setItem(
-                  PREFS_KEY,
-                  JSON.stringify({ ...stored, milestoneMigrated: true }),
-                )
-              } catch {
-                // Flag write is best-effort; a miss simply retries next sync.
+                markMigrated()
               }
             }
           }
