@@ -145,6 +145,13 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // intentional pause (e.g. a later canplay after seeking).
   const hasPlayedRef = useRef(false)
   const userPausedRef = useRef(false)
+  // Same-URL decode retry only: the next armed load generation must restart
+  // the element for real (React would not reload an unchanged src).
+  const needsRestartRef = useRef(false)
+  // True only while the element is muted by OUR autoplay fallback below —
+  // cleared the moment sound returns by any path, so a later user gesture
+  // can restore sound-by-default without ever fighting an intentional mute.
+  const [autoMuted, setAutoMuted] = useState(false)
 
   const applyStatus = useCallback((data: MediaStatus) => {
     setStatusUnknown(false)
@@ -205,6 +212,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setDecodeError(false)
     setPosterSrc(null)
     setStatusUnknown(false)
+    setAutoMuted(false)
 
     const seed = videoUuid ? cachedPreview(videoUuid) : null
     if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
@@ -296,19 +304,27 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // rVFC path. A single one-shot frame callback must never be the only
   // reveal signal: autoplay blocks, background tabs and browser quirks can
   // all leave a registered callback unfired while the element already holds
-  // decodable data — or is outright playing behind the cover. Every armed
-  // generation restarts the element for real (video.load()), and every
-  // signal is scoped to the load identity: a source change or unmount
-  // cancels the pending registration and detaches the listeners, so a late
-  // callback or event can never reveal another generation's cover. A paused
-  // element that already holds decodable data has presented that frame
-  // (e.g. blocked autoplay), so the readiness check backstops the callback
-  // path on every media event, not just at arm time.
+  // decodable data — or is outright playing behind the cover. Reveal signals
+  // are scoped to the load identity: a source change or unmount cancels the
+  // pending registration and detaches the listeners, so a late callback or
+  // event can never reveal another generation's cover. A paused element that
+  // already holds decodable data has presented that frame (e.g. blocked
+  // autoplay), so the readiness check backstops the callback path on every
+  // media event, not just at arm time.
+  //
+  // Deliberately no video.load() here: setting the src attribute already
+  // starts resource selection, and an explicit restart would abort the
+  // in-flight native load (and its autoplay) on every open, delaying the
+  // first frame. Only a deliberate same-URL decode retry restarts the
+  // element (needsRestartRef); source switches reload implicitly via src.
   useLayoutEffect(() => {
     if (!gateKey) return
     const video = videoRef.current
     if (!video) return
-    video.load()
+    if (needsRestartRef.current) {
+      needsRestartRef.current = false
+      video.load()
+    }
     let cancelled = false
     let raf = 0
     let handle: number | undefined
@@ -407,7 +423,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // alone never starts playback — and the previous fire-and-forget play()
   // left the clip paused when sound was blocked. Try with sound first to
   // preserve sound-by-default, then fall back to muted autoplay so the clip
-  // still starts; the viewer can unmute from ImmersiveControls.
+  // still starts. A muted fallback arms sound restoration on the next user
+  // gesture (see below), so scrolled-to clips don't stay muted forever.
   const attemptImmersiveAutoplay = (video: HTMLVideoElement) => {
     try {
       const attempt = video.play()
@@ -425,6 +442,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           } catch {
             /* ignore */
           }
+          // Flagged for gesture restoration: the first tap/keypress with the
+          // fallback still in force brings sound back automatically.
+          setAutoMuted(true)
           try {
             const retry = video.play()
             if (retry && typeof retry.catch === 'function') retry.catch(() => {})
@@ -437,6 +457,45 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       /* play() threw synchronously — leave the native affordance */
     }
   }
+
+  // Sound-by-default restoration: browsers that blocked the unmuted start
+  // leave the clip muted, and nothing would ever unmute it again — every
+  // scrolled-to dive would stay silent until the viewer finds the mute
+  // button. The first user gesture (tap, click, keypress) with OUR fallback
+  // still in force restores sound (and resumes if stalled). A manual unmute
+  // via the transport clears the flag through volumechange, so this never
+  // fights an intentional mute; it only undoes what the fallback imposed.
+  useEffect(() => {
+    if (!immersive || !autoMuted) return
+    const video = videoRef.current
+    if (!video) return
+    const restore = () => {
+      const current = videoRef.current
+      if (current && current.muted) {
+        current.muted = false
+        if (current.paused && !current.ended) {
+          try {
+            const attempt = current.play()
+            if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {})
+          } catch {
+            /* leave the native affordance */
+          }
+        }
+      }
+      setAutoMuted(false)
+    }
+    const onVolume = () => {
+      if (!videoRef.current?.muted) setAutoMuted(false)
+    }
+    document.addEventListener('pointerdown', restore, true)
+    document.addEventListener('keydown', restore, true)
+    video.addEventListener('volumechange', onVolume)
+    return () => {
+      document.removeEventListener('pointerdown', restore, true)
+      document.removeEventListener('keydown', restore, true)
+      video.removeEventListener('volumechange', onVolume)
+    }
+  }, [immersive, autoMuted, videoUuid, retryEpoch])
 
   const handleLoadedMetadata = () => {
     const video = videoRef.current
@@ -483,8 +542,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // job; preparation authority stays with the backend status.
   const retryPlayback = () => {
     setDecodeError(false)
-    // The decodeError flip reopens a fresh load generation: the element is
-    // reset by load() and the cover holds until the source re-presents.
+    // The decodeError flip reopens a fresh load generation. The src is
+    // unchanged so nothing would reload on its own: flag a real element
+    // restart, and the cover holds until the source re-presents.
+    needsRestartRef.current = true
     retryStatusCheck()
   }
 
