@@ -42,7 +42,9 @@ export function ActivityRow({ item, condensed = false }: { item: ActivityItem; c
   const { t } = useTranslation()
   const language = appLanguage()
   const Icon = activityIcon(item)
-  const clipHref = `/dives?clip=${item.dive.id}`
+  // scope=all: the library defaults admins to their own bindings, which would
+  // silently discard clips the interaction points at.
+  const clipHref = `/dives?clip=${item.dive.id}&scope=all`
   const actorNode = item.actor.user_id
     ? <MemberLink userId={item.actor.user_id} className="font-semibold text-app-accent hover:underline">{item.actor.display_name}</MemberLink>
     : <span className="font-semibold text-app-text">{item.actor.display_name}</span>

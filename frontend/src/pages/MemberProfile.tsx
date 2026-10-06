@@ -27,7 +27,9 @@ function ActorPhrase({ item }: { item: ActivityItem }) {
 
 function ClipLink({ item }: { item: ActivityItem }) {
   return (
-    <Link to={`/dives?clip=${item.dive.id}`} className="text-app-muted underline underline-offset-2 hover:text-app-accent">
+    // scope=all: the library defaults admins to their own bindings, which
+    // would silently discard clips the interaction points at.
+    <Link to={`/dives?clip=${item.dive.id}&scope=all`} className="text-app-muted underline underline-offset-2 hover:text-app-accent">
       {item.dive.dive_code}{item.dive.height ? ` · ${item.dive.height}` : ''}
       {item.dive.diver_name ? ` · ${item.dive.diver_name}` : ''}
     </Link>

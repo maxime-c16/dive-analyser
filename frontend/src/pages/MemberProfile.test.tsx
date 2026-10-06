@@ -91,7 +91,7 @@ describe("Account activity section", () => {
     const guestName = screen.getByText("Nemo");
     expect(guestName.closest("a")).toBeNull();
     const clipLinks = screen.getAllByRole("link", { name: /103B/ });
-    expect(clipLinks[0]).toHaveAttribute("href", "/dives?clip=5");
+    expect(clipLinks[0]).toHaveAttribute("href", "/dives?clip=5&scope=all");
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/users/me/activity"), { credentials: "same-origin" });
   });
 
@@ -141,7 +141,7 @@ describe("MemberProfile", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Bob Marlin" })).toBeInTheDocument());
     expect(screen.getByText(/Diver:/)).toBeInTheDocument();
     expect(await screen.findByText("Great entry!")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /103B/ })[0]).toHaveAttribute("href", "/dives?clip=5");
+    expect(screen.getAllByRole("link", { name: /103B/ })[0]).toHaveAttribute("href", "/dives?clip=5&scope=all");
   });
 
   it("shows the not-found state for an unknown member", async () => {
