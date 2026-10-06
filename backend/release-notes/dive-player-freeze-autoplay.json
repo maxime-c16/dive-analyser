@@ -1,0 +1,8 @@
+{
+  "id": "dive-player-freeze-autoplay",
+  "date": "2026-10-07",
+  "title": "Dive clips start playing right away again, no frozen frame",
+  "body": "Opening a dive or swiping to the next one no longer gets stuck on a frozen preview while the clip plays behind it. Playback starts immediately with sound as before, and the play controls stay visible from the first frame.",
+  "audience": "all",
+  "components": ["frontend"]
+}
