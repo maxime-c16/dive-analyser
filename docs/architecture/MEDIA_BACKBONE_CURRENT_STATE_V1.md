@@ -148,7 +148,8 @@ Canonical base HEAD: `4b192dc0a90cc2ffb0ec85f334bb8ffc329a93e2` (branch `uiux-ov
   kept (`:222-223`).
 - Media binaries: chunked multipart upload verified by size + `sha256_file` (media.py:961-981);
   temp `media_cache_root/tmp/job-{id}-{key}.partial`; final sharded path
-  `{root}/{rendition}/{key[:2]}/{key[2:4]}/{key}{ext}` (media_cache.py:95-102, chmod 0640);
+  `{root}/{rendition}/{key[:2]}/{key[2:4]}/{key}{ext}` (media_cache.py:95-102, chmod 0644
+  so the nginx front doors can byte-serve via X-Accel-Redirect);
   promote is a no-op for duplicates (`media_cache.py:150-153`).
 
 ### Serving / auth

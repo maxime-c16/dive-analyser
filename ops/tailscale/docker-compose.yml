@@ -6,6 +6,10 @@ services:
       - "127.0.0.1:6091:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Byte-serving of media-cache files via backend X-Accel-Redirect
+      # (location /internal-media-cache/ in nginx.conf). Relative to this
+      # compose file in ops/tailscale/ -> <repo>/media/cache.
+      - ../../media/cache:/app/media-cache:ro
     networks:
       - diving
 
