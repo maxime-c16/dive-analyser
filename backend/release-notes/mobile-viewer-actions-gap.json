@@ -1,0 +1,8 @@
+{
+  "id": "mobile-viewer-actions-gap",
+  "date": "2026-10-06",
+  "title": "Cleaner mobile dive viewer",
+  "body": "The like, comment, share and analysis buttons now sit at the right edge of the screen like on Instagram reels, and the stray cyan highlight box no longer appears around the dive details after tapping them.",
+  "audience": "all",
+  "components": ["frontend"]
+}
