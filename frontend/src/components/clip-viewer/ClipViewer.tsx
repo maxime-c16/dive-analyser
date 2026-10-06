@@ -208,6 +208,54 @@ export default function ClipViewer({
     if (!el) return;
     el.style.transform = y === null ? "" : `translateY(${y}px)`;
   };
+  // Running WAAPI frame animations. Clearing an inline transform does NOT
+  // stop them (they composite independently), so every reset path must
+  // cancel them explicitly — otherwise a retained frame keeps sliding over
+  // the newly selected dive.
+  const frameAnimsRef = useRef<Animation[]>([]);
+  const trackFrameAnimation = (anim: unknown) => {
+    if (
+      !anim ||
+      typeof (anim as Animation).cancel !== "function"
+    )
+      return;
+    const animation = anim as Animation;
+    frameAnimsRef.current.push(animation);
+    const drop = () => {
+      frameAnimsRef.current = frameAnimsRef.current.filter(
+        (item) => item !== animation,
+      );
+    };
+    try {
+      animation.finished?.then(drop, drop);
+    } catch {
+      // Engines without `finished`: the list drains on the next cancel.
+    }
+  };
+  const cancelFrameAnimations = () => {
+    const running = frameAnimsRef.current;
+    frameAnimsRef.current = [];
+    running.forEach((animation) => {
+      try {
+        animation.cancel();
+      } catch {
+        // Already finished between tracking and cancel.
+      }
+    });
+  };
+  const animateFrame = (
+    el: HTMLDivElement | null,
+    keyframes: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) => {
+    if (!el || typeof el.animate !== "function") return false;
+    try {
+      trackFrameAnimation(el.animate(keyframes, options));
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const measureStage = () =>
     viewportRef.current?.clientHeight || window.innerHeight || 0;
   const clearCommitTimer = () => {
@@ -289,25 +337,27 @@ export default function ClipViewer({
       return;
     }
     animatingRef.current = true;
-    try {
-      current.animate(
-        [{ transform: `translateY(${fromDy}px)` }, { transform: "translateY(0)" }],
-        { duration: FEED_SPRING_DURATION_MS, easing: "ease-out" },
-      );
-      frame?.animate(
+    cancelFrameAnimations();
+    animateFrame(
+      current,
+      [{ transform: `translateY(${fromDy}px)` }, { transform: "translateY(0)" }],
+      { duration: FEED_SPRING_DURATION_MS, easing: "ease-out" },
+    );
+    if (frame) {
+      animateFrame(
+        frame,
         [
           { transform: `translateY(${direction * height + fromDy}px)` },
           { transform: `translateY(${direction * height}px)` },
         ],
         { duration: FEED_SPRING_DURATION_MS, easing: "ease-out" },
       );
-    } catch {
-      // WAAPI is progressive enhancement; the timer below still restores rest.
     }
     clearCommitTimer();
     commitTimer.current = setTimeout(() => {
       commitTimer.current = null;
       animatingRef.current = false;
+      cancelFrameAnimations();
       setFrameTransform(currentRef.current, null);
       setFrameTransform(prevFrameRef.current, null);
       setFrameTransform(nextFrameRef.current, null);
@@ -336,18 +386,21 @@ export default function ClipViewer({
     pendingCommitRef.current = { targetId: target.id, direction, fromId };
     viewportRef.current?.classList.remove("is-dragging");
     dragHeightRef.current = null;
-    try {
-      current.animate(
-        [
-          { transform: `translateY(${fromDy}px)` },
-          { transform: `translateY(${-direction * height}px)` },
-        ],
-        {
-          duration: FEED_PUSH_DURATION_MS,
-          easing: "cubic-bezier(0.32, 0.72, 0, 1)",
-        },
-      );
-      frame?.animate(
+    cancelFrameAnimations();
+    animateFrame(
+      current,
+      [
+        { transform: `translateY(${fromDy}px)` },
+        { transform: `translateY(${-direction * height}px)` },
+      ],
+      {
+        duration: FEED_PUSH_DURATION_MS,
+        easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
+    );
+    if (frame) {
+      animateFrame(
+        frame,
         [
           { transform: `translateY(${direction * height + fromDy}px)` },
           { transform: "translateY(0)" },
@@ -357,13 +410,12 @@ export default function ClipViewer({
           easing: "cubic-bezier(0.32, 0.72, 0, 1)",
         },
       );
-    } catch {
-      // Fall through: the timer still swaps the selection on time.
     }
     clearCommitTimer();
     commitTimer.current = setTimeout(() => {
       commitTimer.current = null;
       animatingRef.current = false;
+      cancelFrameAnimations();
       const pending = pendingCommitRef.current;
       pendingCommitRef.current = null;
       setFrameTransform(currentRef.current, null);
@@ -486,6 +538,7 @@ export default function ClipViewer({
     displayedIdRef.current = attempt.id;
     clearCommitTimer();
     pendingCommitRef.current = null;
+    cancelFrameAnimations();
     animatingRef.current = false;
     dragHeightRef.current = null;
     viewportRef.current?.classList.remove("is-dragging");
@@ -494,7 +547,14 @@ export default function ClipViewer({
     setFrameTransform(nextFrameRef.current, null);
   }, [attempt.id]);
 
-  useEffect(() => () => clearCommitTimer(), []);
+  useEffect(
+    () => () => {
+      clearCommitTimer();
+      pendingCommitRef.current = null;
+      cancelFrameAnimations();
+    },
+    [],
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

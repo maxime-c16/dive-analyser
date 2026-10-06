@@ -558,6 +558,28 @@ it('a pending commit is dropped when the list changes underneath it', () => {
   }
 })
 
+it('an external selection mid-snap cancels running animations', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  const cancelSpy = vi.fn()
+  env.animateMock.mockReturnValue({ cancel: cancelSpy })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    const view = renderAt(1, { onMove })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(env.animateMock).toHaveBeenCalled()
+    // Browser Back lands mid-snap on a different dive: the in-flight slide
+    // must stop instead of gliding over the newly selected dive.
+    rerenderAt(view, 0, { onMove })
+    expect(cancelSpy).toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(FEED_PUSH_DURATION_MS + 50))
+    expect(onMove).not.toHaveBeenCalled()
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
 it('Next takes the same push on mobile, minus the finger', () => {
   const env = stubPagerEnvironment({ mobile: true, reduce: false })
   vi.useFakeTimers()
