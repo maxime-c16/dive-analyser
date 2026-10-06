@@ -38,7 +38,7 @@ LIST_COLUMN_NAMES = (
 LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
 
 
-def _public_dive(dive: Dive, db: Session) -> dict:
+def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None) -> dict:
     """Serialize a dive with formula DD as the live display source of truth.
 
     ``dives.official_dd`` is retained as a migration/audit column and can be
@@ -48,11 +48,28 @@ def _public_dive(dive: Dive, db: Session) -> dict:
     Serialization is whitelisted to LIST_COLUMN_NAMES (the columns any UI
     flow reads); internal audit columns (phase_insight, video_path, DD
     migration/verification bookkeeping, emotion capture) are held back.
+
+    ``federate_enabled`` comes from the separate ``dive_fediverse_optins``
+    table (row presence = opt-in), never from the dives row, so list/detail
+    serialization keeps working before ``add_fediverse_optin.sql`` is
+    applied (missing tables read as OFF). List callers pass a batch map to
+    avoid N+1 queries; single-dive callers fall back to one lookup.
+    The flag is owner-only: community viewers of a public dive always read
+    False, matching the owner-only per-dive fediverse endpoints.
     """
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
     context = db.info.get("member_access")
     payload["can_comment"] = True  # Capability for the next discussion phase.
     payload["can_manage"] = context is None or dive.diver_id in context["diver_ids"] or (context.get("is_admin") and dive.diver_id is None)
+    if payload["can_manage"]:
+        if federate_map is None:
+            from app.services.fediverse import per_dive_enabled
+
+            payload["federate_enabled"] = per_dive_enabled(db, dive.id)
+        else:
+            payload["federate_enabled"] = dive.id in federate_map
+    else:
+        payload["federate_enabled"] = False
     if context and not payload["can_manage"]:
         for key in ("notes", "raw_caption", "video_path", "video_filename", "pre_dive_emotion", "post_dive_emotion", "confidence_rating"):
             payload.pop(key, None)
@@ -122,7 +139,10 @@ def list_dives(
     # Order by date and id descending. Many Photos videos can share the same
     # second-level timestamp, so id gives deterministic newest-first ties.
     dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
-    return [_public_dive(dive, db) for dive in dives]
+    from app.services.fediverse import optin_map
+
+    federate_map = optin_map(db, [dive.id for dive in dives])
+    return [_public_dive(dive, db, federate_map) for dive in dives]
 
 
 @router.post("", status_code=201)

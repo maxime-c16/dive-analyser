@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Globe, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { Bell, Globe, Globe2, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { LANGUAGES, useLang } from '../i18n/I18nProvider'
@@ -104,6 +104,7 @@ const labelCls =
 const sections = [
   { id: 'profile', labelKey: 'account.sections.profile', icon: UserRound },
   { id: 'notifications', labelKey: 'account.notifications', icon: Bell },
+  { id: 'fediverse', labelKey: 'account.fediverse.section', icon: Globe2 },
   { id: 'security', labelKey: 'account.security', icon: KeyRound },
 ] as const
 
@@ -144,6 +145,67 @@ function LanguageSection() {
   )
 }
 
+/**
+ * Global fediverse opt-in (Option 1: manual cross-post only, default OFF).
+ * Server is the source of truth; turning it ON never publishes history —
+ * each public dive still needs its own per-dive opt-in.
+ */
+function useFediverseEnabled(active: boolean): {
+  enabled: boolean
+  loaded: boolean
+  busy: boolean
+  error: string
+  setEnabled: (next: boolean) => Promise<void>
+} {
+  const { t } = useTranslation()
+  const [enabled, setEnabledState] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (!active || loaded) return
+    let alive = true
+    fetch('/api/v1/fediverse/settings', { credentials: 'same-origin' })
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        if (alive) {
+          setEnabledState(!!data.enabled)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setError(t('account.fediverse.errorLoad'))
+          setLoaded(true)
+        }
+      })
+    return () => {
+      alive = false
+    }
+  }, [active, loaded])
+  const setEnabled = async (next: boolean) => {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await fetch('/api/v1/fediverse/settings', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setEnabledState(!!data.enabled)
+    } catch {
+      setError(t('account.fediverse.errorSave'))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { enabled, loaded, busy, error, setEnabled }
+}
+
 export default function Account() {
   const { user, signOut } = useAuth()
   const { t } = useTranslation()
@@ -159,6 +221,7 @@ export default function Account() {
 
   const displayName = user?.display_name ?? user?.email ?? ''
   const isDiver = !user?.is_admin
+  const fediverse = useFediverseEnabled(section === 'fediverse')
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -310,6 +373,66 @@ export default function Account() {
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {section === 'fediverse' && (
+            <section aria-label={t('account.fediverse.section')} className="border border-app bg-app-panel p-5">
+              <h2 className="font-semibold text-app-text">{t('account.fediverse.heading')}</h2>
+              <p className="mt-1 text-sm text-app-muted">
+                {t('account.fediverse.description')}
+              </p>
+
+              <div
+                role="note"
+                aria-label={t('account.fediverse.noteAria')}
+                className="mt-3 w-full rounded border border-amber-300/40 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100"
+              >
+                <strong className="font-semibold">{t('account.fediverse.noteStrong')}</strong>{' '}
+                {t('account.fediverse.noteLocal')}{' '}
+                <strong className="font-semibold">{t('account.fediverse.notePublicWord')}</strong>{' '}
+                {t('account.fediverse.noteOptIn')}{' '}
+                <strong className="font-semibold">{t('account.fediverse.noteContentWord')}</strong>:
+                {t('account.fediverse.noteContent')}{' '}
+                {t('account.fediverse.noteAttach')}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-4 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-app-text">{t('account.fediverse.heading')}</div>
+                  <div className="text-xs text-app-muted">
+                    {fediverse.loaded
+                      ? fediverse.enabled
+                        ? t('account.fediverse.statusOn')
+                        : t('account.fediverse.statusOff')
+                      : t('common.loading')}
+                  </div>
+                </div>
+                <Toggle
+                  checked={fediverse.enabled}
+                  onChange={() => void fediverse.setEnabled(!fediverse.enabled)}
+                  label={t('account.fediverse.heading')}
+                />
+              </div>
+              {fediverse.busy && (
+                <p role="status" className="text-xs text-app-muted">
+                  {t('account.fediverse.saving')}
+                </p>
+              )}
+              {fediverse.error && (
+                <p role="alert" className="mt-1 text-sm text-red-400">
+                  {fediverse.error}
+                </p>
+              )}
+
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-app-muted">
+                <li>{t('account.fediverse.step1')}</li>
+                <li>{t('account.fediverse.step2')}</li>
+                <li>{t('account.fediverse.step3')}</li>
+              </ul>
+              <p className="mt-3 text-xs leading-5 text-app-muted">
+                {t('account.fediverse.behaviorNote')}
+              </p>
             </section>
           )}
 
