@@ -36,6 +36,8 @@ type Interpolated = {
   code: string
   height: string
   name: string
+  /** Code followed by its localized name, e.g. `101B (plongeon en avant carpé)`. */
+  codeLabel: string
   attempts: number
   failures: number
   days: number
@@ -43,10 +45,15 @@ type Interpolated = {
 }
 
 function interpolate(milestone: MilestoneLike): Interpolated {
+  const code = milestone.dive_code || ''
+  const name = code ? diveCodeName(code, i18n.language as 'en' | 'fr') : ''
+  // diveCodeName returns the raw code for unrecognized codes: don't repeat it.
+  const named = name && name !== code.trim().toUpperCase() && name !== code
   return {
-    code: milestone.dive_code || '',
+    code,
     height: milestone.height || '',
-    name: milestone.dive_code ? diveCodeName(milestone.dive_code, i18n.language as 'en' | 'fr') : '',
+    name,
+    codeLabel: named ? `${code} (${name.charAt(0).toLocaleLowerCase(i18n.language)}${name.slice(1)})` : code,
     attempts: milestone.attempts_before ?? 0,
     failures: milestone.failures_before ?? 0,
     days: milestone.days_since_last ?? 0,
