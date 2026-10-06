@@ -8,5 +8,8 @@ ALTER TABLE dive_guest_likes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP;
 ALTER TABLE dive_comment_likes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP;
 ALTER TABLE dive_guest_comment_likes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP;
 COMMIT;
--- Rollback (destroys like timestamps only): ALTER TABLE dive_likes, dive_guest_likes,
--- dive_comment_likes, dive_guest_comment_likes DROP COLUMN created_at;
+-- Rollback (destroys like timestamps only):
+--   ALTER TABLE dive_likes DROP COLUMN created_at;
+--   ALTER TABLE dive_guest_likes DROP COLUMN created_at;
+--   ALTER TABLE dive_comment_likes DROP COLUMN created_at;
+--   ALTER TABLE dive_guest_comment_likes DROP COLUMN created_at;
