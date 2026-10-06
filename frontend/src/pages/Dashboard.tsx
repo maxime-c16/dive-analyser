@@ -644,7 +644,7 @@ function Dashboard() {
                     {format(parseISO(session.date), "MMM d, yyyy", { locale: appLocale() })}
                   </h3>
                   <p className="mt-1 text-xs text-app-muted">
-                    {session.total_dives} dives · {session.total_personal_dives}{" "}
+                    {t("progress.divesCount", { count: session.total_dives })} · {session.total_personal_dives}{" "}
                     {t("dashboard.personal")}
                   </p>
                 </div>

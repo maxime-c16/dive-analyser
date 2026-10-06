@@ -32,7 +32,7 @@ function SharedVideoPlayer({ video, basePath }: { video: SharedVideo; basePath: 
   const [videoError, setVideoError] = useState(false);
   const [videoEpoch, setVideoEpoch] = useState(0);
   return <main className="shared-dive">
-    <header><span className="clip-eyebrow">SHARED DIVE</span><h1>{video.dive_code} · {video.height}</h1></header>
+    <header><span className="clip-eyebrow">{t('sharedDive.eyebrow')}</span><h1>{video.dive_code} · {video.height}</h1></header>
     <div className="shared-dive-layout">
       <section aria-label={t('sharedDive.videoAria')} className="shared-dive-video">
         <video key={videoEpoch} src={video.video_url} controls playsInline preload="metadata" onError={() => setVideoError(true)} />

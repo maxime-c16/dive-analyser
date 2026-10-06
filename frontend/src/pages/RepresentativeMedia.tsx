@@ -18,6 +18,7 @@ import {
 } from '../services/representativeMediaApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
 import { useAuth } from '../contexts/AuthContext'
+import { mediaStatusLabel } from '../utils/mediaStatus'
 
 const ROLE_ORDER: RepresentativeRole[] = ['low', 'median', 'high']
 const VIABILITY_KEYS = new Set([
@@ -80,8 +81,8 @@ function RepresentativeCardView({
           <div className="mt-1 text-app-muted">{rep.attempt.diver?.display_name || t('analysis.unassigned')} · {rep.attempt.modifiers.join(', ') || t('analysis.noModifiers')}</div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{rep.media.renditions.poster.status}</div></div>
-          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{rep.media.renditions.proxy_360p.status}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(rep.media.renditions.poster.status)}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(rep.media.renditions.proxy_360p.status)}</div></div>
         </div>
         {failure && (
           <details className="border border-app p-3">
