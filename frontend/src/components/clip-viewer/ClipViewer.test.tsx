@@ -380,12 +380,33 @@ function stubPagerEnvironment({ mobile, reduce }: { mobile: boolean; reduce: boo
 function renderAt(
   index: number,
   handlers: { onClose?: () => void; onMove?: (a: Attempt) => void } = {},
+  list: Attempt[] = attempts,
 ) {
   return render(
     <MemoryRouter>
       <ClipViewer
-        attempt={attempts[index]}
-        attempts={attempts}
+        attempt={list[index]}
+        attempts={list}
+        onClose={handlers.onClose ?? (() => {})}
+        onMove={handlers.onMove ?? (() => {})}
+        playbackRate={1}
+        onPlaybackRateChange={() => {}}
+      />
+    </MemoryRouter>,
+  )
+}
+
+function rerenderAt(
+  view: ReturnType<typeof render>,
+  index: number,
+  handlers: { onClose?: () => void; onMove?: (a: Attempt) => void } = {},
+  list: Attempt[] = attempts,
+) {
+  view.rerender(
+    <MemoryRouter>
+      <ClipViewer
+        attempt={list[index]}
+        attempts={list}
         onClose={handlers.onClose ?? (() => {})}
         onMove={handlers.onMove ?? (() => {})}
         playbackRate={1}
@@ -502,9 +523,35 @@ it('dragging past the first dive rubber-bands and never commits', () => {
     dragMoveOnly(surface, 200)
     expect(stage.style.transform).toBe('translateY(70px)')
     fireEvent.pointerUp(surface, { clientX: 100, clientY: 600 })
+    // Spring-back starts from the rendered (rubber-banded) position, so
+    // release never jumps back out to the raw finger travel.
+    const springFrames = JSON.stringify(
+      (env.animateMock.mock.calls[0] as unknown as [Keyframe[]])[0],
+    )
+    expect(springFrames).toContain('translateY(70px)')
+    expect(springFrames).not.toContain('translateY(200px)')
     act(() => vi.advanceTimersByTime(FEED_SPRING_DURATION_MS + 50))
     expect(onMove).not.toHaveBeenCalled()
     expect(stage.style.transform).toBe('')
+  } finally {
+    vi.useRealTimers()
+    env.restore()
+  }
+})
+
+it('a pending commit is dropped when the list changes underneath it', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    const view = renderAt(1, { onMove })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    // A filter lands mid-snap: same selected dive, but the neighbor that the
+    // commit captured (id 3) is no longer adjacent.
+    const relisted = [attempts[0], attempts[1], attempt(99), attempts[3], attempts[4]]
+    rerenderAt(view, 1, { onMove }, relisted)
+    act(() => vi.advanceTimersByTime(FEED_PUSH_DURATION_MS + 50))
+    expect(onMove).not.toHaveBeenCalled()
   } finally {
     vi.useRealTimers()
     env.restore()

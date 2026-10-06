@@ -218,6 +218,23 @@ export default function ClipViewer({
   };
   const neighborFrame = (direction: -1 | 1) =>
     direction === 1 ? nextFrameRef.current : prevFrameRef.current;
+  const neighborAttempt = (direction: -1 | 1) =>
+    direction === 1 ? nextAttempt : prevAttempt;
+  /** What the finger actually rendered: full travel, or rubber-banded past
+   * a result-set edge where there is nothing to reveal. */
+  const renderedDisplacement = (dy: number) => {
+    const direction: -1 | 1 = dy < 0 ? 1 : -1;
+    return neighborAttempt(direction) ? dy : dy * 0.35;
+  };
+  // Latest list for revalidating a pending commit: filters/refreshes may
+  // replace `attempts` while keeping the selected dive.
+  const attemptsRef = useRef(attempts);
+  attemptsRef.current = attempts;
+  const pendingCommitRef = useRef<{
+    targetId: number;
+    direction: -1 | 1;
+    fromId: number;
+  } | null>(null);
 
   /** Finger-following: translate the live frame and the incoming neighbor
    * 1:1 with the pointer. Direct DOM writes only — no React renders, so the
@@ -230,9 +247,8 @@ export default function ClipViewer({
     }
     const height = dragHeightRef.current || 0;
     const direction: -1 | 1 = dy < 0 ? 1 : -1;
-    const neighbor = direction === 1 ? nextAttempt : prevAttempt;
-    // Past the result-set edge there is nothing to reveal: rubber-band.
-    const effective = neighbor ? dy : dy * 0.35;
+    const neighbor = neighborAttempt(direction);
+    const effective = renderedDisplacement(dy);
     setFrameTransform(currentRef.current, effective);
     if (neighbor && height > 0) {
       setFrameTransform(
@@ -252,11 +268,14 @@ export default function ClipViewer({
     if (animatingRef.current) return;
     const { dy, velocity, cancelled } = result;
     const direction: -1 | 1 = dy < 0 ? 1 : -1;
-    const neighbor = direction === 1 ? nextAttempt : prevAttempt;
+    const neighbor = neighborAttempt(direction);
+    // Animate from the rendered position (rubber-banded at an edge), while
+    // the commit decision stays on raw finger travel.
+    const rendered = renderedDisplacement(dy);
     if (!cancelled && neighbor && shouldCommitDrag(dy, height, velocity)) {
-      commitPush(direction, dy);
+      commitPush(direction, rendered);
     } else {
-      springBack(direction, dy);
+      springBack(direction, rendered);
     }
   };
 
@@ -297,7 +316,7 @@ export default function ClipViewer({
 
   /** Snap through to the neighbor, then swap the selection once it lands. */
   const commitPush = (direction: -1 | 1, fromDy: number) => {
-    const target = direction === 1 ? nextAttempt : prevAttempt;
+    const target = neighborAttempt(direction);
     if (!target) return;
     const fromId = attempt.id;
     const current = currentRef.current;
@@ -314,6 +333,7 @@ export default function ClipViewer({
       return;
     }
     animatingRef.current = true;
+    pendingCommitRef.current = { targetId: target.id, direction, fromId };
     viewportRef.current?.classList.remove("is-dragging");
     dragHeightRef.current = null;
     try {
@@ -344,14 +364,23 @@ export default function ClipViewer({
     commitTimer.current = setTimeout(() => {
       commitTimer.current = null;
       animatingRef.current = false;
+      const pending = pendingCommitRef.current;
+      pendingCommitRef.current = null;
       setFrameTransform(currentRef.current, null);
       setFrameTransform(prevFrameRef.current, null);
       setFrameTransform(nextFrameRef.current, null);
       // An external selection change (Back button, filter) wins over a
       // still-pending commit: never clobber it with a stale target.
-      if (displayedIdRef.current !== fromId) return;
-      displayedIdRef.current = target.id;
-      onMove(target);
+      if (!pending || displayedIdRef.current !== pending.fromId) return;
+      // The list itself may have changed under the commit (filter, refresh,
+      // removal): only land on the neighbor if it is still the neighbor.
+      const live = attemptsRef.current;
+      const liveIndex = live.findIndex((item) => item.id === pending.fromId);
+      const liveTarget =
+        liveIndex >= 0 ? live[liveIndex + pending.direction] : undefined;
+      if (!liveTarget || liveTarget.id !== pending.targetId) return;
+      displayedIdRef.current = liveTarget.id;
+      onMove(liveTarget);
     }, FEED_PUSH_DURATION_MS);
   };
 
@@ -456,6 +485,7 @@ export default function ClipViewer({
     if (attempt.id === displayedIdRef.current) return;
     displayedIdRef.current = attempt.id;
     clearCommitTimer();
+    pendingCommitRef.current = null;
     animatingRef.current = false;
     dragHeightRef.current = null;
     viewportRef.current?.classList.remove("is-dragging");
