@@ -73,7 +73,7 @@ function NotificationRow({
 
 export default function Notifications() {
   const { t } = useTranslation()
-  const { items, unreadCount, loading, error, refresh, markRead, markAllRead } = useNotifications()
+  const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead } = useNotifications()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [busyAll, setBusyAll] = useState(false)
@@ -102,7 +102,12 @@ export default function Notifications() {
     return () => {
       alive = false
     }
-  }, [unreadOnly])
+    // refreshTick replays the unread_only fetch whenever the provider poll
+    // (60s, focus, visibility) succeeds, so arrivals visible in the badge
+    // also appear in the filtered list. Same query as the filter, so no
+    // dedup needed: the provider holds the 50 newest, this holds the 50
+    // newest unread.
+  }, [unreadOnly, refreshTick])
 
   const visible = unreadOnly
     ? (serverUnread ?? items).filter(item => !item.read_at)

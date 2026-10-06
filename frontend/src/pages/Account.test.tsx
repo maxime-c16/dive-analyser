@@ -6,16 +6,20 @@ import Account, { initials } from "./Account";
 
 const signOut = vi.fn();
 
+const mockAuthUser = vi.hoisted(() => ({
+  current: {
+    user_id: 7,
+    email: "alex.moreau@example.com",
+    display_name: "Alex Moreau",
+    role: "friend",
+    is_admin: false,
+    divers: [] as unknown[],
+  },
+}));
+
 vi.mock("../contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: {
-      user_id: 7,
-      email: "alex.moreau@example.com",
-      display_name: "Alex Moreau",
-      role: "friend",
-      is_admin: false,
-      divers: [],
-    },
+    user: mockAuthUser.current,
     checking: false,
     refresh: vi.fn(),
     signOut,
@@ -38,6 +42,14 @@ function renderAccount(initial = "/account") {
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
+  mockAuthUser.current = {
+    user_id: 7,
+    email: "alex.moreau@example.com",
+    display_name: "Alex Moreau",
+    role: "friend",
+    is_admin: false,
+    divers: [] as unknown[],
+  };
   // fetch is undefined in jsdom unless stubbed per-test
 });
 
@@ -306,6 +318,25 @@ describe("Account (final V2)", () => {
     expect(JSON.parse(localStorage.getItem("dive-analyser.prefs.v1") ?? "{}")).toMatchObject({
       milestoneMigrated: true,
     });
+  });
+
+  it("does not show user A's cached prefs to user B when the API is down", async () => {
+    // User A (id 7) cached a distinctive value; the stale pre-scoping
+    // global key must also be ignored — it may hold another account's data.
+    localStorage.setItem("dive-analyser.notif-prefs.server.v1:7", JSON.stringify({ new_video: false }));
+    localStorage.setItem("dive-analyser.notif-prefs.server.v1", JSON.stringify({ new_video: false }));
+    mockAuthUser.current = {
+      ...mockAuthUser.current,
+      user_id: 9,
+      email: "bob@example.com",
+      display_name: "Bob",
+    };
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    // Server default for new_video is true; user A's cached false must not leak.
+    const newVideo = await screen.findByRole("switch", { name: "New video alerts" });
+    expect(newVideo).toHaveAttribute("aria-checked", "true");
   });
 
   it("warns that opt-in never publishes history and toggles the global switch", async () => {

@@ -24,6 +24,8 @@ type NotificationsContextValue = {
   unreadCount: number
   loading: boolean
   error: NotificationsError
+  /** Bumps on every successful provider load (initial, 60s poll, focus). */
+  refreshTick: number
   refresh: () => void
   markRead: (id: number) => Promise<void>
   markAllRead: () => Promise<void>
@@ -34,6 +36,7 @@ const NotificationsContext = createContext<NotificationsContextValue>({
   unreadCount: 0,
   loading: false,
   error: null,
+  refreshTick: 0,
   refresh: () => {},
   markRead: async () => {},
   markAllRead: async () => {},
@@ -72,6 +75,7 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<NotificationsError>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
   const stateRef = useRef({ items, unreadCount })
   stateRef.current = { items, unreadCount }
 
@@ -85,6 +89,7 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
       setItems(data.items)
       setUnreadCount(data.unread_count)
       setError(null)
+      setRefreshTick(tick => tick + 1)
     } catch {
       // The badge stays quiet on failure: last known count remains, the
       // /notifications page surfaces the error with a retry.
@@ -158,6 +163,7 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
     unreadCount,
     loading,
     error,
+    refreshTick,
     refresh,
     markRead,
     markAllRead,

@@ -160,6 +160,24 @@ describe('Notifications page', () => {
     })
   })
 
+  it('refetches unread_only when the provider poll refreshes', async () => {
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(1\)/ }))
+    const unreadCalls = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([input]) =>
+          (typeof input === 'string' ? input : input.toString()).includes('unread_only=true'),
+        ).length
+    await waitFor(() => expect(unreadCalls()).toBeGreaterThanOrEqual(1))
+    const before = unreadCalls()
+    // Same path as the 60s poll: the provider reloads, bumps its tick, and
+    // the filtered page replays its unread_only fetch.
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(unreadCalls()).toBeGreaterThan(before))
+  })
+
   it('marks one notification read', async () => {
     renderPage()
     await screen.findByText('New comment on 103B')

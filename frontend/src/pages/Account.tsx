@@ -71,10 +71,21 @@ export const SERVER_NOTIF_DEFAULTS: Record<ServerNotifType, boolean> = {
 
 const SERVER_PREFS_CACHE_KEY = 'dive-analyser.notif-prefs.server.v1'
 
-function loadServerFallback(): Record<ServerNotifType, boolean> {
+/**
+ * Per-account fallback cache. The key includes the user id so an API
+ * outage after switching accounts never shows the previous account's
+ * settings. The pre-existing global key is intentionally not read: it may
+ * hold another account's values, and the server repopulates the per-user
+ * entry on the next successful sync.
+ */
+function serverPrefsCacheKey(userId: number | string | undefined): string {
+  return userId == null ? SERVER_PREFS_CACHE_KEY : `${SERVER_PREFS_CACHE_KEY}:${String(userId)}`
+}
+
+function loadServerFallback(userId?: number | string): Record<ServerNotifType, boolean> {
   const fallback = { ...SERVER_NOTIF_DEFAULTS }
   try {
-    const raw = localStorage.getItem(SERVER_PREFS_CACHE_KEY)
+    const raw = localStorage.getItem(serverPrefsCacheKey(userId))
     if (raw) return { ...fallback, ...(JSON.parse(raw) as Partial<Record<ServerNotifType, boolean>>) }
     // One-time migration: the old per-device `milestoneAlerts` seeds the
     // server `milestone` type until the server answers.
@@ -95,7 +106,7 @@ function loadServerFallback(): Record<ServerNotifType, boolean> {
  * only covers API outages. Email and weekly digest stay per-device
  * local-only until a later PR ships their delivery.
  */
-function useServerNotifPrefs(active: boolean): {
+function useServerNotifPrefs(active: boolean, userId?: number | string): {
   prefs: Record<ServerNotifType, boolean>
   loaded: boolean
   busy: ServerNotifType | null
@@ -103,10 +114,19 @@ function useServerNotifPrefs(active: boolean): {
   setPref: (type: ServerNotifType, next: boolean) => Promise<void>
 } {
   const { t } = useTranslation()
-  const [prefs, setPrefs] = useState<Record<ServerNotifType, boolean>>(loadServerFallback)
+  const cacheKey = serverPrefsCacheKey(userId)
+  const [prefs, setPrefs] = useState<Record<ServerNotifType, boolean>>(() => loadServerFallback(userId))
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState<ServerNotifType | null>(null)
   const [error, setError] = useState('')
+  // Account switch: drop the previous account's prefs and refetch. Without
+  // this, `loaded` stays true and user B would keep seeing user A's values.
+  useEffect(() => {
+    setPrefs(loadServerFallback(userId))
+    setLoaded(false)
+    // Keyed by the resolved storage key (derived from userId).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey])
   useEffect(() => {
     if (!active || loaded) return
     let alive = true
@@ -165,7 +185,7 @@ function useServerNotifPrefs(active: boolean): {
                   setPrefs(next)
                   setLoaded(true)
                   try {
-                    localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+                    localStorage.setItem(cacheKey, JSON.stringify(next))
                   } catch {
                     // Cache is best-effort; the server already holds the truth.
                   }
@@ -182,7 +202,7 @@ function useServerNotifPrefs(active: boolean): {
         setPrefs(next)
         setLoaded(true)
         try {
-          localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+          localStorage.setItem(cacheKey, JSON.stringify(next))
         } catch {
           // Cache is best-effort; the server already holds the truth.
         }
@@ -195,7 +215,7 @@ function useServerNotifPrefs(active: boolean): {
     return () => {
       alive = false
     }
-  }, [active, loaded, t])
+  }, [active, loaded, cacheKey, t])
   const setPref = async (type: ServerNotifType, next: boolean) => {
     const previous = prefs[type]
     setPrefs(prev => ({ ...prev, [type]: next }))
@@ -206,9 +226,9 @@ function useServerNotifPrefs(active: boolean): {
       const value = !!saved.enabled
       setPrefs(prev => ({ ...prev, [type]: value }))
       try {
-        const raw = localStorage.getItem(SERVER_PREFS_CACHE_KEY)
+        const raw = localStorage.getItem(cacheKey)
         const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
-        localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify({ ...stored, [type]: value }))
+        localStorage.setItem(cacheKey, JSON.stringify({ ...stored, [type]: value }))
       } catch {
         // Cache is best-effort; the server already holds the truth.
       }
@@ -411,7 +431,7 @@ export default function Account() {
   const displayName = user?.display_name ?? user?.email ?? ''
   const isDiver = !user?.is_admin
   const fediverse = useFediverseEnabled(section === 'fediverse')
-  const serverNotifs = useServerNotifPrefs(section === 'notifications')
+  const serverNotifs = useServerNotifPrefs(section === 'notifications', user?.user_id)
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
