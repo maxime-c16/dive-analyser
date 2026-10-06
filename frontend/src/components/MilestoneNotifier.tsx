@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSyncStatus } from '../hooks/useSyncStatus'
-import { milestoneDisplay } from '../i18n/milestones'
+import { milestoneDisplay, type MilestoneLike } from '../i18n/milestones'
 import { Star, Award, Zap, Trophy, X } from 'lucide-react'
 
 interface MilestoneAlert {
@@ -10,12 +10,7 @@ interface MilestoneAlert {
   icon: React.ReactNode
 }
 
-interface MilestoneData {
-  type: string
-  date: string
-  title: string
-  narrative: string
-}
+
 
 /**
  * MilestoneNotifier Component
@@ -31,7 +26,7 @@ export const MilestoneNotifier: React.FC<{ maxVisible?: number }> = ({
 }) => {
   const { t } = useTranslation()
   const { recentMilestones, removeMilestone } = useSyncStatus()
-  const [alerts, setAlerts] = useState<Array<MilestoneAlert & { milestone: MilestoneData }>>([])
+  const [alerts, setAlerts] = useState<Array<MilestoneAlert & { milestone: MilestoneLike }>>([])
 
   // Convert milestones to alerts
   useEffect(() => {
@@ -61,7 +56,7 @@ export const MilestoneNotifier: React.FC<{ maxVisible?: number }> = ({
           id: `milestone-${milestone.date}-${idx}`,
           type: milestone.type,
           icon,
-          milestone: { type: milestone.type, date: milestone.date, title: milestone.title, narrative: milestone.narrative },
+          milestone,
         }
       })
 
