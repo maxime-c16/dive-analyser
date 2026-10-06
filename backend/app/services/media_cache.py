@@ -154,7 +154,12 @@ def finalize_cache_entry(
 
     final_path = cache_final_path(job, content_type)
     move(str(tmp_path), str(final_path))
-    os.chmod(final_path, 0o640)
+    # 0644: the nginx front doors re-serve this file via X-Accel-Redirect
+    # from a separate container whose worker runs as a different uid. A
+    # owner-only mode (0640) made every accelerated poster/proxy unreadable
+    # for nginx and broke the library grid. The cache root is only reachable
+    # by the app containers, so world-read within it stays private.
+    os.chmod(final_path, 0o644)
 
     entry = MediaCacheEntry(
         photos_asset_id=job.photos_asset_id,

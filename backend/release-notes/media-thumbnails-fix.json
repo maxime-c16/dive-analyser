@@ -1,0 +1,8 @@
+{
+  "id": "media-thumbnails-fix",
+  "date": "2026-10-06",
+  "title": "Posters and video playback work again",
+  "body": "Library posters, thumbnails and video playback broke for media served through the public address. The media front doors now receive the files they are meant to stream, and cached posters/proxies are readable again.",
+  "audience": "all",
+  "components": ["backend"]
+}
