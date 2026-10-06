@@ -363,6 +363,7 @@ const en = {
       consistency: 'Consistency',
       novelty: 'Novelty',
     },
+    levels: { high: 'High', medium: 'Medium', low: 'Low', undefined: 'Unavailable' },
     emergingConfidence: 'Emerging · {{count}} prior same-dive attempts',
     unavailable: 'Unavailable',
     levelConfidence: '{{level}} confidence · {{count}} prior attempts',

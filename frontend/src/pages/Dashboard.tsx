@@ -23,6 +23,7 @@ import {
 import { format, parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { appLocale } from "../utils/dateLocale";
+import { signalLabel } from "../utils/personalValue";
 import {
   BarChart3,
   CalendarDays,
@@ -380,7 +381,7 @@ function Dashboard() {
                     _name: string,
                     item: { payload?: (typeof personalValueChartData)[number] },
                   ) => [
-                    `${value} / 100 · ${item.payload?.primary_signal || "Emerging"} · ${item.payload?.dive_code}`,
+                    `${value} / 100 · ${signalLabel(item.payload?.primary_signal, t("pdv.emerging"))} · ${item.payload?.dive_code}`,
                     t("dashboard.personalDiveValue"),
                   ]}
                 />
