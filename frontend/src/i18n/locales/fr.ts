@@ -251,6 +251,7 @@ const fr = {
     transcoding: 'transcodage',
     uploading: 'envoi en cours',
     verifying: 'vérification',
+    photos: { ok: 'ok', permission_required: 'autorisation requise', denied: 'refusé', unknown: 'inconnu' },
     not_cached: 'non mis en cache',
     replacement_available: 'remplacement disponible',
     replacement_exhausted: 'remplacement épuisé',

@@ -18,7 +18,7 @@ import {
 } from '../services/representativeMediaApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
 import { useAuth } from '../contexts/AuthContext'
-import { mediaStatusLabel } from '../utils/mediaStatus'
+import { mediaStatusLabel, photosAccessLabel } from '../utils/mediaStatus'
 
 const ROLE_ORDER: RepresentativeRole[] = ['low', 'median', 'high']
 const VIABILITY_KEYS = new Set([
@@ -275,7 +275,7 @@ export default function RepresentativeMedia() {
           <div className="bg-app-panel p-4">
             <div className="text-xs text-app-muted">{t('repMedia.auditPhotos')}</div>
             <div className={`mt-2 text-sm ${macStatus?.photos_access_status === 'ok' ? 'text-app-accent' : macStatus?.photos_access_status === 'unknown' || !macStatus ? 'text-app-muted' : 'text-amber-300'}`}>
-              {macStatus?.photos_access_status || t('repMedia.photosUnknown')}
+              {macStatus?.photos_access_status ? photosAccessLabel(macStatus.photos_access_status) : t('repMedia.photosUnknown')}
             </div>
           </div>
         </section>

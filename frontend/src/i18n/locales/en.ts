@@ -251,6 +251,7 @@ const en = {
     transcoding: 'transcoding',
     uploading: 'uploading',
     verifying: 'verifying',
+    photos: { ok: 'ok', permission_required: 'permission required', denied: 'denied', unknown: 'unknown' },
     not_cached: 'not cached',
     replacement_available: 'replacement available',
     replacement_exhausted: 'replacement exhausted',

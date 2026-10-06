@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { appLanguage } from '../utils/dateLocale'
+import { photosAccessLabel } from '../utils/mediaStatus'
 import { AlertTriangle, Database, HardDrive, Image, RefreshCw } from 'lucide-react'
 import { getCatalogSummary, getLatestCatalogRun, getMediaAgents, getRecallManifest, planCatalogPopulation, planRecallBatch, recallOne, startCatalog, type CatalogPopulationPlan, type CatalogRun, type CatalogSummary, type MediaAgentStatus, type RecallBatchPlan, type RecallItem } from '../services/mediaRecallApi'
 
@@ -85,7 +86,7 @@ export default function MediaRecall() {
       <section aria-label={t('recall.nodeStatusAria')} className="border border-app bg-app-panel">
         <div className="grid gap-px bg-[var(--app-border)] sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">{t('recall.worker')}</div><div className="mt-1 font-medium text-app-text">{primary?.hostname ?? t('recall.notRegistered')}</div><div className="mt-1 text-xs text-app-muted">{primary?.leasing_enabled ? t('recall.leasingEnabled') : t('recall.leasingDisabled')}</div></div>
-          <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">{t('recall.photosAccess')}</div><div className="mt-1 font-medium text-app-text">{primary?.photos_access_status ?? t('recall.unknown')}</div><div className="mt-1 text-xs text-app-muted">{t('recall.lastQuery', { when: primary?.last_successful_photos_query_at ? formatDate(primary.last_successful_photos_query_at) : t('recall.notRecorded') })}</div></div>
+          <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">{t('recall.photosAccess')}</div><div className="mt-1 font-medium text-app-text">{primary ? photosAccessLabel(primary.photos_access_status) : t('recall.unknown')}</div><div className="mt-1 text-xs text-app-muted">{t('recall.lastQuery', { when: primary?.last_successful_photos_query_at ? formatDate(primary.last_successful_photos_query_at) : t('recall.notRecorded') })}</div></div>
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">{t('recall.managedSources')}</div><div className="mt-1 font-medium text-app-text">{bytes(storage?.managed_sources.total_bytes)} / {bytes(storage?.managed_sources.quota_bytes)}</div><div className="mt-1 text-xs text-app-muted">{t('recall.permanentRecent', { permanent: bytes(storage?.managed_sources.permanent_bytes), recent: bytes(storage?.managed_sources.recent_bytes) })}</div></div>
           <div className="bg-app-panel p-4"><div className="text-sm text-app-muted">{t('recall.internalFree')}</div><div className="mt-1 font-medium text-app-text">{bytes(storage?.internal.free_bytes ?? primary?.internal_free_bytes)}</div><div className="mt-1 text-xs text-app-muted">{t('recall.emergencyStop')}</div></div>
         </div>
@@ -94,7 +95,7 @@ export default function MediaRecall() {
       {(primary?.photos_access_status !== 'ok' || storage?.internal.historical_recall_paused) && (
         <div className="flex gap-3 border border-amber-700/50 bg-amber-950/15 px-4 py-3 text-sm text-amber-100">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{primary?.photos_access_status !== 'ok' ? t('recall.disabledWhilePhotos', { status: primary?.photos_access_status ?? t('recall.unknownLower') }) : t('recall.historicalPaused')}</span>
+          <span>{primary?.photos_access_status !== 'ok' ? t('recall.disabledWhilePhotos', { status: primary ? photosAccessLabel(primary.photos_access_status) : t('recall.unknownLower') }) : t('recall.historicalPaused')}</span>
         </div>
       )}
 
