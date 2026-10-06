@@ -15,8 +15,10 @@ export default function DiveThumbnail({
   const [preview, setPreview] = useState<MediaPreview | null>(() =>
     dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
   );
+  const [imgError, setImgError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    setImgError(false);
     if (!dive.video_uuid) return;
     // If already cached, apply immediately — no network request needed.
     const cached = cachedPreview(dive.video_uuid);
@@ -53,22 +55,37 @@ export default function DiveThumbnail({
       ref={containerRef}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
     >
-      {preview?.posterUrl ? (
+      {preview?.posterUrl && !imgError ? (
         // Poster image from local media cache — instant, lightweight
         <img
           src={preview.posterUrl}
           alt={t('thumbnail.posterFor', { code: dive.dive_code })}
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      ) : preview?.videoThumbUrl || preview?.playbackUrl ? (
+        // Poster missing (or failed to load) but a playable proxy exists —
+        // e.g. the poster job failed while the proxy succeeded. Render the
+        // video frame directly instead of a blank tile. Muted + no autoplay
+        // so the grid stays silent and cheap; preload="metadata" shows the
+        // first frame without downloading the whole clip.
+        <video
+          src={(preview.videoThumbUrl || preview.playbackUrl) as string}
+          className="h-full w-full object-cover"
+          muted
+          playsInline
+          preload="metadata"
+          aria-label={t('thumbnail.posterFor', { code: dive.dive_code })}
         />
       ) : (
         // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
-          {!compact && (
-            <span className="font-mono text-xl font-semibold tracking-tight text-app-muted">
-              {dive.dive_code}
-            </span>
-          )}
+          <span
+            className={`font-mono font-semibold tracking-tight text-app-muted ${compact ? "text-sm" : "text-xl"}`}
+          >
+            {dive.dive_code}
+          </span>
         </div>
       )}
       {dive.video_uuid &&
