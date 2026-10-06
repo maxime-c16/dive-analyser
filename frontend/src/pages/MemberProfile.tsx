@@ -164,6 +164,7 @@ export default function MemberProfile() {
     if (!userId) return
     let alive = true
     setProfile(null)
+    setNotFound(false)
     setError('')
     setItems([])
     setCursor(null)

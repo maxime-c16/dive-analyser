@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, Link } from "react-router-dom";
 import { I18nProvider } from "../i18n/I18nProvider";
 import Account from "./Account";
 import MemberProfile from "./MemberProfile";
@@ -145,8 +145,36 @@ describe("MemberProfile", () => {
   });
 
   it("shows the not-found state for an unknown member", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => fetchJson({ detail: "User not found" }, false, 404));
+    vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (String(input).endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/activity")) return fetchJson(pageOne);
+      return fetchJson({ detail: "User not found" }, false, 404);
+    });
     renderAt("/users/999");
     await waitFor(() => expect(screen.getByText("Member not found")).toBeInTheDocument());
+  });
+
+  it("recovers from a not-found profile when navigating to a valid one", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/activity")) return fetchJson(pageOne);
+      return fetchJson({ detail: "User not found" }, false, 404);
+    });
+    const user = userEvent.setup();
+    render(
+      <I18nProvider>
+        <MemoryRouter initialEntries={["/users/999"]}>
+          <Routes>
+            <Route path="/users/:userId" element={<MemberProfile />} />
+          </Routes>
+          <Link to="/users/9">goto valid profile</Link>
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Member not found")).toBeInTheDocument());
+    await user.click(screen.getByText("goto valid profile"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Bob Marlin" })).toBeInTheDocument());
   });
 });
