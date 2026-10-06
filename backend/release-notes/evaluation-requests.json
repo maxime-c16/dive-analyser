@@ -1,0 +1,8 @@
+{
+  "id": "evaluation-requests",
+  "date": "2026-10-06",
+  "title": "Ask the community to judge a dive",
+  "body": "Owners can now request an evaluation from the dive viewer or while importing: toggle it, optionally add a comment for the jury, and judges watch the dive inside the Evaluations area only. Library visibility never changes, judges receive no download rights, and turning the request off keeps every received score for later. The Evaluations page itself ships with the next two updates.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

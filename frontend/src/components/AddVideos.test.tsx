@@ -42,6 +42,35 @@ describe('browser clip stack', () => {
   })
 })
 
+describe('evaluation request in the import flow', () => {
+  it('sends evaluation_requested false by default and never a prompt', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {} })
+    render(<AddVideos onAdded={vi.fn()} />)
+    select()
+    fireEvent.click(screen.getByText('Save and next'))
+    await screen.findByText('Video 2 / 2')
+    const body = vi.mocked(api.post).mock.calls[0][1] as FormData
+    expect(body.get('evaluation_requested')).toBe('false')
+    expect(body.get('evaluation_prompt')).toBeNull()
+  })
+
+  it('requests an evaluation with its optional prompt without touching other clip fields', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {} })
+    render(<AddVideos onAdded={vi.fn()} />)
+    select()
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'personal note' } })
+    fireEvent.click(screen.getByLabelText('Request community evaluation'))
+    fireEvent.change(screen.getByLabelText('Comment for the jury'), { target: { value: 'Judge the entry' } })
+    fireEvent.click(screen.getByText('Save and next'))
+    await screen.findByText('Video 2 / 2')
+    const body = vi.mocked(api.post).mock.calls[0][1] as FormData
+    expect(body.get('evaluation_requested')).toBe('true')
+    expect(body.get('evaluation_prompt')).toBe('Judge the entry')
+    expect(body.get('notes')).toBe('personal note')
+    expect(body.get('visibility')).toBe('private')
+  })
+})
+
 it('accepts armstand codes in the browser form', async () => {
   vi.mocked(api.post).mockReset().mockResolvedValue({ data: {} })
   render(<AddVideos onAdded={vi.fn()} />)

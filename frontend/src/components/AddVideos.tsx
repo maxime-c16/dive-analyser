@@ -3,6 +3,7 @@ import { api } from '../services/api'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { performanceLabel } from '../utils/attemptPresentation'
+import { EVALUATION_PROMPT_MAX } from '../services/evaluationApi'
 
 function localDate(date: Date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
@@ -18,7 +19,7 @@ function newUploadId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-type Clip = { file: File; id: string; date: string; code: string; height: string; rating: string; notes: string; public: boolean }
+type Clip = { file: File; id: string; date: string; code: string; height: string; rating: string; notes: string; public: boolean; evaluation: boolean; evaluationPrompt: string }
 
 export default function AddVideos({ onAdded }: { onAdded: () => void }) {
   const { t } = useTranslation()
@@ -60,7 +61,8 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
     setBusy(true); setError(''); setProgress(0)
     const body = new FormData()
     body.append('file', clip.file)
-    Object.entries({ dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: diver, upload_id: clip.id }).forEach(([key, value]) => body.append(key, value))
+    Object.entries({ dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: diver, upload_id: clip.id, evaluation_requested: clip.evaluation ? 'true' : 'false' }).forEach(([key, value]) => body.append(key, value))
+    if (clip.evaluation && clip.evaluationPrompt.trim()) body.append('evaluation_prompt', clip.evaluationPrompt.trim())
     try {
       await api.post('/api/v1/dives/upload', body, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })
       setSaved(current => current + 1)
@@ -76,7 +78,7 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
       event.target.value = ''
       if (!selected.length) return
       if (selected.some(file => file.size > 1024 ** 3 || file.size === 0)) { setNotice(t('addVideos.sizeNotice')); return }
-      setClips(selected.map(file => ({ file, id: newUploadId(), date: localDate(new Date(file.lastModified || Date.now())), code: '', height: '3m', rating: 'M', notes: '', public: false })))
+      setClips(selected.map(file => ({ file, id: newUploadId(), date: localDate(new Date(file.lastModified || Date.now())), code: '', height: '3m', rating: 'M', notes: '', public: false, evaluation: false, evaluationPrompt: '' })))
       setIndex(0); setSaved(0); setDiver(String(owners[0].diver_id)); setNotice(''); setError('')
     }} />
     <button type="button" className="touch-target border border-app-accent px-3 text-sm text-app-accent" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
@@ -101,6 +103,10 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
           <label className="col-span-2 sm:col-span-1">{t("addVideos.date")}<input required type="datetime-local" className="app-input w-full" value={clip.date} onChange={event => patch({ date: event.target.value })} /></label>
           <label className="col-span-2">{t("addVideos.notes")}<textarea maxLength={2000} className="app-input w-full" value={clip.notes} onChange={event => patch({ notes: event.target.value })} /></label>
           <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={clip.public} onChange={event => patch({ public: event.target.checked })} />{t("addVideos.visibleToCommunity")}</label>
+          <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={clip.evaluation} onChange={event => patch({ evaluation: event.target.checked })} />{t("addVideos.evaluationRequest")}</label>
+          {clip.evaluation && <label className="col-span-2 flex items-center gap-2">{t("addVideos.evaluationPrompt")}
+            <textarea maxLength={EVALUATION_PROMPT_MAX} className="app-input w-full" value={clip.evaluationPrompt} onChange={event => patch({ evaluationPrompt: event.target.value })} placeholder={t('addVideos.evaluationPromptPlaceholder')} />
+          </label>}
         </fieldset>
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         {busy && <p role="status">{progress < 100 ? t('addVideos.uploading', { progress }) : t('addVideos.preparing')}</p>}

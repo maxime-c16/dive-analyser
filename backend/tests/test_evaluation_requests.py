@@ -1,0 +1,299 @@
+"""Real multi-account tests for evaluation requests (issue #66, ticket 1).
+
+Covers: owner toggle + state endpoints, guessed-id denial, upload retry
+idempotency, cascade deletion, the owner-only Library summary, and the
+narrow evaluation media scope (status/poster/play/prepare) including the
+deactivation contract.
+"""
+import re
+from pathlib import Path
+
+import pytest
+from app.models.photos_asset import PhotosAsset
+from tests.test_member_dive_visibility import workspace
+
+
+def _summary(payload: dict) -> dict:
+    assert payload["dive_id"] and payload["id"]
+    assert isinstance(payload["active"], bool)
+    assert payload["created_at"] and payload["updated_at"]
+    return payload
+
+
+def test_owner_toggle_state_and_prompt_preservation(workspace):
+    db, login, dives, _, _ = workspace
+    client = login('alice')
+    dive_id = dives['alice-private']
+    activated = client.put(f'/api/v1/dives/{dive_id}/evaluation-request',
+                           json={'active': True, 'prompt': 'Please judge my entry'})
+    assert activated.status_code == 200, activated.text
+    request_id = _summary(activated.json())['id']
+    assert activated.json()['active'] is True
+    assert activated.json()['prompt'] == 'Please judge my entry'
+    # Idempotent re-activation keeps the same request row.
+    again = client.put(f'/api/v1/dives/{dive_id}/evaluation-request', json={'active': True})
+    assert again.status_code == 200 and again.json()['id'] == request_id
+    # GET mirrors the state.
+    fetched = client.get(f'/api/v1/dives/{dive_id}/evaluation-request')
+    assert fetched.status_code == 200 and fetched.json()['id'] == request_id
+    # Deactivation preserves the stored prompt (explicit replace only).
+    deactivated = client.put(f'/api/v1/dives/{dive_id}/evaluation-request', json={'active': False})
+    assert deactivated.status_code == 200
+    assert deactivated.json()['active'] is False
+    assert deactivated.json()['prompt'] == 'Please judge my entry'
+    assert deactivated.json()['id'] == request_id
+    assert client.get(f'/api/v1/dives/{dive_id}/evaluation-request').json()['active'] is False
+    # An explicitly empty prompt replaces the stored text.
+    cleared = client.put(f'/api/v1/dives/{dive_id}/evaluation-request',
+                         json={'active': False, 'prompt': ''})
+    assert cleared.status_code == 200 and cleared.json()['prompt'] is None
+    # Visibility of the dive is never modified by the toggle.
+    assert client.get(f'/api/v1/dives/{dive_id}').json()['visibility'] == 'private'
+
+
+def test_toggle_denied_to_other_members_guest_and_admin_on_others_dive(workspace):
+    db, login, dives, users, _ = workspace
+    dive_id = dives['alice-private']
+    assert login('bob').put(f'/api/v1/dives/{dive_id}/evaluation-request',
+                            json={'active': True}).status_code == 404
+    assert login('bob').get(f'/api/v1/dives/{dive_id}/evaluation-request').status_code == 404
+    # Public dive of another member: visible but not manageable.
+    assert login('bob').put(f'/api/v1/dives/{dives["alice-public"]}/evaluation-request',
+                            json={'active': True}).status_code == 403
+    # Members without any owned diver are equally refused.
+    assert login('viewer').put(f'/api/v1/dives/{dives["alice-public"]}/evaluation-request',
+                               json={'active': True}).status_code == 403
+    # Admin capability grants no additional right on an attributed dive.
+    from app.models.user_auth import AppUser
+    admin = db.get(AppUser, users['alice'].id)
+    admin.is_admin = True
+    db.commit()
+    client = login('bob')
+    assert client.put(f'/api/v1/dives/{dives["alice-public"]}/evaluation-request',
+                      json={'active': True}).status_code == 403
+    admin.is_admin = False
+    db.commit()
+    # Guest (no session cookie).
+    guest_client = login('alice')
+    guest_client.cookies.clear()
+    assert guest_client.put(f'/api/v1/dives/{dive_id}/evaluation-request',
+                            json={'active': True}).status_code == 401
+    assert guest_client.get(f'/api/v1/dives/{dive_id}/evaluation-request').status_code == 401
+
+
+def test_prompt_length_limit(workspace):
+    _, login, dives, _, _ = workspace
+    response = login('alice').put(
+        f"/api/v1/dives/{dives['alice-private']}/evaluation-request",
+        json={'active': True, 'prompt': 'x' * 1001})
+    assert response.status_code == 422
+
+
+def test_library_summary_is_owner_only(workspace):
+    db, login, dives, _, _ = workspace
+    client = login('alice')
+    activated = client.put(f"/api/v1/dives/{dives['alice-private']}/evaluation-request",
+                           json={'active': True, 'prompt': 'jury comment'})
+    request_id = activated.json()['id']
+    own = client.get('/api/v1/dives', params={'diver_scope': 'all'}).json()
+    by_id = {row['id']: row for row in own}
+    assert by_id[dives['alice-private']]['evaluation_request']['id'] == request_id
+    assert by_id[dives['alice-private']]['evaluation_request']['prompt'] == 'jury comment'
+    assert by_id[dives['alice-public']]['evaluation_request'] is None
+    # Community viewer: no evaluation surface at all on others' dives.
+    community = login('bob').get('/api/v1/dives', params={'diver_scope': 'all'}).json()
+    others = [row for row in community if row['id'] == dives['alice-public']]
+    assert others and 'evaluation_request' not in others[0]
+    # Private dive of Alice stays invisible to Bob's Library entirely.
+    assert all(row['id'] != dives['alice-private'] for row in community)
+
+
+def test_upload_evaluation_request_and_retry_no_duplication(workspace, monkeypatch, tmp_path):
+    from app.services import browser_upload
+    from app.models.evaluation import EvaluationRequest
+    from app.services.dive_access import owned_diver_ids
+    db, login, _, users, _ = workspace
+    folder = tmp_path / 'prepared'
+    folder.mkdir()
+    for name in ('source', 'video.mp4', 'poster.jpg'):
+        (folder / name).write_bytes(b'test')
+    import boto3
+    from app.config import get_settings
+    settings = get_settings()
+    for key, value in [('b2_upload_key_id', 'test'), ('b2_upload_key_secret', 'test'), ('b2_upload_region', 'test')]:
+        monkeypatch.setattr(settings, key, value)
+
+    class Stream:
+        def iter_chunks(self, chunk_size):
+            yield b'test'
+
+        def close(self):
+            pass
+
+    class Client:
+        def upload_file(self, *args, **kwargs):
+            pass
+
+        def get_object(self, **kwargs):
+            return {'Body': Stream()}
+
+    monkeypatch.setattr(boto3, 'client', lambda *a, **kw: Client())
+    monkeypatch.setattr(browser_upload, 'prepare_video', lambda file: (folder, 4))
+    fields = dict(
+        dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00',
+        diver_id=str(owned_diver_ids(db, users['bob'].id)[0]),
+        upload_id='12345678-1234-1234-1234-123456789012',
+        evaluation_requested='true', evaluation_prompt='Judge my hurdle',
+    )
+    client = login('bob')
+    response = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
+    assert response.status_code == 201, response.text
+    record = response.json()
+    assert record['evaluation_request']['active'] is True
+    assert record['evaluation_request']['prompt'] == 'Judge my hurdle'
+    first_request_id = record['evaluation_request']['id']
+    assert db.query(EvaluationRequest).count() == 1
+    # Retry with the same upload identity reuses the dive and its request.
+    retry = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video')})
+    assert retry.status_code == 201 and retry.json()['id'] == record['id']
+    assert retry.json()['evaluation_request']['id'] == first_request_id
+    assert db.query(EvaluationRequest).count() == 1
+    # Without the flag: no request row.
+    plain = client.post('/api/v1/dives/upload', data={
+        **fields, 'upload_id': '99999999-1234-1234-1234-123456789012', 'evaluation_requested': 'false',
+    }, files={'file': ('clip.mov', b'video')})
+    assert plain.status_code == 201 and plain.json()['evaluation_request'] is None
+    assert db.query(EvaluationRequest).count() == 1
+
+
+def test_failed_upload_publishes_no_request(workspace, monkeypatch, tmp_path):
+    from app.services import browser_upload
+    from fastapi import HTTPException
+    from app.models.dive import Dive
+    from app.models.evaluation import EvaluationRequest
+    from app.services.dive_access import owned_diver_ids
+    db, login, _, users, _ = workspace
+    folder = tmp_path / 'failed-eval-upload'
+    folder.mkdir()
+    for name in ('source', 'video.mp4', 'poster.jpg'):
+        (folder / name).write_bytes(b'video')
+    monkeypatch.setattr(browser_upload, 'prepare_video', lambda file: (folder, 5))
+
+    def fail(*args):
+        raise HTTPException(503, 'Video storage unavailable; please retry')
+
+    monkeypatch.setattr(browser_upload, 'persist_original', fail)
+    dives_before = db.query(Dive).count()
+    requests_before = db.query(EvaluationRequest).count()
+    response = login('bob').post('/api/v1/dives/upload', data=dict(
+        dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00',
+        diver_id=str(owned_diver_ids(db, users['bob'].id)[0]),
+        upload_id='88888888-1234-1234-1234-123456789012', evaluation_requested='true',
+    ), files={'file': ('clip.mp4', b'video')})
+    assert response.status_code == 503
+    assert db.query(Dive).count() == dives_before
+    assert db.query(EvaluationRequest).count() == requests_before
+
+
+def test_deleting_dive_cascades_to_request(workspace):
+    from app.models.evaluation import EvaluationRequest
+    from sqlalchemy import text
+    db, login, dives, _, _ = workspace
+    client = login('alice')
+    request_id = client.put(f"/api/v1/dives/{dives['alice-private']}/evaluation-request",
+                            json={'active': True}).json()['id']
+    # SQLite enforces cascades only with the FK pragma; production relies on
+    # the ON DELETE CASCADE declared in add_evaluation_requests.sql.
+    db.execute(text('PRAGMA foreign_keys=ON'))
+    assert client.delete(f"/api/v1/dives/{dives['alice-private']}").status_code == 204
+    assert db.query(EvaluationRequest).filter_by(id=request_id).first() is None
+
+
+def test_evaluation_media_scope_status_play_poster_prepare(workspace, monkeypatch):
+    from app.config import get_settings
+    db, login, dives, users, _ = workspace
+    monkeypatch.setattr(get_settings(), 'media_xaccel_enabled', False)
+    client = login('alice')
+    activated = client.put(f"/api/v1/dives/{dives['alice-private']}/evaluation-request",
+                           json={'active': True, 'prompt': 'Judge me'})
+    request_id = activated.json()['id']
+    # A connected member sees the evaluation media transport for the active request.
+    bob = login('bob')
+    status = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/status')
+    assert status.status_code == 200, status.text
+    payload = status.json()
+    assert payload['request_id'] == request_id
+    assert payload['dive_id'] == dives['alice-private']
+    assert payload['video_uuid'] == 'alice-private-video'
+    assert payload['status'] == 'ready'  # fixture provides a playable 360p entry
+    assert payload['playback_url'] == f'/api/v1/evaluations/requests/{request_id}/media/play'
+    assert payload['poster_url'] is None  # fixture has no poster rendition
+    assert payload['available_renditions'] == ['proxy_360p']
+    play = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play')
+    assert play.status_code == 200, play.text
+    assert play.headers['Cache-Control'] == 'private, max-age=300'
+    ranged = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play',
+                     headers={'Range': 'bytes=0-3'})
+    assert ranged.status_code == 206
+    assert bob.get(f'/api/v1/evaluations/requests/{request_id}/media/poster').status_code == 404
+    # Preparation is idempotent: activation already queued the missing renditions.
+    prepared = bob.post(f'/api/v1/evaluations/requests/{request_id}/media/prepare')
+    assert prepared.status_code == 200, prepared.text
+    assert prepared.json()['status'] == 'ready'  # the 360p fixture is already playable
+    assert prepared.json()['created_jobs'] == []
+    assert prepared.json()['reused_jobs'] == ['proxy_720p', 'poster']
+    from app.models.media import MediaJob
+    renditions = sorted(row[0] for row in db.query(MediaJob.rendition).filter_by(
+        photos_asset_id=db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar()).all())
+    assert renditions == ['poster', 'proxy_720p']
+    again = bob.post(f'/api/v1/evaluations/requests/{request_id}/media/prepare')
+    assert again.status_code == 200
+    assert again.json()['created_jobs'] == []
+    assert again.json()['reused_jobs'] == ['proxy_720p', 'poster']
+    from sqlalchemy import func
+    assert db.query(func.count(MediaJob.id)).filter_by(
+        photos_asset_id=db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar()).scalar() == 2
+    # Guest denied on every evaluation media endpoint.
+    guest = login('bob')
+    guest.cookies.clear()
+    for path in ('status', 'poster', 'play'):
+        assert guest.get(f'/api/v1/evaluations/requests/{request_id}/media/{path}').status_code == 401
+    assert guest.post(f'/api/v1/evaluations/requests/{request_id}/media/prepare').status_code == 401
+    # Unknown request: uniform 404.
+    assert login('bob').get('/api/v1/evaluations/requests/987654/media/status').status_code == 404
+    # Deactivation revokes the scope immediately, but the owner state survives.
+    client = login('alice')
+    assert client.put(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request',
+                      json={'active': False}).status_code == 200
+    for path in ('status', 'poster', 'play'):
+        assert bob.get(f'/api/v1/evaluations/requests/{request_id}/media/{path}').status_code == 404
+    assert bob.post(f'/api/v1/evaluations/requests/{request_id}/media/prepare').status_code == 404
+    assert client.get(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request').json()['active'] is False
+    # Re-activation restores the same request id and the member scope.
+    assert client.put(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request',
+                      json={'active': True}).status_code == 200
+    assert bob.get(f'/api/v1/evaluations/requests/{request_id}/media/status').json()['request_id'] == request_id
+
+
+class TestEvaluationMigrationFile:
+    """Static guard: the SQL migration is additive and re-runnable."""
+
+    MIGRATION = Path(__file__).resolve().parents[1] / "migrations" / "add_evaluation_requests.sql"
+
+    def test_migration_file_exists(self):
+        assert self.MIGRATION.is_file()
+
+    def test_only_idempotent_additive_statements(self):
+        sql = self.MIGRATION.read_text()
+        statements = [line.strip() for line in sql.splitlines()
+                      if line.strip() and not line.strip().startswith("--")]
+        joined = "\n".join(statements)
+        for forbidden in re.finditer(
+            r"^\s*(ALTER\s+TABLE|DROP\s+COLUMN|UPDATE\s+|DELETE\s+FROM|INSERT\s+INTO|TRUNCATE)",
+            joined, re.MULTILINE | re.IGNORECASE,
+        ):
+            raise AssertionError(f"non-additive statement found: {forbidden.group(0)!r}")
+        assert "CREATE TABLE IF NOT EXISTS evaluation_requests" in joined
+        assert "CREATE INDEX IF NOT EXISTS" in joined
+        assert "ON DELETE CASCADE" in joined
+        assert "DROP TABLE IF EXISTS evaluation_requests" in sql
