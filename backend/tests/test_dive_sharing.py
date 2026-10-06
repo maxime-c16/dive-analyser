@@ -59,8 +59,8 @@ def test_multi_guest_video_only_access_and_stable_identity(workspace):
         other_base, other_token = issue(login, dives['alice-public'])
         assert first.get(other_base + '/video').status_code == 404
         assert first.post(other_base + '/visit', headers={'X-Dive-Share': token}).status_code == 404
-    enter(first, other_base, other_token)
-    assert first.get(other_base + '/video').status_code == 200
+        enter(first, other_base, other_token)
+        assert first.get(other_base + '/video').status_code == 200
     get_settings().media_xaccel_enabled = saved_accel
 
 
