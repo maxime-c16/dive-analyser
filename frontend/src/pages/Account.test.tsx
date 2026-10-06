@@ -183,6 +183,55 @@ describe("Account (final V2)", () => {
     expect(JSON.parse(put?.init?.body as string)).toEqual({ type: "guest_activity", enabled: true });
   });
 
+  it("disables server toggles until the initial GET resolves", async () => {
+    let resolveGet!: (value: Response) => void;
+    const getPromise = new Promise<Response>(resolve => {
+      resolveGet = resolve;
+    });
+    const puts: RequestInit[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        puts.push(init);
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return getPromise;
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    // Server toggles render from the fallback cache but stay disabled
+    // while the initial GET is in flight — an early PUT could otherwise
+    // be overwritten by the stale GET response.
+    const guest = await screen.findByRole("switch", { name: "Guest activity alerts" });
+    const newVideo = screen.getByRole("switch", { name: "New video alerts" });
+    expect(guest).toBeDisabled();
+    expect(newVideo).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
+    // Local-only toggles have no GET: they stay interactive.
+    expect(screen.getByRole("switch", { name: "Email notifications" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Weekly digest" })).toBeEnabled();
+    expect(puts).toHaveLength(0);
+    resolveGet(
+      new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    await waitFor(() => expect(guest).toBeEnabled());
+    expect(newVideo).toBeEnabled();
+  });
+
   it("falls back to the legacy milestone toggle when the API is down", async () => {
     localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));

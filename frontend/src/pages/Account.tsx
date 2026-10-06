@@ -288,9 +288,10 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-disabled={disabled || undefined}
       onClick={onChange}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:opacity-60 ${
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
         checked ? 'border-app-accent bg-app-accent' : 'border-app bg-app-panel-elevated'
       }`}
     >
@@ -607,7 +608,7 @@ export default function Account() {
                       checked={serverNotifs.prefs[row.type]}
                       onChange={() => void serverNotifs.setPref(row.type, !serverNotifs.prefs[row.type])}
                       label={row.label}
-                      disabled={serverNotifs.busy === row.type}
+                      disabled={!serverNotifs.loaded || serverNotifs.busy === row.type}
                     />
                   </div>
                 ))}
