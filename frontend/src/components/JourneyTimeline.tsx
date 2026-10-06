@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { ChevronDown, ChevronRight, Flag } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { milestoneDisplay } from '../i18n/milestones'
 import { appLocale } from '../utils/dateLocale'
@@ -61,6 +62,7 @@ function MilestoneRow({ milestone }: { milestone: Milestone }) {
 }
 
 function JourneyTimeline({ milestones }: JourneyTimelineProps) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const sorted = [...milestones].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   if (!sorted.length) return <div className="border border-app bg-app-panel p-8 text-center"><Flag className="mx-auto h-5 w-5 text-app-muted" /><p className="mt-3 font-medium text-app-text">{i18n.t('milestones.noMatches')}</p></div>
 

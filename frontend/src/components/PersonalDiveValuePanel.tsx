@@ -2,6 +2,7 @@ import { ChevronDown, History } from 'lucide-react'
 import { appLocale } from '../utils/dateLocale'
 import { format, parseISO } from 'date-fns'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { confidenceLevelLabel, signalLabel } from '../utils/personalValue'
 import {
@@ -29,6 +30,7 @@ function PatternList({ matches, onOpenAttempt }: { matches: HistoricalPattern[];
 }
 
 export default function PersonalDiveValuePanel({ attemptId, onOpenAttempt }: { attemptId: number; onOpenAttempt?: (id: number) => void }) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const [value, setValue] = useState<PersonalDiveValue | null>(null)
   const [matches, setMatches] = useState<HistoricalPattern[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'disabled' | 'excluded' | 'error'>('loading')

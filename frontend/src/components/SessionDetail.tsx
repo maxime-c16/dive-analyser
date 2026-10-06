@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
 import DiveVideoPlayer from './DiveVideoPlayer'
+import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { appLocale } from '../utils/dateLocale'
 import { inertExcept, trapTabKey } from '../utils/a11y'
@@ -78,6 +79,7 @@ const DIRECTION_COLORS: { [key: number]: string } = {
 }
 
 function SessionDetail({ session, previousSession, onClose, allSessions, diverScope }: SessionDetailProps) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const [dives, setDives] = useState<Dive[]>([])
   const [previousDives, setPreviousDives] = useState<Dive[]>([])
   const [loading, setLoading] = useState(true)

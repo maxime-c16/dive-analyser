@@ -1,6 +1,7 @@
 import React from 'react'
 import { format, parseISO } from 'date-fns'
 import { BarChart3, TrendingUp } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { appLocale } from '../utils/dateLocale'
 
@@ -28,6 +29,7 @@ interface JourneyNarrativeProps {
 }
 
 function JourneyNarrative({ data }: JourneyNarrativeProps) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* Main Narrative */}

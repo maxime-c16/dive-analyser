@@ -20,6 +20,7 @@ import { getRepresentatives, type RepresentativeCard } from '../services/represe
 import { getPersonalDiveValues, type PersonalDiveValue } from '../services/personalDiveValueApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
 import { useAuth } from '../contexts/AuthContext'
+import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { appLocale } from '../utils/dateLocale'
 import { confidenceLevelLabel, signalLabel } from '../utils/personalValue'
@@ -456,6 +457,7 @@ function PersonalValueHistory({ values, attempts, onOpen }: { values: PersonalDi
 }
 
 export default function DiveAnalysis() {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const { diveCode = '' } = useParams(), navigate = useNavigate(), location = useLocation(), [searchParams, setSearchParams] = usePreservedSearchParams()
   const { user } = useAuth()
   // Friends see everyone's dives by default (no diver bindings held).

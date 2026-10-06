@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import i18n from '../../i18n'
 import { api } from '../../services/api'
 import type { Attempt } from '../../utils/attemptPresentation'
@@ -43,6 +44,7 @@ export default function FederateDiveControl({
   attempt: Attempt
   onUpdate: (attempt: Attempt) => void
 }) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

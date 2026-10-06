@@ -389,7 +389,7 @@ function DiveLibrary() {
         return;
       }
       document
-        .querySelector<HTMLInputElement>('input[aria-label="Search dives"]')
+        .querySelector<HTMLInputElement>('input[data-dives-search]')
         ?.focus({ preventScroll: true });
     });
   }, [selected]);
@@ -516,6 +516,7 @@ function DiveLibrary() {
               className="app-input h-11 w-full !pl-10 pr-4 text-sm"
               placeholder={t("dives.searchPlaceholder")}
               aria-label={t("dives.searchAria")}
+              data-dives-search
             />
           </label>
           <button
