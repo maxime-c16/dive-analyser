@@ -690,7 +690,7 @@
     width: 100%;
   }
   .clip-actions {
-    right: max(24px, env(safe-area-inset-right));
+    right: max(7px, env(safe-area-inset-right));
     bottom: calc(165px + env(safe-area-inset-bottom));
     gap: 18px;
   }
