@@ -9,6 +9,7 @@ import DiveVideoPlayer, {
   MEDIA_POLL_INTERVAL_MS,
 } from './DiveVideoPlayer'
 import { getMediaStatus, requestMedia, type MediaStatus } from '../services/mediaApi'
+import { getPreview } from '../utils/mediaPreview'
 
 vi.mock('../services/mediaApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/mediaApi')>()
@@ -302,4 +303,63 @@ it('a status failure never destroys a previously known preparation state present
   // last known state label is still visible, framed as interrupted — not failed
   expect(screen.getByRole('status').textContent).toContain('transcoding')
   expect(screen.queryByText('No video available')).not.toBeInTheDocument()
+})
+
+// ---- Fast path: the shared preview cache seeds instant open/swipe ----
+
+async function seedPreviewCache(uuid: string, playbackUrl: string | null) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ [uuid]: { status: 'ready', poster_url: '/seeded.jpg', playback_url: playbackUrl } }),
+  }))
+  const previews = [getPreview(uuid)]
+  await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+  return Promise.all(previews)
+}
+
+it('a seeded preview starts playback immediately without waiting for its own status GET', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('fetch', vi.fn()) // batch lookup already consumed by the seeding helper
+  await seedPreviewCache('seed-playback', '/seeded.mp4')
+  // The authoritative status lookup stays pending: playback must not wait on it.
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="seed-playback" />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/seeded.mp4')
+  expect(video).toHaveAttribute('poster', '/seeded.jpg')
+  // No checking spinner: bytes request is already underway.
+  expect(screen.queryByRole('status', { name: 'Checking…' })).not.toBeInTheDocument()
+})
+
+it('an authoritative not-cached answer still overrides a seeded playback', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('seed-playback', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockResolvedValue(missing)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="seed-playback" />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).toHaveAttribute('src', '/seeded.mp4')
+  await flushInitialCheck()
+  expect(screen.getByRole('status')).toHaveTextContent('Clip not cached')
+})
+
+it('status never reaching a verdict cannot strand seeded playback into an unreachable overlay', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('seed-playback', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockRejectedValue(new Error('network down'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="seed-playback" />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(INITIAL_STATUS_ATTEMPTS * 2000) })
+  // Transport failure after a seeded playback keeps the actionable retry
+  // affordance, but the seeded video remains in place instead of going dark.
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/seeded.mp4')
+  expect(screen.getByRole('button', { name: 'Retry status check' })).toBeInTheDocument()
+})
+
+it('a preview known to lack playback never fakes a ready clip', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('poster-only-uuid', null)
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="poster-only-uuid" />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).not.toHaveAttribute('src')
+  expect(video).toHaveAttribute('poster', '/seeded.jpg')
 })

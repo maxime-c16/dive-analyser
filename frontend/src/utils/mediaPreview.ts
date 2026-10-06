@@ -2,11 +2,12 @@
 export type MediaPreview = {
   posterUrl: string | null;
   videoThumbUrl: string | null;
+  playbackUrl: string | null;
   ready: boolean;
 };
 
 const previewCache = new Map<string, MediaPreview>();
-const CREATED = { posterUrl: null, videoThumbUrl: null, ready: false } as const;
+const CREATED = { posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false } as const;
 
 export function cachedPreview(videoUuid: string): MediaPreview | undefined {
   return previewCache.get(videoUuid);
@@ -49,7 +50,10 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
   return {
     posterUrl: status.poster_url || null,
     // Keep playback availability for the viewer; Library tiles use posters only.
+    // playbackUrl is retained separately so instant open/swipe can seed the
+    // player without waiting for its own status round-trip.
     videoThumbUrl: !status.poster_url && status.playback_url ? status.playback_url : null,
+    playbackUrl: status.playback_url || null,
     ready: Boolean(status.playback_url),
   };
 }
