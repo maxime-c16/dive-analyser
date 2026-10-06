@@ -129,6 +129,35 @@ def test_activity_cursor_pagination_has_no_duplicates(workspace):
     assert stamps == sorted(stamps, reverse=True)
 
 
+def test_cursor_survives_tied_rows_across_arms(workspace):
+    """A member like and a guest like can share (dive, timestamp, tiebreak):
+    the arm discriminator keeps cursors lossless across page boundaries."""
+    db, login, dives, users, _ = workspace
+    bob, alice = users['bob'], users['alice']
+    stamp = datetime(2026, 8, 1, 12, 0)
+    # Same numeric id as bob, so both rows also tie on the tiebreak column.
+    db.add(DiveGuest(id=bob.id, token_hash='tied-guest-token', display_name='Nemo'))
+    db.flush()
+    db.add_all([
+        DiveLike(dive_id=dives['alice-public'], user_id=bob.id, created_at=stamp),
+        DiveGuestLike(dive_id=dives['alice-public'], guest_id=bob.id, created_at=stamp),
+    ])
+    db.commit()
+
+    seen = []
+    url = '/api/v1/users/me/activity?direction=received&limit=1'
+    response = login('alice').get(url).json()
+    while True:
+        seen.extend(response['items'])
+        if response['next_before'] is None:
+            break
+        response = login('alice').get(f"{url}&before={response['next_before']}").json()
+    actor_refs = {(row['kind'], row['actor']['user_id'], row['actor']['guest_id']) for row in seen}
+    assert len(seen) == 2
+    assert ('dive_like', bob.id, None) in actor_refs
+    assert ('dive_like', None, bob.id) in actor_refs
+
+
 def test_member_activity_is_their_visible_actions(workspace):
     _, login, dives, users, _ = workspace
     login('bob').put(f"/api/v1/dives/{dives['alice-public']}/like", json={'liked': True})
