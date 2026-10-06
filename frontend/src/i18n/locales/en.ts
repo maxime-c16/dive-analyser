@@ -924,6 +924,8 @@ const en = {
       declining: 'declining',
       stable: 'stable',
       insufficient_data: 'insufficient data',
+      plateauing: 'plateauing',
+      struggling: 'struggling',
     },
     dimension: {
       modifier: 'modifier',

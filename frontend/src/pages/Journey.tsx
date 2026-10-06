@@ -9,6 +9,7 @@ import { useSyncStatus } from "../hooks/useSyncStatus";
 import DDWorkspace from "../components/DDWorkspace";
 import { AlertTriangle, Brain } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { appLanguage } from "../utils/dateLocale";
 
 interface JourneyData {
   overview: {
@@ -565,14 +566,12 @@ function Journey() {
                                 : "text-red-400"
                           }`}
                         >
-                          {journeyData.psychological.confidence_trend
-                            ? journeyData.psychological.confidence_trend
-                                .charAt(0)
-                                .toUpperCase() +
-                              journeyData.psychological.confidence_trend.slice(
-                                1,
-                              )
-                            : t("journey.stable")}
+                          {(() => {
+                            const trend = journeyData.psychological.confidence_trend
+                            if (!trend) return t("journey.stable")
+                            const label = t(`analysis.trendDirection.${trend}`, { defaultValue: trend })
+                            return label.charAt(0).toLocaleUpperCase(appLanguage()) + label.slice(1)
+                          })()}
                         </div>
                       </div>
                     </div>

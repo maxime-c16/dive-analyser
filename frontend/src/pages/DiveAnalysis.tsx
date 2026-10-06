@@ -170,7 +170,7 @@ function buildTimelinePoint(attempt: DiveAttempt): TimelinePoint {
       position: divePositionName(attempt.position, attempt.dive_code),
       modifiers: attempt.modifiers.join(', ') || i18n.t('analysis.noModifiers'),
       context: attempt.is_sync ? 'SYNC' : i18n.t('analysis.individual'),
-      media: attempt.media.status,
+      media: mediaStatusLabel(attempt.media.status),
     }),
   }
 }

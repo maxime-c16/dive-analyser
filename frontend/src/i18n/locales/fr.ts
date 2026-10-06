@@ -926,6 +926,8 @@ const fr = {
       declining: 'en recul',
       stable: 'stable',
       insufficient_data: 'données insuffisantes',
+      plateauing: 'en stagnation',
+      struggling: 'en difficulté',
     },
     dimension: {
       modifier: 'modificateur',
