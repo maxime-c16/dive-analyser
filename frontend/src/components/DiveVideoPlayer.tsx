@@ -291,14 +291,19 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
 
   // First-frame presentation gate. The incoming-clip cover stays up until
   // THIS clip's current source presents a decoded frame — requestVideoFrameCallback
-  // when the browser offers it, else a loadeddata / readyState fallback
-  // (HAVE_CURRENT_DATA, never loadedmetadata, never mere URL availability).
-  // Every armed generation restarts the element for real (video.load()),
-  // and callbacks are scoped to the load identity: a source change or
-  // unmount cancels the pending registration, so a late callback or event
-  // can never reveal another generation's cover. A paused element that
-  // already holds decodable data has presented that frame (e.g. blocked
-  // autoplay), so the same readiness check backstops the callback path.
+  // when the browser offers it, with loadeddata/canplay (HAVE_CURRENT_DATA)
+  // and real-playback (playing/timeupdate) backstops that ALSO apply on the
+  // rVFC path. A single one-shot frame callback must never be the only
+  // reveal signal: autoplay blocks, background tabs and browser quirks can
+  // all leave a registered callback unfired while the element already holds
+  // decodable data — or is outright playing behind the cover. Every armed
+  // generation restarts the element for real (video.load()), and every
+  // signal is scoped to the load identity: a source change or unmount
+  // cancels the pending registration and detaches the listeners, so a late
+  // callback or event can never reveal another generation's cover. A paused
+  // element that already holds decodable data has presented that frame
+  // (e.g. blocked autoplay), so the readiness check backstops the callback
+  // path on every media event, not just at arm time.
   useLayoutEffect(() => {
     if (!gateKey) return
     const video = videoRef.current
@@ -307,7 +312,6 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     let cancelled = false
     let raf = 0
     let handle: number | undefined
-    let removeLoadedData: (() => void) | null = null
     // HAVE_CURRENT_DATA: the frame at the current position is decodable.
     // One compositor frame is granted before the cover is dropped.
     const dataReady = () => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
@@ -332,22 +336,34 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     const requestFrame = (video as FrameCallbackVideo).requestVideoFrameCallback?.bind(video)
     if (typeof requestFrame === 'function') {
       handle = requestFrame(() => reveal())
-      if (video.paused && dataReady()) revealViaCompositor()
-    } else {
-      const onLoadedData = () => {
-        if (dataReady()) revealViaCompositor()
-      }
-      video.addEventListener('loadeddata', onLoadedData)
-      removeLoadedData = () => video.removeEventListener('loadeddata', onLoadedData)
+    }
+    // Decodable-data signals: cover the rVFC path too, so a callback that
+    // never fires (blocked autoplay, background tab, browser quirk) cannot
+    // strand the cover over a ready element.
+    const onDataSignal = () => {
       if (dataReady()) revealViaCompositor()
     }
+    // Real-playback signals: a playing element IS presenting frames by
+    // definition. The cover must never sit over a video that plays behind
+    // it, even if every frame callback and readiness probe failed.
+    const onPlaybackSignal = () => {
+      if (!video.ended) reveal()
+    }
+    video.addEventListener('loadeddata', onDataSignal)
+    video.addEventListener('canplay', onDataSignal)
+    video.addEventListener('playing', onPlaybackSignal)
+    video.addEventListener('timeupdate', onPlaybackSignal)
+    if (dataReady()) revealViaCompositor()
     return () => {
       cancelled = true
       if (raf) cancelAnimationFrame(raf)
       if (handle !== undefined) {
         (video as FrameCallbackVideo).cancelVideoFrameCallback?.(handle)
       }
-      removeLoadedData?.()
+      video.removeEventListener('loadeddata', onDataSignal)
+      video.removeEventListener('canplay', onDataSignal)
+      video.removeEventListener('playing', onPlaybackSignal)
+      video.removeEventListener('timeupdate', onPlaybackSignal)
     }
   }, [gateKey])
 
@@ -396,7 +412,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     try {
       const attempt = video.play()
       if (attempt && typeof attempt.catch === 'function') {
-        attempt.catch(() => {
+        attempt.catch((error: unknown) => {
+          // A source switch (seeded preview URL → authoritative status URL)
+          // aborts the in-flight play() with AbortError: a fresh load is
+          // already underway and its own loadedmetadata/canplay handlers
+          // will start it. Retrying here would only race that load, and the
+          // muted fallback below would needlessly steal sound-by-default.
+          const name = (error as { name?: unknown } | null)?.name
+          if (name === 'AbortError') return
           try {
             video.muted = true
           } catch {

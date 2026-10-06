@@ -561,6 +561,74 @@ it('rVFC reveals the first frame; source switches cancel stale callbacks across 
   }
 })
 
+it('an unfired frame callback cannot strand the cover once decodable data lands', async () => {
+  await seedPreviewNow('rvfc-stuck', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const frame = stubFrameCallbacks()
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="rvfc-stuck" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    expect(frame.request).toHaveBeenCalledTimes(1)
+    expect(cover()).toBeInTheDocument()
+    // The single registered frame callback never fires (blocked autoplay,
+    // background tab, browser quirk) — the loadeddata backstop on the rVFC
+    // path must still drop the cover, or the poster freezes over the clip.
+    await presentFirstFrame(video)
+    expect(frame.callbacks.filter(Boolean)).toHaveLength(1)
+    expect(cover()).not.toBeInTheDocument()
+  } finally {
+    frame.restore()
+  }
+})
+
+it('real playback always drops the cover even when every frame signal failed', async () => {
+  await seedPreviewNow('playing-stuck', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const frame = stubFrameCallbacks()
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="playing-stuck" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    expect(cover()).toBeInTheDocument()
+    // No frame callback fired, no decodable-data event arrived — yet the
+    // element plays. A playing video presents frames by definition, so the
+    // cover must go and the transport must come back.
+    fireEvent.playing(video)
+    await act(async () => {})
+    expect(frame.callbacks.filter(Boolean)).toHaveLength(1)
+    expect(cover()).not.toBeInTheDocument()
+    expect(document.querySelector('.clip-transport')).not.toBeNull()
+    expect(document.querySelector('.clip-progress')).not.toBeNull()
+  } finally {
+    frame.restore()
+  }
+})
+
+it('an autoplay attempt aborted by a source switch never steals sound', async () => {
+  await seedPreviewNow('abort-mute', '/a.mp4')
+  const abortError = new DOMException(
+    'The play() request was interrupted by a new load request',
+    'AbortError',
+  )
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(abortError))
+    .mockResolvedValue(undefined)
+  try {
+    vi.mocked(getMediaStatus).mockResolvedValue({ ...missing, status: 'ready', playback_url: '/b.mp4', poster_url: '/poster.jpg' })
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="abort-mute" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/b.mp4'))
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+    await act(async () => {})
+    // Interrupted, not blocked: the fresh load's own handlers start the
+    // clip, so there is no muted fallback and no retry storm.
+    expect(playSpy).toHaveBeenCalledTimes(1)
+    expect(video.muted).toBe(false)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
 it('a status-driven source switch holds the cover until the new source presents', async () => {
   await seedPreviewNow('status-switch', '/a.mp4')
   vi.useFakeTimers()
