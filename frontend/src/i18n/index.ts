@@ -44,7 +44,10 @@ export async function changeLanguage(next: 'en' | 'fr') {
   }
 }
 
-export function applyLanguage(stored: LanguageCode, navigatorLanguage?: string) {
+export function applyLanguage(
+  stored: LanguageCode,
+  navigatorLanguage: string | undefined = typeof navigator !== 'undefined' ? navigator.language : undefined,
+) {
   const resolved = resolveLanguage(stored, navigatorLanguage)
   if (i18next.language !== resolved) {
     void i18next.changeLanguage(resolved)

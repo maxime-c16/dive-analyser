@@ -45,7 +45,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     // library cache and What's-new keys change often and must not re-render
     // the whole tree.
     window.addEventListener('storage', sync)
-    return () => window.removeEventListener('storage', sync)
+    // "Same as device" follows the browser language, so re-resolve when it
+    // changes. Explicit en/fr selections resolve to themselves, so this is a
+    // no-op for them.
+    window.addEventListener('languagechange', sync)
+    return () => {
+      window.removeEventListener('storage', sync)
+      window.removeEventListener('languagechange', sync)
+    }
   }, [])
 
   const setLanguage = useCallback((next: LanguageCode) => {
