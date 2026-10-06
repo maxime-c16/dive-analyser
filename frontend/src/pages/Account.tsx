@@ -6,6 +6,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { LANGUAGES, useLang } from '../i18n/I18nProvider'
 import type { LanguageCode } from '../i18n/prefs'
 import ActivitySection from '../components/activity/ActivitySection'
+import {
+  getNotificationPrefs,
+  setNotificationPref as putNotificationPref,
+} from '../services/notificationsApi'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
 export function initials(name: string, fallbackEmail = ''): string {
@@ -39,9 +43,127 @@ function loadPrefs(): Prefs {
 }
 
 /**
- * Notification preferences. The backend has no prefs endpoint yet, so these
- * persist per device until one exists. Language rides in the same blob
- * (see i18n/prefs.ts) but applies through I18nProvider.
+ * Server-backed in-app alert types (PR2). The backend owns defaults and
+ * state; localStorage is only a fallback cache when the API is down.
+ * Order mirrors the server DEFAULTS map.
+ */
+export const SERVER_NOTIF_TYPES = [
+  'new_video',
+  'video_ready',
+  'new_comment',
+  'comment_reply',
+  'milestone',
+  'sync_error',
+  'guest_activity',
+] as const
+
+export type ServerNotifType = (typeof SERVER_NOTIF_TYPES)[number]
+
+export const SERVER_NOTIF_DEFAULTS: Record<ServerNotifType, boolean> = {
+  new_video: true,
+  video_ready: true,
+  new_comment: true,
+  comment_reply: true,
+  milestone: true,
+  sync_error: true,
+  guest_activity: false,
+}
+
+const SERVER_PREFS_CACHE_KEY = 'dive-analyser.notif-prefs.server.v1'
+
+function loadServerFallback(): Record<ServerNotifType, boolean> {
+  const fallback = { ...SERVER_NOTIF_DEFAULTS }
+  try {
+    const raw = localStorage.getItem(SERVER_PREFS_CACHE_KEY)
+    if (raw) return { ...fallback, ...(JSON.parse(raw) as Partial<Record<ServerNotifType, boolean>>) }
+    // One-time migration: the old per-device `milestoneAlerts` seeds the
+    // server `milestone` type until the server answers.
+    const legacyRaw = localStorage.getItem(PREFS_KEY)
+    if (legacyRaw) {
+      const legacy = JSON.parse(legacyRaw) as Partial<Prefs>
+      if (typeof legacy.milestoneAlerts === 'boolean') fallback.milestone = legacy.milestoneAlerts
+    }
+  } catch {
+    // Private browsing etc: defaults simply don't persist.
+  }
+  return fallback
+}
+
+/**
+ * Server notification preferences. The server is the source of truth;
+ * the local cache (seeded once from the legacy `milestoneAlerts` toggle)
+ * only covers API outages. Email and weekly digest stay per-device
+ * local-only until a later PR ships their delivery.
+ */
+function useServerNotifPrefs(active: boolean): {
+  prefs: Record<ServerNotifType, boolean>
+  loaded: boolean
+  busy: ServerNotifType | null
+  error: string
+  setPref: (type: ServerNotifType, next: boolean) => Promise<void>
+} {
+  const { t } = useTranslation()
+  const [prefs, setPrefs] = useState<Record<ServerNotifType, boolean>>(loadServerFallback)
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState<ServerNotifType | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (!active || loaded) return
+    let alive = true
+    getNotificationPrefs()
+      .then(data => {
+        if (!alive) return
+        const next = { ...SERVER_NOTIF_DEFAULTS }
+        for (const type of SERVER_NOTIF_TYPES) {
+          if (typeof data[type] === 'boolean') next[type] = data[type]
+        }
+        setPrefs(next)
+        setLoaded(true)
+        try {
+          localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+        } catch {
+          // Cache is best-effort; the server already holds the truth.
+        }
+      })
+      .catch(() => {
+        if (!alive) return
+        setError(t('account.notifLoadError'))
+        setLoaded(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [active, loaded, t])
+  const setPref = async (type: ServerNotifType, next: boolean) => {
+    const previous = prefs[type]
+    setPrefs(prev => ({ ...prev, [type]: next }))
+    setBusy(type)
+    setError('')
+    try {
+      const saved = await putNotificationPref(type, next)
+      const value = !!saved.enabled
+      setPrefs(prev => ({ ...prev, [type]: value }))
+      try {
+        const raw = localStorage.getItem(SERVER_PREFS_CACHE_KEY)
+        const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+        localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify({ ...stored, [type]: value }))
+      } catch {
+        // Cache is best-effort; the server already holds the truth.
+      }
+    } catch {
+      setPrefs(prev => ({ ...prev, [type]: previous }))
+      setError(t('account.notifSaveError'))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return { prefs, loaded, busy, error, setPref }
+}
+
+/**
+ * Notification preferences. Email and weekly digest have no delivery
+ * endpoint yet, so they persist per device (see i18n/prefs.ts for the
+ * shared blob). In-app alert types live on the server instead.
  */
 function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
@@ -71,10 +193,12 @@ function Toggle({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean
   onChange: () => void
   label: string
+  disabled?: boolean
 }) {
   return (
     <button
@@ -83,7 +207,8 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors ${
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:opacity-60 ${
         checked ? 'border-app-accent bg-app-accent' : 'border-app bg-app-panel-elevated'
       }`}
     >
@@ -224,6 +349,7 @@ export default function Account() {
   const displayName = user?.display_name ?? user?.email ?? ''
   const isDiver = !user?.is_admin
   const fediverse = useFediverseEnabled(section === 'fediverse')
+  const serverNotifs = useServerNotifPrefs(section === 'notifications')
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -269,8 +395,17 @@ export default function Account() {
 
   const notifRows: { key: keyof Prefs; label: string; desc: string }[] = [
     { key: 'emailNotifications', label: t('account.notifEmail'), desc: t('account.notifEmailDesc') },
-    { key: 'milestoneAlerts', label: t('account.notifMilestones'), desc: t('account.notifMilestonesDesc') },
     { key: 'weeklyDigest', label: t('account.notifDigest'), desc: t('account.notifDigestDesc') },
+  ]
+
+  const serverNotifRows: { type: ServerNotifType; label: string; desc: string }[] = [
+    { type: 'new_video', label: t('account.notifNewVideo'), desc: t('account.notifNewVideoDesc') },
+    { type: 'video_ready', label: t('account.notifVideoReady'), desc: t('account.notifVideoReadyDesc') },
+    { type: 'new_comment', label: t('account.notifNewComment'), desc: t('account.notifNewCommentDesc') },
+    { type: 'comment_reply', label: t('account.notifCommentReply'), desc: t('account.notifCommentReplyDesc') },
+    { type: 'milestone', label: t('account.notifMilestones'), desc: t('account.notifMilestonesDesc') },
+    { type: 'sync_error', label: t('account.notifSyncError'), desc: t('account.notifSyncErrorDesc') },
+    { type: 'guest_activity', label: t('account.notifGuestActivity'), desc: t('account.notifGuestActivityDesc') },
   ]
 
   return (
@@ -362,7 +497,41 @@ export default function Account() {
             <section aria-label={t('account.notificationsAria')} className="border border-app bg-app-panel p-5">
               <h2 className="font-semibold text-app-text">{t('account.notifications')}</h2>
               <p className="mt-1 text-sm text-app-muted">{t('account.notificationsStored')}</p>
-              <div className="mt-3 divide-y divide-[var(--app-border)]">
+              <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifInApp')}</h3>
+              <p className="mt-1 text-xs text-app-muted">{t('account.notifInAppDesc')}</p>
+              {!serverNotifs.loaded && (
+                <p role="status" className="mt-2 text-xs text-app-muted">
+                  {t('common.loading')}
+                </p>
+              )}
+              {serverNotifs.busy && (
+                <p role="status" className="mt-2 text-xs text-app-muted">
+                  {t('account.notifSaving')}
+                </p>
+              )}
+              {serverNotifs.error && (
+                <p role="alert" className="mt-2 text-sm text-red-400">
+                  {serverNotifs.error}
+                </p>
+              )}
+              <div className="mt-1 divide-y divide-[var(--app-border)]">
+                {serverNotifRows.map(row => (
+                  <div key={row.type} className="flex items-center justify-between gap-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-app-text">{row.label}</div>
+                      <div className="text-xs text-app-muted">{row.desc}</div>
+                    </div>
+                    <Toggle
+                      checked={serverNotifs.prefs[row.type]}
+                      onChange={() => void serverNotifs.setPref(row.type, !serverNotifs.prefs[row.type])}
+                      label={row.label}
+                      disabled={serverNotifs.busy === row.type}
+                    />
+                  </div>
+                ))}
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifOnDevice')}</h3>
+              <div className="mt-1 divide-y divide-[var(--app-border)]">
                 {notifRows.map(row => (
                   <div key={row.key} className="flex items-center justify-between gap-4 py-3">
                     <div>

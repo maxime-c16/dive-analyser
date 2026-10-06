@@ -136,6 +136,51 @@ describe("Account (final V2)", () => {
     });
   });
 
+  it("loads server alert toggles and persists them via PUT", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          prefs: {
+            new_video: true,
+            video_ready: true,
+            new_comment: true,
+            comment_reply: true,
+            milestone: true,
+            sync_error: true,
+            guest_activity: false,
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const guest = await screen.findByRole("switch", { name: "Guest activity alerts" });
+    expect(guest).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(guest);
+    await waitFor(() => expect(guest).toHaveAttribute("aria-checked", "true"));
+    const put = calls.find(call => call.init?.method === "PUT");
+    expect(put?.url).toBe("/api/v1/notification-prefs");
+    expect(JSON.parse(put?.init?.body as string)).toEqual({ type: "guest_activity", enabled: true });
+  });
+
+  it("falls back to the legacy milestone toggle when the API is down", async () => {
+    localStorage.setItem("dive-analyser.prefs.v1", JSON.stringify({ milestoneAlerts: false }));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const milestones = await screen.findByRole("switch", { name: "Milestone alerts" });
+    expect(milestones).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent(/last known values/i);
+  });
+
   it("warns that opt-in never publishes history and toggles the global switch", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ enabled: false }), { status: 200 }),

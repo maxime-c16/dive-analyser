@@ -1,0 +1,8 @@
+{
+  "id": "notifications-center",
+  "date": "2026-10-06",
+  "title": "Stay posted with in-app notifications",
+  "body": "A new Notifications page collects new videos, video processing updates, comments, milestones and sync issues in one place, with a badge in the navigation. Each alert links straight to its dive, and alert types can be switched on or off in Profile and settings.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

@@ -18,8 +18,10 @@ import { useNavigationIntent } from "./hooks/useNavigationIntent";
 
 import { useAuth } from "./contexts/AuthContext";
 import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
+import { NotificationsProvider, NotificationsButton } from "./components/Notifications";
 import {
   BarChart3,
+  Bell,
   BookOpen,
   CalendarDays,
   ChevronDown,
@@ -56,12 +58,14 @@ const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
 const loadMemberProfile = () => import("./pages/MemberProfile");
 const MemberProfile = lazy(loadMemberProfile);
+const loadNotifications = () => import("./pages/Notifications");
+const Notifications = lazy(loadNotifications);
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/dashboard': loadDashboard, '/analytics': loadAnalytics,
   '/sessions': loadSessions, '/journey': loadJourney,
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
-  '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile,
+  '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
 };
 
 function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
@@ -82,6 +86,7 @@ const secondaryNav = [
   { to: "/analytics", label: "nav.analytics", icon: BarChart3 },
   { to: "/media/representatives", label: "nav.representatives", icon: Film },
   { to: "/sessions", label: "nav.sessions", icon: CalendarDays },
+  { to: "/notifications", label: "nav.notifications", icon: Bell },
 ];
 
 const operationsNav = [
@@ -101,6 +106,7 @@ const routeLabelKeys: Record<string, string> = {
   "/admin": "nav.system",
   "/account": "nav.account",
   "/sessions": "nav.sessions",
+  "/notifications": "nav.notifications",
 };
 
 type NavItem = {
@@ -202,6 +208,8 @@ export function breadcrumbTrail(
       return [{ labelKey: "nav.analytics" }];
     case "/sessions":
       return [{ labelKey: "nav.sessions" }];
+    case "/notifications":
+      return [{ labelKey: "nav.notifications" }];
     case "/media/representatives":
       return [{ labelKey: "nav.representatives" }];
     case "/media/recall":
@@ -282,6 +290,7 @@ function MobileNavigation() {
         </Link>
         <div className="flex items-center gap-2">
           <WhatsNewButton compact />
+          <NotificationsButton compact />
           <span className="max-w-36 truncate text-sm text-app-muted">
             {currentLabel}
           </span>
@@ -401,7 +410,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             )}
 
             <div className="mt-auto border-t border-app pt-4">
-              <div className="mb-3"><WhatsNewButton /></div>
+              <div className="mb-3 grid gap-2"><WhatsNewButton /><NotificationsButton /></div>
               <div className="truncate px-3 text-xs text-app-muted">
                 {user?.display_name ?? user?.email}
                 {friend ? ` · ${t("roles.diver")}` : ` · ${t("roles.administrator")}`}
@@ -536,7 +545,7 @@ function Router() {
         path="*"
         element={
           <AuthGuard>
-            <WhatsNewProvider><Layout>
+            <WhatsNewProvider><NotificationsProvider><Layout>
               <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">{t("common.loadingPage")}</p>}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
@@ -569,6 +578,7 @@ function Router() {
                   <Route path="/account" element={<Account />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<Sessions />} />
+                  <Route path="/notifications" element={<Notifications />} />
                   <Route
                     path="/competitions"
                     element={<CompetitionsRedirect />}
@@ -576,7 +586,7 @@ function Router() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </Layout></WhatsNewProvider>
+            </Layout></NotificationsProvider></WhatsNewProvider>
           </AuthGuard>
         }
       />
