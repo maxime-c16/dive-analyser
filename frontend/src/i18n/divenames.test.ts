@@ -30,13 +30,14 @@ describe('diveCodeName English', () => {
 })
 
 
-describe('diveCodeName armstand twist digits', () => {
-  it('keeps undefined twist digits raw', () => {
-    // Twist digit 0/9 is not defined by the reference: raw, not renamed.
-    expect(diveCodeName('6103B', 'en')).toBe('6103B')
-    expect(diveCodeName('6103B', 'fr')).toBe('6103B')
-    expect(parseDiveCode('6121D')).toBeTruthy()
-    expect(parseDiveCode('6103B')).toBeNull()
+describe('diveCodeName armstand codes', () => {
+  it('keeps five-character armstand codes raw', () => {
+    // The backend validator accepts only four-character group-6 codes.
+    for (const code of ['6103B', '6121D', '6121B']) {
+      expect(parseDiveCode(code)).toBeNull()
+      expect(diveCodeName(code, 'en')).toBe(code)
+      expect(diveCodeName(code, 'fr')).toBe(code)
+    }
   })
 })
 

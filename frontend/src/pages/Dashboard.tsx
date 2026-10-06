@@ -219,7 +219,7 @@ function Dashboard() {
     .filter((value) => value.value != null)
     .map((value) => ({
       ...value,
-      dateLabel: format(parseISO(value.dive_datetime), "d MMM"),
+      dateLabel: format(parseISO(value.dive_datetime), "d MMM", { locale: appLocale() }),
       personalValue: value.value,
     }));
 

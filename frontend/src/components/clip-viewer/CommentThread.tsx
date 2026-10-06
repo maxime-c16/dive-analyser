@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Heart, Send, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { appLanguage } from "../../utils/dateLocale";
 import type { Comment } from "./useDiveSocial";
 
 export default function CommentThread({ comment, diveId, basePath = `/api/v1/dives/${diveId}`, guestId, onDelete, onCountChange, onChange, onReply, nested = false }: {
@@ -70,10 +71,10 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
       <div className="clip-avatar">{comment.author.slice(0, 1).toUpperCase()}</div>
       <div>
         <strong>{comment.author}</strong>
-        <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString()}</time>
+        <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString(appLanguage())}</time>
         <p>{comment.body}</p>
         <div className="clip-comment-actions">
-          <button type="button" aria-label={`Like comment by ${comment.author}`} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
+          <button type="button" aria-label={t('comments.likeBy', { author: comment.author })} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
             const { data } = await api.put<Comment>(`${basePath}/comments/${comment.id}/like`, { liked: !comment.liked });
             if (alive.current) onChange({ ...latestComment.current, liked: data.liked, like_count: data.like_count });
           })}><Heart size={16} fill={comment.liked ? "currentColor" : "none"} />{comment.like_count ?? 0}</button>
@@ -82,14 +83,14 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
             setOpen(true);
             if (!open) void load();
             requestAnimationFrame(() => input.current?.focus());
-          }}>Reply</button>
+          }}>{t('comments.reply')}</button>
         </div>
       </div>
-      {(guestId !== undefined ? comment.guest_id === guestId : (comment.user_id === user?.user_id || user?.is_admin)) && <button type="button" aria-label={`Delete comment by ${comment.author}`} disabled={busy} onClick={() => void mutate(onDelete)}><Trash2 size={16} /></button>}
+      {(guestId !== undefined ? comment.guest_id === guestId : (comment.user_id === user?.user_id || user?.is_admin)) && <button type="button" aria-label={t('comments.deleteBy', { author: comment.author })} disabled={busy} onClick={() => void mutate(onDelete)}><Trash2 size={16} /></button>}
     </article>
-    {error && <p role="alert">{error} {open && <button onClick={() => void load()}>Retry replies</button>}</p>}
+    {error && <p role="alert">{error} {open && <button onClick={() => void load()}>{t('comments.retryReplies')}</button>}</p>}
     {!nested && <>
-      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? "Hide replies" : `View replies (${comment.reply_count})`}</button>}
+      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? t('comments.hideReplies') : t('comments.viewReplies', { count: comment.reply_count })}</button>}
       {open && <div className="clip-thread-replies">
         {replies.map(reply => <CommentThread key={reply.id} comment={reply} diveId={diveId} basePath={basePath} guestId={guestId} nested onReply={author => { setBody(previous => previous || `@${author} `); input.current?.focus(); }} onCountChange={onCountChange} onChange={updated => {
           replyMutations.current.set(updated.id, updated);

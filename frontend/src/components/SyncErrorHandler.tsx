@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import React, { useState, useEffect } from 'react'
 import { useSyncStatus } from '../hooks/useSyncStatus'
+import { appLanguage } from '../utils/dateLocale'
 import { AlertCircle, RotateCw, ChevronDown, ChevronUp, X } from 'lucide-react'
 
 interface ErrorDetail {
@@ -32,7 +33,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
       const newError: ErrorDetail = {
         id: `error-${Date.now()}`,
         timestamp: lastEvent.timestamp,
-        message: lastEvent.data.error || 'Unknown error occurred',
+        message: lastEvent.data.error || t('sync.unknownError'),
         syncId: lastEvent.sync_id,
         retryCount: 0,
         expanded: true,
@@ -52,7 +53,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
         )
       }, 5000)
     }
-  }, [lastEvent, currentSync, maxErrors])
+  }, [lastEvent, currentSync, maxErrors, t])
 
   const toggleExpanded = (id: string) => {
     setErrors((prev) =>
@@ -94,7 +95,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-red-300 text-sm">{t("sync.error")}</h4>
               <p className="text-xs text-app-muted mt-1">
-                {new Date(error.timestamp).toLocaleTimeString()}
+                {new Date(error.timestamp).toLocaleTimeString(appLanguage())}
               </p>
             </div>
 
@@ -126,21 +127,21 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
           {error.expanded && (
             <div className="px-4 py-3 bg-app-bg space-y-3 border-t border-red-500/20">
               <div>
-                <div className="text-xs text-app-muted mb-1">Sync ID</div>
+                <div className="text-xs text-app-muted mb-1">{t('sync.syncId')}</div>
                 <code className="text-xs text-app-text bg-app-bg p-2 rounded block font-mono break-all">
                   {error.syncId}
                 </code>
               </div>
 
               <div>
-                <div className="text-xs text-app-muted mb-1">Error Message</div>
+                <div className="text-xs text-app-muted mb-1">{t('sync.errorMessage')}</div>
                 <p className="text-xs text-red-200 bg-app-bg p-2 rounded">
                   {error.message}
                 </p>
               </div>
 
               <div className="text-xs text-app-muted">
-                Retry Attempts: <span className="font-bold">{error.retryCount}</span>
+                {t('sync.retryAttempts')} <span className="font-bold">{error.retryCount}</span>
               </div>
 
               {/* Action Buttons */}
@@ -151,20 +152,20 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
                   disabled={error.retryCount >= 3}
                 >
                   <RotateCw className="w-4 h-4" />
-                  Retry
+                  {t('sync.retry')}
                 </button>
 
                 <button
                   onClick={() => removeError(error.id)}
                   className="flex-1 py-2 px-3 bg-app-panel border border-app hover:text-app-text rounded text-sm font-medium transition-colors"
                 >
-                  Dismiss
+                  {t('sync.dismiss')}
                 </button>
               </div>
 
               {error.retryCount >= 3 && (
                 <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-xs text-amber-300">
-                  Maximum retries reached.
+                  {t('sync.maxRetries')}
                 </div>
               )}
             </div>
