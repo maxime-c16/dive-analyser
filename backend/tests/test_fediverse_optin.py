@@ -1,8 +1,7 @@
 """Fediverse opt-in (Option 1): global OFF default, per-dive public-only, no history publish."""
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from app.main import app
-from app.models.dive import Dive
-from app.models.fediverse import UserFediversePrefs
 from tests.test_member_dive_visibility import workspace
 
 
@@ -98,3 +97,27 @@ def test_dive_lists_expose_federate_flag(workspace):
     own = {row['id']: row for row in alice.get('/api/v1/dives').json()}
     assert own[dives['alice-public']]['federate_enabled'] is True
     assert own[dives['alice-private']]['federate_enabled'] is False
+
+
+def test_pre_migration_schema_keeps_dives_serving(workspace):
+    """Old-schema compatibility: without add_fediverse_optin.sql, dive reads
+    keep working (federated OFF) and enabling fails closed with 503."""
+    db, login, dives, _, _ = workspace
+    db.execute(text('DROP TABLE IF EXISTS dive_fediverse_optins'))
+    db.execute(text('DROP TABLE IF EXISTS user_fediverse_prefs'))
+    db.commit()
+    alice = login('alice')
+    public = dives['alice-public']
+    own = alice.get('/api/v1/dives')
+    assert own.status_code == 200, own.text
+    assert {row['id'] for row in own.json()} == {dives['alice-public'], dives['alice-private']}
+    assert all(row['federate_enabled'] is False for row in own.json())
+    assert alice.get(f'/api/v1/dives/{public}').json()['federate_enabled'] is False
+    assert alice.get('/api/v1/fediverse/settings').json()['enabled'] is False
+    status = alice.get(f'/api/v1/dives/{public}/fediverse').json()
+    assert status['eligible'] is False
+    assert status['federate_enabled'] is False
+    # Enabling fails closed until the migration is applied; disabling is a no-op.
+    assert alice.put('/api/v1/fediverse/settings', json={'enabled': True}).status_code == 503
+    assert alice.put('/api/v1/fediverse/settings', json={'enabled': False}).json()['enabled'] is False
+    assert alice.put(f'/api/v1/dives/{public}/fediverse', json={'federate_enabled': False}).status_code == 200

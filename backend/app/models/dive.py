@@ -18,12 +18,6 @@ class Dive(Base):
 
     visibility = Column(String(10), nullable=False, default="public", index=True)
 
-    # Fediverse opt-in (Option 1: manual cross-post only, default OFF).
-    # Eligible only when visibility == 'public' AND the owner's global
-    # fediverse toggle is ON. Enabling the global toggle never backfills or
-    # publishes existing public dives; each dive needs an explicit opt-in.
-    federate_enabled = Column(Boolean, nullable=False, default=False)
-
     # Core dive info
     dive_code = Column(String(10), nullable=False, index=True)
     dive_number = Column(String(5), nullable=True)

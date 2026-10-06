@@ -9,6 +9,11 @@ Contract (mirrors the Settings UI warnings):
 4. Turning the global toggle ON never publishes existing public dives.
    Each dive needs its own explicit opt-in afterwards; there is no backfill.
 
+Old-schema compatibility: the dives table is untouched, and every read
+treats missing fediverse tables as OFF, so dive endpoints keep serving
+before ``add_fediverse_optin.sql`` is applied. Writes fail closed with 503
+("Fediverse migration pending") until the tables exist.
+
 Endpoints (all require a live workspace session; per-dive writes require
 dive ownership):
 - GET  /fediverse/settings
@@ -24,7 +29,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import _origin_allowed
 from app.database import get_db
 from app.models.dive import Dive
-from app.models.fediverse import UserFediversePrefs
+from app.services import fediverse as fediverse_service
 from app.services.dive_access import require_dive_owner
 from app.services.write_guard import optional_session_user
 
@@ -51,11 +56,6 @@ def _secure_headers(response: Response) -> None:
     response.headers["X-Content-Type-Options"] = "nosniff"
 
 
-def _global_enabled(db: Session, user_id: int) -> bool:
-    row = db.get(UserFediversePrefs, user_id)
-    return bool(row.enabled) if row else False
-
-
 def _dive_or_404(db: Session, dive_id: int) -> Dive:
     dive = db.get(Dive, dive_id)
     if dive is None:
@@ -78,8 +78,8 @@ def _cross_post_text(dive: Dive) -> str:
 
 
 def _eligibility(db: Session, user, dive: Dive) -> dict:
-    global_on = _global_enabled(db, user.id)
-    per_dive_on = bool(getattr(dive, "federate_enabled", False))
+    global_on = fediverse_service.global_enabled(db, user.id)
+    per_dive_on = fediverse_service.per_dive_enabled(db, dive.id)
     is_public = dive.visibility == "public"
     if not global_on:
         reason = "global_opt_in_off"
@@ -122,7 +122,7 @@ def get_settings(request: Request, response: Response, db: Session = Depends(get
     user = _require_user(request, db)
     _secure_headers(response)
     return {
-        "enabled": _global_enabled(db, user.id),
+        "enabled": fediverse_service.global_enabled(db, user.id),
         # Explicit so clients can render the no-history warning verbatim.
         "auto_publishes_history": False,
         "mode": "manual-cross-post",
@@ -141,16 +141,18 @@ def put_settings(
 ):
     _same_origin(request)
     user = _require_user(request, db)
-    row = db.get(UserFediversePrefs, user.id)
-    if row is None:
-        row = UserFediversePrefs(user_id=user.id, enabled=payload.enabled)
-        db.add(row)
-    else:
-        row.enabled = payload.enabled
-    db.commit()
+    if not payload.enabled and not fediverse_service.global_enabled(db, user.id):
+        # Idempotent OFF without requiring the migration tables.
+        _secure_headers(response)
+        return {
+            "enabled": False,
+            "auto_publishes_history": False,
+            "mode": "manual-cross-post",
+        }
+    enabled = fediverse_service.set_global_enabled(db, user.id, payload.enabled)
     _secure_headers(response)
     return {
-        "enabled": bool(payload.enabled),
+        "enabled": enabled,
         "auto_publishes_history": False,
         "mode": "manual-cross-post",
     }
@@ -178,13 +180,15 @@ def put_dive_fediverse(
     dive = _dive_or_404(db, dive_id)
     require_dive_owner(db, user, dive)
     if payload.federate_enabled:
-        if not _global_enabled(db, user.id):
+        if not fediverse_service.global_enabled(db, user.id):
             raise HTTPException(403, "Turn on fediverse sharing in Settings first")
         if dive.visibility != "public":
             raise HTTPException(422, "Only public dives can be federated")
-    dive.federate_enabled = bool(payload.federate_enabled)
-    db.add(dive)
-    db.commit()
+    elif not fediverse_service.per_dive_enabled(db, dive.id):
+        # Idempotent OFF without requiring the migration tables.
+        _secure_headers(response)
+        return {"dive_id": dive.id, **_eligibility(db, user, dive)}
+    enabled = fediverse_service.set_per_dive_enabled(db, dive.id, payload.federate_enabled)
     _secure_headers(response)
     return {"dive_id": dive.id, **_eligibility(db, user, dive)}
 

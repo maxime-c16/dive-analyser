@@ -128,4 +128,4 @@ from app.models.analysis import (
 
 from app.models.dive_social import DiveLike, DiveComment, DiveCommentLike, DiveGuestCommentLike
 from app.models.dive_share import DiveShare, DiveGuest, DiveGuestLike, DiveGuestAccess
-from app.models.fediverse import UserFediversePrefs
+from app.models.fediverse import UserFediversePrefs, DiveFediverseOptin
