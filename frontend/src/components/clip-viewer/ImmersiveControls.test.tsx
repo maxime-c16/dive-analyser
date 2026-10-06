@@ -3,8 +3,13 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import ImmersiveControls from "./ImmersiveControls";
 class Pointer extends MouseEvent {
-  isPrimary = true;
-  pointerId = 1;
+  isPrimary: boolean;
+  pointerId: number;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.isPrimary = init.isPrimary ?? true;
+    this.pointerId = init.pointerId ?? 1;
+  }
 }
 beforeEach(() => {
   vi.useFakeTimers();
@@ -20,6 +25,9 @@ function setup(
     dragEnabled?: boolean;
     onDragUpdate?: (dy: number) => void;
     onDragEnd?: (result: { dy: number; velocity: number; cancelled: boolean }) => void;
+    onPinchStart?: () => void;
+    onPinchUpdate?: (ratio: number) => void;
+    onPinchEnd?: (cancelled: boolean) => void;
   } = {},
 ) {
   const video = document.createElement("video");
@@ -39,6 +47,9 @@ function setup(
       dragEnabled={drag.dragEnabled}
       onDragUpdate={drag.onDragUpdate}
       onDragEnd={drag.onDragEnd}
+      onPinchStart={drag.onPinchStart}
+      onPinchUpdate={drag.onPinchUpdate}
+      onPinchEnd={drag.onPinchEnd}
     />,
   );
   const surface = screen.getByRole("button", { name: "Play video" });
@@ -161,4 +172,83 @@ it("taps still toggle playback while drag mode is enabled", () => {
   expect(t.play).toHaveBeenCalledOnce();
   expect(onDragUpdate).not.toHaveBeenCalled();
   expect(onDragEnd).not.toHaveBeenCalled();
+});
+
+// Two fingers: finger 1 is the primary pointer, finger 2 a secondary one.
+const finger = (id: number, x: number, y: number) => ({
+  pointerId: id,
+  isPrimary: id === 1,
+  clientX: x,
+  clientY: y,
+  button: 0,
+});
+it("a pinch reports live span ratios and ends once, without tap, like or drag side effects", () => {
+  const onDragEnd = vi.fn();
+  const onPinchStart = vi.fn();
+  const onPinchUpdate = vi.fn();
+  const onPinchEnd = vi.fn();
+  const t = setup(0.5, {
+    dragEnabled: true,
+    onDragEnd,
+    onPinchStart,
+    onPinchUpdate,
+    onPinchEnd,
+  });
+  fireEvent.pointerDown(t.surface, finger(1, 100, 300));
+  fireEvent.pointerDown(t.surface, finger(2, 300, 300));
+  expect(onPinchStart).toHaveBeenCalledOnce();
+  fireEvent.pointerMove(t.surface, finger(2, 250, 300));
+  expect(onPinchUpdate).toHaveBeenLastCalledWith(0.75);
+  fireEvent.pointerMove(t.surface, finger(2, 400, 300));
+  expect(onPinchUpdate).toHaveBeenLastCalledWith(1.5);
+  expect(onPinchEnd).not.toHaveBeenCalled();
+  fireEvent.pointerUp(t.surface, finger(2, 400, 300));
+  expect(onPinchEnd).toHaveBeenCalledOnce();
+  expect(onPinchEnd).toHaveBeenCalledWith(false);
+  fireEvent.pointerUp(t.surface, finger(1, 100, 300));
+  expect(onPinchEnd).toHaveBeenCalledOnce();
+  expect(onPinchStart).toHaveBeenCalledOnce();
+  act(() => vi.advanceTimersByTime(400));
+  expect(t.play).not.toHaveBeenCalled();
+  expect(t.onLike).not.toHaveBeenCalled();
+  expect(t.onNavigate).not.toHaveBeenCalled();
+  expect(onDragEnd).not.toHaveBeenCalled();
+});
+it("a cancelled pinch ends as cancelled", () => {
+  const onPinchEnd = vi.fn();
+  const t = setup(0.5, { onPinchEnd });
+  fireEvent.pointerDown(t.surface, finger(1, 100, 300));
+  fireEvent.pointerDown(t.surface, finger(2, 300, 300));
+  fireEvent.pointerCancel(t.surface, finger(2, 300, 300));
+  expect(onPinchEnd).toHaveBeenCalledOnce();
+  expect(onPinchEnd).toHaveBeenCalledWith(true);
+});
+it("a second finger landing mid-drag cancels the feed drag instead of paging", () => {
+  const onDragUpdate = vi.fn();
+  const onDragEnd = vi.fn();
+  const t = setup(0.5, { dragEnabled: true, onDragUpdate, onDragEnd });
+  fireEvent.pointerDown(t.surface, finger(1, 100, 300));
+  fireEvent.pointerMove(t.surface, finger(1, 100, 200));
+  expect(onDragUpdate).toHaveBeenCalled();
+  fireEvent.pointerDown(t.surface, finger(2, 300, 200));
+  expect(onDragEnd).toHaveBeenCalledOnce();
+  expect(onDragEnd.mock.calls[0][0]).toMatchObject({ cancelled: true });
+  onDragUpdate.mockClear();
+  fireEvent.pointerMove(t.surface, finger(1, 100, 100));
+  expect(onDragUpdate).not.toHaveBeenCalled();
+  fireEvent.pointerUp(t.surface, finger(2, 300, 200));
+  fireEvent.pointerUp(t.surface, finger(1, 100, 100));
+  expect(onDragEnd).toHaveBeenCalledOnce();
+  expect(t.onNavigate).not.toHaveBeenCalled();
+});
+it("a normal one-finger tap still works after a pinch ended", () => {
+  const t = setup();
+  fireEvent.pointerDown(t.surface, finger(1, 100, 300));
+  fireEvent.pointerDown(t.surface, finger(2, 300, 300));
+  fireEvent.pointerUp(t.surface, finger(2, 300, 300));
+  fireEvent.pointerUp(t.surface, finger(1, 100, 300));
+  t.down();
+  t.up();
+  act(() => vi.advanceTimersByTime(270));
+  expect(t.play).toHaveBeenCalledOnce();
 });

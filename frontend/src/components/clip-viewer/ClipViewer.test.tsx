@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
-import ClipViewer from './ClipViewer'
+import ClipViewer, { pinchState } from './ClipViewer'
 
 vi.mock('../../services/api', () => ({ api: { get: vi.fn().mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }), put: vi.fn() } }))
 
@@ -15,10 +15,19 @@ vi.mock('../DiveVideoPlayer', () => ({
     dragEnabled?: boolean
     onDragUpdate?: (dy: number) => void
     onDragEnd?: (result: { dy: number; velocity: number; cancelled: boolean }) => void
+    onPinchStart?: () => void
+    onPinchUpdate?: (ratio: number) => void
+    onPinchEnd?: (cancelled: boolean) => void
   }) => (
     <div data-testid="player">
       {props.diveCode}:{props.videoUuid}:{props.playbackRate}
       <video data-testid="player-video" />
+      {/* Stands in for the two-finger pinch reported by ImmersiveControls. */}
+      <button type="button" aria-label="Test pinch start" onClick={() => props.onPinchStart?.()} />
+      <button type="button" aria-label="Test pinch close" onClick={() => props.onPinchUpdate?.(0.6)} />
+      <button type="button" aria-label="Test pinch spread" onClick={() => props.onPinchUpdate?.(1.4)} />
+      <button type="button" aria-label="Test pinch end" onClick={() => props.onPinchEnd?.(false)} />
+      <button type="button" aria-label="Test pinch cancel" onClick={() => props.onPinchEnd?.(true)} />
       {/* Stands in for the ImmersiveControls gesture surface (arbitration is
           covered in ImmersiveControls.test.tsx): forwards raw pointer travel
           as drag callbacks so pager tests can drive finger gestures. */}
@@ -669,4 +678,76 @@ it('shouldEnableFeedPager is mobile-only and honors reduced motion', () => {
     if (matchMedia === undefined) delete (window as { matchMedia?: unknown }).matchMedia
     else Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: matchMedia })
   }
+})
+
+const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
+
+it('a pinch drives the pose live, release closing past halfway settles to the clean view', () => {
+  renderClipViewer(1)
+  const dialog = screen.getByTestId('clip-viewer')
+  press('Test pinch start')
+  expect(dialog).toHaveClass('is-pinching')
+  expect(dialog).not.toHaveClass('is-clean')
+  press('Test pinch close')
+  expect(dialog.style.getPropertyValue('--clip-pinch-p')).toBe('1')
+  expect(Number(dialog.style.getPropertyValue('--clip-pinch-shrink'))).toBeGreaterThan(0)
+  press('Test pinch end')
+  expect(dialog).toHaveClass('is-clean')
+  expect(dialog).not.toHaveClass('is-pinching')
+  expect(dialog.style.getPropertyValue('--clip-pinch-p')).toBe('')
+})
+
+it('spreading from the clean view restores the overlays; a cancelled pinch reverts', () => {
+  renderClipViewer(1)
+  const dialog = screen.getByTestId('clip-viewer')
+  press('Test pinch start')
+  press('Test pinch close')
+  press('Test pinch end')
+  expect(dialog).toHaveClass('is-clean')
+  press('Test pinch start')
+  expect(dialog.style.getPropertyValue('--clip-pinch-p')).toBe('1')
+  press('Test pinch spread')
+  expect(dialog.style.getPropertyValue('--clip-pinch-p')).toBe('0')
+  press('Test pinch end')
+  expect(dialog).not.toHaveClass('is-clean')
+  press('Test pinch start')
+  press('Test pinch close')
+  press('Test pinch cancel')
+  expect(dialog).not.toHaveClass('is-clean')
+})
+
+it('changing dive restores the overlays', () => {
+  const view = renderClipViewer(1)
+  press('Test pinch start')
+  press('Test pinch close')
+  press('Test pinch end')
+  expect(screen.getByTestId('clip-viewer')).toHaveClass('is-clean')
+  view.rerender(
+    <MemoryRouter>
+      <ClipViewer
+        attempt={attempts[2]}
+        attempts={attempts}
+        onClose={() => {}}
+        onMove={() => {}}
+        playbackRate={1}
+        onPlaybackRateChange={() => {}}
+      />
+    </MemoryRouter>,
+  )
+  expect(screen.getByTestId('clip-viewer')).not.toHaveClass('is-clean')
+})
+
+it('pinchState maps finger travel to clean progress with a rounded overshoot', () => {
+  expect(pinchState(false, 1)).toMatchObject({ progress: 0, overshoot: 0, clean: false })
+  expect(pinchState(false, 0.9).progress).toBeCloseTo(0.2857, 3)
+  expect(pinchState(false, 0.9).clean).toBe(false)
+  expect(pinchState(false, 0.8).clean).toBe(true)
+  expect(pinchState(false, 0.5)).toMatchObject({ progress: 1, clean: true })
+  expect(pinchState(false, 0.5).overshoot).toBeGreaterThan(0)
+  expect(pinchState(false, 0.1).overshoot).toBe(1)
+  expect(pinchState(true, 1)).toMatchObject({ progress: 1, overshoot: 0, clean: true })
+  expect(pinchState(true, 1.4)).toMatchObject({ progress: 0, clean: false })
+  expect(pinchState(true, 1.1).clean).toBe(true)
+  expect(pinchState(false, 1.5)).toMatchObject({ progress: 0, overshoot: 0 })
+  expect(pinchState(true, NaN)).toMatchObject({ progress: 1, clean: true })
 })

@@ -665,8 +665,25 @@
   .clip-layout {
     height: 100%;
   }
-  .clip-video {
-    object-fit: cover;
+  /* The video is its contain-fit picture box, zoomed to fill the stage like
+     `cover`. Pinching in eases that zoom down to 1 (the whole frame) and can
+     shrink past it into a rounded card while the fingers are down. */
+  .clip-stage .clip-video {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: var(--clip-pic-w, 100%);
+    height: var(--clip-pic-h, 100%);
+    object-fit: contain;
+    border-radius: var(--clip-pinch-radius, 0px);
+    transform: scale(
+      calc(
+        var(--clip-cover-scale, 1) +
+          (1 - var(--clip-cover-scale, 1)) * var(--clip-p, 0) -
+          var(--clip-pinch-shrink, 0)
+      )
+    );
+    transform-origin: center;
   }
   .clip-caption {
     left: max(24px, env(safe-area-inset-left));
@@ -900,6 +917,95 @@
 }
 @media (max-width: 599px) {
   .clip-speed-indicator { top: calc(80px + env(safe-area-inset-top)); }
+}
+
+/* Clean view (Instagram-style pinch-in): the overlays fade out and the video
+   shows whole. --clip-p is how clean the view is (0..1): the live pinch
+   value while fingers are down (--clip-pinch-p), else the settled state.
+   Visibility keeps settled-hidden controls out of the tab order and the
+   pointer path without changing layout, so nothing jumps. The gesture surface
+   (tap, double-tap like, hold) stays live. */
+.clip-viewer {
+  --clip-p: var(--clip-pinch-p, 0);
+}
+.clip-viewer.is-clean {
+  --clip-p: var(--clip-pinch-p, 1);
+}
+.clip-header,
+.clip-navigation,
+.clip-actions,
+.clip-caption,
+.clip-stage-shade,
+.clip-transport,
+.clip-progress {
+  transition:
+    opacity 0.22s ease,
+    visibility 0s linear 0s;
+}
+.clip-viewer.is-clean .clip-header,
+.clip-viewer.is-clean .clip-navigation,
+.clip-viewer.is-clean .clip-actions,
+.clip-viewer.is-clean .clip-caption,
+.clip-viewer.is-clean .clip-stage-shade,
+.clip-viewer.is-clean .clip-transport,
+.clip-viewer.is-clean .clip-progress,
+.clip-viewer.is-pinching .clip-header,
+.clip-viewer.is-pinching .clip-navigation,
+.clip-viewer.is-pinching .clip-actions,
+.clip-viewer.is-pinching .clip-caption,
+.clip-viewer.is-pinching .clip-stage-shade,
+.clip-viewer.is-pinching .clip-transport,
+.clip-viewer.is-pinching .clip-progress {
+  opacity: calc(1 - var(--clip-p));
+  pointer-events: none;
+}
+.clip-viewer.is-clean:not(.is-pinching) .clip-header,
+.clip-viewer.is-clean:not(.is-pinching) .clip-navigation,
+.clip-viewer.is-clean:not(.is-pinching) .clip-actions,
+.clip-viewer.is-clean:not(.is-pinching) .clip-caption,
+.clip-viewer.is-clean:not(.is-pinching) .clip-stage-shade,
+.clip-viewer.is-clean:not(.is-pinching) .clip-transport,
+.clip-viewer.is-clean:not(.is-pinching) .clip-progress {
+  visibility: hidden;
+  transition:
+    opacity 0.22s ease,
+    visibility 0s linear 0.22s;
+}
+@media (max-width: 599px) and (prefers-reduced-motion: no-preference) {
+  .clip-stage .clip-video {
+    transition:
+      transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+      border-radius 0.26s ease;
+  }
+}
+/* The fingers drive the pose directly: no easing while they are down. */
+.clip-viewer.is-pinching .clip-header,
+.clip-viewer.is-pinching .clip-navigation,
+.clip-viewer.is-pinching .clip-actions,
+.clip-viewer.is-pinching .clip-caption,
+.clip-viewer.is-pinching .clip-stage-shade,
+.clip-viewer.is-pinching .clip-transport,
+.clip-viewer.is-pinching .clip-progress,
+.clip-viewer.is-pinching .clip-stage .clip-video {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .clip-header,
+  .clip-navigation,
+  .clip-actions,
+  .clip-caption,
+  .clip-stage-shade,
+  .clip-transport,
+  .clip-progress,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-header,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-navigation,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-actions,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-caption,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-stage-shade,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-transport,
+  .clip-viewer.is-clean:not(.is-pinching) .clip-progress {
+    transition: none;
+  }
 }
 
 .clip-comment .clip-comment-actions {
