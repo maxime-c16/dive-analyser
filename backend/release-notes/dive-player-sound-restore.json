@@ -1,0 +1,8 @@
+{
+  "id": "dive-player-sound-restore",
+  "date": "2026-10-07",
+  "title": "Clips get their sound back on first tap, start faster",
+  "body": "If your browser blocked a clip's sound at the start, the first tap anywhere now restores it automatically instead of leaving every following dive muted. Clips also start sooner, with less time on the preview image.",
+  "audience": "all",
+  "components": ["frontend"]
+}

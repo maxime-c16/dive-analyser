@@ -629,6 +629,124 @@ it('an autoplay attempt aborted by a source switch never steals sound', async ()
   }
 })
 
+it('mounting a seeded clip never restarts the element', async () => {
+  await seedPreviewNow('no-reload', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...missing, status: 'ready', playback_url: '/seeded.mp4', poster_url: '/poster.jpg' })
+  const loadSpy = vi.spyOn(HTMLMediaElement.prototype, 'load')
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="no-reload" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video')
+    expect(video).toHaveAttribute('src', '/seeded.mp4')
+    await presentFirstFrame(video as HTMLVideoElement)
+    await act(async () => {})
+    // Seeding, authoritative revalidation with the same URL, and first-frame
+    // presentation all ride the element's own resource selection: no
+    // explicit restart that would abort the native load and its autoplay.
+    expect(loadSpy).not.toHaveBeenCalled()
+    expect(cover()).not.toBeInTheDocument()
+  } finally {
+    loadSpy.mockRestore()
+  }
+})
+
+it('the first gesture after a muted fallback restores sound', async () => {
+  await seedPreviewNow('gesture-unmute', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="gesture-unmute" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await waitFor(() => expect(playSpy).toHaveBeenCalledTimes(2))
+    await act(async () => {})
+    // The fallback sticks by itself (the scrolled-to dives stay silent
+    // bug) — the first tap brings sound back automatically.
+    fireEvent.pointerDown(document.body)
+    await waitFor(() => expect(video.muted).toBe(false))
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
+it('a manual unmute disarms gesture restoration', async () => {
+  await seedPreviewNow('manual-unmute', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="manual-unmute" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await act(async () => {})
+    // The viewer unmutes from the transport: restoration stands down and a
+    // later gesture must not replay or re-mute anything.
+    await act(async () => {
+      video.muted = false
+      fireEvent.volumeChange(video)
+    })
+    fireEvent.pointerDown(document.body)
+    await act(async () => {})
+    expect(video.muted).toBe(false)
+    expect(playSpy).toHaveBeenCalledTimes(2)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
+it('a tap on the mute control keeps its own toggle semantics', async () => {
+  await seedPreviewNow('control-tap', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="control-tap" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await presentFirstFrame(video)
+    const unmute = await screen.findByRole('button', { name: 'Unmute video' })
+    // The capture-phase restoration must not pre-empt the explicit control:
+    // pointerdown on Unmute leaves the element muted so its click toggles
+    // to unmuted instead of back to muted.
+    fireEvent.pointerDown(unmute)
+    await act(async () => {})
+    expect(video.muted).toBe(true)
+    // …and its click toggles straight to unmuted.
+    fireEvent.click(unmute)
+    expect(video.muted).toBe(false)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
+it('gestures on other controls still restore sound', async () => {
+  await seedPreviewNow('other-control', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="other-control" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await presentFirstFrame(video)
+    // Only the sound toggle itself is exempt: a gesture starting on any
+    // other control (here the transport play button) restores sound.
+    const playToggle = document.querySelector('.clip-transport button') as Element
+    fireEvent.pointerDown(playToggle)
+    await waitFor(() => expect(video.muted).toBe(false))
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
 it('a status-driven source switch holds the cover until the new source presents', async () => {
   await seedPreviewNow('status-switch', '/a.mp4')
   vi.useFakeTimers()
