@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck, UserPlus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Register() {
@@ -14,6 +15,7 @@ export default function Register() {
   const [open, setOpen] = useState<boolean | null>(null)
   const { refresh } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   useEffect(() => {
     fetch('/api/v1/auth/registration-status', { credentials: 'same-origin' })
@@ -26,11 +28,11 @@ export default function Register() {
     e.preventDefault()
     setError(null)
     if (password !== confirm) {
-      setError('Passwords do not match')
+      setError(t('register.errorMismatch'))
       return
     }
     if (password.length < 10) {
-      setError('Password must be at least 10 characters')
+      setError(t('register.errorTooShort'))
       return
     }
     setBusy(true)
@@ -47,10 +49,10 @@ export default function Register() {
         }),
       })
       if (!res.ok) {
-        if (res.status === 403) setError('Invalid invite code')
-        else if (res.status === 409) setError('An account with this email already exists')
-        else if (res.status === 429) setError('Too many attempts — please try again later')
-        else setError('Registration failed — please check your details')
+        if (res.status === 403) setError(t('register.errorInvite'))
+        else if (res.status === 409) setError(t('register.errorExists'))
+        else if (res.status === 429) setError(t('register.errorTooMany'))
+        else setError(t('register.errorFailed'))
         return
       }
       setPassword('')
@@ -59,7 +61,7 @@ export default function Register() {
       await refresh()
       navigate('/dives', { replace: true })
     } catch {
-      setError('Network error — please try again')
+      setError(t('login.networkError'))
     } finally {
       setBusy(false)
     }
@@ -76,17 +78,17 @@ export default function Register() {
           <span className="text-lg font-semibold text-app-text">Dive Analyser</span>
         </div>
         <p className="mb-6 text-sm text-app-muted">
-          Diver account — view public dives and manage your own.
+          {t('register.subtitle')}
         </p>
 
         {open === false && (
           <p className="mb-4 border border-amber-700/60 bg-amber-950/20 p-3 text-sm text-amber-100">
-            Registration is currently closed. Ask an administrator for a current invite code.
+            {t('register.closed')}
           </p>
         )}
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Email
+          {t('login.email')}
         </label>
         <input
           type="email"
@@ -99,7 +101,7 @@ export default function Register() {
         />
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Display name <span className="normal-case">(optional)</span>
+          {t('register.displayName')} <span className="normal-case">({t('common.optional')})</span>
         </label>
         <input
           type="text"
@@ -112,7 +114,7 @@ export default function Register() {
         />
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Password <span className="normal-case">(10+ characters)</span>
+          {t('login.password')} <span className="normal-case">(10+ {t('common.characters')})</span>
         </label>
         <input
           type="password"
@@ -126,7 +128,7 @@ export default function Register() {
         />
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Confirm password
+          {t('register.confirmPassword')}
         </label>
         <input
           type="password"
@@ -139,13 +141,13 @@ export default function Register() {
         />
 
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted">
-          Invite code
+          {t('register.inviteCode')}
         </label>
         <input
           type="text"
           value={inviteCode}
           onChange={e => setInviteCode(e.target.value)}
-          placeholder="Shared by an administrator"
+          placeholder={t('register.invitePlaceholder')}
           autoComplete="off"
           className="mb-5 w-full border border-app bg-app-panel-elevated px-3 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-app-accent"
           required
@@ -161,13 +163,13 @@ export default function Register() {
           className="touch-target inline-flex w-full items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 py-2.5 text-sm font-semibold text-app-text disabled:opacity-60"
         >
           <UserPlus className="h-4 w-4" />
-          {busy ? 'Creating account…' : 'Create diver account'}
+          {busy ? t('register.creating') : t('register.submit')}
         </button>
 
         <p className="mt-5 text-center text-sm text-app-muted">
-          Already have an account?{' '}
+          {t('register.alreadyHaveAccount')}{' '}
           <Link to="/login" className="text-app-accent hover:underline">
-            Sign in
+            {t('login.submit')}
           </Link>
         </p>
       </form>

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from 'react-i18next'
 import { Heart, Send, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { appLanguage } from "../../utils/dateLocale";
 import type { Comment } from "./useDiveSocial";
 
 export default function CommentThread({ comment, diveId, basePath = `/api/v1/dives/${diveId}`, guestId, onDelete, onCountChange, onChange, onReply, nested = false }: {
@@ -15,6 +17,7 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
   nested?: boolean;
   onReply?: (author: string) => void;
 }) {
+  const { t } = useTranslation()
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [replies, setReplies] = useState<Comment[]>([]);
@@ -51,7 +54,7 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
         return [...rows.values()].sort((a, b) => b.id - a.id);
       });
       setBefore(data.next_before);
-    } catch { setError("Could not load replies. Try again."); }
+    } catch { setError(t('comments.errorLoadReplies')); }
     finally { pending.current = false; setBusy(false); }
   };
   const mutate = async (action: () => Promise<void>) => {
@@ -60,7 +63,7 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
     setBusy(true);
     setError("");
     try { await action(); }
-    catch { setError("Could not save your change. Try again."); }
+    catch { setError(t('comments.errorSaveReply')); }
     finally { pending.current = false; setBusy(false); }
   };
   return <div className="clip-thread">
@@ -68,10 +71,10 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
       <div className="clip-avatar">{comment.author.slice(0, 1).toUpperCase()}</div>
       <div>
         <strong>{comment.author}</strong>
-        <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString()}</time>
+        <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString(appLanguage())}</time>
         <p>{comment.body}</p>
         <div className="clip-comment-actions">
-          <button type="button" aria-label={`Like comment by ${comment.author}`} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
+          <button type="button" aria-label={t('comments.likeBy', { author: comment.author })} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
             const { data } = await api.put<Comment>(`${basePath}/comments/${comment.id}/like`, { liked: !comment.liked });
             if (alive.current) onChange({ ...latestComment.current, liked: data.liked, like_count: data.like_count });
           })}><Heart size={16} fill={comment.liked ? "currentColor" : "none"} />{comment.like_count ?? 0}</button>
@@ -80,14 +83,14 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
             setOpen(true);
             if (!open) void load();
             requestAnimationFrame(() => input.current?.focus());
-          }}>Reply</button>
+          }}>{t('comments.reply')}</button>
         </div>
       </div>
-      {(guestId !== undefined ? comment.guest_id === guestId : (comment.user_id === user?.user_id || user?.is_admin)) && <button type="button" aria-label={`Delete comment by ${comment.author}`} disabled={busy} onClick={() => void mutate(onDelete)}><Trash2 size={16} /></button>}
+      {(guestId !== undefined ? comment.guest_id === guestId : (comment.user_id === user?.user_id || user?.is_admin)) && <button type="button" aria-label={t('comments.deleteBy', { author: comment.author })} disabled={busy} onClick={() => void mutate(onDelete)}><Trash2 size={16} /></button>}
     </article>
-    {error && <p role="alert">{error} {open && <button onClick={() => void load()}>Retry replies</button>}</p>}
+    {error && <p role="alert">{error} {open && <button onClick={() => void load()}>{t('comments.retryReplies')}</button>}</p>}
     {!nested && <>
-      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? "Hide replies" : `View replies (${comment.reply_count})`}</button>}
+      {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? t('comments.hideReplies') : t('comments.viewReplies', { count: comment.reply_count })}</button>}
       {open && <div className="clip-thread-replies">
         {replies.map(reply => <CommentThread key={reply.id} comment={reply} diveId={diveId} basePath={basePath} guestId={guestId} nested onReply={author => { setBody(previous => previous || `@${author} `); input.current?.focus(); }} onCountChange={onCountChange} onChange={updated => {
           replyMutations.current.set(updated.id, updated);
@@ -100,8 +103,8 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
           onChange({ ...latestComment.current, reply_count: Math.max(0, (latestComment.current.reply_count ?? 0) - 1) });
           onCountChange(-1);
         }} />)}
-        {busy && <p role="status">Saving or loading replies…</p>}
-        {before && <button type="button" className="clip-load-more" disabled={busy} onClick={() => void load(before)}>Older replies</button>}
+        {busy && <p role="status">{t('comments.savingReplies')}</p>}
+        {before && <button type="button" className="clip-load-more" disabled={busy} onClick={() => void load(before)}>{t('comments.olderReplies')}</button>}
         <form onSubmit={event => {
           event.preventDefault();
           if (!body.trim()) return;
@@ -115,10 +118,10 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
             onCountChange(1);
           });
         }}>
-          <label htmlFor={`reply-${comment.id}`}>Reply to {comment.author}</label>
+          <label htmlFor={`reply-${comment.id}`}>{t('comments.replyTo')} {comment.author}</label>
           <div className="clip-composer">
-            <textarea ref={input} id={`reply-${comment.id}`} placeholder="Write a reply…" rows={2} maxLength={2000} value={body} onChange={event => setBody(event.target.value)} disabled={busy} />
-            <button type="submit" aria-label={`Post reply to ${comment.author}`} disabled={busy || !body.trim()}><Send size={18} /></button>
+            <textarea ref={input} id={`reply-${comment.id}`} placeholder={t('comments.replyPlaceholder')} rows={2} maxLength={2000} value={body} onChange={event => setBody(event.target.value)} disabled={busy} />
+            <button type="submit" aria-label={t('comments.postReplyTo', { author: comment.author })} disabled={busy || !body.trim()}><Send size={18} /></button>
           </div>
         </form>
       </div>}

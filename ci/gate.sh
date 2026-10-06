@@ -33,6 +33,16 @@ export CI=true NO_COLOR=1
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}"
 
+# git exports GIT_DIR/GIT_INDEX_FILE (and friends) into hook environments.
+# Child commands that run `git` with an explicit `-C <path>` (release-notes
+# scoring against temp fixture repos, backend/git-spawning tests) inherit
+# those vars, which override -C and silently redirect staging/commits into
+# the real repository. Gate children always operate on explicit PATHs, so
+# the hook's plumbing vars are dropped environment-wide here.
+unset GIT_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES \
+      GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX GIT_QUARANTINE_PATH GIT_GRAFT_FILE \
+      GIT_INDEX_VERSION GIT_SHARED_REPOSITORY 2>/dev/null || true
+
 # Tiers that only need re-running when their inputs change.
 FRONTEND_PATHS='^(frontend/|nginx/|docker-compose\.yml|package-lock)'
 BACKEND_PATHS='^(backend/|docker-compose\.yml|docker/|layer2/)'

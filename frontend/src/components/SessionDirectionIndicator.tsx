@@ -1,17 +1,10 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../services/api'
 
 interface SessionDirectionIndicatorProps {
   sessionId: number
   diverScope: 'self' | 'all'
-}
-
-const DIRECTION_NAMES: { [key: number]: string } = {
-  1: 'Forward',
-  2: 'Back',
-  3: 'Reverse',
-  4: 'Inward',
-  5: 'Twist',
 }
 
 const DIRECTION_COLORS: { [key: number]: string } = {
@@ -22,15 +15,8 @@ const DIRECTION_COLORS: { [key: number]: string } = {
   5: '#ec4899',
 }
 
-const DIRECTION_SHORT: { [key: number]: string } = {
-  1: 'Forw.',
-  2: 'Back',
-  3: 'Reve.',
-  4: 'Inwa.',
-  5: 'Twis.',
-}
-
 function SessionDirectionIndicator({ sessionId, diverScope }: SessionDirectionIndicatorProps) {
+  const { t } = useTranslation()
   const [directions, setDirections] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -60,16 +46,16 @@ function SessionDirectionIndicator({ sessionId, diverScope }: SessionDirectionIn
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-app-muted">Directions:</span>
+      <span className="text-xs text-app-muted">{t('sessionDirection.label')}</span>
       <div className="flex gap-2">
         {directions.map((dir) => (
           <div
             key={dir}
             className="px-2.5 py-1 rounded-full flex items-center justify-center text-white text-xs font-bold transition-transform hover:scale-110"
             style={{ backgroundColor: DIRECTION_COLORS[dir] }}
-            title={DIRECTION_NAMES[dir]}
+            title={dir in DIRECTION_COLORS ? t(`groups.${dir}`) : undefined}
           >
-            {DIRECTION_SHORT[dir]}
+            {dir in DIRECTION_COLORS ? t(`sessionDirection.short.${dir}`) : undefined}
           </div>
         ))}
       </div>

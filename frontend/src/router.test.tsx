@@ -151,21 +151,22 @@ describe('minimal IA routing', () => {
   })
 
   it('breadcrumbs reflect user-visible IA, not router hierarchy', () => {
-    expect(breadcrumbTrail('/dives')).toEqual([{ label: 'Library' }])
-    expect(breadcrumbTrail('/journey')).toEqual([{ label: 'Journey' }])
+    const t = (key: string) => key
+    expect(breadcrumbTrail('/dives', t)).toEqual([{ labelKey: 'nav.dives' }])
+    expect(breadcrumbTrail('/journey', t)).toEqual([{ labelKey: 'nav.journey' }])
     // Deep analysis paths link back to the Library, not to /dives/analysis.
-    expect(breadcrumbTrail('/dives/analysis/5210D')).toEqual([
-      { label: 'Library', href: '/dives' },
-      { label: '5210D analysis' },
+    expect(breadcrumbTrail('/dives/analysis/5210D', t)).toEqual([
+      { labelKey: 'nav.dives', href: '/dives' },
+      { label: '5210D breadcrumbs.analysis' },
     ])
     // Media routes have no fake intermediate "Media" parent link.
-    expect(breadcrumbTrail('/media/representatives')).toEqual([
-      { label: 'Representatives' },
+    expect(breadcrumbTrail('/media/representatives', t)).toEqual([
+      { labelKey: 'nav.representatives' },
     ])
-    expect(breadcrumbTrail('/media/recall')).toEqual([{ label: 'Media recall' }])
-    expect(breadcrumbTrail('/media/p5-canary')).toEqual([{ label: 'Player canary' }])
+    expect(breadcrumbTrail('/media/recall', t)).toEqual([{ labelKey: 'nav.mediaRecall' }])
+    expect(breadcrumbTrail('/media/p5-canary', t)).toEqual([{ labelKey: 'nav.playerCanary' }])
     // Unknown paths render a single harmless crumb, never a dead hierarchy.
-    expect(breadcrumbTrail('/nonexistent-route-xyz')).toEqual([
+    expect(breadcrumbTrail('/nonexistent-route-xyz', t)).toEqual([
       { label: 'nonexistent route xyz' },
     ])
   })

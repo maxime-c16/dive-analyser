@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+// i18next must be initialized before any component using useTranslation
+// renders in tests (components render standalone, without I18nProvider).
+// English is the baseline so existing assertions on UI text keep passing.
+import '../i18n'
 
 afterEach(() => cleanup())
 

@@ -1,4 +1,6 @@
 import { format, parseISO } from "date-fns";
+import i18n from "../i18n";
+import { appLocale } from "./dateLocale";
 import { performanceScore10 } from "./performanceScoring";
 import { divePositionName } from "./divePosition";
 
@@ -31,13 +33,17 @@ export type Attempt = {
 export const MODIFIERS = ["DB", "SD", "HU"] as const;
 export const PERFORMANCE = ["P", "G", "M", "B", "F"] as const;
 
-export const performanceLabel: Record<string, string> = {
-  P: "Perfect",
-  G: "Good",
-  M: "Medium",
-  B: "Below target",
-  F: "Failed",
-};
+/**
+ * Performance letters are the app's own F/B/M/G/P scale (also FINA entry
+ * codes); their display names are localized:
+ * P = Perfect/Parfait, G = Good/Bon, M = Medium/Moyen, B = Below target,
+ * F = Failed/Manqué.
+ */
+export function performanceLabel(performance: string): string {
+  const key: Record<string, string> = { P: "P", G: "G", M: "M", B: "B", F: "F" };
+  const suffix = key[performance];
+  return suffix ? i18n.t(`performance.${suffix}`) : performance;
+}
 export const performanceClass: Record<string, string> = {
   P: "border-emerald-400/45 bg-emerald-400/10 text-emerald-200",
   G: "border-app-accent bg-app-panel-elevated text-app-accent",
@@ -61,7 +67,14 @@ export function attemptScore(attempt: Attempt) {
 }
 
 export function attemptDate(attempt: Attempt, pattern = "d MMM yyyy") {
-  return format(parseISO(attempt.dive_datetime), pattern);
+  return format(parseISO(attempt.dive_datetime), pattern, { locale: appLocale() });
+}
+
+/** platform_type arrives as "springboard"/"platform" — display localized. */
+export function platformTypeName(platformType: string): string {
+  if (platformType === "springboard") return i18n.t("jargon.springboard")
+  if (platformType === "platform") return i18n.t("jargon.platform")
+  return platformType
 }
 
 export function attemptSummary(attempt: Attempt) {
@@ -72,7 +85,7 @@ export function attemptSummary(attempt: Attempt) {
   const modifiers = modifiersFor(attempt);
   return [
     attempt.height,
-    attempt.platform_type,
+    platformTypeName(attempt.platform_type),
     phases,
     modifiers.join(" ") || null,
   ]
@@ -82,21 +95,22 @@ export function attemptSummary(attempt: Attempt) {
 
 export function attemptDetailRows(attempt: Attempt): Array<[string, string]> {
   const score = attemptScore(attempt);
+  const label = (key: string) => i18n.t(`attemptDetail.${key}`);
   return [
-    ["Score", `${score.toFixed(1)} / 10 · ${attempt.performance}`],
-    ["Official DD", attempt.official_dd?.toFixed(1) || "Not defined"],
+    [label("score"), `${score.toFixed(1)} / 10 · ${attempt.performance}`],
+    [label("officialDD"), attempt.official_dd?.toFixed(1) || i18n.t("attemptDetail.notDefined")],
     [
-      "Phases",
+      label("phases"),
       attempt.phase1_performance && attempt.phase2_performance
         ? `${attempt.phase1_performance} / ${attempt.phase2_performance}`
-        : "Single rating",
+        : i18n.t("attemptDetail.singleRating"),
     ],
-    ["Height", attempt.height],
-    ["Platform", attempt.platform_type],
-    ["Position", divePositionName(attempt.position, attempt.dive_code)],
-    ["Context", attempt.is_sync ? "SYNC" : "Individual"],
-    ["Modifiers", modifiersFor(attempt).join(", ") || "None"],
-    ["Date", attemptDate(attempt, "d MMMM yyyy")],
-    ["Raw caption", attempt.raw_caption || "Not preserved"],
+    [label("height"), attempt.height],
+    [label("platform"), platformTypeName(attempt.platform_type)],
+    [i18n.t("analysis.position"), divePositionName(attempt.position, attempt.dive_code)],
+    [i18n.t("analysis.context"), attempt.is_sync ? "SYNC" : i18n.t("analysis.individual")],
+    [i18n.t("analysis.modifiers"), modifiersFor(attempt).join(", ") || i18n.t("analysis.none")],
+    [i18n.t("dashboard.date"), attemptDate(attempt, "d MMMM yyyy")],
+    [i18n.t("attemptDetail.rawCaption"), attempt.raw_caption || i18n.t("attemptDetail.notPreserved")],
   ];
 }

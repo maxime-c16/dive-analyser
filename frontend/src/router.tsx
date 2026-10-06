@@ -7,6 +7,10 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+// Side-effect i18next init: tests render Router standalone (no App shell),
+// so the default instance must exist before any useTranslation consumer.
+import "./i18n";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
@@ -64,34 +68,37 @@ function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
   return <NavLink {...intent} {...props} />;
 }
 
-/** Library is the product home; everything else is secondary or operational. */
-const primaryNav = [{ to: "/dives", label: "Library", icon: Waves }];
+/**
+ * Navigation labels are translation KEYS, not strings: components stay static
+ * so a language change re-renders labels through useTranslation lookups.
+ */
+const primaryNav = [{ to: "/dives", label: "nav.dives", icon: Waves } as NavItem];
 
 const secondaryNav = [
-  { to: "/dashboard", label: "Overview", icon: Gauge },
-  { to: "/journey", label: "Journey", icon: BookOpen },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/media/representatives", label: "Representatives", icon: Film },
-  { to: "/sessions", label: "Sessions", icon: CalendarDays },
+  { to: "/dashboard", label: "nav.overview", icon: Gauge },
+  { to: "/journey", label: "nav.journey", icon: BookOpen },
+  { to: "/analytics", label: "nav.analytics", icon: BarChart3 },
+  { to: "/media/representatives", label: "nav.representatives", icon: Film },
+  { to: "/sessions", label: "nav.sessions", icon: CalendarDays },
 ];
 
 const operationsNav = [
-  { to: "/media/recall", label: "Media recall", icon: HardDriveDownload },
-  { to: "/admin", label: "System", icon: ShieldCheck },
+  { to: "/media/recall", label: "nav.mediaRecall", icon: HardDriveDownload },
+  { to: "/admin", label: "nav.system", icon: ShieldCheck },
 ];
 
-const routeLabels: Record<string, string> = {
-  "/": "Library",
-  "/dashboard": "Overview",
-  "/journey": "Journey",
-  "/analytics": "Analytics",
-  "/dives": "Library",
-  "/media/representatives": "Representatives",
-  "/media/recall": "Media recall",
-  "/media/p5-canary": "Player canary",
-  "/admin": "System",
-  "/account": "Account",
-  "/sessions": "Sessions",
+const routeLabelKeys: Record<string, string> = {
+  "/": "nav.dives",
+  "/dashboard": "nav.overview",
+  "/journey": "nav.journey",
+  "/analytics": "nav.analytics",
+  "/dives": "nav.dives",
+  "/media/representatives": "nav.representatives",
+  "/media/recall": "nav.mediaRecall",
+  "/media/p5-canary": "nav.playerCanary",
+  "/admin": "nav.system",
+  "/account": "nav.account",
+  "/sessions": "nav.sessions",
 };
 
 type NavItem = {
@@ -106,6 +113,7 @@ function AppNavLink({
   icon: Icon,
   emphasis = false,
 }: NavItem & { emphasis?: boolean }) {
+  const { t } = useTranslation();
   return (
     <IntentNavLink
       to={to}
@@ -121,13 +129,14 @@ function AppNavLink({
       }
     >
       <Icon className={emphasis ? "h-5 w-5" : "h-4 w-4"} />
-      <span>{label}</span>
+      <span>{t(label)}</span>
     </IntentNavLink>
   );
 }
 
 function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
   return (
     <div>
       <button
@@ -141,7 +150,7 @@ function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
             : "flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted hover:text-app-text"
         }
       >
-        Operations
+        {t("nav.operations")}
         <ChevronDown
           className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
         />
@@ -149,7 +158,7 @@ function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
       {open && (
         <nav
           id="operations-navigation"
-          aria-label="Operations navigation"
+          aria-label={t("nav.operationsAria")}
           className={compact ? "mt-2 grid gap-2" : "mt-2 space-y-1"}
         >
           {operationsNav.map((item) => (
@@ -161,71 +170,78 @@ function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type Crumb = { label: string; href?: string };
+type Crumb = { label?: string; href?: string; labelKey?: string };
 
 /**
  * User-visible breadcrumb trail for a pathname. Hidden operational routes
  * and deep viewer/analysis paths never expose router-internal hierarchy:
  * only destinations a user can actually navigate to become links.
  */
-export function breadcrumbTrail(pathname: string): Crumb[] {
+export function breadcrumbTrail(
+  pathname: string,
+  translate: (key: string) => string = (key) => key,
+): Crumb[] {
   const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
   if (analysisMatch) {
     return [
-      { label: "Library", href: "/dives" },
-      { label: `${decodeURIComponent(analysisMatch[1])} analysis` },
+      { labelKey: "nav.dives", href: "/dives" },
+      { label: `${decodeURIComponent(analysisMatch[1])} ${translate("breadcrumbs.analysis")}` },
     ];
   }
   switch (pathname) {
     case "/":
     case "/dives":
-      return [{ label: "Library" }];
+      return [{ labelKey: "nav.dives" }];
     case "/dashboard":
-      return [{ label: "Overview" }];
+      return [{ labelKey: "nav.overview" }];
     case "/journey":
-      return [{ label: "Journey" }];
+      return [{ labelKey: "nav.journey" }];
     case "/analytics":
-      return [{ label: "Analytics" }];
+      return [{ labelKey: "nav.analytics" }];
     case "/sessions":
-      return [{ label: "Sessions" }];
+      return [{ labelKey: "nav.sessions" }];
     case "/media/representatives":
-      return [{ label: "Representatives" }];
+      return [{ labelKey: "nav.representatives" }];
     case "/media/recall":
-      return [{ label: "Media recall" }];
+      return [{ labelKey: "nav.mediaRecall" }];
     case "/media/p5-canary":
-      return [{ label: "Player canary" }];
+      return [{ labelKey: "nav.playerCanary" }];
     case "/admin":
-      return [{ label: "System" }];
+      return [{ labelKey: "nav.system" }];
     case "/account":
-      return [{ label: "Account" }];
+      return [{ labelKey: "nav.account" }];
     default: {
       const last = pathname.split("/").filter(Boolean).pop();
-      return [{ label: last ? last.replace(/-/g, " ") : "Library" }];
+      return [{ label: last ? last.replace(/-/g, " ") : translate("nav.dives") }];
     }
   }
 }
 
 function Breadcrumbs() {
   const location = useLocation();
-  const crumbs = breadcrumbTrail(location.pathname);
+  const { t } = useTranslation();
+  const crumbs = breadcrumbTrail(location.pathname, t);
 
   return (
     <div className="mx-auto mb-4 hidden w-full max-w-[1320px] items-center gap-2 overflow-x-auto text-xs font-medium uppercase tracking-[0.14em] text-app-muted sm:flex">
       <Link to="/" className="hover:text-app-text">
         Dive Analyser
       </Link>
-      {crumbs.map((crumb) => (
-        <React.Fragment key={crumb.label}>
-          <span>/</span>
-          {crumb.href ? (
-            <Link to={crumb.href} className="hover:text-app-text">
-              {crumb.label}
-            </Link>
-          ) : (
-            <span className="text-app-text">{crumb.label}</span>
-          )}
-        </React.Fragment>
-      ))}
+      {crumbs.map((crumb, index) => {
+        const label = crumb.labelKey ? t(crumb.labelKey) : crumb.label;
+        return (
+          <React.Fragment key={`${crumb.labelKey ?? crumb.label}-${index}`}>
+            <span>/</span>
+            {crumb.href ? (
+              <Link to={crumb.href} className="hover:text-app-text">
+                {label}
+              </Link>
+            ) : (
+              <span className="text-app-text">{label}</span>
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -234,8 +250,11 @@ function MobileNavigation() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const friend = !user?.is_admin;
-  const currentLabel = routeLabels[location.pathname] ?? "Workspace";
+  const currentLabel = routeLabelKeys[location.pathname]
+    ? t(routeLabelKeys[location.pathname])
+    : t("nav.workspace");
 
   useEffect(() => {
     setOpen(false);
@@ -268,7 +287,7 @@ function MobileNavigation() {
             aria-controls="mobile-navigation"
             onClick={() => setOpen((value) => !value)}
             className="touch-target inline-flex items-center justify-center border border-app bg-app-panel p-0 text-app-text"
-            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-label={open ? t("nav.closeNavigation") : t("nav.openNavigation")}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -279,7 +298,7 @@ function MobileNavigation() {
           id="mobile-navigation"
           className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-app bg-app p-4 pb-safe shadow-[0_18px_40px_rgba(0,0,0,.35)]"
         >
-          <nav aria-label="Primary navigation" className="grid gap-2">
+          <nav aria-label={t("nav.primaryNavigationAria")} className="grid gap-2">
             {primaryNav.map(({ to, label, icon: Icon }) => (
               <IntentNavLink
                 key={to}
@@ -290,14 +309,14 @@ function MobileNavigation() {
                 }
               >
                 <Icon className="h-5 w-5" />
-                <span>{label}</span>
+                <span>{t(label)}</span>
               </IntentNavLink>
             ))}
           </nav>
           <p className="mb-2 mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
-            Review
+            {t("nav.review")}
           </p>
-          <nav aria-label="Secondary navigation" className="grid gap-2">
+          <nav aria-label={t("nav.secondaryNavigationAria")} className="grid gap-2">
             {secondaryNav.map(({ to, label, icon: Icon }) => (
               <IntentNavLink
                 key={to}
@@ -308,7 +327,7 @@ function MobileNavigation() {
                 }
               >
                 <Icon className="h-5 w-5" />
-                <span>{label}</span>
+                <span>{t(label)}</span>
               </IntentNavLink>
             ))}
           </nav>
@@ -319,7 +338,7 @@ function MobileNavigation() {
               className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-text"
             >
               <UserRound className="h-5 w-5" />
-              <span>Account</span>
+              <span>{t("nav.account")}</span>
             </IntentNavLink>
           </div>
           {!friend && (
@@ -335,14 +354,15 @@ function MobileNavigation() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const friend = !user?.is_admin;
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link">
-        Skip to main content
+        {t("nav.skipToContent")}
       </a>
       <div className="flex min-h-screen w-full">
-        <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label="Workspace sidebar">
+        <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label={t("nav.workspaceSidebarAria")}>
           <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6 pt-safe">
             <div className="border-b border-app pb-5">
               <div className="text-xl font-semibold text-app-text">
@@ -350,7 +370,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <nav className="mt-6 space-y-1" aria-label="Primary navigation">
+            <nav className="mt-6 space-y-1" aria-label={t("nav.primaryNavigationAria")}>
               {primaryNav.map((item) => (
                 <AppNavLink key={item.to} {...item} emphasis />
               ))}
@@ -358,11 +378,11 @@ function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="mt-6">
               <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
-                Review
+                {t("nav.review")}
               </p>
               <nav
                 className="mt-2 space-y-1"
-                aria-label="Secondary navigation"
+                aria-label={t("nav.secondaryNavigationAria")}
               >
                 {secondaryNav.map((item) => (
                   <AppNavLink key={item.to} {...item} />
@@ -380,10 +400,10 @@ function Layout({ children }: { children: React.ReactNode }) {
               <div className="mb-3"><WhatsNewButton /></div>
               <div className="truncate px-3 text-xs text-app-muted">
                 {user?.display_name ?? user?.email}
-                {friend ? " · diver" : " · administrator"}
+                {friend ? ` · ${t("roles.diver")}` : ` · ${t("roles.administrator")}`}
               </div>
-              <nav aria-label="Account navigation" className="mt-2 space-y-1">
-                <AppNavLink to="/account" label="Account" icon={UserRound} />
+              <nav aria-label={t("nav.accountNavigationAria")} className="mt-2 space-y-1">
+                <AppNavLink to="/account" label="nav.account" icon={UserRound} />
               </nav>
             </div>
 
@@ -422,18 +442,19 @@ export function CompetitionsRedirect() {
 }
 
 function NotFound() {
+  const { t } = useTranslation();
   return (
     <div className="app-panel mx-auto mt-10 max-w-lg py-10 text-center">
-      <h1 className="text-2xl font-semibold text-app-text">Page not found</h1>
+      <h1 className="text-2xl font-semibold text-app-text">{t("notFound.title")}</h1>
       <p className="mt-2 text-sm leading-6 text-app-muted">
-        Nothing lives at this address.
+        {t("notFound.body")}
       </p>
       <Link
         to="/dives"
         className="touch-target mt-6 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent"
       >
         <Waves className="h-4 w-4" />
-        Back to Library
+        {t("notFound.backToLibrary")}
       </Link>
     </div>
   );
@@ -443,10 +464,11 @@ function NotFound() {
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, checking } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }
@@ -468,10 +490,11 @@ function OwnerGuard({ children }: { children: React.ReactNode }) {
 /** Logged-in visitors never need the auth pages. */
 function AnonymousOnly({ children }: { children: React.ReactNode }) {
   const { user, checking } = useAuth();
+  const { t } = useTranslation();
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }
@@ -482,9 +505,10 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
+  const { t } = useTranslation();
   return (
     <Routes>
-      <Route path="/share/:shareId" element={<Suspense fallback={<p role="status">Loading page…</p>}><SharedDive /></Suspense>} />
+      <Route path="/share/:shareId" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><SharedDive /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -509,7 +533,7 @@ function Router() {
         element={
           <AuthGuard>
             <WhatsNewProvider><Layout>
-              <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">Loading page…</p>}>
+              <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">{t("common.loadingPage")}</p>}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/dashboard" element={<Dashboard />} />

@@ -3,12 +3,24 @@
 import argparse
 import datetime
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
 
 NOTE_DIR = 'backend/release-notes'
 FIELDS = {'id', 'date', 'title', 'body', 'audience', 'components'}
+
+def _git_env() -> dict:
+    """Drop hook-exported GIT_* plumbing vars for -C based child calls.
+
+    When release-notes.py runs from a pre-push hook, git exports GIT_DIR /
+    GIT_INDEX_FILE which override the explicit `-C <path>` targets and make
+    plumbing calls (rev-parse, add, commit in fixture repos) hit the real
+    repository instead.
+    """
+    return {k: v for k, v in os.environ.items()
+            if not k.startswith('GIT_') and not k.startswith('DIVE_CI_')}
 
 
 def validate(note, filename):
@@ -31,12 +43,12 @@ def validate(note, filename):
 
 
 def git(root, *args):
-    return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+    return subprocess.check_output(['git', '-C', str(root), *args], env=_git_env(), text=True).strip()
 
 
 def check_tree(root):
     baseline = 'origin/master'
-    if subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', baseline],
+    if subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', baseline], env=_git_env(),
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
         baseline = 'HEAD'
     for filename in git(root, 'ls-tree', '-r', '--name-only', baseline, '--', NOTE_DIR).splitlines():
@@ -60,7 +72,7 @@ def build(root, refs):
         try:
             resolved[service] = subprocess.check_output(
                 ['git', '-C', str(root), 'rev-parse', '--verify', f'{ref}^{{commit}}'],
-                text=True, stderr=subprocess.DEVNULL).strip()
+                env=_git_env(), text=True, stderr=subprocess.DEVNULL).strip()
         except subprocess.CalledProcessError:
             resolved[service] = ''
     refs = resolved
@@ -85,7 +97,7 @@ def build(root, refs):
     for note, introduced in candidates.values():
         if all(refs.get(component) and subprocess.run(
             ['git', '-C', str(root), 'merge-base', '--is-ancestor', introduced, refs[component]],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+            env=_git_env(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
                for component in note['components']):
             notes.append(note)
     notes.sort(key=lambda note: (note['date'], note['id']), reverse=True)

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from 'react-i18next'
 import { Send } from "lucide-react";
 import { api } from "../../services/api";
 import CommentThread from "./CommentThread";
@@ -15,6 +16,7 @@ export default function ClipComments({
   basePath?: string;
   guestId?: number;
 }) {
+  const { t } = useTranslation()
   const [comments, setComments] = useState<Comment[]>([]);
   const [before, setBefore] = useState<number | null>(null);
   const [body, setBody] = useState("");
@@ -57,7 +59,7 @@ export default function ClipComments({
       setBefore(data.next_before);
     } catch {
       if (mounted.current && request === latestLoad.current)
-        setError("Could not load comments.");
+        setError(t('comments.errorLoad'));
     } finally {
       if (mounted.current && request === latestLoad.current) setLoading(false);
     }
@@ -93,38 +95,38 @@ export default function ClipComments({
             onCountChange(1);
           } catch {
             if (mounted.current)
-              setError("Could not post your comment. Your text is saved here.");
+              setError(t('comments.errorPost'));
           } finally {
             if (mounted.current) setBusy(false);
           }
         }}
       >
-        <label htmlFor="clip-comment">Join the discussion</label>
+        <label htmlFor="clip-comment">{t('comments.join')}</label>
         <div className="clip-composer">
           <textarea
             id="clip-comment"
-            placeholder="Add a comment…"
+            placeholder={t('comments.placeholder')}
             maxLength={2000}
             rows={2}
             value={body}
             onChange={(event) => setBody(event.target.value)}
             disabled={busy}
           />
-          <button aria-label="Post comment" disabled={busy || !body.trim()}>
+          <button aria-label={t('comments.post')} disabled={busy || !body.trim()}>
             <Send size={18} />
           </button>
         </div>
       </form>
       {error && (
         <p role="alert">
-          {error} <button onClick={() => void load()}>Retry</button>
+          {error} <button onClick={() => void load()}>{t('common.retry')}</button>
         </p>
       )}
-      {loading && <p role="status">Loading comments…</p>}
+      {loading && <p role="status">{t('comments.loading')}</p>}
       {!loading && !error && !comments.length && (
         <div className="clip-empty-comments">
-          <p>No comments yet.</p>
-          <span>Be the first to share a thought on this dive.</span>
+          <p>{t('comments.noComments')}</p>
+          <span>{t('comments.beFirst')}</span>
         </div>
       )}
       {comments.map((comment) => (

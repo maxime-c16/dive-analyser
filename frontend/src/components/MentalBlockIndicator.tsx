@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../services/api'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
 
@@ -11,6 +12,7 @@ interface MentalBlock {
 }
 
 function MentalBlockIndicator() {
+  const { t } = useTranslation()
   const [blocks, setBlocks] = useState<MentalBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +46,7 @@ function MentalBlockIndicator() {
   if (blocks.length === 0) {
     return (
       <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />No mental blocks detected</div>
+        <div className="flex items-center gap-2 font-bold text-green-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />{t('mentalBlock.none')}</div>
       </div>
     )
   }
@@ -67,14 +69,16 @@ function MentalBlockIndicator() {
               <div className="text-left">
                 <div className="text-yellow-400 font-bold flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-                  {block.type === 'dd_plateau' && 'Difficulty Plateau'}
-                  {block.type === 'repeated_failure' && 'Repeated Failure Pattern'}
-                  {block.type === 'avoided_dive' && 'Avoided Dive'}
+                  {block.type === 'dd_plateau' && t('mentalBlock.ddPlateau')}
+                  {block.type === 'repeated_failure' && t('mentalBlock.repeatedFailure')}
+                  {block.type === 'avoided_dive' && t('mentalBlock.avoidedDive')}
                 </div>
                 <p className="text-yellow-300 text-sm mt-1">{block.description}</p>
                 <div className="text-xs text-app-muted mt-2">
-                  {block.duration_months} month{block.duration_months !== 1 ? 's' : ''} • Affecting{' '}
-                  {block.dives_affected.length} dive{block.dives_affected.length !== 1 ? 's' : ''}
+                  {t('mentalBlock.summary', {
+                    months: t('mentalBlock.months', { count: block.duration_months }),
+                    dives: t('mentalBlock.dives', { count: block.dives_affected.length }),
+                  })}
                 </div>
               </div>
               <div className="text-xl text-yellow-400 ml-4">
@@ -86,7 +90,7 @@ function MentalBlockIndicator() {
               <div className="bg-yellow-500/5 border-t border-yellow-500/30 p-4 space-y-4">
                 {/* Affected Dives */}
                 <div>
-                  <h4 className="text-sm font-bold text-yellow-400 mb-2">Affected Dives:</h4>
+                  <h4 className="text-sm font-bold text-yellow-400 mb-2">{t('mentalBlock.affectedDives')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {block.dives_affected.map((dive) => (
                       <span
@@ -101,7 +105,7 @@ function MentalBlockIndicator() {
 
                 {/* Recommendations */}
                 <div>
-                  <h4 className="text-sm font-bold text-green-400 mb-2">Recovery Plan:</h4>
+                  <h4 className="text-sm font-bold text-green-400 mb-2">{t('mentalBlock.recoveryPlan')}</h4>
                   <div className="space-y-2">
                     {block.recommendations.map((rec, recIdx) => (
                       <div
@@ -121,13 +125,13 @@ function MentalBlockIndicator() {
                     onClick={() => fetchMentalBlocks()}
                     className="flex-1 py-2 px-3 bg-app-panel-elevated border border-app-strong text-app-text rounded text-sm font-medium transition-colors"
                   >
-                    Check Progress
+                    {t('mentalBlock.checkProgress')}
                   </button>
                   <button
                     onClick={() => setExpanded(null)}
                     className="flex-1 py-2 px-3 bg-app-panel border border-app hover:text-app-text text-app-text rounded text-sm font-medium transition-colors"
                   >
-                    Dismiss
+                    {t('mentalBlock.dismiss')}
                   </button>
                 </div>
               </div>

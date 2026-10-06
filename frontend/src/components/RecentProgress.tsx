@@ -1,6 +1,8 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
 import { format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, subDays } from 'date-fns'
+import { appLocale } from '../utils/dateLocale'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { performanceBorder, performanceColor } from '../utils/performanceScoring'
 
@@ -21,6 +23,7 @@ interface RecentProgressProps {
 }
 
 function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
+  const { t } = useTranslation()
   // Get last 3 sessions
   const recentSessions = sessions.slice(0, 3)
 
@@ -45,7 +48,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
     const date = parseISO(session.date)
     return date >= rollingStart && date <= rollingEnd
   })
-  let weekLabel = `${format(rollingStart, 'MMM d')} - ${format(rollingEnd, 'MMM d')}`
+  let weekLabel = `${format(rollingStart, 'MMM d', { locale: appLocale() })} - ${format(rollingEnd, 'MMM d', { locale: appLocale() })}`
   let showWeekWarning = false
   let weekStart = rollingStart
   let weekEnd = rollingEnd
@@ -62,7 +65,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       return sessionDate >= weekStart && sessionDate <= weekEnd
     })
 
-    weekLabel = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+    weekLabel = `${format(weekStart, 'MMM d', { locale: appLocale() })} - ${format(weekEnd, 'MMM d', { locale: appLocale() })}`
     showWeekWarning = true
   }
 
@@ -101,7 +104,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
 
   // Prepare data for mini chart
   const chartData = [...recentSessions].reverse().map((session) => ({
-    date: format(parseISO(session.date), 'MMM d'),
+    date: format(parseISO(session.date), 'MMM d', { locale: appLocale() }),
     perf: session.avg_performance || 0,
     success: session.success_rate || 0,
   }))
@@ -138,8 +141,8 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-3">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden="true" />
           <div>
-            <p className="text-amber-400 text-sm font-semibold">No sessions in the last 7 days</p>
-            <p className="text-amber-300/70 text-xs">Showing {weekLabel}</p>
+            <p className="text-amber-400 text-sm font-semibold">{t('progress.noRecentSessions')}</p>
+            <p className="text-amber-300/70 text-xs">{t('progress.showing', { range: weekLabel })}</p>
           </div>
         </div>
       )}
@@ -148,7 +151,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {/* Total Dives Card */}
         <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{showWeekWarning ? 'Most recent week' : 'Last 7 days'}</p>
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{showWeekWarning ? t('progress.mostRecentWeek') : t('progress.last7Days')}</p>
           <div className="mt-3 flex flex-col items-center">
             <p className="text-3xl sm:text-4xl font-bold text-app-text">{weekDives}</p>
             {weekDivesTrend && (
@@ -164,12 +167,12 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
               </div>
             )}
           </div>
-          <p className="text-app-accent text-xs mt-3">Total Dives {weekDivesTrend ? 'vs prev' : ''}</p>
+          <p className="text-app-accent text-xs mt-3">{t('progress.totalDives')} {weekDivesTrend ? t('progress.vsPrev') : ''}</p>
         </div>
 
         {/* Performance Card */}
         <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">Avg Performance /10</p>
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{t('progress.avgPerformance')}</p>
           <div className="mt-3 flex flex-col items-center">
             <p className={`text-3xl sm:text-4xl font-bold ${performanceColor(weekAvgPerf)}`}>
               {weekAvgPerf.toFixed(1)}
@@ -188,12 +191,12 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
               </div>
             )}
           </div>
-          <p className="text-app-accent text-xs mt-3">Calibrated score {weekPerfTrend ? 'vs prev week' : ''}</p>
+          <p className="text-app-accent text-xs mt-3">{t('progress.calibratedScore')} {weekPerfTrend ? t('progress.vsPrevWeek') : ''}</p>
         </div>
 
         {/* Success Card */}
         <div className="border border-green-500/30 bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-green-400 text-xs font-semibold uppercase tracking-wider">Success</p>
+          <p className="text-green-400 text-xs font-semibold uppercase tracking-wider">{t('progress.success')}</p>
           {recentSessions.length > 0 && (
             <div className="mt-3 flex flex-col items-center">
               <p className="text-3xl sm:text-4xl font-bold text-app-text">
@@ -213,12 +216,12 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
               )}
             </div>
           )}
-          <p className="text-green-400 text-xs mt-3">Latest {successTrend ? 'vs prev' : ''}</p>
+          <p className="text-green-400 text-xs mt-3">{t('progress.latest')} {successTrend ? t('progress.vsPrev') : ''}</p>
         </div>
 
         {/* Sessions Card */}
         <div className="border border-app bg-app-panel rounded-xl p-3 sm:p-5 flex flex-col items-center justify-center text-center">
-          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">Sessions</p>
+          <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{t('progress.sessions')}</p>
           <p className="text-3xl sm:text-4xl font-bold text-app-text mt-3">{recentSessions.length}</p>
         </div>
       </div>
@@ -227,7 +230,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-app-text flex items-center gap-2">
           <span className="w-2 h-2 bg-app-accent rounded-full"></span>
-          Recent Sessions
+          {t('progress.recentSessions')}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {recentSessions.map((session, index) => {
@@ -254,20 +257,20 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-app-text font-semibold text-sm">
-                      {format(parseISO(session.date), 'MMM d')}
+                      {format(parseISO(session.date), 'MMM d', { locale: appLocale() })}
                     </p>
                     <p className="text-app-muted text-xs mt-1">
-                      {session.total_dives} dives
+                      {t('progress.divesCount', { count: session.total_dives })}
                     </p>
                   </div>
                   {index === 0 && (
-                    <span className="bg-app-accent-soft text-app-accent text-xs px-2 py-1 rounded">Latest</span>
+                    <span className="bg-app-accent-soft text-app-accent text-xs px-2 py-1 rounded">{t('progress.latest')}</span>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-app-muted">Performance /10</span>
+                    <span className="text-app-muted">{t('progress.performance')}</span>
                     <div className="flex items-center gap-2">
                       <span className={`font-bold ${performanceColor(session.avg_performance || 0)}`}>
                         {session.avg_performance?.toFixed(1)}
@@ -290,7 +293,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-app-muted">Success Rate</span>
+                    <span className="text-app-muted">{t('progress.successRate')}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-green-400 font-bold">{session.success_rate?.toFixed(0)}%</span>
                       {successTrend ? (

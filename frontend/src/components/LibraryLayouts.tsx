@@ -1,4 +1,6 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { appLocale } from "../utils/dateLocale";
 import { format, parseISO } from "date-fns";
 import DiveThumbnail from "./DiveThumbnail";
 import { divePositionName } from "../utils/divePosition";
@@ -38,7 +40,7 @@ function RatingBar({ attempts }: { attempts: Attempt[] }) {
             key={p}
             className={ratingDot[p]}
             style={{ width: `${(n / attempts.length) * 100}%` }}
-            title={`${performanceLabel[p]}: ${n}`}
+            title={`${performanceLabel(p)}: ${n}`}
           />
         ) : null;
       })}
@@ -55,6 +57,7 @@ export function WallLayout({
   attempts: Attempt[];
   onOpen: (a: Attempt) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-2 lg:grid-cols-6 2xl:grid-cols-8">
       {attempts.map((a) => (
@@ -64,7 +67,7 @@ export function WallLayout({
           onClick={() => onOpen(a)}
           data-attempt-id={a.id}
           className="group relative aspect-[3/4] overflow-hidden bg-app-panel text-left"
-          aria-label={`Open ${a.dive_code} attempt`}
+          aria-label={t('dives.openCodeAttempt', { code: a.dive_code })}
         >
           <DiveThumbnail dive={a} compact />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 pb-1.5 pt-6">
@@ -77,7 +80,7 @@ export function WallLayout({
               </span>
             </div>
             <div className="truncate text-[10px] text-white/70">
-              {format(parseISO(a.dive_datetime), "d MMM")} · {a.height}
+              {format(parseISO(a.dive_datetime), "d MMM", { locale: appLocale() })} · {a.height}
               {a.person_name && <span className="block truncate">{a.person_name}</span>}
             </div>
           </div>
@@ -97,6 +100,7 @@ export function CodesLayout({
   attempts: Attempt[];
   onOpen: (a: Attempt) => void;
 }) {
+  const { t } = useTranslation();
   const codes = useMemo(() => {
     const map = new Map<string, Attempt[]>();
     attempts.forEach((a) => map.set(a.dive_code, [...(map.get(a.dive_code) || []), a]));
@@ -114,7 +118,7 @@ export function CodesLayout({
                 type="button"
                 onClick={() => onOpen(items[0])}
                 className="h-16 w-16 shrink-0 overflow-hidden border border-app sm:h-20 sm:w-20"
-                aria-label={`Open latest ${code} attempt`}
+                aria-label={t('dives.openLatestAttempt', { code })}
               >
                 <DiveThumbnail dive={items[0]} compact />
               </button>
@@ -122,30 +126,30 @@ export function CodesLayout({
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="font-mono text-xl font-semibold text-app-text">{code}</span>
                   <span className="text-sm tabular-nums text-app-text">
-                    <span className="text-app-muted">avg </span>
+                    <span className="text-app-muted">{t('dives.avg')} </span>
                     <strong>{average(items).toFixed(1)}</strong>
-                    <span className="text-app-muted"> · best </span>
+                    <span className="text-app-muted"> · {t('dives.best')} </span>
                     <strong>{best.toFixed(1)}</strong>
                   </span>
                 </div>
                 <div className="mt-0.5 truncate text-xs text-app-muted">
-                  {divePositionName(items[0].position, code)} · {items.length} attempts · last{" "}
-                  {format(parseISO(items[0].dive_datetime), "d MMM")}
+                  {divePositionName(items[0].position, code)} · {t('dives.attemptsCount', { count: items.length })} · {t('dives.last')}{" "}
+                  {format(parseISO(items[0].dive_datetime), "d MMM", { locale: appLocale() })}
                 </div>
                 <div className="mt-2">
                   <RatingBar attempts={items} />
                 </div>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-1" aria-label={`${code} recent attempts`}>
+            <div className="mt-3 flex flex-wrap gap-1" aria-label={t('dives.recentAttemptsFor', { code })}>
               {recent.map((a) => (
                 <button
                   key={a.id}
                   type="button"
                   onClick={() => onOpen(a)}
                   data-attempt-id={a.id}
-                  title={`${format(parseISO(a.dive_datetime), "d MMM HH:mm")} · ${attemptScore(a).toFixed(1)}`}
-                  aria-label={`Open ${code} attempt from ${format(parseISO(a.dive_datetime), "d MMM HH:mm")}`}
+                  title={`${format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() })} · ${attemptScore(a).toFixed(1)}`}
+                  aria-label={t('dives.openAttemptFrom', { code, date: format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() }) })}
                   className={`flex h-6 min-h-0 min-w-6 items-center justify-center px-1 text-[10px] font-semibold tabular-nums text-black/80 hover:ring-2 hover:ring-white/60 ${ratingDot[a.performance]}`}
                 >
                   {attemptScore(a).toFixed(0)}

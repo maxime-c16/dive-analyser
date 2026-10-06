@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { AlertCircle, CheckCircle, Info, X } from 'lucide-react'
 
@@ -15,6 +16,7 @@ interface Toast {
  * Displays toast-like notifications for sync events
  */
 export const SyncNotifications: React.FC = () => {
+  const { t } = useTranslation()
   const { lastEvent, currentSync } = useSyncStatus()
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -29,8 +31,8 @@ export const SyncNotifications: React.FC = () => {
         toast = {
           id: `${Date.now()}-started`,
           type: 'info',
-          title: 'Sync Started',
-          message: `${lastEvent.data.total_videos} videos`,
+          title: t('sync.started'),
+          message: t('sync.videosCount', { count: lastEvent.data.total_videos }),
           duration: 3000,
         }
         break
@@ -39,8 +41,8 @@ export const SyncNotifications: React.FC = () => {
         toast = {
           id: `${Date.now()}-complete`,
           type: 'success',
-          title: 'Sync Complete',
-          message: `${lastEvent.data.synced_count} videos synced`,
+          title: t('sync.complete'),
+          message: t('sync.videosSynced', { count: lastEvent.data.synced_count }),
           duration: 5000,
         }
         break
@@ -49,8 +51,8 @@ export const SyncNotifications: React.FC = () => {
         toast = {
           id: `${Date.now()}-error`,
           type: 'error',
-          title: 'Sync Error',
-          message: lastEvent.data.error || 'Sync failed',
+          title: t('sync.error'),
+          message: lastEvent.data.error || t('sync.failed'),
           duration: 7000,
         }
         break
@@ -59,7 +61,7 @@ export const SyncNotifications: React.FC = () => {
         toast = {
           id: `${Date.now()}-milestone`,
           type: 'success',
-          title: 'Milestone',
+          title: t('milestones.milestoneToast'),
           message: lastEvent.data.title,
           duration: 5000,
         }
@@ -144,7 +146,7 @@ export const SyncNotifications: React.FC = () => {
           <button
             onClick={() => removeToast(toast.id)}
             className="text-app-muted hover:text-app-text flex-shrink-0"
-            aria-label="Dismiss notification"
+            aria-label={t('sync.dismissNotification')}
           >
             <X className="w-4 h-4" />
           </button>

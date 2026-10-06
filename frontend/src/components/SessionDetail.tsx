@@ -6,6 +6,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
 import DiveVideoPlayer from './DiveVideoPlayer'
+import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
+import { appLocale } from '../utils/dateLocale'
 import { inertExcept, trapTabKey } from '../utils/a11y'
 import { isSuccessfulPerformance, performanceScore10 } from '../utils/performanceScoring'
 
@@ -45,21 +48,27 @@ interface SessionDetailProps {
   diverScope: 'self' | 'all'
 }
 
-const PERFORMANCE_CONFIG: { [key: string]: { label: string; color: string; bg: string } } = {
-  P: { label: 'Perfect', color: 'text-green-400', bg: 'bg-green-500/20' },
-  G: { label: 'Good', color: 'text-app-accent', bg: 'bg-app-accent-soft' },
-  M: { label: 'Medium', color: 'text-amber-400', bg: 'bg-amber-500/20' },
-  B: { label: 'Bad', color: 'text-orange-400', bg: 'bg-orange-500/20' },
-  F: { label: 'Failed', color: 'text-red-400', bg: 'bg-red-500/20' },
+/**
+ * Labels resolve at call time (via performanceConfig) so a language change
+ * while the dialog is open re-renders in the new language; only language
+ * agnostic styling lives in the static map.
+ */
+const PERFORMANCE_STYLES: { [key: string]: { color: string; bg: string } } = {
+  P: { color: 'text-green-400', bg: 'bg-green-500/20' },
+  G: { color: 'text-app-accent', bg: 'bg-app-accent-soft' },
+  M: { color: 'text-amber-400', bg: 'bg-amber-500/20' },
+  B: { color: 'text-orange-400', bg: 'bg-orange-500/20' },
+  F: { color: 'text-red-400', bg: 'bg-red-500/20' },
 }
 
-const DIRECTION_NAMES: { [key: number]: string } = {
-  1: 'Forward',
-  2: 'Back',
-  3: 'Reverse',
-  4: 'Inward',
-  5: 'Twist',
+const performanceConfig = (performance: string) => {
+  const style = PERFORMANCE_STYLES[performance] || PERFORMANCE_STYLES.M
+  return { ...style, label: i18n.t(`performance.${performance}`, { defaultValue: performance }) }
 }
+
+const DIRECTION_KEY_SUFFIX: { [key: number]: string } = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' }
+const directionName = (direction: number | null) =>
+  direction && DIRECTION_KEY_SUFFIX[direction] ? i18n.t(`groups.${direction}`) : i18n.t('analysis.none')
 
 const DIRECTION_COLORS: { [key: number]: string } = {
   1: '#3b82f6',
@@ -70,6 +79,7 @@ const DIRECTION_COLORS: { [key: number]: string } = {
 }
 
 function SessionDetail({ session, previousSession, onClose, allSessions, diverScope }: SessionDetailProps) {
+  useTranslation() // subscribe so i18n.t() output follows language changes
   const [dives, setDives] = useState<Dive[]>([])
   const [previousDives, setPreviousDives] = useState<Dive[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,7 +130,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
       }
     } catch (err) {
       console.error('Error fetching dives:', err)
-      setError('Failed to load session details')
+      setError('sessionDetail.errorLoad')
     } finally {
       setLoading(false)
     }
@@ -174,14 +184,14 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
           <div className="sticky top-0 flex items-center justify-between border-b border-app bg-app-panel p-4 sm:p-6">
             <div>
               <h2 id="session-detail-title" className="text-2xl font-bold text-app-text">
-                {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
+                {format(parseISO(session.date), 'EEEE, MMMM d, yyyy', { locale: appLocale() })}
               </h2>
               <p className="text-app-muted text-sm mt-1">
-                {session.location || format(parseISO(session.date), 'EEEE')} • {dives.length} dives
+                {session.location || format(parseISO(session.date), 'EEEE', { locale: appLocale() })} • {dives.length} {i18n.t('dashboard.dives')}
               </p>
             </div>
             <button
-              type="button" onClick={onClose} aria-label="Close session details"
+              type="button" onClick={onClose} aria-label={i18n.t('sessionDetail.close')}
               className="touch-target p-2 hover:bg-app-panel-elevated rounded-lg transition"
             >
               <X className="w-6 h-6 text-app-muted" />
@@ -194,18 +204,18 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
             </div>
           ) : error ? (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg m-6 p-4 text-red-400">
-              {error}
+              {i18n.t(error ?? 'sessionDetail.errorLoad')}
             </div>
           ) : (
             <div className="p-6 space-y-8">
               {/* Session Stats Overview */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <p className="text-app-muted text-xs uppercase">Total Dives</p>
+                  <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.totalDives')}</p>
                   <p className="text-2xl font-bold text-app-text mt-2">{session.total_dives}</p>
                 </div>
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <p className="text-app-muted text-xs uppercase">Avg Performance /10</p>
+                  <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.avgPerformance')} /10</p>
                   <div className="flex items-center gap-2 mt-2">
                     <p className="text-2xl font-bold text-app-accent">
                       {session.avg_performance?.toFixed(1) ?? '-'}
@@ -215,18 +225,18 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                   </div>
                 </div>
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <p className="text-app-muted text-xs uppercase">Success Rate</p>
+                  <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.successRate')}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <p className="text-2xl font-bold text-green-400">{session.success_rate?.toFixed(0)}%</p>
                     <TrendIndicator trend={successTrend} />
                   </div>
                 </div>
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <p className="text-app-muted text-xs uppercase">Personal Dives</p>
+                  <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.personal')}</p>
                   <p className="text-2xl font-bold text-app-accent mt-2">{session.total_personal_dives}</p>
                 </div>
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <p className="text-app-muted text-xs uppercase">Best Dive</p>
+                  <p className="text-app-muted text-xs uppercase">{i18n.t('sessionDetail.bestDive')}</p>
                   <p className="text-xl font-bold text-app-accent mt-2">
                     {dives.length > 0
                       ? `${Math.max(...dives.map(d => performanceScore10(d.performance, d.phase1_performance, d.phase2_performance))).toFixed(1)} / 10`
@@ -239,7 +249,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Dive Sequence (Left) */}
                 <div className="lg:col-span-1">
-                  <h3 className="text-xl font-semibold text-app-text mb-4">Dive Sequence</h3>
+                  <h3 className="text-xl font-semibold text-app-text mb-4">{i18n.t('sessionDetail.diveSequence')}</h3>
                   <div className="space-y-2 bg-app-panel-elevated rounded-lg p-4 max-h-96 overflow-y-auto">
                     {dives.map((dive, index) => (
                       <button
@@ -255,7 +265,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         <div
                           className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: dive.direction ? DIRECTION_COLORS[dive.direction] : '#98a2aa' }}
-                          title={dive.direction ? DIRECTION_NAMES[dive.direction] : 'Unknown'}
+                          title={directionName(dive.direction)}
                         />
                         <div className="flex-1 min-w-0">
                           <span className="font-semibold text-app-text text-sm">{dive.dive_code}</span>
@@ -265,10 +275,10 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         </div>
                         <div className="flex items-center gap-2">
                           {dive.video_uuid && (
-                            <Film className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label="Video available" />
+                            <Film className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label={i18n.t('sessionDetail.videoAvailable')} />
                           )}
-                          <div className={`px-2 py-0.5 rounded text-xs font-semibold ${PERFORMANCE_CONFIG[dive.performance].bg}`}>
-                            <span className={PERFORMANCE_CONFIG[dive.performance].color}>
+                          <div className={`px-2 py-0.5 rounded text-xs font-semibold ${performanceConfig(dive.performance).bg}`}>
+                            <span className={performanceConfig(dive.performance).color}>
                               {dive.performance}
                             </span>
                           </div>
@@ -280,7 +290,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
 
                 {/* Video Player (Right) */}
                 <div className="lg:col-span-2">
-                  <h3 className="text-xl font-semibold text-app-text mb-4">Video Playback</h3>
+                  <h3 className="text-xl font-semibold text-app-text mb-4">{i18n.t('sessionDetail.videoPlayback')}</h3>
                   <div className="bg-black rounded-lg overflow-hidden h-96 flex items-center justify-center">
                     {selectedDive && selectedDive.video_uuid ? (
                       <DiveVideoPlayer
@@ -291,7 +301,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                     ) : (
                       <div className="text-center text-app-muted">
                         <Film className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">No video selected.</p>
+                        <p className="text-sm">{i18n.t('sessionDetail.noVideoSelected')}</p>
                       </div>
                     )}
                   </div>
@@ -302,7 +312,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Execution flow with separate difficulty context */}
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-app-text mb-4">Performance Flow</h4>
+                  <h4 className="text-lg font-semibold text-app-text mb-4">{i18n.t('sessionDetail.performanceFlow')}</h4>
                   {performanceFlow.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={performanceFlow}>
@@ -311,20 +321,20 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         <YAxis stroke="#98a2aa" domain={[0, 10]} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)' }}
-                          formatter={(value: number) => [value.toFixed(1), 'Execution /10']}
-                          labelFormatter={(value) => `Attempt ${value}`}
+                          formatter={(value: number) => [value.toFixed(1), `${i18n.t('analysis.execution')} /10`]}
+                          labelFormatter={(value) => `${i18n.t('analysis.attempts')} ${value}`}
                         />
-                        <Line type="monotone" dataKey="performance" name="Execution /10" stroke="#54beab" strokeWidth={2} dot={{ fill: '#54beab', r: 3 }} />
+                        <Line type="monotone" dataKey="performance" name={`${i18n.t('analysis.execution')} /10`} stroke="#54beab" strokeWidth={2} dot={{ fill: '#54beab', r: 3 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="py-8 text-center text-app-muted">No scored attempts in this session.</p>
+                    <p className="py-8 text-center text-app-muted">{i18n.t('sessionDetail.noScoredAttempts')}</p>
                   )}
                 </div>
 
                 {/* Height Distribution */}
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-app-text mb-4">Height Distribution</h4>
+                  <h4 className="text-lg font-semibold text-app-text mb-4">{i18n.t('sessionDetail.heightDistribution')}</h4>
                   {heightDistribution.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={heightDistribution}>
@@ -333,13 +343,13 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         <YAxis stroke="#98a2aa" />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)' }}
-                          formatter={(value) => `${value} dives`}
+                          formatter={(value) => `${value} ${i18n.t('dashboard.dives')}`}
                         />
                         <Bar dataKey="value" fill="#54beab" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-app-muted text-center py-8">No height data</p>
+                    <p className="text-app-muted text-center py-8">{i18n.t('sessionDetail.noHeightData')}</p>
                   )}
                 </div>
               </div>
@@ -347,10 +357,10 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               {/* Comparison with Previous Session */}
               {previousSession && (
                 <div className="bg-app-accent-soft border border-app-accent rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-app-text mb-4">Comparison with Previous Session</h4>
+                  <h4 className="text-lg font-semibold text-app-text mb-4">{i18n.t('sessionDetail.comparison')}</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-app-muted text-xs uppercase mb-2">Total Dives</p>
+                      <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.totalDives')}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-app-text font-bold">{session.total_dives}</span>
                         <span className="text-app-muted text-sm">vs {previousSession.total_dives}</span>
@@ -359,7 +369,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                       </div>
                     </div>
                     <div>
-                      <p className="text-app-muted text-xs uppercase mb-2">Avg Performance</p>
+                      <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.avgPerformance')}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-app-accent font-bold">{session.avg_performance?.toFixed(2)}</span>
                         <span className="text-app-muted text-sm">vs {previousSession.avg_performance?.toFixed(2)}</span>
@@ -367,7 +377,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                       </div>
                     </div>
                     <div>
-                      <p className="text-app-muted text-xs uppercase mb-2">Success Rate</p>
+                      <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.successRate')}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-green-400 font-bold">{session.success_rate?.toFixed(0)}%</span>
                         <span className="text-app-muted text-sm">vs {previousSession.success_rate?.toFixed(0)}%</span>
@@ -381,7 +391,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
               {/* Notes */}
               {session.notes && (
                 <div className="bg-app-panel-elevated rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-app-text mb-2">Notes</h4>
+                  <h4 className="text-lg font-semibold text-app-text mb-2">{i18n.t('attemptDetail.notes')}</h4>
                   <p className="text-app-text">{session.notes}</p>
                 </div>
               )}

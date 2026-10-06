@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { milestoneDisplay } from '../i18n/milestones'
 import React from 'react'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import {
@@ -16,6 +18,7 @@ import {
  * Provides visual feedback on sync progress, errors, and milestones
  */
 export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
+  const { t } = useTranslation()
   const {
     isConnected,
     connectionError,
@@ -31,12 +34,12 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
         {isConnected ? (
           <>
             <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
-            <span className="text-xs text-app-muted">Connected</span>
+            <span className="text-xs text-app-muted">{t('sync.connected')}</span>
           </>
         ) : (
           <>
             <WifiOff className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-app-muted">Offline</span>
+            <span className="text-xs text-app-muted">{t('sync.offline')}</span>
           </>
         )}
       </div>
@@ -58,16 +61,16 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             <>
               <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
               <div>
-                <div className="font-semibold text-green-400">Connected</div>
+                <div className="font-semibold text-green-400">{t('sync.connected')}</div>
               </div>
             </>
           ) : (
             <>
               <WifiOff className="w-5 h-5 text-red-400" />
               <div>
-                <div className="font-semibold text-red-400">Disconnected</div>
+                <div className="font-semibold text-red-400">{t('sync.disconnected')}</div>
                 <div className="text-sm text-app-muted">
-                  {connectionError || 'Reconnecting…'}
+                  {connectionError || t('sync.reconnecting')}
                 </div>
               </div>
             </>
@@ -91,11 +94,11 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             <div className="flex-1">
               <div className="font-semibold capitalize">
                 {currentSync.status === 'in_progress'
-                  ? 'Sync in Progress'
-                  : `Sync ${currentSync.status}`}
+                  ? t('sync.inProgress')
+                  : t('sync.statusProgress', { status: currentSync.status })}
               </div>
               <div className="text-sm text-app-muted">
-                ID: {currentSync.sync_id.substring(0, 8)}...
+                {t('sync.idLabel')} {currentSync.sync_id.substring(0, 8)}...
               </div>
             </div>
           </div>
@@ -130,15 +133,15 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="bg-app-panel-elevated rounded p-2">
-              <div className="text-app-muted">Synced</div>
+              <div className="text-app-muted">{t('sync.synced')}</div>
               <div className="font-bold text-app-accent">{currentSync.synced_count}</div>
             </div>
             <div className="bg-app-panel-elevated rounded p-2">
-              <div className="text-app-muted">Errors</div>
+              <div className="text-app-muted">{t('sync.errors')}</div>
               <div className="font-bold text-red-400">{currentSync.error_count}</div>
             </div>
             <div className="bg-app-panel-elevated rounded p-2">
-              <div className="text-app-muted">Duration</div>
+              <div className="text-app-muted">{t('sync.duration')}</div>
               <div className="font-bold text-amber-400">
                 {currentSync.duration_seconds.toFixed(1)}s
               </div>
@@ -151,7 +154,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
       {recentMilestones.length > 0 && (
         <div className="rounded-lg p-4 border border-green-500/20 bg-green-500/5 space-y-3">
           <div className="font-semibold text-green-400">
-            Recent Milestones ({recentMilestones.length})
+            {t('sync.recentMilestones')} ({recentMilestones.length})
           </div>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {recentMilestones.map((milestone, idx) => (
@@ -161,16 +164,16 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-green-300 text-sm truncate">
-                    {milestone.title}
+                    {milestoneDisplay(milestone).title}
                   </div>
                   <div className="text-xs text-app-muted line-clamp-2">
-                    {milestone.narrative}
+                    {milestoneDisplay(milestone).narrative}
                   </div>
                 </div>
                 <button
                   onClick={() => removeMilestone(idx)}
                   className="text-app-muted hover:text-app-text flex-shrink-0"
-                  aria-label="Dismiss milestone"
+                  aria-label={t('milestones.dismiss')}
                 >
                   <X className="w-4 h-4" />
                 </button>

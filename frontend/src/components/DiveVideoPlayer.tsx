@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveControls'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
@@ -52,13 +53,23 @@ type Phase =
   | { kind: 'checking' }
   | { kind: 'ready'; src: string }
   | { kind: 'preparing'; state: string; longRunning: boolean; stopped: boolean }
-  | { kind: 'prepare-failed'; message: string }
+  | { kind: 'prepare-failed'; message: string | null; fallback: 'prepareFailed' | 'requestFailed' }
   | { kind: 'not-cached' }
   | { kind: 'transport-failed' }
 
 function preparationLabel(state: string) {
   return state.replace(/_/g, ' ')
 }
+
+const PREPARATION_STATE_KEYS = [
+  'queued',
+  'waiting_for_mac',
+  'claimed',
+  'exporting',
+  'transcoding',
+  'uploading',
+  'verifying',
+]
 
 interface DiveVideoPlayerProps {
   diveCode: string
@@ -78,6 +89,7 @@ interface DiveVideoPlayerProps {
 }
 
 function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd }: DiveVideoPlayerProps) {
+  const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const { user, checking: authChecking } = useAuth()
 
@@ -92,7 +104,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
 
   const failuresRef = useRef(0)
   const preparingSinceRef = useRef<number | null>(null)
-  const lastPreparingLabelRef = useRef<string | null>(null)
+  const lastPreparingStateRef = useRef<string | null>(null)
   const requestingRef = useRef(false)
   // Startup-only autoplay guards: the canplay retry must never override an
   // intentional pause (e.g. a later canplay after seeking).
@@ -107,7 +119,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     const playbackUrl = getPlaybackUrlFromStatus(data)
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
-      lastPreparingLabelRef.current = null
+      lastPreparingStateRef.current = null
       setPhase({ kind: 'ready', src: playbackUrl })
       return
     }
@@ -117,23 +129,24 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       const longRunning =
         preparingSinceRef.current !== null &&
         Date.now() - preparingSinceRef.current > LONG_PREPARATION_MS
-      lastPreparingLabelRef.current = preparationLabel(data.status)
+      lastPreparingStateRef.current = data.status
       setPhase({ kind: 'preparing', state: data.status, longRunning, stopped: false })
       return
     }
 
     if (data.status === 'failed' || data.status === 'unavailable') {
       preparingSinceRef.current = null
-      lastPreparingLabelRef.current = null
+      lastPreparingStateRef.current = null
       setPhase({
         kind: 'prepare-failed',
-        message: data.job?.last_error || 'Media preparation failed',
+        message: data.job?.last_error || null,
+        fallback: 'prepareFailed',
       })
       return
     }
 
     preparingSinceRef.current = null
-    lastPreparingLabelRef.current = null
+    lastPreparingStateRef.current = null
     setPhase({ kind: 'not-cached' })
   }, [])
 
@@ -165,7 +178,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       // never creates preparation work and never overrides backend state:
       // the authoritative status lookup below still runs and applies.
       preparingSinceRef.current = null
-      lastPreparingLabelRef.current = null
+      lastPreparingStateRef.current = null
       setPhase({ kind: 'ready', src: seed.playbackUrl })
     } else {
       setPhase({ kind: 'checking' })
@@ -266,7 +279,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     } catch {
       setPhase({
         kind: 'prepare-failed',
-        message: 'Could not request media preparation',
+        message: null,
+        fallback: 'requestFailed',
       })
     } finally {
       requestingRef.current = false
@@ -352,15 +366,20 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     retryStatusCheck()
   }
 
+  const stateLabel = (state: string) =>
+    PREPARATION_STATE_KEYS.includes(state)
+      ? t(`videoPlayer.states.${state}`)
+      : preparationLabel(state)
+
   const preparing = phase.kind === 'preparing' ? phase : null
   const preparingText = preparing
     ? preparing.stopped
-      ? `${preparationLabel(preparing.state)} — status checks stopped`
+      ? t('videoPlayer.statusChecksStopped', { state: stateLabel(preparing.state) })
       : stale
-        ? `${preparationLabel(preparing.state)} — connection interrupted`
+        ? t('videoPlayer.connectionInterrupted', { state: stateLabel(preparing.state) })
         : preparing.longRunning
-          ? 'Still preparing'
-          : `Preparing media: ${preparationLabel(preparing.state)}`
+          ? t('videoPlayer.stillPreparing')
+          : t('videoPlayer.preparingMedia', { state: stateLabel(preparing.state) })
     : null
 
   return (
@@ -370,15 +389,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-6">
           <div className="max-w-sm text-center">
             <LogIn className="mx-auto mb-3 h-10 w-10 text-app-accent" />
-            <p className="mb-2 font-semibold text-app-text">Sign in to play</p>
-            <p className="mb-4 text-sm text-app-muted">Session expired.</p>
+            <p className="mb-2 font-semibold text-app-text">{t('videoPlayer.signInToPlay')}</p>
+            <p className="mb-4 text-sm text-app-muted">{t('videoPlayer.sessionExpired')}</p>
             <Link
               to="/login"
               state={{ from: window.location.pathname }}
               className="inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
             >
               <LogIn className="h-4 w-4" />
-              Sign in
+              {t('videoPlayer.signIn')}
             </Link>
           </div>
         </div>
@@ -400,7 +419,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         onError={handleDecodeError}
         preload={immersive ? 'auto' : 'metadata'}
         poster={posterSrc || undefined}
-        aria-label={`${diveCode} ${height} dive video`}
+        aria-label={t('videoPlayer.videoAria', { code: diveCode, height })}
       />
 
       {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
@@ -413,21 +432,21 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           role="alert"
         >
           <WifiOff className="hidden h-4 w-4 text-app-muted sm:inline" />
-          <p className="text-xs text-app-text">Media status check failed</p>
+          <p className="text-xs text-app-text">{t('videoPlayer.statusCheckFailed')}</p>
           <button
             type="button"
             onClick={retryStatusCheck}
             className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-3 py-1 text-xs font-semibold text-app-accent"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Retry status check
+            {t('videoPlayer.retryStatusCheck')}
           </button>
         </div>
       )}
 
       {phase.kind === 'ready' && !decodeError && (
         <p className="sr-only" role="status">
-          Media ready.
+          {t('videoPlayer.mediaReady')}
         </p>
       )}
 
@@ -438,10 +457,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           role="status"
         >
           <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
-          <p className="mt-3 text-sm text-app-text">Checking…</p>
-          {lastPreparingLabelRef.current && (
+          <p className="mt-3 text-sm text-app-text">{t('videoPlayer.checking')}</p>
+          {lastPreparingStateRef.current && (
             <p className="mt-1 text-xs text-app-muted">
-              Last known state: {lastPreparingLabelRef.current}
+              {t('videoPlayer.lastKnownState', { state: stateLabel(lastPreparingStateRef.current) })}
             </p>
           )}
         </div>
@@ -465,7 +484,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
                 className="touch-target mt-3 inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
               >
                 <RefreshCw className="h-4 w-4" />
-                {preparing.stopped ? 'Check status again' : 'Check status now'}
+                {preparing.stopped ? t('videoPlayer.checkStatusAgain') : t('videoPlayer.checkStatusNow')}
               </button>
             )}
           </div>
@@ -481,7 +500,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           <div className="max-w-sm px-6 text-center">
             <WifiOff className="mx-auto mb-3 h-10 w-10 text-app-muted" />
             <p className="mb-4 font-semibold text-app-text">
-              Media status check failed
+              {t('videoPlayer.statusCheckFailed')}
             </p>
             <button
               type="button"
@@ -489,7 +508,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
               className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
             >
               <RefreshCw className="h-4 w-4" />
-              Retry status check
+              {t('videoPlayer.retryStatusCheck')}
             </button>
           </div>
         </div>
@@ -502,8 +521,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           role="alert"
         >
           <div className="max-w-sm px-6 text-center">
-            <p className="mb-2 text-app-text">No video available</p>
-            <p className="mb-4 text-sm text-app-muted">{phase.message}</p>
+            <p className="mb-2 text-app-text">{t('videoPlayer.noVideo')}</p>
+            <p className="mb-4 text-sm text-app-muted">{phase.message || t(`videoPlayer.${phase.fallback}`)}</p>
             {canRequest && (
               <button
                 type="button"
@@ -512,7 +531,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
                 className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <DownloadCloud className="h-4 w-4" />
-                {isRequesting ? 'Requesting…' : 'Retry prepare'}
+                {isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.retryPrepare')}
               </button>
             )}
           </div>
@@ -527,7 +546,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         >
           <div className="max-w-sm px-6 text-center">
             <p className="mb-4 font-semibold text-app-text">
-              Video failed to load
+              {t('videoPlayer.loadFailed')}
             </p>
             <button
               type="button"
@@ -535,7 +554,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
               className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated"
             >
               <RefreshCw className="h-4 w-4" />
-              Try again
+              {t('videoPlayer.tryAgain')}
             </button>
           </div>
         </div>
@@ -550,7 +569,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           <div className="max-w-sm text-center">
             <Clock className="mx-auto mb-3 h-10 w-10 text-app-accent" />
             <p className="mb-4 font-semibold text-app-text">
-              Clip not cached
+              {t('videoPlayer.notCached')}
             </p>
             <button
               type="button"
@@ -559,7 +578,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
               className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-4 py-2 font-semibold text-app-accent transition hover:bg-app-panel-elevated disabled:cursor-not-allowed disabled:opacity-60"
             >
               <DownloadCloud className="h-4 w-4" />
-              {isRequesting ? 'Requesting…' : 'Prepare clip'}
+              {isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}
             </button>
           </div>
         </div>
@@ -572,7 +591,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           role="status"
         >
           <p className="max-w-sm text-center text-sm text-app-muted">
-            No playable media for this clip right now.
+            {t('videoPlayer.noPlayable')}
           </p>
         </div>
       )}

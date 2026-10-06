@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Globe2, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { Bell, Globe, Globe2, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { LANGUAGES, useLang } from '../i18n/I18nProvider'
+import type { LanguageCode } from '../i18n/prefs'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
 export function initials(name: string, fallbackEmail = ''): string {
@@ -36,7 +39,8 @@ function loadPrefs(): Prefs {
 
 /**
  * Notification preferences. The backend has no prefs endpoint yet, so these
- * persist per device until one exists.
+ * persist per device until one exists. Language rides in the same blob
+ * (see i18n/prefs.ts) but applies through I18nProvider.
  */
 function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
@@ -47,7 +51,12 @@ function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
     setPrefs(prev => {
       const next = { ...prev, ...patch }
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify(next))
+        // Merge into the stored blob, not `next`: language (and any future
+        // field written by another surface) must survive a notification
+        // toggle.
+        const raw = localStorage.getItem(PREFS_KEY)
+        const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ ...stored, ...next }))
       } catch {
         // Private browsing etc: prefs simply don't persist.
       }
@@ -93,13 +102,48 @@ const labelCls =
   'mb-1 block text-xs font-medium uppercase tracking-wide text-app-muted'
 
 const sections = [
-  { id: 'profile', label: 'Profile', icon: UserRound },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'fediverse', label: 'Fediverse', icon: Globe2 },
-  { id: 'security', label: 'Security', icon: KeyRound },
+  { id: 'profile', labelKey: 'account.sections.profile', icon: UserRound },
+  { id: 'notifications', labelKey: 'account.notifications', icon: Bell },
+  { id: 'fediverse', labelKey: 'account.fediverse.section', icon: Globe2 },
+  { id: 'security', labelKey: 'account.security', icon: KeyRound },
 ] as const
 
 type SectionId = (typeof sections)[number]['id']
+
+function LanguageSection() {
+  const { t } = useTranslation()
+  const { language, setLanguage } = useLang()
+  return (
+    <section aria-label={t('settings.language')} className="border border-app bg-app-panel p-5">
+      <h2 className="flex items-center gap-2 font-semibold text-app-text">
+        <Globe className="h-4 w-4 text-app-accent" aria-hidden />
+        {t('settings.language')}
+      </h2>
+      <p className="mt-1 text-sm text-app-muted">{t('settings.languageDesc')}</p>
+      <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label={t('settings.language')}>
+        {LANGUAGES.map(option => {
+          const selected = language === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setLanguage(option.value as LanguageCode)}
+              className={`touch-target border px-3 py-2 text-sm font-medium transition-colors ${
+                selected
+                  ? 'border-app-accent bg-app-accent/10 text-app-accent'
+                  : 'border-app bg-app-panel-elevated text-app-muted hover:text-app-text'
+              }`}
+            >
+              {option.labelKey ? t(option.labelKey) : option.label}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 /**
  * Global fediverse opt-in (Option 1: manual cross-post only, default OFF).
@@ -113,6 +157,7 @@ function useFediverseEnabled(active: boolean): {
   error: string
   setEnabled: (next: boolean) => Promise<void>
 } {
+  const { t } = useTranslation()
   const [enabled, setEnabledState] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -131,7 +176,7 @@ function useFediverseEnabled(active: boolean): {
       })
       .catch(() => {
         if (alive) {
-          setError('Fediverse settings unavailable. Try again.')
+          setError(t('account.fediverse.errorLoad'))
           setLoaded(true)
         }
       })
@@ -153,7 +198,7 @@ function useFediverseEnabled(active: boolean): {
       const data = await res.json()
       setEnabledState(!!data.enabled)
     } catch {
-      setError('Could not save. Try again.')
+      setError(t('account.fediverse.errorSave'))
     } finally {
       setBusy(false)
     }
@@ -163,6 +208,7 @@ function useFediverseEnabled(active: boolean): {
 
 export default function Account() {
   const { user, signOut } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [section, setSection] = useState<SectionId>('profile')
   const [prefs, updatePrefs] = usePrefs()
@@ -181,11 +227,11 @@ export default function Account() {
     e.preventDefault()
     setMessage(null)
     if (newPassword !== confirm) {
-      setMessage({ kind: 'error', text: 'New passwords do not match' })
+      setMessage({ kind: 'error', text: t('account.errorMismatch') })
       return
     }
     if (newPassword.length < 10) {
-      setMessage({ kind: 'error', text: 'New password must be at least 10 characters' })
+      setMessage({ kind: 'error', text: t('account.errorTooShort') })
       return
     }
     setBusy(true)
@@ -199,16 +245,16 @@ export default function Account() {
       if (!res.ok) {
         setMessage({
           kind: 'error',
-          text: res.status === 401 ? 'Current password is incorrect' : 'Password change failed — please try again',
+          text: res.status === 401 ? t('account.errorWrongPassword') : t('account.errorChangeFailed'),
         })
         return
       }
       setCurrentPassword('')
       setNewPassword('')
       setConfirm('')
-      setMessage({ kind: 'ok', text: 'Password changed. Other sessions were signed out.' })
+      setMessage({ kind: 'ok', text: t('account.passwordChanged') })
     } catch {
-      setMessage({ kind: 'error', text: 'Network error — please try again' })
+      setMessage({ kind: 'error', text: t('account.errorNetwork') })
     } finally {
       setBusy(false)
     }
@@ -220,36 +266,36 @@ export default function Account() {
   }
 
   const notifRows: { key: keyof Prefs; label: string; desc: string }[] = [
-    { key: 'emailNotifications', label: 'Email notifications', desc: 'Milestones and shared-dive comments' },
-    { key: 'milestoneAlerts', label: 'Milestone alerts', desc: 'Personal bests and streaks' },
-    { key: 'weeklyDigest', label: 'Weekly digest', desc: 'Progress summary every Monday' },
+    { key: 'emailNotifications', label: t('account.notifEmail'), desc: t('account.notifEmailDesc') },
+    { key: 'milestoneAlerts', label: t('account.notifMilestones'), desc: t('account.notifMilestonesDesc') },
+    { key: 'weeklyDigest', label: t('account.notifDigest'), desc: t('account.notifDigestDesc') },
   ]
 
   return (
     <div className="mx-auto max-w-4xl">
       <header className="mb-5 border-b border-app pb-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-app-text">Profile & settings</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-app-text">{t('account.title')}</h1>
         <p className="mt-1 text-sm text-app-muted">
-          Signed in as {displayName}
+          {t('account.signedInAs')} {displayName}
         </p>
       </header>
 
       <div className="grid gap-5 md:grid-cols-[220px_1fr]">
-        <nav aria-label="Profile sections" className="h-fit border border-app bg-app-panel p-2 md:sticky md:top-4">
-          {sections.map(({ id, label, icon: Icon }) => (
+        <nav aria-label={t('account.sectionsAria')} className="h-fit border border-app bg-app-panel p-2 md:sticky md:top-4">
+          {sections.map((item: { id: SectionId; labelKey: string; icon: React.ComponentType<{ className?: string }> }) => (
             <button
-              key={id}
+              key={item.id}
               type="button"
-              onClick={() => setSection(id)}
-              aria-current={section === id ? 'true' : undefined}
+              onClick={() => setSection(item.id)}
+              aria-current={section === item.id ? 'true' : undefined}
               className={`touch-target flex w-full items-center gap-3 px-3 text-sm font-medium ${
-                section === id
+                section === item.id
                   ? 'border border-app bg-app-panel-elevated text-app-text'
                   : 'border border-transparent text-app-muted hover:text-app-text'
               }`}
             >
-              <Icon className="h-4 w-4" aria-hidden />
-              {label}
+              <item.icon className="h-4 w-4" aria-hidden />
+              {t(item.labelKey)}
             </button>
           ))}
           <div className="mt-2 border-t border-app pt-2">
@@ -259,14 +305,16 @@ export default function Account() {
               className="touch-target flex w-full items-center gap-3 px-3 text-sm text-app-muted hover:text-app-text"
             >
               <LogOut className="h-4 w-4" aria-hidden />
-              Sign out
+              {t('account.signOut')}
             </button>
           </div>
         </nav>
 
         <div className="min-w-0">
+          <LanguageSection />
+
           {section === 'profile' && (
-            <section aria-label="Profile" className="border border-app bg-app-panel p-5">
+            <section aria-label={t('account.profileAria')} className="border border-app bg-app-panel p-5">
               <div className="flex items-center gap-4">
                 <div
                   aria-hidden
@@ -283,34 +331,33 @@ export default function Account() {
                     isDiver ? 'border-app-accent text-app-accent' : 'border-app text-app-muted'
                   }`}
                 >
-                  {isDiver ? 'Diver' : 'Administrator'}
+                  {isDiver ? t('roles.Diver') : t('roles.Administrator')}
                 </span>
               </div>
               {isDiver && (
                 <p className="mt-3 text-sm leading-6 text-app-muted">
-                  You can view public dives shared by divers and manage your own dives.
-                  Private dives are visible only to their owners. Forgotten passwords need an administrator reset.
+                  {t('account.diverHint')}
                 </p>
               )}
               {!isDiver && (
                 <p className="mt-3 text-sm leading-6 text-app-muted">
                   <a href="/admin" className="text-app-accent underline underline-offset-2">
-                    Manage users in Administration
-                  </a>{' '}
-                  — create diver and administrator accounts, reset passwords, and manage diver bindings.
+                    {t('account.adminHintLink')}
+                  </a>
+                  {t('account.adminHint')}
                 </p>
               )}
               <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-app-muted">
                 <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-app-accent" aria-hidden />
-                Profile details are managed by your administrator. To change your display name, ask an admin.
+                {t('account.managedByAdmin')}
               </p>
             </section>
           )}
 
           {section === 'notifications' && (
-            <section aria-label="Notifications" className="border border-app bg-app-panel p-5">
-              <h2 className="font-semibold text-app-text">Notifications</h2>
-              <p className="mt-1 text-sm text-app-muted">Stored on this device until account sync lands.</p>
+            <section aria-label={t('account.notificationsAria')} className="border border-app bg-app-panel p-5">
+              <h2 className="font-semibold text-app-text">{t('account.notifications')}</h2>
+              <p className="mt-1 text-sm text-app-muted">{t('account.notificationsStored')}</p>
               <div className="mt-3 divide-y divide-[var(--app-border)]">
                 {notifRows.map(row => (
                   <div key={row.key} className="flex items-center justify-between gap-4 py-3">
@@ -330,45 +377,46 @@ export default function Account() {
           )}
 
           {section === 'fediverse' && (
-            <section aria-label="Fediverse" className="border border-app bg-app-panel p-5">
-              <h2 className="font-semibold text-app-text">Fediverse sharing</h2>
+            <section aria-label={t('account.fediverse.section')} className="border border-app bg-app-panel p-5">
+              <h2 className="font-semibold text-app-text">{t('account.fediverse.heading')}</h2>
               <p className="mt-1 text-sm text-app-muted">
-                Manual cross-posts to open social apps (Mastodon, Pixelfed). Off by default.
+                {t('account.fediverse.description')}
               </p>
 
               <div
                 role="note"
-                aria-label="Turning on does not publish existing dives"
+                aria-label={t('account.fediverse.noteAria')}
                 className="mt-3 w-full rounded border border-amber-300/40 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100"
               >
-                <strong className="font-semibold">Turning this on does not publish anything yet.</strong>{' '}
-                Your existing public dives stay local. Each dive needs its own opt-in afterwards, and only{' '}
-                <strong className="font-semibold">public</strong> dives can be federated — private dives are
-                never eligible. Cross-posts share <strong className="font-semibold">poster + caption only</strong>:
-                no video and no video link (a Share link plays the original video, so never paste one).
-                Attach the poster image yourself when posting.
+                <strong className="font-semibold">{t('account.fediverse.noteStrong')}</strong>{' '}
+                {t('account.fediverse.noteLocal')}{' '}
+                <strong className="font-semibold">{t('account.fediverse.notePublicWord')}</strong>{' '}
+                {t('account.fediverse.noteOptIn')}{' '}
+                <strong className="font-semibold">{t('account.fediverse.noteContentWord')}</strong>:
+                {t('account.fediverse.noteContent')}{' '}
+                {t('account.fediverse.noteAttach')}
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-4 py-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-app-text">Fediverse sharing</div>
+                  <div className="text-sm font-medium text-app-text">{t('account.fediverse.heading')}</div>
                   <div className="text-xs text-app-muted">
                     {fediverse.loaded
                       ? fediverse.enabled
-                        ? 'On — you can opt in public dives one by one.'
-                        : 'Off — no dive can be cross-posted.'
-                      : 'Loading…'}
+                        ? t('account.fediverse.statusOn')
+                        : t('account.fediverse.statusOff')
+                      : t('common.loading')}
                   </div>
                 </div>
                 <Toggle
                   checked={fediverse.enabled}
                   onChange={() => void fediverse.setEnabled(!fediverse.enabled)}
-                  label="Fediverse sharing"
+                  label={t('account.fediverse.heading')}
                 />
               </div>
               {fediverse.busy && (
                 <p role="status" className="text-xs text-app-muted">
-                  Saving…
+                  {t('account.fediverse.saving')}
                 </p>
               )}
               {fediverse.error && (
@@ -378,28 +426,27 @@ export default function Account() {
               )}
 
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-app-muted">
-                <li>Step 1: turn this on. Nothing is published.</li>
-                <li>Step 2: open a public dive → turn on “Fediverse cross-post” for that dive.</li>
-                <li>Step 3: use “Copy cross-post text” and attach the poster image yourself. Never paste a Share link.</li>
+                <li>{t('account.fediverse.step1')}</li>
+                <li>{t('account.fediverse.step2')}</li>
+                <li>{t('account.fediverse.step3')}</li>
               </ul>
               <p className="mt-3 text-xs leading-5 text-app-muted">
-                Works the same on phones, tablets, and desktop — this warning is always shown, with no
-                hover-only steps.
+                {t('account.fediverse.behaviorNote')}
               </p>
             </section>
           )}
 
           {section === 'security' && (
-            <section aria-label="Security" className="space-y-4">
+            <section aria-label={t('account.securityAria')} className="space-y-4">
               <div className="border border-app bg-app-panel p-5">
                 <h2 className="flex items-center gap-2 font-semibold text-app-text">
                   <KeyRound className="h-4 w-4 text-app-accent" aria-hidden />
-                  Change password
+                  {t('account.changePassword')}
                 </h2>
                 <form onSubmit={changePassword} className="mt-4 space-y-4">
                   <div>
                     <label className={labelCls} htmlFor="account-current-password">
-                      Current password
+                      {t('account.currentPassword')}
                     </label>
                     <input
                       id="account-current-password"
@@ -413,7 +460,7 @@ export default function Account() {
                   </div>
                   <div>
                     <label className={labelCls} htmlFor="account-new-password">
-                      New password <span className="normal-case">(10+ characters)</span>
+                      {t('account.newPassword')} <span className="normal-case">{t('account.newPasswordHint')}</span>
                     </label>
                     <input
                       id="account-new-password"
@@ -428,7 +475,7 @@ export default function Account() {
                   </div>
                   <div>
                     <label className={labelCls} htmlFor="account-confirm-password">
-                      Confirm new password
+                      {t('account.confirmNewPassword')}
                     </label>
                     <input
                       id="account-confirm-password"
@@ -451,21 +498,21 @@ export default function Account() {
                     className="touch-target inline-flex items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 py-2.5 text-sm font-semibold text-app-text disabled:opacity-60"
                   >
                     <KeyRound className="h-4 w-4" aria-hidden />
-                    {busy ? 'Changing…' : 'Change password'}
+                    {busy ? t('account.changing') : t('account.changePassword')}
                   </button>
                 </form>
               </div>
 
               <div className="border border-app bg-app-panel p-5">
-                <h2 className="font-semibold text-app-text">Sessions</h2>
-                <p className="mt-1 text-sm text-app-muted">This session ends when you sign out.</p>
+                <h2 className="font-semibold text-app-text">{t('account.sessions')}</h2>
+                <p className="mt-1 text-sm text-app-muted">{t('account.sessionsHint')}</p>
                 <button
                   type="button"
                   onClick={logout}
                   className="touch-target mt-3 inline-flex items-center justify-center gap-2 border border-app bg-app-panel-elevated px-4 py-2.5 text-sm font-medium text-app-text"
                 >
                   <LogOut className="h-4 w-4" aria-hidden />
-                  Sign out
+                  {t('account.signOut')}
                 </button>
               </div>
             </section>

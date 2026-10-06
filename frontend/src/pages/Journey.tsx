@@ -8,6 +8,8 @@ import MentalBlockIndicator from "../components/MentalBlockIndicator";
 import { useSyncStatus } from "../hooks/useSyncStatus";
 import DDWorkspace from "../components/DDWorkspace";
 import { AlertTriangle, Brain } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { appLanguage } from "../utils/dateLocale";
 
 interface JourneyData {
   overview: {
@@ -60,6 +62,7 @@ interface Milestone {
 }
 
 function Journey() {
+  const { t } = useTranslation();
   const { currentSync } = useSyncStatus();
   const [journeyData, setJourneyData] = useState<JourneyData | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -101,7 +104,7 @@ function Journey() {
       setError(null);
     } catch (err) {
       console.error("Error fetching journey data:", err);
-      setError("Failed to load your journey");
+      setError("journey.errorLoad");
     } finally {
       setLoading(false);
     }
@@ -136,7 +139,7 @@ function Journey() {
       <div className="app-page">
         <div className="max-w-4xl mx-auto">
           <div className="border border-red-500/50 bg-red-500/20 p-4 text-red-400">
-            {error}
+            {t(error ?? "journey.errorLoad")}
           </div>
         </div>
       </div>
@@ -149,7 +152,7 @@ function Journey() {
       <div className="border-b border-app bg-app-panel px-4 py-5 sm:px-6 sm:py-6">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-semibold sm:text-4xl">
-            Your Diving Journey
+            {t("journey.title")}
           </h1>
         </div>
       </div>
@@ -160,25 +163,25 @@ function Journey() {
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-5">
               <div className="min-w-0">
-                <div className="text-app-muted text-sm mb-1">Total Dives</div>
+                <div className="text-app-muted text-sm mb-1">{t("dashboard.totalDives")}</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.total_dives}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-app-muted text-sm mb-1">Unique Dives</div>
+                <div className="text-app-muted text-sm mb-1">{t("journey.uniqueDives")}</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.unique_dive_combinations}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-app-muted text-sm mb-1">Training Days</div>
+                <div className="text-app-muted text-sm mb-1">{t("journey.trainingDays")}</div>
                 <div className="app-kpi-value text-2xl">
                   {journeyData.overview.days_of_training}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-app-muted text-sm mb-1">Improvement</div>
+                <div className="text-app-muted text-sm mb-1">{t("journey.improvement")}</div>
                 <div
                   className={`app-kpi-value text-2xl ${journeyData.growth.improvement > 0 ? "text-green-400" : "text-app-muted"}`}
                 >
@@ -187,7 +190,7 @@ function Journey() {
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-app-muted text-sm mb-1">Trajectory</div>
+                <div className="text-app-muted text-sm mb-1">{t("journey.trajectory")}</div>
                 <div
                   className={`text-lg font-semibold ${
                     journeyData.growth.trajectory === "improving"
@@ -197,7 +200,7 @@ function Journey() {
                         : "text-red-400"
                   }`}
                 >
-                  {journeyData.growth.trajectory}
+                  {t(`analysis.trendDirection.${journeyData.growth.trajectory}`, { defaultValue: journeyData.growth.trajectory })}
                 </div>
               </div>
             </div>
@@ -208,11 +211,11 @@ function Journey() {
       {/* Tab Navigation */}
       <nav
         className="border-b border-app bg-app-panel"
-        aria-label="Journey sections"
+        aria-label={t("journey.sectionsAria")}
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <label className="block py-3 md:hidden">
-            <span className="sr-only">Journey section</span>
+            <span className="sr-only">{t("journey.section")}</span>
             <select
               value={activeTab}
               onChange={(event) =>
@@ -220,12 +223,12 @@ function Journey() {
               }
               className="app-input w-full"
             >
-              <option value="narrative">Your story</option>
-              <option value="dd-progression">DD progression</option>
-              <option value="timeline">Milestones</option>
-              <option value="phases">Phase analysis</option>
-              <option value="psychology">Psychology</option>
-              <option value="avoided">Patterns</option>
+              <option value="narrative">{t("journey.yourStory")}</option>
+              <option value="dd-progression">{t("journey.ddProgression")}</option>
+              <option value="timeline">{t("journey.milestones")}</option>
+              <option value="phases">{t("journey.phaseAnalysis")}</option>
+              <option value="psychology">{t("journey.psychology")}</option>
+              <option value="avoided">{t("journey.patterns")}</option>
             </select>
           </label>
           <div className="app-table-scroll hidden items-center gap-1 md:flex">
@@ -237,7 +240,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              Your Story
+              {t("journey.yourStory")}
             </button>
             <button
               onClick={() => setActiveTab("dd-progression")}
@@ -247,7 +250,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              DD Progression
+              {t("journey.ddProgression")}
             </button>
             <button
               onClick={() => setActiveTab("timeline")}
@@ -257,7 +260,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              Milestones
+              {t("journey.milestones")}
             </button>
             <button
               onClick={() => setActiveTab("phases")}
@@ -267,7 +270,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              Phase Analysis
+              {t("journey.phaseAnalysis")}
             </button>
             <button
               onClick={() => setActiveTab("psychology")}
@@ -277,7 +280,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              Psychology
+              {t("journey.psychology")}
             </button>
             <button
               onClick={() => setActiveTab("avoided")}
@@ -287,7 +290,7 @@ function Journey() {
                   : "border-transparent text-app-muted hover:text-app-text"
               }`}
             >
-              Patterns
+              {t("journey.patterns")}
             </button>
           </div>
         </div>
@@ -303,9 +306,9 @@ function Journey() {
           {activeTab === "timeline" && (
             <>
               <div className="mb-6 flex flex-col gap-3 border-b border-app pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-2xl font-semibold">Milestones</h2>
+                <h2 className="text-2xl font-semibold">{t("journey.milestones")}</h2>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm text-app-muted">Show:</label>
+                  <label className="text-sm text-app-muted">{t("journey.show")}:</label>
                   <select
                     value={minSignificance}
                     onChange={(e) =>
@@ -313,11 +316,11 @@ function Journey() {
                     }
                     className="app-input text-sm"
                   >
-                    <option value={1}>All (1+)</option>
+                    <option value={1}>{t("journey.all1plus")}</option>
                     <option value={2}>2+</option>
                     <option value={3}>3+</option>
                     <option value={4}>4+</option>
-                    <option value={5}>5 only</option>
+                    <option value={5}>{t("journey.only5")}</option>
                   </select>
                 </div>
               </div>
@@ -329,14 +332,14 @@ function Journey() {
             <div className="space-y-6">
               <div className="app-panel p-4 sm:p-6">
                 <h2 className="text-2xl font-semibold mb-4">
-                  Two-Phase Dive Analysis
+                  {t("journey.twoPhaseAnalysis")}
                 </h2>
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-6 pb-6 border-b border-app sm:grid-cols-4 sm:gap-4">
                   <div className="min-w-0">
                     <div className="text-app-muted text-sm mb-1">
-                      Total Dives
+                      {t("progress.totalDives")}
                     </div>
                     <div className="app-kpi-value text-2xl">
                       {phaseData.summary?.total_dives || 0}
@@ -344,7 +347,7 @@ function Journey() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-app-muted text-sm mb-1">
-                      Two-Phase Format
+                      {t("journey.twoPhaseFormat")}
                     </div>
                     <div className="app-kpi-value text-2xl text-app-accent">
                       {phaseData.summary?.two_phase_dives || 0}
@@ -352,7 +355,7 @@ function Journey() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-app-muted text-sm mb-1">
-                      Legacy Format
+                      {t("journey.legacyFormat")}
                     </div>
                     <div className="app-kpi-value text-2xl text-app-accent">
                       {phaseData.summary?.legacy_dives || 0}
@@ -360,7 +363,7 @@ function Journey() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-app-muted text-sm mb-1">
-                      New Format %
+                      {t("journey.newFormatPct")}
                     </div>
                     <div className="app-kpi-value text-2xl text-green-400">
                       {phaseData.summary?.percentage_new_format || 0}%
@@ -372,13 +375,13 @@ function Journey() {
                 <div className="mb-8">
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-app-accent mb-2">
-                      Phase 1: Hurdle + Flight (Takeoff)
+                      {t("journey.phase1Title")}
                     </h3>
                     <p className="text-app-muted text-sm mb-3">
                       {phaseData.phase1_analysis?.description}
                     </p>
                     <div className="app-kpi-value mb-2 text-2xl">
-                      Average Score: {phaseData.phase1_analysis?.average} / 10
+                      {t("journey.averageScore")}: {phaseData.phase1_analysis?.average} / 10
                     </div>
                   </div>
 
@@ -396,7 +399,7 @@ function Journey() {
                             {score}
                           </div>
                           <div className="text-app-muted text-xs">
-                            {Number(count)} dives
+                            {Number(count)} {t("dashboard.dives")}
                           </div>
                         </div>
                       ))}
@@ -407,13 +410,13 @@ function Journey() {
                 <div className="mb-8">
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-app-accent mb-2">
-                      Phase 2: Opening + Entry (Landing)
+                      {t("journey.phase2Title")}
                     </h3>
                     <p className="text-app-muted text-sm mb-3">
                       {phaseData.phase2_analysis?.description}
                     </p>
                     <div className="app-kpi-value mb-2 text-2xl">
-                      Average Score: {phaseData.phase2_analysis?.average} / 10
+                      {t("journey.averageScore")}: {phaseData.phase2_analysis?.average} / 10
                     </div>
                   </div>
 
@@ -431,7 +434,7 @@ function Journey() {
                             {score}
                           </div>
                           <div className="text-app-muted text-xs">
-                            {Number(count)} dives
+                            {t("progress.divesCount", { count: Number(count) })}
                           </div>
                         </div>
                       ))}
@@ -442,7 +445,7 @@ function Journey() {
                 {phaseData.phase_combinations?.distribution && (
                   <div className="mb-8">
                     <h3 className="text-xl font-bold text-app-accent mb-4">
-                      Most Common Phase Combinations
+                      {t("journey.commonCombinations")}
                     </h3>
                     <div className="space-y-2">
                       {Object.entries(phaseData.phase_combinations.distribution)
@@ -457,7 +460,7 @@ function Journey() {
                               {combo}
                             </div>
                             <div className="text-app-muted">
-                              {Number(count)} dives
+                              {t("progress.divesCount", { count: Number(count) })}
                             </div>
                           </div>
                         ))}
@@ -470,7 +473,7 @@ function Journey() {
                   phaseData.coaching_insights.length > 0 && (
                     <div>
                       <h3 className="text-xl font-bold text-green-400 mb-4">
-                        Coaching Insights
+                        {t("journey.coachingInsights")}
                       </h3>
                       <div className="space-y-3">
                         {phaseData.coaching_insights.map(
@@ -509,7 +512,7 @@ function Journey() {
               {/* Mental Block Detection */}
               <div className="app-panel p-4 sm:p-6">
                 <h3 className="text-xl font-bold text-yellow-400 mb-4">
-                  Mental Block Status
+                  {t("journey.mentalBlockStatus")}
                 </h3>
                 <MentalBlockIndicator />
               </div>
@@ -520,7 +523,7 @@ function Journey() {
                     className="h-6 w-6 text-app-accent"
                     aria-hidden="true"
                   />
-                  Psychological Profile
+                  {t("journey.psychologicalProfile")}
                 </h2>
 
                 {journeyData?.psychological ? (
@@ -529,7 +532,7 @@ function Journey() {
                     <div className="grid grid-cols-1 gap-3 mb-8 pb-8 border-b border-app sm:grid-cols-3">
                       <div className="border border-app-accent bg-app-accent-soft p-4">
                         <div className="text-app-muted text-sm mb-2">
-                          Mental Blocks Detected
+                          {t("journey.mentalBlocksDetected")}
                         </div>
                         <div className="app-kpi-value text-2xl text-app-accent">
                           {journeyData.psychological.mental_blocks_detected ||
@@ -538,7 +541,7 @@ function Journey() {
                       </div>
                       <div className="border border-app-accent bg-app-accent-soft p-4">
                         <div className="text-app-muted text-sm mb-2">
-                          Fear vs Difficulty
+                          {t("journey.fearVsDifficulty")}
                         </div>
                         <div className="app-kpi-value text-2xl text-app-accent">
                           {journeyData.psychological.fear_coefficient
@@ -550,7 +553,7 @@ function Journey() {
                       </div>
                       <div className="border border-green-500/30 bg-green-500/10 p-4">
                         <div className="text-app-muted text-sm mb-2">
-                          Confidence Trend
+                          {t("journey.confidenceTrend")}
                         </div>
                         <div
                           className={`app-kpi-value text-2xl ${
@@ -563,14 +566,12 @@ function Journey() {
                                 : "text-red-400"
                           }`}
                         >
-                          {journeyData.psychological.confidence_trend
-                            ? journeyData.psychological.confidence_trend
-                                .charAt(0)
-                                .toUpperCase() +
-                              journeyData.psychological.confidence_trend.slice(
-                                1,
-                              )
-                            : "Stable"}
+                          {(() => {
+                            const trend = journeyData.psychological.confidence_trend
+                            if (!trend) return t("journey.stable")
+                            const label = t(`analysis.trendDirection.${trend}`, { defaultValue: trend })
+                            return label.charAt(0).toLocaleUpperCase(appLanguage()) + label.slice(1)
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -583,10 +584,10 @@ function Journey() {
                             className="h-4 w-4"
                             aria-hidden="true"
                           />
-                          Mental Block Detected
+                          {t("journey.mentalBlockDetected")}
                         </div>
                         <p className="text-app-text text-sm">
-                          Same max difficulty for 3+ months.
+                          {t("journey.mentalBlockDetail")}
                         </p>
                       </div>
                     )}
@@ -594,12 +595,12 @@ function Journey() {
                     {/* Confidence Over Time */}
                     <div className="border border-app bg-app-panel-elevated p-4">
                       <h3 className="text-lg font-bold text-green-400 mb-3">
-                        Growth
+                        {t("journey.growth")}
                       </h3>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-app-muted">
-                            First Month Avg Performance
+                            {t("journey.firstMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
                             {journeyData.growth.first_month_average.toFixed(2)}{" "}
@@ -617,7 +618,7 @@ function Journey() {
 
                         <div className="flex items-center justify-between mt-4">
                           <span className="text-app-muted">
-                            Latest Month Avg Performance
+                            {t("journey.latestMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
                             {journeyData.growth.last_month_average.toFixed(2)} /
@@ -635,11 +636,11 @@ function Journey() {
 
                         <div className="mt-4 p-3 bg-app-accent-soft border border-app-accent rounded">
                           <div className="text-app-accent font-bold">
-                            Overall Improvement
+                            {t("journey.overallImprovement")}
                           </div>
                           <div className="text-app-text text-lg">
                             {journeyData.growth.improvement > 0 ? "+" : ""}
-                            {journeyData.growth.improvement.toFixed(2)} points
+                            {journeyData.growth.improvement.toFixed(2)} {t("analysis.points")}
                           </div>
                         </div>
                       </div>
@@ -648,7 +649,7 @@ function Journey() {
                   </>
                 ) : (
                   <div className="text-center py-8 text-app-muted">
-                    No psychology data.
+                    {t("journey.noPsychology")}
                   </div>
                 )}
               </div>
