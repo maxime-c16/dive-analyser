@@ -698,6 +698,33 @@ it('a manual unmute disarms gesture restoration', async () => {
   }
 })
 
+it('a tap on the mute control keeps its own toggle semantics', async () => {
+  await seedPreviewNow('control-tap', '/seeded.mp4')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    .mockImplementationOnce(() => Promise.reject(new DOMException('play() was blocked', 'NotAllowedError')))
+    .mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="control-tap" immersive />)
+    const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(video.muted).toBe(true))
+    await presentFirstFrame(video)
+    const unmute = await screen.findByRole('button', { name: 'Unmute video' })
+    // The capture-phase restoration must not pre-empt the explicit control:
+    // pointerdown on Unmute leaves the element muted so its click toggles
+    // to unmuted instead of back to muted.
+    fireEvent.pointerDown(unmute)
+    await act(async () => {})
+    expect(video.muted).toBe(true)
+    // …and its click toggles straight to unmuted.
+    fireEvent.click(unmute)
+    expect(video.muted).toBe(false)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
 it('a status-driven source switch holds the cover until the new source presents', async () => {
   await seedPreviewNow('status-switch', '/a.mp4')
   vi.useFakeTimers()

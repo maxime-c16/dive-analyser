@@ -469,7 +469,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     if (!immersive || !autoMuted) return
     const video = videoRef.current
     if (!video) return
-    const restore = () => {
+    const restore = (event: Event) => {
+      // Control taps keep their own semantics: pressing the transport's
+      // Unmute button must toggle to unmuted, not be pre-empted by an
+      // automatic unmute that its click then flips back to muted. Only
+      // taps on the content surface (the .clip-gesture layer over the
+      // video) restore sound. The gesture layer is itself a button, so it
+      // is explicitly allowed back in.
+      const target = event.target as HTMLElement | null
+      const control = target?.closest?.('button')
+      if (control && !control.classList.contains('clip-gesture')) return
       const current = videoRef.current
       if (current && current.muted) {
         current.muted = false
