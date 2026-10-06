@@ -10,9 +10,10 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
-import { getPreview } from "../../utils/mediaPreview";
+import { cachedPreview, getPreview } from "../../utils/mediaPreview";
 import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { inertExcept, trapTabKey } from "../../utils/a11y";
+import type { FeedDragEnd } from "./ImmersiveControls";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
 import ClipMetadataSummary from "./ClipMetadataSummary";
@@ -32,37 +33,96 @@ const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
 const INTERACTIVE_TARGET =
   'input, textarea, select, button, a, video, [contenteditable="true"], [role="slider"], [role="combobox"]';
 
-// TikTok-style vertical feed transition: a short compositor-only enter slide
-// on mobile when the selected dive changes (swipe up/down, Previous/Next).
-// transform/opacity only, ~240ms, mobile-only, skipped under
-// prefers-reduced-motion. It is presentation-only — it adds no data-layer
-// work. (This file also seeds the player from the shared preview cache and
-// byte-warms ready neighbors; the loader changes live with that commit.)
-export const CLIP_SLIDE_DISTANCE_PX = 56;
-export const CLIP_SLIDE_DURATION_MS = 240;
-const MOBILE_SLIDE_QUERY = "(max-width: 599px)";
+// Feed-pager navigation (TikTok/Reels-style drag-follow), mobile only.
+//
+// The live dive stays mounted in the middle while warmed poster frames sit
+// above/below it. A vertical drag translates the frames 1:1 with the finger
+// (direct DOM writes, zero React renders); release commits (snap) or
+// cancels (spring back) based on drag distance or fling velocity. Only one
+// video player is ever mounted — neighbors are posters from the shared
+// preview cache, whose bytes the existing warming pipeline already
+// pre-loads. Desktop and reduced-motion keep the instant swap.
+export const FEED_PUSH_DURATION_MS = 240;
+export const FEED_SPRING_DURATION_MS = 200;
+export const FEED_COMMIT_FRACTION = 0.25;
+export const FEED_FLING_VELOCITY_PX_MS = 0.6;
+export const FEED_FLING_MIN_PX = 24;
+const MOBILE_PAGER_QUERY = "(max-width: 599px)";
 
-export function slideKeyframes(direction: -1 | 1): Keyframe[] {
-  return [
-    { transform: `translateY(${direction * CLIP_SLIDE_DISTANCE_PX}px)`, opacity: "0.4" },
-    { transform: "translateY(0)", opacity: "1" },
-  ];
-}
-
-export function shouldPlaySlideAnimation(): boolean {
+export function shouldEnableFeedPager(): boolean {
   try {
     const reduce =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
       false;
     if (reduce) return false;
     // Mobile-only, matching the max-width:599px mobile styles. An unknown
-    // viewport (e.g. jsdom) defaults to playing so tests can observe it.
-    return (
-      window.matchMedia?.(MOBILE_SLIDE_QUERY).matches ?? true
-    );
+    // viewport (e.g. jsdom) defaults to enabled so tests can observe it.
+    return window.matchMedia?.(MOBILE_PAGER_QUERY).matches ?? true;
   } catch {
     return false;
   }
+}
+
+/** Release commits when the drag covers a quarter of the stage, or when a
+ * fast fling (same sign as the displacement) escapes a short drag. */
+export function shouldCommitDrag(
+  dy: number,
+  height: number,
+  velocity: number,
+): boolean {
+  if (!Number.isFinite(height) || height <= 0) return false;
+  if (Math.abs(dy) > height * FEED_COMMIT_FRACTION) return true;
+  return (
+    Math.abs(velocity) > FEED_FLING_VELOCITY_PX_MS &&
+    Math.abs(dy) > FEED_FLING_MIN_PX &&
+    Math.sign(velocity) === Math.sign(dy)
+  );
+}
+
+/**
+ * The warmed poster of a neighboring dive, revealed while the finger drags.
+ * Poster-only (never a player): focus can never land here, and mounting one
+ * costs a single cached image instead of a media-status lookup + decoder.
+ */
+function ClipNeighborFrame({
+  attempt,
+  position,
+  frameRef,
+}: {
+  attempt: Attempt;
+  position: "prev" | "next";
+  frameRef: React.Ref<HTMLDivElement>;
+}) {
+  const [poster, setPoster] = useState<string | null>(() =>
+    attempt.video_uuid
+      ? (cachedPreview(attempt.video_uuid)?.posterUrl ?? null)
+      : null,
+  );
+  useEffect(() => {
+    if (poster || !attempt.video_uuid) return;
+    let live = true;
+    void getPreview(attempt.video_uuid).then((preview) => {
+      if (live) setPoster(preview.posterUrl);
+    });
+    return () => {
+      live = false;
+    };
+  }, [attempt.video_uuid, poster]);
+  return (
+    <div
+      ref={frameRef}
+      className={`clip-pager-neighbor is-${position}`}
+      aria-hidden="true"
+      data-neighbor={attempt.id}
+    >
+      {poster ? <img src={poster} alt="" draggable={false} /> : null}
+      <div className="clip-neighbor-shade" />
+      <p className="clip-neighbor-label">
+        {attempt.dive_code}
+        <span>{attemptDate(attempt)}</span>
+      </p>
+    </div>
+  );
 }
 
 export default function ClipViewer({
@@ -116,8 +176,21 @@ export default function ClipViewer({
   );
   const descriptionGesture = useRef<number | null>(null);
   const descriptionSwiped = useRef(false);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const prevIndexRef = useRef(index);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<HTMLDivElement>(null);
+  const prevFrameRef = useRef<HTMLDivElement>(null);
+  const nextFrameRef = useRef<HTMLDivElement>(null);
+  // A commit/snap animation in flight: drag input is ignored until it lands.
+  const animatingRef = useRef(false);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stage height captured once per gesture so moves never force layout.
+  const dragHeightRef = useRef<number | null>(null);
+  // The selection the live frame shows. Lags the `attempt` prop during a
+  // commit snap; external changes (Back button, filters) adopt instantly.
+  const displayedIdRef = useRef(attempt.id);
+  const [pagerEnabled, setPagerEnabled] = useState(shouldEnableFeedPager);
+  const prevAttempt = index > 0 ? attempts[index - 1] : null;
+  const nextAttempt = index < total - 1 ? attempts[index + 1] : null;
   const panelOpen = detailsOpen || commentsOpen || manageOpen;
   const panelRef = useRef<HTMLElement>(null);
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
@@ -131,9 +204,245 @@ export default function ClipViewer({
     setCommentsOpen(false);
     setManageOpen(false);
   };
+  const setFrameTransform = (el: HTMLDivElement | null, y: number | null) => {
+    if (!el) return;
+    el.style.transform = y === null ? "" : `translateY(${y}px)`;
+  };
+  // Running WAAPI frame animations. Clearing an inline transform does NOT
+  // stop them (they composite independently), so every reset path must
+  // cancel them explicitly — otherwise a retained frame keeps sliding over
+  // the newly selected dive.
+  const frameAnimsRef = useRef<Animation[]>([]);
+  const trackFrameAnimation = (anim: unknown) => {
+    if (
+      !anim ||
+      typeof (anim as Animation).cancel !== "function"
+    )
+      return;
+    const animation = anim as Animation;
+    frameAnimsRef.current.push(animation);
+    const drop = () => {
+      frameAnimsRef.current = frameAnimsRef.current.filter(
+        (item) => item !== animation,
+      );
+    };
+    try {
+      animation.finished?.then(drop, drop);
+    } catch {
+      // Engines without `finished`: the list drains on the next cancel.
+    }
+  };
+  const cancelFrameAnimations = () => {
+    const running = frameAnimsRef.current;
+    frameAnimsRef.current = [];
+    running.forEach((animation) => {
+      try {
+        animation.cancel();
+      } catch {
+        // Already finished between tracking and cancel.
+      }
+    });
+  };
+  const animateFrame = (
+    el: HTMLDivElement | null,
+    keyframes: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) => {
+    if (!el || typeof el.animate !== "function") return false;
+    try {
+      trackFrameAnimation(el.animate(keyframes, options));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const measureStage = () =>
+    viewportRef.current?.clientHeight || window.innerHeight || 0;
+  const clearCommitTimer = () => {
+    if (commitTimer.current !== null) {
+      clearTimeout(commitTimer.current);
+      commitTimer.current = null;
+    }
+  };
+  const neighborFrame = (direction: -1 | 1) =>
+    direction === 1 ? nextFrameRef.current : prevFrameRef.current;
+  const neighborAttempt = (direction: -1 | 1) =>
+    direction === 1 ? nextAttempt : prevAttempt;
+  /** What the finger actually rendered: full travel, or rubber-banded past
+   * a result-set edge where there is nothing to reveal. */
+  const renderedDisplacement = (dy: number) => {
+    const direction: -1 | 1 = dy < 0 ? 1 : -1;
+    return neighborAttempt(direction) ? dy : dy * 0.35;
+  };
+  // Latest list for revalidating a pending commit: filters/refreshes may
+  // replace `attempts` while keeping the selected dive.
+  const attemptsRef = useRef(attempts);
+  attemptsRef.current = attempts;
+  const pendingCommitRef = useRef<{
+    targetId: number;
+    direction: -1 | 1;
+    fromId: number;
+  } | null>(null);
+
+  /** Finger-following: translate the live frame and the incoming neighbor
+   * 1:1 with the pointer. Direct DOM writes only — no React renders, so the
+   * gesture stays at pointer-event rate even on low-end phones. */
+  const applyDrag = (dy: number) => {
+    if (animatingRef.current || !pagerEnabled) return;
+    if (dragHeightRef.current === null) {
+      dragHeightRef.current = measureStage();
+      viewportRef.current?.classList.add("is-dragging");
+    }
+    const height = dragHeightRef.current || 0;
+    const direction: -1 | 1 = dy < 0 ? 1 : -1;
+    const neighbor = neighborAttempt(direction);
+    const effective = renderedDisplacement(dy);
+    setFrameTransform(currentRef.current, effective);
+    if (neighbor && height > 0) {
+      setFrameTransform(
+        neighborFrame(direction),
+        direction * height + effective,
+      );
+    }
+    // The finger may reverse mid-gesture; park the idle side back at base.
+    setFrameTransform(neighborFrame(direction === 1 ? -1 : 1), null);
+  };
+
+  /** Release: snap through to the neighbor or spring back home. */
+  const endDrag = (result: FeedDragEnd) => {
+    viewportRef.current?.classList.remove("is-dragging");
+    const height = dragHeightRef.current ?? measureStage();
+    dragHeightRef.current = null;
+    if (animatingRef.current) return;
+    const { dy, velocity, cancelled } = result;
+    const direction: -1 | 1 = dy < 0 ? 1 : -1;
+    const neighbor = neighborAttempt(direction);
+    // Animate from the rendered position (rubber-banded at an edge), while
+    // the commit decision stays on raw finger travel.
+    const rendered = renderedDisplacement(dy);
+    if (!cancelled && neighbor && shouldCommitDrag(dy, height, velocity)) {
+      commitPush(direction, rendered);
+    } else {
+      springBack(direction, rendered);
+    }
+  };
+
+  const springBack = (direction: -1 | 1, fromDy: number) => {
+    const current = currentRef.current;
+    const frame = neighborFrame(direction);
+    const height = measureStage();
+    if (!pagerEnabled || !current || typeof current.animate !== "function") {
+      setFrameTransform(current, null);
+      setFrameTransform(frame, null);
+      return;
+    }
+    animatingRef.current = true;
+    cancelFrameAnimations();
+    animateFrame(
+      current,
+      [{ transform: `translateY(${fromDy}px)` }, { transform: "translateY(0)" }],
+      { duration: FEED_SPRING_DURATION_MS, easing: "ease-out" },
+    );
+    if (frame) {
+      animateFrame(
+        frame,
+        [
+          { transform: `translateY(${direction * height + fromDy}px)` },
+          { transform: `translateY(${direction * height}px)` },
+        ],
+        { duration: FEED_SPRING_DURATION_MS, easing: "ease-out" },
+      );
+    }
+    clearCommitTimer();
+    commitTimer.current = setTimeout(() => {
+      commitTimer.current = null;
+      animatingRef.current = false;
+      cancelFrameAnimations();
+      setFrameTransform(currentRef.current, null);
+      setFrameTransform(prevFrameRef.current, null);
+      setFrameTransform(nextFrameRef.current, null);
+    }, FEED_SPRING_DURATION_MS);
+  };
+
+  /** Snap through to the neighbor, then swap the selection once it lands. */
+  const commitPush = (direction: -1 | 1, fromDy: number) => {
+    const target = neighborAttempt(direction);
+    if (!target) return;
+    const fromId = attempt.id;
+    const current = currentRef.current;
+    const frame = neighborFrame(direction);
+    const height = measureStage();
+    if (
+      !pagerEnabled ||
+      !current ||
+      typeof current.animate !== "function" ||
+      height <= 0
+    ) {
+      displayedIdRef.current = target.id;
+      onMove(target);
+      return;
+    }
+    animatingRef.current = true;
+    pendingCommitRef.current = { targetId: target.id, direction, fromId };
+    viewportRef.current?.classList.remove("is-dragging");
+    dragHeightRef.current = null;
+    cancelFrameAnimations();
+    animateFrame(
+      current,
+      [
+        { transform: `translateY(${fromDy}px)` },
+        { transform: `translateY(${-direction * height}px)` },
+      ],
+      {
+        duration: FEED_PUSH_DURATION_MS,
+        easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
+    );
+    if (frame) {
+      animateFrame(
+        frame,
+        [
+          { transform: `translateY(${direction * height + fromDy}px)` },
+          { transform: "translateY(0)" },
+        ],
+        {
+          duration: FEED_PUSH_DURATION_MS,
+          easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+        },
+      );
+    }
+    clearCommitTimer();
+    commitTimer.current = setTimeout(() => {
+      commitTimer.current = null;
+      animatingRef.current = false;
+      cancelFrameAnimations();
+      const pending = pendingCommitRef.current;
+      pendingCommitRef.current = null;
+      setFrameTransform(currentRef.current, null);
+      setFrameTransform(prevFrameRef.current, null);
+      setFrameTransform(nextFrameRef.current, null);
+      // An external selection change (Back button, filter) wins over a
+      // still-pending commit: never clobber it with a stale target.
+      if (!pending || displayedIdRef.current !== pending.fromId) return;
+      // The list itself may have changed under the commit (filter, refresh,
+      // removal): only land on the neighbor if it is still the neighbor.
+      const live = attemptsRef.current;
+      const liveIndex = live.findIndex((item) => item.id === pending.fromId);
+      const liveTarget =
+        liveIndex >= 0 ? live[liveIndex + pending.direction] : undefined;
+      if (!liveTarget || liveTarget.id !== pending.targetId) return;
+      displayedIdRef.current = liveTarget.id;
+      onMove(liveTarget);
+    }, FEED_PUSH_DURATION_MS);
+  };
+
   const navigate = (direction: -1 | 1) => {
+    if (animatingRef.current) return;
     const next = attempts[index + direction];
-    if (next) onMove(next);
+    if (!next) return;
+    // Buttons/keys take the same push the finger takes, minus the drag.
+    if (pagerEnabled) commitPush(direction, 0);
+    else onMove(next);
   };
   const dialogRef = useRef<HTMLElement>(null);
 
@@ -207,30 +516,45 @@ export default function ClipViewer({
     warmAdjacentClips([attempts[index - 1]?.video_uuid, attempts[index + 1]?.video_uuid]);
   }, [attempts, index]);
 
-  // Feed-style enter animation: purely visual, no extra render (direct DOM
-  // mutation + Web Animations API) and no effect on loading or caching.
   useEffect(() => {
-    const prev = prevIndexRef.current;
-    if (prev === index) return;
-    const direction: -1 | 1 = index > prev ? 1 : -1;
-    prevIndexRef.current = index;
-    const stage = stageRef.current;
-    if (!stage) return;
-    stage.dataset.slide = direction === 1 ? "next" : "prev";
-    if (
-      typeof stage.animate === "function" &&
-      shouldPlaySlideAnimation()
-    ) {
-      try {
-        stage.animate(slideKeyframes(direction), {
-          duration: CLIP_SLIDE_DURATION_MS,
-          easing: "cubic-bezier(0.22, 0.9, 0.28, 1)",
-        });
-      } catch {
-        // Animation is progressive enhancement; navigation already happened.
-      }
-    }
-  }, [index]);
+    const mobile = window.matchMedia?.(MOBILE_PAGER_QUERY);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mobile || !reduce) return;
+    const update = () => setPagerEnabled(mobile.matches && !reduce.matches);
+    update();
+    mobile.addEventListener("change", update);
+    reduce.addEventListener("change", update);
+    return () => {
+      mobile.removeEventListener("change", update);
+      reduce.removeEventListener("change", update);
+    };
+  }, []);
+
+  // Adopt external selection changes instantly (browser Back, filters, deep
+  // links): park any in-flight drag/commit visuals at rest. Our own commits
+  // set displayedIdRef before calling onMove, so they no-op here.
+  useEffect(() => {
+    if (attempt.id === displayedIdRef.current) return;
+    displayedIdRef.current = attempt.id;
+    clearCommitTimer();
+    pendingCommitRef.current = null;
+    cancelFrameAnimations();
+    animatingRef.current = false;
+    dragHeightRef.current = null;
+    viewportRef.current?.classList.remove("is-dragging");
+    setFrameTransform(currentRef.current, null);
+    setFrameTransform(prevFrameRef.current, null);
+    setFrameTransform(nextFrameRef.current, null);
+  }, [attempt.id]);
+
+  useEffect(
+    () => () => {
+      clearCommitTimer();
+      pendingCommitRef.current = null;
+      cancelFrameAnimations();
+    },
+    [],
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -252,14 +576,14 @@ export default function ClipViewer({
       if (event.shiftKey && event.key === "ArrowLeft") {
         if (index > 0) {
           event.preventDefault();
-          onMove(attempts[index - 1]);
+          navigate(-1);
         }
         return;
       }
       if (event.shiftKey && event.key === "ArrowRight") {
         if (index < total - 1) {
           event.preventDefault();
-          onMove(attempts[index + 1]);
+          navigate(1);
         }
         return;
       }
@@ -318,8 +642,17 @@ export default function ClipViewer({
           </span>
         </header>
         <div className="clip-layout">
+          <div ref={viewportRef} className="clip-stage-viewport">
+            {pagerEnabled && prevAttempt && (
+              <ClipNeighborFrame
+                key={prevAttempt.id}
+                attempt={prevAttempt}
+                position="prev"
+                frameRef={prevFrameRef}
+              />
+            )}
           <div
-            ref={stageRef}
+            ref={currentRef}
             className="clip-stage"
             data-orientation={aspectRatio > 1 ? "landscape" : "portrait"}
             style={{ "--clip-aspect": aspectRatio } as React.CSSProperties}
@@ -335,6 +668,9 @@ export default function ClipViewer({
                 onAspectRatioChange={setAspectRatio}
                 onLike={() => void like(true)}
                 onNavigate={navigate}
+                dragEnabled={pagerEnabled}
+                onDragUpdate={applyDrag}
+                onDragEnd={endDrag}
               />
             ) : (
               <div className="clip-no-media">
@@ -437,6 +773,15 @@ export default function ClipViewer({
                 </p>
               )}
             </div>
+          </div>
+          {pagerEnabled && nextAttempt && (
+            <ClipNeighborFrame
+              key={nextAttempt.id}
+              attempt={nextAttempt}
+              position="next"
+              frameRef={nextFrameRef}
+            />
+          )}
           </div>
           {panelOpen && (
             <button
