@@ -63,10 +63,18 @@ it("warming failures never surface and every queued clip drains", async () => {
   await vi.waitFor(() => expect(fetcher.mock.calls.length).toBe(5));
 });
 
-it("an oversized rendition is aborted, never buffered whole", async () => {
+it("an oversized rendition is aborted with its stream closed", async () => {
+  let cancelCalls = 0;
+  let readCalls = 0;
   const big = {
     ok: true,
-    body: { getReader: () => ({ read: async () => ({ done: false, value: new Uint8Array(1024 * 1024) }) }) },
+    body: { getReader: () => ({
+      read: async () => {
+        readCalls += 1;
+        return { done: false, value: new Uint8Array(1024 * 1024) };
+      },
+      cancel: () => { cancelCalls += 1; return Promise.resolve(); },
+    }) },
     headers: new Headers({ "Content-Length": String(1024 * 1024 * 1024) }),
   };
   const fetcher = vi.fn().mockResolvedValue(big);
@@ -74,7 +82,10 @@ it("an oversized rendition is aborted, never buffered whole", async () => {
   const { warmPlaybackBytes } = await import("./playbackWarming");
   warmPlaybackBytes("/huge-original.mp4");
   await vi.advanceTimersByTimeAsync(0);
-  // No arrayBuffer/completing read of a gigabyte: content-length pins it first.
+  // Content-Length pins the gigabyte immediately: nothing buffered into
+  // memory, and the abandoned stream is cancelled — not left draining.
+  expect(readCalls).toBe(0);
+  expect(cancelCalls).toBe(1);
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
