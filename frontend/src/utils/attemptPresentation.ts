@@ -8,6 +8,7 @@ export type Attempt = {
   person_name?: string | null;
   visibility?: "public" | "private";
   federate_enabled?: boolean;
+  evaluation_request?: import("../services/evaluationApi").EvaluationRequestSummary | null;
   can_manage?: boolean;
   id: number;
   dive_code: string;

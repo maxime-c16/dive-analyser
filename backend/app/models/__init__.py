@@ -130,3 +130,4 @@ from app.models.dive_social import DiveLike, DiveComment, DiveCommentLike, DiveG
 from app.models.notification import Notification, PushSubscription, NotificationPref
 from app.models.dive_share import DiveShare, DiveGuest, DiveGuestLike, DiveGuestAccess
 from app.models.fediverse import UserFediversePrefs, DiveFediverseOptin
+from app.models.evaluation import EvaluationRequest

@@ -41,7 +41,7 @@ LIST_COLUMN_NAMES = (
 LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
 
 
-def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None) -> dict:
+def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, evaluation_map: dict[int, dict] | None = None) -> dict:
     """Serialize a dive with formula DD as the live display source of truth.
 
     ``dives.official_dd`` is retained as a migration/audit column and can be
@@ -59,6 +59,11 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None) 
     avoid N+1 queries; single-dive callers fall back to one lookup.
     The flag is owner-only: community viewers of a public dive always read
     False, matching the owner-only per-dive fediverse endpoints.
+
+    ``evaluation_request`` is the owner-only summary of the dive's evaluation
+    request (null = none), from the separate ``evaluation_requests`` table.
+    List callers pass a batch map; single-dive callers do one lookup. It is
+    omitted entirely for non-managing viewers.
     """
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
     context = db.info.get("member_access")
@@ -71,6 +76,12 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None) 
             payload["federate_enabled"] = per_dive_enabled(db, dive.id)
         else:
             payload["federate_enabled"] = dive.id in federate_map
+        if evaluation_map is not None:
+            payload["evaluation_request"] = evaluation_map.get(dive.id)
+        else:
+            from app.services.evaluation_access import request_for_dive, summary as evaluation_summary
+
+            payload["evaluation_request"] = evaluation_summary(request_for_dive(db, dive.id))
     else:
         payload["federate_enabled"] = False
     if context and not payload["can_manage"]:
@@ -143,9 +154,11 @@ def list_dives(
     # second-level timestamp, so id gives deterministic newest-first ties.
     dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
     from app.services.fediverse import optin_map
+    from app.services.evaluation_access import request_map as evaluation_request_map
 
     federate_map = optin_map(db, [dive.id for dive in dives])
-    return [_public_dive(dive, db, federate_map) for dive in dives]
+    evaluation_map = evaluation_request_map(db, [dive.id for dive in dives])
+    return [_public_dive(dive, db, federate_map, evaluation_map) for dive in dives]
 
 
 @router.post("", status_code=201)
@@ -216,6 +229,8 @@ def upload_dive(
     dive_datetime: datetime = Form(...),
     visibility: str = Form("private", pattern=r"^(public|private)$"),
     notes: str = Form("", max_length=2000),
+    evaluation_requested: bool = Form(False),
+    evaluation_prompt: str = Form("", max_length=1000),
     diver_id: int = Form(...),
     upload_id: str = Form(..., pattern=r"^[a-f0-9-]{36}$"),
     db: Session = Depends(get_db),
@@ -279,6 +294,17 @@ def upload_dive(
             video_uuid=video_uuid, photos_asset_id=asset.id,
         )
         db.add(record)
+        db.flush()
+        if evaluation_requested:
+            # Same transaction as the dive publication: an upload failure
+            # never publishes a request, and a retry with the same upload_id
+            # returns the existing dive below without duplicating it.
+            from app.services import evaluation_access
+
+            evaluation_access.set_request(
+                db, dive=record, user_id=user.id, active=True,
+                prompt=evaluation_prompt or None, prompt_set=True,
+            )
         cache_upload(db, asset, folder)
         db.flush()
         persist_original(db, video_uuid, folder)

@@ -21,6 +21,7 @@ import ClipMetadataSummary from "./ClipMetadataSummary";
 import DiveManagement from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
 import FederateDiveControl from "./FederateDiveControl";
+import EvaluationRequestControl from "./EvaluationRequestControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
@@ -980,6 +981,13 @@ export default function ClipViewer({
                           attempt={attempt}
                           onUpdate={onUpdate}
                         />
+                        {attempt.video_uuid && attempt.diver_id != null && (
+                          <EvaluationRequestControl
+                            key={`evaluation-${attempt.id}`}
+                            attempt={attempt}
+                            onUpdate={onUpdate}
+                          />
+                        )}
                       </>
                     ) : (
                       <span>
