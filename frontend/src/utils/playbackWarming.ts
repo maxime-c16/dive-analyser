@@ -80,6 +80,10 @@ const jobs = new Map<string, WarmJob>();
 // Lane key → cooldown expiry timestamp, after exhausted retries.
 const laneCooldown = new Map<string, number>();
 let windowUuids = new Set<string>();
+// The clip whose player is live right now. Its queued/retrying warm work
+// is cancelled (a speculative GET there would only race its playback);
+// already-running preparation for it is allowed to finish.
+let currentUuid: string | null = null;
 
 const jobKey = (kind: WarmKind, videoUuid: string) => `${kind}:${videoUuid}`;
 const inCooldown = (key: string) => (laneCooldown.get(key) ?? 0) > Date.now();
@@ -204,6 +208,10 @@ function settleFailure(job: WarmJob, error: unknown) {
     dropJob(job);
     return;
   }
+  if (job.videoUuid === currentUuid) {
+    dropJob(job);
+    return;
+  }
   job.retries += 1;
   if (job.retries > MAX_RETRIES) {
     laneCooldown.set(jobKey(job.kind, job.videoUuid), Date.now() + RETRY_COOLDOWN_MS);
@@ -258,7 +266,7 @@ function pump() {
       if (running >= MAX_CONCURRENT) break;
       const job = nextQueued(kind);
       if (!job || !canPrefetch()) break;
-      if (outsideWindow(job.videoUuid)) {
+      if (outsideWindow(job.videoUuid) || job.videoUuid === currentUuid) {
         dropJob(job);
         continue;
       }
@@ -400,6 +408,9 @@ export function warmAdjacentClips(args: {
   direction?: WarmDirection;
 }): void {
   const { attempts, index, direction = 0 } = args;
+  currentUuid = (index >= 0 && index < attempts.length)
+    ? attempts[index]?.video_uuid ?? null
+    : null;
   const desired = new Set<string>();
   const uuids: Array<{ uuid: string; rank: number; current: boolean }> = [];
   if (index < 0 || index >= attempts.length) {
@@ -427,7 +438,19 @@ function recomputeWindow(
 ) {
   windowUuids = desired;
   for (const job of [...jobs.values()]) {
-    if (desired.has(job.videoUuid)) continue;
+    if (desired.has(job.videoUuid)) {
+      // The live clip keeps only already-running work: queued entries and
+      // pending retry timers would start a speculative GET racing its
+      // own playback load, so they are cancelled like anything outside
+      // the window.
+      if (
+        job.videoUuid === currentUuid &&
+        (job.state === "queued" || job.timer !== null)
+      ) {
+        dropJob(job);
+      }
+      continue;
+    }
     // Queued/in-flight/retrying work is cancelled outright; spent landed
     // and abandoned-failed entries leave the tracking map the same way.
     dropJob(job);
@@ -445,4 +468,5 @@ export function resetPlaybackWarming(): void {
   for (const job of [...jobs.values()]) dropJob(job);
   laneCooldown.clear();
   windowUuids = new Set();
+  currentUuid = null;
 }

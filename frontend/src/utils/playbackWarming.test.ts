@@ -468,3 +468,40 @@ it("the same-origin revision route that redirects to B2 is not warmed either", a
   expect(calls.some((call) => call.url.includes("revisions"))).toBe(false);
   expect(calls.some((call) => call.url === "/api/v1/media/cache/u2/play")).toBe(true);
 });
+
+it("landing on a clip cancels its queued warms so nothing races the player", async () => {
+  const { calls } = stubFetch({ resolve: () => new Promise(() => {}) });
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  const feed = attempts(40);
+  // Forward window at 10 hangs both video lanes; the previous clip u9 sits
+  // queued and un-started.
+  warmAdjacentClips({ attempts: feed, index: 10, direction: 1 });
+  await quiet(calls);
+  // Land on 9: u9 becomes the live clip, its queued warms are cancelled —
+  // no speculative GET competes with its own playback load.
+  warmAdjacentClips({ attempts: feed, index: 9, direction: -1 });
+  await quiet(calls);
+  expect(calls.some((call) => call.url.includes("u9"))).toBe(false);
+  // The already-running neighbours from before keep their transfers.
+  expect(calls.some((call) => call.url.includes("u11"))).toBe(true);
+});
+
+it("a failed warm for the live clip is dropped instead of scheduled to retry", async () => {
+  const fetcher = vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.resolve(errorResponse(503)),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { warmAdjacentClips } = await import("./playbackWarming");
+  // Warm u1 as a neighbour; its 503 fails and a retry timer is armed.
+  warmAdjacentClips({ attempts: attempts(10), index: 0, direction: 0 });
+  await quiet(callsFor(fetcher));
+  const warmed = fetcher.mock.calls.filter((c) => c[0] === "/api/v1/media/cache/u1/play").length;
+  expect(warmed).toBe(1);
+  // Land on u1: the live clip's pending retry timer is cancelled — no
+  // speculative retry races its playback.
+  warmAdjacentClips({ attempts: attempts(10), index: 1, direction: 1 });
+  await quiet(callsFor(fetcher));
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(fetcher.mock.calls.filter((c) => c[0] === "/api/v1/media/cache/u1/play").length)
+    .toBe(warmed);
+});
