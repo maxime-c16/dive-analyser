@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -48,6 +48,26 @@ export const FEED_COMMIT_FRACTION = 0.25;
 export const FEED_FLING_VELOCITY_PX_MS = 0.6;
 export const FEED_FLING_MIN_PX = 24;
 const MOBILE_PAGER_QUERY = "(max-width: 599px)";
+
+// Pinch-to-clean-view (Instagram-style). Closing two fingers by this much of
+// the starting span takes the view all the way to clean; past it the video
+// keeps shrinking a little (rounded, like a card) and springs back on release.
+export const PINCH_RANGE = 0.35;
+export const PINCH_OVERSHOOT_RANGE = 0.6;
+export const PINCH_MAX_SHRINK = 0.12;
+export const PINCH_MAX_RADIUS_PX = 28;
+
+/** Where a pinch stands. `progress` is 0 (overlays + cropped fill) to 1
+ * (clean, whole frame); `overshoot` is 0..1 once the fingers go past clean. */
+export function pinchState(startClean: boolean, ratio: number) {
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return { progress: startClean ? 1 : 0, overshoot: 0, clean: startClean };
+  }
+  const raw = (startClean ? 1 : 0) + (1 - ratio) / PINCH_RANGE;
+  const progress = Math.min(1, Math.max(0, raw));
+  const overshoot = Math.min(1, Math.max(0, (raw - 1) / PINCH_OVERSHOOT_RANGE));
+  return { progress, overshoot, clean: raw >= 0.5 };
+}
 
 export function shouldEnableFeedPager(): boolean {
   try {
@@ -154,6 +174,13 @@ export default function ClipViewer({
     () => window.matchMedia?.("(min-width: 1024px)").matches ?? true,
   );
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Pinch-in on the video: overlays hide and the whole frame shows, like
+  // Instagram. Per-dive: moving to another clip restores the overlays.
+  const [cleanView, setCleanView] = useState(false);
+  const [pinching, setPinching] = useState(false);
+  // The stage video as sized on mobile: its contain-fit picture box, and the
+  // zoom that makes it fill the stage the way `cover` would.
+  const [picture, setPicture] = useState({ width: 0, height: 0, cover: 1 });
   const {
     social,
     setSocial,
@@ -450,8 +477,75 @@ export default function ClipViewer({
     setManageOpen(false);
     setDetailsOpen(false);
     setCommentsOpen(false);
+    setCleanView(false);
     setAspectRatio(9 / 16);
   }, [attempt.id]);
+
+  // Contain-fit picture box inside the stage, and the zoom that makes it
+  // fill the stage like `cover` (1 for landscape clips, which stay contained).
+  useEffect(() => {
+    const stage = currentRef.current;
+    if (!stage) return;
+    const measure = () => {
+      const { clientWidth: w, clientHeight: h } = stage;
+      if (!w || !h || !aspectRatio) {
+        setPicture({ width: 0, height: 0, cover: 1 });
+        return;
+      }
+      const width = Math.min(w, h * aspectRatio);
+      const height = Math.min(h, w / aspectRatio);
+      setPicture({
+        width,
+        height,
+        cover: aspectRatio > 1 ? 1 : Math.max(w / width, h / height),
+      });
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [aspectRatio]);
+
+  // Pinch gesture: the video follows the fingers through CSS variables on the
+  // dialog (direct DOM writes, no React renders per move). Release commits to
+  // clean or back, and the CSS transitions carry it from the live pose.
+  const pinchStartClean = useRef(false);
+  const pinchLastClean = useRef(false);
+  const writePinchVars = (progress: number, overshoot: number) => {
+    const style = dialogRef.current?.style;
+    if (!style) return;
+    style.setProperty("--clip-pinch-p", String(progress));
+    style.setProperty("--clip-pinch-shrink", String(overshoot * PINCH_MAX_SHRINK));
+    style.setProperty(
+      "--clip-pinch-radius",
+      `${Math.min(1, overshoot * 4) * PINCH_MAX_RADIUS_PX}px`,
+    );
+  };
+  const onPinchStart = () => {
+    pinchStartClean.current = cleanView;
+    pinchLastClean.current = cleanView;
+    writePinchVars(cleanView ? 1 : 0, 0);
+    setPinching(true);
+  };
+  const onPinchUpdate = (ratio: number) => {
+    const next = pinchState(pinchStartClean.current, ratio);
+    pinchLastClean.current = next.clean;
+    writePinchVars(next.progress, next.overshoot);
+  };
+  const onPinchEnd = (cancelled: boolean) => {
+    setCleanView(cancelled ? pinchStartClean.current : pinchLastClean.current);
+    setPinching(false);
+  };
+  // The live pose is dropped in the same commit that flips the classes, so
+  // the transition starts from where the fingers left the video.
+  useLayoutEffect(() => {
+    if (pinching) return;
+    const style = dialogRef.current?.style;
+    style?.removeProperty("--clip-pinch-p");
+    style?.removeProperty("--clip-pinch-shrink");
+    style?.removeProperty("--clip-pinch-radius");
+  }, [pinching]);
 
   useEffect(() => {
     const media = window.matchMedia?.("(min-width: 1024px)");
@@ -621,7 +715,7 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className="clip-viewer"
+        className={`clip-viewer${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}`}
       >
         <header className="clip-header">
           <button
@@ -655,7 +749,18 @@ export default function ClipViewer({
             ref={currentRef}
             className="clip-stage"
             data-orientation={aspectRatio > 1 ? "landscape" : "portrait"}
-            style={{ "--clip-aspect": aspectRatio } as React.CSSProperties}
+            style={
+              {
+                "--clip-aspect": aspectRatio,
+                "--clip-cover-scale": picture.cover,
+                ...(picture.width
+                  ? {
+                      "--clip-pic-w": `${picture.width}px`,
+                      "--clip-pic-h": `${picture.height}px`,
+                    }
+                  : {}),
+              } as React.CSSProperties
+            }
           >
             {attempt.video_uuid ? (
               <DiveVideoPlayer
@@ -671,6 +776,9 @@ export default function ClipViewer({
                 dragEnabled={pagerEnabled}
                 onDragUpdate={applyDrag}
                 onDragEnd={endDrag}
+                onPinchStart={onPinchStart}
+                onPinchUpdate={onPinchUpdate}
+                onPinchEnd={onPinchEnd}
               />
             ) : (
               <div className="clip-no-media">
