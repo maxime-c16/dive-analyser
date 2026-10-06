@@ -1,0 +1,8 @@
+{
+  "id": "accelerated-media-playback",
+  "date": "2026-10-06",
+  "title": "Faster video streaming for clips",
+  "body": "Clips now stream straight from the proxy instead of being relayed through the application, so starting a clip and swiping between clips loads noticeably faster.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     reports_dir: str = os.getenv("REPORTS_DIR", "/app/reports")
     logs_dir: str = os.getenv("LOGS_DIR", "/app/logs")
     media_cache_root: str = os.getenv("MEDIA_CACHE_ROOT", "/app/media-cache")
+    # Serve verified cache files through nginx (X-Accel-Redirect) instead of
+    # streaming every range read through Python. The internal URI prefix must
+    # match the compose nginx `location /internal-media-cache/` mounted on
+    # the same cache root.
+    media_xaccel_enabled: bool = os.getenv("MEDIA_XACCEL_ENABLED", "true").lower() == "true"
+    media_xaccel_prefix: str = os.getenv("MEDIA_XACCEL_PREFIX", "/internal-media-cache/")
     analysis_artifact_root: str = os.getenv("ANALYSIS_ARTIFACT_ROOT", "/app/analysis-artifacts")
     media_transform_version: str = os.getenv("MEDIA_TRANSFORM_VERSION", "ffmpeg-h264-v1")
     media_export_policy_version: str = os.getenv("MEDIA_EXPORT_POLICY_VERSION", "photos-export-v1")

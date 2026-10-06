@@ -1,6 +1,7 @@
 """Real guest cookies exercise the video-only capability boundary."""
 from urllib.parse import urlsplit
 from fastapi.testclient import TestClient
+from app.config import get_settings
 from app.main import app
 from app.models.dive import Dive
 from app.models.dive_share import DiveShare, DiveGuest
@@ -22,40 +23,67 @@ def enter(client, base, token):
 
 def test_multi_guest_video_only_access_and_stable_identity(workspace):
     db, login, dives, _, _ = workspace
-    dive_id = dives['alice-private']
-    base, token = issue(login, dive_id)
-    assert db.get(Dive, dive_id).visibility == 'private'
-    share = db.query(DiveShare).one()
-    assert token not in share.token_hash
-    with TestClient(app, base_url='https://testserver') as first, TestClient(app, base_url='https://testserver') as second:
-        assert first.get(base + '/video').status_code == 404
-        assert first.post(base + '/visit', headers={'X-Dive-Share': 'x' * 43}).status_code == 404
-        identity = enter(first, base, token)
-        from app.api.v1.dive_sharing import CHARACTERS
-        assert identity['guest_name'] in CHARACTERS
-        assert set(identity) == {'dive_id', 'dive_code', 'height', 'guest_id', 'guest_name', 'video_url'}
-        assert enter(first, base, token) == identity
-        other = enter(second, base, token)
-        assert identity['guest_id'] != other['guest_id']
-        assert db.query(DiveGuest).count() == 2
-        response = first.get(identity['video_url'], headers={'Range': 'bytes=0-5'})
-        assert response.status_code == 206, response.text
-        assert response.content == b'cached'
-        assert response.headers['cache-control'] == 'private, no-store'
-        assert response.headers['referrer-policy'] == 'no-referrer'
-        cookie = next(cookie for cookie in first.cookies.jar if cookie.name == 'dive_guest')
-        assert cookie.path == '/api/v1/shared-dives'
-        assert cookie.has_nonstandard_attr('HttpOnly')
-        for client in (first, second):
-            for path in ('/api/v1/dives', f'/api/v1/dives/{dive_id}', '/api/v1/videos/alice-private-video', '/api/v1/media/alice-private-video/status'):
-                assert client.get(path).status_code == 401
-            assert client.put(f'/api/v1/dives/{dive_id}', json={'notes': 'guest edit'}).status_code == 401
-            assert client.get('/api/v1/auth/me').status_code == 401
-        other_base, other_token = issue(login, dives['alice-public'])
-        assert first.get(other_base + '/video').status_code == 404
-        assert first.post(other_base + '/visit', headers={'X-Dive-Share': token}).status_code == 404
-        enter(first, other_base, other_token)
-        assert first.get(other_base + '/video').status_code == 200
+    # Range byte assertions need the in-process streaming path (the TestClient
+    # cannot honor X-Accel-Redirect); the accel redirect is asserted after.
+    saved_accel = get_settings().media_xaccel_enabled
+    get_settings().media_xaccel_enabled = False
+    try:
+        dive_id = dives['alice-private']
+        base, token = issue(login, dive_id)
+        assert db.get(Dive, dive_id).visibility == 'private'
+        share = db.query(DiveShare).one()
+        assert token not in share.token_hash
+        with TestClient(app, base_url='https://testserver') as first, TestClient(app, base_url='https://testserver') as second:
+            assert first.get(base + '/video').status_code == 404
+            assert first.post(base + '/visit', headers={'X-Dive-Share': 'x' * 43}).status_code == 404
+            identity = enter(first, base, token)
+            from app.api.v1.dive_sharing import CHARACTERS
+            assert identity['guest_name'] in CHARACTERS
+            assert set(identity) == {'dive_id', 'dive_code', 'height', 'guest_id', 'guest_name', 'video_url'}
+            assert enter(first, base, token) == identity
+            other = enter(second, base, token)
+            assert identity['guest_id'] != other['guest_id']
+            assert db.query(DiveGuest).count() == 2
+            response = first.get(identity['video_url'], headers={'Range': 'bytes=0-5'})
+            assert response.status_code == 206, response.text
+            assert response.content == b'cached'
+            assert response.headers['cache-control'] == 'private, no-store'
+            assert response.headers['referrer-policy'] == 'no-referrer'
+            cookie = next(cookie for cookie in first.cookies.jar if cookie.name == 'dive_guest')
+            assert cookie.path == '/api/v1/shared-dives'
+            assert cookie.has_nonstandard_attr('HttpOnly')
+            for client in (first, second):
+                for path in ('/api/v1/dives', f'/api/v1/dives/{dive_id}', '/api/v1/videos/alice-private-video', '/api/v1/media/alice-private-video/status'):
+                    assert client.get(path).status_code == 401
+                assert client.put(f'/api/v1/dives/{dive_id}', json={'notes': 'guest edit'}).status_code == 401
+                assert client.get('/api/v1/auth/me').status_code == 401
+            other_base, other_token = issue(login, dives['alice-public'])
+            assert first.get(other_base + '/video').status_code == 404
+            assert first.post(other_base + '/visit', headers={'X-Dive-Share': token}).status_code == 404
+            enter(first, other_base, other_token)
+            assert first.get(other_base + '/video').status_code == 200
+    finally:
+        get_settings().media_xaccel_enabled = saved_accel
+
+
+def test_guest_video_serves_approved_share_through_accel_redirect(workspace):
+    """With accel on, an authorized guest stream leaves Python as an
+    internal redirect aimed at the same cache root; no bytes, no presign."""
+    db, login, dives, _, _ = workspace
+    saved_accel = get_settings().media_xaccel_enabled
+    get_settings().media_xaccel_enabled = True
+    try:
+        dive_id = dives['alice-private']
+        base, token = issue(login, dive_id)
+        with TestClient(app, base_url='https://testserver') as guest:
+            identity = enter(guest, base, token)
+            response = guest.get(identity['video_url'], headers={'Range': 'bytes=0-5'})
+            assert response.status_code == 200
+            redirect = response.headers['X-Accel-Redirect']
+            assert redirect.startswith('/internal-media-cache/')
+            assert '..' not in redirect
+    finally:
+        get_settings().media_xaccel_enabled = saved_accel
 
 
 def test_guest_social_shared_with_members_and_author_deletion(workspace):
