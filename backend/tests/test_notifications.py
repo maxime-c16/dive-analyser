@@ -294,3 +294,46 @@ def test_notify_owners_for_diver_batches_single_commit(workspace, monkeypatch):
         .count()
         == 2
     )
+
+
+def test_comment_survives_poisoned_pref_fetch(workspace, monkeypatch):
+    """Pref-fetch failure must not poison the session: the committed comment
+    still returns 201 (not 500 from comment_payload on the same session)."""
+    from sqlalchemy.exc import OperationalError
+
+    from app.models.dive_social import DiveComment
+    from app.models.notification import Notification, NotificationPref
+
+    db, login, dives, _, _ = workspace
+    real_query = db.query
+
+    def failing_query(*entities, **kwargs):
+        if entities and entities[0] is NotificationPref:
+            # Poison the transaction like Postgres does on any failed
+            # statement: a failed flush requires rollback before reuse
+            # (a failed SELECT alone does not poison SQLite, so it
+            # would not reproduce the production 500).
+            try:
+                db.add(Notification(user_id=None, type="x", title="x"))
+                db.flush()
+            except Exception:
+                pass
+            raise OperationalError("SELECT prefs", {}, Exception("pref boom"))
+        return real_query(*entities, **kwargs)
+
+    monkeypatch.setattr(db, "query", failing_query)
+    response = login("bob").post(
+        f"/api/v1/dives/{dives['alice-public']}/comments",
+        json={"body": "poison session test"},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["body"] == "poison session test"
+    # Comment was committed despite the swallowed notif failure...
+    assert (
+        real_query(DiveComment).filter_by(body="poison session test").count() == 1
+    )
+    # ...and the session is healthy again for the follow-up read.
+    follow_up = login("bob").get(
+        f"/api/v1/dives/{dives['alice-public']}/comments"
+    )
+    assert follow_up.status_code == 200, follow_up.text

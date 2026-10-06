@@ -715,3 +715,7 @@ def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -
             )
     except Exception:
         logger.exception("milestone notification failed")
+        try:
+            db.rollback()
+        except Exception:
+            pass

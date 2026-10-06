@@ -74,18 +74,27 @@ def create(
 ) -> Optional[Notification]:
     """Create one inbox row, or None when the type is disabled for the user."""
     _validate_type(type)
-    if not is_enabled(db, user_id, type):
-        return None
-    row = Notification(
-        user_id=user_id,
-        type=type,
-        title=(title or "")[:_TITLE_MAX],
-        body=(body or "")[:_BODY_MAX] or None,
-        dive_id=dive_id,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    try:
+        if not is_enabled(db, user_id, type):
+            return None
+        row = Notification(
+            user_id=user_id,
+            type=type,
+            title=(title or "")[:_TITLE_MAX],
+            body=(body or "")[:_BODY_MAX] or None,
+            dive_id=dive_id,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        # A failure here must never poison the caller's session: hooks
+        # swallow notif errors and keep using `db` afterwards.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
     return row
 
 
@@ -103,13 +112,21 @@ def notify_owners_for_diver(
     _validate_type(type)
     if diver_id is None:
         return []
-    user_ids = [
-        row[0]
-        for row in db.query(UserDiverAccess.user_id)
-        .filter(UserDiverAccess.diver_id == diver_id)
-        .limit(500)
-        .all()
-    ]
+    try:
+        user_ids = [
+            row[0]
+            for row in db.query(UserDiverAccess.user_id)
+            .filter(UserDiverAccess.diver_id == diver_id)
+            .limit(500)
+            .all()
+        ]
+    except Exception:
+        logger.exception("notification owner fetch failed for diver %s", diver_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return []
     targets = [
         uid
         for uid in dict.fromkeys(user_ids)
@@ -128,6 +145,10 @@ def notify_owners_for_diver(
         )
     except Exception:
         logger.exception("notification pref fetch failed for diver %s", diver_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
         return []
     default_enabled = DEFAULTS[type]
     enabled_by_user = {row.user_id: bool(row.enabled) for row in pref_rows}
@@ -151,9 +172,15 @@ def notify_owners_for_diver(
     ]
     try:
         db.add_all(created)
+        db.flush()
+        ids = [row.id for row in created]
         db.commit()
-        for row in created:
-            db.refresh(row)
+        # One re-select instead of one refresh (SELECT) per recipient.
+        rows = (
+            db.query(Notification).filter(Notification.id.in_(ids)).all()
+            if ids
+            else []
+        )
     except Exception:
         logger.exception("notification batch create failed for diver %s", diver_id)
         try:
@@ -161,7 +188,7 @@ def notify_owners_for_diver(
         except Exception:
             pass
         return []
-    return created
+    return rows
 
 
 def list_for_user(

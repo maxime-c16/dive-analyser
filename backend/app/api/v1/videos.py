@@ -431,6 +431,10 @@ async def sync_single_video(
                     dive_id=dive.id)
             except Exception:
                 logger.exception('sync notification failed for dive %s', dive.id)
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
 
         # Log successful sync
         audit_logger.log_sync_single(
@@ -600,6 +604,10 @@ async def sync_batch_videos(
                             dive_id=items[0][0] if count == 1 else None)
                 except Exception:
                     logger.exception('batch sync notification failed')
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
             # Queue Journey milestone detection in background
             if background_tasks:

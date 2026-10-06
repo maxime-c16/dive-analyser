@@ -298,6 +298,10 @@ def upload_dive(
             body=f'{parsed.dive_code} · {parsed.height}', dive_id=record.id)
     except Exception:
         logger.exception('upload notification failed for dive %s', record.id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return _public_dive(record, db)
 
 

@@ -138,6 +138,10 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
                     title='New reply', body=body[:600], dive_id=dive_id)
     except Exception:
         logger.exception('comment notification failed for dive %s', dive_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return comment_payload(row, user.display_name, db, user)
 
 
