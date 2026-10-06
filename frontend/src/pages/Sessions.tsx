@@ -14,6 +14,7 @@ import SessionDetail from "../components/SessionDetail";
 import RecentProgress from "../components/RecentProgress";
 import SessionDirectionIndicator from "../components/SessionDirectionIndicator";
 import { useTranslation } from "react-i18next";
+import { appLocale } from "../utils/dateLocale";
 import { useAuth } from "../contexts/AuthContext";
 import {
   performanceBorder,
@@ -65,7 +66,7 @@ function Sessions() {
   // Group sessions by month
   const groupedSessions = sessions.reduce(
     (groups, session) => {
-      const monthKey = format(parseISO(session.date), "MMMM yyyy");
+      const monthKey = format(parseISO(session.date), "MMMM yyyy", { locale: appLocale() });
       if (!groups[monthKey]) {
         groups[monthKey] = [];
       }
@@ -89,7 +90,7 @@ function Sessions() {
     const date = parseISO(dateStr);
     if (isToday(date)) return t("sessions.today");
     if (isYesterday(date)) return t("sessions.yesterday");
-    return format(date, "EEEE, MMMM d");
+    return format(date, "EEEE, MMMM d", { locale: appLocale() });
   };
 
   const getPerformanceColor = (perf: number | undefined) => {
@@ -264,7 +265,7 @@ function Sessions() {
                               </h3>
                               <p className="text-app-muted text-sm">
                                 {session.location ||
-                                  format(parseISO(session.date), "EEEE")}
+                                  format(parseISO(session.date), "EEEE", { locale: appLocale() })}
                               </p>
                             </div>
                           </div>

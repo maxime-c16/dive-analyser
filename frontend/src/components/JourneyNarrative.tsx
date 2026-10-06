@@ -2,6 +2,7 @@ import React from 'react'
 import { format, parseISO } from 'date-fns'
 import { BarChart3, TrendingUp } from 'lucide-react'
 import i18n from '../i18n'
+import { appLocale } from '../utils/dateLocale'
 
 interface JourneyData {
   overview: {
@@ -101,13 +102,13 @@ function JourneyNarrative({ data }: JourneyNarrativeProps) {
           <div>
             <div className="text-app-muted text-sm mb-2">{i18n.t('journey.started')}</div>
             <div className="text-sm font-mono text-app-text">
-              {format(parseISO(data.overview.first_dive_date), 'MMM d, yyyy')}
+              {format(parseISO(data.overview.first_dive_date), 'MMM d, yyyy', { locale: appLocale() })}
             </div>
           </div>
           <div>
             <div className="text-app-muted text-sm mb-2">{i18n.t('journey.latest')}</div>
             <div className="text-sm font-mono text-app-text">
-              {format(parseISO(data.overview.latest_dive_date), 'MMM d, yyyy')}
+              {format(parseISO(data.overview.latest_dive_date), 'MMM d, yyyy', { locale: appLocale() })}
             </div>
           </div>
         </div>

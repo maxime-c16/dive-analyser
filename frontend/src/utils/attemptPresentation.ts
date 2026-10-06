@@ -106,10 +106,10 @@ export function attemptDetailRows(attempt: Attempt): Array<[string, string]> {
     ],
     [label("height"), attempt.height],
     [label("platform"), platformTypeName(attempt.platform_type)],
-    ["Position", divePositionName(attempt.position, attempt.dive_code)],
-    ["Context", attempt.is_sync ? "SYNC" : "Individual"],
-    ["Modifiers", modifiersFor(attempt).join(", ") || "None"],
-    ["Date", attemptDate(attempt, "d MMMM yyyy")],
-    ["Raw caption", attempt.raw_caption || "Not preserved"],
+    [i18n.t("analysis.position"), divePositionName(attempt.position, attempt.dive_code)],
+    [i18n.t("analysis.context"), attempt.is_sync ? "SYNC" : i18n.t("analysis.individual")],
+    [i18n.t("analysis.modifiers"), modifiersFor(attempt).join(", ") || i18n.t("analysis.none")],
+    [i18n.t("dashboard.date"), attemptDate(attempt, "d MMMM yyyy")],
+    [i18n.t("attemptDetail.rawCaption"), attempt.raw_caption || i18n.t("attemptDetail.notPreserved")],
   ];
 }

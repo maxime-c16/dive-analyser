@@ -22,6 +22,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
+import { appLocale } from "../utils/dateLocale";
 import {
   BarChart3,
   CalendarDays,
@@ -212,7 +213,7 @@ function Dashboard() {
 
   const monthlyChartData = monthlyStats.map((m) => ({
     ...m,
-    monthLabel: format(parseISO(m.month + "-01"), "MMM yy"),
+    monthLabel: format(parseISO(m.month + "-01"), "MMM yy", { locale: appLocale() }),
   }));
   const personalValueChartData = personalValues
     .filter((value) => value.value != null)
@@ -250,7 +251,7 @@ function Dashboard() {
           {t("dashboard.title")}
         </h1>
         <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-app-muted">
-          <div>{t("dashboard.lastUpdated")} : {format(new Date(), "PPp")}</div>
+          <div>{t("dashboard.lastUpdated")} : {format(new Date(), "PPp", { locale: appLocale() })}</div>
           {currentSync && (
             <div className="text-app-accent">
               {t("dashboard.syncProgress")} : {currentSync.progress_percent}%
@@ -639,7 +640,7 @@ function Dashboard() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-medium text-app-text">
-                    {format(parseISO(session.date), "MMM d, yyyy")}
+                    {format(parseISO(session.date), "MMM d, yyyy", { locale: appLocale() })}
                   </h3>
                   <p className="mt-1 text-xs text-app-muted">
                     {session.total_dives} dives · {session.total_personal_dives}{" "}
@@ -673,7 +674,7 @@ function Dashboard() {
                   className="border-b border-app/60 hover:bg-app-panel-elevated"
                 >
                   <td className="py-3 text-app-text font-medium">
-                    {format(parseISO(session.date), "MMM d, yyyy")}
+                    {format(parseISO(session.date), "MMM d, yyyy", { locale: appLocale() })}
                   </td>
                   <td className="py-3 text-app-text">{session.total_dives}</td>
                   <td className="py-3 text-app-text">

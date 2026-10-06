@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { appLocale } from "../utils/dateLocale";
 import { ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
@@ -60,7 +61,7 @@ function AttemptCard({
       onClick={onOpen}
       data-attempt-id={dive.id}
       className={`group min-w-0 overflow-hidden border border-app bg-app-panel text-left transition-colors hover:border-app-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${compact ? "w-[13.5rem] shrink-0 sm:w-[15rem]" : ""}`}
-      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy") })}
+      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() }) })}
     >
       <DiveThumbnail dive={dive} />
       <div className="p-3">
@@ -70,7 +71,7 @@ function AttemptCard({
               {dive.dive_code}
             </div>
             <p className="mt-1 truncate text-xs text-app-muted">
-              {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm")}
+              {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm", { locale: appLocale() })}
             </p>
           </div>
           <ScoreBadge dive={dive} />
@@ -116,16 +117,16 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
           {dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
         </p>
         <p className="mt-1 text-xs text-app-muted sm:hidden">
-          {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm")}
+          {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm", { locale: appLocale() })}
         </p>
       </div>
       <div className="hidden text-sm font-semibold text-app-text sm:block">
         {score.toFixed(1)} / 10
       </div>
       <div className="hidden text-right text-xs text-app-muted sm:block">
-        {format(parseISO(dive.dive_datetime), "d MMM yyyy")}
+        {format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() })}
         <br />
-        {format(parseISO(dive.dive_datetime), "HH:mm")}
+        {format(parseISO(dive.dive_datetime), "HH:mm", { locale: appLocale() })}
       </div>
       <ChevronRight className="h-5 w-5 text-app-muted sm:hidden" />
     </button>

@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
+import { appLocale } from '../utils/dateLocale'
 import { useTranslation } from 'react-i18next'
 
 interface MonthlyStats {
@@ -126,7 +127,7 @@ function Analytics() {
 
   const monthlyChartData = monthlyStats.map(m => ({
     ...m,
-    monthLabel: format(parseISO(m.month + '-01'), 'MMM yy'),
+    monthLabel: format(parseISO(m.month + '-01'), 'MMM yy', { locale: appLocale() }),
   }))
   const performanceKey = 'avg_performance'
   const performanceName = t('analytics.avgExecutionPer10')

@@ -248,6 +248,12 @@ const fr = {
     updateHeadline: 'Votre bibliothèque vient de recevoir une mise à jour',
     improvementsReady: '{{count}} améliorations sont prêtes à découvrir.',
     seeWhatsNew: 'Voir les nouveautés →',
+    newerVersion: 'Une version plus récente est disponible',
+    reloadHint: 'Rechargez quand vous êtes prêt(e) pour voir les dernières améliorations.',
+    reloadApp: 'Recharger l’app',
+    latestUpdate: 'Dernière mise à jour',
+    noNotes: 'Aucune note de mise à jour disponible pour le moment.',
+    gotIt: 'Compris, retour à mes plongeons',
   },
   addVideos: {
     selectVideos: 'Sélectionner des vidéos',
@@ -526,6 +532,7 @@ const fr = {
     media: 'Média',
     rawCaption: 'Légende d’origine',
     noCaption: 'Aucune légende conservée.',
+    notPreserved: 'Non conservée',
     notes: 'Notes',
   },
   dives: {

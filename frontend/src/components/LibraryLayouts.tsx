@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { appLocale } from "../utils/dateLocale";
 import { format, parseISO } from "date-fns";
 import DiveThumbnail from "./DiveThumbnail";
 import { divePositionName } from "../utils/divePosition";
@@ -77,7 +78,7 @@ export function WallLayout({
               </span>
             </div>
             <div className="truncate text-[10px] text-white/70">
-              {format(parseISO(a.dive_datetime), "d MMM")} · {a.height}
+              {format(parseISO(a.dive_datetime), "d MMM", { locale: appLocale() })} · {a.height}
               {a.person_name && <span className="block truncate">{a.person_name}</span>}
             </div>
           </div>
@@ -130,7 +131,7 @@ export function CodesLayout({
                 </div>
                 <div className="mt-0.5 truncate text-xs text-app-muted">
                   {divePositionName(items[0].position, code)} · {items.length} attempts · last{" "}
-                  {format(parseISO(items[0].dive_datetime), "d MMM")}
+                  {format(parseISO(items[0].dive_datetime), "d MMM", { locale: appLocale() })}
                 </div>
                 <div className="mt-2">
                   <RatingBar attempts={items} />
@@ -144,8 +145,8 @@ export function CodesLayout({
                   type="button"
                   onClick={() => onOpen(a)}
                   data-attempt-id={a.id}
-                  title={`${format(parseISO(a.dive_datetime), "d MMM HH:mm")} · ${attemptScore(a).toFixed(1)}`}
-                  aria-label={`Open ${code} attempt from ${format(parseISO(a.dive_datetime), "d MMM HH:mm")}`}
+                  title={`${format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() })} · ${attemptScore(a).toFixed(1)}`}
+                  aria-label={`Open ${code} attempt from ${format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() })}`}
                   className={`flex h-6 min-h-0 min-w-6 items-center justify-center px-1 text-[10px] font-semibold tabular-nums text-black/80 hover:ring-2 hover:ring-white/60 ${ratingDot[a.performance]}`}
                 >
                   {attemptScore(a).toFixed(0)}

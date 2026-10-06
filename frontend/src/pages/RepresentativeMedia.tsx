@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { appLanguage } from '../utils/dateLocale'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Film, RefreshCw, Search, ShieldAlert } from 'lucide-react'
 import {
@@ -29,7 +30,7 @@ const VIABILITY_LABELS: Record<string, string> = {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
+  return new Intl.DateTimeFormat(appLanguage(), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
 }
 
 function stateClass(state: string) {

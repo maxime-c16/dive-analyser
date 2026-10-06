@@ -248,6 +248,12 @@ const en = {
     updateHeadline: 'Your library just got an update',
     improvementsReady: '{{count}} improvements are ready to explore.',
     seeWhatsNew: "See what's new →",
+    newerVersion: 'A newer version is available',
+    reloadHint: "Reload when you're ready to see the latest improvements.",
+    reloadApp: 'Reload app',
+    latestUpdate: 'Latest update',
+    noNotes: 'No update notes are available yet.',
+    gotIt: 'Got it, back to my dives',
   },
   addVideos: {
     selectVideos: 'Select videos',
@@ -524,6 +530,7 @@ const en = {
     media: 'Media',
     rawCaption: 'Raw caption',
     noCaption: 'No caption preserved.',
+    notPreserved: 'Not preserved',
     notes: 'Notes',
   },
   dives: {

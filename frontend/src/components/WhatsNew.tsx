@@ -212,12 +212,12 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
     <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
     <section ref={ref} role="dialog" aria-modal="true" aria-labelledby="updates-title" className="absolute inset-y-0 right-0 w-full overflow-y-auto border-l border-app-strong bg-app-panel p-6 shadow-2xl sm:w-[450px] sm:p-8">
       <div className="mb-8 flex items-center justify-between"><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">{t('whatsNew.title')}</h2><button aria-label={t('whatsNew.close')} onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
-      {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">A newer version is available</h3><p className="text-sm text-app-muted">Reload when you're ready to see the latest improvements.</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>Reload app</button></>
+      {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">{t('whatsNew.newerVersion')}</h3><p className="text-sm text-app-muted">{t('whatsNew.reloadHint')}</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>{t('whatsNew.reloadApp')}</button></>
         : manifest.notes.length ? manifest.notes.map((note, index) => <article key={note.id} className="border-b border-app py-6 first:pt-0">
-          <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-app-accent">{note.date}{index === 0 ? ' · Latest update' : ''}</p>
+          <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-app-accent">{note.date}{index === 0 ? ` · ${t('whatsNew.latestUpdate')}` : ''}</p>
           <h3 className={`${index === 0 ? 'text-2xl' : 'text-lg'} mb-3 font-semibold`}>{note.title}</h3><p className="whitespace-pre-line text-sm leading-6 text-app-muted">{note.body}</p>
-        </article>) : <p className="text-sm text-app-muted">No update notes are available yet.</p>}
-      <button onClick={close} className="mt-6 min-h-11 w-full bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">Got it, back to my dives</button>
+        </article>) : <p className="text-sm text-app-muted">{t('whatsNew.noNotes')}</p>}
+      <button onClick={close} className="mt-6 min-h-11 w-full bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">{t('whatsNew.gotIt')}</button>
     </section>
   </div>, document.body)
 }

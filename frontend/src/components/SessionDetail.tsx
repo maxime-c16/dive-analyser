@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import DiveVideoPlayer from './DiveVideoPlayer'
 import i18n from '../i18n'
+import { appLocale } from '../utils/dateLocale'
 import { inertExcept, trapTabKey } from '../utils/a11y'
 import { isSuccessfulPerformance, performanceScore10 } from '../utils/performanceScoring'
 
@@ -181,10 +182,10 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
           <div className="sticky top-0 flex items-center justify-between border-b border-app bg-app-panel p-4 sm:p-6">
             <div>
               <h2 id="session-detail-title" className="text-2xl font-bold text-app-text">
-                {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
+                {format(parseISO(session.date), 'EEEE, MMMM d, yyyy', { locale: appLocale() })}
               </h2>
               <p className="text-app-muted text-sm mt-1">
-                {session.location || format(parseISO(session.date), 'EEEE')} • {dives.length} {i18n.t('dashboard.dives')}
+                {session.location || format(parseISO(session.date), 'EEEE', { locale: appLocale() })} • {dives.length} {i18n.t('dashboard.dives')}
               </p>
             </div>
             <button
