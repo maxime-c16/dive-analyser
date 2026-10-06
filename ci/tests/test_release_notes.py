@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -8,6 +9,19 @@ import unittest
 spec = importlib.util.spec_from_file_location('release_notes', Path(__file__).resolve().parents[1] / 'release-notes.py')
 notes = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(notes)
+
+
+def sanitized_env() -> dict:
+    """Fixture repos must not inherit the hook's GIT_* plumbing vars.
+
+    CI runners (pre-push hooks) export GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE.
+    Passing them into `git -C <tempdir>` silently redirects staging and
+    commits to the real repository - the fixture "test" commits would land
+    on the checked-out branch and drop every other index entry. Strip them
+    so each tempdir is a genuinely isolated repository (same contract as
+    test_gate.py's HookTests).
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith('GIT_') and not k.startswith('DIVE_CI_')}
 
 
 class ReleaseNotesTests(unittest.TestCase):
@@ -26,7 +40,7 @@ class ReleaseNotesTests(unittest.TestCase):
         self.first = self.commit()
 
     def git(self, *args):
-        return subprocess.check_output(['git', '-C', str(self.root), *args], text=True).strip()
+        return subprocess.check_output(['git', '-C', str(self.root), *args], env=sanitized_env(), text=True).strip()
 
     def commit(self):
         self.git('add', '.')
@@ -80,4 +94,4 @@ class ReleaseNotesTests(unittest.TestCase):
                 self.assertEqual(self.build(unknown, current)['notes'], [])
                 command = ['python3', str(Path(notes.__file__)), 'build', '--root', str(self.root),
                            '--frontend', current, '--backend', unknown]
-                self.assertEqual(json.loads(subprocess.check_output(command, text=True))['notes'], [frontend_note])
+                self.assertEqual(json.loads(subprocess.check_output(command, env=sanitized_env(), text=True))['notes'], [frontend_note])
