@@ -1,0 +1,8 @@
+{
+  "id": "rolling-carousel-preload",
+  "date": "2026-10-06",
+  "title": "Keep clips swipe-ready on long reviewing sessions",
+  "body": "The viewer now prepares clips on a rolling window that follows your swiping, instead of a lifetime cap that silently stopped after about twelve clips. Swipes further into your session stay equally fast, reverse swipes get prepared clips too, and temporary hiccups retry on their own without interrupting playback.",
+  "audience": "all",
+  "components": ["frontend"]
+}
