@@ -1,0 +1,243 @@
+"""PR1 notifications backend: inbox isolation, prefs, and emission hooks."""
+from tests.test_member_dive_visibility import workspace  # noqa: F401 (fixture reuse)
+
+MACHINE_HEADERS = {"X-API-Key": "test-api-key-integration-testing"}
+
+
+def _items(client, **params):
+    response = client.get("/api/v1/notifications", params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_unauthenticated_inbox_and_prefs_rejected(workspace):
+    _, login, _, _, _ = workspace
+    client = login("bob")
+    client.cookies.clear()
+    assert client.get("/api/v1/notifications").status_code == 401
+    assert client.get("/api/v1/notification-prefs").status_code == 401
+
+
+def test_prefs_defaults_and_unknown_type_rejected(workspace):
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    prefs = login("alice").get("/api/v1/notification-prefs").json()["prefs"]
+    assert prefs == {
+        "new_video": True,
+        "video_ready": True,
+        "new_comment": True,
+        "comment_reply": True,
+        "milestone": True,
+        "sync_error": True,
+        "guest_activity": False,
+    }
+    response = login("alice").put(
+        "/api/v1/notification-prefs", json={"type": "nope", "enabled": True}
+    )
+    assert response.status_code == 422
+    # Opt-out types never persist: service returns None without writing.
+    assert (
+        notification_service.create(
+            db, user_id=users["alice"].id, type="guest_activity", title="t"
+        )
+        is None
+    )
+
+
+def test_inbox_isolation_between_owners(workspace):
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    row = notification_service.create(
+        db, user_id=users["alice"].id, type="new_video", title="t", body="b"
+    )
+    assert row is not None
+    row_id = row.id
+    assert all(
+        item["id"] != row_id for item in _items(login("bob"))["items"]
+    )
+    assert login("bob").post(f"/api/v1/notifications/{row_id}/read").status_code == 404
+    assert login("alice").post(f"/api/v1/notifications/{row_id}/read").status_code == 200
+
+
+def test_list_filters_limit_and_read_all(workspace):
+    from app.models.notification import Notification
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    for i in range(3):
+        assert (
+            notification_service.create(
+                db, user_id=users["alice"].id, type="new_video", title=f"t{i}"
+            )
+            is not None
+        )
+    first_id = db.query(Notification.id).filter_by(user_id=users["alice"].id).order_by(
+        Notification.id
+    ).first()[0]
+    assert login("alice").post(f"/api/v1/notifications/{first_id}/read").status_code == 200
+    assert len(_items(login("alice"), unread_only=True)["items"]) == 2
+    assert len(_items(login("alice"), limit=1)["items"]) == 1
+    assert login("alice").post("/api/v1/notifications/read-all").json() == {"marked": 2}
+    assert _items(login("alice"))["unread_count"] == 0
+
+
+def test_disabled_pref_blocks_service_and_comment_hook(workspace):
+    from app.models.notification import Notification
+    from app.services import notification_service
+
+    db, login, dives, users, _ = workspace
+    assert login("alice").put(
+        "/api/v1/notification-prefs", json={"type": "new_comment", "enabled": False}
+    ).status_code == 200
+    assert (
+        notification_service.create(
+            db, user_id=users["alice"].id, type="new_comment", title="t"
+        )
+        is None
+    )
+    assert db.query(Notification).filter_by(user_id=users["alice"].id).count() == 0
+    response = login("bob").post(
+        f"/api/v1/dives/{dives['alice-public']}/comments", json={"body": "hi"}
+    )
+    assert response.status_code == 201, response.text
+    assert _items(login("alice"))["items"] == []
+
+
+def test_comment_emits_but_like_emits_nothing(workspace):
+    _, login, dives, _, _ = workspace
+    url = f"/api/v1/dives/{dives['alice-public']}"
+    assert login("bob").post(url + "/comments", json={"body": "Nice!"}).status_code == 201
+    alice_items = _items(login("alice"))["items"]
+    assert any(
+        item["type"] == "new_comment" and item["dive_id"] == dives["alice-public"]
+        for item in alice_items
+    )
+    # The author is excluded from their own broadcast.
+    assert not any(
+        item["type"] == "new_comment" for item in _items(login("bob"))["items"]
+    )
+    before = len(_items(login("alice"))["items"])
+    assert login("bob").put(url + "/like", json={"liked": True}).status_code == 200
+    assert len(_items(login("alice"))["items"]) == before
+
+
+def test_reply_notifies_parent_author(workspace):
+    _, login, dives, _, _ = workspace
+    url = f"/api/v1/dives/{dives['alice-public']}"
+    root = login("viewer").post(url + "/comments", json={"body": "hello"}).json()
+    reply = login("alice").post(
+        url + "/comments", json={"body": "welcome", "parent_id": root["id"]}
+    )
+    assert reply.status_code == 201, reply.text
+    assert any(
+        item["type"] == "comment_reply" for item in _items(login("viewer"))["items"]
+    )
+
+
+def test_browser_upload_emits_exactly_one_notif(workspace, monkeypatch, tmp_path):
+    from app.models.user_auth import UserDiverAccess
+    from app.services import browser_upload
+    from app.services.dive_access import owned_diver_ids
+
+    db, login, _, users, _ = workspace
+    bob_diver = owned_diver_ids(db, users["bob"].id)[0]
+    db.add(
+        UserDiverAccess(
+            user_id=users["alice"].id, diver_id=bob_diver, access_kind="OWNER"
+        )
+    )
+    db.commit()
+    folder = tmp_path / "prepared"
+    folder.mkdir()
+    for name in ("source", "video.mp4", "poster.jpg"):
+        (folder / name).write_bytes(b"test")
+    monkeypatch.setattr(browser_upload, "prepare_video", lambda file: (folder, 4))
+    monkeypatch.setattr(browser_upload, "persist_original", lambda *a, **kw: None)
+    fields = dict(
+        dive_code="103B",
+        height="3m",
+        performance="G",
+        dive_datetime="2026-10-05T12:00:00",
+        diver_id=str(bob_diver),
+        upload_id="12345678-1234-1234-1234-123456789012",
+    )
+    client = login("bob")
+    response = client.post(
+        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}
+    )
+    assert response.status_code == 201, response.text
+    assert (
+        len(
+            [
+                item
+                for item in _items(login("alice"))["items"]
+                if item["type"] == "new_video"
+            ]
+        )
+        == 1
+    )
+    assert _items(login("bob"))["items"] == []
+    # Idempotent retry of the same upload identity emits nothing more.
+    retry = client.post(
+        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}
+    )
+    assert retry.status_code == 201 and retry.json()["id"] == response.json()["id"]
+    assert (
+        len(
+            [
+                item
+                for item in _items(login("alice"))["items"]
+                if item["type"] == "new_video"
+            ]
+        )
+        == 1
+    )
+
+
+def test_batch_sync_is_batched_to_one_notif(workspace):
+    _, login, _, _, _ = workspace
+    payload = {
+        "videos": [
+            {
+                "dive_code": "101B",
+                "height": "3m",
+                "performance": "G",
+                "video_uuid": f"batch-notif-uuid-000000000000000{i}",
+                "date": "2026-10-05T12:00:00",
+                "person_name": "bob",
+            }
+            for i in range(2)
+        ]
+    }
+    client = login("bob")
+    client.cookies.clear()
+    response = client.post(
+        "/api/v1/videos/batch", json=payload, headers=MACHINE_HEADERS
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["succeeded"] == 2
+    assert (
+        len(
+            [
+                item
+                for item in _items(login("bob"))["items"]
+                if item["type"] == "new_video"
+            ]
+        )
+        == 1
+    )
+
+
+def test_milestone_hook_notifies_diver_owners(workspace):
+    from app.services.journey_service import _notify_milestone_owners
+
+    db, login, dives, _, _ = workspace
+    _notify_milestone_owners(db, [dives["alice-public"]], 1)
+    assert any(
+        item["type"] == "milestone" for item in _items(login("alice"))["items"]
+    )
+    assert not any(
+        item["type"] == "milestone" for item in _items(login("bob"))["items"]
+    )

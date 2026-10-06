@@ -159,6 +159,7 @@ class JourneyService:
             logger.info(
                 f"Detected {new_milestones_count} milestones for Journey {journey.id}"
             )
+            _notify_milestone_owners(db, dive_ids, new_milestones_count)
 
         return new_milestones_count
 
@@ -252,6 +253,7 @@ class JourneyService:
             if new_milestones > 0:
                 db.commit()
                 logger.info(f"Batch milestone detection: {new_milestones} new milestones")
+                _notify_milestone_owners(db, dive_ids, new_milestones)
 
             return {
                 'detected': len(milestones),
@@ -672,3 +674,44 @@ async def process_new_dives_background(dive_ids: List[int], db: Session) -> None
     """
     service = JourneyService()
     await service.process_new_dives(dive_ids, db)
+
+
+def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -> None:
+    """Durable milestone inbox rows for the owners of the triggering dives.
+
+    The real-time WS `milestone_detected` event (sync_status) stays
+    ephemeral; this is its durable per-user counterpart. Defensive: a
+    notification failure must never fail milestone persistence.
+    """
+    try:
+        if not dive_ids or new_milestones_count <= 0:
+            return
+        from app.services import notification_service
+
+        rows = (
+            db.query(Dive.id, Dive.diver_id)
+            .filter(Dive.id.in_(list(dive_ids)[:500]))
+            .limit(500)
+            .all()
+        )
+        by_diver: Dict[int, List[int]] = {}
+        for did, diver_id in rows:
+            if diver_id is None:
+                continue
+            by_diver.setdefault(diver_id, []).append(did)
+        for diver_id, ids in by_diver.items():
+            notification_service.notify_owners_for_diver(
+                db,
+                diver_id=diver_id,
+                exclude_user_id=None,
+                type="milestone",
+                title="New milestone",
+                body=(
+                    f"{new_milestones_count} new milestones detected"
+                    if new_milestones_count > 1
+                    else "A new milestone was detected"
+                ),
+                dive_id=ids[0] if len(ids) == 1 else None,
+            )
+    except Exception:
+        logger.exception("milestone notification failed")

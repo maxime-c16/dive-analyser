@@ -3,6 +3,7 @@
 Always resolve the dive first: private IDs return 404 for other members,
 including mutations. A reaction never grants ownership or changes the dive.
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func
@@ -16,6 +17,8 @@ from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.services.write_guard import optional_session_user
 
 router = APIRouter(prefix='/dives')
+
+logger = logging.getLogger(__name__)
 
 
 def visible_dive(dive_id: int, request: Request, db: Session = Depends(get_db)):
@@ -117,6 +120,24 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
     db.add(row)
     db.commit()
     db.refresh(row)
+    try:
+        from app.services import notification_service
+        dive_row = db.query(Dive).filter(Dive.id == dive_id).first()
+        diver_id = dive_row.diver_id if dive_row is not None else None
+        author_user_id = None if isinstance(user, DiveGuest) else user.id
+        if diver_id is not None:
+            notification_service.notify_owners_for_diver(
+                db, diver_id=diver_id, exclude_user_id=author_user_id,
+                type='new_comment', title='New comment',
+                body=body[:600], dive_id=dive_id)
+        if parent is not None:
+            parent_author_id = parent.user_id
+            if parent_author_id is not None and parent_author_id != author_user_id:
+                notification_service.create(
+                    db, user_id=parent_author_id, type='comment_reply',
+                    title='New reply', body=body[:600], dive_id=dive_id)
+    except Exception:
+        logger.exception('comment notification failed for dive %s', dive_id)
     return comment_payload(row, user.display_name, db, user)
 
 

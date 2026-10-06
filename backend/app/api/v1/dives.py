@@ -1,5 +1,6 @@
 """Dive CRUD endpoints"""
 
+import logging
 from typing import List, Optional
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -20,6 +21,8 @@ from app.services.difficulty_adjustment import formula_dd
 from app.services.world_aquatics_dd import REFERENCE_ID
 
 router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(require_owner_for_mutation)])
+
+logger = logging.getLogger(__name__)
 
 # Library/workflow payload surface: exactly the columns the UI reads
 # (Library, session view, review viewer) plus divider/lineup scoping.
@@ -287,6 +290,14 @@ def upload_dive(
         raise
     # Once committed, a response failure must never remove durable media.
     db.refresh(record)
+    try:
+        from app.services import notification_service
+        notification_service.notify_owners_for_diver(
+            db, diver_id=diver_id, exclude_user_id=user.id,
+            type='new_video', title=f'New video from {diver.display_name}',
+            body=f'{parsed.dive_code} · {parsed.height}', dive_id=record.id)
+    except Exception:
+        logger.exception('upload notification failed for dive %s', record.id)
     return _public_dive(record, db)
 
 

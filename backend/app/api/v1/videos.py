@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks, Request, status
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, RedirectResponse
 import httpx
+import logging
 import os
 import mimetypes
 import subprocess
@@ -40,6 +41,8 @@ from app.security import verify_api_key
 router = APIRouter(prefix="/videos", tags=["videos"])
 audit_logger = get_audit_logger()
 journey_service = JourneyService()
+
+logger = logging.getLogger(__name__)
 
 # How long to keep exported files/symlinks before cleanup (seconds)
 CLEANUP_SECONDS = 7 * 24 * 60 * 60  # 7 days
@@ -417,6 +420,18 @@ async def sync_single_video(
         db.commit()
         db.refresh(dive)
 
+        if created and dive.diver_id is not None:
+            # Machine-key sync has no actor to exclude: every owner is told.
+            try:
+                from app.services import notification_service
+                notification_service.notify_owners_for_diver(
+                    db, diver_id=dive.diver_id, exclude_user_id=None,
+                    type='new_video', title='New video synced',
+                    body=f'{dive.dive_code or "?"} · {dive.height or "?"}',
+                    dive_id=dive.id)
+            except Exception:
+                logger.exception('sync notification failed for dive %s', dive.id)
+
         # Log successful sync
         audit_logger.log_sync_single(
             video_uuid=request.video_uuid,
@@ -561,6 +576,30 @@ async def sync_batch_videos(
         # Commit all at once (transactional)
         if succeeded > 0:
             db.commit()
+
+            if new_dive_ids:
+                # One batched notification per diver per request (never N rows
+                # for an N-clip batch to the same owner).
+                try:
+                    from app.services import notification_service
+                    rows = db.query(Dive.id, Dive.diver_id, Dive.dive_code).filter(
+                        Dive.id.in_(new_dive_ids)).limit(500).all()
+                    by_diver: dict = {}
+                    for did, diver_id, code in rows:
+                        if diver_id is None:
+                            continue
+                        by_diver.setdefault(diver_id, []).append((did, code))
+                    for diver_id, items in by_diver.items():
+                        count = len(items)
+                        notification_service.notify_owners_for_diver(
+                            db, diver_id=diver_id, exclude_user_id=None,
+                            type='new_video',
+                            title='New videos synced' if count > 1 else 'New video synced',
+                            body=(f'{count} new clips synced' if count > 1
+                                  else f'{items[0][1] or "?"} synced'),
+                            dive_id=items[0][0] if count == 1 else None)
+                except Exception:
+                    logger.exception('batch sync notification failed')
 
             # Queue Journey milestone detection in background
             if background_tasks:
