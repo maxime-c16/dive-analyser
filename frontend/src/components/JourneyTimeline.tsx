@@ -25,11 +25,10 @@ interface JourneyTimelineProps {
 /**
  * Milestone timing insight and narrative text come straight from the
  * backend in English; the title/label are localized from the milestone
- * type. The label keys cover every milestone family in
- * backend/app/services/milestones.py.
+ * type. `milestones.labels.*` covers every milestone family in
+ * backend/app/services/milestones.py; unknown types fall back to the
+ * snake_case type with underscores.
  */
-const MILESTONE_LABEL_KEYS: Record<string, string> = {
-}
 const typeLabel = (type: string) => i18n.t(`milestones.labels.${type}`, { defaultValue: type.replace(/_/g, ' ') })
 const priorityLabel = (value: number) => value >= 5 ? i18n.t('milestones.majorBreakthrough') : value >= 4 ? i18n.t('milestones.notableStep') : value >= 3 ? i18n.t('milestones.meaningfulProgress') : i18n.t('milestones.recordedProgress')
 

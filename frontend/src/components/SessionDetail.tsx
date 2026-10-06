@@ -46,12 +46,22 @@ interface SessionDetailProps {
   diverScope: 'self' | 'all'
 }
 
-const PERFORMANCE_CONFIG: { [key: string]: { label: string; color: string; bg: string } } = {
-  P: { label: i18n.t('performance.P'), color: 'text-green-400', bg: 'bg-green-500/20' },
-  G: { label: i18n.t('performance.G'), color: 'text-app-accent', bg: 'bg-app-accent-soft' },
-  M: { label: i18n.t('performance.M'), color: 'text-amber-400', bg: 'bg-amber-500/20' },
-  B: { label: i18n.t('performance.B'), color: 'text-orange-400', bg: 'bg-orange-500/20' },
-  F: { label: i18n.t('performance.F'), color: 'text-red-400', bg: 'bg-red-500/20' },
+/**
+ * Labels resolve at call time (via performanceConfig) so a language change
+ * while the dialog is open re-renders in the new language; only language
+ * agnostic styling lives in the static map.
+ */
+const PERFORMANCE_STYLES: { [key: string]: { color: string; bg: string } } = {
+  P: { color: 'text-green-400', bg: 'bg-green-500/20' },
+  G: { color: 'text-app-accent', bg: 'bg-app-accent-soft' },
+  M: { color: 'text-amber-400', bg: 'bg-amber-500/20' },
+  B: { color: 'text-orange-400', bg: 'bg-orange-500/20' },
+  F: { color: 'text-red-400', bg: 'bg-red-500/20' },
+}
+
+const performanceConfig = (performance: string) => {
+  const style = PERFORMANCE_STYLES[performance] || PERFORMANCE_STYLES.M
+  return { ...style, label: i18n.t(`performance.${performance}`, { defaultValue: performance }) }
 }
 
 const DIRECTION_KEY_SUFFIX: { [key: number]: string } = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' }
@@ -264,8 +274,8 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                           {dive.video_uuid && (
                             <Film className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-label={i18n.t('sessionDetail.videoAvailable')} />
                           )}
-                          <div className={`px-2 py-0.5 rounded text-xs font-semibold ${PERFORMANCE_CONFIG[dive.performance].bg}`}>
-                            <span className={PERFORMANCE_CONFIG[dive.performance].color}>
+                          <div className={`px-2 py-0.5 rounded text-xs font-semibold ${performanceConfig(dive.performance).bg}`}>
+                            <span className={performanceConfig(dive.performance).color}>
                               {dive.performance}
                             </span>
                           </div>

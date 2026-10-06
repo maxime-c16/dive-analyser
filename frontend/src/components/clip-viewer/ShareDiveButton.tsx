@@ -3,11 +3,31 @@ import { useTranslation } from 'react-i18next'
 import { Share2, X } from 'lucide-react';
 import { api } from '../../services/api';
 
+/**
+ * Share outcome states are semantic (`mode`), never compared against
+ * translated strings: display text is looked up per mode at render time so
+ * a language change cannot break the manual-copy input visibility.
+ */
+type ShareMode = 'idle' | 'copied' | 'manual' | 'revoked' | 'createError' | 'revokeError';
+
+const AUTO_CLEAR_MODES: ShareMode[] = ['copied', 'revoked'];
+
+export function modeMessage(t: (key: string) => string, mode: ShareMode): string {
+  switch (mode) {
+    case 'copied': return t('clipViewer.linkCopied');
+    case 'manual': return t('clipViewer.copyLinkToShare');
+    case 'revoked': return t('clipViewer.linksRevoked');
+    case 'createError': return t('clipViewer.createLinkError');
+    case 'revokeError': return t('clipViewer.revokeError');
+    default: return '';
+  }
+}
+
 export default function ShareDiveButton({ id }: { id: number }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState('');
-  const [message, setMessage] = useState('');
+  const [mode, setMode] = useState<ShareMode>('idle');
   const [hasShares, setHasShares] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const shareButton = useRef<HTMLButtonElement>(null);
@@ -23,12 +43,12 @@ export default function ShareDiveButton({ id }: { id: number }) {
     return () => { mounted.current = false; };
   }, []);
   useEffect(() => {
-    if (message !== 'Link copied' && message !== 'Shared links revoked') return;
-    const timer = setTimeout(() => setMessage(''), 3000);
+    if (!AUTO_CLEAR_MODES.includes(mode)) return;
+    const timer = setTimeout(() => setMode('idle'), 3000);
     return () => clearTimeout(timer);
-  }, [message]);
+  }, [mode]);
   const dismiss = () => {
-    setMessage('');
+    setMode('idle');
     setMenuOpen(false);
     shareButton.current?.focus();
   };
@@ -38,7 +58,7 @@ export default function ShareDiveButton({ id }: { id: number }) {
     pending.current = true;
     mutationVersion.current += 1;
     setBusy(true);
-    setMessage('');
+    setMode('idle');
     setMenuOpen(false);
     const link = url ? Promise.resolve(url) : api
       .post<{ path: string }>(`/api/v1/dives/${id}/shares`)
@@ -58,29 +78,30 @@ export default function ShareDiveButton({ id }: { id: number }) {
         if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
         await navigator.clipboard.writeText(value);
       }
-      if (mounted.current) setMessage('Link copied');
+      if (mounted.current) setMode('copied');
     } catch {
       try {
         await link;
-        if (mounted.current) setMessage(t('clipViewer.copyLinkToShare'));
-      } catch { if (mounted.current) setMessage('Could not create a link. Try again.'); }
+        if (mounted.current) setMode('manual');
+      } catch { if (mounted.current) setMode('createError'); }
     } finally { pending.current = false; if (mounted.current) setBusy(false); }
   };
+  const message = modeMessage(t, mode);
   return <>
     <button ref={shareButton} type="button" aria-label={t('clipViewer.shareDive')} aria-expanded={menuOpen} disabled={busy} onClick={() => {
-      if (hasShares) { setMessage(''); setMenuOpen(value => !value); }
+      if (hasShares) { setMode('idle'); setMenuOpen(value => !value); }
       else void share();
     }}>
-      <Share2 size={25} /><span>{busy ? 'Sharing…' : 'Share'}</span>
+      <Share2 size={25} /><span>{busy ? t('clipViewer.sharing') : t('clipViewer.share')}</span>
     </button>
-    {(message || menuOpen) && <div className="clip-share-result" role="group" aria-label="Video sharing">
+    {(message || menuOpen) && <div className="clip-share-result" role="group" aria-label={t('clipViewer.videoSharing')}>
       <div className="clip-share-result-heading">
-        <p role="status">{menuOpen ? 'Share video' : message}</p>
-        <button type="button" className="clip-share-close" aria-label="Dismiss sharing notification" onClick={dismiss}><X size={18} /></button>
+        <p role="status">{menuOpen ? t('clipViewer.shareVideo') : message}</p>
+        <button type="button" className="clip-share-close" aria-label={t('clipViewer.dismissSharing')} onClick={dismiss}><X size={18} /></button>
       </div>
-      {url && message === 'Copy this link to share the video:' && <input aria-label={t('clipViewer.shareLink')} value={url} readOnly onFocus={event => event.target.select()} />}
+      {url && mode === 'manual' && <input aria-label={t('clipViewer.shareLink')} value={url} readOnly onFocus={event => event.target.select()} />}
       {menuOpen && <div className="clip-share-menu">
-        <button type="button" disabled={busy} onClick={() => void share()}>Copy link</button>
+        <button type="button" disabled={busy} onClick={() => void share()}>{t('clipViewer.copyLink')}</button>
         {hasShares && <button type="button" disabled={busy} onClick={async () => {
           if (pending.current) return;
           pending.current = true;
@@ -88,10 +109,10 @@ export default function ShareDiveButton({ id }: { id: number }) {
           setBusy(true);
           try {
             await api.delete(`/api/v1/dives/${id}/shares`);
-            if (mounted.current) { setUrl(''); setHasShares(false); setMenuOpen(false); setMessage('Shared links revoked'); shareButton.current?.focus(); }
-          } catch { if (mounted.current) { setMenuOpen(false); setMessage('Could not revoke links. Try again.'); } }
+            if (mounted.current) { setUrl(''); setHasShares(false); setMenuOpen(false); setMode('revoked'); shareButton.current?.focus(); }
+          } catch { if (mounted.current) { setMenuOpen(false); setMode('revokeError'); } }
           finally { pending.current = false; if (mounted.current) setBusy(false); }
-        }}>Revoke shared links</button>}
+        }}>{t('clipViewer.revokeLinks')}</button>}
       </div>}
     </div>}
   </>;

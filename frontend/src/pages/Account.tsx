@@ -51,7 +51,12 @@ function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
     setPrefs(prev => {
       const next = { ...prev, ...patch }
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify(next))
+        // Merge into the stored blob, not `next`: language (and any future
+        // field written by another surface) must survive a notification
+        // toggle.
+        const raw = localStorage.getItem(PREFS_KEY)
+        const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ ...stored, ...next }))
       } catch {
         // Private browsing etc: prefs simply don't persist.
       }
