@@ -110,19 +110,57 @@ def notify_owners_for_diver(
         .limit(500)
         .all()
     ]
-    created: List[Notification] = []
-    for uid in dict.fromkeys(user_ids):
-        if exclude_user_id is not None and uid == exclude_user_id:
-            continue
-        try:
-            row = create(
-                db, user_id=uid, type=type, title=title, body=body, dive_id=dive_id
+    targets = [
+        uid
+        for uid in dict.fromkeys(user_ids)
+        if exclude_user_id is None or uid != exclude_user_id
+    ]
+    if not targets:
+        return []
+    try:
+        pref_rows = (
+            db.query(NotificationPref)
+            .filter(
+                NotificationPref.user_id.in_(targets),
+                NotificationPref.notif_type == type,
             )
+            .all()
+        )
+    except Exception:
+        logger.exception("notification pref fetch failed for diver %s", diver_id)
+        return []
+    default_enabled = DEFAULTS[type]
+    enabled_by_user = {row.user_id: bool(row.enabled) for row in pref_rows}
+    # No override row → DEFAULTS[type] (mirrors is_enabled used by create()).
+    enabled_ids = [
+        uid for uid in targets if enabled_by_user.get(uid, default_enabled)
+    ]
+    if not enabled_ids:
+        return []
+    title_t = (title or "")[:_TITLE_MAX]
+    body_t = (body or "")[:_BODY_MAX] or None
+    created = [
+        Notification(
+            user_id=uid,
+            type=type,
+            title=title_t,
+            body=body_t,
+            dive_id=dive_id,
+        )
+        for uid in enabled_ids
+    ]
+    try:
+        db.add_all(created)
+        db.commit()
+        for row in created:
+            db.refresh(row)
+    except Exception:
+        logger.exception("notification batch create failed for diver %s", diver_id)
+        try:
+            db.rollback()
         except Exception:
-            logger.exception("notification create failed for user %s", uid)
-            continue
-        if row is not None:
-            created.append(row)
+            pass
+        return []
     return created
 
 

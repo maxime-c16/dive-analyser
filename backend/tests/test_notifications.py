@@ -241,3 +241,56 @@ def test_milestone_hook_notifies_diver_owners(workspace):
     assert not any(
         item["type"] == "milestone" for item in _items(login("bob"))["items"]
     )
+
+
+def test_notify_owners_for_diver_batches_single_commit(workspace, monkeypatch):
+    from app.models.notification import Notification
+    from app.models.user_auth import UserDiverAccess
+    from app.services import notification_service
+    from app.services.dive_access import owned_diver_ids
+
+    db, _, _, users, _ = workspace
+    alice_diver = owned_diver_ids(db, users["alice"].id)[0]
+    # Three owners on one diver: alice + bob + viewer.
+    for name in ("bob", "viewer"):
+        db.add(
+            UserDiverAccess(
+                user_id=users[name].id, diver_id=alice_diver, access_kind="OWNER"
+            )
+        )
+    db.commit()
+    # One owner opts out: only the two others get a row.
+    notification_service.set_pref(db, users["bob"].id, "new_video", False)
+
+    commits = []
+    real_commit = db.commit
+
+    def counting_commit():
+        commits.append(1)
+        return real_commit()
+
+    monkeypatch.setattr(db, "commit", counting_commit)
+    created = notification_service.notify_owners_for_diver(
+        db,
+        diver_id=alice_diver,
+        exclude_user_id=None,
+        type="new_video",
+        title="t",
+        body="b",
+    )
+    assert {row.user_id for row in created} == {
+        users["alice"].id,
+        users["viewer"].id,
+    }
+    assert len(commits) == 1
+    assert (
+        db.query(Notification)
+        .filter(
+            Notification.type == "new_video",
+            Notification.user_id.in_(
+                [users["alice"].id, users["bob"].id, users["viewer"].id]
+            ),
+        )
+        .count()
+        == 2
+    )
