@@ -67,7 +67,9 @@ it('falls back to video when the poster image fails to load', () => {
   })
   const { container } = render(<DiveThumbnail dive={dive} compact />)
   fireEvent.error(screen.getByRole('img'))
-  expect(container.querySelector('video')).not.toBeNull()
+  const video = container.querySelector('video')
+  expect(video).not.toBeNull()
+  expect(video).toHaveAttribute('src', '/api/v1/media/cache/2289/play')
 })
 
 it('compact placeholder still shows the dive code when nothing is playable', () => {
