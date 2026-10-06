@@ -34,12 +34,12 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
         {isConnected ? (
           <>
             <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
-            <span className="text-xs text-app-muted">Connected</span>
+            <span className="text-xs text-app-muted">{t('sync.connected')}</span>
           </>
         ) : (
           <>
             <WifiOff className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-app-muted">Offline</span>
+            <span className="text-xs text-app-muted">{t('sync.offline')}</span>
           </>
         )}
       </div>
@@ -61,16 +61,16 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             <>
               <Wifi className="w-5 h-5 text-green-400 animate-pulse" />
               <div>
-                <div className="font-semibold text-green-400">Connected</div>
+                <div className="font-semibold text-green-400">{t('sync.connected')}</div>
               </div>
             </>
           ) : (
             <>
               <WifiOff className="w-5 h-5 text-red-400" />
               <div>
-                <div className="font-semibold text-red-400">Disconnected</div>
+                <div className="font-semibold text-red-400">{t('sync.disconnected')}</div>
                 <div className="text-sm text-app-muted">
-                  {connectionError || 'Reconnecting…'}
+                  {connectionError || t('sync.reconnecting')}
                 </div>
               </div>
             </>
@@ -94,11 +94,11 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             <div className="flex-1">
               <div className="font-semibold capitalize">
                 {currentSync.status === 'in_progress'
-                  ? 'Sync in Progress'
+                  ? t('sync.inProgress')
                   : t('sync.statusProgress', { status: currentSync.status })}
               </div>
               <div className="text-sm text-app-muted">
-                ID: {currentSync.sync_id.substring(0, 8)}...
+                {t('sync.idLabel')} {currentSync.sync_id.substring(0, 8)}...
               </div>
             </div>
           </div>

@@ -39,10 +39,10 @@ function SharedVideoPlayer({ video, basePath }: { video: SharedVideo; basePath: 
         {videoError && <p role="alert">{t('sharedDive.videoUnavailable')} <button onClick={() => { setVideoError(false); setVideoEpoch(value => value + 1); }}>{t('sharedDive.retryVideo')}</button></p>}
         <div className="shared-dive-actions">
           <button type="button" aria-label={t('clipViewer.likeDive')} aria-pressed={social?.liked ?? false} disabled={!social || busy} onClick={() => void like(!social?.liked)}>
-            <Heart size={24} fill={social?.liked ? 'currentColor' : 'none'} /><span>{social?.like_count ?? 'Like'}</span>
+            <Heart size={24} fill={social?.liked ? 'currentColor' : 'none'} /><span>{social?.like_count ?? t('sharedDive.like')}</span>
           </button>
           <button type="button" aria-label={t('clipViewer.comments')} aria-expanded={commentsOpen} aria-controls="shared-comments" onClick={() => setCommentsOpen(value => !value)}>
-            <MessageCircle size={24} /><span>{social?.comment_count ?? 'Comments'}</span>
+            <MessageCircle size={24} /><span>{social?.comment_count ?? t('sharedDive.commentsLabel')}</span>
           </button>
         </div>
         {error && <p role="alert">{error} <button onClick={retry}>{t("common.retry")}</button></p>}
@@ -67,12 +67,12 @@ export default function SharedDive() {
     setVideo(null); setError('');
     const token = hash.slice(1);
     if (!/^\d+$/.test(shareId ?? '') || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
-      setError('This shared link is invalid or no longer available.');
+      setError('invalid');
       return;
     }
     visitSharedVideo(basePath, token)
       .then(data => { if (alive) setVideo(data); })
-      .catch(() => { if (alive) setError('This shared video is unavailable. The link may have been revoked.'); });
+      .catch(() => { if (alive) setError('unavailable'); });
     return () => { alive = false; };
   }, [shareId, hash, basePath, epoch]);
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function SharedDive() {
     document.head.appendChild(meta);
     return () => { meta.remove(); };
   }, []);
-  if (error) return <main className="shared-dive"><p role="alert">{error}</p><button onClick={() => setEpoch(value => value + 1)}>{t("common.retry")}</button></main>;
+  if (error) return <main className="shared-dive"><p role="alert">{t(error === 'invalid' ? 'sharedDive.errorInvalid' : 'sharedDive.errorUnavailable')}</p><button onClick={() => setEpoch(value => value + 1)}>{t("common.retry")}</button></main>;
   if (!video) return <main className="shared-dive"><p role="status">{t("sharedDive.loadingShared")}</p></main>;
   return <SharedVideoPlayer key={`${basePath}-${video.guest_id}`} video={video} basePath={basePath} />;
 }
