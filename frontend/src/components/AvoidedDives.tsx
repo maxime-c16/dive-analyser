@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../services/api'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 
@@ -20,6 +21,7 @@ interface AvoidedDivesResponse {
 }
 
 function AvoidedDives() {
+  const { t } = useTranslation()
   const [data, setData] = useState<AvoidedDivesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +39,7 @@ function AvoidedDives() {
       setError(null)
     } catch (err) {
       console.error('Error fetching avoided dives:', err)
-      setError('Failed to load avoided dives analysis')
+      setError(t('avoidedDives.loadError'))
     } finally {
       setLoading(false)
     }
@@ -56,14 +58,7 @@ function AvoidedDives() {
   }
 
   const getPerformanceLabel = (perf: string): string => {
-    const labels: { [key: string]: string } = {
-      'F': 'Failed',
-      'B': 'Bad',
-      'M': 'Medium',
-      'G': 'Good',
-      'P': 'Perfect',
-    }
-    return labels[perf] || perf
+    return ['F', 'B', 'M', 'G', 'P'].includes(perf) ? t(`avoidedDives.performance.${perf}`) : perf
   }
 
   const getDifficultyColor = (rate: number): string => {
@@ -100,7 +95,7 @@ function AvoidedDives() {
     return (
       <div className="text-center py-12 bg-app-panel border border-app rounded-lg">
         <CheckCircle2 className="mx-auto mb-4 h-7 w-7 text-green-400" aria-hidden="true" />
-        <p className="text-app-text font-semibold">No avoided dives.</p>
+        <p className="text-app-text font-semibold">{t('avoidedDives.none')}</p>
       </div>
     )
   }
@@ -112,9 +107,9 @@ function AvoidedDives() {
       {/* Header and Filter */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Avoided Dives</h2>
+          <h2 className="text-2xl font-bold mb-2">{t('avoidedDives.title')}</h2>
           <p className="text-app-muted text-sm">
-            {data.total_avoided} dive{data.total_avoided !== 1 ? 's' : ''} not attempted recently.
+            {t('avoidedDives.notAttempted', { count: data.total_avoided })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -126,7 +121,7 @@ function AvoidedDives() {
                 : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
-            Avoidance Score
+            {t('avoidedDives.avoidanceScore')}
           </button>
           <button
             onClick={() => setSortBy('days')}
@@ -136,7 +131,7 @@ function AvoidedDives() {
                 : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
-            Days Away
+            {t('avoidedDives.daysAway')}
           </button>
           <button
             onClick={() => setSortBy('difficulty')}
@@ -146,7 +141,7 @@ function AvoidedDives() {
                 : 'bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
-            Difficulty
+            {t('avoidedDives.difficulty')}
           </button>
         </div>
       </div>
@@ -170,21 +165,21 @@ function AvoidedDives() {
 
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div>
-                    <div className="text-app-muted text-xs mb-1">Days Without Attempt</div>
-                    <div className="font-bold text-amber-400">{dive.days_since_attempt} days</div>
+                    <div className="text-app-muted text-xs mb-1">{t('avoidedDives.daysWithoutAttempt')}</div>
+                    <div className="font-bold text-amber-400">{t('avoidedDives.daysCount', { count: dive.days_since_attempt })}</div>
                   </div>
                   <div>
-                    <div className="text-app-muted text-xs mb-1">Attempts</div>
+                    <div className="text-app-muted text-xs mb-1">{t('avoidedDives.attempts')}</div>
                     <div className="font-bold text-app-text">{dive.total_attempts}</div>
                   </div>
                   <div>
-                    <div className="text-app-muted text-xs mb-1">Difficulty</div>
+                    <div className="text-app-muted text-xs mb-1">{t('avoidedDives.difficulty')}</div>
                     <div className={`font-bold ${getDifficultyColor(dive.failure_rate / 100)}`}>
                       {Math.round(dive.failure_rate)}%
                     </div>
                   </div>
                   <div>
-                    <div className="text-app-muted text-xs mb-1">Avoidance Score</div>
+                    <div className="text-app-muted text-xs mb-1">{t('avoidedDives.avoidanceScore')}</div>
                     <div className="font-bold text-app-text">{dive.avoidance_score.toFixed(1)}</div>
                   </div>
                 </div>
@@ -198,7 +193,7 @@ function AvoidedDives() {
               {/* Last Performance */}
               <div className="flex items-center gap-2 text-xs text-app-muted">
                 <AlertCircle size={14} />
-                <span>Last performance: <span className="font-mono text-app-text">{getPerformanceLabel(dive.last_performance)}</span></span>
+                <span>{t('avoidedDives.lastPerformance')} <span className="font-mono text-app-text">{getPerformanceLabel(dive.last_performance)}</span></span>
               </div>
             </div>
           </div>
