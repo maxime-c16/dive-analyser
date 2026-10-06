@@ -1,0 +1,8 @@
+{
+  "id": "evaluations-space",
+  "date": "2026-10-07",
+  "title": "Evaluations: judge dives and collect community scores",
+  "body": "A new Evaluations tab opens a full-screen judging stage with a 3-second intro, a 0 to 10 score pad by half points, an optional comment and the community panel revealed after your confirmed score. Owners collect received scores with the jury comments; a closed evaluation keeps the panel but removes replay. Judges never see the dive outside Evaluations and every score stays immutable.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

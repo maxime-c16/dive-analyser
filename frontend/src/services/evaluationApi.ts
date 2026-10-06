@@ -28,8 +28,11 @@ export type EvaluationMediaStatus = {
   dive_id: number
   video_uuid: string
   status: 'ready' | 'preparing' | 'missing'
+  /** Rendition actually chosen by the server's HQ contract. */
+  rendition?: string | null
   poster_url: string | null
   playback_url: string | null
+  /** Ready renditions of THIS request's media (incl. poster). */
   available_renditions: string[]
 }
 
@@ -51,6 +54,16 @@ export async function getEvaluationRequest(diveId: number): Promise<EvaluationRe
 export async function getEvaluationMediaStatus(requestId: number): Promise<EvaluationMediaStatus> {
   const { data } = await api.get(`/api/v1/evaluations/requests/${requestId}/media/status`)
   return data
+}
+
+/**
+ * Playback URL with an explicit rendition choice (the status payload's
+ * `available_renditions` list is authoritative). The default (no param)
+ * keeps the established HQ contract order server-side.
+ */
+export function evaluationPlaybackUrl(requestId: number, rendition?: string): string {
+  const base = `/api/v1/evaluations/requests/${requestId}/media/play`
+  return rendition ? `${base}?rendition=${encodeURIComponent(rendition)}` : base
 }
 
 export async function prepareEvaluationMedia(requestId: number): Promise<

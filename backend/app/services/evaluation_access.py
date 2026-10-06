@@ -189,7 +189,12 @@ def _active_job(db: Session, asset_id: int) -> bool:
 
 
 def media_status(db: Session, request_row: EvaluationRequest, asset: PhotosAsset) -> dict:
-    """Stable media transport fields for ticket 3 (jury player)."""
+    """Stable media transport fields for ticket 3 (jury player).
+
+    ``rendition`` names the playback source actually resolved, so clients can
+    display quality truthfully; the preference is the established Library
+    contract (720p proxy → original → 360p; posters never play).
+    """
     base = f"/api/v1/evaluations/requests/{request_row.id}/media"
     with evaluation_media_scope(db):
         entries = _ready_entries(db, asset.id)
@@ -206,6 +211,7 @@ def media_status(db: Session, request_row: EvaluationRequest, asset: PhotosAsset
             "dive_id": request_row.dive_id,
             "video_uuid": asset.video_uuid,
             "status": status_value,
+            "rendition": playable.rendition if playable else None,
             "poster_url": f"{base}/poster" if poster else None,
             "playback_url": f"{base}/play" if playable else None,
             "available_renditions": sorted({entry.rendition for entry in entries}),
