@@ -11,6 +11,11 @@ import { canPrefetch } from "../hooks/useNavigationIntent";
 
 const MAX_CONCURRENT = 2;
 const MAX_WARMUPS = 12;
+// Bounded memory: warms are pulled in chunks and dropped once a file exceeds
+// the cap (a warmer must never buffer an original rendition into RAM). Files
+// above the cap still never enter the browser HTTP cache wholesale, so the
+// late `<video>` load just streams them the simple way.
+const MAX_WARM_BYTES = 3 * 1024 * 1024;
 
 let active = 0;
 let scheduled = 0;
@@ -29,9 +34,26 @@ async function drain(url: string) {
   try {
     const response = await fetch(url, { priority: "low" as RequestPriority });
     if (!response.ok || !response.body) return;
-    // Consume the body: a cancelled or unread stream is not retained by
-    // the HTTP cache, and this fetch exists only to fill that cache.
-    await response.arrayBuffer();
+    // Content-Length pins the extreme case: abort before buffering anything.
+    const declared = Number(response.headers.get("Content-Length") ?? "");
+    const reader = response.body.getReader();
+    if (declared > MAX_WARM_BYTES) {
+      // Abort the new fetch stream itself; skipping without cancel would
+      // leave the transfer draining network in the background.
+      await reader.cancel();
+      return;
+    }
+
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      received += value.byteLength;
+      if (received > MAX_WARM_BYTES) {
+        await reader.cancel();
+        return;
+      }
+    }
   } catch {
     // Warming is opportunistic; a failure must never surface.
   } finally {
