@@ -1,3 +1,5 @@
+import { takeIntentData, warmIntentData } from './intentCache'
+
 export type ModifierMode = 'any' | 'all' | 'none'
 export type Weighting = 'attempts' | 'sessions'
 export type ContextDimension = 'modifier' | 'height' | 'position' | 'sync' | 'diver' | 'training_period'
@@ -58,6 +60,24 @@ export function serializeAnalysisFilters(filters: DiveAnalysisFilters): URLSearc
   return params
 }
 
+function analysisIntentKey(diveCode: string, filters: DiveAnalysisFilters): string {
+  // Canonical form: identical filter sets must share one key regardless of
+  // object construction order, or viewer-default warms and destination reads
+  // derived from URL search params would never meet.
+  const params = [...serializeAnalysisFilters(filters).entries()].sort(([a], [b]) => a.localeCompare(b))
+  return JSON.stringify(['dive-analysis', diveCode.toUpperCase(), params])
+}
+
+async function fetchAnalysis(diveCode: string, filters: DiveAnalysisFilters): Promise<DiveAnalysis> {
+  const response = await fetch(`/api/v1/dive-analysis/${encodeURIComponent(diveCode.toUpperCase())}?${serializeAnalysisFilters(filters)}`)
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const detail = payload?.detail
+    throw new Error(typeof detail === 'string' ? detail : detail?.message || `Request failed (${response.status})`)
+  }
+  return response.json()
+}
+
 async function json<T>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) {
@@ -69,7 +89,15 @@ async function json<T>(url: string): Promise<T> {
 }
 
 export function getDiveAnalysis(diveCode: string, filters: DiveAnalysisFilters): Promise<DiveAnalysis> {
-  return json(`/api/v1/dive-analysis/${encodeURIComponent(diveCode.toUpperCase())}?${serializeAnalysisFilters(filters)}`)
+  return takeIntentData(analysisIntentKey(diveCode, filters), () => fetchAnalysis(diveCode, filters))
+}
+
+export function warmDiveAnalysis(diveCode: string, filters: DiveAnalysisFilters): void {
+  warmIntentData(analysisIntentKey(diveCode, filters), () => fetchAnalysis(diveCode, filters))
+}
+
+export function defaultAnalysisFilters(diverScope: 'self' | 'all' = 'self'): DiveAnalysisFilters {
+  return { diver_scope: diverScope, modifier_mode: 'any', success_threshold: 'G', weighting: 'attempts' }
 }
 export function getDivers(): Promise<Diver[]> { return json('/api/v1/divers') }
 export function getTrainingPeriods(): Promise<TrainingPeriod[]> { return json('/api/v1/training-periods') }

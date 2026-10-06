@@ -264,7 +264,7 @@ changed="$(git diff --name-only "$prev" "$sha")"
 echo "$changed" | grep -q "^backend/migrations/" && \
     echo "! backend/migrations/ changed — SQL migrations are NOT applied automatically; apply them by hand"
 echo "$changed" | grep -qE "^(docker-compose\.yml|nginx/)" && \
-    echo "! docker-compose.yml or nginx/ changed — after deploy: docker-compose up -d nginx (or exec nginx nginx -s reload)"
+    echo "! docker-compose.yml or nginx/ changed — recreate the proxy after deploy: docker-compose up -d --force-recreate nginx (a reload cannot apply new mounts)"
 echo "$changed" | grep -q "^ops/tailscale/" && \
     echo "! ops/tailscale/ changed — recreate the public proxy: docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate"
 echo "$changed" | grep -q "^mac-agent/" && \

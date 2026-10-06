@@ -27,3 +27,21 @@ it('does not fan a failed batch out into individual media requests or cache a fa
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(cachedPreview('uuid-0')).toBeUndefined();
 });
+it('keeps the playback URL alongside the poster so instant open can seed it', async () => {
+  const fetcher = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      'uuid-a': { status: 'ready', poster_url: '/poster.jpg', playback_url: '/play' },
+      'uuid-b': { status: 'ready', poster_url: null, playback_url: '/play2' },
+    }),
+  });
+  vi.stubGlobal('fetch', fetcher);
+  const { getPreview, cachedPreview } = await import('./mediaPreview');
+  const batch = Promise.all([getPreview('uuid-a'), getPreview('uuid-b')]);
+  await vi.advanceTimersByTimeAsync(50);
+  const [withPoster, withoutPoster] = await batch;
+  expect(withPoster.playbackUrl).toBe('/play');
+  expect(withPoster.ready).toBe(true);
+  expect(withoutPoster.playbackUrl).toBe('/play2');
+  expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
+});

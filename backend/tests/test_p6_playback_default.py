@@ -266,6 +266,18 @@ def fake_presign(monkeypatch, request):
 
 
 @pytest.fixture()
+def python_streamed_media():
+    """TestClient cannot honor X-Accel-Redirect (no nginx inside the loop);
+    byte-level assertions exercise the in-process streaming path, so they
+    run with the accel off."""
+    settings = get_settings()
+    saved = (settings.media_xaccel_enabled, settings.media_xaccel_prefix)
+    settings.media_xaccel_enabled = False
+    yield
+    settings.media_xaccel_enabled, settings.media_xaccel_prefix = saved
+
+
+@pytest.fixture()
 def client(db, flags, fake_presign):
     def override_get_db():
         yield db
@@ -305,7 +317,7 @@ def test_owner_b2_default_when_provider_healthy(client, db, fake_presign):
     assert r.headers.get("Referrer-Policy") == "no-referrer"
 
 
-def test_b2_failure_falls_back_to_authenticated_legacy(client, db, fake_presign):
+def test_b2_failure_falls_back_to_authenticated_legacy(client, db, fake_presign, python_streamed_media):
     behavior, calls = fake_presign
     behavior["fail"] = True
     r = client.get(f"/api/v1/media/revisions/{_revision_id(db, UUID_A)}/play", follow_redirects=False)
@@ -316,7 +328,7 @@ def test_b2_failure_falls_back_to_authenticated_legacy(client, db, fake_presign)
     assert r.headers.get("Referrer-Policy") == "no-referrer"
 
 
-def test_b2_failure_with_range_served_206(client, db, fake_presign):
+def test_b2_failure_with_range_served_206(client, db, fake_presign, python_streamed_media):
     behavior, calls = fake_presign
     behavior["fail"] = True
     r = client.get(
@@ -339,7 +351,7 @@ def test_b2_failure_no_legacy_copy_is_explicit_503(client, db, fake_presign):
     assert r.status_code == 503
 
 
-def test_no_prod_b2_replica_uses_legacy_fallback(client, db, fake_presign):
+def test_no_prod_b2_replica_uses_legacy_fallback(client, db, fake_presign, python_streamed_media):
     """NO_B2 revision: DEV-only verified location → authorized legacy."""
     behavior, calls = fake_presign
     r = client.get(f"/api/v1/media/revisions/{_revision_id(db, UUID_NO_B2)}/play")
@@ -444,7 +456,7 @@ def test_legacy_cache_play_wrong_owner_404(client, db):
     assert r.status_code == 404
 
 
-def test_legacy_cache_route_owner_allowed_with_range(client, db):
+def test_legacy_cache_route_owner_allowed_with_range(client, db, python_streamed_media):
     entry = db.query(MediaCacheEntry).filter_by(rendition="proxy_720p").first()
     r = client.head(f"/api/v1/media/cache/{entry.id}/play")
     assert r.status_code == 200
@@ -633,7 +645,7 @@ def test_playback_metrics_endpoint_counts_and_never_leaks(client, db, fake_presi
     assert "da_session" not in text
 
 
-def test_provider_health_failure_falls_back_to_legacy(client, db, fake_presign):
+def test_provider_health_failure_falls_back_to_legacy(client, db, fake_presign, python_streamed_media):
     """§13 B2_TEMPORARY_FAILURE via the grant-time HEAD proof: a locally
     signed URL is NEVER handed to the browser when the credential cannot
     actually read the object (§29)."""
@@ -655,3 +667,43 @@ def test_provider_health_failure_falls_back_to_legacy(client, db, fake_presign):
     assert r.status_code == 200
     assert b"FAKELEGACYVIDEOBYTES" in r.content
     assert calls == []  # never presigned an unusable grant
+
+
+# ------------------------------------------------------- accel byte-serving
+
+
+def test_cache_root_file_redirects_to_internal_media_location(client, db):
+    """Files inside the cache root stream through nginx, not Python: the
+    auth/path checks stay in this process and the body leaves empty with an
+    internal redirect nginx resolves against the same cache root."""
+    entry = db.query(MediaCacheEntry).filter_by(rendition="proxy_720p").first()
+    r = client.get(f"/api/v1/media/cache/{entry.id}/play")
+    assert r.status_code == 200
+    redirect = r.headers["X-Accel-Redirect"]
+    assert redirect.startswith("/internal-media-cache/")
+    assert ".." not in redirect
+    assert "X-Amz-Signature" not in redirect
+    assert "Cache-Control" in r.headers
+    assert r.headers.get("Referrer-Policy") == "no-referrer"
+    assert b"FAKELEGACYVIDEOBYTES" not in r.content
+
+
+def test_out_of_root_file_still_streams_through_python(client, db):
+    """Legacy/guest sources rooted outside the cache must not silently
+    become unresolvable internal redirects."""
+    import os
+    settings = get_settings()
+    outside = Path(settings.media_cache_root).parent / "outside.txt"
+    outside.write_bytes(b"FAKEOUTSIDEBYTES")
+    saved = (settings.media_xaccel_enabled, settings.media_xaccel_prefix)
+    try:
+        settings.media_xaccel_enabled = True
+        from app.api.v1.media import _serve_media_file
+        client_request_type = type("FakeRequest", (), {"headers": {}})
+        response = _serve_media_file(outside, "text/plain", client_request_type())
+        body_attr = getattr(response, "body_iterator", None) or getattr(response, "body", None)
+        assert body_attr is not None
+        assert "X-Accel-Redirect" not in response.headers
+    finally:
+        os.unlink(outside)
+        settings.media_xaccel_enabled, settings.media_xaccel_prefix = saved

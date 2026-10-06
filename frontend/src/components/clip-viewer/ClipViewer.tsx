@@ -12,6 +12,7 @@ import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
 import { getPreview } from "../../utils/mediaPreview";
+import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { inertExcept, trapTabKey } from "../../utils/a11y";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
@@ -23,6 +24,9 @@ import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
+import { useNavigationIntent } from "../../hooks/useNavigationIntent";
+import { defaultAnalysisFilters, warmDiveAnalysis } from "../../services/diveAnalysisApi";
+import { useAuth } from "../../contexts/AuthContext";
 import "./clipViewer.css";
 
 const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
@@ -32,8 +36,9 @@ const INTERACTIVE_TARGET =
 // TikTok-style vertical feed transition: a short compositor-only enter slide
 // on mobile when the selected dive changes (swipe up/down, Previous/Next).
 // transform/opacity only, ~240ms, mobile-only, skipped under
-// prefers-reduced-motion. No data-layer change: library/media caches,
-// neighbor prefetch and DiveVideoPlayer loading flow are untouched.
+// prefers-reduced-motion. It is presentation-only — it adds no data-layer
+// work. (This file also seeds the player from the shared preview cache and
+// byte-warms ready neighbors; the loader changes live with that commit.)
 export const CLIP_SLIDE_DISTANCE_PX = 56;
 export const CLIP_SLIDE_DURATION_MS = 240;
 const MOBILE_SLIDE_QUERY = "(max-width: 599px)";
@@ -99,6 +104,18 @@ export default function ClipViewer({
     busy: socialBusy,
     retry,
   } = useDiveSocial(attempt.id);
+  const { user } = useAuth();
+  // Hover/pointer-down on the Analysis action speculatively prepares the
+  // analysis result so the destination page meets ready data instead of
+  // opening on a compute round-trip. Consume-once: the page's own call
+  // takes over; retries fall back to its normal fetch.
+  const analysisIntent = useNavigationIntent(
+    `/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`,
+    () => {
+      warmDiveAnalysis(attempt.dive_code, defaultAnalysisFilters(user?.divers?.length ? 'self' : 'all'));
+      return Promise.resolve();
+    },
+  );
   const descriptionGesture = useRef<number | null>(null);
   const descriptionSwiped = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -184,12 +201,12 @@ export default function ClipViewer({
     return inertExcept(dialog);
   }, []);
 
-  // Warm the adjacent clips' poster/status cache so Previous/Next feel
-  // instant. Deduped and cached; no new caching architecture.
+  // Warm the adjacent clips so Previous/Next feel instant: their status
+  // lookups resolve into the shared preview cache (which the player seeds
+  // playback from), and their ready renditions download into the browser
+  // HTTP cache inside a bounded, low-priority byte warm.
   useEffect(() => {
-    [attempts[index - 1], attempts[index + 1]].forEach((neighbor) => {
-      if (neighbor?.video_uuid) getPreview(neighbor.video_uuid);
-    });
+    warmAdjacentClips([attempts[index - 1]?.video_uuid, attempts[index + 1]?.video_uuid]);
   }, [attempts, index]);
 
   // Feed-style enter animation: purely visual, no extra render (direct DOM
@@ -361,6 +378,7 @@ export default function ClipViewer({
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}
                 aria-label={t("clipViewer.analysis")}
+                {...analysisIntent}
               >
                 <BarChart3 size={25} />
                 <span>{t("clipViewer.analysis")}</span>

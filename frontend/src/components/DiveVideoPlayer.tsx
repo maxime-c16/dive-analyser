@@ -3,6 +3,7 @@ import { Clock, DownloadCloud, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ImmersiveControls from './clip-viewer/ImmersiveControls'
 import { useAuth } from '../contexts/AuthContext'
+import { cachedPreview } from '../utils/mediaPreview'
 import {
   getMediaStatus,
   getPlaybackUrlFromStatus,
@@ -79,6 +80,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [posterSrc, setPosterSrc] = useState<string | null>(null)
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
+  const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
 
@@ -92,6 +94,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const userPausedRef = useRef(false)
 
   const applyStatus = useCallback((data: MediaStatus) => {
+    setStatusUnknown(false)
     setCanRequest(Boolean(data.can_request))
     setPosterSrc(getPosterUrlFromStatus(data))
 
@@ -131,6 +134,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // Initial status lookup with a bounded automatic retry window. Terminal
   // transport failure is actionable (manual retry) — never an endless
   // spinner, and never an automatic preparation request.
+  //
+  // Fast path: the shared media-preview cache usually already knows this
+  // clip (Library tiles and the viewer's neighbor warm-up both resolve
+  // statuses there). A known poster and playback URL are applied
+  // immediately, before the status GET resolves, so playback starts in
+  // parallel with the authoritative revalidation instead of after it.
+  // The backend status remains the lifecycle authority and still rewrites
+  // or corrects the seeded phase when it responds.
   useEffect(() => {
     let cancelled = false
     failuresRef.current = 0
@@ -139,7 +150,20 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setStale(false)
     setDecodeError(false)
     setPosterSrc(null)
-    setPhase({ kind: 'checking' })
+    setStatusUnknown(false)
+
+    const seed = videoUuid ? cachedPreview(videoUuid) : null
+    if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
+    if (seed?.playbackUrl) {
+      // Seeding the ready phase with a previously issued playback URL
+      // never creates preparation work and never overrides backend state:
+      // the authoritative status lookup below still runs and applies.
+      preparingSinceRef.current = null
+      lastPreparingLabelRef.current = null
+      setPhase({ kind: 'ready', src: seed.playbackUrl })
+    } else {
+      setPhase({ kind: 'checking' })
+    }
 
     const run = async (attempt: number) => {
       try {
@@ -153,7 +177,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
             if (!cancelled) run(attempt + 1)
           }, INITIAL_STATUS_RETRY_DELAY_MS * attempt)
         } else {
-          setPhase({ kind: 'transport-failed' })
+          // A windowed transport failure after a seeded playback must not
+          // swallow the warm clip (bytes it was served earlier were valid)
+          // nor strand the viewer in an unreachable overlay: keep the
+          // playback and surface the failed lookup separately, actionable.
+          setPhase((prev) => (prev.kind === 'ready' ? prev : { kind: 'transport-failed' }))
+          setStatusUnknown(true)
         }
       }
     }
@@ -369,6 +398,26 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       />
 
       {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} onLike={onLike} onNavigate={onNavigate} />}
+
+      {/* Failed initial status lookup that did NOT end playback (a seeded
+          warm clip): a separate, non-covering status check affordance. */}
+      {statusUnknown && phase.kind === 'ready' && !decodeError && (
+        <div
+          className="absolute inset-x-4 bottom-24 z-20 flex items-center justify-center gap-3 rounded-lg bg-black/60 px-3 py-2"
+          role="alert"
+        >
+          <WifiOff className="hidden h-4 w-4 text-app-muted sm:inline" />
+          <p className="text-xs text-app-text">Media status check failed</p>
+          <button
+            type="button"
+            onClick={retryStatusCheck}
+            className="touch-target inline-flex items-center gap-2 rounded-lg border border-app-accent bg-app-panel px-3 py-1 text-xs font-semibold text-app-accent"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry status check
+          </button>
+        </div>
+      )}
 
       {phase.kind === 'ready' && !decodeError && (
         <p className="sr-only" role="status">
