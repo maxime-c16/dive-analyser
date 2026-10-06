@@ -57,9 +57,11 @@ it('falls back to the playable proxy when the poster is missing (poster job fail
 })
 
 it('falls back to video when the poster image fails to load', () => {
+  // Production never sets videoThumbUrl alongside a poster URL
+  // (mediaPreview.ts), so exercise the playbackUrl fallback path.
   vi.mocked(cachedPreview).mockReturnValue({
     posterUrl: '/api/v1/media/cache/broken/play',
-    videoThumbUrl: '/api/v1/media/cache/2289/play',
+    videoThumbUrl: null,
     playbackUrl: '/api/v1/media/cache/2289/play',
     ready: true,
   })
