@@ -29,6 +29,17 @@ describe('diveCodeName English', () => {
   })
 })
 
+
+describe('diveCodeName armstand twist digits', () => {
+  it('keeps undefined twist digits raw', () => {
+    // Twist digit 0/9 is not defined by the reference: raw, not renamed.
+    expect(diveCodeName('6103B', 'en')).toBe('6103B')
+    expect(diveCodeName('6103B', 'fr')).toBe('6103B')
+    expect(parseDiveCode('6121D')).toBeTruthy()
+    expect(parseDiveCode('6103B')).toBeNull()
+  })
+})
+
 describe('diveCodeName French (FINA/FFN jargon)', () => {
   it('renders canonical French names', () => {
     expect(diveCodeName('101B', 'fr')).toBe('Plongeon en avant carpé')

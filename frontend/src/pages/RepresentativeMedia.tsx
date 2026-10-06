@@ -76,8 +76,8 @@ function RepresentativeCardView({
       <div className="space-y-3 p-4 text-sm">
         <div>
           <div className="text-xl font-semibold text-app-text">{rep.attempt.score_10.toFixed(1)} <span className="text-sm font-normal text-app-muted">/ {rep.attempt.performance}</span></div>
-          <div className="mt-1 text-app-muted">{formatDate(rep.attempt.dive_datetime)} · {rep.attempt.height} · {rep.attempt.is_sync ? 'SYNC' : 'Individual'}</div>
-          <div className="mt-1 text-app-muted">{rep.attempt.diver?.display_name || 'Unassigned'} · {rep.attempt.modifiers.join(', ') || 'No modifiers'}</div>
+          <div className="mt-1 text-app-muted">{formatDate(rep.attempt.dive_datetime)} · {rep.attempt.height} · {rep.attempt.is_sync ? 'SYNC' : t('analysis.individual')}</div>
+          <div className="mt-1 text-app-muted">{rep.attempt.diver?.display_name || t('analysis.unassigned')} · {rep.attempt.modifiers.join(', ') || t('analysis.noModifiers')}</div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{rep.media.renditions.poster.status}</div></div>
@@ -139,13 +139,13 @@ function CandidatePanel({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-semibold text-app-text">{candidate.candidate.score_10.toFixed(1)} / {candidate.candidate.performance}</div>
-                  <div className="mt-1 text-sm text-app-muted">{formatDate(candidate.candidate.dive_datetime)} · {candidate.candidate.height} · {candidate.candidate.is_sync ? 'SYNC' : 'Individual'}</div>
+                  <div className="mt-1 text-sm text-app-muted">{formatDate(candidate.candidate.dive_datetime)} · {candidate.candidate.height} · {candidate.candidate.is_sync ? 'SYNC' : t('analysis.individual')}</div>
                   <div className="mt-1 text-xs text-app-muted">{t('repMedia.scoreDistance')} {candidate.similarity.score_distance.toFixed(1)} · {VIABILITY_LABELS[candidate.media_viability] || candidate.media_viability}</div>
-                  <div className="mt-1 text-xs text-app-muted">{candidate.ready_renditions.length ? `${candidate.ready_renditions.join(', ')} already ready` : 'No cached rendition'} · prior attempts {candidate.materialization_history.attempt_count}</div>
+                  <div className="mt-1 text-xs text-app-muted">{candidate.ready_renditions.length ? t('repMedia.alreadyReady', { renditions: candidate.ready_renditions.join(', ') }) : t('repMedia.noCachedRendition')} · {t('analysis.attempts')} {candidate.materialization_history.attempt_count}</div>
                 </div>
                 <div className="text-right text-xs text-app-muted">
-                  <div>{candidate.similarity.height_match ? 'Height match' : 'Height differs'}</div>
-                  <div>{candidate.similarity.modifier_match ? 'Modifiers match' : 'Modifiers differ'}</div>
+                  <div>{candidate.similarity.height_match ? t('repMedia.heightMatch') : t('repMedia.heightDiffers')}</div>
+                  <div>{candidate.similarity.modifier_match ? t('repMedia.modifiersMatch') : t('repMedia.modifiersDiffer')}</div>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">

@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import i18n from "../i18n";
+import { appLocale } from "./dateLocale";
 import { performanceScore10 } from "./performanceScoring";
 import { divePositionName } from "./divePosition";
 
@@ -66,7 +67,7 @@ export function attemptScore(attempt: Attempt) {
 }
 
 export function attemptDate(attempt: Attempt, pattern = "d MMM yyyy") {
-  return format(parseISO(attempt.dive_datetime), pattern);
+  return format(parseISO(attempt.dive_datetime), pattern, { locale: appLocale() });
 }
 
 /** platform_type arrives as "springboard"/"platform" — display localized. */

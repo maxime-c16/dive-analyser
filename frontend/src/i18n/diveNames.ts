@@ -46,7 +46,10 @@ export type DiveParts = {
 
 const STANDARD_RE = /^([1-4])([01])([1-8])([ABCD])$/
 const TWISTING_RE = /^5([1-4])([1-8])([1-8])([ABCD])$/
-const ARMSTAND_RE = /^6([0-5])([1-8])(\d?)([ABCD])$/
+// The optional twist digit accepts only supported values (1-8): a 0 or 9
+// twist digit is not defined by the reference, so the code stays unparsed
+// (rendered raw) rather than being silently named as a different dive.
+const ARMSTAND_RE = /^6([0-5])([1-8])([1-8]?)([ABCD])$/
 
 /** Parses FINA codes; returns null for anything the reference doesn't define. */
 export function parseDiveCode(code?: string | null): DiveParts | null {
