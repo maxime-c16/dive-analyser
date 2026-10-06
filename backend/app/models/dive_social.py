@@ -8,6 +8,8 @@ class DiveLike(Base):
     __tablename__ = 'dive_likes'
     dive_id = Column(Integer, ForeignKey('dives.id', ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey('app_users.id', ondelete='CASCADE'), primary_key=True)
+    # Unknown (NULL) for likes recorded before the activity history existed.
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
 
 
 class DiveComment(Base):
@@ -26,9 +28,11 @@ class DiveCommentLike(Base):
     __tablename__ = 'dive_comment_likes'
     comment_id = Column(Integer, ForeignKey('dive_comments.id', ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey('app_users.id', ondelete='CASCADE'), primary_key=True)
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
 
 
 class DiveGuestCommentLike(Base):
     __tablename__ = 'dive_guest_comment_likes'
     comment_id = Column(Integer, ForeignKey('dive_comments.id', ondelete='CASCADE'), primary_key=True)
     guest_id = Column(Integer, ForeignKey('dive_guests.id', ondelete='CASCADE'), primary_key=True)
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)

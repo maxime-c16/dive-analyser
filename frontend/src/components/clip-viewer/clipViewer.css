@@ -522,6 +522,14 @@
   color: var(--app-muted);
   margin-top: 4px;
 }
+.comment-author-link {
+  color: inherit;
+}
+.comment-author-link:hover strong {
+  color: var(--app-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .clip-comment p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

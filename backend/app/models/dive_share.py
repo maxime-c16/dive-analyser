@@ -27,6 +27,8 @@ class DiveGuestLike(Base):
     __tablename__ = 'dive_guest_likes'
     dive_id = Column(Integer, ForeignKey('dives.id', ondelete='CASCADE'), primary_key=True)
     guest_id = Column(Integer, ForeignKey('dive_guests.id', ondelete='CASCADE'), primary_key=True)
+    # Unknown (NULL) for likes recorded before the activity history existed.
+    created_at = Column(DateTime, nullable=True, default=datetime.utcnow)
 
 
 class DiveGuestAccess(Base):
