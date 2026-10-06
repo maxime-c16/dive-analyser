@@ -111,12 +111,61 @@ function useServerNotifPrefs(active: boolean): {
     if (!active || loaded) return
     let alive = true
     getNotificationPrefs()
-      .then(data => {
+      .then(async data => {
         if (!alive) return
         const next = { ...SERVER_NOTIF_DEFAULTS }
         for (const type of SERVER_NOTIF_TYPES) {
           if (typeof data[type] === 'boolean') next[type] = data[type]
         }
+        // One-time push: a legacy per-device `milestoneAlerts=false` must win
+        // over the server default on the first successful sync. Only the key
+        // present in the stored blob counts (not the in-memory default), and
+        // the flag is set only when the PUT succeeds so a failure retries on
+        // the next sync.
+        try {
+          const rawLegacy = localStorage.getItem(PREFS_KEY)
+          if (rawLegacy) {
+            const parsed = JSON.parse(rawLegacy) as Record<string, unknown>
+            if (
+              parsed.milestoneMigrated !== true &&
+              typeof parsed.milestoneAlerts === 'boolean'
+            ) {
+              try {
+                const saved = await putNotificationPref(
+                  'milestone',
+                  parsed.milestoneAlerts,
+                )
+                if (!alive) return
+                next.milestone = !!saved.enabled
+              } catch {
+                // PUT failed: keep the server values on screen, leave the
+                // flag unset so the next sync retries.
+                if (!alive) return
+                setPrefs(next)
+                setLoaded(true)
+                try {
+                  localStorage.setItem(SERVER_PREFS_CACHE_KEY, JSON.stringify(next))
+                } catch {
+                  // Cache is best-effort; the server already holds the truth.
+                }
+                return
+              }
+              try {
+                const rawCurrent = localStorage.getItem(PREFS_KEY)
+                const stored = rawCurrent ? (JSON.parse(rawCurrent) as Record<string, unknown>) : {}
+                localStorage.setItem(
+                  PREFS_KEY,
+                  JSON.stringify({ ...stored, milestoneMigrated: true }),
+                )
+              } catch {
+                // Flag write is best-effort; a miss simply retries next sync.
+              }
+            }
+          }
+        } catch {
+          // Corrupt blob: keep the server values.
+        }
+        if (!alive) return
         setPrefs(next)
         setLoaded(true)
         try {
