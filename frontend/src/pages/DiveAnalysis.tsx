@@ -159,7 +159,7 @@ function buildTimelinePoint(attempt: DiveAttempt): TimelinePoint {
     height: attempt.height,
     position: attempt.position,
     modifiers: attempt.modifiers,
-    diver: attempt.diver?.display_name || 'Unassigned',
+    diver: attempt.diver?.display_name || i18n.t('analysis.unassigned'),
     mediaStatus: attempt.media.status,
     label: i18n.t('analysis.pointLabel', {
       date: format(parseISO(attempt.dive_datetime), 'd MMM yyyy, HH:mm', { locale: appLocale() }),
