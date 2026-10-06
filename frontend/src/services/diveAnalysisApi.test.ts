@@ -51,3 +51,22 @@ it("the warmed and destination filters serialize identically", async () => {
   await getDiveAnalysis("103B", { diver_scope: "self", date_from: "2026-01-01" });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it("viewer default warms meet destination reads derived from URL search params", async () => {
+  const fetcher = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ attempts: [] }),
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { filtersFromSearchParams } = await import("../pages/DiveAnalysis");
+  const { getDiveAnalysis, warmDiveAnalysis, defaultAnalysisFilters } = await import("./diveAnalysisApi");
+  const { takeIntentData } = await import("./intentCache");
+  // Realistic destination state: only the attempt marker in the URL.
+  const search = new URLSearchParams("attempt=407");
+  const destinationFilters = filtersFromSearchParams(search);
+  warmDiveAnalysis("103B", defaultAnalysisFilters("self"));
+  await vi.advanceTimersByTimeAsync(0);
+  await getDiveAnalysis("103B", destinationFilters);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await takeIntentData("never-matches", () => Promise.resolve(null));
+});

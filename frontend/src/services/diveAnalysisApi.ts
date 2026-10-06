@@ -61,7 +61,11 @@ export function serializeAnalysisFilters(filters: DiveAnalysisFilters): URLSearc
 }
 
 function analysisIntentKey(diveCode: string, filters: DiveAnalysisFilters): string {
-  return JSON.stringify(['dive-analysis', diveCode.toUpperCase(), serializeAnalysisFilters(filters).toString()])
+  // Canonical form: identical filter sets must share one key regardless of
+  // object construction order, or viewer-default warms and destination reads
+  // derived from URL search params would never meet.
+  const params = [...serializeAnalysisFilters(filters).entries()].sort(([a], [b]) => a.localeCompare(b))
+  return JSON.stringify(['dive-analysis', diveCode.toUpperCase(), params])
 }
 
 async function fetchAnalysis(diveCode: string, filters: DiveAnalysisFilters): Promise<DiveAnalysis> {
