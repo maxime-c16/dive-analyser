@@ -319,10 +319,13 @@ def _has_more(db: Session, user, session: EvaluationSession) -> bool:
     query = _eligible_query(db, user).filter(
         ~EvaluationRequest.id.in_(marks)
     )
-    first_pair = query.first()
-    return bool(
-        first_pair and first_pair[0].id in _ready_video_uuids(db, [first_pair])
-    )
+    for page in range(SCAN_MAX_PAGES):
+        pairs = query.offset(page * CANDIDATE_PAGE).limit(CANDIDATE_PAGE).all()
+        if _ready_video_uuids(db, pairs):
+            return True
+        if len(pairs) < CANDIDATE_PAGE:
+            return False
+    return False
 
 
 def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw_batch_id: str) -> dict:
@@ -411,43 +414,13 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                 marked_pairs.append((request_row, dive))
             except Exception:
                 db.rollback()
-        offset = int(session.scan_offset or 0)
-        scan_pages = 0
-        end_of_corpus = False
-        next_cursor = offset
-        batch_full = False
-        while len(items_pairs) <= limit and scan_pages < SCAN_MAX_PAGES:
-            page_start = offset
-            candidates = base_query.offset(offset).limit(CANDIDATE_PAGE).all()
-            if not candidates:
-                end_of_corpus = True
-                break
-            scan_pages += 1
-            ready_uuids = _ready_video_uuids(db, candidates)
-            for offset_in_page, entry_pair in enumerate(candidates):
-                _, dive = entry_pair
-                eligible = bool(ready_uuids and dive.video_uuid in ready_uuids)
-                if not eligible:
-                    continue
-                if len(items_pairs) == limit:
-                    # The batch is full at this request: the cursor stays ON
-                    # this request so the next read proposes it first.
-                    batch_full = True
-                    next_cursor = page_start + offset_in_page
-                    break
-                items_pairs.append(entry_pair)
-            if batch_full:
-                break
-            offset += len(candidates)
-            next_cursor = offset
         # Persist the cursor (wrap when the corpus end was reached without
         # a full-batch stop; otherwise resume exactly where we left off).
-        session.scan_offset = 0 if end_of_corpus else next_cursor
+        session.scan_offset = 0 if end_of_corpus else max(0, next_cursor - len(marked_pairs))
         db.commit()
         # Payloads are rebuilt from BATCHED probes (no per-item round trips).
         items = _batch_payloads(db, marked_pairs)
-        if len(items) < limit and not has_more:
-            has_more = _has_more(db, user, session)
+        has_more = _has_more(db, user, session)
         return {"batch_id": batch_id, "items": items, "has_more": bool(has_more)}
 
 

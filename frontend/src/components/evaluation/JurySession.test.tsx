@@ -21,13 +21,16 @@ vi.mock('../../services/evaluationApi', async (importOriginal) => {
   return {
     ...original,
     createSession: vi.fn(),
+    createAutomaticStack: vi.fn(),
+    getAutomaticQueue: vi.fn(),
+    skipAutomaticDive: vi.fn(),
     getQueue: vi.fn(),
     skipRequest: vi.fn(),
     submitRating: vi.fn(),
   }
 })
 
-import { createSession, getQueue, skipRequest, submitRating } from '../../services/evaluationApi'
+import { createSession, getQueue, skipRequest, submitRating, createAutomaticStack, getAutomaticQueue, skipAutomaticDive } from '../../services/evaluationApi'
 
 function item(id: number, code: string): NonNullable<QueueBatch['items'][number]> {
   const value = id
@@ -401,4 +404,42 @@ it('labels the intro fan as unambiguously illustrative and drops it on skip', as
   await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   expect(document.querySelector('.eval-intro')).toBeNull()
   expect(document.querySelector('.eval-intro-demo')).toBeNull()
+})
+
+
+it('uses a finite automatic stack, resumes after quitting, and sends video identity', async () => {
+  vi.mocked(createAutomaticStack).mockResolvedValue({ session_id: 9, expires_at: 'tomorrow', created: true })
+  vi.mocked(getAutomaticQueue).mockResolvedValue({ ...batch, items: [item(11, '107B')] })
+  vi.mocked(submitRating).mockResolvedValue(voteResponse)
+  render(<MemoryRouter><JurySession automatic /></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
+  await screen.findByText('EvalVideo')
+  expect(createSession).not.toHaveBeenCalled()
+  expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), true)
+  fireEvent.keyDown(document, { key: 'Escape' })
+  fireEvent.click(screen.getByRole('button', { name: 'Resume this selection' }))
+  await screen.findByText('EvalVideo')
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '13' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await waitFor(() => expect(submitRating).toHaveBeenCalledWith(11, 13, undefined, true, 'u11'))
+  fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+  await screen.findByRole('button', { name: 'Request another selection' })
+  expect(getAutomaticQueue).toHaveBeenCalledTimes(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Request another selection' }))
+  fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
+  await waitFor(() => expect(createAutomaticStack).toHaveBeenLastCalledWith(expect.any(String), false))
+})
+
+it('passes an automatic dive using its stack and keeps the manual queue untouched', async () => {
+  vi.mocked(createAutomaticStack).mockResolvedValue({ session_id: 9, expires_at: 'tomorrow', created: true })
+  vi.mocked(getAutomaticQueue).mockResolvedValue({ ...batch, items: [item(11, '107B')] })
+  vi.mocked(skipAutomaticDive).mockResolvedValue()
+  render(<MemoryRouter><JurySession automatic /></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
+  await screen.findByText('EvalVideo')
+  fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await screen.findByRole('button', { name: 'Request another selection' })
+  expect(skipAutomaticDive).toHaveBeenCalledWith(9, 11)
+  expect(skipRequest).not.toHaveBeenCalled()
+  expect(getQueue).not.toHaveBeenCalled()
 })

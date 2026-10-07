@@ -46,11 +46,11 @@ const PLAYABLE_RENDITIONS = ['original', 'proxy_720p', 'proxy_360p']
 // Sound preference persists across dives (one nudge, no repeated prompts).
 let soundPreferred = true
 
-function packReady(status: EvaluationMediaStatus, rendition: string): Extract<Playback, { kind: 'ready' }> {
+function packReady(status: EvaluationMediaStatus, rendition: string, automatic: boolean): Extract<Playback, { kind: 'ready' }> {
   const playableChoices = status.available_renditions.filter((name) => PLAYABLE_RENDITIONS.includes(name))
   return {
     kind: 'ready',
-    src: evaluationPlaybackUrl(status.request_id, rendition),
+    src: evaluationPlaybackUrl(status.request_id, rendition, automatic),
     poster: status.poster_url,
     hq: HQ_RENDITIONS.has(rendition),
     rendition,
@@ -61,9 +61,11 @@ function packReady(status: EvaluationMediaStatus, rendition: string): Extract<Pl
 export default function EvaluationPlayer({
   requestId,
   paused = false,
+  automatic = false,
 }: {
   requestId: number
   paused?: boolean
+  automatic?: boolean
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -90,18 +92,18 @@ export default function EvaluationPlayer({
     prepareQueued.current = false
     preparingSince.current = null
     try {
-      const status = await getEvaluationMediaStatus(requestId)
+      const status = await getEvaluationMediaStatus(requestId, automatic)
       if (epoch !== requestEpochRef.current) return
       if (status.status === 'ready' && status.playback_url) {
-        setPlayback(packReady(status, status.rendition ?? 'proxy_360p'))
+        setPlayback(packReady(status, status.rendition ?? 'proxy_360p', automatic))
         setHqHint(!HQ_RENDITIONS.has(status.rendition ?? ''))
         if (!HQ_RENDITIONS.has(status.rendition ?? '') && !prepareQueued.current) {
           // Proxy-only playback while HQ may be preparable: one bounded ask.
           prepareQueued.current = true
-          prepareEvaluationMedia(requestId).then((prepared) => {
+          prepareEvaluationMedia(requestId, automatic).then((prepared) => {
             if (epoch !== requestEpochRef.current) return
             if (prepared.status === 'ready' && prepared.playback_url) {
-              setPlayback(packReady(prepared, prepared.rendition ?? 'proxy_720p'))
+              setPlayback(packReady(prepared, prepared.rendition ?? 'proxy_720p', automatic))
               setHqHint(false)
             }
           }).catch(() => {})
@@ -120,7 +122,7 @@ export default function EvaluationPlayer({
       // Deactivated/revoked request: the evaluation ended for this item.
       setPlayback(axios.response?.status === 404 ? { kind: 'missing' } : { kind: 'failed' })
     }
-  }, [requestId])
+  }, [requestId, automatic])
 
   useEffect(() => {
     userPausedRef.current = false
@@ -137,16 +139,16 @@ export default function EvaluationPlayer({
     const epoch = requestEpochRef.current
     const timer = window.setTimeout(async () => {
       try {
-        await prepareEvaluationMedia(requestId)
+        await prepareEvaluationMedia(requestId, automatic)
       } catch {
         /* Preparation is best-effort; the visible state keeps its retry. */
       }
       if (!alive || epoch !== requestEpochRef.current) return
       try {
-        const status = await getEvaluationMediaStatus(requestId)
+        const status = await getEvaluationMediaStatus(requestId, automatic)
         if (!alive || epoch !== requestEpochRef.current) return
         if (status.status === 'ready' && status.playback_url) {
-          setPlayback(packReady(status, status.rendition ?? 'proxy_360p'))
+          setPlayback(packReady(status, status.rendition ?? 'proxy_360p', automatic))
         }
       } catch {
         /* keep the visible state */
@@ -162,7 +164,7 @@ export default function EvaluationPlayer({
       window.clearTimeout(timer)
       window.clearTimeout(giveUp)
     }
-  }, [playback.kind, requestId])
+  }, [playback.kind, requestId, automatic])
 
   // Sound-first autoplay: honor the account's sound preference when the
   // browser still grants the gesture context, fall back silently otherwise
@@ -341,7 +343,7 @@ export default function EvaluationPlayer({
               const order = [...playback.playableChoices]
               const index = order.indexOf(playback.rendition)
               const next = order[(index + 1) % order.length]
-              setPlayback({ ...playback, src: evaluationPlaybackUrl(requestId, next), rendition: next, hq: HQ_RENDITIONS.has(next) })
+              setPlayback({ ...playback, src: evaluationPlaybackUrl(requestId, next, automatic), rendition: next, hq: HQ_RENDITIONS.has(next) })
             }}
           >
             {playback.rendition === 'original' ? t('evaluations.qualityOriginal') : t('evaluations.qualityHQ')}
