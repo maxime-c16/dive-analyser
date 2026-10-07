@@ -60,6 +60,19 @@ def test_push_config_reports_public_key_only(workspace, monkeypatch):
     assert body == {"publicKey": "test-public-key"}
 
 
+def test_push_config_empty_when_partially_configured(workspace, monkeypatch):
+    """Public key alone must not offer opt-in: fan-out needs the full
+    triple (public + private + subject), so push-config stays honest."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "vapid_public_key", "test-public-key")
+    monkeypatch.setattr(settings, "vapid_private_key", "")
+    monkeypatch.setattr(settings, "vapid_subject", "")
+    _, login, _, _, _ = workspace
+    assert login("alice").get("/api/v1/push-config").json() == {"publicKey": ""}
+
+
 def test_subscription_upsert_and_delete(workspace):
     from app.models.notification import PushSubscription
 
@@ -253,3 +266,91 @@ def test_batch_fanout_survives_push_errors(workspace, monkeypatch):
     )
     assert {row.user_id for row in rows} == {users["alice"].id}
     assert db.query(Notification).filter_by(user_id=users["alice"].id).count() == 1
+
+
+def test_send_one_uses_bounded_timeout_and_no_redirect_session(monkeypatch):
+    """Each send is bounded (no wedged worker) and never follows redirects
+    (an allowlisted endpoint must not bounce the POST to a private URL)."""
+    from app.services import push_service
+
+    _vapid(monkeypatch, configured=True)
+    captured = {}
+
+    def fake_webpush(**kwargs):
+        captured.update(kwargs)
+
+        class Resp:
+            status_code = 201
+
+        return Resp()
+
+    monkeypatch.setattr(push_service, "_pywebpush", fake_webpush)
+    push_service._send_one(
+        endpoint=SUB["endpoint"], p256dh="k1", auth="a1", payload="{}"
+    )
+    assert captured["timeout"] == push_service._PUSH_SEND_TIMEOUT_SECONDS
+    assert isinstance(
+        captured["requests_session"], push_service._NoRedirectSession
+    )
+
+
+def test_no_redirect_session_disables_redirects(monkeypatch):
+    from app.services import push_service
+
+    seen = {}
+
+    def fake_post(self, url, *args, **kwargs):
+        seen.update(kwargs)
+
+        class Resp:
+            status_code = 200
+
+        return Resp()
+
+    monkeypatch.setattr(push_service.requests.Session, "post", fake_post)
+    push_service._NoRedirectSession().post("https://fcm.googleapis.com/x")
+    assert seen.get("allow_redirects") is False
+
+
+def test_send_one_timeout_skips_without_prune(monkeypatch):
+    """A slow push service skips the device: no raise (so no prune)."""
+    import requests
+
+    from app.services import push_service
+
+    _vapid(monkeypatch, configured=True)
+
+    def slow_webpush(**kwargs):
+        raise requests.exceptions.ConnectTimeout("slow push service")
+
+    monkeypatch.setattr(push_service, "_pywebpush", slow_webpush)
+    assert (
+        push_service._send_one(
+            endpoint=SUB["endpoint"], p256dh="k1", auth="a1", payload="{}"
+        )
+        is None
+    )
+
+
+def test_send_one_redirect_failure_keeps_subscription(monkeypatch):
+    """A refused 3xx (no-redirect session) is a plain failure: no PushGone,
+    so fan-out never prunes on redirect."""
+    from app.services import push_service
+
+    _vapid(monkeypatch, configured=True)
+
+    class Resp:
+        status_code = 302
+
+    def redirect_webpush(**kwargs):
+        err = RuntimeError("redirect refused")
+        err.response = Resp()  # type: ignore[attr-defined]
+        raise err
+
+    monkeypatch.setattr(push_service, "_pywebpush", redirect_webpush)
+    assert (
+        push_service._send_one(
+            endpoint=SUB["endpoint"], p256dh="k1", auth="a1", payload="{}"
+        )
+        is None
+    )

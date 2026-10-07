@@ -19,6 +19,7 @@ import logging
 from typing import List, Sequence
 from urllib.parse import urlparse
 
+import requests
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -48,6 +49,28 @@ _PUSH_SUBSCRIPTION_LIMIT = 100
 # Bound stored devices per user (oldest evicted on overflow at upsert time).
 MAX_SUBSCRIPTIONS_PER_USER = 20
 _PUSH_TTL_SECONDS = 86400
+
+# Bound each outbound push POST so one slow push service cannot wedge the
+# single uvicorn worker (requests takes seconds). Exceeding it skips the
+# device without pruning — the next fan-out retries.
+_PUSH_SEND_TIMEOUT_SECONDS = 10
+
+
+class _NoRedirectSession(requests.Session):
+    """requests session that never follows redirects.
+
+    The fan-out allowlist validates the initial endpoint, but requests
+    follows redirects by default — an allowlisted endpoint answering 3xx
+    could bounce the POST to a private/local URL, bypassing the SSRF
+    guard. pywebpush's webpush() exposes `timeout` and `requests_session`
+    but no allow_redirects flag, so the session forces it off. A 3xx then
+    surfaces as a plain failure (no prune, retried on the next fan-out).
+    """
+
+    def post(self, url, *args, **kwargs):
+        kwargs["allow_redirects"] = False
+        return super().post(url, *args, **kwargs)
+
 
 try:
     from pywebpush import WebPushException
@@ -133,7 +156,10 @@ def _send_one(*, endpoint: str, p256dh: str, auth: str, payload: str) -> None:
     Transport failures other than gone-away are swallowed (best-effort).
     Never logs endpoint, keys or payload contents.
     Defense in depth: re-validates the allowlist so a row written before
-    validation (or by hand) can never turn the server into an SSRF proxy.
+    validation (or by hand) can never turn the server into an SSRF proxy,
+    sends with redirects disabled (an allowlisted endpoint must not bounce
+    the POST to a private URL), and bounds each send with a timeout so a
+    slow push service cannot wedge the single uvicorn worker.
     """
     if not is_allowed_push_endpoint(endpoint):
         return
@@ -150,13 +176,19 @@ def _send_one(*, endpoint: str, p256dh: str, auth: str, payload: str) -> None:
             vapid_private_key=settings.vapid_private_key,
             vapid_claims={"sub": settings.vapid_subject},
             ttl=_PUSH_TTL_SECONDS,
+            timeout=_PUSH_SEND_TIMEOUT_SECONDS,
+            requests_session=_NoRedirectSession(),
         )
+    except requests.exceptions.Timeout:
+        # Slow push service: skip this device (no prune, no send count).
+        logger.warning("push send timed out")
     except Exception as exc:
         status = getattr(getattr(exc, "response", None), "status_code", None)
         if status in (404, 410):
             raise PushGone(f"push endpoint gone (status {status})")
-        # WebPushException without a response (bad receipt, VAPID rejection,
-        # network error): best-effort, keep the subscription for next time.
+        # Anything else — WebPushException without a response (bad receipt,
+        # VAPID rejection, network error) or a refused 3xx redirect from the
+        # no-redirect session above: best-effort, keep the subscription.
         logger.warning("push send failed (status %s)", status)
 
 

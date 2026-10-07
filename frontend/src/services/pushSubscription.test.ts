@@ -138,7 +138,7 @@ describe('pushSubscription helpers', () => {
     expect(typeof body.device_label).toBe('string')
   })
 
-  it('unsubscribes and deletes the endpoint on opt-out', async () => {
+  it('deletes the server endpoint before unsubscribing locally', async () => {
     const existing = {
       endpoint: 'https://push.example.test/old-device',
       unsubscribe: vi.fn(async () => true),
@@ -148,7 +148,43 @@ describe('pushSubscription helpers', () => {
     vi.stubGlobal('fetch', fetchMock)
     await expect(getExistingPushSubscription()).resolves.toBe(existing)
     await expect(disablePushDevice()).resolves.toBe(true)
-    expect(existing.unsubscribe).toHaveBeenCalledOnce()
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/push-subscriptions', expect.objectContaining({ method: 'DELETE' }))
+    expect(existing.unsubscribe).toHaveBeenCalledOnce()
+    // Server-first: the DELETE must leave before the local unsubscribe, so
+    // a failed DELETE keeps the local subscription (and its endpoint) for
+    // the retry.
+    expect(fetchMock.mock.invocationCallOrder[0]).toBeLessThan(
+      (existing.unsubscribe as unknown as { mock: { invocationCallOrder: number[] } }).mock.invocationCallOrder[0],
+    )
+  })
+
+  it('keeps the local subscription when the server delete fails', async () => {
+    const existing = {
+      endpoint: 'https://push.example.test/old-device',
+      unsubscribe: vi.fn(async () => true),
+    }
+    stubBrowser({ permission: 'granted', subscription: existing })
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('HTTP 500')
+    }))
+    await expect(disablePushDevice()).resolves.toBe(false)
+    // Untouched local subscription: the retry still finds it and its
+    // endpoint, so it can attempt the server DELETE again.
+    expect(existing.unsubscribe).not.toHaveBeenCalled()
+  })
+
+  it('still resolves true when the local unsubscribe fails after a server delete', async () => {
+    const existing = {
+      endpoint: 'https://push.example.test/old-device',
+      unsubscribe: vi.fn(async () => {
+        throw new Error('unsubscribe gone')
+      }),
+    }
+    stubBrowser({ permission: 'granted', subscription: existing })
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ deleted: true }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(disablePushDevice()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(existing.unsubscribe).toHaveBeenCalledOnce()
   })
 })

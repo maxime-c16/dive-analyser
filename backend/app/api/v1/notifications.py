@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.notification import PushSubscription
 from app.services import notification_service
-from app.services.push_service import MAX_SUBSCRIPTIONS_PER_USER, is_allowed_push_endpoint
+from app.services.push_service import MAX_SUBSCRIPTIONS_PER_USER, is_allowed_push_endpoint, is_push_configured
 
 router = APIRouter()
 
@@ -107,7 +107,14 @@ def put_pref(
 
 @router.get("/push-config")
 def get_push_config(user=Depends(get_current_user)):
-    """VAPID public key for Web Push opt-in; "" when push is disabled."""
+    """VAPID public key for Web Push opt-in; "" unless fully configured.
+
+    Shares is_push_configured() with fan-out: a partial setup (public key
+    without private key or subject) reads as disabled so the UI never
+    offers a broken opt-in.
+    """
+    if not is_push_configured():
+        return {"publicKey": ""}
     return {"publicKey": get_settings().vapid_public_key.strip()}
 
 
