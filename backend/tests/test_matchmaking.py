@@ -165,11 +165,12 @@ def test_binding_removes_pending_own_dive_and_unattributed_never_matches(workspa
 
 
 def test_original_transport_stays_scoped_and_rechecks_binding(workspace, monkeypatch):
-    from app.api.v1 import media as library_media, media_playback
+    from app.api.v1 import media_playback
+    from app.services import matchmaking
     from fastapi.responses import Response
     db, login, dives, users, _ = workspace
     did = dives['alice-public']
-    monkeypatch.setattr(library_media, '_backbone_playback_url', lambda db, video: '/api/v1/media/revisions/42/play')
+    monkeypatch.setattr(matchmaking, 'original_revision_id', lambda db, video: 42)
     calls = []
     async def play(revision_id, request, response, db, user):
         calls.append((revision_id, user.id))
@@ -206,3 +207,31 @@ def test_unbound_divers_have_separate_fairness_buckets(workspace):
     _, items = stack(login('viewer'))
     assert len(items) == 3
     assert dives['bob-public'] in [i['dive_id'] for i in items[:2]]
+
+
+def test_original_readiness_rejects_wrong_bucket_and_ambiguous_storage(workspace):
+    from app.config import get_settings
+    from app.models.media_backbone import MediaBlobLocation
+    from app.models.media import MediaCacheEntry
+    from app.services import matchmaking
+    db, login, dives, _, _ = workspace
+    settings = get_settings(); previous = settings.b2_playback_canary_enabled
+    settings.b2_playback_canary_enabled = True
+    try:
+        db.query(MediaCacheEntry).delete()
+        location = MediaBlobLocation(blob_sha256='a' * 64, environment='prod', storage_backend='b2',
+            verified=True, bucket='wrong-bucket', object_key='original.mp4')
+        db.add(location); db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is None
+        assert stack(login('bob'))[1] == []
+        location.bucket = settings.media_backbone_prod_bucket; db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is not None
+        _, items = stack(login('bob'), daily=False)
+        assert [i['dive_id'] for i in items] == [dives['alice-public']]
+        assert items[0]['media']['rendition'] == 'original'
+        db.add(MediaBlobLocation(blob_sha256='a' * 64, environment='prod', storage_backend='b2',
+            verified=True, bucket=settings.media_backbone_prod_bucket, object_key='duplicate.mp4')); db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is None
+        assert login('bob').get(f'/api/v1/evaluations/automatic/{dives["alice-public"]}/media/status').json()['status'] != 'ready'
+    finally:
+        settings.b2_playback_canary_enabled = previous

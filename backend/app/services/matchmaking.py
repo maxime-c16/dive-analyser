@@ -46,10 +46,37 @@ def authorize(db, user, dive_id, lock=False):
     return dive, asset
 
 
+def verified_original_clause():
+    """Match the original playback route's fail-closed storage contract."""
+    from app.config import get_settings
+    from app.models.media_backbone import MediaRevision, MediaBlobLocation
+    locations = select(func.count(MediaBlobLocation.id)).where(
+        MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256,
+        MediaBlobLocation.environment == 'prod', MediaBlobLocation.verified.is_(True)
+    ).correlate(MediaRevision).scalar_subquery()
+    valid = exists(select(1).where(
+        MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256,
+        MediaBlobLocation.environment == 'prod', MediaBlobLocation.verified.is_(True),
+        MediaBlobLocation.storage_backend == 'b2',
+        MediaBlobLocation.bucket == get_settings().media_backbone_prod_bucket,
+        MediaBlobLocation.object_key != ''
+    ).correlate(MediaRevision))
+    return (locations == 1) & valid
+
+
+def original_revision_id(db, video_uuid):
+    from app.config import get_settings
+    from app.models.media_backbone import MediaRevision
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
+        return None
+    return db.query(MediaRevision.id).filter(MediaRevision.video_uuid == video_uuid,
+        verified_original_clause()).order_by(MediaRevision.id.desc()).limit(1).scalar()
+
+
 def status(db, dive, asset):
     result = evaluation_access.media_status(db, SimpleNamespace(id=dive.id, dive_id=dive.id), asset)
-    from app.api.v1.media import _backbone_playback_url
-    if result.get('rendition') not in ('proxy_720p', 'original') and _backbone_playback_url(db, dive.video_uuid):
+    if result.get('rendition') not in ('proxy_720p', 'original') and original_revision_id(db, dive.video_uuid):
         result.update(status='ready', rendition='original', playback_url='available')
         result['available_renditions'] = list(dict.fromkeys([*result['available_renditions'], 'original']))
     base = f'/api/v1/evaluations/automatic/{dive.id}/media'
@@ -89,11 +116,9 @@ def stack(db, user, key):
     from app.config import get_settings
     settings = get_settings()
     if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
-        from app.models.media_backbone import MediaRevision, MediaBlobLocation
-        backbone_ready = exists(select(1).select_from(MediaRevision).join(MediaBlobLocation,
-            MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256).where(
-            MediaRevision.video_uuid == Dive.video_uuid, MediaBlobLocation.environment == 'prod',
-            MediaBlobLocation.verified.is_(True)))
+        from app.models.media_backbone import MediaRevision
+        backbone_ready = exists(select(1).select_from(MediaRevision).where(
+            MediaRevision.video_uuid == Dive.video_uuid, verified_original_clause()))
         has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
         ready = ready | (backbone_ready & has_asset)
     owner = select(func.min(UserDiverAccess.user_id)).select_from(UserDiverAccess).join(AppUser).where(

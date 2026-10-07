@@ -89,14 +89,12 @@ async def media(dive_id: int, kind: str, request: Request, rendition: str | None
         raise HTTPException(404, 'Not found')
     dive, asset = service.authorize(db, user, dive_id)
     if kind == 'play' and (rendition == 'original' or rendition is None):
-        from app.api.v1.media import _backbone_playback_url
         from app.api.v1.media_playback import play_media_revision
         from app.models.media import MediaCacheEntry
         cached_hq = db.query(MediaCacheEntry.id).filter(MediaCacheEntry.photos_asset_id == asset.id,
             MediaCacheEntry.status == 'ready', MediaCacheEntry.rendition == ('original' if rendition else 'proxy_720p')).first()
-        backbone = _backbone_playback_url(db, dive.video_uuid)
-        if backbone and not cached_hq:
-            revision_id = int(backbone.split('/')[-2])
+        revision_id = service.original_revision_id(db, dive.video_uuid)
+        if revision_id is not None and not cached_hq:
             return await play_media_revision(revision_id, request, Response(), db, user)
     entry = _select_ready_entry(db, asset, rendition if kind == 'play' else None, playable=kind == 'play')
     return evaluation_access.serve_entry(entry.storage_path, entry.content_type, request, head_only=request.method == 'HEAD')
