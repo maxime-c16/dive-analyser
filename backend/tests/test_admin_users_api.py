@@ -487,3 +487,57 @@ def test_admin_bound_diver_manages_own_dives_only(admin_client, db, flags):
     assert own.status_code == 200, own.text
     assert diver.put(f"/api/v1/dives/{other_id}",
                      json={"notes": "not mine"}).status_code == 403
+
+
+def test_account_sessions_are_scoped_bounded_and_secret_free(db, admin_client):
+    from datetime import timedelta
+    user = db.query(AppUser).filter_by(email="diver@example.test").one()
+    now = datetime.utcnow()
+    db.add_all([UserSession(user_id=user.id, token_hash="private-session-hash", expires_at=now + timedelta(days=1)),
+                UserSession(user_id=user.id, token_hash="expired-hash", expires_at=now - timedelta(days=1))])
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{user.id}/sessions?limit=1")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert "token_hash" not in response.text
+    assert "private-session-hash" not in response.text
+    assert response.json()["sessions"][0]["expires_at"].endswith("Z")
+
+
+def test_revoke_individual_session_cannot_cross_accounts(db, admin_client):
+    from datetime import timedelta
+    user = db.query(AppUser).filter_by(email="diver@example.test").one()
+    admin = db.query(AppUser).filter_by(email="admin@example.test").one()
+    row = UserSession(user_id=user.id, token_hash="single-session-hash", expires_at=datetime.utcnow() + timedelta(days=1))
+    db.add(row)
+    db.commit()
+    path = f"/api/v1/admin/users/{user.id}/sessions/{row.id}"
+    assert admin_client.delete(f"/api/v1/admin/users/{admin.id}/sessions/{row.id}").status_code == 404
+    assert admin_client.delete(path, headers={"Origin": "https://evil.example"}).status_code == 403
+    assert admin_client.delete(path).json()["revoked_sessions"] == 1
+    assert admin_client.delete(path).json()["revoked_sessions"] == 0
+    db.refresh(row)
+    assert row.revoked_at is not None
+    audit = db.query(SecurityAuditEvent).filter_by(target_user_id=user.id, event_type="session_revoked").one()
+    assert str(row.id) in audit.metadata_json
+
+
+def test_account_history_filters_scopes_and_redacts_metadata(db, admin_client):
+    import json
+    user = db.query(AppUser).filter_by(email="diver@example.test").one()
+    db.add_all([SecurityAuditEvent(target_user_id=user.id, event_type="user_updated", actor_context="admin:1", actor_note="do-not-return", metadata_json=json.dumps({"fields": ["email", "password"], "token": "secret"})),
+                SecurityAuditEvent(target_user_id=user.id, event_type="ownership_granted", metadata_json='{"new_role":"owner"}'),
+                SecurityAuditEvent(target_user_id=999, event_type="user_updated", metadata_json="{}")])
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{user.id}/history?event_type=user_updated&limit=1")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["events"][0]["details"] == {"fields": ["email"]}
+    assert "secret" not in response.text and "do-not-return" not in response.text
+    roles = admin_client.get(f"/api/v1/admin/users/{user.id}/history?event_type=ownership_granted").json()
+    assert roles["events"][0]["details"]["new_role"] == "administrator"
+
+
+@pytest.mark.parametrize("suffix", ["sessions", "history"])
+def test_account_security_reads_require_admin(diver_client, suffix):
+    assert diver_client.get(f"/api/v1/admin/users/1/{suffix}").status_code == 403
