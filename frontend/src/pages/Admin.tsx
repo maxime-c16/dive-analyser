@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
 import { useAuth } from '../contexts/AuthContext'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminUsers from '../components/AdminUsers'
 
 function bytes(value?: number | null) {
@@ -38,6 +39,12 @@ function Progress({ done, total }: { done: number; total: number }) {
 
 export default function Admin() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const [search, setSearch] = useSearchParams()
+  const manage = useCallback((id: number) => navigate(`/admin/users/${id}?return=${encodeURIComponent(`/admin?${search}`)}`), [navigate, search.toString()])
+  const directoryChange = useCallback((query: string, status: string, offset: number) => {
+    setSearch(previous => { const next = new URLSearchParams(previous); for (const [key, value] of Object.entries({ q: query, status: status === 'all' ? '' : status, offset: offset ? String(offset) : '' })) { if (value) next.set(key, value); else next.delete(key) }; return next }, { replace: true })
+  }, [setSearch])
   const [tab, setTab] = useState<'users' | 'system'>('users')
   const [status, setStatus] = useState<OperationsStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,7 +118,7 @@ export default function Admin() {
     </header>
 
     {tab === 'users' ? (
-      <AdminUsers currentUserId={user?.user_id} />
+      <AdminUsers currentUserId={user?.user_id} onManage={manage} initialQuery={search.get('q') ?? ''} initialStatus={search.get('status') === 'disabled' ? 'disabled' : search.get('status') === 'active' ? 'active' : 'all'} initialOffset={Math.max(0, Number(search.get('offset')) || 0)} onDirectoryChange={directoryChange} />
     ) : (
     <>
     <div className="sm:flex sm:items-end sm:justify-between">
