@@ -45,17 +45,27 @@ export default function Admin() {
 
   async function refresh(signal?: AbortSignal, silent = false) {
     if (!silent) { setLoading(true); setError(null) }
-    try { setStatus(await getOperationsStatus(signal)) }
-    catch (reason) { if ((reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Unable to load operations status') }
+    try {
+      const next = await getOperationsStatus(signal)
+      if (!signal?.aborted) setStatus(next)
+    }
+    catch (reason) { if (!signal?.aborted && (reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Unable to load operations status') }
     finally { if (!signal?.aborted && !silent) setLoading(false) }
   }
 
   useEffect(() => {
+    if (tab !== 'system') return
     const controller = new AbortController()
-    void refresh(controller.signal)
-    const interval = window.setInterval(() => { void refresh(undefined, true) }, 15_000)
-    return () => { controller.abort(); window.clearInterval(interval) }
-  }, [])
+    let timeout: ReturnType<typeof window.setTimeout> | undefined
+    async function poll(silent = false) {
+      await refresh(controller.signal, silent)
+      if (!controller.signal.aborted) {
+        timeout = window.setTimeout(() => { void poll(true) }, 15_000)
+      }
+    }
+    void poll()
+    return () => { controller.abort(); window.clearTimeout(timeout) }
+  }, [tab])
 
   const primary = status?.agents.find((agent) => agent.agent_id === 'mac-media-01') ?? status?.agents[0]
   const storage = primary?.storage_status

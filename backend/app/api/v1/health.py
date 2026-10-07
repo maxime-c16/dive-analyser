@@ -16,6 +16,8 @@ async def health_check():
 
 
 @router.get("/operations/status")
-async def operations_status(db: Session = Depends(get_db)):
+def operations_status(db: Session = Depends(get_db)):
     """Return a LAN/WireGuard read-only operational snapshot for the admin UI."""
+    # The snapshot uses synchronous SQLAlchemy and media coverage work. FastAPI
+    # runs sync routes in its thread pool so unrelated requests can proceed.
     return build_operations_status(db)
