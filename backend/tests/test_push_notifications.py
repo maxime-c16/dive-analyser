@@ -463,3 +463,148 @@ def test_schedule_push_batches_every_id_without_truncation():
     notification_service.schedule_push(bg, [SimpleNamespace(id=i + 1) for i in range(10)])
     assert len(scheduled) == 1
     assert list(scheduled[0][1][0]) == list(range(1, 11))
+
+
+def test_subscription_upsert_race_recovers_without_500(workspace, monkeypatch):
+    """Concurrent insert of the same endpoint: loser rolls back, re-reads
+    the winner and updates keys/label instead of 500 (upsert preserved).
+
+    Simulates the race with a stale first read (None) so the insert path
+    hits the real unique constraint on flush; the handler must recover to
+    200 with rotated keys, exactly one row.
+    """
+    from app.models.notification import PushSubscription
+
+    db, login, _, users, _ = workspace
+    alice = login("alice")
+    assert alice.post("/api/v1/push-subscriptions", json=SUB).status_code == 200
+
+    rotated = {
+        **SUB,
+        "keys": {"p256dh": "rotated-p256dh-race", "auth": "rotated-auth-race"},
+        "device_label": "race-renamed",
+    }
+
+    _PASSTHROUGH = object()
+    real_query = db.query
+    state = {"stale_once": True}
+
+    class _QueryProxy:
+        """Proxy a SQLAlchemy Query so the first PushSubscription entity
+        .first() (the stale pre-insert read) returns None; everything
+        else delegates to the real query (including the race re-read)."""
+
+        def __init__(self, real):
+            self._q = real
+
+        def filter(self, *a, **k):
+            return _QueryProxy(self._q.filter(*a, **k))
+
+        def filter_by(self, *a, **k):
+            return _QueryProxy(self._q.filter_by(*a, **k))
+
+        def order_by(self, *a, **k):
+            return _QueryProxy(self._q.order_by(*a, **k))
+
+        def offset(self, *a, **k):
+            return _QueryProxy(self._q.offset(*a, **k))
+
+        def limit(self, *a, **k):
+            return _QueryProxy(self._q.limit(*a, **k))
+
+        def first(self, *a, **k):
+            if state["stale_once"]:
+                state["stale_once"] = False
+                return None
+            return self._q.first(*a, **k)
+
+        def __getattr__(self, name):
+            return getattr(self._q, name)
+
+    def fake_query(*entities, **kwargs):
+        q = real_query(*entities, **kwargs)
+        # Only intercept entity queries (PushSubscription class); column
+        # queries (PushSubscription.id for overflow eviction) pass through.
+        if entities and entities[0] is PushSubscription:
+            return _QueryProxy(q)
+        return q
+
+    monkeypatch.setattr(db, "query", fake_query)
+    response = alice.post("/api/v1/push-subscriptions", json=rotated)
+    assert response.status_code in (200, 201), response.text
+    assert response.json() == {"endpoint": SUB["endpoint"], "device_label": "race-renamed"}
+
+    monkeypatch.undo()
+    db.expunge_all()
+    rows = db.query(PushSubscription).filter_by(user_id=users["alice"].id).all()
+    assert len(rows) == 1
+    assert rows[0].p256dh == "rotated-p256dh-race"
+    assert rows[0].auth == "rotated-auth-race"
+    assert rows[0].device_label == "race-renamed"
+
+
+def test_subscription_db_failure_logs_never_leak_secrets(workspace, monkeypatch, caplog):
+    """DB failures on subscription CRUD return 500 with sanitized logs:
+    type name + user id only — never endpoint, keys, statement, message,
+    or traceback (bound params would leak secrets). Session stays healthy."""
+    from app.models.notification import PushSubscription
+
+    db, login, _, users, _ = workspace
+    alice = login("alice")
+    assert alice.post("/api/v1/push-subscriptions", json=SUB).status_code == 200
+
+    secret_msg = (
+        f"db exploded INSERT {SUB['endpoint']} "
+        f"{SUB['keys']['p256dh']} {SUB['keys']['auth']}"
+    )
+    real_commit = db.commit
+    failures = {"remaining": 1}
+
+    def flaky_commit(*a, **k):
+        if failures["remaining"] > 0:
+            failures["remaining"] -= 1
+            raise RuntimeError(secret_msg)
+        return real_commit(*a, **k)
+
+    monkeypatch.setattr(db, "commit", flaky_commit)
+    with caplog.at_level(logging.ERROR, logger="app.api.v1.notifications"):
+        response = alice.post(
+            "/api/v1/push-subscriptions",
+            json={**SUB, "keys": {"p256dh": "new-k", "auth": "new-a"}},
+        )
+    assert response.status_code == 500
+    leaked = caplog.text
+    assert SUB["endpoint"] not in leaked
+    assert SUB["keys"]["p256dh"] not in leaked
+    assert SUB["keys"]["auth"] not in leaked
+    assert "new-k" not in leaked
+    assert secret_msg not in leaked
+
+    # Session saine après rollback: la requête suivante réussit.
+    monkeypatch.undo()
+    db.expunge_all()
+    caplog.clear()
+    assert alice.post("/api/v1/push-subscriptions", json=SUB).status_code == 200
+    assert db.query(PushSubscription).filter_by(user_id=users["alice"].id).count() == 1
+
+    # Même garantie sur DELETE: échec DB → 500 sans secrets, session saine.
+    failures["remaining"] = 1
+    monkeypatch.setattr(db, "commit", flaky_commit)
+    with caplog.at_level(logging.ERROR, logger="app.api.v1.notifications"):
+        delete_response = alice.request(
+            "DELETE", "/api/v1/push-subscriptions", json={"endpoint": SUB["endpoint"]}
+        )
+    assert delete_response.status_code == 500
+    leaked = caplog.text
+    assert SUB["endpoint"] not in leaked
+    assert SUB["keys"]["p256dh"] not in leaked
+    assert SUB["keys"]["auth"] not in leaked
+
+    monkeypatch.undo()
+    db.expunge_all()
+    assert (
+        alice.request(
+            "DELETE", "/api/v1/push-subscriptions", json={"endpoint": SUB["endpoint"]}
+        ).status_code
+        == 200
+    )

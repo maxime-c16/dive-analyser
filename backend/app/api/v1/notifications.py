@@ -7,6 +7,7 @@ caller reads as missing (404), never as forbidden.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import get_current_user
@@ -15,6 +16,10 @@ from app.database import get_db
 from app.models.notification import PushSubscription
 from app.services import notification_service
 from app.services.push_service import MAX_SUBSCRIPTIONS_PER_USER, is_allowed_push_endpoint, is_push_configured
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -130,17 +135,35 @@ def upsert_push_subscription(
     account reads as missing (404), never as forbidden — same ownership
     rule as the inbox. Stored devices per user are bounded; the oldest
     subscription is evicted on overflow.
+
+    Race-safe: two concurrent inserts of the same endpoint hit the unique
+    constraint — the loser rolls back, re-reads the winner and updates its
+    keys/label instead of returning 500. DB failures never log endpoint
+    URLs, keys, statements or exception messages (bound params would leak
+    secrets) — only the exception type name plus user id.
     """
     # SSRF guard: only exact public browser push services (https, allowlisted
     # host, no non-443 port). Rejected before any DB read so an attacker
     # endpoint never probes ownership (404) vs validation (422).
     if not is_allowed_push_endpoint(payload.endpoint):
         raise HTTPException(422, "Push endpoint not allowed")
-    existing = (
-        db.query(PushSubscription)
-        .filter(PushSubscription.endpoint == payload.endpoint)
-        .first()
-    )
+    try:
+        existing = (
+            db.query(PushSubscription)
+            .filter(PushSubscription.endpoint == payload.endpoint)
+            .first()
+        )
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.error(
+            "push subscription fetch failed for user %s (%s)",
+            user.id,
+            type(exc).__name__,
+        )
+        raise HTTPException(500, "Push subscription unavailable")
     if existing is not None and existing.user_id != user.id:
         raise HTTPException(404, "Push subscription not found")
     label = (payload.device_label or "").strip()[:100] or None
@@ -153,29 +176,133 @@ def upsert_push_subscription(
             device_label=label,
         )
         db.add(row)
-        db.flush()
-        # Bounded per-user devices: evict oldest first on overflow.
-        overflow_ids = [
-            row_id
-            for (row_id,) in db.query(PushSubscription.id)
-            .filter(PushSubscription.user_id == user.id)
-            .order_by(PushSubscription.id.desc())
-            .offset(MAX_SUBSCRIPTIONS_PER_USER)
-            .limit(100)
-            .all()
-        ]
-        if overflow_ids:
-            db.query(PushSubscription).filter(
-                PushSubscription.id.in_(overflow_ids)
-            ).delete(synchronize_session=False)
-        db.commit()
-        db.refresh(row)
+        try:
+            db.flush()
+            # Bounded per-user devices: evict oldest first on overflow.
+            overflow_ids = [
+                row_id
+                for (row_id,) in db.query(PushSubscription.id)
+                .filter(PushSubscription.user_id == user.id)
+                .order_by(PushSubscription.id.desc())
+                .offset(MAX_SUBSCRIPTIONS_PER_USER)
+                .limit(100)
+                .all()
+            ]
+            if overflow_ids:
+                db.query(PushSubscription).filter(
+                    PushSubscription.id.in_(overflow_ids)
+                ).delete(synchronize_session=False)
+            db.commit()
+            db.refresh(row)
+        except IntegrityError as exc:
+            # Concurrent insert of the same endpoint won the race: roll
+            # back (session saine, cf. pattern PR1) and fall through to
+            # the update path on the winner row.
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            logger.warning(
+                "push subscription race for user %s (%s)",
+                user.id,
+                type(exc).__name__,
+            )
+            try:
+                winner = (
+                    db.query(PushSubscription)
+                    .filter(PushSubscription.endpoint == payload.endpoint)
+                    .first()
+                )
+            except Exception as exc2:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                logger.error(
+                    "push subscription race re-read failed for user %s (%s)",
+                    user.id,
+                    type(exc2).__name__,
+                )
+                raise HTTPException(500, "Push subscription unavailable")
+            if winner is None:
+                # Winner vanished concurrently (delete raced insert):
+                # retry the insert once, then give up with sanitized 500.
+                retry = PushSubscription(
+                    user_id=user.id,
+                    endpoint=payload.endpoint,
+                    p256dh=payload.keys.p256dh,
+                    auth=payload.keys.auth,
+                    device_label=label,
+                )
+                db.add(retry)
+                try:
+                    db.commit()
+                    db.refresh(retry)
+                except Exception as exc3:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    logger.error(
+                        "push subscription retry failed for user %s (%s)",
+                        user.id,
+                        type(exc3).__name__,
+                    )
+                    raise HTTPException(500, "Push subscription unavailable")
+                row = retry
+            elif winner.user_id != user.id:
+                raise HTTPException(404, "Push subscription not found")
+            else:
+                winner.p256dh = payload.keys.p256dh
+                winner.auth = payload.keys.auth
+                winner.device_label = label
+                try:
+                    db.commit()
+                    db.refresh(winner)
+                except Exception as exc3:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    logger.error(
+                        "push subscription race update failed for user %s (%s)",
+                        user.id,
+                        type(exc3).__name__,
+                    )
+                    raise HTTPException(500, "Push subscription unavailable")
+                row = winner
+        except Exception as exc:
+            # Non-IntegrityError path (flush/evict/commit/refresh): never
+            # interpolate the exception or use exc_info — the message and
+            # traceback embed bound params (endpoint + p256dh/auth keys).
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            logger.error(
+                "push subscription save failed for user %s (%s)",
+                user.id,
+                type(exc).__name__,
+            )
+            raise HTTPException(500, "Push subscription unavailable")
     else:
         existing.p256dh = payload.keys.p256dh
         existing.auth = payload.keys.auth
         existing.device_label = label
-        db.commit()
-        db.refresh(existing)
+        try:
+            db.commit()
+            db.refresh(existing)
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            logger.error(
+                "push subscription update failed for user %s (%s)",
+                user.id,
+                type(exc).__name__,
+            )
+            raise HTTPException(500, "Push subscription unavailable")
         row = existing
     return {"endpoint": row.endpoint, "device_label": row.device_label}
 
@@ -187,16 +314,40 @@ def delete_push_subscription(
     db: Session = Depends(get_db),
 ):
     """Remove one device endpoint iff it belongs to the caller (else 404)."""
-    row = (
-        db.query(PushSubscription)
-        .filter(
-            PushSubscription.endpoint == payload.endpoint,
-            PushSubscription.user_id == user.id,
+    try:
+        row = (
+            db.query(PushSubscription)
+            .filter(
+                PushSubscription.endpoint == payload.endpoint,
+                PushSubscription.user_id == user.id,
+            )
+            .first()
         )
-        .first()
-    )
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.error(
+            "push subscription fetch failed for user %s (%s)",
+            user.id,
+            type(exc).__name__,
+        )
+        raise HTTPException(500, "Push subscription unavailable")
     if row is None:
         raise HTTPException(404, "Push subscription not found")
-    db.delete(row)
-    db.commit()
+    try:
+        db.delete(row)
+        db.commit()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.error(
+            "push subscription delete failed for user %s (%s)",
+            user.id,
+            type(exc).__name__,
+        )
+        raise HTTPException(500, "Push subscription unavailable")
     return {"deleted": True}
