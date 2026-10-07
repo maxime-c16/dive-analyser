@@ -346,10 +346,10 @@ export default function EvaluationPlayer({
         <span className="eval-hq-hint" role="status">{t('evaluations.hqUpgrading')}</span>
       )}
       <div className="eval-player-controls" role="group" aria-label={t('evaluations.playerControlsAria')}>
-        <button type="button" onClick={replay} aria-label={t('evaluations.replayAria')}>
+        <button type="button" onClick={replay} disabled={paused && !onReplay} aria-label={t('evaluations.replayAria')}>
           <RotateCcw size={18} />
         </button>
-        <button type="button" onClick={togglePlay} aria-label={playing ? t('evaluations.pauseAria') : t('evaluations.playAria')}>
+        <button type="button" onClick={togglePlay} disabled={paused && !onReplay} aria-label={playing ? t('evaluations.pauseAria') : t('evaluations.playAria')}>
           {playing ? <Pause size={18} /> : <Play size={18} />}
         </button>
         <button

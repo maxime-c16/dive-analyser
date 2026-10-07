@@ -1281,3 +1281,4 @@
 }
 .eval-stage-root[data-watching='true'] .eval-stage-dock:empty { display: none; }
 .eval-stage-root[data-watching='true'][data-chrome-revealed='true'] .eval-player-controls { opacity: 1; pointer-events: auto; }
+.eval-player-controls button:disabled { opacity: 0.35; cursor: default; }
