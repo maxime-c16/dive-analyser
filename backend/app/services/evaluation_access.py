@@ -188,28 +188,43 @@ def _active_job(db: Session, asset_id: int) -> bool:
     )
 
 
-def media_status(db: Session, request_row: EvaluationRequest, asset: PhotosAsset) -> dict:
-    """Stable media transport fields for ticket 3 (jury player)."""
+def media_status(
+    db: Session,
+    request_row: EvaluationRequest,
+    asset: PhotosAsset,
+    prefetched: tuple[list[MediaCacheEntry], bool] | None = None,
+) -> dict:
+    """Stable media transport fields for ticket 3 (jury player).
+
+    Callers that already probed media in a BATCH (jury queue payloads) pass
+    `prefetched` = (ready entries for this asset, active-media-job flag): the
+    derivation runs without per-item database round trips. The derivation is
+    the single source of truth for both paths.
+    """
     base = f"/api/v1/evaluations/requests/{request_row.id}/media"
-    with evaluation_media_scope(db):
-        entries = _ready_entries(db, asset.id)
-        playable = _playable_entry(entries)
-        poster = _poster_entry(entries)
-        if playable is not None:
-            status_value = "ready"
-        elif _active_job(db, asset.id):
-            status_value = "preparing"
-        else:
-            status_value = "missing"
-        return {
-            "request_id": request_row.id,
-            "dive_id": request_row.dive_id,
-            "video_uuid": asset.video_uuid,
-            "status": status_value,
-            "poster_url": f"{base}/poster" if poster else None,
-            "playback_url": f"{base}/play" if playable else None,
-            "available_renditions": sorted({entry.rendition for entry in entries}),
-        }
+    if prefetched is None:
+        with evaluation_media_scope(db):
+            entries = _ready_entries(db, asset.id)
+            has_active = _active_job(db, asset.id)
+    else:
+        entries, has_active = prefetched
+    playable = _playable_entry(entries)
+    poster = _poster_entry(entries)
+    if playable is not None:
+        status_value = "ready"
+    elif has_active:
+        status_value = "preparing"
+    else:
+        status_value = "missing"
+    return {
+        "request_id": request_row.id,
+        "dive_id": request_row.dive_id,
+        "video_uuid": asset.video_uuid,
+        "status": status_value,
+        "poster_url": f"{base}/poster" if poster else None,
+        "playback_url": f"{base}/play" if playable else None,
+        "available_renditions": sorted({entry.rendition for entry in entries}),
+    }
 
 
 def prepare_media(db: Session, dive: Dive, asset: PhotosAsset, reason: str = "evaluation_request") -> tuple[list[str], list[str]]:

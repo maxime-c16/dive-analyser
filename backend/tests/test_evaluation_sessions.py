@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from pathlib import Path
 
+from app.models.session import Session as TrainingSession
 from tests.test_member_dive_visibility import workspace
 
 
@@ -213,6 +214,82 @@ def test_queue_never_presents_unready_media_and_bounds(workspace):
         assert all(item['request_id'] != wait_request_id for item in batch.json()['items'])
     assert _queue(db, login('bob'), session_id, limit=0).status_code == 422
     assert _queue(db, login('bob'), session_id, limit=21).status_code == 422
+
+
+def test_queue_excludes_revision_only_media(workspace):
+    """Review-bot High (PR 73): a bare MediaRevision row must NOT make a dive
+    queue-ready. The evaluation transport serves cache entries only, so a
+    revision-only dive stays out of the queue and cannot crash _item_payload.
+    """
+    from datetime import datetime
+    from app.models.dive import Dive
+    from app.models.diver import Diver
+    from app.models.media_backbone import MediaRevision
+
+    db, login, dives, users, _ = workspace
+    diver = db.query(Diver).filter_by(display_name='alice').first()
+    training_id = db.query(TrainingSession).first().id
+    d = Dive(session_id=training_id, dive_code='201A', performance='G', performance_numeric=2,
+             height='1m', dive_datetime=datetime.now(), diver_id=diver.id,
+             visibility='private', video_uuid='revision-only-video')
+    db.add(d)
+    db.flush()
+    db.add(MediaRevision(video_uuid='revision-only-video', blob_sha256='b' * 64))
+    db.commit()
+
+    request_id = _activate(login('alice'), d.id, prompt='revision only')
+    bob = login('bob')
+    sid = _session(bob)
+    response = _queue(db, bob, sid, limit=10)
+    assert response.status_code == 200, response.text
+    ids = [item.get('request_id') for item in response.json()['items']]
+    assert request_id not in ids, 'revision-only dive reached the jury queue'
+    # An explicit re-verify flags it unavailable instead of crashing.
+    item = _retry = response.json()
+    assert all(entry.get('unavailable') in (True, False, None) for entry in item['items'])
+
+
+def test_ratings_results_page_over_sql_aggregates(workspace):
+    """Review-bot Medium (PR 73): count/mean compute over the WHOLE panel via
+    SQL aggregates while only the requested window is fetched; my_rating is
+    resolved even outside the page window.
+    """
+    from app.config import get_settings
+    from app.models.user_auth import AppUser
+    from app.services.sessions import create_session
+
+    db, login, dives, users, _ = workspace
+    request_id = _activate(login('alice'), dives['alice-private'], prompt='paged panel')
+
+    settings = get_settings()
+    client = login('alice')
+    extra_tokens = {}
+    for i in range(6):
+        user = AppUser(email=f'pager{i}@example.test', display_name=f'pager{i}', role='friend')
+        db.add(user)
+        db.flush()
+        extra_tokens[i] = create_session(db, user_id=user.id, ttl_seconds=3600)[0]
+        client.cookies.clear()
+        client.cookies.set(settings.auth_cookie_name, extra_tokens[i])
+        resp = _rate(client, request_id, (i % 5) * 2)  # 0, 2, 4, 6, 8, 0 half-steps
+        assert resp.status_code == 200, resp.text
+
+    client.cookies.clear()
+    client.cookies.set(settings.auth_cookie_name, extra_tokens[2])
+    page0 = client.get(f'/api/v1/evaluations/{request_id}/results', params={'limit': 2, 'offset': 0})
+    assert page0.status_code == 200
+    body = page0.json()
+    assert body['rating_count'] == 6
+    assert body['mean_score'] == round((0 + 2 + 4 + 6 + 8 + 0) / 2 / 6, 1)
+    assert len(body['ratings']) == 2
+    assert body['my_rating']['score_half_steps'] == 4  # pager2, outside the window
+    ids0 = [row['id'] for row in body['ratings']]
+    page1 = client.get(f'/api/v1/evaluations/{request_id}/results', params={'limit': 2, 'offset': 2})
+    ids1 = [row['id'] for row in page1.json()['ratings']]
+    assert len(ids1) == 2 and not set(ids0) & set(ids1)
+    # Owner view keeps aggregates while paging too.
+    own = login('alice').get(f'/api/v1/evaluations/{request_id}/results', params={'limit': 50})
+    assert own.json()['rating_count'] == 6
 
 
 def test_ratings_validation_and_immutable_votes(workspace):

@@ -23,8 +23,7 @@ from app.models.evaluation import (
     EvaluationSession,
     EvaluationSessionRequest,
 )
-from app.models.media import MediaCacheEntry
-from app.models.media_backbone import MediaRevision
+from app.models.media import MediaCacheEntry, MediaJob
 from app.models.photos_asset import PhotosAsset
 from app.services import evaluation_access
 from app.services.dive_access import owned_diver_ids
@@ -121,7 +120,16 @@ def _eligible_query(db: Session, user, db_query_mode: str = "all"):
 
 
 def _ready_video_uuids(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) -> set[str]:
-    """Batch media-readiness probe (two SQL passes for a whole page)."""
+    """Batch media-readiness probe (one SQL pass for a whole page).
+
+    Readiness is limited to media the evaluation transport can actually serve:
+    a PhotosAsset cache entry with a READY playable rendition. A bare
+    MediaRevision row proves bytes exist somewhere in the backbone — not that
+    the evaluation scope (poster/play/prepare under /evaluations/requests/…)
+    can serve them — so a revision-only dive is NOT queue-ready (review-bot
+    High finding: it would have entered the queue without playable media and
+    crashed _item_payload on its absent asset).
+    """
     uuids = [dive.video_uuid for _, dive in pairs if dive.video_uuid]
     if not uuids:
         return set()
@@ -136,10 +144,7 @@ def _ready_video_uuids(db: Session, pairs: list[tuple[EvaluationRequest, Dive]])
         .distinct()
         .all()
     )
-    backbone = (
-        db.query(MediaRevision.video_uuid).filter(MediaRevision.video_uuid.in_(uuids)).distinct().all()
-    )
-    return {row[0] for row in list(cached) + list(backbone)}
+    return {row[0] for row in cached}
 
 
 def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
@@ -148,9 +153,7 @@ def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
     return db.query(Diver.display_name).filter(Diver.id == diver_id).scalar()
 
 
-def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
-    asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
-    media = evaluation_access.media_status(db, request_row, asset)
+def _item_fields(request_row: EvaluationRequest, dive: Dive, media: dict, owner_name: str | None) -> dict:
     return {
         "request_id": request_row.id,
         "dive_id": dive.id,
@@ -161,7 +164,7 @@ def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> di
             "dive_code": dive.dive_code,
             "height": dive.height,
             "platform_type": dive.platform_type,
-            "owner_display_name": _owner_display_name(db, dive.diver_id),
+            "owner_display_name": owner_name,
         },
         "media": {
             "status": media["status"],
@@ -171,8 +174,65 @@ def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> di
     }
 
 
+def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
+    asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
+    if asset is None:
+        # Out of transport scope (no servable cache entry): readable missing
+        # state instead of a crash — the item is ineligible for playback.
+        media = {"status": "missing", "poster_url": None, "playback_url": None}
+    else:
+        media = evaluation_access.media_status(db, request_row, asset)
+    return _item_fields(request_row, dive, media, _owner_display_name(db, dive.diver_id))
+
+
+def _batch_payloads(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) -> list[dict]:
+    """Payloads for a whole batch with FOUR probes for the batch instead of
+    four queries per item (review-bot Medium): assets by uuid, ready cache
+    entries per asset, active media jobs per asset, owner names per diver.
+    Derivation stays in evaluation_access.media_status (single source of
+    truth) through its prefetched-entries path."""
+    if not pairs:
+        return []
+    uuids = [dive.video_uuid for _, dive in pairs if dive.video_uuid]
+    owner_ids = {dive.diver_id for _, dive in pairs if dive.diver_id is not None}
+    names = dict(db.query(Diver.id, Diver.display_name).filter(Diver.id.in_(owner_ids)).all()) if owner_ids else {}
+    assets = {a.video_uuid: a for a in db.query(PhotosAsset).filter(PhotosAsset.video_uuid.in_(uuids)).all()}
+    asset_ids = [a.id for a in assets.values()]
+    entries_by_asset: dict[int, list] = {}
+    active_by_asset: dict[int, bool] = {}
+    if asset_ids:
+        with evaluation_access.evaluation_media_scope(db):
+            for entry in (
+                db.query(MediaCacheEntry)
+                .filter(MediaCacheEntry.photos_asset_id.in_(asset_ids), MediaCacheEntry.status == "ready")
+                .order_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.created_at.desc())
+                .all()
+            ):
+                entries_by_asset.setdefault(entry.photos_asset_id, []).append(entry)
+            for job in (
+                db.query(MediaJob)
+                .filter(
+                    MediaJob.photos_asset_id.in_(asset_ids),
+                    MediaJob.status.in_(evaluation_access._ACTIVE_JOB_STATUSES),
+                    MediaJob.attempts < MediaJob.max_attempts,
+                )
+                .all()
+            ):
+                active_by_asset[job.photos_asset_id] = True
+    items = []
+    for request_row, dive in pairs:
+        asset = assets.get(dive.video_uuid)
+        if asset is None:
+            media = {"status": "missing", "poster_url": None, "playback_url": None}
+        else:
+            prefetched = (entries_by_asset.get(asset.id, []), active_by_asset.get(asset.id, False))
+            media = evaluation_access.media_status(db, request_row, asset, prefetched=prefetched)
+        items.append(_item_fields(request_row, dive, media, names.get(dive.diver_id)))
+    return items
+
+
 def retry_items(db: Session, user, request_ids: list[int]) -> list[dict]:
-    """Batch-prefetch everything a batch retry needs (no per-item N+1).
+    """Re-verify a whole batch retry with prefetched data (no per-item N+1).
 
     Closed/deleted/context-lost requests come back flagged unavailable without
     any media URL; a request voted between loads flags unavailable too (its
@@ -204,6 +264,11 @@ def retry_items(db: Session, user, request_ids: list[int]) -> list[dict]:
         and request_row.id not in voted_ids
     ]
     ready_uuids = _ready_video_uuids(db, candidate_pairs)
+    # Payload data prefetched for the WHOLE retry batch (assets/cache/jobs/names).
+    eligible_pairs = [
+        pair for pair in candidate_pairs if ready_uuids and pair[1].video_uuid in ready_uuids
+    ]
+    payloads = dict(zip((pair[0].id for pair in eligible_pairs), _batch_payloads(db, eligible_pairs)))
     items: list[dict] = []
     for request_id in ids:
         pair = rows_by_request.get(request_id)
@@ -222,7 +287,7 @@ def retry_items(db: Session, user, request_ids: list[int]) -> list[dict]:
         if not still_eligible:
             items.append({"request_id": request_id, "dive_id": request_row.dive_id if request_row else None, "unavailable": True})
             continue
-        item = _item_payload(db, request_row, dive)
+        item = payloads.get(request_id) or _item_payload(db, request_row, dive)
         item["unavailable"] = False
         items.append(item)
     return items
@@ -298,7 +363,8 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                 break
         # Atomic marking: unique (session_id, request_id) — a conflicting
         # insert keeps the request in its earlier batch of this session, so no
-        # reader duplicates a proposal.
+        # reader duplicates a proposal (conflicted pairs stay OUT of items).
+        marked_pairs: list[tuple[EvaluationRequest, Dive]] = []
         for request_row, dive in items_pairs:
             try:
                 db.add(
@@ -307,9 +373,11 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                     )
                 )
                 db.commit()
-                items.append(_item_payload(db, request_row, dive))
+                marked_pairs.append((request_row, dive))
             except Exception:
                 db.rollback()
+        # Payloads are rebuilt from BATCHED probes (no per-item round trips).
+        items = _batch_payloads(db, marked_pairs)
         if len(items) < limit and not has_more:
             has_more = _has_more(db, user, session)
         return {"batch_id": batch_id, "items": items, "has_more": bool(has_more)}

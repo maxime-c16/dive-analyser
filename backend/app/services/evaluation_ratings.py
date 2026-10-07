@@ -37,29 +37,58 @@ class SubmissionBlocked(HTTPException):
         self.code = code
 
 
-def _result_rows(db: Session, request_row: EvaluationRequest) -> list[EvaluationRating]:
+def _result_rows(db: Session, request_row: EvaluationRequest, limit: int, offset: int) -> list[EvaluationRating]:
+    """One page of the panel only — bulk loads never happen server-side.
+
+    Review-bot Medium finding (PR 73): the former version fetched EVERY rating
+    and sliced limit/offset in Python memory. Count/mean now compute as SQL
+    aggregates (_result_totals), the page is a bounded OFFSET/LIMIT fetch and
+    my_rating is a separate single-row lookup.
+    """
     return (
         db.query(EvaluationRating)
         .filter(EvaluationRating.request_id == request_row.id)
         .order_by(EvaluationRating.created_at.desc(), EvaluationRating.id.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
+    )
+
+
+def _result_totals(db: Session, request_row: EvaluationRequest) -> tuple[int, float | None]:
+    """(rating_count, mean_score) over the WHOLE panel via SQL aggregates."""
+    count, avg = (
+        db.query(func.count(EvaluationRating.id), func.avg(EvaluationRating.score_half_steps))
+        .filter(EvaluationRating.request_id == request_row.id)
+        .one()
+    )
+    return int(count or 0), (round(float(avg) / 2.0, 1) if count else None)
+
+
+def _my_rating_row(db: Session, request_row: EvaluationRequest, my_user_id: int) -> EvaluationRating | None:
+    return (
+        db.query(EvaluationRating)
+        .filter(
+            EvaluationRating.request_id == request_row.id,
+            EvaluationRating.evaluator_user_id == my_user_id,
+        )
+        .first()
     )
 
 
 def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: int, limit: int = 50, offset: int = 0) -> dict:
     """Panel = current set of votes (never a snapshot), count/mean over all."""
-    rows = _result_rows(db, request_row)
-    total = len(rows)
-    mean = None
-    if total:
-        mean = round(sum(row.score_half_steps for row in rows) / 2 / total, 1)
+    limit = max(1, int(limit))
+    offset = max(0, int(offset))
+    total, mean = _result_totals(db, request_row)
+    my_row = _my_rating_row(db, request_row, my_user_id)
+    rows = _result_rows(db, request_row, limit=limit, offset=offset)
     names = {
         user_id: display_name
         for user_id, display_name in db.query(AppUser.id, AppUser.display_name)
-        .filter(AppUser.id.in_({row.evaluator_user_id for row in rows} or {0}))
+        .filter(AppUser.id.in_({row.evaluator_user_id for row in rows} | ({my_row.evaluator_user_id} if my_row else set())))
         .all()
     }
-    page = rows[offset : offset + limit]
     return {
         "request_id": request_row.id,
         "rating_count": total,
@@ -72,9 +101,9 @@ def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: in
                 "comment": row.comment,
                 "created_at": row.created_at,
             }
-            for row in page
+            for row in rows
         ],
-        "my_rating": _rating_payload(next((row for row in rows if row.evaluator_user_id == my_user_id), None)),
+        "my_rating": _rating_payload(my_row),
     }
 
 
