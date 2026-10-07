@@ -42,6 +42,7 @@ Ownership model (repo contract, not a policy choice of this module):
 """
 
 import datetime
+import json
 from contextlib import contextmanager
 from typing import Dict, Iterator, List, Optional
 
@@ -53,6 +54,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import get_current_user
 from app.config import get_settings
 from app.database import get_db
+from app.models.security_audit_log import SecurityAuditEvent
 from app.models.diver import Diver
 from app.models.user_auth import (
     ROLE_FRIEND,
@@ -697,3 +699,88 @@ def list_divers_for_admin(
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.get("/users/{user_id}/sessions")
+def list_account_sessions(
+    user_id: int,
+    limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    if db.get(AppUser, user_id) is None:
+        raise HTTPException(404, "User not found")
+    query = db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.revoked_at.is_(None),
+        UserSession.expires_at > datetime.datetime.utcnow(),
+    )
+    total = query.count()
+    rows = query.order_by(UserSession.created_at.desc(), UserSession.id.desc()).offset(offset).limit(limit).all()
+    return {"sessions": [{
+        "session_id": row.id,
+        "created_at": row.created_at.isoformat() + "Z",
+        "expires_at": row.expires_at.isoformat() + "Z",
+        "last_used_at": row.last_used_at.isoformat() + "Z" if row.last_used_at else None,
+    } for row in rows], "total": total, "limit": limit, "offset": offset}
+
+
+@router.delete("/users/{user_id}/sessions/{session_id}")
+def revoke_account_session(
+    user_id: int,
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_admin),
+):
+    _check_origin(request)
+    row = db.query(UserSession).filter_by(id=session_id, user_id=user_id).one_or_none()
+    if row is None:
+        raise HTTPException(404, "Session not found")
+    if row.revoked_at is not None or row.expires_at <= datetime.datetime.utcnow():
+        return {"ok": True, "revoked_sessions": 0}
+    row.revoked_at = datetime.datetime.utcnow()
+    db.commit()
+    security_audit_log.record_event(db, security_audit_log.EVENT_SESSION_REVOKED,
+        actor_context=_actor(admin), target_user_id=user_id,
+        metadata={"session_id": session_id, "revoked_sessions": 1})
+    return {"ok": True, "revoked_sessions": 1}
+
+
+@router.get("/users/{user_id}/history")
+def list_account_history(
+    user_id: int,
+    event_type: Optional[str] = Query(None, max_length=40),
+    limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    if db.get(AppUser, user_id) is None:
+        raise HTTPException(404, "User not found")
+    query = db.query(SecurityAuditEvent).filter(SecurityAuditEvent.target_user_id == user_id)
+    if event_type:
+        query = query.filter(SecurityAuditEvent.event_type == event_type)
+    total = query.count()
+    rows = query.order_by(SecurityAuditEvent.created_at.desc(), SecurityAuditEvent.id.desc()).offset(offset).limit(limit).all()
+    events = []
+    for row in rows:
+        try:
+            metadata = json.loads(row.metadata_json or "{}")
+        except (TypeError, ValueError):
+            metadata = {}
+        # Never return arbitrary historical operator notes or metadata.
+        safe = {}
+        if isinstance(metadata, dict):
+            if metadata.get("new_role") in (ROLE_OWNER, ROLE_FRIEND):
+                safe["new_role"] = "administrator" if metadata["new_role"] == ROLE_OWNER else "diver"
+            for field in ("revoked_sessions", "session_id"):
+                if type(metadata.get(field)) is int:
+                    safe[field] = metadata[field]
+            if isinstance(metadata.get("fields"), list):
+                safe["fields"] = [field for field in metadata["fields"] if field in ("email", "display_name")]
+        events.append({"event_id": row.id, "event_type": row.event_type,
+            "actor": row.actor_context, "diver_id": row.target_diver_id,
+            "created_at": row.created_at.isoformat() + "Z", "details": safe})
+    return {"events": events, "total": total, "limit": limit, "offset": offset}

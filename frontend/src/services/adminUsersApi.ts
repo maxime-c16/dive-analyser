@@ -165,3 +165,16 @@ export async function listAllDivers(): Promise<AdminDiver[]> {
   }
   return all
 }
+
+export interface AccountSession { session_id: number; created_at: string; expires_at: string; last_used_at: string | null }
+export interface AccountAuditEvent { event_id: number; event_type: string; actor: string; diver_id: number | null; created_at: string; details: { new_role?: string; revoked_sessions?: number; session_id?: number; fields?: string[] } }
+export function listAccountSessions(userId: number, offset = 0): Promise<{ sessions: AccountSession[]; total: number }> {
+  return request(`/api/v1/admin/users/${userId}/sessions?limit=50&offset=${offset}`)
+}
+export function revokeAccountSession(userId: number, sessionId: number): Promise<{ revoked_sessions: number }> {
+  return request(`/api/v1/admin/users/${userId}/sessions/${sessionId}`, { method: 'DELETE' })
+}
+export function listAccountHistory(userId: number, eventType = '', offset = 0): Promise<{ events: AccountAuditEvent[]; total: number }> {
+  const params = new URLSearchParams({ limit: '50', offset: String(offset) }); if (eventType) params.set('event_type', eventType)
+  return request(`/api/v1/admin/users/${userId}/history?${params}`)
+}

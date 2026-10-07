@@ -3,12 +3,14 @@ import { UNSAFE_DataRouterContext, useNavigate, useParams, useSearchParams } fro
 import { ArrowLeft, Check, Copy, Link2, ShieldCheck, UserRound, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { bindDiver, getUser, listAllDivers, roleTitle, unbindDiver, updateUser, type AdminUser, type AdminDiver, type PublicRole } from '../services/adminUsersApi'
+import AccountSecurity from '../components/AccountSecurity'
 import AccountNavigationGuard from '../components/AccountNavigationGuard'
 import './AdminAccount.css'
 
 export type AccountLayout = 'tabs' | 'sidebar' | 'cards'
 export type AccountSection = 'overview' | 'profile' | 'access'
 const sections: { id: AccountSection; label: string }[] = [{ id: 'overview', label: 'Overview' }, { id: 'profile', label: 'Profile' }, { id: 'access', label: 'Access & bindings' }]
+export const securitySections = [{ id: 'security', label: 'Security' }, { id: 'history', label: 'History' }]
 const date = (value: string | null) => value ? new Date(value.endsWith('Z') ? value : `${value}Z`).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not recorded'
 
 export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', onBack, section, onSection, extraSections = [], renderExtra }: {
@@ -90,7 +92,7 @@ export default function AdminAccount() {
   const [search, setSearch] = useSearchParams()
   const navigate = useNavigate()
   const selected = search.get('section') ?? 'overview'
-  const section = sections.some(item => item.id === selected) ? selected : 'overview'
+  const section = [...sections, ...securitySections].some(item => item.id === selected) ? selected : 'overview'
   const destination = search.get('return') ?? '/admin'
-  return <AccountWorkspace key={userId} accountId={Number(userId)} currentUserId={user?.user_id} section={section} onSection={value => setSearch(previous => { const next = new URLSearchParams(previous); next.set('section', value); return next }, { replace: true })} onBack={() => navigate(destination === '/admin' || destination.startsWith('/admin?') ? destination : '/admin')} />
+  return <AccountWorkspace key={userId} accountId={Number(userId)} currentUserId={user?.user_id} section={section} extraSections={securitySections} renderExtra={(value, account, refresh) => <AccountSecurity key={value} accountId={account.user_id} section={value} self={account.user_id === user?.user_id} onRefresh={refresh} />} onSection={value => setSearch(previous => { const next = new URLSearchParams(previous); next.set('section', value); return next }, { replace: true })} onBack={() => navigate(destination === '/admin' || destination.startsWith('/admin?') ? destination : '/admin')} />
 }

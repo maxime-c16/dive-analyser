@@ -1,0 +1,1 @@
+{"id":"admin-account-security","date":"2026-10-07","title":"Review account security and history","body":"Review recorded account changes, inspect live session timestamps and sign out individual sessions from the account workspace.","audience":"admin","components":["frontend","backend"]}
