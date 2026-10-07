@@ -23,7 +23,7 @@ from app.models.evaluation import (
     EvaluationSession,
     EvaluationSessionRequest,
 )
-from app.models.media import MediaCacheEntry
+from app.models.media import MediaCacheEntry, MediaJob
 from app.models.photos_asset import PhotosAsset
 from app.services import evaluation_access
 from app.services.dive_access import owned_diver_ids
@@ -153,14 +153,7 @@ def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
     return db.query(Diver.display_name).filter(Diver.id == diver_id).scalar()
 
 
-def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
-    asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
-    if asset is None:
-        # Out of transport scope (no servable cache entry): readable missing
-        # state instead of a crash — the item is ineligible for playback.
-        media = {"status": "missing", "poster_url": None, "playback_url": None}
-    else:
-        media = evaluation_access.media_status(db, request_row, asset)
+def _item_fields(request_row: EvaluationRequest, dive: Dive, media: dict, owner_name: str | None) -> dict:
     return {
         "request_id": request_row.id,
         "dive_id": dive.id,
@@ -171,7 +164,7 @@ def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> di
             "dive_code": dive.dive_code,
             "height": dive.height,
             "platform_type": dive.platform_type,
-            "owner_display_name": _owner_display_name(db, dive.diver_id),
+            "owner_display_name": owner_name,
         },
         "media": {
             "status": media["status"],
@@ -179,6 +172,63 @@ def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> di
             "playback_url": media["playback_url"],
         },
     }
+
+
+def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
+    asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
+    if asset is None:
+        # Out of transport scope (no servable cache entry): readable missing
+        # state instead of a crash — the item is ineligible for playback.
+        media = {"status": "missing", "poster_url": None, "playback_url": None}
+    else:
+        media = evaluation_access.media_status(db, request_row, asset)
+    return _item_fields(request_row, dive, media, _owner_display_name(db, dive.diver_id))
+
+
+def _batch_payloads(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) -> list[dict]:
+    """Payloads for a whole batch with FOUR probes for the batch instead of
+    four queries per item (review-bot Medium): assets by uuid, ready cache
+    entries per asset, active media jobs per asset, owner names per diver.
+    Derivation stays in evaluation_access.media_status (single source of
+    truth) through its prefetched-entries path."""
+    if not pairs:
+        return []
+    uuids = [dive.video_uuid for _, dive in pairs if dive.video_uuid]
+    owner_ids = {dive.diver_id for _, dive in pairs if dive.diver_id is not None}
+    names = dict(db.query(Diver.id, Diver.display_name).filter(Diver.id.in_(owner_ids)).all()) if owner_ids else {}
+    assets = {a.video_uuid: a for a in db.query(PhotosAsset).filter(PhotosAsset.video_uuid.in_(uuids)).all()}
+    asset_ids = [a.id for a in assets.values()]
+    entries_by_asset: dict[int, list] = {}
+    active_by_asset: dict[int, bool] = {}
+    if asset_ids:
+        with evaluation_access.evaluation_media_scope(db):
+            for entry in (
+                db.query(MediaCacheEntry)
+                .filter(MediaCacheEntry.photos_asset_id.in_(asset_ids), MediaCacheEntry.status == "ready")
+                .order_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.created_at.desc())
+                .all()
+            ):
+                entries_by_asset.setdefault(entry.photos_asset_id, []).append(entry)
+            for job in (
+                db.query(MediaJob)
+                .filter(
+                    MediaJob.photos_asset_id.in_(asset_ids),
+                    MediaJob.status.in_(evaluation_access._ACTIVE_JOB_STATUSES),
+                    MediaJob.attempts < MediaJob.max_attempts,
+                )
+                .all()
+            ):
+                active_by_asset[job.photos_asset_id] = True
+    items = []
+    for request_row, dive in pairs:
+        asset = assets.get(dive.video_uuid)
+        if asset is None:
+            media = {"status": "missing", "poster_url": None, "playback_url": None}
+        else:
+            prefetched = (entries_by_asset.get(asset.id, []), active_by_asset.get(asset.id, False))
+            media = evaluation_access.media_status(db, request_row, asset, prefetched=prefetched)
+        items.append(_item_fields(request_row, dive, media, names.get(dive.diver_id)))
+    return items
 
 
 def _retry_item(db: Session, user, request_id: int) -> dict:
@@ -283,7 +333,8 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                 break
         # Atomic marking: unique (session_id, request_id) — a conflicting
         # insert keeps the request in its earlier batch of this session, so no
-        # reader duplicates a proposal.
+        # reader duplicates a proposal (conflicted pairs stay OUT of items).
+        marked_pairs: list[tuple[EvaluationRequest, Dive]] = []
         for request_row, dive in items_pairs:
             try:
                 db.add(
@@ -292,9 +343,11 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                     )
                 )
                 db.commit()
-                items.append(_item_payload(db, request_row, dive))
+                marked_pairs.append((request_row, dive))
             except Exception:
                 db.rollback()
+        # Payloads are rebuilt from BATCHED probes (no per-item round trips).
+        items = _batch_payloads(db, marked_pairs)
         if len(items) < limit and not has_more:
             has_more = _has_more(db, user, session)
         return {"batch_id": batch_id, "items": items, "has_more": bool(has_more)}
