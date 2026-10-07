@@ -24,7 +24,6 @@ from app.models.evaluation import (
     EvaluationSessionRequest,
 )
 from app.models.media import MediaCacheEntry
-from app.models.media_backbone import MediaRevision
 from app.models.photos_asset import PhotosAsset
 from app.services import evaluation_access
 from app.services.dive_access import owned_diver_ids
@@ -121,7 +120,16 @@ def _eligible_query(db: Session, user, db_query_mode: str = "all"):
 
 
 def _ready_video_uuids(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) -> set[str]:
-    """Batch media-readiness probe (two SQL passes for a whole page)."""
+    """Batch media-readiness probe (one SQL pass for a whole page).
+
+    Readiness is limited to media the evaluation transport can actually serve:
+    a PhotosAsset cache entry with a READY playable rendition. A bare
+    MediaRevision row proves bytes exist somewhere in the backbone — not that
+    the evaluation scope (poster/play/prepare under /evaluations/requests/…)
+    can serve them — so a revision-only dive is NOT queue-ready (review-bot
+    High finding: it would have entered the queue without playable media and
+    crashed _item_payload on its absent asset).
+    """
     uuids = [dive.video_uuid for _, dive in pairs if dive.video_uuid]
     if not uuids:
         return set()
@@ -136,10 +144,7 @@ def _ready_video_uuids(db: Session, pairs: list[tuple[EvaluationRequest, Dive]])
         .distinct()
         .all()
     )
-    backbone = (
-        db.query(MediaRevision.video_uuid).filter(MediaRevision.video_uuid.in_(uuids)).distinct().all()
-    )
-    return {row[0] for row in list(cached) + list(backbone)}
+    return {row[0] for row in cached}
 
 
 def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
@@ -150,7 +155,12 @@ def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
 
 def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
     asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
-    media = evaluation_access.media_status(db, request_row, asset)
+    if asset is None:
+        # Out of transport scope (no servable cache entry): readable missing
+        # state instead of a crash — the item is ineligible for playback.
+        media = {"status": "missing", "poster_url": None, "playback_url": None}
+    else:
+        media = evaluation_access.media_status(db, request_row, asset)
     return {
         "request_id": request_row.id,
         "dive_id": dive.id,
