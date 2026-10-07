@@ -90,6 +90,12 @@ services:
       B2_PLAYBACK_ENDPOINT_URL: ${B2_PLAYBACK_ENDPOINT_URL:-}
       B2_PLAYBACK_KEY_ID: ${B2_PLAYBACK_KEY_ID:-}
       B2_PLAYBACK_KEY_SECRET: ${B2_PLAYBACK_KEY_SECRET:-}
+      # Web Push (VAPID) for notifications; empty = push gracefully disabled.
+      # Runtime values live in ~/.config/diveanalyzer/browser-upload.env
+      # on deb-serv (loaded by ci/ship.sh), never in Git.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     depends_on:
       postgres:
         condition: service_healthy
