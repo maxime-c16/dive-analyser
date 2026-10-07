@@ -96,6 +96,19 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # Deposit batches ("Récupérer mes plongeons") + batch email (free Gmail
+      # SMTP maintainer account). Runtime values live in
+      # ~/.config/diveanalyzer/email.env on deb-serv (loaded by ci/ship.sh),
+      # never in Git. Empty SMTP_HOST disables sending (outbox stays pending).
+      INGEST_DEPOSITOR_EMAIL: ${INGEST_DEPOSITOR_EMAIL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      BATCH_EMAIL_DELAY_MINUTES: ${BATCH_EMAIL_DELAY_MINUTES:-45}
+      CLAIM_TOKEN_TTL_SECONDS: ${CLAIM_TOKEN_TTL_SECONDS:-604800}
     depends_on:
       postgres:
         condition: service_healthy

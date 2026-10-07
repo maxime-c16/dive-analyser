@@ -36,6 +36,7 @@ LIST_COLUMN_NAMES = (
     "is_lineup", "is_sync", "is_smack",
     "raw_caption", "notes", "person_name",
     "video_uuid", "photos_asset_id", "diver_id",
+    "batch_id", "accepted_at", "deposited_by_user_id",
     "dive_datetime", "created_at", "updated_at",
 )
 LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
@@ -71,7 +72,21 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, 
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
     context = db.info.get("member_access")
     payload["can_comment"] = True  # Capability for the next discussion phase.
-    payload["can_manage"] = context is None or dive.diver_id in context["diver_ids"] or (context.get("is_admin") and dive.diver_id is None)
+    if context is None:
+        # Legacy / machine-key reads keep the previous contract.
+        payload["can_manage"] = True
+    else:
+        from types import SimpleNamespace
+
+        from app.services.dive_access import can_manage_dive
+
+        viewer = SimpleNamespace(
+            id=context.get("user_id"),
+            is_active=True,
+            is_admin=bool(context.get("is_admin")),
+        )
+        payload["can_manage"] = can_manage_dive(db, viewer, dive)
+    payload["pending_acceptance"] = dive.accepted_at is None and dive.batch_id is not None
     if payload["can_manage"]:
         if federate_map is None:
             from app.services.fediverse import per_dive_enabled
@@ -251,8 +266,15 @@ def upload_dive(
     user = getattr(request.state, "member_user", None)
     if not user:
         raise HTTPException(401, "Authentication required")
-    if diver_id not in owned_diver_ids(db, user.id):
+    # Admins may deposit on behalf of another account: the clip stays
+    # private + pending until the owner accepts it (deposit-batch flow).
+    deposit_for_other = diver_id not in owned_diver_ids(db, user.id)
+    if deposit_for_other and not user.is_admin:
         raise HTTPException(403, "Choose a diver you own")
+    if deposit_for_other:
+        context = db.info.get("member_access")
+        if context is not None:
+            context["system_mutation"] = True
     try:
         UUID(upload_id)
     except ValueError:
@@ -266,6 +288,15 @@ def upload_dive(
     if not parsed.is_valid:
         raise HTTPException(422, parsed.error or "Invalid dive code")
     diver = db.get(Diver, diver_id)
+    if diver is None and deposit_for_other and user.is_admin:
+        # The target diver has no visible dive yet, so the member read scope
+        # hides them; re-read unscoped (admin deposit path only).
+        from app.services.dive_access import unscoped_reads
+
+        with unscoped_reads(db):
+            diver = db.get(Diver, diver_id)
+    if diver is None:
+        raise HTTPException(404, "Diver not found")
     folder, size = prepare_video(file)
     try:
         # Sessions are shared calendar days. Use a Core lookup so a day with
@@ -286,20 +317,34 @@ def upload_dive(
                 db.add(session)
                 db.flush()
                 session_id = session.id
+        from app.services import deposit_batches
         asset = PhotosAsset(video_uuid=video_uuid, original_filename=Path(file.filename or 'video').name[:255], media_type='video', file_size_bytes=size, photos_created_at=dive_datetime)
         db.add(asset)
         db.flush()
+        batch_id = deposit_batches.new_batch_id()
+        if deposit_for_other:
+            # Maintainer note becomes an evaluator note; the owner's personal
+            # notes field stays theirs to fill in.
+            owner_notes = None
+            pending_at = None
+            forced_visibility = "private"
+        else:
+            owner_notes = notes
+            pending_at = datetime.utcnow()
+            forced_visibility = visibility
         record = Dive(
             session_id=session_id, diver_id=diver_id, person_name=diver.display_name,
-            visibility=visibility, dive_code=parsed.dive_code,
+            visibility=forced_visibility, dive_code=parsed.dive_code,
             dive_number=parsed.dive_code[:-1], position=parsed.position,
             # The parser reports 0 for an unspecified armstand direction;
             # the existing nullable DB field only stores directions 1–5.
             direction=parsed.direction or None,
             performance=parsed.performance, performance_numeric=parsed.performance_numeric,
             height=parsed.height, platform_type=parsed.platform_type,
-            notes=notes, dive_datetime=dive_datetime,
+            notes=owner_notes, dive_datetime=dive_datetime,
             video_uuid=video_uuid, photos_asset_id=asset.id,
+            batch_id=batch_id, accepted_at=pending_at,
+            deposited_by_user_id=user.id,
         )
         db.add(record)
         db.flush()
@@ -313,6 +358,18 @@ def upload_dive(
                 db, dive=record, user_id=user.id, active=True,
                 prompt=evaluation_prompt or None, prompt_set=True,
             )
+        if deposit_for_other and (notes or "").strip():
+            from app.models.deposit_batch import EvaluatorNote
+            db.add(EvaluatorNote(
+                dive_id=record.id, author_user_id=user.id,
+                comment=notes.strip()[:deposit_batches.NOTE_COMMENT_MAX]))
+            db.flush()
+            try:
+                deposit_batches.queue_batch_email(
+                    db, batch_id=batch_id, diver_id=diver_id,
+                    exclude_user_id=user.id)
+            except Exception:
+                logger.exception('batch email queue failed for upload %s', record.id)
         cache_upload(db, asset, folder)
         db.flush()
         persist_original(db, video_uuid, folder)

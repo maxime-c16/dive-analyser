@@ -22,6 +22,9 @@ import {
 import AddVideos from "../components/AddVideos";
 import DiveThumbnail from "../components/DiveThumbnail";
 import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
+import { Link } from "react-router-dom";
+import { Gift } from "lucide-react";
+import { listPendingBatches } from "../services/depositsApi";
 
 const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
 
@@ -179,6 +182,37 @@ function parseSearch(value: string) {
 export default function Dives() {
   const { user } = useAuth();
   return <DiveLibrary key={libraryKey(user) ?? 'anonymous'} />;
+}
+
+function PendingBanner() {
+  const { t } = useTranslation();
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    listPendingBatches()
+      .then((rows) => {
+        if (live) setCount(rows.reduce((sum, row) => sum + (row.pending || 0), 0));
+      })
+      .catch(() => {
+        if (live) setCount(0);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!count) return null;
+  return (
+    <Link
+      to="/deposits"
+      className="mt-3 flex items-center gap-3 border border-app-accent bg-app-panel px-4 py-3"
+    >
+      <Gift className="h-5 w-5 shrink-0 text-app-accent" aria-hidden />
+      <span className="text-sm font-medium text-app-text">
+        {t("deposits.banner", { count })}
+      </span>
+      <span className="ml-auto text-sm font-semibold text-app-accent">{t("deposits.bannerCta")} →</span>
+    </Link>
+  );
 }
 
 function DiveLibrary() {
@@ -498,6 +532,7 @@ function DiveLibrary() {
           </div>
         </div>
       </header>
+      <PendingBanner />
       <div className="mt-3"><AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} /></div>
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
         <div className="flex flex-wrap items-center gap-2">

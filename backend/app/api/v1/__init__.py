@@ -62,3 +62,5 @@ v1_router.include_router(matchmaking.router, tags=['evaluations'])
 
 from app.api.v1 import messages
 v1_router.include_router(messages.router, tags=['messages'])
+from app.api.v1 import deposits
+v1_router.include_router(deposits.router, tags=['deposits'])

@@ -43,6 +43,10 @@ import {
 } from "lucide-react";
 const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
+const loadClaim = () => import("./pages/Claim");
+const Claim = lazy(loadClaim);
+const loadDeposits = () => import("./pages/Deposits");
+const Deposits = lazy(loadDeposits);
 const loadDashboard = () => import("./pages/Dashboard");
 const Dashboard = lazy(loadDashboard);
 const loadAnalytics = () => import("./pages/Analytics");
@@ -555,6 +559,7 @@ function Router() {
       {import.meta.env.DEV && (
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
       )}
+      <Route path="/claim/:token" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Claim /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -617,6 +622,8 @@ function Router() {
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/deposits" element={<Deposits />} />
+                  <Route path="/deposits/:batchId" element={<Deposits />} />
                   <Route
                     path="/competitions"
                     element={<CompetitionsRedirect />}

@@ -127,6 +127,7 @@ from app.models.analysis import (
 )
 
 from app.models.dive_social import DiveLike, DiveComment, DiveCommentLike, DiveGuestCommentLike
+from app.models.deposit_batch import EvaluatorNote, ClaimToken, BatchEmailOutbox
 from app.models.notification import Notification, PushSubscription, NotificationPref
 from app.models.dive_share import DiveShare, DiveGuest, DiveGuestLike, DiveGuestAccess
 from app.models.fediverse import UserFediversePrefs, DiveFediverseOptin

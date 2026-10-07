@@ -4,6 +4,8 @@ All ORM reads in a browser request are scoped at the session boundary, including
 column projections, joins and relationship loads. Machine-key and auth-disabled
 flows keep their existing contract. Route handlers still authorize mutations.
 """
+from contextlib import contextmanager
+
 from fastapi import Depends, HTTPException, WebSocketException
 from starlette.requests import HTTPConnection
 from sqlalchemy import and_, event, or_, select
@@ -24,23 +26,62 @@ from app.services.user_access import user_has_diver_access
 CONTEXT_KEY = "member_access"
 
 
+@contextmanager
+def unscoped_reads(db: Session):
+    """Temporarily drop the member read scope (admin triage only).
+
+    Callers must still enforce their own authorization: queries inside the
+    block see every row.
+    """
+    saved = db.info.pop(CONTEXT_KEY, None)
+    try:
+        yield
+    finally:
+        if saved is not None:
+            db.info[CONTEXT_KEY] = saved
+
+
 def owned_diver_ids(db: Session, user_id: int) -> tuple[int, ...]:
     return tuple(db.execute(select(UserDiverAccess.diver_id).where(
         UserDiverAccess.user_id == user_id, UserDiverAccess.access_kind == "OWNER"
     )).scalars())
 
 
-def visible_dive_clause(ids: tuple[int, ...], is_admin: bool = False):
-    return or_(Dive.diver_id.in_(ids),
+def visible_dive_clause(ids: tuple[int, ...], is_admin: bool = False, depositor_user_id=None):
+    clauses = [Dive.diver_id.in_(ids),
                (Dive.visibility == "public") & Dive.diver_id.is_not(None),
-               Dive.diver_id.is_(None) if is_admin else False)
+               Dive.diver_id.is_(None) if is_admin else False]
+    if depositor_user_id is not None:
+        # A depositor keeps access to their own deposits (including pending
+        # private clips of other accounts) until the owner accepts them.
+        clauses.append(Dive.deposited_by_user_id == depositor_user_id)
+    return or_(*clauses)
+
+
+def is_pending(dive: Dive) -> bool:
+    """A deposit awaiting owner acceptance (accepted_at advisory only).
+
+    Both flags are required: pre-migration rows have neither batch_id nor
+    accepted_at and must keep their legacy contract.
+    """
+    return dive.accepted_at is None and dive.batch_id is not None
 
 
 def can_manage_dive(db: Session, user, dive: Dive) -> bool:
-    return bool(user and user.is_active and (
-        (user.is_admin and dive.diver_id is None)
-        or (dive.diver_id is not None and user_has_diver_access(db, user.id, dive.diver_id))
-    ))
+    if not user or not user.is_active:
+        return False
+    if user.is_admin and dive.diver_id is None:
+        return True
+    if dive.diver_id is not None and user_has_diver_access(db, user.id, dive.diver_id):
+        return True
+    if is_pending(dive):
+        # The depositor may tend their own pending deposits; admins may
+        # triage any pending batch (orphans, mis-attributions).
+        if dive.deposited_by_user_id is not None and dive.deposited_by_user_id == user.id:
+            return True
+        if user.is_admin:
+            return True
+    return False
 
 
 def require_dive_owner(db: Session, user, dive: Dive) -> None:
@@ -61,15 +102,17 @@ def scope_member_reads(state):
         return
     ids = context["diver_ids"]
     is_admin = context.get("is_admin", False)
-    visible_ids = select(Dive.id).where(visible_dive_clause(ids, is_admin))
-    visible_videos = select(Dive.video_uuid).where(visible_dive_clause(ids, is_admin))
+    depositor_user_id = context.get("user_id")
+    clause = visible_dive_clause(ids, is_admin, depositor_user_id)
+    visible_ids = select(Dive.id).where(visible_dive_clause(ids, is_admin, depositor_user_id))
+    visible_videos = select(Dive.video_uuid).where(visible_dive_clause(ids, is_admin, depositor_user_id))
     visible_assets = select(PhotosAsset.id).where(PhotosAsset.video_uuid.in_(visible_videos))
-    criteria = [(Dive, visible_dive_clause(ids, is_admin)),
+    criteria = [(Dive, clause),
                 (PhotosAsset, PhotosAsset.video_uuid.in_(visible_videos)),
                 (TrainingSession, TrainingSession.id.in_(
-                    select(Dive.session_id).where(visible_dive_clause(ids, is_admin)))),
+                    select(Dive.session_id).where(visible_dive_clause(ids, is_admin, depositor_user_id)))),
                 (Diver, or_(Diver.id.in_(ids), Diver.id.in_(
-                    select(Dive.diver_id).where(visible_dive_clause(ids, is_admin)))))]
+                    select(Dive.diver_id).where(visible_dive_clause(ids, is_admin, depositor_user_id)))))]
     # Scope derived dive records and media identities too. The mapper registry
     # covers every imported model; no route can accidentally omit a filter.
     # DirectMessage is excluded: every messaging endpoint explicitly checks
@@ -103,7 +146,15 @@ def protect_dive_ownership(db, flush_context, instances):
     for row in db.new.union(db.dirty).union(db.deleted):
         if isinstance(row, Dive):
             if row.diver_id not in context["diver_ids"] and not (context.get("is_admin") and row.diver_id is None):
-                raise HTTPException(403, "Only the dive owner can manage this dive")
+                # Own pending deposits stay editable by their depositor and
+                # triageable by admins; ownership transfer stays guarded below.
+                pending = row.accepted_at is None and row.batch_id is not None
+                depositor = (
+                    row.deposited_by_user_id is not None
+                    and row.deposited_by_user_id == context.get("user_id")
+                )
+                if not (pending and (depositor or context.get("is_admin"))):
+                    raise HTTPException(403, "Only the dive owner can manage this dive")
             from sqlalchemy import inspect
             previous = inspect(row).attrs.diver_id.history.deleted
             if previous and previous[0] not in context["diver_ids"]:
@@ -116,6 +167,7 @@ async def member_access_context(request: HTTPConnection, db: Session = Depends(g
     path = request.url.path
     if (not get_settings().user_auth_enabled or path.startswith("/api/v1/auth/")
             or path.startswith("/api/v1/shared-dives/")
+            or path.startswith("/api/v1/deposits/claim/")
             or path.startswith("/api/v1/health") or _valid_machine_api_key(request)):
         yield
         return

@@ -1,0 +1,8 @@
+{
+  "id": "deposit-batches",
+  "date": "2026-10-07",
+  "title": "Pick up clips deposited for you",
+  "body": "Clips deposited for you now wait in a review page: accept them one by one or all at once, fix the code, height or your note along the way, and get one email per batch with a sign-in link. Admins can deposit on your behalf from the browser.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

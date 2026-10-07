@@ -57,6 +57,15 @@ class Dive(Base):
     photos_asset_id = Column(Integer, ForeignKey("photos_assets.id"), nullable=True, index=True)
     diver_id = Column(Integer, ForeignKey("divers.id"), nullable=True, index=True)
 
+    # Deposit batch ("Récupérer mes plongeons"): clips deposited by the
+    # mac-agent or an admin on behalf of another account stay private and
+    # pending (accepted_at NULL) until the owner accepts them. accepted_at
+    # is advisory; visibility stays authoritative. Own-account deposits are
+    # accepted immediately at creation.
+    batch_id = Column(String(36), nullable=True, index=True)
+    accepted_at = Column(DateTime, nullable=True)
+    deposited_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True, index=True)
+
     # Phase insight (coaching recommendation based on two-phase scores)
     phase_insight = Column(Text, nullable=True)  # e.g., "Focus on hurdle height"
 

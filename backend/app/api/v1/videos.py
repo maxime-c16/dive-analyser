@@ -414,11 +414,30 @@ async def sync_single_video(
                     detail=error
                 )
 
+        from app.services import deposit_batches
+        depositor = deposit_batches.resolve_depositor(db)
+        day = request.date.date() if isinstance(request.date, datetime) else request.date
+        batch_id = deposit_batches.agent_day_batch_id(request.agent_id, day)
         dive, created, updated = _upsert_synced_dive(db, request)
+        pending_diver = deposit_batches.finalize_synced_dive(
+            db, dive, batch_id=batch_id, created=created,
+            depositor=depositor, raw_caption=request.raw_caption)
         if created:
             _queue_new_captioned_media(db, dive)
         db.commit()
         db.refresh(dive)
+        if pending_diver is not None:
+            try:
+                deposit_batches.queue_batch_email(
+                    db, batch_id=batch_id, diver_id=pending_diver,
+                    exclude_user_id=depositor.id if depositor else None)
+                db.commit()
+            except Exception:
+                logger.exception('batch email queue failed for dive %s', dive.id)
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
 
         if created and dive.diver_id is not None:
             # Machine-key sync has no actor to exclude: every owner is told.
@@ -561,6 +580,11 @@ async def sync_batch_videos(
         # Track UUIDs processed in this batch to detect intra-batch duplicates
         seen_uuids = set()
 
+        from app.services import deposit_batches
+        depositor = deposit_batches.resolve_depositor(db)
+        batch_id = deposit_batches.new_batch_id()
+        pending_divers: set = set()
+
         # Process each video
         for video in request.videos:
             try:
@@ -569,6 +593,11 @@ async def sync_batch_videos(
                 seen_uuids.add(video.video_uuid)
 
                 dive, created, updated = _upsert_synced_dive(db, video)
+                pending = deposit_batches.finalize_synced_dive(
+                    db, dive, batch_id=batch_id, created=created,
+                    depositor=depositor, raw_caption=video.raw_caption)
+                if pending is not None:
+                    pending_divers.add(pending)
                 if created:
                     new_dive_ids.append(dive.id)
                     _queue_new_captioned_media(db, dive)
@@ -584,6 +613,21 @@ async def sync_batch_videos(
         # Commit all at once (transactional)
         if succeeded > 0:
             db.commit()
+            for diver_id in pending_divers:
+                try:
+                    deposit_batches.queue_batch_email(
+                        db, batch_id=batch_id, diver_id=diver_id,
+                        exclude_user_id=depositor.id if depositor else None)
+                except Exception:
+                    logger.exception('batch email queue failed for batch %s', batch_id)
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
             if new_dive_ids:
                 # One batched notification per diver per request (never N rows
@@ -632,9 +676,9 @@ async def sync_batch_videos(
 
         # Log batch sync operation
         import uuid as uuid_module
-        batch_id = str(uuid_module.uuid4())[:8]
+        audit_batch_id = str(uuid_module.uuid4())[:8]
         audit_logger.log_sync_batch(
-            batch_id=batch_id,
+            batch_id=audit_batch_id,
             video_count=len(request.videos),
             success_count=succeeded,
             error_count=failed,
