@@ -45,9 +45,10 @@ _MAX_LIST_LIMIT = 100
 _TITLE_MAX = 200
 _BODY_MAX = 600
 
-# Bound background push scheduling: one request never schedules more than
-# this many inbox ids for fan-out (IN query stays small; push_service sends
-# every scheduled row in MAX_PUSH_SENDS_PER_CHUNK chunks anyway).
+# Bound background push scheduling: ids travel in batches of at most this
+# many per background task (IN query stays small; push_service sends every
+# scheduled row in MAX_PUSH_SENDS_PER_CHUNK chunks anyway). Large requests
+# schedule one task per batch — never truncated.
 _MAX_PUSH_IDS_PER_SCHEDULE = 50
 
 
@@ -133,11 +134,12 @@ def fanout_in_background(notification_ids: Sequence[int]) -> None:
     sync background tasks in its threadpool, so blocking pywebpush calls
     never touch the single uvicorn event loop. Uses its OWN SessionLocal —
     never the request session (already closed when background runs).
-    Bounded: at most _MAX_PUSH_IDS_PER_SCHEDULE ids re-fetched, every row
-    fanned out in MAX_PUSH_SENDS_PER_CHUNK chunks (push_service). Rollback
-    before close; logs user ids and counts only, never endpoints/keys.
+    Bounded: ids are re-fetched in _MAX_PUSH_IDS_PER_SCHEDULE pages (IN
+    query stays small), every row fanned out in MAX_PUSH_SENDS_PER_CHUNK
+    chunks (push_service). Rollback before close; logs user ids and counts
+    only, never endpoints/keys.
     """
-    ids = [int(i) for i in (notification_ids or [])][: _MAX_PUSH_IDS_PER_SCHEDULE]
+    ids = [int(i) for i in (notification_ids or [])]
     if not ids:
         return
     try:
@@ -155,14 +157,16 @@ def fanout_in_background(notification_ids: Sequence[int]) -> None:
 
     db = SessionLocal()
     try:
-        rows = (
-            db.query(Notification).filter(Notification.id.in_(ids)).limit(len(ids)).all()
-        )
-        if not rows:
-            return
         from app.services import push_service
 
-        push_service.fanout_for_rows(db, rows)
+        for start in range(0, len(ids), _MAX_PUSH_IDS_PER_SCHEDULE):
+            chunk = ids[start : start + _MAX_PUSH_IDS_PER_SCHEDULE]
+            rows = (
+                db.query(Notification).filter(Notification.id.in_(chunk)).limit(len(chunk)).all()
+            )
+            if not rows:
+                continue
+            push_service.fanout_for_rows(db, rows)
     except Exception as exc:
         logger.error("background push fan-out failed (%s)", type(exc).__name__)
         try:
@@ -186,19 +190,23 @@ def schedule_push(background_tasks: Optional[BackgroundTasks], rows: Sequence[No
     Extracts ids only (never ORM objects — the request session closes
     before background runs). No-op when there is nothing to push or no
     background queue (rare direct-call edge: inbox already committed).
+    Large requests are split into _MAX_PUSH_IDS_PER_SCHEDULE batches, one
+    background task per batch, so every row is fanned out (never
+    truncated).
     """
     if background_tasks is None or not rows:
         return
     try:
-        ids = [row.id for row in rows if getattr(row, "id", None) is not None][
-            : _MAX_PUSH_IDS_PER_SCHEDULE
-        ]
+        ids = [row.id for row in rows if getattr(row, "id", None) is not None]
     except Exception:
         return
     if not ids:
         return
     try:
-        background_tasks.add_task(fanout_in_background, ids)
+        for start in range(0, len(ids), _MAX_PUSH_IDS_PER_SCHEDULE):
+            background_tasks.add_task(
+                fanout_in_background, ids[start : start + _MAX_PUSH_IDS_PER_SCHEDULE]
+            )
     except Exception as exc:
         logger.error("push schedule failed (%s)", type(exc).__name__)
 

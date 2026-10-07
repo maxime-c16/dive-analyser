@@ -429,3 +429,37 @@ def test_chunked_fanout_covers_all_rows_not_just_first(workspace, monkeypatch):
     assert all(r is not None for r in rows)
     assert push_service.fanout_for_rows(db, rows) == 30
     assert len(calls) == 30
+
+
+def test_schedule_push_batches_every_id_without_truncation():
+    """125 ids → 3 background tasks (50 + 50 + 25), no row starved.
+
+    Regression for the old total-cap: schedule_push truncated to the
+    first 50 ids, so rows beyond never produced a push."""
+    from types import SimpleNamespace
+
+    from app.services import notification_service
+
+    scheduled = []
+
+    class FakeBackgroundTasks:
+        def add_task(self, func, *args, **kwargs):
+            scheduled.append((func, args, kwargs))
+
+    bg = FakeBackgroundTasks()
+    rows = [SimpleNamespace(id=i + 1) for i in range(125)]
+    notification_service.schedule_push(bg, rows)
+    assert len(scheduled) == 3
+    assert all(call[0] is notification_service.fanout_in_background for call in scheduled)
+    batches = [list(call[1][0]) for call in scheduled]
+    assert batches == [list(range(1, 51)), list(range(51, 101)), list(range(101, 126))]
+
+    # Edge cases: empty → no task; <50 → single task (unchanged behavior).
+    scheduled.clear()
+    notification_service.schedule_push(bg, [])
+    assert scheduled == []
+    notification_service.schedule_push(None, rows)
+    assert scheduled == []
+    notification_service.schedule_push(bg, [SimpleNamespace(id=i + 1) for i in range(10)])
+    assert len(scheduled) == 1
+    assert list(scheduled[0][1][0]) == list(range(1, 11))
