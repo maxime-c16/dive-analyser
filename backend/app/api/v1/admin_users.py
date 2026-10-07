@@ -841,13 +841,14 @@ def account_access_studio(
 ):
     """Bounded ownership graph plus effective dive totals for the target account."""
     from app.models.dive import Dive
-    from app.services.dive_access import owned_diver_ids, visible_dive_clause
+    from app.services.dive_access import visible_dive_clause
 
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(404, "User not found")
     with _unscoped_divers(db):
-        ids = owned_diver_ids(db, user_id)
+        ids = db.query(UserDiverAccess.diver_id).filter_by(user_id=user_id, access_kind="OWNER")
+        total = ids.count()
         query = db.query(Diver).filter(Diver.id.in_(ids))
         rows = query.order_by(Diver.display_name, Diver.id).offset(offset).limit(limit).all()
         counts = dict(db.query(Dive.diver_id, func.count(Dive.id)).filter(
@@ -855,7 +856,7 @@ def account_access_studio(
         visible = db.query(Dive).filter(visible_dive_clause(ids, bool(user.is_admin))).count() if user.is_active else 0
         manageable = db.query(Dive).filter(or_(Dive.diver_id.in_(ids), Dive.diver_id.is_(None) if user.is_admin else False)).count() if user.is_active else 0
     return {"bindings": [{"diver_id": row.id, "display_name": row.display_name,
-        "dive_count": counts.get(row.id, 0)} for row in rows], "total": len(ids),
+        "dive_count": counts.get(row.id, 0)} for row in rows], "total": total,
         "viewable_dives": visible, "manageable_dives": manageable, "limit": limit, "offset": offset}
 
 

@@ -653,3 +653,28 @@ def test_studio_does_not_imply_private_ownership_for_admins(db, admin_client, ta
     assert data["total"] == 0
     assert data["viewable_dives"] == viewable
     assert data["manageable_dives"] == manageable
+
+
+def test_studio_pages_large_binding_sets_without_expanding_sql_parameters(db, admin_client):
+    from sqlalchemy import event
+    target = _make_user(db, "studio-many@example.test", role="friend", is_admin=False)
+    for index in range(230):
+        diver = Diver(display_name=f"Studio {index:04}", canonical_name=f"studio-{index}", is_primary_user=False)
+        db.add(diver)
+        db.flush()
+        db.add(UserDiverAccess(user_id=target.id, diver_id=diver.id, access_kind="OWNER"))
+    db.commit()
+    parameter_counts = []
+    def record_params(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            parameter_counts.append(len(parameters))
+    event.listen(db.get_bind(), 'before_cursor_execute', record_params)
+    try:
+        first = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=200").json()
+        last = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=229").json()
+    finally:
+        event.remove(db.get_bind(), 'before_cursor_execute', record_params)
+    assert first['total'] == last['total'] == 230
+    assert [row['display_name'] for row in first['bindings']] == ['Studio 0200', 'Studio 0201']
+    assert [row['display_name'] for row in last['bindings']] == ['Studio 0229']
+    assert max(parameter_counts) < 20
