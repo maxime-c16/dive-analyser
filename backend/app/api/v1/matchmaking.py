@@ -82,22 +82,31 @@ def media_status(dive_id: int, request: Request, response: Response, db: Session
     return service.status(db, dive, asset)
 
 
-@router.api_route('/evaluations/automatic/{dive_id}/media/{kind}', methods=['GET', 'HEAD'])
-async def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
+def _resolve_media(dive_id, kind, request, rendition, db):
     user = _require_user(request, db)
     if kind not in ('play', 'poster'):
         raise HTTPException(404, 'Not found')
     dive, asset = service.authorize(db, user, dive_id)
     if kind == 'play' and (rendition == 'original' or rendition is None):
-        from app.api.v1.media_playback import play_media_revision
         from app.models.media import MediaCacheEntry
         cached_hq = db.query(MediaCacheEntry.id).filter(MediaCacheEntry.photos_asset_id == asset.id,
             MediaCacheEntry.status == 'ready', MediaCacheEntry.rendition == ('original' if rendition else 'proxy_720p')).first()
         revision_id = service.original_revision_id(db, dive.video_uuid)
         if revision_id is not None and not cached_hq:
-            return await play_media_revision(revision_id, request, Response(), db, user)
+            return revision_id, user
     entry = _select_ready_entry(db, asset, rendition if kind == 'play' else None, playable=kind == 'play')
     return evaluation_access.serve_entry(entry.storage_path, entry.content_type, request, head_only=request.method == 'HEAD')
+
+
+@router.api_route('/evaluations/automatic/{dive_id}/media/{kind}', methods=['GET', 'HEAD'])
+async def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
+    from starlette.concurrency import run_in_threadpool
+    resolved = await run_in_threadpool(_resolve_media, dive_id, kind, request, rendition, db)
+    if isinstance(resolved, tuple):
+        from app.api.v1.media_playback import play_media_revision
+        revision_id, user = resolved
+        return await play_media_revision(revision_id, request, Response(), db, user)
+    return resolved
 
 
 @router.post('/evaluations/automatic/{dive_id}/media/prepare')
