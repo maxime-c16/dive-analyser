@@ -663,6 +663,11 @@ def test_studio_pages_large_binding_sets_without_expanding_sql_parameters(db, ad
         db.add(diver)
         db.flush()
         db.add(UserDiverAccess(user_id=target.id, diver_id=diver.id, access_kind="OWNER"))
+    training = SessionModel(date=datetime.utcnow(), location='Large account diagnostic')
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=diver.id, dive_code='101B', performance='G', performance_numeric=3, height='3m', dive_datetime=datetime.utcnow(), visibility='private', video_uuid='large-binding-diagnostic')
+    db.add(dive)
     db.commit()
     parameter_counts = []
     def record_params(conn, cursor, statement, parameters, context, executemany):
@@ -672,9 +677,11 @@ def test_studio_pages_large_binding_sets_without_expanding_sql_parameters(db, ad
     try:
         first = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=200").json()
         last = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=229").json()
+        diagnostic = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}").json()
     finally:
         event.remove(db.get_bind(), 'before_cursor_execute', record_params)
     assert first['total'] == last['total'] == 230
     assert [row['display_name'] for row in first['bindings']] == ['Studio 0200', 'Studio 0201']
     assert [row['display_name'] for row in last['bindings']] == ['Studio 0229']
+    assert diagnostic['can_view'] and diagnostic['can_manage'] and diagnostic['video_authorized']
     assert max(parameter_counts) < 20

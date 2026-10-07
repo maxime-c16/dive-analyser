@@ -795,8 +795,8 @@ def check_account_dive_access(
 ):
     """Read-only target-account policy check; never issue a playback grant."""
     from app.models.dive import Dive
-    from app.services.dive_access import owned_diver_ids, visible_dive_clause, can_manage_dive
-    from app.services.user_access import can_user_access_video
+    from app.services.dive_access import visible_dive_clause, can_manage_dive
+    from app.services.user_access import can_user_access_video, user_has_diver_access
 
     user = db.get(AppUser, user_id)
     if user is None:
@@ -806,7 +806,8 @@ def check_account_dive_access(
         dive = db.get(Dive, dive_id)
         if dive is None:
             raise HTTPException(404, "Dive not found")
-        ids = owned_diver_ids(db, user_id)
+        owned = dive.diver_id is not None and user_has_diver_access(db, user_id, dive.diver_id)
+        ids = (dive.diver_id,) if owned else ()
         visible = bool(user.is_active and db.query(Dive.id).filter(
             Dive.id == dive_id, visible_dive_clause(ids, bool(user.is_admin))
         ).first())
@@ -814,7 +815,7 @@ def check_account_dive_access(
         video = can_user_access_video(db, user, dive.video_uuid).allowed if dive.video_uuid else None
         if not user.is_active:
             reason = "Account is disabled. Restore sign-in before investigating resource access."
-        elif dive.diver_id in ids:
+        elif owned:
             reason = "Explicit diver ownership allows viewing and management."
         elif dive.diver_id is None and user.is_admin:
             reason = "Administrator access allows viewing and management of unassigned dives."
