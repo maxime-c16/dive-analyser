@@ -1,0 +1,8 @@
+{
+  "id": "evaluations-jury-polish",
+  "date": "2026-10-07",
+  "title": "A calmer, clearer jury experience",
+  "body": "The jury intro now plays as a clear card deal and flip sequence that stays on screen, is labeled as a demo, and never returns mid-session. Your score card pops as a large white jury card with precise half-point steps. After confirming, your card joins the panel first, the panel flips in cascade with names, and you get a longer readable hold with Keep-results. Comments expand in place without covering Confirm, and video controls calm down during playback.",
+  "audience": "all",
+  "components": ["frontend"]
+}

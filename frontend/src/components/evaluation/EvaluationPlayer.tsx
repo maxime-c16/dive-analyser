@@ -28,6 +28,10 @@ import {
 
 const PREPARATION_GRACE_MS = 90_000
 const SLOW_RATE = 0.5
+/** Secondary player controls fade during smooth playback and come back on
+ * any interaction or focus; critical navigation/score controls live outside
+ * this component and never fade. */
+const CONTROLS_IDLE_MS = 2200
 
 type Playback =
   | { kind: 'checking' }
@@ -69,6 +73,8 @@ export default function EvaluationPlayer({
   const [slow, setSlow] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [hqHint, setHqHint] = useState(false)
+  const [controlsIdle, setControlsIdle] = useState(false)
+  const idleTimerRef = useRef<number | null>(null)
   const preparingSince = useRef<number | null>(null)
   const prepareQueued = useRef(false)
   const userPausedRef = useRef(false)
@@ -184,6 +190,29 @@ export default function EvaluationPlayer({
     else if (!userPausedRef.current) video.play().catch(() => {})
   }, [paused, playback.kind])
 
+  /* Calm playback: while the take runs smoothly the secondary rail fades;
+   * pointer movement, clicks, keys and focus bring it straight back, and the
+   * rail always shows when paused. */
+  useEffect(() => {
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current)
+    if (!playing || paused) {
+      setControlsIdle(false)
+      return
+    }
+    idleTimerRef.current = window.setTimeout(() => setControlsIdle(true), CONTROLS_IDLE_MS)
+    return () => {
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current)
+    }
+  }, [playing, paused, playback.kind])
+
+  const wakeControls = () => {
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current)
+    setControlsIdle(false)
+    if (playing && !paused) {
+      idleTimerRef.current = window.setTimeout(() => setControlsIdle(true), CONTROLS_IDLE_MS)
+    }
+  }
+
   function togglePlay() {
     const video = videoRef.current
     if (!video) return
@@ -246,7 +275,14 @@ export default function EvaluationPlayer({
     )
   }
   return (
-    <div className="eval-player">
+    <div
+      className="eval-player"
+      data-controls-idle={controlsIdle ? 'true' : undefined}
+      onPointerMove={wakeControls}
+      onPointerDown={wakeControls}
+      onKeyDown={wakeControls}
+      onFocusCapture={wakeControls}
+    >
       <video
         key={playback.src}
         ref={videoRef}

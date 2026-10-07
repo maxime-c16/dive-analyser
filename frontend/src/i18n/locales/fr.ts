@@ -523,6 +523,7 @@ const fr = {
     startNote: 'Les plongeons arrivent par petits lots ; vous pouvez quitter et revenir quand vous voulez.',
     introHint: 'Intro du jury',
     introSkip: 'Passer',
+    introDemo: 'Cartons de démonstration — aucune note réelle',
     counted: '{{count}} plongeon(s) évalué(s)',
     loadError: 'La file d’évaluation est indisponible. Réessayez.',
     retry: 'Réessayer',

@@ -30,8 +30,13 @@ import {
   type RatingRecord,
 } from '../../services/evaluationApi'
 
-const REVEAL_HOLD_MS = 1500
-const REVEAL_ANIMATION_MS = 750
+/* Reveal rhythm: MY confirmed card joins the panel first, then the peers
+ * flip in cascade; the dive holds for a readable ~2.4s AFTER the cascade
+ * (auto-advance) with Next immediately usable and an explicit keep-open. */
+const REVEAL_READ_MS = 2400
+const REVEAL_CARD_MS = 340
+const REVEAL_MY_LEAD_MS = 240
+const REVEAL_PEER_STAGGER_MS = 120
 const MAX_BATCH_ROTATIONS = 10
 
 type Phase =
@@ -137,6 +142,7 @@ export default function JurySession({
     if (!aliveRef.current) return
     setScore(null)
     setComment('')
+    setCommentOpen(false)
     setError('')
     hoverRef.current = false
     keptOpenRef.current = false
@@ -233,10 +239,15 @@ export default function JurySession({
       hoverRef.current = false
       keptOpenRef.current = false
       setPhase({ kind: 'reveal', item: current.item, score, comment, results: response.results })
-      // Readable hold AFTER the arrival animation; parked results pause it.
+      // Readable hold AFTER MY card lands + the peer cascade; parked results
+      // (keep-open, hover, focus, open comments) pause the auto-advance.
+      const cascadeMs =
+        REVEAL_MY_LEAD_MS +
+        (response.results.ratings.length - 1) * REVEAL_PEER_STAGGER_MS +
+        REVEAL_CARD_MS
       revealTimerRef.current = window.setTimeout(() => {
         if (aliveRef.current && !hoverRef.current && !keptOpenRef.current) void advance()
-      }, REVEAL_ANIMATION_MS + REVEAL_HOLD_MS)
+      }, cascadeMs + REVEAL_READ_MS)
     } catch (err: unknown) {
       if (!aliveRef.current) return
       const axios = err as { response?: { status?: number; data?: { detail?: unknown } } }
@@ -428,6 +439,8 @@ function JudgingDock({
   onPass: () => void
 }) {
   const { t } = useTranslation()
+  // Half-point stepper: works before any slider contact too (starts from the
+  // neutral 5.0), giving precise 0.5 steps without touching the slider.
   const step = (delta: number) => {
     onScore(Math.max(0, Math.min(20, (score ?? 10) + delta)))
   }
@@ -440,7 +453,12 @@ function JudgingDock({
     <div className="eval-judging" role="group" aria-label={t('evaluations.judgeAria')}>
       <div className="eval-score-row">
         <div className="eval-stepper" role="group" aria-label={t('evaluations.scoreAria')}>
-          <button type="button" onClick={() => step(-1)} disabled={saving || score === null} aria-label={t('evaluations.stepDownAria')}>−</button>
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            disabled={saving || (score ?? 10) <= 0}
+            aria-label={t('evaluations.stepDownAria')}
+          >−</button>
           <input
             type="range"
             aria-label={t('evaluations.scoreAria')}
@@ -462,15 +480,50 @@ function JudgingDock({
           {score === null ? (
             <p className="eval-score-placeholder">{t('evaluations.chooseScore')}</p>
           ) : (
-            <ScoreCard scoreHalfSteps={score} ariaLabel={ariaText} />
+            // Remounted per value: the personal card POPS each selection.
+            <ScoreCard key={score} scoreHalfSteps={score} className="eval-card-selected" ariaLabel={ariaText} />
           )}
         </div>
       </div>
-      {!commentOpen && (
-        <button type="button" className="eval-comment-toggle" onClick={() => onCommentOpen(true)}>
-          {comment ? t('evaluations.commentEdit') : t('evaluations.commentAdd')}
-        </button>
-      )}
+      <div className="eval-comment-block">
+        {!commentOpen && (
+          <button
+            type="button"
+            className="eval-comment-toggle"
+            aria-expanded={false}
+            aria-controls="eval-comment-field"
+            onClick={() => onCommentOpen(true)}
+          >
+            {comment ? t('evaluations.commentEdit') : t('evaluations.commentAdd')}
+          </button>
+        )}
+        {/* Expands IN FLOW: Confirm/Pass and the score row stay visible —
+            the comment never overlays the essential controls. */}
+        {commentOpen && (
+          <div className="eval-comment-inline" id="eval-comment-field">
+            <header>
+              <span>{t('evaluations.commentAria')}</span>
+              <button
+                type="button"
+                aria-label={t('common.close')}
+                onClick={() => onCommentOpen(false)}
+              >
+                {String.fromCodePoint(0x2715)}
+              </button>
+            </header>
+            <textarea
+              aria-label={t('evaluations.commentAria')}
+              maxLength={2000}
+              rows={3}
+              value={comment}
+              placeholder={t('evaluations.commentPlaceholder')}
+              onChange={(event) => onComment(event.target.value)}
+              autoFocus
+            />
+            <p className="eval-note">{t('evaluations.commentSavedOnConfirm')}</p>
+          </div>
+        )}
+      </div>
       <div className="eval-judge-actions">
         <button type="button" className="eval-pass" disabled={saving} onClick={onPass}>{t('evaluations.pass')}</button>
         <button
@@ -484,26 +537,6 @@ function JudgingDock({
         </button>
       </div>
       {error && <p role="alert" className="eval-error">{error}</p>}
-      {commentOpen && (
-        <div className="eval-comment-sheet" role="dialog" aria-label={t('evaluations.commentEdit')}>
-          <header>
-            <span>{t('evaluations.commentAria')}</span>
-            <button type="button" aria-label={t('common.close')} onClick={() => onCommentOpen(false)}>
-              {String.fromCodePoint(0x2715)}
-            </button>
-          </header>
-          <textarea
-            aria-label={t('evaluations.commentAria')}
-            maxLength={2000}
-            rows={3}
-            value={comment}
-            placeholder={t('evaluations.commentPlaceholder')}
-            onChange={(event) => onComment(event.target.value)}
-            autoFocus
-          />
-          <p className="eval-note">{t('evaluations.commentSavedOnConfirm')}</p>
-        </div>
-      )}
     </div>
   )
 }
@@ -519,10 +552,30 @@ function RevealPanel({
   results: JuryResults
   onKeepOpen: () => void
   onNext: () => void
+  /** Park = pause the auto-advance while the user engages the results. */
   onHover: (open: boolean) => void
 }) {
   const { t } = useTranslation()
   const [commentsOpen, setCommentsOpen] = useState(false)
+  const hoverTimerRef = useRef<number | null>(null)
+  // Parking follows ENGAGEMENT, not a stationary pointer: after Confirm, the
+  // mouse usually rests exactly where Confirm was — Chromium re-evaluates
+  // hover under it, and a plain mouseenter would park the advance forever on
+  // every desktop click. Parking requires focus-within, an open sub-panel or
+  // RECENT pointer movement over the results (1.5s grace).
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = null
+  }
+  const engage = () => {
+    clearHoverTimer()
+    onHover(true)
+    hoverTimerRef.current = window.setTimeout(() => {
+      hoverTimerRef.current = null
+      if (!commentsOpen) onHover(false)
+    }, 1500)
+  }
+  useEffect(() => clearHoverTimer, [])
   const myId = results.my_rating?.id ?? null
   const peers = results.ratings.filter((rating) => rating.id !== myId)
   const myRating: RatingRecord | undefined = results.my_rating ?? undefined
@@ -530,23 +583,14 @@ function RevealPanel({
     <div
       className="eval-reveal"
       aria-live="polite"
-      onMouseEnter={() => onHover(true)}
-      onMouseLeave={() => onHover(false)}
-      onFocus={() => onHover(true)}
-      onBlur={() => onHover(false)}
+      onMouseMove={engage}
+      onFocus={engage}
+      onBlur={() => { if (!commentsOpen) { clearHoverTimer(); onHover(false) } }}
     >
       <div className="eval-reveal-panel">
-        {peers.map((rating, index) => (
-          <figure className="eval-card-figure" key={rating.id} style={{ '--stagger': `${index * 120}ms` } as CSSProperties}>
-            <ScoreCard
-              scoreHalfSteps={rating.score_half_steps}
-              rotation={((index % 5) - 2) * 2}
-              ariaLabel={t('evaluations.cardAria', { score: (rating.score_half_steps / 2).toFixed(1) })}
-            />
-            <figcaption>{rating.author ?? '—'}</figcaption>
-          </figure>
-        ))}
-        <figure className="eval-card-figure eval-card-mine-figure" style={{ '--stagger': `${peers.length * 120 + 240}ms` } as CSSProperties}>
+        {/* The just-confirmed personal card joins the panel FIRST, then the
+            other juror cards flip in cascade — names under each card. */}
+        <figure className="eval-card-figure eval-card-mine-figure" style={{ '--stagger': '0ms' } as CSSProperties}>
           <ScoreCard
             scoreHalfSteps={myRating?.score_half_steps ?? score}
             rotation={4}
@@ -555,6 +599,20 @@ function RevealPanel({
           />
           <figcaption>{t('evaluations.you')}</figcaption>
         </figure>
+        {peers.map((rating, index) => (
+          <figure
+            className="eval-card-figure"
+            key={rating.id}
+            style={{ '--stagger': `${REVEAL_MY_LEAD_MS + (index + 1) * REVEAL_PEER_STAGGER_MS}ms` } as CSSProperties}
+          >
+            <ScoreCard
+              scoreHalfSteps={rating.score_half_steps}
+              rotation={((index % 5) - 2) * 2}
+              ariaLabel={t('evaluations.cardAria', { score: (rating.score_half_steps / 2).toFixed(1) })}
+            />
+            <figcaption>{rating.author ?? '—'}</figcaption>
+          </figure>
+        ))}
       </div>
       <div className="eval-reveal-meta">
         <p>
@@ -564,7 +622,7 @@ function RevealPanel({
           })}
         </p>
         <div className="eval-reveal-actions">
-          <button type="button" className="eval-chip" onClick={() => { setCommentsOpen(open => !open); onKeepOpen() }} aria-expanded={commentsOpen}>
+          <button type="button" className="eval-chip" onClick={() => { clearHoverTimer(); setCommentsOpen(open => !open); onKeepOpen() }} aria-expanded={commentsOpen}>
             {t('evaluations.commentsToggle')}
           </button>
           <button type="button" className="eval-chip" onClick={onKeepOpen} aria-label={t('evaluations.keepOpen')}>
@@ -572,8 +630,8 @@ function RevealPanel({
           </button>
           <button type="button" className="eval-confirm" onClick={onNext}>{t('evaluations.next')}</button>
         </div>
-        {commentsOpen && (
-          <ul className="eval-panel-list">
+      {commentsOpen && (
+        <ul className="eval-panel-list" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
             {results.ratings.map((rating) => (
               <li key={rating.id}>
                 <strong>{(rating.score_half_steps / 2).toFixed(1)}</strong> — {rating.author ?? '—'}

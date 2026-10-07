@@ -523,6 +523,7 @@ const en = {
     startNote: 'Dives arrive in small batches; you can stop anytime and come back.',
     introHint: 'Jury intro',
     introSkip: 'Skip',
+    introDemo: 'Demo cards — not real scores',
     counted: '{{count}} dive(s) judged',
     loadError: 'The evaluation queue is unavailable. Try again.',
     retry: 'Retry',
