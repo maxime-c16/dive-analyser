@@ -354,3 +354,78 @@ def test_send_one_redirect_failure_keeps_subscription(monkeypatch):
         )
         is None
     )
+
+
+def test_chunked_full_fanout_sends_all_devices_in_order(workspace, monkeypatch):
+    """25 devices → 25 sends in 2 chunks (20 + 5), deterministic id order.
+
+    Regression for the old total-cap: fan-out stopped after the first 20
+    sends, starving later inbox rows. Now every eligible device is handled
+    in MAX_PUSH_SENDS_PER_CHUNK pages."""
+    from app.models.notification import PushSubscription
+    from app.services import notification_service, push_service
+
+    _vapid(monkeypatch, configured=True)
+    db, login, _, users, _ = workspace
+    alice_id = users["alice"].id
+    for i in range(25):
+        db.add(
+            PushSubscription(
+                user_id=alice_id,
+                endpoint=f"https://fcm.googleapis.com/fcm/send/device-{i:03d}",
+                p256dh=f"k-{i}",
+                auth=f"a-{i}",
+            )
+        )
+    db.commit()
+
+    calls = []
+    monkeypatch.setattr(
+        push_service, "_send_one", lambda **kwargs: calls.append(kwargs)
+    )
+    row = notification_service.create(
+        db, user_id=alice_id, type="new_video", title="t"
+    )
+    assert row is not None
+    assert len(calls) == 25
+    endpoints = [c["endpoint"] for c in calls]
+    assert endpoints == sorted(endpoints)
+    assert endpoints[0].endswith("device-000")
+    assert endpoints[-1].endswith("device-024")
+    assert push_service.MAX_PUSH_SENDS_PER_CHUNK == 20
+    # Old total-cap alias still resolves to the per-chunk bound.
+    assert push_service.MAX_PUSH_SENDS_PER_FANOUT == 20
+
+
+def test_chunked_fanout_covers_all_rows_not_just_first(workspace, monkeypatch):
+    """Two recipients × 15 devices each → 30 sends: no row is starved."""
+    from app.models.notification import PushSubscription
+    from app.services import notification_service, push_service
+
+    _vapid(monkeypatch, configured=True)
+    db, _, _, users, _ = workspace
+    for name in ("alice", "bob"):
+        for i in range(15):
+            db.add(
+                PushSubscription(
+                    user_id=users[name].id,
+                    endpoint=f"https://fcm.googleapis.com/fcm/send/{name}-{i:03d}",
+                    p256dh="k",
+                    auth="a",
+                )
+            )
+    db.commit()
+
+    calls = []
+    monkeypatch.setattr(
+        push_service, "_send_one", lambda **kwargs: calls.append(kwargs)
+    )
+    rows = [
+        notification_service.create(
+            db, user_id=users[name].id, type="new_video", title="t", defer_push=True
+        )
+        for name in ("alice", "bob")
+    ]
+    assert all(r is not None for r in rows)
+    assert push_service.fanout_for_rows(db, rows) == 30
+    assert len(calls) == 30

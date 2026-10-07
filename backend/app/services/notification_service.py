@@ -46,8 +46,8 @@ _TITLE_MAX = 200
 _BODY_MAX = 600
 
 # Bound background push scheduling: one request never schedules more than
-# this many inbox ids for fan-out (IN query stays small; push_service bounds
-# the actual sends to MAX_PUSH_SENDS_PER_FANOUT anyway).
+# this many inbox ids for fan-out (IN query stays small; push_service sends
+# every scheduled row in MAX_PUSH_SENDS_PER_CHUNK chunks anyway).
 _MAX_PUSH_IDS_PER_SCHEDULE = 50
 
 
@@ -133,8 +133,8 @@ def fanout_in_background(notification_ids: Sequence[int]) -> None:
     sync background tasks in its threadpool, so blocking pywebpush calls
     never touch the single uvicorn event loop. Uses its OWN SessionLocal —
     never the request session (already closed when background runs).
-    Bounded: at most _MAX_PUSH_IDS_PER_SCHEDULE ids re-fetched, at most
-    MAX_PUSH_SENDS_PER_FANOUT sends attempted (push_service). Rollback
+    Bounded: at most _MAX_PUSH_IDS_PER_SCHEDULE ids re-fetched, every row
+    fanned out in MAX_PUSH_SENDS_PER_CHUNK chunks (push_service). Rollback
     before close; logs user ids and counts only, never endpoints/keys.
     """
     ids = [int(i) for i in (notification_ids or [])][: _MAX_PUSH_IDS_PER_SCHEDULE]

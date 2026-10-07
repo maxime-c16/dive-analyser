@@ -21,8 +21,9 @@ callers must NOT call fanout_for_rows inline from async endpoints — they
 create inbox rows synchronously via notification_service (defer_push=True)
 then schedule notification_service.fanout_in_background via FastAPI
 BackgroundTasks (sync tasks run in Starlette's threadpool) with a fresh
-SessionLocal. Total work per fan-out is bounded (MAX_PUSH_SENDS_PER_FANOUT
-sends, _PUSH_SEND_TIMEOUT_SECONDS per send).
+SessionLocal. All eligible recipients/devices are handled in bounded
+chunks (MAX_PUSH_SENDS_PER_CHUNK sends, _PUSH_SEND_TIMEOUT_SECONDS per
+send) — never an inline total cap that would starve later rows.
 """
 import json
 import logging
@@ -54,15 +55,17 @@ ALLOWED_PUSH_ENDPOINT_HOSTS = frozenset(
 )
 MAX_PUSH_ENDPOINT_LENGTH = 2048
 
-# Bound the per-send fan-out (one user cannot accumulate unbounded rows).
-_PUSH_SUBSCRIPTION_LIMIT = 100
 # Bound stored devices per user (oldest evicted on overflow at upsert time).
 MAX_SUBSCRIPTIONS_PER_USER = 20
-# Bound total outbound sends per fan-out: one request (even a batch to many
-# owners) can never trigger more than this many blocking pywebpush POSTs.
-# With _PUSH_SEND_TIMEOUT_SECONDS per send, worst-case background work is
-# bounded (20 × 10s) instead of scaling with owners × devices.
-MAX_PUSH_SENDS_PER_FANOUT = 20
+# Bound one DB/send chunk: subs are fetched per recipient with
+# offset/limit pages of this size (each with _PUSH_SEND_TIMEOUT_SECONDS
+# per send) until every eligible recipient/device has been handled.
+# Previously MAX_PUSH_SENDS_PER_FANOUT capped the TOTAL sends per call,
+# starving later inbox rows after the first recipients' devices — now it
+# is a per-chunk bound, not a total cap (background threadpool work).
+MAX_PUSH_SENDS_PER_CHUNK = 20
+# Deprecated alias: the old total-cap name now means the per-chunk bound.
+MAX_PUSH_SENDS_PER_FANOUT = MAX_PUSH_SENDS_PER_CHUNK
 _PUSH_TTL_SECONDS = 86400
 
 # Bound each outbound push POST so one slow push service cannot wedge the
@@ -214,11 +217,14 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
     returns the count so far. Callers invoke this only after their own
     commit, so our rollback can never poison their session.
 
-    Bounded: at most MAX_PUSH_SENDS_PER_FANOUT blocking sends per call
-    (each with _PUSH_SEND_TIMEOUT_SECONDS). Must run off the request
-    event loop — via notification_service.fanout_in_background scheduled
-    on FastAPI BackgroundTasks (Starlette runs sync background tasks in
-    its threadpool) with a fresh SessionLocal.
+    Full fan-out in bounded chunks: every eligible recipient/device is
+    handled (no total cap starving later rows); subs are fetched per
+    recipient with offset/limit pages of MAX_PUSH_SENDS_PER_CHUNK ordered
+    by id (deterministic), each send with _PUSH_SEND_TIMEOUT_SECONDS.
+    Must run off the request event loop — via
+    notification_service.fanout_in_background scheduled on FastAPI
+    BackgroundTasks (Starlette runs sync background tasks in its
+    threadpool) with a fresh SessionLocal.
 
     Logging: user ids and counts only. Never logs endpoints, keys,
     payloads, statements, parameters, or exception messages — only the
@@ -234,12 +240,9 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
     from app.services.notification_service import is_enabled
 
     sent = 0
-    attempts = 0
     dead_endpoints: List[str] = []
     try:
         for row in rows:
-            if attempts >= MAX_PUSH_SENDS_PER_FANOUT:
-                break
             try:
                 # Belt and suspenders: rows only exist because the type was
                 # enabled at creation, but a concurrent opt-out between the
@@ -260,50 +263,54 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
                 except Exception:
                     pass
                 continue
-            try:
-                subs = (
-                    db.query(PushSubscription)
-                    .filter(PushSubscription.user_id == row.user_id)
-                    .limit(_PUSH_SUBSCRIPTION_LIMIT)
-                    .all()
-                )
-            except Exception as exc:
-                logger.error(
-                    "push subscription fetch failed for user %s (%s)",
-                    row.user_id,
-                    type(exc).__name__,
-                )
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
-                continue
             payload = _payload_for(row)
-            for sub in subs:
-                if attempts >= MAX_PUSH_SENDS_PER_FANOUT:
-                    break
-                # Defense in depth: never POST to a non-allowlisted URL,
-                # even if a legacy/hand-written row slipped past registration
-                # validation. Silent skip (no log of the URL, no send count).
-                if not is_allowed_push_endpoint(sub.endpoint):
-                    continue
+            offset = 0
+            while True:
                 try:
-                    _send_one(
-                        endpoint=sub.endpoint,
-                        p256dh=sub.p256dh,
-                        auth=sub.auth,
-                        payload=payload,
+                    subs = (
+                        db.query(PushSubscription)
+                        .filter(PushSubscription.user_id == row.user_id)
+                        .order_by(PushSubscription.id)
+                        .offset(offset)
+                        .limit(MAX_PUSH_SENDS_PER_CHUNK)
+                        .all()
                     )
-                    sent += 1
-                    attempts += 1
-                except PushGone:
-                    dead_endpoints.append(sub.endpoint)
-                    attempts += 1
-                except Exception:
-                    # _send_one already swallows; this guards mocks/futures.
-                    # User id only — never the endpoint or the error itself.
-                    logger.warning("push send failed for user %s", row.user_id)
-                    attempts += 1
+                except Exception as exc:
+                    logger.error(
+                        "push subscription fetch failed for user %s (%s)",
+                        row.user_id,
+                        type(exc).__name__,
+                    )
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    break
+                if not subs:
+                    break
+                for sub in subs:
+                    # Defense in depth: never POST to a non-allowlisted URL,
+                    # even if a legacy/hand-written row slipped past registration
+                    # validation. Silent skip (no log of the URL, no send count).
+                    if not is_allowed_push_endpoint(sub.endpoint):
+                        continue
+                    try:
+                        _send_one(
+                            endpoint=sub.endpoint,
+                            p256dh=sub.p256dh,
+                            auth=sub.auth,
+                            payload=payload,
+                        )
+                        sent += 1
+                    except PushGone:
+                        dead_endpoints.append(sub.endpoint)
+                    except Exception:
+                        # _send_one already swallows; this guards mocks/futures.
+                        # User id only — never the endpoint or the error itself.
+                        logger.warning("push send failed for user %s", row.user_id)
+                if len(subs) < MAX_PUSH_SENDS_PER_CHUNK:
+                    break
+                offset += MAX_PUSH_SENDS_PER_CHUNK
         if dead_endpoints:
             try:
                 db.query(PushSubscription).filter(

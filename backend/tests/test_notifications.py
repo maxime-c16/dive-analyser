@@ -231,15 +231,60 @@ def test_batch_sync_is_batched_to_one_notif(workspace):
 
 
 def test_milestone_hook_notifies_diver_owners(workspace):
+    import asyncio
+
     from app.services.journey_service import _notify_milestone_owners
 
     db, login, dives, _, _ = workspace
-    _notify_milestone_owners(db, [dives["alice-public"]], 1)
+    asyncio.run(_notify_milestone_owners(db, [dives["alice-public"]], 1))
     assert any(
         item["type"] == "milestone" for item in _items(login("alice"))["items"]
     )
     assert not any(
         item["type"] == "milestone" for item in _items(login("bob"))["items"]
+    )
+
+
+def test_milestone_hook_defers_push_to_threadpool(workspace, monkeypatch):
+    """Milestone inbox stays sync; push leaves the event loop via to_thread.
+
+    Regression for inline defer_push=False on the Starlette event loop:
+    no direct _send_one call, fan-out goes through asyncio.to_thread with
+    the committed inbox ids (fresh SessionLocal inside the thread)."""
+    import asyncio
+    import inspect
+
+    from app.services import notification_service, push_service
+    from app.services.journey_service import _notify_milestone_owners
+
+    assert inspect.iscoroutinefunction(_notify_milestone_owners)
+
+    db, login, dives, _, _ = workspace
+    inline_sends = []
+    monkeypatch.setattr(
+        push_service, "_send_one", lambda **kwargs: inline_sends.append(kwargs)
+    )
+    seen_ids = []
+
+    def fake_fanout(ids):
+        seen_ids.extend(list(ids))
+
+    monkeypatch.setattr(notification_service, "fanout_in_background", fake_fanout)
+
+    thread_calls = []
+    real_to_thread = asyncio.to_thread
+
+    async def spy_to_thread(func, *args, **kwargs):
+        thread_calls.append(func)
+        return await real_to_thread(func, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", spy_to_thread)
+    asyncio.run(_notify_milestone_owners(db, [dives["alice-public"]], 1))
+    assert inline_sends == []
+    assert thread_calls == [notification_service.fanout_in_background]
+    assert len(seen_ids) == 1
+    assert any(
+        item["type"] == "milestone" for item in _items(login("alice"))["items"]
     )
 
 
