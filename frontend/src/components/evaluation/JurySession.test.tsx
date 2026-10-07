@@ -290,6 +290,54 @@ it('a score selection interrupts the intro decoration immediately', async () => 
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
 })
 
+it('a late vote response after quit never resurrects the stage', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  let resolveVote: (value: SubmissionResponse) => void = () => {}
+  vi.mocked(submitRating).mockImplementationOnce(() => new Promise<SubmissionResponse>((resolve) => { resolveVote = resolve }))
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await screen.findByRole('button', { name: 'Skip' })
+  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
+  await screen.findByText('107B · 3m')
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  // Quit WHILE the vote is in flight: the UI parks on the summary.
+  await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  await screen.findByText('You judged 0 dive(s) this session.')
+  resolveVote(voteResponse)
+  await new Promise((resolve) => setTimeout(resolve, 120))
+  // The stage stays retired: summary, scores marked saved server-side but no
+  // reveal resurrect, no Confirm to re-enter a live dive.
+  expect(screen.queryByText('107B · 3m')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
+  expect(screen.getByText('You judged 0 dive(s) this session.')).toBeInTheDocument()
+})
+
+it('Evaluate again starts a FRESH session (count/recap/skip cleared)', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await screen.findByRole('button', { name: 'Skip' })
+  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
+  await screen.findByText('107B · 3m')
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await screen.findByRole('img', { name: 'Your score card 6.5' })
+  await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  await screen.findByText('You judged 1 dive(s) this session.')
+  await userEvent.click(screen.getByRole('button', { name: 'Evaluate again' }))
+  // Landing reset: the previous session's count/recap are gone.
+  expect(screen.queryByText('You judged 1 dive(s) this session.')).not.toBeInTheDocument()
+  expect(screen.queryByRole('img', { name: 'Your score card 6.5' })).not.toBeInTheDocument()
+  // Start again → the counter restarts at 0.
+  vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await screen.findByText('No more dives to judge right now. New requests will appear here.')
+  // The second exhausted run still shows the RESET counter (0), not 1.
+  expect(screen.getByText('You judged 0 dive(s) this session.')).toBeInTheDocument()
+})
+
 it('ends on the summary when the queue is empty at start', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
   render(<MemoryRouter><JurySession /></MemoryRouter>)

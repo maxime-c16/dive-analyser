@@ -24,7 +24,7 @@ from app.models.evaluation import (
     EvaluationSessionRequest,
 )
 from app.models.media import MediaCacheEntry
-from app.models.media_backbone import MediaRevision
+from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.models.photos_asset import PhotosAsset
 from app.services import evaluation_access
 from app.services.dive_access import owned_diver_ids
@@ -136,8 +136,21 @@ def _ready_video_uuids(db: Session, pairs: list[tuple[EvaluationRequest, Dive]])
         .distinct()
         .all()
     )
+    # Backbone readiness requires a VERIFIED PROD location (the same chain
+    # /media/revisions/{id}/play authorizes before serving bytes); a bare
+    # revision row does NOT make a dive playable through the evaluation
+    # transport. cached entries are served by this backend's /play directly.
     backbone = (
-        db.query(MediaRevision.video_uuid).filter(MediaRevision.video_uuid.in_(uuids)).distinct().all()
+        db.query(MediaRevision.video_uuid)
+        .join(
+            MediaBlobLocation,
+            (MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256)
+            & (MediaBlobLocation.environment == "prod")
+            & (MediaBlobLocation.verified == True),
+        )
+        .filter(MediaRevision.video_uuid.in_(uuids))
+        .distinct()
+        .all()
     )
     return {row[0] for row in list(cached) + list(backbone)}
 
@@ -150,6 +163,21 @@ def _owner_display_name(db: Session, diver_id: int | None) -> str | None:
 
 def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> dict:
     asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
+    if asset is None:
+        return {
+            "request_id": request_row.id,
+            "dive_id": dive.id,
+            "prompt": request_row.prompt,
+            "dive": {
+                "id": dive.id,
+                "video_uuid": dive.video_uuid,
+                "dive_code": dive.dive_code,
+                "height": dive.height,
+                "platform_type": dive.platform_type,
+                "owner_display_name": _owner_display_name(db, dive.diver_id),
+            },
+            "media": {"status": "missing", "poster_url": None, "playback_url": None},
+        }
     media = evaluation_access.media_status(db, request_row, asset)
     return {
         "request_id": request_row.id,

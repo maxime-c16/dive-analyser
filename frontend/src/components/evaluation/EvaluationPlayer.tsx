@@ -68,6 +68,10 @@ export default function EvaluationPlayer({
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playback, setPlayback] = useState<Playback>({ kind: 'checking' })
+  // Identity guards: a response for a PREVIOUS request id (pending status
+  // lookup or prepare follow-up after the jury advanced) must never replace
+  // the new dive's playback — the juror would score dive A while watching B.
+  const requestEpochRef = useRef(0)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(!soundPreferred)
   const [slow, setSlow] = useState(false)
@@ -80,12 +84,14 @@ export default function EvaluationPlayer({
   const userPausedRef = useRef(false)
 
   const load = useCallback(async () => {
+    const epoch = ++requestEpochRef.current
     setPlayback({ kind: 'checking' })
     setHqHint(false)
     prepareQueued.current = false
     preparingSince.current = null
     try {
       const status = await getEvaluationMediaStatus(requestId)
+      if (epoch !== requestEpochRef.current) return
       if (status.status === 'ready' && status.playback_url) {
         setPlayback(packReady(status, status.rendition ?? 'proxy_360p'))
         setHqHint(!HQ_RENDITIONS.has(status.rendition ?? ''))
@@ -93,6 +99,7 @@ export default function EvaluationPlayer({
           // Proxy-only playback while HQ may be preparable: one bounded ask.
           prepareQueued.current = true
           prepareEvaluationMedia(requestId).then((prepared) => {
+            if (epoch !== requestEpochRef.current) return
             if (prepared.status === 'ready' && prepared.playback_url) {
               setPlayback(packReady(prepared, prepared.rendition ?? 'proxy_720p'))
               setHqHint(false)
@@ -108,6 +115,7 @@ export default function EvaluationPlayer({
       }
       setPlayback({ kind: 'missing' })
     } catch (error: unknown) {
+      if (epoch !== requestEpochRef.current) return
       const axios = error as { response?: { status?: number } }
       // Deactivated/revoked request: the evaluation ended for this item.
       setPlayback(axios.response?.status === 404 ? { kind: 'missing' } : { kind: 'failed' })
@@ -126,16 +134,17 @@ export default function EvaluationPlayer({
   useEffect(() => {
     if (playback.kind !== 'preparing' && playback.kind !== 'missing') return
     let alive = true
+    const epoch = requestEpochRef.current
     const timer = window.setTimeout(async () => {
       try {
         await prepareEvaluationMedia(requestId)
       } catch {
         /* Preparation is best-effort; the visible state keeps its retry. */
       }
-      if (!alive) return
+      if (!alive || epoch !== requestEpochRef.current) return
       try {
         const status = await getEvaluationMediaStatus(requestId)
-        if (!alive) return
+        if (!alive || epoch !== requestEpochRef.current) return
         if (status.status === 'ready' && status.playback_url) {
           setPlayback(packReady(status, status.rendition ?? 'proxy_360p'))
         }

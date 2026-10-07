@@ -88,6 +88,9 @@ export default function JurySession({
   const hoverRef = useRef(false)
   const keptOpenRef = useRef(false)
   const submittingRef = useRef(false)
+  // Set by quit(): any in-flight vote/pass response or opened timer then
+  // arrives too late and must not resurrect the stage after the summary.
+  const supersededRef = useRef(false)
   const revealTimerRef = useRef<number | null>(null)
   const aliveRef = useRef(true)
 
@@ -194,6 +197,10 @@ export default function JurySession({
   async function start() {
     setError('')
     setSessionExpired(false)
+    setJudgedCount(0)
+    setRated([])
+    setPassed([])
+    supersededRef.current = false
     setPhase({ kind: 'loading' })
     try {
       const session = await createSession(clientId())
@@ -215,13 +222,13 @@ export default function JurySession({
   async function confirm() {
     const current = phase
     if (current.kind !== 'reviewing' || score === null) return
-    if (submittingRef.current) return
+    if (submittingRef.current || supersededRef.current) return
     submittingRef.current = true
     const nextCount = judgedCount + 1
     setPhase({ kind: 'submitting', item: current.item, score, comment })
     try {
       const response = await submitRating(current.item.request_id, score, comment.trim() || undefined)
-      if (!aliveRef.current) return
+      if (!aliveRef.current || supersededRef.current) return
       setJudgedCount(nextCount)
       onCountChange?.(nextCount)
       setRated((list) => [
@@ -295,12 +302,16 @@ export default function JurySession({
     } finally {
       submittingRef.current = false
     }
+    if (supersededRef.current || !aliveRef.current) return
     await advance()
   }
 
   function quit() {
     if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current)
-    keptOpenRef.current = true // freeze any in-flight auto-advance
+    keptOpenRef.current = true
+    // In-flight votes land as persisted rows server-side; the UI here just
+    // stays retired: no reveal resurrect, and pass() stops advancing too.
+    supersededRef.current = true
     setPhase({ kind: 'summary' })
   }
 

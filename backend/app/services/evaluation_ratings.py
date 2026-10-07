@@ -40,31 +40,45 @@ class SubmissionBlocked(HTTPException):
         self.message = message
 
 
-def _result_rows(db: Session, request_row: EvaluationRequest) -> list[EvaluationRating]:
-    return (
+def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: int, limit: int = 50, offset: int = 0) -> dict:
+    """Panel = current set of votes (never a snapshot), count/mean over all.
+
+    SQL-bounded: count/mean via one aggregate query, only the requested page
+    of rows, and a separate indexed lookup for ``my_rating``.
+    """
+    request_id = request_row.id
+    total, avg = (
+        db.query(func.count(EvaluationRating.id), func.avg(EvaluationRating.score_half_steps))
+        .filter(EvaluationRating.request_id == request_id)
+        .one()
+    )
+    total = int(total or 0)
+    mean = round(float(avg) / 2, 1) if avg is not None and total else None
+    page = (
         db.query(EvaluationRating)
-        .filter(EvaluationRating.request_id == request_row.id)
+        .filter(EvaluationRating.request_id == request_id)
         .order_by(EvaluationRating.created_at.desc(), EvaluationRating.id.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
-
-
-def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: int, limit: int = 50, offset: int = 0) -> dict:
-    """Panel = current set of votes (never a snapshot), count/mean over all."""
-    rows = _result_rows(db, request_row)
-    total = len(rows)
-    mean = None
-    if total:
-        mean = round(sum(row.score_half_steps for row in rows) / 2 / total, 1)
+    page_user_ids = [row.evaluator_user_id for row in page]
     names = {
         user_id: display_name
         for user_id, display_name in db.query(AppUser.id, AppUser.display_name)
-        .filter(AppUser.id.in_({row.evaluator_user_id for row in rows} or {0}))
+        .filter(AppUser.id.in_(page_user_ids or [0]))
         .all()
     }
-    page = rows[offset : offset + limit]
+    my_row = (
+        db.query(EvaluationRating)
+        .filter(
+            EvaluationRating.request_id == request_id,
+            EvaluationRating.evaluator_user_id == my_user_id,
+        )
+        .first()
+    )
     return {
-        "request_id": request_row.id,
+        "request_id": request_id,
         "rating_count": total,
         "mean_score": mean,
         "ratings": [
@@ -77,7 +91,7 @@ def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: in
             }
             for row in page
         ],
-        "my_rating": _rating_payload(next((row for row in rows if row.evaluator_user_id == my_user_id), None)),
+        "my_rating": _rating_payload(my_row),
     }
 
 
