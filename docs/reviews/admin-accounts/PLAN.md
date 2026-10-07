@@ -1,6 +1,6 @@
 # Account administration: three PRs, highest gain first
 
-Three stacked draft PRs. Merge order is 1 → 2 → 3. UI direction remains open until the three interactive layouts are reviewed. The production page in the draft stack is a functional foundation; the selected design still needs integration before the drafts become merge-ready. All layouts use the same components and workflows; review fixtures use synthetic data and never enter the production router.
+Three stacked draft PRs. Merge order is 1 → 2 → 3. Access studio is the selected UI direction, with consistent inline Identity, Security, Audit trail and Lifecycle tab pages and purpose-built mobile cards. The production page in the draft stack is a functional foundation; the selected Studio design still needs integration before the drafts become merge-ready. All layouts use the same components and workflows; review fixtures use synthetic data and never enter the production router.
 
 1. **Account workspace and binding QOL.** Dedicated administrator route; account header; profile editing with Save/Discard and navigation protection; searchable, linked-first bindings with explicit ownership consequences; paginated directory and preserved URL filters. Highest gain: faster, safer daily account editing.
 2. **Security and accountability.** Paginated, account-scoped audit history and individual live session revocation; existing password reset and sign-out-all actions with explicit impact confirmation. Highest gain: explain changes and resolve account-security incidents using existing tables.

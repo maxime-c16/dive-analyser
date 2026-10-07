@@ -2,7 +2,11 @@
 
 Start the development preview with `npm --prefix frontend run dev -- --host 0.0.0.0 --port 3016`.
 
-Open `/e2e/fixtures/admin-account-review.html`. Direct comparisons:
+Open `/e2e/fixtures/admin-account-review.html?layout=access`. Access studio is the selected direction and the default. Identity, Security, Audit trail and Lifecycle are inline tab pages with the same card surfaces. Tabs support arrow-key navigation, browser back/forward and direct links such as `?layout=access&tab=security`; unsaved profile drafts survive tab changes.
+
+Mobile uses stacked ownership cards, labeled capability cards in place of the desktop permission table, and a responsive tab grid. Change previews sit next to the ownership map on phones.
+
+Other design references remain available:
 
 - `?layout=command`: account command center, health summary, next actions and recent history.
 - `?layout=support`: case-led investigation, account context, notes and resolution handoff.
@@ -20,4 +24,4 @@ Case notes, durable before/after audit values, recovery invitations, account-hea
 
 ## Validation
 
-`node docs/reviews/admin-accounts/validate.cjs` runs the desktop/mobile browser flows for all three variants. Optionally set `ADMIN_REVIEW_URL` to the review HTML URL. It saves screenshots outside the repository under `/tmp/admin-account-ui`; no video is recorded. The fixture is development-only and is excluded from the production router/build. Backend admin tests check account isolation, Origin guards, audit redaction, revocation idempotency and target-account authorization.
+`node docs/reviews/admin-accounts/validate.cjs` runs browser flows for all three variants and checks each tab at 320, 360, 390, 430, 768 and 1440 pixels. It checks card bounds and clipped card contents, inline tab semantics, draft preservation, keyboard navigation, browser history and direct tab links. Optionally set `ADMIN_REVIEW_URL` to the review HTML URL. It saves screenshots outside the repository under `/tmp/admin-account-ui`; no video is recorded. The fixture is development-only and is excluded from the production router/build. Backend admin tests check account isolation, Origin guards, audit redaction, revocation idempotency and target-account authorization.
