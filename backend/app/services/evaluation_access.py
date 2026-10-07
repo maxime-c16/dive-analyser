@@ -221,6 +221,9 @@ def media_status(
         "dive_id": request_row.dive_id,
         "video_uuid": asset.video_uuid,
         "status": status_value,
+        # Rendition actually resolved for playback (HQ contract 720p→original
+        # →360p; the member can select another ready one via ?rendition=).
+        "rendition": playable.rendition if playable else None,
         "poster_url": f"{base}/poster" if poster else None,
         "playback_url": f"{base}/play" if playable else None,
         "available_renditions": sorted({entry.rendition for entry in entries}),

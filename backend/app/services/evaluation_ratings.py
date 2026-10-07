@@ -32,9 +32,13 @@ COMMENT_MAX = 2000
 
 
 class SubmissionBlocked(HTTPException):
-    def __init__(self, code: str, detail: str, status_code: int):
-        super().__init__(status_code=status_code, detail=detail)
+    """Stable machine code + human message: the frontend decodes ``code``
+    (structured detail survives through the whole reviewer round)."""
+
+    def __init__(self, code: str, message: str, status_code: int):
+        super().__init__(status_code=status_code, detail={"code": code, "message": message})
         self.code = code
+        self.message = message
 
 
 def _result_rows(db: Session, request_row: EvaluationRequest, limit: int, offset: int) -> list[EvaluationRating]:
