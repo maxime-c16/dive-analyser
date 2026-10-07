@@ -48,12 +48,12 @@ export default function EvaluationStage({
   const [promptOpen, setPromptOpen] = useState(false)
   const [chromeRevealed, setChromeRevealed] = useState(false)
   const chromeTimer = useRef<number | null>(null)
-  const revealChrome = () => {
+  const revealChrome = (keyboard = false) => {
     if (!hideChrome) return
     setChromeRevealed(true)
     if (chromeTimer.current) window.clearTimeout(chromeTimer.current)
     chromeTimer.current = window.setTimeout(() => {
-      if (!document.activeElement?.closest('.eval-stage-head, .eval-player-controls')) setChromeRevealed(false)
+      if (!keyboard || !document.activeElement?.closest('.eval-stage-head, .eval-player-controls')) setChromeRevealed(false)
     }, 2200)
   }
   useEffect(() => {
@@ -124,8 +124,8 @@ export default function EvaluationStage({
       tabIndex={-1}
       data-watching={hideChrome ? 'true' : undefined}
       data-chrome-revealed={chromeRevealed ? 'true' : undefined}
-      onPointerDown={revealChrome}
-      onKeyDown={revealChrome}
+      onPointerDown={() => revealChrome(false)}
+      onKeyDown={() => revealChrome(true)}
     >
       {/* The video IS the stage: full viewport layer under every overlay. */}
       <div className="eval-stage-video">{video}</div>
