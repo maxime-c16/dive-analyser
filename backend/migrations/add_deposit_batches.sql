@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS batch_email_outbox (
     error TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_batch_email_status CHECK (status IN ('pending', 'sent', 'failed')),
-    CONSTRAINT uq_batch_email_recipient UNIQUE (batch_id, user_id)
+    CONSTRAINT uq_batch_email_recipient UNIQUE (batch_id, diver_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS ix_batch_email_due ON batch_email_outbox(status, scheduled_for);
 COMMIT;

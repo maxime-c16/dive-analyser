@@ -89,6 +89,6 @@ class BatchEmailOutbox(Base):
 
     __table_args__ = (
         CheckConstraint("status IN ('pending', 'sent', 'failed')", name="ck_batch_email_status"),
-        Index("uq_batch_email_recipient", "batch_id", "user_id", unique=True),
+        Index("uq_batch_email_recipient", "batch_id", "diver_id", "user_id", unique=True),
         Index("ix_batch_email_due", "status", "scheduled_for"),
     )

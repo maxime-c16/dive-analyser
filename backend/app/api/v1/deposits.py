@@ -68,8 +68,14 @@ def _batch_permission(db: Session, user, batch_id: str) -> list[Dive]:
     return visible
 
 
-def _serialize_dive(db: Session, dive: Dive) -> dict:
-    note = db.query(EvaluatorNote).filter_by(dive_id=dive.id).one_or_none()
+def _serialize_dive(
+    db: Session, dive: Dive, notes_by_dive: Optional[dict[int, str]] = None
+) -> dict:
+    if notes_by_dive is None:
+        note = db.query(EvaluatorNote).filter_by(dive_id=dive.id).one_or_none()
+        note_comment = note.comment if note else None
+    else:
+        note_comment = notes_by_dive.get(dive.id)
     author = None
     if dive.deposited_by_user_id is not None:
         from app.models.user_auth import AppUser
@@ -91,7 +97,7 @@ def _serialize_dive(db: Session, dive: Dive) -> dict:
         "accepted_at": dive.accepted_at.isoformat() if dive.accepted_at else None,
         "pending_acceptance": dive.accepted_at is None,
         "deposited_by": author.display_name if author else None,
-        "evaluator_note": note.comment if note else None,
+        "evaluator_note": note_comment,
     }
 
 
@@ -107,11 +113,17 @@ def list_pending_batches(user=Depends(get_current_user), db: Session = Depends(g
 def get_batch(batch_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
     dives = _batch_permission(db, user, batch_id)
     diver = db.get(Diver, dives[0].diver_id) if dives[0].diver_id else None
+    notes_by_dive = {
+        note.dive_id: note.comment
+        for note in db.query(EvaluatorNote)
+        .filter(EvaluatorNote.dive_id.in_([d.id for d in dives]))
+        .all()
+    }
     return {
         "batch_id": batch_id,
         "diver_id": dives[0].diver_id,
         "diver_name": diver.display_name if diver else None,
-        "dives": [_serialize_dive(db, d) for d in dives],
+        "dives": [_serialize_dive(db, d, notes_by_dive) for d in dives],
     }
 
 

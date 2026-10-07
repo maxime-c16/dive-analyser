@@ -259,6 +259,45 @@ def test_visibility_locked_until_acceptance_and_depositor_cut_off(workspace):
     assert can_user_access_video(db, users["maxime"], video_uuid).allowed is False
 
 
+def test_one_email_per_diver_when_owner_has_two_divers(workspace):
+    from app.models.deposit_batch import BatchEmailOutbox
+    from app.services import deposit_batches
+
+    db, login, machine, users, divers = workspace
+    second = Diver(display_name="Alice B", canonical_name="alice b")
+    db.add(second)
+    db.flush()
+    db.add(UserDiverAccess(user_id=users["alice"].id, diver_id=second.id, access_kind="OWNER"))
+    db.commit()
+    alice_id, second_id, alice_user_id = divers["alice"].id, second.id, users["alice"].id
+    _sync_batch(machine, [_video("alice1", "alice"), _video("aliceb1", "Alice B")])
+    rows = db.query(BatchEmailOutbox).order_by(BatchEmailOutbox.diver_id).all()
+    assert {(r.diver_id, r.user_id) for r in rows} == {
+        (alice_id, alice_user_id),
+        (second_id, alice_user_id),
+    }
+
+
+def test_agent_day_batch_id_fits_varchar36():
+    from app.services import deposit_batches
+
+    batch_id = deposit_batches.agent_day_batch_id("x" * 100, datetime.now().date())
+    assert len(batch_id) <= 36
+    assert deposit_batches.agent_day_batch_id("mac-1", datetime.now().date()) == \
+        deposit_batches.agent_day_batch_id("mac-1", datetime.now())
+
+
+def test_preconsumed_token_redeem_misses(workspace):
+    db, login, machine, users, divers = workspace
+    raw = claim_tokens.mint_claim_token(
+        db, user_id=users["alice"].id, batch_id="batch-taken",
+        created_by_user_id=None, ttl_seconds=3600)
+    row = db.query(ClaimToken).filter_by(user_id=users["alice"].id).one()
+    row.used_at = datetime.utcnow()
+    db.commit()
+    assert claim_tokens.redeem_claim_token(db, raw) is None
+
+
 def test_migration_backfill_never_accepts_live_batches():
     import pathlib
 

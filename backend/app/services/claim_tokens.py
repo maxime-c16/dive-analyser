@@ -73,7 +73,10 @@ def redeem_claim_token(
     """Consume a token and mint a session. Returns (raw_session, user, claim).
 
     Single-use and expiry enforced; every failure path returns None (the API
-    maps misses to 404, no oracle for valid-but-used vs unknown).
+    maps misses to 404, no oracle for valid-but-used vs unknown). The consume
+    is a conditional UPDATE (`used_at IS NULL`): concurrent redemptions
+    serialize on the row and exactly one wins — the loser reads rowcount 0
+    and gets None before any session exists.
     """
     row = peek_claim_token(db, raw_token)
     if row is None or row.used_at is not None or row.expires_at <= datetime.utcnow():
@@ -81,7 +84,14 @@ def redeem_claim_token(
     user = db.get(AppUser, row.user_id)
     if user is None or not user.is_active:
         return None
-    row.used_at = datetime.utcnow()
+    consumed = (
+        db.query(ClaimToken)
+        .filter(ClaimToken.id == row.id, ClaimToken.used_at.is_(None))
+        .update({"used_at": datetime.utcnow()}, synchronize_session=False)
+    )
+    if consumed != 1:
+        db.rollback()
+        return None
     raw_session, _ = sessions.create_session(
         db,
         user_id=user.id,
@@ -89,4 +99,5 @@ def redeem_claim_token(
         revoke_existing=False,
     )
     db.commit()
+    db.refresh(row)
     return raw_session, user, row

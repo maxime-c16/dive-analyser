@@ -13,6 +13,7 @@ Rules (applied at creation only, never on later caption edits):
   through batch_email_outbox.
 """
 
+import hashlib
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -42,10 +43,12 @@ def agent_day_batch_id(agent_id: Optional[str], day) -> str:
     The mac-agent syncs caption by caption (one /sync call each), so a
     per-request UUID would mail one email per clip. Grouping by agent + UTC
     day yields one email per diver per day — the "whole batch" the depositor
-    actually dropped in Photos.
+    actually dropped in Photos. Bounded to 29 chars: agent ids run to 100
+    chars but dives.batch_id is VARCHAR(36), so the agent only feeds a hash.
     """
     agent = (agent_id or "unknown").strip() or "unknown"
-    return f"mac-{agent}-{day.isoformat()}"
+    digest = hashlib.sha256(agent.encode("utf-8")).hexdigest()[:16]
+    return f"mac-{digest}-{day.strftime('%Y%m%d')}"
 
 
 def resolve_depositor(db: Session) -> Optional[AppUser]:
@@ -168,7 +171,7 @@ def queue_batch_email(
     for user_id in owners:
         existing = (
             db.query(BatchEmailOutbox)
-            .filter_by(batch_id=batch_id, user_id=user_id)
+            .filter_by(batch_id=batch_id, diver_id=diver_id, user_id=user_id)
             .one_or_none()
         )
         if existing is not None:
