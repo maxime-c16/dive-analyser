@@ -1,0 +1,220 @@
+/* Demo page for design review (3 variants). Decorative fixture data only. */
+
+.eval-demo {
+  min-height: 100vh;
+  background: var(--app-bg, #0b0e12);
+  color: var(--app-text, #e8ecf0);
+}
+
+.eval-demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: #141a20;
+  font-size: 13px;
+}
+
+.eval-demo-banner nav {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.eval-demo-banner button {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.eval-demo-banner button:disabled {
+  border-color: #4cc2ff;
+  color: #4cc2ff;
+  cursor: default;
+}
+
+.eval-demo-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  padding: 20px;
+}
+
+.eval-demo-main {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.eval-demo-player {
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  background:
+    linear-gradient(160deg, #10222e 0%, #0b1720 55%, #071018 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  font-size: 42px;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.eval-demo-player small {
+  font-size: 12px;
+  font-weight: 400;
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.eval-demo-side {
+  align-self: start;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  padding: 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  display: grid;
+  gap: 8px;
+}
+
+.eval-demo-side h2 {
+  margin: 0;
+  font-size: 15px;
+  color: #fff;
+}
+
+.eval-demo-side ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .eval-demo-stage {
+    grid-template-columns: 1fr;
+  }
+  .eval-demo-side {
+    order: 2;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Variant A — "Séance immersive" (dark, player-first, cards below)    */
+/* ------------------------------------------------------------------ */
+.eval-demo[data-variant='a'] {
+  --app-bg: #0b0e12;
+  --app-panel: #101418;
+  --app-panel-elevated: #161b21;
+  --app-border: #2a2a2a;
+  --app-accent: #4cc2ff;
+  --app-text: #e8ecf0;
+  --app-muted: #9aa3ad;
+}
+.eval-demo[data-variant='a'] .eval-demo-player {
+  aspect-ratio: 16 / 9;
+  max-height: 62vh;
+}
+
+/* ------------------------------------------------------------------ */
+/* Variant B — "Bord de bassin" (light deck, editorial, tile deck)     */
+/* ------------------------------------------------------------------ */
+.eval-demo[data-variant='b'] {
+  --app-bg: #f3efe6;
+  --app-panel: #fffdf7;
+  --app-panel-elevated: #f7f2e7;
+  --app-border: #d8d2c2;
+  --app-accent: #14202b;
+  --app-text: #17222c;
+  --app-muted: #6b675c;
+  color: #17222c;
+}
+.eval-demo[data-variant='b'] .eval-demo-banner {
+  background: #17222c;
+  border-bottom-color: #d8d2c2;
+}
+.eval-demo[data-variant='b'] .eval-demo-player {
+  background:
+    repeating-linear-gradient(0deg, #e9e2d2 0 46px, #e2dac8 46px 48px),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(0, 0, 0, 0.05) 46px 48px),
+    #ece5d5;
+  color: #17222c;
+  border-color: #d8d2c2;
+}
+.eval-demo[data-variant='b'] .eval-demo-player small {
+  color: rgba(23, 34, 44, 0.55);
+}
+.eval-demo[data-variant='b'] .eval-demo-side {
+  border-color: #b8b09c;
+  color: #4d4a40;
+  background: #fffdf7;
+}
+.eval-demo[data-variant='b'] .eval-demo-side h2 { color: #17222c; }
+.eval-demo[data-variant='b'] .eval-demo-banner button { border-color: rgba(255,255,255,0.4); }
+/* B: cards sit on the tile deck with a heavier shadow */
+.eval-demo[data-variant='b'] .eval-card {
+  box-shadow: 0 14px 26px rgba(40, 34, 20, 0.28), 0 3px 6px rgba(40, 34, 20, 0.22);
+  border-color: #cfc7b4;
+}
+/* B: slider/confirm in ink */
+.eval-demo[data-variant='b'] .eval-confirm {
+  border-color: #17222c;
+  color: #fffdf7;
+  background: #17222c;
+}
+.eval-demo[data-variant='b'] .eval-judge-actions button {
+  border-color: #b8b09c;
+  color: #17222c;
+}
+
+/* ------------------------------------------------------------------ */
+/* Variant C — "HUD compact" (mobile column, overlay strip)            */
+/* ------------------------------------------------------------------ */
+.eval-demo[data-variant='c'] {
+  --app-bg: #05080c;
+  --app-panel: #0d1218;
+  --app-panel-elevated: #131a22;
+  --app-border: #232c35;
+  --app-accent: #ffd23f;
+  --app-text: #f2f5f8;
+  --app-muted: #8d99a5;
+}
+.eval-demo[data-variant='c'] .eval-demo-stage {
+  grid-template-columns: 1fr;
+  max-width: 470px;
+  margin: 0 auto;
+  padding: 12px;
+}
+.eval-demo[data-variant='c'] .eval-demo-side {
+  order: 2;
+  font-size: 12px;
+}
+.eval-demo[data-variant='c'] .eval-demo-player {
+  aspect-ratio: 9 / 14;
+  max-height: 58vh;
+  border-radius: 14px;
+  font-size: 34px;
+}
+/* C: score + confirm as a compact bottom HUD */
+.eval-demo[data-variant='c'] .eval-judging {
+  border: 0;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.82));
+  padding: 10px 2px 2px;
+}
+.eval-demo[data-variant='c'] .eval-card {
+  --eval-card-w: 58px;
+}
+.eval-demo[data-variant='c'] .eval-reveal-panel {
+  max-height: 150px;
+  overflow: auto;
+  align-items: flex-start;
+}
+.eval-demo[data-variant='c'] .eval-confirm {
+  border-color: #ffd23f;
+  color: #05080c;
+  background: #ffd23f;
+}

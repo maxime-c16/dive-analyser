@@ -25,6 +25,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  ClipboardCheck,
   Film,
   Gauge,
   HardDriveDownload,
@@ -59,6 +60,12 @@ const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
 const loadMemberProfile = () => import("./pages/MemberProfile");
 const MemberProfile = lazy(loadMemberProfile);
+const loadEvaluations = () => import("./pages/Evaluations");
+const Evaluations = lazy(loadEvaluations);
+// Design-review mock (fixture data, no backend): dev-only, never shipped.
+const loadEvaluationDemo = (): Promise<{ default: React.ComponentType }> =>
+  (import.meta.env.DEV ? import("./pages/EvaluationDemo") : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
+const EvaluationDemo = lazy(loadEvaluationDemo);
 const loadNotifications = () => import("./pages/Notifications");
 const Notifications = lazy(loadNotifications);
 
@@ -67,6 +74,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/sessions': loadSessions, '/journey': loadJourney,
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
   '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
+  '/evaluations': loadEvaluations,
 };
 
 function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
@@ -79,7 +87,10 @@ function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
  * Navigation labels are translation KEYS, not strings: components stay static
  * so a language change re-renders labels through useTranslation lookups.
  */
-const primaryNav = [{ to: "/dives", label: "nav.dives", icon: Waves } as NavItem];
+const primaryNav = [
+  { to: "/dives", label: "nav.dives", icon: Waves } as NavItem,
+  { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
+];
 
 const secondaryNav = [
   { to: "/dashboard", label: "nav.overview", icon: Gauge },
@@ -101,6 +112,7 @@ const routeLabelKeys: Record<string, string> = {
   "/journey": "nav.journey",
   "/analytics": "nav.analytics",
   "/dives": "nav.dives",
+  "/evaluations": "nav.evaluations",
   "/media/representatives": "nav.representatives",
   "/media/recall": "nav.mediaRecall",
   "/media/p5-canary": "nav.playerCanary",
@@ -524,6 +536,10 @@ function Router() {
   return (
     <Routes>
       <Route path="/share/:shareId" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><SharedDive /></Suspense>} />
+      {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
+      {import.meta.env.DEV && (
+        <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
+      )}
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -554,8 +570,9 @@ function Router() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/journey" element={<Journey />} />
                   <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/dives" element={<Dives />} />
-                  <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
+                <Route path="/dives" element={<Dives />} />
+                <Route path="/evaluations" element={<Evaluations />} />
+                <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
                   <Route
                     path="/media/representatives"
                     element={<RepresentativeMedia />}

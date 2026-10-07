@@ -147,6 +147,32 @@ def get_evaluation_media_status(
     return evaluation_access.media_status(db, request_row, asset)
 
 
+def _select_ready_entry(db: Session, asset: PhotosAsset, rendition: str | None, playable: bool) -> object:
+    """Resolve the requested (or preferred, when absent) ready rendition.
+
+    ``rendition`` lets the member pick the quality within the SAME
+    authorization: the choice is structural (only already-verified cached
+    renditions of the request's own media), never an authorization change.
+    Posters stay out of playback; playable callers stay playable.
+    """
+    with evaluation_access.evaluation_media_scope(db):
+        entries = evaluation_access._ready_entries(db, asset.id)
+        if rendition:
+            if rendition not in evaluation_access._PLAYABLE_PREFERENCE:
+                raise HTTPException(422, "Unknown rendition")
+            for entry in entries:
+                if entry.rendition == rendition:
+                    return entry
+            raise HTTPException(404, "Rendition not available yet")
+        if playable:
+            chosen = evaluation_access._playable_entry(entries)
+        else:
+            chosen = evaluation_access._poster_entry(entries)
+    if chosen is None:
+        raise HTTPException(404, "Playback not available yet")
+    return chosen
+
+
 @router.get("/evaluations/requests/{request_id}/media/poster")
 def get_evaluation_media_poster(
     request_id: int,
@@ -155,10 +181,7 @@ def get_evaluation_media_poster(
 ):
     user = _require_user(request, db)
     _, _, asset = _media_chain(db, user, request_id)
-    with evaluation_access.evaluation_media_scope(db):
-        poster = evaluation_access._poster_entry(evaluation_access._ready_entries(db, asset.id))
-    if poster is None:
-        raise HTTPException(404, "Poster not available yet")
+    poster = _select_ready_entry(db, asset, None, playable=False)
     return evaluation_access.serve_entry(poster.storage_path, poster.content_type, request, head_only=False)
 
 
@@ -167,15 +190,15 @@ def get_evaluation_media_play(
     request_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    rendition: str | None = None,
 ):
+    """Authorization first; the optional ``?rendition=`` is quality SELECT
+    within the active request (default keeps the HQ contract order)."""
     user = _require_user(request, db)
     _, _, asset = _media_chain(db, user, request_id)
-    with evaluation_access.evaluation_media_scope(db):
-        playable = evaluation_access._playable_entry(evaluation_access._ready_entries(db, asset.id))
-    if playable is None:
-        raise HTTPException(404, "Playback not available yet")
+    chosen = _select_ready_entry(db, asset, rendition, playable=True)
     return evaluation_access.serve_entry(
-        playable.storage_path, playable.content_type, request, head_only=request.method == "HEAD",
+        chosen.storage_path, chosen.content_type, request, head_only=request.method == "HEAD",
     )
 
 

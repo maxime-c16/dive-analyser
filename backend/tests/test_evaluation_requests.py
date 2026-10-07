@@ -5,12 +5,23 @@ idempotency, cascade deletion, the owner-only Library summary, and the
 narrow evaluation media scope (status/poster/play/prepare) including the
 deactivation contract.
 """
+import os
 import re
 from pathlib import Path
 
 import pytest
 from app.models.photos_asset import PhotosAsset
 from tests.test_member_dive_visibility import workspace
+
+
+def tmp_path_media(db, name: str) -> str:
+    from app.config import get_settings
+    import os
+    cache_root = get_settings().media_cache_root
+    path = os.path.join(cache_root, f'test-{name}')
+    with open(path, 'wb') as handle:
+        handle.write(b'test')
+    return path
 
 
 def _summary(payload: dict) -> dict:
@@ -259,8 +270,30 @@ def test_evaluation_media_scope_status_play_poster_prepare(workspace, monkeypatc
     assert payload['video_uuid'] == 'alice-private-video'
     assert payload['status'] == 'ready'  # fixture provides a playable 360p entry
     assert payload['playback_url'] == f'/api/v1/evaluations/requests/{request_id}/media/play'
+    assert payload['rendition'] == 'proxy_360p'
     assert payload['poster_url'] is None  # fixture has no poster rendition
     assert payload['available_renditions'] == ['proxy_360p']
+    # HQ contract: identical preference to the established viewer.
+    from app.models.media import MediaCacheEntry, MediaCacheEntry as MCP
+    from app.models.media_backbone import MediaRevision
+    entry_720 = MediaCacheEntry(
+        photos_asset_id=db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar(),
+        media_key='hq-test-720', rendition='proxy_720p', storage_path=str(tmp_path_media(db, 'hq720.mp4')),
+        size_bytes=4, content_type='video/mp4', status='ready',
+    )
+    entry_orig = MediaCacheEntry(
+        photos_asset_id=db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar(),
+        media_key='hq-test-orig', rendition='original', storage_path=str(tmp_path_media(db, 'orig.mp4')),
+        size_bytes=4, content_type='video/mp4', status='ready',
+    )
+    db.add_all([entry_720, entry_orig])
+    db.commit()
+    hq_status = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/status')
+    assert hq_status.json()['rendition'] == 'proxy_720p'  # 720p beats original
+    from sqlalchemy import text as sql_text
+    from app.models.media import MediaCacheEntry as MCE
+    db.execute(sql_text("DELETE FROM media_cache_entries WHERE media_key LIKE 'hq-test-%'"))
+    db.commit()
     play = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play')
     assert play.status_code == 200, play.text
     assert play.headers['Cache-Control'] == 'private, max-age=300'
@@ -305,6 +338,38 @@ def test_evaluation_media_scope_status_play_poster_prepare(workspace, monkeypatc
     assert client.put(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request',
                       json={'active': True}).status_code == 200
     assert bob.get(f'/api/v1/evaluations/requests/{request_id}/media/status').json()['request_id'] == request_id
+
+
+def test_evaluation_media_rendition_selection(workspace, monkeypatch):
+    """API quality select within the SAME active-request authorization."""
+    from app.config import get_settings
+    from app.models.media import MediaCacheEntry
+    db, login, dives, users, _ = workspace
+    asset_id = db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar()
+    cache_root = get_settings().media_cache_root
+    entries = []
+    for rendition, name in [('proxy_720p', '720'), ('original', 'orig'), ('poster', 'poster')]:
+        path = os.path.join(cache_root, f'rendition-{name}.mp4')
+        with open(path, 'wb') as handle:
+            handle.write(name.encode())
+        entries.append(MediaCacheEntry(photos_asset_id=asset_id, media_key=f'rend-{name}', rendition=rendition, storage_path=path, size_bytes=6, content_type='video/mp4', status='ready'))
+    db.add_all(entries)
+    db.commit()
+    monkeypatch.setattr(get_settings(), 'media_xaccel_enabled', False)
+    # Activation is the owner's job; bob then uses the evaluation transport.
+    alice = login('alice')
+    alice.put(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request', json={'active': True})
+    request_id = alice.get(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request').json()['id']
+    bob = login('bob')
+    response = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'original'})
+    assert response.status_code == 200, response.text
+    assert response.headers['Cache-Control'] == 'private, max-age=300'
+    four_twenty_two = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'poster'})
+    assert four_twenty_two.status_code == 422  # posters never play
+    unknown = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'proxy_4k'})
+    assert unknown.status_code == 422
+    missing = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'nonexistent_rendition_xyz'})
+    assert missing.status_code == 422
 
 
 class TestEvaluationMigrationFile:

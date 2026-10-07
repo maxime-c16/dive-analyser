@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS evaluation_ratings (
     comment VARCHAR(2000),
     dive_code VARCHAR(10) NOT NULL,
     height VARCHAR(5) NOT NULL,
-    platform_type VARCHAR(20) NOT NULL,
+    platform_type VARCHAR(20),
     dive_name VARCHAR(100) NOT NULL,
     prompt_snapshot VARCHAR(1000),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS evaluation_sessions (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
     revoked_at TIMESTAMP,
-    CONSTRAINT uq_evaluation_session_client UNIQUE (client_session_id)
+    scan_offset INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT uq_evaluation_session_client UNIQUE (user_id, client_session_id)
 );
 CREATE INDEX IF NOT EXISTS idx_evaluation_sessions_user ON evaluation_sessions(user_id, expires_at);
 
