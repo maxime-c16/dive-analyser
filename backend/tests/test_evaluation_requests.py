@@ -108,6 +108,38 @@ def test_library_summary_is_owner_only(workspace):
     assert all(row['id'] != dives['alice-private'] for row in community)
 
 
+def test_no_evaluation_summary_without_member_context(workspace, monkeypatch):
+    """Review-bot P1 (PR 72): with user auth DISABLED no member context exists,
+    so /dives must not expose the owner's evaluation request (private jury
+    prompt) to unauthenticated callers. An authenticated owner still gets it.
+    """
+    from app.config import get_settings
+    db, login, dives, _, _ = workspace
+    client = login('alice')
+    activated = client.put(f"/api/v1/dives/{dives['alice-private']}/evaluation-request",
+                           json={'active': True, 'prompt': 'Anonymous must not read this'})
+    assert activated.status_code == 200
+    settings = get_settings()
+    previous = settings.user_auth_enabled
+    settings.user_auth_enabled = False
+    try:
+        # Anonymous (auth-disabled deployment): the summary key stays absent,
+        # both on the list and on the single-dive detail payload.
+        anon = client.get('/api/v1/dives', params={'diver_scope': 'all'})
+        assert anon.status_code == 200
+        for row in anon.json():
+            assert 'evaluation_request' not in row, row['id']
+        detail = client.get(f"/api/v1/dives/{dives['alice-private']}")
+        assert detail.status_code == 200
+        assert 'evaluation_request' not in detail.json()
+    finally:
+        settings.user_auth_enabled = previous
+    # The authenticated owner keeps the full summary (non-regression).
+    own = login('alice').get('/api/v1/dives', params={'diver_scope': 'all'}).json()
+    by_id = {row['id']: row for row in own}
+    assert by_id[dives['alice-private']]['evaluation_request']['prompt'] == 'Anonymous must not read this'
+
+
 def test_upload_evaluation_request_and_retry_no_duplication(workspace, monkeypatch, tmp_path):
     from app.services import browser_upload
     from app.models.evaluation import EvaluationRequest

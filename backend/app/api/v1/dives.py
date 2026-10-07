@@ -63,7 +63,10 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, 
     ``evaluation_request`` is the owner-only summary of the dive's evaluation
     request (null = none), from the separate ``evaluation_requests`` table.
     List callers pass a batch map; single-dive callers do one lookup. It is
-    omitted entirely for non-managing viewers.
+    omitted entirely for non-managing viewers and whenever no verified member
+    context exists: a deployment without user auth (or a machine-key call)
+    proves nothing about which account the caller owns, so the jury prompt
+    never degrades into an anonymous read (review-bot P1).
     """
     payload = {name: getattr(dive, name) for name in LIST_COLUMN_NAMES}
     context = db.info.get("member_access")
@@ -76,9 +79,13 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, 
             payload["federate_enabled"] = per_dive_enabled(db, dive.id)
         else:
             payload["federate_enabled"] = dive.id in federate_map
+        # Only a VERIFIED member session may see evaluation summaries: with
+        # auth disabled or a bare machine key there is no account to be owner
+        # OF the request, so the summary key stays out of anonymous payloads.
         if evaluation_map is not None:
-            payload["evaluation_request"] = evaluation_map.get(dive.id)
-        else:
+            if context is not None:
+                payload["evaluation_request"] = evaluation_map.get(dive.id)
+        elif context is not None:
             from app.services.evaluation_access import request_for_dive, summary as evaluation_summary
 
             payload["evaluation_request"] = evaluation_summary(request_for_dive(db, dive.id))
