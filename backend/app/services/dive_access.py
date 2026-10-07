@@ -18,6 +18,7 @@ from app.models.session import Session as TrainingSession
 from app.models.user_auth import UserDiverAccess
 from app.models.notification import Notification
 from app.services import sessions
+from app.services.user_access import user_has_diver_access
 
 CONTEXT_KEY = "member_access"
 
@@ -36,8 +37,8 @@ def visible_dive_clause(ids: tuple[int, ...], is_admin: bool = False):
 
 def can_manage_dive(db: Session, user, dive: Dive) -> bool:
     return bool(user and user.is_active and (
-        dive.diver_id in owned_diver_ids(db, user.id)
-        or (user.is_admin and dive.diver_id is None)
+        (user.is_admin and dive.diver_id is None)
+        or (dive.diver_id is not None and user_has_diver_access(db, user.id, dive.diver_id))
     ))
 
 

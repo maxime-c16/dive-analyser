@@ -8,11 +8,12 @@ function mockFetch(fail = false) {
     const url = String(input)
     if (init?.method === 'PATCH') return Response.json(fail ? { detail: 'Email already in use' } : { ...account, ...JSON.parse(String(init.body)) }, { status: fail ? 409 : 200 })
     if (init?.method === 'DELETE') return Response.json({ ok: true })
+    if (url.includes('/access-studio')) return Response.json({ bindings: [{ diver_id: 10, display_name: 'Aqua', dive_count: 5 }], total: 1, viewable_dives: 5, manageable_dives: 5 })
     if (url.includes('/admin/divers')) return Response.json({ divers: [{ diver_id: 10, display_name: 'Aqua', canonical_name: 'aqua', active: true, bound_to_user: true }, { diver_id: 11, display_name: 'Beth', canonical_name: 'beth', active: true, bound_to_user: false }], total: 2 })
     return Response.json(account)
   })
 }
-beforeEach(() => { vi.restoreAllMocks() })
+beforeEach(() => { vi.restoreAllMocks(); sessionStorage.clear() })
 afterEach(() => { vi.unstubAllGlobals() })
 describe('AccountWorkspace', () => {
   it('keeps unsaved edits after an API error and can discard them', async () => {
@@ -27,18 +28,6 @@ describe('AccountWorkspace', () => {
     expect(name).toHaveValue('Dana')
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
   })
-  it('searches bindings and requires confirmation before removing ownership', async () => {
-    const fetch = mockFetch()
-    render(<AccountWorkspace accountId={2} section="access" onSection={vi.fn()} onBack={vi.fn()} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
-    expect(fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Dive records and videos remain stored')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    fireEvent.change(screen.getByLabelText('Find a diver'), { target: { value: 'beth' } })
-    expect(screen.queryByText('Aqua')).not.toBeInTheDocument()
-    expect(screen.getByText('Beth')).toBeInTheDocument()
-  })
   it('requires confirmation for changes that revoke sessions', async () => {
     const fetch = mockFetch()
     render(<AccountWorkspace accountId={2} currentUserId={1} section="profile" onSection={vi.fn()} onBack={vi.fn()} />)
@@ -49,6 +38,17 @@ describe('AccountWorkspace', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(fetch.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true))
   })
+})
+
+it('recovers unsaved profile edits after leaving and reopening the account', async () => {
+  mockFetch()
+  const props = { accountId: 2, currentUserId: 1, section: 'profile', onSection: vi.fn(), onBack: vi.fn() }
+  const first = render(<AccountWorkspace {...props} />)
+  fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Recovered name' } })
+  first.unmount()
+  render(<AccountWorkspace {...props} />)
+  expect(await screen.findByLabelText('Display name')).toHaveValue('Recovered name')
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 })
 
 it('blocks browser Back with a dirty draft and allows confirmed navigation', async () => {

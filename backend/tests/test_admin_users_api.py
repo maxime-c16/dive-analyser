@@ -541,3 +541,147 @@ def test_account_history_filters_scopes_and_redacts_metadata(db, admin_client):
 @pytest.mark.parametrize("suffix", ["sessions", "history"])
 def test_account_security_reads_require_admin(diver_client, suffix):
     assert diver_client.get(f"/api/v1/admin/users/1/{suffix}").status_code == 403
+
+
+@pytest.mark.parametrize("visibility,bound,active,expected_view,expected_manage", [
+    ("private", False, True, False, False),
+    ("private", True, True, True, True),
+    ("public", False, True, True, False),
+    ("public", True, False, False, False),
+])
+def test_access_investigator_uses_target_policy(db, admin_client, visibility, bound, active, expected_view, expected_manage):
+    target = db.query(AppUser).filter_by(email="diver@example.test").one()
+    target.is_active = active
+    diver_id = _diver_id(db)
+    training = SessionModel(date=datetime.utcnow(), location="Test pool")
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=diver_id, dive_code="101B", performance="G", performance_numeric=3, height="3m", dive_datetime=datetime.utcnow(), visibility=visibility, video_uuid="diagnostic-video")
+    db.add(dive)
+    if bound:
+        db.add(UserDiverAccess(user_id=target.id, diver_id=diver_id, access_kind="OWNER"))
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["can_view"] is expected_view
+    assert body["can_manage"] is expected_manage
+    assert body["video_authorized"] is expected_view
+    assert body["explanation"]
+    assert "https://" not in response.text and "token" not in response.text
+    # The diagnostic did not mutate the account or add ownership.
+    assert db.query(UserDiverAccess).filter_by(user_id=target.id).count() == int(bound)
+
+
+def test_access_investigator_rejects_non_admin_and_unknown_dive(diver_client):
+    assert diver_client.get("/api/v1/admin/users/1/access-check?dive_id=1").status_code == 403
+
+
+def test_access_investigator_unknown_dive(admin_client):
+    assert admin_client.get("/api/v1/admin/users/1/access-check?dive_id=999999").status_code == 404
+
+
+@pytest.mark.parametrize("target_admin,expected", [(True, True), (False, False)])
+def test_access_investigator_unassigned_dive_policy(db, admin_client, target_admin, expected):
+    target = db.query(AppUser).filter_by(email="admin@example.test" if target_admin else "diver@example.test").one()
+    training = SessionModel(date=datetime.utcnow(), location="Test pool")
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=None, dive_code="101B", performance="G", performance_numeric=3, height="3m", dive_datetime=datetime.utcnow(), visibility="private")
+    db.add(dive)
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}")
+    assert response.status_code == 200
+    assert response.json()["can_view"] is expected
+    assert response.json()["can_manage"] is expected
+    assert response.json()["video_authorized"] is None
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_binding_preview_real_impact_is_read_only(db, admin_client, active):
+    target = _make_user(db, "studio@example.test", role="friend", is_admin=False, is_active=active)
+    diver_id = _diver_id(db)
+    training = SessionModel(date=datetime.utcnow(), location="Studio test")
+    db.add(training)
+    db.flush()
+    for visibility in ("private", "public"):
+        db.add(Dive(session_id=training.id, diver_id=diver_id, dive_code="101B",
+            performance="G", performance_numeric=3, height="3m",
+            dive_datetime=datetime.utcnow(), visibility=visibility))
+    db.commit()
+    path = f"/api/v1/admin/users/{target.id}/binding-preview?diver_id={diver_id}"
+    response = admin_client.get(path + "&bound=true")
+    assert response.status_code == 200
+    preview = response.json()
+    assert preview["before"] == {"view": int(active), "manage": 0}
+    assert preview["after"] == {"view": 2 if active else 0, "manage": 2 if active else 0}
+    assert preview["other_accounts"] == 1
+    assert preview["dive_count"] == 2
+    assert not preview["currently_bound"]
+    assert not db.query(UserDiverAccess).filter_by(user_id=target.id).count()
+    db.add(UserDiverAccess(user_id=target.id, diver_id=diver_id, access_kind="OWNER"))
+    db.commit()
+    removal = admin_client.get(path + "&bound=false").json()
+    assert removal["before"] == preview["after"]
+    assert removal["after"] == preview["before"]
+    graph = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio").json()
+    assert graph["bindings"][0]["dive_count"] == 2
+    assert graph["viewable_dives"] == (2 if active else 0)
+    assert graph["manageable_dives"] == (2 if active else 0)
+
+
+def test_studio_requires_admin_and_bounds_pages(diver_client, admin_client):
+    for endpoint in ("access-studio", "binding-preview?diver_id=1&bound=true"):
+        assert diver_client.get(f"/api/v1/admin/users/1/{endpoint}").status_code == 403
+    assert admin_client.get("/api/v1/admin/users/999999/access-studio").status_code == 404
+    assert admin_client.get("/api/v1/admin/users/1/access-studio?limit=201").status_code == 422
+    assert admin_client.get("/api/v1/admin/users/1/binding-preview?diver_id=999999&bound=true").status_code == 404
+
+
+@pytest.mark.parametrize("target_admin,viewable,manageable", [(True, 2, 1), (False, 1, 0)])
+def test_studio_does_not_imply_private_ownership_for_admins(db, admin_client, target_admin, viewable, manageable):
+    target = _make_user(db, "studio-policy@example.test", role="owner" if target_admin else "friend", is_admin=target_admin)
+    training = SessionModel(date=datetime.utcnow(), location="Studio policy")
+    db.add(training)
+    db.flush()
+    for diver_id, visibility in ((None, "private"), (_diver_id(db), "private"), (_diver_id(db), "public")):
+        db.add(Dive(session_id=training.id, diver_id=diver_id, dive_code="101B",
+            performance="G", performance_numeric=3, height="3m",
+            dive_datetime=datetime.utcnow(), visibility=visibility))
+    db.commit()
+    data = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio").json()
+    assert data["total"] == 0
+    assert data["viewable_dives"] == viewable
+    assert data["manageable_dives"] == manageable
+
+
+def test_studio_pages_large_binding_sets_without_expanding_sql_parameters(db, admin_client):
+    from sqlalchemy import event
+    target = _make_user(db, "studio-many@example.test", role="friend", is_admin=False)
+    for index in range(230):
+        diver = Diver(display_name=f"Studio {index:04}", canonical_name=f"studio-{index}", is_primary_user=False)
+        db.add(diver)
+        db.flush()
+        db.add(UserDiverAccess(user_id=target.id, diver_id=diver.id, access_kind="OWNER"))
+    training = SessionModel(date=datetime.utcnow(), location='Large account diagnostic')
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=diver.id, dive_code='101B', performance='G', performance_numeric=3, height='3m', dive_datetime=datetime.utcnow(), visibility='private', video_uuid='large-binding-diagnostic')
+    db.add(dive)
+    db.commit()
+    parameter_counts = []
+    def record_params(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            parameter_counts.append(len(parameters))
+    event.listen(db.get_bind(), 'before_cursor_execute', record_params)
+    try:
+        first = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=200").json()
+        last = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio?limit=2&offset=229").json()
+        diagnostic = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}").json()
+    finally:
+        event.remove(db.get_bind(), 'before_cursor_execute', record_params)
+    assert first['total'] == last['total'] == 230
+    assert [row['display_name'] for row in first['bindings']] == ['Studio 0200', 'Studio 0201']
+    assert [row['display_name'] for row in last['bindings']] == ['Studio 0229']
+    assert diagnostic['can_view'] and diagnostic['can_manage'] and diagnostic['video_authorized']
+    assert max(parameter_counts) < 20

@@ -178,3 +178,17 @@ export function listAccountHistory(userId: number, eventType = '', offset = 0): 
   const params = new URLSearchParams({ limit: '50', offset: String(offset) }); if (eventType) params.set('event_type', eventType)
   return request(`/api/v1/admin/users/${userId}/history?${params}`)
 }
+
+export interface AccountAccessCheck { user_id: number; dive_id: number; diver_id: number | null; visibility: string; account_active: boolean; can_view: boolean; can_manage: boolean; video_authorized: boolean | null; explanation: string; checked_at: string; scope: string }
+export function checkAccountAccess(userId: number, diveId: number): Promise<AccountAccessCheck> {
+  return request(`/api/v1/admin/users/${userId}/access-check?dive_id=${diveId}`)
+}
+
+export interface AccountStudio { bindings: { diver_id: number; display_name: string; dive_count: number }[]; total: number; viewable_dives: number; manageable_dives: number }
+export interface BindingPreview { user_id: number; diver_id: number; display_name: string; currently_bound: boolean; proposed_bound: boolean; account_active: boolean; dive_count: number; public_dives: number; other_accounts: number; before: { view: number; manage: number }; after: { view: number; manage: number } }
+export function getAccountStudio(userId: number, offset = 0): Promise<AccountStudio> {
+  return request(`/api/v1/admin/users/${userId}/access-studio?limit=50&offset=${offset}`)
+}
+export function previewBinding(userId: number, diverId: number, bound: boolean): Promise<BindingPreview> {
+  return request(`/api/v1/admin/users/${userId}/binding-preview?diver_id=${diverId}&bound=${bound}`)
+}

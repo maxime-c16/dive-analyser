@@ -784,3 +784,110 @@ def list_account_history(
             "actor": row.actor_context, "diver_id": row.target_diver_id,
             "created_at": row.created_at.isoformat() + "Z", "details": safe})
     return {"events": events, "total": total, "limit": limit, "offset": offset}
+
+
+@router.get("/users/{user_id}/access-check")
+def check_account_dive_access(
+    user_id: int,
+    dive_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    """Read-only target-account policy check; never issue a playback grant."""
+    from app.models.dive import Dive
+    from app.services.dive_access import visible_dive_clause, can_manage_dive
+    from app.services.user_access import can_user_access_video, user_has_diver_access
+
+    user = db.get(AppUser, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    # This admin-only diagnostic checks the target's context, not the caller's.
+    with _unscoped_divers(db):
+        dive = db.get(Dive, dive_id)
+        if dive is None:
+            raise HTTPException(404, "Dive not found")
+        owned = dive.diver_id is not None and user_has_diver_access(db, user_id, dive.diver_id)
+        ids = (dive.diver_id,) if owned else ()
+        visible = bool(user.is_active and db.query(Dive.id).filter(
+            Dive.id == dive_id, visible_dive_clause(ids, bool(user.is_admin))
+        ).first())
+        manage = can_manage_dive(db, user, dive)
+        video = can_user_access_video(db, user, dive.video_uuid).allowed if dive.video_uuid else None
+        if not user.is_active:
+            reason = "Account is disabled. Restore sign-in before investigating resource access."
+        elif owned:
+            reason = "Explicit diver ownership allows viewing and management."
+        elif dive.diver_id is None and user.is_admin:
+            reason = "Administrator access allows viewing and management of unassigned dives."
+        elif dive.visibility == "public" and dive.diver_id is not None:
+            reason = "Signed-in public viewing is allowed; management still requires diver ownership."
+        elif dive.diver_id is None:
+            reason = "This dive is unassigned. A diver account has no access to unassigned dives."
+        else:
+            reason = "Private dive access requires an explicit ownership binding to this diver."
+    return {"user_id": user_id, "dive_id": dive_id, "diver_id": dive.diver_id,
+        "visibility": dive.visibility, "account_active": bool(user.is_active),
+        "can_view": visible, "can_manage": manage, "video_authorized": video,
+        "explanation": reason, "checked_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "scope": "Authorization only; video readiness and provider availability are not checked."}
+
+
+@router.get("/users/{user_id}/access-studio")
+def account_access_studio(
+    user_id: int,
+    limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    """Bounded ownership graph plus effective dive totals for the target account."""
+    from app.models.dive import Dive
+    from app.services.dive_access import visible_dive_clause
+
+    user = db.get(AppUser, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    with _unscoped_divers(db):
+        ids = db.query(UserDiverAccess.diver_id).filter_by(user_id=user_id, access_kind="OWNER")
+        total = ids.count()
+        query = db.query(Diver).filter(Diver.id.in_(ids))
+        rows = query.order_by(Diver.display_name, Diver.id).offset(offset).limit(limit).all()
+        counts = dict(db.query(Dive.diver_id, func.count(Dive.id)).filter(
+            Dive.diver_id.in_([row.id for row in rows])).group_by(Dive.diver_id).all())
+        visible = db.query(Dive).filter(visible_dive_clause(ids, bool(user.is_admin))).count() if user.is_active else 0
+        manageable = db.query(Dive).filter(or_(Dive.diver_id.in_(ids), Dive.diver_id.is_(None) if user.is_admin else False)).count() if user.is_active else 0
+    return {"bindings": [{"diver_id": row.id, "display_name": row.display_name,
+        "dive_count": counts.get(row.id, 0)} for row in rows], "total": total,
+        "viewable_dives": visible, "manageable_dives": manageable, "limit": limit, "offset": offset}
+
+
+@router.get("/users/{user_id}/binding-preview")
+def preview_account_binding(
+    user_id: int,
+    diver_id: int = Query(..., ge=1),
+    bound: bool = Query(...),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    """Read-only impact snapshot. Public viewing never implies management."""
+    from app.models.dive import Dive
+
+    user = db.get(AppUser, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    with _unscoped_divers(db):
+        diver = db.get(Diver, diver_id)
+        if diver is None:
+            raise HTTPException(404, "Diver not found")
+        linked = db.query(UserDiverAccess).filter_by(user_id=user_id, diver_id=diver_id, access_kind="OWNER").first() is not None
+        total = db.query(Dive).filter(Dive.diver_id == diver_id).count()
+        public = db.query(Dive).filter(Dive.diver_id == diver_id, Dive.visibility == "public").count()
+        others = db.query(UserDiverAccess).filter(UserDiverAccess.diver_id == diver_id,
+            UserDiverAccess.user_id != user_id, UserDiverAccess.access_kind == "OWNER").count()
+    def permissions(owner):
+        return {"view": (total if owner else public) if user.is_active else 0,
+            "manage": total if owner and user.is_active else 0}
+    return {"user_id": user_id, "diver_id": diver_id, "display_name": diver.display_name,
+        "currently_bound": linked, "proposed_bound": bound, "account_active": bool(user.is_active),
+        "dive_count": total, "public_dives": public, "other_accounts": others,
+        "before": permissions(linked), "after": permissions(bound)}

@@ -1,0 +1,8 @@
+{
+  "id": "admin-account-studio",
+  "date": "2026-10-07",
+  "title": "Preview account access changes in Studio",
+  "body": "Manage accounts in a mobile-friendly Studio with inline Identity, Security, Audit trail and Lifecycle tabs. Inspect live ownership and dive counts, diagnose denied access, and preview viewing and management changes before confirming a binding grant or removal.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}

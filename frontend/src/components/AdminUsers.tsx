@@ -101,7 +101,7 @@ export default function AdminUsers({ currentUserId, onManage, initialQuery = '',
         if (signal?.aborted) return
         setUsers(directory.users)
         setTotal(directory.total)
-        setDivers(diverDirectory)
+        if (!onManage) setDivers(diverDirectory)
       } catch (reason) {
         if ((reason as Error).name !== 'AbortError' && !signal?.aborted) {
           setNotice({ kind: 'error', text: reason instanceof Error ? reason.message : 'Unable to load users' })
