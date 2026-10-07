@@ -292,6 +292,24 @@ def test_ratings_results_page_over_sql_aggregates(workspace):
     assert own.json()['rating_count'] == 6
 
 
+def test_queue_retry_batch_returned_entries_stay_direct(workspace):
+    """The whole-batch retry path re-verifies with prefetched data: same batch
+    id, same request set, payload or clean unavailable without any junk media.
+    """
+    db, login, dives, users, _ = workspace
+    request_id = _activate(login('alice'), dives['alice-private'], prompt='retry probe')
+    bob = login('bob')
+    sid = _session(bob)
+    first = _queue(db, bob, sid, limit=5)
+    assert first.status_code == 200
+    assert request_id in [item.get('request_id') for item in first.json()['items']]
+    retried = _queue(db, bob, sid, limit=5, batch_id=first.used_batch_id)
+    assert retried.status_code == 200 and retried.json()['batch_id'] == first.used_batch_id
+    body = retried.json()
+    assert [item.get('request_id') for item in body['items']] == [request_id]
+    entry = body['items'][0]
+    assert entry.get('unavailable') is False and entry['media']['playback_url']
+
 def test_ratings_validation_and_immutable_votes(workspace):
     db, login, dives, users, _ = workspace
     from app.models.evaluation import EvaluationRating
