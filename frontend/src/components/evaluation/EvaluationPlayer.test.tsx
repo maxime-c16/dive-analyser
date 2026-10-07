@@ -46,3 +46,12 @@ it('clears the upgrading hint when the bounded HQ wait expires', async () => {
   await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument(), { timeout: 3500 })
   expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
 })
+it('routes replay and play through the judging transition while paused', async () => {
+  vi.mocked(getEvaluationMediaStatus).mockResolvedValue({ request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready', rendition: 'original', poster_url: null, playback_url: '/play', available_renditions: ['original'] })
+  const onReplay = vi.fn()
+  render(<EvaluationPlayer requestId={7} paused onReplay={onReplay} />)
+  fireEvent.click(await screen.findByRole('button', { name: /replay/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^play$/i }))
+  expect(onReplay).toHaveBeenCalledTimes(2)
+  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+})

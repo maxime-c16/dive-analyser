@@ -1,0 +1,8 @@
+{
+  "id": "watch-before-judging",
+  "date": "2026-10-07",
+  "title": "Watch the full dive before judging",
+  "body": "Videos play without a score panel covering the water entry. Judging appears when playback ends. Replay hides the panel and restarts the dive while preserving your draft score and comment; tap the video to recover playback and exit controls.",
+  "audience": "all",
+  "components": ["frontend"]
+}

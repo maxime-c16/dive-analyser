@@ -78,6 +78,8 @@ export default function JurySession({
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
   const [introDone, setIntroDone] = useState(false)
+  const [watching, setWatching] = useState(true)
+  const [replayCount, setReplayCount] = useState(0)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [judgedCount, setJudgedCount] = useState(0)
   const [score, setScore] = useState<number | null>(null)
@@ -184,6 +186,8 @@ export default function JurySession({
   }, [loadBatch])
 
   function serveNext() {
+    setWatching(true)
+    setReplayCount(0)
     const next = batchRef.current.shift()!
     if (next.media.status === 'ready' && next.media.playback_url) {
       setPhase({ kind: 'reviewing', item: next })
@@ -235,7 +239,7 @@ export default function JurySession({
 
   async function confirm() {
     const current = phase
-    if (current.kind !== 'reviewing' || score === null) return
+    if (current.kind !== 'reviewing' || watching || score === null) return
     if (submittingRef.current || supersededRef.current) return
     submittingRef.current = true
     const nextCount = judgedCount + 1
@@ -329,6 +333,8 @@ export default function JurySession({
     setPhase({ kind: 'summary' })
   }
 
+  const replayDive = () => { setIntroDone(true); setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
+
   const inStage = phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal' || phase.kind === 'media-unavailable' || phase.kind === 'closed'
   const stageItem = inStage ? (phase as { item: QueueItem }).item : null
 
@@ -355,6 +361,7 @@ export default function JurySession({
         <EvaluationStage
           open
           onClose={quit}
+          hideChrome={phase.kind === 'reviewing' && watching}
           head={
             <>
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
@@ -367,23 +374,22 @@ export default function JurySession({
           prompt={stageItem.prompt}
           video={
             <EvaluationPlayer
-              key={`eval-video-${stageItem.request_id}`}
+              key={`eval-video-${stageItem.request_id}-${replayCount}`}
               requestId={stageItem.request_id}
               automatic={automatic}
-              paused={
-              phase.kind === 'submitting' ||
-              phase.kind === 'reveal' ||
-              (phase.kind === 'reviewing' && (score !== null || commentOpen))
-            }
+              watching={phase.kind === 'reviewing' && watching}
+              onEnded={() => setWatching(false)}
+              onReplay={phase.kind === 'reviewing' ? replayDive : undefined}
+              paused={phase.kind !== 'reviewing' || !watching}
             />
           }
           overlays={
-            !introDone && (
+            !watching && !introDone && (
               <EvaluationIntro onDone={() => setIntroDone(true)} onSkip={() => setIntroDone(true)} interrupt={score !== null} />
             )
           }
         >
-          {phase.kind === 'reviewing' && (
+          {phase.kind === 'reviewing' && !watching && (
             <JudgingDock
               score={score}
               comment={comment}
@@ -395,6 +401,7 @@ export default function JurySession({
               onCommentOpen={setCommentOpen}
               onConfirm={() => void confirm()}
               onPass={() => void pass()}
+              onReplay={replayDive}
             />
           )}
           {phase.kind === 'submitting' && (
@@ -454,7 +461,7 @@ export default function JurySession({
 /* ------------------------------------------------------------------ */
 function JudgingDock({
   score, comment, commentOpen, saving, error,
-  onScore, onComment, onCommentOpen, onConfirm, onPass,
+  onScore, onComment, onCommentOpen, onConfirm, onPass, onReplay,
 }: {
   score: number | null
   comment: string
@@ -466,6 +473,7 @@ function JudgingDock({
   onCommentOpen: (open: boolean) => void
   onConfirm: () => void
   onPass: () => void
+  onReplay?: () => void
 }) {
   const { t } = useTranslation()
   // Half-point stepper: works before any slider contact too (starts from the
@@ -514,6 +522,7 @@ function JudgingDock({
           )}
         </div>
       </div>
+      {onReplay && <button type="button" className="eval-comment-toggle" onClick={onReplay}>{t('evaluations.replayAria')}</button>}
       <div className="eval-comment-block">
         {!commentOpen && (
           <button

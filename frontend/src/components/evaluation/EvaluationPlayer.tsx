@@ -62,10 +62,16 @@ export default function EvaluationPlayer({
   requestId,
   paused = false,
   automatic = false,
+  watching = false,
+  onEnded,
+  onReplay,
 }: {
   requestId: number
   paused?: boolean
   automatic?: boolean
+  watching?: boolean
+  onEnded?: () => void
+  onReplay?: () => void
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -189,7 +195,7 @@ export default function EvaluationPlayer({
   // browser still grants the gesture context, fall back silently otherwise
   // (iOS); no promise of guaranteed audio autoplay.
   useEffect(() => {
-    if (playback.kind !== 'ready') return
+    if (playback.kind !== 'ready' || paused) return
     const video = videoRef.current
     if (!video || userPausedRef.current) return
     const start = async () => {
@@ -244,6 +250,7 @@ export default function EvaluationPlayer({
   }
 
   function togglePlay() {
+    if (paused) { onReplay?.(); return }
     const video = videoRef.current
     if (!video) return
     if (video.paused) {
@@ -256,6 +263,7 @@ export default function EvaluationPlayer({
   }
 
   function replay() {
+    if (paused) { onReplay?.(); return }
     const video = videoRef.current
     if (!video) return
     userPausedRef.current = false
@@ -270,7 +278,7 @@ export default function EvaluationPlayer({
     video.muted = next
     soundPreferred = !next
     setMuted(next)
-    if (!next) video.play().catch(() => {})
+    if (!next && !paused) video.play().catch(() => {})
   }
 
   function toggleSlow() {
@@ -307,6 +315,7 @@ export default function EvaluationPlayer({
   return (
     <div
       className="eval-player"
+      data-watching={watching ? 'true' : undefined}
       data-controls-idle={controlsIdle ? 'true' : undefined}
       onPointerMove={wakeControls}
       onPointerDown={wakeControls}
@@ -318,7 +327,11 @@ export default function EvaluationPlayer({
         ref={videoRef}
         src={playback.src}
         poster={playback.poster ?? undefined}
-        autoPlay
+        autoPlay={!paused}
+        tabIndex={0}
+        aria-label={t('evaluations.playerControlsAria')}
+        onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); togglePlay() } }}
+        onEnded={onEnded}
         muted={muted}
         playsInline
         preload="auto"
