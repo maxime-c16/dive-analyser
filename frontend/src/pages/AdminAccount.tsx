@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useContext, useEffect, useState, type ReactNode } from 'react'
+import { UNSAFE_DataRouterContext, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, ShieldCheck, UserRound, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getUser, roleTitle, updateUser, type AdminUser, type PublicRole } from '../services/adminUsersApi'
 import AccountStudio from '../components/AccountStudio'
 import AccountSecurity, { AccountActionDialog } from '../components/AccountSecurity'
+import AccountNavigationGuard from '../components/AccountNavigationGuard'
 import './AdminAccount.css'
 
 export type AccountLayout = 'tabs' | 'sidebar' | 'cards'
@@ -26,6 +27,7 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [confirm, setConfirm] = useState<{ title: string; body: string; action: () => Promise<void> } | null>(null)
+  const dataRouter = useContext(UNSAFE_DataRouterContext)
   const self = accountId === currentUserId
   const dirty = !!user && (name !== user.display_name || email !== user.email || role !== (user.is_admin ? 'administrator' : 'diver') || active !== user.is_active)
   const draftKey = `admin-account-draft:${currentUserId ?? 'unknown'}:${accountId}`
@@ -53,13 +55,7 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', warn)
-    const guardLinks = (event: MouseEvent) => {
-      if (!dirty || !(event.target instanceof Element)) return
-      const link = event.target.closest('a[href]')
-      if (link && !window.confirm('Discard unsaved account changes?')) { event.preventDefault(); event.stopPropagation() }
-    }
-    document.addEventListener('click', guardLinks, true)
-    return () => { window.removeEventListener('beforeunload', warn); document.removeEventListener('click', guardLinks, true) }
+    return () => { window.removeEventListener('beforeunload', warn) }
   }, [dirty])
   async function mutate(action: () => Promise<void>, success: string) {
     setBusy(true); setError(''); setNotice('')
@@ -75,7 +71,8 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   if (!user) return <main className="account-workspace"><button className="account-button" onClick={onBack}><ArrowLeft size={16} /> Back to accounts</button>{error ? <div role="alert" className="account-alert">{error}<button onClick={() => { setError(''); void getUser(accountId).then(value => { setUser(value); setForm(value) }).catch(reason => setError(String(reason))) }}>Retry</button></div> : <p role="status">Loading account…</p>}</main>
   const content = section === 'overview' || section === 'access' || section === 'support' ? <AccountStudio user={user} onRefresh={refresh}/> : section === 'profile' ? <article className="account-panel"><div className="account-panel-heading"><UserRound size={18} /><h2>Profile & account status</h2></div><p className="account-muted">Review identity and access level. Changes are saved together.</p><form id="account-profile" onSubmit={event => { event.preventDefault(); if (role !== (user.is_admin ? 'administrator' : 'diver') || active !== user.is_active) setConfirm({ title: 'Change account access?', body: 'Changing the role or disabling this account signs out its sessions. Diver bindings are preserved.', action: save }); else void save() }}><fieldset disabled={busy} className="account-form-grid"><label>Display name<input required maxLength={120} value={name} onChange={event => setName(event.target.value)} /></label><label>Email address<input type="email" required maxLength={255} value={email} onChange={event => setEmail(event.target.value)} /></label><label>Workspace role<select value={role} disabled={self} onChange={event => setRole(event.target.value as PublicRole)}><option value="diver">Diver</option><option value="administrator">Administrator</option></select></label><label>Account status<select value={active ? 'active' : 'disabled'} disabled={self} onChange={event => setActive(event.target.value === 'active')}><option value="active">Active</option><option value="disabled">Disabled</option></select></label></fieldset>{self && <p className="account-muted">You cannot disable yourself or remove your own administrator access.</p>}<div className="account-inline-save"><button type="submit" className="account-button primary" disabled={busy || !dirty}>Save changes</button><button type="button" className="account-button" disabled={busy || !dirty} onClick={() => setForm(user)}>Discard</button></div></form></article> : section === 'lifecycle' ? <article className="account-panel"><div className="account-panel-heading"><ShieldCheck size={18}/><h2>Account lifecycle</h2></div><p className="account-muted">Suspend sign-in immediately or restore this account. Ownership links and dive records are retained.</p><dl className="account-facts"><div><dt>Current status</dt><dd>{user.is_active ? 'Active' : 'Disabled'}</dd></div><div><dt>Live sessions affected</dt><dd>{user.live_sessions}</dd></div><div><dt>Ownership links preserved</dt><dd>{user.diver_binding_total ?? 0}</dd></div></dl>{self ? <p className="account-muted">You cannot disable your own administrator account.</p> : <button className="account-button primary" disabled={busy || dirty} onClick={() => setConfirm({ title: user.is_active ? 'Suspend this account?' : 'Restore this account?', body: user.is_active ? 'Sign-in and resource access will be blocked immediately. All live sessions are signed out. Bindings, dives and audit history are preserved.' : 'Sign-in is restored with the existing password and ownership bindings. Previously revoked sessions remain signed out.', action: () => mutate(async () => { const value = await updateUser(accountId, { is_active: !user.is_active }); setUser(value); setForm(value) }, user.is_active ? 'Account suspended.' : 'Account restored.') })}>{user.is_active ? 'Suspend account' : 'Restore account'}</button>}{dirty && <p className="account-warning">Save or discard your Identity edits before changing the account lifecycle.</p>}</article> : renderExtra?.(section, user, refresh)
   return <main className={`account-workspace layout-${layout}`}>
-    <button className="account-back" onClick={() => { if (!dirty || window.confirm('Discard unsaved account changes?')) onBack() }}><ArrowLeft size={15} /> Accounts / Manage account</button>
+    {dataRouter && <AccountNavigationGuard dirty={dirty}/>}
+    <button className="account-back" onClick={() => { if (dataRouter || !dirty || window.confirm('Leave this account with unsaved changes?')) onBack() }}><ArrowLeft size={15} /> Accounts / Manage account</button>
     <header className="account-header"><div className="account-avatar">{user.display_name.slice(0,2).toUpperCase()}</div><div className="account-header-identity"><div className="account-eyebrow">ACCOUNT WORKSPACE · #{user.user_id}</div><h1>{user.display_name}</h1><div className="account-email">{user.email}<button aria-label="Copy email" onClick={() => void copy(user.email)}><Copy size={14}/></button></div></div><div className="account-header-badges"><span className={`account-badge ${user.is_active ? 'positive' : 'negative'}`}><span/> {user.is_active ? 'Active' : 'Disabled'}</span><span className="account-badge"><ShieldCheck size={13}/>{roleTitle(user)}</span>{self && <span className="account-badge">Your account</span>}</div></header>
     {notice && <div role="status" className="account-success"><Check size={16}/>{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14}/></button></div>}
     {error && <div role="alert" className="account-alert">{error}</div>}
