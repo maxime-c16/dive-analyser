@@ -65,6 +65,7 @@ export default function EvaluationPlayer({
   watching = false,
   onEnded,
   onReplay,
+  onFailure,
 }: {
   requestId: number
   paused?: boolean
@@ -72,6 +73,7 @@ export default function EvaluationPlayer({
   watching?: boolean
   onEnded?: () => void
   onReplay?: () => void
+  onFailure?: () => void
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -190,6 +192,10 @@ export default function EvaluationPlayer({
     timer = window.setTimeout(poll, 2000)
     return () => { alive = false; window.clearTimeout(timer) }
   }, [hqHint, playback.kind, requestId, automatic])
+
+  useEffect(() => {
+    if (watching && (playback.kind === 'failed' || playback.kind === 'missing')) onFailure?.()
+  }, [watching, playback.kind, onFailure])
 
   // Sound-first autoplay: honor the account's sound preference when the
   // browser still grants the gesture context, fall back silently otherwise
@@ -332,6 +338,7 @@ export default function EvaluationPlayer({
         aria-label={t('evaluations.playerControlsAria')}
         onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); togglePlay() } }}
         onEnded={onEnded}
+        onError={() => setPlayback({ kind: 'failed' })}
         muted={muted}
         playsInline
         preload="auto"

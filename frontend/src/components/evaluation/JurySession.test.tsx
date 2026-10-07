@@ -16,9 +16,9 @@ import type { QueueBatch, SubmissionResponse } from '../../services/evaluationAp
 
 vi.mock('../DiveVideoPlayer', () => ({ default: () => <div>Video</div> }))
 let autoFinishVideo = true
-vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching }: { requestId: number; onEnded?: () => void; watching?: boolean }) => {
+vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void }) => {
   React.useEffect(() => { if (autoFinishVideo && watching) onEnded?.() }, [requestId, watching])
-  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><span>EvalVideo</span></div>
+  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><span>EvalVideo</span></div>
 } }))
 vi.mock('../../services/evaluationApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../services/evaluationApi')>()
@@ -465,4 +465,19 @@ it('keeps judging hidden until playback ends and hides it again for replay', asy
   await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
   expect(screen.getByRole('slider')).toHaveValue('13')
   expect(submitRating).not.toHaveBeenCalled()
+})
+
+it('offers retry and pass when the ready video fails before ending', async () => {
+  autoFinishVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(skipRequest).mockResolvedValue(undefined)
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Fail video' }))
+  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  expect(skipRequest).toHaveBeenCalledWith(5, 11)
 })

@@ -380,11 +380,12 @@ export default function JurySession({
               watching={phase.kind === 'reviewing' && watching}
               onEnded={() => setWatching(false)}
               onReplay={phase.kind === 'reviewing' ? replayDive : undefined}
+              onFailure={() => { setWatching(false); setPhase({ kind: 'media-unavailable', item: stageItem, reason: 'missing' }) }}
               paused={phase.kind !== 'reviewing' || !watching}
             />
           }
           overlays={
-            !watching && !introDone && (
+            phase.kind === 'reviewing' && !watching && !introDone && (
               <EvaluationIntro onDone={() => setIntroDone(true)} onSkip={() => setIntroDone(true)} interrupt={score !== null} />
             )
           }
@@ -430,6 +431,7 @@ export default function JurySession({
           {phase.kind === 'media-unavailable' && (
             <div className="eval-state" role="alert">
               <p>{phase.reason === 'closed' ? t('evaluations.mediaClosed') : t('evaluations.mediaMissing')}</p>
+              <button type="button" className="eval-start" onClick={() => { const item = phase.item; replayDive(); setPhase({ kind: 'reviewing', item }) }}>{t('evaluations.retry')}</button>
               <button type="button" onClick={() => void pass()}>{t('evaluations.pass')}</button>
             </div>
           )}
