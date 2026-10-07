@@ -30,6 +30,7 @@ from app.services.dive_access import owned_diver_ids
 
 SESSION_TTL_HOURS = 24
 CANDIDATE_PAGE = 100
+SCAN_MAX_PAGES = 6  # bounded candidate scan per queue GET
 
 # Playable cache renditions, same preference as the media transport; a verified
 # backbone revision also counts as ready (bytes play through /revisions/…).
@@ -64,7 +65,24 @@ def create_session(db: Session, user_id: int, client_session_id: str) -> tuple[E
         expires_at=_now() + timedelta(hours=SESSION_TTL_HOURS),
     )
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Concurrent creation with the same client id: return the OWNER-SCOPED
+        # winner instead of surfacing a constraint error (review-bot Medium).
+        db.rollback()
+        winner = (
+            db.query(EvaluationSession)
+            .filter(
+                EvaluationSession.user_id == user_id,
+                EvaluationSession.client_session_id == client_session_id,
+            )
+            .order_by(EvaluationSession.id.desc())
+            .first()
+        )
+        if winner is not None:
+            return winner, False
+        raise
     db.refresh(row)
     return row, True
 
@@ -282,7 +300,7 @@ def retry_items(db: Session, user, request_ids: list[int]) -> list[dict]:
             and dive.video_uuid is not None
             and dive.diver_id not in my_ids
             and request_id not in voted_ids
-            and (not ready_uuids or dive.video_uuid in ready_uuids)
+            and dive.video_uuid in ready_uuids
         )
         if not still_eligible:
             items.append({"request_id": request_id, "dive_id": request_row.dive_id if request_row else None, "unavailable": True})
@@ -346,10 +364,16 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
         items_pairs: list[tuple[EvaluationRequest, Dive]] = []
         has_more = False
         offset = 0
-        while len(items_pairs) <= limit:
+        # Bounded scan: at most SCAN_MAX_PAGES × CANDIDATE_PAGE candidates per
+        # GET — a queue read can never fan out an unbounded number of queries
+        # (review-bot Medium). A truncated scan reads as "no more": the REAL
+        # end stays the empty batch, and the next read probes fresh anyway.
+        scan_pages = 0
+        while len(items_pairs) <= limit and scan_pages < SCAN_MAX_PAGES:
             candidates = base_query.offset(offset).limit(CANDIDATE_PAGE).all()
             if not candidates:
                 break
+            scan_pages += 1
             offset += len(candidates)
             ready_uuids = _ready_video_uuids(db, candidates)
             for request_row, dive in candidates:

@@ -169,10 +169,15 @@ def submit_rating(
         # committed deactivation, no new vote is accepted. The unique
         # constraint protects the create/create race on every dialect.
         if db.get_bind().dialect.name == "postgresql":
+            # The lock re-reads AFTER any concurrent deactivation commits, so
+            # the identity-map state must be refreshed too (populate_existing
+            # forces the locked SELECT to overwrite the cached row) — the
+            # reviewer's race: a stale active=True vote on a closed evaluation.
             locked = (
                 db.query(EvaluationRequest)
                 .filter(EvaluationRequest.id == request_row.id)
                 .with_for_update()
+                .populate_existing()
                 .one()
             )
             if not locked.active:
