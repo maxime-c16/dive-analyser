@@ -22,6 +22,9 @@ import EvaluationStage from './EvaluationStage'
 import {
   EVALUATION_CLOSED,
   createSession,
+  createAutomaticStack,
+  getAutomaticQueue,
+  skipAutomaticDive,
   getQueue,
   skipRequest,
   submitRating,
@@ -65,7 +68,9 @@ function clientId() {
 export default function JurySession({
   onCountChange,
   onStageChange,
+  automatic = false,
 }: {
+  automatic?: boolean
   onCountChange?: (judged: number) => void
   /** Tells the page chrome to compact itself while a dive is on stage. */
   onStageChange?: (judging: boolean) => void
@@ -81,6 +86,10 @@ export default function JurySession({
   const [rated, setRated] = useState<RatedEntry[]>([])
   const [passed, setPassed] = useState<PassedEntry[]>([])
   const [commentOpen, setCommentOpen] = useState(false)
+  const dailyRef = useRef(true)
+  const startKeyRef = useRef<string | null>(null)
+  const selectionSizeRef = useRef(0)
+  const automaticLoadedRef = useRef(false)
   const sessionIdRef = useRef<number | null>(null)
   const batchRef = useRef<QueueItem[]>([])
   const batchIdRef = useRef<string | null>(null)
@@ -114,6 +123,7 @@ export default function JurySession({
    * session. All-unavailable batches with has_more keep loading.
    */
   const loadBatch = useCallback(async (sid: number): Promise<boolean> => {
+    if (automatic && automaticLoadedRef.current) return false
     if (batchIdRef.current && committedBatches.current.has(batchIdRef.current)) {
       // That batch was delivered and fully consumed: a fresh id for the next.
       batchIdRef.current = null
@@ -123,12 +133,14 @@ export default function JurySession({
       // Lost response (or transport error) AFTER possible server-side
       // allocation: rethrow untouched, keeping the SAME id so the retry
       // returns the same batch instead of orphaning it.
-      const payload = await getQueue(sid, batchId)
+      const payload = await (automatic ? getAutomaticQueue(sid) : getQueue(sid, batchId))
+      if (automatic) automaticLoadedRef.current = true
       committedBatches.current.add(batchId)
       const usable = payload.items.filter(
         (item): item is QueueItem =>
           !(item as { unavailable?: boolean }).unavailable && 'media' in item,
       )
+      if (automatic) selectionSizeRef.current = usable.length
       batchRef.current.push(...usable)
       if (usable.length) return true
       // All-unavailable batch: keep going while the server says there is more.
@@ -138,7 +150,7 @@ export default function JurySession({
       batchIdRef.current = null
     }
     return batchRef.current.length > 0
-  }, [])
+  }, [automatic])
 
   /** Next reviewable item: local queue first, then a fresh server batch. */
   const advance = useCallback(async () => {
@@ -203,8 +215,10 @@ export default function JurySession({
     supersededRef.current = false
     setPhase({ kind: 'loading' })
     try {
-      const session = await createSession(clientId())
+      const key = startKeyRef.current || (startKeyRef.current = clientId())
+      const session = await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
       if (!aliveRef.current) return
+      automaticLoadedRef.current = false
       sessionIdRef.current = session.session_id
       batchRef.current = []
       batchIdRef.current = null
@@ -227,7 +241,7 @@ export default function JurySession({
     const nextCount = judgedCount + 1
     setPhase({ kind: 'submitting', item: current.item, score, comment })
     try {
-      const response = await submitRating(current.item.request_id, score, comment.trim() || undefined)
+      const response = await submitRating(current.item.request_id, score, comment.trim() || undefined, automatic)
       if (!aliveRef.current || supersededRef.current) return
       setJudgedCount(nextCount)
       onCountChange?.(nextCount)
@@ -295,7 +309,7 @@ export default function JurySession({
       { request_id: current.item.request_id, dive_code: current.item.dive.dive_code, height: current.item.dive.height },
     ])
     try {
-      if (sessionIdRef.current !== null) await skipRequest(sessionIdRef.current, current.item.request_id)
+      if (sessionIdRef.current !== null) await (automatic ? skipAutomaticDive(sessionIdRef.current, current.item.request_id) : skipRequest(sessionIdRef.current, current.item.request_id))
     } catch {
       // A failed pass is not fatal: the request stays proposed in this
       // session and returns in the next one; the UI still moves forward.
@@ -323,8 +337,8 @@ export default function JurySession({
       {phase.kind === 'landing' && (
         <div className="eval-landing">
           <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>
-          <button type="button" className="eval-start" onClick={() => void start()}>{t('evaluations.start')}</button>
-          <p className="eval-note">{t('evaluations.startNote')}</p>
+          <button type="button" className="eval-start" onClick={() => void start()}>{t(automatic ? 'evaluations.dailyStart' : 'evaluations.start')}</button>
+          <p className="eval-note">{t(automatic ? 'evaluations.automaticNote' : 'evaluations.startNote')}</p>
           {sessionExpired && <p className="eval-note" role="status">{t('evaluations.sessionNew')}</p>}
         </div>
       )}
@@ -346,7 +360,7 @@ export default function JurySession({
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
               <span className="eval-meta">{stageItem.dive.dive_code} · {stageItem.dive.height}</span>
               <span className="eval-count" role="status" aria-label={t('evaluations.counted', { count: judgedCount })} title={t('evaluations.counted', { count: judgedCount })}>
-                {judgedCount}
+                {automatic ? `${judgedCount + passed.length + 1} / ${selectionSizeRef.current}` : judgedCount}
               </span>
             </>
           }
@@ -355,6 +369,7 @@ export default function JurySession({
             <EvaluationPlayer
               key={`eval-video-${stageItem.request_id}`}
               requestId={stageItem.request_id}
+              automatic={automatic}
               paused={
               phase.kind === 'submitting' ||
               phase.kind === 'reveal' ||
@@ -424,7 +439,9 @@ export default function JurySession({
           judgedCount={judgedCount}
           rated={rated}
           passed={passed}
-          onAgain={() => { setPhase({ kind: 'landing' }); setIntroDone(false); setSessionExpired(false) }}
+          automatic={automatic}
+          onResume={automatic ? () => { automaticLoadedRef.current = false; void advance() } : undefined}
+          onAgain={() => { dailyRef.current = false; startKeyRef.current = null; setPhase({ kind: 'landing' }); setIntroDone(false); setSessionExpired(false) }}
         />
       )}
     </section>
@@ -661,12 +678,14 @@ function RevealPanel({
 /* Session summary: real recap of this session + the invitation CTAs.  */
 /* ------------------------------------------------------------------ */
 function SessionSummary({
-  judgedCount, rated, passed, onAgain,
+  judgedCount, rated, passed, onAgain, automatic, onResume,
 }: {
   judgedCount: number
   rated: RatedEntry[]
   passed: PassedEntry[]
   onAgain: () => void
+  automatic?: boolean
+  onResume?: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -695,9 +714,10 @@ function SessionSummary({
           </ul>
         </div>
       )}
-      <p>{t('evaluations.exhausted')}</p>
+      <p>{t(automatic ? 'evaluations.automaticFinished' : 'evaluations.exhausted')}</p>
       <div className="eval-judge-actions">
-        <button type="button" className="eval-pass" onClick={onAgain}>{t('evaluations.evaluateAgain')}</button>
+        <button type="button" className="eval-pass" onClick={onAgain}>{t(automatic ? 'evaluations.anotherStack' : 'evaluations.evaluateAgain')}</button>
+        {onResume && <button type="button" className="eval-pass" onClick={onResume}>{t('evaluations.resumeStack')}</button>}
         <Link className="eval-confirm eval-link" to="/dives">{t('evaluations.requestDive')}</Link>
       </div>
       <p className="eval-note">{t('evaluations.requestDiveHint')}</p>

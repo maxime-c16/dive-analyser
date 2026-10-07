@@ -10,15 +10,16 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { OwnedRequests, MyJudgements } from '../components/evaluation/EvaluationSpaces'
 import '../components/evaluation/evaluations.css'
+import AutomaticScores from '../components/evaluation/AutomaticScores'
 
 const JurySession = lazy(() => import('../components/evaluation/JurySession'))
 
-type Tab = 'jury' | 'mine' | 'judgements'
+type Tab = 'automatic' | 'community' | 'jury' | 'mine' | 'judgements'
 
 export default function Evaluations() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const [tab, setTab] = useState<Tab>('jury')
+  const [tab, setTab] = useState<Tab>('automatic')
   const [judging, setJudging] = useState(false)
 
   useEffect(() => {
@@ -47,9 +48,11 @@ export default function Evaluations() {
         ))}
       </nav>
       <main className="evaluations-body">
+        {tab === 'automatic' && <Suspense fallback={<p role="status">{t('common.loading')}</p>}><JurySession key="automatic" automatic onStageChange={setJudging} /></Suspense>}
+        {tab === 'community' && <AutomaticScores />}
         {tab === 'jury' && (
           <Suspense fallback={<p className="eval-status" role="status">{t('common.loading')}</p>}>
-            <JurySession onStageChange={setJudging} />
+            <JurySession key="manual" onStageChange={setJudging} />
           </Suspense>
         )}
         {tab === 'mine' && <OwnedRequests />}
@@ -65,6 +68,8 @@ export default function Evaluations() {
 }
 
 const tabs: Array<{ key: Tab; label: string }> = [
+  { key: 'automatic', label: 'evaluations.tabAutomatic' },
+  { key: 'community', label: 'evaluations.tabCommunity' },
   { key: 'jury', label: 'evaluations.tabJury' },
   { key: 'mine', label: 'evaluations.tabMine' },
   { key: 'judgements', label: 'evaluations.tabJudgements' },

@@ -1,0 +1,8 @@
+{
+  "id": "automatic-community-reviews",
+  "date": "2026-10-07",
+  "title": "A daily selection of dives to review",
+  "body": "Review a small daily selection of public dives, resume it later, or request another selection. Automatic community scores stay separate from requested evaluations. You can exclude your public dives from automatic selections.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

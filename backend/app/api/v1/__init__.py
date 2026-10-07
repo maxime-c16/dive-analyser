@@ -53,3 +53,6 @@ v1_router.include_router(notifications.router, tags=['notifications'])
 
 from app.api.v1 import evaluations
 v1_router.include_router(evaluations.router, tags=['evaluations'])
+
+from app.api.v1 import matchmaking
+v1_router.include_router(matchmaking.router, tags=['evaluations'])

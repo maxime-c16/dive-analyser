@@ -51,8 +51,8 @@ export async function getEvaluationRequest(diveId: number): Promise<EvaluationRe
   return data
 }
 
-export async function getEvaluationMediaStatus(requestId: number): Promise<EvaluationMediaStatus> {
-  const { data } = await api.get(`/api/v1/evaluations/requests/${requestId}/media/status`)
+export async function getEvaluationMediaStatus(requestId: number, automatic = false): Promise<EvaluationMediaStatus> {
+  const { data } = await api.get(`/api/v1/evaluations/${automatic ? 'automatic' : 'requests'}/${requestId}/media/status`)
   return data
 }
 
@@ -61,15 +61,15 @@ export async function getEvaluationMediaStatus(requestId: number): Promise<Evalu
  * `available_renditions` list is authoritative). The default (no param)
  * keeps the established HQ contract order server-side.
  */
-export function evaluationPlaybackUrl(requestId: number, rendition?: string): string {
-  const base = `/api/v1/evaluations/requests/${requestId}/media/play`
+export function evaluationPlaybackUrl(requestId: number, rendition?: string, automatic = false): string {
+  const base = `/api/v1/evaluations/${automatic ? 'automatic' : 'requests'}/${requestId}/media/play`
   return rendition ? `${base}?rendition=${encodeURIComponent(rendition)}` : base
 }
 
-export async function prepareEvaluationMedia(requestId: number): Promise<
+export async function prepareEvaluationMedia(requestId: number, automatic = false): Promise<
   EvaluationMediaStatus & { created_jobs: string[]; reused_jobs: string[] }
 > {
-  const { data } = await api.post(`/api/v1/evaluations/requests/${requestId}/media/prepare`)
+  const { data } = await api.post(`/api/v1/evaluations/${automatic ? 'automatic' : 'requests'}/${requestId}/media/prepare`)
   return data
 }
 
@@ -232,8 +232,9 @@ export async function submitRating(
   requestId: number,
   scoreHalfSteps: number,
   comment?: string | null,
+  automatic = false,
 ): Promise<SubmissionResponse> {
-  const { data } = await api.post(`/api/v1/evaluations/${requestId}/ratings`, {
+  const { data } = await api.post(`/api/v1/evaluations/${automatic ? 'automatic/' : ''}${requestId}/ratings`, {
     score_half_steps: scoreHalfSteps,
     comment: comment ?? undefined,
   })
@@ -328,4 +329,24 @@ export const EVALUATION_FIXTURES = {
     limit: 10,
     offset: 0,
   },
+}
+
+export async function createAutomaticStack(clientSessionId: string, daily: boolean): Promise<EvaluationSession> {
+  const { data } = await api.post('/api/v1/evaluations/automatic/stacks', { client_session_id: clientSessionId, daily })
+  return data
+}
+export async function getAutomaticQueue(stackId: number): Promise<QueueBatch> {
+  const { data } = await api.get(`/api/v1/evaluations/automatic/stacks/${stackId}/queue`)
+  return data
+}
+export async function skipAutomaticDive(stackId: number, diveId: number): Promise<void> {
+  await api.post(`/api/v1/evaluations/automatic/stacks/${stackId}/skip`, { request_id: diveId })
+}
+export type AutomaticScore = { dive_id: number; dive_code: string; height: string; excluded: boolean; rating_count: number; mean_score: number | null; provisional: boolean }
+export async function getAutomaticScores(offset = 0): Promise<{ items: AutomaticScore[]; total: number }> {
+  const { data } = await api.get('/api/v1/evaluations/automatic/mine', { params: { offset, limit: 20 } })
+  return data
+}
+export async function setAutomaticExclusion(diveId: number, excluded: boolean): Promise<void> {
+  await api.put(`/api/v1/dives/${diveId}/automatic-review`, { excluded })
 }
