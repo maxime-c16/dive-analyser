@@ -122,6 +122,15 @@ class Settings(BaseSettings):
     friend_registration_enabled: bool = os.getenv("FRIEND_REGISTRATION_ENABLED", "false").lower() == "true"
     friend_invite_codes: str = os.getenv("FRIEND_INVITE_CODES", "")
 
+    # Web Push (PR3 notifications-push): VAPID credentials for the push
+    # fan-out that mirrors inbox rows to subscribed devices. Empty
+    # defaults = push gracefully disabled (inbox + prefs keep working,
+    # /push-config reports an empty publicKey). Real keys live in the
+    # runtime .env only (never in Git); see .env.example.
+    vapid_public_key: str = os.getenv("VAPID_PUBLIC_KEY", "")
+    vapid_private_key: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    vapid_subject: str = os.getenv("VAPID_SUBJECT", "")
+
     @property
     def configured_api_keys(self) -> List[str]:
         return [key.strip() for key in self.mac_agent_api_keys.split(",") if key.strip()]

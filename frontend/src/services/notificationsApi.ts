@@ -112,3 +112,54 @@ export async function setNotificationPref(
   )) as { type: string; enabled: boolean }
   return data
 }
+
+/**
+ * Web Push device subscriptions (PR3). Same-origin session transport, like
+ * the inbox calls above. The backend owns VAPID state; `publicKey` is ""
+ * when push is disabled server-side.
+ */
+export type PushConfig = {
+  publicKey: string
+}
+
+export type PushSubscriptionInput = {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+  device_label?: string
+}
+
+export async function getPushConfig(): Promise<PushConfig> {
+  const data = (await readJson(
+    await fetch('/api/v1/push-config', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    }),
+  )) as { publicKey?: unknown }
+  return { publicKey: typeof data.publicKey === 'string' ? data.publicKey : '' }
+}
+
+export async function savePushSubscription(
+  input: PushSubscriptionInput,
+): Promise<{ endpoint: string; device_label: string | null }> {
+  const data = (await readJson(
+    await fetch('/api/v1/push-subscriptions', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+  )) as { endpoint: string; device_label: string | null }
+  return data
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<{ deleted: boolean }> {
+  const data = (await readJson(
+    await fetch('/api/v1/push-subscriptions', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint }),
+    }),
+  )) as { deleted: boolean }
+  return data
+}

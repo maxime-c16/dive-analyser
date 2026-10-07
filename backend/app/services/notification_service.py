@@ -95,6 +95,18 @@ def create(
         except Exception:
             pass
         raise
+    # Best-effort Web Push mirror (PR3): skipped when VAPID is unconfigured,
+    # prunes dead endpoints, never raises, never logs secrets.
+    try:
+        from app.services import push_service
+
+        push_service.fanout_for_rows(db, [row])
+    except Exception:
+        logger.exception("push fan-out failed for user %s", user_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return row
 
 
@@ -188,6 +200,18 @@ def notify_owners_for_diver(
         except Exception:
             pass
         return []
+    # Best-effort Web Push mirror (PR3): only enabled types produced rows,
+    # fan-out re-checks prefs per recipient anyway. Never raises.
+    try:
+        from app.services import push_service
+
+        push_service.fanout_for_rows(db, rows)
+    except Exception:
+        logger.exception("push fan-out failed for diver %s", diver_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return rows
 
 
