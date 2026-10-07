@@ -20,6 +20,7 @@ import EvaluationIntro, { ScoreCard } from './ScoreCards'
 import EvaluationPlayer from './EvaluationPlayer'
 import EvaluationStage from './EvaluationStage'
 import {
+  EVALUATION_CLOSED,
   createSession,
   getQueue,
   skipRequest,
@@ -78,6 +79,7 @@ export default function JurySession({
   const sessionIdRef = useRef<number | null>(null)
   const batchRef = useRef<QueueItem[]>([])
   const batchIdRef = useRef<string | null>(null)
+  const committedBatches = useRef(new Set<string>())
   const hoverRef = useRef(false)
   const keptOpenRef = useRef(false)
   const submittingRef = useRef(false)
@@ -96,12 +98,25 @@ export default function JurySession({
     onStageChange?.(phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal')
   }, [phase.kind, onStageChange])
 
-  /** One server batch load. Empty local queue ⇒ rotate to a fresh batch id;
-   * pending local items (a failed earlier load) ⇒ reuse the id. */
+  /**
+   * One server batch load. Batch ids survive lost responses: a batch whose
+   * CONFIRMED response was fully consumed rotates for the next load, but an
+   * id with a failed/unconfirmed fetch is reused so an already-committed
+   * allocation is returned on retry instead of being orphaned until the next
+   * session. All-unavailable batches with has_more keep loading.
+   */
   const loadBatch = useCallback(async (sid: number): Promise<boolean> => {
-    if (!batchRef.current.length) batchIdRef.current = null
-    for (let rotation = 0; rotation < MAX_BATCH_ROTATIONS; rotation++) {
-      const payload = await getQueue(sid, batchIdRef.current || (batchIdRef.current = clientId()))
+    if (batchIdRef.current && committedBatches.current.has(batchIdRef.current)) {
+      // That batch was delivered and fully consumed: a fresh id for the next.
+      batchIdRef.current = null
+    }
+    for (let attempt = 0; attempt < MAX_BATCH_ROTATIONS; attempt++) {
+      const batchId = batchIdRef.current || (batchIdRef.current = clientId())
+      // Lost response (or transport error) AFTER possible server-side
+      // allocation: rethrow untouched, keeping the SAME id so the retry
+      // returns the same batch instead of orphaning it.
+      const payload = await getQueue(sid, batchId)
+      committedBatches.current.add(batchId)
       const usable = payload.items.filter(
         (item): item is QueueItem =>
           !(item as { unavailable?: boolean }).unavailable && 'media' in item,
@@ -110,7 +125,9 @@ export default function JurySession({
       if (usable.length) return true
       // All-unavailable batch: keep going while the server says there is more.
       if (!payload.has_more) return false
-      batchIdRef.current = null // rotate: this batch produced nothing usable
+      // Rotate: this batch produced nothing usable (its confirmed items stay
+      // marked unavailable server-side, so they can never be re-served).
+      batchIdRef.current = null
     }
     return batchRef.current.length > 0
   }, [])
@@ -178,6 +195,7 @@ export default function JurySession({
       sessionIdRef.current = session.session_id
       batchRef.current = []
       batchIdRef.current = null
+      committedBatches.current = new Set()
       const any = await loadBatch(session.session_id)
       if (!aliveRef.current) return
       if (any) serveNext()
@@ -210,6 +228,8 @@ export default function JurySession({
           comment: response.results.my_rating?.comment ?? null,
         },
       ])
+      // Leave the confirmed dive exactly once.
+      batchRef.current = batchRef.current.filter((entry) => entry.request_id !== current.item.request_id)
       hoverRef.current = false
       keptOpenRef.current = false
       setPhase({ kind: 'reveal', item: current.item, score, comment, results: response.results })
@@ -219,20 +239,29 @@ export default function JurySession({
       }, REVEAL_ANIMATION_MS + REVEAL_HOLD_MS)
     } catch (err: unknown) {
       if (!aliveRef.current) return
-      const axios = err as { response?: { status?: number; data?: { detail?: string } } }
-      const detail = axios.response?.data?.detail ?? ''
-      if (axios.response?.status === 409 && detail.includes('immutable')) {
+      const axios = err as { response?: { status?: number; data?: { detail?: unknown } } }
+      // Business codes are authoritative; older string details stay decodable.
+      const rawDetail = axios.response?.data?.detail
+      const detailCode = typeof rawDetail === 'string'
+        ? (rawDetail.includes('immutable') ? 'RATING_ALREADY_SUBMITTED' : EVALUATION_CLOSED)
+        : ((rawDetail as { code?: string } | undefined)?.code ?? '')
+      if (axios.response?.status === 409 && detailCode === 'RATING_ALREADY_SUBMITTED') {
+        // The juror's own immutable vote exists: back to the same dive.
         setError(t('evaluations.voteAlready'))
+        setPhase({ kind: 'reviewing', item: current.item })
       } else if (axios.response?.status === 409) {
+        // EVALUATION_CLOSED: no further vote attempts; next from the closed screen.
         setError(t('evaluations.voteClosed'))
         setPhase({ kind: 'closed', item: current.item })
+        return
       } else if (axios.response?.status === 403) {
         setError(t('evaluations.voteSelf'))
+        setPhase({ kind: 'reviewing', item: current.item })
       } else {
         // Network/5xx: keep the chosen score, comment and dive for a retry.
         setError(t('evaluations.voteError'))
+        setPhase({ kind: 'reviewing', item: current.item })
       }
-      setPhase({ kind: 'reviewing', item: current.item })
     } finally {
       submittingRef.current = false
     }
@@ -310,8 +339,12 @@ export default function JurySession({
             }
             />
           }
+          overlays={
+            !introDone && (
+              <EvaluationIntro onDone={() => setIntroDone(true)} onSkip={() => setIntroDone(true)} interrupt={score !== null} />
+            )
+          }
         >
-          {!introDone && <EvaluationIntro onDone={() => setIntroDone(true)} onSkip={() => setIntroDone(true)} />}
           {phase.kind === 'reviewing' && (
             <JudgingDock
               score={score}

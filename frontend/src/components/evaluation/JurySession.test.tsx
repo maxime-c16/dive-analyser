@@ -223,6 +223,73 @@ it('summary from a rated session lists the dive with its own score card', async 
   expect(screen.getByRole('link', { name: 'Have a dive evaluated' })).toBeInTheDocument()
 })
 
+it('reuses the SAME batch id when a load response is lost after allocation', async () => {
+  const batch: QueueBatch = { batch_id: 'RECEIVED', items: [item(41, '105C')], has_more: false }
+  let first = true
+  vi.mocked(getQueue).mockImplementation(async (_sid, batchId) => {
+    void _sid
+    if (first) {
+      first = false
+      // сервер allocated the batch then the response is lost mid-flight:
+      throw new Error('network lost after allocation')
+    }
+    return { ...batch, batch_id: batchId }
+  })
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  // The first attempt fails (loading-error); RETRY must reuse the same id.
+  await screen.findByText('The evaluation queue is unavailable. Try again.')
+  expect(getQueue).toHaveBeenCalledTimes(1)
+  const lostId = vi.mocked(getQueue).mock.calls[0][1]
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  await waitFor(() => expect(getQueue).toHaveBeenCalledTimes(2))
+  expect(vi.mocked(getQueue).mock.calls[1][1]).toBe(lostId)
+  await screen.findByText('105C · 3m')
+})
+
+it('a 409 EVALUATION_CLOSED decodes to the closed screen without a Confirm button', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(submitRating).mockRejectedValueOnce({
+    response: { status: 409, data: { detail: { code: 'EVALUATION_CLOSED', message: 'This evaluation is closed to new votes' } } },
+  })
+  await openFirstDive()
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await screen.findByText('This evaluation just closed — no vote was saved.')
+  // The closed state holds: Next is the only judgement path forward.
+  expect(screen.queryByRole('button', { name: 'Add a comment' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Pass' })).not.toBeInTheDocument()
+  const confirmButton = screen.queryByRole('button', { name: /Confirm score/ })
+  expect(confirmButton).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Next dive' })).toBeInTheDocument()
+})
+
+it('a keyed 409 RATING_ALREADY_SUBMITTED stays on the dive form with its vote hint', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(submitRating).mockRejectedValueOnce({
+    response: { status: 409, data: { detail: { code: 'RATING_ALREADY_SUBMITTED', message: 'A different rating was already confirmed for this dive (votes are immutable)' } } },
+  })
+  await openFirstDive()
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await screen.findByText('Your judgement is already confirmed and immutable.')
+  // Still the SAME dive with its dock available again.
+  expect(screen.getByText('107B · 3m')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Confirm score' })).toBeInTheDocument()
+})
+
+it('a score selection interrupts the intro decoration immediately', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await screen.findByRole('button', { name: 'Skip' })
+  expect(document.querySelector('.eval-intro')).not.toBeNull()
+  // Judging starts while the intro still runs: the decoration leaves NOW.
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await waitFor(() => expect(document.querySelector('.eval-intro')).toBeNull())
+  expect(screen.getByText('107B · 3m')).toBeInTheDocument()
+})
+
 it('ends on the summary when the queue is empty at start', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
   render(<MemoryRouter><JurySession /></MemoryRouter>)

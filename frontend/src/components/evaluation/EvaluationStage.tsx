@@ -24,6 +24,7 @@ export default function EvaluationStage({
   head,
   prompt,
   video,
+  overlays,
   children,
 }: {
   open: boolean
@@ -34,6 +35,8 @@ export default function EvaluationStage({
   prompt: string | null
   /** The evaluation-scoped player; rendered in the absolute video layer. */
   video: ReactNode
+  /** Renders above the video (intro choreography), below the chrome. */
+  overlays?: ReactNode
   /** Bottom overlay dock: judging controls / reveal / stage states. */
   children: ReactNode
 }) {
@@ -95,6 +98,7 @@ export default function EvaluationStage({
     >
       {/* The video IS the stage: full viewport layer under every overlay. */}
       <div className="eval-stage-video">{video}</div>
+      {overlays}
       <header className="eval-stage-head">
         <button type="button" className="eval-quit" onClick={onClose} aria-label={t('evaluations.quit')}>
           <X size={20} />

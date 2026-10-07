@@ -59,8 +59,9 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Intro overlay: light veil, decorative fan (AT-hidden, click-free),  */
-/* accessible Skip button. Never blocks the stage underneath.          */
+/* Intro choreography: pile (backs) → deal in fan (curved, overshoot) → */
+/* successive true 3D flips → tighten → travel down into the HUD zone.  */
+/* Decorative + pointer-transparent; light veil only; Skip accessible.  */
 /* ------------------------------------------------------------------ */
 .eval-intro {
   position: absolute;
@@ -70,23 +71,100 @@
   place-content: center;
   gap: 14px;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(6, 14, 20, 0.5), rgba(6, 14, 20, 0.2));
+  /* No dark veil: the first video keeps loading/playing behind. */
+  background: linear-gradient(180deg, rgba(6, 14, 20, 0.28), transparent 70%);
+  /* High-refresh/VRR displays: WAAPI transform/opacity only (compositor-
+     driven, additive over any refresh cadence); this containment hint keeps
+     the overlay from re-ranking unrelated layout per frame. */
+  contain: layout style;
 }
 
 .eval-intro-cards {
-  display: flex;
+  position: relative;
+  width: min(560px, 78vw);
+  height: 170px;
+  justify-self: center;
 }
 
-/* Real fan: cards overlap with staggered deal + rotation. */
-.eval-intro-card {
-  --eval-card-w: 92px;
-  transform-origin: 50% 130%;
-  transform: rotate(var(--rot, 0deg));
-  margin-left: -26px;
+/* One 3D container per card; the slot is absolutely measured-centered. */
+.eval-intro-slot {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  width: 92px;
+  height: 148px;
+  margin-left: -46px;
+  margin-top: -74px;
+  perspective: 620px;
+  /* transform + opacity are animated by WAAPI at the display's native
+     cadence (120Hz/VRR included); hint both so no per-frame re-raster. */
+  will-change: transform, opacity;
 }
 
-.eval-intro-card:first-child {
-  margin-left: 0;
+.eval-flip {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.eval-card-back,
+.eval-card-front .eval-card {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Back face: off-white paper with sparse black press details (no score). */
+.eval-card-back {
+  background: #f7f5ee;
+  border-radius: 4px;
+  border: 1px solid #cfc9b8;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  transform: rotateY(0deg);
+}
+
+.eval-card-back::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(20, 24, 30, 0.5);
+  border-radius: 3px;
+}
+
+.eval-card-back::after {
+  content: "½";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  font-size: 30px;
+  font-weight: 800;
+  color: #14181e;
+  font-family: system-ui, sans-serif;
+}
+
+.eval-card-front {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.eval-card-front .eval-card {
+  width: 100%;
+  aspect-ratio: auto;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+  position: static;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .eval-intro[data-leaving] {
+    opacity: 0;
+    transition: opacity 260ms ease-in;
+  }
 }
 
 .eval-intro-skip {
@@ -100,25 +178,27 @@
   justify-self: center;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .eval-intro-card {
-    animation: eval-deal 420ms var(--stagger, 0ms) cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-  }
-  .eval-intro[data-leaving] {
-    opacity: 0;
-    transition: opacity 300ms ease-in;
-  }
-}
-
 @keyframes eval-deal {
   from {
     opacity: 0;
-    transform: rotate(var(--rot, 0deg)) translateY(30px) rotateX(55deg) scale(0.94);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
-    transform: rotate(var(--rot, 0deg));
   }
+}
+
+.eval-hq-hint {
+  position: absolute;
+  top: calc(58px + env(safe-area-inset-top, 0px));
+  right: calc(60px + env(safe-area-inset-right, 0px));
+  z-index: 3;
+  font-size: 11px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(4, 8, 12, 0.55);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* ------------------------------------------------------------------ */
@@ -161,35 +241,12 @@
   place-content: center;
   gap: 10px;
   justify-items: center;
-  align-self: center;
   color: rgba(244, 247, 247, 0.8);
   z-index: 1;
 }
 
 .eval-player-state p {
   margin: 0;
-}
-
-.eval-retry {
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(4, 8, 12, 0.55);
-  color: #fff;
-  padding: 10px 16px;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.eval-hq-hint {
-  position: absolute;
-  top: calc(58px + env(safe-area-inset-top, 0px));
-  right: calc(60px + env(safe-area-inset-right, 0px));
-  z-index: 3;
-  font-size: 11px;
-  padding: 4px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
-  background: rgba(4, 8, 12, 0.55);
-  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Player media controls: discreet lucide-glyph rail pinned to the TOP-RIGHT
@@ -698,13 +755,21 @@
   }
 }
 
-/* Landscape portrait-source phone: keep the intro cards small enough. */
+/* Landscape (short) viewports: smaller fan that stays measured, never over
+   the whole phase band, ends aimed at the HUD. */
 @media (orientation: landscape) and (max-height: 560px) {
-  .eval-intro-card {
-    --eval-card-w: 66px;
-    margin-left: -18px;
+  .eval-intro-cards {
+    height: 120px;
+  }
+  .eval-intro-slot {
+    width: 70px;
+    height: 112px;
+    margin-left: -35px;
+    margin-top: -56px;
+    top: 40%;
   }
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Page chrome (landing / owned / judged): normal app surface.         */
@@ -965,8 +1030,11 @@
   .eval-card {
     --eval-card-w: 64px;
   }
-  .eval-intro-card {
-    --eval-card-w: 74px;
+  .eval-intro-slot {
+    width: 72px;
+    height: 118px;
+    margin-left: -36px;
+    margin-top: -59px;
   }
   .eval-score-card .eval-card {
     --eval-card-w: 56px;

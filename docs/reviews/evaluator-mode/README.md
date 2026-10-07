@@ -17,6 +17,19 @@ landscape 844×390 (1280×720 source) and desktop 1440×1000:
   translucent right column; controls rail and score card never overlap.
 - `desktop-*.png` — video full stage; dock bottom; width-borderless contain.
 
+Recorded intro choreography v2 (card-game direction, ~3.2s at 60fps recording,
+compositor-driven at any refresh rate incl. 120Hz/VRR):
+- `intro-mobile.webm` (390×844), `intro-landscape.webm` (844×390),
+  `intro-desktop.webm` (1440×1000) — pile of four card BACKS → curved deal
+  with a damped overshoot into a readable four-card fan → successive true 3D
+  flips revealing the decorative faces (all readable by ~1.9s) → fan tighten
+  at 2.2s → travel/shrink into the measured HUD score-card zone, fading only
+  at the very end. Every keyframe time is defined in absolute milliseconds;
+  all four card rects stay inside the stage during deal/read/merge at 390,
+  320, 844 and 1440 widths (`/tmp/eval-intro-bounds-v5/bounds.json`); no
+  dark veil, decoration pointer-transparent, Skip accessible, reduced-motion
+  ends immediately, judging interrupts the decoration instantly.
+
 Asserted checks (no-force pointer interactions only):
 - zero overlap between the playback control rail and the score card;
 - header stays single-row and the 6-char diver name is not truncated;
