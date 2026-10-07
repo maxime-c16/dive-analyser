@@ -595,3 +595,61 @@ def test_access_investigator_unassigned_dive_policy(db, admin_client, target_adm
     assert response.json()["can_view"] is expected
     assert response.json()["can_manage"] is expected
     assert response.json()["video_authorized"] is None
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_binding_preview_real_impact_is_read_only(db, admin_client, active):
+    target = _make_user(db, "studio@example.test", role="friend", is_admin=False, is_active=active)
+    diver_id = _diver_id(db)
+    training = SessionModel(date=datetime.utcnow(), location="Studio test")
+    db.add(training)
+    db.flush()
+    for visibility in ("private", "public"):
+        db.add(Dive(session_id=training.id, diver_id=diver_id, dive_code="101B",
+            performance="G", performance_numeric=3, height="3m",
+            dive_datetime=datetime.utcnow(), visibility=visibility))
+    db.commit()
+    path = f"/api/v1/admin/users/{target.id}/binding-preview?diver_id={diver_id}"
+    response = admin_client.get(path + "&bound=true")
+    assert response.status_code == 200
+    preview = response.json()
+    assert preview["before"] == {"view": int(active), "manage": 0}
+    assert preview["after"] == {"view": 2 if active else 0, "manage": 2 if active else 0}
+    assert preview["other_accounts"] == 1
+    assert preview["dive_count"] == 2
+    assert not preview["currently_bound"]
+    assert not db.query(UserDiverAccess).filter_by(user_id=target.id).count()
+    db.add(UserDiverAccess(user_id=target.id, diver_id=diver_id, access_kind="OWNER"))
+    db.commit()
+    removal = admin_client.get(path + "&bound=false").json()
+    assert removal["before"] == preview["after"]
+    assert removal["after"] == preview["before"]
+    graph = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio").json()
+    assert graph["bindings"][0]["dive_count"] == 2
+    assert graph["viewable_dives"] == (2 if active else 0)
+    assert graph["manageable_dives"] == (2 if active else 0)
+
+
+def test_studio_requires_admin_and_bounds_pages(diver_client, admin_client):
+    for endpoint in ("access-studio", "binding-preview?diver_id=1&bound=true"):
+        assert diver_client.get(f"/api/v1/admin/users/1/{endpoint}").status_code == 403
+    assert admin_client.get("/api/v1/admin/users/999999/access-studio").status_code == 404
+    assert admin_client.get("/api/v1/admin/users/1/access-studio?limit=201").status_code == 422
+    assert admin_client.get("/api/v1/admin/users/1/binding-preview?diver_id=999999&bound=true").status_code == 404
+
+
+@pytest.mark.parametrize("target_admin,viewable,manageable", [(True, 2, 1), (False, 1, 0)])
+def test_studio_does_not_imply_private_ownership_for_admins(db, admin_client, target_admin, viewable, manageable):
+    target = _make_user(db, "studio-policy@example.test", role="owner" if target_admin else "friend", is_admin=target_admin)
+    training = SessionModel(date=datetime.utcnow(), location="Studio policy")
+    db.add(training)
+    db.flush()
+    for diver_id, visibility in ((None, "private"), (_diver_id(db), "private"), (_diver_id(db), "public")):
+        db.add(Dive(session_id=training.id, diver_id=diver_id, dive_code="101B",
+            performance="G", performance_numeric=3, height="3m",
+            dive_datetime=datetime.utcnow(), visibility=visibility))
+    db.commit()
+    data = admin_client.get(f"/api/v1/admin/users/{target.id}/access-studio").json()
+    assert data["total"] == 0
+    assert data["viewable_dives"] == viewable
+    assert data["manageable_dives"] == manageable

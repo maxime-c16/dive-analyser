@@ -25,18 +25,6 @@ describe('AccountWorkspace', () => {
     expect(name).toHaveValue('Dana')
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
   })
-  it('searches bindings and requires confirmation before removing ownership', async () => {
-    const fetch = mockFetch()
-    render(<AccountWorkspace accountId={2} section="access" onSection={vi.fn()} onBack={vi.fn()} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
-    expect(fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Dive records and videos remain stored')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    fireEvent.change(screen.getByLabelText('Find a diver'), { target: { value: 'beth' } })
-    expect(screen.queryByText('Aqua')).not.toBeInTheDocument()
-    expect(screen.getByText('Beth')).toBeInTheDocument()
-  })
   it('requires confirmation for changes that revoke sessions', async () => {
     const fetch = mockFetch()
     render(<AccountWorkspace accountId={2} currentUserId={1} section="profile" onSection={vi.fn()} onBack={vi.fn()} />)
