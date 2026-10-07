@@ -318,7 +318,8 @@ def test_ratings_validation_and_immutable_votes(workspace):
     # Different content after confirmation: stable rejection code.
     conflict = _rate(bob, request_id, 10)
     assert conflict.status_code == 409
-    assert 'immutable' in conflict.json()['detail']
+    assert conflict.json()['detail']['code'] == 'RATING_ALREADY_SUBMITTED'
+    assert 'immutable' in conflict.json()['detail']['message']
     assert db.query(EvaluationRating).filter_by(request_id=request_id).count() == 1
     # One final row with the stored content.
     vote = db.query(EvaluationRating).filter_by(request_id=request_id).one()
@@ -378,7 +379,7 @@ def test_results_visibility_countries_scores_untouched(workspace):
     own_request_id = own.json()['id']
     self_vote = _rate(alice, own_request_id, 10)
     assert self_vote.status_code == 403
-    assert 'own dive' in self_vote.json()['detail']
+    assert self_vote.json()['detail']['code'] == 'SELF_EVALUATION'
 
 
 def test_vote_after_deactivation_retry_and_closure(workspace):
