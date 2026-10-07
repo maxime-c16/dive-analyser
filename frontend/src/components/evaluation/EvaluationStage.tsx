@@ -53,7 +53,14 @@ export default function EvaluationStage({
     containerRef.current?.focus()
     return () => {
       document.body.style.overflow = previousOverflow
-      restoreFocusRef.current?.focus?.()
+      // The queue load unmounts the Start button before this portal mounts,
+      // so the captured origin is often <body>. Restore to the page's own
+      // action (landing Start / summary Évaluer encore) whenever it exists.
+      const pageAction = document.querySelector<HTMLElement>('.eval-start')
+      const target = (restoreFocusRef.current as HTMLElement | null)?.tagName === 'BODY' || !restoreFocusRef.current
+        ? pageAction
+        : restoreFocusRef.current
+      target?.focus?.()
     }
   }, [open])
 

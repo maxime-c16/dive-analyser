@@ -126,43 +126,73 @@ export function OwnedRequests() {
   )
 }
 
+const PANEL_PAGE = 50
+
+/** Panel rows paged by 50 with a continuation; count/mean always aggregate
+ * the WHOLE panel server-side. */
 function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
   const { t } = useTranslation()
-  const [results, setResults] = useState<JuryResults | null>(null)
-  const [error, setError] = useState(false)
-  const toggle = async () => {
-    if (results) {
-      setResults(null)
+  const [state, setState] = useState<
+    | { kind: 'closed' }
+    | { kind: 'error' }
+    | { kind: 'open'; rows: JuryResults['ratings']; total: number; offset: number }
+  >({ kind: 'closed' })
+  const [busy, setBusy] = useState(false)
+
+  const fetchPage = useCallback(async (offset: number, accumulate: boolean) => {
+    setBusy(true)
+    try {
+      const page = await getResults(request.request_id, PANEL_PAGE, offset)
+      setState((previous) => {
+        if (previous.kind === 'open' && accumulate) {
+          const seen = new Set(previous.rows.map((row) => row.id))
+          return { kind: 'open', rows: [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))], total: page.rating_count, offset }
+        }
+        return { kind: 'open', rows: page.ratings, total: page.rating_count, offset }
+      })
+    } catch {
+      setState({ kind: 'error' })
+    } finally {
+      setBusy(false)
+    }
+  }, [request.request_id])
+
+  const toggle = () => {
+    if (state.kind === 'open') {
+      setState({ kind: 'closed' })
       return
     }
-    setError(false)
-    try {
-      setResults(await getResults(request.request_id))
-    } catch {
-      setError(true)
-    }
+    void fetchPage(0, false)
   }
+
   return (
     <span className="eval-owned-panel">
-      <button type="button" onClick={() => void toggle()} aria-expanded={results !== null}>
-        {results ? t('evaluations.hidePanel') : t('evaluations.showPanel')}
+      <button type="button" onClick={toggle} aria-expanded={state.kind === 'open'}>
+        {state.kind === 'open' ? t('evaluations.hidePanel') : t('evaluations.showPanel')}
       </button>
-      {error && (
+      {state.kind === 'error' && (
         <span role="alert" className="eval-error">
           {t('evaluations.panelError')}{' '}
-          <button type="button" onClick={() => void toggle()}>{t('evaluations.retry')}</button>
+          <button type="button" onClick={() => void fetchPage(0, false)}>{t('evaluations.retry')}</button>
         </span>
       )}
-      {results && (
-        <ul className="eval-panel-list">
-          {results.ratings.map((rating) => (
-            <li key={rating.id}>
-              <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}
-              {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
-            </li>
-          ))}
-          {results.ratings.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
-        </ul>
+      {state.kind === 'open' && (
+        <>
+          <ul className="eval-panel-list">
+            {state.rows.map((rating) => (
+              <li key={rating.id}>
+                <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}
+                {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
+              </li>
+            ))}
+            {state.rows.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
+          </ul>
+          {state.offset + state.rows.length < state.total && (
+            <button type="button" disabled={busy} onClick={() => void fetchPage(state.offset + state.rows.length, true)}>
+              {t('evaluations.more')}
+            </button>
+          )}
+        </>
       )}
     </span>
   )
@@ -212,48 +242,74 @@ export function MyJudgements() {
  * accessible after the video was revoked; errors get their own retry. */
 function MyPanelLink({ requestId }: { requestId: number }) {
   const { t } = useTranslation()
-  const [results, setResults] = useState<JuryResults | null>(null)
-  const [error, setError] = useState(false)
+  const [state, setState] = useState<
+    | { kind: 'closed' }
+    | { kind: 'error' }
+    | { kind: 'open'; rows: JuryResults['ratings']; myId: number | null; total: number; offset: number }
+  >({ kind: 'closed' })
   const [busy, setBusy] = useState(false)
 
-  const toggle = async () => {
-    if (results) {
-      setResults(null)
-      return
-    }
-    setError(false)
+  const fetchPage = useCallback(async (offset: number, accumulate: boolean) => {
     setBusy(true)
     try {
-      setResults(await getResults(requestId))
+      const page = await getResults(requestId, PANEL_PAGE, offset)
+      setState((previous) => {
+        if (previous.kind === 'open' && accumulate) {
+          const seen = new Set(previous.rows.map((row) => row.id))
+          return {
+            kind: 'open',
+            rows: [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))],
+            myId: page.my_rating?.id ?? previous.myId,
+            total: page.rating_count,
+            offset,
+          }
+        }
+        return { kind: 'open', rows: page.ratings, myId: page.my_rating?.id ?? null, total: page.rating_count, offset }
+      })
     } catch {
-      setError(true)
+      setState({ kind: 'error' })
     } finally {
       setBusy(false)
     }
+  }, [requestId])
+
+  const toggle = () => {
+    if (state.kind === 'open') {
+      setState({ kind: 'closed' })
+      return
+    }
+    void fetchPage(0, false)
   }
 
   return (
     <span className="eval-owned-panel">
-      <button type="button" onClick={() => void toggle()} aria-expanded={results !== null} disabled={busy}>
-        {results ? t('evaluations.hidePanel') : t('evaluations.showPanel')}
+      <button type="button" onClick={toggle} aria-expanded={state.kind === 'open'} disabled={busy}>
+        {state.kind === 'open' ? t('evaluations.hidePanel') : t('evaluations.showPanel')}
       </button>
-      {error && (
+      {state.kind === 'error' && (
         <span role="alert" className="eval-error">
           {t('evaluations.panelError')}{' '}
-          <button type="button" onClick={() => void toggle()}>{t('evaluations.retry')}</button>
+          <button type="button" onClick={() => void fetchPage(0, false)}>{t('evaluations.retry')}</button>
         </span>
       )}
-      {results && (
-        <ul className="eval-panel-list">
-          {results.ratings.map((rating) => (
-            <li key={rating.id}>
-              <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}{' '}
-              {results.my_rating && rating.id === results.my_rating.id ? <em>({t('evaluations.you')})</em> : null}
-              {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
-            </li>
-          ))}
-          {results.ratings.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
-        </ul>
+      {state.kind === 'open' && (
+        <>
+          <ul className="eval-panel-list">
+            {state.rows.map((rating) => (
+              <li key={rating.id}>
+                <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}{' '}
+                {state.myId === rating.id ? <em>({t('evaluations.you')})</em> : null}
+                {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
+              </li>
+            ))}
+            {state.rows.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
+          </ul>
+          {state.offset + state.rows.length < state.total && (
+            <button type="button" disabled={busy} onClick={() => void fetchPage(state.offset + state.rows.length, true)}>
+              {t('evaluations.more')}
+            </button>
+          )}
+        </>
       )}
     </span>
   )
