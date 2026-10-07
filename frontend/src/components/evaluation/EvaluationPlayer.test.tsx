@@ -35,3 +35,14 @@ it('keeps polling after preparation returns a low-resolution proxy', async () =>
   await waitFor(() => expect(prepareEvaluationMedia).toHaveBeenCalled())
   await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p'), { timeout: 3500 })
 })
+it('clears the upgrading hint when the bounded HQ wait expires', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(0)
+  const proxy = { request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready' as const, rendition: 'proxy_360p', poster_url: null, playback_url: '/api/v1/evaluations/automatic/7/media/play', available_renditions: ['proxy_360p'] }
+  vi.mocked(getEvaluationMediaStatus).mockResolvedValue(proxy)
+  vi.mocked(prepareEvaluationMedia).mockResolvedValue({ ...proxy, created_jobs: [], reused_jobs: [] })
+  const { container } = render(<EvaluationPlayer requestId={7} automatic />)
+  await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+  clock.mockReturnValue(90_001)
+  await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument(), { timeout: 3500 })
+  expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
+})

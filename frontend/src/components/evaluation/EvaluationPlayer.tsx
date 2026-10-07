@@ -177,7 +177,9 @@ export default function EvaluationPlayer({
           return
         }
       } catch { /* Retry transient errors within the bounded wait. */ }
-      if (alive && epoch === requestEpochRef.current && Date.now() < deadline) timer = window.setTimeout(poll, 2000)
+      if (!alive || epoch !== requestEpochRef.current) return
+      if (Date.now() < deadline) timer = window.setTimeout(poll, 2000)
+      else setHqHint(false)
     }
     timer = window.setTimeout(poll, 2000)
     return () => { alive = false; window.clearTimeout(timer) }
