@@ -60,7 +60,7 @@ class EvaluationRating(Base):
     comment = Column(String(2000), nullable=True)
     dive_code = Column(String(10), nullable=False)
     height = Column(String(5), nullable=False)
-    platform_type = Column(String(20), nullable=False)
+    platform_type = Column(String(20), nullable=True)  # the dive column is nullable
     dive_name = Column(String(100), nullable=False)
     prompt_snapshot = Column(String(1000), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -90,9 +90,14 @@ class EvaluationSession(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False, index=True)
     revoked_at = Column(DateTime, nullable=True)
+    # Scan cursor for the jury queue: each bounded GET resumes where the last
+    # one stopped, so unready requests do not hide ready ones behind them.
+    scan_offset = Column(Integer, nullable=False, default=0)
 
     __table_args__ = (
-        UniqueConstraint("client_session_id", name="uq_evaluation_session_client"),
+        # A client id identifies a session WITHIN its account: two accounts may
+        # legitimately present the same UUID.
+        UniqueConstraint("user_id", "client_session_id", name="uq_evaluation_session_client"),
     )
 
 
