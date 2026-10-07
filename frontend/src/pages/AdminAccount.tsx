@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useContext, useEffect, useState, type ReactNode } from 'react'
+import { UNSAFE_DataRouterContext, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, Link2, ShieldCheck, UserRound, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { bindDiver, getUser, listAllDivers, roleTitle, unbindDiver, updateUser, type AdminUser, type AdminDiver, type PublicRole } from '../services/adminUsersApi'
+import AccountNavigationGuard from '../components/AccountNavigationGuard'
 import './AdminAccount.css'
 
 export type AccountLayout = 'tabs' | 'sidebar' | 'cards'
@@ -26,6 +27,7 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   const [diverError, setDiverError] = useState('')
   const [notice, setNotice] = useState('')
   const [confirm, setConfirm] = useState<{ title: string; body: string; action: () => Promise<void> } | null>(null)
+  const dataRouter = useContext(UNSAFE_DataRouterContext)
   const self = accountId === currentUserId
   const dirty = !!user && (name !== user.display_name || email !== user.email || role !== (user.is_admin ? 'administrator' : 'diver') || active !== user.is_active)
   const allSections = [...sections, ...extraSections]
@@ -41,13 +43,7 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', warn)
-    const guardLinks = (event: MouseEvent) => {
-      if (!dirty || !(event.target instanceof Element)) return
-      const link = event.target.closest('a[href]')
-      if (link && !window.confirm('Discard unsaved account changes?')) { event.preventDefault(); event.stopPropagation() }
-    }
-    document.addEventListener('click', guardLinks, true)
-    return () => { window.removeEventListener('beforeunload', warn); document.removeEventListener('click', guardLinks, true) }
+    return () => { window.removeEventListener('beforeunload', warn) }
   }, [dirty])
   async function mutate(action: () => Promise<void>, success: string) {
     setBusy(true); setError(''); setNotice('')
@@ -77,7 +73,8 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
     {layout === 'cards' && <div className="account-shortcuts">{allSections.filter(item => item.id !== 'overview').map(item => <button key={item.id} onClick={() => onSection(item.id)}><span>{item.label}</span><small>Open account tools →</small></button>)}</div>}
   </> : section === 'profile' ? <article className="account-panel"><div className="account-panel-heading"><UserRound size={18} /><h2>Profile & account status</h2></div><p className="account-muted">Review identity and access level. Changes are saved together.</p><form id="account-profile" onSubmit={event => { event.preventDefault(); if (role !== (user.is_admin ? 'administrator' : 'diver') || active !== user.is_active) setConfirm({ title: 'Change account access?', body: 'Changing the role or disabling this account signs out its sessions. Diver bindings are preserved.', action: save }); else void save() }}><fieldset disabled={busy} className="account-form-grid"><label>Display name<input required maxLength={120} value={name} onChange={event => setName(event.target.value)} /></label><label>Email address<input type="email" required maxLength={255} value={email} onChange={event => setEmail(event.target.value)} /></label><label>Workspace role<select value={role} disabled={self} onChange={event => setRole(event.target.value as PublicRole)}><option value="diver">Diver</option><option value="administrator">Administrator</option></select></label><label>Account status<select value={active ? 'active' : 'disabled'} disabled={self} onChange={event => setActive(event.target.value === 'active')}><option value="active">Active</option><option value="disabled">Disabled</option></select></label></fieldset>{self && <p className="account-muted">You cannot disable yourself or remove your own administrator access.</p>}<div className="account-inline-save"><button type="submit" className="account-button primary" disabled={busy || !dirty}>Save changes</button><button type="button" className="account-button" disabled={busy || !dirty} onClick={() => setForm(user)}>Discard</button></div></form></article> : section === 'access' ? <article className="account-panel"><div className="account-panel-heading"><Link2 size={18} /><h2>Access & diver bindings</h2></div><p className="account-muted">Link an account to a diver to grant ownership access to that diver’s dives. A diver can be linked to more than one account.</p><label className="account-search">Find a diver<input type="search" placeholder="Search name, canonical name or ID…" value={query} onChange={event => setQuery(event.target.value)} /></label>{diverError && <div role="alert" className="account-alert">{diverError}<button onClick={() => void listAllDivers().then(value => { setDivers(value); setDiverError('') }).catch(reason => setDiverError(String(reason)))}>Retry diver directory</button></div>}{(user.diver_binding_total ?? bindings.length) > bindings.length && <p className="account-warning">Only the first {bindings.length} bindings are returned by the current API. Additional bindings are not shown.</p>}<div className="account-binding-list">{filtered.map(diver => { const bound = bindings.includes(diver.diver_id); return <div key={diver.diver_id} className="account-binding"><div className={`account-avatar small ${bound ? '' : 'muted'}`}>{diver.display_name.slice(0,2).toUpperCase()}</div><div className="account-binding-identity"><strong>{diver.display_name}</strong><small>{diver.canonical_name} · #{diver.diver_id}{!diver.active ? ' · Inactive diver' : ''}</small>{!bound && diver.bound_to_user && <small>Already linked to another account</small>}</div><span className="account-binding-status">{bound ? 'Linked · Owner' : 'Available'}</span><button className={`account-button ${bound ? '' : 'primary'}`} disabled={busy} onClick={() => setConfirm({ title: bound ? `Remove ${diver.display_name}?` : `Link ${diver.display_name}?`, body: bound ? 'This removes ownership access to this diver’s dives. Public visibility may still permit viewing. Dive records and videos remain stored.' : 'This grants ownership access to this diver’s dives, including management actions. Existing account links are preserved.', action: async () => { await mutate(async () => { if (bound) await unbindDiver(accountId, diver.diver_id); else await bindDiver(accountId, diver.diver_id); await refresh() }, bound ? 'Diver binding removed.' : 'Diver linked.') } })}>{bound ? 'Remove' : 'Link diver'}</button></div> })}{!filtered.length && !diverError && <p className="account-muted">No divers match your search.</p>}</div></article> : renderExtra?.(section, user, refresh)
   return <main className={`account-workspace layout-${layout}`}>
-    <button className="account-back" onClick={() => { if (!dirty || window.confirm('Discard unsaved account changes?')) onBack() }}><ArrowLeft size={15} /> Accounts / Manage account</button>
+    {dataRouter && <AccountNavigationGuard dirty={dirty}/>}
+    <button className="account-back" onClick={() => { if (dataRouter || !dirty || window.confirm('Leave this account with unsaved changes?')) onBack() }}><ArrowLeft size={15} /> Accounts / Manage account</button>
     <header className="account-header"><div className="account-avatar">{user.display_name.slice(0,2).toUpperCase()}</div><div className="account-header-identity"><div className="account-eyebrow">ACCOUNT WORKSPACE · #{user.user_id}</div><h1>{user.display_name}</h1><div className="account-email">{user.email}<button aria-label="Copy email" onClick={() => void copy(user.email)}><Copy size={14}/></button></div></div><div className="account-header-badges"><span className={`account-badge ${user.is_active ? 'positive' : 'negative'}`}><span/> {user.is_active ? 'Active' : 'Disabled'}</span><span className="account-badge"><ShieldCheck size={13}/>{roleTitle(user)}</span>{self && <span className="account-badge">Your account</span>}</div></header>
     {notice && <div role="status" className="account-success"><Check size={16}/>{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14}/></button></div>}
     {error && <div role="alert" className="account-alert">{error}</div>}

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom'
 import { AccountWorkspace } from './AdminAccount'
 const account = { user_id: 2, display_name: 'Dana', email: 'dana@example.test', is_admin: false, is_active: true, role: 'friend', created_at: '2026-01-01T00:00:00', live_sessions: 2, diver_ids: [10], diver_binding_total: 1 }
 function mockFetch(fail = false) {
@@ -12,6 +13,7 @@ function mockFetch(fail = false) {
   })
 }
 beforeEach(() => { vi.restoreAllMocks() })
+afterEach(() => { vi.unstubAllGlobals() })
 describe('AccountWorkspace', () => {
   it('keeps unsaved edits after an API error and can discard them', async () => {
     mockFetch(true)
@@ -47,4 +49,32 @@ describe('AccountWorkspace', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(fetch.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true))
   })
+})
+
+it('blocks browser Back with a dirty draft and allows confirmed navigation', async () => {
+  mockFetch()
+  // Node's Request rejects jsdom's AbortSignal. These routes have no loaders.
+  const NativeRequest = globalThis.Request
+  vi.stubGlobal('Request', class extends NativeRequest { constructor(input: RequestInfo | URL, init?: RequestInit) { super(input, { ...init, signal: undefined }) } })
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  function Page() {
+    const navigate = useNavigate()
+    const location = useLocation()
+    return <AccountWorkspace accountId={2} section={new URLSearchParams(location.search).get('section') ?? 'profile'} onSection={section => navigate(`?section=${section}`)} onBack={() => navigate('/admin')} />
+  }
+  const router = createMemoryRouter([{ path: '/admin', element: <p>Account directory</p> }, { path: '/admin/users/2', element: <Page/> }], { initialEntries: ['/admin', '/admin/users/2?section=profile'], initialIndex: 1 })
+  render(<RouterProvider router={router}/>)
+  fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Keep my draft' } })
+  await act(async () => { await router.navigate(-1) })
+  expect(confirm).toHaveBeenCalledTimes(1)
+  expect(screen.getByLabelText('Display name')).toHaveValue('Keep my draft')
+  expect(router.state.location.pathname).toBe('/admin/users/2')
+  await act(async () => { await router.navigate('?section=overview') })
+  expect(confirm).toHaveBeenCalledTimes(1)
+  await act(async () => { await router.navigate(-1) })
+  expect(confirm).toHaveBeenCalledTimes(1)
+  expect(screen.getByLabelText('Display name')).toHaveValue('Keep my draft')
+  confirm.mockReturnValue(true)
+  await act(async () => { await router.navigate(-1) })
+  expect(await screen.findByText('Account directory')).toBeInTheDocument()
 })
