@@ -26,8 +26,10 @@ export default function EvaluationStage({
   video,
   overlays,
   children,
+  hideChrome = false,
 }: {
   open: boolean
+  hideChrome?: boolean
   onClose: () => void
   /** Compact top row: diver name + code/height + judged counter. */
   head: ReactNode
@@ -44,6 +46,21 @@ export default function EvaluationStage({
   const containerRef = useRef<HTMLDivElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const [promptOpen, setPromptOpen] = useState(false)
+  const [chromeRevealed, setChromeRevealed] = useState(false)
+  const chromeTimer = useRef<number | null>(null)
+  const revealChrome = (keyboard = false) => {
+    if (!hideChrome) return
+    setChromeRevealed(true)
+    if (chromeTimer.current) window.clearTimeout(chromeTimer.current)
+    chromeTimer.current = window.setTimeout(() => {
+      if (!keyboard || !document.activeElement?.closest('.eval-stage-head, .eval-player-controls')) setChromeRevealed(false)
+    }, 2200)
+  }
+  useEffect(() => {
+    setChromeRevealed(false)
+    setPromptOpen(false)
+    return () => { if (chromeTimer.current) window.clearTimeout(chromeTimer.current) }
+  }, [hideChrome])
 
   useEffect(() => {
     if (!open) return
@@ -80,9 +97,10 @@ export default function EvaluationStage({
           'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video, a[href], [tabindex]:not([tabindex="-1"])',
         ) ?? [],
       )
-      if (!nodes.length) return
-      const first = nodes[0]
-      const last = nodes[nodes.length - 1]
+      const visibleNodes = nodes.filter(node => getComputedStyle(node).visibility !== 'hidden')
+      if (!visibleNodes.length) return
+      const first = visibleNodes[0]
+      const last = visibleNodes[visibleNodes.length - 1]
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
         last.focus()
@@ -104,6 +122,10 @@ export default function EvaluationStage({
       aria-label={t('evaluations.juryArea')}
       ref={containerRef}
       tabIndex={-1}
+      data-watching={hideChrome ? 'true' : undefined}
+      data-chrome-revealed={chromeRevealed ? 'true' : undefined}
+      onPointerDown={() => revealChrome(false)}
+      onKeyDown={() => revealChrome(true)}
     >
       {/* The video IS the stage: full viewport layer under every overlay. */}
       <div className="eval-stage-video">{video}</div>

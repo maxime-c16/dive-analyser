@@ -62,10 +62,18 @@ export default function EvaluationPlayer({
   requestId,
   paused = false,
   automatic = false,
+  watching = false,
+  onEnded,
+  onReplay,
+  onFailure,
 }: {
   requestId: number
   paused?: boolean
   automatic?: boolean
+  watching?: boolean
+  onEnded?: () => void
+  onReplay?: () => void
+  onFailure?: () => void
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -185,11 +193,15 @@ export default function EvaluationPlayer({
     return () => { alive = false; window.clearTimeout(timer) }
   }, [hqHint, playback.kind, requestId, automatic])
 
+  useEffect(() => {
+    if (watching && (playback.kind === 'failed' || playback.kind === 'missing')) onFailure?.()
+  }, [watching, playback.kind, onFailure])
+
   // Sound-first autoplay: honor the account's sound preference when the
   // browser still grants the gesture context, fall back silently otherwise
   // (iOS); no promise of guaranteed audio autoplay.
   useEffect(() => {
-    if (playback.kind !== 'ready') return
+    if (playback.kind !== 'ready' || paused) return
     const video = videoRef.current
     if (!video || userPausedRef.current) return
     const start = async () => {
@@ -244,6 +256,7 @@ export default function EvaluationPlayer({
   }
 
   function togglePlay() {
+    if (paused) { onReplay?.(); return }
     const video = videoRef.current
     if (!video) return
     if (video.paused) {
@@ -256,6 +269,7 @@ export default function EvaluationPlayer({
   }
 
   function replay() {
+    if (paused) { onReplay?.(); return }
     const video = videoRef.current
     if (!video) return
     userPausedRef.current = false
@@ -270,7 +284,7 @@ export default function EvaluationPlayer({
     video.muted = next
     soundPreferred = !next
     setMuted(next)
-    if (!next) video.play().catch(() => {})
+    if (!next && !paused) video.play().catch(() => {})
   }
 
   function toggleSlow() {
@@ -307,6 +321,7 @@ export default function EvaluationPlayer({
   return (
     <div
       className="eval-player"
+      data-watching={watching ? 'true' : undefined}
       data-controls-idle={controlsIdle ? 'true' : undefined}
       onPointerMove={wakeControls}
       onPointerDown={wakeControls}
@@ -318,7 +333,12 @@ export default function EvaluationPlayer({
         ref={videoRef}
         src={playback.src}
         poster={playback.poster ?? undefined}
-        autoPlay
+        autoPlay={!paused}
+        tabIndex={0}
+        aria-label={t('evaluations.playerControlsAria')}
+        onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); togglePlay() } }}
+        onEnded={onEnded}
+        onError={() => setPlayback({ kind: 'failed' })}
         muted={muted}
         playsInline
         preload="auto"
@@ -333,10 +353,10 @@ export default function EvaluationPlayer({
         <span className="eval-hq-hint" role="status">{t('evaluations.hqUpgrading')}</span>
       )}
       <div className="eval-player-controls" role="group" aria-label={t('evaluations.playerControlsAria')}>
-        <button type="button" onClick={replay} aria-label={t('evaluations.replayAria')}>
+        <button type="button" onClick={replay} disabled={paused && !onReplay} aria-label={t('evaluations.replayAria')}>
           <RotateCcw size={18} />
         </button>
-        <button type="button" onClick={togglePlay} aria-label={playing ? t('evaluations.pauseAria') : t('evaluations.playAria')}>
+        <button type="button" onClick={togglePlay} disabled={paused && !onReplay} aria-label={playing ? t('evaluations.pauseAria') : t('evaluations.playAria')}>
           {playing ? <Pause size={18} /> : <Play size={18} />}
         </button>
         <button

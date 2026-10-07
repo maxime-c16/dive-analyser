@@ -1269,3 +1269,16 @@
 @media (prefers-reduced-transparency: reduce) {
   .eval-stage-root { --eval-glass: rgba(16, 28, 35, 0.94); }
 }
+
+/* Watch first: nothing covers the take until it ends. Tap/keyboard can
+   temporarily recover navigation and player controls; Escape always exits. */
+.eval-stage-root[data-watching='true']:not([data-chrome-revealed='true']) .eval-stage-head,
+.eval-stage-root[data-watching='true'] .eval-prompt-sheet,
+.eval-player[data-watching='true'] .eval-hq-hint,
+.eval-stage-root[data-watching='true']:not([data-chrome-revealed='true']) .eval-player-controls {
+  visibility: hidden;
+  pointer-events: none;
+}
+.eval-stage-root[data-watching='true'] .eval-stage-dock:empty { display: none; }
+.eval-stage-root[data-watching='true'][data-chrome-revealed='true'] .eval-player-controls { opacity: 1; pointer-events: auto; }
+.eval-player-controls button:disabled { opacity: 0.35; cursor: default; }
