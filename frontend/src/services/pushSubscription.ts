@@ -133,7 +133,12 @@ export async function enablePushDevice(publicKey: string): Promise<EnablePushRes
 
 /**
  * Opt-out flow: unsubscribe this device and delete its server-side
- * endpoint. Resolves true when an endpoint was removed.
+ * endpoint. Resolves true only when the server no longer holds the
+ * endpoint. Policy: the server is the source of truth — a successful
+ * server DELETE means no more pushes leave the backend, so a failed local
+ * `unsubscribe()` still resolves true once the server row is gone; a
+ * failed server DELETE resolves false and the caller must stay "on" with
+ * a visible error + retry.
  */
 export async function disablePushDevice(): Promise<boolean> {
   try {

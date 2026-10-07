@@ -6,10 +6,25 @@ import pytest
 from tests.test_member_dive_visibility import workspace  # noqa: F401 (fixture reuse)
 
 SUB = {
-    "endpoint": "https://push.example.test/device-alpha",
+    "endpoint": "https://fcm.googleapis.com/fcm/send/device-alpha",
     "keys": {"p256dh": "test-p256dh-alpha", "auth": "test-auth-alpha"},
     "device_label": "test device",
 }
+
+VALID_PROVIDER_ENDPOINTS = [
+    "https://fcm.googleapis.com/fcm/send/device-alpha",
+    "https://updates.push.services.mozilla.com/wpush/v2/device-beta",
+    "https://web.push.apple.com/device-gamma",
+]
+
+MALICIOUS_ENDPOINTS = [
+    "http://169.254.169.254/",
+    "http://localhost:8000/push",
+    "https://evil.example.com/push",
+    "http://fcm.googleapis.com/fcm/send/device-alpha",
+    "https://fcm.googleapis.com.evil.example.com/push",
+    "https://fcm.googleapis.com:8443/fcm/send/x",
+]
 
 
 def _vapid(monkeypatch, configured=True):
@@ -83,6 +98,65 @@ def test_subscription_validation(workspace):
     assert alice.post("/api/v1/push-subscriptions", json={"keys": SUB["keys"]}).status_code == 422
     assert alice.post("/api/v1/push-subscriptions", json={"endpoint": SUB["endpoint"]}).status_code == 422
     assert alice.post("/api/v1/push-subscriptions", json={**SUB, "device_label": "x" * 101}).status_code == 422
+
+
+def test_subscription_rejects_non_allowlisted_endpoints(workspace):
+    """SSRF guard: arbitrary URLs (metadata IP, localhost, attacker domain,
+    plain http, lookalike host, non-443 port) are 422 at registration."""
+    _, login, _, _, _ = workspace
+    alice = login("alice")
+    for endpoint in MALICIOUS_ENDPOINTS:
+        payload = {**SUB, "endpoint": endpoint}
+        response = alice.post("/api/v1/push-subscriptions", json=payload)
+        assert response.status_code == 422, (endpoint, response.text)
+
+
+def test_subscription_accepts_allowlisted_provider_endpoints(workspace):
+    """FCM / Mozilla / Apple push endpoints register successfully."""
+    from app.models.notification import PushSubscription
+
+    db, login, _, users, _ = workspace
+    alice = login("alice")
+    for endpoint in VALID_PROVIDER_ENDPOINTS:
+        payload = {**SUB, "endpoint": endpoint}
+        response = alice.post("/api/v1/push-subscriptions", json=payload)
+        assert response.status_code == 200, (endpoint, response.text)
+    assert (
+        db.query(PushSubscription).filter_by(user_id=users["alice"].id).count()
+        == len(VALID_PROVIDER_ENDPOINTS)
+    )
+
+
+def test_fanout_skips_non_allowlisted_endpoint(workspace, monkeypatch):
+    """Defense in depth: a legacy/hand-written non-allowlisted row is never
+    POSTed to — fan-out skips it silently even when VAPID is configured."""
+    from app.models.notification import PushSubscription
+    from app.services import notification_service, push_service
+
+    _vapid(monkeypatch, configured=True)
+    db, login, _, users, _ = workspace
+    # Bypass API validation with a hand-written malicious row.
+    db.add(
+        PushSubscription(
+            user_id=users["alice"].id,
+            endpoint="http://169.254.169.254/latest/meta-data/",
+            p256dh="evil-p256dh",
+            auth="evil-auth",
+        )
+    )
+    db.commit()
+
+    calls = []
+    monkeypatch.setattr(push_service, "_send_one", lambda **kwargs: calls.append(kwargs))
+    row = notification_service.create(db, user_id=users["alice"].id, type="new_video", title="t")
+    assert row is not None
+    assert calls == []
+
+    # And the shared guard itself rejects / accepts as expected.
+    for endpoint in MALICIOUS_ENDPOINTS:
+        assert push_service.is_allowed_push_endpoint(endpoint) is False, endpoint
+    for endpoint in VALID_PROVIDER_ENDPOINTS:
+        assert push_service.is_allowed_push_endpoint(endpoint) is True, endpoint
 
 
 def test_fanout_skipped_without_vapid_keys(workspace, monkeypatch):

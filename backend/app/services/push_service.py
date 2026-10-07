@@ -17,6 +17,7 @@ they are never written to logs. Log lines carry user ids and counts only.
 import json
 import logging
 from typing import List, Sequence
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
@@ -24,6 +25,23 @@ from app.config import get_settings
 from app.models.notification import Notification, PushSubscription
 
 logger = logging.getLogger(__name__)
+
+# Exact allowlist of public browser push services that may receive Web Push
+# traffic from this server (SSRF protection: `endpoint` is otherwise an
+# arbitrary URL that pywebpush would POST to from the backend network).
+# Chrome/Edge/Android → fcm.googleapis.com, Firefox →
+# updates.push.services.mozilla.com, Safari (macOS + iOS 16.4+) →
+# web.push.apple.com. Any new browser push service must be added here
+# explicitly after review — everything else is rejected at registration
+# (422) and skipped silently at fan-out.
+ALLOWED_PUSH_ENDPOINT_HOSTS = frozenset(
+    {
+        "fcm.googleapis.com",
+        "updates.push.services.mozilla.com",
+        "web.push.apple.com",
+    }
+)
+MAX_PUSH_ENDPOINT_LENGTH = 2048
 
 # Bound the per-send fan-out (one user cannot accumulate unbounded rows).
 _PUSH_SUBSCRIPTION_LIMIT = 100
@@ -41,6 +59,38 @@ except ImportError:  # pragma: no cover - deployed images always pin pywebpush
 
 class PushGone(Exception):
     """The push service reports the endpoint as dead (404/410): prune it."""
+
+
+def is_allowed_push_endpoint(endpoint: str) -> bool:
+    """True iff `endpoint` is a public browser push URL we may POST to.
+
+    SSRF guard shared by registration (422) and fan-out (silent skip):
+    https only, exact host allowlist, no userinfo, no non-443 port,
+    max 2048 chars. Anything else (http, localhost, literal IPs,
+    attacker domains, explicit ports) is rejected.
+    """
+    try:
+        if not isinstance(endpoint, str):
+            return False
+        if not endpoint or len(endpoint) > MAX_PUSH_ENDPOINT_LENGTH:
+            return False
+        parsed = urlparse(endpoint)
+        if parsed.scheme != "https":
+            return False
+        if parsed.username or parsed.password:
+            return False
+        host = (parsed.hostname or "").lower()
+        if host not in ALLOWED_PUSH_ENDPOINT_HOSTS:
+            return False
+        try:
+            port = parsed.port
+        except ValueError:
+            return False
+        if port is not None and port != 443:
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def is_push_configured() -> bool:
@@ -82,7 +132,11 @@ def _send_one(*, endpoint: str, p256dh: str, auth: str, payload: str) -> None:
 
     Transport failures other than gone-away are swallowed (best-effort).
     Never logs endpoint, keys or payload contents.
+    Defense in depth: re-validates the allowlist so a row written before
+    validation (or by hand) can never turn the server into an SSRF proxy.
     """
+    if not is_allowed_push_endpoint(endpoint):
+        return
     if _pywebpush is None:
         return
     settings = get_settings()
@@ -158,6 +212,11 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
                 continue
             payload = _payload_for(row)
             for sub in subs:
+                # Defense in depth: never POST to a non-allowlisted URL,
+                # even if a legacy/hand-written row slipped past registration
+                # validation. Silent skip (no log of the URL, no send count).
+                if not is_allowed_push_endpoint(sub.endpoint):
+                    continue
                 try:
                     _send_one(
                         endpoint=sub.endpoint,

@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.notification import PushSubscription
 from app.services import notification_service
-from app.services.push_service import MAX_SUBSCRIPTIONS_PER_USER
+from app.services.push_service import MAX_SUBSCRIPTIONS_PER_USER, is_allowed_push_endpoint
 
 router = APIRouter()
 
@@ -124,6 +124,11 @@ def upsert_push_subscription(
     rule as the inbox. Stored devices per user are bounded; the oldest
     subscription is evicted on overflow.
     """
+    # SSRF guard: only exact public browser push services (https, allowlisted
+    # host, no non-443 port). Rejected before any DB read so an attacker
+    # endpoint never probes ownership (404) vs validation (422).
+    if not is_allowed_push_endpoint(payload.endpoint):
+        raise HTTPException(422, "Push endpoint not allowed")
     existing = (
         db.query(PushSubscription)
         .filter(PushSubscription.endpoint == payload.endpoint)

@@ -97,7 +97,16 @@ export default function PushOptInSection() {
     setBusy(true)
     setError('')
     try {
-      await disablePushDevice()
+      // Server is the source of truth: disablePushDevice() resolves true
+      // only after the server-side DELETE succeeds (a failed local
+      // unsubscribe still resolves true once the server row is gone, since
+      // no more pushes can leave the server). False means the server still
+      // holds the endpoint, so stay "on" with a visible error + retry.
+      const ok = await disablePushDevice()
+      if (!ok) {
+        setError(t('account.pushError'))
+        return
+      }
       setStatus('off')
     } catch {
       setError(t('account.pushError'))

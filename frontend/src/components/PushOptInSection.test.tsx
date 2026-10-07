@@ -116,4 +116,23 @@ describe('PushOptInSection', () => {
     expect(existing.unsubscribe).toHaveBeenCalledOnce()
     expect(await screen.findByText('Off — this device gets no push alerts.')).toBeInTheDocument()
   })
+
+  it('stays on with a visible error when the server delete fails', async () => {
+    const existing = {
+      endpoint: 'https://push.example.test/old-device',
+      unsubscribe: vi.fn(async () => true),
+    }
+    stubBrowser({ permission: 'granted', subscription: existing })
+    mockedApi.deletePushSubscription.mockRejectedValueOnce(new Error('HTTP 500'))
+    render(<PushOptInSection />)
+    const disable = await screen.findByRole('button', { name: 'Disable push on this device' })
+    fireEvent.click(disable)
+    // Honest opt-out: server is the source of truth, so a failed DELETE
+    // keeps the toggle "on" with a retryable error instead of showing "off".
+    expect(await screen.findByText('Push settings could not be changed. Try again.')).toBeInTheDocument()
+    expect(await screen.findByText('On — this device receives push alerts.')).toBeInTheDocument()
+    expect(screen.queryByText('Off — this device gets no push alerts.')).not.toBeInTheDocument()
+    // Retry stays available.
+    expect(await screen.findByRole('button', { name: 'Disable push on this device' })).toBeInTheDocument()
+  })
 })
