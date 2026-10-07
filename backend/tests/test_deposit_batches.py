@@ -190,7 +190,7 @@ def test_claim_link_signs_in_once(workspace):
         db, user_id=users["alice"].id, batch_id=batch_id,
         created_by_user_id=users["maxime"].id, ttl_seconds=3600)
     anon = TestClient(app)
-    peek = anon.get(f"/api/v1/deposits/claim/{raw}")
+    peek = anon.post("/api/v1/deposits/claim/peek", json={"token": raw})
     assert peek.status_code == 200 and peek.json()["batch_id"] == batch_id
     redeem = anon.post("/api/v1/deposits/claim/redeem", json={"token": raw})
     assert redeem.status_code == 200, redeem.text
@@ -212,9 +212,58 @@ def test_claim_token_expiry(workspace):
     row.expires_at = datetime.utcnow() - timedelta(seconds=1)
     db.commit()
     anon = TestClient(app)
-    assert anon.get(f"/api/v1/deposits/claim/{raw}").status_code == 404
+    assert anon.post("/api/v1/deposits/claim/peek", json={"token": raw}).status_code == 404
     assert anon.post("/api/v1/deposits/claim/redeem", json={"token": raw}).status_code == 404
     anon.close()
+
+
+def test_claim_disabled_without_auth(workspace):
+    from app.config import get_settings as _settings
+
+    db, login, machine, users, divers = workspace
+    raw = claim_tokens.mint_claim_token(
+        db, user_id=users["alice"].id, batch_id="batch-x",
+        created_by_user_id=None, ttl_seconds=3600)
+    settings = _settings()
+    previous = settings.user_auth_enabled
+    settings.user_auth_enabled = False
+    try:
+        anon = TestClient(app)
+        assert anon.post("/api/v1/deposits/claim/peek", json={"token": raw}).status_code == 404
+        assert anon.post("/api/v1/deposits/claim/redeem", json={"token": raw}).status_code == 404
+        anon.close()
+    finally:
+        settings.user_auth_enabled = previous
+    # Token unconsumed: still redeemable with auth back on.
+    anon = TestClient(app)
+    assert anon.post("/api/v1/deposits/claim/peek", json={"token": raw}).status_code == 200
+    anon.close()
+
+
+def test_visibility_locked_until_acceptance_and_depositor_cut_off(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice")])
+    dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
+    dive_id, video_uuid, batch_id = dive.id, dive.video_uuid, dive.batch_id
+    # Visibility is not a pending-edit field: rejected, stays private.
+    edited = login("alice").patch(f"/api/v1/deposits/dives/{dive_id}", json={"visibility": "public"})
+    assert edited.status_code == 422, edited.text
+    assert db.get(Dive, dive_id).visibility == "private"
+    # Depositor watches their pending deposit, then loses it on acceptance.
+    from app.services.user_access import can_user_access_video
+
+    assert can_user_access_video(db, users["maxime"], video_uuid).allowed is True
+    login("alice").post(
+        f"/api/v1/deposits/batches/{batch_id}/accept", json={})
+    assert login("maxime").get(f"/api/v1/dives/{dive_id}").status_code == 404
+    assert can_user_access_video(db, users["maxime"], video_uuid).allowed is False
+
+
+def test_migration_backfill_never_accepts_live_batches():
+    import pathlib
+
+    sql = pathlib.Path(__file__).parent.parent.joinpath("migrations", "add_deposit_batches.sql").read_text()
+    assert "WHERE accepted_at IS NULL AND batch_id IS NULL" in sql
 
 
 def test_email_pref_and_render_without_smtp(workspace):

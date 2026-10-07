@@ -219,30 +219,41 @@ def user_can_accept_dive(db: Session, user: AppUser, dive: Dive) -> bool:
     )
 
 
+# Upper bound for one pending-batch listing (newest first). Batches beyond
+# this are still reachable through inbox notifications and direct links.
+PENDING_BATCH_LIMIT = 200
+
+
 def pending_batches_for_user(db: Session, user: AppUser) -> list[dict]:
     """Batch summaries with pending clips visible to this user.
 
     Owners see their divers' batches; the depositor sees their own deposits;
-    admins see every pending batch (triage).
+    admins see every pending batch (triage). Exactly three bounded queries,
+    no per-batch lookups.
     """
-    sub = (
-        select(
-            Dive.batch_id,
-            Dive.diver_id,
-            func.count(Dive.id).label("total"),
-            func.sum(case((Dive.accepted_at.is_(None), 1), else_=0)).label("pending"),
-            func.min(Dive.created_at).label("first_created"),
-        )
-        .where(Dive.batch_id.is_not(None))
-        .group_by(Dive.batch_id, Dive.diver_id)
-        .subquery()
+    pending_count = func.sum(case((Dive.accepted_at.is_(None), 1), else_=0))
+    rows = (
+        db.execute(
+            select(
+                Dive.batch_id,
+                Dive.diver_id,
+                func.count(Dive.id).label("total"),
+                pending_count.label("pending"),
+                func.min(Dive.created_at).label("first_created"),
+            )
+            .where(Dive.batch_id.is_not(None))
+            .group_by(Dive.batch_id, Dive.diver_id)
+            .having(pending_count > 0)
+            .order_by(func.min(Dive.created_at).desc())
+            .limit(PENDING_BATCH_LIMIT)
+        ).all()
     )
-
-    rows = db.execute(select(sub)).all()
-    diver_names = {
-        did: name
-        for did, name in db.query(Diver.id, Diver.display_name).all()
-    }
+    if not rows:
+        return []
+    diver_ids = {diver_id for _, diver_id, _, _, _ in rows if diver_id is not None}
+    diver_names = dict(
+        db.query(Diver.id, Diver.display_name).filter(Diver.id.in_(diver_ids)).all()
+    ) if diver_ids else {}
     owned = set(
         db.execute(
             select(UserDiverAccess.diver_id).where(
@@ -251,28 +262,22 @@ def pending_batches_for_user(db: Session, user: AppUser) -> list[dict]:
             )
         ).scalars()
     )
-    summaries = []
-    for batch_id, diver_id, total, pending, first_created in rows:
-        if not pending:
-            continue
-        if user.is_admin:
-            visible = True
-        elif diver_id in owned:
-            visible = True
-        else:
-            deposited = (
-                db.query(Dive.id)
-                .filter(
-                    Dive.batch_id == batch_id,
-                    Dive.diver_id == diver_id,
+    deposited: set[tuple] = set()
+    if not user.is_admin:
+        deposited = set(
+            db.execute(
+                select(Dive.batch_id, Dive.diver_id)
+                .where(
+                    Dive.batch_id.is_not(None),
                     Dive.accepted_at.is_(None),
                     Dive.deposited_by_user_id == user.id,
                 )
-                .first()
-                is not None
-            )
-            visible = deposited
-        if not visible:
+                .limit(PENDING_BATCH_LIMIT * 4)
+            ).all()
+        )
+    summaries = []
+    for batch_id, diver_id, total, pending, first_created in rows:
+        if not user.is_admin and diver_id not in owned and (batch_id, diver_id) not in deposited:
             continue
         summaries.append(
             {
@@ -284,5 +289,4 @@ def pending_batches_for_user(db: Session, user: AppUser) -> list[dict]:
                 "first_created": first_created.isoformat() if first_created else None,
             }
         )
-    summaries.sort(key=lambda s: s["first_created"] or "", reverse=True)
     return summaries

@@ -52,9 +52,14 @@ def visible_dive_clause(ids: tuple[int, ...], is_admin: bool = False, depositor_
                (Dive.visibility == "public") & Dive.diver_id.is_not(None),
                Dive.diver_id.is_(None) if is_admin else False]
     if depositor_user_id is not None:
-        # A depositor keeps access to their own deposits (including pending
-        # private clips of other accounts) until the owner accepts them.
-        clauses.append(Dive.deposited_by_user_id == depositor_user_id)
+        # A depositor keeps access to their own deposits while they are
+        # still pending (private clips of other accounts). Acceptance ends
+        # this grant: accepted private dives fall back to owner-only reads.
+        clauses.append(
+            (Dive.deposited_by_user_id == depositor_user_id)
+            & Dive.accepted_at.is_(None)
+            & Dive.batch_id.is_not(None)
+        )
     return or_(*clauses)
 
 

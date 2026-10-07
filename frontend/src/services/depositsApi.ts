@@ -83,7 +83,7 @@ export async function acceptBatch(
 
 export async function editPendingDive(
   diveId: number,
-  patch: { dive_code?: string; height?: string; notes?: string | null; visibility?: string },
+  patch: { dive_code?: string; height?: string; notes?: string | null },
 ): Promise<ReviewDive> {
   const data = (await readJson(
     await fetch(`/api/v1/deposits/dives/${diveId}`, {
@@ -96,9 +96,18 @@ export async function editPendingDive(
   return data
 }
 
+export function claimTokenFromHash(hash: string): string {
+  const match = /#t=([^&]+)/.exec(hash || '')
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
 export async function peekClaim(token: string): Promise<{ valid: boolean; batch_id: string; pending: number }> {
   const data = (await readJson(
-    await fetch(`/api/v1/deposits/claim/${encodeURIComponent(token)}`, { cache: 'no-store' }),
+    await fetch('/api/v1/deposits/claim/peek', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }),
   )) as { valid: boolean; batch_id: string; pending: number }
   return data
 }

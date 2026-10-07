@@ -17,11 +17,12 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.v1.auth import _set_session_cookie, get_current_user
+from app.api.v1.auth import _origin_allowed, _set_session_cookie, get_current_user
+from app.config import get_settings
 from app.database import get_db
 from app.models.deposit_batch import EvaluatorNote
 from app.models.dive import Dive
@@ -32,6 +33,12 @@ from app.services.dive_access import unscoped_reads as _unscoped
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/deposits", tags=["deposits"])
+
+
+def _require_claim_enabled() -> None:
+    """Magic links only exist where accounts exist."""
+    if not get_settings().user_auth_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
 
 def _batch_permission(db: Session, user, batch_id: str) -> list[Dive]:
@@ -143,7 +150,6 @@ class ReviewEditInput(BaseModel):
     dive_code: Optional[str] = Field(default=None, pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]$")
     height: Optional[str] = Field(default=None, pattern=r"^(1|3|5|7\.5|10)[mM]$")
     notes: Optional[str] = Field(default=None, max_length=2000)
-    visibility: Optional[str] = Field(default=None, pattern="^(public|private)$")
 
 
 @router.patch("/dives/{dive_id}")
@@ -153,8 +159,9 @@ def edit_pending_dive(
 ):
     """Correct a pending clip (owner, depositor until accepted, or admin).
 
-    Dive reassignment stays operator-only: only code / height / personal
-    notes / visibility are editable here.
+    Dive reassignment stays operator-only and visibility stays private
+    until acceptance: only code / height / personal notes are editable
+    here. Publishing afterwards uses the normal dive update.
     """
     if user.is_admin:
         with _unscoped(db):
@@ -177,8 +184,6 @@ def edit_pending_dive(
         dive.height = data["height"].lower()
     if "notes" in data:
         dive.notes = data["notes"] or None
-    if "visibility" in data:
-        dive.visibility = data["visibility"]
     dive.updated_at = datetime.utcnow()
     try:
         db.commit()
@@ -189,10 +194,20 @@ def edit_pending_dive(
     return _serialize_dive(db, dive)
 
 
-@router.get("/claim/{token}")
-def peek_claim(token: str, db: Session = Depends(get_db)):
-    """Preview a magic link without consuming it (safe for prefetchers)."""
-    row = claim_tokens.peek_claim_token(db, token)
+class ClaimTokenInput(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+
+
+@router.post("/claim/peek")
+def peek_claim(payload: ClaimTokenInput, db: Session = Depends(get_db)):
+    """Preview a magic link without consuming it (safe for prefetchers).
+
+    The token travels in the POST body and lives in the email URL fragment
+    (`/claim#t=…`): it never appears in a request path, so nginx access logs
+    and the slow-request logger cannot record this bearer credential.
+    """
+    _require_claim_enabled()
+    row = claim_tokens.peek_claim_token(db, payload.token)
     if row is None or row.used_at is not None or row.expires_at <= datetime.utcnow():
         raise HTTPException(404, "Link not found")
     pending = (
@@ -203,13 +218,15 @@ def peek_claim(token: str, db: Session = Depends(get_db)):
     return {"valid": True, "batch_id": row.batch_id, "pending": pending}
 
 
-class RedeemInput(BaseModel):
-    token: str = Field(min_length=16, max_length=512)
-
-
 @router.post("/claim/redeem")
-def redeem_claim(payload: RedeemInput, response: Response, db: Session = Depends(get_db)):
+def redeem_claim(
+    payload: ClaimTokenInput, request: Request, response: Response,
+    db: Session = Depends(get_db),
+):
     """Consume a magic link and sign the recipient in (single-use)."""
+    _require_claim_enabled()
+    if not _origin_allowed(request):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Origin not allowed")
     redeemed = claim_tokens.redeem_claim_token(db, payload.token)
     if redeemed is None:
         raise HTTPException(404, "Link not found")

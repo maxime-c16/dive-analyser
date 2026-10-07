@@ -90,7 +90,7 @@ def _send_one(db, row: BatchEmailOutbox, dry_run: bool) -> str:
         depositor_name=depositor.display_name if depositor else None,
         dives=dive_dicts,
         evaluator_note=note,
-        claim_url=f"{app_url}/claim/{raw_token}",
+        claim_url=f"{app_url}/claim#t={raw_token}",
         review_url=f"{app_url}/deposits/{row.batch_id}",
         posters=email_service.posters_for_dives(db, dives),
     )

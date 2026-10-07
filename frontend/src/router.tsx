@@ -559,7 +559,7 @@ function Router() {
       {import.meta.env.DEV && (
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
       )}
-      <Route path="/claim/:token" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Claim /></Suspense>} />
+      <Route path="/claim" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Claim /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"

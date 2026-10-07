@@ -48,11 +48,16 @@ describe('depositsApi', () => {
     await expect(acceptBatch('b1', [2])).resolves.toEqual({ batch_id: 'b1', accepted: [2] })
   })
 
-  it('redeems claims without session credentials', async () => {
-    const { peekClaim, redeemClaim } = await import('./depositsApi')
+  it('peeks and redeems claims via POST bodies (token never in the URL)', async () => {
+    const { claimTokenFromHash, peekClaim, redeemClaim } = await import('./depositsApi')
+    expect(claimTokenFromHash('#t=tok123')).toBe('tok123')
+    expect(claimTokenFromHash('')).toBe('')
     mockFetch(() => ({ batch_id: 'b1' }))
     await peekClaim('tok')
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/deposits/claim/tok')
+    const [peekUrl, peekInit] = vi.mocked(fetch).mock.calls[0]
+    expect(peekUrl).toBe('/api/v1/deposits/claim/peek')
+    expect(peekInit).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(peekInit?.body as string)).toEqual({ token: 'tok' })
     await redeemClaim('tok')
     const [url, init] = vi.mocked(fetch).mock.calls[1]
     expect(url).toBe('/api/v1/deposits/claim/redeem')

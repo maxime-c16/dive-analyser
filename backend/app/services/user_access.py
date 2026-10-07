@@ -85,6 +85,17 @@ def _dive_access(db: Session, user: AppUser, dive: Optional[Dive]) -> MediaAcces
     if dive.diver_id is None:
         return MediaAccessDecision(bool(user.is_admin), "allowed" if user.is_admin else DENY_NO_DIVER_CHAIN)
     allowed = dive.visibility == "public" or user_has_diver_access(db, user.id, dive.diver_id)
+    if not allowed:
+        # The depositor may watch their own deposits while they are still
+        # pending (same rule as dive_access.is_pending, inlined here:
+        # user_access is imported by dive_access, so no import cycle).
+        # Acceptance ends this grant like every other depositor right.
+        allowed = (
+            dive.accepted_at is None
+            and dive.batch_id is not None
+            and dive.deposited_by_user_id is not None
+            and dive.deposited_by_user_id == user.id
+        )
     return MediaAccessDecision(allowed, "allowed" if allowed else DENY_NO_OWNER_ACCESS, dive.diver_id)
 
 

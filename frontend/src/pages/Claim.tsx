@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Gift } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { peekClaim, redeemClaim } from '../services/depositsApi'
+import { claimTokenFromHash, peekClaim, redeemClaim } from '../services/depositsApi'
 
 /**
  * Public magic-link landing ("Récupérer mes plongeons").
- * The GET preview never consumes the token (email prefetchers); the
- * explicit button POST redeems it and signs the recipient in.
+ * The token lives in the URL fragment (`/claim#t=…`) so it never reaches
+ * server logs; the preview POST never consumes it (email prefetchers) and
+ * the explicit button POST redeems it and signs the recipient in.
  */
 export default function Claim() {
   const { t } = useTranslation()
-  const { token = '' } = useParams()
+  const location = useLocation()
+  const token = claimTokenFromHash(location.hash)
   const navigate = useNavigate()
   const { refresh } = useAuth()
   const [state, setState] = useState<'loading' | 'ready' | 'invalid'>('loading')
@@ -23,6 +25,12 @@ export default function Claim() {
 
   useEffect(() => {
     let live = true
+    if (!token) {
+      setState('invalid')
+      return () => {
+        live = false
+      }
+    }
     peekClaim(token)
       .then((data) => {
         if (!live) return

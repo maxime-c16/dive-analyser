@@ -16,8 +16,10 @@ CREATE INDEX IF NOT EXISTS ix_dives_deposited_by ON dives(deposited_by_user_id);
 CREATE INDEX IF NOT EXISTS ix_dives_pending_acceptance ON dives(diver_id, accepted_at);
 -- Pre-existing dives predate acceptance: everything already in the library
 -- counts as accepted (accepted_at stays advisory; visibility authoritative).
+-- Scoped to pre-migration rows only: reapplying must never accept rows from
+-- live deposit batches (those carry a batch_id).
 UPDATE dives SET accepted_at = COALESCE(synced_at, created_at, CURRENT_TIMESTAMP)
-WHERE accepted_at IS NULL;
+WHERE accepted_at IS NULL AND batch_id IS NULL;
 
 -- Maintainer note attached at deposit time. score_half_steps stays NULL for
 -- a note-only evaluation (0-20 when the maintainer also scores); the eval
