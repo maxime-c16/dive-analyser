@@ -110,6 +110,7 @@
 
 /* One 3D container per card; the slot is absolutely measured-centered. */
 .eval-intro-slot {
+  opacity: 0;
   position: absolute;
   left: 50%;
   top: 36%;

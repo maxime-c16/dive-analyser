@@ -127,3 +127,61 @@ def test_missing_migration_fails_closed(workspace):
     db.execute(text('DROP TABLE review_exclusions')); db.commit()
     assert login('bob').get('/api/v1/evaluations/automatic/mine').status_code == 503
     assert login('bob').get('/api/v1/evaluations/mine').status_code == 200
+
+
+def test_unbound_diver_votes_survive_binding_but_self_votes_leave_score(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    sid, items = stack(login('bob'))
+    assert [i['dive_id'] for i in items] == [did]
+    result = login('bob').post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 14})
+    assert result.status_code == 200, result.text
+    viewer_sid, _ = stack(login('viewer'))
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER')); db.commit()
+    assert db.query(AutomaticRating).filter_by(dive_id=did).count() == 1
+    summary = login('bob').get('/api/v1/evaluations/automatic/mine').json()['items']
+    row = next(i for i in summary if i['dive_id'] == did)
+    assert row['rating_count'] == 0 and row['mean_score'] is None
+    assert login('bob').get(f'/api/v1/evaluations/automatic/{did}/media/status').status_code == 404
+    # Another reviewer's existing assignment remains valid after binding.
+    assert did in [i['dive_id'] for i in login('viewer').get(f'/api/v1/evaluations/automatic/stacks/{viewer_sid}/queue').json()['items']]
+
+
+def test_binding_removes_pending_own_dive_and_unattributed_never_matches(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']; diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    sid, items = stack(login('bob'))
+    assert items
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER')); db.commit()
+    assert login('bob').get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue').json()['items'] == []
+    assert login('bob').post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 14}).status_code == 404
+    db.get(Dive, did).diver_id = None; db.commit()
+    assert did not in [i['dive_id'] for i in stack(login('viewer'))[1]]
+
+
+def test_original_transport_stays_scoped_and_rechecks_binding(workspace, monkeypatch):
+    from app.api.v1 import media as library_media, media_playback
+    from fastapi.responses import Response
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    monkeypatch.setattr(library_media, '_backbone_playback_url', lambda db, video: '/api/v1/media/revisions/42/play')
+    calls = []
+    async def play(revision_id, request, response, db, user):
+        calls.append((revision_id, user.id))
+        return Response(b'original video', media_type='video/mp4')
+    monkeypatch.setattr(media_playback, 'play_media_revision', play)
+    client = login('bob')
+    status = client.get(f'/api/v1/evaluations/automatic/{did}/media/status').json()
+    assert status['rendition'] == 'original'
+    assert '/automatic/' in status['playback_url']
+    assert 'original' in status['available_renditions']
+    assert client.get(status['playback_url'] + '?rendition=original').content == b'original video'
+    assert calls == [(42, users['bob'].id)]
+    login('alice').put(f'/api/v1/dives/{did}/automatic-review', json={'excluded': True})
+    assert login('bob').get(status['playback_url'] + '?rendition=original').status_code == 404
+    assert len(calls) == 1

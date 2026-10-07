@@ -83,11 +83,21 @@ def media_status(dive_id: int, request: Request, response: Response, db: Session
 
 
 @router.api_route('/evaluations/automatic/{dive_id}/media/{kind}', methods=['GET', 'HEAD'])
-def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
+async def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
     user = _require_user(request, db)
     if kind not in ('play', 'poster'):
         raise HTTPException(404, 'Not found')
-    _, asset = service.authorize(db, user, dive_id)
+    dive, asset = service.authorize(db, user, dive_id)
+    if kind == 'play' and (rendition == 'original' or rendition is None):
+        from app.api.v1.media import _backbone_playback_url
+        from app.api.v1.media_playback import play_media_revision
+        from app.models.media import MediaCacheEntry
+        cached_hq = db.query(MediaCacheEntry.id).filter(MediaCacheEntry.photos_asset_id == asset.id,
+            MediaCacheEntry.status == 'ready', MediaCacheEntry.rendition == ('original' if rendition else 'proxy_720p')).first()
+        backbone = _backbone_playback_url(db, dive.video_uuid)
+        if backbone and not cached_hq:
+            revision_id = int(backbone.split('/')[-2])
+            return await play_media_revision(revision_id, request, Response(), db, user)
     entry = _select_ready_entry(db, asset, rendition if kind == 'play' else None, playable=kind == 'play')
     return evaluation_access.serve_entry(entry.storage_path, entry.content_type, request, head_only=request.method == 'HEAD')
 
@@ -131,7 +141,7 @@ def mine(request: Request, response: Response, limit: int = Query(20, ge=1, le=5
     from sqlalchemy import func
     from app.models.matchmaking import AutomaticRating
     totals = db.query(AutomaticRating.dive_id.label('dive_id'), func.count(AutomaticRating.id).label('count'),
-        func.avg(AutomaticRating.score_half_steps).label('mean')).group_by(AutomaticRating.dive_id).subquery()
+        func.avg(AutomaticRating.score_half_steps).label('mean')).filter(service.community_vote_clause()).group_by(AutomaticRating.dive_id).subquery()
     rows = query.outerjoin(ReviewExclusion, ReviewExclusion.dive_id == Dive.id).outerjoin(totals, totals.c.dive_id == Dive.id).add_columns(
         ReviewExclusion.excluded, totals.c.count, totals.c.mean).order_by(Dive.dive_datetime.desc(), Dive.id).offset(offset).limit(limit).all()
     items = [{'dive_id': dive.id, 'dive_code': dive.dive_code, 'height': dive.height, 'excluded': bool(excluded),

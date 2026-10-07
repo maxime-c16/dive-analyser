@@ -53,3 +53,7 @@ on-demand retry identity, skips, votes and immutable retries, independent manual
 votes, withdrawal and disabled owners. Frontend tests cover automatic routing,
 finite stacks, resumption and opt-out controls; the existing jury state-machine
 suite continues to exercise the shared immersive stage.
+
+Public dives attributed to a diver without an OWNER account are eligible. Unattributed dives and dives bound only to inactive accounts remain excluded. Fairness uses the active owner account, falling back to the individual diver until binding. Ownership is rechecked on queue, media and vote requests. Historical automatic votes remain immutable; votes by a current owner are excluded from community aggregates and selection priorities, including votes submitted before account binding.
+
+Automatic playback can use the verified original backbone through the existing authenticated playback route after checking automatic-review eligibility. Cached 720p/original remains available; proxy-only clips trigger preparation and the player polls for HQ for up to 90 seconds. The normal playback route continues to enforce storage integrity and authorization.

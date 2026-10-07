@@ -27,3 +27,11 @@ it('warms the current automatic proxy through the automatic preparation endpoint
   render(<EvaluationPlayer requestId={7} automatic />)
   await waitFor(() => expect(prepareEvaluationMedia).toHaveBeenCalledWith(7, true))
 })
+it('keeps polling after preparation returns a low-resolution proxy', async () => {
+  const proxy = { request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready' as const, rendition: 'proxy_360p', poster_url: null, playback_url: '/api/v1/evaluations/automatic/7/media/play', available_renditions: ['proxy_360p'] }
+  vi.mocked(getEvaluationMediaStatus).mockResolvedValueOnce(proxy).mockResolvedValue({ ...proxy, rendition: 'proxy_720p', available_renditions: ['proxy_720p'] })
+  vi.mocked(prepareEvaluationMedia).mockResolvedValue({ ...proxy, created_jobs: [], reused_jobs: [] })
+  const { container } = render(<EvaluationPlayer requestId={7} automatic />)
+  await waitFor(() => expect(prepareEvaluationMedia).toHaveBeenCalled())
+  await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p'), { timeout: 3500 })
+})

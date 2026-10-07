@@ -104,7 +104,7 @@ export default function EvaluationPlayer({
             if (epoch !== requestEpochRef.current) return
             if (prepared.status === 'ready' && prepared.playback_url) {
               setPlayback(packReady(prepared, prepared.rendition ?? 'proxy_720p', automatic))
-              setHqHint(false)
+              setHqHint(!HQ_RENDITIONS.has(prepared.rendition ?? ''))
             }
           }).catch(() => {})
         }
@@ -165,6 +165,30 @@ export default function EvaluationPlayer({
       window.clearTimeout(giveUp)
     }
   }, [playback.kind, requestId, automatic])
+
+  // Preparation may return the existing proxy while its HQ job is queued.
+  // Keep checking the current clip, with a finite wait and identity guard.
+  useEffect(() => {
+    if (!hqHint || playback.kind !== 'ready') return
+    let alive = true
+    const epoch = requestEpochRef.current
+    const deadline = Date.now() + PREPARATION_GRACE_MS
+    let timer: number
+    const poll = async () => {
+      try {
+        const status = await getEvaluationMediaStatus(requestId, automatic)
+        if (!alive || epoch !== requestEpochRef.current) return
+        if (status.status === 'ready' && status.playback_url && HQ_RENDITIONS.has(status.rendition ?? '')) {
+          setPlayback(packReady(status, status.rendition!, automatic))
+          setHqHint(false)
+          return
+        }
+      } catch { /* Retry transient errors within the bounded wait. */ }
+      if (alive && epoch === requestEpochRef.current && Date.now() < deadline) timer = window.setTimeout(poll, 2000)
+    }
+    timer = window.setTimeout(poll, 2000)
+    return () => { alive = false; window.clearTimeout(timer) }
+  }, [hqHint, playback.kind, requestId, automatic])
 
   // Sound-first autoplay: honor the account's sound preference when the
   // browser still grants the gesture context, fall back silently otherwise

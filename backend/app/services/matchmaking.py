@@ -17,12 +17,20 @@ from app.services import evaluation_access
 from app.services.dive_access import owned_diver_ids
 
 
+def community_vote_clause():
+    """Current ownership applies even to votes cast before account binding."""
+    return ~exists(select(1).select_from(UserDiverAccess).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).where(
+        Dive.id == AutomaticRating.dive_id, UserDiverAccess.access_kind == 'OWNER',
+        UserDiverAccess.user_id == AutomaticRating.evaluator_user_id).correlate(AutomaticRating))
+
+
 def eligible(db, user):
     active_owner = exists(select(1).select_from(UserDiverAccess).join(AppUser, AppUser.id == UserDiverAccess.user_id).where(
         UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER', AppUser.is_active.is_(True)))
+    bound_owner = exists(select(1).where(UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER'))
     excluded = exists(select(1).where(ReviewExclusion.dive_id == Dive.id, ReviewExclusion.excluded.is_(True)))
     return db.query(Dive).filter(Dive.visibility == 'public', Dive.diver_id.isnot(None), Dive.video_uuid.isnot(None),
-        ~Dive.diver_id.in_(owned_diver_ids(db, user.id)), active_owner, ~excluded)
+        ~Dive.diver_id.in_(owned_diver_ids(db, user.id)), (active_owner | ~bound_owner), ~excluded)
 
 
 def authorize(db, user, dive_id, lock=False):
@@ -40,6 +48,10 @@ def authorize(db, user, dive_id, lock=False):
 
 def status(db, dive, asset):
     result = evaluation_access.media_status(db, SimpleNamespace(id=dive.id, dive_id=dive.id), asset)
+    from app.api.v1.media import _backbone_playback_url
+    if result.get('rendition') not in ('proxy_720p', 'original') and _backbone_playback_url(db, dive.video_uuid):
+        result.update(status='ready', rendition='original', playback_url='available')
+        result['available_renditions'] = list(dict.fromkeys([*result['available_renditions'], 'original']))
     base = f'/api/v1/evaluations/automatic/{dive.id}/media'
     result['poster_url'] = base + '/poster' if result['poster_url'] else None
     result['playback_url'] = base + '/play' if result['playback_url'] else None
@@ -66,7 +78,7 @@ def stack(db, user, key):
     outstanding = exists(select(1).select_from(ReviewStackItem).join(ReviewStack).where(
         ReviewStackItem.dive_id == Dive.id, ReviewStack.user_id == user.id,
         ReviewStack.created_at > datetime.utcnow() - timedelta(hours=24), ReviewStackItem.skipped_at.is_(None)))
-    count = select(func.count(AutomaticRating.id)).where(AutomaticRating.dive_id == Dive.id).correlate(Dive).scalar_subquery()
+    count = select(func.count(AutomaticRating.id)).where(AutomaticRating.dive_id == Dive.id, community_vote_clause()).correlate(Dive).scalar_subquery()
     candidates = eligible(db, user).filter(~voted, ~cooling, ~outstanding).order_by(count, Dive.dive_datetime.desc(), Dive.id)
     # Ready cache is filtered in SQL, so unavailable videos cannot hide the
     # playable corpus. Round-robin owners before taking a second dive each.
@@ -74,10 +86,19 @@ def stack(db, user, key):
     ready = exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
         PhotosAsset.video_uuid == Dive.video_uuid, MediaCacheEntry.status == 'ready',
         MediaCacheEntry.rendition.in_(('proxy_720p', 'original', 'proxy_360p'))))
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
+        from app.models.media_backbone import MediaRevision, MediaBlobLocation
+        backbone_ready = exists(select(1).select_from(MediaRevision).join(MediaBlobLocation,
+            MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256).where(
+            MediaRevision.video_uuid == Dive.video_uuid, MediaBlobLocation.environment == 'prod',
+            MediaBlobLocation.verified.is_(True)))
+        ready = ready | backbone_ready
     owner = select(func.min(UserDiverAccess.user_id)).select_from(UserDiverAccess).join(AppUser).where(
         UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER', AppUser.is_active.is_(True)
     ).correlate(Dive).scalar_subquery()
-    rank = func.row_number().over(partition_by=owner, order_by=(count, Dive.dive_datetime.desc(), Dive.id))
+    rank = func.row_number().over(partition_by=func.coalesce(owner, -Dive.diver_id), order_by=(count, Dive.dive_datetime.desc(), Dive.id))
     ranked = candidates.filter(ready).order_by(None).add_columns(rank.label('owner_rank'), count.label('votes')).subquery()
     ids = db.query(ranked.c.id).order_by(ranked.c.owner_rank, ranked.c.votes, ranked.c.dive_datetime.desc(), ranked.c.id).limit(3).all()
     chosen = [dive_id for (dive_id,) in ids]
@@ -130,8 +151,8 @@ def queue(db, user, stack_id):
 
 
 def results(db, user, dive_id):
-    rows = db.query(AutomaticRating).filter_by(dive_id=dive_id).order_by(AutomaticRating.id.desc()).limit(50).all()
-    count, avg = db.query(func.count(AutomaticRating.id), func.avg(AutomaticRating.score_half_steps)).filter_by(dive_id=dive_id).one()
+    rows = db.query(AutomaticRating).filter_by(dive_id=dive_id).filter(community_vote_clause()).order_by(AutomaticRating.id.desc()).limit(50).all()
+    count, avg = db.query(func.count(AutomaticRating.id), func.avg(AutomaticRating.score_half_steps)).filter_by(dive_id=dive_id).filter(community_vote_clause()).one()
     mine = next((r for r in rows if r.evaluator_user_id == user.id), None)
     if mine is None:
         mine = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
