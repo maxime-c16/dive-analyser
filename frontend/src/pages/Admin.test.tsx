@@ -53,4 +53,29 @@ describe('Administration status loading', () => {
     await act(() => vi.advanceTimersByTimeAsync(30_000))
     expect(getOperationsStatus).toHaveBeenCalledTimes(2)
   })
+
+  it('shares cancellation and serialization between manual refresh and polling', async () => {
+    let reject!: (reason: Error) => void
+    vi.mocked(getOperationsStatus).mockImplementation(() => new Promise((_, r) => { reject = r }))
+    render(<Admin />)
+    fireEvent.click(screen.getByRole('button', { name: 'System' }))
+    const signal = vi.mocked(getOperationsStatus).mock.calls[0][0]!
+    await act(async () => { reject(new Error('Initial snapshot failed')) })
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    expect(getOperationsStatus).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(getOperationsStatus).mock.calls[1][0]).toBe(signal)
+    await act(() => vi.advanceTimersByTimeAsync(30_000))
+    expect(getOperationsStatus).toHaveBeenCalledTimes(2)
+    await act(async () => { reject(new Error('Manual snapshot failed')) })
+    await act(() => vi.advanceTimersByTimeAsync(15_000))
+    expect(getOperationsStatus).toHaveBeenCalledTimes(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    expect(getOperationsStatus).toHaveBeenCalledTimes(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }))
+    expect(signal.aborted).toBe(true)
+    await act(async () => { reject(new Error('Cancelled poll')) })
+    await act(() => vi.advanceTimersByTimeAsync(30_000))
+    expect(getOperationsStatus).toHaveBeenCalledTimes(3)
+  })
+
 })

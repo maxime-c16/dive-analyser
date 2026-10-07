@@ -47,9 +47,11 @@ verification session must be revoked after checking production.
 ## Regression coverage
 
 The new frontend tests cover zero diagnostics requests on Users, tab-exit
-cancellation, on-demand fetching, and non-overlapping polling. The backend
+cancellation, on-demand fetching, and non-overlapping polling/manual refreshes sharing cancellation. The backend
 concurrency test holds a snapshot open and verifies that health still responds.
-All four tests fail against the original code and pass against the fix.
+The original four regression tests fail against the original code and pass
+against the fix. A further regression covers manual refresh joining an
+in-flight poll, resetting its schedule and sharing tab-exit cancellation.
 
 No migration, nginx change or Mac-agent deployment is required. Deploy both
 frontend and backend with `ci/ship.sh server` after merging.
