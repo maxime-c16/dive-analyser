@@ -1,7 +1,12 @@
 import { fireEvent, render } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import EvaluationIntro from './ScoreCards'
-afterEach(() => vi.restoreAllMocks())
+const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
+afterEach(() => {
+  vi.restoreAllMocks()
+  if (originalAnimate) Object.defineProperty(Element.prototype, 'animate', originalAnimate)
+  else Reflect.deleteProperty(Element.prototype, 'animate')
+})
 it('hides the intro before cancelling the filled animations on completion', () => {
   const states: string[] = []
   vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (this: HTMLElement) { return this.parentElement })
