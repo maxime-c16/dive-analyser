@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import AutomaticScores from './AutomaticScores'
 import { getAutomaticScores, setAutomaticExclusion } from '../../services/evaluationApi'
 vi.mock('../../services/evaluationApi', () => ({ getAutomaticScores: vi.fn(), setAutomaticExclusion: vi.fn() }))
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => { vi.clearAllMocks() })
 it('keeps the exclusion state unchanged on failure and only confirms after persistence', async () => {
   vi.mocked(getAutomaticScores).mockResolvedValue({ items: [{ dive_id: 1, dive_code: '101B', height: '3m', excluded: false, rating_count: 2, mean_score: 6.5, provisional: true }], total: 1 })
   vi.mocked(setAutomaticExclusion).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce()

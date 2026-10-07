@@ -28,8 +28,15 @@ def main():
     from app.models.matchmaking import ReviewStackItem
     from app.services import matchmaking
     engine = create_engine(url)
-    tables = [t for t in Base.metadata.sorted_tables if t.name not in {
-        'review_exclusions', 'review_stacks', 'review_stack_items', 'automatic_ratings'}]
+    # Create only the dependency closure used by matchmaking; unrelated
+    # production models have SQL-migration-only defaults and are out of scope.
+    tables = {Base.metadata.tables[name] for name in ('dives', 'divers', 'sessions', 'app_users',
+        'user_diver_access', 'photos_assets', 'media_cache_entries', 'media_jobs')}
+    while True:
+        dependencies = {fk.column.table for table in tables for fk in table.foreign_keys}
+        if dependencies <= tables:
+            break
+        tables |= dependencies
     Base.metadata.create_all(engine, tables=tables)
     sql = (Path(__file__).parents[1] / 'migrations/add_automatic_reviews.sql').read_text()
     for _ in range(2):
