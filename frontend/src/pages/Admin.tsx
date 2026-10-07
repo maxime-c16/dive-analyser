@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
 import { useAuth } from '../contexts/AuthContext'
@@ -42,20 +42,39 @@ export default function Admin() {
   const [status, setStatus] = useState<OperationsStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const refreshSystem = useRef<(() => Promise<void>) | null>(null)
 
   async function refresh(signal?: AbortSignal, silent = false) {
     if (!silent) { setLoading(true); setError(null) }
-    try { setStatus(await getOperationsStatus(signal)) }
-    catch (reason) { if ((reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Unable to load operations status') }
+    try {
+      const next = await getOperationsStatus(signal)
+      if (!signal?.aborted) setStatus(next)
+    }
+    catch (reason) { if (!signal?.aborted && (reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Unable to load operations status') }
     finally { if (!signal?.aborted && !silent) setLoading(false) }
   }
 
   useEffect(() => {
+    if (tab !== 'system') return
     const controller = new AbortController()
-    void refresh(controller.signal)
-    const interval = window.setInterval(() => { void refresh(undefined, true) }, 15_000)
-    return () => { controller.abort(); window.clearInterval(interval) }
-  }, [])
+    let timeout: ReturnType<typeof window.setTimeout> | undefined
+    let inFlight: Promise<void> | undefined
+    function poll(silent = false): Promise<void> {
+      if (controller.signal.aborted) return Promise.resolve()
+      if (inFlight) return inFlight
+      window.clearTimeout(timeout)
+      inFlight = refresh(controller.signal, silent).finally(() => {
+        inFlight = undefined
+        if (!controller.signal.aborted) {
+          timeout = window.setTimeout(() => { void poll(true) }, 15_000)
+        }
+      })
+      return inFlight
+    }
+    refreshSystem.current = () => poll()
+    void poll()
+    return () => { refreshSystem.current = null; controller.abort(); window.clearTimeout(timeout) }
+  }, [tab])
 
   const primary = status?.agents.find((agent) => agent.agent_id === 'mac-media-01') ?? status?.agents[0]
   const storage = primary?.storage_status
@@ -97,7 +116,7 @@ export default function Admin() {
     <>
     <div className="sm:flex sm:items-end sm:justify-between">
       <h2 className="text-xl font-semibold text-app-text">Operations</h2>
-      <button type="button" onClick={() => void refresh()} disabled={loading} className="touch-target mt-4 inline-flex items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 text-sm font-medium text-app-text disabled:opacity-50 sm:mt-0"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
+      <button type="button" onClick={() => void refreshSystem.current?.()} disabled={loading} className="touch-target mt-4 inline-flex items-center justify-center gap-2 border border-app-strong bg-app-panel px-4 text-sm font-medium text-app-text disabled:opacity-50 sm:mt-0"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
     </div>
 
     {error && <div role="alert" className="flex gap-3 border border-amber-700/60 bg-amber-950/20 p-4 text-sm text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}

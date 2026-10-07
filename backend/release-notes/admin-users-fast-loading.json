@@ -1,0 +1,8 @@
+{
+  "id": "admin-users-fast-loading",
+  "date": "2026-10-07",
+  "title": "Faster administration page",
+  "body": "The user list opens without waiting for system diagnostics. System status loads when you open its tab, and slow diagnostics no longer hold up other requests.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}
