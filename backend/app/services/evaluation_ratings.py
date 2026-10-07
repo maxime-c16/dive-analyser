@@ -32,53 +32,65 @@ COMMENT_MAX = 2000
 
 
 class SubmissionBlocked(HTTPException):
-    """Stable machine code + human message (frontend decodes ``code``)."""
-
-    def __init__(self, code: str, message: str, status_code: int):
-        super().__init__(status_code=status_code, detail={"code": code, "message": message})
+    def __init__(self, code: str, detail: str, status_code: int):
+        super().__init__(status_code=status_code, detail=detail)
         self.code = code
-        self.message = message
 
 
-def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: int, limit: int = 50, offset: int = 0) -> dict:
-    """Panel = current set of votes (never a snapshot), count/mean over all.
+def _result_rows(db: Session, request_row: EvaluationRequest, limit: int, offset: int) -> list[EvaluationRating]:
+    """One page of the panel only — bulk loads never happen server-side.
 
-    SQL-bounded: count/mean via one aggregate query, only the requested page
-    of rows, and a separate indexed lookup for ``my_rating``.
+    Review-bot Medium finding (PR 73): the former version fetched EVERY rating
+    and sliced limit/offset in Python memory. Count/mean now compute as SQL
+    aggregates (_result_totals), the page is a bounded OFFSET/LIMIT fetch and
+    my_rating is a separate single-row lookup.
     """
-    request_id = request_row.id
-    total, avg = (
-        db.query(func.count(EvaluationRating.id), func.avg(EvaluationRating.score_half_steps))
-        .filter(EvaluationRating.request_id == request_id)
-        .one()
-    )
-    total = int(total or 0)
-    mean = round(float(avg) / 2, 1) if avg is not None and total else None
-    page = (
+    return (
         db.query(EvaluationRating)
-        .filter(EvaluationRating.request_id == request_id)
+        .filter(EvaluationRating.request_id == request_row.id)
         .order_by(EvaluationRating.created_at.desc(), EvaluationRating.id.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
-    page_user_ids = [row.evaluator_user_id for row in page]
-    names = {
-        user_id: display_name
-        for user_id, display_name in db.query(AppUser.id, AppUser.display_name)
-        .filter(AppUser.id.in_(page_user_ids or [0]))
-        .all()
-    }
-    my_row = (
+
+
+def _result_totals(db: Session, request_row: EvaluationRequest) -> tuple[int, float | None]:
+    """(rating_count, mean_score) over the WHOLE panel via SQL aggregates."""
+    count, avg = (
+        db.query(func.count(EvaluationRating.id), func.avg(EvaluationRating.score_half_steps))
+        .filter(EvaluationRating.request_id == request_row.id)
+        .one()
+    )
+    return int(count or 0), (round(float(avg) / 2.0, 1) if count else None)
+
+
+def _my_rating_row(db: Session, request_row: EvaluationRequest, my_user_id: int) -> EvaluationRating | None:
+    return (
         db.query(EvaluationRating)
         .filter(
-            EvaluationRating.request_id == request_id,
+            EvaluationRating.request_id == request_row.id,
             EvaluationRating.evaluator_user_id == my_user_id,
         )
         .first()
     )
+
+
+def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: int, limit: int = 50, offset: int = 0) -> dict:
+    """Panel = current set of votes (never a snapshot), count/mean over all."""
+    limit = max(1, int(limit))
+    offset = max(0, int(offset))
+    total, mean = _result_totals(db, request_row)
+    my_row = _my_rating_row(db, request_row, my_user_id)
+    rows = _result_rows(db, request_row, limit=limit, offset=offset)
+    names = {
+        user_id: display_name
+        for user_id, display_name in db.query(AppUser.id, AppUser.display_name)
+        .filter(AppUser.id.in_({row.evaluator_user_id for row in rows} | ({my_row.evaluator_user_id} if my_row else set())))
+        .all()
+    }
     return {
-        "request_id": request_id,
+        "request_id": request_row.id,
         "rating_count": total,
         "mean_score": mean,
         "ratings": [
@@ -89,7 +101,7 @@ def _results_payload(db: Session, request_row: EvaluationRequest, my_user_id: in
                 "comment": row.comment,
                 "created_at": row.created_at,
             }
-            for row in page
+            for row in rows
         ],
         "my_rating": _rating_payload(my_row),
     }
