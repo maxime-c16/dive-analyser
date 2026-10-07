@@ -127,3 +127,112 @@ def test_missing_migration_fails_closed(workspace):
     db.execute(text('DROP TABLE review_exclusions')); db.commit()
     assert login('bob').get('/api/v1/evaluations/automatic/mine').status_code == 503
     assert login('bob').get('/api/v1/evaluations/mine').status_code == 200
+
+
+def test_unbound_diver_votes_survive_binding_but_self_votes_leave_score(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    sid, items = stack(login('bob'))
+    assert [i['dive_id'] for i in items] == [did]
+    result = login('bob').post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 14})
+    assert result.status_code == 200, result.text
+    viewer_sid, _ = stack(login('viewer'))
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER')); db.commit()
+    assert db.query(AutomaticRating).filter_by(dive_id=did).count() == 1
+    summary = login('bob').get('/api/v1/evaluations/automatic/mine').json()['items']
+    row = next(i for i in summary if i['dive_id'] == did)
+    assert row['rating_count'] == 0 and row['mean_score'] is None
+    assert login('bob').get(f'/api/v1/evaluations/automatic/{did}/media/status').status_code == 404
+    # Another reviewer's existing assignment remains valid after binding.
+    assert did in [i['dive_id'] for i in login('viewer').get(f'/api/v1/evaluations/automatic/stacks/{viewer_sid}/queue').json()['items']]
+
+
+def test_binding_removes_pending_own_dive_and_unattributed_never_matches(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']; diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    sid, items = stack(login('bob'))
+    assert items
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER')); db.commit()
+    assert login('bob').get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue').json()['items'] == []
+    assert login('bob').post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 14}).status_code == 404
+    db.get(Dive, did).diver_id = None; db.commit()
+    assert did not in [i['dive_id'] for i in stack(login('viewer'))[1]]
+
+
+def test_original_transport_stays_scoped_and_rechecks_binding(workspace, monkeypatch):
+    from app.api.v1 import media_playback
+    from app.services import matchmaking
+    from fastapi.responses import Response
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    monkeypatch.setattr(matchmaking, 'original_revision_id', lambda db, video: 42)
+    calls = []
+    async def play(revision_id, request, response, db, user):
+        calls.append((revision_id, user.id))
+        return Response(b'original video', media_type='video/mp4')
+    monkeypatch.setattr(media_playback, 'play_media_revision', play)
+    client = login('bob')
+    status = client.get(f'/api/v1/evaluations/automatic/{did}/media/status').json()
+    assert status['rendition'] == 'original'
+    assert '/automatic/' in status['playback_url']
+    assert 'original' in status['available_renditions']
+    assert client.get(status['playback_url'] + '?rendition=original').content == b'original video'
+    assert calls == [(42, users['bob'].id)]
+    login('alice').put(f'/api/v1/dives/{did}/automatic-review', json={'excluded': True})
+    assert login('bob').get(status['playback_url'] + '?rendition=original').status_code == 404
+    assert len(calls) == 1
+
+
+def test_unbound_divers_have_separate_fairness_buckets(workspace):
+    from app.models.user_auth import UserDiverAccess
+    from app.models.photos_asset import PhotosAsset
+    from app.models.media import MediaCacheEntry
+    db, login, dives, _, session_id = workspace
+    alice = db.get(Dive, dives['alice-public'])
+    alice_diver = alice.diver_id
+    db.query(UserDiverAccess).delete()
+    for n in range(4):
+        dive = Dive(session_id=session_id, diver_id=alice_diver, dive_code='103B', performance='G',
+            performance_numeric=3, height='3m', dive_datetime=datetime.utcnow() + timedelta(seconds=n),
+            visibility='public', video_uuid=f'unbound-extra-{n}')
+        db.add(dive); db.flush()
+        asset = PhotosAsset(video_uuid=dive.video_uuid); db.add(asset); db.flush()
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'unbound-{n}', rendition='proxy_360p', storage_path='/test', size_bytes=1))
+    db.commit()
+    _, items = stack(login('viewer'))
+    assert len(items) == 3
+    assert dives['bob-public'] in [i['dive_id'] for i in items[:2]]
+
+
+def test_original_readiness_rejects_wrong_bucket_and_ambiguous_storage(workspace):
+    from app.config import get_settings
+    from app.models.media_backbone import MediaBlobLocation
+    from app.models.media import MediaCacheEntry
+    from app.services import matchmaking
+    db, login, dives, _, _ = workspace
+    settings = get_settings(); previous = settings.b2_playback_canary_enabled
+    settings.b2_playback_canary_enabled = True
+    try:
+        db.query(MediaCacheEntry).delete()
+        location = MediaBlobLocation(blob_sha256='a' * 64, environment='prod', storage_backend='b2',
+            verified=True, bucket='wrong-bucket', object_key='original.mp4')
+        db.add(location); db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is None
+        assert stack(login('bob'))[1] == []
+        location = db.get(MediaBlobLocation, location.id)
+        location.bucket = settings.media_backbone_prod_bucket; db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is not None
+        _, items = stack(login('bob'), daily=False)
+        assert [i['dive_id'] for i in items] == [dives['alice-public']]
+        assert items[0]['media']['rendition'] == 'original'
+        db.add(MediaBlobLocation(blob_sha256='a' * 64, environment='prod', storage_backend='b2',
+            verified=True, bucket=settings.media_backbone_prod_bucket, object_key='duplicate.mp4')); db.commit()
+        assert matchmaking.original_revision_id(db, 'alice-public-video') is None
+        assert login('bob').get(f'/api/v1/evaluations/automatic/{dives["alice-public"]}/media/status').json()['status'] != 'ready'
+    finally:
+        settings.b2_playback_canary_enabled = previous

@@ -115,6 +115,7 @@ export default function EvaluationIntro({
   const finish = useCallback(() => {
     if (finishedRef.current) return
     finishedRef.current = true
+    if (rootRef.current) rootRef.current.style.visibility = 'hidden'
     cancelAll()
     onDone()
   }, [cancelAll, onDone])
@@ -287,6 +288,7 @@ export default function EvaluationIntro({
         className="eval-intro-skip"
         onClick={() => {
           finishedRef.current = true
+          if (rootRef.current) rootRef.current.style.visibility = 'hidden'
           cancelAll()
           onSkip()
         }}
