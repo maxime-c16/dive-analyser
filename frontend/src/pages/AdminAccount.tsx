@@ -3,13 +3,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, Link2, ShieldCheck, UserRound, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { bindDiver, getUser, listAllDivers, roleTitle, unbindDiver, updateUser, type AdminUser, type AdminDiver, type PublicRole } from '../services/adminUsersApi'
-import AccountSecurity from '../components/AccountSecurity'
+import AccountInvestigation from '../components/AccountInvestigation'
+import AccountSecurity, { AccountActionDialog } from '../components/AccountSecurity'
 import './AdminAccount.css'
 
 export type AccountLayout = 'tabs' | 'sidebar' | 'cards'
 export type AccountSection = 'overview' | 'profile' | 'access'
 const sections: { id: AccountSection; label: string }[] = [{ id: 'overview', label: 'Overview' }, { id: 'profile', label: 'Profile' }, { id: 'access', label: 'Access & bindings' }]
-export const securitySections = [{ id: 'security', label: 'Security' }, { id: 'history', label: 'History' }]
+export const securitySections = [{ id: 'security', label: 'Security' }, { id: 'history', label: 'History' }, { id: 'support', label: 'Support' }]
 const date = (value: string | null) => value ? new Date(value.endsWith('Z') ? value : `${value}Z`).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not recorded'
 
 export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', onBack, section, onSection, extraSections = [], renderExtra }: {
@@ -30,16 +31,29 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
   const [confirm, setConfirm] = useState<{ title: string; body: string; action: () => Promise<void> } | null>(null)
   const self = accountId === currentUserId
   const dirty = !!user && (name !== user.display_name || email !== user.email || role !== (user.is_admin ? 'administrator' : 'diver') || active !== user.is_active)
+  const draftKey = `admin-account-draft:${currentUserId ?? 'unknown'}:${accountId}`
   const allSections = [...sections, ...extraSections]
   function setForm(value: AdminUser) { setName(value.display_name); setEmail(value.email); setRole(value.is_admin ? 'administrator' : 'diver'); setActive(value.is_active) }
   async function refresh() { const value = await getUser(accountId); setUser(value) }
   useEffect(() => {
     let live = true
     setUser(null); setError(''); setNotice('')
-    getUser(accountId).then(value => { if (live) { setUser(value); setForm(value) } }).catch(reason => { if (live) setError(String(reason.message ?? reason)) })
+    getUser(accountId).then(value => { if (live) {
+      setUser(value); setForm(value)
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null')
+        if (draft && typeof draft.name === 'string' && typeof draft.email === 'string' && ['administrator','diver'].includes(draft.role) && typeof draft.active === 'boolean') {
+          setName(draft.name); setEmail(draft.email); setRole(draft.role); setActive(draft.active); setNotice('Recovered unsaved profile edits from this browser session. Review or discard them.')
+        }
+      } catch { /* Editing remains available when browser storage is unavailable. */ }
+    } }).catch(reason => { if (live) setError(String(reason.message ?? reason)) })
     listAllDivers().then(value => { if (live) { setDivers(value); setDiverError('') } }).catch(reason => { if (live) setDiverError(String(reason.message ?? reason)) })
     return () => { live = false }
-  }, [accountId])
+  }, [accountId, draftKey])
+  useEffect(() => {
+    if (!user) return
+    try { if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ name, email, role, active })); else sessionStorage.removeItem(draftKey) } catch { /* Best-effort draft recovery. */ }
+  }, [user, dirty, draftKey, name, email, role, active])
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', warn)
@@ -85,7 +99,7 @@ export function AccountWorkspace({ accountId, currentUserId, layout = 'tabs', on
     {error && <div role="alert" className="account-alert">{error}</div>}
     <div className="account-body"><nav aria-label="Account sections" className="account-section-nav">{allSections.map(item => <button key={item.id} aria-current={section === item.id ? 'page' : undefined} onClick={() => onSection(item.id)}>{item.label}</button>)}</nav><div className="account-content">{content}</div></div>
     {dirty && <div className="account-savebar"><div><strong>Unsaved changes</strong><small>Your edits are kept while switching sections.</small></div><button className="account-button" disabled={busy} onClick={() => setForm(user)}>Discard</button><button className="account-button primary" disabled={busy} onClick={() => { onSection('profile') }}>Review & save</button></div>}
-    {confirm && <div className="account-modal-backdrop"><div className="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-confirm-title" onKeyDown={event => { if (event.key === 'Escape' && !busy) setConfirm(null); if (event.key === 'Tab') { const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')); const next = event.shiftKey ? buttons[0] : buttons[buttons.length - 1]; if (document.activeElement === next) { event.preventDefault(); (event.shiftKey ? buttons[buttons.length - 1] : buttons[0])?.focus() } } }}><h2 id="account-confirm-title">{confirm.title}</h2><p>{confirm.body}</p>{error && <p role="alert" className="account-alert">{error}</p>}<div><button autoFocus className="account-button" disabled={busy} onClick={() => setConfirm(null)}>Cancel</button><button className="account-button primary" disabled={busy} onClick={() => void confirm.action()}>{busy ? 'Working…' : 'Confirm'}</button></div></div></div>}
+    {confirm && <AccountActionDialog title={confirm.title} busy={busy} onCancel={() => setConfirm(null)} onConfirm={() => void confirm.action()}><p>{confirm.body}</p>{error && <p role="alert" className="account-alert">{error}</p>}</AccountActionDialog>}
   </main>
 }
 
@@ -97,5 +111,5 @@ export default function AdminAccount() {
   const selected = search.get('section') ?? 'overview'
   const section = [...sections, ...securitySections].some(item => item.id === selected) ? selected : 'overview'
   const destination = search.get('return') ?? '/admin'
-  return <AccountWorkspace key={userId} accountId={Number(userId)} currentUserId={user?.user_id} section={section} extraSections={securitySections} renderExtra={(value, account, refresh) => <AccountSecurity key={value} accountId={account.user_id} section={value} self={account.user_id === user?.user_id} onRefresh={refresh} />} onSection={value => setSearch(previous => { const next = new URLSearchParams(previous); next.set('section', value); return next }, { replace: true })} onBack={() => navigate(destination === '/admin' || destination.startsWith('/admin?') ? destination : '/admin')} />
+  return <AccountWorkspace key={userId} accountId={Number(userId)} currentUserId={user?.user_id} section={section} extraSections={securitySections} renderExtra={(value, account, refresh) => value === 'support' ? <AccountInvestigation key={account.user_id} accountId={account.user_id} /> : <AccountSecurity key={value} accountId={account.user_id} section={value} self={account.user_id === user?.user_id} onRefresh={refresh} />} onSection={value => setSearch(previous => { const next = new URLSearchParams(previous); next.set('section', value); return next }, { replace: true })} onBack={() => navigate(destination === '/admin' || destination.startsWith('/admin?') ? destination : '/admin')} />
 }

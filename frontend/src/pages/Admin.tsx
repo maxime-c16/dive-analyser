@@ -41,7 +41,8 @@ export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [search, setSearch] = useSearchParams()
-  const manage = useCallback((id: number) => navigate(`/admin/users/${id}?return=${encodeURIComponent(`/admin?${search}`)}`), [navigate, search.toString()])
+  const directorySearch = search.toString()
+  const manage = useCallback((id: number) => navigate(`/admin/users/${id}?return=${encodeURIComponent(`/admin?${directorySearch}`)}`), [navigate, directorySearch])
   const directoryChange = useCallback((query: string, status: string, offset: number) => {
     setSearch(previous => { const next = new URLSearchParams(previous); for (const [key, value] of Object.entries({ q: query, status: status === 'all' ? '' : status, offset: offset ? String(offset) : '' })) { if (value) next.set(key, value); else next.delete(key) }; return next }, { replace: true })
   }, [setSearch])

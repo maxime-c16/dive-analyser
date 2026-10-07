@@ -178,3 +178,8 @@ export function listAccountHistory(userId: number, eventType = '', offset = 0): 
   const params = new URLSearchParams({ limit: '50', offset: String(offset) }); if (eventType) params.set('event_type', eventType)
   return request(`/api/v1/admin/users/${userId}/history?${params}`)
 }
+
+export interface AccountAccessCheck { user_id: number; dive_id: number; diver_id: number | null; visibility: string; account_active: boolean; can_view: boolean; can_manage: boolean; video_authorized: boolean | null; explanation: string; checked_at: string; scope: string }
+export function checkAccountAccess(userId: number, diveId: number): Promise<AccountAccessCheck> {
+  return request(`/api/v1/admin/users/${userId}/access-check?dive_id=${diveId}`)
+}

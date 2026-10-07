@@ -11,7 +11,7 @@ function mockFetch(fail = false) {
     return Response.json(account)
   })
 }
-beforeEach(() => { vi.restoreAllMocks() })
+beforeEach(() => { vi.restoreAllMocks(); sessionStorage.clear() })
 describe('AccountWorkspace', () => {
   it('keeps unsaved edits after an API error and can discard them', async () => {
     mockFetch(true)
@@ -47,4 +47,15 @@ describe('AccountWorkspace', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(fetch.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true))
   })
+})
+
+it('recovers unsaved profile edits after leaving and reopening the account', async () => {
+  mockFetch()
+  const props = { accountId: 2, currentUserId: 1, section: 'profile', onSection: vi.fn(), onBack: vi.fn() }
+  const first = render(<AccountWorkspace {...props} />)
+  fireEvent.change(await screen.findByLabelText('Display name'), { target: { value: 'Recovered name' } })
+  first.unmount()
+  render(<AccountWorkspace {...props} />)
+  expect(await screen.findByLabelText('Display name')).toHaveValue('Recovered name')
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 })

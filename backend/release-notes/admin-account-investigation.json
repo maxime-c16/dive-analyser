@@ -1,0 +1,1 @@
+{"id":"admin-account-investigation","date":"2026-10-07","title":"Explain account access to a dive","body":"Check whether an account can view or manage a dive, see the policy explanation and copy a support summary without signing in as the user.","audience":"admin","components":["frontend","backend"]}

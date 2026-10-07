@@ -541,3 +541,57 @@ def test_account_history_filters_scopes_and_redacts_metadata(db, admin_client):
 @pytest.mark.parametrize("suffix", ["sessions", "history"])
 def test_account_security_reads_require_admin(diver_client, suffix):
     assert diver_client.get(f"/api/v1/admin/users/1/{suffix}").status_code == 403
+
+
+@pytest.mark.parametrize("visibility,bound,active,expected_view,expected_manage", [
+    ("private", False, True, False, False),
+    ("private", True, True, True, True),
+    ("public", False, True, True, False),
+    ("public", True, False, False, False),
+])
+def test_access_investigator_uses_target_policy(db, admin_client, visibility, bound, active, expected_view, expected_manage):
+    target = db.query(AppUser).filter_by(email="diver@example.test").one()
+    target.is_active = active
+    diver_id = _diver_id(db)
+    training = SessionModel(date=datetime.utcnow(), location="Test pool")
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=diver_id, dive_code="101B", performance="G", performance_numeric=3, height="3m", dive_datetime=datetime.utcnow(), visibility=visibility, video_uuid="diagnostic-video")
+    db.add(dive)
+    if bound:
+        db.add(UserDiverAccess(user_id=target.id, diver_id=diver_id, access_kind="OWNER"))
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["can_view"] is expected_view
+    assert body["can_manage"] is expected_manage
+    assert body["video_authorized"] is expected_view
+    assert body["explanation"]
+    assert "https://" not in response.text and "token" not in response.text
+    # The diagnostic did not mutate the account or add ownership.
+    assert db.query(UserDiverAccess).filter_by(user_id=target.id).count() == int(bound)
+
+
+def test_access_investigator_rejects_non_admin_and_unknown_dive(diver_client):
+    assert diver_client.get("/api/v1/admin/users/1/access-check?dive_id=1").status_code == 403
+
+
+def test_access_investigator_unknown_dive(admin_client):
+    assert admin_client.get("/api/v1/admin/users/1/access-check?dive_id=999999").status_code == 404
+
+
+@pytest.mark.parametrize("target_admin,expected", [(True, True), (False, False)])
+def test_access_investigator_unassigned_dive_policy(db, admin_client, target_admin, expected):
+    target = db.query(AppUser).filter_by(email="admin@example.test" if target_admin else "diver@example.test").one()
+    training = SessionModel(date=datetime.utcnow(), location="Test pool")
+    db.add(training)
+    db.flush()
+    dive = Dive(session_id=training.id, diver_id=None, dive_code="101B", performance="G", performance_numeric=3, height="3m", dive_datetime=datetime.utcnow(), visibility="private")
+    db.add(dive)
+    db.commit()
+    response = admin_client.get(f"/api/v1/admin/users/{target.id}/access-check?dive_id={dive.id}")
+    assert response.status_code == 200
+    assert response.json()["can_view"] is expected
+    assert response.json()["can_manage"] is expected
+    assert response.json()["video_authorized"] is None
