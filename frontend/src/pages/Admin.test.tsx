@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Admin from './Admin'
@@ -17,14 +18,14 @@ afterEach(() => { vi.useRealTimers() })
 
 describe('Administration status loading', () => {
   it('does not fetch or poll the hidden System tab', async () => {
-    render(<Admin />)
+    render(<MemoryRouter><Admin /></MemoryRouter>)
     expect(screen.getByText('User directory')).toBeInTheDocument()
     await act(() => vi.advanceTimersByTimeAsync(45_000))
     expect(getOperationsStatus).not.toHaveBeenCalled()
   })
 
   it('loads System on demand and cancels when returning to Users', async () => {
-    render(<Admin />)
+    render(<MemoryRouter><Admin /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'System' }))
     expect(getOperationsStatus).toHaveBeenCalledTimes(1)
     const signal = vi.mocked(getOperationsStatus).mock.calls[0][0]!
@@ -41,7 +42,7 @@ describe('Administration status loading', () => {
   it('waits for a slow snapshot to finish before scheduling the next poll', async () => {
     let reject!: (reason: Error) => void
     vi.mocked(getOperationsStatus).mockImplementation(() => new Promise((_, r) => { reject = r }))
-    render(<Admin />)
+    render(<MemoryRouter><Admin /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'System' }))
     await act(() => vi.advanceTimersByTimeAsync(45_000))
     expect(getOperationsStatus).toHaveBeenCalledTimes(1)
@@ -57,7 +58,7 @@ describe('Administration status loading', () => {
   it('shares cancellation and serialization between manual refresh and polling', async () => {
     let reject!: (reason: Error) => void
     vi.mocked(getOperationsStatus).mockImplementation(() => new Promise((_, r) => { reject = r }))
-    render(<Admin />)
+    render(<MemoryRouter><Admin /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'System' }))
     const signal = vi.mocked(getOperationsStatus).mock.calls[0][0]!
     await act(async () => { reject(new Error('Initial snapshot failed')) })

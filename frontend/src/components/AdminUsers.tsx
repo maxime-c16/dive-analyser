@@ -36,12 +36,13 @@ function RoleBadge({ user }: { user: AdminUser }) {
   )
 }
 
-export default function AdminUsers({ currentUserId }: { currentUserId?: number }) {
+export default function AdminUsers({ currentUserId, onManage, initialQuery = '', initialStatus = 'all', initialOffset = 0, onDirectoryChange }: { currentUserId?: number; onManage?: (id: number) => void; initialQuery?: string; initialStatus?: StatusFilter; initialOffset?: number; onDirectoryChange?: (query: string, status: StatusFilter, offset: number) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [total, setTotal] = useState(0)
   const [divers, setDivers] = useState<AdminDiver[]>([])
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [query, setQuery] = useState(initialQuery)
+  const [offset, setOffset] = useState(initialOffset)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus)
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<Notice>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -92,9 +93,10 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
         const [directory, diverDirectory] = await Promise.all([
           listUsers({
             q: query.trim() || undefined,
+            limit: 50, offset,
             is_active: statusFilter === 'all' ? undefined : statusFilter === 'active',
           }),
-          listAllDivers(),
+          onManage ? Promise.resolve([]) : listAllDivers(),
         ])
         if (signal?.aborted) return
         setUsers(directory.users)
@@ -108,8 +110,10 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
         if (!signal?.aborted) setLoading(false)
       }
     },
-    [query, statusFilter],
+    [query, statusFilter, offset, onManage],
   )
+
+  useEffect(() => { onDirectoryChange?.(query, statusFilter, offset) }, [query, statusFilter, offset, onDirectoryChange])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -145,8 +149,10 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
       setNotice({ kind: 'ok', text: okText(result) })
       await refresh()
       if (selectedId !== null) await refreshDetail(selectedId)
+      return true
     } catch (reason) {
       setNotice({ kind: 'error', text: reason instanceof Error ? reason.message : 'Action failed' })
+      return false
     } finally {
       setBusy(false)
     }
@@ -162,7 +168,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
       setNotice({ kind: 'error', text: 'An administrator account needs a diver binding' })
       return
     }
-    await runMutation(
+    const created = await runMutation(
       () =>
         createUser({
           email: createEmail.trim(),
@@ -173,6 +179,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
         }),
       user => `Created ${user.email} as ${roleTitle(user)}`,
     )
+    if (!created) return
     setCreateEmail('')
     setCreateName('')
     setCreatePassword('')
@@ -195,6 +202,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
             value={query}
             onChange={e => {
               setQuery(e.target.value)
+              setOffset(0)
               setNotice(null)
             }}
             onKeyDown={e => {
@@ -210,6 +218,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
             value={statusFilter}
             onChange={e => {
               setStatusFilter(e.target.value as StatusFilter)
+              setOffset(0)
               setNotice(null)
             }}
             className="border border-app bg-app-panel-elevated px-2 py-2 text-sm text-app-text"
@@ -233,7 +242,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
         </button>
         <button
           type="button"
-          onClick={() => setShowCreate(value => !value)}
+          onClick={() => { setShowCreate(value => !value); if (onManage && !showCreate) void listAllDivers().then(setDivers).catch(reason => setNotice({ kind: 'error', text: String(reason) })) }}
           aria-expanded={showCreate}
           className="touch-target inline-flex items-center gap-2 border border-app-strong bg-app-panel px-3 text-sm font-medium text-app-text"
         >
@@ -369,7 +378,7 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"
-                      onClick={() => setSelectedId(current => (current === user.user_id ? null : user.user_id))}
+                      onClick={() => onManage ? onManage(user.user_id) : setSelectedId(current => (current === user.user_id ? null : user.user_id))}
                       aria-expanded={selectedId === user.user_id}
                       className="touch-target inline-flex items-center gap-1.5 border border-app px-3 text-xs font-medium text-app-text"
                     >
@@ -383,6 +392,11 @@ export default function AdminUsers({ currentUserId }: { currentUserId?: number }
           </table>
         </div>
       )}
+
+      {total > 50 && <nav aria-label="User directory pages" className="flex items-center justify-between text-sm text-app-muted">
+        <span>{offset + 1}–{Math.min(offset + users.length, total)} of {total} accounts</span>
+        <div className="flex gap-2"><button className={inputCls} disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button><button className={inputCls} disabled={offset + 50 >= total || loading} onClick={() => setOffset(offset + 50)}>Next</button></div>
+      </nav>}
 
       {selected && (
         <section aria-label={`Manage ${selected.email}`} className="space-y-4 border border-app bg-app-panel p-5">

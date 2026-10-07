@@ -54,6 +54,7 @@ const loadP5Canary = () => import("./pages/P5Canary");
 const P5Canary = lazy(loadP5Canary);
 const loadAdmin = () => import("./pages/Admin");
 const Admin = lazy(loadAdmin);
+const AdminAccount = lazy(() => import("./pages/AdminAccount"));
 const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
 const loadMemberProfile = () => import("./pages/MemberProfile");
@@ -221,6 +222,7 @@ export function breadcrumbTrail(
     case "/account":
       return [{ labelKey: "nav.account" }];
     default: {
+      if (/^\/admin\/users\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.system", href: "/admin" }, { label: "Manage account" }];
       const usersMatch = pathname.match(/^\/users\/(\d+)\/?$/);
       if (usersMatch) return [{ labelKey: "nav.account", href: "/account" }, { labelKey: "profile.breadcrumb" }];
       const last = pathname.split("/").filter(Boolean).pop();
@@ -575,6 +577,7 @@ function Router() {
                       </OwnerGuard>
                     }
                   />
+                  <Route path="/admin/users/:userId" element={<OwnerGuard><AdminAccount /></OwnerGuard>} />
                   <Route path="/account" element={<Account />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<Sessions />} />
