@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // Optional HTTPS for the production preview so browser credentials stored
 // with the Secure attribute (real session auth) work exactly as in
@@ -14,7 +15,27 @@ const previewHttps =
     : undefined
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Push-only service worker (PR3 notifications-push). `injectManifest`
+    // builds dist/sw-push.js from src/sw-push.ts. Workbox requires its
+    // `self.__WB_MANIFEST` placeholder at build time, but the worker never
+    // consumes it (no precacheAndRoute, no fetch handler, no runtime
+    // caching) — caching/offline behaviour is unchanged by design.
+    // `injectRegister: false` because registration is manual and lazy (see
+    // pushSubscription.ts): the SW registers only when the user opens
+    // notification settings, and permission is requested only on explicit
+    // opt-in click — never at login or first render. The existing
+    // public/manifest.webmanifest is kept as-is (`manifest: false`).
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw-push.ts',
+      injectRegister: false,
+      manifest: false,
+      devOptions: { enabled: false },
+    }),
+  ],
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',

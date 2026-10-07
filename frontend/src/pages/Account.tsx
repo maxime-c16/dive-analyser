@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { LANGUAGES, useLang } from '../i18n/I18nProvider'
 import type { LanguageCode } from '../i18n/prefs'
 import ActivitySection from '../components/activity/ActivitySection'
+import PushOptInSection from '../components/PushOptInSection'
 import {
   getNotificationPrefs,
   setNotificationPref as putNotificationPref,
@@ -614,6 +615,7 @@ export default function Account() {
                 ))}
               </div>
               <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifOnDevice')}</h3>
+              <PushOptInSection />
               <div className="mt-1 divide-y divide-[var(--app-border)]">
                 {notifRows.map(row => (
                   <div key={row.key} className="flex items-center justify-between gap-4 py-3">

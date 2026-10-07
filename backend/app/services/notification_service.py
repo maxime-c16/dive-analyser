@@ -11,8 +11,9 @@ Ownership rules:
 """
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
+from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification, NotificationPref
@@ -44,6 +45,12 @@ _MAX_LIST_LIMIT = 100
 _TITLE_MAX = 200
 _BODY_MAX = 600
 
+# Bound background push scheduling: ids travel in batches of at most this
+# many per background task (IN query stays small; push_service sends every
+# scheduled row in MAX_PUSH_SENDS_PER_CHUNK chunks anyway). Large requests
+# schedule one task per batch — never truncated.
+_MAX_PUSH_IDS_PER_SCHEDULE = 50
+
 
 def _validate_type(notif_type: str) -> None:
     if notif_type not in NOTIF_TYPES:
@@ -71,8 +78,15 @@ def create(
     title: str,
     body: str = "",
     dive_id: Optional[int] = None,
+    defer_push: bool = False,
 ) -> Optional[Notification]:
-    """Create one inbox row, or None when the type is disabled for the user."""
+    """Create one inbox row, or None when the type is disabled for the user.
+
+    Inbox commit stays synchronous (callers depend on it). Push is inline
+    by default (tests, journey background) but request-path callers pass
+    defer_push=True and schedule fanout_in_background via BackgroundTasks
+    so blocking pywebpush never runs on the single uvicorn event loop.
+    """
     _validate_type(type)
     try:
         if not is_enabled(db, user_id, type):
@@ -95,7 +109,106 @@ def create(
         except Exception:
             pass
         raise
+    if defer_push:
+        return row
+    # Best-effort Web Push mirror (PR3): skipped when VAPID is unconfigured,
+    # prunes dead endpoints, never raises, never logs secrets.
+    try:
+        from app.services import push_service
+
+        push_service.fanout_for_rows(db, [row])
+    except Exception:
+        logger.exception("push fan-out failed for user %s", user_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return row
+
+
+def fanout_in_background(notification_ids: Sequence[int]) -> None:
+    """Background push entry: fresh SessionLocal, bounded, never raises.
+
+    Scheduled via FastAPI BackgroundTasks from request-path endpoints
+    (dives.upload, videos.sync/batch, dive_social.comment). Starlette runs
+    sync background tasks in its threadpool, so blocking pywebpush calls
+    never touch the single uvicorn event loop. Uses its OWN SessionLocal —
+    never the request session (already closed when background runs).
+    Bounded: ids are re-fetched in _MAX_PUSH_IDS_PER_SCHEDULE pages (IN
+    query stays small), every row fanned out in MAX_PUSH_SENDS_PER_CHUNK
+    chunks (push_service). Rollback before close; logs user ids and counts
+    only, never endpoints/keys.
+    """
+    ids = [int(i) for i in (notification_ids or [])]
+    if not ids:
+        return
+    try:
+        from app.services import push_service
+
+        if not push_service.is_push_configured():
+            return
+    except Exception:
+        # is_push_configured only reads settings; a failure here means
+        # push cannot send anyway — skip DB work entirely.
+        return
+    # Import here so tests can monkeypatch app.database.SessionLocal and
+    # so module import never cycles with push_service.
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        from app.services import push_service
+
+        for start in range(0, len(ids), _MAX_PUSH_IDS_PER_SCHEDULE):
+            chunk = ids[start : start + _MAX_PUSH_IDS_PER_SCHEDULE]
+            rows = (
+                db.query(Notification).filter(Notification.id.in_(chunk)).limit(len(chunk)).all()
+            )
+            if not rows:
+                continue
+            push_service.fanout_for_rows(db, rows)
+    except Exception as exc:
+        logger.error("background push fan-out failed (%s)", type(exc).__name__)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
+def schedule_push(background_tasks: Optional[BackgroundTasks], rows: Sequence[Notification]) -> None:
+    """Queue fanout_in_background for committed inbox rows (best-effort).
+
+    Extracts ids only (never ORM objects — the request session closes
+    before background runs). No-op when there is nothing to push or no
+    background queue (rare direct-call edge: inbox already committed).
+    Large requests are split into _MAX_PUSH_IDS_PER_SCHEDULE batches, one
+    background task per batch, so every row is fanned out (never
+    truncated).
+    """
+    if background_tasks is None or not rows:
+        return
+    try:
+        ids = [row.id for row in rows if getattr(row, "id", None) is not None]
+    except Exception:
+        return
+    if not ids:
+        return
+    try:
+        for start in range(0, len(ids), _MAX_PUSH_IDS_PER_SCHEDULE):
+            background_tasks.add_task(
+                fanout_in_background, ids[start : start + _MAX_PUSH_IDS_PER_SCHEDULE]
+            )
+    except Exception as exc:
+        logger.error("push schedule failed (%s)", type(exc).__name__)
 
 
 def notify_owners_for_diver(
@@ -107,8 +220,14 @@ def notify_owners_for_diver(
     title: str,
     body: str = "",
     dive_id: Optional[int] = None,
+    defer_push: bool = False,
 ) -> List[Notification]:
-    """One row per owner of diver_id (minus the actor). Prefs still apply."""
+    """One row per owner of diver_id (minus the actor). Prefs still apply.
+
+    Single-commit batch: exactly one commit for the inbox rows. Push is
+    inline by default but request-path callers pass defer_push=True and
+    schedule fanout_in_background via BackgroundTasks (off event loop).
+    """
     _validate_type(type)
     if diver_id is None:
         return []
@@ -188,6 +307,21 @@ def notify_owners_for_diver(
         except Exception:
             pass
         return []
+    # Best-effort Web Push mirror (PR3): only enabled types produced rows,
+    # fan-out re-checks prefs per recipient anyway. Never raises. Skipped
+    # when defer_push (request path schedules fanout_in_background instead).
+    if defer_push:
+        return rows
+    try:
+        from app.services import push_service
+
+        push_service.fanout_for_rows(db, rows)
+    except Exception:
+        logger.exception("push fan-out failed for diver %s", diver_id)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return rows
 
 

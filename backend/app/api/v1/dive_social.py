@@ -4,7 +4,7 @@ Always resolve the dive first: private IDs return 404 for other members,
 including mutations. A reaction never grants ownership or changes the dive.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -105,7 +105,7 @@ def comments(dive_id: int, before: int | None = None, parent_id: int | None = No
 
 
 @router.post('/{dive_id}/comments', status_code=201)
-def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db: Session = Depends(get_db)):
+def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     body = payload.body.strip()
     if not body:
         raise HTTPException(422, 'Comment cannot be blank')
@@ -125,17 +125,24 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
         dive_row = db.query(Dive).filter(Dive.id == dive_id).first()
         diver_id = dive_row.diver_id if dive_row is not None else None
         author_user_id = None if isinstance(user, DiveGuest) else user.id
+        # Inbox synchronous; push deferred to BackgroundTasks (threadpool,
+        # fresh SessionLocal, bounded) — never inline blocking sends here.
+        pending = []
         if diver_id is not None:
-            notification_service.notify_owners_for_diver(
+            pending.extend(notification_service.notify_owners_for_diver(
                 db, diver_id=diver_id, exclude_user_id=author_user_id,
                 type='new_comment', title='New comment',
-                body=body[:600], dive_id=dive_id)
+                body=body[:600], dive_id=dive_id, defer_push=True))
         if parent is not None:
             parent_author_id = parent.user_id
             if parent_author_id is not None and parent_author_id != author_user_id:
-                notification_service.create(
+                created = notification_service.create(
                     db, user_id=parent_author_id, type='comment_reply',
-                    title='New reply', body=body[:600], dive_id=dive_id)
+                    title='New reply', body=body[:600], dive_id=dive_id,
+                    defer_push=True)
+                if created is not None:
+                    pending.append(created)
+        notification_service.schedule_push(background_tasks, pending)
     except Exception:
         logger.exception('comment notification failed for dive %s', dive_id)
         try:

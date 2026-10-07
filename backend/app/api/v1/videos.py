@@ -422,13 +422,17 @@ async def sync_single_video(
 
         if created and dive.diver_id is not None:
             # Machine-key sync has no actor to exclude: every owner is told.
+            # Inbox is synchronous; push is BackgroundTasks (threadpool,
+            # fresh SessionLocal, bounded) — never inline pywebpush from
+            # this async endpoint on the single uvicorn worker.
             try:
                 from app.services import notification_service
-                notification_service.notify_owners_for_diver(
+                rows = notification_service.notify_owners_for_diver(
                     db, diver_id=dive.diver_id, exclude_user_id=None,
                     type='new_video', title='New video synced',
                     body=f'{dive.dive_code or "?"} · {dive.height or "?"}',
-                    dive_id=dive.id)
+                    dive_id=dive.id, defer_push=True)
+                notification_service.schedule_push(background_tasks, rows)
             except Exception:
                 logger.exception('sync notification failed for dive %s', dive.id)
                 try:
@@ -583,7 +587,8 @@ async def sync_batch_videos(
 
             if new_dive_ids:
                 # One batched notification per diver per request (never N rows
-                # for an N-clip batch to the same owner).
+                # for an N-clip batch to the same owner). Inbox synchronous;
+                # push via BackgroundTasks (threadpool, fresh session, bounded).
                 try:
                     from app.services import notification_service
                     rows = db.query(Dive.id, Dive.diver_id, Dive.dive_code).filter(
@@ -593,15 +598,20 @@ async def sync_batch_videos(
                         if diver_id is None:
                             continue
                         by_diver.setdefault(diver_id, []).append((did, code))
+                    all_notif_rows = []
                     for diver_id, items in by_diver.items():
                         count = len(items)
-                        notification_service.notify_owners_for_diver(
-                            db, diver_id=diver_id, exclude_user_id=None,
-                            type='new_video',
-                            title='New videos synced' if count > 1 else 'New video synced',
-                            body=(f'{count} new clips synced' if count > 1
-                                  else f'{items[0][1] or "?"} synced'),
-                            dive_id=items[0][0] if count == 1 else None)
+                        all_notif_rows.extend(
+                            notification_service.notify_owners_for_diver(
+                                db, diver_id=diver_id, exclude_user_id=None,
+                                type='new_video',
+                                title='New videos synced' if count > 1 else 'New video synced',
+                                body=(f'{count} new clips synced' if count > 1
+                                      else f'{items[0][1] or "?"} synced'),
+                                dive_id=items[0][0] if count == 1 else None,
+                                defer_push=True)
+                        )
+                    notification_service.schedule_push(background_tasks, all_notif_rows)
                 except Exception:
                     logger.exception('batch sync notification failed')
                     try:

@@ -1,0 +1,8 @@
+{
+  "id": "notifications-push",
+  "date": "2026-10-07",
+  "title": "Push notifications on your devices, only when you ask",
+  "body": "Profile and settings can now enable push alerts on each device, so new videos, comments and milestones reach you even with the app closed. Opt-in only, per device, and only for the alert types you keep on. On iPhone, add the app to the Home Screen first (iOS 16.4 or later).",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

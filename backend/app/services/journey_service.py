@@ -1,5 +1,6 @@
 """Journey service for automatic milestone detection after video sync."""
 
+import asyncio
 import logging
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
@@ -159,7 +160,7 @@ class JourneyService:
             logger.info(
                 f"Detected {new_milestones_count} milestones for Journey {journey.id}"
             )
-            _notify_milestone_owners(db, dive_ids, new_milestones_count)
+            await _notify_milestone_owners(db, dive_ids, new_milestones_count)
 
         return new_milestones_count
 
@@ -253,7 +254,7 @@ class JourneyService:
             if new_milestones > 0:
                 db.commit()
                 logger.info(f"Batch milestone detection: {new_milestones} new milestones")
-                _notify_milestone_owners(db, dive_ids, new_milestones)
+                await _notify_milestone_owners(db, dive_ids, new_milestones)
 
             return {
                 'detected': len(milestones),
@@ -676,12 +677,23 @@ async def process_new_dives_background(dive_ids: List[int], db: Session) -> None
     await service.process_new_dives(dive_ids, db)
 
 
-def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -> None:
+async def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -> None:
     """Durable milestone inbox rows for the owners of the triggering dives.
 
     The real-time WS `milestone_detected` event (sync_status) stays
     ephemeral; this is its durable per-user counterpart. Defensive: a
     notification failure must never fail milestone persistence.
+
+    Push execution context (PR77 review): callers
+    (_update_journey / batch_detect_milestones via process_new_dives) are
+    async and run as Starlette background tasks ON the single uvicorn
+    event loop — blocking pywebpush must never run inline here. Inbox
+    stays synchronous (defer_push=True, same commit as before); the push
+    fan-out is offloaded with `await asyncio.to_thread(
+    fanout_in_background, ids)` so the event loop stays free while the
+    worker thread does the bounded chunked work with its own fresh
+    SessionLocal. Sync-only callers (tests) should `asyncio.run()` this
+    helper — inbox behavior is unchanged.
     """
     try:
         if not dive_ids or new_milestones_count <= 0:
@@ -699,8 +711,9 @@ def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -
             if diver_id is None:
                 continue
             by_diver.setdefault(diver_id, []).append(did)
+        all_ids: List[int] = []
         for diver_id, ids in by_diver.items():
-            notification_service.notify_owners_for_diver(
+            created = notification_service.notify_owners_for_diver(
                 db,
                 diver_id=diver_id,
                 exclude_user_id=None,
@@ -712,7 +725,17 @@ def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -
                     else "A new milestone was detected"
                 ),
                 dive_id=ids[0] if len(ids) == 1 else None,
+                defer_push=True,
             )
+            for row in created or []:
+                rid = getattr(row, "id", None)
+                if rid is not None:
+                    all_ids.append(int(rid))
+        if not all_ids:
+            return
+        await asyncio.to_thread(
+            notification_service.fanout_in_background, all_ids
+        )
     except Exception:
         logger.exception("milestone notification failed")
         try:

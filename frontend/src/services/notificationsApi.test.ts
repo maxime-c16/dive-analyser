@@ -93,4 +93,39 @@ describe('notificationsApi', () => {
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 401 } as Response)
     await expect(listNotifications()).rejects.toThrow('HTTP 401')
   })
+
+  it('reads push config (empty publicKey when server push is off)', async () => {
+    const { getPushConfig } = await import('./notificationsApi')
+    mockFetch(() => ({ publicKey: '' }))
+    await expect(getPushConfig()).resolves.toEqual({ publicKey: '' })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/push-config', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+  })
+
+  it('saves and deletes push subscriptions with same-origin credentials', async () => {
+    const { savePushSubscription, deletePushSubscription } = await import('./notificationsApi')
+    const input = {
+      endpoint: 'https://push.example.test/device',
+      keys: { p256dh: 'fake-p256dh', auth: 'fake-auth' },
+      device_label: 'test device',
+    }
+    mockFetch((url, init) => {
+      if (url === '/api/v1/push-subscriptions' && init?.method === 'POST') {
+        expect(JSON.parse(init.body as string)).toEqual(input)
+        return { endpoint: input.endpoint, device_label: 'test device' }
+      }
+      if (url === '/api/v1/push-subscriptions' && init?.method === 'DELETE') {
+        expect(JSON.parse(init.body as string)).toEqual({ endpoint: input.endpoint })
+        return { deleted: true }
+      }
+      throw new Error(`unexpected ${init?.method} ${url}`)
+    })
+    await expect(savePushSubscription(input)).resolves.toEqual({
+      endpoint: input.endpoint,
+      device_label: 'test device',
+    })
+    await expect(deletePushSubscription(input.endpoint)).resolves.toEqual({ deleted: true })
+  })
 })
