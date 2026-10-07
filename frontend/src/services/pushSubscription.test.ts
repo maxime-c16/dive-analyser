@@ -173,6 +173,20 @@ describe('pushSubscription helpers', () => {
     expect(existing.unsubscribe).not.toHaveBeenCalled()
   })
 
+  it('treats a pruned-endpoint 404 as already deleted on opt-out', async () => {
+    const existing = {
+      endpoint: 'https://push.example.test/old-device',
+      unsubscribe: vi.fn(async () => true),
+    }
+    stubBrowser({ permission: 'granted', subscription: existing })
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('HTTP 404')
+    }))
+    await expect(disablePushDevice()).resolves.toBe(true)
+    // Already gone server-side → local cleanup anyway, device back to off.
+    expect(existing.unsubscribe).toHaveBeenCalledOnce()
+  })
+
   it('still resolves true when the local unsubscribe fails after a server delete', async () => {
     const existing = {
       endpoint: 'https://push.example.test/old-device',

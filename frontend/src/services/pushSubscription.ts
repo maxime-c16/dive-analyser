@@ -164,8 +164,14 @@ export async function disablePushDevice(): Promise<boolean> {
     const endpoint = subscription.endpoint
     try {
       await deletePushSubscription(endpoint)
-    } catch {
-      return false
+    } catch (err) {
+      // The server prunes dead endpoints: a 404 means "already gone", so
+      // clean up locally anyway (success/off). Any other failure keeps the
+      // server-first policy — false with the local subscription untouched
+      // for a retry.
+      if (!(err instanceof Error && err.message.includes('HTTP 404'))) {
+        return false
+      }
     }
     try {
       await subscription.unsubscribe()
