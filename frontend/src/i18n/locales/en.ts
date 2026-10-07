@@ -558,6 +558,7 @@ const en = {
     panelSummary: '{{count}} vote(s) · community average {{mean}}',
     exhausted: 'No more dives to judge right now. New requests will appear here.',
     evaluateAgain: 'Evaluate again',
+    mediaMissing: 'Video unavailable. Retry or skip this dive.',
     mediaClosed: 'This evaluation was closed while you watched. Nothing was saved.',
     voteClosed: 'This evaluation just closed — no vote was saved.',
     voteSelf: 'You cannot judge your own dive.',

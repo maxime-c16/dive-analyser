@@ -558,6 +558,7 @@ const fr = {
     panelSummary: '{{count}} vote(s) · moyenne communautaire {{mean}}',
     exhausted: 'Plus rien à juger pour l’instant. Les nouvelles demandes apparaîtront ici.',
     evaluateAgain: 'Réévaluer',
+    mediaMissing: 'Vidéo indisponible. Réessayez ou passez ce plongeon.',
     mediaClosed: 'Cette évaluation a été fermée pendant votre visionnage. Rien n’a été enregistré.',
     voteClosed: 'Cette évaluation vient de se fermer — aucun vote n’a été enregistré.',
     voteSelf: 'Impossible de juger votre propre plongeon.',
