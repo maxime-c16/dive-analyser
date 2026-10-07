@@ -171,36 +171,61 @@ def _item_payload(db: Session, request_row: EvaluationRequest, dive: Dive) -> di
     }
 
 
-def _retry_item(db: Session, user, request_id: int) -> dict:
-    """Re-verify a previously proposed request for a batch retry.
+def retry_items(db: Session, user, request_ids: list[int]) -> list[dict]:
+    """Batch-prefetch everything a batch retry needs (no per-item N+1).
 
     Closed/deleted/context-lost requests come back flagged unavailable without
     any media URL; a request voted between loads flags unavailable too (its
     results remain reachable through the dedicated results endpoint)."""
-    request_row = db.get(EvaluationRequest, request_id)
-    dive = db.get(Dive, request_row.dive_id) if request_row else None
+    ids = [i for i in set(request_ids or []) if i]
+    if not ids:
+        return []
     my_ids = set(owned_diver_ids(db, user.id))
-    still_eligible = bool(
-        request_row is not None
-        and request_row.active
-        and dive is not None
-        and dive.diver_id is not None
-        and dive.video_uuid is not None
-        and dive.diver_id not in my_ids
-        and not bool(
-            db.query(EvaluationRating)
-            .filter(
-                EvaluationRating.request_id == request_row.id,
-                EvaluationRating.evaluator_user_id == user.id,
-            )
-            .first()
-        )
+    rows = (
+        db.query(EvaluationRequest, Dive)
+        .outerjoin(Dive, Dive.id == EvaluationRequest.dive_id)
+        .filter(EvaluationRequest.id.in_(ids))
+        .all()
     )
-    if not still_eligible:
-        return {"request_id": request_id, "dive_id": request_row.dive_id if request_row else None, "unavailable": True}
-    item = _item_payload(db, request_row, dive)
-    item["unavailable"] = False
-    return item
+    rows_by_request = {row[0].id: row for row in rows}
+    voted_ids = set(
+        row[0] for row in db.query(EvaluationRating.request_id)
+        .filter(
+            EvaluationRating.request_id.in_(ids),
+            EvaluationRating.evaluator_user_id == user.id,
+        )
+        .all()
+    )
+    # Media-readiness probe for the still-active candidates in one SQL pass.
+    candidate_pairs = [
+        (request_row, dive) for request_row, dive in rows_by_request.values()
+        if request_row.active and dive is not None and dive.video_uuid
+        and dive.diver_id is not None and dive.diver_id not in my_ids
+        and request_row.id not in voted_ids
+    ]
+    ready_uuids = _ready_video_uuids(db, candidate_pairs)
+    items: list[dict] = []
+    for request_id in ids:
+        pair = rows_by_request.get(request_id)
+        request_row = pair[0] if pair else None
+        dive = pair[1] if pair and len(pair) > 1 else None
+        still_eligible = bool(
+            request_row is not None
+            and request_row.active
+            and dive is not None
+            and dive.diver_id is not None
+            and dive.video_uuid is not None
+            and dive.diver_id not in my_ids
+            and request_id not in voted_ids
+            and (not ready_uuids or dive.video_uuid in ready_uuids)
+        )
+        if not still_eligible:
+            items.append({"request_id": request_id, "dive_id": request_row.dive_id if request_row else None, "unavailable": True})
+            continue
+        item = _item_payload(db, request_row, dive)
+        item["unavailable"] = False
+        items.append(item)
+    return items
 
 
 def _has_more(db: Session, user, session: EvaluationSession) -> bool:
@@ -244,7 +269,7 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
         if existing:
             return {
                 "batch_id": batch_id,
-                "items": [_retry_item(db, user, row.request_id) for row in existing],
+                "items": retry_items(db, user, [row.request_id for row in existing]),
                 "has_more": _has_more(db, user, session),
             }
 
