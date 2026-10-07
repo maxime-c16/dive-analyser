@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Router from './router'
 import { SyncStatusProvider } from './contexts/SyncStatusContext'
 import SyncNotifications from './components/SyncNotifications'
@@ -13,14 +13,14 @@ function MemberSyncBoundary({ children }: { children: React.ReactNode }) {
   return user?.is_admin ? <SyncStatusProvider>{children}</SyncStatusProvider> : <>{children}</>
 }
 
+const appRouter = createBrowserRouter([{ path: '*', element: <Router /> }])
+
 function App() {
   return (
     <I18nProvider>
       <AuthProvider>
         <MemberSyncBoundary>
-          <BrowserRouter>
-            <Router />
-          </BrowserRouter>
+          <RouterProvider router={appRouter} />
           <SyncNotifications />
           <MilestoneNotifier />
           <SyncErrorHandler />
