@@ -58,6 +58,28 @@
   outline-offset: 3px;
 }
 
+/* Reactive personal card in the dock: pops on every selection change. */
+.eval-card-selected {
+  animation: eval-card-pop 240ms cubic-bezier(0.2, 0.7, 0.2, 1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eval-card-selected {
+    animation: none;
+  }
+}
+
+@keyframes eval-card-pop {
+  from {
+    opacity: 0.6;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Intro choreography: pile (backs) → deal in fan (curved, overshoot) → */
 /* successive true 3D flips → tighten → travel down into the HUD zone.  */
@@ -176,6 +198,20 @@
   min-height: 44px;
   cursor: pointer;
   justify-self: center;
+}
+
+/* Unambiguously illustrative: the intro never reads as real jury data. */
+.eval-intro-demo {
+  justify-self: center;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: rgba(6, 14, 20, 0.6);
+  max-width: 74vw;
+  text-align: center;
 }
 
 @keyframes eval-deal {
@@ -454,17 +490,18 @@
 
 .eval-score-card {
   flex: none;
-  min-width: calc(68px + 2px);
-  min-height: calc(68px * 1.6);
+  min-width: calc(88px + 2px);
+  min-height: calc(88px * 1.6);
   display: grid;
   place-content: center;
   border-radius: 4px;
   padding: 4px;
 }
 
-/* Small dock card: the numeral stays inside the silhouette. */
+/* Small dock card: the numeral stays inside the silhouette; the personal
+   selection card is LARGE — a white jury card, not a rating chip. */
 .eval-score-card .eval-card {
-  --eval-card-w: 68px;
+  --eval-card-w: 88px;
 }
 
 .eval-score-placeholder {
@@ -483,17 +520,6 @@
   font-size: 12px;
   color: rgba(244, 247, 247, 0.65);
   margin: 0;
-}
-
-.eval-comment-toggle {
-  justify-self: start;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(4, 8, 12, 0.5);
-  color: rgba(255, 255, 255, 0.85);
-  padding: 6px 12px;
-  min-height: 38px;
-  cursor: pointer;
-  font-size: 13px;
 }
 
 .eval-judge-actions {
@@ -544,22 +570,39 @@
   margin: 0;
 }
 
-/* Comment sheet: opens OVER the dock, never shrinking the video area. */
-.eval-comment-sheet {
-  position: absolute;
-  left: calc(10px + env(safe-area-inset-left, 0px));
-  right: calc(10px + env(safe-area-inset-right, 0px));
-  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-  z-index: 5;
+/* Comment expands IN FLOW inside the dock: nothing overlays the score row,
+   Pass or Confirm while it is open (the overlay sheet is gone). */
+.eval-comment-block {
   display: grid;
-  gap: 8px;
-  background: rgba(6, 12, 18, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 12px;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  gap: 6px;
 }
 
-.eval-comment-sheet header {
+.eval-comment-toggle {
+  justify-self: start;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(4, 8, 12, 0.5);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 6px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.eval-comment-toggle[aria-expanded='true'] {
+  border-color: var(--app-accent, #54beab);
+  color: var(--app-accent, #54beab);
+}
+
+.eval-comment-inline {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(4, 8, 12, 0.55);
+  padding: 8px 10px;
+}
+
+.eval-comment-inline header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -567,7 +610,7 @@
   color: rgba(244, 247, 247, 0.8);
 }
 
-.eval-comment-sheet header button {
+.eval-comment-inline header button {
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: transparent;
   color: #fff;
@@ -576,13 +619,33 @@
   cursor: pointer;
 }
 
-.eval-comment-sheet textarea {
+.eval-comment-inline textarea {
   width: 100%;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 8px;
   font: inherit;
+}
+
+/* Keyboard focus is always legible on the dark HUD. */
+.eval-judging :is(button, [type='range'], textarea):focus-visible,
+.eval-reveal :is(button, a):focus-visible,
+.eval-stage-head button:focus-visible,
+.eval-player-controls button:focus-visible {
+  outline: 2px solid var(--app-accent, #54beab);
+  outline-offset: 2px;
+}
+
+/* Calm playback: the secondary video rail fades while the take runs; any
+   pointer/keyboard/focus interaction restores it (data attr from the player). */
+.eval-player-controls {
+  transition: opacity 380ms ease;
+}
+
+.eval-player[data-controls-idle='true'] .eval-player-controls {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Reveal: cards join at the video's lower edge in the same stage. */
@@ -726,6 +789,17 @@
     max-height: 100%;
     overflow-y: auto;
   }
+  .eval-reveal-actions {
+    flex-wrap: wrap;
+  }
+  .eval-reveal-actions .eval-confirm {
+    flex-basis: 100%;
+  }
+  /* Panel wraps: the row can also hold mine + peers; the panel scrolls. */
+  .eval-reveal-panel {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
   .eval-judging .eval-score-row {
     flex-wrap: wrap;
     row-gap: 6px;
@@ -737,15 +811,20 @@
     min-width: 0;
   }
   .eval-score-card .eval-card {
-    --eval-card-w: 52px;
+    --eval-card-w: 64px;
   }
-  .eval-comment-sheet {
-    position: absolute;
-    left: calc(min(300px, 36vw) + 10px);
-    right: calc(10px + env(safe-area-inset-right, 0px));
+  .eval-comment-block {
+    min-width: 0;
+  }
+  .eval-comment-inline textarea {
+    width: 100%;
   }
   .eval-reveal-panel {
     max-height: 150px;
+  }
+  /* Panel cards share the compact column size so captions stay readable. */
+  .eval-reveal-panel .eval-card {
+    --eval-card-w: 64px;
   }
   .eval-player-controls {
     right: calc(min(300px, 36vw) + 10px);
@@ -1037,11 +1116,11 @@
     margin-top: -59px;
   }
   .eval-score-card .eval-card {
-    --eval-card-w: 56px;
+    --eval-card-w: 72px;
   }
   .eval-score-card {
-    min-width: calc(56px + 2px);
-    min-height: calc(56px * 1.7);
+    min-width: calc(72px + 2px);
+    min-height: calc(72px * 1.7);
   }
   .eval-reveal-panel {
     max-height: 140px;

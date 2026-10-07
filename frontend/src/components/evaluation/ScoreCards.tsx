@@ -45,11 +45,13 @@ export function ScoreCard({
 export const INTRO_MS = 3200
 const INTRO_TEST_MS = 500 // tests: choreography compressed, still exercised
 
-/** Absolute, named timeline in milliseconds (offsets are derived as ms/3200 —
- * no mutable arithmetic): a pile of backs (0–300), the deal with overshoot
- * (300–1300), successive true 3D flips 1300 + i·110 for ~250ms each (every
- * front readable by ~1880, held through 2200), merge 2200–2600, exit travel
- * 2600–3200 fading only at the very end.
+/** Absolute, named timeline in milliseconds (offsets are ms/total — no
+ * mutable arithmetic). A COMPACT pile of backs (0–280), a STAGGERED deal —
+ * card i leaves the pile at 280 + i·100 and settles in its fan slot by 1420 —
+ * clear successive true-3D flips 1460 + i·130 (every front readable by ~2110,
+ * held to 2260), merge 2260–2560, exit travel 2600–3130 fading at the very
+ * end. Rotations stay small and deliberate: ±8° settle, +5° overshoot, no
+ * per-frame floating.
  *
  * Frame-rate contract (120Hz / VRR displays included): every visual step of
  * the choreography is a WAAPI animation of transform/opacity only — the
@@ -59,17 +61,18 @@ const INTRO_TEST_MS = 500 // tests: choreography compressed, still exercised
  * (finish/cancel). */
 const T = {
   total: 3200,
-  pileEnd: 300,
-  dealEnd: 1300,
-  dealOvershootMs: 300 + (1300 - 300) * 0.55,
-  flipStart: 1300,
-  flipStep: 110,
-  flipDur: 250,
-  flipAllReadable: 1880,
-  mergeStart: 2200,
-  mergeEnd: 2600,
+  pileEnd: 280,
+  dealStagger: 100,
+  dealEnd: 1420,
+  overshootRatio: 0.55,
+  flipStart: 1460,
+  flipStep: 130,
+  flipDur: 260,
+  flipAllReadable: 2110,
+  mergeStart: 2260,
+  mergeEnd: 2560,
   exitStart: 2600,
-  exitFadeStart: 2900,
+  exitFadeStart: 2960,
 } as const
 
 const cardHalfRotatedExtent = (cardW: number, cardH: number, maxRotDeg: number) => {
@@ -101,7 +104,6 @@ export default function EvaluationIntro({
   // Vitest sets NODE_ENV=test; compress the choreography so unit tests still
   // exercise the real timeline without paying 3.2s.
   const playMs = import.meta.env.MODE === 'test' ? INTRO_TEST_MS : INTRO_MS
-  const timeScale = playMs / T.total
 
   const cancelAll = useCallback(() => {
     for (const animation of animsRef.current) animation?.cancel()
@@ -124,7 +126,14 @@ export default function EvaluationIntro({
       return
     }
     timersRef.current.push(window.setTimeout(finish, playMs + 340))
-    return cancelAll
+    // Viewport relayout (rotation, desktop resize): the measured geometry is
+    // stale — leave gracefully instead of persisting misplaced visuals.
+    const onResize = () => finish()
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      cancelAll()
+    }
     // Choreography runs once; finish/onDone stay first-call stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -139,7 +148,8 @@ export default function EvaluationIntro({
 
   // One WAAPI timeline per card. All geometry is MEASURED from the live DOM:
   // slot size (not presumed), stage box, and the HUD score-card centre as the
-  // common exit target. Keyframe offsets are (ms / total) with absolute times.
+  // common exit target. Each card has its own deal start (staggered deal) and
+  // its own flip start (staggered flips).
   useEffect(() => {
     const root = rootRef.current
     if (!root) return
@@ -160,21 +170,19 @@ export default function EvaluationIntro({
     const stackCenterX = parentRect.left + parentRect.width / 2
     const stackCenterY = parentRect.top + parentRect.height * 0.4
 
-    // Common measured HUD target — the DOCK score card when judging is open
-    // (doc order would match the header first, hence the explicit saat query),
-    // header fallback otherwise.
+    // Common measured HUD target — the PERSONAL score-card zone of the
+    // responsive judging dock (manifested here as the actual dock element,
+    // portrait bottom or landscape column) when judging is open; the stage
+    // head otherwise. Demo numbers never stand in for a vote.
     const hud = document.querySelector('.eval-judging .eval-score-card') || document.querySelector('.eval-stage-head')
     const hudRect = hud?.getBoundingClientRect()
     const targetX = hudRect ? hudRect.left + hudRect.width / 2 - stackCenterX : 0
     const targetY = hudRect ? hudRect.top + hudRect.height / 2 - stackCenterY : 0
 
-    // Whole four-card fan (INCLUDING the 1.18 deal overshoot and each card's
+    // Whole four-card fan (INCLUDING the deal overshoot and each card's
     // rotated extent) must stay inside the stage: derive the centre gap.
-    // maxRotation is the OUTERmost card's settle rotation; the overshoot adds
-    // a bounded swing on top — the extent covers 17deg.
-    const maxRotation = 11 // deg at settle for the outermost card
-    const maxFanRotation = maxRotation
-    const overshootSwing = 7 // deg, added on the outermost card mid-deal
+    const maxRotation = 8 // deg at settle for the outermost card (calm fan)
+    const overshootSwing = 5 // deg, added mid-deal, then damped
     const extent = cardHalfRotatedExtent(cardW, cardH, maxRotation + overshootSwing)
     const inset = Math.min(16, stageRect.width * 0.05)
     const availableHalf = (stageRect.width - inset * 2) / 2
@@ -197,18 +205,22 @@ export default function EvaluationIntro({
       slot.style.margin = '0'
       const offset = (i - 1.5) * gap // centre-to-centre fan offsets
       const stackOffset = stackLeft(i) // small pile offset (see helper below)
-      const fanRotation = (i - 1.5) * maxFanRotation
+      const fanRotation = (i - 1.5) * maxRotation
       const exitStack = (i - 1.5) * 8
+      const dealStart = T.pileEnd + i * T.dealStagger // staggered deal
+      const dealOvershoot = dealStart + (T.dealEnd - dealStart) * T.overshootRatio
 
       const swing = (i - 1.5) * overshootSwing
+      const pileFrame = `translateX(${stackOffset}px) translateY(0px) rotate(0deg) scale(0.97)`
       const keyframes: Array<Keyframe> = [
-        { transform: `translateX(${stackOffset}px) translateY(0px) rotate(0deg) scale(0.97)`, opacity: 0.92, offset: 0 },
-        { transform: `translateX(${stackOffset}px) translateY(0px) rotate(${(i - 1.5) * 2}deg) scale(0.99)`, opacity: 1, offset: T.pileEnd / T.total },
-        // Deal with an overshoot past the fan, then settle (damped).
-        { transform: `translateX(${(offset * 1.18).toFixed(1)}px) translateY(${(-12 + i * 4).toFixed(1)}px) rotate(${fanRotation + swing}deg) scale(1.02)`, offset: T.dealOvershootMs / T.total },
+        { transform: pileFrame, opacity: 0.92, offset: 0 },
+        // Compact pile hold while the cards before this one deal off it.
+        { transform: pileFrame, opacity: 1, offset: dealStart / T.total },
+        // Deal with a small overshoot past the fan slot, then settle.
+        { transform: `translateX(${(offset * 1.18).toFixed(1)}px) translateY(${(-10 + i * 3).toFixed(1)}px) rotate(${fanRotation + swing}deg) scale(1.02)`, offset: dealOvershoot / T.total },
         { transform: `translateX(${offset.toFixed(1)}px) translateY(0px) rotate(${fanRotation}deg) scale(1)`, offset: T.dealEnd / T.total },
-        // Short readable fan hold with a tiny breathing lift.
-        { transform: `translateX(${offset.toFixed(1)}px) translateY(-3px) rotate(${fanRotation}deg) scale(1)`, offset: T.flipAllReadable / T.total },
+        // Short readable fan hold with NO floating.
+        { transform: `translateX(${offset.toFixed(1)}px) translateY(0px) rotate(${fanRotation}deg) scale(1)`, offset: T.flipAllReadable / T.total },
         // Merge/tighten the fan once every front has been readable.
         { transform: `translateX(${(offset * 0.35).toFixed(1)}px) translateY(2px) rotate(${fanRotation * 0.4}deg) scale(0.9)`, offset: T.mergeStart / T.total },
         { transform: `translateX(${(offset * 0.35).toFixed(1)}px) translateY(2px) rotate(${fanRotation * 0.4}deg) scale(0.9)`, offset: T.mergeEnd / T.total },
@@ -220,7 +232,7 @@ export default function EvaluationIntro({
       const anim = slot.animate(keyframes, { duration: playMs, fill: 'both', easing: 'ease-out' })
       animsRef.current.push(anim)
       if (face) {
-        const flipStart = T.flipStart + i * T.flipStep
+        const flipStart = T.flipStart + i * T.flipStep // staggered flips
         const flipEnd = flipStart + T.flipDur
         const anim2 = face.animate(
           [
@@ -267,6 +279,9 @@ export default function EvaluationIntro({
           </div>
         ))}
       </div>
+      {/* Unambiguously illustrative: demo cards are NOT real votes and never
+          reach the panel. aria-hidden as with the rest of the decoration. */}
+      <span className="eval-intro-demo" aria-hidden="true">{t('evaluations.introDemo')}</span>
       <button
         type="button"
         className="eval-intro-skip"

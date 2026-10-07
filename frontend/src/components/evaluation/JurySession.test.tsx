@@ -296,3 +296,61 @@ it('ends on the summary when the queue is empty at start', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await screen.findByText('No more dives to judge right now. New requests will appear here.')
 })
+
+it('steps DOWN before any score is chosen (precise 0.5 stepper from neutral)', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  await openFirstDive()
+  expect(screen.getByText('Choose your score')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Half point down' }))
+  expect(screen.queryByText('Choose your score')).not.toBeInTheDocument()
+  expect(screen.getByRole('img', { name: '4.5 out of 10' })).toBeInTheDocument()
+})
+
+it('opens the comment IN FLOW: Confirm and Pass stay visible alongside it', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  await openFirstDive()
+  const toggle = screen.getByRole('button', { name: 'Add a comment' })
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await userEvent.click(toggle)
+  await screen.findByLabelText('Optional comment')
+  // In-flow expansion: the essential controls remain usable while open.
+  expect(screen.getByRole('button', { name: 'Confirm score' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Pass' })).toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Optional comment'), 'Nice entry')
+  // Closing from the inline header keeps the draft; reopening restores it.
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+  expect(screen.queryByLabelText('Optional comment')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Edit comment' }))
+  expect(screen.getByLabelText('Optional comment')).toHaveValue('Nice entry')
+})
+
+it('reveal joins MY card first, then peers flip in cascade with names', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
+  await openFirstDive()
+  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  const panel = screen.getByText('3 vote(s) · community average 6.5').closest('.eval-reveal') as HTMLElement
+  const figures = panel.querySelectorAll('.eval-card-figure')
+  expect(figures).toHaveLength(3)
+  // The just-confirmed personal card leads the sequence.
+  expect(figures[0]).toHaveClass('eval-card-mine-figure')
+  expect(figures[0].querySelector('.eval-card')?.getAttribute('aria-label')).toBe('Your score card 6.5')
+  // Peers follow with increasing, non-zero stagger (cascade after mine).
+  const stagger = (el: HTMLElement) => el.style.getPropertyValue('--stagger')
+  expect(stagger(figures[1] as HTMLElement)).toBe('360ms')
+  expect(stagger(figures[2] as HTMLElement)).toBe('480ms')
+  expect(within(figures[1] as HTMLElement).getByText('Bob')).toBeInTheDocument()
+  expect(within(figures[2] as HTMLElement).getByText('Zoé')).toBeInTheDocument()
+})
+
+it('labels the intro fan as unambiguously illustrative and drops it on skip', async () => {
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  await screen.findByRole('button', { name: 'Skip' })
+  expect(document.querySelector('.eval-intro-demo')).toHaveTextContent('Demo cards — not real scores')
+  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
+  expect(document.querySelector('.eval-intro')).toBeNull()
+  expect(document.querySelector('.eval-intro-demo')).toBeNull()
+})
