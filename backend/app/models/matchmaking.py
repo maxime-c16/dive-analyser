@@ -25,6 +25,7 @@ class ReviewStackItem(Base):
     stack_id = Column(Integer, ForeignKey('review_stacks.id', ondelete='CASCADE'), nullable=False, index=True)
     dive_id = Column(Integer, ForeignKey('dives.id', ondelete='CASCADE'), nullable=False, index=True)
     position = Column(Integer, nullable=False)
+    video_uuid = Column(String(100), nullable=False)
     skipped_at = Column(DateTime, nullable=True)
     __table_args__ = (UniqueConstraint('stack_id', 'dive_id', name='uq_review_stack_dive'),)
 

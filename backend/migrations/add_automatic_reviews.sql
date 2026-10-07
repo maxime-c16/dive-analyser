@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS review_stack_items (
  stack_id INTEGER NOT NULL REFERENCES review_stacks(id) ON DELETE CASCADE,
  dive_id INTEGER NOT NULL REFERENCES dives(id) ON DELETE CASCADE,
  position INTEGER NOT NULL,
+ video_uuid VARCHAR(100) NOT NULL,
  skipped_at TIMESTAMP,
  CONSTRAINT uq_review_stack_dive UNIQUE(stack_id, dive_id)
 );

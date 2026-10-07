@@ -26,10 +26,10 @@ def eligible(db, user):
 
 
 def authorize(db, user, dive_id, lock=False):
-    query = eligible(db, user).filter(Dive.id == dive_id).populate_existing()
     if lock:
-        query = query.with_for_update()
-    dive = query.first()
+        # Lock first, then check mutable exclusions with a fresh statement.
+        db.query(Dive).filter(Dive.id == dive_id).with_for_update().first()
+    dive = eligible(db, user).filter(Dive.id == dive_id).populate_existing().first()
     if dive is None:
         raise HTTPException(404, 'Not found')
     asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == dive.video_uuid).first()
@@ -86,7 +86,7 @@ def stack(db, user, key):
     try:
         db.flush()
         for position, dive_id in enumerate(chosen):
-            db.add(ReviewStackItem(stack_id=row.id, dive_id=dive_id, position=position))
+            db.add(ReviewStackItem(stack_id=row.id, dive_id=dive_id, position=position, video_uuid=db.get(Dive, dive_id).video_uuid))
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -117,6 +117,8 @@ def queue(db, user, stack_id):
             dive, asset = authorize(db, user, item.dive_id)
         except HTTPException:
             continue
+        if dive.video_uuid != item.video_uuid:
+            continue
         media = status(db, dive, asset)
         if media['status'] != 'ready':
             continue
@@ -133,22 +135,25 @@ def results(db, user, dive_id):
     mine = next((r for r in rows if r.evaluator_user_id == user.id), None)
     if mine is None:
         mine = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
+    names = dict(db.query(AppUser.id, AppUser.display_name).filter(AppUser.id.in_({r.evaluator_user_id for r in rows})).all())
     def payload(r):
         return {'id': r.id, 'request_id': dive_id, 'evaluator_user_id': r.evaluator_user_id,
-            'score_half_steps': r.score_half_steps, 'comment': r.comment, 'created_at': r.created_at}
+            'score_half_steps': r.score_half_steps, 'comment': r.comment, 'created_at': r.created_at, 'author': names.get(r.evaluator_user_id)}
     return {'request_id': dive_id, 'rating_count': count, 'mean_score': round(avg / 2, 1) if count else None,
         'provisional': True, 'ratings': [payload(r) for r in rows], 'my_rating': payload(mine) if mine else None}
 
 
-def rate(db, user, dive_id, score, comment):
+def rate(db, user, dive_id, score, comment, video_uuid):
     dive, asset = authorize(db, user, dive_id, lock=True)
+    if dive.video_uuid != video_uuid:
+        raise HTTPException(409, {'code': 'EVALUATION_CLOSED', 'message': 'Video changed; reload the selection'})
     old = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
     if old:
         if old.score_half_steps != score or old.comment != comment:
             raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED', 'message': 'Vote is immutable'})
     else:
         assigned = db.query(ReviewStackItem).join(ReviewStack).filter(
-            ReviewStack.user_id == user.id, ReviewStackItem.dive_id == dive_id, ReviewStackItem.skipped_at.is_(None)).first()
+            ReviewStack.user_id == user.id, ReviewStackItem.dive_id == dive_id, ReviewStackItem.video_uuid == video_uuid, ReviewStackItem.skipped_at.is_(None)).first()
         if not assigned or status(db, dive, asset)['status'] != 'ready':
             raise HTTPException(404, 'Not found')
         name = db.query(Diver.display_name).filter_by(id=dive.diver_id).scalar() or ''
@@ -158,6 +163,9 @@ def rate(db, user, dive_id, score, comment):
             db.commit()
         except IntegrityError:
             db.rollback()
-            return rate(db, user, dive_id, score, comment)
+            winner = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
+            if winner is None:
+                raise
+            return rate(db, user, dive_id, score, comment, video_uuid)
     panel = results(db, user, dive_id)
     return {'rating': panel['my_rating'], 'results': panel}

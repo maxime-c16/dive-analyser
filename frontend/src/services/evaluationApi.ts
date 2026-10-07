@@ -233,9 +233,11 @@ export async function submitRating(
   scoreHalfSteps: number,
   comment?: string | null,
   automatic = false,
+  videoUuid?: string,
 ): Promise<SubmissionResponse> {
   const { data } = await api.post(`/api/v1/evaluations/${automatic ? 'automatic/' : ''}${requestId}/ratings`, {
     score_half_steps: scoreHalfSteps,
+    ...(automatic ? { video_uuid: videoUuid } : {}),
     comment: comment ?? undefined,
   })
   return data

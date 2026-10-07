@@ -416,12 +416,11 @@ def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw
                 db.rollback()
         # Persist the cursor (wrap when the corpus end was reached without
         # a full-batch stop; otherwise resume exactly where we left off).
-        session.scan_offset = 0 if end_of_corpus else next_cursor
+        session.scan_offset = 0 if end_of_corpus else max(0, next_cursor - len(marked_pairs))
         db.commit()
         # Payloads are rebuilt from BATCHED probes (no per-item round trips).
         items = _batch_payloads(db, marked_pairs)
-        if len(items) < limit and not has_more:
-            has_more = _has_more(db, user, session)
+        has_more = _has_more(db, user, session)
         return {"batch_id": batch_id, "items": items, "has_more": bool(has_more)}
 
 

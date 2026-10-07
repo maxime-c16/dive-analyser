@@ -241,7 +241,7 @@ export default function JurySession({
     const nextCount = judgedCount + 1
     setPhase({ kind: 'submitting', item: current.item, score, comment })
     try {
-      const response = await submitRating(current.item.request_id, score, comment.trim() || undefined, automatic)
+      const response = await submitRating(current.item.request_id, score, comment.trim() || undefined, automatic, current.item.dive.video_uuid)
       if (!aliveRef.current || supersededRef.current) return
       setJudgedCount(nextCount)
       onCountChange?.(nextCount)
@@ -360,7 +360,7 @@ export default function JurySession({
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
               <span className="eval-meta">{stageItem.dive.dive_code} · {stageItem.dive.height}</span>
               <span className="eval-count" role="status" aria-label={t('evaluations.counted', { count: judgedCount })} title={t('evaluations.counted', { count: judgedCount })}>
-                {automatic ? `${judgedCount + passed.length + 1} / ${selectionSizeRef.current}` : judgedCount}
+                {automatic ? `${judgedCount + passed.length + (phase.kind === 'reveal' ? 0 : 1)} / ${selectionSizeRef.current}` : judgedCount}
               </span>
             </>
           }
@@ -440,7 +440,7 @@ export default function JurySession({
           rated={rated}
           passed={passed}
           automatic={automatic}
-          onResume={automatic ? () => { automaticLoadedRef.current = false; void advance() } : undefined}
+          onResume={automatic ? () => { batchRef.current = []; void start() } : undefined}
           onAgain={() => { dailyRef.current = false; startKeyRef.current = null; setPhase({ kind: 'landing' }); setIntroDone(false); setSessionExpired(false) }}
         />
       )}

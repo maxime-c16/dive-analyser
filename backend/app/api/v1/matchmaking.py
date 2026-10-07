@@ -2,7 +2,7 @@
 from datetime import datetime
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.evaluations import _require_user, _same_origin, _secure_headers, _select_ready_entry, RatingInput
@@ -62,12 +62,16 @@ def skip(stack_id: int, body: SkipBody, request: Request, db: Session = Depends(
     return {'skipped': True}
 
 
+class AutomaticRatingBody(RatingInput):
+    video_uuid: str = Field(..., min_length=1, max_length=100)
+
+
 @router.post('/evaluations/automatic/{dive_id}/ratings')
-def rate(dive_id: int, body: RatingInput, request: Request, response: Response, db: Session = Depends(get_db)):
+def rate(dive_id: int, body: AutomaticRatingBody, request: Request, response: Response, db: Session = Depends(get_db)):
     _same_origin(request)
     user = _require_user(request, db)
     _secure_headers(response)
-    return service.rate(db, user, dive_id, body.score_half_steps, (body.comment or '').strip() or None)
+    return service.rate(db, user, dive_id, body.score_half_steps, (body.comment or '').strip() or None, body.video_uuid)
 
 
 @router.get('/evaluations/automatic/{dive_id}/media/status')
@@ -124,11 +128,13 @@ def mine(request: Request, response: Response, limit: int = Query(20, ge=1, le=5
     user = _require_user(request, db)
     _secure_headers(response)
     query = db.query(Dive).filter(Dive.diver_id.in_(owned_diver_ids(db, user.id)), Dive.visibility == 'public', Dive.video_uuid.isnot(None))
-    items = []
-    for dive in query.order_by(Dive.dive_datetime.desc(), Dive.id).offset(offset).limit(limit):
-        excluded = db.get(ReviewExclusion, dive.id)
-        panel = service.results(db, user, dive.id)
-        items.append({'dive_id': dive.id, 'dive_code': dive.dive_code, 'height': dive.height,
-            'excluded': bool(excluded and excluded.excluded), 'rating_count': panel['rating_count'],
-            'mean_score': panel['mean_score'], 'provisional': True})
+    from sqlalchemy import func
+    from app.models.matchmaking import AutomaticRating
+    totals = db.query(AutomaticRating.dive_id.label('dive_id'), func.count(AutomaticRating.id).label('count'),
+        func.avg(AutomaticRating.score_half_steps).label('mean')).group_by(AutomaticRating.dive_id).subquery()
+    rows = query.outerjoin(ReviewExclusion, ReviewExclusion.dive_id == Dive.id).outerjoin(totals, totals.c.dive_id == Dive.id).add_columns(
+        ReviewExclusion.excluded, totals.c.count, totals.c.mean).order_by(Dive.dive_datetime.desc(), Dive.id).offset(offset).limit(limit).all()
+    items = [{'dive_id': dive.id, 'dive_code': dive.dive_code, 'height': dive.height, 'excluded': bool(excluded),
+        'rating_count': count or 0, 'mean_score': round(mean / 2, 1) if count else None, 'provisional': True}
+        for dive, excluded, count, mean in rows]
     return {'items': items, 'total': query.count(), 'limit': limit, 'offset': offset}
