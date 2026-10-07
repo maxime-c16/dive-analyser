@@ -343,7 +343,7 @@ export default function EvaluationPlayer({
               const order = [...playback.playableChoices]
               const index = order.indexOf(playback.rendition)
               const next = order[(index + 1) % order.length]
-              setPlayback({ ...playback, src: evaluationPlaybackUrl(requestId, next), rendition: next, hq: HQ_RENDITIONS.has(next) })
+              setPlayback({ ...playback, src: evaluationPlaybackUrl(requestId, next, automatic), rendition: next, hq: HQ_RENDITIONS.has(next) })
             }}
           >
             {playback.rendition === 'original' ? t('evaluations.qualityOriginal') : t('evaluations.qualityHQ')}

@@ -473,6 +473,7 @@ const fr = {
     adding: 'Ajout…',
   },
   evaluations: {
+    automaticFooter: 'Les dives publics participent automatiquement. Gérez les exclusions dans Notes communautaires.',
     tabAutomatic: "Sélection du jour",
     tabCommunity: "Notes communautaires",
     dailyStart: "Commencer / reprendre la sélection du jour",

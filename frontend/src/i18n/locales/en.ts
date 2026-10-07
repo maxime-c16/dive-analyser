@@ -473,6 +473,7 @@ const en = {
     adding: 'Adding…',
   },
   evaluations: {
+    automaticFooter: 'Public dives participate automatically. Manage exclusions in Community scores.',
     tabAutomatic: "Daily selection",
     tabCommunity: "Community scores",
     dailyStart: "Start / resume today’s selection",

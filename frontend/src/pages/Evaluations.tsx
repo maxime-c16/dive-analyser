@@ -59,7 +59,7 @@ export default function Evaluations() {
         {tab === 'judgements' && <MyJudgements />}
       </main>
       <footer className="evaluations-footer">
-        <p>{t('evaluations.footerHint')}</p>
+        <p>{t(tab === 'automatic' || tab === 'community' ? 'evaluations.automaticFooter' : 'evaluations.footerHint')}</p>
         <Link to="/dives">{t('evaluations.backToLibrary')}</Link>
       </footer>
       {!user && <p className="eval-error" role="alert">{t('evaluations.signInNeeded')}</p>}
