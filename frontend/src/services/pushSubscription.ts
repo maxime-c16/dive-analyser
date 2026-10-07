@@ -126,6 +126,17 @@ export async function enablePushDevice(publicKey: string): Promise<EnablePushRes
       device_label: defaultDeviceLabel(),
     })
   } catch {
+    // Save failed: roll back the local subscription so the next render
+    // does not report "enabled" while the server holds no endpoint.
+    // There is no GET subscriptions endpoint to reconcile with, so local
+    // rollback is the source-of-truth fix (server-first would leave the
+    // same ghost). Best-effort unsubscribe, then coherent off/error state.
+    try {
+      await subscription.unsubscribe()
+    } catch {
+      // Rollback is best-effort; the thrown push-failed still drives the
+      // UI to its error/off state rather than a phantom "on".
+    }
     throw new Error('push-failed')
   }
   return { endpoint: subscription.endpoint, alreadySubscribed }

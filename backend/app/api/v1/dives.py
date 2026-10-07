@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from pathlib import Path
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, File, Form, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, File, Form, UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.strategy_options import Load
@@ -219,6 +219,7 @@ def upload_dive(
     diver_id: int = Form(...),
     upload_id: str = Form(..., pattern=r"^[a-f0-9-]{36}$"),
     db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
 ):
     from uuid import UUID, uuid5, NAMESPACE_URL
     from sqlalchemy import select
@@ -292,10 +293,15 @@ def upload_dive(
     db.refresh(record)
     try:
         from app.services import notification_service
-        notification_service.notify_owners_for_diver(
+        # Inbox stays synchronous; push fans out in the background
+        # (Starlette threadpool, fresh SessionLocal, bounded sends) so
+        # blocking pywebpush never runs on the request path.
+        rows = notification_service.notify_owners_for_diver(
             db, diver_id=diver_id, exclude_user_id=user.id,
             type='new_video', title=f'New video from {diver.display_name}',
-            body=f'{parsed.dive_code} · {parsed.height}', dive_id=record.id)
+            body=f'{parsed.dive_code} · {parsed.height}', dive_id=record.id,
+            defer_push=True)
+        notification_service.schedule_push(background_tasks, rows)
     except Exception:
         logger.exception('upload notification failed for dive %s', record.id)
         try:

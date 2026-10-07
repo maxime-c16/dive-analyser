@@ -682,6 +682,16 @@ def _notify_milestone_owners(db: Session, dive_ids, new_milestones_count: int) -
     The real-time WS `milestone_detected` event (sync_status) stays
     ephemeral; this is its durable per-user counterpart. Defensive: a
     notification failure must never fail milestone persistence.
+
+    Push execution context (PR77 review): this helper runs ONLY from
+    JourneyService._update_journey / batch_detect_milestones, which run
+    themselves inside FastAPI BackgroundTasks (videos.py schedules
+    process_new_dives via background_tasks.add_task) — i.e. already off
+    the request path, after the HTTP response. The inbox commit below stays
+    synchronous and the push fan-out stays inline-bounded (push_service
+    caps at MAX_PUSH_SENDS_PER_FANOUT sends × 10s timeout). That keeps this
+    diff minimal without reintroducing request-path event-loop blocking;
+    fully threadpooling Journey is out of scope.
     """
     try:
         if not dive_ids or new_milestones_count <= 0:

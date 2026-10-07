@@ -187,4 +187,44 @@ describe('pushSubscription helpers', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(existing.unsubscribe).toHaveBeenCalledOnce()
   })
+
+  it('rolls back the local subscription when saving the endpoint fails (no phantom on)', async () => {
+    const unsubscribe = vi.fn(async () => true)
+    const created = {
+      endpoint: 'https://push.example.test/new-device',
+      toJSON: () => ({ keys: { p256dh: 'test-p256dh', auth: 'test-auth' } }),
+      unsubscribe,
+    }
+    stubBrowser({ permission: 'granted', subscribeResult: created })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('HTTP 500')
+      }),
+    )
+    // Save fails → push-failed (UI stays off/error, never flips to "on").
+    await expect(enablePushDevice('dGVzdA')).rejects.toThrow('push-failed')
+    // Rollback: the browser-only subscription is removed so the next
+    // render's getExistingPushSubscription() cannot report a phantom "on"
+    // while the server holds no endpoint.
+    expect(unsubscribe).toHaveBeenCalledOnce()
+  })
+
+  it('rolls back an already-subscribed device when the re-save fails', async () => {
+    const unsubscribe = vi.fn(async () => true)
+    const existing = {
+      endpoint: 'https://push.example.test/old-device',
+      toJSON: () => ({ keys: { p256dh: 'test-p256dh', auth: 'test-auth' } }),
+      unsubscribe,
+    }
+    stubBrowser({ permission: 'granted', subscription: existing })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('HTTP 500')
+      }),
+    )
+    await expect(enablePushDevice('dGVzdA')).rejects.toThrow('push-failed')
+    expect(unsubscribe).toHaveBeenCalledOnce()
+  })
 })

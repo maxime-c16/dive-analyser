@@ -13,6 +13,16 @@ Delivery is best-effort and never breaks the caller:
 
 Privacy: endpoint URLs, p256dh/auth keys and payload bodies are secrets —
 they are never written to logs. Log lines carry user ids and counts only.
+Exception details (including SQLAlchemy statements that embed bound
+parameters) are never logged — only the exception type name and counts.
+
+Execution: fan-out is blocking (pywebpush uses requests). Request-path
+callers must NOT call fanout_for_rows inline from async endpoints — they
+create inbox rows synchronously via notification_service (defer_push=True)
+then schedule notification_service.fanout_in_background via FastAPI
+BackgroundTasks (sync tasks run in Starlette's threadpool) with a fresh
+SessionLocal. Total work per fan-out is bounded (MAX_PUSH_SENDS_PER_FANOUT
+sends, _PUSH_SEND_TIMEOUT_SECONDS per send).
 """
 import json
 import logging
@@ -48,6 +58,11 @@ MAX_PUSH_ENDPOINT_LENGTH = 2048
 _PUSH_SUBSCRIPTION_LIMIT = 100
 # Bound stored devices per user (oldest evicted on overflow at upsert time).
 MAX_SUBSCRIPTIONS_PER_USER = 20
+# Bound total outbound sends per fan-out: one request (even a batch to many
+# owners) can never trigger more than this many blocking pywebpush POSTs.
+# With _PUSH_SEND_TIMEOUT_SECONDS per send, worst-case background work is
+# bounded (20 × 10s) instead of scaling with owners × devices.
+MAX_PUSH_SENDS_PER_FANOUT = 20
 _PUSH_TTL_SECONDS = 86400
 
 # Bound each outbound push POST so one slow push service cannot wedge the
@@ -198,6 +213,17 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
     Never raises: any failure (including our own queries) rolls back and
     returns the count so far. Callers invoke this only after their own
     commit, so our rollback can never poison their session.
+
+    Bounded: at most MAX_PUSH_SENDS_PER_FANOUT blocking sends per call
+    (each with _PUSH_SEND_TIMEOUT_SECONDS). Must run off the request
+    event loop — via notification_service.fanout_in_background scheduled
+    on FastAPI BackgroundTasks (Starlette runs sync background tasks in
+    its threadpool) with a fresh SessionLocal.
+
+    Logging: user ids and counts only. Never logs endpoints, keys,
+    payloads, statements, parameters, or exception messages — only the
+    exception type name (logger.error, never logger.exception, so no
+    traceback with SQLAlchemy bound parameters reaches the logs).
     """
     if not rows:
         return 0
@@ -208,18 +234,26 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
     from app.services.notification_service import is_enabled
 
     sent = 0
+    attempts = 0
     dead_endpoints: List[str] = []
     try:
         for row in rows:
+            if attempts >= MAX_PUSH_SENDS_PER_FANOUT:
+                break
             try:
                 # Belt and suspenders: rows only exist because the type was
                 # enabled at creation, but a concurrent opt-out between the
                 # inbox commit and this send must not push anyway.
                 if not is_enabled(db, row.user_id, row.type):
                     continue
-            except Exception:
-                logger.exception(
-                    "push pref re-check failed for user %s", row.user_id
+            except Exception as exc:
+                # Type name only: the message could embed the SQL statement
+                # plus bound parameters (i.e. endpoint URLs treated here
+                # as secrets). No exc_info, no exception interpolation.
+                logger.error(
+                    "push pref re-check failed for user %s (%s)",
+                    row.user_id,
+                    type(exc).__name__,
                 )
                 try:
                     db.rollback()
@@ -233,9 +267,11 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
                     .limit(_PUSH_SUBSCRIPTION_LIMIT)
                     .all()
                 )
-            except Exception:
-                logger.exception(
-                    "push subscription fetch failed for user %s", row.user_id
+            except Exception as exc:
+                logger.error(
+                    "push subscription fetch failed for user %s (%s)",
+                    row.user_id,
+                    type(exc).__name__,
                 )
                 try:
                     db.rollback()
@@ -244,6 +280,8 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
                 continue
             payload = _payload_for(row)
             for sub in subs:
+                if attempts >= MAX_PUSH_SENDS_PER_FANOUT:
+                    break
                 # Defense in depth: never POST to a non-allowlisted URL,
                 # even if a legacy/hand-written row slipped past registration
                 # validation. Silent skip (no log of the URL, no send count).
@@ -257,27 +295,35 @@ def fanout_for_rows(db: Session, rows: Sequence[Notification]) -> int:
                         payload=payload,
                     )
                     sent += 1
+                    attempts += 1
                 except PushGone:
                     dead_endpoints.append(sub.endpoint)
+                    attempts += 1
                 except Exception:
                     # _send_one already swallows; this guards mocks/futures.
+                    # User id only — never the endpoint or the error itself.
                     logger.warning("push send failed for user %s", row.user_id)
+                    attempts += 1
         if dead_endpoints:
             try:
                 db.query(PushSubscription).filter(
                     PushSubscription.endpoint.in_(dead_endpoints)
                 ).delete(synchronize_session=False)
                 db.commit()
-            except Exception:
-                logger.exception(
-                    "push prune failed (%d endpoints)", len(dead_endpoints)
+            except Exception as exc:
+                # Count + type only: the bound parameters of a failed
+                # DELETE are the endpoint URLs themselves.
+                logger.error(
+                    "push prune failed (%d endpoints, %s)",
+                    len(dead_endpoints),
+                    type(exc).__name__,
                 )
                 try:
                     db.rollback()
                 except Exception:
                     pass
-    except Exception:
-        logger.exception("push fan-out failed")
+    except Exception as exc:
+        logger.error("push fan-out failed (%s)", type(exc).__name__)
         try:
             db.rollback()
         except Exception:
