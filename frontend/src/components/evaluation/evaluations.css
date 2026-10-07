@@ -761,9 +761,10 @@
 
 /* ------------------------------------------------------------------ */
 /* Landscape: video keeps the FULL stage height; the dock is a translucent
-   right column. Content is bottom-aligned and NEVER clips: it scrolls inside
-   the column when tight, with the score card, Pass and Confirm all reachable
-   in the (390px-tall) viewport. */
+   right column. The 52px head clearance is reserved ONCE (on the dock), so
+   judging content starts right under the compact head. Content is
+   TOP-anchored with a BOUNDED downward scroll: a taller-than-column dock may
+   never push the score card under the top HUD; nothing reclaims video space. */
 @media (orientation: landscape) and (max-height: 560px) {
   .eval-stage-dock {
     left: auto;
@@ -773,21 +774,31 @@
     width: min(300px, 36vw);
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-start;
     padding: calc(52px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) 10px;
   }
   .eval-stage-dock > .eval-judging,
   .eval-stage-dock > .eval-reveal,
   .eval-stage-dock > .eval-state {
     background: linear-gradient(90deg, rgba(4, 8, 12, 0) 0%, rgba(4, 8, 12, 0.82) 30%);
-    padding: 64px 2px 4px 16px;
+    /* the 52px head clearance stays on .eval-stage-dock — no double reserve */
+    padding: 8px 2px 4px 16px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    /* TOP-anchored + bounded scroll: a taller-than-column dock may never push
+       its score card UNDER the top HUD (review defect); overflow clips at the
+       bottom where the eye/scroll can reach instead. */
+    justify-content: flex-start;
     gap: 6px;
     min-height: 0;
     max-height: 100%;
     overflow-y: auto;
+  }
+  /* A growing comment block must never SQUASH or overlap its siblings:
+     children keep their intrinsic height (the container scrolls instead). */
+  .eval-stage-dock > .eval-judging > *,
+  .eval-stage-dock > .eval-reveal > * {
+    flex: none;
   }
   .eval-reveal-actions {
     flex-wrap: wrap;
@@ -800,24 +811,41 @@
     flex-wrap: wrap;
     row-gap: 8px;
   }
+  /* One compact row (stepper + card fit the 300px column): the open comment
+     then never needs to displace the score card under the HUD. */
   .eval-judging .eval-score-row {
-    flex-wrap: wrap;
-    row-gap: 6px;
-  }
-  .eval-judging .eval-stepper {
-    flex: 1 1 100%;
+    flex-wrap: nowrap;
   }
   .eval-score-card {
     min-width: 0;
+    /* the box stops reserving the portrait 88px-block height: the 52px card
+       defines the row and the open comment has room to keep Confirm visible */
+    min-height: 0;
   }
   .eval-score-card .eval-card {
-    --eval-card-w: 64px;
+    --eval-card-w: 52px;
+  }
+  /* One-line Confirm keeps a full 44px hit target in the column. */
+  .eval-confirm {
+    padding: 8px 12px;
+  }
+  .eval-confirm:disabled {
+    opacity: 0.45;
+  }
+  .eval-judge-actions .eval-pass {
+    padding: 8px 14px;
   }
   .eval-comment-block {
     min-width: 0;
   }
+  .eval-comment-inline {
+    padding: 6px 8px;
+    gap: 4px;
+  }
   .eval-comment-inline textarea {
     width: 100%;
+    max-height: 72px;
+    overflow-y: auto;
   }
   .eval-reveal-panel {
     max-height: 150px;
@@ -1128,13 +1156,40 @@
 }
 
 /* Very narrow: HUD stays a stack of compact rows above the video. */
+/* Very narrow: HUD stays a stack of compact rows above the video.
+   The score cell stays ONE row with the buttons (a wrapped stepper +
+   a bottom-anchored overflow was pushing the card under the HUD when
+   the comment opened); the range shrinks via flex instead. */
+@media (max-width: 400px) {
+  .eval-judging .eval-score-row {
+    flex-wrap: nowrap;
+  }
+  .eval-score-card {
+    min-width: 0;
+  }
+  .eval-score-card .eval-card {
+    --eval-card-w: 56px;
+  }
+  .eval-score-card {
+    min-width: calc(56px + 2px);
+    min-height: calc(56px * 1.7);
+  }
+  .eval-comment-inline {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  .eval-comment-inline textarea {
+    max-height: 72px;
+    overflow-y: auto;
+  }
+  /* Bounded dock scroll with a taller allowance (the 55dvh cap clipped the
+     top rows bottom-anchored when the comment opened at 320px). */
+  .eval-stage-dock > .eval-judging,
+  .eval-stage-dock > .eval-reveal {
+    max-height: 70dvh;
+  }
+}
 @media (max-width: 340px) {
-  .eval-score-row {
-    flex-wrap: wrap;
-  }
-  .eval-stepper {
-    flex-basis: 100%;
-  }
   .eval-judge-actions {
     flex-wrap: wrap;
   }
