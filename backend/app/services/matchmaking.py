@@ -94,7 +94,8 @@ def stack(db, user, key):
             MediaBlobLocation.blob_sha256 == MediaRevision.blob_sha256).where(
             MediaRevision.video_uuid == Dive.video_uuid, MediaBlobLocation.environment == 'prod',
             MediaBlobLocation.verified.is_(True)))
-        ready = ready | backbone_ready
+        has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
+        ready = ready | (backbone_ready & has_asset)
     owner = select(func.min(UserDiverAccess.user_id)).select_from(UserDiverAccess).join(AppUser).where(
         UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER', AppUser.is_active.is_(True)
     ).correlate(Dive).scalar_subquery()

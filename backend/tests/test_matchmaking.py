@@ -185,3 +185,24 @@ def test_original_transport_stays_scoped_and_rechecks_binding(workspace, monkeyp
     login('alice').put(f'/api/v1/dives/{did}/automatic-review', json={'excluded': True})
     assert login('bob').get(status['playback_url'] + '?rendition=original').status_code == 404
     assert len(calls) == 1
+
+
+def test_unbound_divers_have_separate_fairness_buckets(workspace):
+    from app.models.user_auth import UserDiverAccess
+    from app.models.photos_asset import PhotosAsset
+    from app.models.media import MediaCacheEntry
+    db, login, dives, _, session_id = workspace
+    alice = db.get(Dive, dives['alice-public'])
+    alice_diver = alice.diver_id
+    db.query(UserDiverAccess).delete()
+    for n in range(4):
+        dive = Dive(session_id=session_id, diver_id=alice_diver, dive_code='103B', performance='G',
+            performance_numeric=3, height='3m', dive_datetime=datetime.utcnow() + timedelta(seconds=n),
+            visibility='public', video_uuid=f'unbound-extra-{n}')
+        db.add(dive); db.flush()
+        asset = PhotosAsset(video_uuid=dive.video_uuid); db.add(asset); db.flush()
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'unbound-{n}', rendition='proxy_360p', storage_path='/test', size_bytes=1))
+    db.commit()
+    _, items = stack(login('viewer'))
+    assert len(items) == 3
+    assert dives['bob-public'] in [i['dive_id'] for i in items[:2]]

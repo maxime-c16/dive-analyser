@@ -81,7 +81,6 @@ export default function EvaluationPlayer({
   const [hqHint, setHqHint] = useState(false)
   const [controlsIdle, setControlsIdle] = useState(false)
   const idleTimerRef = useRef<number | null>(null)
-  const preparingSince = useRef<number | null>(null)
   const prepareQueued = useRef(false)
   const userPausedRef = useRef(false)
 
@@ -90,7 +89,6 @@ export default function EvaluationPlayer({
     setPlayback({ kind: 'checking' })
     setHqHint(false)
     prepareQueued.current = false
-    preparingSince.current = null
     try {
       const status = await getEvaluationMediaStatus(requestId, automatic)
       if (epoch !== requestEpochRef.current) return
@@ -111,7 +109,6 @@ export default function EvaluationPlayer({
         return
       }
       if (status.status === 'preparing') {
-        preparingSince.current = Date.now()
         setPlayback({ kind: 'preparing' })
         return
       }
@@ -137,11 +134,12 @@ export default function EvaluationPlayer({
     if (playback.kind !== 'preparing' && playback.kind !== 'missing') return
     let alive = true
     const epoch = requestEpochRef.current
-    const timer = window.setTimeout(async () => {
-      try {
-        await prepareEvaluationMedia(requestId, automatic)
-      } catch {
-        /* Preparation is best-effort; the visible state keeps its retry. */
+    const deadline = Date.now() + PREPARATION_GRACE_MS
+    let timer: number
+    const poll = async () => {
+      if (!prepareQueued.current) {
+        prepareQueued.current = true
+        try { await prepareEvaluationMedia(requestId, automatic) } catch { /* Retry remains available. */ }
       }
       if (!alive || epoch !== requestEpochRef.current) return
       try {
@@ -149,21 +147,16 @@ export default function EvaluationPlayer({
         if (!alive || epoch !== requestEpochRef.current) return
         if (status.status === 'ready' && status.playback_url) {
           setPlayback(packReady(status, status.rendition ?? 'proxy_360p', automatic))
+          setHqHint(!HQ_RENDITIONS.has(status.rendition ?? ''))
+          return
         }
-      } catch {
-        /* keep the visible state */
-      }
-    }, playback.kind === 'missing' ? 600 : 4000)
-    const giveUp = window.setTimeout(() => {
-      if (alive && preparingSince.current !== null && Date.now() - preparingSince.current > PREPARATION_GRACE_MS) {
-        setPlayback({ kind: 'failed' })
-      }
-    }, PREPARATION_GRACE_MS)
-    return () => {
-      alive = false
-      window.clearTimeout(timer)
-      window.clearTimeout(giveUp)
+      } catch { /* Retry transient failures within the bounded wait. */ }
+      if (!alive || epoch !== requestEpochRef.current) return
+      if (Date.now() >= deadline) setPlayback({ kind: 'failed' })
+      else timer = window.setTimeout(poll, 2000)
     }
+    timer = window.setTimeout(poll, playback.kind === 'missing' ? 600 : 2000)
+    return () => { alive = false; window.clearTimeout(timer) }
   }, [playback.kind, requestId, automatic])
 
   // Preparation may return the existing proxy while its HQ job is queued.
