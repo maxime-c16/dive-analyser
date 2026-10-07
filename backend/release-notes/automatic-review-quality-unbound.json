@@ -2,7 +2,7 @@
   "id": "automatic-review-quality-unbound",
   "date": "2026-10-07",
   "title": "Clearer videos and more dives to review",
-  "body": "Automatic reviews use original videos when available and follow high-quality preparation. Public dives attributed to divers without an account join selections; future account binding removes self-reviews from community scores. The introductory cards disappear without flashing back in the center, and a compact glass HUD floats over the borderless video.",
+  "body": "Automatic reviews use original videos when available and follow high-quality preparation. Public dives attributed to divers without an account join selections; future account binding removes self-reviews from community scores. The introductory cards now disappear without flashing back in the center.",
   "audience": "all",
   "components": ["frontend", "backend"]
 }

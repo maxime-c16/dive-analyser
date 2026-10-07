@@ -99,13 +99,15 @@ def _resolve_media(dive_id, kind, request, rendition, db):
 
 
 @router.api_route('/evaluations/automatic/{dive_id}/media/{kind}', methods=['GET', 'HEAD'])
-async def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
-    from starlette.concurrency import run_in_threadpool
-    resolved = await run_in_threadpool(_resolve_media, dive_id, kind, request, rendition, db)
+def media(dive_id: int, kind: str, request: Request, rendition: str | None = None, db: Session = Depends(get_db)):
+    # FastAPI runs this synchronous endpoint in its worker threadpool, including
+    # the reused playback handler's synchronous ORM/grant operations.
+    resolved = _resolve_media(dive_id, kind, request, rendition, db)
     if isinstance(resolved, tuple):
         from app.api.v1.media_playback import play_media_revision
         revision_id, user = resolved
-        return await play_media_revision(revision_id, request, Response(), db, user)
+        import asyncio
+        return asyncio.run(play_media_revision(revision_id, request, Response(), db, user))
     return resolved
 
 

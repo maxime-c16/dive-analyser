@@ -1,0 +1,8 @@
+{
+  "id": "glass-evaluation-hud",
+  "date": "2026-10-07",
+  "title": "A lighter evaluation HUD",
+  "body": "A compact glass panel floats over the borderless video. Rounded controls, a smaller score area and a clearer confirmation button leave more room to watch the dive, on phones and in landscape.",
+  "audience": "all",
+  "components": ["frontend"]
+}

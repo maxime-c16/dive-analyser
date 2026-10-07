@@ -224,6 +224,7 @@ def test_original_readiness_rejects_wrong_bucket_and_ambiguous_storage(workspace
         db.add(location); db.commit()
         assert matchmaking.original_revision_id(db, 'alice-public-video') is None
         assert stack(login('bob'))[1] == []
+        location = db.get(MediaBlobLocation, location.id)
         location.bucket = settings.media_backbone_prod_bucket; db.commit()
         assert matchmaking.original_revision_id(db, 'alice-public-video') is not None
         _, items = stack(login('bob'), daily=False)

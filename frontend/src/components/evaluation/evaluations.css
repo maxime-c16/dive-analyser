@@ -1235,7 +1235,8 @@
 .eval-stage-dock > .eval-judging,
 .eval-stage-dock > .eval-reveal { border-radius: 26px; padding: 14px; gap: 10px; }
 .eval-stage-dock > .eval-state { border-radius: 24px; }
-.eval-score-row { gap: 10px; }
+.eval-score-row { gap: 10px; min-width: 0; }
+.eval-judging > *, .eval-reveal > * { min-width: 0; }
 .eval-stepper { gap: 8px; }
 .eval-stepper button { border-radius: 50%; border-color: rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.09); padding: 0; }
 .eval-score-card { min-height: 56px; min-width: 74px; padding: 0; }
@@ -1247,7 +1248,7 @@
 .eval-comment-toggle { background: rgba(255, 255, 255, 0.07); border-color: transparent; padding: 8px 14px; }
 .eval-judge-actions { gap: 8px; }
 .eval-judge-actions .eval-pass { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); padding: 10px 18px; }
-.eval-confirm { background: linear-gradient(150deg, #8ee3d3, #54beab); border-color: rgba(180, 255, 237, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); padding: 10px 18px; }
+.eval-confirm { min-width: 0; white-space: normal; background: linear-gradient(150deg, #8ee3d3, #54beab); border-color: rgba(180, 255, 237, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); padding: 10px 18px; }
 .eval-confirm:disabled { opacity: 1; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.45); border-color: rgba(255, 255, 255, 0.1); box-shadow: none; }
 .eval-comment-inline { background: rgba(5, 14, 20, 0.25); border-color: rgba(255, 255, 255, 0.15); border-radius: 18px; }
 .eval-comment-inline header button { border-radius: 50%; border-color: transparent; }
