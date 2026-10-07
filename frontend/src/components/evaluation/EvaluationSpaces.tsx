@@ -146,9 +146,11 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
       setState((previous) => {
         if (previous.kind === 'open' && accumulate) {
           const seen = new Set(previous.rows.map((row) => row.id))
-          return { kind: 'open', rows: [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))], total: page.rating_count, offset }
+          const rows = [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))]
+          // Next fetch resumes at the number of rows already fetched.
+          return { kind: 'open', rows, total: page.rating_count, offset: rows.length }
         }
-        return { kind: 'open', rows: page.ratings, total: page.rating_count, offset }
+        return { kind: 'open', rows: page.ratings, total: page.rating_count, offset: page.ratings.length }
       })
     } catch {
       setState({ kind: 'error' })
@@ -187,8 +189,8 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
             ))}
             {state.rows.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
           </ul>
-          {state.offset + state.rows.length < state.total && (
-            <button type="button" disabled={busy} onClick={() => void fetchPage(state.offset + state.rows.length, true)}>
+          {state.rows.length < state.total && (
+            <button type="button" disabled={busy} onClick={() => void fetchPage(state.rows.length, true)}>
               {t('evaluations.more')}
             </button>
           )}
@@ -256,15 +258,16 @@ function MyPanelLink({ requestId }: { requestId: number }) {
       setState((previous) => {
         if (previous.kind === 'open' && accumulate) {
           const seen = new Set(previous.rows.map((row) => row.id))
+          const rows = [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))]
           return {
             kind: 'open',
-            rows: [...previous.rows, ...page.ratings.filter((row) => !seen.has(row.id))],
+            rows,
             myId: page.my_rating?.id ?? previous.myId,
             total: page.rating_count,
-            offset,
+            offset: rows.length,
           }
         }
-        return { kind: 'open', rows: page.ratings, myId: page.my_rating?.id ?? null, total: page.rating_count, offset }
+        return { kind: 'open', rows: page.ratings, myId: page.my_rating?.id ?? null, total: page.rating_count, offset: page.ratings.length }
       })
     } catch {
       setState({ kind: 'error' })
@@ -304,8 +307,8 @@ function MyPanelLink({ requestId }: { requestId: number }) {
             ))}
             {state.rows.length === 0 && <li>{t('evaluations.panelEmpty')}</li>}
           </ul>
-          {state.offset + state.rows.length < state.total && (
-            <button type="button" disabled={busy} onClick={() => void fetchPage(state.offset + state.rows.length, true)}>
+          {state.rows.length < state.total && (
+            <button type="button" disabled={busy} onClick={() => void fetchPage(state.rows.length, true)}>
               {t('evaluations.more')}
             </button>
           )}

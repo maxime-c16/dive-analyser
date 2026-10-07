@@ -256,7 +256,7 @@ export default function JurySession({
         if (aliveRef.current && !hoverRef.current && !keptOpenRef.current) void advance()
       }, cascadeMs + REVEAL_READ_MS)
     } catch (err: unknown) {
-      if (!aliveRef.current) return
+      if (!aliveRef.current || supersededRef.current) return
       const axios = err as { response?: { status?: number; data?: { detail?: unknown } } }
       // Business codes are authoritative; older string details stay decodable.
       const rawDetail = axios.response?.data?.detail
@@ -353,6 +353,7 @@ export default function JurySession({
           prompt={stageItem.prompt}
           video={
             <EvaluationPlayer
+              key={`eval-video-${stageItem.request_id}`}
               requestId={stageItem.request_id}
               paused={
               phase.kind === 'submitting' ||
