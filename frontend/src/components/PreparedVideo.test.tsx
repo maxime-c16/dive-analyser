@@ -118,3 +118,24 @@ it('reuses the loaded HQ immediately when returning to a retained dive', async (
   expect(view.preview).toHaveAttribute('aria-hidden', 'true')
   expect(reopened.container.querySelector('video:not([aria-hidden])')).toBe(view.original)
 })
+
+it('re-aligns and presents HQ after a delayed frame without another media event', async () => {
+  const view = setup()
+  let retry!: FrameRequestCallback
+  const compositor = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { retry = callback; return 7 })
+  try {
+    fireEvent.progress(view.original)
+    await act(async () => {})
+    view.preview.currentTime = 2.4
+    await act(async () => { view.frame()(0, {} as VideoFrameCallbackMetadata) })
+    expect(view.videoRef.current).toBe(view.preview)
+    expect(compositor).toHaveBeenCalledOnce()
+    // No new progress, seeked or canplaythrough event is required.
+    await act(async () => { retry(0) })
+    expect(view.original.currentTime).toBe(2.4)
+    expect(view.original.requestVideoFrameCallback).toHaveBeenCalledTimes(2)
+    await act(async () => { view.frame()(0, {} as VideoFrameCallbackMetadata) })
+    expect(view.videoRef.current).toBe(view.original)
+    expect(view.preview.currentTime).toBe(2.4)
+  } finally { compositor.mockRestore() }
+})

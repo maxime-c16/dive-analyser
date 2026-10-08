@@ -133,7 +133,13 @@ export default function PreparedVideo(props: Props) {
       const show = async () => {
         if (cancelled || preview.paused || preview.seeking || original.readyState < 2) { switching = false; return }
         // A seek/decode must not introduce a repeated or skipped frame.
-        if (Math.abs(original.currentTime - preview.currentTime) > 0.12) { switching = false; original.pause(); return }
+        if (Math.abs(original.currentTime - preview.currentTime) > 0.12) {
+          switching = false
+          // Fully buffered HQ may emit no more progress/canplaythrough
+          // events. Retry alignment explicitly after a delayed decode.
+          raf = requestAnimationFrame(() => { raf = 0; void upgrade() })
+          return
+        }
         // Keep the AAC preview as the soundtrack. Some camera originals
         // have audio codecs a browser cannot decode even when video works.
         // HQ stays muted, so the handoff never drops or duplicates sound.
