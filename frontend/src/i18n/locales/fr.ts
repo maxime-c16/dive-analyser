@@ -373,6 +373,7 @@ const fr = {
     latestUpdate: 'Dernière mise à jour',
     noNotes: 'Aucune note de mise à jour disponible pour le moment.',
     gotIt: 'Compris, retour à mes plongeons',
+    version: 'Version {{version}}',
   },
   notifications: {
     title: 'Notifications',

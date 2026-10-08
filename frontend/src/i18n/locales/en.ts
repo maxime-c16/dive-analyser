@@ -373,6 +373,7 @@ const en = {
     latestUpdate: 'Latest update',
     noNotes: 'No update notes are available yet.',
     gotIt: 'Got it, back to my dives',
+    version: 'Version {{version}}',
   },
   notifications: {
     title: 'Notifications',

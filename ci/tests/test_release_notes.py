@@ -84,6 +84,19 @@ class ReleaseNotesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             notes.check_tree(self.root)
 
+    def test_version_fallback_resolves_against_frontend_sha_not_head(self):
+        # The frontend SHA sits behind a newer tag that HEAD can also reach.
+        # resolve_version must follow the frontend ref, not checkout HEAD, so a
+        # backend-only deploy never advertises a version the frontend lacks.
+        self.git('tag', '-a', 'v1.0.0', '-m', 'v1.0.0', self.base)
+        (self.root / 'extra').write_text('x')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'chore: newer')
+        newer = self.git('rev-parse', 'HEAD')
+        self.git('tag', '-a', 'v1.1.0', '-m', 'v1.1.0', newer)
+        self.assertEqual(notes.resolve_version(self.root, self.first), 'v1.0.0')
+        self.assertEqual(notes.resolve_version(self.root, newer), 'v1.1.0')
+
     def test_legacy_unlabeled_services_do_not_block_partial_deployment(self):
         frontend_note = {**self.note, 'id': 'frontend-only', 'components': ['frontend']}
         self.write(frontend_note)

@@ -7,7 +7,7 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 4
 const key = 'dive-analyser:updates:v1:42'
 const note = { id: 'first', date: '2026-10-05', title: 'First improvement', body: 'The first description.' }
 const second = { ...note, id: 'second', title: 'Second improvement' }
-const manifest = (notes = [note]) => ({ schema: 1, frontend_sha: 'a'.repeat(40), notes })
+const manifest = (notes = [note]) => ({ schema: 1, version: '', frontend_sha: 'a'.repeat(40), notes })
 let current = manifest()
 function mount() { return render(<WhatsNewProvider><WhatsNewButton /><button>Workspace action</button></WhatsNewProvider>) }
 
@@ -102,5 +102,12 @@ describe('update hints', () => {
     expect(parseManifest(manifest([note, note]))).toBeNull()
     expect(parseManifest({ schema: 2, notes: [] })).toBeNull()
     expect(parseManifest(manifest([{ ...note, body: 'x'.repeat(601) }]))).toBeNull()
+  })
+
+  it('shows the release version in the panel header', async () => {
+    current = { ...manifest(), version: 'v1.2.3' }
+    mount(); await screen.findByRole('status')
+    fireEvent.click(screen.getByRole('button', { name: "What's new" }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Version v1.2.3')
   })
 })

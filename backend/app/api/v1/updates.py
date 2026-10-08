@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 def read_updates(is_admin: bool):
-    empty = {'schema': 1, 'frontend_sha': '', 'notes': []}
+    empty = {'schema': 1, 'version': '', 'frontend_sha': '', 'notes': []}
     path = Path(os.environ.get('MEDIA_CACHE_ROOT', '/app/media-cache')) / 'release-notes.json'
     try:
         if path.stat().st_size > 200_000:
@@ -31,7 +31,10 @@ def read_updates(is_admin: bool):
             ids.add(note['id'])
             if note['audience'] == 'all' or is_admin:
                 visible.append({k: note[k] for k in ('id', 'date', 'title', 'body')})
-        return {**empty, 'frontend_sha': manifest['frontend_sha'], 'notes': visible}
+        version = manifest.get('version', '')
+        if not isinstance(version, str):
+            version = ''
+        return {**empty, 'version': version, 'frontend_sha': manifest['frontend_sha'], 'notes': visible}
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return empty
 

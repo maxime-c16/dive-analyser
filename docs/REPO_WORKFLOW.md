@@ -82,6 +82,12 @@ service SHA labels. The app groups updates into a dismissible hint with a
 24-hour cooldown and keeps a manual history. Schema, partial deployments,
 rollback, and internal-only PRs: `docs/RELEASE_NOTES.md`.
 
+**Continuous deployment** is available but opt-in: native auto-merge + the
+release workflow tag each merge `vX.Y.Z`, and `ops/auto-deploy.sh` (cron on
+`deb-serv`) pulls and ships it via `ci/ship.sh server`, reusing the same
+`deploy.lock`. The catalog now carries a `version` shown in "What's new".
+Full setup and rationale: `docs/CD.md`.
+
 **Server deploy** (`ci/ship.sh server`):
 
 1. Refuses if the live checkout has *any* local change or untracked file,
