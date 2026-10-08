@@ -34,10 +34,18 @@ jobs:
       - name: Compute version
         id: version
         run: |
-          if ! v="$(python3 ci/version.py next)"; then
+          set +e
+          v="$(python3 ci/version.py next)"
+          rc=$?
+          set -e
+          if [ "$rc" -eq 1 ]; then
             echo "no changes to release" >> "$GITHUB_STEP_SUMMARY"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::ci/version.py next failed (exit $rc)"
+            exit "$rc"
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"

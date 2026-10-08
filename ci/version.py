@@ -9,9 +9,15 @@ renders the release notes introduced in that window. The server derives the
 so this file only has to agree with that convention, not run on the server.
 
 Commands:
-    next    print the next version tag (vX.Y.Z), or nothing + exit 1 if HEAD is
-            already tagged or there is no history to release.
+    next    print the next version tag (vX.Y.Z) and exit 0, or exit 1 when there
+            is nothing to release (HEAD already tagged, or no commits). Any other
+            exit code is an error.
     body    print markdown of the release notes added since the last v* tag.
+
+Exit codes for `next`:
+    0   a release is due; the version is printed on stdout.
+    1   nothing to release (benign); callers may skip silently.
+    2   computation error (callers must fail).
 
 No third-party dependencies; safe to run on any hosted runner.
 """
@@ -133,12 +139,19 @@ def main():
     args = parser.parse_args()
     root = root_arg(args)
     if args.command == 'next':
-        version = next_version(root)
+        try:
+            version = next_version(root)
+        except Exception:
+            raise SystemExit(2)  # real error, distinct from "nothing to release"
         if not version:
-            raise SystemExit(1)
+            raise SystemExit(1)  # benign: already tagged or no commits
         print(version)
         return
-    print(release_body(root))
+    try:
+        body = release_body(root)
+    except Exception:
+        raise SystemExit(2)
+    print(body)
 
 
 if __name__ == '__main__':

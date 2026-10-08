@@ -78,6 +78,21 @@ class VersionTests(unittest.TestCase):
         self.tag('v1.0.0')
         self.assertEqual(version.next_version(self.root), '')
 
+    def test_next_exit_codes(self):
+        # 0 = release due (version printed), 1 = nothing to release (benign),
+        # anything else = error. The release workflow keys off these.
+        self.seed()
+        run = subprocess.run(['python3', str(Path(version.__file__)), 'next', '--root', str(self.root)],
+                             env=sanitized_env(), text=True, capture_output=True)
+        self.assertEqual(run.returncode, 0)
+        self.assertEqual(run.stdout.strip(), 'v1.0.0')
+
+        self.tag('v1.0.0')
+        run = subprocess.run(['python3', str(Path(version.__file__)), 'next', '--root', str(self.root)],
+                             env=sanitized_env(), text=True, capture_output=True)
+        self.assertEqual(run.returncode, 1)
+        self.assertEqual(run.stdout.strip(), '')
+
     def test_release_body_lists_notes(self):
         self.seed()
         (self.root / version.NOTE_DIR).mkdir(parents=True)
