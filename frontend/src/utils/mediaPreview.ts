@@ -22,7 +22,7 @@ const BATCH_MAX = 100;
 type PendingEntry = { generation: number; videoUuid: string; resolve: (preview: MediaPreview) => void };
 const batchQueue: PendingEntry[] = [];
 const inFlight = new Map<string, Promise<MediaPreview>>();
-let flushing = false;
+let activeDrain: { generation: number; controller: AbortController } | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getPreview(videoUuid: string): Promise<MediaPreview> {
@@ -69,7 +69,7 @@ function settle(entry: PendingEntry, preview: MediaPreview) {
 }
 
 function scheduleFlush() {
-  if (flushTimer !== null || flushing) return;
+  if (flushTimer !== null || activeDrain !== null) return;
   flushTimer = setTimeout(() => {
     flushTimer = null;
     void drainQueue();
@@ -77,21 +77,24 @@ function scheduleFlush() {
 }
 
 async function drainQueue() {
-  flushing = true;
+  const drain = { generation: previewGeneration, controller: new AbortController() };
+  activeDrain = drain;
   try {
-    while (batchQueue.length) {
-      await flushChunk(batchQueue.splice(0, BATCH_MAX));
+    while (batchQueue.length && drain.generation === previewGeneration) {
+      await flushChunk(batchQueue.splice(0, BATCH_MAX), drain.controller.signal);
     }
   } finally {
-    flushing = false;
+    // An aborted old request may settle after a new account's drain starts.
+    if (activeDrain === drain) activeDrain = null;
   }
 }
 
-async function flushChunk(entries: PendingEntry[]): Promise<void> {
+async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise<void> {
   let payload: Record<string, StatusShape> | null = null;
   try {
     const response = await fetch("/api/v1/media/status/batch", {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video_uuids: entries.map(({ videoUuid }) => videoUuid) }),
     });
@@ -142,6 +145,8 @@ export function getPreviewForPlayback(videoUuid: string): Promise<MediaPreview> 
 
 export function resetMediaPreviews() {
   previewGeneration++
+  activeDrain?.controller.abort()
+  activeDrain = null
   previewCache.clear()
   inFlight.clear()
   playbackLookups.clear()

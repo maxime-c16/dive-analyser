@@ -74,3 +74,26 @@ it('does not let a pre-logout status response repopulate the next account cache'
   expect((await old).playbackUrl).toBeNull()
   expect(cachedPreview('private')).toBeUndefined()
 })
+
+it('starts the next account batch without waiting for an aborted stalled batch', async () => {
+  let finishOld!: (response: unknown) => void
+  const fetcher = vi.fn()
+    .mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve }))
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ same: { status: 'ready', playback_url: '/new-account.mp4' } }) })
+  vi.stubGlobal('fetch', fetcher)
+  const { getPreview, resetMediaPreviews, cachedPreview } = await import('./mediaPreview')
+  const old = getPreview('same')
+  await vi.advanceTimersByTimeAsync(50)
+  const oldSignal = fetcher.mock.calls[0][1].signal as AbortSignal
+  resetMediaPreviews()
+  expect(oldSignal.aborted).toBe(true)
+  // The mocked transport deliberately ignores abort and remains stalled.
+  const fresh = getPreview('same')
+  await vi.advanceTimersByTimeAsync(50)
+  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect((await fresh).playbackUrl).toBe('/new-account.mp4')
+  finishOld({ ok: true, json: async () => ({ same: { status: 'ready', playback_url: '/old-account.mp4' } }) })
+  await vi.advanceTimersByTimeAsync(0)
+  expect((await old).playbackUrl).toBeNull()
+  expect(cachedPreview('same')?.playbackUrl).toBe('/new-account.mp4')
+})
