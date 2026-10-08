@@ -37,7 +37,9 @@ if ! git describe --tags --exact-match --match 'v*' "$target" >/dev/null 2>&1; t
 fi
 
 log "deploying ${current:0:7} -> ${target:0:7}"
-"$LIVE/ci/ship.sh" server
+# Pin the exact tagged SHA we just verified. Without --ref, ship.sh re-resolves
+# origin/master and could ship a newer, untagged commit if master advances.
+"$LIVE/ci/ship.sh" server --ref "$target"
 rc=$?
 log "deploy finished (rc=$rc)"
 exit 0

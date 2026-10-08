@@ -11,6 +11,12 @@ on:
 permissions:
   contents: write
 
+# Serialize release runs so concurrent merges compute their version after the
+# preceding run has pushed its tag, rather than both racing to the same number.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
