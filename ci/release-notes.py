@@ -64,6 +64,21 @@ def check_tree(root):
                 raise ValueError(f'{path.name}: published notes are immutable; create a new note')
 
 
+def resolve_version(root, ref):
+    """Version tag shown in the app. Prefer the tag pinned to the running
+    frontend SHA; fall back to the newest reachable tag; else empty (quiet)."""
+    if not ref:
+        return ''
+    for args in (('describe', '--tags', '--exact-match', '--match', 'v*', ref),
+                 ('describe', '--tags', '--abbrev=0', '--match', 'v*')):
+        try:
+            return subprocess.check_output(['git', '-C', str(root), *args], env=_git_env(),
+                                           text=True, stderr=subprocess.DEVNULL).strip()
+        except subprocess.CalledProcessError:
+            continue
+    return ''
+
+
 def build(root, refs):
     resolved = {}
     for service, ref in refs.items():
@@ -103,7 +118,8 @@ def build(root, refs):
     notes.sort(key=lambda note: (note['date'], note['id']), reverse=True)
     if not refs.get('frontend'):
         notes = []  # No reliable frontend identity for the client version guard.
-    return {'schema': 1, 'frontend_sha': refs['frontend'], 'notes': notes[:100]}
+    version = resolve_version(root, refs['frontend'])
+    return {'schema': 1, 'version': version, 'frontend_sha': refs['frontend'], 'notes': notes[:100]}
 
 
 def main():

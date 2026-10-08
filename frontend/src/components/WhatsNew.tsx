@@ -5,7 +5,7 @@ import { Sparkles, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export type UpdateNote = { id: string; date: string; title: string; body: string }
-type Manifest = { schema: number; frontend_sha: string; notes: UpdateNote[] }
+type Manifest = { schema: number; version: string; frontend_sha: string; notes: UpdateNote[] }
 type ReadState = { seen: string[]; lastShown: number }
 const DAY = 24 * 60 * 60 * 1000
 const buildSha = import.meta.env.VITE_APP_SHA || 'dev'
@@ -23,7 +23,7 @@ export function parseManifest(value: unknown): Manifest | null {
       || typeof n.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(n.date)) return null
     ids.add(n.id)
   }
-  return m
+  return { schema: m.schema, version: typeof m.version === 'string' ? m.version : '', frontend_sha: m.frontend_sha, notes: m.notes }
 }
 
 export function readState(key: string): ReadState | null {
@@ -139,7 +139,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   }
   const dismiss = () => { if (toast) acknowledge(toast); setToast(null) }
   const open = () => {
-    const snapshot = manifest || { schema: 1, frontend_sha: '', notes: [] }
+    const snapshot = manifest || { schema: 1, version: '', frontend_sha: '', notes: [] }
     setPanel(snapshot)
     if (compatible) acknowledge(snapshot.notes)
     setToast(null)
@@ -148,7 +148,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   const openToast = () => {
     if (!toast || !compatible) { open(); return }
     acknowledge(toast)
-    setPanel({ schema: 1, frontend_sha: manifest?.frontend_sha || '', notes: [...toast, ...(manifest?.notes.filter(note => !toast.some(t => t.id === note.id)) || [])] })
+    setPanel({ schema: 1, version: manifest?.version || '', frontend_sha: manifest?.frontend_sha || '', notes: [...toast, ...(manifest?.notes.filter(note => !toast.some(t => t.id === note.id)) || [])] })
     setToast(null)
   }
   const closePanel = useCallback(() => setPanel(null), [])
@@ -211,7 +211,7 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
   return createPortal(<div className="fixed inset-0 z-[70]">
     <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
     <section ref={ref} role="dialog" aria-modal="true" aria-labelledby="updates-title" className="absolute inset-y-0 right-0 w-full overflow-y-auto border-l border-app-strong bg-app-panel p-6 shadow-2xl sm:w-[450px] sm:p-8">
-      <div className="mb-8 flex items-center justify-between"><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">{t('whatsNew.title')}</h2><button aria-label={t('whatsNew.close')} onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
+      <div className="mb-8 flex items-center justify-between"><div><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">{t('whatsNew.title')}</h2>{manifest.version && <p className="mt-1 text-[11px] tabular-nums text-app-muted">{t('whatsNew.version', { version: manifest.version })}</p>}</div><button aria-label={t('whatsNew.close')} onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
       {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">{t('whatsNew.newerVersion')}</h3><p className="text-sm text-app-muted">{t('whatsNew.reloadHint')}</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>{t('whatsNew.reloadApp')}</button></>
         : manifest.notes.length ? manifest.notes.map((note, index) => <article key={note.id} className="border-b border-app py-6 first:pt-0">
           <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-app-accent">{note.date}{index === 0 ? ` · ${t('whatsNew.latestUpdate')}` : ''}</p>

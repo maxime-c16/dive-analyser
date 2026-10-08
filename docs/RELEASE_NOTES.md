@@ -37,6 +37,11 @@ Legacy services without a usable SHA label are treated as unavailable for
 note eligibility; they never block a partial deploy. An unknown frontend SHA
 keeps the entire catalog quiet until its identity is known.
 
+The catalog also carries a `version` (`vX.Y.Z`, or empty when no release tag
+points at the running frontend). It is derived from `git describe --tags
+--exact-match` on the frontend SHA and rendered by the "What's new" panel;
+see `docs/CD.md`.
+
 The UI polls the authenticated `/api/v1/updates` once a minute while visible,
 and on focus. It groups unseen notes into one hint and durably claims a
 24-hour cooldown before display. Closing the hint remembers only its captured
