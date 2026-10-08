@@ -1,0 +1,8 @@
+{
+  "id": "pwa-home-screen-icon",
+  "date": "2026-10-08",
+  "title": "Home-screen icon fixed on iPhone",
+  "body": "Adding the app to your iPhone home screen now shows the proper Dive Analyser icon instead of a blank tile. Delete the old bookmark and add it again to pick up the fixed icon.",
+  "audience": "all",
+  "components": ["frontend"]
+}
