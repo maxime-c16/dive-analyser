@@ -2,7 +2,8 @@
 
 export type ActivityKind = 'dive_like' | 'comment' | 'comment_like'
 export type ActivityDirection = 'sent' | 'received'
-export type ActivityActor = { user_id: number | null; guest_id: number | null; display_name: string }
+import type { AvatarIdentity } from '../components/MemberAvatar'
+export type ActivityActor = AvatarIdentity & { user_id: number | null; guest_id: number | null }
 export type ActivityDive = {
   id: number
   dive_code: string
@@ -29,7 +30,7 @@ export interface ActivityPage {
 
 export type PublicRole = 'administrator' | 'diver'
 
-export interface MemberProfile {
+export interface MemberProfile extends AvatarIdentity {
   user_id: number
   display_name: string
   role: PublicRole

@@ -8,6 +8,7 @@ import MentionComposer from '../mentions/MentionComposer';
 import MentionText from '../mentions/MentionText';
 import { emptyMentionValue, mentionPayload } from '../mentions/mentionValue';
 import MemberLink from "../activity/MemberLink";
+import MemberAvatar from '../MemberAvatar'
 import type { Comment } from "./useDiveSocial";
 
 export default function CommentThread({ comment, diveId, basePath = `/api/v1/dives/${diveId}`, guestId, onDelete, onCountChange, onChange, onReply, nested = false }: {
@@ -72,7 +73,7 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
   };
   return <div className="clip-thread">
     <article className="clip-comment">
-      <div className="clip-avatar">{comment.author.slice(0, 1).toUpperCase()}</div>
+      <MemberAvatar member={user && comment.user_id === user.user_id ? { ...user, display_name: user.display_name || comment.author } : { display_name: comment.author, avatar_url: comment.avatar_url, avatar_hud: comment.avatar_hud }} size={36} />
       <div>
         {comment.user_id ? (
           <MemberLink userId={comment.user_id} className="comment-author-link" ariaLabel={t('comments.viewProfileBy', { author: comment.author })}>

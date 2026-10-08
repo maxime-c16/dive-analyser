@@ -1001,6 +1001,7 @@ const en = {
       },
     },
   },
+  avatar: { title: 'Profile picture', description: 'Your photo and HUD follow you across profiles, comments and activity.', upload: 'Add photo', replace: 'Replace photo', hud: 'Choose your HUD', orbit: 'Orbit', reticle: 'Reticle', depth: 'Depth', saved: 'Saved — your identity is up to date.' },
   community: {
     "title": "Community",
     "subtitle": "Find divers, explore their dives, and share feedback.",

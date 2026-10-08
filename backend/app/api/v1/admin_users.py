@@ -46,6 +46,7 @@ import json
 from contextlib import contextmanager
 from typing import Dict, Iterator, List, Optional
 
+from app.services.member_avatar import avatar_identity
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
@@ -237,6 +238,7 @@ def _serialize_user(
         "user_id": user.id,
         "email": user.email,
         "display_name": user.display_name,
+        **avatar_identity(user),
         "role": getattr(user, "role", ROLE_OWNER),
         "is_admin": bool(user.is_admin),
         "is_active": bool(user.is_active),

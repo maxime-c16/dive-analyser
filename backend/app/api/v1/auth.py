@@ -32,6 +32,7 @@ import hmac
 from uuid import uuid4
 from typing import Optional
 
+from app.services.member_avatar import avatar_identity
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete
@@ -569,6 +570,7 @@ async def me(
         "user_id": user.id,
         "email": user.email,
         "display_name": user.display_name,
+        **avatar_identity(user),
         "role": getattr(user, "role", "owner"),
         "is_admin": bool(user.is_admin),
         "divers": [

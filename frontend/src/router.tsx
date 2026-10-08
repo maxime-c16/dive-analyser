@@ -17,6 +17,7 @@ import Dives from "./pages/Dives";
 import { useNavigationIntent } from "./hooks/useNavigationIntent";
 
 import { useAuth } from "./contexts/AuthContext";
+import MemberAvatar from './components/MemberAvatar'
 import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
 import { NotificationsProvider, NotificationsButton } from "./components/Notifications";
 import {
@@ -430,9 +431,10 @@ function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="mt-auto border-t border-app pt-4">
               <div className="mb-3 grid gap-2"><WhatsNewButton /><NotificationsButton /></div>
-              <div className="truncate px-3 text-xs text-app-muted">
-                {user?.display_name ?? user?.email}
-                {friend ? ` · ${t("roles.diver")}` : ` · ${t("roles.administrator")}`}
+              <div className="flex items-center gap-2 px-3 text-xs text-app-muted">
+                {user && <MemberAvatar member={user} size={32} />}
+                <span className="truncate">{user?.display_name ?? user?.email}
+                {friend ? ` · ${t("roles.diver")}` : ` · ${t("roles.administrator")}`}</span>
               </div>
               <nav aria-label={t("nav.accountNavigationAria")} className="mt-2 space-y-1">
                 <AppNavLink to="/account" label="nav.account" icon={UserRound} />
