@@ -247,6 +247,16 @@ def _hydrate(db: Session, rows):
     return items
 
 
+@router.get("/me/diver-score")
+def my_diver_score(
+    user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Account-aggregate 0-100 diver score (performance + judging + community)."""
+    from app.services import diver_score
+    return diver_score.compute(db, user)
+
+
 @router.get("/me/activity")
 def my_activity(
     direction: str = Query("all", pattern="^(all|sent|received)$"),

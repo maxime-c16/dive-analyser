@@ -884,6 +884,14 @@ const en = {
       ' — create diver and administrator accounts, reset passwords, and manage diver bindings.',
     managedByAdmin:
       'Profile details are managed by your administrator. To change your display name, ask an admin.',
+    diverScore: {
+      title: 'Diver score',
+      subtitle: 'One 0–100 composite for your account: dive quality, judging, and community presence.',
+      provisional: 'Provisional',
+      performance: 'Performance {{mean}} / 10 across {{count}} votes',
+      judging: '{{count}} dives evaluated',
+      community: '{{count}} community interactions',
+    },
     notifications: 'Notifications',
     notificationsStored: 'In-app alerts sync to your account; email and digest stay on this device for now.',
     notifInApp: 'In-app alerts',
