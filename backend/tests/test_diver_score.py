@@ -20,6 +20,12 @@ def test_diver_score_composite(workspace):
     # Alice judges Bob's dive (counts toward judging).
     db.add(AutomaticRating(dive_id=bob_public, evaluator_user_id=users['alice'].id,
         score_half_steps=12, dive_code='101B', height='3m', dive_name='bob', video_uuid='bob-public-video'))
+    # Same dive judged manually too still counts once (SQL UNION dedupes).
+    bob_req = EvaluationRequest(dive_id=bob_public, active=True, created_by_user_id=users['bob'].id)
+    db.add(bob_req)
+    db.flush()
+    db.add(EvaluationRating(request_id=bob_req.id, evaluator_user_id=users['alice'].id,
+        score_half_steps=10, dive_code='101B', height='3m', dive_name='bob'))
     # Community interaction: Bob likes Alice's dive.
     db.add(DiveLike(dive_id=alice_public, user_id=users['bob'].id))
     db.commit()

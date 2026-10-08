@@ -58,17 +58,15 @@ def compute(db, user) -> dict:
     confidence = min(1.0, received_count / RECEIVED_FOR_CONFIDENCE) if received_count else 0.0
     performance_points = round((received_mean or 0.0) * 6.0 * confidence, 1)
 
-    auto_dives = {
-        dive_id for (dive_id,) in db.query(AutomaticRating.dive_id).filter(
-            AutomaticRating.evaluator_user_id == user.id,
-        ).all()
-    }
-    manual_dives = {
-        dive_id for (dive_id,) in db.query(EvaluationRequest.dive_id).join(
-            EvaluationRating, EvaluationRating.request_id == EvaluationRequest.id,
-        ).filter(EvaluationRating.evaluator_user_id == user.id).all()
-    }
-    judged_dives = len(auto_dives | manual_dives)
+    # Distinct judged dives across both rating sources, counted in SQL as one
+    # bounded query — UNION (not UNION ALL) dedupes a dive judged both ways.
+    auto_judged = db.query(AutomaticRating.dive_id).filter(
+        AutomaticRating.evaluator_user_id == user.id,
+    )
+    manual_judged = db.query(EvaluationRequest.dive_id).join(
+        EvaluationRating, EvaluationRating.request_id == EvaluationRequest.id,
+    ).filter(EvaluationRating.evaluator_user_id == user.id)
+    judged_dives = auto_judged.union(manual_judged).count()
     judging_points = round(min(judged_dives, JUDGING_CAP) / JUDGING_CAP * JUDGING_WEIGHT, 1)
 
     sent = (
