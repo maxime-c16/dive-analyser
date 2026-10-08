@@ -11,6 +11,7 @@ export type NotificationType =
   | 'video_ready'
   | 'new_comment'
   | 'comment_reply'
+  | 'direct_message'
   | 'milestone'
   | 'sync_error'
   | 'guest_activity'
@@ -20,6 +21,7 @@ export type AppNotification = {
   type: string
   title: string
   body: string | null
+  conversation_id?: number | null
   dive_id: number | null
   read_at: string | null
   created_at: string | null

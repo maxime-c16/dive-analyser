@@ -17,6 +17,7 @@ from app.models.photos_asset import PhotosAsset
 from app.models.session import Session as TrainingSession
 from app.models.user_auth import UserDiverAccess
 from app.models.notification import Notification
+from app.models.direct_message import DirectMessage
 from app.services import sessions
 from app.services.user_access import user_has_diver_access
 
@@ -71,12 +72,15 @@ def scope_member_reads(state):
                     select(Dive.diver_id).where(visible_dive_clause(ids, is_admin)))))]
     # Scope derived dive records and media identities too. The mapper registry
     # covers every imported model; no route can accidentally omit a filter.
+    # DirectMessage is excluded: every messaging endpoint explicitly checks
+    # conversation membership, and inaccessible dive cards are redacted per viewer.
+    # Filtering here would hide text-only messages and skip receipt checks.
     # Notifications are excluded: the inbox is explicitly user-scoped in
     # notification_service (never client-supplied), and the generic dive
     # filter would wrongly hide rows with a NULL dive_id.
     for mapper in Base.registry.mappers:
         model = mapper.class_
-        if model in (Dive, PhotosAsset, TrainingSession, Diver, Notification):
+        if model in (Dive, PhotosAsset, TrainingSession, Diver, Notification, DirectMessage):
             continue
         dive_links = [column for column in mapper.columns if any(fk.target_fullname == "dives.id" for fk in column.foreign_keys)]
         if dive_links:

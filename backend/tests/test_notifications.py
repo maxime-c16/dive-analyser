@@ -28,6 +28,7 @@ def test_prefs_defaults_and_unknown_type_rejected(workspace):
         "video_ready": True,
         "new_comment": True,
         "comment_reply": True,
+        "direct_message": True,
         "milestone": True,
         "sync_error": True,
         "guest_activity": False,

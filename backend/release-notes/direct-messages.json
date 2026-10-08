@@ -1,0 +1,8 @@
+{
+ "id": "direct-messages",
+ "date": "2026-10-08",
+ "title": "Talk privately and share dives",
+ "body": "Start a private conversation from a member profile, send text or dives from the player, mention members and react with a heart. Delivery and read times reflect the recipient’s browser acknowledgements. Message alerts appear in your notification inbox and can use your existing push settings.",
+ "audience": "all",
+ "components": ["frontend", "backend"]
+}

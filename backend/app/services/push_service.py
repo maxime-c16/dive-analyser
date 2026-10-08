@@ -163,7 +163,7 @@ def _payload_for(row: Notification) -> str:
         {
             "title": row.title or "Dive Analyser",
             "body": row.body or "",
-            "url": push_url(row.dive_id),
+            "url": f"/messages/{row.conversation_id}" if row.conversation_id else push_url(row.dive_id),
         }
     )
 
