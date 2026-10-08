@@ -409,6 +409,31 @@ describe("Account (final V2)", () => {
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
   });
 
+  it("shows the account diver score on the profile section", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/v1/users/me/diver-score") {
+        return new Response(
+          JSON.stringify({
+            score: 42,
+            provisional: true,
+            performance: { mean_score: 7.5, rating_count: 2, points: 18, weight: 60 },
+            judging: { evaluated_dives: 1, points: 2.5, weight: 25 },
+            community: { interactions: 1, points: 0.3, weight: 15 },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("{}", { status: 200 });
+    });
+    renderAccount();
+    expect(await screen.findByText("Diver score")).toBeInTheDocument();
+    expect(screen.getByText("Provisional")).toBeInTheDocument();
+    expect(screen.getByText(/Performance 7\.5 \/ 10 across 2 votes/)).toBeInTheDocument();
+    expect(screen.getByText(/1 dives evaluated/)).toBeInTheDocument();
+    expect(screen.getByText(/1 community interactions/)).toBeInTheDocument();
+  });
+
   it("signs out and returns to login", async () => {
     signOut.mockResolvedValue(undefined);
     renderAccount();

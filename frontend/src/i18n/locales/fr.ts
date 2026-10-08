@@ -886,6 +886,14 @@ const fr = {
       ' — créer des comptes de plongeurs et d’administrateurs, réinitialiser les mots de passe et gérer les associations de plongeurs.',
     managedByAdmin:
       'Les détails du profil sont gérés par votre administrateur. Pour changer votre nom affiché, adressez-vous à un administrateur.',
+    diverScore: {
+      title: 'Score plongeur',
+      subtitle: 'Un score composite de 0 à 100 pour votre compte : qualité des plongeons, évaluations et présence communautaire.',
+      provisional: 'Provisoire',
+      performance: 'Performance {{mean}} / 10 sur {{count}} votes',
+      judging: '{{count}} plongeons évalués',
+      community: '{{count}} interactions communautaires',
+    },
     notifications: 'Notifications',
     notificationsStored: 'Les alertes dans l’app sont synchronisées avec votre compte ; le courriel et le récapitulatif restent sur cet appareil pour l’instant.',
     notifInApp: 'Alertes dans l’app',

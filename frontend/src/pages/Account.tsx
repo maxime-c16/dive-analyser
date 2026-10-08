@@ -7,6 +7,7 @@ import { LANGUAGES, useLang } from '../i18n/I18nProvider'
 import type { LanguageCode } from '../i18n/prefs'
 import ActivitySection from '../components/activity/ActivitySection'
 import PushOptInSection from '../components/PushOptInSection'
+import { getDiverScore, type DiverScore } from '../services/activityApi'
 import {
   getNotificationPrefs,
   setNotificationPref as putNotificationPref,
@@ -357,6 +358,98 @@ function LanguageSection() {
 }
 
 /**
+ * Account-aggregate diver score (0-100 composite): performance from received
+ * votes (automatic matchmaking + manual jury), judging from dives evaluated,
+ * community from likes/comments sent and received. Stays hidden when the API
+ * is unreachable or returns an unexpected shape.
+ */
+function DiverScoreSection() {
+  const { t } = useTranslation()
+  const [score, setScore] = useState<DiverScore | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let alive = true
+    // Deferred so a missing fetch (or any sync throw) becomes a rejection.
+    Promise.resolve()
+      .then(() => getDiverScore())
+      .then(data => {
+        if (!alive) return
+        if (typeof data?.score === 'number') setScore(data)
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (alive) setLoaded(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+  if (!loaded || !score) return null
+  const rows = [
+    {
+      label: t('account.diverScore.performance', {
+        mean: score.performance.mean_score !== null ? score.performance.mean_score.toFixed(1) : '—',
+        count: score.performance.rating_count,
+      }),
+      points: score.performance.points,
+      weight: score.performance.weight,
+    },
+    {
+      label: t('account.diverScore.judging', { count: score.judging.evaluated_dives }),
+      points: score.judging.points,
+      weight: score.judging.weight,
+    },
+    {
+      label: t('account.diverScore.community', { count: score.community.interactions }),
+      points: score.community.points,
+      weight: score.community.weight,
+    },
+  ]
+  return (
+    <section aria-label={t('account.diverScore.title')} className="mt-4 border border-app bg-app-panel-elevated p-5">
+      <div className="flex items-baseline gap-3">
+        <h2 className="font-semibold text-app-text">{t('account.diverScore.title')}</h2>
+        {score.provisional && (
+          <span className="border border-app-accent px-2 py-0.5 text-xs font-medium text-app-accent">
+            {t('account.diverScore.provisional')}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-app-muted">{t('account.diverScore.subtitle')}</p>
+      <p className="mt-3 text-4xl font-semibold text-app-accent" aria-live="polite">
+        {score.score}
+        <span className="text-base font-normal text-app-muted"> / 100</span>
+      </p>
+      <ul className="mt-4 space-y-3">
+        {rows.map(row => (
+          <li key={row.label}>
+            <div className="flex items-baseline justify-between gap-4 text-sm">
+              <span className="text-app-text">{row.label}</span>
+              <span className="shrink-0 text-xs text-app-muted">
+                {row.points} / {row.weight}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label={row.label}
+              aria-valuenow={row.points}
+              aria-valuemin={0}
+              aria-valuemax={row.weight}
+              className="mt-1 h-1.5 w-full bg-app-panel"
+            >
+              <div
+                className="h-full bg-app-accent"
+                style={{ width: `${row.weight ? Math.min(100, (row.points / row.weight) * 100) : 0}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
  * Global fediverse opt-in (Option 1: manual cross-post only, default OFF).
  * Server is the source of truth; turning it ON never publishes history —
  * each public dive still needs its own per-dive opt-in.
@@ -572,6 +665,7 @@ export default function Account() {
                 <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-app-accent" aria-hidden />
                 {t('account.managedByAdmin')}
               </p>
+              <DiverScoreSection />
             </section>
           )}
 

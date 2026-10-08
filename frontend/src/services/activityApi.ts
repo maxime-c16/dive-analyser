@@ -89,3 +89,16 @@ export function getUserActivity(userId: number, options?: { before?: string; lim
 export function getUserProfile(userId: number): Promise<MemberProfile> {
   return request<MemberProfile>(`/api/v1/users/${userId}`)
 }
+
+/** Account-aggregate diver score (0-100 composite). */
+export interface DiverScore {
+  score: number
+  provisional: boolean
+  performance: { mean_score: number | null; rating_count: number; points: number; weight: number }
+  judging: { evaluated_dives: number; points: number; weight: number }
+  community: { interactions: number; points: number; weight: number }
+}
+
+export function getDiverScore(): Promise<DiverScore> {
+  return request<DiverScore>('/api/v1/users/me/diver-score')
+}
