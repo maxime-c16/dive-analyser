@@ -58,6 +58,7 @@ class AppUser(Base):
     bio = Column(String(500), nullable=False, default="", server_default="")
     avatar = deferred(Column(LargeBinary, nullable=True))
     avatar_updated_at = Column(DateTime, nullable=True)
+    avatar_hud = Column(String(16), nullable=False, default="reticle", server_default="reticle")
     role = Column(String(20), nullable=False, default=ROLE_OWNER)
     is_admin = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)

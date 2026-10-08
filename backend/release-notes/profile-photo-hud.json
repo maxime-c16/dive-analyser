@@ -1,0 +1,8 @@
+{
+  "id": "profile-photo-hud",
+  "date": "2026-10-08",
+  "title": "A profile picture that follows you",
+  "body": "Add, replace or remove your photo in Account and choose one of three Dive Analyser HUD frames. Your photo and frame appear on member profiles, comments and activity.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
