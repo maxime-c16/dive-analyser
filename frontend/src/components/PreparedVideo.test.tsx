@@ -139,3 +139,18 @@ it('re-aligns and presents HQ after a delayed frame without another media event'
     expect(view.preview.currentTime).toBe(2.4)
   } finally { compositor.mockRestore() }
 })
+
+it('retries a frame deferred by a preview seek on the next playback tick', async () => {
+  const view = setup()
+  fireEvent.progress(view.original)
+  await act(async () => {})
+  set(view.preview, { seeking: true })
+  await act(async () => { view.frame()(0, {} as VideoFrameCallbackMetadata) })
+  expect(view.videoRef.current).toBe(view.preview)
+  set(view.preview, { seeking: false })
+  fireEvent.timeUpdate(view.preview)
+  await act(async () => {})
+  expect(view.original.requestVideoFrameCallback).toHaveBeenCalledTimes(2)
+  await act(async () => { view.frame()(0, {} as VideoFrameCallbackMetadata) })
+  expect(view.videoRef.current).toBe(view.original)
+})

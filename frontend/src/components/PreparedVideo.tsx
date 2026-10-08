@@ -206,6 +206,10 @@ export default function PreparedVideo(props: Props) {
     transportEvents.forEach(name => original.addEventListener(name, syncSound))
     preview.addEventListener('playing', start)
     preview.addEventListener('playing', upgrade)
+    // A frame can arrive during a preview loop/seek or before seek data
+    // becomes ready. Playback ticks provide another opportunity even
+    // when a fully buffered original emits no further load events.
+    preview.addEventListener('timeupdate', upgrade)
     original.addEventListener('progress', upgrade)
     original.addEventListener('canplaythrough', upgrade)
     original.addEventListener('seeked', upgrade)
@@ -228,6 +232,7 @@ export default function PreparedVideo(props: Props) {
       cancelled = true
       preview.removeEventListener('playing', start)
       preview.removeEventListener('playing', upgrade)
+      preview.removeEventListener('timeupdate', upgrade)
       original.removeEventListener('progress', upgrade)
       original.removeEventListener('canplaythrough', upgrade)
       original.removeEventListener('seeked', upgrade)
