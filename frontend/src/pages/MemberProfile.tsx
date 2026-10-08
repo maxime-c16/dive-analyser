@@ -10,7 +10,9 @@ import {
 } from '../services/activityApi'
 import { activityIcon } from '../components/activity/ActivityFeed'
 import MemberLink from '../components/activity/MemberLink'
-import { initials } from './Account'
+import MemberAvatar from '../components/MemberAvatar'
+import ProfileDiveGrid from '../components/ProfileDiveGrid'
+import ProfileEditor from '../components/ProfileEditor'
 import { appLanguage } from '../utils/dateLocale'
 
 const PAGE_SIZE = 30
@@ -40,14 +42,11 @@ function ProfileHead({ profile }: { profile: MemberProfileData }) {
   const { t } = useTranslation()
   return (
     <header className="mb-5 flex flex-wrap items-center gap-4 border-b border-app pb-4">
-      <div
-        aria-hidden
-        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-lg font-bold text-app-accent ring-1 ring-app-accent"
-      >
-        {initials(profile.display_name)}
-      </div>
+      <MemberAvatar member={profile} large />
       <div className="min-w-0">
         <h1 className="truncate text-2xl font-semibold tracking-tight text-app-text">{profile.display_name}</h1>
+        {profile.handle && <p className="mt-1 text-sm text-app-accent">@{profile.handle}</p>}
+        {profile.bio && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm text-app-text">{profile.bio}</p>}
         <p className="mt-0.5 flex items-center gap-2 text-sm text-app-muted">
           <span className={`border px-2 py-0.5 text-xs font-medium ${profile.is_admin ? 'border-app text-app-muted' : 'border-app-accent text-app-accent'}`}>
             {profile.is_admin ? t('roles.administrator') : t('roles.diver')}
@@ -154,6 +153,9 @@ function ActivityTimeline({ items }: { items: ActivityItem[] }) {
 export default function MemberProfile() {
   const { userId } = useParams()
   const { t } = useTranslation()
+  const [tab, setTab] = useState<'dives' | 'activity'>('dives')
+  const [editing, setEditing] = useState(false)
+  const [retry, setRetry] = useState(0)
   const [profile, setProfile] = useState<MemberProfileData | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [items, setItems] = useState<ActivityItem[]>([])
@@ -165,6 +167,8 @@ export default function MemberProfile() {
   useEffect(() => {
     if (!userId) return
     let alive = true
+    setTab('dives')
+    setEditing(false)
     setProfile(null)
     setNotFound(false)
     setError('')
@@ -192,7 +196,7 @@ export default function MemberProfile() {
     return () => {
       alive = false
     }
-  }, [userId, t])
+  }, [userId, t, retry])
 
   const loadOlder = () => {
     if (!cursor || loadingMore || !userId) return
@@ -217,12 +221,29 @@ export default function MemberProfile() {
     )
   }
   if (!profile) {
+    if (error) return <p role="alert" className="py-8 text-sm text-red-400">{error} <button onClick={() => setRetry(value => value + 1)} className="underline">{t('common.retry')}</button></p>
     return <p role="status" className="py-8 text-sm text-app-muted">{t('common.loadingPage')}</p>
   }
 
   return (
     <div className="mx-auto max-w-4xl">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Link to="/community" className="text-sm text-app-accent hover:underline">{t('community.back')}</Link>
+        {profile.is_self && <button className="touch-target border border-app px-3 text-sm text-app-text" onClick={() => setEditing(value => !value)} aria-expanded={editing}>{t('community.edit')}</button>}
+      </div>
       <ProfileHead profile={profile} />
+      {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
+      <div className="mb-5 flex border-b border-app" role="tablist" aria-label={t('community.profileSections')}>
+        {(['dives', 'activity'] as const).map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+          event.preventDefault()
+          const next = event.key === 'Home' ? 'dives' : event.key === 'End' ? 'activity' : value === 'dives' ? 'activity' : 'dives'
+          setTab(next)
+          document.getElementById(`profile-tab-${next}`)?.focus()
+        }} aria-controls={`profile-panel-${value}`} className={`touch-target flex-1 border-b-2 px-4 ${tab === value ? 'border-app-accent text-app-accent' : 'border-transparent text-app-muted'}`} onClick={() => setTab(value)}>{t(`community.${value}`)}</button>)}
+      </div>
+      {tab === 'dives' && <div role="tabpanel" id="profile-panel-dives" aria-labelledby="profile-tab-dives"><ProfileDiveGrid key={profile.user_id} userId={profile.user_id} /></div>}
+      <div hidden={tab !== 'activity'} role="tabpanel" id="profile-panel-activity" aria-labelledby="profile-tab-activity">
       <div className="border border-app bg-app-panel p-6">
         {error && items.length === 0 ? (
           <p role="alert" className="text-sm text-red-400">{error}</p>
@@ -245,6 +266,7 @@ export default function MemberProfile() {
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   )

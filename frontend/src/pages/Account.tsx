@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Globe, Globe2, History, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
@@ -592,6 +592,7 @@ export default function Account() {
         <p className="mt-1 text-sm text-app-muted">
           {t('account.signedInAs')} {displayName}
         </p>
+        {user && <Link to={`/users/${user.user_id}`} className="mt-3 inline-block text-sm text-app-accent hover:underline">{t('community.myProfile')}</Link>}
       </header>
 
       <div className="grid gap-5 md:grid-cols-[220px_1fr]">

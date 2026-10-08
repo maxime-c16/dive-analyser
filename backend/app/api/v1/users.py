@@ -19,21 +19,199 @@ always involve a dive that is still visible to the requester, so the deep link
 (/dives?clip=…) can never point at hidden content.
 """
 from datetime import datetime
+from io import BytesIO
+import re
+import warnings
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from PIL import Image, ImageOps, UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import and_, func, literal, or_, select, union_all
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.v1.auth import get_current_user
+from app.api.v1.auth import get_current_user, _origin_allowed
 from app.database import get_db
 from app.models.dive import Dive
 from app.models.diver import Diver
+from app.models.media import MediaCacheEntry
+from app.models.photos_asset import PhotosAsset
 from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.models.dive_social import DiveComment, DiveCommentLike, DiveGuestCommentLike, DiveLike
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services.dive_access import owned_diver_ids, visible_dive_clause
+from app.services.media_cache import playback_url
 
 router = APIRouter(prefix="/users")
+
+
+def _identity(target):
+    return dict(user_id=target.id, display_name=target.display_name,
+                handle=target.handle, bio=target.bio,
+                avatar_url=(f"/api/v1/users/{target.id}/avatar?v={target.avatar_updated_at.isoformat()}"
+                            if target.avatar_updated_at else None))
+
+
+def _active_user(db, user_id):
+    target = db.get(AppUser, user_id)
+    if target is None or not target.is_active:
+        raise HTTPException(404, "User not found")
+    return target
+
+
+def _profile_write(request):
+    if not _origin_allowed(request):
+        raise HTTPException(403, "Origin not allowed")
+
+
+class ProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str = Field(min_length=1, max_length=120)
+    handle: str | None = Field(default=None, max_length=30)
+    bio: str = Field(default="", max_length=500)
+
+    @field_validator("display_name")
+    @classmethod
+    def valid_name(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError("Display name cannot be empty")
+        return value
+
+    @field_validator("handle")
+    @classmethod
+    def valid_handle(cls, value):
+        if value is None or not value.strip():
+            return None
+        value = value.strip().lower().removeprefix("@")
+        if not re.fullmatch(r"[a-z0-9_]{3,30}", value):
+            raise ValueError("Handle must contain 3–30 letters, numbers or underscores")
+        return value
+
+
+@router.get("")
+def search_members(q: str = Query("", max_length=120), after: int = Query(0, ge=0),
+                   limit: int = Query(24, ge=1, le=50),
+                   user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(AppUser).filter(AppUser.is_active.is_(True), AppUser.id > after)
+    term = q.strip().removeprefix("@")
+    if term:
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        # Accounts can use a nickname (e.g. Fouiny) while their linked diver
+        # is named Fanny. Match those names only where the binding is visible
+        # to this requester, just as on the profile header.
+        own = owned_diver_ids(db, user.id)
+        visible_divers = select(Dive.diver_id).where(visible_dive_clause(own, bool(user.is_admin)))
+        linked_accounts = select(UserDiverAccess.user_id).join(
+            Diver, Diver.id == UserDiverAccess.diver_id).where(
+            UserDiverAccess.access_kind == "OWNER",
+            Diver.display_name.ilike(f"%{escaped}%", escape="\\"),
+            or_(Diver.id.in_(own), Diver.id.in_(visible_divers)))
+        query = query.filter(or_(AppUser.display_name.ilike(f"%{escaped}%", escape="\\"),
+                                 AppUser.handle.contains(term.lower(), autoescape=True),
+                                 AppUser.id.in_(linked_accounts)))
+    rows = query.order_by(AppUser.id).limit(limit + 1).all()
+    return dict(items=[_identity(row) for row in rows[:limit]],
+                next_after=rows[limit - 1].id if len(rows) > limit else None)
+
+
+@router.put("/me/profile")
+def update_profile(body: ProfileUpdate, request: Request,
+                   user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _profile_write(request)
+    user.display_name, user.handle, user.bio = body.display_name, body.handle, body.bio.strip()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Handle is already taken")
+    return _identity(user)
+
+
+_AVATAR_MAX_BYTES = 2 * 1024 * 1024
+
+
+@router.put("/me/avatar")
+async def upload_avatar(request: Request,
+                        user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _profile_write(request)
+    # Read raw image bytes: no multipart parser/spooling runs before this
+    # limit. Also bound chunked requests and forged Content-Length headers.
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > _AVATAR_MAX_BYTES:
+            raise HTTPException(413, "Avatar must be at most 2 MB")
+        chunks.append(chunk)
+    return await run_in_threadpool(_save_avatar, b"".join(chunks), user, db)
+
+
+def _save_avatar(raw, user, db):
+    # Decode and persist off the event loop after the bounded body read.
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(raw), formats=["JPEG", "PNG", "WEBP"]) as image:
+                if image.width * image.height > 16_000_000:
+                    raise ValueError("Image too large")
+                image = ImageOps.exif_transpose(image)
+                image = ImageOps.fit(image.convert("RGB"), (256, 256))
+                output = BytesIO()
+                image.save(output, format="JPEG", quality=85)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise HTTPException(422, "Use a valid JPEG, PNG or WebP image up to 16 megapixels")
+    user.avatar = output.getvalue()
+    user.avatar_updated_at = datetime.utcnow()
+    db.commit()
+    return _identity(user)
+
+
+@router.delete("/me/avatar", status_code=204)
+def remove_avatar(request: Request, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _profile_write(request)
+    user.avatar = None
+    user.avatar_updated_at = None
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/{user_id}/avatar")
+def get_avatar(user_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    avatar = _active_user(db, user_id).avatar
+    if not avatar:
+        raise HTTPException(404, "Avatar not found")
+    return Response(avatar, media_type="image/jpeg", headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.get("/{user_id}/dives")
+def profile_dives(user_id: int, before: str | None = None,
+                  limit: int = Query(30, ge=1, le=60),
+                  user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _active_user(db, user_id)
+    stamp = func.coalesce(Dive.dive_datetime, Dive.created_at)
+    query = db.query(Dive).filter(Dive.diver_id.in_(owned_diver_ids(db, user_id)),
+                                 visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)))
+    if before:
+        try:
+            when, dive_id = before.split("|", 1)
+            when, dive_id = datetime.fromisoformat(when), int(dive_id)
+        except (ValueError, TypeError):
+            raise HTTPException(422, "Invalid cursor")
+        query = query.filter(or_(stamp < when, and_(stamp == when, Dive.id < dive_id)))
+    rows = query.order_by(stamp.desc(), Dive.id.desc()).limit(limit + 1).all()
+    page = rows[:limit]
+    # Batched poster lookup; playback endpoint rechecks current access.
+    posters = dict(db.query(PhotosAsset.video_uuid, MediaCacheEntry.id).join(
+        MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).filter(
+        PhotosAsset.video_uuid.in_([row.video_uuid for row in page if row.video_uuid]),
+        MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready").order_by(MediaCacheEntry.id).all())
+    return dict(items=[dict(id=row.id, dive_code=row.dive_code, height=row.height,
+                            dive_datetime=(row.dive_datetime or row.created_at).isoformat() + "Z",
+                            visibility=row.visibility,
+                            poster_url=playback_url(posters[row.video_uuid]) if row.video_uuid in posters else None)
+                       for row in page],
+                next_before=f"{(page[-1].dive_datetime or page[-1].created_at).isoformat()}|{page[-1].id}" if len(rows) > limit else None)
 
 # Likes recorded before the history feature have no timestamp; they sort as if
 # they happened at this sentinel (oldest possible instant).
@@ -310,8 +488,7 @@ def get_profile(
     ]
 
     return dict(
-        user_id=target.id,
-        display_name=target.display_name,
+        **_identity(target),
         role=_public_role(target),
         is_admin=bool(target.is_admin),
         is_self=target.id == user.id,

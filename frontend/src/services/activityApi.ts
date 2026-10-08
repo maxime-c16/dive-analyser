@@ -35,6 +35,9 @@ export interface MemberProfile {
   role: PublicRole
   is_admin: boolean
   is_self: boolean
+  handle: string | null
+  bio: string
+  avatar_url: string | null
   joined_at: string | null
   divers: { diver_id: number; display_name: string }[]
 }

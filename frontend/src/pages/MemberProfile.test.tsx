@@ -128,26 +128,72 @@ describe("MemberProfile", () => {
     is_self: false,
     joined_at: "2025-01-15T00:00:00Z",
     divers: [{ diver_id: 3, display_name: "Bob" }],
+    handle: "bob_marlin", bio: "Diving together", avatar_url: null,
   };
 
   it("renders the member identity and their visible activity timeline", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/dives")) return fetchJson({ items: [], next_before: null });
       if (url.includes("/users/9/activity")) return fetchJson(pageOne);
       return fetchJson({}, false, 404);
     });
     renderAt("/users/9");
     await waitFor(() => expect(screen.getByRole("heading", { name: "Bob Marlin" })).toBeInTheDocument());
     expect(screen.getByText(/Diver:/)).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Activity" }));
     expect(await screen.findByText("Great entry!")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /103B/ })[0]).toHaveAttribute("href", "/dives?clip=5&scope=all");
+  });
+
+  it("opens on the dive grid and links tiles to the existing player", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(input => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/dives")) return fetchJson({ items: [{ id: 42, dive_code: "105B", height: "3m", dive_datetime: "2026-10-08T12:00:00Z", visibility: "public", poster_url: "/poster.jpg" }], next_before: null });
+      return fetchJson({ items: [], next_before: null });
+    });
+    renderAt("/users/9");
+    const tile = await screen.findByRole("link", { name: "Watch 105B · 3m" });
+    expect(tile).toHaveAttribute("href", "/dives?clip=42&scope=all");
+    expect(screen.getByRole("tab", { name: "Dives" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("@bob_marlin")).toBeInTheDocument();
+    expect(screen.getByText("Diving together")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument();
+  });
+
+  it("lets the owner edit their bio and keeps the form after a handle conflict", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, options) => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson({ ...profile, is_self: true });
+      if (url.endsWith("/me/profile")) return fetchJson({}, false, 409);
+      return fetchJson({ items: [], next_before: null });
+    });
+    const user = userEvent.setup();
+    renderAt("/users/9");
+    await user.click(await screen.findByRole("button", { name: "Edit profile" }));
+    await user.clear(screen.getByRole("textbox", { name: "Bio" }));
+    await user.type(screen.getByRole("textbox", { name: "Bio" }), "New bio");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("already taken");
+    expect(screen.getByRole("textbox", { name: "Bio" })).toHaveValue("New bio");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/users/me/profile", expect.objectContaining({ method: "PUT", body: JSON.stringify({ display_name: "Bob Marlin", handle: "bob_marlin", bio: "New bio" }) }));
+  });
+
+  it("shows a recoverable error instead of loading forever", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => fetchJson({}, false, 500)).mockImplementation(input => String(input).endsWith("/users/9") ? fetchJson(profile) : fetchJson({ items: [], next_before: null }));
+    renderAt("/users/9");
+    await screen.findByRole("alert");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("heading", { name: "Bob Marlin" })).toBeInTheDocument();
   });
 
   it("shows the not-found state for an unknown member", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (String(input).endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/dives")) return fetchJson({ items: [], next_before: null });
       if (url.includes("/users/9/activity")) return fetchJson(pageOne);
       return fetchJson({ detail: "User not found" }, false, 404);
     });
@@ -159,6 +205,7 @@ describe("MemberProfile", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.includes("/users/9/dives")) return fetchJson({ items: [], next_before: null });
       if (url.includes("/users/9/activity")) return fetchJson(pageOne);
       return fetchJson({ detail: "User not found" }, false, 404);
     });
