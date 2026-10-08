@@ -4,6 +4,7 @@ import { Heart, MessageSquare, ThumbsUp, Film } from 'lucide-react'
 import { ActivityItem } from '../../services/activityApi'
 import { appLanguage } from '../../utils/dateLocale'
 import MemberLink from './MemberLink'
+import MemberAvatar from '../MemberAvatar'
 
 export function activityIcon(item: ActivityItem) {
   if (item.kind === 'comment') return MessageSquare
@@ -20,18 +21,6 @@ function relativeDate(value: string | null, language: string): string {
     return new Intl.RelativeTimeFormat(language, { numeric: 'auto' }).format(-Math.round(diff / (60 * 60 * 1000)), 'hour')
   }
   return date.toLocaleDateString(language)
-}
-
-function Avatar({ name }: { name: string }) {
-  const letter = (name.trim()[0] || '?').toUpperCase()
-  return (
-    <span
-      aria-hidden
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-sm font-bold text-app-accent ring-1 ring-app"
-    >
-      {letter}
-    </span>
-  )
 }
 
 /**
@@ -58,7 +47,7 @@ export function ActivityRow({ item, condensed = false }: { item: ActivityItem; c
       <span aria-hidden className="mt-5 flex h-7 w-7 shrink-0 items-center justify-center border border-app bg-app-panel-elevated text-app-muted">
         <Icon className="h-3.5 w-3.5" />
       </span>
-      <Avatar name={item.actor.display_name} />
+      <MemberAvatar member={item.actor} size={32} />
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-6 text-app-text">
           {item.direction === 'received' ? <>{actorNode} {phrase}</> : <>{phrase}</>}

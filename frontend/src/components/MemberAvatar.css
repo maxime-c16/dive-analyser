@@ -1,0 +1,23 @@
+.member-avatar{--avatar-size:48px;position:relative;display:inline-grid;place-items:center;width:var(--avatar-size);height:var(--avatar-size);flex-shrink:0;vertical-align:middle;color:var(--app-accent);isolation:isolate}
+.member-avatar-face{position:absolute;inset:12%;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:var(--app-panel-elevated);font-size:calc(var(--avatar-size)*.25);font-weight:600;color:var(--app-accent)}
+.member-avatar-face img{width:100%;height:100%;object-fit:cover}
+.member-avatar-hud{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;pointer-events:none}
+.member-avatar-hud .hud-muted{opacity:.28;stroke-width:1}
+.member-avatar-hud .hud-bold{stroke-width:3}
+.member-avatar[data-hud=depth] .member-avatar-face{inset:14%;border-radius:20%}
+.member-avatar[data-hud=orbit] .member-avatar-face{inset:10%}
+.avatar-manager{margin-top:20px;padding-top:20px;border-top:1px solid var(--app-border)}
+.avatar-manager h3{font-size:14px;font-weight:600;margin:0 0 6px;color:var(--app-text)}
+.avatar-manager p{font-size:12px;line-height:1.6;color:var(--app-muted);margin:0 0 14px}
+.avatar-manager-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.avatar-manager button,.avatar-file-button{min-height:42px;padding:8px 14px;border:1px solid var(--app-border);background:var(--app-panel-elevated);color:var(--app-text);font-size:12px;cursor:pointer}
+.avatar-manager button:disabled,.avatar-file-button:has(input:disabled){opacity:.5;cursor:wait}
+.avatar-file-button{position:relative;display:inline-flex;align-items:center;overflow:hidden}
+.avatar-file-button input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.avatar-file-button:focus-within,.avatar-manager button:focus-visible{outline:2px solid var(--app-accent);outline-offset:3px}
+.avatar-hud-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.avatar-hud-options button{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 8px;min-width:0}
+.avatar-hud-options button[aria-pressed=true]{border-color:var(--app-accent);background:color-mix(in srgb,var(--app-accent) 8%,var(--app-panel))}
+.avatar-manager .avatar-error{color:#fb7185;margin-top:12px}
+.avatar-manager .avatar-saved{color:var(--app-accent);margin-top:12px}
+@media(max-width:480px){.avatar-hud-options{gap:6px}.avatar-hud-options button{padding:12px 4px;font-size:11px}}

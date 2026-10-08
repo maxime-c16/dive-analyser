@@ -49,3 +49,20 @@ def test_handle_mentions_plain_text_and_visibility(workspace):
     assert plain.json()['mentions'] == []
     private = f"/api/v1/dives/{dives['alice-private']}/comments"
     assert client.post(private, json={'body': '@alice', 'mentions': [dict(user_id=alice, start=0, end=6)]}).status_code == 404
+
+
+def test_guest_can_comment_but_cannot_submit_structured_mentions(workspace):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from tests.test_dive_sharing import issue, enter
+    _, login, dives, users, _ = workspace
+    base, token = issue(login, dives['alice-public'])
+    with TestClient(app, base_url='https://testserver') as guest:
+        enter(guest, base, token)
+        rejected = guest.post(base + '/comments', json={
+            'body': '@alice', 'mentions': [dict(user_id=users['alice'].id, start=0, end=6)]})
+        assert rejected.status_code == 403
+        plain = guest.post(base + '/comments', json={'body': '@alice nice dive'})
+        assert plain.status_code == 201, plain.text
+        assert plain.json()['mentions'] == []
+        assert len(guest.get(base + '/comments').json()['items']) == 1

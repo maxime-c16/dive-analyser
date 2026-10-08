@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../services/api";
+import type { AvatarHud } from '../MemberAvatar'
 export type Social = {
   liked: boolean;
   like_count: number;
@@ -10,6 +11,8 @@ export type Comment = {
   body: string;
   mentions?: import('../mentions/mentionValue').Mention[];
   author: string;
+  avatar_url?: string | null;
+  avatar_hud?: AvatarHud;
   user_id: number | null;
   guest_id?: number | null;
   created_at: string;

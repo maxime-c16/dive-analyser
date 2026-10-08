@@ -1,3 +1,5 @@
+import MemberAvatar from '../components/MemberAvatar'
+import AvatarManager from '../components/AvatarManager'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Globe, Globe2, History, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
@@ -513,7 +515,7 @@ function useFediverseEnabled(active: boolean): {
 }
 
 export default function Account() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, refresh } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [section, setSection] = useState<SectionId>('profile')
@@ -634,12 +636,7 @@ export default function Account() {
           {section === 'profile' && (
             <section aria-label={t('account.profileAria')} className="border border-app bg-app-panel p-5">
               <div className="flex items-center gap-4">
-                <div
-                  aria-hidden
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-lg font-bold text-app-accent ring-1 ring-app-accent"
-                >
-                  {initials(displayName, user?.email ?? '')}
-                </div>
+                <MemberAvatar member={user ?? { display_name: displayName }} size={56} />
                 <div className="min-w-0">
                   <div className="truncate font-medium text-app-text">{displayName}</div>
                   <div className="truncate text-sm text-app-muted">{user?.email}</div>
@@ -669,6 +666,7 @@ export default function Account() {
                 <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-app-accent" aria-hidden />
                 {t('account.managedByAdmin')}
               </p>
+              {user && <AvatarManager member={user} onChange={async () => { await refresh() }} />}
               <DiverScoreSection />
             </section>
           )}

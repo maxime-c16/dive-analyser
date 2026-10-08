@@ -1,6 +1,7 @@
 import type { MemberProfile } from './activityApi'
+import type { AvatarHud } from '../components/MemberAvatar'
 
-export type MemberIdentity = Pick<MemberProfile, 'user_id' | 'display_name' | 'handle' | 'bio' | 'avatar_url'>
+export type MemberIdentity = Pick<MemberProfile, 'user_id' | 'display_name' | 'handle' | 'bio' | 'avatar_url' | 'avatar_hud'>
 export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null }
 export type DivePage = { items: ProfileDive[]; next_before: string | null }
 
@@ -30,4 +31,8 @@ export function uploadAvatar(file: File): Promise<MemberIdentity> {
 }
 export function removeAvatar(): Promise<void> {
   return request('/me/avatar', { method: 'DELETE' })
+}
+
+export function saveAvatarStyle(avatar_hud: AvatarHud): Promise<MemberIdentity> {
+  return request('/me/avatar-style', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar_hud }) })
 }

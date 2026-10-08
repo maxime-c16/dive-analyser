@@ -1,9 +1,10 @@
 import { clearLibraryCache } from '../services/libraryCache'
 import { clearIntentData } from '../services/intentCache'
 import { resetPlaybackWarming } from '../utils/playbackWarming'
+import type { AvatarIdentity } from '../components/MemberAvatar'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-export interface AuthUser {
+export interface AuthUser extends AvatarIdentity {
   user_id: number
   email: string
   display_name: string
@@ -45,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user_id: data.user_id,
           email: data.email,
           display_name: data.display_name ?? data.email,
+          avatar_url: data.avatar_url ?? null,
+          avatar_hud: data.avatar_hud ?? 'reticle',
           is_admin: data.is_admin === true,
           role: data.role === 'friend' ? 'friend' : 'owner',
           divers: Array.isArray(data.divers) ? data.divers : [],

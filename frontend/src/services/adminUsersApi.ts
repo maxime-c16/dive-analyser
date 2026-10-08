@@ -3,7 +3,8 @@
 export type StoredRole = 'owner' | 'friend'
 export type PublicRole = 'administrator' | 'diver'
 
-export interface AdminUser {
+import type { AvatarIdentity } from '../components/MemberAvatar'
+export interface AdminUser extends AvatarIdentity {
   user_id: number
   email: string
   display_name: string
