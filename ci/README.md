@@ -69,7 +69,7 @@ under `~/.cache/dive-ci/` (`DIVE_CI_CACHE` overrides this).
 ## Explicitly outside the default gate
 
 - Wall-clock performance/load tests: run separately on a quiet box with
-  `pytest tests/test_performance_sync.py tests/test_load_concurrent.py -m performance --asyncio-mode=auto`.
+  `pytest tests/test_performance_sync.py tests/test_load_concurrent.py tests/test_websocket_sync.py -m performance --asyncio-mode=auto`.
 - Layer-2 live database probes: opt in with `DB_TEST=1`; they use Docker and
   host data. The local gate forces `DB_TEST=0` and never probes production.
 - Real Photos-library access: portable tests use readers/fakes and a Linux

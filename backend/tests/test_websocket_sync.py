@@ -266,7 +266,18 @@ class TestWebSocketPerformance:
     """Performance tests for WebSocket system."""
 
     def test_tracker_high_volume_syncs(self):
-        """Test tracker with 1000 concurrent syncs."""
+        """Keep high-volume correctness in the ordinary CI gate."""
+        tracker = SyncStatusTracker()
+        for i in range(1000):
+            tracker.start_sync(f"sync-{i}", 100)
+
+        active = tracker.get_all_active()
+        assert len(active) == 1000
+        assert all(active[f"sync-{i}"].total_videos == 100 for i in range(1000))
+
+    @pytest.mark.performance
+    def test_tracker_high_volume_timing(self):
+        """Run the machine-speed benchmark separately on a quiet box."""
         tracker = SyncStatusTracker()
         start = time.perf_counter()
 
