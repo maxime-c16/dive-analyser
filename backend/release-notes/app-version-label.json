@@ -1,0 +1,8 @@
+{
+  "id": "app-version-label",
+  "date": "2026-10-08",
+  "title": "See which version you're on",
+  "body": "The What's new panel now shows the current app version under its title, so you can tell releases apart at a glance.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
