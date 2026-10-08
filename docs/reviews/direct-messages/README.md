@@ -2,7 +2,7 @@
 
 Private conversations open from member profiles or the Messages inbox. Signed-in
 members can send text with the shared mention composer and share an accessible
-dive directly from the existing player. Hearts toggle by double tap or an
+dive directly from the library, analysis and session players. Hearts toggle by double tap or an
 accessible button. The inbox shows unread counts and newest conversations first.
 
 Every messaging route requires active conversation membership, including for

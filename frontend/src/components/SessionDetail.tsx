@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
+import SendDiveButton from './messages/SendDiveButton'
 import DiveVideoPlayer from './DiveVideoPlayer'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
@@ -305,6 +306,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                       </div>
                     )}
                   </div>
+                  {selectedDive && <SendDiveButton key={selectedDive.id} diveId={selectedDive.id} inline />}
                 </div>
               </div>
 
