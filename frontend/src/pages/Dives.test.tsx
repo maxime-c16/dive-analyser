@@ -42,8 +42,10 @@ it('filters natural search tokens and opens the exact attempt viewer', async () 
   renderPage()
   const search = await screen.findByRole('textbox', { name: 'Search dives' })
   await userEvent.type(search, '103 3m SYNC DB')
-  expect((await screen.findAllByText('103C')).length).toBeGreaterThan(0)
-  expect(screen.queryAllByText('103B')).toHaveLength(0)
+  // The matching card is also present before filtering. Wait for the
+  // nonmatching cards to disappear before inspecting or opening results.
+  await waitFor(() => expect(screen.queryAllByText('103B')).toHaveLength(0))
+  expect(screen.getAllByText('103C').length).toBeGreaterThan(0)
   await userEvent.click((await screen.findAllByRole('button', { name: /Open 103C attempt/ }))[0])
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
   expect(document.body.style.overflow).toBe('hidden')
