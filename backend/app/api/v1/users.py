@@ -23,9 +23,10 @@ from io import BytesIO
 import re
 import warnings
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image, ImageOps, UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import and_, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -128,14 +129,26 @@ def update_profile(body: ProfileUpdate, request: Request,
     return _identity(user)
 
 
+_AVATAR_MAX_BYTES = 2 * 1024 * 1024
+
+
 @router.put("/me/avatar")
-def upload_avatar(request: Request, file: UploadFile = File(...),
+async def upload_avatar(request: Request,
                         user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     _profile_write(request)
-    # Sync route runs in FastAPI’s thread pool, including image decoding.
-    raw = file.file.read(2 * 1024 * 1024 + 1)
-    if len(raw) > 2 * 1024 * 1024:
-        raise HTTPException(413, "Avatar must be at most 2 MB")
+    # Read raw image bytes: no multipart parser/spooling runs before this
+    # limit. Also bound chunked requests and forged Content-Length headers.
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > _AVATAR_MAX_BYTES:
+            raise HTTPException(413, "Avatar must be at most 2 MB")
+        chunks.append(chunk)
+    return await run_in_threadpool(_save_avatar, b"".join(chunks), user, db)
+
+
+def _save_avatar(raw, user, db):
+    # Decode and persist off the event loop after the bounded body read.
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)

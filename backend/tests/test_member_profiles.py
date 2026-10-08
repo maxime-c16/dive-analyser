@@ -71,7 +71,7 @@ def test_avatar_decode_resize_access_and_remove(workspace):
     output = BytesIO()
     image.save(output, 'PNG')
     client = login('alice')
-    upload = client.put('/api/v1/users/me/avatar', files={'file': ('photo.png', output.getvalue(), 'image/png')})
+    upload = client.put('/api/v1/users/me/avatar', content=output.getvalue(), headers={'Content-Type': 'image/png'})
     assert upload.status_code == 200, upload.text
     avatar_url = upload.json()['avatar_url']
     assert avatar_url.startswith(f"/api/v1/users/{users['alice'].id}/avatar?v=")
@@ -89,7 +89,7 @@ def test_avatar_rejects_arbitrary_bytes_and_oversized_uploads(workspace):
     _, login, _, _, _ = workspace
     client = login('alice')
     for raw, status in ((b'<svg onload="alert(1)"></svg>', 422), (b'x' * (2 * 1024 * 1024 + 1), 413)):
-        assert client.put('/api/v1/users/me/avatar', files={'file': ('fake.jpg', raw, 'image/jpeg')}).status_code == status
+        assert client.put('/api/v1/users/me/avatar', content=raw, headers={'Content-Type': 'image/jpeg'}).status_code == status
 
 
 def test_grid_ownership_privacy_and_latest_first_cursor(workspace):
@@ -118,3 +118,16 @@ def test_member_endpoints_require_browser_session(workspace):
     for path in ('/api/v1/users', f"/api/v1/users/{users['alice'].id}/dives", f"/api/v1/users/{users['alice'].id}/avatar"):
         assert client.get(path).status_code == 401
     assert client.put('/api/v1/users/me/profile', json={'display_name': 'No'}).status_code == 401
+
+
+def test_avatar_limit_precedes_image_decode_and_never_parses_multipart(workspace, monkeypatch):
+    from starlette.formparsers import MultiPartParser
+    _, login, _, _, _ = workspace
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Body must be bounded before parsing/decoding')
+    monkeypatch.setattr(MultiPartParser, 'parse', forbidden)
+    monkeypatch.setattr(Image, 'open', forbidden)
+    response = login('alice').put('/api/v1/users/me/avatar',
+        content=b'x' * (2 * 1024 * 1024 + 1),
+        headers={'Content-Type': 'multipart/form-data; boundary=avatar'})
+    assert response.status_code == 413

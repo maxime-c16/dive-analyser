@@ -28,7 +28,8 @@ video whose playback clock advances. Browser execution raised no page errors.
 
 Apply `backend/migrations/add_member_profiles.sql` against Postgres **before**
 deploying this backend. It adds optional unique handles, bios, bounded avatar
-storage, and avatar version timestamps. Existing accounts keep their names
+storage, and avatar version timestamps. Raw image uploads are bounded while
+reading the request, before decoding; no multipart spooling occurs. Existing accounts keep their names
 and start with no handle/photo and an empty bio. Pillow decodes JPEG/PNG/WebP,
 limits upload size/pixel count, resizes to 256 × 256, and strips metadata.
 

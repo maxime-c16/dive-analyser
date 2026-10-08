@@ -26,9 +26,7 @@ export function saveProfile(data: { display_name: string; handle: string | null;
   return request('/me/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 }
 export function uploadAvatar(file: File): Promise<MemberIdentity> {
-  const body = new FormData()
-  body.set('file', file)
-  return request('/me/avatar', { method: 'PUT', body })
+  return request('/me/avatar', { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file })
 }
 export function removeAvatar(): Promise<void> {
   return request('/me/avatar', { method: 'DELETE' })
