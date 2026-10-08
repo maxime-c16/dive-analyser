@@ -70,7 +70,7 @@ def resolve_version(root, ref):
     if not ref:
         return ''
     for args in (('describe', '--tags', '--exact-match', '--match', 'v*', ref),
-                 ('describe', '--tags', '--abbrev=0', '--match', 'v*')):
+                 ('describe', '--tags', '--abbrev=0', '--match', 'v*', ref)):
         try:
             return subprocess.check_output(['git', '-C', str(root), *args], env=_git_env(),
                                            text=True, stderr=subprocess.DEVNULL).strip()
