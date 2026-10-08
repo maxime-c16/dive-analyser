@@ -1,11 +1,11 @@
 /**
-    mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
  * English locale. This file doubles as the key catalog: any key present here
  * must exist in fr.ts (key parity is required by i18n parity discipline) and
  * English values must match the original hardcoded strings so tests and
  * screenshots stay byte-stable.
  */
 const en = {
+    mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
   common: {
     loading: 'Loading…',
     loadingPage: 'Loading page…',

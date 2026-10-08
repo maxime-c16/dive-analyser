@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useState } from 'react'
 import { expect, it, vi } from 'vitest'
+import en from '../../i18n/locales/en'
+import fr from '../../i18n/locales/fr'
 import MentionComposer from './MentionComposer'
 import MentionText from './MentionText'
 import { editMentionValue, mentionPayload } from './mentionValue'
@@ -41,4 +43,9 @@ it('does not expose directory autocomplete to guests', async () => {
   await act(async () => new Promise(resolve => setTimeout(resolve, 220)))
   expect(searchMembers).not.toHaveBeenCalled()
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+})
+
+it('provides shared mention labels at the locale root', () => {
+  expect(en.mentions.choose).toBe('Mention a member')
+  expect(fr.mentions.choose).toBe('Mentionner un membre')
 })

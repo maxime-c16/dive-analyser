@@ -1,11 +1,11 @@
 /**
-    mentions: { choose: 'Mentionner un membre', loading: 'Recherche de membres…', empty: 'Aucun membre trouvé', error: 'Impossible de rechercher les membres.' },
  * French locale. Keys must mirror en.ts exactly. Terminology follows the
  * FFN French edition of the World Aquatics Diving Rules and Plongeon usage:
  * plongeon/saut périlleux, carpé/groupé/droit/libre,-renversé/retourné,
  * vrille, tremplin, plateforme.
  */
 const fr = {
+    mentions: { choose: 'Mentionner un membre', loading: 'Recherche de membres…', empty: 'Aucun membre trouvé', error: 'Impossible de rechercher les membres.' },
   common: {
     loading: 'Chargement…',
     loadingPage: 'Chargement de la page…',
