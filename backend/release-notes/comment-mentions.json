@@ -1,0 +1,8 @@
+{
+  "id": "comment-mentions",
+  "date": "2026-10-08",
+  "title": "Mention members in comments",
+  "body": "Type @ in a dive comment or reply to find a member. Select their name to add a link to their profile, even if they change their name later.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

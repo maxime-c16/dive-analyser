@@ -1,0 +1,11 @@
+.mention-composer { position: relative; flex: 1; min-width: 0; }
+.mention-composer textarea { width: 100%; box-sizing: border-box; }
+.mention-menu { position: absolute; z-index: 30; bottom: calc(100% + 6px); left: 0; right: 0; max-height: 240px; overflow: auto; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-panel); color: var(--app-text); box-shadow: 0 8px 24px #0002; }
+.mention-menu [role=option] { display: flex; width: 100%; gap: 8px; padding: 10px 12px; text-align: left; background: transparent; color: inherit; border: 0; border-radius: 0; }
+.mention-menu [role=option][aria-selected=true], .mention-menu [role=option]:hover { background: #3b82f61a; }
+.mention-menu p { padding: 8px 12px; margin: 0; }
+.mention-link { color: var(--app-accent); font-weight: 600; text-decoration: none; }
+.mention-link:hover { text-decoration: underline; }
+
+.clip-composer:has(.mention-composer) { overflow: visible; }
+.clip-composer .mention-menu [role=option] { display: flex; justify-content: flex-start; color: var(--app-text); }

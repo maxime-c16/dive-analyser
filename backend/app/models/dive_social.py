@@ -1,6 +1,6 @@
 """Member reactions and discussion, scoped through the dive foreign key."""
 from datetime import datetime
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, CheckConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, CheckConstraint, JSON
 from app.database import Base
 
 
@@ -20,6 +20,7 @@ class DiveComment(Base):
     guest_id = Column(Integer, ForeignKey('dive_guests.id', ondelete='CASCADE'))
     parent_id = Column(Integer, ForeignKey('dive_comments.id', ondelete='CASCADE'), nullable=True, index=True)
     body = Column(String(2000), nullable=False)
+    mentions = Column(JSON, nullable=False, default=list, server_default='[]')
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (CheckConstraint('(user_id IS NULL) <> (guest_id IS NULL)', name='ck_dive_comment_author'), CheckConstraint('length(body) BETWEEN 1 AND 2000', name='ck_dive_comment_length'),)
 
