@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   Menu,
   UserRound,
+  Users,
   Waves,
   X,
 } from "lucide-react";
@@ -58,6 +59,8 @@ const Admin = lazy(loadAdmin);
 const AdminAccount = lazy(() => import("./pages/AdminAccount"));
 const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
+const loadCommunity = () => import("./pages/Community");
+const Community = lazy(loadCommunity);
 const loadMemberProfile = () => import("./pages/MemberProfile");
 const MemberProfile = lazy(loadMemberProfile);
 const loadEvaluations = () => import("./pages/Evaluations");
@@ -74,7 +77,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/sessions': loadSessions, '/journey': loadJourney,
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
   '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
-  '/evaluations': loadEvaluations,
+  '/evaluations': loadEvaluations, '/community': loadCommunity,
 };
 
 function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
@@ -89,6 +92,7 @@ function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
  */
 const primaryNav = [
   { to: "/dives", label: "nav.dives", icon: Waves } as NavItem,
+  { to: "/community", label: "nav.community", icon: Users } as NavItem,
   { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
 ];
 
@@ -113,6 +117,7 @@ const routeLabelKeys: Record<string, string> = {
   "/analytics": "nav.analytics",
   "/dives": "nav.dives",
   "/evaluations": "nav.evaluations",
+  "/community": "nav.community",
   "/media/representatives": "nav.representatives",
   "/media/recall": "nav.mediaRecall",
   "/media/p5-canary": "nav.playerCanary",
@@ -236,7 +241,7 @@ export function breadcrumbTrail(
     default: {
       if (/^\/admin\/users\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.system", href: "/admin" }, { label: "Manage account" }];
       const usersMatch = pathname.match(/^\/users\/(\d+)\/?$/);
-      if (usersMatch) return [{ labelKey: "nav.account", href: "/account" }, { labelKey: "profile.breadcrumb" }];
+      if (usersMatch) return [{ labelKey: "nav.community", href: "/community" }, { labelKey: "profile.breadcrumb" }];
       const last = pathname.split("/").filter(Boolean).pop();
       return [{ label: last ? last.replace(/-/g, " ") : translate("nav.dives") }];
     }
@@ -280,7 +285,7 @@ function MobileNavigation() {
   const friend = !user?.is_admin;
   const currentLabel = routeLabelKeys[location.pathname]
     ? t(routeLabelKeys[location.pathname])
-    : t("nav.workspace");
+    : /^\/users\/\d+\/?$/.test(location.pathname) ? t("profile.breadcrumb") : t("nav.workspace");
 
   useEffect(() => {
     setOpen(false);
@@ -596,6 +601,7 @@ function Router() {
                   />
                   <Route path="/admin/users/:userId" element={<OwnerGuard><AdminAccount /></OwnerGuard>} />
                   <Route path="/account" element={<Account />} />
+                  <Route path="/community" element={<Community />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<Sessions />} />
                   <Route path="/notifications" element={<Notifications />} />

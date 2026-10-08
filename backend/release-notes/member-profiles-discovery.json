@@ -1,0 +1,11 @@
+{
+  "id": "member-profiles-discovery",
+  "date": "2026-10-08",
+  "title": "Find divers and explore their profiles",
+  "body": "Search members by name or handle, introduce yourself with a bio and profile photo, and watch the latest dives from each member’s profile. Private dives keep their existing access rules.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

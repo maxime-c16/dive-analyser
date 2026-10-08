@@ -31,9 +31,11 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
 )
+from sqlalchemy.orm import deferred
 
 from app.database import Base
 
@@ -52,6 +54,10 @@ class AppUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), nullable=False, index=True)
     display_name = Column(String(120), nullable=False)
+    handle = Column(String(30), nullable=True)
+    bio = Column(String(500), nullable=False, default="", server_default="")
+    avatar = deferred(Column(LargeBinary, nullable=True))
+    avatar_updated_at = Column(DateTime, nullable=True)
     role = Column(String(20), nullable=False, default=ROLE_OWNER)
     is_admin = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -62,6 +68,7 @@ class AppUser(Base):
 
     __table_args__ = (
         Index("uq_app_users_email", "email", unique=True),
+        Index("uq_app_users_handle", "handle", unique=True),
     )
 
 
