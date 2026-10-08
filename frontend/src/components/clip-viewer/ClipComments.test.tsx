@@ -95,7 +95,7 @@ it("likes a comment and posts a reply inside its thread", async () => {
   fireEvent.change(screen.getByLabelText("Reply to Diver"), { target: { value: "Thanks!" } });
   fireEvent.click(screen.getByRole("button", { name: "Post reply to Diver" }));
   expect(await screen.findByText("Thanks!")).toBeInTheDocument();
-  expect(api.post).toHaveBeenCalledWith('/api/v1/dives/1/comments', { body: "Thanks!", parent_id: 12 });
+  expect(api.post).toHaveBeenCalledWith('/api/v1/dives/1/comments', { body: "Thanks!", mentions: [], parent_id: 12 });
   expect(onCountChange).toHaveBeenCalledWith(1);
 });
 
@@ -181,6 +181,6 @@ it("uses shared routes and guest ownership for thread actions", async () => {
   fireEvent.change(screen.getByLabelText('Reply to Diver'), { target: { value: guestReply.body } });
   fireEvent.click(screen.getByRole('button', { name: 'Post reply to Diver' }));
   await screen.findByText(guestReply.body);
-  expect(api.post).toHaveBeenCalledWith(basePath + '/comments', { body: guestReply.body, parent_id: root.id });
+  expect(api.post).toHaveBeenCalledWith(basePath + '/comments', { body: guestReply.body, mentions: [], parent_id: root.id });
   expect(screen.getByRole('button', { name: 'Delete comment by Guest' })).toBeInTheDocument();
 });

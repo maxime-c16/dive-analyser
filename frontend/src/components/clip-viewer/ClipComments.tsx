@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from 'react-i18next'
 import { Send } from "lucide-react";
 import { api } from "../../services/api";
+import MentionComposer from '../mentions/MentionComposer';
+import { emptyMentionValue, mentionPayload } from '../mentions/mentionValue';
 import CommentThread from "./CommentThread";
 import type { Comment } from "./useDiveSocial";
 
@@ -19,7 +21,7 @@ export default function ClipComments({
   const { t } = useTranslation()
   const [comments, setComments] = useState<Comment[]>([]);
   const [before, setBefore] = useState<number | null>(null);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(emptyMentionValue);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,13 +79,13 @@ export default function ClipComments({
       <form
         onSubmit={async (event) => {
           event.preventDefault();
-          if (!body.trim() || busy) return;
+          if (!body.body.trim() || busy) return;
           setBusy(true);
           setError("");
           try {
             const { data } = await api.post<Comment>(
               `${basePath}/comments`,
-              { body: body.trim() },
+              mentionPayload(body),
             );
             if (!mounted.current || activeId.current !== id) return;
             pendingMutations.current.set(data.id, data);
@@ -91,7 +93,7 @@ export default function ClipComments({
               data,
               ...previous.filter((item) => item.id !== data.id),
             ]);
-            setBody("");
+            setBody(emptyMentionValue());
             onCountChange(1);
           } catch {
             if (mounted.current)
@@ -103,16 +105,9 @@ export default function ClipComments({
       >
         <label htmlFor="clip-comment">{t('comments.join')}</label>
         <div className="clip-composer">
-          <textarea
-            id="clip-comment"
-            placeholder={t('comments.placeholder')}
-            maxLength={2000}
-            rows={2}
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            disabled={busy}
-          />
-          <button aria-label={t('comments.post')} disabled={busy || !body.trim()}>
+          <MentionComposer id="clip-comment" placeholder={t('comments.placeholder')}
+            value={body} onChange={setBody} disabled={busy} allowMentions={guestId === undefined} />
+          <button aria-label={t('comments.post')} disabled={busy || !body.body.trim()}>
             <Send size={18} />
           </button>
         </div>

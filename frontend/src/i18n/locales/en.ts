@@ -5,6 +5,7 @@
  * screenshots stay byte-stable.
  */
 const en = {
+    mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
   common: {
     loading: 'Loading…',
     loadingPage: 'Loading page…',
@@ -124,7 +125,7 @@ const en = {
     noLinkedClip: 'No linked clip for this attempt.',
     likeDive: 'Like dive',
     like: 'Like',
-    comments: 'Comments',
+  comments: 'Comments',
     analysis: 'Analysis',
     private: 'Private',
     public: 'Public',

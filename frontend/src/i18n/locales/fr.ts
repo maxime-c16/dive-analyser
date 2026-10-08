@@ -5,6 +5,7 @@
  * vrille, tremplin, plateforme.
  */
 const fr = {
+    mentions: { choose: 'Mentionner un membre', loading: 'Recherche de membres…', empty: 'Aucun membre trouvé', error: 'Impossible de rechercher les membres.' },
   common: {
     loading: 'Chargement…',
     loadingPage: 'Chargement de la page…',
@@ -124,7 +125,7 @@ const fr = {
     noLinkedClip: 'Aucun extrait lié à ce plongeon.',
     likeDive: 'Aimer le plongeon',
     like: 'J’aime',
-    comments: 'Commentaires',
+  comments: 'Commentaires',
     analysis: 'Analyse',
     private: 'Privé',
     public: 'Public',

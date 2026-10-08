@@ -15,6 +15,7 @@ from app.models.dive_social import DiveComment, DiveLike, DiveCommentLike, DiveG
 from app.models.user_auth import AppUser
 from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.services.write_guard import optional_session_user
+from app.services.mentions import MentionInput, validate_mentions
 from app.services.member_avatar import avatar_identity
 
 router = APIRouter(prefix='/dives')
@@ -39,6 +40,7 @@ class LikeInput(BaseModel):
 class CommentInput(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
     parent_id: int | None = Field(default=None, gt=0)
+    mentions: list[MentionInput] = Field(default_factory=list, max_length=10)
 
 
 def reaction_identity(user):
@@ -58,7 +60,7 @@ def comment_payload(row, author, db, user, stats=None):
             target = db.get(AppUser, row.user_id)
             if target:
                 avatar = avatar_identity(target)
-    return dict(id=row.id, body=row.body, author=author, user_id=row.user_id,
+    return dict(id=row.id, body=row.body, mentions=row.mentions or [], author=author, user_id=row.user_id,
                 **avatar,
                 guest_id=row.guest_id, created_at=row.created_at.isoformat() + 'Z', parent_id=row.parent_id,
                 liked=(row.id in stats['liked']) if stats is not None else db.query(reaction_model).filter_by(comment_id=row.id, **identity).first() is not None,
@@ -121,13 +123,19 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
     body = payload.body.strip()
     if not body:
         raise HTTPException(422, 'Comment cannot be blank')
+    if isinstance(user, DiveGuest) and payload.mentions:
+        raise HTTPException(403, 'Sign in to mention members')
+    # Validate against the original body, then shift spans when trimming it.
+    mentions = validate_mentions(db, payload.body, payload.mentions)
+    trim = len(payload.body) - len(payload.body.lstrip())
+    mentions = [dict(m, start=m['start'] - trim, end=m['end'] - trim) for m in mentions]
     parent = None
     if payload.parent_id is not None:
         parent = db.query(DiveComment).filter_by(id=payload.parent_id, dive_id=dive_id).first()
         if parent is None:
             raise HTTPException(404, 'Comment not found')
     author_identity = dict(guest_id=user.id) if isinstance(user, DiveGuest) else dict(user_id=user.id)
-    row = DiveComment(dive_id=dive_id, **author_identity, body=body,
+    row = DiveComment(dive_id=dive_id, **author_identity, body=body, mentions=mentions,
                       parent_id=(parent.parent_id or parent.id) if parent else None)
     db.add(row)
     db.commit()

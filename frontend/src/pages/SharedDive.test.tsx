@@ -34,7 +34,7 @@ it('opens without an account and restricts social requests to the shared video',
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Super !' } });
   fireEvent.click(screen.getByRole('button', { name: 'Post comment' }));
   await screen.findByText('Super !');
-  expect(api.post).toHaveBeenLastCalledWith('/api/v1/shared-dives/7/comments', { body: 'Super !' });
+  expect(api.post).toHaveBeenLastCalledWith('/api/v1/shared-dives/7/comments', { body: 'Super !', mentions: [] });
 });
 it('shows an unavailable link without requesting workspace data', async () => {
   vi.mocked(api.post).mockRejectedValue(new Error('revoked'));

@@ -4,6 +4,9 @@ import { Heart, Send, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { appLanguage } from "../../utils/dateLocale";
+import MentionComposer from '../mentions/MentionComposer';
+import MentionText from '../mentions/MentionText';
+import { emptyMentionValue, mentionPayload } from '../mentions/mentionValue';
 import MemberLink from "../activity/MemberLink";
 import MemberAvatar from '../MemberAvatar'
 import type { Comment } from "./useDiveSocial";
@@ -17,14 +20,14 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
   onCountChange: (delta: number) => void;
   onChange: (comment: Comment) => void;
   nested?: boolean;
-  onReply?: (author: string) => void;
+  onReply?: (comment: Comment) => void;
 }) {
   const { t } = useTranslation()
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [replies, setReplies] = useState<Comment[]>([]);
   const [before, setBefore] = useState<number | null>(null);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(emptyMentionValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const pending = useRef(false);
@@ -80,14 +83,14 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
           <strong>{comment.author}</strong>
         )}
         <time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString(appLanguage())}</time>
-        <p>{comment.body}</p>
+        <p><MentionText body={comment.body} mentions={comment.mentions} /></p>
         <div className="clip-comment-actions">
           <button type="button" aria-label={t('comments.likeBy', { author: comment.author })} aria-pressed={comment.liked ?? false} disabled={busy} onClick={() => void mutate(async () => {
             const { data } = await api.put<Comment>(`${basePath}/comments/${comment.id}/like`, { liked: !comment.liked });
             if (alive.current) onChange({ ...latestComment.current, liked: data.liked, like_count: data.like_count });
           })}><Heart size={16} fill={comment.liked ? "currentColor" : "none"} />{comment.like_count ?? 0}</button>
           <button type="button" disabled={busy} aria-expanded={nested ? undefined : open} onClick={() => {
-            if (nested) { onReply?.(comment.author); return; }
+            if (nested) { onReply?.(comment); return; }
             setOpen(true);
             if (!open) void load();
             requestAnimationFrame(() => input.current?.focus());
@@ -100,7 +103,12 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
     {!nested && <>
       {!!comment.reply_count && <button className="clip-thread-toggle" type="button" disabled={busy} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }}>{open ? t('comments.hideReplies') : t('comments.viewReplies', { count: comment.reply_count })}</button>}
       {open && <div className="clip-thread-replies">
-        {replies.map(reply => <CommentThread key={reply.id} comment={reply} diveId={diveId} basePath={basePath} guestId={guestId} nested onReply={author => { setBody(previous => previous || `@${author} `); input.current?.focus(); }} onCountChange={onCountChange} onChange={updated => {
+        {replies.map(reply => <CommentThread key={reply.id} comment={reply} diveId={diveId} basePath={basePath} guestId={guestId} nested onReply={reply => {
+          setBody(previous => previous.body ? previous : {
+            body: `@${reply.author} `,
+            mentions: guestId === undefined && reply.user_id ? [{ user_id: reply.user_id, start: 0, end: reply.author.length + 1 }] : [],
+          }); input.current?.focus();
+        }} onCountChange={onCountChange} onChange={updated => {
           replyMutations.current.set(updated.id, updated);
           setReplies(rows => rows.map(row => row.id === updated.id ? updated : row));
         }} onDelete={async () => {
@@ -115,21 +123,22 @@ export default function CommentThread({ comment, diveId, basePath = `/api/v1/div
         {before && <button type="button" className="clip-load-more" disabled={busy} onClick={() => void load(before)}>{t('comments.olderReplies')}</button>}
         <form onSubmit={event => {
           event.preventDefault();
-          if (!body.trim()) return;
+          if (!body.body.trim()) return;
           void mutate(async () => {
-            const { data } = await api.post<Comment>(`${basePath}/comments`, { body: body.trim(), parent_id: comment.id });
+            const { data } = await api.post<Comment>(`${basePath}/comments`, { ...mentionPayload(body), parent_id: comment.id });
             if (!alive.current) return;
             replyMutations.current.set(data.id, data);
             setReplies(rows => [data, ...rows]);
-            setBody("");
+            setBody(emptyMentionValue());
             onChange({ ...latestComment.current, reply_count: (latestComment.current.reply_count ?? 0) + 1 });
             onCountChange(1);
           });
         }}>
           <label htmlFor={`reply-${comment.id}`}>{t('comments.replyTo')} {comment.author}</label>
           <div className="clip-composer">
-            <textarea ref={input} id={`reply-${comment.id}`} placeholder={t('comments.replyPlaceholder')} rows={2} maxLength={2000} value={body} onChange={event => setBody(event.target.value)} disabled={busy} />
-            <button type="submit" aria-label={t('comments.postReplyTo', { author: comment.author })} disabled={busy || !body.trim()}><Send size={18} /></button>
+            <MentionComposer inputRef={input} id={`reply-${comment.id}`} placeholder={t('comments.replyPlaceholder')}
+              value={body} onChange={setBody} disabled={busy} allowMentions={guestId === undefined} />
+            <button type="submit" aria-label={t('comments.postReplyTo', { author: comment.author })} disabled={busy || !body.body.trim()}><Send size={18} /></button>
           </div>
         </form>
       </div>}

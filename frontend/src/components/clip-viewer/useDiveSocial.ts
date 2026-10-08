@@ -9,6 +9,7 @@ export type Social = {
 export type Comment = {
   id: number;
   body: string;
+  mentions?: import('../mentions/mentionValue').Mention[];
   author: string;
   avatar_url?: string | null;
   avatar_hud?: AvatarHud;
