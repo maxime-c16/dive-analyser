@@ -45,3 +45,32 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   expect(withoutPoster.playbackUrl).toBe('/play2');
   expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
 });
+it('resolves the ready local startup preview while retaining the original for HQ', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
+    url.endsWith('/batch') ? { 'hq': { status: 'ready', playback_url: '/api/v1/media/revisions/123/play' } }
+      : { status: 'ready', playback_url: '/api/v1/media/revisions/123/play', cache_entries: [
+        { rendition: 'poster', playback_url: '/poster.jpg' },
+        { rendition: 'proxy_360p', playback_url: '/small.mp4' },
+        { rendition: 'proxy_720p', playback_url: '/hq-preview.mp4' },
+      ] },
+  })))
+  const { getPreviewForPlayback, cachedPreview } = await import('./mediaPreview')
+  const pending = getPreviewForPlayback('hq')
+  await vi.advanceTimersByTimeAsync(50)
+  const preview = await pending
+  expect(preview.playbackUrl).toBe('/hq-preview.mp4')
+  expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/123/play')
+  expect(cachedPreview('hq')).toEqual(preview)
+})
+it('does not let a pre-logout status response repopulate the next account cache', async () => {
+  let resolve!: (response: unknown) => void
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done })))
+  const { getPreview, cachedPreview, resetMediaPreviews } = await import('./mediaPreview')
+  const old = getPreview('private')
+  await vi.advanceTimersByTimeAsync(50)
+  resetMediaPreviews()
+  resolve({ ok: true, json: async () => ({ private: { status: 'ready', playback_url: '/private.mp4' } }) })
+  await vi.advanceTimersByTimeAsync(0)
+  expect((await old).playbackUrl).toBeNull()
+  expect(cachedPreview('private')).toBeUndefined()
+})
