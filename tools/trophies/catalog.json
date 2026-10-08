@@ -1,0 +1,128 @@
+{
+  "_doc": "Trophy catalog. Each trophy = title (front of socle) + emblem layers (relief on the medallion). See README.md for the layer vocabulary. 'finish' only drives the renders (teal | gold | silver | bronze | white | ink).",
+  "defaults": {"owner": "", "date": "", "brand": "DIVESENSEI", "finish": "teal"},
+  "trophies": [
+    {"id": "premier-essai", "family": "milestone", "milestone": "first_attempt", "title": "PREMIER ESSAI",
+      "layers": [
+        {"shape": "springboard", "at": [-6, -13], "s": 0.9, "h": 1.6},
+        {"shape": "diver", "pose": "reach", "at": [3, 3], "s": 0.62, "h": 2.0},
+        {"shape": "star", "at": [-13, 13], "s": 1.0, "args": {"r": 5}, "h": 2.0},
+        {"shape": "sparkle", "at": [-18, 3], "args": {"r": 2.6}, "h": 1.6},
+        {"shape": "water", "at": [0, -21], "args": {"w": 46, "rows": 1, "t": 2.2}, "h": 1.0}
+      ]
+    },
+    {"id": "premiere-reussite", "family": "milestone", "milestone": "first_success", "title": "PREMIÈRE RÉUSSITE",
+      "layers": [
+        {"shape": "diver", "pose": "straight", "at": [-1, 7], "rot": 180, "s": 0.68, "h": 2.2},
+        {"shape": "splash", "at": [0, -11], "args": {"size": 8}, "h": 1.6},
+        {"shape": "water", "at": [0, -14], "args": {"w": 50, "rows": 2}, "h": 1.0},
+        {"shape": "check", "at": [14, 14], "args": {"s": 9, "t": 2.6}, "h": 2.0}
+      ]
+    },
+    {"id": "premier-parfait", "family": "milestone", "milestone": "first_perfect", "title": "PREMIER PARFAIT",
+      "layers": [
+        {"shape": "diamond", "at": [0, 15], "args": {"w": 17}, "h": 2.0},
+        {"shape": "diver", "pose": "straight", "at": [0, -3], "rot": 180, "s": 0.4, "h": 2.0},
+        {"shape": "ripples", "at": [0, -15], "args": {"r": 20, "rings": 3, "t": 1.6}, "h": 1.0},
+        {"shape": "sparkle", "at": [-14, 16], "args": {"r": 3}, "h": 1.6},
+        {"shape": "sparkle", "at": [14, 9], "args": {"r": 2.2}, "h": 1.6}
+      ]
+    },
+    {"id": "percee", "family": "milestone", "milestone": "breakthrough", "title": "PERCÉE",
+      "layers": [
+        {"shape": "flame", "at": [0, 3], "args": {"w": 34, "h": 46, "curl": 3, "inner": false}, "h": 0.8},
+        {"shape": "diver", "pose": "pike", "at": [1, 2], "rot": 35, "s": 0.78, "h": 2.2},
+        {"shape": "water", "at": [0, -20], "args": {"w": 48, "rows": 1}, "h": 1.0}
+      ]
+    },
+    {"id": "serie", "family": "milestone", "milestone": "success_streak", "title": "SÉRIE ×5",
+      "layers": [
+        {"shape": "flame", "at": [0, 3], "args": {"w": 32, "h": 46, "curl": 3, "inner": false}, "h": 1.0},
+        {"shape": "text", "text": "5", "at": [0.5, -5], "args": {"size": 17}, "h": 2.4},
+        {"shape": "sparkle", "at": [-17, 12], "args": {"r": 3}, "h": 1.6},
+        {"shape": "sparkle", "at": [17, 4], "args": {"r": 2.4}, "h": 1.6},
+        {"shape": "water", "at": [0, -23], "args": {"w": 40, "rows": 1, "t": 2}, "h": 1.0}
+      ]
+    },
+    {"id": "nouvelle-hauteur", "family": "milestone", "milestone": "first_from_height", "title": "NOUVELLE HAUTEUR",
+      "layers": [
+        {"shape": "tower", "at": [-10, -7], "args": {"h": 30, "levels": 3}, "h": 1.6},
+        {"shape": "diver", "pose": "reach", "at": [11, 14.5], "s": 0.3, "h": 2.0},
+        {"shape": "text", "text": "10M", "at": [13, -10], "args": {"size": 8}, "h": 2.0},
+        {"shape": "water", "at": [0, -22], "args": {"w": 50, "rows": 1}, "h": 1.0}
+      ]
+    },
+    {"id": "comeback", "family": "milestone", "milestone": "comeback", "title": "COMEBACK",
+      "layers": [
+        {"shape": "arc_arrow", "at": [0, 2], "args": {"r": 20, "t": 2.6, "a0": 120, "a1": 410, "head": 7}, "h": 1.8},
+        {"shape": "diver", "pose": "tuck", "at": [0, 2], "rot": -30, "s": 0.8, "h": 2.2},
+        {"shape": "water", "at": [0, -24], "args": {"w": 36, "rows": 1, "t": 2}, "h": 1.0}
+      ]
+    },
+    {"id": "regularite", "family": "milestone", "milestone": "consistency_achieved", "title": "RÉGULARITÉ",
+      "layers": [
+        {"shape": "ripples", "at": [0, -10], "args": {"r": 25, "rings": 4, "t": 1.8, "squash": 0.36}, "h": 1.0},
+        {"shape": "circle", "at": [0, -10], "args": {"r": 2.6}, "h": 2.0, "scale_y": 0.4},
+        {"shape": "diver", "pose": "straight", "at": [0, 9], "rot": 180, "s": 0.42, "h": 2.0},
+        {"shape": "sparkle", "at": [-15, 13], "args": {"r": 2.6}, "h": 1.6},
+        {"shape": "sparkle", "at": [15, 13], "args": {"r": 2.6}, "h": 1.6}
+      ]
+    },
+    {"id": "plateau-franchi", "family": "milestone", "milestone": "plateau_broken", "title": "PLATEAU FRANCHI",
+      "layers": [
+        {"shape": "bars", "at": [0, -19], "args": {"heights": [8, 8.5, 8, 8.4, 15, 24], "w": 5.2}, "h": 0.9},
+        {"shape": "chart", "args": {"pts": [[-19, -5], [-12, -4], [-5, -5], [2, -4], [9, 4], [20, 17]], "t": 2.2, "head": 6}, "h": 2.0},
+        {"shape": "sparkle", "at": [13, 18], "args": {"r": 3.2}, "h": 1.8},
+        {"shape": "sparkle", "at": [-14, 12], "args": {"r": 2.2}, "h": 1.6}
+      ]
+    },
+    {"id": "face-a-la-peur", "family": "milestone", "milestone": "avoided_dive_attempted", "title": "FACE À LA PEUR",
+      "layers": [
+        {"shape": "peak", "at": [0, -6], "args": {"w": 52, "h": 34}, "h": 0.8},
+        {"shape": "diver", "pose": "arch", "at": [-2, 6], "rot": 55, "s": 0.55, "h": 2.2},
+        {"shape": "water", "at": [0, -22], "args": {"w": 48, "rows": 1}, "h": 1.0}
+      ]
+    },
+    {"id": "podium-or", "family": "competition", "title": "CHAMPION", "finish": "gold",
+      "layers": [
+        {"shape": "laurel", "args": {"r": 25.5}, "h": 1.4},
+        {"shape": "text", "text": "1", "at": [0, -4], "args": {"size": 24}, "h": 2.2},
+        {"shape": "diver", "pose": "pike", "at": [0, 17.5], "rot": 0, "s": 0.42, "h": 2.0},
+        {"shape": "water", "at": [0, -20], "args": {"w": 22, "rows": 1, "t": 1.8}, "h": 1.0}
+      ]
+    },
+    {"id": "podium-argent", "family": "competition", "title": "2E PLACE", "finish": "silver",
+      "layers": [
+        {"shape": "laurel", "args": {"r": 25.5}, "h": 1.4},
+        {"shape": "text", "text": "2", "at": [0, -4], "args": {"size": 24}, "h": 2.2},
+        {"shape": "diver", "pose": "pike", "at": [0, 17.5], "rot": 0, "s": 0.42, "h": 2.0},
+        {"shape": "water", "at": [0, -20], "args": {"w": 22, "rows": 1, "t": 1.8}, "h": 1.0}
+      ]
+    },
+    {"id": "podium-bronze", "family": "competition", "title": "3E PLACE", "finish": "bronze",
+      "layers": [
+        {"shape": "laurel", "args": {"r": 25.5}, "h": 1.4},
+        {"shape": "text", "text": "3", "at": [0, -4], "args": {"size": 24}, "h": 2.2},
+        {"shape": "diver", "pose": "pike", "at": [0, 17.5], "rot": 0, "s": 0.42, "h": 2.0},
+        {"shape": "water", "at": [0, -20], "args": {"w": 22, "rows": 1, "t": 1.8}, "h": 1.0}
+      ]
+    },
+    {"id": "meilleure-progression", "family": "competition", "title": "MEILLEURE PROGRESSION", "finish": "gold",
+      "layers": [
+        {"shape": "laurel", "args": {"r": 25.5, "a0": -100, "a1": -10, "leaves": 5}, "h": 1.4},
+        {"shape": "chart", "args": {"pts": [[-16, -12], [-9, -8], [-3, -10], [4, -1], [9, -3], [18, 12]], "t": 2.2, "head": 6}, "h": 2.0},
+        {"shape": "diver", "pose": "pike", "at": [-9, 11], "rot": 60, "s": 0.5, "h": 2.0},
+        {"shape": "star", "at": [9, 16], "args": {"r": 3.4}, "h": 1.8}
+      ]
+    },
+    {"id": "plongeur-de-l-annee", "family": "competition", "title": "PLONGEUR DE L'ANNÉE", "finish": "gold",
+      "layers": [
+        {"shape": "laurel", "args": {"r": 25.5}, "h": 1.4},
+        {"shape": "diver", "pose": "pike", "at": [0, 6], "rot": 40, "s": 0.72, "h": 2.2},
+        {"shape": "star", "at": [0, -15], "args": {"r": 5}, "h": 2.0},
+        {"shape": "star", "at": [-10, -12.5], "args": {"r": 3}, "h": 1.8},
+        {"shape": "star", "at": [10, -12.5], "args": {"r": 3}, "h": 1.8}
+      ]
+    }
+  ]
+}
