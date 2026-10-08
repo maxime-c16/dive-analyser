@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Copy, Film, RotateCcw, X } from 'lucide-react'
 import { differenceInCalendarDays, format, parseISO, subMonths } from 'date-fns'
+import SendDiveButton from '../components/messages/SendDiveButton'
 import DiveVideoPlayer from '../components/DiveVideoPlayer'
 import PersonalDiveValuePanel from '../components/PersonalDiveValuePanel'
 import {
@@ -437,6 +438,7 @@ function AttemptDrawer({ attempt, attempts, onClose, onMove, returnFocus }: { at
   return <div className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside ref={asideRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="attempt-title" className="h-full w-full max-w-2xl overflow-y-auto border-l border-app bg-app-panel p-4 outline-none sm:p-7">
     <div className="flex items-start justify-between gap-4"><div><h2 id="attempt-title" className="text-2xl font-semibold text-app-text">{attempt.dive_code} · {attempt.performance_numeric.toFixed(1)}</h2><p className="mt-1 text-sm text-app-muted">{format(parseISO(attempt.dive_datetime), 'd MMMM yyyy, HH:mm', { locale: appLocale() })} · {i18n.t('analysis.sessionN', { id: attempt.session_id })}</p></div><button type="button" onClick={onClose} className="border border-app bg-transparent p-2 text-app-muted" aria-label={i18n.t('analysis.closeAttempt')}><X className="h-4 w-4" /></button></div>
     <div className="mt-6 aspect-video overflow-hidden border border-app bg-black" aria-label={i18n.t('analysis.mediaFor', { code: attempt.dive_code, id: attempt.id })}>{attempt.video_uuid ? <DiveVideoPlayer diveCode={attempt.dive_code} height={attempt.height} videoUuid={attempt.video_uuid} /> : <div className="flex h-full items-center justify-center text-sm text-app-muted">{i18n.t('analysis.noLinkedAsset')}</div>}</div>
+    <SendDiveButton key={attempt.id} diveId={attempt.id} inline />
     <dl className="mt-6 grid grid-cols-2 border-y border-app text-sm sm:grid-cols-3">{[
       [i18n.t('analysis.rating'), `${attempt.performance} · ${attempt.performance_numeric.toFixed(1)}`], [i18n.t('analysis.phaseScores'), attempt.phase1_performance && attempt.phase2_performance ? `${attempt.phase1_performance} / ${attempt.phase2_performance}` : i18n.t('attemptDetail.singleRating')],
       [i18n.t('attemptDetail.height'), attempt.height], [i18n.t('attemptDetail.platform'), platformTypeName(attempt.platform_type)], [i18n.t('analysis.position'), divePositionName(attempt.position, attempt.dive_code)], [i18n.t('analysis.context'), attempt.is_sync ? 'SYNC' : i18n.t('analysis.individual')], [i18n.t('analysis.modifiers'), attempt.modifiers.join(', ') || i18n.t('analysis.none')],

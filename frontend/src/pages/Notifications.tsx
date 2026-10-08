@@ -46,6 +46,7 @@ function NotificationRow({
       <h2 className="mt-1 text-base font-semibold text-app-text">{item.title}</h2>
       {item.body && <p className="mt-1 text-sm leading-6 text-app-muted">{item.body}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        {item.conversation_id != null && <Link to={`/messages/${item.conversation_id}`} className="touch-target border border-app px-3 py-2 text-sm text-app-text">{t('messages.open')}</Link>}
         {item.dive_id != null && (
           <Link
             to={`/dives?clip=${item.dive_id}`}

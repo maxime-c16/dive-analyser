@@ -12,6 +12,7 @@ import { activityIcon } from '../components/activity/ActivityFeed'
 import MemberLink from '../components/activity/MemberLink'
 import MemberAvatar from '../components/MemberAvatar'
 import ProfileDiveGrid from '../components/ProfileDiveGrid'
+import ProfileMessageButton from '../components/messages/ProfileMessageButton'
 import ProfileEditor from '../components/ProfileEditor'
 import { appLanguage } from '../utils/dateLocale'
 
@@ -229,6 +230,7 @@ export default function MemberProfile() {
     <div className="mx-auto max-w-4xl">
       <div className="mb-4 flex items-center justify-between gap-3">
         <Link to="/community" className="text-sm text-app-accent hover:underline">{t('community.back')}</Link>
+        {!profile.is_self && <ProfileMessageButton userId={profile.user_id} />}
         {profile.is_self && <button className="touch-target border border-app px-3 text-sm text-app-text" onClick={() => setEditing(value => !value)} aria-expanded={editing}>{t('community.edit')}</button>}
       </div>
       <ProfileHead profile={profile} />

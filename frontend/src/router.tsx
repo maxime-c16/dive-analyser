@@ -23,6 +23,7 @@ import { NotificationsProvider, NotificationsButton } from "./components/Notific
 import {
   BarChart3,
   Bell,
+  Send,
   BookOpen,
   CalendarDays,
   ChevronDown,
@@ -60,6 +61,8 @@ const Admin = lazy(loadAdmin);
 const AdminAccount = lazy(() => import("./pages/AdminAccount"));
 const loadAccount = () => import("./pages/Account");
 const Account = lazy(loadAccount);
+const loadMessages = () => import("./pages/Messages");
+const Messages = lazy(loadMessages);
 const loadCommunity = () => import("./pages/Community");
 const Community = lazy(loadCommunity);
 const loadMemberProfile = () => import("./pages/MemberProfile");
@@ -78,7 +81,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/sessions': loadSessions, '/journey': loadJourney,
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
   '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
-  '/evaluations': loadEvaluations, '/community': loadCommunity,
+  '/messages': loadMessages, '/evaluations': loadEvaluations, '/community': loadCommunity,
 };
 
 function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
@@ -93,6 +96,7 @@ function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
  */
 const primaryNav = [
   { to: "/dives", label: "nav.dives", icon: Waves } as NavItem,
+  { to: "/messages", label: "nav.messages", icon: Send } as NavItem,
   { to: "/community", label: "nav.community", icon: Users } as NavItem,
   { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
 ];
@@ -113,6 +117,7 @@ const operationsNav = [
 
 const routeLabelKeys: Record<string, string> = {
   "/": "nav.dives",
+  "/messages": "nav.messages",
   "/dashboard": "nav.overview",
   "/journey": "nav.journey",
   "/analytics": "nav.analytics",
@@ -208,6 +213,7 @@ export function breadcrumbTrail(
   pathname: string,
   translate: (key: string) => string = (key) => key,
 ): Crumb[] {
+  if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
   const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
   if (analysisMatch) {
     return [
@@ -603,6 +609,8 @@ function Router() {
                   />
                   <Route path="/admin/users/:userId" element={<OwnerGuard><AdminAccount /></OwnerGuard>} />
                   <Route path="/account" element={<Account />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/messages/:conversationId" element={<Messages />} />
                   <Route path="/community" element={<Community />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<Sessions />} />

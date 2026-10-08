@@ -31,6 +31,7 @@ def _payload(row) -> dict:
         "title": row.title,
         "body": row.body,
         "dive_id": row.dive_id,
+        "conversation_id": row.conversation_id,
         "read_at": row.read_at.isoformat() + "Z" if row.read_at else None,
         "created_at": row.created_at.isoformat() + "Z" if row.created_at else None,
     }

@@ -26,6 +26,7 @@ NOTIF_TYPES = frozenset({
     "video_ready",
     "new_comment",
     "comment_reply",
+    "direct_message",
     "milestone",
     "sync_error",
     "guest_activity",
@@ -36,6 +37,7 @@ DEFAULTS: Dict[str, bool] = {
     "video_ready": True,
     "new_comment": True,
     "comment_reply": True,
+    "direct_message": True,
     "milestone": True,
     "sync_error": True,
     "guest_activity": False,
@@ -79,6 +81,7 @@ def create(
     body: str = "",
     dive_id: Optional[int] = None,
     defer_push: bool = False,
+    conversation_id: Optional[int] = None,
 ) -> Optional[Notification]:
     """Create one inbox row, or None when the type is disabled for the user.
 
@@ -97,6 +100,7 @@ def create(
             title=(title or "")[:_TITLE_MAX],
             body=(body or "")[:_BODY_MAX] or None,
             dive_id=dive_id,
+            conversation_id=conversation_id,
         )
         db.add(row)
         db.commit()

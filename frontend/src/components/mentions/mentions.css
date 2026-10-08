@@ -9,3 +9,5 @@
 
 .clip-composer:has(.mention-composer) { overflow: visible; }
 .clip-composer .mention-menu [role=option] { display: flex; justify-content: flex-start; color: var(--app-text); }
+.mention-composer textarea { border: 1px solid var(--app-border); border-radius: 12px; padding: 12px; background: var(--app-panel); color: var(--app-text); font-size: 16px; resize: vertical; min-height: 72px; }
+.clip-composer .mention-composer textarea { border: 0; background: transparent; }

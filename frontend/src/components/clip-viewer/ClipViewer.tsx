@@ -25,6 +25,7 @@ import FederateDiveControl from "./FederateDiveControl";
 import EvaluationRequestControl from "./EvaluationRequestControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
+import SendDiveButton from "../messages/SendDiveButton";
 import ShareDiveButton from "./ShareDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
 import { useNavigationIntent } from "../../hooks/useNavigationIntent";
@@ -837,6 +838,7 @@ export default function ClipViewer({
                 <MessageCircle size={25} />
                 <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
+              {user && <SendDiveButton key={attempt.id} diveId={attempt.id} />}
               {attempt.can_manage && attempt.video_uuid && <ShareDiveButton key={attempt.id} id={attempt.id} />}
               <Link
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}

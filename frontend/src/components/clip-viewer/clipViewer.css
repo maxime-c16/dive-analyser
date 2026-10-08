@@ -1185,3 +1185,10 @@
   .shared-dive-video video { max-height: 65dvh; }
 
 }
+
+.clip-direct-send { position: absolute; z-index: 40; right: 64px; bottom: 90px; width: min(340px, calc(100vw - 48px)); max-height: 70vh; overflow-y: auto; padding: 16px; border: 1px solid var(--app-border); border-radius: 16px; background: var(--app-panel); color: var(--app-text); box-shadow: 0 12px 48px #0008; }
+.clip-actions .clip-direct-send button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-height: 44px; width: 100%; color: var(--app-text); }
+@media (max-width: 599px) { .clip-direct-send { position: fixed; right: 24px; bottom: 120px; } }
+
+.direct-send-inline { position: relative; display: inline-block; margin-top: 12px; }
+.direct-send-inline .direct-send-inline-menu { position: absolute; top: calc(100% + 8px); bottom: auto; left: 0; right: auto; }
