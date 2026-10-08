@@ -15,6 +15,7 @@ from app.models.dive_social import DiveComment, DiveLike, DiveCommentLike, DiveG
 from app.models.user_auth import AppUser
 from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.services.write_guard import optional_session_user
+from app.services.member_avatar import avatar_identity
 
 router = APIRouter(prefix='/dives')
 
@@ -48,7 +49,17 @@ def reaction_identity(user):
 
 def comment_payload(row, author, db, user, stats=None):
     reaction_model, identity = reaction_identity(user)
+    avatar = {"avatar_url": None, "avatar_hud": "reticle"}
+    # Shared-link guests cannot fetch session-protected member photos.
+    if row.user_id and not isinstance(user, DiveGuest):
+        if stats is not None:
+            avatar = stats['avatars'].get(row.user_id, avatar)
+        else:
+            target = db.get(AppUser, row.user_id)
+            if target:
+                avatar = avatar_identity(target)
     return dict(id=row.id, body=row.body, author=author, user_id=row.user_id,
+                **avatar,
                 guest_id=row.guest_id, created_at=row.created_at.isoformat() + 'Z', parent_id=row.parent_id,
                 liked=(row.id in stats['liked']) if stats is not None else db.query(reaction_model).filter_by(comment_id=row.id, **identity).first() is not None,
                 like_count=stats['likes'].get(row.id, 0) if stats is not None else (db.query(func.count(DiveCommentLike.user_id)).filter_by(comment_id=row.id).scalar() + db.query(func.count(DiveGuestCommentLike.guest_id)).filter_by(comment_id=row.id).scalar()),
@@ -94,6 +105,7 @@ def comments(dive_id: int, before: int | None = None, parent_id: int | None = No
     ids = [row.id for row, _ in rows[:50]]
     reaction_model, identity = reaction_identity(user)
     stats = dict(
+        avatars={target.id: avatar_identity(target) for target in db.query(AppUser).filter(AppUser.id.in_({row.user_id for row, _ in rows[:50] if row.user_id})).all()} if not isinstance(user, DiveGuest) else {},
         liked={item[0] for item in db.query(reaction_model.comment_id).filter(reaction_model.comment_id.in_(ids)).filter_by(**identity).all()},
         likes=dict(db.query(DiveCommentLike.comment_id, func.count(DiveCommentLike.user_id)).filter(DiveCommentLike.comment_id.in_(ids)).group_by(DiveCommentLike.comment_id).all()),
         replies=dict(db.query(DiveComment.parent_id, func.count(DiveComment.id)).filter(DiveComment.parent_id.in_(ids)).group_by(DiveComment.parent_id).all()),

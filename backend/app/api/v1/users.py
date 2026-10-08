@@ -22,6 +22,7 @@ from datetime import datetime
 from io import BytesIO
 import re
 import warnings
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -42,6 +43,7 @@ from app.models.dive_social import DiveComment, DiveCommentLike, DiveGuestCommen
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services.dive_access import owned_diver_ids, visible_dive_clause
 from app.services.media_cache import playback_url
+from app.services.member_avatar import avatar_identity
 
 router = APIRouter(prefix="/users")
 
@@ -49,8 +51,7 @@ router = APIRouter(prefix="/users")
 def _identity(target):
     return dict(user_id=target.id, display_name=target.display_name,
                 handle=target.handle, bio=target.bio,
-                avatar_url=(f"/api/v1/users/{target.id}/avatar?v={target.avatar_updated_at.isoformat()}"
-                            if target.avatar_updated_at else None))
+                **avatar_identity(target))
 
 
 def _active_user(db, user_id):
@@ -130,6 +131,20 @@ def update_profile(body: ProfileUpdate, request: Request,
 
 
 _AVATAR_MAX_BYTES = 2 * 1024 * 1024
+
+
+class AvatarStyle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    avatar_hud: Literal["orbit", "reticle", "depth"]
+
+
+@router.put("/me/avatar-style")
+def update_avatar_style(body: AvatarStyle, request: Request,
+                        user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _profile_write(request)
+    user.avatar_hud = body.avatar_hud
+    db.commit()
+    return _identity(user)
 
 
 @router.put("/me/avatar")
@@ -397,7 +412,7 @@ def _hydrate(db: Session, rows):
                 dive_datetime=dive_datetime.isoformat() + "Z" if dive_datetime else None,
                 diver_name=diver_name,
             )
-    users = dict(db.query(AppUser.id, AppUser.display_name).filter(AppUser.id.in_(user_ids)).all()) if user_ids else {}
+    users = {row.id: row for row in db.query(AppUser).filter(AppUser.id.in_(user_ids)).all()} if user_ids else {}
     guests = dict(db.query(DiveGuest.id, DiveGuest.display_name).filter(DiveGuest.id.in_(guest_ids)).all()) if guest_ids else {}
     comments = {}
     if comment_ids:
@@ -417,7 +432,8 @@ def _hydrate(db: Session, rows):
             actor=dict(
                 user_id=row.actor_user_id,
                 guest_id=row.actor_guest_id,
-                display_name=users.get(row.actor_user_id) or guests.get(row.actor_guest_id) or "?",
+                display_name=users[row.actor_user_id].display_name if row.actor_user_id in users else guests.get(row.actor_guest_id) or "?",
+                **(avatar_identity(users[row.actor_user_id]) if row.actor_user_id in users else {"avatar_url": None, "avatar_hud": "reticle"}),
             ),
             dive=dives.get(row.dive_id),
             comment=dict(id=row.comment_id, body=comments.get(row.comment_id, "")) if row.comment_id else None,

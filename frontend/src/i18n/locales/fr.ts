@@ -1002,6 +1002,7 @@ const fr = {
       },
     },
   },
+  avatar: { title: 'Photo de profil', description: 'Votre photo et votre HUD vous suivent sur les profils, les commentaires et l’activité.', upload: 'Ajouter une photo', replace: 'Remplacer la photo', hud: 'Choisir votre HUD', orbit: 'Orbite', reticle: 'Réticule', depth: 'Profondeur', saved: 'Enregistré — votre identité est à jour.' },
   community: {
     "title": "Communauté",
     "subtitle": "Retrouvez des plongeurs, découvrez leurs plongeons et échangez vos conseils.",
