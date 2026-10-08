@@ -6,6 +6,7 @@ import type { Mock } from "vitest";
 
 vi.mock("./mediaPreview", () => ({
   getPreview: vi.fn(),
+  resetMediaPreviews: vi.fn(),
   cachedPreview: vi.fn(() => undefined),
 }));
 

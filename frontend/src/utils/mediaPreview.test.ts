@@ -45,3 +45,55 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   expect(withoutPoster.playbackUrl).toBe('/play2');
   expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
 });
+it('resolves the ready local startup preview while retaining the original for HQ', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
+    url.endsWith('/batch') ? { 'hq': { status: 'ready', playback_url: '/api/v1/media/revisions/123/play' } }
+      : { status: 'ready', playback_url: '/api/v1/media/revisions/123/play', cache_entries: [
+        { rendition: 'poster', playback_url: '/poster.jpg' },
+        { rendition: 'proxy_360p', playback_url: '/small.mp4' },
+        { rendition: 'proxy_720p', playback_url: '/hq-preview.mp4' },
+      ] },
+  })))
+  const { getPreviewForPlayback, cachedPreview } = await import('./mediaPreview')
+  const pending = getPreviewForPlayback('hq')
+  await vi.advanceTimersByTimeAsync(50)
+  const preview = await pending
+  expect(preview.playbackUrl).toBe('/hq-preview.mp4')
+  expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/123/play')
+  expect(cachedPreview('hq')).toEqual(preview)
+})
+it('does not let a pre-logout status response repopulate the next account cache', async () => {
+  let resolve!: (response: unknown) => void
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done })))
+  const { getPreview, cachedPreview, resetMediaPreviews } = await import('./mediaPreview')
+  const old = getPreview('private')
+  await vi.advanceTimersByTimeAsync(50)
+  resetMediaPreviews()
+  resolve({ ok: true, json: async () => ({ private: { status: 'ready', playback_url: '/private.mp4' } }) })
+  await vi.advanceTimersByTimeAsync(0)
+  expect((await old).playbackUrl).toBeNull()
+  expect(cachedPreview('private')).toBeUndefined()
+})
+
+it('starts the next account batch without waiting for an aborted stalled batch', async () => {
+  let finishOld!: (response: unknown) => void
+  const fetcher = vi.fn()
+    .mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve }))
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ same: { status: 'ready', playback_url: '/new-account.mp4' } }) })
+  vi.stubGlobal('fetch', fetcher)
+  const { getPreview, resetMediaPreviews, cachedPreview } = await import('./mediaPreview')
+  const old = getPreview('same')
+  await vi.advanceTimersByTimeAsync(50)
+  const oldSignal = fetcher.mock.calls[0][1].signal as AbortSignal
+  resetMediaPreviews()
+  expect(oldSignal.aborted).toBe(true)
+  // The mocked transport deliberately ignores abort and remains stalled.
+  const fresh = getPreview('same')
+  await vi.advanceTimersByTimeAsync(50)
+  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect((await fresh).playbackUrl).toBe('/new-account.mp4')
+  finishOld({ ok: true, json: async () => ({ same: { status: 'ready', playback_url: '/old-account.mp4' } }) })
+  await vi.advanceTimersByTimeAsync(0)
+  expect((await old).playbackUrl).toBeNull()
+  expect(cachedPreview('same')?.playbackUrl).toBe('/new-account.mp4')
+})

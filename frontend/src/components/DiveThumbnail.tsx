@@ -1,3 +1,4 @@
+import { prepareLibraryPlayback } from '../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
 import React, { useEffect, useRef, useState } from "react";
 import { Film } from "lucide-react";
@@ -24,6 +25,9 @@ export default function DiveThumbnail({
     const cached = cachedPreview(dive.video_uuid);
     if (cached) {
       setPreview(cached);
+      // Only the first two visible candidates are prepared speculatively.
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (cached.ready && rect && rect.bottom > 0 && rect.top < window.innerHeight) prepareLibraryPlayback(dive.video_uuid);
       return;
     }
     // Gate the fetch behind IntersectionObserver so we only hit the
@@ -38,7 +42,10 @@ export default function DiveThumbnail({
         if (entries[0].isIntersecting) {
           observer.disconnect();
           getPreview(dive.video_uuid!).then((result) => {
-            if (active) setPreview(result);
+            if (active) {
+              setPreview(result);
+              if (result.ready) prepareLibraryPlayback(dive.video_uuid!);
+            }
           });
         }
       },
@@ -50,6 +57,19 @@ export default function DiveThumbnail({
       observer.disconnect();
     };
   }, [dive.video_uuid]);
+  useEffect(() => {
+    const button = containerRef.current?.closest('button')
+    if (!button || !dive.video_uuid) return
+    const warm = () => prepareLibraryPlayback(dive.video_uuid!, true)
+    button.addEventListener('pointerenter', warm)
+    button.addEventListener('focus', warm)
+    button.addEventListener('pointerdown', warm)
+    return () => {
+      button.removeEventListener('pointerenter', warm)
+      button.removeEventListener('focus', warm)
+      button.removeEventListener('pointerdown', warm)
+    }
+  }, [dive.video_uuid])
   return (
     <div
       ref={containerRef}

@@ -15,6 +15,7 @@ const DRAG_ENGAGE_PX = 10;
 
 export default function ImmersiveControls({
   videoRef,
+  soundRef,
   playbackRate,
   mediaPresented = true,
   onLike,
@@ -27,6 +28,7 @@ export default function ImmersiveControls({
   onPinchEnd,
 }: {
   videoRef: RefObject<HTMLVideoElement>;
+  soundRef?: RefObject<HTMLVideoElement>;
   playbackRate: number;
   /**
    * False until the video has presented its first real frame: the visible
@@ -174,7 +176,7 @@ export default function ImmersiveControls({
     if (!video) return;
     const sync = () => {
       setPaused(video.paused);
-      setMuted(video.muted);
+      setMuted((soundRef?.current || video).muted);
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
       setProgress(video.currentTime || 0);
     };
@@ -186,15 +188,18 @@ export default function ImmersiveControls({
       "loadedmetadata",
     ];
     events.forEach((event) => video.addEventListener(event, sync));
+    const sound = soundRef?.current;
+    if (sound && sound !== video) sound.addEventListener('volumechange', sync);
     sync();
     return () => {
+      if (sound && sound !== video) sound.removeEventListener('volumechange', sync);
       events.forEach((event) => video.removeEventListener(event, sync));
       clearTimeout(holdTimer.current);
       clearTimeout(tapTimer.current);
       clearTimeout(heartTimer.current);
       video.playbackRate = rateRef.current;
     };
-  }, [videoRef]);
+  }, [videoRef, soundRef]);
 
   return (
     <>
@@ -356,7 +361,7 @@ export default function ImmersiveControls({
               data-sound-toggle
               onClick={() => {
                 if (videoRef.current)
-                  videoRef.current.muted = !videoRef.current.muted;
+                  (soundRef?.current || videoRef.current).muted = !(soundRef?.current || videoRef.current).muted;
               }}
             >
               {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}

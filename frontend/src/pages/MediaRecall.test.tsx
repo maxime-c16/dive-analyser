@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MediaRecall from './MediaRecall'
@@ -30,7 +30,8 @@ describe('MediaRecall', () => {
     vi.mocked(planCatalogPopulation).mockResolvedValue({ dry_run: true, total_eligible_assets: 80, already_fully_ready: 10, poster_only: 2, fully_missing: 68, retryable: 0, priority_counts: {}, estimated_mac_rolling_peak_bytes: 1_250_000_000, estimated_debian_cache_growth_bytes: 1_000_000, current_free_bytes: 31 * 1024 ** 3, projected_free_bytes_at_peak: 30 * 1024 ** 3, blocked_reasons: ['free_space_below_new_recall_gate'], execution_allowed: false, jobs_created: 0, recalls_created: 0, source_files_created: 0 })
     render(<MemoryRouter><MediaRecall /></MemoryRouter>)
     const button = await screen.findByRole('button', { name: 'Plan population' })
-    button.click()
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
     expect(await screen.findByText(/Paused: free space below new recall gate/)).toBeInTheDocument()
     expect(recallOne).not.toHaveBeenCalled()
   })
@@ -39,7 +40,8 @@ describe('MediaRecall', () => {
     vi.mocked(planRecallBatch).mockResolvedValue({ dry_run: true, priority: 'zero_ready_typical', items: [], estimated_temporary_peak_bytes: 0, current_free_bytes: 50, projected_free_bytes: 50, quota_result: 'ok', blocked_items: [], jobs_created: 0, recalls_created: 0 })
     render(<MemoryRouter><MediaRecall /></MemoryRouter>)
     const button = await screen.findByRole('button', { name: 'Plan bounded batch' })
-    button.click()
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
     expect(await screen.findByText('Gate')).toBeInTheDocument()
     expect(recallOne).not.toHaveBeenCalled()
   })

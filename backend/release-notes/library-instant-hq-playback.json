@@ -1,0 +1,8 @@
+{
+  "id": "library-instant-hq-playback",
+  "date": "2026-10-08",
+  "title": "Smoother Library playback",
+  "body": "Ready previews start quickly as you open and browse dives. Original quality takes over when it is buffered, while sound continues without interruption.",
+  "audience": "all",
+  "components": ["frontend"]
+}

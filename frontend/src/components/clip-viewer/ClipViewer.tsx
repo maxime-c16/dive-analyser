@@ -1,3 +1,4 @@
+import { preparePlaybackWindow } from '../../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -487,6 +488,13 @@ export default function ClipViewer({
     setAspectRatio(9 / 16);
   }, [attempt.id]);
 
+  useEffect(() => {
+    const neighbors = [index, index + 1, index - 1, index + 2]
+      .map(i => attempts[i]?.video_uuid).filter((uuid): uuid is string => Boolean(uuid))
+    preparePlaybackWindow(neighbors)
+  }, [attempt.id, attempts, index])
+  useEffect(() => () => preparePlaybackWindow([]), [])
+
   // Contain-fit picture box inside the stage, and the zoom that makes it
   // fill the stage like `cover` (1 for landscape clips, which stay contained).
   useEffect(() => {
@@ -621,7 +629,7 @@ export default function ClipViewer({
       : index > previous
         ? 1
         : -1;
-    warmAdjacentClips({ attempts, index, direction });
+    warmAdjacentClips({ nativePlayback: true, attempts, index, direction });
   }, [attempts, index]);
 
   useEffect(() => {

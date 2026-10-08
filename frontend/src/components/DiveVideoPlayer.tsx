@@ -1,3 +1,4 @@
+import PreparedVideo from './PreparedVideo'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Clock, DownloadCloud, ImageOff, LogIn, RefreshCw, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -51,7 +52,7 @@ const ACTIVE_PREPARATION_STATES = [
 
 type Phase =
   | { kind: 'checking' }
-  | { kind: 'ready'; src: string }
+  | { kind: 'ready'; src: string; originalSrc?: string | null }
   | { kind: 'preparing'; state: string; longRunning: boolean; stopped: boolean }
   | { kind: 'prepare-failed'; message: string | null; fallback: 'prepareFailed' | 'requestFailed' }
   | { kind: 'not-cached' }
@@ -97,6 +98,9 @@ interface DiveVideoPlayerProps {
 function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd }: DiveVideoPlayerProps) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const soundRef = useRef<HTMLVideoElement>(null)
+  const [videoEpoch, setVideoEpoch] = useState(0)
+  const handleVideoChange = useCallback(() => setVideoEpoch(epoch => epoch + 1), [])
   const { user, checking: authChecking } = useAuth()
 
   // First-paint seed: the shared media-preview cache (warmed by Library
@@ -108,7 +112,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const initialSeed = videoUuid ? cachedPreview(videoUuid) : null
   const [phase, setPhase] = useState<Phase>(() =>
     videoUuid && initialSeed?.playbackUrl
-      ? { kind: 'ready', src: initialSeed.playbackUrl }
+      ? { kind: 'ready', src: initialSeed.playbackUrl, originalSrc: initialSeed.originalPlaybackUrl }
       : { kind: 'checking' },
   )
   const [stale, setStale] = useState(false)
@@ -158,11 +162,11 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setCanRequest(Boolean(data.can_request))
     setPosterSrc(getPosterUrlFromStatus(data))
 
-    const playbackUrl = getPlaybackUrlFromStatus(data)
+    const playbackUrl = getPlaybackUrlFromStatus(data, immersive)
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      setPhase({ kind: 'ready', src: playbackUrl })
+      setPhase({ kind: 'ready', src: playbackUrl, originalSrc: immersive ? data.playback_url : null })
       return
     }
 
@@ -190,7 +194,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     preparingSinceRef.current = null
     lastPreparingStateRef.current = null
     setPhase({ kind: 'not-cached' })
-  }, [])
+  }, [immersive])
 
   // Initial status lookup with a bounded automatic retry window. Terminal
   // transport failure is actionable (manual retry) — never an endless
@@ -222,7 +226,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       // the authoritative status lookup below still runs and applies.
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      setPhase({ kind: 'ready', src: seed.playbackUrl })
+      setPhase({ kind: 'ready', src: seed.playbackUrl, originalSrc: seed.originalPlaybackUrl })
     } else {
       setPhase({ kind: 'checking' })
     }
@@ -381,15 +385,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       video.removeEventListener('playing', onPlaybackSignal)
       video.removeEventListener('timeupdate', onPlaybackSignal)
     }
-  }, [gateKey])
+  }, [gateKey, videoEpoch])
 
   // Keep the requested playback speed applied across source loads and changes.
   useEffect(() => {
     const video = videoRef.current
     if (video) {
       video.playbackRate = playbackRate
+      if (soundRef.current) soundRef.current.playbackRate = playbackRate
     }
-  }, [playbackRate, phase.kind])
+  }, [playbackRate, phase.kind, videoEpoch])
 
   // Manual re-check of media status. Status lookup only — never a
   // preparation request.
@@ -467,7 +472,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // fights an intentional mute; it only undoes what the fallback imposed.
   useEffect(() => {
     if (!immersive || !autoMuted) return
-    const video = videoRef.current
+    const video = soundRef.current || videoRef.current
     if (!video) return
     const restore = (event: Event) => {
       // The explicit sound toggle keeps its own semantics: it must toggle
@@ -476,7 +481,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       // Like, play/pause, keypresses) restores sound.
       const target = event.target as HTMLElement | null
       if (target?.closest?.('[data-sound-toggle]')) return
-      const current = videoRef.current
+      const current = soundRef.current || videoRef.current
       if (current && current.muted) {
         current.muted = false
         if (current.paused && !current.ended) {
@@ -491,7 +496,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       setAutoMuted(false)
     }
     const onVolume = () => {
-      if (!videoRef.current?.muted) setAutoMuted(false)
+      if (!(soundRef.current || videoRef.current)?.muted) setAutoMuted(false)
     }
     document.addEventListener('pointerdown', restore, true)
     document.addEventListener('keydown', restore, true)
@@ -501,14 +506,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       document.removeEventListener('keydown', restore, true)
       video.removeEventListener('volumechange', onVolume)
     }
-  }, [immersive, autoMuted, videoUuid, retryEpoch])
+  }, [immersive, autoMuted, videoUuid, retryEpoch, videoEpoch])
 
   const handleLoadedMetadata = () => {
     const video = videoRef.current
     if (video) {
       if (video.videoHeight) onAspectRatioChange?.(video.videoWidth / video.videoHeight)
       video.playbackRate = playbackRate
-      if (immersive) attemptImmersiveAutoplay(video)
+      if (immersive) {
+        attemptImmersiveAutoplay(soundRef.current || video)
+        if (soundRef.current && soundRef.current !== video) void video.play().catch(() => {})
+      }
     }
   }
 
@@ -603,6 +611,22 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       )}
 
       {/* Native controls remain available in embedded analysis views. */}
+      {immersive ? <PreparedVideo
+        videoUuid={videoUuid}
+        originalSrc={phase.kind === 'ready' ? phase.originalSrc || undefined : undefined}
+        onVideoChange={handleVideoChange}
+        videoRef={videoRef}
+        soundRef={soundRef}
+        className="block h-full w-full bg-black clip-video"
+        src={phase.kind === 'ready' ? phase.src : undefined}
+        poster={posterSrc || undefined}
+        label={t('videoPlayer.videoAria', { code: diveCode, height })}
+        onLoadedMetadata={handleLoadedMetadata}
+        onCanPlay={handleCanPlay}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onError={handleDecodeError}
+      /> : (
       <video
         ref={videoRef}
         className={`block h-full w-full bg-black ${immersive ? "clip-video" : "object-contain"}`}
@@ -620,6 +644,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         poster={posterSrc || undefined}
         aria-label={t('videoPlayer.videoAria', { code: diveCode, height })}
       />
+      )}
 
       {/* Incoming-clip cover: the cached poster held above the video from
           the first paint until THIS source presents its first frame — the
@@ -644,7 +669,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls videoRef={videoRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls key={videoEpoch} videoRef={videoRef} soundRef={soundRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}

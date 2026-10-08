@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest'
 import DiveVideoPlayer, {
@@ -439,22 +438,15 @@ function stubFrameCallbacks(): FrameStub {
   }
 }
 
-it('the very first render already carries the seeded poster, playback and cover', async () => {
+it('the first client paint adopts the seeded playback and poster under its cover', async () => {
   await seedPreviewNow('ssr-seed', '/seeded.mp4')
-  // renderToString is only a first-paint probe; the client-only
-  // useLayoutEffect warning it emits is expected noise here.
-  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-  try {
-    const html = renderToString(
-      <DiveVideoPlayer diveCode="103B" height="1m" videoUuid="ssr-seed" immersive />,
-    )
-    expect(html).toContain('src="/seeded.mp4"')
-    expect(html).toContain('poster="/seeded.jpg"')
-    expect(html).toContain('data-testid="clip-cover"')
-    expect(html).not.toContain('Checking')
-  } finally {
-    errorSpy.mockRestore()
-  }
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  const { container } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="ssr-seed" immersive />)
+  const video = container.querySelector('video')!
+  expect(video).toHaveAttribute('src', '/seeded.mp4')
+  expect(video).toHaveAttribute('poster', '/seeded.jpg')
+  expect(coverImg()).toHaveAttribute('src', '/seeded.jpg')
+  expect(screen.queryByText('Checking…')).not.toBeInTheDocument()
 })
 
 it('a poster-only seed holds the cover through the initial status lookup', async () => {

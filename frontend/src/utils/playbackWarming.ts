@@ -1,3 +1,4 @@
+import { resetPreparedPlayback } from './preparedPlayback'
 // Warming adjacent clip bytes for instant open/swipe.
 //
 // The first warmer used a page-lifetime budget of 12 URLs that never
@@ -23,7 +24,7 @@
 // The current clip is never freshly warmed: a speculative GET here would
 // only race its own playback load, so the warmer merely lets an
 // already-running preparation for it finish.
-import { getPreview } from "./mediaPreview";
+import { getPreview, resetMediaPreviews } from "./mediaPreview";
 import { canPrefetch } from "../hooks/useNavigationIntent";
 
 export type WarmDirection = -1 | 0 | 1;
@@ -84,6 +85,7 @@ let windowUuids = new Set<string>();
 // is cancelled (a speculative GET there would only race its playback);
 // already-running preparation for it is allowed to finish.
 let currentUuid: string | null = null;
+let nativePlayback = false;
 
 const jobKey = (kind: WarmKind, videoUuid: string) => `${kind}:${videoUuid}`;
 const inCooldown = (key: string) => (laneCooldown.get(key) ?? 0) > Date.now();
@@ -366,6 +368,7 @@ function upsertJob(kind: WarmKind, videoUuid: string, rank: number): WarmJob {
 
 function enqueueClip(videoUuid: string, rank: number, isCurrent: boolean) {
   for (const kind of ["video", "poster"] as const) {
+    if (nativePlayback && kind === "video") continue;
     const key = jobKey(kind, videoUuid);
     if (inCooldown(key)) continue; // wait out the exhausted-retry cooldown
     const existing = jobs.get(key);
@@ -406,8 +409,13 @@ export function warmAdjacentClips(args: {
   attempts: ReadonlyArray<{ video_uuid?: string | null }>;
   index: number;
   direction?: WarmDirection;
+  nativePlayback?: boolean;
 }): void {
   const { attempts, index, direction = 0 } = args;
+  nativePlayback = args.nativePlayback ?? false;
+  if (nativePlayback) {
+    for (const job of [...jobs.values()]) if (job.kind === "video") dropJob(job);
+  }
   currentUuid = (index >= 0 && index < attempts.length)
     ? attempts[index]?.video_uuid ?? null
     : null;
@@ -465,6 +473,9 @@ function recomputeWindow(
  * behind; a future session starts its attempts anew.
  */
 export function resetPlaybackWarming(): void {
+  resetPreparedPlayback()
+  resetMediaPreviews()
+  nativePlayback = false
   for (const job of [...jobs.values()]) dropJob(job);
   laneCooldown.clear();
   windowUuids = new Set();

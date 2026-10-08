@@ -52,7 +52,13 @@ export async function requestMedia(
   return response.json()
 }
 
-export function getPlaybackUrlFromStatus(status: MediaStatus): string | null {
+export function getPlaybackUrlFromStatus(status: MediaStatus, preferPreview = false): string | null {
+  if (preferPreview) {
+    for (const rendition of ['proxy_720p', 'proxy_360p']) {
+      const entry = status.cache_entries?.find(item => item.rendition === rendition && item.playback_url)
+      if (entry?.playback_url) return entry.playback_url
+    }
+  }
   return status.playback_url || null
 }
 
