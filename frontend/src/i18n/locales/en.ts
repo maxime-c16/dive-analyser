@@ -1,4 +1,5 @@
 /**
+    mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
  * English locale. This file doubles as the key catalog: any key present here
  * must exist in fr.ts (key parity is required by i18n parity discipline) and
  * English values must match the original hardcoded strings so tests and
@@ -124,7 +125,6 @@ const en = {
     noLinkedClip: 'No linked clip for this attempt.',
     likeDive: 'Like dive',
     like: 'Like',
-    mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
   comments: 'Comments',
     analysis: 'Analysis',
     private: 'Private',
