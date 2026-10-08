@@ -6,6 +6,11 @@ cursor pagination and the profile-page member feed.
 """
 from datetime import datetime
 
+from sqlalchemy import literal, union_all
+from sqlalchemy.dialects import postgresql
+
+from app.api.v1.users import _arm
+
 from tests.test_member_dive_visibility import workspace
 
 from app.models.dive_social import DiveLike
@@ -14,6 +19,24 @@ from app.models.dive_share import DiveGuest, DiveGuestLike
 
 def _keys(payload):
     return [row['key'] for row in payload['items']]
+
+
+def test_postgres_union_types_nullable_actor_and_comment_ids():
+    """SQLite accepts NULL/INTEGER unions that PostgreSQL rejects when the
+    first two arms contain only NULL guest/comment IDs. Keep those NULLs
+    explicitly typed in the SQL actually sent to PostgreSQL."""
+    stamp = literal(datetime(2026, 10, 8))
+    number = literal(1)
+    empty = literal(None)
+    query = union_all(
+        _arm(0, 'dive_like', 'sent', stamp, number, number, number, number, empty, empty),
+        _arm(1, 'comment_like', 'sent', stamp, number, number, number, number, empty, empty),
+        _arm(2, 'comment', 'received', stamp, number, number, number, empty, number, number),
+    )
+    sql = str(query.compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))
+    assert sql.count('CAST(NULL AS INTEGER) AS actor_guest_id') == 2
+    assert sql.count('CAST(NULL AS INTEGER) AS comment_id') == 2
+    assert 'CAST(NULL AS INTEGER) AS actor_user_id' in sql
 
 
 def test_profile_is_minimal_and_bindings_follow_visibility(workspace):

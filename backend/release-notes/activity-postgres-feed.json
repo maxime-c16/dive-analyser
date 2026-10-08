@@ -1,0 +1,8 @@
+{
+  "id": "activity-postgres-feed",
+  "date": "2026-10-08",
+  "title": "Activity history loads reliably",
+  "body": "Your activity history now loads correctly when member and guest reactions appear together.",
+  "audience": "all",
+  "components": ["backend"]
+}

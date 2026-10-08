@@ -28,7 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import and_, func, literal, or_, select, union_all
+from sqlalchemy import Integer, and_, cast, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -258,9 +258,11 @@ def _arm(arm_no, kind, direction, when, row_key, actor_key, dive_id, actor_user,
         actor_key.label("actor_key"),
         when.label("created_at"),
         dive_id.label("dive_id"),
-        actor_user.label("actor_user_id"),
-        actor_guest.label("actor_guest_id"),
-        comment_id.label("comment_id"),
+        # PostgreSQL resolves an initial run of untyped NULLs to TEXT in a
+        # UNION. Cast nullable IDs so later guest/comment arms stay INTEGER.
+        cast(actor_user, Integer).label("actor_user_id"),
+        cast(actor_guest, Integer).label("actor_guest_id"),
+        cast(comment_id, Integer).label("comment_id"),
     )
 
 
