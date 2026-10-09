@@ -196,6 +196,8 @@ export type MyRatingItem = {
   created_at: string
   rating_count: number
   mean_score: number | null
+  panel_count?: number
+  panel_mean?: number | null
 }
 
 export type MyRatingsPage = {

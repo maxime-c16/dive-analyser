@@ -385,9 +385,50 @@ def test_overview_panel_stays_correct_when_voter_becomes_owner(workspace):
     assert vote['score_half_steps'] == 14
     assert vote['panel_count'] == 1 and vote['panel_mean'] == 4.0
     assert body['judge']['compared'] == 1 and body['judge']['bias'] == 3.0
+    history = login('bob').get('/api/v1/evaluations/my-ratings').json()['items'][0]
+    assert history['rating_count'] == 1 and history['mean_score'] == 4.0
+    assert history['panel_count'] == 1 and history['panel_mean'] == 4.0
     # If no other vote is left, there is no panel or comparison sample.
     db.query(AutomaticRating).filter_by(evaluator_user_id=users['viewer'].id).delete(); db.commit()
     body = login('bob').get('/api/v1/evaluations/overview').json()
     assert body['today']['votes'][0]['panel_count'] == 0
     assert body['today']['votes'][0]['panel_mean'] is None
     assert body['judge']['compared'] == 0 and body['judge']['bias'] is None
+    history = login('bob').get('/api/v1/evaluations/my-ratings').json()['items'][0]
+    assert history['panel_count'] == 0 and history['panel_mean'] is None
+
+
+def test_history_pages_both_vote_sources_in_sql_without_loading_skipped_rows(workspace):
+    from types import SimpleNamespace
+    from sqlalchemy import event
+    from app.models.evaluation import EvaluationRating, EvaluationRequest
+    from app.services import evaluation_ratings
+    db, _, dives, users, _ = workspace
+    user = SimpleNamespace(id=users['bob'].id)
+    now = datetime.utcnow()
+    for n, key in enumerate(('alice-public', 'alice-private')):
+        request = EvaluationRequest(dive_id=dives[key], created_by_user_id=users['alice'].id)
+        db.add(request); db.flush()
+        snapshot = dict(evaluator_user_id=user.id, score_half_steps=12, dive_code='101B', height='3m', dive_name=key)
+        db.add(EvaluationRating(request_id=request.id, created_at=now + timedelta(seconds=2*n), **snapshot))
+        db.add(AutomaticRating(dive_id=dives[key], video_uuid=key + '-video', created_at=now + timedelta(seconds=2*n+1), **snapshot))
+    db.commit()
+    db.expunge_all()
+    loaded = []
+    def record(row, context):
+        loaded.append(type(row))
+    for model in (EvaluationRating, AutomaticRating):
+        event.listen(model, 'load', record)
+    try:
+        page = evaluation_ratings.my_ratings(db, user, limit=2, offset=1)
+        assert page['total'] == 4
+        assert [(r['kind'], r['dive']['dive_name']) for r in page['items']] == [
+            ('request', 'alice-private'), ('automatic', 'alice-public')]
+        assert len(loaded) == 2  # only this page's vote objects are materialized
+        loaded.clear()
+        far_page = evaluation_ratings.my_ratings(db, user, limit=2, offset=1_000_000)
+        assert far_page['items'] == [] and far_page['total'] == 4
+        assert loaded == []
+    finally:
+        for model in (EvaluationRating, AutomaticRating):
+            event.remove(model, 'load', record)

@@ -52,3 +52,14 @@ it('prints decimals in the reader’s language', async () => {
   expect(points(-0.9, 'en', true)).toBe('−0.9')
   expect(points(0, 'en', true)).toBe('=')
 })
+
+it('uses the server panel after ownership excludes my vote from the overall mean', async () => {
+  vi.mocked(getMyRatings).mockResolvedValue({ items: [row(5, 0, {
+    rating_count: 1, mean_score: 4, panel_count: 1, panel_mean: 4,
+  })], total: 1, limit: 10, offset: 0 })
+  render(<MyJudgements />)
+  expect(await screen.findByText('+3.0')).toBeInTheDocument()
+  expect(screen.queryByText('First judge')).not.toBeInTheDocument()
+  expect(othersMean({ score_half_steps: 14, rating_count: 1, mean_score: 4, panel_mean: 4 })).toBe(4)
+  expect(othersMean({ score_half_steps: 14, rating_count: 1, mean_score: 7, panel_mean: null })).toBeNull()
+})

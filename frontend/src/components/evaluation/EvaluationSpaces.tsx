@@ -203,8 +203,9 @@ export function OwnedPanelLink({ requestId, automatic = false }: { requestId: nu
   )
 }
 
-/** Others' mean on a dive I judged: the stored mean includes my own vote. */
-export function othersMean(row: Pick<MyRatingItem, 'score_half_steps' | 'rating_count' | 'mean_score'>): number | null {
+/** Use the other-voter aggregate; older servers only send the overall mean. */
+export function othersMean(row: Pick<MyRatingItem, 'score_half_steps' | 'rating_count' | 'mean_score' | 'panel_mean'>): number | null {
+  if (row.panel_mean !== undefined) return row.panel_mean
   if (row.mean_score === null || row.rating_count < 2) return null
   return Math.round(((row.mean_score * row.rating_count - row.score_half_steps / 2) / (row.rating_count - 1)) * 10) / 10
 }
