@@ -213,6 +213,9 @@ describe('messages unread badge', () => {
   function stubMessagesInbox() {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/messages/unread-count')) {
+        return { ok: true, json: async () => ({ unread_count: 3 }) } as Response
+      }
       if (url.includes('/api/v1/messages/conversations')) {
         return { ok: true, json: async () => ({ items: [{ id: 1, kind: 'direct', members: [], unread_count: 2 }, { id: 2, kind: 'direct', members: [], unread_count: 1 }], next_before: null }) } as Response
       }

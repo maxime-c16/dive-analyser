@@ -9,26 +9,20 @@ vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { user_id: 7, email: 'alex@example.com', is_admin: false } }),
 }))
 
-type Row = { id: number; unread_count?: number }
-type Page = { items: Row[]; next_before: string | null }
+const UNREAD_URL = '/api/v1/messages/unread-count'
 
-let conversations: Row[]
-let nextBefore: string | null
-let extraPages: Record<string, Page>
+let unreadTotal: number
 
 function jsonResponse(payload: unknown) {
   return { ok: true, json: async () => payload } as Response
 }
 
-function stubInbox() {
+function stubUnread() {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString()
-      if (url.startsWith('/api/v1/messages/conversations')) {
-        const before = new URLSearchParams(url.split('?')[1] ?? '').get('before')
-        return jsonResponse(before ? (extraPages[before] ?? { items: [], next_before: null }) : { items: conversations, next_before: nextBefore })
-      }
+      if (url.startsWith(UNREAD_URL)) return jsonResponse({ unread_count: unreadTotal })
       throw new Error(`unexpected ${url}`)
     }),
   )
@@ -63,10 +57,8 @@ function renderAt(path: string) {
 }
 
 beforeEach(() => {
-  conversations = [{ id: 1, unread_count: 2 }, { id: 2, unread_count: 1 }, { id: 3 }]
-  nextBefore = null
-  extraPages = {}
-  stubInbox()
+  unreadTotal = 3
+  stubUnread()
 })
 
 afterEach(() => {
@@ -74,12 +66,13 @@ afterEach(() => {
 })
 
 describe('MessagesUnread badge', () => {
-  it('totals unread conversations and labels the nav link', async () => {
+  it('shows the server total and labels the nav link', async () => {
     renderAt('/dives')
     const badge = await screen.findByTestId('messages-unread-badge')
     expect(badge).toHaveTextContent('3')
     expect(screen.getByTestId('messages-link')).toHaveAttribute('aria-label', 'Messages, 3 unread')
     expect(screen.getByTestId('unread-count')).toHaveTextContent('3')
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toContain(UNREAD_URL)
   })
 
   it('discards the badge while the Messages tab is being read', async () => {
@@ -93,44 +86,24 @@ describe('MessagesUnread badge', () => {
     renderAt('/dives')
     expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('3')
     // The thread wrote its read receipts; the resync reflects them.
-    conversations = [{ id: 1 }, { id: 2 }, { id: 3 }]
+    unreadTotal = 0
     fireEvent.click(screen.getByRole('button', { name: 'Resync' }))
     await waitFor(() => expect(screen.queryByTestId('messages-unread-badge')).toBeNull())
     expect(screen.getByTestId('unread-count')).toHaveTextContent('0')
   })
 
   it('caps the pill at 99+', async () => {
-    conversations = [{ id: 1, unread_count: 120 }]
+    unreadTotal = 120
     renderAt('/dives')
     expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('99+')
   })
 
-  it('follows the inbox cursor so older conversations count too', async () => {
-    conversations = [{ id: 1, unread_count: 1 }]
-    nextBefore = '2026-10-09T00:00:00,7'
-    extraPages = { '2026-10-09T00:00:00,7': { items: [{ id: 9, unread_count: 4 }], next_before: null } }
+  it('trusts the aggregate for counts beyond five inbox pages', async () => {
+    // 260 unread conversations sit past the 5 x 50 rows a client could page.
+    unreadTotal = 260
     renderAt('/dives')
-    expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('5')
-    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input)).some(url => url.includes('before='))).toBe(true)
-  })
-
-  it('never lets a superseded response restore a cleared count', async () => {
-    let release!: (response: Response) => void
-    const hanging = new Promise<Response>(resolve => { release = resolve })
-    let calls = 0
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-      // The first (initial) load hangs; any later refresh answers immediately.
-      if (String(input).includes('/api/v1/messages/conversations') && ++calls === 1) return hanging
-      return Promise.resolve(jsonResponse({ items: [{ id: 1 }], next_before: null }))
-    }))
-    renderAt('/dives')
-    fireEvent.click(screen.getByRole('button', { name: 'Resync' }))
-    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(2))
-    await waitFor(() => expect(screen.getByTestId('unread-count')).toHaveTextContent('0'))
-    // The stale response lands afterwards with unread messages: it must be dropped.
-    await act(async () => { release(jsonResponse({ items: [{ id: 1, unread_count: 9 }], next_before: null })) })
-    expect(screen.getByTestId('unread-count')).toHaveTextContent('0')
-    expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
+    expect(await screen.findByTestId('unread-count')).toHaveTextContent('260')
+    expect(screen.getByTestId('messages-unread-badge')).toHaveTextContent('99+')
   })
 
   it('stays quiet (no badge, no crash) when the inbox is unreachable', async () => {
@@ -140,5 +113,24 @@ describe('MessagesUnread badge', () => {
     expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByTestId('messages-link')).not.toHaveAttribute('aria-label')
+  })
+
+  it('never lets a superseded response restore a cleared count', async () => {
+    let release!: (response: Response) => void
+    const hanging = new Promise<Response>(resolve => { release = resolve })
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      // The first (initial) load hangs; any later refresh answers immediately.
+      if (String(input).includes(UNREAD_URL) && ++calls === 1) return hanging
+      return Promise.resolve(jsonResponse({ unread_count: 0 }))
+    }))
+    renderAt('/dives')
+    fireEvent.click(screen.getByRole('button', { name: 'Resync' }))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(screen.getByTestId('unread-count')).toHaveTextContent('0'))
+    // The stale response lands afterwards with unread messages: it must be dropped.
+    await act(async () => { release(jsonResponse({ unread_count: 9 })) })
+    expect(screen.getByTestId('unread-count')).toHaveTextContent('0')
+    expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
   })
 })

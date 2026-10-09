@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
-import { listConversations } from '../services/messagesApi'
+import { getUnreadCount } from '../services/messagesApi'
 import { primaryTabFor } from '../navigation/mobileNavigation'
 
 type MessagesUnreadContextValue = {
@@ -37,24 +37,15 @@ function AccountMessagesUnread({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-    // Newest conversations first: unread rows almost always sit in the first
-    // pages, but the cursor is followed anyway so older threads count too.
-    // Bounded like the inbox itself — deep history is opened on demand.
-    const MAX_PAGES = 5
     const ticket = ++request.current
     try {
-      let cursor: string | undefined
-      let total = 0
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const data = await listConversations(cursor, 50)
-        // A poll or a receipt-triggered refresh started later wins; a late
-        // response must never restore a count the user has already cleared.
-        if (ticket !== request.current) return
-        total += data.items.reduce((sum, conversation) => sum + (conversation.unread_count ?? 0), 0)
-        if (!data.next_before) break
-        cursor = data.next_before
-      }
-      setUnreadCount(total)
+      // One bounded server-side aggregate: the inbox pages cap at 50 rows, so
+      // summing client-side would hide unread conversations further down.
+      const data = await getUnreadCount()
+      // A poll or a receipt-triggered refresh started later wins; a late
+      // response must never restore a count the user has already cleared.
+      if (ticket !== request.current) return
+      setUnreadCount(data.unread_count)
     } catch {
       // Badge-only: keep the last known count, never surface an error here.
     }

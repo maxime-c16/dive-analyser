@@ -127,6 +127,27 @@ def inbox(before: str | None = None, limit: int = Query(30, ge=1, le=50), user=D
     return dict(items=items, next_before=f'{rows[limit-1].updated_at.isoformat()},{rows[limit-1].id}' if len(rows) > limit else None)
 
 
+@router.get('/unread-count')
+def unread_count(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Total unread across every conversation, not just one inbox page.
+
+    The badge needs one number the client cannot derive by paging: the inbox
+    caps each page, so older unread conversations would silently disappear
+    from the sum. Single aggregate over the same rows inbox() counts.
+    """
+    total = db.query(func.count(MessageReceipt.message_id)).join(
+        DirectMessage, DirectMessage.id == MessageReceipt.message_id
+    ).join(Conversation, Conversation.id == DirectMessage.conversation_id).join(
+        ConversationParticipant, ConversationParticipant.conversation_id == Conversation.id
+    ).filter(
+        ConversationParticipant.user_id == user.id,
+        ConversationParticipant.left_at.is_(None),
+        MessageReceipt.user_id == user.id,
+        MessageReceipt.read_at.is_(None),
+    ).scalar()
+    return dict(unread_count=int(total or 0))
+
+
 @router.get('/conversations/{id}')
 def details(id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
     row = conversation(db, user, id)
