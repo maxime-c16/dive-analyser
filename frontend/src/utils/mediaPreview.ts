@@ -121,7 +121,8 @@ async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise
 
 // Only the bounded playback window needs this extra lookup. Thumbnail
 // batches stay cheap; they deliberately omit cache-entry details. Resolve
-// an existing local preview instead of streaming a large cloud original.
+// a ready 720p proxy (instant HQ) instead of the large cloud original;
+// never the 360p preview (see getPlaybackUrlFromStatus).
 const playbackLookups = new Map<string, Promise<MediaPreview>>()
 export function getPreviewForPlayback(videoUuid: string): Promise<MediaPreview> {
   const pending = playbackLookups.get(videoUuid)

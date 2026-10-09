@@ -1,0 +1,8 @@
+{
+  "id": "hq-first-playback",
+  "date": "2026-10-09",
+  "title": "Dive videos open in HD, without a blurry first second",
+  "body": "Players no longer start on the low-resolution preview when an HD version exists: they open the HD clip directly, showing the sharp poster while it loads. HD versions are now made from the cloud originals, so missing ones fill in quickly, and new imports get HD from the start.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

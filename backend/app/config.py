@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     # they are off.
     user_auth_enabled: bool = os.getenv("USER_AUTH_ENABLED", "false").lower() == "true"
     b2_playback_canary_enabled: bool = os.getenv("B2_PLAYBACK_CANARY_ENABLED", "false").lower() == "true"
+    # Leased poster/proxy jobs carry a short-lived signed link to the verified
+    # B2 original, so the Mac transcodes from B2 instead of a Photos/iCloud
+    # export (which timed out for most of the corpus).
+    media_jobs_b2_source_enabled: bool = os.getenv("MEDIA_JOBS_B2_SOURCE_ENABLED", "true").lower() == "true"
 
     # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +
     # Path=/ and Secure in every HTTPS deployment; AUTH_COOKIE_SECURE may be
