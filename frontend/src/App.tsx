@@ -14,7 +14,8 @@ function MemberSyncBoundary({ children }: { children: React.ReactNode }) {
   return user?.is_admin ? <SyncStatusProvider>{children}</SyncStatusProvider> : <>{children}</>
 }
 
-const appRouter = createBrowserRouter([{ path: '*', element: <Router /> }])
+// The toaster links to the profile, so it must render inside the router.
+const appRouter = createBrowserRouter([{ path: '*', element: <><Router /><AchievementToaster /></> }])
 
 function App() {
   return (
@@ -25,7 +26,6 @@ function App() {
           <SyncNotifications />
           <MilestoneNotifier />
           <SyncErrorHandler />
-          <AchievementToaster />
         </MemberSyncBoundary>
       </AuthProvider>
     </I18nProvider>
