@@ -571,13 +571,7 @@
   margin: 0;
 }
 
-/* Comment expands IN FLOW inside the dock: nothing overlays the score row,
-   Pass or Confirm while it is open (the overlay sheet is gone). */
-.eval-comment-block {
-  display: grid;
-  gap: 6px;
-}
-
+/* Comment toggle: an icon in the action row; the composer replaces the keypad. */
 .eval-comment-toggle {
   justify-self: start;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -592,41 +586,6 @@
 .eval-comment-toggle[aria-expanded='true'] {
   border-color: var(--app-accent, #54beab);
   color: var(--app-accent, #54beab);
-}
-
-.eval-comment-inline {
-  display: grid;
-  gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 10px;
-  background: rgba(4, 8, 12, 0.55);
-  padding: 8px 10px;
-}
-
-.eval-comment-inline header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: rgba(244, 247, 247, 0.8);
-}
-
-.eval-comment-inline header button {
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: transparent;
-  color: #fff;
-  width: 38px;
-  height: 38px;
-  cursor: pointer;
-}
-
-.eval-comment-inline textarea {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px;
-  font: inherit;
 }
 
 /* Keyboard focus is always legible on the dark HUD. */
@@ -835,18 +794,6 @@
   }
   .eval-judge-actions .eval-pass {
     padding: 8px 14px;
-  }
-  .eval-comment-block {
-    min-width: 0;
-  }
-  .eval-comment-inline {
-    padding: 6px 8px;
-    gap: 4px;
-  }
-  .eval-comment-inline textarea {
-    width: 100%;
-    max-height: 72px;
-    overflow-y: auto;
   }
   .eval-reveal-panel {
     max-height: 150px;
@@ -1136,14 +1083,6 @@
     min-width: calc(56px + 2px);
     min-height: calc(56px * 1.7);
   }
-  .eval-comment-inline {
-    padding: 6px 8px;
-    gap: 4px;
-  }
-  .eval-comment-inline textarea {
-    max-height: 72px;
-    overflow-y: auto;
-  }
   /* Bounded dock scroll with a taller allowance (the 55dvh cap clipped the
      top rows bottom-anchored when the comment opened at 320px). */
   .eval-stage-dock > .eval-judging,
@@ -1211,9 +1150,6 @@
 .eval-judge-actions .eval-pass { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); padding: 10px 18px; }
 .eval-confirm { min-width: 0; white-space: normal; background: linear-gradient(150deg, #8ee3d3, #54beab); border-color: rgba(180, 255, 237, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); padding: 10px 18px; }
 .eval-confirm:disabled { opacity: 1; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.45); border-color: rgba(255, 255, 255, 0.1); box-shadow: none; }
-.eval-comment-inline { background: rgba(5, 14, 20, 0.25); border-color: rgba(255, 255, 255, 0.15); border-radius: 18px; }
-.eval-comment-inline header button { border-radius: 50%; border-color: transparent; }
-.eval-comment-inline textarea { border-radius: 12px; border-color: rgba(255, 255, 255, 0.15); }
 
 @media (min-height: 561px) and (min-width: 600px) {
   .eval-stage-dock { max-width: 560px; margin-inline: auto; }
