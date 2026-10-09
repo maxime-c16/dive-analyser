@@ -1,3 +1,4 @@
+import i18n from '../i18n'
 import React, { useRef, useState } from 'react'
 import { useModalOverlay } from '../utils/overlays'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -128,4 +129,25 @@ it('does not claim an automatic hint behind a registered overlay, then permits i
   fireEvent.click(screen.getByText('close fixture'))
   await act(async () => { window.dispatchEvent(new Event('focus')) })
   expect(await screen.findByRole('status')).toHaveTextContent(note.title)
+})
+
+it('translates the Evaluations hint and history while retaining note IDs and other note text', async () => {
+  const evaluations = { ...note, id: 'evaluations-today-hub', title: "Evaluations drop you straight into today's dives", body: 'Published English description.' }
+  current = manifest([evaluations])
+  await act(async () => { await i18n.changeLanguage('fr') })
+  try {
+    mount()
+    expect(await screen.findByRole('status')).toHaveTextContent('Les Évaluations vous accueillent avec les plongeons du jour')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('whatsNew.seeWhatsNew') }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('reprendre là où vous en étiez')
+    expect(JSON.parse(localStorage.getItem(key)!).seen).toEqual(['evaluations-today-hub'])
+    await act(async () => { await i18n.changeLanguage('en') })
+    expect(screen.getByRole('dialog')).toHaveTextContent(evaluations.title)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    current = manifest([note, evaluations])
+    await act(async () => { window.dispatchEvent(new Event('focus')); await i18n.changeLanguage('fr') })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('whatsNew.buttonAria') }))
+    expect(screen.getByRole('dialog')).toHaveTextContent(note.title)
+    expect(screen.getByRole('dialog')).toHaveTextContent(note.body)
+  } finally { await act(async () => { await i18n.changeLanguage('en') }) }
 })

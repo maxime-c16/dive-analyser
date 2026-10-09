@@ -8,6 +8,7 @@
  * ever rendered here. Both lists page with Précédent/Suivant (never silently
  * replacing pages without a way back).
  */
+import { scoreNumber } from './scoreFormatting'
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { ScoreCard } from './ScoreCards'
 import { points } from './JudgeTable'
@@ -20,10 +21,6 @@ import {
   type MyRatingItem,
   type OwnerRequestSummary,
 } from '../../services/evaluationApi'
-
-function scoreLabel(half: number): string {
-  return (half / 2).toFixed(1)
-}
 
 const PAGE = 10
 
@@ -82,7 +79,7 @@ function Pager({
 }
 
 export function OwnedRequests() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const loader = useCallback((limit: number, offset: number) => getOwnedRequests(limit, offset), [])
   const { state, busy, load } = usePagedLoader<OwnerRequestSummary>(loader)
 
@@ -113,7 +110,7 @@ export function OwnedRequests() {
               <span role="status">
                 {t('evaluations.panelSummary', {
                   count: row.rating_count,
-                  mean: row.mean_score !== null ? row.mean_score.toFixed(1) : '—',
+                  mean: scoreNumber(row.mean_score, i18n.language),
                 })}
               </span>
               {/* Owner keeps playable access through the normal Library
@@ -133,7 +130,7 @@ const PANEL_PAGE = 50
 /** Panel rows paged by 50 with a continuation; count/mean always aggregate
  * the WHOLE panel server-side. */
 export function OwnedPanelLink({ requestId, automatic = false }: { requestId: number; automatic?: boolean }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [state, setState] = useState<
     | { kind: 'closed' }
     | { kind: 'error' }
@@ -185,8 +182,8 @@ export function OwnedPanelLink({ requestId, automatic = false }: { requestId: nu
           <ul className="eval-panel-list">
             {state.rows.map((rating) => (
               <li key={rating.id} className="eval-panel-note">
-                <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreLabel(rating.score_half_steps)} />
-                <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}
+                <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreNumber(rating.score_half_steps / 2, i18n.language)} />
+                <strong>{scoreNumber(rating.score_half_steps / 2, i18n.language)}</strong> {rating.author ?? '—'}
                 {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
               </li>
             ))}
@@ -265,7 +262,7 @@ function HistoryRow({ row, index }: { row: MyRatingItem; index: number }) {
   return (
     <li className="eval-history-row" style={{ '--i': index } as CSSProperties} data-open={open ? 'true' : undefined}>
       <button type="button" className="eval-history-summary" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-        <ScoreCard scoreHalfSteps={row.score_half_steps} ariaLabel={t('evaluations.myCardAria', { score: scoreLabel(row.score_half_steps) })} />
+        <ScoreCard scoreHalfSteps={row.score_half_steps} ariaLabel={t('evaluations.myCardAria', { score: scoreNumber(row.score_half_steps / 2, i18n.language) })} />
         <span className="eval-history-text">
           <strong>{row.dive.dive_name || row.dive.dive_code}</strong>
           <span>{row.dive.dive_code} · {row.dive.height}{row.kind === 'request' ? ` · ${t('evaluations.kindRequest')}` : ''}</span>
@@ -283,7 +280,7 @@ function HistoryRow({ row, index }: { row: MyRatingItem; index: number }) {
  * scores, comments — kept accessible after the video was revoked; errors get
  * their own retry. */
 function MyPanel({ requestId, automatic = false }: { requestId: number; automatic?: boolean }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'error' }
@@ -323,7 +320,7 @@ function MyPanel({ requestId, automatic = false }: { requestId: number; automati
       <ul className="eval-history-jury">
         {state.rows.map((rating, index) => (
           <li key={rating.id} style={{ '--i': index } as CSSProperties} data-mine={state.myId === rating.id ? 'true' : undefined}>
-            <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreLabel(rating.score_half_steps)} />
+            <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreNumber(rating.score_half_steps / 2, i18n.language)} />
             <span>{state.myId === rating.id ? t('evaluations.you') : rating.author ?? '—'}</span>
             {/* My own comment is already quoted on the row. */}
             {rating.comment && state.myId !== rating.id ? <p className="eval-panel-comment">{rating.comment}</p> : null}

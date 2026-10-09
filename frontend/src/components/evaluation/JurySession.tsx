@@ -13,6 +13,7 @@
  * a fresh id. An all-unavailable batch with has_more keeps loading instead of
  * reporting exhaustion.
  */
+import { scoreNumber } from './scoreFormatting'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -490,8 +491,8 @@ function JudgingDock({
   onPass: () => void
   onReplay?: () => void
 }) {
-  const { t } = useTranslation()
-  const scoreText = score === null ? null : (score / 2).toFixed(1)
+  const { t, i18n } = useTranslation()
+  const scoreText = score === null ? null : scoreNumber(score / 2, i18n.language)
   if (commentOpen && !saving) {
     return (
       <div className="eval-judging eval-composing" role="group" aria-label={t('evaluations.judgeAria')}>
@@ -593,7 +594,7 @@ function SessionSummary({
   automatic?: boolean
   onResume?: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   return (
     <div className="eval-summary">
       <p className="eval-count" role="status">{t('evaluations.summaryJudged', { count: judgedCount })}</p>
@@ -601,7 +602,7 @@ function SessionSummary({
         <ul className="eval-recap-list">
           {rated.map((entry) => (
             <li key={entry.request_id}>
-              <ScoreCard scoreHalfSteps={entry.score_half_steps} ariaLabel={(entry.score_half_steps / 2).toFixed(1)} />
+              <ScoreCard scoreHalfSteps={entry.score_half_steps} ariaLabel={scoreNumber(entry.score_half_steps / 2, i18n.language)} />
               <span className="eval-recap-label">
                 <strong>{entry.dive_code}</strong> · {entry.height}
                 {entry.comment && <p className="eval-panel-comment">{entry.comment}</p>}

@@ -518,7 +518,18 @@ const en = {
     saveAndNext: 'Save and next',
     adding: 'Adding…',
   },
+  releaseNotes: {
+    "evaluations-today-hub": {
+      "title": "Evaluations drop you straight into today's dives",
+      "body": "Open Evaluations and today's selection starts right away, picking up where you left off. When you're done, your score cards land on the judges' table next to the rest of the panel, with your judging style, your daily streak and a countdown to the next selection. My dives becomes a scoreboard with a simple selection switch, and History groups every vote by day."
+    },
+    "evaluations-french": {
+      "title": "Evaluations speak French throughout",
+      "body": "French instructions, score cards and judging summaries now use consistent wording and decimal commas. The Evaluations announcement is also available in French."
+    }
+  },
   evaluations: {
+    juryArea: 'Judging area',
     judgeSection: 'Judge',
     pausedTitle: 'Paused · {{count}} left today',
     pausedResume: 'Back to the board',

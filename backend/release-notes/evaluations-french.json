@@ -1,0 +1,10 @@
+{
+  "id": "evaluations-french",
+  "date": "2026-10-09",
+  "title": "Evaluations speak French throughout",
+  "body": "French instructions, score cards and judging summaries now use consistent wording and decimal commas. The Evaluations announcement is also available in French.",
+  "audience": "all",
+  "components": [
+    "frontend"
+  ]
+}

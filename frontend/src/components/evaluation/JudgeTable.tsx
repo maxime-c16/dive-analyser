@@ -10,11 +10,8 @@ import { Pause } from 'lucide-react'
 import { ScoreCard } from './ScoreCards'
 import type { EvaluationOverview, PanelVote } from '../../services/evaluationApi'
 
-/** One decimal, in the reader's language (6,5 in French). */
-export function points(value: number, locale: string, signed = false): string {
-  const text = Math.abs(value).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-  return !signed ? (value < 0 ? `−${text}` : text) : value > 0 ? `+${text}` : value < 0 ? `−${text}` : '='
-}
+import { points } from './scoreFormatting'
+export { points } from './scoreFormatting'
 
 export default function JudgeTable({ overview, onResume, onDeal, onRequests, onHistory }: {
   overview: EvaluationOverview
@@ -126,7 +123,7 @@ export function JudgeMeter({ bias, compared }: { bias: number | null; compared: 
 
 /** A pool pace clock: the sweep hand runs, the digits count to the next hand. */
 export function PaceClock({ until }: { until: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
@@ -140,7 +137,7 @@ export function PaceClock({ until }: { until: string }) {
       <span className="eval-pace-face" aria-hidden><span className="eval-pace-hand" /></span>
       <span>
         <small>{t('evaluations.nextHand')}</small>
-        <strong className="eval-pace-digits" role="timer" aria-label={t('evaluations.nextHandAria', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}>{digits}</strong>
+        <strong className="eval-pace-digits" role="timer" aria-label={t('evaluations.nextHandAria', { time: new Date(until).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) })}>{digits}</strong>
       </span>
     </div>
   )
