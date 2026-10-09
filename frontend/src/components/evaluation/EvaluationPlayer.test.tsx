@@ -14,10 +14,10 @@ beforeEach(() => {
 it('keeps initial playback and quality switching on the automatic transport', async () => {
   vi.mocked(getEvaluationMediaStatus).mockResolvedValue({ request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready', rendition: 'proxy_720p', poster_url: null, playback_url: '/api/v1/evaluations/automatic/7/media/play', available_renditions: ['original', 'proxy_720p'] })
   const { container } = render(<EvaluationPlayer requestId={7} automatic />)
-  await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toBe('/api/v1/evaluations/automatic/7/media/play?rendition=proxy_720p'))
+  await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toBe('/api/v1/evaluations/automatic/7/media/play?rendition=original'))
   expect(getEvaluationMediaStatus).toHaveBeenCalledWith(7, true)
   fireEvent.click(screen.getByRole('button', { name: /quality/i }))
-  expect(container.querySelector('video')?.getAttribute('src')).toBe('/api/v1/evaluations/automatic/7/media/play?rendition=original')
+  expect(container.querySelector('video')?.getAttribute('src')).toBe('/api/v1/evaluations/automatic/7/media/play?rendition=proxy_720p')
   expect(prepareEvaluationMedia).not.toHaveBeenCalled()
 })
 it('warms the current automatic proxy through the automatic preparation endpoint', async () => {

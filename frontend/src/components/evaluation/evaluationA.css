@@ -1,0 +1,137 @@
+/* Approved A: native app surfaces, carnet scores, watch first. */
+.eval-card { --eval-card-w: 64px; position: relative; width: var(--eval-card-w); height: calc(var(--eval-card-w) * 2.2); min-width: var(--eval-card-w); padding: 0; aspect-ratio: auto; border: 0; border-radius: 3px; background: #f7f6f1; color: #111; box-shadow: 0 3px 0 #0006, 0 8px 20px #0003; transform: none; overflow: hidden; }
+.eval-card-number { position: absolute; inset: 0 0 auto; height: 68%; display: grid; place-items: center; font-family: system-ui, sans-serif; font-weight: 900; font-size: calc(var(--eval-card-w) * 1.5); line-height: .8; transform: scaleX(.62); }
+.eval-card-spiral { position: absolute; inset: 68% 0 auto; height: 8%; width: 100%; margin: 0; border: 0; background: repeating-linear-gradient(90deg, transparent 0 3px, #666 3px 4px, transparent 4px 6px); }
+.eval-card-half { position: absolute; inset: 76% 0 0; display: grid; place-items: center; font-family: system-ui, sans-serif; font-size: calc(var(--eval-card-w) * .46); font-weight: 900; background: #fbfbf8; transform: none; }
+.eval-card-raised { animation: eval-carnet-raise 780ms cubic-bezier(.2,.75,.25,1) var(--stagger,0ms) both; pointer-events: none; }
+@keyframes eval-carnet-raise { from { transform: translateY(80%) rotate(-3deg); opacity: 0; } 60% { transform: translateY(-5%); opacity: 1; } to { transform: none; opacity: 1; } }
+.eval-stage-root { position: fixed; inset: 0; width: 100%; height: 100dvh; padding: 0; overflow: hidden; background: #000; --eval-panel-width: min(384px, 34vw); }
+.eval-stage-head { position: absolute; inset: 0 0 auto; height: 60px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; background: var(--app-bg); border-bottom: 1px solid var(--app-border); z-index: 3; }
+.eval-stage-head-center { min-width: 0; flex: 1; display: flex; gap: 8px; align-items: center; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; border-radius: 0; }
+.eval-head-owner, .eval-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.eval-quit, .eval-prompt-toggle { width: 44px; height: 44px; min-width: 44px; border-radius: 999px; background: #0d1113b3; border: 1px solid var(--app-border-strong); box-shadow: none; backdrop-filter: none; }
+.eval-stage-video { position: absolute; inset: 60px var(--eval-panel-width) 0 0; }
+.eval-player { position: absolute; inset: 0; padding: 0; border: 0; display: block; overflow: hidden; background: #000; }
+.eval-player video { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; object-fit: contain; border: 0; border-radius: 0; touch-action: none; }
+.eval-player-controls { position: absolute; left: 50%; right: auto; top: auto; bottom: 10px; flex-direction: row; transform: translateX(-50%); display: flex; max-width: calc(100% - 16px); gap: 4px; padding: 4px; border: 0; border-radius: 999px; background: #0008; box-shadow: none; }
+.eval-player-controls button { flex: none; width: 44px; height: 44px; min-width: 44px; min-height: 44px; border: 1px solid var(--app-border-strong); border-radius: 999px; background: #0d1113b3; }
+.eval-stage-dock { position: absolute; inset: 60px 0 0 auto; width: var(--eval-panel-width); max-width: none; margin: 0; padding: 0; display: flex; }
+.eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { flex: 1; min-height: 0; height: 100%; max-height: none; display: flex; flex-direction: column; gap: 12px; padding: 20px 16px 0; border: 0; border-radius: 0; background: var(--app-panel); box-shadow: none; backdrop-filter: none; overflow: hidden; }
+.eval-score-input { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+.eval-score-card { display: grid; justify-items: center; gap: 4px; padding: 0; min-width: 0; min-height: 0; }
+.eval-score-card .eval-card { --eval-card-w: clamp(76px,14dvh,118px); border-radius: 3px; }
+.eval-score-card > span { font-size: 12px; color: var(--app-muted); }
+.eval-score-controls { display: grid; gap: 10px; }
+.eval-half-row { display: flex; align-items: center; gap: 10px; }
+.eval-half-toggle { height: 44px; min-width: 64px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-panel-elevated); }
+.eval-half-toggle[aria-pressed=true] { color: #06251f; background: var(--app-accent); }
+.eval-score-readout { font-size: 16px; color: var(--app-muted); }
+.eval-keypad { display: grid; grid-template-columns: repeat(6,minmax(44px,1fr)); gap: 6px; }
+.eval-keypad button { min-width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--app-border); background: var(--app-panel-elevated); color: var(--app-text); }
+.eval-keypad button[aria-pressed=true] { background: var(--app-accent); color: #06251f; }
+.eval-judge-actions { flex: none; margin: auto -16px 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--app-border); display: flex; gap: 6px; flex-wrap: nowrap; }
+.eval-judge-actions button { min-height: 48px; min-width: 44px; border-radius: 12px; }
+.eval-confirm { flex: 1; border: 1px solid var(--app-accent); background: var(--app-accent); box-shadow: none; color: #06251f; min-width: 0; }
+.eval-pass, .eval-comment-toggle { background: var(--app-panel-elevated); border: 1px solid var(--app-border); border-radius: 12px; color: var(--app-text); min-height: 44px; }
+.eval-confirm:disabled { opacity: .45; background: var(--app-accent); color: #06251f; }
+.eval-comment-inline { border-radius: 14px; border: 1px solid var(--app-border); background: var(--app-panel-elevated); padding: 10px; }
+.eval-comment-inline header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.eval-comment-inline header button { min-height: 44px; padding: 0 10px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-panel); }
+.eval-comment-inline textarea { width: 100%; height: 84px; resize: none; margin-top: 6px; padding: 10px; border-radius: 10px; background: var(--app-panel); border: 1px solid var(--app-border); color: var(--app-text); }
+.eval-comment-inline p { font-size: 11px; margin: 4px 0 0; }
+.eval-results-board { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.eval-card-figure { margin: 0; display: grid; justify-items: center; gap: 4px; min-width: 0; }
+.eval-card-figure figcaption { font-size: 11px; color: var(--app-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eval-card-mine-figure .eval-card { --eval-card-w: clamp(56px,10dvh,88px); }
+.eval-results-peers { display: flex; gap: 8px; justify-content: center; flex: none; }
+.eval-results-peers .eval-card { --eval-card-w: clamp(32px,6dvh,56px); }
+.eval-results-summary { font-size: 14px; }
+.eval-jury-pagination { display: flex; justify-content: center; gap: 6px; position: relative; z-index: 2; }
+.eval-jury-pagination button { min-height: 44px; min-width: 44px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-panel-elevated); color: var(--app-text); padding: 0 8px; font-size: 12px; }
+.eval-jury-pagination button:disabled { opacity: .35; }
+.eval-quit-question { position: absolute; inset: 0; z-index: 9; background: var(--app-panel); padding: 20px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.eval-quit-question button { min-height: 44px; border: 1px solid var(--app-border); padding: 8px 16px; background: var(--app-panel-elevated); }
+.eval-all-backdrop { position: fixed; inset: 0; background: #000a; z-index: 90; display: grid; place-items: center; padding: 12px; }
+.eval-all-notes { width: min(960px,100%); height: calc(100dvh - 24px); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-panel); color: var(--app-text); overflow: hidden; }
+.eval-all-notes header, .eval-all-notes footer { display: flex; justify-content: space-between; gap: 10px; padding: 12px; flex: none; border-bottom: 1px solid var(--app-border); }
+.eval-all-notes header p { font-size: 12px; margin: 4px 0 0; }
+.eval-all-notes button { min-height: 44px; min-width: 44px; background: var(--app-panel-elevated); border: 1px solid var(--app-border); border-radius: 10px; }
+.eval-all-grid { padding: 16px; overflow: auto; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill,minmax(80px,1fr)); gap: 16px 10px; }
+.eval-all-grid .eval-card { --eval-card-w: 56px; }
+.eval-all-grid p { font-size: 12px; overflow-wrap: anywhere; }
+.eval-stage-root[data-watching=true] { top: 0; height: 100dvh; }
+.eval-stage-root[data-watching=true] .eval-stage-video { inset: 0; }
+.eval-stage-root[data-watching=true] .eval-stage-dock { display: none; }
+.eval-stage-root[data-watching=true] .eval-stage-head { background: none; border: 0; }
+.eval-stage-root[data-watching=true]:not([data-chrome-revealed=true]) .eval-stage-head { visibility: visible; pointer-events: auto; }
+.eval-stage-root[data-watching=true]:not([data-chrome-revealed=true]) .eval-stage-head-center, .eval-stage-root[data-watching=true]:not([data-chrome-revealed=true]) .eval-prompt-toggle { visibility: hidden; }
+.eval-stage-root[data-watching=true] .eval-player-controls { right: auto; }
+.eval-landing { text-align: left; justify-items: start; padding: 24px; border-radius: 16px; }
+.eval-start { border-radius: 12px; background: var(--app-accent); color: #06251f; }
+.evaluations-tabs { flex-wrap: nowrap; gap: 4px; }
+.evaluations-tabs button { flex: 1; min-width: 0; border-radius: 999px; border-color: transparent; padding: 8px 10px; }
+.evaluations-tabs button[aria-current=true] { background: var(--app-active,#303d44); }
+.evaluations-modes { display: flex; gap: 8px; margin-bottom: 12px; }
+.evaluations-modes button { min-height: 44px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-panel); padding: 8px 14px; color: var(--app-muted); }
+.evaluations-modes button[aria-pressed=true] { color: var(--app-accent); border-color: var(--app-accent); }
+.eval-owned-item, .eval-judged-item { border-radius: 14px; }
+.eval-owned-panel { display: flex; width: 100%; flex-direction: column; align-items: stretch; }
+.eval-owned-panel > button { align-self: start; }
+.eval-owned-panel .eval-panel-list { max-height: 320px; overflow: auto; width: 100%; }
+.eval-summary .eval-judge-actions { margin: 0; flex-wrap: wrap; border: 0; }
+.eval-recap-list .eval-card { --eval-card-w: 40px; }
+@media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
+  .eval-stage-root { top: var(--eval-visible-top,0px); height: var(--eval-visible-height,100dvh); --eval-panel-width: 100%; }
+  .eval-stage-video { inset: 56px 0 300px; }
+  .eval-stage-head { height: 56px; }
+  .eval-stage-head-center { flex-wrap: wrap; gap: 2px 8px; }
+  .eval-head-owner { flex-basis: 100%; font-size: 14px; }
+  .eval-stage-head .eval-meta, .eval-stage-head .eval-count { font-size: 11px; }
+  .eval-stage-dock { top: auto; height: 300px; }
+  .eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { padding: 8px 10px 0; gap: 6px; }
+  .eval-score-input { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 10px; flex: 1; align-content: start; }
+  .eval-score-card { align-self: start; }
+  .eval-score-card .eval-card { --eval-card-w: 48px; }
+  .eval-score-controls { align-content: start; gap: 6px; }
+  .eval-keypad { grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); gap: 6px; }
+  .eval-score-readout { font-size: 12px; }
+  .eval-comment-toggle { font-size: 12px; padding: 0 8px; }
+  .eval-comment-block { position: absolute; bottom: 66px; left: 10px; }
+  .eval-comment-block:has(.eval-comment-inline) { inset: auto 8px 66px; z-index: 6; }
+  .eval-comment-inline textarea { height: clamp(64px,calc(var(--eval-visible-height,100dvh) - 240px),112px); }
+  .eval-judge-actions { margin: auto -10px 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+  .eval-judge-actions button { min-height: 46px; padding: 6px 10px; font-size: 14px; }
+  .eval-results-board { display: grid; grid-template-columns: 56px minmax(0,1fr); grid-template-rows: auto auto auto 1fr; align-content: start; gap: 6px 10px; overflow: hidden; }
+  .eval-card-mine-figure { grid-column: 1; grid-row: 1 / span 3; align-self: start; }
+  .eval-card-mine-figure .eval-card { --eval-card-w: 48px; }
+  .eval-results-summary { grid-column: 2; grid-row: 1; font-size: 14px; }
+  .eval-results-peers { grid-column: 2; grid-row: 2; justify-content: start; gap: 8px; }
+  .eval-results-peers .eval-card { --eval-card-w: 36px; }
+  .eval-jury-pagination { grid-column: 2; grid-row: 3; justify-content: start; }
+  .eval-keyboard-open .eval-stage-video { visibility: hidden; }
+  .eval-keyboard-open .eval-stage-dock { height: min(300px,calc(100% - 56px)); }
+}
+@media (max-width: 599px) { .eval-player[data-watching=true] video { transform: scale(calc(var(--eval-cover,1) * 1.002)); } }
+@media (orientation: landscape) and (max-height: 500px) {
+  .eval-stage-video { inset: 56px min(420px,55vw) 0 0; }
+  .eval-stage-dock { width: min(420px,55vw); top: 56px; height: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .eval-card-raised { animation: none; } }
+
+.eval-owned > .eval-panel-list { margin: 12px 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.eval-owned > .eval-panel-list > li { border: 1px solid var(--app-border); background: var(--app-panel); padding: 14px; border-radius: 14px; }
+.eval-panel-note .eval-card { --eval-card-w: 32px; float: left; margin: 0 12px 8px 0; }
+.eval-panel-note { min-height: 80px; overflow-wrap: anywhere; }
+
+.eval-card-number.is-two { transform: scaleX(.46); }
+
+.eval-stage-dock > .eval-judging > .eval-score-input { flex: 1; }
+@media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
+  .eval-judge-actions .eval-pass { padding: 6px 10px; }
+}
+
+.eval-card-spiral { background: none; border-radius: 0; padding: 0; }
+.eval-card-spiral line { stroke: #3c3c3a; stroke-width: 3.2; vector-effect: non-scaling-stroke; }
+.eval-card-spiral ellipse { fill: none; stroke: #6d6d69; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.eval-player-controls .eval-sound-on { background: #54beab26; }
+.eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { position: relative; }

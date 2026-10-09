@@ -35,8 +35,11 @@ export function ScoreCard({
       role="img"
       aria-label={ariaLabel}
     >
-      <span className="eval-card-number">{whole ?? ''}</span>
-      <span className="eval-card-spiral" aria-hidden="true" />
+      <span className={`eval-card-number${whole === 10 ? ' is-two' : ''}`}>{whole ?? ''}</span>
+      <svg className="eval-card-spiral" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="50" x2="100" y2="50" />
+        {Array.from({ length: 14 }, (_, i) => <ellipse key={i} cx={(i + .5) * 100 / 14} cy="50" rx={.42 * 100 / 14} ry="46" />)}
+      </svg>
       <span className="eval-card-half" aria-hidden={!isHalf}>{isHalf ? '½' : ''}</span>
     </div>
   )

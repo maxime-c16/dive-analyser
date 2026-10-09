@@ -9,6 +9,7 @@
  * replacing pages without a way back).
  */
 import { useCallback, useEffect, useState } from 'react'
+import { ScoreCard } from './ScoreCards'
 import { useTranslation } from 'react-i18next'
 import {
   getMyRatings,
@@ -116,7 +117,7 @@ export function OwnedRequests() {
               </span>
               {/* Owner keeps playable access through the normal Library
                   transport; a suspended request stays here in text only. */}
-              <OwnedPanelLink request={row} />
+              <OwnedPanelLink requestId={row.request_id} />
             </footer>
           </li>
         ))}
@@ -130,7 +131,7 @@ const PANEL_PAGE = 50
 
 /** Panel rows paged by 50 with a continuation; count/mean always aggregate
  * the WHOLE panel server-side. */
-function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
+export function OwnedPanelLink({ requestId, automatic = false }: { requestId: number; automatic?: boolean }) {
   const { t } = useTranslation()
   const [state, setState] = useState<
     | { kind: 'closed' }
@@ -142,7 +143,7 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
   const fetchPage = useCallback(async (offset: number, accumulate: boolean) => {
     setBusy(true)
     try {
-      const page = await getResults(request.request_id, PANEL_PAGE, offset)
+      const page = await getResults(requestId, PANEL_PAGE, offset, automatic)
       setState((previous) => {
         if (previous.kind === 'open' && accumulate) {
           const seen = new Set(previous.rows.map((row) => row.id))
@@ -157,7 +158,7 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
     } finally {
       setBusy(false)
     }
-  }, [request.request_id])
+  }, [requestId, automatic])
 
   const toggle = () => {
     if (state.kind === 'open') {
@@ -169,7 +170,7 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
 
   return (
     <span className="eval-owned-panel">
-      <button type="button" onClick={toggle} aria-expanded={state.kind === 'open'}>
+      <button type="button" onClick={toggle} aria-expanded={state.kind === 'open'} disabled={busy}>
         {state.kind === 'open' ? t('evaluations.hidePanel') : t('evaluations.showPanel')}
       </button>
       {state.kind === 'error' && (
@@ -182,7 +183,8 @@ function OwnedPanelLink({ request }: { request: OwnerRequestSummary }) {
         <>
           <ul className="eval-panel-list">
             {state.rows.map((rating) => (
-              <li key={rating.id}>
+              <li key={rating.id} className="eval-panel-note">
+                <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreLabel(rating.score_half_steps)} />
                 <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}
                 {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
               </li>
@@ -299,7 +301,8 @@ function MyPanelLink({ requestId }: { requestId: number }) {
         <>
           <ul className="eval-panel-list">
             {state.rows.map((rating) => (
-              <li key={rating.id}>
+              <li key={rating.id} className="eval-panel-note">
+                <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreLabel(rating.score_half_steps)} />
                 <strong>{scoreLabel(rating.score_half_steps)}</strong> {rating.author ?? '—'}{' '}
                 {state.myId === rating.id ? <em>({t('evaluations.you')})</em> : null}
                 {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}

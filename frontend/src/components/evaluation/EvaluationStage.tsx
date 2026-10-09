@@ -28,8 +28,10 @@ export default function EvaluationStage({
   overlays,
   children,
   hideChrome = false,
+  phase,
 }: {
   open: boolean
+  phase?: string
   hideChrome?: boolean
   onClose: () => void
   /** Compact top row: diver name + code/height + judged counter. */
@@ -62,6 +64,26 @@ export default function EvaluationStage({
     return () => { if (chromeTimer.current) window.clearTimeout(chromeTimer.current) }
   }, [hideChrome])
 
+  useEffect(() => {
+    if (!open) return
+    const update = () => {
+      const vv = window.visualViewport
+      const root = containerRef.current
+      root?.style.setProperty('--eval-visible-height', `${vv?.height ?? window.innerHeight}px`)
+      root?.style.setProperty('--eval-visible-top', `${vv?.offsetTop ?? 0}px`)
+      root?.classList.toggle('eval-keyboard-open', (vv?.height ?? window.innerHeight) < window.innerHeight - 120)
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.visualViewport?.addEventListener('resize', update)
+    window.visualViewport?.addEventListener('scroll', update)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.visualViewport?.removeEventListener('resize', update)
+      window.visualViewport?.removeEventListener('scroll', update)
+    }
+  }, [open])
+
   useModalOverlay(containerRef, { enabled: open, layer: 80, onClose,
     fallbackFocus: () => document.querySelector<HTMLElement>('.eval-start, .eval-summary .eval-pass'),
   })
@@ -75,6 +97,7 @@ export default function EvaluationStage({
       aria-label={t('evaluations.juryArea')}
       ref={containerRef}
       tabIndex={-1}
+      data-phase={phase}
       data-watching={hideChrome ? 'true' : undefined}
       data-chrome-revealed={chromeRevealed ? 'true' : undefined}
       onPointerDown={() => revealChrome(false)}

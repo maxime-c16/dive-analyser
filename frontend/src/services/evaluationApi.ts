@@ -243,8 +243,8 @@ export async function submitRating(
   return data
 }
 
-export async function getResults(requestId: number, limit = 50, offset = 0): Promise<JuryResults> {
-  const { data } = await api.get(`/api/v1/evaluations/${requestId}/results`, { params: { limit, offset } })
+export async function getResults(requestId: number, limit = 50, offset = 0, automatic = false): Promise<JuryResults> {
+  const { data } = await api.get(`/api/v1/evaluations/${automatic ? 'automatic/' : ''}${requestId}/results`, { params: { limit, offset } })
   return data
 }
 

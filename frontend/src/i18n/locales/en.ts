@@ -481,6 +481,16 @@ const en = {
     adding: 'Adding…',
   },
   evaluations: {
+    judgeSection: 'Judge',
+    receiveSection: 'Receive',
+    allNotes: '{{count}} scores',
+    nextPage: 'Next scores',
+    wholeFrame: 'See the whole dive',
+    done: 'Done',
+    discardTitle: 'Leave without confirming?',
+    discardDraft: 'Your unconfirmed score and comment will be lost. Saved scores remain.',
+    stay: 'Stay',
+
     automaticFooter: 'Public dives participate automatically. Manage exclusions in Community scores.',
     tabAutomatic: "Daily selection",
     tabCommunity: "Community scores",

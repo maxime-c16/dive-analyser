@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { OwnedPanelLink } from './EvaluationSpaces'
 import { useTranslation } from 'react-i18next'
 import { getAutomaticScores, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
 
@@ -36,6 +37,7 @@ export default function AutomaticScores() {
         <button className="eval-pass" disabled={busy !== null} onClick={() => void toggle(item)} aria-pressed={item.excluded}>
           {t(item.excluded ? 'evaluations.includeAutomatic' : 'evaluations.excludeAutomatic')}
         </button>
+        <OwnedPanelLink requestId={item.dive_id} automatic />
       </li>)}</ul>
       <div className="eval-judge-actions">
         {offset > 0 && <button className="eval-pass" onClick={() => setOffset(n => Math.max(0, n - 20))}>{t('evaluations.previousPage')}</button>}

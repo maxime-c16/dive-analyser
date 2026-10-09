@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { RotateCcw, Play, Pause, Volume2, VolumeX } from 'lucide-react'
+import { RotateCcw, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react'
 import {
   evaluationPlaybackUrl,
   getEvaluationMediaStatus,
@@ -47,6 +47,7 @@ const PLAYABLE_RENDITIONS = ['original', 'proxy_720p', 'proxy_360p']
 let soundPreferred = true
 
 function packReady(status: EvaluationMediaStatus, rendition: string, automatic: boolean): Extract<Playback, { kind: 'ready' }> {
+  if (status.available_renditions.includes('original')) rendition = 'original'
   const playableChoices = status.available_renditions.filter((name) => PLAYABLE_RENDITIONS.includes(name))
   return {
     kind: 'ready',
@@ -77,6 +78,10 @@ export default function EvaluationPlayer({
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [wholeFrame, setWholeFrame] = useState(false)
+  const [cover, setCover] = useState(1)
+  const [pinchProgress, setPinchProgress] = useState(0)
+  const failedRenditions = useRef(new Set<string>())
   const [playback, setPlayback] = useState<Playback>({ kind: 'checking' })
   // Identity guards: a response for a PREVIOUS request id (pending status
   // lookup or prepare follow-up after the jury advanced) must never replace
@@ -96,6 +101,8 @@ export default function EvaluationPlayer({
     const epoch = ++requestEpochRef.current
     setPlayback({ kind: 'checking' })
     setHqHint(false)
+    failedRenditions.current.clear()
+    setWholeFrame(false); setPinchProgress(0)
     prepareQueued.current = false
     try {
       const status = await getEvaluationMediaStatus(requestId, automatic)
@@ -255,6 +262,47 @@ export default function EvaluationPlayer({
     }
   }
 
+  const measureFrame = () => {
+    const v = videoRef.current
+    if (!v?.videoWidth || !v.videoHeight || !v.clientWidth || !v.clientHeight) return
+    const scale = Math.min(v.clientWidth / v.videoWidth, v.clientHeight / v.videoHeight)
+    setCover(Math.max(v.clientWidth / (v.videoWidth * scale), v.clientHeight / (v.videoHeight * scale)))
+  }
+  useEffect(() => {
+    measureFrame()
+    const v = videoRef.current
+    if (!v) return
+    const observer = new ResizeObserver(measureFrame)
+    observer.observe(v)
+    return () => observer.disconnect()
+  }, [playback.kind, watching])
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !watching) return
+    let start = 0, initial = 0, progress = wholeFrame ? 1 : 0
+    const distance = (event: TouchEvent) => Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY)
+    const begin = (event: TouchEvent) => { if (event.touches.length === 2) { start = distance(event); initial = wholeFrame ? 1 : 0 } }
+    const move = (event: TouchEvent) => {
+      if (!start || event.touches.length !== 2) return
+      event.preventDefault()
+      progress = Math.max(0, Math.min(1, initial + (1 - distance(event) / start) / .35))
+      setPinchProgress(progress)
+    }
+    const end = () => { if (start) { setWholeFrame(progress >= .5); setPinchProgress(progress >= .5 ? 1 : 0); start = 0 } }
+    v.addEventListener('touchstart', begin)
+    v.addEventListener('touchmove', move, { passive: false })
+    v.addEventListener('touchend', end)
+    v.addEventListener('touchcancel', end)
+    return () => { v.removeEventListener('touchstart', begin); v.removeEventListener('touchmove', move); v.removeEventListener('touchend', end); v.removeEventListener('touchcancel', end) }
+  }, [watching, wholeFrame, playback.kind])
+  function mediaError() {
+    if (playback.kind !== 'ready') return
+    failedRenditions.current.add(playback.rendition)
+    const next = playback.playableChoices.find(name => !failedRenditions.current.has(name))
+    if (next) setPlayback({ ...playback, rendition: next, src: evaluationPlaybackUrl(requestId, next, automatic), hq: HQ_RENDITIONS.has(next) })
+    else setPlayback({ kind: 'failed' })
+  }
+
   function togglePlay() {
     if (paused) { onReplay?.(); return }
     const video = videoRef.current
@@ -322,6 +370,7 @@ export default function EvaluationPlayer({
     <div
       className="eval-player"
       data-watching={watching ? 'true' : undefined}
+      style={{ '--eval-cover': cover + (1 - cover) * pinchProgress } as React.CSSProperties}
       data-controls-idle={controlsIdle ? 'true' : undefined}
       onPointerMove={wakeControls}
       onPointerDown={wakeControls}
@@ -338,7 +387,8 @@ export default function EvaluationPlayer({
         aria-label={t('evaluations.playerControlsAria')}
         onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); togglePlay() } }}
         onEnded={onEnded}
-        onError={() => setPlayback({ kind: 'failed' })}
+        onError={mediaError}
+        onLoadedMetadata={measureFrame}
         muted={muted}
         playsInline
         preload="auto"
@@ -370,6 +420,7 @@ export default function EvaluationPlayer({
         <button type="button" onClick={toggleSlow} aria-pressed={slow} aria-label={t('evaluations.slowAria')} title={t('evaluations.slowLabel')}>
           0.5×
         </button>
+        {watching && <button type="button" aria-label={t('evaluations.wholeFrame')} aria-pressed={wholeFrame} onClick={() => { setWholeFrame(!wholeFrame); setPinchProgress(wholeFrame ? 0 : 1) }}><Maximize size={18} /></button>}
         {playback.playableChoices.length >= 2 && playback.kind === 'ready' && (
           <button
             type="button"
