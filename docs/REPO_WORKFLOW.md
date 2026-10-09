@@ -214,10 +214,13 @@ Each clip is capped at 1 GB. No SQL migration is required.
 ### Deposit batches ("Récupérer mes plongeons")
 
 Clips deposited for another account stay private + pending until the owner
-accepts them. Operator steps after a server deploy that includes
-`backend/migrations/add_deposit_batches.sql` (besides applying the SQL by
-hand, per the table above):
+accepts them. The deploy that ships this feature needs
+`backend/migrations/add_deposit_batches.sql`:
 
+0. **Before** `ci/ship.sh server`, apply the SQL by hand against Postgres
+   (idempotent; the new backend reads the added tables and columns, so
+   deploying first fails requests until it is applied). Backward compatible:
+   the previous backend keeps working with the migrated schema.
 1. `~/.config/diveanalyzer/email.env` (mode `600`, same pattern as
    `browser-upload.env`): `INGEST_DEPOSITOR_EMAIL` (operator account credited
    for mac-agent ingestion), `SMTP_HOST/PORT/USER/PASSWORD` (free Gmail SMTP

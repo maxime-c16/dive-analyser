@@ -453,3 +453,25 @@ def test_batch_review_is_scoped_to_one_diver(workspace):
     redeem = anon.post("/api/v1/deposits/claim/redeem", json={"token": raw})
     assert redeem.status_code == 200 and redeem.json()["diver_id"] == alice_id
     anon.close()
+
+
+def test_pending_list_filters_visibility_before_paging(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice", code="403B")])
+    _sync_batch(machine, [_video("bob1", "bob", code="305C")])
+    alice_dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
+    bob_dive = db.query(Dive).filter(Dive.diver_id == divers["bob"].id).one()
+    alice_dive.created_at = datetime.utcnow() - timedelta(days=2)
+    bob_dive.created_at = datetime.utcnow()  # newer: wins the global order
+    db.commit()
+    # Alice's older batch is not pushed out of her own page by bob's newer one.
+    mine = login("alice").get("/api/v1/deposits/pending", params={"limit": 1})
+    assert mine.status_code == 200
+    assert [b["diver_id"] for b in mine.json()["batches"]] == [divers["alice"].id]
+    # Admin triage pages through every pending batch.
+    first = login("maxime").get("/api/v1/deposits/pending", params={"limit": 1}).json()["batches"]
+    second = login("maxime").get("/api/v1/deposits/pending", params={"limit": 1, "offset": 1}).json()["batches"]
+    assert [b["diver_id"] for b in first] == [divers["bob"].id]
+    assert [b["diver_id"] for b in second] == [divers["alice"].id]
+    assert {b["diver_id"] for b in login("maxime").get("/api/v1/deposits/pending").json()["batches"]} == {
+        divers["alice"].id, divers["bob"].id}

@@ -102,11 +102,16 @@ def _serialize_dive(
 
 
 @router.get("/pending")
-def list_pending_batches(user=Depends(get_current_user), db: Session = Depends(get_db)):
+def list_pending_batches(
+    limit: int = Query(default=deposit_batches.PENDING_BATCH_LIMIT, ge=1, le=deposit_batches.PENDING_BATCH_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if user.is_admin:
         with _unscoped(db):
-            return {"batches": deposit_batches.pending_batches_for_user(db, user)}
-    return {"batches": deposit_batches.pending_batches_for_user(db, user)}
+            return {"batches": deposit_batches.pending_batches_for_user(db, user, limit, offset)}
+    return {"batches": deposit_batches.pending_batches_for_user(db, user, limit, offset)}
 
 
 @router.get("/batches/{batch_id}")
