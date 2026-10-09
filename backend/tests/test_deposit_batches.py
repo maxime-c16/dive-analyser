@@ -552,3 +552,31 @@ def test_email_headers_are_spam_filter_friendly(workspace):
         settings.email_from = prev
     assert msg["Reply-To"] == "notifs@example.test"
     assert msg["Message-ID"].rstrip(">").endswith("@example.test")
+
+
+def test_machine_ingest_re_holds_a_still_pending_row_for_the_same_batch(workspace):
+    from app.services import deposit_batches
+
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice")])
+    row = db.query(BatchEmailOutbox).one()
+    row_id, batch_id = row.id, row.batch_id
+    # A row queued before the hold existed (or already scheduled) is pending.
+    row.status = BatchEmailOutbox.STATUS_PENDING
+    db.commit()
+    deposit_batches.queue_batch_email(
+        db, batch_id=batch_id, diver_id=divers["alice"].id,
+        exclude_user_id=users["maxime"].id, hold=True)
+    db.commit()
+    db.expire_all()
+    assert db.get(BatchEmailOutbox, row_id).status == "held"
+    # Terminal rows are never reopened.
+    row = db.get(BatchEmailOutbox, row_id)
+    row.status = BatchEmailOutbox.STATUS_SENT
+    db.commit()
+    deposit_batches.queue_batch_email(
+        db, batch_id=batch_id, diver_id=divers["alice"].id,
+        exclude_user_id=users["maxime"].id, hold=True)
+    db.commit()
+    db.expire_all()
+    assert db.get(BatchEmailOutbox, row_id).status == "sent"

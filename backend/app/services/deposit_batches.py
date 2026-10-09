@@ -162,8 +162,11 @@ def queue_batch_email(
 
     Dive membership resolves at send time (dives of batch+diver still
     pending), so clips arriving after the first one join the same email.
-    ``hold`` parks new rows for admin confirmation (machine ingest) instead of
-    scheduling them; an existing row keeps its status either way.
+    ``hold`` parks rows for admin confirmation (machine ingest) instead of
+    scheduling them. An existing row that is still ``pending`` is parked too:
+    the agent-day batch id is reused all day, so a row queued before the hold
+    existed (or released earlier) must not let new clips slip out unconfirmed.
+    Rows already sent/failed/held are left alone.
     """
     owners = [uid for uid in diver_owner_ids(db, diver_id) if uid != exclude_user_id]
     if not owners:
@@ -178,6 +181,8 @@ def queue_batch_email(
             .one_or_none()
         )
         if existing is not None:
+            if hold and existing.status == BatchEmailOutbox.STATUS_PENDING:
+                existing.status = BatchEmailOutbox.STATUS_HELD
             rows.append(existing)
             continue
         row = BatchEmailOutbox(
