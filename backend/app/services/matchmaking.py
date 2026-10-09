@@ -267,35 +267,35 @@ def today(db, user):
         'judged_today': judged_today, 'votes': today_votes(db, user, start)}
 
 
-def _with_panels(db, rows):
+def _with_panels(db, rows, evaluator_user_id):
     """My votes next to the OTHER members' mean on the same dives."""
     ids = list({r.dive_id for r in rows})
     if not ids:
         return []
     totals = {dive_id: (count, total) for dive_id, count, total in db.query(
         AutomaticRating.dive_id, func.count(AutomaticRating.id), func.sum(AutomaticRating.score_half_steps)
-    ).filter(AutomaticRating.dive_id.in_(ids), community_vote_clause()).group_by(AutomaticRating.dive_id)}
+    ).filter(AutomaticRating.dive_id.in_(ids), community_vote_clause(),
+        AutomaticRating.evaluator_user_id != evaluator_user_id).group_by(AutomaticRating.dive_id)}
     out = []
     for r in rows:
-        count, total = totals.get(r.dive_id, (1, r.score_half_steps))
-        others = count - 1
+        others, total = totals.get(r.dive_id, (0, 0))
         out.append({'dive_id': r.dive_id, 'dive_code': r.dive_code, 'height': r.height, 'diver': r.dive_name or None,
             'score_half_steps': r.score_half_steps,
-            'panel_count': others, 'panel_mean': round((total - r.score_half_steps) / others / 2, 1) if others else None})
+            'panel_count': others, 'panel_mean': round(total / others / 2, 1) if others else None})
     return out
 
 
 def today_votes(db, user, start):
     rows = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id,
         AutomaticRating.created_at >= start).order_by(AutomaticRating.id.desc()).limit(30).all()
-    return _with_panels(db, rows)
+    return _with_panels(db, rows, user.id)
 
 
 def judge_profile(db, user, sample=50):
     """Judging tendency vs the rest of the panel, plus the daily streak."""
     rows = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id).order_by(
         AutomaticRating.id.desc()).limit(sample).all()
-    compared = [v for v in _with_panels(db, rows) if v['panel_mean'] is not None]
+    compared = [v for v in _with_panels(db, rows, user.id) if v['panel_mean'] is not None]
     bias = round(sum(v['score_half_steps'] / 2 - v['panel_mean'] for v in compared) / len(compared), 2) if compared else None
     days = {d if isinstance(d, str) else d.isoformat() for (d,) in db.query(func.date(AutomaticRating.created_at)).filter(
         AutomaticRating.evaluator_user_id == user.id).distinct().order_by(func.date(AutomaticRating.created_at).desc()).limit(400)}

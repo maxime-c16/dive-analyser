@@ -365,3 +365,29 @@ def test_overview_resumes_playable_stack_before_newer_revoked_or_finished_ones(w
     body = matchmaking.today(db, user)
     assert body['daily']['stack_id'] == daily.id and body['daily']['skipped'] == 1
     assert body['resume']['stack_id'] == playable.id and body['resume']['remaining'] == 1
+
+
+def test_overview_panel_stays_correct_when_voter_becomes_owner(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    for name, score in (('viewer', 8), ('bob', 14)):
+        client = login(name)
+        stack(client)
+        assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={
+            'video_uuid': 'alice-public-video', 'score_half_steps': score}).status_code == 200
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER'))
+    db.commit()
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    vote = body['today']['votes'][0]
+    assert vote['score_half_steps'] == 14
+    assert vote['panel_count'] == 1 and vote['panel_mean'] == 4.0
+    assert body['judge']['compared'] == 1 and body['judge']['bias'] == 3.0
+    # If no other vote is left, there is no panel or comparison sample.
+    db.query(AutomaticRating).filter_by(evaluator_user_id=users['viewer'].id).delete(); db.commit()
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    assert body['today']['votes'][0]['panel_count'] == 0
+    assert body['today']['votes'][0]['panel_mean'] is None
+    assert body['judge']['compared'] == 0 and body['judge']['bias'] is None
