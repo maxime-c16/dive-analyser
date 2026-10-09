@@ -86,8 +86,11 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
       if (button) setIndicator({ left: button.offsetLeft, width: button.offsetWidth })
     }
     place()
+    // Labels and fonts can settle after the first paint: follow the row's size.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place)
+    if (listRef.current) observer?.observe(listRef.current)
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+    return () => { observer?.disconnect(); window.removeEventListener('resize', place) }
   }, [tab, t])
   return (
     <div className="evaluations-tabs" role="tablist" aria-label={t('evaluations.tabsAria')} ref={listRef}>
