@@ -3,6 +3,7 @@
  * split-flap tile, one pip per judge, and a switch for daily selections.
  * The long rules stay one tap away instead of above every list.
  */
+import { scoreNumber } from './scoreFormatting'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { OwnedPanelLink } from './EvaluationSpaces'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +14,7 @@ const SORTS: Sort[] = ['recent', 'top', 'votes']
 const PIPS = 5
 
 export default function AutomaticScores() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [items, setItems] = useState<AutomaticScore[]>([])
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
@@ -58,7 +59,7 @@ export default function AutomaticScores() {
         <SplitFlap value={item.mean_score} />
         <div className="eval-board-main">
           <strong>{item.dive_code} · {item.height}</strong>
-          <p className="sr-only">{t('evaluations.communityScore', { score: item.mean_score?.toFixed(1) ?? '—', count: item.rating_count })}</p>
+          <p className="sr-only">{t('evaluations.communityScore', { score: scoreNumber(item.mean_score, i18n.language), count: item.rating_count })}</p>
           <span className="eval-pips" aria-hidden>
             {Array.from({ length: Math.min(PIPS, item.rating_count) }, (_, n) => <i key={n} />)}
             {item.rating_count > PIPS && <b>+{item.rating_count - PIPS}</b>}
@@ -83,7 +84,8 @@ export default function AutomaticScores() {
 
 /** Airport-board digits that rattle through a few values before landing. */
 function SplitFlap({ value }: { value: number | null }) {
-  const target = value === null ? '–.–' : value.toFixed(1).padStart(4, ' ')
+  const { i18n } = useTranslation()
+  const target = value === null ? scoreNumber(0, i18n.language).replace(/\d/g, '–') : scoreNumber(value, i18n.language).padStart(4, ' ')
   const [shown, setShown] = useState(() => reducedMotion() || value === null ? target : scramble(target))
   useEffect(() => {
     if (reducedMotion() || value === null) { setShown(target); return }
@@ -96,7 +98,7 @@ function SplitFlap({ value }: { value: number | null }) {
   }, [target, value])
   return (
     <span className="eval-flap" data-empty={value === null ? 'true' : undefined} aria-hidden>
-      {[...shown].map((char, index) => <span key={index} data-char={char === '.' ? 'dot' : undefined}>{char.trim()}</span>)}
+      {[...shown].map((char, index) => <span key={index} data-char={char === '.' || char === ',' ? 'dot' : undefined}>{char.trim()}</span>)}
     </span>
   )
 }

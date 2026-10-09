@@ -1,3 +1,4 @@
+import { scoreNumber } from './scoreFormatting'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,7 @@ import { ScoreCard } from './ScoreCards'
 export default function ResultsBoard({ results, score, automatic }: {
   results: JuryResults; score: number; automatic: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [rows, setRows] = useState(results.ratings)
   const [offset, setOffset] = useState(results.ratings.length)
   const [page, setPage] = useState(0)
@@ -46,14 +47,14 @@ export default function ResultsBoard({ results, score, automatic }: {
   }
   const card = (row: JuryResults['ratings'][number], index: number, animate = false) => <figure className="eval-card-figure" key={row.id}>
     <ScoreCard scoreHalfSteps={row.score_half_steps} className={animate ? 'eval-card-raised' : ''} staggerMs={animate ? 240 + index * 90 : 0}
-      ariaLabel={t('evaluations.cardAria', { score: (row.score_half_steps / 2).toFixed(1) })} />
+      ariaLabel={t('evaluations.cardAria', { score: scoreNumber(row.score_half_steps / 2, i18n.language) })} />
     <figcaption>{row.author ?? '—'}</figcaption>
   </figure>
   return <>
     <div className="eval-results-board">
       <figure className="eval-card-figure eval-card-mine-figure"><ScoreCard className="eval-card-raised" scoreHalfSteps={results.my_rating?.score_half_steps ?? score}
-        ariaLabel={t('evaluations.myCardAria', { score: ((results.my_rating?.score_half_steps ?? score) / 2).toFixed(1) })} /><figcaption>{t('evaluations.you')}</figcaption></figure>
-      <div className="eval-results-summary" role="status">{t('evaluations.panelSummary', { count: results.rating_count, mean: results.mean_score?.toFixed(1) ?? '—' })}</div>
+        ariaLabel={t('evaluations.myCardAria', { score: scoreNumber((results.my_rating?.score_half_steps ?? score) / 2, i18n.language) })} /><figcaption>{t('evaluations.you')}</figcaption></figure>
+      <div className="eval-results-summary" role="status">{t('evaluations.panelSummary', { count: results.rating_count, mean: scoreNumber(results.mean_score, i18n.language) })}</div>
       <div className="eval-results-peers" key={page}>{peers.slice(page * 4, page * 4 + 4).map((row, i) => card(row, i, true))}</div>
       <div className="eval-jury-pagination">
         {peers.length > 4 || remaining ? <button type="button" disabled={page === 0 || busy} aria-label={t('evaluations.previous')} onClick={() => setPage(value => value - 1)}>‹</button> : null}
@@ -63,7 +64,7 @@ export default function ResultsBoard({ results, score, automatic }: {
       {error && <p className="eval-error" role="alert">{t('evaluations.panelError')} <button type="button" onClick={() => void more(false)}>{t('evaluations.retry')}</button></p>}
     </div>
     {all && createPortal(<div className="eval-all-backdrop"><div ref={dialog} tabIndex={-1} className="eval-all-notes" role="dialog" aria-modal="true" aria-label={t('evaluations.allNotes', { count: results.rating_count })}>
-      <header><div><strong>{t('evaluations.allNotes', { count: results.rating_count })}</strong><p>{t('evaluations.panelSummary', { count: results.rating_count, mean: results.mean_score?.toFixed(1) ?? '—' })}</p></div><button type="button" onClick={() => setAll(false)} aria-label={t('common.close')}>×</button></header>
+      <header><div><strong>{t('evaluations.allNotes', { count: results.rating_count })}</strong><p>{t('evaluations.panelSummary', { count: results.rating_count, mean: scoreNumber(results.mean_score, i18n.language) })}</p></div><button type="button" onClick={() => setAll(false)} aria-label={t('common.close')}>×</button></header>
       <div className="eval-all-grid">{rows.map((row, i) => <div key={row.id}>{card(row, i)}{row.comment && <p>{row.comment}</p>}</div>)}</div>
       {(remaining || error) && <footer>{error && <p role="alert">{t('evaluations.panelError')}</p>}<button type="button" disabled={busy} onClick={() => void more(false)}>{t(error ? 'evaluations.retry' : 'evaluations.more')}</button></footer>}
     </div></div>, document.body)}

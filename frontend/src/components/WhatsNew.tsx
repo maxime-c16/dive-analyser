@@ -164,7 +164,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
         <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />{t('whatsNew.updateHeadline')}</h2>
         <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
       </div>
-      <p className="mb-4 mt-2 text-sm text-app-muted">{toast.length === 1 ? toast[0].title : t('whatsNew.improvementsReady', { count: toast.length })}</p>
+      <p className="mb-4 mt-2 text-sm text-app-muted">{toast.length === 1 ? t(`releaseNotes.${toast[0].id}.title`, { defaultValue: toast[0].title }) : t('whatsNew.improvementsReady', { count: toast.length })}</p>
       <button onClick={openToast} className="min-h-11 bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">{t('whatsNew.seeWhatsNew')}</button>
     </div>}
     {panel && <UpdatePanel manifest={panel} compatible={buildSha === 'dev' || !panel.frontend_sha || panel.frontend_sha === buildSha} close={closePanel} />}
@@ -194,7 +194,7 @@ function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; comp
       {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">{t('whatsNew.newerVersion')}</h3><p className="text-sm text-app-muted">{t('whatsNew.reloadHint')}</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>{t('whatsNew.reloadApp')}</button></>
         : manifest.notes.length ? manifest.notes.map((note, index) => <article key={note.id} className="border-b border-app py-6 first:pt-0">
           <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-app-accent">{note.date}{index === 0 ? ` · ${t('whatsNew.latestUpdate')}` : ''}</p>
-          <h3 className={`${index === 0 ? 'text-2xl' : 'text-lg'} mb-3 font-semibold`}>{note.title}</h3><p className="whitespace-pre-line text-sm leading-6 text-app-muted">{note.body}</p>
+          <h3 className={`${index === 0 ? 'text-2xl' : 'text-lg'} mb-3 font-semibold`}>{t(`releaseNotes.${note.id}.title`, { defaultValue: note.title })}</h3><p className="whitespace-pre-line text-sm leading-6 text-app-muted">{t(`releaseNotes.${note.id}.body`, { defaultValue: note.body })}</p>
         </article>) : <p className="text-sm text-app-muted">{t('whatsNew.noNotes')}</p>}
       <button onClick={close} className="mt-6 min-h-11 w-full bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">{t('whatsNew.gotIt')}</button>
     </section>

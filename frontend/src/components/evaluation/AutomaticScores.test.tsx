@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import i18n from '../../i18n'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import AutomaticScores from './AutomaticScores'
 import { getAutomaticScores, setAutomaticExclusion } from '../../services/evaluationApi'
@@ -44,4 +45,18 @@ it('sorts the loaded page by score or by judges without refetching', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Top score' }))
   expect(order()[0]).toBe('101B · 1m')
   expect(getAutomaticScores).toHaveBeenCalledTimes(1)
+})
+
+it('uses French decimal commas in both the scoreboard tiles and accessible summaries', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items: [{ dive_id: 1, dive_code: '101B', height: '3m', excluded: false, rating_count: 2, mean_score: 6.5, provisional: true }], total: 1 })
+  await act(async () => { await i18n.changeLanguage('fr') })
+  try {
+    const { container } = render(<AutomaticScores />)
+    expect(await screen.findByText(/6,5.*2 évaluateurs.*provisoire/)).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('.eval-flap')).toHaveTextContent('6,5'))
+    expect(container.querySelector('.eval-flap [data-char="dot"]')).toHaveTextContent(',')
+    await act(async () => { await i18n.changeLanguage('en') })
+    expect(screen.getByText(/6.5.*2 reviewers.*provisional/)).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('.eval-flap')).toHaveTextContent('6.5'))
+  } finally { await act(async () => { await i18n.changeLanguage('en') }) }
 })
