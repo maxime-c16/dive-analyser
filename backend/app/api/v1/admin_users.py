@@ -762,14 +762,25 @@ def list_live_invites(
     limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    _admin: AppUser = Depends(require_admin),
+    admin: AppUser = Depends(require_admin),
 ):
     """Outstanding invitation links across all divers (the admin Invites tab)."""
     rows, total = diver_invites.live_invites(db, limit=limit, offset=offset)
-    names = {
-        row.id: row.display_name
-        for row in db.query(Diver).filter(Diver.id.in_([r.diver_id for r in rows])).all()
-    } if rows else {}
+    # Unscoped: the request-wide member scope would hide divers the admin
+    # has no binding for, and these rows are exactly the unowned ones.
+    with _unscoped_divers(db):
+        names = {
+            row.id: row.display_name
+            for row in db.query(Diver)
+            .filter(Diver.id.in_([r.diver_id for r in rows]))
+            .all()
+        } if rows else {}
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_INVITE_READ,
+        actor_context=_actor(admin),
+        metadata={"scope": "live", "returned": len(rows), "total": total},
+    )
     return {
         "invites": [
             diver_invites.serialize_invite(row, names.get(row.diver_id)) for row in rows
@@ -785,17 +796,26 @@ def list_diver_invites(
     diver_id: int,
     limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
     db: Session = Depends(get_db),
-    _admin: AppUser = Depends(require_admin),
+    admin: AppUser = Depends(require_admin),
 ):
     """Full invite history for one diver (live, used, revoked, expired)."""
-    if db.get(Diver, diver_id) is None:
-        raise HTTPException(404, "Diver not found")
-    rows = diver_invites.invites_for_diver(db, diver_id, limit=limit)
-    diver = db.get(Diver, diver_id)
+    # Unscoped for the same reason as above: an unbound diver is invisible
+    # to the member scope, yet it is precisely the case this endpoint serves.
+    with _unscoped_divers(db):
+        diver = db.get(Diver, diver_id)
+        if diver is None:
+            raise HTTPException(404, "Diver not found")
+        rows = diver_invites.invites_for_diver(db, diver_id, limit=limit)
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_INVITE_READ,
+        actor_context=_actor(admin),
+        target_diver_id=diver_id,
+        metadata={"scope": "diver", "returned": len(rows)},
+    )
     return {
         "invites": [
-            diver_invites.serialize_invite(row, diver.display_name if diver else None)
-            for row in rows
+            diver_invites.serialize_invite(row, diver.display_name) for row in rows
         ]
     }
 

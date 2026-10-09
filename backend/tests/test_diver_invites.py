@@ -8,9 +8,13 @@ Covers:
 - the invite path works even when open friend registration is CLOSED
 - admin mint/list/revoke, one live link per diver, non-admin refusal
 - the diver directory advertises live invites
+- every OWNER-grant path (HTTP and CLI) shares the diver row lock
+- a concurrently consumed link reads as a dead link, never as "claimed"
+- admin invite lookups are unscoped and audit-logged without token material
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -51,7 +55,10 @@ def db():
 
     unclaimed = Diver(display_name="Lea", canonical_name="lea")
     claimed = Diver(display_name="Maxime", canonical_name="maxime")
-    session.add_all([unclaimed, claimed])
+    # No dives at all: invisible to the request-wide member scope, so any
+    # admin-only lookup of this diver must be explicitly unscoped.
+    lonely = Diver(display_name="Nico", canonical_name="nico")
+    session.add_all([unclaimed, claimed, lonely])
     session.flush()
     training = SessionModel(date=datetime.now().date(), location="Pool")
     session.add(training)
@@ -96,6 +103,7 @@ def db():
     session.commit()
     session.unclaimed_id = unclaimed.id
     session.claimed_id = claimed.id
+    session.lonely_id = lonely.id
     session.admin_id = admin.id
     yield session
     session.close()
@@ -232,8 +240,10 @@ def test_register_invite_creates_friend_bound_to_the_invited_diver(client, db):
     assert len(bindings) == 1
     assert bindings[0].diver_id == db.unclaimed_id
     assert bindings[0].access_kind == "OWNER"
-    # No member-<id>-<hex> placeholder diver was invented.
-    assert db.query(Diver).count() == 2
+    # No member-<id>-<hex> placeholder diver was invented: only the three
+    # the fixture created.
+    assert db.query(Diver).count() == 3
+    assert db.query(Diver).filter(Diver.canonical_name.like("member-%")).count() == 0
 
     me = client.get("/api/v1/auth/me")
     assert me.status_code == 200
@@ -646,3 +656,123 @@ def test_ownership_mutations_and_redemption_share_the_diver_row_lock(
     )
     assert r.status_code == 200
     assert locked == [db.claimed_id]
+
+
+def test_cli_grant_takes_the_same_diver_row_lock(db, monkeypatch):
+    """Every OWNER-grant path must share the lock, CLI included.
+
+    `manage_user.py cmd_bind` writes an OWNER binding too; without the lock
+    a CLI grant can race redemption into a second owner for the same diver.
+    """
+    import argparse
+    import importlib.util
+
+    from app.services import dive_access
+
+    spec = importlib.util.spec_from_file_location(
+        "manage_user_under_test",
+        str(Path(__file__).resolve().parent.parent / "scripts" / "manage_user.py"),
+    )
+    manage_user = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(manage_user)
+
+    locked: list[int] = []
+    real_lock = dive_access.lock_diver_for_ownership_change
+
+    def spy(db_, diver_id):
+        locked.append(diver_id)
+        return real_lock(db_, diver_id)
+
+    monkeypatch.setattr(manage_user, "lock_diver_for_ownership_change", spy)
+
+    friend = AppUser(email="cli@example.test", display_name="Cli", role="friend")
+    db.add(friend)
+    db.commit()
+
+    locked.clear()
+    args = argparse.Namespace(
+        email="cli@example.test",
+        diver_id=db.unclaimed_id,
+        diver_canonical_name=None,
+        actor_note="test",
+    )
+    manage_user.cmd_bind(db, args, bind=True)
+    assert locked == [db.unclaimed_id]
+    assert (
+        db.query(UserDiverAccess)
+        .filter_by(user_id=friend.id, diver_id=db.unclaimed_id, access_kind="OWNER")
+        .count()
+        == 1
+    )
+
+
+def test_a_concurrent_winner_is_reported_as_a_dead_link(db, monkeypatch):
+    """A consumed link is a 404 whatever killed it — never 409 diver_claimed.
+
+    Interleaving: this redemption peeks a live token, waits for the diver
+    lock, and the winner commits both the consume and the OWNER binding
+    before we get it. Answering `diver_claimed` there would reveal which
+    failure occurred and break the uniform 404 for used links.
+    """
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    winner = AppUser(email="winner@example.test", display_name="Winner", role="friend")
+    db.add(winner)
+    db.commit()
+
+    from app.services import diver_invites as invites_module
+
+    real_lock = invites_module.lock_diver_for_ownership_change
+    token_hash = sessions.hash_session_token(raw)
+
+    def racing_lock(db_, diver_id):
+        row = real_lock(db_, diver_id)
+        # The winner's transaction lands while we waited for the lock.
+        (
+            db_.query(DiverInvite)
+            .filter_by(token_hash=token_hash)
+            .update({"used_at": datetime.utcnow()}, synchronize_session=False)
+        )
+        db_.add(
+            UserDiverAccess(user_id=winner.id, diver_id=diver_id, access_kind="OWNER")
+        )
+        db_.flush()
+        return row
+
+    monkeypatch.setattr(invites_module, "lock_diver_for_ownership_change", racing_lock)
+
+    outcome, user, invite = invites_module.redeem_invite(
+        db, raw, email="lea@example.test", password=INVITEE_PASSWORD
+    )
+    # Dead link, not "claimed": the same answer as any other used token.
+    assert outcome == invites_module.REDEEM_INVALID
+    assert user is None
+    assert invite is None
+    db.rollback()
+
+
+def test_invite_reads_are_unscoped_and_audited(client, db):
+    """Admin invite lookups must reach diver names the member scope hides.
+
+    An unbound diver with no clips is scoped out of ordinary reads, yet it
+    is exactly the case the invite UI serves. Both listing endpoints also
+    record a privacy-safe read event.
+    """
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    assert _mint(db, db.lonely_id, db.admin_id)
+
+    single = client.get(f"/api/v1/admin/divers/{db.lonely_id}/invites")
+    assert single.status_code == 200
+    assert single.json()["invites"][0]["diver_name"] == "Nico"
+
+    live = client.get("/api/v1/admin/invites").json()
+    assert [row["diver_name"] for row in live["invites"]] == ["Nico"]
+
+    reads = (
+        db.query(SecurityAuditEvent)
+        .filter_by(event_type="invite_read")
+        .all()
+    )
+    assert len(reads) == 2
+    # Reads are privacy-safe: no token material is ever passed to the log.
+    for row in reads:
+        assert "token" not in (row.metadata_json or "")

@@ -151,10 +151,12 @@ def redeem_invite(
 
     Ordering matters and is deliberate:
       1. token validity first (uniform failure, no oracle);
-      2. then the diver/email preconditions, so a failure never leaves a
+      2. row-lock the diver, then RE-check the token is still live — a
+         concurrent winner must not surface as a different failure;
+      3. then the diver/email preconditions, so a failure never leaves a
          half-created account behind;
-      3. then the conditional consume (the single-use race point);
-      4. then account creation in the same transaction as the binding, so
+      4. then the conditional consume (the single-use race point);
+      5. then account creation in the same transaction as the binding, so
          the invitee never ends up with an account and no dives.
     """
     row = peek_invite(db, raw_token)
@@ -167,6 +169,16 @@ def redeem_invite(
     # whose clips already belong to an account.
     diver = lock_diver_for_ownership_change(db, row.diver_id)
     if diver is None:
+        return REDEEM_INVALID, None, None
+
+    # Re-read the token's state now that we hold the lock. A concurrent
+    # redemption can pass the first peek, wait here, and then observe the
+    # winner's OWNER binding — answering "diver_claimed" for that would leak
+    # which failure occurred and break the uniform 404 for consumed links.
+    # A dead link is a dead link, whatever killed it.
+    db.refresh(row)
+    if not row.is_live:
+        db.rollback()
         return REDEEM_INVALID, None, None
 
     # Claim semantics: a diver whose clips already belong to an account is
