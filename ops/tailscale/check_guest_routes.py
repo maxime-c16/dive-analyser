@@ -15,6 +15,10 @@ def main():
     opener = build_opener(NoRedirect)
     checks = [
         ('/share/0', 200),
+        ('/claim', 200),
+        # Public claim API (GET on a POST-only route: 405 proves it is past the gate).
+        ('/api/v1/deposits/claim/peek', 405),
+        ('/api/v1/deposits/pending', 401),
         ('/api/v1/shared-dives/0/social', 404),
         ('/', 302),
         ('/share-not-public/0', 302),

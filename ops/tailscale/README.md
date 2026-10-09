@@ -33,7 +33,10 @@ The backend runtime `.env` includes
 `USER_AUTH_ENABLED=true` and secure session cookies must stay enabled.
 
 External API routes require an active session via nginx `auth_request`,
-except the authentication/registration endpoints and `/api/v1/shared-dives/`.
+except the authentication/registration endpoints, `/api/v1/shared-dives/` and the
+two magic-link claim calls (`/api/v1/deposits/claim/peek|redeem`).
+The `/claim` landing page is public as well: its single-use token lives in the
+URL fragment and is exchanged for a normal session on an explicit button press.
 The `/share/` page is also public: its URL-fragment secret is exchanged for
 a guest grant, which the backend validates for each shared-video request.
 An invalid or revoked link grants no access. This also protects historical
