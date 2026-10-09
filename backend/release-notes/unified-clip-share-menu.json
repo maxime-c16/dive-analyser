@@ -1,0 +1,8 @@
+{
+  "id": "unified-clip-share-menu",
+  "date": "2026-10-09",
+  "title": "Un seul menu pour partager vos clips",
+  "body": "Le bouton Partager ouvre un menu repensé : copiez le lien en haut ou choisissez un membre pour envoyer le clip en message privé.",
+  "audience": "all",
+  "components": ["frontend"]
+}
