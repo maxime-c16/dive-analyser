@@ -19,6 +19,14 @@ Security contract (same as backend/app/api/v1/auth.py header):
   reset their own password here (self-service change-password requires the
   current password). These guards prevent same-session lockout.
 
+Diver invitations (this module mints them, auth.py redeems them):
+- POST /admin/divers/{id}/invites mints a single-use signup link for a
+  diver name that has clips but no account yet. The raw token is returned
+  exactly once (inside the link fragment) and optionally emailed; the DB
+  keeps only its SHA-256 hash. One live link per diver — minting a fresh
+  one revokes the previous. An already-owned diver is refused (409): that
+  is what the bind endpoints above are for.
+
 Ownership model (repo contract, not a policy choice of this module):
 - Diver bindings (access_kind="OWNER") are the SINGLE dive-ownership
   mechanism, independent of role. A diver-role account bound to a diver
@@ -66,6 +74,7 @@ from app.models.user_auth import (
     UserSession,
 )
 from app.services import security_audit_log, sessions as sessions_authority
+from app.services import diver_invites, email_service
 from app.services.passwords import ALGORITHM_LABEL, hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -686,6 +695,7 @@ def list_divers_for_admin(
             .distinct()
             .all()
         }
+        invited = diver_invites.live_invite_diver_ids(db, [row.id for row in rows])
     return {
         "divers": [
             {
@@ -694,6 +704,7 @@ def list_divers_for_admin(
                 "canonical_name": row.canonical_name,
                 "active": bool(row.active),
                 "bound_to_user": row.id in bound,
+                "has_live_invite": row.id in invited,
             }
             for row in rows
         ],
@@ -701,6 +712,195 @@ def list_divers_for_admin(
         "limit": limit,
         "offset": offset,
     }
+
+
+class DiverInviteCreate(BaseModel):
+    """Mint one invitation link for a diver.
+
+    ``send_to`` is optional: the raw link is always returned exactly once in
+    the response (the admin can copy it), and when an address is given the
+    invite email is sent through the same SMTP transport as the batch emails.
+    """
+
+    send_to: Optional[str] = Field(None, min_length=3, max_length=255)
+
+
+class DiverInviteResponse(BaseModel):
+    invite_id: int
+    diver_id: int
+    diver_name: str
+    status: str
+    invite_url: Optional[str] = None
+    email_sent: Optional[bool] = None
+    email_error: Optional[str] = None
+    created_at: Optional[str] = None
+    expires_at: Optional[str] = None
+    used_at: Optional[str] = None
+    revoked_at: Optional[str] = None
+    user_id: Optional[int] = None
+
+
+def _invite_public_url(raw_token: str) -> Optional[str]:
+    """Absolute /invite#t=… link, or None when APP_PUBLIC_URL is unset.
+
+    The token goes in the URL FRAGMENT so it never reaches server logs —
+    the same contract as the deposit-batch claim link.
+    """
+    app_url = get_settings().app_public_url.strip().rstrip("/")
+    if not app_url:
+        return None
+    return f"{app_url}/invite#t={raw_token}"
+
+
+@router.get("/invites")
+def list_live_invites(
+    limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    """Outstanding invitation links across all divers (the admin Invites tab)."""
+    rows, total = diver_invites.live_invites(db, limit=limit, offset=offset)
+    names = {
+        row.id: row.display_name
+        for row in db.query(Diver).filter(Diver.id.in_([r.diver_id for r in rows])).all()
+    } if rows else {}
+    return {
+        "invites": [
+            diver_invites.serialize_invite(row, names.get(row.diver_id)) for row in rows
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/divers/{diver_id}/invites")
+def list_diver_invites(
+    diver_id: int,
+    limit: int = Query(50, ge=1, le=_MAX_LIST_LIMIT),
+    db: Session = Depends(get_db),
+    _admin: AppUser = Depends(require_admin),
+):
+    """Full invite history for one diver (live, used, revoked, expired)."""
+    if db.get(Diver, diver_id) is None:
+        raise HTTPException(404, "Diver not found")
+    rows = diver_invites.invites_for_diver(db, diver_id, limit=limit)
+    diver = db.get(Diver, diver_id)
+    return {
+        "invites": [
+            diver_invites.serialize_invite(row, diver.display_name if diver else None)
+            for row in rows
+        ]
+    }
+
+
+@router.post("/divers/{diver_id}/invites", status_code=201)
+def create_diver_invite(
+    diver_id: int,
+    body: DiverInviteCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_admin),
+):
+    """Mint a single-use signup link for one diver (admin only).
+
+    Returns the raw link exactly once — it is not recoverable afterwards.
+    The response always carries it so the admin can copy it even when SMTP
+    is unconfigured or the send fails.
+    """
+    _check_origin(request)
+    with _unscoped_divers(db):
+        diver = db.get(Diver, diver_id)
+    if diver is None:
+        raise HTTPException(404, "Diver not found")
+    bound = (
+        db.query(UserDiverAccess)
+        .filter_by(diver_id=diver_id, access_kind="OWNER")
+        .first()
+    )
+    if bound is not None:
+        # An owned diver is claimable through the existing bind flow, not an
+        # invite. Refusing keeps "invite" meaning exactly "no account yet".
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This diver already has an account",
+        )
+
+    raw_token = diver_invites.mint_invite(
+        db, diver_id=diver_id, created_by_user_id=admin.id
+    )
+    row = diver_invites.invites_for_diver(db, diver_id, limit=1)[0]
+    invite_url = _invite_public_url(raw_token)
+    email_sent: Optional[bool] = None
+    email_error: Optional[str] = None
+
+    recipient = (body.send_to or "").strip()
+    if recipient:
+        if not email_service.is_email_configured():
+            email_sent = False
+            email_error = "email not configured"
+        elif invite_url is None:
+            email_sent = False
+            email_error = "APP_PUBLIC_URL missing"
+        else:
+            msg = email_service.render_invite_email(
+                diver_name=diver.display_name,
+                inviter_name=admin.display_name or admin.email.split("@")[0],
+                invite_url=invite_url,
+                expires_at=row.expires_at.strftime("%d/%m/%Y") if row.expires_at else None,
+            )
+            email_sent, email_error = email_service.send_message(msg, recipient)
+            email_error = email_error or None
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_INVITE_CREATED,
+            actor_context=_actor(admin),
+            target_diver_id=diver_id,
+            metadata={
+                "invite_id": row.id,
+                "emailed": bool(email_sent),
+                "email_error": email_error or None,
+            },
+        )
+    else:
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_INVITE_CREATED,
+            actor_context=_actor(admin),
+            target_diver_id=diver_id,
+            metadata={"invite_id": row.id, "emailed": False},
+        )
+
+    payload = diver_invites.serialize_invite(row, diver.display_name)
+    payload["invite_url"] = invite_url
+    payload["email_sent"] = email_sent
+    payload["email_error"] = email_error
+    return payload
+
+
+@router.delete("/invites/{invite_id}")
+def revoke_diver_invite(
+    invite_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_admin),
+):
+    """Revoke an unused invitation link (idempotent)."""
+    _check_origin(request)
+    row = diver_invites.revoke_invite(db, invite_id)
+    if row is None:
+        raise HTTPException(404, "Invite not found")
+    if row.used_at is None:
+        security_audit_log.record_event(
+            db,
+            security_audit_log.EVENT_INVITE_REVOKED,
+            actor_context=_actor(admin),
+            target_diver_id=row.diver_id,
+            metadata={"invite_id": row.id},
+        )
+    diver = db.get(Diver, row.diver_id)
+    return diver_invites.serialize_invite(row, diver.display_name if diver else None)
 
 
 @router.get("/users/{user_id}/sessions")

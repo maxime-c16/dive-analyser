@@ -3,10 +3,15 @@
 POST /api/v1/auth/login   — password login → opaque session cookie
 POST /api/v1/auth/logout  — revoke the session, clear the cookie
 GET  /api/v1/auth/me      — current user identity + bound divers
+POST /api/v1/auth/invite/peek     — preview a diver invitation link
+POST /api/v1/auth/register-invite — create an account from a diver invitation
 
 Security properties:
 - NO public registration (V1); users are provisioned by the operator
-  bootstrap CLI only.
+  bootstrap CLI only. Two explicitly authorized signup paths sit alongside
+  that: /register (shared invite code → friend + a collision-proof
+  member-<id>-<hex> placeholder diver) and /register-invite (admin-minted
+  per-diver token → friend + OWNER binding on the invited diver).
 - Login failures are UNIFORM: identical status + detail for unknown email,
   inactive user, and wrong password (no user-existence oracle), and the
   verification path always runs an Argon2id verify (timing-smoothed with a
@@ -24,7 +29,9 @@ Security properties:
   local test environment may override via AUTH_COOKIE_SECURE=false —
   production requires HTTPS and production cookies are always Secure).
 - Raw session tokens appear ONLY in the cookie; the DB stores their SHA-256
-  hashes; the cookie value is never logged.
+  hashes; the cookie value is never logged. The same holds for invitation
+  tokens: the raw value lives in the email URL fragment and the POST body,
+  never in a request path or a log line.
 """
 
 import datetime
@@ -34,6 +41,7 @@ from typing import Optional
 
 from app.services.member_avatar import avatar_identity
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
@@ -90,6 +98,23 @@ class RegisterRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=1024)
     new_password: str = Field(..., min_length=10, max_length=1024)
+
+
+class InviteTokenInput(BaseModel):
+    """Diver invitation token.
+
+    Travels in the POST body and lives in the email URL fragment
+    (`/invite#t=…`): it never appears in a request path, so nginx access
+    logs and the slow-request logger cannot record this bearer credential.
+    """
+
+    token: str = Field(..., min_length=16, max_length=512)
+
+
+class RegisterInviteRequest(InviteTokenInput):
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=10, max_length=1024)
+    display_name: Optional[str] = Field(None, min_length=1, max_length=120)
 
 
 def _registration_open() -> bool:
@@ -392,6 +417,146 @@ async def register(
     _set_session_cookie(response, raw_token)
     _secure_headers(response)
     return {"user_id": user.id, "email": email, "role": ROLE_FRIEND}
+
+
+def _invites_enabled() -> bool:
+    """Invitation links need accounts; they do NOT need open registration.
+
+    Deliberately independent of FRIEND_REGISTRATION_ENABLED / FRIEND_INVITE_
+    CODES: an administrator minting a link for a named diver is a separate,
+    explicitly authorized path. Fail closed on user auth only.
+    """
+    return _auth_enabled()
+
+
+def _invite_error(status_code: int, code: str, message: str) -> JSONResponse:
+    """Structured refusal for the invite endpoints.
+
+    Carries a stable ``code`` alongside the human ``detail`` so the signup
+    page can branch on the reason without string-matching. Codes are part of
+    the API contract: ``link_invalid`` (uniform for unknown / used / revoked
+    / expired — never a finer-grained oracle), ``diver_claimed``,
+    ``email_taken``, ``origin_forbidden``, ``rate_limited``.
+    """
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": message, "code": code},
+    )
+
+
+@router.post("/invite/peek")
+def peek_invite(payload: InviteTokenInput, db: Session = Depends(get_db)):
+    """Preview an invitation link without consuming it (safe for prefetchers).
+
+    Reveals the invited diver's name to the token holder so the signup page
+    can say who they are claiming. Only live tokens answer; every other
+    case is the same 404, so this is not an oracle.
+    """
+    if not _invites_enabled():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    from app.services import diver_invites
+
+    row = diver_invites.peek_invite(db, payload.token)
+    if row is None:
+        return _invite_error(404, "link_invalid", "Link not found")
+    from app.models.diver import Diver
+
+    diver = db.get(Diver, row.diver_id)
+    return {
+        "valid": True,
+        "diver_id": row.diver_id,
+        "diver_name": diver.display_name if diver else None,
+        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+    }
+
+
+@router.post("/register-invite", status_code=201)
+async def register_invite(
+    request_body: RegisterInviteRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Create an account from a diver invitation link (and bind that diver).
+
+    Unlike /register there is no shared invite code: the token IS the
+    authorization, and it names the diver the new account will own. Same
+    defenses as /register (origin check, per-source throttle, invite
+    validated before the duplicate-email check) plus single-use consumption.
+    Logs the new account straight in, exactly like /register.
+    """
+    if not _invites_enabled():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    if not _origin_allowed(request):
+        return _invite_error(403, "origin_forbidden", "Origin not allowed")
+
+    client_ip = _client_ip(request)
+    if _register_rate_limited(db, client_ip):
+        auth_metrics.get_auth_metrics().login_rate_limited.inc()
+        return _invite_error(429, "rate_limited", _TOO_MANY_ATTEMPTS)
+
+    from app.services import diver_invites
+
+    outcome, user, invite = diver_invites.redeem_invite(
+        db,
+        request_body.token,
+        email=request_body.email,
+        password=request_body.password,
+        display_name=request_body.display_name,
+    )
+    if outcome == diver_invites.REDEEM_INVALID:
+        # Unknown, used, revoked and expired are deliberately identical.
+        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        return _invite_error(404, "link_invalid", "Link not found")
+    if outcome == diver_invites.REDEEM_DIVER_CLAIMED:
+        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        return _invite_error(
+            409,
+            "diver_claimed",
+            "These dives already belong to another account",
+        )
+    if outcome == diver_invites.REDEEM_EMAIL_TAKEN:
+        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        return _invite_error(
+            409,
+            "email_taken",
+            "An account with this email already exists",
+        )
+    assert user is not None and invite is not None
+
+    _record_attempt(db, "diver-invite-register", success=True, client_ip=client_ip)
+    auth_metrics.get_auth_metrics().login_success.inc()
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_USER_CREATED,
+        actor_context=security_audit_log.ACTOR_SELF_REGISTRATION,
+        target_user_id=user.id,
+        target_diver_id=invite.diver_id,
+        metadata={"role": ROLE_FRIEND, "via": "diver_invite", "invite_id": invite.id},
+    )
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_INVITE_REDEEMED,
+        actor_context=security_audit_log.ACTOR_SELF_REGISTRATION,
+        target_user_id=user.id,
+        target_diver_id=invite.diver_id,
+        metadata={"invite_id": invite.id},
+    )
+    settings = get_settings()
+    raw_token, _session = sessions.create_session(
+        db,
+        user_id=user.id,
+        ttl_seconds=int(settings.auth_session_ttl_seconds),
+        revoke_existing=True,
+    )
+    _set_session_cookie(response, raw_token)
+    _secure_headers(response)
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "role": ROLE_FRIEND,
+        "diver_id": invite.diver_id,
+    }
 
 
 @router.post("/change-password")

@@ -45,6 +45,8 @@ const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
 const loadClaim = () => import("./pages/Claim");
 const Claim = lazy(loadClaim);
+const loadInvite = () => import("./pages/Invite");
+const Invite = lazy(loadInvite);
 const loadDeposits = () => import("./pages/Deposits");
 const Deposits = lazy(loadDeposits);
 const loadDashboard = () => import("./pages/Dashboard");
@@ -560,6 +562,8 @@ function Router() {
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
       )}
       <Route path="/claim" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Claim /></Suspense>} />
+      {/* Invitation landing: public like /claim — the friend has no account yet. */}
+      <Route path="/invite" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Invite /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"

@@ -1,0 +1,8 @@
+{
+  "id": "diver-invite-signup",
+  "date": "2026-10-10",
+  "title": "Invite a diver to claim their dives",
+  "body": "Send a friend a one-time link that creates their account with the clips already tied to their name. Open Administration → Invites, pick a diver with no account yet, then copy the link or email it. The link works once and expires after seven days; creating a new one supersedes the previous, and you can revoke a link you no longer recognise.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}
