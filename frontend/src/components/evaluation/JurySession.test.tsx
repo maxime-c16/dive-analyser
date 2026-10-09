@@ -72,7 +72,7 @@ beforeEach(() => {
 })
 
 async function choose(half: number) {
-  await userEvent.click(screen.getByRole('button', { name: `${Math.floor(half / 2)} out of 10` }))
+  await userEvent.click(await screen.findByRole('button', { name: `${Math.floor(half / 2)} out of 10` }))
   if (half % 2) await userEvent.click(screen.getByRole('button', { name: '+ ½' }))
 }
 
@@ -210,7 +210,7 @@ it('passes through the server skip endpoint and reaches the summary with the rec
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await screen.findByText('107B · 3m')
   expect(screen.getByRole('button', { name: 'Quit session' })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await waitFor(() => expect(skipRequest).toHaveBeenCalledWith(5, 11))
   await screen.findByText('105C · 3m'.replace('10m', '3m'))
   // Summary shows the REAL session recap: passed dive listed separately.
@@ -443,7 +443,7 @@ it('passes an automatic dive using its stack and keeps the manual queue untouche
   render(<MemoryRouter><JurySession automatic /></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
   await screen.findByText('EvalVideo')
-  fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await screen.findByRole('button', { name: 'Request another selection' })
   expect(skipAutomaticDive).toHaveBeenCalledWith(9, 11)
   expect(skipRequest).not.toHaveBeenCalled()
@@ -478,7 +478,7 @@ it('offers retry and pass when the ready video fails before ending', async () =>
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   expect(skipRequest).toHaveBeenCalledWith(5, 11)
 })
 
