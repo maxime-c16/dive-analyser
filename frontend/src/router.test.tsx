@@ -207,6 +207,44 @@ describe('minimal IA routing', () => {
   })
 })
 
+// ---- Unread messages badge on the Messages nav ----
+
+describe('messages unread badge', () => {
+  function stubMessagesInbox() {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/messages/conversations')) {
+        return { ok: true, json: async () => ({ items: [{ id: 1, kind: 'direct', members: [], unread_count: 2 }, { id: 2, kind: 'direct', members: [], unread_count: 1 }], next_before: null }) } as Response
+      }
+      if (url.includes('/api/v1/updates')) {
+        return { ok: true, json: async () => ({ schema: 1, version: '', frontend_sha: '', notes: [] }) } as Response
+      }
+      if (url.includes('/api/v1/notifications')) {
+        return { ok: true, json: async () => ({ items: [], unread_count: 0 }) } as Response
+      }
+      return { ok: true, json: async () => ({}) } as Response
+    }))
+  }
+
+  it('shows the unread total on the sidebar Messages link', async () => {
+    stubMessagesInbox()
+    renderAt('/dives')
+    const link = await screen.findByRole('link', { name: 'Messages, 3 unread' })
+    expect(link).toHaveAttribute('href', '/messages')
+    expect(screen.getByTestId('messages-unread-badge')).toHaveTextContent('3')
+    vi.unstubAllGlobals()
+  })
+
+  it('discards the badge while the Messages tab is open', async () => {
+    stubMessagesInbox()
+    renderAt('/messages')
+    expect(await screen.findByRole('heading', { name: 'Messages', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
+    expect(screen.getAllByRole('link', { name: 'Messages' }).length).toBeGreaterThan(0)
+    vi.unstubAllGlobals()
+  })
+})
+
 // ---- U4/U5: skip navigation + landmarks ----
 
 it('a skip-to-main-content link precedes all content and targets the main landmark', async () => {

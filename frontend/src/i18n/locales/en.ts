@@ -809,6 +809,7 @@ const en = {
   },
   nav: {
     messages: "Messages",
+    messagesUnreadAria: "Messages, {{count}} unread",
     community: "Community",    dives: 'Library',
     evaluations: 'Evaluations',
     overview: 'Overview',

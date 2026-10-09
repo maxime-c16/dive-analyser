@@ -10,6 +10,7 @@ import MessageBubble from '../components/messages/MessageBubble'
 import MentionComposer from '../components/mentions/MentionComposer'
 import { readMessageDraft, saveMessageDraft, readPendingSend, savePendingSend, completePendingSend, discardPendingSend } from '../navigation/messageDraft'
 import { useMobileViewport, useBottomAction } from '../navigation/useMobileNavigation'
+import { useMessagesUnread } from '../components/MessagesUnread'
 import '../navigation/messagesMobile.css'
 import { emptyMentionValue, mentionPayload } from '../components/mentions/mentionValue'
 
@@ -60,17 +61,18 @@ function Thread({ id }: { id: number }) {
     return () => window.removeEventListener('message-draft-sent', completed)
   }, [id, user?.user_id])
   const end = useRef<HTMLDivElement>(null)
+  const { refresh: refreshUnread } = useMessagesUnread()
   const markVisibleRead = useCallback(async () => {
     if (!alive.current || pendingRead.current || document.visibilityState !== 'visible' || !document.hasFocus()) return
     const ids = [...visible.current].filter(i => !read.current.has(i)).slice(0, 50)
     if (!ids.length) return
     pendingRead.current = true
-    try { await api.acknowledgeMessages(id, ids, true); ids.forEach(i => read.current.add(i)) }
+    try { await api.acknowledgeMessages(id, ids, true); ids.forEach(i => read.current.add(i)); refreshUnread() }
     catch { /* Retry on visibility, focus or next poll; never fabricate a receipt. */ }
     finally { pendingRead.current = false }
     // An observer may discover another visible message while this batch is in flight.
     if (alive.current && ids.every(i => read.current.has(i))) queueMicrotask(() => { void markVisibleRead() })
-  }, [id])
+  }, [id, refreshUnread])
   const onVisible = useCallback((message: number, show: boolean) => {
     if (show) visible.current.add(message); else visible.current.delete(message)
     void markVisibleRead()
@@ -157,6 +159,9 @@ export default function Messages() {
   const [choose, setChoose] = useState(false)
   const [starting, setStarting] = useState(false)
   const [retry, setRetry] = useState(0)
+  const { refresh: refreshUnread } = useMessagesUnread()
+  // Leaving the inbox re-syncs the nav badge with the receipts just written.
+  useEffect(() => () => refreshUnread(), [refreshUnread])
   const inboxInitialized = useRef(false)
   useEffect(() => {
     let alive = true, pending = false
