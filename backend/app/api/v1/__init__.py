@@ -48,6 +48,9 @@ v1_router.include_router(updates.router, tags=['updates'])
 from app.api.v1 import users
 v1_router.include_router(users.router, tags=['users'])
 
+from app.api.v1 import achievements
+v1_router.include_router(achievements.router, tags=['achievements'])
+
 from app.api.v1 import notifications
 v1_router.include_router(notifications.router, tags=['notifications'])
 

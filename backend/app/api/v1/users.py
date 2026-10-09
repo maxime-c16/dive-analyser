@@ -43,6 +43,7 @@ from app.models.dive_social import DiveComment, DiveCommentLike, DiveGuestCommen
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services.dive_access import owned_diver_ids, visible_dive_clause
 from app.services.media_cache import playback_url
+from app.services import achievements
 from app.services.member_avatar import avatar_identity
 
 router = APIRouter(prefix="/users")
@@ -127,6 +128,7 @@ def update_profile(body: ProfileUpdate, request: Request,
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "Handle is already taken")
+    achievements.award(db, user.id, achievements.PROFILE)
     return _identity(user)
 
 
@@ -179,6 +181,7 @@ def _save_avatar(raw, user, db):
     user.avatar = output.getvalue()
     user.avatar_updated_at = datetime.utcnow()
     db.commit()
+    achievements.award(db, user.id, achievements.PROFILE)
     return _identity(user)
 
 

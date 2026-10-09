@@ -1,0 +1,8 @@
+{
+  "id": "member-achievements",
+  "date": "2026-10-09",
+  "title": "Unlock achievements",
+  "body": "Add a profile photo, post your first comment, send a message, judge a dive and more to unlock achievements. A pop-up celebrates each one, and they all live in a new Achievements tab on your profile.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
