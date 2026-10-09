@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
+import { useModalOverlay } from '../utils/overlays'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { WhatsNewProvider, WhatsNewButton, parseManifest } from './WhatsNew'
@@ -110,4 +111,21 @@ describe('update hints', () => {
     fireEvent.click(screen.getByRole('button', { name: "What's new" }))
     expect(screen.getByRole('dialog')).toHaveTextContent('Version v1.2.3')
   })
+})
+
+
+it('does not claim an automatic hint behind a registered overlay, then permits it on the next refresh', async () => {
+  function Surface() {
+    const [open, setOpen] = useState(true)
+    const ref = useRef<HTMLDivElement>(null)
+    useModalOverlay(ref, { enabled: open, onClose: () => setOpen(false) })
+    return open ? <div ref={ref} tabIndex={-1} role="dialog"><button onClick={() => setOpen(false)}>close fixture</button></div> : null
+  }
+  render(<WhatsNewProvider><WhatsNewButton /><Surface /></WhatsNewProvider>)
+  await waitFor(() => expect(fetch).toHaveBeenCalled())
+  expect(screen.queryByRole('status', { hidden: true })).toBeNull()
+  expect(localStorage.getItem(key)).toBeNull()
+  fireEvent.click(screen.getByText('close fixture'))
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  expect(await screen.findByRole('status')).toHaveTextContent(note.title)
 })

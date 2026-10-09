@@ -82,7 +82,7 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
   }
 
   return (
-    <div className="fixed bottom-6 left-6 z-40 space-y-2 max-w-md">
+    <div className="fixed bottom-[calc(1.5rem+var(--mobile-nav-offset,0px))] left-6 z-40 space-y-2 max-w-md">
       {errors.map((error) => (
         <div
           key={error.id}

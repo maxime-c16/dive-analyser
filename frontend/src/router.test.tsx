@@ -1,14 +1,16 @@
 import React from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Router, { CompetitionsRedirect, breadcrumbTrail } from './router'
 
+const role = vi.hoisted(() => ({ isAdmin: true }))
+
 vi.mock('./contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useAuth: () => ({
-    user: { user_id: 1, email: 'test@example.com', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }] },
+    user: { user_id: 1, email: 'test@example.com', is_admin: role.isAdmin, divers: [{ diver_id: 1, access_kind: 'OWNER' }] },
     checking: false,
     refresh: async () => {},
   }),
@@ -37,6 +39,7 @@ function renderAt(path: string) {
 }
 
 beforeEach(() => {
+  role.isAdmin = true;
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/journey') {
       return Promise.resolve({
@@ -91,12 +94,36 @@ describe('minimal IA routing', () => {
     expect(screen.queryByRole('link', { name: 'Competitions' })).not.toBeInTheDocument()
   })
 
-  it('secondary destinations stay in navigation', async () => {
+  it('admin review destinations are collapsed until explicitly opened', async () => {
     renderAt('/dives')
     await screen.findByRole('heading', { name: 'Library', level: 1 })
+    const toggle = screen.getByRole('button', { name: 'Review' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('navigation', { name: 'Secondary navigation' })).not.toBeInTheDocument()
+    await userEvent.click(toggle)
     for (const label of ['Overview', 'Journey', 'Analytics', 'Representatives', 'Sessions']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
+    await userEvent.click(toggle)
+    expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument()
+  })
+
+  it('regular divers see the four primary destinations and no admin menus', async () => {
+    role.isAdmin = false
+    renderAt('/dives')
+    await screen.findByRole('heading', { name: 'Library', level: 1 })
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' })
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Library', 'Messages', 'Community', 'Evaluations'])
+    expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Operations' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
+    expect(screen.queryByRole('navigation', { name: 'Secondary navigation' })).not.toBeInTheDocument()
+  })
+
+  it.each(['/dashboard', '/journey', '/analytics', '/sessions', '/media/representatives', '/media/p5-canary', '/media/recall', '/admin', '/admin/users/2', '/competitions'])('redirects a regular diver opening %s to the Library', async (path) => {
+    role.isAdmin = false
+    renderAt(path)
+    expect(await screen.findByRole('heading', { name: 'Library', level: 1 })).toBeInTheDocument()
   })
 
   it('operational destinations live behind a collapsed disclosure', async () => {
@@ -197,4 +224,24 @@ it('a skip-to-main-content link precedes all content and targets the main landma
 it('the main landmark exists exactly once in the shell', async () => {
   renderAt('/dives')
   expect(screen.getAllByRole('main')).toHaveLength(1)
+})
+
+it('mobile menu isolates the page and restores its hamburger after nested update history closes', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ schema: 1, version: '', frontend_sha: '', notes: [] }) })))
+  const view = renderAt('/dives')
+  await screen.findByRole('heading', { name: 'Library', level: 1 })
+  const trigger = screen.getByRole('button', { name: 'Open navigation' })
+  await userEvent.click(trigger)
+  expect(document.getElementById('main-content')?.closest('[inert]')).not.toBeNull()
+  const menu = screen.getByRole('dialog')
+  await userEvent.click(within(menu).getByRole('button', { name: "What's new" }))
+  expect(screen.getAllByRole('dialog', { hidden: true })).toHaveLength(2)
+  await userEvent.keyboard('{Escape}')
+  expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  expect(document.body.style.overflow).toBe('hidden')
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(trigger).toHaveFocus())
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  expect(document.getElementById('main-content')?.closest('[inert]')).toBeNull()
+  view.unmount(); vi.unstubAllGlobals()
 })

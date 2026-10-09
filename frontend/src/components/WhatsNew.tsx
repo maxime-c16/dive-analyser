@@ -1,3 +1,4 @@
+import { hasOpenOverlay, useModalOverlay } from '../utils/overlays'
 import { useTranslation } from 'react-i18next'
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
@@ -110,7 +111,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
     void navigator.locks.request(key, () => {
       if (cancelled || document.visibilityState === 'hidden'
         || Array.from(document.querySelectorAll('video')).some(video => !video.paused)
-        || document.querySelector('[role="dialog"]')) return
+        || hasOpenOverlay()) return
       const latest = readState(key)
       if (!latest || Date.now() - latest.lastShown < DAY) return
       const pending = manifest.notes.filter(note => !latest.seen.includes(note.id))
@@ -155,7 +156,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 
   return <Context.Provider value={{ open, unread: unread || !compatible }}>
     {children}
-    {toast && compatible && <div role="status" className="fixed bottom-5 left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
+    {toast && compatible && <div role="status" className="fixed bottom-[calc(1.25rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
       <div className="flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />{t('whatsNew.updateHeadline')}</h2>
         <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
@@ -178,39 +179,14 @@ export function WhatsNewButton({ compact = false }: { compact?: boolean }) {
 function UpdatePanel({ manifest, compatible, close }: { manifest: Manifest; compatible: boolean; close: () => void }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLElement>(null)
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null
-    const root = document.getElementById('root')
-    const oldInert = root?.inert
-    const overflow = document.body.style.overflow
-    if (root) root.inert = true
-    document.body.style.overflow = 'hidden'
-    ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
-    const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); close() }
-      if (event.key !== 'Tab') return
-      const targets = Array.from(ref.current?.querySelectorAll<HTMLElement>('button, a[href]') || [])
-      const first = targets[0], last = targets[targets.length - 1]
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
-      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
-    }
-    document.addEventListener('keydown', keyboard)
-    return () => {
-      if (root) root.inert = oldInert || false
-      document.body.style.overflow = overflow
-      document.removeEventListener('keydown', keyboard)
-      if (previousFocus?.isConnected) previousFocus.focus()
-      else {
-        // Language-agnostic: the button label is localized, so target the test id.
-        const historyButton = Array.from(root?.querySelectorAll<HTMLButtonElement>('[data-testid="whats-new-button"]') || [])
-          .find(button => button.getClientRects().length > 0)
-        ;(historyButton || document.getElementById('main-content'))?.focus()
-      }
-    }
-  }, [close])
-  return createPortal(<div className="fixed inset-0 z-[70]">
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useModalOverlay(ref, { layer: 70, isolationRef: overlayRef, initialFocus: () => ref.current?.querySelector<HTMLButtonElement>('button') ?? null, onClose: close,
+    fallbackFocus: () => Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="whats-new-button"]'))
+      .find(button => button.getClientRects().length > 0) || document.getElementById('main-content'),
+  })
+  return createPortal(<div ref={overlayRef} className="fixed inset-0 z-[70]">
     <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
-    <section ref={ref} role="dialog" aria-modal="true" aria-labelledby="updates-title" className="absolute inset-y-0 right-0 w-full overflow-y-auto border-l border-app-strong bg-app-panel p-6 shadow-2xl sm:w-[450px] sm:p-8">
+    <section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="updates-title" className="absolute inset-y-0 right-0 w-full overflow-y-auto border-l border-app-strong bg-app-panel p-6 shadow-2xl sm:w-[450px] sm:p-8">
       <div className="mb-8 flex items-center justify-between"><div><h2 id="updates-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-app-muted">{t('whatsNew.title')}</h2>{manifest.version && <p className="mt-1 text-[11px] tabular-nums text-app-muted">{t('whatsNew.version', { version: manifest.version })}</p>}</div><button aria-label={t('whatsNew.close')} onClick={close} className="flex h-11 w-11 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button></div>
       {!compatible ? <><h3 className="mb-3 text-2xl font-semibold">{t('whatsNew.newerVersion')}</h3><p className="text-sm text-app-muted">{t('whatsNew.reloadHint')}</p><button className="mt-6 min-h-11 bg-app-accent px-4 font-semibold text-[#0d211c]" onClick={() => window.location.reload()}>{t('whatsNew.reloadApp')}</button></>
         : manifest.notes.length ? manifest.notes.map((note, index) => <article key={note.id} className="border-b border-app py-6 first:pt-0">

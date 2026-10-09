@@ -1,4 +1,5 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import { useModalOverlay } from './utils/overlays'
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   Routes,
   Route,
@@ -22,7 +23,6 @@ import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
 import { NotificationsProvider, NotificationsButton } from "./components/Notifications";
 import {
   BarChart3,
-  Bell,
   Send,
   BookOpen,
   CalendarDays,
@@ -107,7 +107,6 @@ const secondaryNav = [
   { to: "/analytics", label: "nav.analytics", icon: BarChart3 },
   { to: "/media/representatives", label: "nav.representatives", icon: Film },
   { to: "/sessions", label: "nav.sessions", icon: CalendarDays },
-  { to: "/notifications", label: "nav.notifications", icon: Bell },
 ];
 
 const operationsNav = [
@@ -166,34 +165,35 @@ function AppNavLink({
   );
 }
 
-function OperationsDisclosure({ compact = false }: { compact?: boolean }) {
+function NavigationDisclosure({ compact = false, review = false }: { compact?: boolean; review?: boolean }) {
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
+  const id = `${review ? "review" : "operations"}-navigation${compact ? "-mobile" : "-desktop"}`;
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        aria-controls="operations-navigation"
+        aria-controls={id}
         className={
           compact
             ? "touch-target flex w-full items-center justify-between border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-muted"
             : "flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted hover:text-app-text"
         }
       >
-        {t("nav.operations")}
+        {t(review ? "nav.review" : "nav.operations")}
         <ChevronDown
           className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       {open && (
         <nav
-          id="operations-navigation"
-          aria-label={t("nav.operationsAria")}
+          id={id}
+          aria-label={t(review ? "nav.secondaryNavigationAria" : "nav.operationsAria")}
           className={compact ? "mt-2 grid gap-2" : "mt-2 space-y-1"}
         >
-          {operationsNav.map((item) => (
+          {(review ? secondaryNav : operationsNav).map((item) => (
             <AppNavLink key={item.to} {...item} emphasis={compact} />
           ))}
         </nav>
@@ -297,16 +297,20 @@ function MobileNavigation() {
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useModalOverlay(menuRef, { enabled: open, onClose: () => setOpen(false), returnFocus: () => menuTriggerRef.current });
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    const media = window.matchMedia?.('(min-width: 1024px)');
+    if (!media) return;
+    const closeOnDesktop = () => { if (media.matches) setOpen(false); };
+    closeOnDesktop();
+    media.addEventListener('change', closeOnDesktop);
+    return () => media.removeEventListener('change', closeOnDesktop);
   }, []);
 
   return (
-    <div className="sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
+    <div ref={menuRef} tabIndex={open ? -1 : undefined} role={open ? "dialog" : undefined} aria-modal={open ? true : undefined} aria-label={open ? t("nav.primaryNavigationAria") : undefined} className="sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
       <div className="flex h-14 items-center justify-between px-4">
         <Link
           to="/dives"
@@ -323,6 +327,7 @@ function MobileNavigation() {
           <button
             type="button"
             aria-expanded={open}
+            ref={menuTriggerRef}
             aria-controls="mobile-navigation"
             onClick={() => setOpen((value) => !value)}
             className="touch-target inline-flex items-center justify-center border border-app bg-app-panel p-0 text-app-text"
@@ -352,24 +357,11 @@ function MobileNavigation() {
               </IntentNavLink>
             ))}
           </nav>
-          <p className="mb-2 mt-5 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
-            {t("nav.review")}
-          </p>
-          <nav aria-label={t("nav.secondaryNavigationAria")} className="grid gap-2">
-            {secondaryNav.map(({ to, label, icon: Icon }) => (
-              <IntentNavLink
-                key={to}
-                to={to}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `touch-target flex items-center gap-3 border px-4 text-base font-medium ${isActive ? "border-app-strong bg-app-panel text-app-text" : "border-app bg-app-panel-elevated text-app-muted"}`
-                }
-              >
-                <Icon className="h-5 w-5" />
-                <span>{t(label)}</span>
-              </IntentNavLink>
-            ))}
-          </nav>
+          {!friend && (
+            <div className="mt-5">
+              <NavigationDisclosure compact review />
+            </div>
+          )}
           <div className="mt-5">
             <IntentNavLink
               to="/account"
@@ -382,7 +374,7 @@ function MobileNavigation() {
           </div>
           {!friend && (
             <div className="mt-5">
-              <OperationsDisclosure compact />
+              <NavigationDisclosure compact />
             </div>
           )}
         </div>
@@ -402,8 +394,8 @@ function Layout({ children }: { children: React.ReactNode }) {
       </a>
       <div className="flex min-h-screen w-full">
         <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label={t("nav.workspaceSidebarAria")}>
-          <div className="sticky top-0 flex min-h-screen flex-col px-5 py-6 pt-safe">
-            <div className="border-b border-app pb-5">
+          <div className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-5 py-6 pt-safe">
+            <div className="shrink-0 border-b border-app pb-5">
               <div className="text-xl font-semibold text-app-text">
                 Dive Analyser
               </div>
@@ -415,27 +407,19 @@ function Layout({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
 
-            <div className="mt-6">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-muted">
-                {t("nav.review")}
-              </p>
-              <nav
-                className="mt-2 space-y-1"
-                aria-label={t("nav.secondaryNavigationAria")}
-              >
-                {secondaryNav.map((item) => (
-                  <AppNavLink key={item.to} {...item} />
-                ))}
-              </nav>
-            </div>
-
             {!friend && (
               <div className="mt-6">
-                <OperationsDisclosure />
+                <NavigationDisclosure review />
               </div>
             )}
 
-            <div className="mt-auto border-t border-app pt-4">
+            {!friend && (
+              <div className="mt-6">
+                <NavigationDisclosure />
+              </div>
+            )}
+
+            <div className="mt-auto shrink-0 border-t border-app pt-4">
               <div className="mb-3 grid gap-2"><WhatsNewButton /><NotificationsButton /></div>
               <div className="flex items-center gap-2 px-3 text-xs text-app-muted">
                 {user && <MemberAvatar member={user} size={32} />}
@@ -518,7 +502,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Keep friends out of owner operations (Media recall, System). */
+/** Keep regular divers out of admin review and operations pages. */
 function OwnerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user?.is_admin) {
@@ -580,15 +564,15 @@ function Router() {
               <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">{t("common.loadingPage")}</p>}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/journey" element={<Journey />} />
-                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/dashboard" element={<OwnerGuard><Dashboard /></OwnerGuard>} />
+                  <Route path="/journey" element={<OwnerGuard><Journey /></OwnerGuard>} />
+                  <Route path="/analytics" element={<OwnerGuard><Analytics /></OwnerGuard>} />
                 <Route path="/dives" element={<Dives />} />
                 <Route path="/evaluations" element={<Evaluations />} />
                 <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
                   <Route
                     path="/media/representatives"
-                    element={<RepresentativeMedia />}
+                    element={<OwnerGuard><RepresentativeMedia /></OwnerGuard>}
                   />
                   <Route
                     path="/media/recall"
@@ -598,7 +582,7 @@ function Router() {
                       </OwnerGuard>
                     }
                   />
-                  <Route path="/media/p5-canary" element={<P5Canary />} />
+                  <Route path="/media/p5-canary" element={<OwnerGuard><P5Canary /></OwnerGuard>} />
                   <Route
                     path="/admin"
                     element={
@@ -613,7 +597,7 @@ function Router() {
                   <Route path="/messages/:conversationId" element={<Messages />} />
                   <Route path="/community" element={<Community />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
-                  <Route path="/sessions" element={<Sessions />} />
+                  <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route
                     path="/competitions"

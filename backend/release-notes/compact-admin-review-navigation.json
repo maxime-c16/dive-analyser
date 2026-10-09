@@ -1,0 +1,8 @@
+{
+  "id": "compact-admin-review-navigation",
+  "date": "2026-10-09",
+  "title": "A simpler navigation panel",
+  "body": "Library, Messages, Community and Evaluations stay visible. Admin review tools are tucked into a collapsed menu and hidden from regular divers, leaving more room for your everyday navigation. Dialogs keep keyboard focus inside and return it when closed. Closing a clip opened from the Library no longer leaves an extra step when you go Back.",
+  "audience": "all",
+  "components": ["frontend"]
+}

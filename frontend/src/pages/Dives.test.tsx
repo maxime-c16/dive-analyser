@@ -1,6 +1,6 @@
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import Dives from './Dives'
@@ -84,7 +84,9 @@ it('closing the viewer falls back to Library search when the originating card is
   await userEvent.click(card)
   await screen.findByRole('dialog')
   // Filter away the originating clip (103C is 3m): the viewer closes automatically.
-  await userEvent.type(search, ' 1m')
+  // Simulate an external filter update: background inputs are intentionally
+  // unreachable to real keyboard users while the modal is active.
+  fireEvent.change(search, { target: { value: '103C 1m' } })
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   await waitFor(() => expect(document.activeElement).toBe(search))
 })

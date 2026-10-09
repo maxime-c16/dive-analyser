@@ -1,3 +1,4 @@
+import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom'
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { appLocale } from "../utils/dateLocale";
@@ -183,6 +184,8 @@ export default function Dives() {
 function DiveLibrary() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = usePreservedSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const cacheKey = libraryKey(user);
   const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
@@ -210,13 +213,13 @@ function DiveLibrary() {
 
   const update = (
     patch: Record<string, string | null>,
-    options?: { replace?: boolean },
+    options?: NavigateOptions,
   ) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(patch).forEach(([key, value]) =>
       value ? next.set(key, value) : next.delete(key),
     );
-    setSearchParams(next, { replace: options?.replace ?? true });
+    setSearchParams(next, { state: location.state, ...options, replace: options?.replace ?? true });
   };
 
   useEffect(() => {
@@ -399,14 +402,22 @@ function DiveLibrary() {
       scrollAnchorRef.current = window.scrollY;
     }
     viewerReturnAttemptRef.current = dive.id;
-    // Opening a clip is one history entry; Prev/Next/close replace instead.
-    update({ clip: String(dive.id) }, { replace: false });
+    // Only local opens create a known Library entry to return to. Links from
+    // profiles/messages and deep links keep their own history semantics.
+    update({ clip: String(dive.id) }, { replace: false, state: {
+      ...location.state,
+      libraryViewerOrigin: location.pathname + (searchParams.size ? `?${searchParams}` : ''),
+    } });
   };
   const moveToClip = (dive: Dive) => {
     update({ clip: String(dive.id) });
   };
   const closeViewer = () => {
-    update({ clip: null });
+    const clean = new URLSearchParams(searchParams);
+    clean.delete('clip');
+    const libraryUrl = location.pathname + (clean.size ? `?${clean}` : '');
+    if (location.state?.libraryViewerOrigin === libraryUrl) navigate(-1);
+    else update({ clip: null }, { state: { ...location.state, libraryViewerOrigin: undefined } });
   };
 
   const visible = filtered.slice(0, shown);

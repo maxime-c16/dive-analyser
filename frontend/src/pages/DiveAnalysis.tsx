@@ -1,3 +1,4 @@
+import { useModalOverlay } from '../utils/overlays'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Copy, Film, RotateCcw, X } from 'lucide-react'
@@ -419,23 +420,9 @@ function PhasePanel({ name, phase, attempts, view }: { name: string; phase: Phas
 function AttemptDrawer({ attempt, attempts, onClose, onMove, returnFocus }: { attempt: DiveAttempt; attempts: DiveAttempt[]; onClose: () => void; onMove: (attempt: DiveAttempt) => void; returnFocus: React.MutableRefObject<Element | null> }) {
   const asideRef = useRef<HTMLElement>(null), index = attempts.findIndex((item) => item.id === attempt.id)
   const recent = attempts.slice(Math.max(0, index - 4), index + 1).map((item) => item.performance_numeric), recentMedian = [...recent].sort((a, b) => a - b)[Math.floor(recent.length / 2)]
-  useEffect(() => {
-    const panel = asideRef.current
-    panel?.focus()
-    const keydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-      if (event.key === 'Tab' && panel) {
-        const focusable = [...panel.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], video, [tabindex="0"]')]
-        if (!focusable.length) return
-        const first = focusable[0], last = focusable[focusable.length - 1]
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
-      }
-    }
-    document.addEventListener('keydown', keydown)
-    return () => { document.removeEventListener('keydown', keydown); (returnFocus.current as HTMLElement | null)?.focus() }
-  }, [onClose, returnFocus])
-  return <div className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside ref={asideRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="attempt-title" className="h-full w-full max-w-2xl overflow-y-auto border-l border-app bg-app-panel p-4 outline-none sm:p-7">
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useModalOverlay(asideRef, { isolationRef: overlayRef, onClose, fallbackFocus: () => returnFocus.current as HTMLElement | null })
+  return <div ref={overlayRef} className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside ref={asideRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="attempt-title" className="h-full w-full max-w-2xl overflow-y-auto border-l border-app bg-app-panel p-4 outline-none sm:p-7">
     <div className="flex items-start justify-between gap-4"><div><h2 id="attempt-title" className="text-2xl font-semibold text-app-text">{attempt.dive_code} · {attempt.performance_numeric.toFixed(1)}</h2><p className="mt-1 text-sm text-app-muted">{format(parseISO(attempt.dive_datetime), 'd MMMM yyyy, HH:mm', { locale: appLocale() })} · {i18n.t('analysis.sessionN', { id: attempt.session_id })}</p></div><button type="button" onClick={onClose} className="border border-app bg-transparent p-2 text-app-muted" aria-label={i18n.t('analysis.closeAttempt')}><X className="h-4 w-4" /></button></div>
     <div className="mt-6 aspect-video overflow-hidden border border-app bg-black" aria-label={i18n.t('analysis.mediaFor', { code: attempt.dive_code, id: attempt.id })}>{attempt.video_uuid ? <DiveVideoPlayer diveCode={attempt.dive_code} height={attempt.height} videoUuid={attempt.video_uuid} /> : <div className="flex h-full items-center justify-center text-sm text-app-muted">{i18n.t('analysis.noLinkedAsset')}</div>}</div>
     <SendDiveButton key={attempt.id} diveId={attempt.id} inline />
