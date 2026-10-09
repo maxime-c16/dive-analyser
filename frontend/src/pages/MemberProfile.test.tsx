@@ -178,6 +178,28 @@ describe("MemberProfile", () => {
     expect(screen.queryByText("First comment")).not.toBeInTheDocument();
   });
 
+  it("switches to the achievements tab when a ?tab link is followed on the same profile", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(input => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.endsWith("/users/9/achievements")) return fetchJson({ total: 17, unlocked: 1, items: [{ key: "first_comment", category: "community", unlocked_at: "2026-10-09T10:00:00Z" }] });
+      return fetchJson({ items: [], next_before: null });
+    });
+    render(
+      <I18nProvider>
+        <MemoryRouter initialEntries={["/users/9"]}>
+          <Link to="/users/9?tab=achievements">Go achievements</Link>
+          <Routes><Route path="/users/:userId" element={<MemberProfile />} /></Routes>
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+    await screen.findByRole("heading", { name: "Bob Marlin" });
+    expect(screen.getByRole("tab", { name: "Dives" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.setup().click(screen.getByRole("link", { name: "Go achievements" }));
+    expect(await screen.findByText("First comment")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("lets the owner edit their bio and keeps the form after a handle conflict", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, options) => {
       const url = String(input);

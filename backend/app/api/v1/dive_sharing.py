@@ -174,6 +174,8 @@ def guest_like(payload: LikeInput, access=Depends(guest_access), db: Session = D
         db.rollback()
         if not db.get(DiveGuestLike, (dive.id, guest.id)):
             raise
+    if payload.liked:
+        achievements.award_dive_owners(db, dive.id, None, achievements.LIKE)
     return guest_social(access, db)
 
 

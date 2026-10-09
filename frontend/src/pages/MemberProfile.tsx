@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays } from 'lucide-react'
 import {
@@ -158,8 +158,16 @@ export default function MemberProfile() {
   const { userId } = useParams()
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const requestedTab = PROFILE_TABS.find(value => value === searchParams.get('tab')) ?? 'dives'
   const [tab, setTab] = useState<ProfileTab>(requestedTab)
+  // Following a ?tab= link while already on this profile (e.g. the unlock
+  // toast) must open that tab; location.key changes on every navigation.
+  const tabParam = searchParams.get('tab')
+  useEffect(() => {
+    const next = PROFILE_TABS.find(value => value === tabParam)
+    if (next) setTab(next)
+  }, [tabParam, location.key])
   const [editing, setEditing] = useState(false)
   const [retry, setRetry] = useState(0)
   const [profile, setProfile] = useState<MemberProfileData | null>(null)

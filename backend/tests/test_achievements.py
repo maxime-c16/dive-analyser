@@ -98,3 +98,16 @@ def test_seen_rejects_foreign_origin_and_unknown_fields(workspace):
     bob = login('bob')
     assert bob.post('/api/v1/users/me/achievements/seen', json={}, headers={'Origin': 'https://evil.test'}).status_code == 403
     assert bob.post('/api/v1/users/me/achievements/seen', json={'user_id': 1}).status_code == 422
+
+
+def test_guest_like_unlocks_like_received_for_owner(workspace):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from tests.test_dive_sharing import enter, issue
+
+    db, login, dives, users, _ = workspace
+    base, token = issue(login, dives['alice-public'])
+    with TestClient(app, base_url='https://testserver') as guest:
+        enter(guest, base, token)
+        assert guest.put(base + '/like', json={'liked': True}).status_code == 200
+    assert 'first_like_received' in unlocked(db, users['alice'])
