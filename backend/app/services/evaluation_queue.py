@@ -328,6 +328,20 @@ def _has_more(db: Session, user, session: EvaluationSession) -> bool:
     return False
 
 
+def pending_count(db: Session, user, cap: int = 50) -> int:
+    """Open requests this member could judge now (ready media), capped."""
+    count = 0
+    with evaluation_access.evaluation_media_scope(db):
+        query = _eligible_query(db, user)
+        for page in range(SCAN_MAX_PAGES):
+            pairs = query.offset(page * CANDIDATE_PAGE).limit(CANDIDATE_PAGE).all()
+            ready = _ready_video_uuids(db, pairs)
+            count += sum(1 for _, dive in pairs if dive.video_uuid in ready)
+            if count >= cap or len(pairs) < CANDIDATE_PAGE:
+                break
+    return min(count, cap)
+
+
 def queue_payload(db: Session, user, session: EvaluationSession, limit: int, raw_batch_id: str) -> dict:
     """Atomic batch allocation under the client's stable batch id.
 

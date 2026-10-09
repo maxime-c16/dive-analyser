@@ -329,21 +329,39 @@ def my_requests(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
 
 
 def my_ratings(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
-    """Own votes, paginated; projection keeps the frozen dive context and the
-    panel aggregates. NO media URL is ever included."""
+    """Own votes — requested AND daily-selection ones — newest first, paginated.
+
+    The projection keeps the frozen dive context and the panel aggregates;
+    `kind` tells which results endpoint serves the panel. NO media URL is
+    ever included."""
+    from app.models.matchmaking import AutomaticRating
+    from app.services.matchmaking import community_vote_clause
+
+    window = offset + limit
     with evaluation_access.evaluation_media_scope(db):
-        base = (
-            db.query(EvaluationRating)
-            .filter(EvaluationRating.evaluator_user_id == user.id)
-            .order_by(EvaluationRating.created_at.desc(), EvaluationRating.id.desc())
-        )
-        total = base.count()
-        rows = base.offset(offset).limit(limit).all()
-        aggregates = aggregate_map(db, [row.request_id for row in rows])
+        requested = db.query(EvaluationRating).filter(EvaluationRating.evaluator_user_id == user.id)
+        automatic = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id)
+        total = requested.count() + automatic.count()
+        rows = [("request", row) for row in requested.order_by(
+            EvaluationRating.created_at.desc(), EvaluationRating.id.desc()).limit(window)]
+        rows += [("automatic", row) for row in automatic.order_by(
+            AutomaticRating.created_at.desc(), AutomaticRating.id.desc()).limit(window)]
+        rows.sort(key=lambda entry: (entry[1].created_at, entry[1].id), reverse=True)
+        rows = rows[offset:window]
+        aggregates = aggregate_map(db, [row.request_id for kind, row in rows if kind == "request"])
+        dive_ids = [row.dive_id for kind, row in rows if kind == "automatic"]
+        automatic_aggregates = {
+            dive_id: {"rating_count": count, "mean_score": round(float(avg) / 2, 1) if avg is not None else None}
+            for dive_id, count, avg in db.query(
+                AutomaticRating.dive_id, func.count(AutomaticRating.id), func.avg(AutomaticRating.score_half_steps)
+            ).filter(AutomaticRating.dive_id.in_(dive_ids), community_vote_clause()).group_by(AutomaticRating.dive_id)
+        } if dive_ids else {}
+        empty = {"rating_count": 0, "mean_score": None}
         return {
             "items": [
                 {
-                    "request_id": row.request_id,
+                    "kind": kind,
+                    "request_id": row.request_id if kind == "request" else row.dive_id,
                     "dive": {
                         "dive_code": row.dive_code,
                         "height": row.height,
@@ -353,9 +371,9 @@ def my_ratings(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
                     "score_half_steps": row.score_half_steps,
                     "comment": row.comment,
                     "created_at": row.created_at,
-                    **(aggregates.get(row.request_id) or {"rating_count": 0, "mean_score": None}),
+                    **((aggregates.get(row.request_id) if kind == "request" else automatic_aggregates.get(row.dive_id)) or empty),
                 }
-                for row in rows
+                for kind, row in rows
             ],
             "total": total,
             "limit": limit,

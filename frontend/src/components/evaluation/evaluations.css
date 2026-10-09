@@ -1094,45 +1094,6 @@
   gap: 16px;
 }
 
-.evaluations-header h1 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.evaluations-lede {
-  margin: 4px 0 0;
-  color: var(--app-muted, #9aa3ad);
-  font-size: 14px;
-}
-
-.evaluations-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.evaluations-tabs button {
-  border: 1px solid var(--app-border, #2a2a2a);
-  background: var(--app-panel, #101418);
-  color: var(--app-muted, #9aa3ad);
-  padding: 10px 16px;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.evaluations-tabs button[aria-current='true'] {
-  color: var(--app-text, #e8ecf0);
-  border-color: var(--app-accent, #54beab);
-}
-
-.evaluations-footer {
-  color: var(--app-muted, #9aa3ad);
-  font-size: 13px;
-  display: grid;
-  gap: 6px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
 /* Small screens: readable cards without overflow. */
 @media (max-width: 599px) {
   .eval-card {

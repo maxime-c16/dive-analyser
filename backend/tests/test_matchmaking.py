@@ -270,3 +270,47 @@ def test_results_require_owner_or_vote_and_page_full_aggregate(workspace):
     assert login('alice').get(path).json()['rating_count'] == 60
     client.cookies.clear()
     assert client.get(path).status_code == 401
+
+
+def test_overview_reports_today_without_allocating(workspace):
+    db, login, dives, _, _ = workspace
+    from app.models.matchmaking import ReviewStack
+    client = login('bob')
+    empty = client.get('/api/v1/evaluations/overview')
+    assert empty.status_code == 200, empty.text
+    assert empty.json()['today']['daily'] is None and empty.json()['today']['resume'] is None
+    assert db.query(ReviewStack).count() == 0  # a GET never allocates
+    sid, items = stack(client)
+    today = client.get('/api/v1/evaluations/overview').json()['today']
+    assert today['daily'] == today['resume'] == {'stack_id': sid, 'daily': True, 'total': 1, 'judged': 0, 'skipped': 0, 'remaining': 1}
+    did = items[0]['dive_id']
+    assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 12}).status_code == 200
+    body = client.get('/api/v1/evaluations/overview').json()
+    assert body['today']['daily']['judged'] == 1 and body['today']['resume'] is None
+    assert body['today']['judged_today'] == 1 and body['judged_total'] == 1
+    history = client.get('/api/v1/evaluations/my-ratings').json()
+    assert history['total'] == 1
+    assert history['items'][0]['kind'] == 'automatic' and history['items'][0]['request_id'] == did
+    assert history['items'][0]['rating_count'] == 1 and history['items'][0]['mean_score'] == 6.0
+
+
+def test_overview_compares_my_votes_with_the_rest_of_the_panel(workspace):
+    db, login, dives, _, _ = workspace
+    did = dives['alice-public']
+    for name, score in (('viewer', 8), ('bob', 12)):
+        client = login(name)
+        _, items = stack(client)
+        assert did in [i['dive_id'] for i in items]
+        assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': score}).status_code == 200
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    vote = body['today']['votes'][0]
+    assert vote['dive_id'] == did and vote['score_half_steps'] == 12
+    assert vote['panel_count'] == 1 and vote['panel_mean'] == 4.0  # the others' mean, not including bob
+    assert body['judge'] == {'compared': 1, 'bias': 2.0, 'streak': 1}
+    # A vote yesterday keeps the streak going; a missed day breaks it.
+    def age(days):
+        db.query(AutomaticRating).filter(AutomaticRating.score_half_steps == 12).update(
+            {'created_at': datetime.utcnow() - timedelta(days=days)}); db.commit()
+        return login('bob').get('/api/v1/evaluations/overview').json()['judge']['streak']
+    assert age(1) == 1
+    assert age(2) == 0

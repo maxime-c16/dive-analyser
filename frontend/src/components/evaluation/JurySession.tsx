@@ -65,11 +65,26 @@ export default function JurySession({
   onCountChange,
   onStageChange,
   automatic = false,
+  autoStart = false,
+  daily = true,
+  resumeStackId,
+  doneBefore = 0,
+  onDone,
 }: {
   automatic?: boolean
   onCountChange?: (judged: number) => void
   /** Tells the page chrome to compact itself while a dive is on stage. */
   onStageChange?: (judging: boolean) => void
+  /** Skip the landing: the caller's button already was the start. */
+  autoStart?: boolean
+  /** Automatic only: today's selection (true) or one more on demand. */
+  daily?: boolean
+  /** Automatic only: reopen this existing selection instead of allocating. */
+  resumeStackId?: number
+  /** Dives of the resumed selection already handled before this mount. */
+  doneBefore?: number
+  /** Leaves the finished/quit session (the hub refreshes its own state). */
+  onDone?: () => void
 }) {
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
@@ -84,7 +99,9 @@ export default function JurySession({
   const [rated, setRated] = useState<RatedEntry[]>([])
   const [passed, setPassed] = useState<PassedEntry[]>([])
   const [commentOpen, setCommentOpen] = useState(false)
-  const dailyRef = useRef(true)
+  const dailyRef = useRef(daily)
+  const resumeRef = useRef(resumeStackId)
+  const offsetRef = useRef(doneBefore)
   const startKeyRef = useRef<string | null>(null)
   const selectionSizeRef = useRef(0)
   const automaticLoadedRef = useRef(false)
@@ -104,6 +121,19 @@ export default function JurySession({
       aliveRef.current = false
     }
   }, [])
+
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return
+    autoStarted.current = true
+    void start()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart])
+
+  // Inside the hub, the hub's own table is the recap: hand control straight back.
+  useEffect(() => {
+    if (phase.kind === 'summary' && onDone) onDone()
+  }, [phase.kind, onDone])
 
   useEffect(() => {
     onStageChange?.(phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal')
@@ -211,7 +241,12 @@ export default function JurySession({
     setPhase({ kind: 'loading' })
     try {
       const key = startKeyRef.current || (startKeyRef.current = clientId())
-      const session = await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
+      const resume = resumeRef.current
+      resumeRef.current = undefined
+      if (resume === undefined) offsetRef.current = 0
+      const session = resume !== undefined
+        ? { session_id: resume }
+        : await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
       if (!aliveRef.current) return
       automaticLoadedRef.current = false
       sessionIdRef.current = session.session_id
@@ -320,7 +355,7 @@ export default function JurySession({
     <section className="eval-session" aria-label={t('evaluations.juryArea')}>
       {phase.kind === 'landing' && (
         <div className="eval-landing">
-          <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>
+          {judgedCount > 0 && <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>}
           <button type="button" className="eval-start" onClick={() => void start()}>{t(automatic ? 'evaluations.dailyStart' : 'evaluations.start')}</button>
           <p className="eval-note">{t(automatic ? 'evaluations.automaticNote' : 'evaluations.startNote')}</p>
           {sessionExpired && <p className="eval-note" role="status">{t('evaluations.sessionNew')}</p>}
@@ -346,7 +381,7 @@ export default function JurySession({
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
               <span className="eval-meta">{stageItem.dive.dive_code} · {stageItem.dive.height}</span>
               <span className="eval-count" role="status" aria-label={t('evaluations.counted', { count: judgedCount })} title={t('evaluations.counted', { count: judgedCount })}>
-                {automatic ? `${judgedCount + passed.length + (phase.kind === 'reveal' ? 0 : 1)} / ${selectionSizeRef.current}` : judgedCount}
+                {automatic ? `${offsetRef.current + judgedCount + passed.length + (phase.kind === 'reveal' ? 0 : 1)} / ${offsetRef.current + selectionSizeRef.current}` : judgedCount}
               </span>
             </>
           }
@@ -418,7 +453,7 @@ export default function JurySession({
           )}
         </EvaluationStage>
       )}
-      {phase.kind === 'summary' && (
+      {phase.kind === 'summary' && !onDone && (
         <SessionSummary
           judgedCount={judgedCount}
           rated={rated}

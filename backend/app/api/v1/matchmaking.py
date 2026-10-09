@@ -44,6 +44,21 @@ def queue(stack_id: int, request: Request, response: Response, db: Session = Dep
     return service.queue(db, user, stack_id)
 
 
+@router.get('/evaluations/overview')
+def overview(request: Request, response: Response, db: Session = Depends(get_db)):
+    """One read for the Evaluations hub: today's selection, open requests, history size."""
+    from sqlalchemy import func
+    from app.models.evaluation import EvaluationRating
+    from app.models.matchmaking import AutomaticRating
+    from app.services import evaluation_queue
+    user = _require_user(request, db)
+    _secure_headers(response)
+    judged_total = sum(db.query(func.count(model.id)).filter(model.evaluator_user_id == user.id).scalar()
+        for model in (EvaluationRating, AutomaticRating))
+    return {'today': service.today(db, user), 'requests_pending': evaluation_queue.pending_count(db, user),
+        'judged_total': judged_total, 'judge': service.judge_profile(db, user)}
+
+
 class SkipBody(BaseModel):
     request_id: int
 

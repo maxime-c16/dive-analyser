@@ -68,12 +68,6 @@
 .eval-stage-root[data-watching=true] .eval-player-controls { right: auto; }
 .eval-landing { text-align: left; justify-items: start; padding: 24px; border-radius: 16px; }
 .eval-start { border-radius: 12px; background: var(--app-accent); color: #06251f; }
-.evaluations-tabs { flex-wrap: nowrap; gap: 4px; }
-.evaluations-tabs button { flex: 1; min-width: 0; border-radius: 999px; border-color: transparent; padding: 8px 10px; }
-.evaluations-tabs button[aria-current=true] { background: var(--app-active,#303d44); }
-.evaluations-modes { display: flex; gap: 8px; margin-bottom: 12px; }
-.evaluations-modes button { min-height: 44px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-panel); padding: 8px 14px; color: var(--app-muted); }
-.evaluations-modes button[aria-pressed=true] { color: var(--app-accent); border-color: var(--app-accent); }
 .eval-owned-item, .eval-judged-item { border-radius: 14px; }
 .eval-owned-panel { display: flex; width: 100%; flex-direction: column; align-items: stretch; }
 .eval-owned-panel > button { align-self: start; }
