@@ -11,6 +11,7 @@ the suite never requires it.
 """
 
 from dataclasses import dataclass
+from time import monotonic
 from typing import Optional
 import threading
 
@@ -122,6 +123,16 @@ def _b2_client():
     return _presign_client
 
 
+# Successful HEADs, keyed by (credential fingerprint, bucket, key) -> expiry. The
+# proof is reused only briefly: one provider round trip less per replay of a
+# clip (~0.5-1.7 s), while failures are never cached and authorization still
+# runs on every request. A rotated credential has a new fingerprint and so
+# misses the cache.
+_HEAD_CACHE_MAX_ENTRIES = 4096
+_head_ok_cache: dict = {}
+_head_ok_lock = threading.Lock()
+
+
 def head_object(bucket: str, object_key: str) -> bool:
     """Provider-side health proof for one playback grant (P6 §13/§29).
 
@@ -131,18 +142,33 @@ def head_object(bucket: str, object_key: str) -> bool:
     This HEAD proves the credential can actually read the object RIGHT
     NOW; any provider rejection/failure raises PresignUnavailable so the
     caller can apply the B2_TEMPORARY_FAILURE policy (authorized legacy
-    fallback, or explicit 503 — never a dead Location).
+    fallback, or explicit 503 — never a dead Location). A success is reused
+    for media_playback_head_cache_seconds (failures never are).
     """
     client = _b2_client()
+    ttl = get_settings().media_playback_head_cache_seconds
+    cache_key = (_presign_client_fingerprint, bucket, object_key)
+    if ttl > 0:
+        with _head_ok_lock:
+            expiry = _head_ok_cache.get(cache_key)
+        if expiry is not None and monotonic() < expiry:
+            return True
     try:
         client.head_object(Bucket=bucket, Key=object_key)
-        return True
     except PresignUnavailable:
         raise
     except Exception as exc:
         raise PresignUnavailable(
             f"playback credential/object unusable: {type(exc).__name__}"
         ) from exc
+    if ttl > 0:
+        with _head_ok_lock:
+            _head_ok_cache[cache_key] = monotonic() + ttl
+            if len(_head_ok_cache) > _HEAD_CACHE_MAX_ENTRIES:
+                # Drop the soonest-expiring proofs first.
+                for stale in sorted(_head_ok_cache, key=_head_ok_cache.get)[: len(_head_ok_cache) - _HEAD_CACHE_MAX_ENTRIES]:
+                    del _head_ok_cache[stale]
+    return True
 
 
 def presign_get(

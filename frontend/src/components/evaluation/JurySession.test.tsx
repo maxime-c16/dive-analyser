@@ -72,7 +72,7 @@ beforeEach(() => {
 })
 
 async function choose(half: number) {
-  await userEvent.click(screen.getByRole('button', { name: `${Math.floor(half / 2)} out of 10` }))
+  await userEvent.click(await screen.findByRole('button', { name: `${Math.floor(half / 2)} out of 10` }))
   if (half % 2) await userEvent.click(screen.getByRole('button', { name: '+ ½' }))
 }
 
@@ -166,15 +166,16 @@ it('keeps score/comment on failure and retries the same dive', async () => {
   await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Add a comment' }))
   await userEvent.type(screen.getByLabelText('Optional comment'), 'Great flight')
-  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm 5.5 with this comment' }))
   await screen.findByRole('alert')
   expect(screen.getByRole('alert')).toHaveTextContent('The score could not be saved. Your choice is kept; try again.')
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
   expect(screen.getByLabelText('Optional comment')).toHaveValue('Great flight')
   expect(screen.getByRole('img', { name: '5.5 out of 10' })).toBeInTheDocument()
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
-  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm 5.5 with this comment' }))
   await screen.findByRole('img', { name: 'Your score card 6.5' })
+  expect(submitRating).toHaveBeenLastCalledWith(11, 11, 'Great flight', false, 'u11')
 })
 
 it('guards against double submits (single server call)', async () => {
@@ -209,7 +210,7 @@ it('passes through the server skip endpoint and reaches the summary with the rec
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await screen.findByText('107B · 3m')
   expect(screen.getByRole('button', { name: 'Quit session' })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await waitFor(() => expect(skipRequest).toHaveBeenCalledWith(5, 11))
   await screen.findByText('105C · 3m'.replace('10m', '3m'))
   // Summary shows the REAL session recap: passed dive listed separately.
@@ -364,22 +365,33 @@ it('steps DOWN before any score is chosen (precise 0.5 stepper from neutral)', a
   expect(screen.getByRole('img', { name: '4.5 out of 10' })).toBeInTheDocument()
 })
 
-it('opens the comment IN FLOW: Confirm and Pass stay visible alongside it', async () => {
+it('opens the comment as a composer that replaces the keypad and sends the score', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
   await openFirstDive()
   const toggle = screen.getByRole('button', { name: 'Add a comment' })
   expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  // No score yet: the composer cannot send, and says why.
   await userEvent.click(toggle)
-  await screen.findByLabelText('Optional comment')
-  // In-flow expansion: the essential controls remain usable while open.
-  expect(screen.getByRole('button', { name: 'Confirm score' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Pass' })).toBeInTheDocument()
-  await userEvent.type(screen.getByLabelText('Optional comment'), 'Nice entry')
-  // Closing from the inline header keeps the draft; reopening restores it.
-  await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-  expect(screen.queryByLabelText('Optional comment')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Edit comment' }))
-  expect(screen.getByLabelText('Optional comment')).toHaveValue('Nice entry')
+  const field = await screen.findByLabelText('Optional comment')
+  expect(field).toHaveAttribute('enterkeyhint', 'send')
+  expect(screen.queryByRole('button', { name: '7 out of 10' })).not.toBeInTheDocument()  // keypad replaced, nothing overlaps
+  expect(screen.getByRole('button', { name: 'Choose a score first' })).toBeDisabled()
+  await userEvent.type(field, 'Nice entry{Enter}')
+  expect(submitRating).not.toHaveBeenCalled()
+  // Back to the keypad keeps the draft and flags it on the toggle.
+  await userEvent.click(screen.getByRole('button', { name: 'Back to the score keypad' }))
+  await choose(13)
+  const edit = screen.getByRole('button', { name: 'Edit comment' })
+  expect(edit).toHaveAttribute('data-filled', 'true')
+  await userEvent.click(edit)
+  const again = screen.getByLabelText('Optional comment')
+  expect(again).toHaveValue('Nice entry')
+  // Shift+Enter is a new line; Enter sends, like a messaging app.
+  await userEvent.type(again, '{Shift>}{Enter}{/Shift}Clean')
+  expect(submitRating).not.toHaveBeenCalled()
+  await userEvent.type(again, '{Enter}')
+  await waitFor(() => expect(submitRating).toHaveBeenCalledWith(11, 13, 'Nice entry\nClean', false, 'u11'))
 })
 
 it('reveal joins MY card first, then peers flip in cascade with names', async () => {
@@ -431,7 +443,7 @@ it('passes an automatic dive using its stack and keeps the manual queue untouche
   render(<MemoryRouter><JurySession automatic /></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
   await screen.findByText('EvalVideo')
-  fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await screen.findByRole('button', { name: 'Request another selection' })
   expect(skipAutomaticDive).toHaveBeenCalledWith(9, 11)
   expect(skipRequest).not.toHaveBeenCalled()
@@ -466,6 +478,22 @@ it('offers retry and pass when the ready video fails before ending', async () =>
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   expect(skipRequest).toHaveBeenCalledWith(5, 11)
+})
+
+it('resumes an existing selection from the hub without allocating, counting earlier dives', async () => {
+  vi.mocked(getAutomaticQueue).mockResolvedValue({ ...batch, items: [item(12, '205C'), item(13, '301B')] })
+  vi.mocked(skipAutomaticDive).mockResolvedValue()
+  const onDone = vi.fn()
+  render(<MemoryRouter><JurySession automatic autoStart resumeStackId={4} doneBefore={1} onDone={onDone} /></MemoryRouter>)
+  await screen.findByText('EvalVideo')
+  expect(createAutomaticStack).not.toHaveBeenCalled()
+  expect(getAutomaticQueue).toHaveBeenCalledWith(4)
+  expect(screen.getByText('2 / 3')).toBeInTheDocument()
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
+  await screen.findByText('3 / 3')
+  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
+  await waitFor(() => expect(onDone).toHaveBeenCalled())
+  expect(screen.queryByText(/this session/)).not.toBeInTheDocument()
 })

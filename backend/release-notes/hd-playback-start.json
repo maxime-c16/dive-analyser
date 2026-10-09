@@ -1,0 +1,11 @@
+{
+  "id": "hd-playback-start",
+  "date": "2026-10-09",
+  "title": "Dive videos open in HD, without a blurry first second",
+  "body": "Players open the HD clip directly whenever it is available, showing the sharp poster while it loads instead of starting with the low-resolution preview.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

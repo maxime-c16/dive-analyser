@@ -85,6 +85,23 @@ def status(db, dive, asset):
     return result
 
 
+def _ready_clause():
+    """SQL readiness shared by stack allocation and bounded resume lookup."""
+    from app.models.media import MediaCacheEntry
+    ready = exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
+        PhotosAsset.video_uuid == Dive.video_uuid, MediaCacheEntry.status == 'ready',
+        MediaCacheEntry.rendition.in_(('proxy_720p', 'original', 'proxy_360p'))))
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
+        from app.models.media_backbone import MediaRevision
+        backbone_ready = exists(select(1).select_from(MediaRevision).where(
+            MediaRevision.video_uuid == Dive.video_uuid, verified_original_clause()))
+        has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
+        ready = ready | (backbone_ready & has_asset)
+    return ready
+
+
 def stack(db, user, key):
     row = db.query(ReviewStack).filter_by(user_id=user.id, key=key).first()
     if row is not None:
@@ -109,18 +126,7 @@ def stack(db, user, key):
     candidates = eligible(db, user).filter(~voted, ~cooling, ~outstanding).order_by(count, Dive.dive_datetime.desc(), Dive.id)
     # Ready cache is filtered in SQL, so unavailable videos cannot hide the
     # playable corpus. Round-robin owners before taking a second dive each.
-    from app.models.media import MediaCacheEntry
-    ready = exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
-        PhotosAsset.video_uuid == Dive.video_uuid, MediaCacheEntry.status == 'ready',
-        MediaCacheEntry.rendition.in_(('proxy_720p', 'original', 'proxy_360p'))))
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
-        from app.models.media_backbone import MediaRevision
-        backbone_ready = exists(select(1).select_from(MediaRevision).where(
-            MediaRevision.video_uuid == Dive.video_uuid, verified_original_clause()))
-        has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
-        ready = ready | (backbone_ready & has_asset)
+    ready = _ready_clause()
     owner = select(func.min(UserDiverAccess.user_id)).select_from(UserDiverAccess).join(AppUser).where(
         UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER', AppUser.is_active.is_(True)
     ).correlate(Dive).scalar_subquery()
@@ -216,3 +222,88 @@ def rate(db, user, dive_id, score, comment, video_uuid):
             return rate(db, user, dive_id, score, comment, video_uuid)
     panel = results(db, user, dive_id)
     return {'rating': panel['my_rating'], 'results': panel}
+
+
+def _stack_progress(db, user, row, items, voted):
+    judged = sum(1 for i in items if i.dive_id in voted)
+    skipped = sum(1 for i in items if i.skipped_at and i.dive_id not in voted)
+    pending = any(not i.skipped_at and i.dive_id not in voted for i in items)
+    remaining = len(queue(db, user, row.id)['items']) if pending else 0
+    return {'stack_id': row.id, 'daily': row.key.startswith('daily:'), 'total': len(items),
+        'judged': judged, 'skipped': skipped, 'remaining': remaining}
+
+
+def today(db, user):
+    """Read-only UTC-day progress; load at most daily + newest playable stack."""
+    now = datetime.utcnow()
+    start = datetime(now.year, now.month, now.day)
+    daily_row = db.query(ReviewStack).filter_by(user_id=user.id, key='daily:' + start.date().isoformat()).first()
+    voted_item = exists(select(1).where(AutomaticRating.evaluator_user_id == user.id,
+        AutomaticRating.dive_id == ReviewStackItem.dive_id).correlate(ReviewStackItem))
+    playable_item = eligible(db, user).filter(Dive.id == ReviewStackItem.dive_id,
+        Dive.video_uuid == ReviewStackItem.video_uuid, _ready_clause()).exists()
+    unfinished = exists(select(1).where(ReviewStackItem.stack_id == ReviewStack.id,
+        ReviewStackItem.skipped_at.is_(None), ~voted_item, playable_item).correlate(ReviewStack))
+    resume_row = db.query(ReviewStack).filter(ReviewStack.user_id == user.id,
+        ReviewStack.created_at >= start, unfinished).order_by(ReviewStack.id.desc()).first()
+    rows = [daily_row] if daily_row is not None else []
+    if resume_row is not None and (daily_row is None or resume_row.id != daily_row.id):
+        rows.append(resume_row)
+    # Progress reads are batched, independent of the number of earlier stacks.
+    items = db.query(ReviewStackItem).filter(ReviewStackItem.stack_id.in_([r.id for r in rows])).all() if rows else []
+    voted = {dive_id for (dive_id,) in db.query(AutomaticRating.dive_id).filter(
+        AutomaticRating.evaluator_user_id == user.id,
+        AutomaticRating.dive_id.in_({i.dive_id for i in items}))} if items else set()
+    grouped = {r.id: [] for r in rows}
+    for item in items:
+        grouped[item.stack_id].append(item)
+    stacks = {r.id: _stack_progress(db, user, r, grouped[r.id], voted) for r in rows}
+    judged_today = db.query(func.count(AutomaticRating.id)).filter(
+        AutomaticRating.evaluator_user_id == user.id, AutomaticRating.created_at >= start).scalar()
+    return {'date': start.date().isoformat(), 'resets_at': (start + timedelta(days=1)).isoformat() + 'Z',
+        'daily': stacks.get(daily_row.id) if daily_row is not None else None,
+        'resume': next((stacks[r.id] for r in (resume_row, daily_row)
+            if r is not None and stacks[r.id]['remaining']), None),
+        'judged_today': judged_today, 'votes': today_votes(db, user, start)}
+
+
+def _with_panels(db, rows, evaluator_user_id):
+    """My votes next to the OTHER members' mean on the same dives."""
+    ids = list({r.dive_id for r in rows})
+    if not ids:
+        return []
+    totals = {dive_id: (count, total) for dive_id, count, total in db.query(
+        AutomaticRating.dive_id, func.count(AutomaticRating.id), func.sum(AutomaticRating.score_half_steps)
+    ).filter(AutomaticRating.dive_id.in_(ids), community_vote_clause(),
+        AutomaticRating.evaluator_user_id != evaluator_user_id).group_by(AutomaticRating.dive_id)}
+    out = []
+    for r in rows:
+        others, total = totals.get(r.dive_id, (0, 0))
+        out.append({'dive_id': r.dive_id, 'dive_code': r.dive_code, 'height': r.height, 'diver': r.dive_name or None,
+            'score_half_steps': r.score_half_steps,
+            'panel_count': others, 'panel_mean': round(total / others / 2, 1) if others else None})
+    return out
+
+
+def today_votes(db, user, start):
+    rows = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id,
+        AutomaticRating.created_at >= start).order_by(AutomaticRating.id.desc()).limit(30).all()
+    return _with_panels(db, rows, user.id)
+
+
+def judge_profile(db, user, sample=50):
+    """Judging tendency vs the rest of the panel, plus the daily streak."""
+    rows = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id).order_by(
+        AutomaticRating.id.desc()).limit(sample).all()
+    compared = [v for v in _with_panels(db, rows, user.id) if v['panel_mean'] is not None]
+    bias = round(sum(v['score_half_steps'] / 2 - v['panel_mean'] for v in compared) / len(compared), 2) if compared else None
+    days = {d if isinstance(d, str) else d.isoformat() for (d,) in db.query(func.date(AutomaticRating.created_at)).filter(
+        AutomaticRating.evaluator_user_id == user.id).distinct().order_by(func.date(AutomaticRating.created_at).desc()).limit(400)}
+    day = datetime.utcnow().date()
+    if day.isoformat() not in days:
+        day -= timedelta(days=1)  # a streak stays alive until today's selection is missed
+    streak = 0
+    while day.isoformat() in days:
+        streak += 1
+        day -= timedelta(days=1)
+    return {'compared': len(compared), 'bias': bias, 'streak': streak}

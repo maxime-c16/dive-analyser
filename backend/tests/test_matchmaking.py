@@ -270,3 +270,165 @@ def test_results_require_owner_or_vote_and_page_full_aggregate(workspace):
     assert login('alice').get(path).json()['rating_count'] == 60
     client.cookies.clear()
     assert client.get(path).status_code == 401
+
+
+def test_overview_reports_today_without_allocating(workspace):
+    db, login, dives, _, _ = workspace
+    from app.models.matchmaking import ReviewStack
+    client = login('bob')
+    empty = client.get('/api/v1/evaluations/overview')
+    assert empty.status_code == 200, empty.text
+    assert empty.json()['today']['daily'] is None and empty.json()['today']['resume'] is None
+    assert db.query(ReviewStack).count() == 0  # a GET never allocates
+    sid, items = stack(client)
+    today = client.get('/api/v1/evaluations/overview').json()['today']
+    assert today['daily'] == today['resume'] == {'stack_id': sid, 'daily': True, 'total': 1, 'judged': 0, 'skipped': 0, 'remaining': 1}
+    did = items[0]['dive_id']
+    assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': 12}).status_code == 200
+    body = client.get('/api/v1/evaluations/overview').json()
+    assert body['today']['daily']['judged'] == 1 and body['today']['resume'] is None
+    assert body['today']['judged_today'] == 1 and body['judged_total'] == 1
+    history = client.get('/api/v1/evaluations/my-ratings').json()
+    assert history['total'] == 1
+    assert history['items'][0]['kind'] == 'automatic' and history['items'][0]['request_id'] == did
+    assert history['items'][0]['rating_count'] == 1 and history['items'][0]['mean_score'] == 6.0
+
+
+def test_overview_compares_my_votes_with_the_rest_of_the_panel(workspace):
+    db, login, dives, _, _ = workspace
+    did = dives['alice-public']
+    for name, score in (('viewer', 8), ('bob', 12)):
+        client = login(name)
+        _, items = stack(client)
+        assert did in [i['dive_id'] for i in items]
+        assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={'video_uuid': 'alice-public-video', 'score_half_steps': score}).status_code == 200
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    vote = body['today']['votes'][0]
+    assert vote['dive_id'] == did and vote['score_half_steps'] == 12
+    assert vote['panel_count'] == 1 and vote['panel_mean'] == 4.0  # the others' mean, not including bob
+    assert body['judge'] == {'compared': 1, 'bias': 2.0, 'streak': 1}
+    # A vote yesterday keeps the streak going; a missed day breaks it.
+    def age(days):
+        db.query(AutomaticRating).filter(AutomaticRating.score_half_steps == 12).update(
+            {'created_at': datetime.utcnow() - timedelta(days=days)}); db.commit()
+        return login('bob').get('/api/v1/evaluations/overview').json()['judge']['streak']
+    assert age(1) == 1
+    assert age(2) == 0
+
+
+def test_overview_resume_and_query_count_ignore_empty_stack_history(workspace):
+    from sqlalchemy import event
+    from app.models.matchmaking import ReviewStack
+    from app.services import matchmaking
+    db, login, _, users, _ = workspace
+    sid, _ = stack(login('bob'))
+    user = db.get(AppUser, users['bob'].id)
+
+    def measure():
+        statements = []
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+        event.listen(db.bind, 'before_cursor_execute', record)
+        try:
+            body = matchmaking.today(db, user)
+        finally:
+            event.remove(db.bind, 'before_cursor_execute', record)
+        assert body['daily']['stack_id'] == body['resume']['stack_id'] == sid
+        return len(statements)
+
+    measure()  # warm the session's expired objects
+    baseline = measure()
+    db.add_all([ReviewStack(user_id=user.id, key=f'empty-{n}') for n in range(200)])
+    db.commit()
+    measure()
+    assert measure() == baseline
+
+
+def test_overview_resumes_playable_stack_before_newer_revoked_or_finished_ones(workspace):
+    from app.models.matchmaking import ReviewStack
+    from app.services import matchmaking
+    db, login, dives, users, _ = workspace
+    sid, _ = stack(login('bob'))
+    user = db.get(AppUser, users['bob'].id)
+    # Model older unfinished on-demand work alongside a completed daily stack.
+    daily = db.get(ReviewStack, sid)
+    db.query(ReviewStackItem).filter_by(stack_id=sid).update({'skipped_at': datetime.utcnow()})
+    def add_stack(key, did, video):
+        row = ReviewStack(user_id=user.id, key=key)
+        db.add(row); db.flush()
+        db.add(ReviewStackItem(stack_id=row.id, dive_id=did, video_uuid=video, position=0))
+        return row
+    playable = add_stack('playable', dives['alice-public'], 'alice-public-video')
+    add_stack('private', dives['alice-private'], 'alice-private-video')
+    add_stack('replaced', dives['alice-public'], 'old-video')
+    db.commit()
+    body = matchmaking.today(db, user)
+    assert body['daily']['stack_id'] == daily.id and body['daily']['skipped'] == 1
+    assert body['resume']['stack_id'] == playable.id and body['resume']['remaining'] == 1
+
+
+def test_overview_panel_stays_correct_when_voter_becomes_owner(workspace):
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    diver_id = db.get(Dive, did).diver_id
+    db.query(UserDiverAccess).filter_by(diver_id=diver_id).delete(); db.commit()
+    for name, score in (('viewer', 8), ('bob', 14)):
+        client = login(name)
+        stack(client)
+        assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={
+            'video_uuid': 'alice-public-video', 'score_half_steps': score}).status_code == 200
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER'))
+    db.commit()
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    vote = body['today']['votes'][0]
+    assert vote['score_half_steps'] == 14
+    assert vote['panel_count'] == 1 and vote['panel_mean'] == 4.0
+    assert body['judge']['compared'] == 1 and body['judge']['bias'] == 3.0
+    history = login('bob').get('/api/v1/evaluations/my-ratings').json()['items'][0]
+    assert history['rating_count'] == 1 and history['mean_score'] == 4.0
+    assert history['panel_count'] == 1 and history['panel_mean'] == 4.0
+    # If no other vote is left, there is no panel or comparison sample.
+    db.query(AutomaticRating).filter_by(evaluator_user_id=users['viewer'].id).delete(); db.commit()
+    body = login('bob').get('/api/v1/evaluations/overview').json()
+    assert body['today']['votes'][0]['panel_count'] == 0
+    assert body['today']['votes'][0]['panel_mean'] is None
+    assert body['judge']['compared'] == 0 and body['judge']['bias'] is None
+    history = login('bob').get('/api/v1/evaluations/my-ratings').json()['items'][0]
+    assert history['panel_count'] == 0 and history['panel_mean'] is None
+
+
+def test_history_pages_both_vote_sources_in_sql_without_loading_skipped_rows(workspace):
+    from types import SimpleNamespace
+    from sqlalchemy import event
+    from app.models.evaluation import EvaluationRating, EvaluationRequest
+    from app.services import evaluation_ratings
+    db, _, dives, users, _ = workspace
+    user = SimpleNamespace(id=users['bob'].id)
+    now = datetime.utcnow()
+    for n, key in enumerate(('alice-public', 'alice-private')):
+        request = EvaluationRequest(dive_id=dives[key], created_by_user_id=users['alice'].id)
+        db.add(request); db.flush()
+        snapshot = dict(evaluator_user_id=user.id, score_half_steps=12, dive_code='101B', height='3m', dive_name=key)
+        db.add(EvaluationRating(request_id=request.id, created_at=now + timedelta(seconds=2*n), **snapshot))
+        db.add(AutomaticRating(dive_id=dives[key], video_uuid=key + '-video', created_at=now + timedelta(seconds=2*n+1), **snapshot))
+    db.commit()
+    db.expunge_all()
+    loaded = []
+    def record(row, context):
+        loaded.append(type(row))
+    for model in (EvaluationRating, AutomaticRating):
+        event.listen(model, 'load', record)
+    try:
+        page = evaluation_ratings.my_ratings(db, user, limit=2, offset=1)
+        assert page['total'] == 4
+        assert [(r['kind'], r['dive']['dive_name']) for r in page['items']] == [
+            ('request', 'alice-private'), ('automatic', 'alice-public')]
+        assert len(loaded) == 2  # only this page's vote objects are materialized
+        loaded.clear()
+        far_page = evaluation_ratings.my_ratings(db, user, limit=2, offset=1_000_000)
+        assert far_page['items'] == [] and far_page['total'] == 4
+        assert loaded == []
+    finally:
+        for model in (EvaluationRating, AutomaticRating):
+            event.remove(model, 'load', record)

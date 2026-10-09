@@ -20,6 +20,7 @@ from .photos_reader import PhotosReader
 from .sync_client import SyncClient
 from .transcoder import Transcoder
 from .source_vault import MediaSourceVault, SourceVaultError
+from .b2_source import B2SourceError, download_b2_source
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,7 @@ class MediaJobProcessor:
         canonical_video_uuid = job.get("canonical_video_uuid") or video_uuid
         retention_class = "recent" if job.get("request_reason") == "new_captioned_ingestion" else "temporary"
         lease_keepalive: asyncio.Task | None = None
+        b2_source: Path | None = None
 
         try:
             await self.sync_client.heartbeat_media_job(job_id, self.agent_id, "materializing", 5)
@@ -131,7 +133,13 @@ class MediaJobProcessor:
                 self._keep_materialization_lease_alive(job_id)
             )
             try:
-                source = await exporter.source_for_job(
+                # Prefer the verified B2 original the backend signed for this
+                # job; any download/verification problem falls back to Photos.
+                try:
+                    b2_source = await download_b2_source(job, Path(self.config.media.temp_dir))
+                except B2SourceError as exc:
+                    logger.warning("Media job %s: B2 original unusable (%s); using Photos export", job_id, exc)
+                source = b2_source or await exporter.source_for_job(
                     video_uuid,
                     rendition,
                     vault_video_uuid=canonical_video_uuid,
@@ -173,10 +181,12 @@ class MediaJobProcessor:
             # job's request_reason is the continuous activation boundary —
             # only genuinely new captioned production clips (or explicit
             # canary allowlist entries) arm the additive B2 leg.
-            await self._trigger_dual_write(
-                video_uuid, source, job.get("request_reason")
-            )
-            exporter.cleanup_source_after_success(source)
+            if b2_source is None:
+                # A B2-sourced job's original is already in the object store.
+                await self._trigger_dual_write(
+                    video_uuid, source, job.get("request_reason")
+                )
+                exporter.cleanup_source_after_success(source)
             logger.info(f"Media job {job_id} finalized cache entry {result.get('cache_entry_id')}")
         except MediaUnavailableError as e:
             await self.sync_client.fail_media_job(job_id, self.agent_id, str(e), "unavailable")
@@ -191,6 +201,8 @@ class MediaJobProcessor:
         finally:
             if lease_keepalive:
                 lease_keepalive.cancel()
+            if b2_source is not None:
+                b2_source.unlink(missing_ok=True)
 
     async def _trigger_dual_write(
         self, video_uuid: str, source: Path, request_reason: str | None = None

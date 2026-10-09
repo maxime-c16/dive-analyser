@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft, MessageSquare, SendHorizontal } from 'lucide-react'
 import { ScoreCard } from './ScoreCards'
 import EvaluationPlayer from './EvaluationPlayer'
 import EvaluationStage from './EvaluationStage'
@@ -65,11 +66,26 @@ export default function JurySession({
   onCountChange,
   onStageChange,
   automatic = false,
+  autoStart = false,
+  daily = true,
+  resumeStackId,
+  doneBefore = 0,
+  onDone,
 }: {
   automatic?: boolean
   onCountChange?: (judged: number) => void
   /** Tells the page chrome to compact itself while a dive is on stage. */
   onStageChange?: (judging: boolean) => void
+  /** Skip the landing: the caller's button already was the start. */
+  autoStart?: boolean
+  /** Automatic only: today's selection (true) or one more on demand. */
+  daily?: boolean
+  /** Automatic only: reopen this existing selection instead of allocating. */
+  resumeStackId?: number
+  /** Dives of the resumed selection already handled before this mount. */
+  doneBefore?: number
+  /** Leaves the finished/quit session (the hub refreshes its own state). */
+  onDone?: () => void
 }) {
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
@@ -84,7 +100,9 @@ export default function JurySession({
   const [rated, setRated] = useState<RatedEntry[]>([])
   const [passed, setPassed] = useState<PassedEntry[]>([])
   const [commentOpen, setCommentOpen] = useState(false)
-  const dailyRef = useRef(true)
+  const dailyRef = useRef(daily)
+  const resumeRef = useRef(resumeStackId)
+  const offsetRef = useRef(doneBefore)
   const startKeyRef = useRef<string | null>(null)
   const selectionSizeRef = useRef(0)
   const automaticLoadedRef = useRef(false)
@@ -104,6 +122,19 @@ export default function JurySession({
       aliveRef.current = false
     }
   }, [])
+
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return
+    autoStarted.current = true
+    void start()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart])
+
+  // Inside the hub, the hub's own table is the recap: hand control straight back.
+  useEffect(() => {
+    if (phase.kind === 'summary' && onDone) onDone()
+  }, [phase.kind, onDone])
 
   useEffect(() => {
     onStageChange?.(phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal')
@@ -211,7 +242,12 @@ export default function JurySession({
     setPhase({ kind: 'loading' })
     try {
       const key = startKeyRef.current || (startKeyRef.current = clientId())
-      const session = await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
+      const resume = resumeRef.current
+      resumeRef.current = undefined
+      if (resume === undefined) offsetRef.current = 0
+      const session = resume !== undefined
+        ? { session_id: resume }
+        : await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
       if (!aliveRef.current) return
       automaticLoadedRef.current = false
       sessionIdRef.current = session.session_id
@@ -320,7 +356,7 @@ export default function JurySession({
     <section className="eval-session" aria-label={t('evaluations.juryArea')}>
       {phase.kind === 'landing' && (
         <div className="eval-landing">
-          <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>
+          {judgedCount > 0 && <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>}
           <button type="button" className="eval-start" onClick={() => void start()}>{t(automatic ? 'evaluations.dailyStart' : 'evaluations.start')}</button>
           <p className="eval-note">{t(automatic ? 'evaluations.automaticNote' : 'evaluations.startNote')}</p>
           {sessionExpired && <p className="eval-note" role="status">{t('evaluations.sessionNew')}</p>}
@@ -346,7 +382,7 @@ export default function JurySession({
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
               <span className="eval-meta">{stageItem.dive.dive_code} · {stageItem.dive.height}</span>
               <span className="eval-count" role="status" aria-label={t('evaluations.counted', { count: judgedCount })} title={t('evaluations.counted', { count: judgedCount })}>
-                {automatic ? `${judgedCount + passed.length + (phase.kind === 'reveal' ? 0 : 1)} / ${selectionSizeRef.current}` : judgedCount}
+                {automatic ? `${offsetRef.current + judgedCount + passed.length + (phase.kind === 'reveal' ? 0 : 1)} / ${offsetRef.current + selectionSizeRef.current}` : judgedCount}
               </span>
             </>
           }
@@ -418,7 +454,7 @@ export default function JurySession({
           )}
         </EvaluationStage>
       )}
-      {phase.kind === 'summary' && (
+      {phase.kind === 'summary' && !onDone && (
         <SessionSummary
           judgedCount={judgedCount}
           rated={rated}
@@ -433,8 +469,10 @@ export default function JurySession({
 }
 
 /* ------------------------------------------------------------------ */
-/* Judging dock: persistent compact score + Confirm + Pass; the        */
-/* optional comment stays collapsed behind an explicit toggle.         */
+/* Judging dock: score keypad + one row of actions. The comment opens  */
+/* as a chat-style composer that REPLACES the keypad (nothing overlaps)*/
+/* and whose send button is the confirmation: Enter sends, as in any   */
+/* messaging app; the arrow goes back to the keypad keeping the draft. */
 /* ------------------------------------------------------------------ */
 function JudgingDock({
   score, comment, commentOpen, saving, error,
@@ -453,51 +491,62 @@ function JudgingDock({
   onReplay?: () => void
 }) {
   const { t } = useTranslation()
+  const scoreText = score === null ? null : (score / 2).toFixed(1)
+  if (commentOpen && !saving) {
+    return (
+      <div className="eval-judging eval-composing" role="group" aria-label={t('evaluations.judgeAria')}>
+        <header className="eval-composer-head">
+          <button type="button" className="eval-composer-back" onClick={() => onCommentOpen(false)} aria-label={t('evaluations.backToScore')}>
+            <ArrowLeft size={18} aria-hidden />
+          </button>
+          <ScoreCard scoreHalfSteps={score} ariaLabel={score === null ? t('evaluations.chooseScore') : t('evaluations.ariaScoreOf', { score: scoreText })} />
+          <span>{score === null ? t('evaluations.composerNeedScore') : t('evaluations.composerFor', { score: scoreText })}</span>
+        </header>
+        <div className="eval-composer" id="eval-comment-field">
+          <textarea
+            aria-label={t('evaluations.commentAria')}
+            maxLength={2000}
+            rows={2}
+            value={comment}
+            enterKeyHint="send"
+            placeholder={t('evaluations.commentPlaceholder')}
+            onChange={(event) => onComment(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+              event.preventDefault()
+              if (score === null) return
+              event.currentTarget.blur()
+              onConfirm()
+            }}
+            autoFocus
+          />
+          <button type="button" className="eval-send" disabled={score === null} onClick={(event) => { event.currentTarget.blur(); onConfirm() }}
+            aria-label={score === null ? t('evaluations.composerNeedScore') : t('evaluations.sendAria', { score: scoreText })}>
+            <SendHorizontal size={20} aria-hidden />
+          </button>
+        </div>
+        {error && <p role="alert" className="eval-error">{error}</p>}
+      </div>
+    )
+  }
   const confirmLabel = saving ? t('evaluations.saving') : t('evaluations.confirm')
   return (
     <div className="eval-judging" role="group" aria-label={t('evaluations.judgeAria')}>
       <ScoreInput score={score} disabled={saving} onScore={onScore} />
-      <div className="eval-comment-block">
-        {!commentOpen && (
-          <button
-            type="button"
-            className="eval-comment-toggle"
-            aria-expanded={false}
-            aria-controls="eval-comment-field"
-            onClick={() => onCommentOpen(true)}
-          >
-            {comment ? t('evaluations.commentEdit') : t('evaluations.commentAdd')}
-          </button>
-        )}
-        {/* Expands IN FLOW: Confirm/Pass and the score row stay visible —
-            the comment never overlays the essential controls. */}
-        {commentOpen && (
-          <div className="eval-comment-inline" id="eval-comment-field">
-            <header>
-              <span>{t('evaluations.commentAria')}</span>
-              <button
-                type="button"
-                aria-label={t('common.close')}
-                onClick={() => onCommentOpen(false)}
-              >
-                {t('evaluations.done')}
-              </button>
-            </header>
-            <textarea
-              aria-label={t('evaluations.commentAria')}
-              maxLength={2000}
-              rows={3}
-              value={comment}
-              placeholder={t('evaluations.commentPlaceholder')}
-              onChange={(event) => onComment(event.target.value)}
-              autoFocus
-            />
-            <p className="eval-note">{t('evaluations.commentSavedOnConfirm')}</p>
-          </div>
-        )}
-      </div>
       <div className="eval-judge-actions">
-        {onReplay && <button type="button" className="eval-pass eval-replay" onClick={onReplay} aria-label={t('evaluations.replayAria')}>↺</button>}
+        {onReplay && <button type="button" className="eval-pass eval-icon-action" onClick={onReplay} aria-label={t('evaluations.replayAria')}>↺</button>}
+        <button
+          type="button"
+          className="eval-pass eval-icon-action eval-comment-toggle"
+          aria-expanded={false}
+          aria-controls="eval-comment-field"
+          aria-label={comment ? t('evaluations.commentEdit') : t('evaluations.commentAdd')}
+          data-filled={comment ? 'true' : undefined}
+          disabled={saving}
+          onClick={() => onCommentOpen(true)}
+        >
+          <MessageSquare size={18} aria-hidden />
+        </button>
         <button type="button" className="eval-pass" disabled={saving} onClick={onPass}>{t('evaluations.pass')}</button>
         <button
           type="button"

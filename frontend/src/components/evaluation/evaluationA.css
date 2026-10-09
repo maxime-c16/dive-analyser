@@ -34,11 +34,6 @@
 .eval-confirm { flex: 1; border: 1px solid var(--app-accent); background: var(--app-accent); box-shadow: none; color: #06251f; min-width: 0; }
 .eval-pass, .eval-comment-toggle { background: var(--app-panel-elevated); border: 1px solid var(--app-border); border-radius: 12px; color: var(--app-text); min-height: 44px; }
 .eval-confirm:disabled { opacity: .45; background: var(--app-accent); color: #06251f; }
-.eval-comment-inline { border-radius: 14px; border: 1px solid var(--app-border); background: var(--app-panel-elevated); padding: 10px; }
-.eval-comment-inline header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.eval-comment-inline header button { min-height: 44px; padding: 0 10px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-panel); }
-.eval-comment-inline textarea { width: 100%; height: 84px; resize: none; margin-top: 6px; padding: 10px; border-radius: 10px; background: var(--app-panel); border: 1px solid var(--app-border); color: var(--app-text); }
-.eval-comment-inline p { font-size: 11px; margin: 4px 0 0; }
 .eval-results-board { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .eval-card-figure { margin: 0; display: grid; justify-items: center; gap: 4px; min-width: 0; }
 .eval-card-figure figcaption { font-size: 11px; color: var(--app-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -68,12 +63,6 @@
 .eval-stage-root[data-watching=true] .eval-player-controls { right: auto; }
 .eval-landing { text-align: left; justify-items: start; padding: 24px; border-radius: 16px; }
 .eval-start { border-radius: 12px; background: var(--app-accent); color: #06251f; }
-.evaluations-tabs { flex-wrap: nowrap; gap: 4px; }
-.evaluations-tabs button { flex: 1; min-width: 0; border-radius: 999px; border-color: transparent; padding: 8px 10px; }
-.evaluations-tabs button[aria-current=true] { background: var(--app-active,#303d44); }
-.evaluations-modes { display: flex; gap: 8px; margin-bottom: 12px; }
-.evaluations-modes button { min-height: 44px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-panel); padding: 8px 14px; color: var(--app-muted); }
-.evaluations-modes button[aria-pressed=true] { color: var(--app-accent); border-color: var(--app-accent); }
 .eval-owned-item, .eval-judged-item { border-radius: 14px; }
 .eval-owned-panel { display: flex; width: 100%; flex-direction: column; align-items: stretch; }
 .eval-owned-panel > button { align-self: start; }
@@ -95,10 +84,6 @@
   .eval-score-controls { align-content: start; gap: 6px; }
   .eval-keypad { grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); gap: 6px; }
   .eval-score-readout { font-size: 12px; }
-  .eval-comment-toggle { font-size: 12px; padding: 0 8px; }
-  .eval-comment-block { position: absolute; bottom: 66px; left: 10px; }
-  .eval-comment-block:has(.eval-comment-inline) { inset: auto 8px 66px; z-index: 6; }
-  .eval-comment-inline textarea { height: clamp(64px,calc(var(--eval-visible-height,100dvh) - 240px),112px); }
   .eval-judge-actions { margin: auto -10px 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
   .eval-judge-actions button { min-height: 46px; padding: 6px 10px; font-size: 14px; }
   .eval-results-board { display: grid; grid-template-columns: 56px minmax(0,1fr); grid-template-rows: auto auto auto 1fr; align-content: start; gap: 6px 10px; overflow: hidden; }
@@ -135,3 +120,25 @@
 .eval-card-spiral ellipse { fill: none; stroke: #6d6d69; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .eval-player-controls .eval-sound-on { background: #54beab26; }
 .eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { position: relative; }
+
+/* Action row: icon buttons stay square; Confirm takes the remaining width. */
+.eval-judge-actions .eval-confirm { flex: 1; }
+.eval-icon-action { display: inline-grid; place-items: center; width: 46px; padding: 0 !important; flex: none; }
+.eval-comment-toggle[data-filled=true] { position: relative; color: var(--app-accent); border-color: var(--app-accent); }
+.eval-comment-toggle[data-filled=true]::after { content: ''; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--app-accent); }
+
+/* Chat-style composer: replaces the keypad, its send button confirms the score. */
+.eval-composing { gap: 10px; }
+.eval-composer-head { display: flex; align-items: center; gap: 10px; color: var(--app-muted); font-size: 13px; }
+.eval-composer-head .eval-card { --eval-card-w: 26px; flex: none; }
+.eval-composer-back { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-panel-elevated); color: var(--app-text); }
+.eval-composer { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 14px; border: 1px solid var(--app-border); border-radius: 22px; background: var(--app-panel-elevated); }
+.eval-composer:focus-within { border-color: var(--app-accent); }
+.eval-composer textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 132px; padding: 11px 0; border: 0; outline: none; resize: none; background: none; color: var(--app-text); font: inherit; font-size: 16px; line-height: 1.35; field-sizing: content; }
+.eval-send { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: var(--app-accent); color: #06251f; transition: transform 160ms, opacity 160ms; }
+.eval-send:disabled { opacity: .35; }
+.eval-send:not(:disabled):active { transform: scale(.92); }
+@media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
+  .eval-composing { padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important; }
+}
+.eval-judging .eval-composer textarea:focus-visible { outline: none; } /* the pill shows focus */

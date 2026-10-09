@@ -161,10 +161,50 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             status=job.status,
             request_reason=job.request_reason,
             export_options=_export_options(job.rendition),
+            **_b2_source(db, job),
         ))
 
     db.flush()
     return leased
+
+
+_B2_SOURCE_RENDITIONS = {"poster", "proxy_360p", "proxy_720p"}
+
+
+def _b2_source(db: Session, job: MediaJob) -> dict:
+    """Signed download of the newest verified PROD original, or nothing."""
+    from app.config import get_settings
+    from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
+    from app.services import b2_presign
+    from app.services.matchmaking import verified_original_clause
+
+    if job.rendition not in _B2_SOURCE_RENDITIONS or not get_settings().media_jobs_b2_source_enabled:
+        return {}
+    revision = db.execute(
+        select(MediaRevision)
+        .where(MediaRevision.video_uuid == job.asset.video_uuid, verified_original_clause())
+        .order_by(MediaRevision.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if revision is None:
+        return {}
+    location = db.execute(
+        select(MediaBlobLocation).where(
+            MediaBlobLocation.blob_sha256 == revision.blob_sha256,
+            MediaBlobLocation.environment == "prod",
+            MediaBlobLocation.verified.is_(True),
+        )
+    ).scalar_one()
+    try:
+        signed = b2_presign.presign_get(bucket=location.bucket, object_key=location.object_key)
+    except b2_presign.PresignUnavailable:
+        return {}
+    blob = db.get(MediaBlob, revision.blob_sha256)
+    return {
+        "source_url": signed.url,
+        "source_sha256": revision.blob_sha256,
+        "source_size_bytes": blob.byte_size if blob else None,
+    }
 
 
 def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:

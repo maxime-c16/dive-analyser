@@ -17,7 +17,7 @@ never re-opens the (possibly revoked) media.
 from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.orm import Session
 
 from app.models.evaluation import EvaluationRating, EvaluationRequest
@@ -329,21 +329,57 @@ def my_requests(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
 
 
 def my_ratings(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
-    """Own votes, paginated; projection keeps the frozen dive context and the
-    panel aggregates. NO media URL is ever included."""
+    """Own votes — requested AND daily-selection ones — newest first, paginated.
+
+    The projection keeps the frozen dive context and the panel aggregates;
+    `kind` tells which results endpoint serves the panel. NO media URL is
+    ever included."""
+    from app.models.matchmaking import AutomaticRating
+    from app.services.matchmaking import community_vote_clause
+
     with evaluation_access.evaluation_media_scope(db):
-        base = (
-            db.query(EvaluationRating)
-            .filter(EvaluationRating.evaluator_user_id == user.id)
-            .order_by(EvaluationRating.created_at.desc(), EvaluationRating.id.desc())
-        )
-        total = base.count()
-        rows = base.offset(offset).limit(limit).all()
-        aggregates = aggregate_map(db, [row.request_id for row in rows])
+        # Page the merged timeline in SQL; a large offset never loads history
+        # into Python. The kind tie-breaker keeps equal timestamps/IDs stable.
+        history = union_all(
+            select(literal("request").label("kind"), EvaluationRating.id.label("id"), EvaluationRating.created_at.label("created_at"))
+                .where(EvaluationRating.evaluator_user_id == user.id),
+            select(literal("automatic").label("kind"), AutomaticRating.id.label("id"), AutomaticRating.created_at.label("created_at"))
+                .where(AutomaticRating.evaluator_user_id == user.id),
+        ).subquery()
+        total = db.query(func.count()).select_from(history).scalar()
+        page = db.query(history.c.kind, history.c.id).order_by(
+            history.c.created_at.desc(), history.c.id.desc(), history.c.kind.desc()).offset(offset).limit(limit).all()
+        loaded = {}
+        for kind, model in (("request", EvaluationRating), ("automatic", AutomaticRating)):
+            ids = [rid for entry_kind, rid in page if entry_kind == kind]
+            if ids:
+                loaded.update({(kind, row.id): row for row in db.query(model).filter(
+                    model.evaluator_user_id == user.id, model.id.in_(ids))})
+        rows = [(kind, loaded[(kind, rid)]) for kind, rid in page]
+        aggregates = aggregate_map(db, [row.request_id for kind, row in rows if kind == "request"])
+        dive_ids = [row.dive_id for kind, row in rows if kind == "automatic"]
+        automatic_aggregates = {
+            dive_id: {"rating_count": count, "mean_score": round(float(avg) / 2, 1) if avg is not None else None}
+            for dive_id, count, avg in db.query(
+                AutomaticRating.dive_id, func.count(AutomaticRating.id), func.avg(AutomaticRating.score_half_steps)
+            ).filter(AutomaticRating.dive_id.in_(dive_ids), community_vote_clause()).group_by(AutomaticRating.dive_id)
+        } if dive_ids else {}
+        panels = {}
+        for kind, model, group, ids, clauses in (
+            ("request", EvaluationRating, EvaluationRating.request_id,
+                [row.request_id for kind, row in rows if kind == "request"], ()),
+            ("automatic", AutomaticRating, AutomaticRating.dive_id, dive_ids, (community_vote_clause(),)),
+        ):
+            if ids:
+                panels.update({(kind, group_id): {"panel_count": count, "panel_mean": round(float(avg) / 2, 1)}
+                    for group_id, count, avg in db.query(group, func.count(model.id), func.avg(model.score_half_steps)).filter(
+                        group.in_(ids), model.evaluator_user_id != user.id, *clauses).group_by(group)})
+        empty = {"rating_count": 0, "mean_score": None}
         return {
             "items": [
                 {
-                    "request_id": row.request_id,
+                    "kind": kind,
+                    "request_id": row.request_id if kind == "request" else row.dive_id,
                     "dive": {
                         "dive_code": row.dive_code,
                         "height": row.height,
@@ -353,9 +389,10 @@ def my_ratings(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
                     "score_half_steps": row.score_half_steps,
                     "comment": row.comment,
                     "created_at": row.created_at,
-                    **(aggregates.get(row.request_id) or {"rating_count": 0, "mean_score": None}),
+                    **((aggregates.get(row.request_id) if kind == "request" else automatic_aggregates.get(row.dive_id)) or empty),
+                    **panels.get((kind, row.request_id if kind == "request" else row.dive_id), {"panel_count": 0, "panel_mean": None}),
                 }
-                for row in rows
+                for kind, row in rows
             ],
             "total": total,
             "limit": limit,

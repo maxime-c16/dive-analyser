@@ -49,7 +49,9 @@ CLEANUP_SECONDS = 7 * 24 * 60 * 60  # 7 days
 
 
 def _queue_new_captioned_media(db: Session, dive: Dive) -> None:
-    """Create a bounded poster/proxy pair only for a newly inserted dive."""
+    """Queue poster + HQ proxy (+ the small 360p the source vault and grid
+    thumbnails rely on) only for a newly inserted dive. 720p comes before
+    360p so players open the clip in HQ from its first view."""
     if os.environ.get("NEW_VIDEO_AUTO_MEDIA_ENABLED", "false").lower() != "true":
         return
     if not dive.photos_asset_id:
@@ -57,7 +59,7 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> None:
     asset = db.get(PhotosAsset, dive.photos_asset_id)
     if not asset:
         return
-    for rendition in ("poster", "proxy_360p"):
+    for rendition in ("poster", "proxy_720p", "proxy_360p"):
         _, job, _ = create_or_reuse_media_job(db, asset, rendition, "new_captioned_ingestion")
         job.priority = 10
         job.max_attempts = min(job.max_attempts or 2, 2)

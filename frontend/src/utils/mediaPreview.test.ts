@@ -62,6 +62,21 @@ it('resolves the ready local startup preview while retaining the original for HQ
   expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/123/play')
   expect(cachedPreview('hq')).toEqual(preview)
 })
+it('never starts on the 360p preview when only it and the B2 original exist', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
+    url.endsWith('/batch') ? { 'sd': { status: 'ready', playback_url: '/api/v1/media/revisions/9/play' } }
+      : { status: 'ready', playback_url: '/api/v1/media/revisions/9/play', cache_entries: [
+        { rendition: 'poster', playback_url: '/poster.jpg' },
+        { rendition: 'proxy_360p', playback_url: '/small.mp4' },
+      ] },
+  })))
+  const { getPreviewForPlayback } = await import('./mediaPreview')
+  const pending = getPreviewForPlayback('sd')
+  await vi.advanceTimersByTimeAsync(50)
+  const preview = await pending
+  expect(preview.playbackUrl).toBe('/api/v1/media/revisions/9/play')
+  expect(preview.playbackUrl).not.toBe('/small.mp4')
+})
 it('does not let a pre-logout status response repopulate the next account cache', async () => {
   let resolve!: (response: unknown) => void
   vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done })))

@@ -182,6 +182,8 @@ export type OwnedPage = {
 
 /** Own vote history: frozen dive context, never a media URL. */
 export type MyRatingItem = {
+  /** 'automatic' = daily-selection vote: request_id is then the dive id. */
+  kind?: 'request' | 'automatic'
   request_id: number
   dive: {
     dive_code: string
@@ -194,6 +196,8 @@ export type MyRatingItem = {
   created_at: string
   rating_count: number
   mean_score: number | null
+  panel_count?: number
+  panel_mean?: number | null
 }
 
 export type MyRatingsPage = {
@@ -351,4 +355,20 @@ export async function getAutomaticScores(offset = 0): Promise<{ items: Automatic
 }
 export async function setAutomaticExclusion(diveId: number, excluded: boolean): Promise<void> {
   await api.put(`/api/v1/dives/${diveId}/automatic-review`, { excluded })
+}
+
+export type StackProgress = { stack_id: number; daily: boolean; total: number; judged: number; skipped: number; remaining: number }
+/** Server-side state of the Evaluations hub; reading it never allocates a selection. */
+/** One of my votes next to the OTHER members' mean (null until someone else votes). */
+export type PanelVote = { dive_id: number; dive_code: string; height: string; diver: string | null; score_half_steps: number; panel_mean: number | null; panel_count: number }
+export type EvaluationOverview = {
+  today: { date: string; resets_at: string; daily: StackProgress | null; resume: StackProgress | null; judged_today: number; votes: PanelVote[] }
+  requests_pending: number
+  judged_total: number
+  /** bias: my mean minus the panel's, in points, over recent compared votes. */
+  judge: { compared: number; bias: number | null; streak: number }
+}
+export async function getEvaluationOverview(): Promise<EvaluationOverview> {
+  const { data } = await api.get('/api/v1/evaluations/overview')
+  return data
 }

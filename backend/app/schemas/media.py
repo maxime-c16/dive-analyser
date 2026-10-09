@@ -76,6 +76,12 @@ class MediaLeasedJob(BaseModel):
     status: str
     request_reason: Optional[str] = None
     export_options: dict = Field(default_factory=dict)
+    # Verified B2 original to transcode from (signed, short-lived). Absent
+    # when no verified replica exists or signing is unavailable: the agent
+    # then falls back to its Photos export.
+    source_url: Optional[str] = None
+    source_sha256: Optional[str] = None
+    source_size_bytes: Optional[int] = None
 
 
 class MediaJobLeaseResponse(BaseModel):
