@@ -14,6 +14,7 @@ from app.models.dive import Dive
 from app.models.dive_social import DiveComment, DiveLike, DiveCommentLike, DiveGuestCommentLike
 from app.models.user_auth import AppUser
 from app.models.dive_share import DiveGuest, DiveGuestLike
+from app.services import achievements
 from app.services.write_guard import optional_session_user
 from app.services.mentions import MentionInput, validate_mentions
 from app.services.member_avatar import avatar_identity
@@ -90,6 +91,9 @@ def like(dive_id: int, payload: LikeInput, user=Depends(visible_dive), db: Sessi
         db.rollback()  # Concurrent identical PUTs are still idempotent.
         if not db.query(DiveLike).filter_by(dive_id=dive_id, user_id=user.id).first():
             raise
+    if payload.liked and not isinstance(user, DiveGuest):
+        achievements.award(db, user.id, achievements.LIKE)
+        achievements.award_dive_owners(db, dive_id, user.id, achievements.LIKE)
     return social(dive_id, user, db)
 
 
@@ -169,6 +173,9 @@ def comment(dive_id: int, payload: CommentInput, user=Depends(visible_dive), db:
             db.rollback()
         except Exception:
             pass
+    if not isinstance(user, DiveGuest):
+        achievements.award(db, user.id, achievements.COMMENT)
+    achievements.award_dive_owners(db, dive_id, None if isinstance(user, DiveGuest) else user.id, achievements.COMMENT)
     return comment_payload(row, user.display_name, db, user)
 
 

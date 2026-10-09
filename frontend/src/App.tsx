@@ -5,6 +5,7 @@ import { SyncStatusProvider } from './contexts/SyncStatusContext'
 import SyncNotifications from './components/SyncNotifications'
 import MilestoneNotifier from './components/MilestoneNotifier'
 import SyncErrorHandler from './components/SyncErrorHandler'
+import AchievementToaster from './components/achievements/AchievementToaster'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { I18nProvider } from './i18n/I18nProvider'
 
@@ -24,6 +25,7 @@ function App() {
           <SyncNotifications />
           <MilestoneNotifier />
           <SyncErrorHandler />
+          <AchievementToaster />
         </MemberSyncBoundary>
       </AuthProvider>
     </I18nProvider>

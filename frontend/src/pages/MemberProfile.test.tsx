@@ -163,6 +163,21 @@ describe("MemberProfile", () => {
     expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument();
   });
 
+  it("opens the achievements tab from the toast link and lists what the member unlocked", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(input => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson(profile);
+      if (url.endsWith("/users/9/achievements")) return fetchJson({ total: 17, unlocked: 1, items: [{ key: "first_comment", category: "community", unlocked_at: "2026-10-09T10:00:00Z" }] });
+      return fetchJson({ items: [], next_before: null });
+    });
+    const user = userEvent.setup();
+    renderAt("/users/9?tab=achievements");
+    expect(await screen.findByText("First comment")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("tab", { name: "Dives" }));
+    expect(screen.queryByText("First comment")).not.toBeInTheDocument();
+  });
+
   it("lets the owner edit their bio and keeps the form after a handle conflict", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, options) => {
       const url = String(input);

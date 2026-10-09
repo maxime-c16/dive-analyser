@@ -25,7 +25,7 @@ from app.models.user_auth import AppUser
 from app.models.media_backbone import MediaRevision
 from app.services.dive_access import can_manage_dive, require_dive_owner
 from app.services.write_guard import optional_session_user
-from app.services import legacy_media, b2_presign
+from app.services import achievements, legacy_media, b2_presign
 from app.api.v1.auth import _origin_allowed
 from app.api.v1.dive_social import LikeInput, CommentInput, comments, comment, delete_comment, like_comment
 from app.api.v1.media import _serve_media_file
@@ -77,6 +77,7 @@ def create_share(dive_id: int, request: Request, response: Response, db: Session
     db.add(share)
     db.commit()  # The capability becomes usable only after this transaction.
     db.refresh(share)
+    achievements.award(db, user.id, achievements.SHARE)
     secure_headers(response)
     return dict(path=f'/share/{share.id}#{token}')
 

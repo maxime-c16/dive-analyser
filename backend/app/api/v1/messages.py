@@ -22,7 +22,7 @@ from app.services.mentions import MentionInput, validate_mentions
 from app.services.user_access import _dive_access
 from app.services.dive_access import owned_diver_ids
 from app.services.media_cache import playback_url
-from app.services import notification_service
+from app.services import achievements, notification_service
 
 router = APIRouter(prefix='/messages')
 
@@ -195,6 +195,7 @@ def send(id: int, payload: SendInput, background_tasks: BackgroundTasks, user=De
         db.rollback()
         import logging
         logging.getLogger(__name__).exception('message notification failed for conversation %s', id)
+    achievements.award(db, user.id, achievements.MESSAGE, achievements.COMMENT)
     return message_payloads(db, user, [row])[0]
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays } from 'lucide-react'
 import {
@@ -14,9 +14,12 @@ import MemberAvatar from '../components/MemberAvatar'
 import ProfileDiveGrid from '../components/ProfileDiveGrid'
 import ProfileMessageButton from '../components/messages/ProfileMessageButton'
 import ProfileEditor from '../components/ProfileEditor'
+import AchievementsPanel from '../components/achievements/AchievementsPanel'
 import { appLanguage } from '../utils/dateLocale'
 
 const PAGE_SIZE = 30
+const PROFILE_TABS = ['dives', 'activity', 'achievements'] as const
+type ProfileTab = (typeof PROFILE_TABS)[number]
 
 // On another member's profile every row is their action: always show the
 // member's name with a third-person phrase.
@@ -154,7 +157,9 @@ function ActivityTimeline({ items }: { items: ActivityItem[] }) {
 export default function MemberProfile() {
   const { userId } = useParams()
   const { t } = useTranslation()
-  const [tab, setTab] = useState<'dives' | 'activity'>('dives')
+  const [searchParams] = useSearchParams()
+  const requestedTab = PROFILE_TABS.find(value => value === searchParams.get('tab')) ?? 'dives'
+  const [tab, setTab] = useState<ProfileTab>(requestedTab)
   const [editing, setEditing] = useState(false)
   const [retry, setRetry] = useState(0)
   const [profile, setProfile] = useState<MemberProfileData | null>(null)
@@ -168,7 +173,7 @@ export default function MemberProfile() {
   useEffect(() => {
     if (!userId) return
     let alive = true
-    setTab('dives')
+    setTab(requestedTab)
     setEditing(false)
     setProfile(null)
     setNotFound(false)
@@ -236,15 +241,23 @@ export default function MemberProfile() {
       <ProfileHead profile={profile} />
       {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
       <div className="mb-5 flex border-b border-app" role="tablist" aria-label={t('community.profileSections')}>
-        {(['dives', 'activity'] as const).map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {
+        {PROFILE_TABS.map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
           event.preventDefault()
-          const next = event.key === 'Home' ? 'dives' : event.key === 'End' ? 'activity' : value === 'dives' ? 'activity' : 'dives'
+          const index = PROFILE_TABS.indexOf(value)
+          const next = event.key === 'Home' ? PROFILE_TABS[0]
+            : event.key === 'End' ? PROFILE_TABS[PROFILE_TABS.length - 1]
+            : PROFILE_TABS[(index + (event.key === 'ArrowRight' ? 1 : -1) + PROFILE_TABS.length) % PROFILE_TABS.length]
           setTab(next)
           document.getElementById(`profile-tab-${next}`)?.focus()
         }} aria-controls={`profile-panel-${value}`} className={`touch-target flex-1 border-b-2 px-4 ${tab === value ? 'border-app-accent text-app-accent' : 'border-transparent text-app-muted'}`} onClick={() => setTab(value)}>{t(`community.${value}`)}</button>)}
       </div>
       {tab === 'dives' && <div role="tabpanel" id="profile-panel-dives" aria-labelledby="profile-tab-dives"><ProfileDiveGrid key={profile.user_id} userId={profile.user_id} /></div>}
+      {tab === 'achievements' && (
+        <div role="tabpanel" id="profile-panel-achievements" aria-labelledby="profile-tab-achievements" className="border border-app bg-app-panel p-6">
+          <AchievementsPanel key={profile.user_id} userId={profile.user_id} isSelf={profile.is_self} />
+        </div>
+      )}
       <div hidden={tab !== 'activity'} role="tabpanel" id="profile-panel-activity" aria-labelledby="profile-tab-activity">
       <div className="border border-app bg-app-panel p-6">
         {error && items.length === 0 ? (

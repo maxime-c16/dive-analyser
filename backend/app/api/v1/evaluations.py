@@ -36,7 +36,7 @@ from app.api.v1.auth import _origin_allowed
 from app.database import get_db
 from app.models.dive import Dive
 from app.models.photos_asset import PhotosAsset
-from app.services import evaluation_access, evaluation_queue, evaluation_ratings
+from app.services import achievements, evaluation_access, evaluation_queue, evaluation_ratings
 from app.services.dive_access import require_dive_owner
 from app.services.write_guard import optional_session_user
 
@@ -98,6 +98,7 @@ def put_evaluation_request(
     db.commit()
     db.refresh(row)
     if payload.active:
+        achievements.award(db, user.id, achievements.EVALUATION_REQUEST)
         # Activation of a not-yet-ready media triggers its preparation through
         # the existing pipeline. Idempotent, after commit, failure recoverable.
         try:
@@ -327,6 +328,7 @@ def post_evaluation_rating(
     out = evaluation_ratings.submit_rating(
         db, user, request_id, payload.score_half_steps, comment or None,
     )
+    achievements.award(db, user.id, achievements.RATING)
     _secure_headers(response)
     return out
 
