@@ -157,3 +157,23 @@ def mine(request: Request, response: Response, limit: int = Query(20, ge=1, le=5
         'rating_count': count or 0, 'mean_score': round(mean / 2, 1) if count else None, 'provisional': True}
         for dive, excluded, count, mean in rows]
     return {'items': items, 'total': query.count(), 'limit': limit, 'offset': offset}
+
+
+@router.get('/evaluations/automatic/{dive_id}/results')
+def results(dive_id: int, request: Request, response: Response,
+            limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+            db: Session = Depends(get_db)):
+    """A bounded score page for the owner or a member with a confirmed vote.
+
+    Results grant no media access; a selection alone never reveals peer votes.
+    """
+    from app.models.matchmaking import AutomaticRating
+    user = _require_user(request, db)
+    dive = db.get(Dive, dive_id)
+    if dive is None:
+        raise HTTPException(404, 'Not found')
+    voted = db.query(AutomaticRating.id).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
+    if dive.diver_id not in owned_diver_ids(db, user.id) and voted is None:
+        raise HTTPException(404, 'Not found')
+    _secure_headers(response)
+    return service.results(db, user, dive_id, limit=limit, offset=offset)

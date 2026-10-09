@@ -13,12 +13,15 @@
  * a fresh id. An all-unavailable batch with has_more keeps loading instead of
  * reporting exhaustion.
  */
-import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import EvaluationIntro, { ScoreCard } from './ScoreCards'
+import { ScoreCard } from './ScoreCards'
 import EvaluationPlayer from './EvaluationPlayer'
 import EvaluationStage from './EvaluationStage'
+import ScoreInput from './ScoreInput'
+import ResultsBoard from './ResultsBoard'
+import { useModalOverlay } from '../../utils/overlays'
 import {
   EVALUATION_CLOSED,
   createSession,
@@ -30,16 +33,9 @@ import {
   submitRating,
   type JuryResults,
   type QueueItem,
-  type RatingRecord,
 } from '../../services/evaluationApi'
 
-/* Reveal rhythm: MY confirmed card joins the panel first, then the peers
- * flip in cascade; the dive holds for a readable ~2.4s AFTER the cascade
- * (auto-advance) with Next immediately usable and an explicit keep-open. */
-const REVEAL_READ_MS = 2400
-const REVEAL_CARD_MS = 340
-const REVEAL_MY_LEAD_MS = 240
-const REVEAL_PEER_STAGGER_MS = 120
+/* Results stay open until the juror explicitly advances. */
 const MAX_BATCH_ROTATIONS = 10
 
 type Phase =
@@ -77,8 +73,8 @@ export default function JurySession({
 }) {
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
-  const [introDone, setIntroDone] = useState(false)
   const [watching, setWatching] = useState(true)
+  const [quitRequested, setQuitRequested] = useState(false)
   const [replayCount, setReplayCount] = useState(0)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [judgedCount, setJudgedCount] = useState(0)
@@ -96,20 +92,16 @@ export default function JurySession({
   const batchRef = useRef<QueueItem[]>([])
   const batchIdRef = useRef<string | null>(null)
   const committedBatches = useRef(new Set<string>())
-  const hoverRef = useRef(false)
-  const keptOpenRef = useRef(false)
   const submittingRef = useRef(false)
   // Set by quit(): any in-flight vote/pass response or opened timer then
   // arrives too late and must not resurrect the stage after the summary.
   const supersededRef = useRef(false)
-  const revealTimerRef = useRef<number | null>(null)
   const aliveRef = useRef(true)
 
   useEffect(() => {
     aliveRef.current = true
     return () => {
       aliveRef.current = false
-      if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current)
     }
   }, [])
 
@@ -161,8 +153,6 @@ export default function JurySession({
     setComment('')
     setCommentOpen(false)
     setError('')
-    hoverRef.current = false
-    keptOpenRef.current = false
     if (batchRef.current.length) {
       serveNext()
       return
@@ -211,6 +201,7 @@ export default function JurySession({
   }
 
   async function start() {
+    setScore(null); setComment(''); setCommentOpen(false); setQuitRequested(false)
     setError('')
     setSessionExpired(false)
     setJudgedCount(0)
@@ -261,18 +252,7 @@ export default function JurySession({
       ])
       // Leave the confirmed dive exactly once.
       batchRef.current = batchRef.current.filter((entry) => entry.request_id !== current.item.request_id)
-      hoverRef.current = false
-      keptOpenRef.current = false
-      setPhase({ kind: 'reveal', item: current.item, score, comment, results: response.results })
-      // Readable hold AFTER MY card lands + the peer cascade; parked results
-      // (keep-open, hover, focus, open comments) pause the auto-advance.
-      const cascadeMs =
-        REVEAL_MY_LEAD_MS +
-        (response.results.ratings.length - 1) * REVEAL_PEER_STAGGER_MS +
-        REVEAL_CARD_MS
-      revealTimerRef.current = window.setTimeout(() => {
-        if (aliveRef.current && !hoverRef.current && !keptOpenRef.current) void advance()
-      }, cascadeMs + REVEAL_READ_MS)
+          setPhase({ kind: 'reveal', item: current.item, score, comment, results: response.results })
     } catch (err: unknown) {
       if (!aliveRef.current || supersededRef.current) return
       const axios = err as { response?: { status?: number; data?: { detail?: unknown } } }
@@ -325,15 +305,13 @@ export default function JurySession({
   }
 
   function quit() {
-    if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current)
-    keptOpenRef.current = true
     // In-flight votes land as persisted rows server-side; the UI here just
     // stays retired: no reveal resurrect, and pass() stops advancing too.
     supersededRef.current = true
     setPhase({ kind: 'summary' })
   }
 
-  const replayDive = () => { setIntroDone(true); setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
+  const replayDive = () => { setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
 
   const inStage = phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal' || phase.kind === 'media-unavailable' || phase.kind === 'closed'
   const stageItem = inStage ? (phase as { item: QueueItem }).item : null
@@ -360,8 +338,9 @@ export default function JurySession({
       {inStage && stageItem !== null && (
         <EvaluationStage
           open
-          onClose={quit}
-          hideChrome={phase.kind === 'reviewing' && watching}
+          onClose={() => { if (phase.kind === 'reviewing' && (score !== null || comment.trim())) setQuitRequested(true); else quit() }}
+          hideChrome={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
+          phase={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? 'watching' : phase.kind}
           head={
             <>
               <strong className="eval-head-owner">{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong>
@@ -377,19 +356,15 @@ export default function JurySession({
               key={`eval-video-${stageItem.request_id}-${replayCount}`}
               requestId={stageItem.request_id}
               automatic={automatic}
-              watching={phase.kind === 'reviewing' && watching}
+              watching={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
               onEnded={() => setWatching(false)}
-              onReplay={phase.kind === 'reviewing' ? replayDive : undefined}
+              onReplay={phase.kind === 'reviewing' || phase.kind === 'reveal' ? replayDive : undefined}
               onFailure={() => { setWatching(false); setPhase({ kind: 'media-unavailable', item: stageItem, reason: 'missing' }) }}
-              paused={phase.kind !== 'reviewing' || !watching}
+              paused={!watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
             />
           }
-          overlays={
-            phase.kind === 'reviewing' && !watching && !introDone && (
-              <EvaluationIntro onDone={() => setIntroDone(true)} onSkip={() => setIntroDone(true)} interrupt={score !== null} />
-            )
-          }
         >
+          {quitRequested && <QuitQuestion onStay={() => setQuitRequested(false)} onQuit={() => { setQuitRequested(false); quit() }} />}
           {phase.kind === 'reviewing' && !watching && (
             <JudgingDock
               score={score}
@@ -419,13 +394,13 @@ export default function JurySession({
               onPass={() => {}}
             />
           )}
-          {phase.kind === 'reveal' && (
+          {phase.kind === 'reveal' && !watching && (
             <RevealPanel
               score={phase.score}
               results={phase.results}
-              onKeepOpen={() => { keptOpenRef.current = true; if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current) }}
-              onNext={() => { if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current); void advance() }}
-              onHover={open => { hoverRef.current = open }}
+              automatic={automatic}
+              onReplay={replayDive}
+              onNext={() => void advance()}
             />
           )}
           {phase.kind === 'media-unavailable' && (
@@ -450,7 +425,7 @@ export default function JurySession({
           passed={passed}
           automatic={automatic}
           onResume={automatic ? () => { batchRef.current = []; void start() } : undefined}
-          onAgain={() => { dailyRef.current = false; startKeyRef.current = null; setPhase({ kind: 'landing' }); setIntroDone(false); setSessionExpired(false) }}
+          onAgain={() => { dailyRef.current = false; startKeyRef.current = null; void start(); setSessionExpired(false) }}
         />
       )}
     </section>
@@ -478,53 +453,10 @@ function JudgingDock({
   onReplay?: () => void
 }) {
   const { t } = useTranslation()
-  // Half-point stepper: works before any slider contact too (starts from the
-  // neutral 5.0), giving precise 0.5 steps without touching the slider.
-  const step = (delta: number) => {
-    onScore(Math.max(0, Math.min(20, (score ?? 10) + delta)))
-  }
-  const selectVisible = (event: { currentTarget: HTMLInputElement }) => {
-    onScore(Number(event.currentTarget.value))
-  }
-  const ariaText = score === null ? t('evaluations.noScore') : t('evaluations.ariaScoreOf', { score: (score / 2).toFixed(1) })
   const confirmLabel = saving ? t('evaluations.saving') : t('evaluations.confirm')
   return (
     <div className="eval-judging" role="group" aria-label={t('evaluations.judgeAria')}>
-      <div className="eval-score-row">
-        <div className="eval-stepper" role="group" aria-label={t('evaluations.scoreAria')}>
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            disabled={saving || (score ?? 10) <= 0}
-            aria-label={t('evaluations.stepDownAria')}
-          >−</button>
-          <input
-            type="range"
-            aria-label={t('evaluations.scoreAria')}
-            aria-valuetext={ariaText}
-            min={0}
-            max={20}
-            step={1}
-            // Controlled so +/- stay in sync; touch/mouse on the SAME value
-            // (e.g. tapping the middle) still selects it explicitly.
-            value={score ?? 10}
-            disabled={saving}
-            onChange={(event) => onScore(Number(event.target.value))}
-            onMouseUp={selectVisible}
-            onTouchEnd={selectVisible}
-          />
-          <button type="button" onClick={() => step(1)} disabled={saving || (score ?? 10) >= 20} aria-label={t('evaluations.stepUpAria')}>+</button>
-        </div>
-        <div className="eval-score-card">
-          {score === null ? (
-            <p className="eval-score-placeholder">{t('evaluations.chooseScore')}</p>
-          ) : (
-            // Remounted per value: the personal card POPS each selection.
-            <ScoreCard key={score} scoreHalfSteps={score} className="eval-card-selected" ariaLabel={ariaText} />
-          )}
-        </div>
-      </div>
-      {onReplay && <button type="button" className="eval-comment-toggle" onClick={onReplay}>{t('evaluations.replayAria')}</button>}
+      <ScoreInput score={score} disabled={saving} onScore={onScore} />
       <div className="eval-comment-block">
         {!commentOpen && (
           <button
@@ -548,7 +480,7 @@ function JudgingDock({
                 aria-label={t('common.close')}
                 onClick={() => onCommentOpen(false)}
               >
-                {String.fromCodePoint(0x2715)}
+                {t('evaluations.done')}
               </button>
             </header>
             <textarea
@@ -565,13 +497,14 @@ function JudgingDock({
         )}
       </div>
       <div className="eval-judge-actions">
+        {onReplay && <button type="button" className="eval-pass eval-replay" onClick={onReplay} aria-label={t('evaluations.replayAria')}>↺</button>}
         <button type="button" className="eval-pass" disabled={saving} onClick={onPass}>{t('evaluations.pass')}</button>
         <button
           type="button"
           className="eval-confirm"
           data-saving={saving ? 'true' : undefined}
           disabled={saving || score === null}
-          onClick={onConfirm}
+          onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); onConfirm() }}
         >
           {confirmLabel}
         </button>
@@ -585,104 +518,17 @@ function JudgingDock({
 /* Reveal: peers flip first (staggered), then MY card arrives once.    */
 /* my_rating already sits in results.ratings — never duplicated.       */
 /* ------------------------------------------------------------------ */
-function RevealPanel({
-  score, results, onKeepOpen, onNext, onHover,
-}: {
-  score: number
-  results: JuryResults
-  onKeepOpen: () => void
-  onNext: () => void
-  /** Park = pause the auto-advance while the user engages the results. */
-  onHover: (open: boolean) => void
+function RevealPanel({ score, results, automatic, onNext, onReplay }: {
+  score: number; results: JuryResults; automatic: boolean; onNext: () => void; onReplay: () => void
 }) {
   const { t } = useTranslation()
-  const [commentsOpen, setCommentsOpen] = useState(false)
-  const hoverTimerRef = useRef<number | null>(null)
-  // Parking follows ENGAGEMENT, not a stationary pointer: after Confirm, the
-  // mouse usually rests exactly where Confirm was — Chromium re-evaluates
-  // hover under it, and a plain mouseenter would park the advance forever on
-  // every desktop click. Parking requires focus-within, an open sub-panel or
-  // RECENT pointer movement over the results (1.5s grace).
-  const clearHoverTimer = () => {
-    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = null
-  }
-  const engage = () => {
-    clearHoverTimer()
-    onHover(true)
-    hoverTimerRef.current = window.setTimeout(() => {
-      hoverTimerRef.current = null
-      if (!commentsOpen) onHover(false)
-    }, 1500)
-  }
-  useEffect(() => clearHoverTimer, [])
-  const myId = results.my_rating?.id ?? null
-  const peers = results.ratings.filter((rating) => rating.id !== myId)
-  const myRating: RatingRecord | undefined = results.my_rating ?? undefined
-  return (
-    <div
-      className="eval-reveal"
-      aria-live="polite"
-      onMouseMove={engage}
-      onFocus={engage}
-      onBlur={() => { if (!commentsOpen) { clearHoverTimer(); onHover(false) } }}
-    >
-      <div className="eval-reveal-panel">
-        {/* The just-confirmed personal card joins the panel FIRST, then the
-            other juror cards flip in cascade — names under each card. */}
-        <figure className="eval-card-figure eval-card-mine-figure" style={{ '--stagger': '0ms' } as CSSProperties}>
-          <ScoreCard
-            scoreHalfSteps={myRating?.score_half_steps ?? score}
-            rotation={4}
-            className="eval-card-mine"
-            ariaLabel={t('evaluations.myCardAria', { score: ((myRating?.score_half_steps ?? score) / 2).toFixed(1) })}
-          />
-          <figcaption>{t('evaluations.you')}</figcaption>
-        </figure>
-        {peers.map((rating, index) => (
-          <figure
-            className="eval-card-figure"
-            key={rating.id}
-            style={{ '--stagger': `${REVEAL_MY_LEAD_MS + (index + 1) * REVEAL_PEER_STAGGER_MS}ms` } as CSSProperties}
-          >
-            <ScoreCard
-              scoreHalfSteps={rating.score_half_steps}
-              rotation={((index % 5) - 2) * 2}
-              ariaLabel={t('evaluations.cardAria', { score: (rating.score_half_steps / 2).toFixed(1) })}
-            />
-            <figcaption>{rating.author ?? '—'}</figcaption>
-          </figure>
-        ))}
-      </div>
-      <div className="eval-reveal-meta">
-        <p>
-          {t('evaluations.panelSummary', {
-            count: results.rating_count,
-            mean: results.mean_score !== null ? results.mean_score.toFixed(1) : '—',
-          })}
-        </p>
-        <div className="eval-reveal-actions">
-          <button type="button" className="eval-chip" onClick={() => { clearHoverTimer(); setCommentsOpen(open => !open); onKeepOpen() }} aria-expanded={commentsOpen}>
-            {t('evaluations.commentsToggle')}
-          </button>
-          <button type="button" className="eval-chip" onClick={onKeepOpen} aria-label={t('evaluations.keepOpen')}>
-            {t('evaluations.keepOpenShort')}
-          </button>
-          <button type="button" className="eval-confirm" onClick={onNext}>{t('evaluations.next')}</button>
-        </div>
-      {commentsOpen && (
-        <ul className="eval-panel-list" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
-            {results.ratings.map((rating) => (
-              <li key={rating.id}>
-                <strong>{(rating.score_half_steps / 2).toFixed(1)}</strong> — {rating.author ?? '—'}
-                {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+  return <div className="eval-reveal">
+    <ResultsBoard results={results} score={score} automatic={automatic} />
+    <div className="eval-judge-actions">
+      <button type="button" className="eval-pass eval-replay" onClick={onReplay} aria-label={t('evaluations.replayAria')}>↺</button>
+      <button type="button" className="eval-confirm" onClick={onNext}>{t('evaluations.next')}</button>
     </div>
-  )
+  </div>
 }
 
 /* ------------------------------------------------------------------ */
@@ -734,4 +580,15 @@ function SessionSummary({
       <p className="eval-note">{t('evaluations.requestDiveHint')}</p>
     </div>
   )
+}
+
+function QuitQuestion({ onStay, onQuit }: { onStay: () => void; onQuit: () => void }) {
+  const { t } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  useModalOverlay(ref, { layer: 85, onClose: onStay })
+  return <div ref={ref} className="eval-quit-question" role="alertdialog" aria-modal="true" aria-label={t('evaluations.discardTitle')}>
+    <p>{t('evaluations.discardDraft')}</p>
+    <button type="button" onClick={onStay}>{t('evaluations.stay')}</button>
+    <button type="button" onClick={onQuit}>{t('evaluations.quit')}</button>
+  </div>
 }

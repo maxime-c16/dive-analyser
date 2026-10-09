@@ -236,3 +236,37 @@ def test_original_readiness_rejects_wrong_bucket_and_ambiguous_storage(workspace
         assert login('bob').get(f'/api/v1/evaluations/automatic/{dives["alice-public"]}/media/status').json()['status'] != 'ready'
     finally:
         settings.b2_playback_canary_enabled = previous
+
+
+def test_results_require_owner_or_vote_and_page_full_aggregate(workspace):
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    path = f'/api/v1/evaluations/automatic/{did}/results'
+    # Assignment does not reveal scores before this member confirms a vote.
+    stack(login('bob'))
+    assert login('bob').get(path).status_code == 404
+    assert login('viewer').get(path).status_code == 404
+    assert login('alice').get(path).status_code == 200
+    client = login('bob')
+    assert client.post(f'/api/v1/evaluations/automatic/{did}/ratings', json={
+        'video_uuid': 'alice-public-video', 'score_half_steps': 14}).status_code == 200
+    for i in range(59):
+        user = AppUser(email=f'jury-{i}@example.test', display_name=f'Jury {i}', role='friend')
+        db.add(user); db.flush()
+        db.add(AutomaticRating(dive_id=did, evaluator_user_id=user.id, score_half_steps=14,
+            dive_code='101B', height='3m', dive_name='Dive', video_uuid='alice-public-video'))
+    db.commit()
+    first = client.get(path).json()
+    second = client.get(path, params={'offset': 50, 'limit': 50}).json()
+    assert first['rating_count'] == second['rating_count'] == 60
+    assert first['mean_score'] == second['mean_score'] == 7.0
+    assert len(first['ratings']) == 50 and len(second['ratings']) == 10
+    assert not {r['id'] for r in first['ratings']} & {r['id'] for r in second['ratings']}
+    assert first['my_rating']['evaluator_user_id'] == users['bob'].id
+    assert client.get(path, params={'limit': 101}).status_code == 422
+    assert client.get(path, params={'offset': -1}).status_code == 422
+    assert login('viewer').get(path).status_code == 404
+    assert 'media' not in first and 'playback_url' not in first
+    assert login('alice').get(path).json()['rating_count'] == 60
+    client.cookies.clear()
+    assert client.get(path).status_code == 401

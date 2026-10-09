@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { OwnedRequests, MyJudgements } from '../components/evaluation/EvaluationSpaces'
 import '../components/evaluation/evaluations.css'
+import '../components/evaluation/evaluationA.css'
 import AutomaticScores from '../components/evaluation/AutomaticScores'
 
 const JurySession = lazy(() => import('../components/evaluation/JurySession'))
@@ -22,6 +23,7 @@ export default function Evaluations() {
   const [search, setSearch] = useSearchParams()
   const requested = search.get('tab')
   const tab: Tab = tabs.some(item => item.key === requested) ? requested as Tab : 'automatic'
+  const activeSection = tab === 'community' || tab === 'mine' ? 'receive' : tab === 'judgements' ? 'judgements' : 'judge'
   const setTab = (value: Tab) => setSearch(previous => { const next = new URLSearchParams(previous); next.set('tab', value); return next })
   const [judging, setJudging] = useState(false)
 
@@ -39,26 +41,29 @@ export default function Evaluations() {
         <p className="evaluations-lede">{t('evaluations.lede')}</p>
       </header>
       <nav className="evaluations-tabs" aria-label={t('evaluations.tabsAria')}>
-        {tabs.map(({ key, label }) => (
+        {[{ key: 'automatic' as Tab, section: 'judge', label: 'evaluations.judgeSection' }, { key: 'community' as Tab, section: 'receive', label: 'evaluations.receiveSection' }, { key: 'judgements' as Tab, section: 'judgements', label: 'evaluations.tabJudgements' }].map(({ key, section, label }) => (
           <button
             key={key}
             type="button"
-            aria-current={tab === key ? 'true' : undefined}
+            aria-current={activeSection === section ? 'true' : undefined}
             onClick={() => setTab(key)}
           >
             {t(label)}
           </button>
         ))}
       </nav>
+      {activeSection === 'judge' && <div className="evaluations-modes">
+        <button type="button" aria-pressed={tab === 'automatic'} onClick={() => setTab('automatic')}>{t('evaluations.tabAutomatic')}</button>
+        <button type="button" aria-pressed={tab === 'jury'} onClick={() => setTab('jury')}>{t('evaluations.tabJury')}</button>
+      </div>}
       <div className="evaluations-body">
         {tab === 'automatic' && <Suspense fallback={<p role="status">{t('common.loading')}</p>}><JurySession key="automatic" automatic onStageChange={setJudging} /></Suspense>}
-        {tab === 'community' && <AutomaticScores />}
+        {(tab === 'community' || tab === 'mine') && <><AutomaticScores /><h2>{t('evaluations.tabMine')}</h2><OwnedRequests /></>}
         {tab === 'jury' && (
           <Suspense fallback={<p className="eval-status" role="status">{t('common.loading')}</p>}>
             <JurySession key="manual" onStageChange={setJudging} />
           </Suspense>
         )}
-        {tab === 'mine' && <OwnedRequests />}
         {tab === 'judgements' && <MyJudgements />}
       </div>
       <footer className="evaluations-footer">

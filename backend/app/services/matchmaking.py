@@ -176,8 +176,8 @@ def queue(db, user, stack_id):
     return {'batch_id': str(row.id), 'items': items, 'has_more': False}
 
 
-def results(db, user, dive_id):
-    rows = db.query(AutomaticRating).filter_by(dive_id=dive_id).filter(community_vote_clause()).order_by(AutomaticRating.id.desc()).limit(50).all()
+def results(db, user, dive_id, limit=50, offset=0):
+    rows = db.query(AutomaticRating).filter_by(dive_id=dive_id).filter(community_vote_clause()).order_by(AutomaticRating.id.desc()).offset(offset).limit(limit).all()
     count, avg = db.query(func.count(AutomaticRating.id), func.avg(AutomaticRating.score_half_steps)).filter_by(dive_id=dive_id).filter(community_vote_clause()).one()
     mine = next((r for r in rows if r.evaluator_user_id == user.id), None)
     if mine is None:

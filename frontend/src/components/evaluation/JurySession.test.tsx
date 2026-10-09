@@ -71,11 +71,14 @@ beforeEach(() => {
   vi.mocked(createSession).mockResolvedValue({ session_id: 5, expires_at: 'tomorrow', created: true })
 })
 
+async function choose(half: number) {
+  await userEvent.click(screen.getByRole('button', { name: `${Math.floor(half / 2)} out of 10` }))
+  if (half % 2) await userEvent.click(screen.getByRole('button', { name: '+ ½' }))
+}
+
 async function openFirstDive() {
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   await screen.findByText('107B · 3m')
 }
 
@@ -124,7 +127,7 @@ it('shows the choose-score placeholder, then one named own card after confirmati
   await openFirstDive()
   expect(screen.getByText('Choose your score')).toBeInTheDocument()
   // Steppers select without sliding.
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   expect(screen.queryByText('Choose your score')).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: '5.5 out of 10' })).toBeInTheDocument()
   // Confirm — wait for the save to land.
@@ -143,12 +146,11 @@ it('advances after the readable hold while results stay parked on demand', async
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByRole('img', { name: 'Your score card 6.5' })
   vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
   // Park on the results: the auto-advance must not fire while parked.
-  await userEvent.click(screen.getByRole('button', { name: 'Keep the results open' }))
   await new Promise((resolve) => setTimeout(resolve, 2500))
   expect(screen.getByRole('img', { name: 'Your score card 6.5' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Next dive' }))
@@ -159,7 +161,7 @@ it('keeps score/comment on failure and retries the same dive', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(submitRating).mockRejectedValueOnce(new Error('network'))
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Add a comment' }))
   await userEvent.type(screen.getByLabelText('Optional comment'), 'Great flight')
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
@@ -178,7 +180,7 @@ it('guards against double submits (single server call)', async () => {
   let resolveVote: (value: SubmissionResponse) => void = () => {}
   vi.mocked(submitRating).mockImplementationOnce(() => new Promise<SubmissionResponse>((resolve) => { resolveVote = resolve }))
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   // Second click during the pending submit: intercepted by the busy guard.
   fireEvent.click(screen.getByRole('button', { name: /Confirm score|Saving your score/ }))
@@ -191,7 +193,7 @@ it('reports a closed evaluation without fake-saving', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(submitRating).mockRejectedValueOnce({ response: { status: 409, data: { detail: 'This evaluation is closed to new votes' } } })
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByRole('alert')
   expect(screen.getByRole('alert')).toHaveTextContent('This evaluation just closed — no vote was saved.')
@@ -203,8 +205,6 @@ it('passes through the server skip endpoint and reaches the summary with the rec
   vi.mocked(skipRequest).mockResolvedValue(undefined)
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   await screen.findByText('107B · 3m')
   expect(screen.getByRole('button', { name: 'Quit session' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
@@ -212,6 +212,8 @@ it('passes through the server skip endpoint and reaches the summary with the rec
   await screen.findByText('105C · 3m'.replace('10m', '3m'))
   // Summary shows the REAL session recap: passed dive listed separately.
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  const discard = screen.queryByRole('alertdialog')
+  if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
   await screen.findByText('You judged 0 dive(s) this session.')
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Have a dive evaluated' })).toBeInTheDocument()
@@ -221,11 +223,12 @@ it('summary from a rated session lists the dive with its own score card', async 
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByRole('img', { name: 'Your score card 6.5' })
-  await userEvent.click(screen.getByRole('button', { name: 'Keep the results open' }))
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  const discard = screen.queryByRole('alertdialog')
+  if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
   await screen.findByText('You judged 1 dive(s) this session.')
   expect(screen.getByText('107B')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Have a dive evaluated' })).toBeInTheDocument()
@@ -261,7 +264,7 @@ it('a 409 EVALUATION_CLOSED decodes to the closed screen without a Confirm butto
     response: { status: 409, data: { detail: { code: 'EVALUATION_CLOSED', message: 'This evaluation is closed to new votes' } } },
   })
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByText('This evaluation just closed — no vote was saved.')
   // The closed state holds: Next is the only judgement path forward.
@@ -278,7 +281,7 @@ it('a keyed 409 RATING_ALREADY_SUBMITTED stays on the dive form with its vote hi
     response: { status: 409, data: { detail: { code: 'RATING_ALREADY_SUBMITTED', message: 'A different rating was already confirmed for this dive (votes are immutable)' } } },
   })
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByText('Your judgement is already confirmed and immutable.')
   // Still the SAME dive with its dock available again.
@@ -286,16 +289,14 @@ it('a keyed 409 RATING_ALREADY_SUBMITTED stays on the dive form with its vote hi
   expect(screen.getByRole('button', { name: 'Confirm score' })).toBeInTheDocument()
 })
 
-it('a score selection interrupts the intro decoration immediately', async () => {
+it('does not put decorative cards over the first take', async () => {
+  autoFinishVideo = false
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  expect(document.querySelector('.eval-intro')).not.toBeNull()
-  // Judging starts while the intro still runs: the decoration leaves NOW.
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
-  await waitFor(() => expect(document.querySelector('.eval-intro')).toBeNull())
-  expect(screen.getByText('107B · 3m')).toBeInTheDocument()
+  await screen.findByText('EvalVideo')
+  expect(document.querySelector('.eval-intro')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
 })
 
 it('a late vote response after quit never resurrects the stage', async () => {
@@ -304,13 +305,13 @@ it('a late vote response after quit never resurrects the stage', async () => {
   vi.mocked(submitRating).mockImplementationOnce(() => new Promise<SubmissionResponse>((resolve) => { resolveVote = resolve }))
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   await screen.findByText('107B · 3m')
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   // Quit WHILE the vote is in flight: the UI parks on the summary.
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  const discard = screen.queryByRole('alertdialog')
+  if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
   await screen.findByText('You judged 0 dive(s) this session.')
   resolveVote(voteResponse)
   await new Promise((resolve) => setTimeout(resolve, 120))
@@ -326,21 +327,20 @@ it('Evaluate again starts a FRESH session (count/recap/skip cleared)', async () 
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   await screen.findByText('107B · 3m')
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByRole('img', { name: 'Your score card 6.5' })
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
+  const discard = screen.queryByRole('alertdialog')
+  if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
   await screen.findByText('You judged 1 dive(s) this session.')
+  vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
   await userEvent.click(screen.getByRole('button', { name: 'Evaluate again' }))
   // Landing reset: the previous session's count/recap are gone.
   expect(screen.queryByText('You judged 1 dive(s) this session.')).not.toBeInTheDocument()
   expect(screen.queryByRole('img', { name: 'Your score card 6.5' })).not.toBeInTheDocument()
-  // Start again → the counter restarts at 0.
-  vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
-  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  // A fresh series starts in one click, with the counter reset.
   await screen.findByText('No more dives to judge right now. New requests will appear here.')
   // The second exhausted run still shows the RESET counter (0), not 1.
   expect(screen.getByText('You judged 0 dive(s) this session.')).toBeInTheDocument()
@@ -357,7 +357,7 @@ it('steps DOWN before any score is chosen (precise 0.5 stepper from neutral)', a
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   await openFirstDive()
   expect(screen.getByText('Choose your score')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point down' }))
+  await choose(9)
   expect(screen.queryByText('Choose your score')).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: '4.5 out of 10' })).toBeInTheDocument()
 })
@@ -384,7 +384,7 @@ it('reveal joins MY card first, then peers flip in cascade with names', async ()
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
   await openFirstDive()
-  await userEvent.click(screen.getByRole('button', { name: 'Half point up' }))
+  await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   const panel = screen.getByText('3 vote(s) · community average 6.5').closest('.eval-reveal') as HTMLElement
   const figures = panel.querySelectorAll('.eval-card-figure')
@@ -393,24 +393,12 @@ it('reveal joins MY card first, then peers flip in cascade with names', async ()
   expect(figures[0]).toHaveClass('eval-card-mine-figure')
   expect(figures[0].querySelector('.eval-card')?.getAttribute('aria-label')).toBe('Your score card 6.5')
   // Peers follow with increasing, non-zero stagger (cascade after mine).
-  const stagger = (el: HTMLElement) => el.style.getPropertyValue('--stagger')
-  expect(stagger(figures[1] as HTMLElement)).toBe('360ms')
-  expect(stagger(figures[2] as HTMLElement)).toBe('480ms')
+  const stagger = (el: HTMLElement) => (el.querySelector('.eval-card') as HTMLElement).style.getPropertyValue('--stagger')
+  expect(stagger(figures[1] as HTMLElement)).toBe('240ms')
+  expect(stagger(figures[2] as HTMLElement)).toBe('330ms')
   expect(within(figures[1] as HTMLElement).getByText('Bob')).toBeInTheDocument()
   expect(within(figures[2] as HTMLElement).getByText('Zoé')).toBeInTheDocument()
 })
-
-it('labels the intro fan as unambiguously illustrative and drops it on skip', async () => {
-  vi.mocked(getQueue).mockResolvedValueOnce(batch)
-  render(<MemoryRouter><JurySession /></MemoryRouter>)
-  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByRole('button', { name: 'Skip' })
-  expect(document.querySelector('.eval-intro-demo')).toHaveTextContent('Demo cards — not real scores')
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
-  expect(document.querySelector('.eval-intro')).toBeNull()
-  expect(document.querySelector('.eval-intro-demo')).toBeNull()
-})
-
 
 it('uses a finite automatic stack, resumes after quitting, and sends video identity', async () => {
   vi.mocked(createAutomaticStack).mockResolvedValue({ session_id: 9, expires_at: 'tomorrow', created: true })
@@ -424,14 +412,13 @@ it('uses a finite automatic stack, resumes after quitting, and sends video ident
   fireEvent.keyDown(document, { key: 'Escape' })
   fireEvent.click(screen.getByRole('button', { name: 'Resume this selection' }))
   await screen.findByText('EvalVideo')
-  fireEvent.change(screen.getByRole('slider'), { target: { value: '13' } })
+  await choose(13)
   fireEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await waitFor(() => expect(submitRating).toHaveBeenCalledWith(11, 13, undefined, true, 'u11'))
   fireEvent.click(screen.getByRole('button', { name: /Next/ }))
   await screen.findByRole('button', { name: 'Request another selection' })
   expect(getAutomaticQueue).toHaveBeenCalledTimes(2)
   fireEvent.click(screen.getByRole('button', { name: 'Request another selection' }))
-  fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
   await waitFor(() => expect(createAutomaticStack).toHaveBeenLastCalledWith(expect.any(String), false))
 })
 
@@ -455,15 +442,14 @@ it('keeps judging hidden until playback ends and hides it again for replay', asy
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await screen.findByText('EvalVideo')
-  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Skip' }))
-  fireEvent.change(screen.getByRole('slider'), { target: { value: '13' } })
+  await choose(13)
   await userEvent.click(screen.getByRole('button', { name: /replay/i }))
-  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
-  expect(screen.getByRole('slider')).toHaveValue('13')
+  expect(screen.getByRole('button', { name: '6 out of 10' })).toHaveAttribute('aria-pressed', 'true')
   expect(submitRating).not.toHaveBeenCalled()
 })
 
@@ -474,9 +460,9 @@ it('offers retry and pass when the ready video fails before ending', async () =>
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Fail video' }))
-  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
   await userEvent.click(screen.getByRole('button', { name: 'Pass' }))
   expect(skipRequest).toHaveBeenCalledWith(5, 11)

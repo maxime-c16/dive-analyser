@@ -1,0 +1,8 @@
+{
+  "id": "evaluation-carnet-experience",
+  "date": "2026-10-09",
+  "title": "Un nouveau jury pour vos plongeons",
+  "body": "Regardez les vidéos sans bordure, puis choisissez votre note avec les carnets et les demi-points. Les résultats restent ouverts jusqu’au plongeon suivant. Retrouvez les notes reçues dans des panneaux repliables, même avec un grand jury.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

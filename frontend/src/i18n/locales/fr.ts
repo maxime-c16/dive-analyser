@@ -481,6 +481,16 @@ const fr = {
     adding: 'Ajout…',
   },
   evaluations: {
+    judgeSection: 'Juger',
+    receiveSection: 'Recevoir',
+    allNotes: '{{count}} notes',
+    nextPage: 'Notes suivantes',
+    wholeFrame: 'Voir le plongeon entier',
+    done: 'Terminé',
+    discardTitle: 'Quitter sans confirmer ?',
+    discardDraft: 'Votre note et votre commentaire non confirmés seront perdus. Les notes enregistrées restent.',
+    stay: 'Rester',
+
     automaticFooter: 'Les dives publics participent automatiquement. Gérez les exclusions dans Notes communautaires.',
     tabAutomatic: "Sélection du jour",
     tabCommunity: "Notes communautaires",
