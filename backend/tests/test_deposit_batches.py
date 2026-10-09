@@ -1,4 +1,5 @@
 """Deposit batches: pending acceptance, depositor access, claim links, email."""
+import sys
 from datetime import datetime, timedelta
 
 import pytest
@@ -580,3 +581,31 @@ def test_machine_ingest_re_holds_a_still_pending_row_for_the_same_batch(workspac
     db.commit()
     db.expire_all()
     assert db.get(BatchEmailOutbox, row_id).status == "sent"
+
+
+def test_sender_only_sends_pending_rows_and_rechecks_before_sending(workspace, monkeypatch):
+    import importlib.util
+    import pathlib
+
+    db, login, machine, users, divers = workspace
+    now = datetime.utcnow() - timedelta(minutes=1)
+    db.add_all([
+        BatchEmailOutbox(batch_id="b-held", diver_id=divers["alice"].id, user_id=users["alice"].id,
+                         status="held", scheduled_for=now),
+        BatchEmailOutbox(batch_id="b-due", diver_id=divers["alice"].id, user_id=users["alice"].id,
+                         status="pending", scheduled_for=now),
+    ])
+    db.commit()
+    path = pathlib.Path(__file__).resolve().parent.parent / "scripts" / "send_batch_emails.py"
+    spec = importlib.util.spec_from_file_location("send_batch_emails_under_test", path)
+    sender = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sender)
+    sent = []
+    monkeypatch.setattr(sender, "SessionLocal", lambda: db)
+    monkeypatch.setattr(sender.email_service, "is_email_configured", lambda: True)
+    monkeypatch.setattr(sender, "_send_one", lambda _db, row, _dry: sent.append(row.batch_id) or "sent to a@b (1 clips)")
+    monkeypatch.setattr(sys, "argv", ["send_batch_emails.py"])
+    assert sender.main() == 0
+    assert sent == ["b-due"]
+    statuses = {r.batch_id: r.status for r in db.query(BatchEmailOutbox).all()}
+    assert statuses == {"b-held": "held", "b-due": "sent"}

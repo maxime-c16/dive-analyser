@@ -128,6 +128,25 @@ def main() -> int:
         print(f"{len(rows)} due batch email(s)")
         for row in rows:
             try:
+                # Claim: re-read the row under a lock and skip it unless it is
+                # still pending. An ingest that re-held it (or an admin who
+                # skipped it) after we listed it wins; the lock is held until
+                # this row's commit, so the two cannot interleave.
+                if not args.dry_run:
+                    claimed = (
+                        db.query(BatchEmailOutbox)
+                        .filter(
+                            BatchEmailOutbox.id == row.id,
+                            BatchEmailOutbox.status == BatchEmailOutbox.STATUS_PENDING,
+                        )
+                        .with_for_update()
+                        .first()
+                    )
+                    if claimed is None:
+                        db.rollback()
+                        print(f"batch={row.batch_id} user={row.user_id}: skipped: no longer pending")
+                        continue
+                    row = claimed
                 outcome = _send_one(db, row, args.dry_run)
                 if outcome == "dry-run":
                     continue
