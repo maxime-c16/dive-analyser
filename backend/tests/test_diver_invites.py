@@ -592,3 +592,57 @@ def test_registration_throttle_runs_the_other_way_too(client, db, flags):
             == 403
         )
     assert _register_invite(client, "z" * 43).status_code == 429
+
+
+def test_mint_refuses_when_no_link_can_be_built(client, db, flags):
+    """A live invite nobody can copy or send is worse than no invite.
+
+    Without APP_PUBLIC_URL the raw token would be persisted and returned as
+    `invite_url: null`, which is unrecoverable — so refuse before minting.
+    """
+    flags.app_public_url = ""
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    r = client.post(f"/api/v1/admin/divers/{db.unclaimed_id}/invites", json={})
+    assert r.status_code == 503
+    assert "APP_PUBLIC_URL" in r.json()["detail"]
+    # Nothing half-created.
+    assert db.query(DiverInvite).count() == 0
+
+
+def test_ownership_mutations_and_redemption_share_the_diver_row_lock(
+    client, db, monkeypatch
+):
+    """Both check-then-act paths must serialize on the diver row.
+
+    Without a shared lock, an admin grant can land between redemption's
+    "is it owned?" and "create the binding", and the invitee becomes a
+    second OWNER of a diver whose clips already belong to an account.
+    """
+    from app.api.v1 import admin_users as admin_users_module
+    from app.services import diver_invites as invites_module
+
+    locked: list[int] = []
+    real_lock = invites_module.lock_diver_for_ownership_change
+
+    def spy(db_, diver_id):
+        locked.append(diver_id)
+        return real_lock(db_, diver_id)
+
+    monkeypatch.setattr(invites_module, "lock_diver_for_ownership_change", spy)
+    monkeypatch.setattr(admin_users_module, "lock_diver_for_ownership_change", spy)
+
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    locked.clear()
+    assert _register_invite(client, raw).status_code == 201
+    assert locked == [db.unclaimed_id]
+
+    locked.clear()
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    other = AppUser(email="other@example.test", display_name="Other", role="friend")
+    db.add(other)
+    db.commit()
+    r = client.post(
+        f"/api/v1/admin/users/{other.id}/divers", json={"diver_id": db.claimed_id}
+    )
+    assert r.status_code == 200
+    assert locked == [db.claimed_id]

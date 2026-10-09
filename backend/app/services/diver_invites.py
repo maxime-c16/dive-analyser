@@ -42,6 +42,7 @@ from app.models.user_auth import (
     UserDiverAccess,
 )
 from app.services import sessions
+from app.services.dive_access import lock_diver_for_ownership_change
 from app.services.passwords import ALGORITHM_LABEL, hash_password
 
 logger = logging.getLogger(__name__)
@@ -160,7 +161,11 @@ def redeem_invite(
     if row is None:
         return REDEEM_INVALID, None, None
 
-    diver = db.get(Diver, row.diver_id)
+    # Row-lock the diver before the ownership check: an admin grant can land
+    # between "is it owned?" and "create the binding", and without this the
+    # two interleave and the invitee ends up as a SECOND owner of a diver
+    # whose clips already belong to an account.
+    diver = lock_diver_for_ownership_change(db, row.diver_id)
     if diver is None:
         return REDEEM_INVALID, None, None
 

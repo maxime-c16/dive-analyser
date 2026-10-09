@@ -76,6 +76,7 @@ from app.models.user_auth import (
 )
 from app.services import security_audit_log, sessions as sessions_authority
 from app.services import diver_invites, email_service
+from app.services.dive_access import lock_diver_for_ownership_change
 from app.services.passwords import ALGORITHM_LABEL, hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -612,7 +613,10 @@ def bind_diver(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     with _unscoped_divers(db):
-        diver = db.get(Diver, body.diver_id)
+        # Row-locked: invite redemption reads "is this diver owned?" under
+        # the same lock, so a grant and a redemption cannot both decide the
+        # diver is unowned and create two OWNER bindings.
+        diver = lock_diver_for_ownership_change(db, body.diver_id)
     if diver is None:
         raise HTTPException(status_code=404, detail="Diver not found")
     existing = (
@@ -806,13 +810,26 @@ def create_diver_invite(
 ):
     """Mint a single-use signup link for one diver (admin only).
 
-    Returns the raw link exactly once — it is not recoverable afterwards.
-    The response always carries it so the admin can copy it even when SMTP
-    is unconfigured or the send fails.
+    Returns the raw link exactly once — it is not recoverable afterwards,
+    so the response always carries it (the admin can copy it even when SMTP
+    is unconfigured or the send fails). Because there is no second chance to
+    read the token, the endpoint refuses to mint at all when no link can be
+    built: a live invite nobody can use is worse than no invite.
     """
     _check_origin(request)
+    # Fail closed BEFORE minting. Without APP_PUBLIC_URL the raw token would
+    # be written to the database and returned as `invite_url: null`, which is
+    # unrecoverable — the operator would have a live invite they can neither
+    # copy nor send.
+    if not get_settings().app_public_url.strip():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "APP_PUBLIC_URL is not configured — invitation links cannot be built",
+        )
     with _unscoped_divers(db):
-        diver = db.get(Diver, diver_id)
+        # Row-locked: redemption reads "is this diver owned?" under the same
+        # lock, so minting cannot race an in-flight claim or grant.
+        diver = lock_diver_for_ownership_change(db, diver_id)
     if diver is None:
         raise HTTPException(404, "Diver not found")
     bound = (
@@ -841,6 +858,7 @@ def create_diver_invite(
             status.HTTP_409_CONFLICT,
             "Another invitation for this diver is being created — try again",
         )
+    # Guaranteed non-None: checked before minting.
     invite_url = _invite_public_url(raw_token)
     email_sent: Optional[bool] = None
     email_error: Optional[str] = None
