@@ -153,7 +153,7 @@ test.describe('Library on mobile (390px)', () => {
     expect(overflow).toBeLessThanOrEqual(0);
 
     // Drawer does not expose the hidden destinations
-    await page.getByRole('button', { name: 'Open navigation' }).click();
+    await page.getByRole('button', { name: 'Account navigation' }).click();
     await expect(page.getByRole('link', { name: 'Player canary' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Competitions' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Close navigation' }).click();

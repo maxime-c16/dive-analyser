@@ -449,7 +449,7 @@ function DiveLibrary() {
 
   return (
     <div className="mx-auto max-w-[1440px] pb-10">
-      <header className="flex items-end justify-between gap-4 border-b border-app pb-3 sm:pb-5">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-app pb-3 sm:flex-nowrap sm:pb-5">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">
             {t("nav.dives")}

@@ -1,5 +1,8 @@
+import { primaryTabFor } from './navigation/mobileNavigation'
+import { useMobileNavPolicy, useTabMemory } from './navigation/useMobileNavigation'
+import './navigation/mobileNavigation.css'
 import { useModalOverlay } from './utils/overlays'
-import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Routes,
   Route,
@@ -32,7 +35,6 @@ import {
   Gauge,
   HardDriveDownload,
   ShieldCheck,
-  Menu,
   UserRound,
   Users,
   Waves,
@@ -84,9 +86,11 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/messages': loadMessages, '/evaluations': loadEvaluations, '/community': loadCommunity,
 };
 
-function IntentNavLink(props: React.ComponentProps<typeof NavLink>) {
-  const path = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
+function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
+  const targetPath = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
+  const path = targetPath.split(/[?#]/)[0];
   const intent = useNavigationIntent(path, routeLoaders[path]);
+  if (primaryActive !== undefined) return <Link {...intent} {...props} className={typeof props.className === 'string' ? props.className : undefined} style={typeof props.style === 'object' ? props.style : undefined} aria-current={primaryActive ? 'page' : undefined}>{typeof props.children === 'function' ? null : props.children}</Link>;
   return <NavLink {...intent} {...props} />;
 }
 
@@ -290,9 +294,10 @@ function MobileNavigation() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const friend = !user?.is_admin;
+  const tab = primaryTabFor(location.pathname);
   const currentLabel = routeLabelKeys[location.pathname]
     ? t(routeLabelKeys[location.pathname])
-    : /^\/users\/\d+\/?$/.test(location.pathname) ? t("profile.breadcrumb") : t("nav.workspace");
+    : tab ? t(`nav.${tab}`) : t("nav.workspace");
 
   useEffect(() => {
     setOpen(false);
@@ -310,83 +315,79 @@ function MobileNavigation() {
   }, []);
 
   return (
-    <div ref={menuRef} tabIndex={open ? -1 : undefined} role={open ? "dialog" : undefined} aria-modal={open ? true : undefined} aria-label={open ? t("nav.primaryNavigationAria") : undefined} className="sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
-      <div className="flex h-14 items-center justify-between px-4">
-        <Link
-          to="/dives"
-          className="min-h-11 inline-flex items-center text-base font-semibold text-app-text"
-        >
-          Dive Analyser
-        </Link>
-        <div className="flex items-center gap-2">
-          <WhatsNewButton compact />
+    <header className="mobile-header sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
+      <div className="flex min-h-14 items-center justify-between gap-2 px-4">
+        <Link to={tab ? `/${tab}` : "/dives"} className="min-h-11 inline-flex min-w-0 items-center text-base font-semibold text-app-text">{currentLabel}</Link>
+        <div className="flex shrink-0 items-center gap-2">
           <NotificationsButton compact />
-          <span className="max-w-36 truncate text-sm text-app-muted">
-            {currentLabel}
-          </span>
-          <button
-            type="button"
-            aria-expanded={open}
-            ref={menuTriggerRef}
-            aria-controls="mobile-navigation"
-            onClick={() => setOpen((value) => !value)}
-            className="touch-target inline-flex items-center justify-center border border-app bg-app-panel p-0 text-app-text"
-            aria-label={open ? t("nav.closeNavigation") : t("nav.openNavigation")}
-          >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <button type="button" aria-expanded={open} ref={menuTriggerRef} aria-controls="mobile-navigation"
+            onClick={() => setOpen(true)} className="mobile-account-trigger touch-target inline-flex items-center justify-center rounded-full border border-app bg-app-panel text-app-text"
+            aria-label={t("nav.accountNavigationAria")}>
+            {user ? <MemberAvatar member={user} size={32} /> : <UserRound className="h-5 w-5" />}
           </button>
         </div>
       </div>
-      {open && (
-        <div
-          id="mobile-navigation"
-          className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-app bg-app p-4 pb-safe shadow-[0_18px_40px_rgba(0,0,0,.35)]"
-        >
-          <nav aria-label={t("nav.primaryNavigationAria")} className="grid gap-2">
-            {primaryNav.map(({ to, label, icon: Icon }) => (
-              <IntentNavLink
-                key={to}
-                to={to}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `touch-target flex items-center gap-3 border px-4 text-lg font-semibold ${isActive ? "border-app-strong bg-app-panel text-app-text" : "border-app bg-app-panel-elevated text-app-text"}`
-                }
-              >
-                <Icon className="h-5 w-5" />
-                <span>{t(label)}</span>
-              </IntentNavLink>
-            ))}
-          </nav>
-          {!friend && (
-            <div className="mt-5">
-              <NavigationDisclosure compact review />
-            </div>
-          )}
-          <div className="mt-5">
-            <IntentNavLink
-              to="/account"
-              onClick={() => setOpen(false)}
-              className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4 text-base font-medium text-app-text"
-            >
-              <UserRound className="h-5 w-5" />
-              <span>{t("nav.account")}</span>
-            </IntentNavLink>
+      {open && <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setOpen(false)}>
+        <div id="mobile-navigation" ref={menuRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("nav.accountNavigationAria")}
+          className="mobile-account-sheet border border-app bg-app p-4 text-app-text" onClick={event => event.stopPropagation()}>
+          <div className="mb-4 flex items-center justify-between gap-3"><span className="truncate font-semibold">{user?.display_name}</span>
+            <button type="button" className="touch-target inline-flex items-center justify-center" onClick={() => setOpen(false)} aria-label={t("nav.closeNavigation")}><X className="h-5 w-5" /></button>
           </div>
-          {!friend && (
-            <div className="mt-5">
-              <NavigationDisclosure compact />
-            </div>
-          )}
+          <nav aria-label={t("nav.accountNavigationAria")} className="grid gap-2">
+            <IntentNavLink to="/account" onClick={() => setOpen(false)} className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4"><UserRound className="h-5 w-5" />{t("nav.account")}</IntentNavLink>
+            {user && <IntentNavLink to={`/users/${user.user_id}`} onClick={() => setOpen(false)} className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4"><Users className="h-5 w-5" />{t("nav.myProfile")}</IntentNavLink>}
+            <WhatsNewButton />
+          </nav>
+          {!friend && <div className="mt-5"><NavigationDisclosure compact review /></div>}
+          {!friend && <div className="mt-5"><NavigationDisclosure compact /></div>}
         </div>
-      )}
-    </div>
+      </div>}
+    </header>
   );
+}
+
+function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const bar = useRef<HTMLElement>(null);
+  const active = primaryTabFor(location.pathname);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (policy !== 'visible' || !bar.current) { root.style.setProperty('--mobile-nav-offset', '0px'); return; }
+    const update = () => {
+      if (!bar.current) return;
+      const rect = bar.current.getBoundingClientRect();
+      root.style.setProperty('--mobile-nav-offset', `${window.innerHeight - rect.top + 8}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update); observer.observe(bar.current);
+    window.addEventListener('resize', update);
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); root.style.setProperty('--mobile-nav-offset', '0px'); };
+  }, [policy]);
+  if (policy !== 'visible') return null;
+  return <nav ref={bar} className="mobile-tab-bar lg:hidden" aria-label={t('nav.primaryNavigationAria')}>
+    {primaryNav.map(({ to, label, icon: Icon }) => {
+      const tab = primaryTabFor(to), memory = remembered(tab);
+      const rootActive = active === tab && location.pathname.replace(/\/$/, '') === to;
+      const destination = active === tab ? (rootActive ? location.pathname + location.search : to) : memory?.url ?? to;
+      return <IntentNavLink primaryActive={active === tab} key={to} to={destination} aria-current={active === tab ? 'page' : undefined}
+        state={{ mobileTabRestore: active === tab ? 0 : memory?.scroll ?? 0 }}
+        className={`mobile-tab ${active === tab ? 'mobile-tab-active' : ''}`}
+        onClick={event => {
+          if (rootActive && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+            event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+          }
+        }}><Icon className="h-5 w-5" /><span>{t(label)}</span></IntentNavLink>;
+    })}
+  </nav>;
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const friend = !user?.is_admin;
+  const policy = useMobileNavPolicy();
+  const remembered = useTabMemory(user?.user_id);
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link">
@@ -437,12 +438,13 @@ function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileNavigation />
 
-          <main id="main-content" tabIndex={-1} className="flex-1">
+          <main id="main-content" tabIndex={-1} className="shell-main flex-1">
             <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
               <Breadcrumbs />
               {children}
             </div>
           </main>
+          <MobileTabBar policy={policy} remembered={remembered} />
         </div>
       </div>
     </div>

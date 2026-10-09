@@ -5,7 +5,7 @@
  * clears its draft and evaluation-scope media references.
  */
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { OwnedRequests, MyJudgements } from '../components/evaluation/EvaluationSpaces'
@@ -19,7 +19,10 @@ type Tab = 'automatic' | 'community' | 'jury' | 'mine' | 'judgements'
 export default function Evaluations() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const [tab, setTab] = useState<Tab>('automatic')
+  const [search, setSearch] = useSearchParams()
+  const requested = search.get('tab')
+  const tab: Tab = tabs.some(item => item.key === requested) ? requested as Tab : 'automatic'
+  const setTab = (value: Tab) => setSearch(previous => { const next = new URLSearchParams(previous); next.set('tab', value); return next })
   const [judging, setJudging] = useState(false)
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function Evaluations() {
           </button>
         ))}
       </nav>
-      <main className="evaluations-body">
+      <div className="evaluations-body">
         {tab === 'automatic' && <Suspense fallback={<p role="status">{t('common.loading')}</p>}><JurySession key="automatic" automatic onStageChange={setJudging} /></Suspense>}
         {tab === 'community' && <AutomaticScores />}
         {tab === 'jury' && (
@@ -57,7 +60,7 @@ export default function Evaluations() {
         )}
         {tab === 'mine' && <OwnedRequests />}
         {tab === 'judgements' && <MyJudgements />}
-      </main>
+      </div>
       <footer className="evaluations-footer">
         <p>{t(tab === 'automatic' || tab === 'community' ? 'evaluations.automaticFooter' : 'evaluations.footerHint')}</p>
         <Link to="/dives">{t('evaluations.backToLibrary')}</Link>

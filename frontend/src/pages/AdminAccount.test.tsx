@@ -78,3 +78,11 @@ it('blocks browser Back with a dirty draft and allows confirmed navigation', asy
   await act(async () => { await router.navigate(-1) })
   expect(await screen.findByText('Account directory')).toBeInTheDocument()
 })
+it('Review & save submits the visible Identity form and preserves the access confirmation',async()=>{
+  const fetch=mockFetch()
+  render(<AccountWorkspace accountId={2} currentUserId={1} section="profile" onSection={vi.fn()} onBack={vi.fn()} />)
+  fireEvent.change(await screen.findByLabelText('Workspace role'),{target:{value:'administrator'}})
+  fireEvent.click(screen.getByRole('button',{name:'Review & save'}))
+  expect(await screen.findByRole('dialog')).toHaveTextContent('signs out its sessions')
+  expect(fetch.mock.calls.some(([,init])=>init?.method==='PATCH')).toBe(false)
+})

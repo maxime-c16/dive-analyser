@@ -11,6 +11,7 @@ const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: '
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
 beforeEach(() => {
+  sessionStorage.clear()
   vi.resetAllMocks()
   vi.stubGlobal('IntersectionObserver', class { constructor(callback: typeof visible) { visible = callback } observe() {} disconnect() {} })
   vi.stubGlobal('crypto', { randomUUID: () => 'e75d368c-9c21-4121-9f68-0f8f24bd143a' })
@@ -37,7 +38,7 @@ it('keeps the draft and reuses its retry key after a failed send', async () => {
   vi.mocked(api.sendMessage).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ ...message, id: 8, sender_id: 1, body: 'Hello Fanny' })
   show()
   await screen.findByText(message.body)
-  const input = screen.getByLabelText('Your message')
+  const input = screen.getByRole('textbox', { name:'Your message' })
   fireEvent.change(input, { target: { value: 'Hello Fanny' } })
   fireEvent.click(screen.getByRole('button', { name: 'Send' }))
   await screen.findByRole('alert')
@@ -56,4 +57,101 @@ it('reacts through the keyboard-accessible heart control', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'React with a heart' }))
   await waitFor(() => expect(api.reactToMessage).toHaveBeenCalledWith(3, 7, true))
   expect(await screen.findByRole('button', { name: 'React with a heart', pressed: true })).toBeInTheDocument()
+})
+
+it('recovers a draft after leaving the conversation and clears storage on successful send', async () => {
+  const view = render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox', { name:'Your message' }), { target: { value: 'Recovered draft' } })
+  view.unmount()
+  show()
+  await screen.findByText(message.body)
+  expect(screen.getByRole('textbox', { name:'Your message' })).toHaveValue('Recovered draft')
+  vi.mocked(api.sendMessage).mockResolvedValue({ ...message, id:8, sender_id:1, body:'Recovered draft' })
+  fireEvent.click(screen.getByRole('button', { name:'Send' }))
+  await waitFor(() => expect(screen.getByRole('textbox', { name:'Your message' })).toHaveValue(''))
+  expect(sessionStorage.getItem('message-draft:v1:1:3')).toBeNull()
+})
+it('clears a successful send even after the thread unmounts', async () => {
+  let resolve!: (m: Message) => void
+  vi.mocked(api.sendMessage).mockReturnValue(new Promise(r => { resolve = r }))
+  const view = render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox', { name:'Your message' }), { target:{ value:'Delayed' } })
+  fireEvent.click(screen.getByRole('button', { name:'Send' }))
+  view.unmount()
+  await act(async () => resolve({ ...message,id:8,body:'Delayed',sender_id:1 }))
+  expect(sessionStorage.getItem('message-draft:v1:1:3')).toBeNull()
+  show();await screen.findByText(message.body)
+  expect(screen.getByRole('textbox', { name:'Your message' })).toHaveValue('')
+})
+it('reuses the send identity across route unmount after an uncertain failure', async () => {
+  vi.mocked(api.sendMessage).mockRejectedValue(new Error('offline'))
+  const view = render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox', { name:'Your message' }), { target:{ value:'Retry later' } })
+  fireEvent.click(screen.getByRole('button', { name:'Send' }));await screen.findByRole('alert')
+  const first = vi.mocked(api.sendMessage).mock.calls[0][1].client_id
+  view.unmount();show();await screen.findByText(message.body)
+  fireEvent.click(screen.getByRole('button', { name:'Send' }));await screen.findByRole('alert')
+  expect(vi.mocked(api.sendMessage).mock.calls[1][1].client_id).toBe(first)
+})
+it('a late send never erases newer text typed after returning', async () => {
+  let resolve!: (m: Message) => void
+  vi.mocked(api.sendMessage).mockReturnValue(new Promise(r => { resolve=r }))
+  const view=render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'Delayed'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));view.unmount();show();await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'New draft'}})
+  await act(async()=>resolve({...message,id:8,body:'Delayed',sender_id:1}))
+  expect(screen.getByRole('textbox',{name:'Your message'})).toHaveValue('New draft')
+  expect(JSON.parse(sessionStorage.getItem('message-draft:v1:1:3')!).body).toBe('New draft')
+})
+it('clears the restored composer when its earlier send completes after returning', async () => {
+  let resolve!: (m: Message) => void
+  vi.mocked(api.sendMessage).mockReturnValue(new Promise(r => { resolve=r }))
+  const view=render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'Delayed'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));view.unmount();show();await screen.findByText(message.body)
+  await act(async()=>resolve({...message,id:8,body:'Delayed',sender_id:1}))
+  expect(screen.getByRole('textbox',{name:'Your message'})).toHaveValue('')
+})
+it('clearing a failed draft starts a fresh send even when the new text is identical',async()=>{
+  let key=0
+  vi.stubGlobal('crypto',{randomUUID:()=>`key-${++key}`})
+  vi.mocked(api.sendMessage).mockRejectedValue(new Error('uncertain'))
+  show();await screen.findByText(message.body)
+  const input=screen.getByRole('textbox',{name:'Your message'})
+  fireEvent.change(input,{target:{value:'ok'}});fireEvent.click(screen.getByRole('button',{name:'Send'}));await screen.findByRole('alert')
+  fireEvent.change(input,{target:{value:''}});fireEvent.change(input,{target:{value:'ok'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));await waitFor(()=>expect(api.sendMessage).toHaveBeenCalledTimes(2))
+  expect(vi.mocked(api.sendMessage).mock.calls[0][1].client_id).not.toBe(vi.mocked(api.sendMessage).mock.calls[1][1].client_id)
+})
+it('a completed late send releases its identity before identical text is sent again',async()=>{
+  let resolve!:(m:Message)=>void,key=0
+  vi.stubGlobal('crypto',{randomUUID:()=>`key-${++key}`})
+  vi.mocked(api.sendMessage).mockReturnValueOnce(new Promise(r=>{resolve=r})).mockResolvedValueOnce({...message,id:9,sender_id:1,body:'Again'})
+  const view=render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'Again'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));view.unmount();show();await screen.findByText(message.body)
+  await act(async()=>resolve({...message,id:8,sender_id:1,body:'Again'}))
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'Again'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));await waitFor(()=>expect(api.sendMessage).toHaveBeenCalledTimes(2))
+  const calls=vi.mocked(api.sendMessage).mock.calls
+  expect(calls[0][1].client_id).not.toBe(calls[1][1].client_id)
+})
+it('abandoning and retyping identical text before an old send completes preserves the new draft',async()=>{
+  let resolve!:(m:Message)=>void
+  vi.mocked(api.sendMessage).mockReturnValueOnce(new Promise(r=>{resolve=r}))
+  const view=render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByText(message.body)
+  fireEvent.change(screen.getByRole('textbox',{name:'Your message'}),{target:{value:'Again'}})
+  fireEvent.click(screen.getByRole('button',{name:'Send'}));view.unmount();show();await screen.findByText(message.body)
+  const input=screen.getByRole('textbox',{name:'Your message'})
+  fireEvent.change(input,{target:{value:''}});fireEvent.change(input,{target:{value:'Again'}})
+  await act(async()=>resolve({...message,id:8,sender_id:1,body:'Again'}))
+  expect(input).toHaveValue('Again');expect(JSON.parse(sessionStorage.getItem('message-draft:v1:1:3')!).body).toBe('Again')
 })

@@ -1,3 +1,4 @@
+import { useBottomNotice } from '../navigation/useBottomNotice'
 import { hasOpenOverlay, useModalOverlay } from '../utils/overlays'
 import { useTranslation } from 'react-i18next'
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
@@ -55,6 +56,8 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   const toastRef = useRef(toast)
   toastRef.current = toast
   const compatible = !manifest?.frontend_sha || buildSha === 'dev' || manifest.frontend_sha === buildSha
+  const noticeElement = useRef<HTMLDivElement>(null)
+  const showNotice = useBottomNotice(noticeElement, !!toast && compatible)
   const unread = !!manifest?.notes.some(note => !state?.seen.includes(note.id))
 
   useEffect(() => {
@@ -156,7 +159,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 
   return <Context.Provider value={{ open, unread: unread || !compatible }}>
     {children}
-    {toast && compatible && <div role="status" className="fixed bottom-[calc(1.25rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
+    {toast && compatible && showNotice && <div ref={noticeElement} role="status" className="mobile-bottom-notice fixed bottom-[calc(1.25rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
       <div className="flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />{t('whatsNew.updateHeadline')}</h2>
         <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>

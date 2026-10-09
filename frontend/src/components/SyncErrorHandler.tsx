@@ -1,5 +1,6 @@
+import { useBottomNotice } from '../navigation/useBottomNotice'
 import { useTranslation } from 'react-i18next'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { appLanguage } from '../utils/dateLocale'
 import { AlertCircle, RotateCw, ChevronDown, ChevronUp, X } from 'lucide-react'
@@ -23,6 +24,8 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
   const { t } = useTranslation()
   const { currentSync, lastEvent } = useSyncStatus()
   const [errors, setErrors] = useState<ErrorDetail[]>([])
+  const noticeElement = useRef<HTMLDivElement>(null)
+  const showNotice = useBottomNotice(noticeElement, errors.length > 0)
 
   // Track new errors
   useEffect(() => {
@@ -77,12 +80,12 @@ export const SyncErrorHandler: React.FC<{ maxErrors?: number }> = ({
     console.log(`Retrying sync: ${syncId}`)
   }
 
-  if (errors.length === 0) {
+  if (errors.length === 0 || !showNotice) {
     return null
   }
 
   return (
-    <div className="fixed bottom-[calc(1.5rem+var(--mobile-nav-offset,0px))] left-6 z-40 space-y-2 max-w-md">
+    <div ref={noticeElement} className="mobile-bottom-notice fixed bottom-[calc(1.5rem+var(--mobile-nav-offset,0px))] left-6 z-40 space-y-2 max-w-md">
       {errors.map((error) => (
         <div
           key={error.id}

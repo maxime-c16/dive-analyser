@@ -1,3 +1,4 @@
+import { clearNavigationSession } from '../navigation/sessionContext'
 import { clearLibraryCache } from '../services/libraryCache'
 import { clearIntentData } from '../services/intentCache'
 import { resetPlaybackWarming } from '../utils/playbackWarming'
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Signed-out responses tear down media authorization; any warm in
         // flight must not keep pulling potentially signed URLs after that.
+        if (res.status === 401 || res.status === 403) clearNavigationSession()
         clearLibraryCache()
         resetPlaybackWarming()
         setUser(null)
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Cookie is HttpOnly; a network failure still means dropping local state.
     } finally {
+      clearNavigationSession(user?.user_id)
       clearLibraryCache()
       resetPlaybackWarming()
       setUser(null)
