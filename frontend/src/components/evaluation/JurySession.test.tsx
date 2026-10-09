@@ -80,6 +80,8 @@ async function openFirstDive() {
   render(<MemoryRouter><JurySession /></MemoryRouter>)
   await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
   await screen.findByText('107B · 3m')
+  // The stubbed player ends the video in an effect; wait for the dock it reveals.
+  if (autoFinishVideo) await screen.findByRole('group', { name: 'Judging actions' })
 }
 
 it('reaches the queue on the FIRST start (async session id regression)', async () => {
