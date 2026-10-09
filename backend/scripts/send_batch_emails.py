@@ -73,6 +73,7 @@ def _send_one(db, row: BatchEmailOutbox, dry_run: bool) -> str:
         db,
         user_id=user.id,
         batch_id=row.batch_id,
+        diver_id=row.diver_id,
         created_by_user_id=depositor_id,
         ttl_seconds=CLAIM_TOKEN_TTL_SECONDS,
     )
@@ -91,7 +92,7 @@ def _send_one(db, row: BatchEmailOutbox, dry_run: bool) -> str:
         dives=dive_dicts,
         evaluator_note=note,
         claim_url=f"{app_url}/claim#t={raw_token}",
-        review_url=f"{app_url}/deposits/{row.batch_id}",
+        review_url=f"{app_url}/deposits/{row.batch_id}?diver={row.diver_id}",
         posters=email_service.posters_for_dives(db, dives),
     )
     if dry_run:

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Gift } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { claimTokenFromHash, peekClaim, redeemClaim } from '../services/depositsApi'
+import { batchReviewPath, claimTokenFromHash, peekClaim, redeemClaim } from '../services/depositsApi'
 
 /**
  * Public magic-link landing ("Récupérer mes plongeons").
@@ -52,7 +52,7 @@ export default function Claim() {
     try {
       const data = await redeemClaim(token)
       await refresh()
-      navigate(`/deposits/${encodeURIComponent(data.batch_id)}`, { replace: true })
+      navigate(batchReviewPath(data.batch_id, data.diver_id), { replace: true })
     } catch {
       setError(true)
     } finally {

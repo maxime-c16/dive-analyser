@@ -3,7 +3,7 @@
 Security contract (mirrors user_sessions):
 - The raw token is CSPRNG 256-bit, URL-safe, returned exactly once (inside
   the email link). The DB stores ONLY its SHA-256 hex.
-- One token = one user + one batch, single-use (used_at), short expiry
+- One token = one user + one batch (+ diver), single-use (used_at), short expiry
   (CLAIM_TOKEN_TTL_SECONDS, default 7 days).
 - Redeeming mints a NORMAL user session (no admin power is ever embedded);
   it never revokes the account's existing sessions. The GET claim page only
@@ -38,6 +38,7 @@ def mint_claim_token(
     user_id: int,
     batch_id: str,
     created_by_user_id: Optional[int],
+    diver_id: Optional[int] = None,
     ttl_seconds: Optional[int] = None,
 ) -> str:
     """Create a single-use claim token. Returns the raw token (email link)."""
@@ -47,6 +48,7 @@ def mint_claim_token(
         ClaimToken(
             user_id=user_id,
             batch_id=batch_id,
+            diver_id=diver_id,
             token_hash=sessions.hash_session_token(raw_token),
             created_by_user_id=created_by_user_id,
             expires_at=datetime.utcnow() + timedelta(seconds=ttl),

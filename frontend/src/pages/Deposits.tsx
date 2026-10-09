@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Check, CheckCheck, Film, Pencil } from 'lucide-react'
 import {
   acceptBatch,
+  batchReviewPath,
   editPendingDive,
   getBatch,
   listPendingBatches,
@@ -142,7 +143,7 @@ function DiveRow({
   )
 }
 
-function BatchReview({ batchId }: { batchId: string }) {
+function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | null }) {
   const { t } = useTranslation()
   const [batch, setBatch] = useState<BatchDetail | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -153,14 +154,14 @@ function BatchReview({ batchId }: { batchId: string }) {
   const load = useCallback(() => {
     setLoading(true)
     setError(false)
-    getBatch(batchId)
+    getBatch(batchId, diverId)
       .then((data) => {
         setBatch(data)
         setSelected(new Set())
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [batchId])
+  }, [batchId, diverId])
 
   useEffect(() => {
     load()
@@ -169,7 +170,7 @@ function BatchReview({ batchId }: { batchId: string }) {
   const accept = async (ids?: number[]) => {
     setBusy(true)
     try {
-      await acceptBatch(batchId, ids)
+      await acceptBatch(batchId, ids, diverId)
       load()
     } catch {
       setError(true)
@@ -287,8 +288,8 @@ function BatchList() {
         <div className="grid gap-3">
           {batches.map((batch) => (
             <Link
-              key={batch.batch_id}
-              to={`/deposits/${encodeURIComponent(batch.batch_id)}`}
+              key={`${batch.batch_id}:${batch.diver_id ?? ''}`}
+              to={batchReviewPath(batch.batch_id, batch.diver_id)}
               className="block border border-app bg-app-panel p-4 hover:border-app-accent"
             >
               <span className="text-lg font-semibold">
@@ -307,6 +308,9 @@ function BatchList() {
 
 export default function Deposits() {
   const { batchId } = useParams()
-  if (batchId) return <BatchReview batchId={batchId} />
+  const [params] = useSearchParams()
+  const diverParam = Number(params.get('diver'))
+  const diverId = params.get('diver') !== null && Number.isInteger(diverParam) ? diverParam : null
+  if (batchId) return <BatchReview batchId={batchId} diverId={diverId} />
   return <BatchList />
 }

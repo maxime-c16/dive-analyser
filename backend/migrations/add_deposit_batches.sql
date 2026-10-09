@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS claim_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
     batch_id VARCHAR(36) NOT NULL,
+    diver_id INTEGER REFERENCES divers(id) ON DELETE CASCADE,
     token_hash VARCHAR(64) NOT NULL UNIQUE,
     created_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
     expires_at TIMESTAMP NOT NULL,

@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -41,30 +41,30 @@ def _require_claim_enabled() -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
 
 
-def _batch_permission(db: Session, user, batch_id: str) -> list[Dive]:
-    """Pending dives of one batch visible to this user (else 404)."""
+def _batch_permission(
+    db: Session, user, batch_id: str, diver_id: Optional[int] = None
+) -> list[Dive]:
+    """Pending dives of one batch (and diver) visible to this user (else 404).
+
+    A batch id can span several divers (agent-day batches) and the listing and
+    the emails are per diver, so the review scopes to one diver. Without
+    ``diver_id`` a batch that spans several visible divers is ambiguous (400)
+    rather than silently merging their clips.
+    """
+    query = db.query(Dive).filter(Dive.batch_id == batch_id, Dive.accepted_at.is_(None))
+    if diver_id is not None:
+        query = query.filter(Dive.diver_id == diver_id)
+    query = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).limit(500)
     if user.is_admin:
         with _unscoped(db):
-            dives = (
-                db.query(Dive)
-                .filter(Dive.batch_id == batch_id, Dive.accepted_at.is_(None))
-                .order_by(Dive.dive_datetime.desc(), Dive.id.desc())
-                .limit(500)
-                .all()
-            )
-        if not dives:
-            raise HTTPException(404, "Batch not found")
-        return dives
-    dives = (
-        db.query(Dive)
-        .filter(Dive.batch_id == batch_id, Dive.accepted_at.is_(None))
-        .order_by(Dive.dive_datetime.desc(), Dive.id.desc())
-        .limit(500)
-        .all()
-    )
-    visible = [d for d in dives if deposit_batches.user_can_review_dive(db, user, d)]
+            dives = query.all()
+        visible = dives
+    else:
+        visible = [d for d in query.all() if deposit_batches.user_can_review_dive(db, user, d)]
     if not visible:
         raise HTTPException(404, "Batch not found")
+    if diver_id is None and len({d.diver_id for d in visible}) > 1:
+        raise HTTPException(400, "diver_id is required for a batch with several divers")
     return visible
 
 
@@ -110,8 +110,13 @@ def list_pending_batches(user=Depends(get_current_user), db: Session = Depends(g
 
 
 @router.get("/batches/{batch_id}")
-def get_batch(batch_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    dives = _batch_permission(db, user, batch_id)
+def get_batch(
+    batch_id: str,
+    diver_id: Optional[int] = Query(default=None),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    dives = _batch_permission(db, user, batch_id, diver_id)
     diver = db.get(Diver, dives[0].diver_id) if dives[0].diver_id else None
     notes_by_dive = {
         note.dive_id: note.comment
@@ -134,6 +139,7 @@ class AcceptInput(BaseModel):
 @router.post("/batches/{batch_id}/accept")
 def accept_batch(
     batch_id: str, payload: AcceptInput,
+    diver_id: Optional[int] = Query(default=None),
     user=Depends(get_current_user), db: Session = Depends(get_db),
 ):
     """Accept pending clips (owner only — never the depositor or an admin).
@@ -141,7 +147,7 @@ def accept_batch(
     No dive_ids = accept the whole batch; otherwise accept the subset.
     Accepted clips keep their visibility; the owner publishes them later.
     """
-    dives = _batch_permission(db, user, batch_id)
+    dives = _batch_permission(db, user, batch_id, diver_id)
     wanted = set(payload.dive_ids or [])
     accepted = []
     now = datetime.utcnow()
@@ -222,12 +228,17 @@ def peek_claim(payload: ClaimTokenInput, db: Session = Depends(get_db)):
     row = claim_tokens.peek_claim_token(db, payload.token)
     if row is None or row.used_at is not None or row.expires_at <= datetime.utcnow():
         raise HTTPException(404, "Link not found")
-    pending = (
-        db.query(Dive.id)
-        .filter(Dive.batch_id == row.batch_id, Dive.accepted_at.is_(None))
-        .count()
+    pending_query = db.query(Dive.id).filter(
+        Dive.batch_id == row.batch_id, Dive.accepted_at.is_(None)
     )
-    return {"valid": True, "batch_id": row.batch_id, "pending": pending}
+    if row.diver_id is not None:
+        pending_query = pending_query.filter(Dive.diver_id == row.diver_id)
+    return {
+        "valid": True,
+        "batch_id": row.batch_id,
+        "diver_id": row.diver_id,
+        "pending": pending_query.count(),
+    }
 
 
 @router.post("/claim/redeem")
@@ -244,7 +255,7 @@ def redeem_claim(
         raise HTTPException(404, "Link not found")
     raw_session, _user, claim = redeemed
     _set_session_cookie(response, raw_session)
-    return {"batch_id": claim.batch_id}
+    return {"batch_id": claim.batch_id, "diver_id": claim.diver_id}
 
 
 @router.get("/email-pref")

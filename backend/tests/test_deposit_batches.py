@@ -324,8 +324,7 @@ def test_email_pref_and_render_without_smtp(workspace):
     assert ok is False
 
 
-def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
-    db, login, machine, users, divers = workspace
+def _stub_browser_upload(monkeypatch, tmp_path):
     from app.services import browser_upload
     folder = tmp_path / "prepared"
     folder.mkdir(exist_ok=True)
@@ -355,6 +354,11 @@ def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
             return {"Body": _Stream()}
 
     monkeypatch.setattr(boto3, "client", lambda *a, **kw: _Client())
+
+
+def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
+    db, login, machine, users, divers = workspace
+    _stub_browser_upload(monkeypatch, tmp_path)
     fields = dict(
         dive_code="403B", height="3m", performance="G",
         dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
@@ -371,3 +375,81 @@ def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
     fields["upload_id"] = "22345678-1234-1234-1234-123456789012"
     assert login("bob").post(
         "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 403
+
+
+def test_captionless_admin_deposit_still_queues_the_email(workspace, monkeypatch, tmp_path):
+    db, login, machine, users, divers = workspace
+    _stub_browser_upload(monkeypatch, tmp_path)
+    fields = dict(
+        dive_code="403B", height="3m", performance="G",
+        dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
+        upload_id="32345678-1234-1234-1234-123456789012")
+    response = login("maxime").post(
+        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")})
+    assert response.status_code == 201, response.text
+    dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
+    assert dive.accepted_at is None
+    assert db.query(EvaluatorNote).filter_by(dive_id=dive.id).count() == 0
+    assert db.query(BatchEmailOutbox).filter_by(user_id=users["alice"].id).count() == 1
+
+
+def test_pending_deposit_cannot_be_published_before_acceptance(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice")])
+    dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
+    dive_id, batch_id = dive.id, dive.batch_id
+    # Depositor and owner alike: pending clips stay private on the regular route.
+    for name in ("maxime", "alice"):
+        response = login(name).put(f"/api/v1/dives/{dive_id}", json={"visibility": "public"})
+        assert response.status_code in (403, 404, 409), (name, response.text)
+        if name == "alice":
+            assert response.status_code == 409, response.text
+        assert db.get(Dive, dive_id).visibility == "private"
+    assert login("alice").post(f"/api/v1/deposits/batches/{batch_id}/accept", json={}).status_code == 200
+    published = login("alice").put(f"/api/v1/dives/{dive_id}", json={"visibility": "public"})
+    assert published.status_code == 200, published.text
+    assert db.get(Dive, dive_id).visibility == "public"
+
+
+def test_batch_review_is_scoped_to_one_diver(workspace):
+    db, login, machine, users, divers = workspace
+    second = Diver(display_name="Alice B", canonical_name="alice b")
+    db.add(second)
+    db.flush()
+    db.add(UserDiverAccess(user_id=users["alice"].id, diver_id=second.id, access_kind="OWNER"))
+    db.commit()
+    alice_id, second_id, alice_user_id = divers["alice"].id, second.id, users["alice"].id
+    _sync_batch(machine, [_video("alice1", "alice"), _video("aliceb1", "Alice B", code="305C")])
+    first = db.query(Dive).filter(Dive.diver_id == alice_id).one()
+    other = db.query(Dive).filter(Dive.diver_id == second_id).one()
+    first_id, other_id = first.id, other.id
+    # Force the shared agent-day batch id the mac-agent produces.
+    other.batch_id = first.batch_id
+    batch_id = first.batch_id
+    db.commit()
+
+    ambiguous = login("alice").get(f"/api/v1/deposits/batches/{batch_id}")
+    assert ambiguous.status_code == 400, ambiguous.text
+
+    detail = login("alice").get(f"/api/v1/deposits/batches/{batch_id}?diver_id={second_id}")
+    assert detail.status_code == 200
+    assert detail.json()["diver_id"] == second_id
+    assert [d["id"] for d in detail.json()["dives"]] == [other_id]
+
+    accepted = login("alice").post(
+        f"/api/v1/deposits/batches/{batch_id}/accept?diver_id={second_id}", json={})
+    assert accepted.status_code == 200 and accepted.json()["accepted"] == [other_id]
+    assert db.get(Dive, other_id).accepted_at is not None
+    assert db.get(Dive, first_id).accepted_at is None
+
+    # The claim link is bound to the diver it was emailed for.
+    raw = claim_tokens.mint_claim_token(
+        db, user_id=alice_user_id, batch_id=batch_id, diver_id=alice_id,
+        created_by_user_id=users["maxime"].id, ttl_seconds=3600)
+    anon = TestClient(app)
+    peek = anon.post("/api/v1/deposits/claim/peek", json={"token": raw})
+    assert peek.status_code == 200
+    assert peek.json()["diver_id"] == alice_id and peek.json()["pending"] == 1
+    redeem = anon.post("/api/v1/deposits/claim/redeem", json={"token": raw})
+    assert redeem.status_code == 200 and redeem.json()["diver_id"] == alice_id
+    anon.close()

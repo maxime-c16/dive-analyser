@@ -65,6 +65,17 @@ describe('depositsApi', () => {
     expect(init).not.toMatchObject({ credentials: 'same-origin' })
   })
 
+  it('scopes review and accept calls to the diver and builds diver-aware links', async () => {
+    const { acceptBatch, batchReviewPath, getBatch } = await import('./depositsApi')
+    expect(batchReviewPath('b1', 7)).toBe('/deposits/b1?diver=7')
+    expect(batchReviewPath('b1', null)).toBe('/deposits/b1')
+    mockFetch(() => ({ batch_id: 'b1', accepted: [] }))
+    await getBatch('b1', 7)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/deposits/batches/b1?diver_id=7')
+    await acceptBatch('b1', undefined, 7)
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe('/api/v1/deposits/batches/b1/accept?diver_id=7')
+  })
+
   it('defaults the batch email pref to on when the call fails', async () => {
     const { getBatchEmailPref } = await import('./depositsApi')
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 500 } as Response)

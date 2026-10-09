@@ -358,12 +358,14 @@ def upload_dive(
                 db, dive=record, user_id=user.id, active=True,
                 prompt=evaluation_prompt or None, prompt_set=True,
             )
-        if deposit_for_other and (notes or "").strip():
-            from app.models.deposit_batch import EvaluatorNote
-            db.add(EvaluatorNote(
-                dive_id=record.id, author_user_id=user.id,
-                comment=notes.strip()[:deposit_batches.NOTE_COMMENT_MAX]))
-            db.flush()
+        if deposit_for_other:
+            if (notes or "").strip():
+                from app.models.deposit_batch import EvaluatorNote
+                db.add(EvaluatorNote(
+                    dive_id=record.id, author_user_id=user.id,
+                    comment=notes.strip()[:deposit_batches.NOTE_COMMENT_MAX]))
+                db.flush()
+            # Every pending deposit emails its owner; the caption is optional.
             try:
                 deposit_batches.queue_batch_email(
                     db, batch_id=batch_id, diver_id=diver_id,
@@ -434,6 +436,14 @@ def update_dive(
         raise HTTPException(403, "Diver reassignment requires an operator")
     if update_data.get("visibility", "public") is None:
         raise HTTPException(422, "Visibility cannot be null")
+    if (
+        update_data.get("visibility") == "public"
+        and dive.batch_id is not None
+        and dive.accepted_at is None
+    ):
+        # A pending deposit stays private until its owner accepts it; the
+        # depositor can manage it but must never expose it early.
+        raise HTTPException(409, "Accept this deposit before making it public")
     for field, value in update_data.items():
         setattr(dive, field, value)
     if "person_name" in update_data:

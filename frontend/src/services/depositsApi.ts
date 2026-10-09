@@ -56,9 +56,19 @@ export async function listPendingBatches(): Promise<PendingBatch[]> {
   return Array.isArray(data.batches) ? (data.batches as PendingBatch[]) : []
 }
 
-export async function getBatch(batchId: string): Promise<BatchDetail> {
+function diverQuery(diverId?: number | null): string {
+  return diverId == null ? '' : `?diver_id=${encodeURIComponent(String(diverId))}`
+}
+
+/** In-app review route. A batch can span divers, so the link names the diver. */
+export function batchReviewPath(batchId: string, diverId?: number | null): string {
+  const base = `/deposits/${encodeURIComponent(batchId)}`
+  return diverId == null ? base : `${base}?diver=${encodeURIComponent(String(diverId))}`
+}
+
+export async function getBatch(batchId: string, diverId?: number | null): Promise<BatchDetail> {
   const data = (await readJson(
-    await fetch(`/api/v1/deposits/batches/${encodeURIComponent(batchId)}`, {
+    await fetch(`/api/v1/deposits/batches/${encodeURIComponent(batchId)}${diverQuery(diverId)}`, {
       credentials: 'same-origin',
       cache: 'no-store',
     }),
@@ -69,9 +79,10 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
 export async function acceptBatch(
   batchId: string,
   diveIds?: number[],
+  diverId?: number | null,
 ): Promise<{ batch_id: string; accepted: number[] }> {
   const data = (await readJson(
-    await fetch(`/api/v1/deposits/batches/${encodeURIComponent(batchId)}/accept`, {
+    await fetch(`/api/v1/deposits/batches/${encodeURIComponent(batchId)}/accept${diverQuery(diverId)}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -101,25 +112,27 @@ export function claimTokenFromHash(hash: string): string {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
-export async function peekClaim(token: string): Promise<{ valid: boolean; batch_id: string; pending: number }> {
+export async function peekClaim(
+  token: string,
+): Promise<{ valid: boolean; batch_id: string; diver_id: number | null; pending: number }> {
   const data = (await readJson(
     await fetch('/api/v1/deposits/claim/peek', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     }),
-  )) as { valid: boolean; batch_id: string; pending: number }
+  )) as { valid: boolean; batch_id: string; diver_id: number | null; pending: number }
   return data
 }
 
-export async function redeemClaim(token: string): Promise<{ batch_id: string }> {
+export async function redeemClaim(token: string): Promise<{ batch_id: string; diver_id: number | null }> {
   const data = (await readJson(
     await fetch('/api/v1/deposits/claim/redeem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     }),
-  )) as { batch_id: string }
+  )) as { batch_id: string; diver_id: number | null }
   return data
 }
 

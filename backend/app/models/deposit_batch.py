@@ -61,6 +61,9 @@ class ClaimToken(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False, index=True)
     batch_id = Column(String(36), nullable=False, index=True)
+    # A batch id can span several divers (agent-day batches), and one email
+    # is sent per diver: the link opens that diver's clips only.
+    diver_id = Column(Integer, ForeignKey("divers.id", ondelete="CASCADE"), nullable=True)
     token_hash = Column(String(64), nullable=False, unique=True, index=True)
     created_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
     expires_at = Column(DateTime, nullable=False)
