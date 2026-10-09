@@ -42,5 +42,10 @@ CREATE TABLE IF NOT EXISTS diver_invites (
 CREATE INDEX IF NOT EXISTS ix_diver_invites_diver ON diver_invites(diver_id);
 -- Listing "outstanding" (not used, not revoked, not expired) is the hot path.
 CREATE INDEX IF NOT EXISTS ix_diver_invites_live ON diver_invites(diver_id, used_at, revoked_at);
+-- One LIVE invite per diver, enforced by the database. Concurrent mints
+-- serialize here and exactly one wins, so a bearer credential never
+-- accumulates; the losing insert raises and nothing is created.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_diver_invites_one_live
+    ON diver_invites(diver_id) WHERE used_at IS NULL AND revoked_at IS NULL;
 
 COMMIT;

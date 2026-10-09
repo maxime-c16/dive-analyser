@@ -29,6 +29,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -66,11 +67,18 @@ def mint_invite(
     diver_id: int,
     created_by_user_id: Optional[int],
     ttl_seconds: Optional[int] = None,
-) -> str:
-    """Create a single-use invite for one diver. Returns the raw token.
+) -> tuple[str, DiverInvite]:
+    """Create a single-use invite for one diver. Returns (raw_token, row).
+
+    The row returned is the one created for THIS token; callers must never
+    re-query for "the newest invite" or they can pair another request's id
+    and expiry with this request's token.
 
     Any previously live invite for the same diver is revoked first: one live
-    bearer credential per diver, never a pile of them.
+    bearer credential per diver, never a pile of them. Concurrent mints are
+    serialized by the ``uq_diver_invites_one_live`` partial unique index —
+    the loser raises and the caller surfaces a conflict rather than leaving
+    two live links.
     """
     ttl = (
         ttl_seconds
@@ -78,27 +86,37 @@ def mint_invite(
         else get_settings().diver_invite_ttl_seconds
     )
     now = datetime.utcnow()
-    for row in (
+    # Revoke first, as an executed bulk UPDATE. SQLAlchemy's unit of work
+    # flushes INSERTs before UPDATEs, so marking the old rows dirty and
+    # committing would try the new row's INSERT while the old one is still
+    # live — which the one-live-per-diver index correctly rejects. Running
+    # the UPDATE now guarantees the new INSERT sees a clean slate; a true
+    # concurrent mint is still caught by that index.
+    (
         db.query(DiverInvite)
         .filter(
             DiverInvite.diver_id == diver_id,
             DiverInvite.used_at.is_(None),
             DiverInvite.revoked_at.is_(None),
         )
-        .all()
-    ):
-        row.revoked_at = now
-    raw_token = generate_invite_token()
-    db.add(
-        DiverInvite(
-            diver_id=diver_id,
-            token_hash=sessions.hash_session_token(raw_token),
-            created_by_user_id=created_by_user_id,
-            expires_at=now + timedelta(seconds=ttl),
-        )
+        .update({"revoked_at": now}, synchronize_session=False)
     )
-    db.commit()
-    return raw_token
+    raw_token = generate_invite_token()
+    row = DiverInvite(
+        diver_id=diver_id,
+        token_hash=sessions.hash_session_token(raw_token),
+        created_by_user_id=created_by_user_id,
+        expires_at=now + timedelta(seconds=ttl),
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        # Another mint won the one-live-per-diver race. Nothing is created.
+        db.rollback()
+        raise
+    db.refresh(row)
+    return raw_token, row
 
 
 def peek_invite(db: Session, raw_token: Optional[str]) -> Optional[DiverInvite]:

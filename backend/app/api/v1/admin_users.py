@@ -58,6 +58,7 @@ from app.services.member_avatar import avatar_identity
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import get_current_user
@@ -827,10 +828,19 @@ def create_diver_invite(
             "This diver already has an account",
         )
 
-    raw_token = diver_invites.mint_invite(
-        db, diver_id=diver_id, created_by_user_id=admin.id
-    )
-    row = diver_invites.invites_for_diver(db, diver_id, limit=1)[0]
+    # mint_invite returns the row it created for THIS token. Never re-query
+    # "the newest invite": a concurrent mint could then pair another row's id
+    # and expiry with this request's token.
+    try:
+        raw_token, row = diver_invites.mint_invite(
+            db, diver_id=diver_id, created_by_user_id=admin.id
+        )
+    except IntegrityError:
+        # Another mint won the one-live-per-diver race; nothing was created.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Another invitation for this diver is being created — try again",
+        )
     invite_url = _invite_public_url(raw_token)
     email_sent: Optional[bool] = None
     email_error: Optional[str] = None

@@ -28,12 +28,14 @@ from app.models.session import Session as SessionModel
 from app.models.dive import Dive
 from app.models.user_auth import AppUser, UserCredential, UserDiverAccess
 from app.services import diver_invites
+from app.services import sessions
 from app.services.passwords import hash_password
 
 MACHINE_KEY = "k" * 48
 OWNER_PASSWORD = "correct-horse-battery-owner"
 INVITEE_PASSWORD = "correct-horse-battery-invitee"
 FRIEND_PASSWORD = "correct-horse-battery-friend"
+INVITE = "friends-invite-test-code"
 
 
 @pytest.fixture()
@@ -110,6 +112,7 @@ def flags():
         settings.mac_agent_api_keys,
         settings.app_public_url,
         settings.smtp_host,
+        settings.auth_login_ip_max_failures,
     )
     settings.user_auth_enabled = True
     settings.auth_cookie_secure = False
@@ -128,6 +131,7 @@ def flags():
         settings.mac_agent_api_keys,
         settings.app_public_url,
         settings.smtp_host,
+        settings.auth_login_ip_max_failures,
     ) = saved
 
 
@@ -146,9 +150,10 @@ def _login(client, email, password):
 
 
 def _mint(db, diver_id, admin_id):
-    return diver_invites.mint_invite(
+    raw_token, _row = diver_invites.mint_invite(
         db, diver_id=diver_id, created_by_user_id=admin_id
     )
+    return raw_token
 
 
 def _register_invite(client, token, **overrides):
@@ -479,3 +484,111 @@ def test_mint_and_revoke_are_audited(client, db):
     events = [row.event_type for row in db.query(SecurityAuditEvent).all()]
     assert "invite_created" in events
     assert "invite_revoked" in events
+
+
+# ------------------------------------------------- concurrency & throttling
+
+
+def test_mint_returns_the_row_it_created(db):
+    """The caller must never re-query "the newest invite" for its own row.
+
+    A concurrent mint could otherwise pair another row's id and expiry with
+    this request's token — a token that request may already have revoked.
+    """
+    raw, row = diver_invites.mint_invite(
+        db, diver_id=db.unclaimed_id, created_by_user_id=db.admin_id
+    )
+    assert row.diver_id == db.unclaimed_id
+    assert row.is_live
+    assert row.token_hash == sessions.hash_session_token(raw)
+
+
+def test_database_enforces_one_live_invite_per_diver(db):
+    """The one-live-per-diver rule is a DB invariant, not application timing.
+
+    Concurrent mints serialize here and exactly one wins, so a bearer
+    credential never accumulates even under a race.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    db.add(
+        DiverInvite(
+            diver_id=db.unclaimed_id,
+            token_hash="a" * 64,
+            expires_at=datetime.utcnow() + timedelta(days=1),
+        )
+    )
+    db.commit()
+    db.add(
+        DiverInvite(
+            diver_id=db.unclaimed_id,
+            token_hash="b" * 64,
+            expires_at=datetime.utcnow() + timedelta(days=1),
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+    # Used or revoked rows do not count as live and may coexist.
+    db.add(
+        DiverInvite(
+            diver_id=db.unclaimed_id,
+            token_hash="c" * 64,
+            expires_at=datetime.utcnow() + timedelta(days=1),
+            used_at=datetime.utcnow(),
+        )
+    )
+    db.add(
+        DiverInvite(
+            diver_id=db.unclaimed_id,
+            token_hash="d" * 64,
+            expires_at=datetime.utcnow() + timedelta(days=1),
+            revoked_at=datetime.utcnow(),
+        )
+    )
+    db.commit()
+    assert db.query(DiverInvite).filter_by(diver_id=db.unclaimed_id).count() == 3
+
+
+def test_registration_throttle_spans_both_signup_paths(client, db, flags):
+    """Guesses against either signup path share one per-source ceiling.
+
+    The failure ledger keeps the two identifiers apart for operators, but
+    the limiter must count them together — otherwise a probe of one path
+    never builds toward the throttle.
+    """
+    flags.auth_login_ip_max_failures = 3
+    for _ in range(3):
+        assert _register_invite(client, "z" * 43).status_code == 404
+    # Open the shared-code path only now: it must already be throttled, so
+    # the request dies at the limiter before it ever evaluates the code.
+    flags.friend_registration_enabled = True
+    flags.friend_invite_codes = INVITE
+    r = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "later@example.test",
+            "password": INVITEE_PASSWORD,
+            "invite_code": INVITE,
+        },
+    )
+    assert r.status_code == 429
+
+
+def test_registration_throttle_runs_the_other_way_too(client, db, flags):
+    flags.auth_login_ip_max_failures = 3
+    flags.friend_registration_enabled = True
+    flags.friend_invite_codes = INVITE
+    for _ in range(3):
+        assert (
+            client.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": "later@example.test",
+                    "password": INVITEE_PASSWORD,
+                    "invite_code": "wrong",
+                },
+            ).status_code
+            == 403
+        )
+    assert _register_invite(client, "z" * 43).status_code == 429

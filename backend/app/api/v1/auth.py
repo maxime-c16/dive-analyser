@@ -66,6 +66,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _GENERIC_LOGIN_FAILURE = "Invalid credentials"
 _TOO_MANY_ATTEMPTS = "Too many attempts"
 
+# Failure-ledger identifiers for the two account-creation paths. The
+# throttle counts them together (one ceiling per source); the ledger keeps
+# them apart so an operator can tell which path is being probed.
+_REGISTER_IDENTIFIER = "friend-register"
+_REGISTER_INVITE_IDENTIFIER = "diver-invite-register"
+_REGISTRATION_IDENTIFIERS = (_REGISTER_IDENTIFIER, _REGISTER_INVITE_IDENTIFIER)
+
 # Timing-equalizer hash: a valid Argon2id PHC string of an unknown password,
 # verified against whenever the submitted email does not match a user so the
 # failure path costs the same whether or not the email exists.
@@ -143,13 +150,18 @@ def _invite_valid(submitted: str) -> bool:
 
 def _register_rate_limited(db: Session, client_ip: str) -> bool:
     """Bounded per-source registration throttle (same rolling window as
-    login). Counts failed registrations only; successes don't lock out."""
+    login). Counts failed registrations only; successes don't lock out.
+
+    Both signup paths share one ceiling: they are both account-creation
+    attempts from the same source, so guessing against either must build
+    toward the same limit. The failure ledger keeps them distinguishable.
+    """
     settings = get_settings()
     window_start = _window_start()
     failures = (
         db.query(LoginAttempt)
         .filter(
-            LoginAttempt.identifier == "friend-register",
+            LoginAttempt.identifier.in_(_REGISTRATION_IDENTIFIERS),
             LoginAttempt.client_ip == client_ip,
             LoginAttempt.success.is_(False),
             LoginAttempt.created_at >= window_start,
@@ -371,12 +383,12 @@ async def register(
     # (403) — the same existence oracle login deliberately avoids. Only a
     # caller demonstrating a valid invite may learn an email is taken.
     if not _invite_valid(request_body.invite_code):
-        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
+        _record_attempt(db, _REGISTER_IDENTIFIER, success=False, client_ip=client_ip)
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid invite code")
 
     email = request_body.email.strip().lower()
     if db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None:
-        _record_attempt(db, "friend-register", success=False, client_ip=client_ip)
+        _record_attempt(db, _REGISTER_IDENTIFIER, success=False, client_ip=client_ip)
         raise HTTPException(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         )
@@ -398,7 +410,7 @@ async def register(
         )
     )
     db.commit()
-    _record_attempt(db, "friend-register", success=True, client_ip=client_ip)
+    _record_attempt(db, _REGISTER_IDENTIFIER, success=True, client_ip=client_ip)
     auth_metrics.get_auth_metrics().login_success.inc()
     security_audit_log.record_event(
         db,
@@ -506,17 +518,17 @@ async def register_invite(
     )
     if outcome == diver_invites.REDEEM_INVALID:
         # Unknown, used, revoked and expired are deliberately identical.
-        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        _record_attempt(db, _REGISTER_INVITE_IDENTIFIER, success=False, client_ip=client_ip)
         return _invite_error(404, "link_invalid", "Link not found")
     if outcome == diver_invites.REDEEM_DIVER_CLAIMED:
-        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        _record_attempt(db, _REGISTER_INVITE_IDENTIFIER, success=False, client_ip=client_ip)
         return _invite_error(
             409,
             "diver_claimed",
             "These dives already belong to another account",
         )
     if outcome == diver_invites.REDEEM_EMAIL_TAKEN:
-        _record_attempt(db, "diver-invite-register", success=False, client_ip=client_ip)
+        _record_attempt(db, _REGISTER_INVITE_IDENTIFIER, success=False, client_ip=client_ip)
         return _invite_error(
             409,
             "email_taken",
@@ -524,7 +536,7 @@ async def register_invite(
         )
     assert user is not None and invite is not None
 
-    _record_attempt(db, "diver-invite-register", success=True, client_ip=client_ip)
+    _record_attempt(db, _REGISTER_INVITE_IDENTIFIER, success=True, client_ip=client_ip)
     auth_metrics.get_auth_metrics().login_success.inc()
     security_audit_log.record_event(
         db,

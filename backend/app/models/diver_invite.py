@@ -10,7 +10,7 @@ invited diver, so the clips already tied to that diver name become theirs.
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, text
 
 from app.database import Base
 
@@ -39,6 +39,18 @@ class DiverInvite(Base):
 
     __table_args__ = (
         Index("ix_diver_invites_live", "diver_id", "used_at", "revoked_at"),
+        # One LIVE invite per diver, enforced by the database rather than by
+        # application timing: concurrent mints serialize here and exactly one
+        # wins, so a bearer credential never accumulates. Partial (WHERE) and
+        # therefore not portable to every dialect — Postgres and SQLite, the
+        # two we support, both honour it.
+        Index(
+            "uq_diver_invites_one_live",
+            "diver_id",
+            unique=True,
+            sqlite_where=text("used_at IS NULL AND revoked_at IS NULL"),
+            postgresql_where=text("used_at IS NULL AND revoked_at IS NULL"),
+        ),
     )
 
     @property
