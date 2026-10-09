@@ -1,4 +1,4 @@
-import { primaryTabFor } from './navigation/mobileNavigation'
+import { primaryTabFor, type PrimaryTab } from './navigation/mobileNavigation'
 import { useMobileNavPolicy, useTabMemory } from './navigation/useMobileNavigation'
 import './navigation/mobileNavigation.css'
 import { useModalOverlay } from './utils/overlays'
@@ -24,6 +24,7 @@ import { useAuth } from "./contexts/AuthContext";
 import MemberAvatar from './components/MemberAvatar'
 import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
 import { NotificationsProvider, NotificationsButton } from "./components/Notifications";
+import { MessagesUnreadProvider, MessagesUnreadBadge, useMessagesUnreadAria } from "./components/MessagesUnread";
 import {
   BarChart3,
   Send,
@@ -149,10 +150,12 @@ function AppNavLink({
   emphasis = false,
 }: NavItem & { emphasis?: boolean }) {
   const { t } = useTranslation();
+  const messagesAria = useMessagesUnreadAria();
   return (
     <IntentNavLink
       to={to}
       end={to === "/"}
+      aria-label={to === "/messages" ? messagesAria : undefined}
       className={({ isActive }) =>
         [
           "flex items-center gap-3 border border-transparent px-3 py-2.5 transition-colors",
@@ -165,6 +168,7 @@ function AppNavLink({
     >
       <Icon className={emphasis ? "h-5 w-5" : "h-4 w-4"} />
       <span>{t(label)}</span>
+      {to === "/messages" && <MessagesUnreadBadge className="ml-auto" />}
     </IntentNavLink>
   );
 }
@@ -346,6 +350,30 @@ function MobileNavigation() {
   );
 }
 
+function MobileTabLink({ item, active, location, remembered }: {
+  item: NavItem;
+  active: PrimaryTab | null;
+  location: ReturnType<typeof useLocation>;
+  remembered: ReturnType<typeof useTabMemory>;
+}) {
+  const { t } = useTranslation();
+  const messagesAria = useMessagesUnreadAria();
+  const { to, label, icon: Icon } = item;
+  const tab = primaryTabFor(to), memory = remembered(tab);
+  const rootActive = active === tab && location.pathname.replace(/\/$/, '') === to;
+  const destination = active === tab ? (rootActive ? location.pathname + location.search : to) : memory?.url ?? to;
+  return <IntentNavLink primaryActive={active === tab} to={destination} aria-current={active === tab ? 'page' : undefined}
+    aria-label={tab === 'messages' ? messagesAria : undefined}
+    state={{ mobileTabRestore: active === tab ? 0 : memory?.scroll ?? 0 }}
+    className={`mobile-tab ${active === tab ? 'mobile-tab-active' : ''}`}
+    onClick={event => {
+      if (rootActive && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+        event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      }
+    }}><span className="relative"><Icon className="h-5 w-5" />
+      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span>{t(label)}</span></IntentNavLink>;
+}
+
 function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
   const { t } = useTranslation();
   const location = useLocation();
@@ -366,19 +394,7 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
   }, [policy]);
   if (policy !== 'visible') return null;
   return <nav ref={bar} className="mobile-tab-bar lg:hidden" aria-label={t('nav.primaryNavigationAria')}>
-    {primaryNav.map(({ to, label, icon: Icon }) => {
-      const tab = primaryTabFor(to), memory = remembered(tab);
-      const rootActive = active === tab && location.pathname.replace(/\/$/, '') === to;
-      const destination = active === tab ? (rootActive ? location.pathname + location.search : to) : memory?.url ?? to;
-      return <IntentNavLink primaryActive={active === tab} key={to} to={destination} aria-current={active === tab ? 'page' : undefined}
-        state={{ mobileTabRestore: active === tab ? 0 : memory?.scroll ?? 0 }}
-        className={`mobile-tab ${active === tab ? 'mobile-tab-active' : ''}`}
-        onClick={event => {
-          if (rootActive && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
-            event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-          }
-        }}><Icon className="h-5 w-5" /><span>{t(label)}</span></IntentNavLink>;
-    })}
+    {primaryNav.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} />)}
   </nav>;
 }
 
@@ -562,7 +578,7 @@ function Router() {
         path="*"
         element={
           <AuthGuard>
-            <WhatsNewProvider><NotificationsProvider><Layout>
+            <WhatsNewProvider><NotificationsProvider><MessagesUnreadProvider><Layout>
               <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">{t("common.loadingPage")}</p>}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
@@ -608,7 +624,7 @@ function Router() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </Layout></NotificationsProvider></WhatsNewProvider>
+            </Layout></MessagesUnreadProvider></NotificationsProvider></WhatsNewProvider>
           </AuthGuard>
         }
       />

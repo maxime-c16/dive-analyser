@@ -810,6 +810,7 @@ const fr = {
   },
   nav: {
     messages: "Messages",
+    messagesUnreadAria: "Messages, {{count}} non lus",
     community: "Communauté",
     dives: 'Bibliothèque',
     evaluations: 'Évaluations',

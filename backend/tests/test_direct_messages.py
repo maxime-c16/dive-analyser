@@ -1,6 +1,6 @@
 from uuid import uuid4
 from tests.test_member_dive_visibility import workspace
-from app.models.direct_message import DirectMessage, MessageReceipt, ConversationParticipant
+from app.models.direct_message import Conversation, DirectMessage, MessageReceipt, ConversationParticipant
 from app.models.notification import Notification
 
 
@@ -97,3 +97,30 @@ def test_message_pagination_and_origin_guard(workspace):
     assert len({m['id'] for m in first['items'] + second['items']}) == 55
     assert first['items'][0]['id'] < first['items'][-1]['id']
     assert second['next_before'] is None
+
+
+def test_unread_count_aggregates_beyond_inbox_pages(workspace):
+    db, login, _, users, _ = workspace
+    alice, bob = users['alice'], users['bob']
+    conversations = [Conversation(kind='direct', direct_key=f'{alice.id}:{bob.id}:{i}') for i in range(251)]
+    db.add_all(conversations)
+    db.commit()
+    db.add_all([ConversationParticipant(conversation_id=c.id, user_id=u.id) for c in conversations for u in (alice, bob)])
+    db.commit()
+    db.add_all([DirectMessage(conversation_id=c.id, sender_id=bob.id, client_id=str(uuid4()), body='ping') for c in conversations])
+    db.commit()
+    ids = [c.id for c in conversations]
+    db.add_all([MessageReceipt(message_id=m.id, user_id=alice.id) for m in db.query(DirectMessage).filter(DirectMessage.conversation_id.in_(ids))])
+    db.commit()
+    client = login('alice')
+    # Even the largest inbox page (50) cannot reach row 251 in five pages.
+    assert len(client.get('/api/v1/messages/conversations?limit=50').json()['items']) == 50
+    assert client.get('/api/v1/messages/unread-count').json()['unread_count'] == 251
+    assert login('bob').get('/api/v1/messages/unread-count').json()['unread_count'] == 0
+    # login() swaps the shared client cookie, so sign back in as alice.
+    client = login('alice')
+    cid = client.get('/api/v1/messages/conversations').json()['items'][0]['id']
+    visible = [m['id'] for m in client.get(f'/api/v1/messages/conversations/{cid}/messages').json()['items']]
+    # Reading one conversation decrements the aggregate.
+    assert client.post(f'/api/v1/messages/conversations/{cid}/receipts', json={'message_ids': visible, 'read': True}).status_code == 204
+    assert client.get('/api/v1/messages/unread-count').json()['unread_count'] == 250
