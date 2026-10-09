@@ -14,7 +14,7 @@ import type { Attempt } from "../../utils/attemptPresentation";
 import { attemptDate } from "../../utils/attemptPresentation";
 import { cachedPreview, getPreview } from "../../utils/mediaPreview";
 import { warmAdjacentClips } from "../../utils/playbackWarming";
-import { inertExcept, trapTabKey } from "../../utils/a11y";
+import { useModalOverlay, isTopOverlay } from "../../utils/overlays";
 import type { FeedDragEnd } from "./ImmersiveControls";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation from "./ClipViewerNavigation";
@@ -230,11 +230,8 @@ export default function ClipViewer({
   const panelRef = useRef<HTMLElement>(null);
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
   const commentsButtonRef = useRef<HTMLButtonElement>(null);
-  const returnFocus = useRef<HTMLButtonElement | null>(null);
+  const scrimRef = useRef<HTMLButtonElement>(null);
   const closePanel = () => {
-    returnFocus.current = (
-      commentsOpen ? commentsButtonRef : detailsButtonRef
-    ).current;
     setDetailsOpen(false);
     setCommentsOpen(false);
     setManageOpen(false);
@@ -569,53 +566,15 @@ export default function ClipViewer({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
-  useEffect(() => {
-    if (!panelRef.current) return;
-    panelRef.current.toggleAttribute("inert", !wide && !panelOpen);
+  useLayoutEffect(() => {
+    panelRef.current?.toggleAttribute("inert", !wide && !panelOpen);
   }, [wide, panelOpen]);
-  useEffect(() => {
-    if (panelOpen && panelRef.current) {
-      const restore = inertExcept(panelRef.current);
-      // The backdrop remains a pointer dismissal target, outside the Tab order.
-      dialogRef.current?.querySelector('.clip-panel-scrim')?.removeAttribute('inert');
-      return restore;
-    }
-  }, [panelOpen]);
-
-  useEffect(() => {
-    if (panelOpen) panelRef.current?.focus({ preventScroll: true });
-    else if (returnFocus.current) {
-      returnFocus.current.focus({ preventScroll: true });
-      returnFocus.current = null;
-    }
-  }, [panelOpen]);
-
-  // Focus enters the review surface on open; the Library stays mounted below.
-  useEffect(() => {
-    dialogRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  // Lock the underlying Library while review mode is open.
-  useEffect(() => {
-    const bodyOverflow = document.body.style.overflow;
-    const documentOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = documentOverflow;
-    };
-  }, []);
-
-  // Modal interaction model: the viewer visually covers the Library, so the
-  // rest of the page (sidebar, mobile navigation, the mounted Library) is
-  // made inert — unreachable for focus, pointer and assistive technology —
-  // and Tab/Shift+Tab are kept inside the review surface.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    return inertExcept(dialog);
-  }, []);
+  useModalOverlay(dialogRef, { onClose,
+    fallbackFocus: () => document.querySelector<HTMLInputElement>('input[data-dives-search]'),
+  });
+  useModalOverlay(panelRef, { enabled: panelOpen, layer: 51, extraRef: scrimRef, onClose: closePanel,
+    returnFocus: () => (commentsOpen ? commentsButtonRef : detailsButtonRef).current,
+  });
 
   // Slide the rolling warm window so Previous/Next feel instant: status
   // lookups resolve into the shared preview cache (which the player seeds
@@ -675,17 +634,7 @@ export default function ClipViewer({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        if (panelOpen) closePanel();
-        else onClose();
-        return;
-      }
-      if (event.key === "Tab") {
-        const dialog = panelOpen ? panelRef.current : dialogRef.current;
-        if (dialog) trapTabKey(dialog, event);
-        return;
-      }
+      if (!isTopOverlay(dialogRef.current) && !isTopOverlay(panelRef.current)) return;
       const target = event.target as HTMLElement | null;
       const element =
         target && typeof target.closest === "function" ? target : null;
@@ -919,6 +868,7 @@ export default function ClipViewer({
             <button
               type="button"
               tabIndex={-1}
+              ref={scrimRef}
               className={`clip-panel-scrim ${commentsOpen ? "clip-comments-scrim" : ""}`}
               aria-label={t("clipViewer.closeDetailsAndComments")}
               onClick={closePanel}

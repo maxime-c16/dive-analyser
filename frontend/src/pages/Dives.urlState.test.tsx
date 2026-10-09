@@ -49,11 +49,11 @@ beforeEach(() => {
 it('opening a clip pushes one history entry and preserves query params', async () => {
   renderAt('/dives?q=103&view=list')
   const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
-  const lengthBefore = window.history.length
+  const indexBefore = window.history.state.idx
   await userEvent.click(cards[0])
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
   expect(window.location.search).toBe('?q=103&view=list&clip=1')
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 })
 
 it('reloading a URL with a selected clip reopens the viewer', async () => {
@@ -74,20 +74,20 @@ it('invalid or stale clip identity fails safely and keeps the Library usable', a
 it('Next and Previous update the selected clip without history spam', async () => {
   renderAt('/dives?scope=all')
   const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
-  const lengthBefore = window.history.length
+  const indexBefore = window.history.state.idx
   await userEvent.click(cards[0])
   expect(await screen.findByText('Native player uuid-1')).toBeInTheDocument()
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 
   await userEvent.click(screen.getByRole('button', { name: 'Next' }))
   expect(await screen.findByText('Native player uuid-2')).toBeInTheDocument()
   expect(window.location.search).toBe('?scope=all&clip=2')
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 
   await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
   expect(await screen.findByText('Native player uuid-1')).toBeInTheDocument()
   expect(window.location.search).toBe('?scope=all&clip=1')
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 })
 
 it('the position counter N / TOTAL reflects the filtered result set', async () => {
@@ -151,19 +151,19 @@ it('Escape closes the viewer', async () => {
 it('Shift+ArrowLeft / Shift+ArrowRight move through the result set with REPLACE', async () => {
   renderAt('/dives?scope=all')
   const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
-  const lengthBefore = window.history.length
+  const indexBefore = window.history.state.idx
   await userEvent.click(cards[0])
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
 
   fireEvent.keyDown(document, { key: 'ArrowRight', shiftKey: true })
   expect(await screen.findByText('Native player uuid-2')).toBeInTheDocument()
   expect(window.location.search).toBe('?scope=all&clip=2')
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 
   fireEvent.keyDown(document, { key: 'ArrowLeft', shiftKey: true })
   expect(await screen.findByText('Native player uuid-1')).toBeInTheDocument()
   expect(window.location.search).toBe('?scope=all&clip=1')
-  expect(window.history.length).toBe(lengthBefore + 1)
+  expect(window.history.state.idx).toBe(indexBefore + 1)
 })
 
 it('plain ArrowLeft/ArrowRight do not hijack clip navigation or native video seek', async () => {
@@ -277,4 +277,60 @@ it('a library load failure exposes what failed and a working Retry', async () =>
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect((await screen.findAllByRole('button', { name: /Open 103B attempt/ })).length).toBeGreaterThan(0)
   expect(screen.queryByText('The dive library could not be loaded.')).not.toBeInTheDocument()
+})
+
+it('closing an in-library viewer then Back reaches the preceding page, without a duplicate Library entry', async () => {
+  window.history.pushState(null, '', '/messages/42')
+  window.history.pushState(null, '', '/dives?q=103&view=list')
+  renderAt('/dives?q=103&view=list')
+  const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
+  await userEvent.click(cards[0])
+  await screen.findByRole('dialog')
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+  await screen.findByText('Native player uuid-2')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(window.location.search).toBe('?q=103&view=list')
+  window.history.back()
+  await waitFor(() => expect(window.location.pathname).toBe('/messages/42'))
+})
+
+it.each(['/users/5', '/messages/42'])('closing a clip linked from %s stays in Library and Back returns to its source', async source => {
+  window.history.pushState(null, '', source)
+  window.history.pushState(null, '', '/dives?scope=all&clip=2')
+  renderAt('/dives?scope=all&clip=2')
+  await screen.findByRole('dialog')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(window.location.pathname).toBe('/dives')
+  expect(window.location.search).toBe('?scope=all')
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search dives' })).toHaveFocus())
+  window.history.back()
+  await waitFor(() => expect(window.location.pathname).toBe(source))
+})
+
+
+it('keeps changed filters on close instead of returning to a stale Library entry', async () => {
+  renderAt('/dives?q=103')
+  const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
+  await userEvent.click(cards[0]); await screen.findByRole('dialog')
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search dives' }), { target: { value: '103B' } })
+  await waitFor(() => expect(window.location.search).toContain('q=103B'))
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(window.location.search).toBe('?q=103B')
+})
+
+
+it('recognizes an in-library opener with noncanonical URL encoding', async () => {
+  window.history.pushState(null, '', '/community')
+  window.history.pushState(null, '', '/dives?q=103&from=message%20link')
+  renderAt('/dives?q=103&from=message%20link')
+  const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
+  await userEvent.click(cards[0]); await screen.findByRole('dialog')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(window.location.search).toBe('?q=103&from=message%20link')
+  window.history.back()
+  await waitFor(() => expect(window.location.pathname).toBe('/community'))
 })

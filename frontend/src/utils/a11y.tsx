@@ -5,38 +5,14 @@ import React from "react";
  * Deliberately tiny: helpers, not a framework.
  */
 
-/**
- * Apply `inert` to everything that is NOT on the ancestor chain of the
- * given container (siblings at every level up to document.body).
- *
- * This makes the rest of the page — sidebars, mobile navigation, the
- * Library mounted beneath a full-viewport dialog — unreachable for focus,
- * pointer events and assistive technology, matching the visual model of a
- * modal review surface. Previously-inert elements are preserved exactly
- * and restored on cleanup.
- */
-export function inertExcept(container: HTMLElement): () => void {
-  const restore: Array<[Element, boolean]> = [];
-  const apply = (element: Element) => {
-    const previouslyInert = element.hasAttribute("inert");
-    if (!previouslyInert) element.setAttribute("inert", "");
-    restore.push([element, previouslyInert]);
-  };
-  let node: Element | null = container;
-  while (node && node !== document.body) {
-    const parent: Element | null = node.parentElement;
-    if (!parent) break;
-    const current: Element = node;
-    Array.from(parent.children).forEach((child) => {
-      if (child !== current) apply(child);
-    });
-    node = parent;
+export function isVisible(element: HTMLElement) {
+  let node: HTMLElement | null = element;
+  while (node) {
+    const style = getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    node = node.parentElement;
   }
-  return () => {
-    for (const [element, previouslyInert] of restore.reverse()) {
-      if (!previouslyInert) element.removeAttribute("inert");
-    }
-  };
+  return true;
 }
 
 const FOCUSABLE_SELECTORS = [
@@ -66,7 +42,8 @@ export function trapTabKey(
     container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS),
   ).filter(
     (element) =>
-      !element.hasAttribute("disabled") &&
+      isVisible(element) &&
+      !element.matches(":disabled") &&
       !element.closest("[hidden], [inert]") &&
       element.getAttribute("aria-hidden") !== "true",
   );
@@ -79,12 +56,12 @@ export function trapTabKey(
   const last = focusable[focusable.length - 1];
   const active = container.ownerDocument.activeElement;
   const outside = !container.contains(active);
-  if (event.shiftKey && (outside || active === first)) {
+  if (event.shiftKey && (outside || active === container || active === first)) {
     event.preventDefault();
     last.focus();
     return true;
   }
-  if (!event.shiftKey && (outside || active === last)) {
+  if (!event.shiftKey && (outside || active === container || active === last)) {
     event.preventDefault();
     first.focus();
     return true;

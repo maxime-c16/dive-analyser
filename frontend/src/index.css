@@ -305,3 +305,6 @@ select {
     border-radius: 0.5rem;
   }
 }
+
+/* Reserved by future mobile navigation; this PR introduces no bottom bar. */
+:root { --mobile-nav-offset: 0px; }

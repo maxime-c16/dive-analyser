@@ -1,3 +1,4 @@
+import { useModalOverlay } from '../utils/overlays'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { appLanguage } from '../utils/dateLocale'
@@ -121,10 +122,13 @@ function CandidatePanel({
   onReplace: (candidate: ReplacementCandidate, prepare: boolean) => void
 }) {
   const { t } = useTranslation()
+  const panelRef = useRef<HTMLElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useModalOverlay(panelRef, { enabled: !!selected, isolationRef: overlayRef, onClose })
   if (!selected) return null
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <aside role="dialog" aria-modal="true" aria-label={t('repMedia.candidatesAria')} className="h-full w-full max-w-xl overflow-y-auto border-l border-app bg-app-panel p-4 sm:p-5">
+    <div ref={overlayRef} className="fixed inset-0 z-50 flex justify-end bg-black/55" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <aside ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('repMedia.candidatesAria')} className="h-full w-full max-w-xl overflow-y-auto border-l border-app bg-app-panel p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 border-b border-app pb-4">
           <div>
             <h2 className="text-xl font-semibold text-app-text">{t('repMedia.candidates')}</h2>

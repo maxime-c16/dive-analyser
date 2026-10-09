@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useModalOverlay } from '../utils/overlays'
+import { useEffect, useRef, useState } from 'react'
 import { History, KeyRound, ShieldCheck } from 'lucide-react'
 import { listAccountHistory, listAccountSessions, resetPassword, revokeAccountSession, revokeSessions, type AccountAuditEvent, type AccountSession } from '../services/adminUsersApi'
 
@@ -6,8 +7,10 @@ const stamp = (value: string | null) => value ? new Date(value).toLocaleString(u
 const eventName = (event: AccountAuditEvent) => event.details.new_role ? `Role changed to ${event.details.new_role}` : ({ user_created: 'Account created', user_updated: 'Profile updated', user_disabled: 'Account disabled', user_enabled: 'Account enabled', password_reset: 'Password reset', password_changed: 'Password changed', session_revoked: 'Session signed out', ownership_granted: 'Diver ownership granted', ownership_revoked: 'Diver ownership removed', login_rate_limited: 'Login rate limited' }[event.event_type] ?? event.event_type.replace(/_/g, ' '))
 
 export function AccountActionDialog({ title, children, busy, onCancel, onConfirm }: { title: string; children: React.ReactNode; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
-  useEffect(() => { const previous = document.activeElement as HTMLElement; return () => { previous?.focus() } }, [])
-  return <div className="account-modal-backdrop"><div className="account-modal" role="dialog" aria-modal="true" aria-label={title} onKeyDown={event => { if (event.key === 'Escape' && !busy) onCancel(); if (event.key === 'Tab') { const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')); if (document.activeElement === (event.shiftKey ? buttons[0] : buttons[buttons.length - 1])) { event.preventDefault(); (event.shiftKey ? buttons[buttons.length - 1] : buttons[0])?.focus() } } }}><h2>{title}</h2>{children}<div><button autoFocus className="account-button" disabled={busy} onClick={onCancel}>Cancel</button><button className="account-button primary" disabled={busy} onClick={onConfirm}>{busy ? 'Working…' : 'Confirm'}</button></div></div></div>
+  const ref = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useModalOverlay(ref, { layer: 100, isolationRef: overlayRef, initialFocus: () => ref.current?.querySelector<HTMLButtonElement>('button') ?? null, onClose: () => { if (!busy) onCancel() } })
+  return <div ref={overlayRef} className="account-modal-backdrop"><div ref={ref} tabIndex={-1} className="account-modal" role="dialog" aria-modal="true" aria-label={title}><h2>{title}</h2>{children}<div><button className="account-button" disabled={busy} onClick={onCancel}>Cancel</button><button className="account-button primary" disabled={busy} onClick={onConfirm}>{busy ? 'Working…' : 'Confirm'}</button></div></div></div>
 }
 
 export default function AccountSecurity({ accountId, section, self, onRefresh }: { accountId: number; section: string; self: boolean; onRefresh: () => Promise<void> }) {

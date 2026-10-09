@@ -10,7 +10,7 @@ import DiveVideoPlayer from './DiveVideoPlayer'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { appLocale } from '../utils/dateLocale'
-import { inertExcept, trapTabKey } from '../utils/a11y'
+import { useModalOverlay } from '../utils/overlays'
 import { isSuccessfulPerformance, performanceScore10 } from '../utils/performanceScoring'
 
 interface Dive {
@@ -88,28 +88,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
   const [selectedDive, setSelectedDive] = useState<Dive | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<Element | null>(null)
-
-  // Modal focus contract (same primitives as the canonical ClipViewer):
-  // background inert while open, Tab trapped inside the dialog, Escape
-  // closes, focus returns to the opening control.
-  useEffect(() => {
-    triggerRef.current = document.activeElement
-    const overlay = overlayRef.current
-    const dialog = dialogRef.current
-    const restoreInert = overlay ? inertExcept(overlay) : undefined
-    dialog?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { onClose(); return }
-      if (event.key === 'Tab' && dialog) trapTabKey(dialog, event)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      restoreInert?.()
-      ;(triggerRef.current as HTMLElement | null)?.focus?.()
-    }
-  }, [onClose])
+  useModalOverlay(dialogRef, { isolationRef: overlayRef, onClose })
 
   useEffect(() => {
     fetchSessionDives()

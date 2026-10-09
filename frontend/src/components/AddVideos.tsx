@@ -1,3 +1,4 @@
+import { useModalOverlay } from '../utils/overlays'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../services/api'
 import { useTranslation } from 'react-i18next'
@@ -26,6 +27,7 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
   const { user } = useAuth()
   const owners = user?.divers.filter(binding => binding.access_kind === 'OWNER') || []
   const input = useRef<HTMLInputElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
   const [clips, setClips] = useState<Clip[]>([])
   const [index, setIndex] = useState(0)
   const [diver, setDiver] = useState('')
@@ -36,7 +38,12 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
   const [preview, setPreview] = useState('')
   const [saved, setSaved] = useState(0)
   const form = useRef<HTMLFormElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const stop = () => { if (!busy && window.confirm(t('addVideos.confirmStop'))) { setClips([]); onAdded() } }
   const clip = clips[index]
+  useModalOverlay(form, { enabled: !!clip, isolationRef: overlayRef, onClose: stop, returnFocus: () => trigger.current,
+    initialFocus: () => form.current?.querySelector<HTMLInputElement>('input[placeholder="103B"]') ?? null,
+  })
   useEffect(() => {
     if (!clip) { setPreview(''); return }
     const url = URL.createObjectURL(clip.file)
@@ -81,23 +88,17 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
       setClips(selected.map(file => ({ file, id: newUploadId(), date: localDate(new Date(file.lastModified || Date.now())), code: '', height: '3m', rating: 'M', notes: '', public: false, evaluation: false, evaluationPrompt: '' })))
       setIndex(0); setSaved(0); setDiver(String(owners[0].diver_id)); setNotice(''); setError('')
     }} />
-    <button type="button" className="touch-target border border-app-accent px-3 text-sm text-app-accent" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
+    <button ref={trigger} type="button" className="touch-target border border-app-accent px-3 text-sm text-app-accent" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
     {notice && <p role="status" className="text-sm text-app-muted">{notice}</p>}
-    {clip && <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="add-video-title">
-      <form ref={form} onKeyDown={event => {
-        if (event.key !== 'Tab') return
-        const nodes = Array.from(form.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video') || [])
-        const first = nodes[0], last = nodes[nodes.length - 1]
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
-      }} onSubmit={save} className="mx-auto max-w-xl space-y-4 border border-app bg-app-panel p-4 sm:p-6">
-        <div className="flex items-center justify-between gap-3"><h2 id="add-video-title" className="text-lg font-semibold">{t("addVideos.videoN", { index: index + 1, total: clips.length })}</h2><button type="button" disabled={busy} onClick={() => { if (window.confirm(t('addVideos.confirmStop'))) { setClips([]); onAdded() } }}>{t("common.close")}</button></div>
+    {clip && <div ref={overlayRef} className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="add-video-title">
+      <form ref={form} tabIndex={-1} onSubmit={save} className="mx-auto max-w-xl space-y-4 border border-app bg-app-panel p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3"><h2 id="add-video-title" className="text-lg font-semibold">{t("addVideos.videoN", { index: index + 1, total: clips.length })}</h2><button type="button" disabled={busy} onClick={stop}>{t("common.close")}</button></div>
         <p className="break-all text-sm text-app-muted">{clip.file.name}</p>
         <video key={preview} src={preview} controls playsInline preload="metadata" className="max-h-64 w-full bg-black" />
         <p className="text-xs text-app-muted">{t("addVideos.addedAs", { name: user?.display_name })}</p>
         {owners.length > 1 && <label className="block">{t("addVideos.diver")}<select className="app-input w-full" value={diver} onChange={event => setDiver(event.target.value)} disabled={busy}>{owners.map(owner => <option key={owner.diver_id} value={owner.diver_id}>{t("addVideos.myDiverN", { id: owner.diver_id })}</option>)}</select></label>}
         <fieldset disabled={busy} className="grid grid-cols-2 gap-3">
-          <label>{t("addVideos.code")}<input autoFocus required pattern="(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]" placeholder="103B" className="app-input w-full" value={clip.code} onChange={event => patch({ code: event.target.value.toUpperCase() })} /></label>
+          <label>{t("addVideos.code")}<input required pattern="(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]" placeholder="103B" className="app-input w-full" value={clip.code} onChange={event => patch({ code: event.target.value.toUpperCase() })} /></label>
           <label>{t("addVideos.height")}<select className="app-input w-full" value={clip.height} onChange={event => patch({ height: event.target.value })}>{['1m', '3m', '5m', '7.5m', '10m'].map(height => <option key={height}>{height}</option>)}</select></label>
           <label>{t("addVideos.rating")}<select className="app-input w-full" value={clip.rating} onChange={event => patch({ rating: event.target.value })}>{['F', 'B', 'M', 'G', 'P'].map(rating => <option key={rating} value={rating}>{performanceLabel(rating)}</option>)}</select></label>
           <label className="col-span-2 sm:col-span-1">{t("addVideos.date")}<input required type="datetime-local" className="app-input w-full" value={clip.date} onChange={event => patch({ date: event.target.value })} /></label>

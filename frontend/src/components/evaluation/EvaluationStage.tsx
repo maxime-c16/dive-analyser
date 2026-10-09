@@ -14,6 +14,7 @@
  *   scroll instead).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useModalOverlay } from '../../utils/overlays'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, MessageSquare } from 'lucide-react'
@@ -44,7 +45,6 @@ export default function EvaluationStage({
 }) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
-  const restoreFocusRef = useRef<HTMLElement | null>(null)
   const [promptOpen, setPromptOpen] = useState(false)
   const [chromeRevealed, setChromeRevealed] = useState(false)
   const chromeTimer = useRef<number | null>(null)
@@ -62,56 +62,9 @@ export default function EvaluationStage({
     return () => { if (chromeTimer.current) window.clearTimeout(chromeTimer.current) }
   }, [hideChrome])
 
-  useEffect(() => {
-    if (!open) return
-    restoreFocusRef.current = document.activeElement as HTMLElement | null
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    containerRef.current?.focus()
-    return () => {
-      document.body.style.overflow = previousOverflow
-      // The queue load unmounts the Start button before this portal mounts,
-      // so the captured origin is often <body>. Restore to the page's own
-      // action (landing Start / summary Évaluer encore) whenever it exists.
-      const pageAction =
-        document.querySelector<HTMLElement>('.eval-start') ||
-        document.querySelector<HTMLElement>('.eval-summary .eval-pass')
-      const target = (restoreFocusRef.current as HTMLElement | null)?.tagName === 'BODY' || !restoreFocusRef.current
-        ? pageAction
-        : restoreFocusRef.current
-      target?.focus?.()
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation()
-        onClose()
-        return
-      }
-      if (event.key !== 'Tab') return
-      const nodes = Array.from(
-        containerRef.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video, a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      )
-      const visibleNodes = nodes.filter(node => getComputedStyle(node).visibility !== 'hidden')
-      if (!visibleNodes.length) return
-      const first = visibleNodes[0]
-      const last = visibleNodes[visibleNodes.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [open, onClose])
+  useModalOverlay(containerRef, { enabled: open, layer: 80, onClose,
+    fallbackFocus: () => document.querySelector<HTMLElement>('.eval-start, .eval-summary .eval-pass'),
+  })
 
   if (!open) return null
   return createPortal(
