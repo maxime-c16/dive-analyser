@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,7 +6,7 @@ import { listConversations } from '../services/messagesApi'
 import { primaryTabFor } from '../navigation/mobileNavigation'
 
 type MessagesUnreadContextValue = {
-  /** Sum of unread_count across the inbox page the badge polls. */
+  /** Sum of unread_count across the inbox pages the badge polls. */
   unreadCount: number
   /** Re-read the inbox now (after a read receipt, on focus, on demand). */
   refresh: () => void
@@ -33,12 +33,28 @@ export function MessagesUnreadProvider({ children }: { children: React.ReactNode
 
 function AccountMessagesUnread({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
+  const request = useRef(0)
 
   const refresh = useCallback(async () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    // Newest conversations first: unread rows almost always sit in the first
+    // pages, but the cursor is followed anyway so older threads count too.
+    // Bounded like the inbox itself — deep history is opened on demand.
+    const MAX_PAGES = 5
+    const ticket = ++request.current
     try {
-      const page = await listConversations()
-      setUnreadCount(page.items.reduce((total, conversation) => total + (conversation.unread_count ?? 0), 0))
+      let cursor: string | undefined
+      let total = 0
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const data = await listConversations(cursor, 50)
+        // A poll or a receipt-triggered refresh started later wins; a late
+        // response must never restore a count the user has already cleared.
+        if (ticket !== request.current) return
+        total += data.items.reduce((sum, conversation) => sum + (conversation.unread_count ?? 0), 0)
+        if (!data.next_before) break
+        cursor = data.next_before
+      }
+      setUnreadCount(total)
     } catch {
       // Badge-only: keep the last known count, never surface an error here.
     }

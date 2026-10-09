@@ -15,7 +15,13 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
   return response.status === 204 ? undefined as T : response.json()
 }
 export const startConversation = (user_id: number) => request<{ id: number }>('/conversations', 'POST', { user_id })
-export const listConversations = (before?: string) => request<{ items: Conversation[]; next_before: string | null }>(`/conversations${before ? `?before=${encodeURIComponent(before)}` : ''}`)
+export const listConversations = (before?: string, limit?: number) => {
+  const query = new URLSearchParams()
+  if (before) query.set('before', before)
+  if (limit) query.set('limit', String(limit))
+  const search = query.toString()
+  return request<{ items: Conversation[]; next_before: string | null }>(`/conversations${search ? `?${search}` : ''}`)
+}
 export const getConversation = (id: number) => request<Conversation>(`/conversations/${id}`)
 export const getMessages = (id: number, before?: number) => request<{ items: Message[]; next_before: number | null }>(`/conversations/${id}/messages${before ? `?before=${before}` : ''}`)
 export const sendMessage = (id: number, value: { client_id: string; body?: string; mentions?: Mention[]; dive_id?: number }) => request<Message>(`/conversations/${id}/messages`, 'POST', value)

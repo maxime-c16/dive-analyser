@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { MessagesUnreadBadge, MessagesUnreadProvider, useMessagesUnread, useMessagesUnreadAria } from './MessagesUnread'
@@ -10,8 +10,15 @@ vi.mock('../contexts/AuthContext', () => ({
 }))
 
 type Row = { id: number; unread_count?: number }
+type Page = { items: Row[]; next_before: string | null }
 
 let conversations: Row[]
+let nextBefore: string | null
+let extraPages: Record<string, Page>
+
+function jsonResponse(payload: unknown) {
+  return { ok: true, json: async () => payload } as Response
+}
 
 function stubInbox() {
   vi.stubGlobal(
@@ -19,7 +26,8 @@ function stubInbox() {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString()
       if (url.startsWith('/api/v1/messages/conversations')) {
-        return { ok: true, json: async () => ({ items: conversations, next_before: null }) } as Response
+        const before = new URLSearchParams(url.split('?')[1] ?? '').get('before')
+        return jsonResponse(before ? (extraPages[before] ?? { items: [], next_before: null }) : { items: conversations, next_before: nextBefore })
       }
       throw new Error(`unexpected ${url}`)
     }),
@@ -56,6 +64,8 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   conversations = [{ id: 1, unread_count: 2 }, { id: 2, unread_count: 1 }, { id: 3 }]
+  nextBefore = null
+  extraPages = {}
   stubInbox()
 })
 
@@ -93,6 +103,34 @@ describe('MessagesUnread badge', () => {
     conversations = [{ id: 1, unread_count: 120 }]
     renderAt('/dives')
     expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('99+')
+  })
+
+  it('follows the inbox cursor so older conversations count too', async () => {
+    conversations = [{ id: 1, unread_count: 1 }]
+    nextBefore = '2026-10-09T00:00:00,7'
+    extraPages = { '2026-10-09T00:00:00,7': { items: [{ id: 9, unread_count: 4 }], next_before: null } }
+    renderAt('/dives')
+    expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('5')
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input)).some(url => url.includes('before='))).toBe(true)
+  })
+
+  it('never lets a superseded response restore a cleared count', async () => {
+    let release!: (response: Response) => void
+    const hanging = new Promise<Response>(resolve => { release = resolve })
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      // The first (initial) load hangs; any later refresh answers immediately.
+      if (String(input).includes('/api/v1/messages/conversations') && ++calls === 1) return hanging
+      return Promise.resolve(jsonResponse({ items: [{ id: 1 }], next_before: null }))
+    }))
+    renderAt('/dives')
+    fireEvent.click(screen.getByRole('button', { name: 'Resync' }))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(screen.getByTestId('unread-count')).toHaveTextContent('0'))
+    // The stale response lands afterwards with unread messages: it must be dropped.
+    await act(async () => { release(jsonResponse({ items: [{ id: 1, unread_count: 9 }], next_before: null })) })
+    expect(screen.getByTestId('unread-count')).toHaveTextContent('0')
+    expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
   })
 
   it('stays quiet (no badge, no crash) when the inbox is unreachable', async () => {
