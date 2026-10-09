@@ -1,0 +1,8 @@
+{
+  "id": "mobile-pill-navigation",
+  "date": "2026-10-09",
+  "title": "Une navigation mobile toujours à portée de main",
+  "body": "Passez entre Bibliothèque, Messages, Communauté et Évaluations avec quatre boutons en bas de l’écran. Retrouvez vos filtres, votre position et vos brouillons de messages en revenant. Le compte et les nouveautés restent accessibles depuis l’avatar ; les lecteurs et les conversations gardent toute la place pour leurs commandes.",
+  "audience": "all",
+  "components": ["frontend"]
+}

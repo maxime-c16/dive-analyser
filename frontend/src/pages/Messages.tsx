@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Send, Plus } from 'lucide-react'
@@ -8,6 +8,9 @@ import type { Conversation, Message } from '../services/messagesApi'
 import MemberPicker from '../components/messages/MemberPicker'
 import MessageBubble from '../components/messages/MessageBubble'
 import MentionComposer from '../components/mentions/MentionComposer'
+import { readMessageDraft, saveMessageDraft, readPendingSend, savePendingSend, completePendingSend, discardPendingSend } from '../navigation/messageDraft'
+import { useMobileViewport, useBottomAction } from '../navigation/useMobileNavigation'
+import '../navigation/messagesMobile.css'
 import { emptyMentionValue, mentionPayload } from '../components/mentions/mentionValue'
 
 function Thread({ id }: { id: number }) {
@@ -19,7 +22,10 @@ function Thread({ id }: { id: number }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [body, setBody] = useState(emptyMentionValue)
+  const [body, setBody] = useState(() => readMessageDraft(user?.user_id, id))
+  const viewport = useMobileViewport()
+  useBottomAction(viewport.width < 768)
+  const changeBody = (value: ReturnType<typeof emptyMentionValue>) => { if (!value.body) { sendKey.current = null; discardPendingSend(user?.user_id, id) } setBody(value); saveMessageDraft(user?.user_id, id, value) }
   const [retry, setRetry] = useState(0)
   const alive = useRef(true)
   const visible = useRef(new Set<number>())
@@ -29,7 +35,30 @@ function Thread({ id }: { id: number }) {
   const pendingLoad = useRef(false)
   const initialized = useRef(false)
   const mutation = useRef(0)
-  const sendKey = useRef<{ value: string; key: string } | null>(null)
+  const sendKey = useRef<{ value: string; key: string } | null>(readPendingSend(user?.user_id, id))
+  const thread = useRef<HTMLElement>(null)
+  const [top, setTop] = useState(0)
+  useLayoutEffect(() => {
+    if (viewport.width >= 768 || !thread.current) return
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    const measure = () => { if (thread.current) setTop(thread.current.getBoundingClientRect().top + window.scrollY) }
+    measure()
+    const observer = new ResizeObserver(measure)
+    const header = document.querySelector('.mobile-header')
+    if (header) observer.observe(header)
+    return () => observer.disconnect()
+  }, [viewport.width])
+  useEffect(() => {
+    const completed = (event: Event) => {
+      const sent = (event as CustomEvent).detail
+      if (sent.account !== user?.user_id || sent.conversation !== id) return
+      if (sendKey.current?.key !== sent.key) return
+      sendKey.current = null
+      setBody(previous => JSON.stringify(mentionPayload(previous)) === sent.value ? emptyMentionValue() : previous)
+    }
+    window.addEventListener('message-draft-sent', completed)
+    return () => window.removeEventListener('message-draft-sent', completed)
+  }, [id, user?.user_id])
   const end = useRef<HTMLDivElement>(null)
   const markVisibleRead = useCallback(async () => {
     if (!alive.current || pendingRead.current || document.visibilityState !== 'visible' || !document.hasFocus()) return
@@ -79,10 +108,10 @@ function Thread({ id }: { id: number }) {
   }, [id, retry, load, markVisibleRead])
   useEffect(() => { if (!loading) end.current?.scrollIntoView({ block: 'end' }) }, [loading])
   const peers = conversation?.members.filter(m => m.user_id !== user?.user_id) ?? []
-  return <section className="flex min-h-0 flex-col rounded-xl border border-app bg-app-bg">
+  return <section ref={thread} className="message-thread flex min-h-0 flex-col rounded-xl border border-app bg-app-bg" style={{ '--message-viewport-height': `${viewport.height}px`, '--message-top': `${top}px` } as React.CSSProperties}>
     <header className="border-b border-app p-4"><Link to="/messages" className="mr-3 text-sm text-app-accent">← {t('messages.title')}</Link>{peers.map(m => <Link key={m.user_id} to={`/users/${m.user_id}`} className="font-semibold">{m.display_name} </Link>)}</header>
     {error && <p role="alert" className="p-3">{t('messages.error')} <button onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
-    <div className="max-h-[60vh] min-h-[30vh] space-y-3 overflow-y-auto p-4" aria-label={t('messages.conversation')}>
+    <div className="message-history max-h-[60vh] min-h-[30vh] space-y-3 overflow-y-auto p-4" aria-label={t('messages.conversation')}>
       {loading && <p role="status">{t('common.loading')}</p>}
       {before && <button disabled={loading || busy} className="w-full p-2 text-sm text-app-accent" onClick={() => void load(before)}>{t('messages.older')}</button>}
       {!loading && !messages.length && <p className="text-app-muted">{t('messages.begin')}</p>}
@@ -94,21 +123,24 @@ function Thread({ id }: { id: number }) {
         }).catch(() => { if (alive.current) setError(true) }).finally(() => { if (alive.current) setBusy(false) })
       }} />)}<div ref={end} />
     </div>
-    <form className="border-t border-app p-3" onSubmit={async e => {
+    <form className="message-composer border-t border-app p-3" onSubmit={async e => {
       e.preventDefault()
       if (!body.body.trim() || busy) return
       const payload = mentionPayload(body), value = JSON.stringify(payload)
       if (sendKey.current?.value !== value) sendKey.current = { value, key: crypto.randomUUID() }
+      const sending = sendKey.current
+      savePendingSend(user?.user_id, id, sending)
       setBusy(true)
       try {
-        const message = await api.sendMessage(id, { ...payload, client_id: sendKey.current.key })
+        const message = await api.sendMessage(id, { ...payload, client_id: sending.key })
+        completePendingSend(user?.user_id, id, sending)
         if (!alive.current) return
         mutation.current++; setMessages(rows => [...rows.filter(m => m.id !== message.id), message].sort((a,b) => a.id-b.id))
-        setBody(emptyMentionValue()); sendKey.current = null; setError(false)
+        changeBody(emptyMentionValue()); sendKey.current = null; setError(false)
         requestAnimationFrame(() => end.current?.scrollIntoView({ block: 'end' }))
       } catch { if (alive.current) setError(true) }
       finally { if (alive.current) setBusy(false) }
-    }}><label htmlFor="direct-message" className="mb-2 block text-sm text-app-muted">{t('messages.compose')}</label><div className="flex gap-2"><MentionComposer id="direct-message" placeholder={t('messages.placeholder')} value={body} onChange={setBody} disabled={busy} /><button type="submit" aria-label={t('messages.send')} disabled={busy || !body.body.trim()} className="px-3"><Send size={20} /></button></div><p className="mt-2 text-xs text-app-muted">{t('messages.reactionHint')}</p></form>
+    }}><label htmlFor="direct-message" className="mb-2 block text-sm text-app-muted">{t('messages.compose')}</label><div className="flex gap-2"><MentionComposer id="direct-message" placeholder={t('messages.placeholder')} value={body} onChange={changeBody} disabled={busy} /><button type="submit" aria-label={t('messages.send')} disabled={busy || !body.body.trim()} className="px-3"><Send size={20} /></button></div><p className="mt-2 text-xs text-app-muted">{t('messages.reactionHint')}</p></form>
   </section>
 }
 
@@ -142,21 +174,21 @@ export default function Messages() {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') void load() }, 5000)
     return () => { alive = false; clearInterval(timer) }
   }, [retry, id])
-  return <main className="mx-auto max-w-6xl p-4 text-app-text sm:p-6"><div className="mb-5 flex items-center justify-between"><h1 className="text-2xl font-semibold">{t('messages.title')}</h1><button className="flex items-center gap-2 border border-app px-3 py-2" onClick={() => setChoose(v => !v)} aria-expanded={choose}><Plus size={18} />{t('messages.new')}</button></div>
+  return <div className={`messages-page mx-auto max-w-6xl p-4 text-app-text sm:p-6 ${id > 0 ? 'messages-page-thread' : ''}`}><div className="messages-heading mb-5 flex items-center justify-between"><h1 className="text-2xl font-semibold">{t('messages.title')}</h1><button className="flex items-center gap-2 border border-app px-3 py-2" onClick={() => setChoose(v => !v)} aria-expanded={choose}><Plus size={18} />{t('messages.new')}</button></div>
     {choose && <div className="mb-4 max-w-lg rounded-xl border border-app bg-app-panel p-4"><MemberPicker disabled={starting} onSelect={async member => {
       setStarting(true)
       try { const c = await api.startConversation(member.user_id); setChoose(false); navigate(`/messages/${c.id}`); setRetry(n => n + 1) }
       catch { setError(true) } finally { setStarting(false) }
     }} /></div>}
     {error && <p role="alert">{t('messages.error')} <button onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
-    <div className="grid gap-5 md:grid-cols-[280px_1fr]">
+    <div className="messages-grid grid gap-5 md:grid-cols-[280px_1fr]">
       <aside className={id ? 'hidden md:block' : ''} aria-label={t('messages.inbox')}>
         {loading && <p role="status">{t('common.loading')}</p>}
         {!loading && !items.length && <p className="p-4 text-app-muted">{t('messages.empty')}</p>}
         {items.map(c => <Link key={c.id} to={`/messages/${c.id}`} className={`mb-2 block rounded-xl border border-app p-3 ${c.id === id ? 'bg-app-panel-elevated' : 'bg-app-panel'}`}><strong>{c.members.filter(m => m.user_id !== user?.user_id).map(m => m.display_name).join(', ')}</strong>{!!c.unread_count && <span className="ml-2 rounded-full bg-app-accent px-2 text-app-bg">{c.unread_count}</span>}<p className="mt-1 truncate text-sm text-app-muted">{c.latest?.body || (c.latest?.dive ? t('messages.diveCard') : t('messages.begin'))}</p></Link>)}
         {before && <button onClick={async () => { try { const page = await api.listConversations(before); setItems(rows => [...new Map([...rows, ...page.items].map(c => [c.id,c])).values()]); setBefore(page.next_before) } catch { setError(true) } }}>{t('messages.more')}</button>}
       </aside>
-      {Number.isSafeInteger(id) && id > 0 ? <Thread key={id} id={id} /> : <p className="hidden p-6 text-app-muted md:block">{t('messages.choose')}</p>}
+      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} /> : <p className="hidden p-6 text-app-muted md:block">{t('messages.choose')}</p>}
     </div>
-  </main>
+  </div>
 }

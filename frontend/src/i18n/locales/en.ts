@@ -813,6 +813,7 @@ const en = {
     workspace: 'Workspace',
     primaryNavigationAria: 'Primary navigation',
     secondaryNavigationAria: 'Secondary navigation',
+    myProfile: 'My profile',
     accountNavigationAria: 'Account navigation',
     workspaceSidebarAria: 'Workspace sidebar',
     openNavigation: 'Open navigation',

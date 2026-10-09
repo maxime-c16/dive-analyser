@@ -815,6 +815,7 @@ const fr = {
     workspace: 'Espace de travail',
     primaryNavigationAria: 'Navigation principale',
     secondaryNavigationAria: 'Navigation secondaire',
+    myProfile: 'Mon profil',
     accountNavigationAria: 'Navigation du compte',
     workspaceSidebarAria: 'Barre latérale de l’espace',
     openNavigation: 'Ouvrir la navigation',

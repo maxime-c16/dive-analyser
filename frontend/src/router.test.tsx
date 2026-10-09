@@ -116,7 +116,7 @@ describe('minimal IA routing', () => {
     expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Library', 'Messages', 'Community', 'Evaluations'])
     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Operations' })).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Account navigation' }))
     expect(screen.queryByRole('navigation', { name: 'Secondary navigation' })).not.toBeInTheDocument()
   })
 
@@ -226,11 +226,11 @@ it('the main landmark exists exactly once in the shell', async () => {
   expect(screen.getAllByRole('main')).toHaveLength(1)
 })
 
-it('mobile menu isolates the page and restores its hamburger after nested update history closes', async () => {
+it('mobile menu isolates the page and restores its avatar after nested update history closes', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ schema: 1, version: '', frontend_sha: '', notes: [] }) })))
   const view = renderAt('/dives')
   await screen.findByRole('heading', { name: 'Library', level: 1 })
-  const trigger = screen.getByRole('button', { name: 'Open navigation' })
+  const trigger = screen.getByRole('button', { name: 'Account navigation' })
   await userEvent.click(trigger)
   expect(document.getElementById('main-content')?.closest('[inert]')).not.toBeNull()
   const menu = screen.getByRole('dialog')

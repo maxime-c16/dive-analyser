@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import { useBottomNotice } from '../navigation/useBottomNotice'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { AlertCircle, CheckCircle, Info, X } from 'lucide-react'
@@ -19,6 +20,8 @@ export const SyncNotifications: React.FC = () => {
   const { t } = useTranslation()
   const { lastEvent, currentSync } = useSyncStatus()
   const [toasts, setToasts] = useState<Toast[]>([])
+  const noticeElement = useRef<HTMLDivElement>(null)
+  const showNotice = useBottomNotice(noticeElement, toasts.length > 0)
 
   // Handle new events
   useEffect(() => {
@@ -84,8 +87,9 @@ export const SyncNotifications: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
+  if (!showNotice) return null
   return (
-    <div className="fixed bottom-[calc(1.5rem+var(--mobile-nav-offset,0px))] right-6 z-50 space-y-3 pointer-events-none">
+    <div ref={noticeElement} className="mobile-bottom-notice fixed bottom-[calc(1.5rem+var(--mobile-nav-offset,0px))] right-6 z-50 space-y-3 pointer-events-none">
       {toasts.map((toast) => (
         <div
           key={toast.id}

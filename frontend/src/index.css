@@ -112,6 +112,7 @@ body,
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Skip navigation: hidden until keyboard focus, then clearly visible.
