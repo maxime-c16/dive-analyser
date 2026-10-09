@@ -19,7 +19,7 @@ export default function Claim() {
   const { refresh } = useAuth()
   const [state, setState] = useState<'loading' | 'ready' | 'invalid'>('loading')
   const [pending, setPending] = useState(0)
-  const [batchId, setBatchId] = useState('')
+  const [diverName, setDiverName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
 
@@ -34,7 +34,7 @@ export default function Claim() {
     peekClaim(token)
       .then((data) => {
         if (!live) return
-        setBatchId(data.batch_id)
+        setDiverName(data.diver_name ?? '')
         setPending(data.pending)
         setState('ready')
       })
@@ -79,7 +79,7 @@ export default function Claim() {
             <p className="mt-2 text-sm leading-6 text-app-muted">
               {t('claim.ready', { count: pending })}
             </p>
-            <p className="mt-1 font-mono text-xs text-app-muted">{batchId.slice(0, 8)}</p>
+            {diverName && <p className="mt-1 text-sm font-medium text-app-text">{diverName}</p>}
             <button
               type="button"
               onClick={redeem}

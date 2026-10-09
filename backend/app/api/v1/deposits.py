@@ -19,12 +19,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import _origin_allowed, _set_session_cookie, get_current_user
 from app.config import get_settings
 from app.database import get_db
-from app.models.deposit_batch import EvaluatorNote
+from app.models.deposit_batch import BatchEmailOutbox, EvaluatorNote
 from app.models.dive import Dive
 from app.models.diver import Diver
 from app.services import claim_tokens, deposit_batches, email_service
@@ -238,10 +239,12 @@ def peek_claim(payload: ClaimTokenInput, db: Session = Depends(get_db)):
     )
     if row.diver_id is not None:
         pending_query = pending_query.filter(Dive.diver_id == row.diver_id)
+    diver = db.get(Diver, row.diver_id) if row.diver_id is not None else None
     return {
         "valid": True,
         "batch_id": row.batch_id,
         "diver_id": row.diver_id,
+        "diver_name": diver.display_name if diver else None,
         "pending": pending_query.count(),
     }
 
@@ -261,6 +264,109 @@ def redeem_claim(
     raw_session, _user, claim = redeemed
     _set_session_cookie(response, raw_session)
     return {"batch_id": claim.batch_id, "diver_id": claim.diver_id}
+
+
+def _require_admin(user) -> None:
+    if not user.is_admin:
+        raise HTTPException(403, "Administrative access required")
+
+
+MAX_HELD_LISTING = 200
+
+
+@router.get("/outbox/held")
+def list_held_emails(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Batch emails waiting for admin confirmation (auto-ingested clips)."""
+    _require_admin(user)
+    from app.models.user_auth import AppUser
+
+    with _unscoped(db):
+        rows = (
+            db.query(BatchEmailOutbox)
+            .filter(BatchEmailOutbox.status == BatchEmailOutbox.STATUS_HELD)
+            .order_by(BatchEmailOutbox.created_at.asc(), BatchEmailOutbox.id.asc())
+            .limit(MAX_HELD_LISTING)
+            .all()
+        )
+        if not rows:
+            return {"emails": []}
+        batch_ids = {row.batch_id for row in rows}
+        counts = {
+            (batch_id, diver_id): int(count)
+            for batch_id, diver_id, count in db.query(Dive.batch_id, Dive.diver_id, func.count(Dive.id))
+            .filter(Dive.batch_id.in_(batch_ids), Dive.accepted_at.is_(None))
+            .group_by(Dive.batch_id, Dive.diver_id)
+            .all()
+        }
+    diver_names = dict(
+        db.query(Diver.id, Diver.display_name)
+        .filter(Diver.id.in_({row.diver_id for row in rows}))
+        .all()
+    )
+    recipients = {
+        user_row.id: user_row
+        for user_row in db.query(AppUser).filter(AppUser.id.in_({row.user_id for row in rows})).all()
+    }
+    return {
+        "emails": [
+            {
+                "id": row.id,
+                "batch_id": row.batch_id,
+                "diver_id": row.diver_id,
+                "diver_name": diver_names.get(row.diver_id),
+                "recipient_name": recipients[row.user_id].display_name if row.user_id in recipients else None,
+                "recipient_email": recipients[row.user_id].email if row.user_id in recipients else None,
+                "clips": counts.get((row.batch_id, row.diver_id), 0),
+                "queued_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ]
+    }
+
+
+class HeldEmailAction(BaseModel):
+    # None = every held email; otherwise only these outbox ids.
+    ids: Optional[list[int]] = Field(default=None, max_length=MAX_HELD_LISTING)
+
+
+def _held_rows(db: Session, ids: Optional[list[int]]) -> list[BatchEmailOutbox]:
+    query = db.query(BatchEmailOutbox).filter(
+        BatchEmailOutbox.status == BatchEmailOutbox.STATUS_HELD
+    )
+    if ids is not None:
+        query = query.filter(BatchEmailOutbox.id.in_(ids))
+    return query.limit(MAX_HELD_LISTING).all()
+
+
+@router.post("/outbox/release")
+def release_held_emails(
+    payload: HeldEmailAction, user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """One-click confirm: schedule the held emails (the cron sends them)."""
+    _require_admin(user)
+    rows = _held_rows(db, payload.ids)
+    now = datetime.utcnow()
+    for row in rows:
+        row.status = BatchEmailOutbox.STATUS_PENDING
+        row.scheduled_for = now
+    db.commit()
+    return {"released": len(rows)}
+
+
+@router.post("/outbox/discard")
+def discard_held_emails(
+    payload: HeldEmailAction, user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Skip held emails for good (terminal, same shape as the sender's skips)."""
+    _require_admin(user)
+    rows = _held_rows(db, payload.ids)
+    now = datetime.utcnow()
+    for row in rows:
+        row.status = BatchEmailOutbox.STATUS_SENT
+        row.sent_at = now
+        row.error = "skipped: discarded by admin"
+    db.commit()
+    return {"discarded": len(rows)}
 
 
 @router.get("/email-pref")

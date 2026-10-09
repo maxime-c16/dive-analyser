@@ -134,7 +134,8 @@ def test_third_party_deposit_pends_private_with_note_and_outbox(workspace):
     assert len(rows) == 1
     assert rows[0].user_id == users["alice"].id
     assert rows[0].diver_id == divers["alice"].id
-    assert rows[0].status == "pending"
+    # Machine ingest waits for an admin to confirm before any friend is emailed.
+    assert rows[0].status == "held"
 
 
 def test_depositor_keeps_access_outsiders_see_nothing(workspace):
@@ -475,3 +476,79 @@ def test_pending_list_filters_visibility_before_paging(workspace):
     assert [b["diver_id"] for b in second] == [divers["alice"].id]
     assert {b["diver_id"] for b in login("maxime").get("/api/v1/deposits/pending").json()["batches"]} == {
         divers["alice"].id, divers["bob"].id}
+
+
+def test_held_emails_need_admin_confirmation_and_cron_ignores_them(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice"), _video("alice2", "alice", code="201C")])
+    row = db.query(BatchEmailOutbox).one()
+    row_id = row.id
+    assert row.status == "held"
+    # Only admins see or act on the held list.
+    assert login("alice").get("/api/v1/deposits/outbox/held").status_code == 403
+    assert login("alice").post("/api/v1/deposits/outbox/release", json={}).status_code == 403
+    held = login("maxime").get("/api/v1/deposits/outbox/held")
+    assert held.status_code == 200, held.text
+    emails = held.json()["emails"]
+    assert [(e["diver_name"], e["recipient_email"], e["clips"]) for e in emails] == [
+        ("alice", "alice@example.test", 2)]
+    # The sender only picks 'pending' rows: nothing is due while held.
+    due = db.query(BatchEmailOutbox).filter(
+        BatchEmailOutbox.status == BatchEmailOutbox.STATUS_PENDING).count()
+    assert due == 0
+    released = login("maxime").post("/api/v1/deposits/outbox/release", json={"ids": [row_id]})
+    assert released.status_code == 200 and released.json() == {"released": 1}
+    db.expire_all()
+    fresh = db.get(BatchEmailOutbox, row_id)
+    assert fresh.status == "pending" and fresh.scheduled_for <= datetime.utcnow()
+    assert login("maxime").get("/api/v1/deposits/outbox/held").json()["emails"] == []
+
+
+def test_discarding_a_held_email_is_terminal(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video("alice1", "alice")])
+    row_id = db.query(BatchEmailOutbox).one().id
+    discarded = login("maxime").post("/api/v1/deposits/outbox/discard", json={})
+    assert discarded.status_code == 200 and discarded.json() == {"discarded": 1}
+    db.expire_all()
+    row = db.get(BatchEmailOutbox, row_id)
+    assert row.status == "sent" and "discarded" in (row.error or "")
+    # Releasing afterwards finds nothing held.
+    assert login("maxime").post("/api/v1/deposits/outbox/release", json={}).json() == {"released": 0}
+
+
+def test_admin_browser_deposit_is_not_held(workspace, monkeypatch, tmp_path):
+    db, login, machine, users, divers = workspace
+    _stub_browser_upload(monkeypatch, tmp_path)
+    fields = dict(
+        dive_code="403B", height="3m", performance="G",
+        dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
+        upload_id="42345678-1234-1234-1234-123456789012")
+    assert login("maxime").post(
+        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 201
+    assert db.query(BatchEmailOutbox).one().status == "pending"
+
+
+def test_claim_peek_names_the_diver(workspace):
+    db, login, machine, users, divers = workspace
+    raw = claim_tokens.mint_claim_token(
+        db, user_id=users["alice"].id, batch_id="batch-x", diver_id=divers["alice"].id,
+        created_by_user_id=None, ttl_seconds=3600)
+    peek = TestClient(app).post("/api/v1/deposits/claim/peek", json={"token": raw})
+    assert peek.status_code == 200 and peek.json()["diver_name"] == "alice"
+
+
+def test_email_headers_are_spam_filter_friendly(workspace):
+    settings = get_settings()
+    prev = settings.email_from
+    settings.email_from = "Dive Analyser <notifs@example.test>"
+    try:
+        msg = email_service.render_batch_email(
+            recipient_name="Alice", diver_name="Alice", depositor_name="Maxime",
+            dives=[{"dive_code": "403B", "height": "3m", "dive_datetime": ""}],
+            evaluator_note=None, claim_url="https://app.test/claim#t=abc",
+            review_url="https://app.test/deposits/b?diver=1", posters=[])
+    finally:
+        settings.email_from = prev
+    assert msg["Reply-To"] == "notifs@example.test"
+    assert msg["Message-ID"].rstrip(">").endswith("@example.test")

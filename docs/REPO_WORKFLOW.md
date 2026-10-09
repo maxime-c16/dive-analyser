@@ -221,6 +221,12 @@ accepts them. The deploy that ships this feature needs
    (idempotent; the new backend reads the added tables and columns, so
    deploying first fails requests until it is applied). Backward compatible:
    the previous backend keeps working with the migrated schema.
+   Admin confirmation for auto-ingested clips additionally needs
+   `backend/migrations/add_batch_email_hold.sql` (same rule: before the deploy).
+   With `INGEST_DEPOSITOR_EMAIL` set, every machine-ingested session for another
+   owner parks one email per diver as `held`; an admin confirms it in
+   Administration > Emails (Send / Send all / Skip), and cron then sends it.
+   Admin browser deposits on behalf of someone are explicit, so they skip the hold.
 1. `~/.config/diveanalyzer/email.env` (mode `600`, same pattern as
    `browser-upload.env`): `INGEST_DEPOSITOR_EMAIL` (operator account credited
    for mac-agent ingestion), `SMTP_HOST/PORT/USER/PASSWORD` (free Gmail SMTP

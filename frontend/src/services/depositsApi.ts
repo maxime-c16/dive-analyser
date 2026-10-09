@@ -114,14 +114,14 @@ export function claimTokenFromHash(hash: string): string {
 
 export async function peekClaim(
   token: string,
-): Promise<{ valid: boolean; batch_id: string; diver_id: number | null; pending: number }> {
+): Promise<{ valid: boolean; batch_id: string; diver_id: number | null; diver_name: string | null; pending: number }> {
   const data = (await readJson(
     await fetch('/api/v1/deposits/claim/peek', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     }),
-  )) as { valid: boolean; batch_id: string; diver_id: number | null; pending: number }
+  )) as { valid: boolean; batch_id: string; diver_id: number | null; diver_name: string | null; pending: number }
   return data
 }
 
@@ -161,3 +161,38 @@ export async function setBatchEmailPref(enabled: boolean): Promise<boolean> {
   )) as { enabled?: unknown }
   return data.enabled !== false
 }
+
+export type HeldEmail = {
+  id: number
+  batch_id: string
+  diver_id: number
+  diver_name: string | null
+  recipient_name: string | null
+  recipient_email: string | null
+  clips: number
+  queued_at: string | null
+}
+
+/** Admin: batch emails parked until someone confirms them. */
+export async function listHeldEmails(): Promise<HeldEmail[]> {
+  const data = (await readJson(
+    await fetch('/api/v1/deposits/outbox/held', { credentials: 'same-origin', cache: 'no-store' }),
+  )) as { emails?: unknown }
+  return Array.isArray(data.emails) ? (data.emails as HeldEmail[]) : []
+}
+
+async function heldAction(action: 'release' | 'discard', ids?: number[]): Promise<number> {
+  const data = (await readJson(
+    await fetch(`/api/v1/deposits/outbox/${action}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids && ids.length > 0 ? { ids } : {}),
+    }),
+  )) as { released?: number; discarded?: number }
+  return data.released ?? data.discarded ?? 0
+}
+
+/** No ids = every held email. */
+export const releaseHeldEmails = (ids?: number[]) => heldAction('release', ids)
+export const discardHeldEmails = (ids?: number[]) => heldAction('discard', ids)

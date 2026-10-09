@@ -15,7 +15,7 @@ import html
 import logging
 import smtplib
 from email.message import EmailMessage
-from email.utils import formatdate, make_msgid
+from email.utils import formatdate, make_msgid, parseaddr
 from pathlib import Path
 from typing import Optional
 
@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 EMAIL_BATCH_PREF = "email_batch"
 MAX_THUMBNAILS = 4
 MAX_THUMBNAIL_BYTES = 500 * 1024
+
+
+def _sender_address(email_from: str) -> str:
+    """Bare address of the configured From header ("Name <a@b>" -> "a@b")."""
+    return parseaddr(email_from or "")[1].strip()
 
 
 def is_email_configured() -> bool:
@@ -230,14 +235,20 @@ def render_batch_email(
     settings = get_settings()
     msg["Subject"] = f"[Dive Analyser] {title} — {diver_name}"
     msg["From"] = settings.email_from.strip()
+    sender = _sender_address(settings.email_from)
+    if sender:
+        # Replies reach the real mailbox instead of a no-reply black hole.
+        msg["Reply-To"] = sender
     msg["To"] = ""  # filled by the sender (per-recipient envelope)
     msg["Date"] = formatdate(localtime=True)
     msg.set_content(text)
     msg.add_alternative(html_body, subtype="html")
     for cid, data, subtype in posters:
         msg.get_payload()[1].add_related(data, maintype="image", subtype=subtype, cid=cid)
-    # Stable References anchor for threading follow-ups per batch.
-    msg["Message-ID"] = make_msgid(domain="dive-analyser")
+    # Stable References anchor for threading follow-ups per batch. The domain
+    # must be a real, dotted one (the sender's): a dot-less Message-ID domain
+    # is a classic spam-filter signal.
+    msg["Message-ID"] = make_msgid(domain=sender.rpartition("@")[2] if "@" in sender else None)
     return msg
 
 

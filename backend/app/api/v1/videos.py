@@ -430,7 +430,8 @@ async def sync_single_video(
             try:
                 deposit_batches.queue_batch_email(
                     db, batch_id=batch_id, diver_id=pending_diver,
-                    exclude_user_id=depositor.id if depositor else None)
+                    exclude_user_id=depositor.id if depositor else None,
+                    hold=True)
                 db.commit()
             except Exception:
                 logger.exception('batch email queue failed for dive %s', dive.id)
@@ -617,7 +618,8 @@ async def sync_batch_videos(
                 try:
                     deposit_batches.queue_batch_email(
                         db, batch_id=batch_id, diver_id=diver_id,
-                        exclude_user_id=depositor.id if depositor else None)
+                        exclude_user_id=depositor.id if depositor else None,
+                        hold=True)
                 except Exception:
                     logger.exception('batch email queue failed for batch %s', batch_id)
                     try:

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, Loader2, Mail, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminUsers from '../components/AdminUsers'
+import HeldBatchEmails from '../components/HeldBatchEmails'
 
 function bytes(value?: number | null) {
   if (value == null) return 'Unknown'
@@ -46,7 +47,7 @@ export default function Admin() {
   const directoryChange = useCallback((query: string, status: string, offset: number) => {
     setSearch(previous => { const next = new URLSearchParams(previous); for (const [key, value] of Object.entries({ q: query, status: status === 'all' ? '' : status, offset: offset ? String(offset) : '' })) { if (value) next.set(key, value); else next.delete(key) }; return next }, { replace: true })
   }, [setSearch])
-  const [tab, setTab] = useState<'users' | 'system'>('users')
+  const [tab, setTab] = useState<'users' | 'emails' | 'system'>('users')
   const [status, setStatus] = useState<OperationsStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -106,6 +107,17 @@ export default function Admin() {
         </button>
         <button
           type="button"
+          onClick={() => setTab('emails')}
+          aria-current={tab === 'emails' ? 'true' : undefined}
+          className={`touch-target inline-flex items-center gap-2 border px-4 text-sm font-medium ${
+            tab === 'emails' ? 'border-app-strong bg-app-panel text-app-text' : 'border-app text-app-muted hover:text-app-text'
+          }`}
+        >
+          <Mail className="h-4 w-4" aria-hidden />
+          Emails
+        </button>
+        <button
+          type="button"
           onClick={() => setTab('system')}
           aria-current={tab === 'system' ? 'true' : undefined}
           className={`touch-target inline-flex items-center gap-2 border px-4 text-sm font-medium ${
@@ -120,6 +132,8 @@ export default function Admin() {
 
     {tab === 'users' ? (
       <AdminUsers currentUserId={user?.user_id} onManage={manage} initialQuery={search.get('q') ?? ''} initialStatus={search.get('status') === 'disabled' ? 'disabled' : search.get('status') === 'active' ? 'active' : 'all'} initialOffset={Math.max(0, Number(search.get('offset')) || 0)} onDirectoryChange={directoryChange} />
+    ) : tab === 'emails' ? (
+      <HeldBatchEmails />
     ) : (
     <>
     <div className="sm:flex sm:items-end sm:justify-between">
