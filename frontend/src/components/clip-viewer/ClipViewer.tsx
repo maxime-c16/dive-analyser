@@ -786,7 +786,7 @@ export default function ClipViewer({
                 <MessageCircle size={25} />
                 <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
-              {attempt.can_manage && attempt.video_uuid && <ShareDiveButton key={attempt.id} id={attempt.id} />}
+              {(user || (attempt.can_manage && attempt.video_uuid)) && <ShareDiveButton key={attempt.id} id={attempt.id} allowLink={!!(attempt.can_manage && attempt.video_uuid)} allowDm={!!user} />}
               <Link
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}
