@@ -197,6 +197,14 @@ if [ -f "$UPLOAD_ENV" ]; then
     . "$UPLOAD_ENV"
     set +a
 fi
+# Deposit-batch email secrets (free Gmail SMTP maintainer account). Same
+# pattern: sourced for Compose, never echoed, never in Git.
+EMAIL_ENV="$HOME/.config/diveanalyzer/email.env"
+if [ -f "$EMAIL_ENV" ]; then
+    set -a
+    . "$EMAIL_ENV"
+    set +a
+fi
 sha="$1"; dry_run="$2"; force="$3"; shift 3
 LIVE="${DIVE_LIVE_DIR:-$HOME/dive-analyser}"
 STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"

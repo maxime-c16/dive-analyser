@@ -210,3 +210,25 @@ without publishing a dive if B2 upload or full-byte verification fails.
 Originals are registered in the existing media backbone; pinned local
 originals, H.264 previews and posters live in the persistent media-cache volume.
 Each clip is capped at 1 GB. No SQL migration is required.
+
+### Deposit batches ("Récupérer mes plongeons")
+
+Clips deposited for another account stay private + pending until the owner
+accepts them. The deploy that ships this feature needs
+`backend/migrations/add_deposit_batches.sql`:
+
+0. **Before** `ci/ship.sh server`, apply the SQL by hand against Postgres
+   (idempotent; the new backend reads the added tables and columns, so
+   deploying first fails requests until it is applied). Backward compatible:
+   the previous backend keeps working with the migrated schema.
+1. `~/.config/diveanalyzer/email.env` (mode `600`, same pattern as
+   `browser-upload.env`): `INGEST_DEPOSITOR_EMAIL` (operator account credited
+   for mac-agent ingestion), `SMTP_HOST/PORT/USER/PASSWORD` (free Gmail SMTP
+   maintainer account, 2FA + app password), `EMAIL_FROM`, `APP_PUBLIC_URL`
+   (absolute public URL for email buttons), optional
+   `BATCH_EMAIL_DELAY_MINUTES` (default 45). Sourced by `ci/ship.sh server`
+   for the backend container and by `ops/send-batch-emails.sh` for cron.
+   Empty `SMTP_HOST` disables sending (outbox stays pending, inbox + push
+   unaffected).
+2. Cron on deb-serv (runs from `~/dive-analyser`, like the other `ops/*.sh`):
+   `*/15 * * * * /home/mcauchy/dive-analyser/ops/send-batch-emails.sh`.

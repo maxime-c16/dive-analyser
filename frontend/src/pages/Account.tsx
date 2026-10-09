@@ -14,6 +14,7 @@ import {
   getNotificationPrefs,
   setNotificationPref as putNotificationPref,
 } from '../services/notificationsApi'
+import { getBatchEmailPref, setBatchEmailPref } from '../services/depositsApi'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
 export function initials(name: string, fallbackEmail = ''): string {
@@ -275,6 +276,58 @@ function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
     })
   }
   return [prefs, update]
+}
+
+/**
+ * Server-backed batch-email opt-out ("Récupérer mes plongeons" mail).
+ * Independent from the per-device email toggle below: this one actually
+ * stops the server from sending deposit-batch emails.
+ */
+function BatchEmailToggle() {
+  const { t } = useTranslation()
+  const [enabled, setEnabled] = useState(true)
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    let live = true
+    getBatchEmailPref()
+      .then((value) => {
+        if (live) {
+          setEnabled(value)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (live) setLoaded(true)
+      })
+    return () => {
+      live = false
+    }
+  }, [])
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      setEnabled(await setBatchEmailPref(!enabled))
+    } catch {
+      // Keep the previous state; the row below explains the failure path.
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div>
+        <div className="text-sm font-medium text-app-text">{t('deposits.emailToggle')}</div>
+        <div className="text-xs text-app-muted">{t('deposits.emailToggleDesc')}</div>
+      </div>
+      <Toggle
+        checked={enabled}
+        onChange={() => void toggle()}
+        label={t('deposits.emailToggle')}
+        disabled={!loaded || busy}
+      />
+    </div>
+  )
 }
 
 function Toggle({
@@ -711,6 +764,7 @@ export default function Account() {
                 ))}
               </div>
               <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifOnDevice')}</h3>
+              <BatchEmailToggle />
               <PushOptInSection />
               <div className="mt-1 divide-y divide-[var(--app-border)]">
                 {notifRows.map(row => (
