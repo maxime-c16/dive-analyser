@@ -1,0 +1,8 @@
+{
+  "id": "clip-viewer-single-share",
+  "date": "2026-10-09",
+  "title": "One share button in the video viewer",
+  "body": "The video viewer keeps a single Share button so sharing a dive is clearer.",
+  "audience": "all",
+  "components": ["frontend"]
+}
