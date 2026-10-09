@@ -314,3 +314,54 @@ def test_overview_compares_my_votes_with_the_rest_of_the_panel(workspace):
         return login('bob').get('/api/v1/evaluations/overview').json()['judge']['streak']
     assert age(1) == 1
     assert age(2) == 0
+
+
+def test_overview_resume_and_query_count_ignore_empty_stack_history(workspace):
+    from sqlalchemy import event
+    from app.models.matchmaking import ReviewStack
+    from app.services import matchmaking
+    db, login, _, users, _ = workspace
+    sid, _ = stack(login('bob'))
+    user = db.get(AppUser, users['bob'].id)
+
+    def measure():
+        statements = []
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+        event.listen(db.bind, 'before_cursor_execute', record)
+        try:
+            body = matchmaking.today(db, user)
+        finally:
+            event.remove(db.bind, 'before_cursor_execute', record)
+        assert body['daily']['stack_id'] == body['resume']['stack_id'] == sid
+        return len(statements)
+
+    measure()  # warm the session's expired objects
+    baseline = measure()
+    db.add_all([ReviewStack(user_id=user.id, key=f'empty-{n}') for n in range(200)])
+    db.commit()
+    measure()
+    assert measure() == baseline
+
+
+def test_overview_resumes_playable_stack_before_newer_revoked_or_finished_ones(workspace):
+    from app.models.matchmaking import ReviewStack
+    from app.services import matchmaking
+    db, login, dives, users, _ = workspace
+    sid, _ = stack(login('bob'))
+    user = db.get(AppUser, users['bob'].id)
+    # Model older unfinished on-demand work alongside a completed daily stack.
+    daily = db.get(ReviewStack, sid)
+    db.query(ReviewStackItem).filter_by(stack_id=sid).update({'skipped_at': datetime.utcnow()})
+    def add_stack(key, did, video):
+        row = ReviewStack(user_id=user.id, key=key)
+        db.add(row); db.flush()
+        db.add(ReviewStackItem(stack_id=row.id, dive_id=did, video_uuid=video, position=0))
+        return row
+    playable = add_stack('playable', dives['alice-public'], 'alice-public-video')
+    add_stack('private', dives['alice-private'], 'alice-private-video')
+    add_stack('replaced', dives['alice-public'], 'old-video')
+    db.commit()
+    body = matchmaking.today(db, user)
+    assert body['daily']['stack_id'] == daily.id and body['daily']['skipped'] == 1
+    assert body['resume']['stack_id'] == playable.id and body['resume']['remaining'] == 1
