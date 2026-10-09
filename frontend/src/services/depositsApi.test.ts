@@ -76,6 +76,25 @@ describe('depositsApi', () => {
     expect(vi.mocked(fetch).mock.calls[1][0]).toBe('/api/v1/deposits/batches/b1/accept?diver_id=7')
   })
 
+  it('lists, releases and discards held emails (admin confirm)', async () => {
+    const { discardHeldEmails, listHeldEmails, releaseHeldEmails } = await import('./depositsApi')
+    mockFetch(() => ({ emails: [{ id: 3, diver_name: 'Alice', clips: 2 }] }))
+    await expect(listHeldEmails()).resolves.toEqual([{ id: 3, diver_name: 'Alice', clips: 2 }])
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/deposits/outbox/held')
+    mockFetch((url, init) => {
+      expect(url).toBe('/api/v1/deposits/outbox/release')
+      expect(JSON.parse(init?.body as string)).toEqual({ ids: [3] })
+      return { released: 1 }
+    })
+    await expect(releaseHeldEmails([3])).resolves.toBe(1)
+    mockFetch((url, init) => {
+      expect(url).toBe('/api/v1/deposits/outbox/discard')
+      expect(JSON.parse(init?.body as string)).toEqual({})
+      return { discarded: 4 }
+    })
+    await expect(discardHeldEmails()).resolves.toBe(4)
+  })
+
   it('defaults the batch email pref to on when the call fails', async () => {
     const { getBatchEmailPref } = await import('./depositsApi')
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 500 } as Response)

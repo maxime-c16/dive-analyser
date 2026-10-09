@@ -426,20 +426,20 @@ async def sync_single_video(
             depositor=depositor, raw_caption=request.raw_caption)
         if created:
             _queue_new_captioned_media(db, dive)
-        db.commit()
-        db.refresh(dive)
         if pending_diver is not None:
+            # Park/queue the email in the SAME transaction as the dive: cron
+            # must never see the new clip next to a still-sendable pending row.
+            # The savepoint keeps a mail failure from rolling the deposit back.
             try:
-                deposit_batches.queue_batch_email(
-                    db, batch_id=batch_id, diver_id=pending_diver,
-                    exclude_user_id=depositor.id if depositor else None)
-                db.commit()
+                with db.begin_nested():
+                    deposit_batches.queue_batch_email(
+                        db, batch_id=batch_id, diver_id=pending_diver,
+                        exclude_user_id=depositor.id if depositor else None,
+                        hold=True)
             except Exception:
                 logger.exception('batch email queue failed for dive %s', dive.id)
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
+        db.commit()
+        db.refresh(dive)
 
         if created and dive.diver_id is not None:
             # Machine-key sync has no actor to exclude: every owner is told.
@@ -614,22 +614,18 @@ async def sync_batch_videos(
 
         # Commit all at once (transactional)
         if succeeded > 0:
-            db.commit()
+            # Hold the emails in the same transaction as the dives (see the
+            # single-sync path); a savepoint isolates each mail failure.
             for diver_id in pending_divers:
                 try:
-                    deposit_batches.queue_batch_email(
-                        db, batch_id=batch_id, diver_id=diver_id,
-                        exclude_user_id=depositor.id if depositor else None)
+                    with db.begin_nested():
+                        deposit_batches.queue_batch_email(
+                            db, batch_id=batch_id, diver_id=diver_id,
+                            exclude_user_id=depositor.id if depositor else None,
+                            hold=True)
                 except Exception:
                     logger.exception('batch email queue failed for batch %s', batch_id)
-                    try:
-                        db.rollback()
-                    except Exception:
-                        pass
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+            db.commit()
 
             if new_dive_ids:
                 # One batched notification per diver per request (never N rows

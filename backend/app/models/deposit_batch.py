@@ -77,6 +77,9 @@ class BatchEmailOutbox(Base):
     __tablename__ = "batch_email_outbox"
 
     STATUS_PENDING = "pending"
+    # Waiting for an admin to confirm (auto-ingested clips): never sent until
+    # released, so no friend is emailed without a human decision.
+    STATUS_HELD = "held"
     STATUS_SENT = "sent"
     STATUS_FAILED = "failed"
 
@@ -91,7 +94,7 @@ class BatchEmailOutbox(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        CheckConstraint("status IN ('pending', 'sent', 'failed')", name="ck_batch_email_status"),
+        CheckConstraint("status IN ('pending', 'held', 'sent', 'failed')", name="ck_batch_email_status"),
         Index("uq_batch_email_recipient", "batch_id", "diver_id", "user_id", unique=True),
         Index("ix_batch_email_due", "status", "scheduled_for"),
     )
