@@ -936,3 +936,41 @@ def test_every_refusal_path_ends_the_transaction(db):
             db, raw, email="b@example.test", password=INVITEE_PASSWORD
         )[0]
     )
+
+
+def test_admin_user_creation_locks_the_diver_it_grants(client, db, monkeypatch):
+    """`POST /admin/users` writes an OWNER binding too.
+
+    Without the lock it could race redemption into a second owner, the same
+    way `cmd_bind` could. The bootstrap CLI takes the same lock.
+    """
+    from app.api.v1 import admin_users as admin_users_module
+
+    locked: list[int] = []
+    real_lock = admin_users_module.lock_diver_for_ownership_change
+
+    def spy(db_, diver_id):
+        locked.append(diver_id)
+        return real_lock(db_, diver_id)
+
+    monkeypatch.setattr(admin_users_module, "lock_diver_for_ownership_change", spy)
+
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    r = client.post(
+        "/api/v1/admin/users",
+        json={
+            "email": "new@example.test",
+            "display_name": "New",
+            "role": "diver",
+            "password": INVITEE_PASSWORD,
+            "diver_id": db.unclaimed_id,
+        },
+    )
+    assert r.status_code in (200, 201), r.text
+    assert locked == [db.unclaimed_id]
+    assert (
+        db.query(UserDiverAccess)
+        .filter_by(diver_id=db.unclaimed_id, access_kind="OWNER")
+        .count()
+        == 1
+    )

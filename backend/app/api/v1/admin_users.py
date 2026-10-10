@@ -384,7 +384,12 @@ def create_user(
                 detail="An administrator account needs a diver binding (diver_id)",
             )
         with _unscoped_divers(db):
-            diver = db.get(Diver, body.diver_id)
+            # Row-locked before the account is created and held until the
+            # commit: this writes an OWNER binding, and invite redemption
+            # reads "is this diver owned?" under the same lock. Skipping it
+            # here would let a grant and a redemption both decide the diver
+            # is unowned and create two bindings.
+            diver = lock_diver_for_ownership_change(db, body.diver_id)
         if diver is None:
             raise HTTPException(status_code=404, detail="Diver not found")
     display_name = (body.display_name or "").strip() or email.split("@")[0]
