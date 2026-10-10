@@ -102,7 +102,7 @@ def _ready_clause():
     return ready
 
 
-def stack(db, user, key):
+def stack(db, user, key, size=5):
     row = db.query(ReviewStack).filter_by(user_id=user.id, key=key).first()
     if row is not None:
         return row
@@ -132,7 +132,7 @@ def stack(db, user, key):
     ).correlate(Dive).scalar_subquery()
     rank = func.row_number().over(partition_by=func.coalesce(owner, -Dive.diver_id), order_by=(count, Dive.dive_datetime.desc(), Dive.id))
     ranked = candidates.filter(ready).order_by(None).add_columns(rank.label('owner_rank'), count.label('votes')).subquery()
-    ids = db.query(ranked.c.id).order_by(ranked.c.owner_rank, ranked.c.votes, ranked.c.dive_datetime.desc(), ranked.c.id).limit(3).all()
+    ids = db.query(ranked.c.id).order_by(ranked.c.owner_rank, ranked.c.votes, ranked.c.dive_datetime.desc(), ranked.c.id).limit(size).all()
     chosen = [dive_id for (dive_id,) in ids]
     row = ReviewStack(user_id=user.id, key=key)
     db.add(row)

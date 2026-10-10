@@ -151,3 +151,14 @@
   .eval-warmup-cards i, .eval-warmup-board, .eval-streak span, .eval-pace-hand, .eval-meter-needle { animation: none; }
   .evaluations-tab-indicator, .eval-switch > span::after, .eval-deal-backs i, .eval-history-summary .eval-card { transition: none; }
 }
+
+.eval-draw-settings { padding: 1rem 0; }
+.eval-draw-settings label { font-weight: 600; margin-right: .75rem; }
+.eval-draw-settings select {
+  color: inherit;
+  background: var(--app-panel);
+  border: 1px solid currentColor;
+  border-radius: .5rem;
+  min-height: 44px;
+  padding: .4rem .75rem;
+}

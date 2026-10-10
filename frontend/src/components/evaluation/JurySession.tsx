@@ -13,6 +13,7 @@
  * a fresh id. An all-unavailable batch with has_more keeps loading instead of
  * reporting exhaustion.
  */
+import { DEFAULT_DRAW_SIZE } from '../../hooks/useEvaluationDrawSize'
 import { scoreNumber } from './scoreFormatting'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -69,6 +70,7 @@ export default function JurySession({
   automatic = false,
   autoStart = false,
   daily = true,
+  drawSize = DEFAULT_DRAW_SIZE,
   resumeStackId,
   doneBefore = 0,
   onDone,
@@ -81,6 +83,7 @@ export default function JurySession({
   autoStart?: boolean
   /** Automatic only: today's selection (true) or one more on demand. */
   daily?: boolean
+  drawSize?: number
   /** Automatic only: reopen this existing selection instead of allocating. */
   resumeStackId?: number
   /** Dives of the resumed selection already handled before this mount. */
@@ -102,6 +105,7 @@ export default function JurySession({
   const [passed, setPassed] = useState<PassedEntry[]>([])
   const [commentOpen, setCommentOpen] = useState(false)
   const dailyRef = useRef(daily)
+  const drawSizeRef = useRef(drawSize)
   const resumeRef = useRef(resumeStackId)
   const offsetRef = useRef(doneBefore)
   const startKeyRef = useRef<string | null>(null)
@@ -248,7 +252,7 @@ export default function JurySession({
       if (resume === undefined) offsetRef.current = 0
       const session = resume !== undefined
         ? { session_id: resume }
-        : await (automatic ? createAutomaticStack(key, dailyRef.current) : createSession(key))
+        : await (automatic ? createAutomaticStack(key, dailyRef.current, drawSizeRef.current) : createSession(key))
       if (!aliveRef.current) return
       automaticLoadedRef.current = false
       sessionIdRef.current = session.session_id
@@ -359,7 +363,7 @@ export default function JurySession({
         <div className="eval-landing">
           {judgedCount > 0 && <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>}
           <button type="button" className="eval-start" onClick={() => void start()}>{t(automatic ? 'evaluations.dailyStart' : 'evaluations.start')}</button>
-          <p className="eval-note">{t(automatic ? 'evaluations.automaticNote' : 'evaluations.startNote')}</p>
+          <p className="eval-note">{t(automatic ? 'evaluations.automaticNote' : 'evaluations.startNote', { count: drawSize })}</p>
           {sessionExpired && <p className="eval-note" role="status">{t('evaluations.sessionNew')}</p>}
         </div>
       )}

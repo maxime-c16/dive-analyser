@@ -10,10 +10,13 @@ import { Pause } from 'lucide-react'
 import { ScoreCard } from './ScoreCards'
 import type { EvaluationOverview, PanelVote } from '../../services/evaluationApi'
 
+import { DEFAULT_DRAW_SIZE, MAX_DRAW_SIZE } from '../../hooks/useEvaluationDrawSize'
 import { points } from './scoreFormatting'
 export { points } from './scoreFormatting'
 
-export default function JudgeTable({ overview, onResume, onDeal, onRequests, onHistory }: {
+export default function JudgeTable({ overview, onResume, onDeal, onRequests, onHistory, drawSize = DEFAULT_DRAW_SIZE, onDrawSizeChange }: {
+  drawSize?: number
+  onDrawSizeChange?: (size: number) => void
   overview: EvaluationOverview
   onResume: () => void
   onDeal: () => void
@@ -44,13 +47,23 @@ export default function JudgeTable({ overview, onResume, onDeal, onRequests, onH
         </ul>
       )}
       <JudgeMeter bias={judge.bias} compared={judge.compared} />
+      {onDrawSizeChange && (
+        <section className="eval-draw-settings" aria-label={t('evaluations.drawSize')}>
+          <label htmlFor="eval-draw-size">{t('evaluations.drawSize')}</label>
+          <select id="eval-draw-size" value={drawSize} onChange={event => onDrawSizeChange(Number(event.target.value))}>
+            {Array.from({ length: MAX_DRAW_SIZE }, (_, index) => index + 1).map(size => <option key={size} value={size}>{size}</option>)}
+          </select>
+          <p className="eval-note">{t('evaluations.drawSizeHint')}</p>
+          <p className="eval-note">{t('evaluations.automaticNote', { count: drawSize })}</p>
+        </section>
+      )}
       {!resume && (
         <div className="eval-table-next">
           <PaceClock until={today.resets_at} />
           {!emptyPool && (
             <button type="button" className="eval-deal" onClick={onDeal}>
               <span className="eval-deal-backs" aria-hidden><i /><i /><i /></span>
-              {t('evaluations.todayMore')}
+              {t('evaluations.todayMore', { count: drawSize })}
             </button>
           )}
         </div>

@@ -1,4 +1,5 @@
 import uuid
+import pytest
 from datetime import datetime, timedelta
 from tests.test_member_dive_visibility import workspace
 from app.models.dive import Dive
@@ -6,8 +7,8 @@ from app.models.user_auth import AppUser
 from app.models.matchmaking import AutomaticRating, ReviewStackItem
 
 
-def stack(client, daily=True, key=None):
-    r = client.post('/api/v1/evaluations/automatic/stacks', json={'daily': daily, 'client_session_id': key or str(uuid.uuid4())})
+def stack(client, daily=True, key=None, size=None):
+    r = client.post('/api/v1/evaluations/automatic/stacks', json={'daily': daily, 'client_session_id': key or str(uuid.uuid4()), **({'size': size} if size is not None else {})})
     assert r.status_code == 200, r.text
     sid = r.json()['session_id']
     q = client.get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue')
@@ -104,7 +105,7 @@ def test_fair_by_owner_and_partial_stack(workspace):
         db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'fair-{n}', rendition='proxy_360p', storage_path='/test', size_bytes=1))
     db.commit()
     _, items = stack(login('viewer'))
-    assert len(items) == 3
+    assert len(items) == 5
     assert dives['bob-public'] in [i['dive_id'] for i in items[:2]]
     _, small = stack(login('alice'))
     assert len(small) == 1 and small[0]['dive_id'] == dives['bob-public']
@@ -205,7 +206,7 @@ def test_unbound_divers_have_separate_fairness_buckets(workspace):
         db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'unbound-{n}', rendition='proxy_360p', storage_path='/test', size_bytes=1))
     db.commit()
     _, items = stack(login('viewer'))
-    assert len(items) == 3
+    assert len(items) == 5
     assert dives['bob-public'] in [i['dive_id'] for i in items[:2]]
 
 
@@ -432,3 +433,36 @@ def test_history_pages_both_vote_sources_in_sql_without_loading_skipped_rows(wor
     finally:
         for model in (EvaluationRating, AutomaticRating):
             event.remove(model, 'load', record)
+
+
+@pytest.mark.parametrize('size', [1, 8, 20])
+@pytest.mark.parametrize('daily', [True, False])
+def test_configured_draw_size_and_immutable_retry(workspace, size, daily):
+    from app.models.photos_asset import PhotosAsset
+    from app.models.media import MediaCacheEntry
+    db, login, dives, _, session_id = workspace
+    source = db.get(Dive, dives['alice-public'])
+    for n in range(22):
+        dive = Dive(session_id=session_id, diver_id=source.diver_id, dive_code='103B', performance='G',
+            performance_numeric=3, height='3m', dive_datetime=datetime.utcnow(),
+            visibility='public', video_uuid=f'draw-size-{n}')
+        db.add(dive); db.flush()
+        asset = PhotosAsset(video_uuid=dive.video_uuid); db.add(asset); db.flush()
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'draw-size-{n}', rendition='proxy_360p',
+            storage_path='/test', size_bytes=1))
+    db.commit()
+    client = login('bob')
+    key = str(uuid.uuid4())
+    sid, items = stack(client, daily=daily, key=key, size=size)
+    assert len(items) == size
+    retry_sid, retry_items = stack(client, daily=daily, key=key, size=5)
+    assert retry_sid == sid
+    assert [item['dive_id'] for item in retry_items] == [item['dive_id'] for item in items]
+
+
+@pytest.mark.parametrize('size', [0, -1, 21, 1.5, '5', True, None])
+def test_draw_size_rejects_invalid_values(workspace, size):
+    _, login, _, _, _ = workspace
+    response = login('bob').post('/api/v1/evaluations/automatic/stacks', json={
+        'client_session_id': str(uuid.uuid4()), 'size': size})
+    assert response.status_code == 422

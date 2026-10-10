@@ -337,8 +337,8 @@ export const EVALUATION_FIXTURES = {
   },
 }
 
-export async function createAutomaticStack(clientSessionId: string, daily: boolean): Promise<EvaluationSession> {
-  const { data } = await api.post('/api/v1/evaluations/automatic/stacks', { client_session_id: clientSessionId, daily })
+export async function createAutomaticStack(clientSessionId: string, daily: boolean, size = 5): Promise<EvaluationSession> {
+  const { data } = await api.post('/api/v1/evaluations/automatic/stacks', { client_session_id: clientSessionId, daily, size })
   return data
 }
 export async function getAutomaticQueue(stackId: number): Promise<QueueBatch> {

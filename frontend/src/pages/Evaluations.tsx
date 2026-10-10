@@ -9,6 +9,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useEvaluationDrawSize } from '../hooks/useEvaluationDrawSize'
 import { useAuth } from '../contexts/AuthContext'
 import { OwnedRequests, MyJudgements } from '../components/evaluation/EvaluationSpaces'
 import '../components/evaluation/evaluations.css'
@@ -57,7 +58,7 @@ export default function Evaluations() {
       <h1 className="evaluations-title">{t('evaluations.title')}</h1>
       <Tabs tab={tab} onTab={setTab} />
       <div key={tab} className="evaluations-body" role="tabpanel" id={`evaluations-panel-${tab}`} aria-labelledby={`evaluations-tab-${tab}`}>
-        {tab === 'judge' && <JudgeHub paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}
+        {tab === 'judge' && <JudgeHub key={user?.user_id ?? 'guest'} paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}
         {tab === 'dives' && (
           <>
             <AutomaticScores />
@@ -119,6 +120,8 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
   onHistory: () => void
 }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const [drawSize, setDrawSize] = useEvaluationDrawSize(user?.user_id)
   const [overview, setOverview] = useState<EvaluationOverview | null>(null)
   const [failed, setFailed] = useState(false)
   const [active, setActive] = useState<Active | null>(null)
@@ -156,6 +159,7 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
           : <JurySession
               key={active.kind}
               automatic
+              drawSize={drawSize}
               autoStart
               daily={active.kind === 'daily'}
               resumeStackId={active.kind === 'daily' ? active.resumeStackId : undefined}
@@ -178,6 +182,8 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
   return (
     <JudgeTable
       overview={overview}
+      drawSize={drawSize}
+      onDrawSizeChange={setDrawSize}
       onResume={() => setActive(daily())}
       onDeal={() => setActive({ kind: 'extra' })}
       onRequests={() => setActive({ kind: 'requests' })}
