@@ -609,3 +609,48 @@ def test_sender_only_sends_pending_rows_and_rechecks_before_sending(workspace, m
     assert sent == ["b-due"]
     statuses = {r.batch_id: r.status for r in db.query(BatchEmailOutbox).all()}
     assert statuses == {"b-held": "held", "b-due": "sent"}
+
+
+def test_save_download_accepts_only_owner_diver_and_retries_include_accepted(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video('download-a1', 'alice'), _video('download-a2', 'alice'), _video('download-b1', 'bob')])
+    from app.services.dive_access import unscoped_reads
+    with unscoped_reads(db):
+        alice = db.query(Dive).filter(Dive.diver_id == divers['alice'].id).all()
+        bob = db.query(Dive).filter(Dive.diver_id == divers['bob'].id).one()
+        batch_id = alice[0].batch_id
+        alice_ids = {d.id for d in alice}
+        bob_id = bob.id
+    path = f'/api/v1/deposits/batches/{batch_id}/save-download?diver_id={divers["alice"].id}'
+    assert login('maxime').post(path).status_code == 404
+    assert login('bob').post(path).status_code == 404
+    response = login('alice').post(path)
+    assert response.status_code == 200, response.text
+    clips = response.json()['clips']
+    assert {d['id'] for d in clips} == alice_ids
+    assert all(d['url'] == f'/api/v1/dives/{d["id"]}/download' for d in clips)
+    assert login('alice').post(path).json() == response.json()
+    with unscoped_reads(db):
+        db.expire_all()
+        assert all(db.get(Dive, dive_id).accepted_at for dive_id in alice_ids)
+        assert db.get(Dive, bob_id).accepted_at is None
+        assert all(db.get(Dive, dive_id).visibility == 'private' for dive_id in alice_ids)
+
+
+def test_save_download_accepts_entire_batch_and_pages_manifest(workspace):
+    db, login, machine, users, divers = workspace
+    _sync_batch(machine, [_video('page-seed', 'alice')])
+    seed = db.query(Dive).filter(Dive.diver_id == divers['alice'].id).one()
+    batch_id = seed.batch_id
+    for number in range(500):
+        db.add(Dive(session_id=seed.session_id, diver_id=seed.diver_id, batch_id=batch_id,
+                    dive_code='101B', height='3m', performance='G', performance_numeric=3, dive_datetime=seed.dive_datetime,
+                    visibility='private', video_uuid=f'page-video-{number}'))
+    db.commit()
+    path = f'/api/v1/deposits/batches/{batch_id}/save-download?diver_id={divers["alice"].id}'
+    first = login('alice').post(path).json()
+    assert len(first['clips']) == 500 and first['next_offset'] == 500
+    assert db.query(Dive).filter(Dive.batch_id == batch_id, Dive.accepted_at.is_(None)).count() == 0
+    second = login('alice').post(path + '&offset=500').json()
+    assert len(second['clips']) == 1 and second['next_offset'] is None
+    assert second['clips'][0]['id'] not in {d['id'] for d in first['clips']}

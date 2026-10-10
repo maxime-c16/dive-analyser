@@ -176,6 +176,7 @@ def presign_get(
     object_key: str,
     ttl_seconds: Optional[int] = None,
     storage_location_id: Optional[int] = None,
+    download_filename: Optional[str] = None,
 ) -> PresignResult:
     """Presign a GET for one object. Returns (url, ttl) — url is transient.
 
@@ -185,11 +186,30 @@ def presign_get(
     """
     ttl = clamp_ttl(ttl_seconds)
     client = _b2_client()
+    params = {"Bucket": bucket, "Key": object_key}
+    if download_filename:
+        # Callers supply an ASCII filename, never a raw user-provided name.
+        params["ResponseContentDisposition"] = f'attachment; filename="{download_filename}"'
     url = client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": bucket, "Key": object_key},
+        Params=params,
         ExpiresIn=ttl,
     )
     return PresignResult(
         url=url, ttl_seconds=ttl, storage_location_id=storage_location_id
     )
+
+
+def open_get_stream(bucket: str, object_key: str):
+    """Open an SDK stream for optional native sharing, without signed URLs.
+
+    The caller owns and closes the body. Ordinary downloads still redirect.
+    """
+    response = None
+    try:
+        response = _b2_client().get_object(Bucket=bucket, Key=object_key)
+        return response['Body'], int(response['ContentLength'])
+    except Exception:
+        if response and response.get('Body') is not None:
+            response['Body'].close()
+        raise PresignUnavailable('Video stream unavailable') from None

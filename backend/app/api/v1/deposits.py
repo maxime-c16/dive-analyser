@@ -170,6 +170,40 @@ def accept_batch(
     return {"batch_id": batch_id, "accepted": accepted}
 
 
+@router.post("/batches/{batch_id}/save-download")
+def save_download_batch(
+    batch_id: str,
+    diver_id: int = Query(...),
+    offset: int = Query(default=0, ge=0),
+    user=Depends(get_current_user), db: Session = Depends(get_db),
+):
+    """Owner-only, idempotent acceptance plus a paginated download manifest.
+
+    Already accepted clips remain available for retries. Each batch/diver is
+    explicit so an agent-day batch can never accept another diver's videos.
+    """
+    from app.services.user_access import user_has_diver_access
+    from app.api.v1.clip_downloads import download_filename
+
+    if not user_has_diver_access(db, user.id, diver_id):
+        raise HTTPException(404, "Batch not found")
+    query = db.query(Dive).filter(Dive.batch_id == batch_id, Dive.diver_id == diver_id)
+    if query.limit(1).first() is None:
+        raise HTTPException(404, "Batch not found")
+    query.filter(Dive.accepted_at.is_(None)).update(
+        {Dive.accepted_at: datetime.utcnow()}, synchronize_session=False,
+    )
+    db.commit()
+    # All clips are accepted together; download manifests are bounded pages.
+    dives = query.filter(Dive.video_uuid.is_not(None)).order_by(Dive.id).offset(offset).limit(501).all()
+    return {
+        "batch_id": batch_id,
+        "diver_id": diver_id,
+        "clips": [{"id": d.id, "name": download_filename(d), "url": f"/api/v1/dives/{d.id}/download"} for d in dives[:500]],
+        "next_offset": offset + 500 if len(dives) > 500 else None,
+    }
+
+
 class ReviewEditInput(BaseModel):
     dive_code: Optional[str] = Field(default=None, pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]$")
     height: Optional[str] = Field(default=None, pattern=r"^(1|3|5|7\.5|10)[mM]$")
