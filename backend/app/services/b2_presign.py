@@ -198,3 +198,18 @@ def presign_get(
     return PresignResult(
         url=url, ttl_seconds=ttl, storage_location_id=storage_location_id
     )
+
+
+def open_get_stream(bucket: str, object_key: str):
+    """Open an SDK stream for optional native sharing, without signed URLs.
+
+    The caller owns and closes the body. Ordinary downloads still redirect.
+    """
+    response = None
+    try:
+        response = _b2_client().get_object(Bucket=bucket, Key=object_key)
+        return response['Body'], int(response['ContentLength'])
+    except Exception:
+        if response and response.get('Body') is not None:
+            response['Body'].close()
+        raise PresignUnavailable('Video stream unavailable') from None

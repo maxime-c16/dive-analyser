@@ -4,8 +4,6 @@ import mimetypes
 from pathlib import Path
 from types import SimpleNamespace
 
-import httpx
-import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, StreamingResponse
 from starlette.background import BackgroundTask
@@ -14,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import get_current_user
 from app.api.v1.media import _serve_media_file
 from app.api.v1.media_playback import _resolve_verified_prod_location, DENY_STORAGE_AMBIGUOUS, _secure_headers
+from app.config import get_settings
 from app.database import get_db
 from app.models.dive import Dive
 from app.models.media_backbone import MediaRevision
@@ -25,47 +24,40 @@ router = APIRouter()
 MAX_SHARE_BYTES = 128 * 1024 * 1024
 
 
-async def _share_file(url: str, filename: str) -> StreamingResponse:
-    """Opt-in same-origin stream for Web Share; B2 CORS stays unchanged.
-
-    Ordinary downloads redirect straight to storage. Only preparing a file
-    for the device share sheet uses this bounded stream, without disk writes.
-    """
-    client = httpx.AsyncClient(timeout=httpx.Timeout(30, connect=5))
-    upstream = None
-    async def close():
-        with anyio.CancelScope(shield=True):
-            if upstream is not None:
-                await upstream.aclose()
-            await client.aclose()
+async def _share_file(bucket: str, object_key: str, filename: str) -> StreamingResponse:
+    """Bounded same-origin SDK stream; no signed URL enters HTTP client logs."""
+    body = None
+    opening = asyncio.create_task(asyncio.to_thread(b2_presign.open_get_stream, bucket, object_key))
     try:
-        upstream = await client.send(client.build_request('GET', url, headers={'Accept-Encoding': 'identity'}), stream=True)
-        upstream.raise_for_status()
-        size = int(upstream.headers.get('content-length', '0'))
+        body, size = await run_to_completion(opening)
         if not 0 < size <= MAX_SHARE_BYTES:
             raise HTTPException(413, 'Use the normal download for this video')
-    except BaseException as exc:
-        await close()
-        if isinstance(exc, HTTPException):
-            raise
-        if not isinstance(exc, Exception):
-            raise
-        raise HTTPException(503, 'Video sharing unavailable') from None
+    except BaseException:
+        # Offloading drains before propagating cancellation. Close the result
+        # even when cancellation arrived while the provider was opening it.
+        if body is None and opening.done() and not opening.cancelled() and opening.exception() is None:
+            body = opening.result()[0]
+        if body is not None:
+            body.close()
+        raise
 
     async def content():
         received = 0
         try:
-            async for chunk in upstream.aiter_raw():
+            while True:
+                chunk = await run_to_completion(asyncio.to_thread(body.read, 64 * 1024))
+                if not chunk:
+                    break
                 received += len(chunk)
                 if received > MAX_SHARE_BYTES:
                     raise RuntimeError('Video exceeds sharing limit')
                 yield chunk
         finally:
-            await close()
+            body.close()
 
     response = StreamingResponse(content(), media_type=mimetypes.guess_type(filename)[0] or 'video/mp4', headers={
         'Content-Length': str(size), 'Content-Disposition': f'attachment; filename="{filename}"',
-    }, background=BackgroundTask(close))
+    }, background=BackgroundTask(body.close))
     _secure_headers(response)
     return response
 
@@ -85,7 +77,7 @@ async def download_clip(dive_id: int, request: Request, for_share: bool = Query(
     revision = db.query(MediaRevision).filter_by(video_uuid=dive.video_uuid).order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc()).first()
     source = None
     provider_failed = False
-    if revision:
+    if revision and get_settings().b2_playback_canary_enabled:
         location, reason = _resolve_verified_prod_location(db, revision)
         if reason == DENY_STORAGE_AMBIGUOUS:
             raise HTTPException(404, 'Video unavailable')
@@ -96,13 +88,13 @@ async def download_clip(dive_id: int, request: Request, for_share: bool = Query(
         if location and source is None:
             try:
                 await run_to_completion(asyncio.to_thread(b2_presign.head_object, bucket=location.bucket, object_key=location.object_key))
+                if for_share:
+                    return await _share_file(location.bucket, location.object_key, download_filename(dive, Path(location.object_key).suffix))
                 signed = b2_presign.presign_get(
                     bucket=location.bucket, object_key=location.object_key,
                     storage_location_id=location.id,
                     download_filename=download_filename(dive, Path(location.object_key).suffix),
                 )
-                if for_share:
-                    return await _share_file(signed.url, download_filename(dive, Path(location.object_key).suffix))
                 response = RedirectResponse(signed.url, status_code=302)
                 _secure_headers(response)
                 return response
