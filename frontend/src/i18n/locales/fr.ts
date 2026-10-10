@@ -423,6 +423,11 @@ const fr = {
     error: 'Le lien n’a pas pu être utilisé. Réessaie.',
   },
   deposits: {
+    pendingTitle: 'Lots de plongeons en attente',
+    pendingSubtitle: 'Consultez les clips déposés et suivez leur acceptation. Chaque plongeur accepte ses propres plongeons.',
+    awaitingOwner: 'En attente de l’acceptation de {{name}}',
+    readyForYou: 'Prêts à être acceptés par vous',
+
     title: 'Récupérer mes plongeons',
     titleBatch: '{{name}} — {{count}} clip(s) à passer en revue',
     subtitle: 'Accepte les clips un par un — ou tous d’un coup — et corrige le code, la hauteur ou ta note perso au passage.',

@@ -423,6 +423,11 @@ const en = {
     error: 'The link could not be redeemed. Try again.',
   },
   deposits: {
+    pendingTitle: 'Pending dive batches',
+    pendingSubtitle: 'Review deposited clips and track acceptance. Each diver accepts their own dives.',
+    awaitingOwner: 'Awaiting acceptance by {{name}}',
+    readyForYou: 'Ready for you to accept',
+
     title: 'Pick up your dives',
     titleBatch: '{{name}} — {{count}} clip(s) to review',
     subtitle: 'Accept clips one by one — or all at once — and fix the code, height or your personal note along the way.',

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../contexts/AuthContext'
 import { Check, CheckCheck, Film, Pencil } from 'lucide-react'
 import {
   acceptBatch,
+  canAcceptDeposits,
   batchReviewPath,
   editPendingDive,
   getBatch,
@@ -16,11 +18,13 @@ import {
 function DiveRow({
   dive,
   selected,
+  canAccept,
   onToggle,
   onChanged,
 }: {
   dive: ReviewDive
   selected: boolean
+  canAccept: boolean
   onToggle: () => void
   onChanged: (next: ReviewDive) => void
 }) {
@@ -53,13 +57,13 @@ function DiveRow({
   return (
     <article className="border border-app bg-app-panel p-4" aria-label={dive.dive_code}>
       <div className="flex items-start gap-3">
-        <input
+        {canAccept && <input
           type="checkbox"
           checked={selected}
           onChange={onToggle}
           aria-label={t('deposits.selectClip', { code: dive.dive_code })}
           className="mt-1 h-5 w-5"
-        />
+        />}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold text-app-text">
@@ -144,6 +148,7 @@ function DiveRow({
 }
 
 function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | null }) {
+  const { user } = useAuth()
   const { t } = useTranslation()
   const [batch, setBatch] = useState<BatchDetail | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -193,6 +198,7 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
     )
   }
 
+  const canAccept = canAcceptDeposits(user, batch.diver_id)
   const allIds = batch.dives.map((d) => d.id)
   const allSelected = allIds.every((id) => selected.has(id))
 
@@ -202,9 +208,9 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
         <h1 className="text-2xl font-semibold">
           {t('deposits.titleBatch', { name: batch.diver_name ?? '', count: batch.dives.length })}
         </h1>
-        <p className="mt-1 text-sm text-app-muted">{t('deposits.subtitle')}</p>
+        <p className="mt-1 text-sm text-app-muted">{canAccept ? t('deposits.subtitle') : t('deposits.awaitingOwner', { name: batch.diver_name ?? '' })}</p>
       </header>
-      <div className="mb-4 flex flex-wrap gap-2">
+      {canAccept && <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => accept()}
@@ -230,13 +236,14 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
         >
           {allSelected ? t('deposits.unselectAll') : t('deposits.selectAll')}
         </button>
-      </div>
+      </div>}
       <div className="grid gap-3">
         {batch.dives.map((dive) => (
           <DiveRow
             key={dive.id}
             dive={dive}
             selected={selected.has(dive.id)}
+            canAccept={canAccept}
             onToggle={() =>
               setSelected((prev) => {
                 const next = new Set(prev)
@@ -258,6 +265,7 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
 }
 
 function BatchList() {
+  const { user } = useAuth()
   const { t } = useTranslation()
   const [batches, setBatches] = useState<PendingBatch[] | null>(null)
 
@@ -273,14 +281,15 @@ function BatchList() {
     return () => {
       live = false
     }
-  }, [])
+  }, [user])
 
   if (batches === null) return <p className="py-8 text-sm text-app-muted">{t('common.loading')}</p>
+  const hasOthers = batches.some((batch) => !canAcceptDeposits(user, batch.diver_id))
   return (
     <div>
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold">{t('deposits.title')}</h1>
-        <p className="mt-1 text-sm text-app-muted">{t('deposits.subtitle')}</p>
+        <h1 className="text-2xl font-semibold">{t(hasOthers ? 'deposits.pendingTitle' : 'deposits.title')}</h1>
+        <p className="mt-1 text-sm text-app-muted">{t(hasOthers ? 'deposits.pendingSubtitle' : 'deposits.subtitle')}</p>
       </header>
       {batches.length === 0 ? (
         <p className="text-sm text-app-muted">{t('deposits.empty')}</p>
@@ -298,6 +307,11 @@ function BatchList() {
                   count: batch.pending,
                 })}
               </span>
+              <p className="mt-1 text-sm text-app-muted">
+                {canAcceptDeposits(user, batch.diver_id)
+                  ? t('deposits.readyForYou')
+                  : t('deposits.awaitingOwner', { name: batch.diver_name ?? '' })}
+              </p>
             </Link>
           ))}
         </div>
