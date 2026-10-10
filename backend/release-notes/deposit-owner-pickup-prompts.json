@@ -1,0 +1,8 @@
+{
+  "id": "deposit-owner-pickup-prompts",
+  "date": "2026-10-10",
+  "title": "Clearer pending dive batches",
+  "body": "Pickup prompts now count only your own dives. Other divers’ batches show who needs to accept them, and acceptance buttons appear only for the owner.",
+  "audience": "all",
+  "components": ["frontend"]
+}

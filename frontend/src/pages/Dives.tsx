@@ -24,7 +24,7 @@ import DiveThumbnail from "../components/DiveThumbnail";
 import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
 import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
-import { listPendingBatches } from "../services/depositsApi";
+import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
 
 const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
 
@@ -184,14 +184,15 @@ export default function Dives() {
   return <DiveLibrary key={libraryKey(user) ?? 'anonymous'} />;
 }
 
-function PendingBanner() {
+export function PendingBanner() {
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
     let live = true;
     listPendingBatches()
       .then((rows) => {
-        if (live) setCount(rows.reduce((sum, row) => sum + (row.pending || 0), 0));
+        if (live) setCount(rows.filter((row) => canAcceptDeposits(user, row.diver_id)).reduce((sum, row) => sum + (row.pending || 0), 0));
       })
       .catch(() => {
         if (live) setCount(0);
@@ -199,7 +200,7 @@ function PendingBanner() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [user]);
   if (!count) return null;
   return (
     <Link

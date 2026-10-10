@@ -1,3 +1,5 @@
+import type { AuthUser } from '../contexts/AuthContext'
+
 /**
  * Deposit-batch review client ("Récupérer mes plongeons").
  *
@@ -5,6 +7,13 @@
  * this module only transports it. Claim links are public (magic token),
  * everything else requires a live session.
  */
+
+/** Ownership, rather than admin/depositor access, determines who can accept. */
+export function canAcceptDeposits(user: AuthUser | null, diverId: number | null): boolean {
+  return diverId !== null && !!user?.divers.some(
+    (diver) => diver.diver_id === diverId && diver.access_kind === 'OWNER',
+  )
+}
 
 export type PendingBatch = {
   batch_id: string
