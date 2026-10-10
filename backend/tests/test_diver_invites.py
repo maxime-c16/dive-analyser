@@ -776,3 +776,59 @@ def test_invite_reads_are_unscoped_and_audited(client, db):
     # Reads are privacy-safe: no token material is ever passed to the log.
     for row in reads:
         assert "token" not in (row.metadata_json or "")
+
+
+def test_the_consume_condition_rejects_an_expired_link(db, monkeypatch):
+    """Expiry is enforced at the consume, not only at the earlier read.
+
+    The link can lapse in the window between `is_live` and the conditional
+    UPDATE. A token that has expired must never be redeemable even when the
+    pre-read still says otherwise, so the condition carries `expires_at`.
+    """
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    row = db.query(DiverInvite).one()
+    row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+
+    # Simulate a stale pre-read: every earlier gate still sees it as live.
+    monkeypatch.setattr(DiverInvite, "is_live", property(lambda self: True))
+
+    outcome, user, invite = diver_invites.redeem_invite(
+        db, raw, email="lea@example.test", password=INVITEE_PASSWORD
+    )
+    assert outcome == diver_invites.REDEEM_INVALID
+    assert user is None
+    db.rollback()
+
+
+def test_a_lost_email_race_reads_as_email_taken(db, monkeypatch):
+    """A stale existence check still yields 409, never a 500.
+
+    Two redemptions for DIFFERENT divers can both pass the email pre-check
+    and race to insert the same address. The app_users.email unique index
+    rejects the loser; that collision is the same outcome as the
+    pre-checked case and must not surface as an uncaught IntegrityError.
+    """
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    # Another diver's account took this address after our pre-check ran.
+    db.add(AppUser(email="lea@example.test", display_name="Rival", role="friend"))
+    db.commit()
+
+    # Only the pre-check is stale. The re-check after the collision must see
+    # the real table — that is what decides between 409 and re-raising.
+    real_check = diver_invites._email_taken
+    calls = {"n": 0}
+
+    def stale_then_real(db_, email_):
+        calls["n"] += 1
+        return False if calls["n"] == 1 else real_check(db_, email_)
+
+    monkeypatch.setattr(diver_invites, "_email_taken", stale_then_real)
+
+    outcome, user, invite = diver_invites.redeem_invite(
+        db, raw, email="lea@example.test", password=INVITEE_PASSWORD
+    )
+    assert outcome == diver_invites.REDEEM_EMAIL_TAKEN
+    assert user is None
+    assert db.query(AppUser).filter_by(email="lea@example.test").count() == 1
+    db.rollback()

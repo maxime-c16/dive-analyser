@@ -177,6 +177,7 @@ def redeem_invite(
     # which failure occurred and break the uniform 404 for consumed links.
     # A dead link is a dead link, whatever killed it.
     db.refresh(row)
+    now = datetime.utcnow()
     if not row.is_live:
         db.rollback()
         return REDEEM_INVALID, None, None
@@ -194,20 +195,25 @@ def redeem_invite(
         return REDEEM_DIVER_CLAIMED, None, None
 
     email = (email or "").strip().lower()
-    if db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None:
+    if _email_taken(db, email):
         return REDEEM_EMAIL_TAKEN, None, None
 
     # Single-use race point. Concurrent redemptions serialize on the row and
     # exactly one observes rowcount 1; the loser rolls back and returns
     # before any account exists.
+    #
+    # Expiry is part of the condition, not just of the earlier check: the
+    # link can lapse in the window between reading `is_live` and this
+    # update, and a token that has expired must never be redeemable.
     consumed = (
         db.query(DiverInvite)
         .filter(
             DiverInvite.id == row.id,
             DiverInvite.used_at.is_(None),
             DiverInvite.revoked_at.is_(None),
+            DiverInvite.expires_at > now,
         )
-        .update({"used_at": datetime.utcnow()}, synchronize_session=False)
+        .update({"used_at": now}, synchronize_session=False)
     )
     if consumed != 1:
         db.rollback()
@@ -215,24 +221,44 @@ def redeem_invite(
 
     display = (display_name or "").strip() or email.split("@")[0]
     user = AppUser(email=email, display_name=display[:120], role=ROLE_FRIEND)
-    db.add(user)
-    db.flush()
-    # Bind the EXISTING named diver. No member-<id>-<hex> placeholder here:
-    # the whole point of the link is that the clips already tied to this
-    # diver name become the new account's.
-    db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER"))
-    db.add(
-        UserCredential(
-            user_id=user.id,
-            password_hash=hash_password(password),
-            password_algo=ALGORITHM_LABEL,
+    try:
+        db.add(user)
+        db.flush()
+        # Bind the EXISTING named diver. No member-<id>-<hex> placeholder
+        # here: the whole point of the link is that the clips already tied
+        # to this diver name become the new account's.
+        db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER"))
+        db.add(
+            UserCredential(
+                user_id=user.id,
+                password_hash=hash_password(password),
+                password_algo=ALGORITHM_LABEL,
+            )
         )
-    )
-    row.user_id = user.id
-    db.commit()
+        row.user_id = user.id
+        db.commit()
+    except IntegrityError:
+        # A redemption for a DIFFERENT diver can win the race for this email:
+        # both pass the pre-check above, both insert, and the app_users.email
+        # unique index rejects the loser — at flush or at commit. Answer
+        # exactly as the pre-checked case would, never a 500.
+        db.rollback()
+        if _email_taken(db, email):
+            return REDEEM_EMAIL_TAKEN, None, None
+        raise
     db.refresh(row)
     db.refresh(user)
     return REDEEM_OK, user, row
+
+
+def _email_taken(db: Session, email: str) -> bool:
+    """Pre-check for a duplicate login address.
+
+    Advisory only: two redemptions for different divers can both pass this
+    and race to insert the same email. The app_users.email unique index is
+    the authority; redeem_invite maps that collision to REDEEM_EMAIL_TAKEN.
+    """
+    return db.query(AppUser).filter(AppUser.email == email).one_or_none() is not None
 
 
 def invite_status(row: DiverInvite) -> str:
