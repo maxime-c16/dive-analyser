@@ -857,6 +857,11 @@ def create_diver_invite(
         diver = lock_diver_for_ownership_change(db, diver_id)
     if diver is None:
         raise HTTPException(404, "Diver not found")
+    # Capture the name NOW. mint_invite commits, which expires ORM state;
+    # re-reading `diver.display_name` afterwards runs a scoped query that
+    # hides an unowned diver with only private dives — a 500 AFTER the raw
+    # link exists and is therefore lost forever.
+    diver_name = diver.display_name
     bound = (
         db.query(UserDiverAccess)
         .filter_by(diver_id=diver_id, access_kind="OWNER")
@@ -898,7 +903,7 @@ def create_diver_invite(
             email_error = "APP_PUBLIC_URL missing"
         else:
             msg = email_service.render_invite_email(
-                diver_name=diver.display_name,
+                diver_name=diver_name,
                 inviter_name=admin.display_name or admin.email.split("@")[0],
                 invite_url=invite_url,
                 expires_at=row.expires_at.strftime("%d/%m/%Y") if row.expires_at else None,
@@ -925,7 +930,7 @@ def create_diver_invite(
             metadata={"invite_id": row.id, "emailed": False},
         )
 
-    payload = diver_invites.serialize_invite(row, diver.display_name)
+    payload = diver_invites.serialize_invite(row, diver_name)
     payload["invite_url"] = invite_url
     payload["email_sent"] = email_sent
     payload["email_error"] = email_error
@@ -962,7 +967,10 @@ def revoke_diver_invite(
     )
     with _unscoped_divers(db):
         diver = db.get(Diver, row.diver_id)
-    return diver_invites.serialize_invite(row, diver.display_name if diver else None)
+        # Capture inside the unscoped block: revoke_invite has already
+        # committed, so this read must not fall back to the member scope.
+        diver_name = diver.display_name if diver else None
+    return diver_invites.serialize_invite(row, diver_name)
 
 
 @router.get("/users/{user_id}/sessions")

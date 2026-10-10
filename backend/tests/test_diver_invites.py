@@ -974,3 +974,32 @@ def test_admin_user_creation_locks_the_diver_it_grants(client, db, monkeypatch):
         .count()
         == 1
     )
+
+
+def test_mint_survives_a_diver_hidden_by_the_member_scope(client, db):
+    """Minting must not depend on a post-commit read of the diver row.
+
+    `mint_invite` commits, which expires ORM state. Reading the diver's
+    name afterwards is a load through a member-scoped session, and an
+    unowned diver with private (or no) clips is invisible to that scope —
+    so the read must not be the thing that decides whether the one-time
+    token can be returned. The name is captured before the commit.
+
+    This pins the observable contract. It does not reproduce the failure on
+    SQLAlchemy 2.x: `with_loader_criteria` scopes Query/select executions
+    but not `Session.refresh()` or single-instance loads, so the lazy read
+    happens to survive today. It would catch a regression if the read moved
+    after the commit on an ORM that does scope instance loads.
+    """
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    # No clips at all: invisible to the request-wide member scope.
+    r = client.post(f"/api/v1/admin/divers/{db.lonely_id}/invites", json={})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["diver_name"] == "Nico"
+    assert body["invite_url"].startswith("https://dive.test/invite#t=")
+    # And the token really works.
+    raw = body["invite_url"].split("#t=")[1]
+    peeked = client.post("/api/v1/auth/invite/peek", json={"token": raw})
+    assert peeked.status_code == 200
+    assert peeked.json()["diver_name"] == "Nico"
