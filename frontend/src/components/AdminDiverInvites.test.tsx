@@ -53,7 +53,21 @@ function mockFetch(options: { created?: Record<string, unknown>; fail?: boolean 
       return Response.json({ invite_id: 44, diver_id: 12, diver_name: 'Cleo', status: 'revoked' })
     }
     if (url.includes('/api/v1/admin/invites')) {
-      return Response.json({ invites: liveInvites, total: 1, limit: 100, offset: 0 })
+      const params = new URL(url, 'http://x').searchParams
+      const limit = Number(params.get('limit') ?? 50)
+      const offset = Number(params.get('offset') ?? 0)
+      // The fixture row first, then enough extras that more than one page
+      // exists, so pagination is observable rather than theoretical.
+      const all = [
+        ...liveInvites,
+        ...Array.from({ length: 59 }, (_, i) => ({
+          ...liveInvites[0],
+          invite_id: 1000 + i,
+          diver_id: 12,
+          diver_name: `Extra ${i}`,
+        })),
+      ]
+      return Response.json({ invites: all.slice(offset, offset + limit), total: all.length, limit, offset })
     }
     if (url.includes('/api/v1/admin/divers')) {
       return Response.json({ divers: directory, total: directory.length, limit: 200, offset: 0 })
@@ -116,9 +130,9 @@ describe('AdminDiverInvites', () => {
     const fetch = mockFetch()
     render(<AdminDiverInvites />)
     const table = await screen.findByRole('table')
-    expect(within(table).getByText('Cleo')).toBeInTheDocument()
-    expect(within(table).getByText('live')).toBeInTheDocument()
-    fireEvent.click(within(table).getByRole('button', { name: /revoke/i }))
+    const cleoRow = within(table).getByText('Cleo').closest('tr') as HTMLElement
+    expect(within(cleoRow).getByText('live')).toBeInTheDocument()
+    fireEvent.click(within(cleoRow).getByRole('button', { name: /revoke/i }))
     await waitFor(() =>
       expect(fetch.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(true),
     )
@@ -128,5 +142,22 @@ describe('AdminDiverInvites', () => {
     mockFetch({ fail: true })
     render(<AdminDiverInvites />)
     expect(await screen.findByRole('alert')).toHaveTextContent('boom')
+  })
+
+  it('pages through outstanding invitations instead of truncating at one page', async () => {
+    const fetch = mockFetch()
+    render(<AdminDiverInvites />)
+    await screen.findByRole('table')
+    // The pager sits beside the table, not inside it.
+    expect(screen.getByText('1–50 of 60')).toBeInTheDocument()
+    expect(screen.queryByText('Extra 58')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    // The request is driven by offset, so later rows are reachable at all.
+    const requested = () =>
+      fetch.mock.calls.map(([input]) => String(input)).filter((u) => u.includes('/api/v1/admin/invites'))
+    await waitFor(() => expect(requested().some((u) => u.includes('offset=50'))).toBe(true))
+    // Second page renders the rows the first page could not reach.
+    expect(await screen.findByText('Extra 58')).toBeInTheDocument()
   })
 })

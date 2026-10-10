@@ -19,6 +19,8 @@ import {
  * minting a fresh link, which supersedes the previous one.
  */
 
+const INVITE_PAGE_SIZE = 50
+
 const inputCls =
   'border border-app bg-app-panel-elevated px-3 py-2 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-app-accent disabled:opacity-50'
 const buttonCls =
@@ -47,6 +49,7 @@ export default function AdminDiverInvites() {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
+  const [offset, setOffset] = useState(0)
 
   // The just-minted link: the only place it can ever be read back.
   const [issued, setIssued] = useState<AdminDiverInvite | null>(null)
@@ -57,7 +60,10 @@ export default function AdminDiverInvites() {
     if (!silent) setLoading(true)
     setError(null)
     try {
-      const [directory, live] = await Promise.all([listAllDivers(), listLiveInvites({ limit: 100 })])
+      const [directory, live] = await Promise.all([
+        listAllDivers(),
+        listLiveInvites({ limit: INVITE_PAGE_SIZE, offset }),
+      ])
       setDivers(directory)
       setInvites(live.invites)
       setTotal(live.total)
@@ -66,11 +72,11 @@ export default function AdminDiverInvites() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [offset])
 
   useEffect(() => {
     void refresh()
-  }, [refresh])
+  }, [refresh, offset])
 
   const unclaimed = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -314,8 +320,28 @@ export default function AdminDiverInvites() {
             </tbody>
           </table>
         </div>
-        {total > invites.length && (
-          <p className="mt-3 text-xs text-app-muted">Showing {invites.length} of {total}.</p>
+        {(total > INVITE_PAGE_SIZE || offset > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={buttonCls}
+              disabled={offset === 0 || loading}
+              onClick={() => setOffset(Math.max(0, offset - INVITE_PAGE_SIZE))}
+            >
+              Previous
+            </button>
+            <span className="text-xs text-app-muted">
+              {offset + 1}–{Math.min(offset + INVITE_PAGE_SIZE, total)} of {total}
+            </span>
+            <button
+              type="button"
+              className={buttonCls}
+              disabled={offset + INVITE_PAGE_SIZE >= total || loading}
+              onClick={() => setOffset(offset + INVITE_PAGE_SIZE)}
+            >
+              Next
+            </button>
+          </div>
         )}
       </section>
     </div>
