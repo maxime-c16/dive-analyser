@@ -76,30 +76,34 @@ async def download_clip(dive_id: int, request: Request, for_share: bool = Query(
         raise HTTPException(404, 'Video unavailable')
     revision = db.query(MediaRevision).filter_by(video_uuid=dive.video_uuid).order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc()).first()
     source = None
+    location = None
     provider_failed = False
     if revision and get_settings().b2_playback_canary_enabled:
         location, reason = _resolve_verified_prod_location(db, revision)
         if reason == DENY_STORAGE_AMBIGUOUS:
             raise HTTPException(404, 'Video unavailable')
-        # Browser uploads store raw sources under extensionless keys. Their
-        # pinned, prepared MP4 is already available and needs no conversion.
-        if revision.rendition_semantics == 'browser_original':
-            source = legacy_media.resolve_legacy_media_source(db, SimpleNamespace(video_uuid=dive.video_uuid))
-        if location and source is None:
-            try:
-                await run_to_completion(asyncio.to_thread(b2_presign.head_object, bucket=location.bucket, object_key=location.object_key))
-                if for_share:
-                    return await _share_file(location.bucket, location.object_key, download_filename(dive, Path(location.object_key).suffix))
-                signed = b2_presign.presign_get(
-                    bucket=location.bucket, object_key=location.object_key,
-                    storage_location_id=location.id,
-                    download_filename=download_filename(dive, Path(location.object_key).suffix),
-                )
-                response = RedirectResponse(signed.url, status_code=302)
-                _secure_headers(response)
-                return response
-            except b2_presign.PresignUnavailable:
-                provider_failed = True
+    # Browser uploads store untyped raw sources under extensionless keys.
+    # Only serve their existing MP4; missing preparation is not a reason to
+    # mislabel an arbitrary original as MP4 or send it to the Photos sheet.
+    if revision and revision.rendition_semantics == 'browser_original':
+        source = legacy_media.resolve_legacy_media_source(db, SimpleNamespace(video_uuid=dive.video_uuid))
+        if not source or source[1] != 'video/mp4' or Path(source[0]).suffix.lower() != '.mp4':
+            raise HTTPException(404, 'Prepared video unavailable')
+    if location and source is None:
+        try:
+            await run_to_completion(asyncio.to_thread(b2_presign.head_object, bucket=location.bucket, object_key=location.object_key))
+            if for_share:
+                return await _share_file(location.bucket, location.object_key, download_filename(dive, Path(location.object_key).suffix))
+            signed = b2_presign.presign_get(
+                bucket=location.bucket, object_key=location.object_key,
+                storage_location_id=location.id,
+                download_filename=download_filename(dive, Path(location.object_key).suffix),
+            )
+            response = RedirectResponse(signed.url, status_code=302)
+            _secure_headers(response)
+            return response
+        except b2_presign.PresignUnavailable:
+            provider_failed = True
     if source is None:
         source = legacy_media.resolve_legacy_media_source(db, SimpleNamespace(video_uuid=dive.video_uuid))
     if not source:

@@ -1,4 +1,5 @@
 """Download attachments preserve the existing member media boundary."""
+import pytest
 from unittest.mock import Mock
 from app.config import get_settings
 from app.services import b2_presign
@@ -159,5 +160,30 @@ def test_closed_b2_flag_uses_authorized_local_file_without_cloud_access(workspac
         assert response.status_code == 200 and response.content == b'cached test video'
     assert login('bob').get(path).status_code == 404
     cloud.assert_not_called()
+    signer.assert_not_called()
+    opener.assert_not_called()
+
+
+
+@pytest.mark.parametrize('source', [None, ('/tmp/source', 'application/octet-stream'), ('/tmp/original.mov', 'video/quicktime')])
+def test_browser_upload_never_falls_back_to_an_untyped_original(workspace, monkeypatch, source):
+    from types import SimpleNamespace
+    from app.models.dive import Dive
+    from app.models.media_backbone import MediaRevision
+    from app.api.v1 import clip_downloads
+    db, login, dives, _, _ = workspace
+    dive_id = dives['alice-private']
+    dive = db.get(Dive, dive_id)
+    db.query(MediaRevision).filter_by(video_uuid=dive.video_uuid).one().rendition_semantics = 'browser_original'
+    db.commit()
+    monkeypatch.setattr(get_settings(), 'b2_playback_canary_enabled', True)
+    monkeypatch.setattr(clip_downloads, '_resolve_verified_prod_location', lambda *args: (SimpleNamespace(id=1, bucket='prod', object_key='blobs/sha256/abcd'), None))
+    monkeypatch.setattr(clip_downloads.legacy_media, 'resolve_legacy_media_source', lambda *args: source)
+    signer, opener = Mock(), Mock()
+    monkeypatch.setattr(b2_presign, 'presign_get', signer)
+    monkeypatch.setattr(b2_presign, 'open_get_stream', opener)
+    for suffix in ('', '?for_share=true'):
+        response = login('alice').get(f'/api/v1/dives/{dive_id}/download' + suffix)
+        assert response.status_code == 404
     signer.assert_not_called()
     opener.assert_not_called()
