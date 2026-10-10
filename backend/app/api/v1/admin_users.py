@@ -934,20 +934,29 @@ def revoke_diver_invite(
     db: Session = Depends(get_db),
     admin: AppUser = Depends(require_admin),
 ):
-    """Revoke an unused invitation link (idempotent)."""
+    """Revoke an unused invitation link (idempotent).
+
+    A revoke of an already-used link changes nothing but is still recorded:
+    the attempt is the security-relevant fact, and silently swallowing it
+    would leave a blind spot in the trail.
+    """
     _check_origin(request)
     row = diver_invites.revoke_invite(db, invite_id)
     if row is None:
         raise HTTPException(404, "Invite not found")
-    if row.used_at is None:
-        security_audit_log.record_event(
-            db,
-            security_audit_log.EVENT_INVITE_REVOKED,
-            actor_context=_actor(admin),
-            target_diver_id=row.diver_id,
-            metadata={"invite_id": row.id},
-        )
-    diver = db.get(Diver, row.diver_id)
+    security_audit_log.record_event(
+        db,
+        security_audit_log.EVENT_INVITE_REVOKED,
+        actor_context=_actor(admin),
+        target_diver_id=row.diver_id,
+        metadata={
+            "invite_id": row.id,
+            "was_used": row.used_at is not None,
+            "changed": row.revoked_at is not None,
+        },
+    )
+    with _unscoped_divers(db):
+        diver = db.get(Diver, row.diver_id)
     return diver_invites.serialize_invite(row, diver.display_name if diver else None)
 
 

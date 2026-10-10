@@ -832,3 +832,61 @@ def test_a_lost_email_race_reads_as_email_taken(db, monkeypatch):
     assert user is None
     assert db.query(AppUser).filter_by(email="lea@example.test").count() == 1
     db.rollback()
+
+
+def test_a_link_expiring_during_the_checks_is_rejected(db, monkeypatch):
+    """Expiry is read at the consume, not borrowed from an earlier gate.
+
+    The ownership and email checks sit between `is_live` and the conditional
+    UPDATE. A link that lapses while they run must not be redeemable, so the
+    consume compares expiry against the time it actually runs.
+    """
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    real_check = diver_invites._email_taken
+    calls = {"n": 0}
+
+    def expire_then_check(db_, email_):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            # The link lapses during the checks, after `is_live` said yes.
+            (
+                db_.query(DiverInvite)
+                .update(
+                    {"expires_at": datetime.utcnow() - timedelta(seconds=1)},
+                    synchronize_session=False,
+                )
+            )
+            db_.flush()
+            return False
+        return real_check(db_, email_)
+
+    monkeypatch.setattr(diver_invites, "_email_taken", expire_then_check)
+
+    outcome, user, invite = diver_invites.redeem_invite(
+        db, raw, email="lea@example.test", password=INVITEE_PASSWORD
+    )
+    assert outcome == diver_invites.REDEEM_INVALID
+    assert user is None
+    db.rollback()
+
+
+def test_revoking_a_used_invite_is_still_audited(client, db):
+    """A no-op revoke is not silently swallowed: the attempt is the fact."""
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+    created = client.post(f"/api/v1/admin/divers/{db.unclaimed_id}/invites", json={}).json()
+    raw = created["invite_url"].split("#t=")[1]
+    # Redeeming signs the new account in and replaces this client's session.
+    assert _register_invite(client, raw).status_code == 201
+    assert _login(client, "admin@example.test", OWNER_PASSWORD).status_code == 200
+
+    r = client.request("DELETE", f"/api/v1/admin/invites/{created['invite_id']}")
+    assert r.status_code == 200
+    assert r.json()["status"] == "used"
+
+    events = (
+        db.query(SecurityAuditEvent)
+        .filter_by(event_type="invite_revoked")
+        .all()
+    )
+    assert len(events) == 1
+    assert '"was_used":true' in (events[0].metadata_json or "")

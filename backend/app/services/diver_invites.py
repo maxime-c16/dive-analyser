@@ -177,7 +177,6 @@ def redeem_invite(
     # which failure occurred and break the uniform 404 for consumed links.
     # A dead link is a dead link, whatever killed it.
     db.refresh(row)
-    now = datetime.utcnow()
     if not row.is_live:
         db.rollback()
         return REDEEM_INVALID, None, None
@@ -202,9 +201,11 @@ def redeem_invite(
     # exactly one observes rowcount 1; the loser rolls back and returns
     # before any account exists.
     #
-    # Expiry is part of the condition, not just of the earlier check: the
-    # link can lapse in the window between reading `is_live` and this
-    # update, and a token that has expired must never be redeemable.
+    # Expiry is part of the condition, and `now` is read HERE rather than
+    # beside the earlier `is_live` gate: the ownership and email checks in
+    # between take time, and a link that lapses during them must not be
+    # redeemable. The same instant stamps used_at.
+    now = datetime.utcnow()
     consumed = (
         db.query(DiverInvite)
         .filter(
