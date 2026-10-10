@@ -8,8 +8,8 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1
 vi.mock('../components/evaluation/EvaluationSpaces', () => ({ OwnedRequests: () => <p>Owned</p>, MyJudgements: () => <p>History list</p> }))
 vi.mock('../components/evaluation/AutomaticScores', () => ({ default: () => <p>Community list</p> }))
 vi.mock('../components/evaluation/JurySession', () => ({
-  default: (props: { automatic?: boolean; daily?: boolean; resumeStackId?: number; doneBefore?: number; onDone: () => void }) =>
-    <div>Session {JSON.stringify({ automatic: !!props.automatic, daily: props.daily, resume: props.resumeStackId, before: props.doneBefore })}<button onClick={props.onDone}>Leave</button></div>,
+  default: (props: { automatic?: boolean; daily?: boolean; resumeStackId?: number; doneBefore?: number; drawSize?: number; onDone: () => void }) =>
+    <div>Session {JSON.stringify({ automatic: !!props.automatic, daily: props.daily, resume: props.resumeStackId, before: props.doneBefore, size: props.drawSize })}<button onClick={props.onDone}>Leave</button></div>,
 }))
 vi.mock('../services/evaluationApi', () => ({ getEvaluationOverview: vi.fn() }))
 import { getEvaluationOverview } from '../services/evaluationApi'
@@ -24,7 +24,7 @@ function overview(today: Partial<EvaluationOverview['today']>, extra: Partial<Ev
 }
 const renderAt = (url = '/evaluations') => render(<MemoryRouter initialEntries={[url]}><Evaluations /></MemoryRouter>)
 
-beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => { vi.clearAllMocks(); localStorage.clear() })
 
 it('opens straight into today’s first dive without a start button', async () => {
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
@@ -59,7 +59,7 @@ it('lays today’s cards on the table with the judge’s style, streak and next 
   expect(screen.getByText('4-day streak')).toBeInTheDocument()
   expect(screen.getByRole('timer')).toHaveTextContent(/\d\d:\d\d:\d\d/)
   expect(screen.getByText('2 dive(s) waiting for your score.')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: /Deal 3 more/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Deal 5 more/ }))
   expect(await screen.findByText(/"automatic":true,"daily":false/)).toBeInTheDocument()
 })
 
@@ -77,4 +77,29 @@ it('maps the previous tab links onto the three tabs', async () => {
   expect(await screen.findByText('History list')).toBeInTheDocument()
   expect(screen.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true')
   await waitFor(() => expect(getEvaluationOverview).not.toHaveBeenCalled())
+})
+
+
+it('saves the draw size, updates the copy, and uses it for extra and new daily selections', async () => {
+  vi.mocked(getEvaluationOverview).mockResolvedValue(overview({ daily: { ...stack, remaining: 0 } }))
+  const view = renderAt()
+  const setting = await screen.findByRole('combobox', { name: 'Dives per draw' })
+  expect(setting).toHaveValue('5')
+  fireEvent.change(setting, { target: { value: '8' } })
+  expect(screen.getByText(/Up to 8 public dives/)).toBeInTheDocument()
+  expect(localStorage.getItem('dive:eval-draw-size:1')).toBe('8')
+  fireEvent.click(screen.getByRole('button', { name: /Deal 8 more/ }))
+  expect(await screen.findByText(/"daily":false,"before":0,"size":8/)).toBeInTheDocument()
+  view.unmount()
+  vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
+  renderAt()
+  expect(await screen.findByText(/"daily":true,"before":0,"size":8/)).toBeInTheDocument()
+})
+
+it('falls back to five for invalid stored sizes and ignores another account’s preference', async () => {
+  localStorage.setItem('dive:eval-draw-size:2', '12')
+  localStorage.setItem('dive:eval-draw-size:1', '99')
+  vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
+  renderAt()
+  expect(await screen.findByText(/"size":5/)).toBeInTheDocument()
 })

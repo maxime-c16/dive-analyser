@@ -422,7 +422,7 @@ it('uses a finite automatic stack, resumes after quitting, and sends video ident
   fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
   await screen.findByText('EvalVideo')
   expect(createSession).not.toHaveBeenCalled()
-  expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), true)
+  expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), true, 5)
   fireEvent.keyDown(document, { key: 'Escape' })
   fireEvent.click(screen.getByRole('button', { name: 'Resume this selection' }))
   await screen.findByText('EvalVideo')
@@ -433,7 +433,7 @@ it('uses a finite automatic stack, resumes after quitting, and sends video ident
   await screen.findByRole('button', { name: 'Request another selection' })
   expect(getAutomaticQueue).toHaveBeenCalledTimes(2)
   fireEvent.click(screen.getByRole('button', { name: 'Request another selection' }))
-  await waitFor(() => expect(createAutomaticStack).toHaveBeenLastCalledWith(expect.any(String), false))
+  await waitFor(() => expect(createAutomaticStack).toHaveBeenLastCalledWith(expect.any(String), false, 5))
 })
 
 it('passes an automatic dive using its stack and keeps the manual queue untouched', async () => {
@@ -496,4 +496,15 @@ it('resumes an existing selection from the hub without allocating, counting earl
   await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await waitFor(() => expect(onDone).toHaveBeenCalled())
   expect(screen.queryByText(/this session/)).not.toBeInTheDocument()
+})
+
+
+it('uses the configured size in the automatic note and allocation', async () => {
+  vi.mocked(createAutomaticStack).mockResolvedValue({ session_id: 9, expires_at: 'tomorrow', created: true })
+  vi.mocked(getAutomaticQueue).mockResolvedValue({ ...batch, items: [item(11, '107B')] })
+  render(<MemoryRouter><JurySession automatic drawSize={8} daily={false} /></MemoryRouter>)
+  expect(screen.getByText(/Up to 8 public dives/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
+  await screen.findByText('EvalVideo')
+  expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), false, 8)
 })

@@ -1,0 +1,8 @@
+{
+  "id": "evaluation-draw-size",
+  "date": "2026-10-10",
+  "title": "Choose how many dives you judge",
+  "body": "Evaluation draws now default to 5 dives. Set between 1 and 20 dives per draw on the evaluation table, with your choice saved for your account in this browser. Smaller selections are possible when fewer dives are available.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

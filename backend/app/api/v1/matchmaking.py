@@ -25,6 +25,7 @@ router = APIRouter(dependencies=[Depends(require_schema)])
 class StackBody(BaseModel):
     client_session_id: UUID
     daily: bool = True
+    size: int = Field(default=5, ge=1, le=20, strict=True)
 
 
 @router.post('/evaluations/automatic/stacks')
@@ -33,7 +34,7 @@ def create_stack(body: StackBody, request: Request, response: Response, db: Sess
     user = _require_user(request, db)
     _secure_headers(response)
     key = 'daily:' + datetime.utcnow().date().isoformat() if body.daily else 'extra:' + str(body.client_session_id)
-    row = service.stack(db, user, key)
+    row = service.stack(db, user, key, size=body.size)
     return {'session_id': row.id, 'created': True, 'expires_at': None}
 
 
