@@ -252,6 +252,86 @@ def render_batch_email(
     return msg
 
 
+def render_invite_email(
+    *,
+    diver_name: str,
+    inviter_name: str,
+    invite_url: str,
+    expires_at: Optional[str] = None,
+) -> EmailMessage:
+    """Build the diver-invitation email ("crée ton compte, tes plongeons t'attendent").
+
+    No thumbnails: at invite time the diver has no account, so there is no
+    per-recipient clip summary to render, and pulling posters would leak the
+    library into an email that may never be redeemed. The link is the payload.
+    """
+    title = f"Crée ton compte pour {diver_name}"
+    expiry = ""
+    if expires_at:
+        expiry = f"\nCe lien est valable jusqu'au {expires_at} et ne fonctionne qu'une seule fois.\n"
+    text = (
+        f"Salut !\n\n"
+        f"{inviter_name} t'a invité(e) à rejoindre Dive Analyser pour récupérer "
+        f"les plongeons de {diver_name}.\n\n"
+        f"Crée ton compte ici :\n{invite_url}\n"
+        f"{expiry}\n"
+        f"Une fois ton compte créé, tu retrouves toutes tes vidéos et tu peux "
+        f"accepter les clips, corriger les codes ou ajouter ta note perso.\n\n"
+        f"Si tu n'es pas à l'origine de cette invitation, ignore cet email — "
+        f"rien n'a été créé sans ton action.\n"
+    )
+
+    expires_html = ""
+    if expires_at:
+        expires_html = (
+            '<p style="margin:10px 0 0 0;font-size:13px;color:#64748b;">'
+            f"Ce lien est valable jusqu'au <strong>{html.escape(expires_at)}</strong> "
+            "et ne fonctionne qu'une seule fois.</p>"
+        )
+    html_body = (
+        '<div style="margin:0;padding:0;background:#f8fafc;">'
+        '<div style="max-width:560px;margin:0 auto;padding:24px 16px;'
+        'font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">'
+        '<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;'
+        'padding:28px 24px;">'
+        '<p style="margin:0 0 4px 0;font-size:12px;letter-spacing:2px;color:#0e7490;'
+        'font-weight:700;">DIVE ANALYSER</p>'
+        f'<h1 style="margin:0 0 8px 0;font-size:22px;">{html.escape(title)}</h1>'
+        f'<p style="margin:0 0 16px 0;color:#475569;">{html.escape(inviter_name)} '
+        "t'a invité(e) à rejoindre Dive Analyser pour récupérer les plongeons de "
+        f"<strong>{html.escape(diver_name)}</strong>&nbsp;:</p>"
+        '<p style="margin:22px 0 0 0;">'
+        f'<a href="{html.escape(invite_url)}" '
+        'style="display:inline-block;background:#0e7490;color:#ffffff;text-decoration:none;'
+        'font-weight:700;padding:13px 26px;border-radius:999px;">'
+        "Créer mon compte</a></p>"
+        f"{expires_html}"
+        '<p style="margin:14px 0 0 0;font-size:13px;color:#64748b;">'
+        "Une fois ton compte créé, tu retrouves toutes tes vidéos et tu peux "
+        "accepter les clips, corriger les codes ou ajouter ta note perso.</p>"
+        "</div>"
+        '<p style="margin:14px 4px 0 4px;font-size:12px;color:#94a3b8;">'
+        "Si tu n'es pas à l'origine de cette invitation, ignore cet email — "
+        "rien n'a été créé sans ton action.</p>"
+        "</div></div>"
+    )
+
+    msg = EmailMessage()
+    settings = get_settings()
+    msg["Subject"] = f"[Dive Analyser] {title}"
+    msg["From"] = settings.email_from.strip()
+    sender = _sender_address(settings.email_from)
+    if sender:
+        # Replies reach the real mailbox instead of a no-reply black hole.
+        msg["Reply-To"] = sender
+    msg["To"] = ""  # filled by the sender (per-recipient envelope)
+    msg["Date"] = formatdate(localtime=True)
+    msg.set_content(text)
+    msg.add_alternative(html_body, subtype="html")
+    msg["Message-ID"] = make_msgid(domain=sender.rpartition("@")[2] if "@" in sender else None)
+    return msg
+
+
 def send_message(msg: EmailMessage, to_address: str) -> tuple[bool, str]:
     """Send one message over SMTP STARTTLS. Never raises: (ok, error)."""
     settings = get_settings()

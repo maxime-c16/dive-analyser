@@ -171,6 +171,10 @@ class Settings(BaseSettings):
     batch_email_delay_minutes: int = int(os.getenv("BATCH_EMAIL_DELAY_MINUTES", "45"))
     # Magic-link claim token lifetime (seconds, default 7 days).
     claim_token_ttl_seconds: int = int(os.getenv("CLAIM_TOKEN_TTL_SECONDS", "604800"))
+    # Diver invitation-link lifetime (seconds, default 7 days). These are
+    # pure bearer credentials that create an account and grant diver
+    # ownership, so keep this short and revoke links you do not recognise.
+    diver_invite_ttl_seconds: int = int(os.getenv("DIVER_INVITE_TTL_SECONDS", "604800"))
 
     # Cache settings
     cache_ttl_seconds: int = 3600  # 1 hour default

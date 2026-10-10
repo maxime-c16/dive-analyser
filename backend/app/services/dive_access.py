@@ -5,6 +5,7 @@ column projections, joins and relationship loads. Machine-key and auth-disabled
 flows keep their existing contract. Route handlers still authorize mutations.
 """
 from contextlib import contextmanager
+from typing import Optional
 
 from fastapi import Depends, HTTPException, WebSocketException
 from starlette.requests import HTTPConnection
@@ -45,6 +46,20 @@ def owned_diver_ids(db: Session, user_id: int) -> tuple[int, ...]:
     return tuple(db.execute(select(UserDiverAccess.diver_id).where(
         UserDiverAccess.user_id == user_id, UserDiverAccess.access_kind == "OWNER"
     )).scalars())
+
+
+def lock_diver_for_ownership_change(db: Session, diver_id: int) -> Optional[Diver]:
+    """Row-lock one diver before reading or writing its OWNER bindings.
+
+    "Is this diver already owned?" followed by "create a binding" is a
+    check-then-act pair that appears in invite redemption and in the admin
+    grant path. Without a shared lock those interleave and both succeed,
+    handing a second OWNER to a diver whose clips already belong to an
+    account. SELECT … FOR UPDATE on the diver row serializes them in
+    Postgres; SQLite ignores the clause and serializes whole-database
+    writes anyway. Returns the diver (None when it does not exist).
+    """
+    return db.query(Diver).filter(Diver.id == diver_id).with_for_update().first()
 
 
 def visible_dive_clause(ids: tuple[int, ...], is_admin: bool = False, depositor_user_id=None):

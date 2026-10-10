@@ -31,6 +31,14 @@ EVENT_SESSION_REVOKED = "session_revoked"
 EVENT_OWNERSHIP_GRANTED = "ownership_granted"
 EVENT_OWNERSHIP_REVOKED = "ownership_revoked"
 EVENT_LOGIN_RATE_LIMITED = "login_rate_limited"
+# Diver invitation links (admin-minted signup for an unclaimed diver name).
+EVENT_INVITE_CREATED = "invite_created"
+EVENT_INVITE_REVOKED = "invite_revoked"
+EVENT_INVITE_REDEEMED = "invite_redeemed"
+# Listing invite metadata: an admin enumerating who has an outstanding
+# signup link. Reads of non-secret fields only — the raw token is never
+# returned by these endpoints and never appears in metadata.
+EVENT_INVITE_READ = "invite_read"
 
 # actor_context values.
 ACTOR_OPERATOR_CLI = "operator-cli"

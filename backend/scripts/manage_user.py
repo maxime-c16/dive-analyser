@@ -62,6 +62,7 @@ from app.models.user_auth import (
 )
 from app.services import security_audit_log
 from app.services import sessions as sessions_authority
+from app.services.dive_access import lock_diver_for_ownership_change
 from app.services.passwords import ALGORITHM_LABEL, hash_password
 
 
@@ -154,6 +155,10 @@ def cmd_create_user(db, args) -> None:
         )
     )
     if diver is not None:
+        # Same row lock the HTTP grant and invite redemption take: this is an
+        # OWNER grant and must serialize with them, or a CLI bind can race a
+        # redemption into a second owner for the same diver.
+        lock_diver_for_ownership_change(db, diver.id)
         db.add(
             UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind="OWNER")
         )
@@ -250,6 +255,11 @@ def cmd_reset_password(db, args) -> None:
 def cmd_bind(db, args, bind: bool) -> None:
     user = _get_user(db, args.email)
     diver = _resolve_diver(db, args.diver_id, args.diver_canonical_name)
+    if bind:
+        # Same row lock the HTTP grant and invite redemption take — an OWNER
+        # grant must serialize with them or it can race a redemption into a
+        # second owner for the same diver.
+        lock_diver_for_ownership_change(db, diver.id)
     existing = (
         db.query(UserDiverAccess)
         .filter_by(user_id=user.id, diver_id=diver.id, access_kind="OWNER")

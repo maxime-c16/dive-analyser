@@ -28,6 +28,8 @@ export interface AdminDiver {
   canonical_name: string
   active: boolean
   bound_to_user: boolean
+  /** A signup link is currently outstanding for this diver name. */
+  has_live_invite?: boolean
 }
 
 export interface AdminUserList {
@@ -192,4 +194,51 @@ export function getAccountStudio(userId: number, offset = 0): Promise<AccountStu
 }
 export function previewBinding(userId: number, diverId: number, bound: boolean): Promise<BindingPreview> {
   return request(`/api/v1/admin/users/${userId}/binding-preview?diver_id=${diverId}&bound=${bound}`)
+}
+
+/** Diver invitation links: one bearer signup link per unclaimed diver name. */
+export type DiverInviteStatus = 'live' | 'used' | 'revoked' | 'expired'
+
+export interface AdminDiverInvite {
+  invite_id: number
+  diver_id: number
+  diver_name: string | null
+  status: DiverInviteStatus
+  /**
+   * Present ONLY in the create response: the raw token is recoverable from
+   * the fragment and is never stored server-side, so this is the one chance
+   * to copy it. Never echoed again.
+   */
+  invite_url?: string | null
+  email_sent?: boolean | null
+  email_error?: string | null
+  created_at: string | null
+  expires_at: string | null
+  used_at: string | null
+  revoked_at: string | null
+  created_by_user_id: number | null
+  user_id: number | null
+}
+
+export function listLiveInvites(params?: { limit?: number; offset?: number }): Promise<{ invites: AdminDiverInvite[]; total: number; limit: number; offset: number }> {
+  const search = new URLSearchParams()
+  if (params?.limit !== undefined) search.set('limit', String(params.limit))
+  if (params?.offset !== undefined) search.set('offset', String(params.offset))
+  const suffix = search.toString()
+  return request(`/api/v1/admin/invites${suffix ? `?${suffix}` : ''}`)
+}
+
+export function listDiverInvites(diverId: number): Promise<{ invites: AdminDiverInvite[] }> {
+  return request(`/api/v1/admin/divers/${diverId}/invites`)
+}
+
+export function createDiverInvite(diverId: number, sendTo?: string): Promise<AdminDiverInvite> {
+  return request(`/api/v1/admin/divers/${diverId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify(sendTo ? { send_to: sendTo } : {}),
+  })
+}
+
+export function revokeDiverInvite(inviteId: number): Promise<AdminDiverInvite> {
+  return request(`/api/v1/admin/invites/${inviteId}`, { method: 'DELETE' })
 }

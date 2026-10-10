@@ -34,6 +34,7 @@ from sqlalchemy import select
 from app.database import SessionLocal, init_db
 from app.models.diver import Diver
 from app.models.user_auth import AppUser, UserCredential, UserDiverAccess
+from app.services.dive_access import lock_diver_for_ownership_change
 from app.services.passwords import ALGORITHM_LABEL, hash_password
 
 
@@ -132,6 +133,10 @@ def main() -> None:
             .one_or_none()
         )
         if existing_access is None:
+            # Row-locked like every other OWNER grant: invite redemption
+            # reads "is this diver owned?" under the same lock, so a grant
+            # here cannot race it into a second binding.
+            lock_diver_for_ownership_change(db, diver_id)
             db.add(UserDiverAccess(user_id=user.id, diver_id=diver_id, access_kind="OWNER"))
         db.commit()
         # No password, no token, no secret in any output.
