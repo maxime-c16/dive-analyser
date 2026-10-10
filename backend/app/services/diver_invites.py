@@ -169,6 +169,7 @@ def redeem_invite(
     # whose clips already belong to an account.
     diver = lock_diver_for_ownership_change(db, row.diver_id)
     if diver is None:
+        db.rollback()
         return REDEEM_INVALID, None, None
 
     # Re-read the token's state now that we hold the lock. A concurrent
@@ -191,10 +192,14 @@ def redeem_invite(
         .first()
     )
     if claimed is not None:
+        # Nothing is written on any refusal path, so roll back rather than
+        # leave the diver row lock held until the session is torn down.
+        db.rollback()
         return REDEEM_DIVER_CLAIMED, None, None
 
     email = (email or "").strip().lower()
     if _email_taken(db, email):
+        db.rollback()
         return REDEEM_EMAIL_TAKEN, None, None
 
     # Single-use race point. Concurrent redemptions serialize on the row and

@@ -890,3 +890,49 @@ def test_revoking_a_used_invite_is_still_audited(client, db):
     )
     assert len(events) == 1
     assert '"was_used":true' in (events[0].metadata_json or "")
+
+
+def test_every_refusal_path_ends_the_transaction(db):
+    """Refusals must not leave the diver row lock held.
+
+    Each early return after `lock_diver_for_ownership_change` rolls back,
+    so the session is usable and the lock is released instead of lingering
+    until the request is torn down.
+    """
+    def assert_usable(outcome):
+        assert outcome != diver_invites.REDEEM_OK
+        # An open, locked transaction would make this block or fail.
+        db.add(
+            Diver(
+                display_name="probe",
+                canonical_name=f"probe-{db.query(Diver).count()}",
+            )
+        )
+        db.commit()
+
+    # diver_claimed: the diver is already owned.
+    raw = _mint(db, db.claimed_id, db.admin_id)
+    assert_usable(
+        diver_invites.redeem_invite(
+            db, raw, email="a@example.test", password=INVITEE_PASSWORD
+        )[0]
+    )
+
+    # email_taken: the address is in use.
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    assert_usable(
+        diver_invites.redeem_invite(
+            db, raw, email="admin@example.test", password=INVITEE_PASSWORD
+        )[0]
+    )
+
+    # link_invalid after the lock: consumed while we waited.
+    raw = _mint(db, db.unclaimed_id, db.admin_id)
+    row = db.query(DiverInvite).order_by(DiverInvite.id.desc()).first()
+    row.used_at = datetime.utcnow()
+    db.commit()
+    assert_usable(
+        diver_invites.redeem_invite(
+            db, raw, email="b@example.test", password=INVITEE_PASSWORD
+        )[0]
+    )
