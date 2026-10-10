@@ -32,9 +32,15 @@ export async function saveDownloadBatch(batchId: string, diverId: number): Promi
       method: 'POST', credentials: 'same-origin',
     })
     if (!response.ok) throw new Error('Could not save clips')
+    // Acceptance commits before the manifest returns. Returning to a recently
+    // visited library must fetch these newly accepted clips immediately.
+    clearLibraryCache()
+    clearIntentData()
     const data: { clips: DownloadClip[]; next_offset: number | null } = await response.json()
     clips.push(...data.clips)
     offset = data.next_offset
   } while (offset !== null)
   return clips
 }
+import { clearLibraryCache } from './libraryCache'
+import { clearIntentData } from './intentCache'
