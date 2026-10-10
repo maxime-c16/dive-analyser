@@ -1,0 +1,11 @@
+{
+  "id": "clip-device-downloads",
+  "date": "2026-10-10",
+  "title": "Save your clips to your device",
+  "body": "Download a video beside the share button. Batch emails now offer a button that accepts all clips into your library and starts downloading them to your device. Retry individual downloads whenever needed.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Gift } from 'lucide-react'
@@ -9,12 +9,15 @@ import { batchReviewPath, claimTokenFromHash, peekClaim, redeemClaim } from '../
  * Public magic-link landing ("Récupérer mes plongeons").
  * The token lives in the URL fragment (`/claim#t=…`) so it never reaches
  * server logs; the preview POST never consumes it (email prefetchers) and
- * the explicit button POST redeems it and signs the recipient in.
+ * review links wait for an explicit button; save/download links redeem on
+ * a visible landing and then open the owner-only batch download flow.
  */
 export default function Claim() {
   const { t } = useTranslation()
   const location = useLocation()
   const token = claimTokenFromHash(location.hash)
+  const download = new URLSearchParams(location.hash.slice(1)).get('action') === 'download'
+  const started = useRef(false)
   const navigate = useNavigate()
   const { refresh } = useAuth()
   const [state, setState] = useState<'loading' | 'ready' | 'invalid'>('loading')
@@ -52,13 +55,31 @@ export default function Claim() {
     try {
       const data = await redeemClaim(token)
       await refresh()
-      navigate(batchReviewPath(data.batch_id, data.diver_id), { replace: true })
+      const path = batchReviewPath(data.batch_id, data.diver_id)
+      navigate(download ? `${path}${path.includes('?') ? '&' : '?'}download=1` : path, { replace: true })
     } catch {
       setError(true)
     } finally {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (!download || state !== 'ready' || started.current) return
+    // Background tabs and browser prerenders must not consume magic links.
+    const start = () => {
+      if (document.visibilityState !== 'visible' || (document as Document & { prerendering?: boolean }).prerendering || started.current) return
+      started.current = true
+      void redeem()
+    }
+    start()
+    document.addEventListener('visibilitychange', start)
+    document.addEventListener('prerenderingchange', start)
+    return () => {
+      document.removeEventListener('visibilitychange', start)
+      document.removeEventListener('prerenderingchange', start)
+    }
+  }, [download, state])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-app px-4">
@@ -77,7 +98,7 @@ export default function Claim() {
         {state === 'ready' && (
           <>
             <p className="mt-2 text-sm leading-6 text-app-muted">
-              {t('claim.ready', { count: pending })}
+              {t(download ? 'downloads.claimReady' : 'claim.ready', { count: pending })}
             </p>
             {diverName && <p className="mt-1 text-sm font-medium text-app-text">{diverName}</p>}
             <button
@@ -86,7 +107,7 @@ export default function Claim() {
               disabled={busy}
               className="touch-target mt-6 inline-flex w-full items-center justify-center bg-app-accent px-4 py-3 text-base font-semibold text-white disabled:opacity-60"
             >
-              {busy ? t('claim.signingIn') : t('claim.cta')}
+              {busy ? t('claim.signingIn') : t(download ? 'downloads.saveDownload' : 'claim.cta')}
             </button>
             {error && <p className="mt-3 text-sm text-red-500">{t('claim.error')}</p>}
           </>

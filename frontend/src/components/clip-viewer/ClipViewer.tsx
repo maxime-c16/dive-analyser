@@ -26,6 +26,7 @@ import EvaluationRequestControl from "./EvaluationRequestControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
+import DownloadDiveButton from "./DownloadDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
 import { useNavigationIntent } from "../../hooks/useNavigationIntent";
 import { defaultAnalysisFilters, warmDiveAnalysis } from "../../services/diveAnalysisApi";
@@ -787,6 +788,7 @@ export default function ClipViewer({
                 <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
               {(user || (attempt.can_manage && attempt.video_uuid)) && <ShareDiveButton key={attempt.id} id={attempt.id} allowLink={!!(attempt.can_manage && attempt.video_uuid)} allowDm={!!user} />}
+              {user && attempt.video_uuid && <DownloadDiveButton key={`download-${attempt.id}`} id={attempt.id} />}
               <Link
                 to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
                 state={{ returnTo: `${location.pathname}${location.search}` }}

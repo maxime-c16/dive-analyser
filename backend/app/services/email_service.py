@@ -141,6 +141,7 @@ def render_batch_email(
     posters: list[tuple[str, bytes, str]],
 ) -> EmailMessage:
     """Build the multipart (text + HTML + CID thumbnails) batch email."""
+    download_url = claim_url + "&action=download"
     count = len(dives)
     title = (
         "Un nouveau plongeon à récupérer"
@@ -154,7 +155,8 @@ def render_batch_email(
         f"{depositor_name or 'Ton club'} t'a déposé {count} plongeon{'s' if count > 1 else ''} "
         f"pour {diver_name} :\n{clip_lines}\n"
         f"{note_block}\n"
-        f"Récupère-les ici (connexion automatique) :\n{claim_url}\n\n"
+        f"Enregistrer dans ma bibliothèque et télécharger les vidéos :\n{download_url}\n\n"
+        f"Ou les revoir avant de les accepter :\n{claim_url}\n\n"
         f"Tu pourras les accepter un par un — ou tout accepter — et corriger "
         f"le code, la hauteur ou ta note perso au passage.\n"
         f"Lien direct vers la revue : {review_url}\n"
@@ -219,6 +221,14 @@ def render_batch_email(
         'style="display:inline-block;background:#0e7490;color:#ffffff;text-decoration:none;'
         'font-weight:700;padding:13px 26px;border-radius:999px;">'
         "Récupérer mes plongeons</a></p>"
+        '<p style="margin:12px 0 0 0;">'
+        f'<a href="{html.escape(download_url)}" '
+        'style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;'
+        'font-weight:700;padding:13px 26px;border-radius:999px;">'
+        "Enregistrer et télécharger tout</a></p>"
+        '<p style="margin:10px 0 0 0;font-size:13px;color:#64748b;">'
+        "Ce second bouton accepte tous les clips dans ta bibliothèque et lance "
+        "leur téléchargement sur ton appareil. Ton navigateur peut demander une confirmation.</p>"
         '<p style="margin:14px 0 0 0;font-size:13px;color:#64748b;">'
         "Le bouton te connecte automatiquement. Tu pourras accepter les clips "
         "un par un — ou tout accepter — et corriger le code, la hauteur ou ta "

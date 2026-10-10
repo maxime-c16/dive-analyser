@@ -64,3 +64,6 @@ from app.api.v1 import messages
 v1_router.include_router(messages.router, tags=['messages'])
 from app.api.v1 import deposits
 v1_router.include_router(deposits.router, tags=['deposits'])
+
+from app.api.v1 import clip_downloads
+v1_router.include_router(clip_downloads.router, tags=['clip-downloads'])

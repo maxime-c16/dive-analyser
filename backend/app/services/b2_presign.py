@@ -176,6 +176,7 @@ def presign_get(
     object_key: str,
     ttl_seconds: Optional[int] = None,
     storage_location_id: Optional[int] = None,
+    download_filename: Optional[str] = None,
 ) -> PresignResult:
     """Presign a GET for one object. Returns (url, ttl) — url is transient.
 
@@ -185,9 +186,13 @@ def presign_get(
     """
     ttl = clamp_ttl(ttl_seconds)
     client = _b2_client()
+    params = {"Bucket": bucket, "Key": object_key}
+    if download_filename:
+        # Callers supply an ASCII filename, never a raw user-provided name.
+        params["ResponseContentDisposition"] = f'attachment; filename="{download_filename}"'
     url = client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": bucket, "Key": object_key},
+        Params=params,
         ExpiresIn=ttl,
     )
     return PresignResult(

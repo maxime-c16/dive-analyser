@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import BatchDownload from '../components/BatchDownload'
 import { useAuth } from '../contexts/AuthContext'
 import { Check, CheckCheck, Film, Pencil } from 'lucide-react'
 import {
@@ -325,6 +326,7 @@ export default function Deposits() {
   const [params] = useSearchParams()
   const diverParam = Number(params.get('diver'))
   const diverId = params.get('diver') !== null && Number.isInteger(diverParam) ? diverParam : null
+  if (batchId && params.get('download') === '1') return <BatchDownload key={`${batchId}:${diverId}`} batchId={batchId} diverId={diverId} />
   if (batchId) return <BatchReview batchId={batchId} diverId={diverId} />
   return <BatchList />
 }
