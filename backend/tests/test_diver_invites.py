@@ -441,6 +441,16 @@ def test_revoke_is_idempotent_and_never_touches_a_used_invite(client, db):
     again = client.request("DELETE", f"/api/v1/admin/invites/{created['invite_id']}")
     assert again.status_code == 200
     assert again.json()["status"] == "revoked"
+    # `changed` is what THIS request did. A repeat revoke is a no-op and
+    # must not be logged as a change.
+    audits = (
+        db.query(SecurityAuditEvent)
+        .filter_by(event_type="invite_revoked")
+        .all()
+    )
+    assert len(audits) == 2
+    assert '"changed":true' in (audits[0].metadata_json or "")
+    assert '"changed":false' in (audits[-1].metadata_json or "")
 
 
 def test_mint_can_send_the_invite_email(client, db, flags, monkeypatch):

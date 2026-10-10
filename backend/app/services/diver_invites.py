@@ -333,13 +333,21 @@ def live_invite_diver_ids(db: Session, diver_ids: List[int]) -> set[int]:
     return {row[0] for row in rows}
 
 
-def revoke_invite(db: Session, invite_id: int) -> Optional[DiverInvite]:
-    """Revoke one invite (idempotent: already-used rows are left alone)."""
+def revoke_invite(
+    db: Session, invite_id: int
+) -> tuple[Optional[DiverInvite], bool]:
+    """Revoke one invite. Returns (row, changed).
+
+    ``changed`` is what THIS call did, not the row's resulting state: a
+    second revoke of an already-revoked link is a no-op and must say so,
+    and a used link can never be revoked at all.
+    """
     row = db.get(DiverInvite, invite_id)
     if row is None:
-        return None
+        return None, False
     if row.used_at is None and row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         db.commit()
         db.refresh(row)
-    return row
+        return row, True
+    return row, False

@@ -951,7 +951,7 @@ def revoke_diver_invite(
     would leave a blind spot in the trail.
     """
     _check_origin(request)
-    row = diver_invites.revoke_invite(db, invite_id)
+    row, changed = diver_invites.revoke_invite(db, invite_id)
     if row is None:
         raise HTTPException(404, "Invite not found")
     security_audit_log.record_event(
@@ -962,7 +962,9 @@ def revoke_diver_invite(
         metadata={
             "invite_id": row.id,
             "was_used": row.used_at is not None,
-            "changed": row.revoked_at is not None,
+            # What THIS request did, not the row's resulting state — a
+            # repeat revoke is a no-op and must not read as a change.
+            "changed": changed,
         },
     )
     with _unscoped_divers(db):
