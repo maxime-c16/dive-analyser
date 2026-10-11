@@ -105,6 +105,7 @@ async def receive(db, user, upload_id, request):
         if length and int(length) > MAX_BYTES:
             raise HTTPException(413, 'Video exceeds 1 GB')
         size = 0
+        last_heartbeat = monotonic()
         with path.open('xb') as target:
             async for chunk in request.stream():
                 size += len(chunk)
@@ -112,9 +113,15 @@ async def receive(db, user, upload_id, request):
                     raise HTTPException(413, 'Video exceeds 1 GB')
                 if chunk:
                     await run_to_completion(asyncio.to_thread(target.write, chunk))
+                if monotonic() - last_heartbeat >= 30:
+                    db.query(BrowserUploadJob).filter_by(id=job_id, status='uploading').update({'updated_at': datetime.utcnow()}, synchronize_session=False)
+                    db.commit()
+                    last_heartbeat = monotonic()
         if not size:
             raise HTTPException(422, 'Empty video')
-        job = db.get(BrowserUploadJob, job_id)
+        job = db.query(BrowserUploadJob).filter_by(id=job_id).with_for_update().populate_existing().one()
+        if job.status != 'uploading' or not path.is_file():
+            raise HTTPException(408, 'Upload expired; please retry')
         job.status = 'queued'
         db.commit()
         return summary(job)
