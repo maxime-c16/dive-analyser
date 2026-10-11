@@ -4,16 +4,19 @@ The PostgreSQL session advisory lock serializes workers across Uvicorn
 processes without holding a SQL transaction during transcode/B2 verification.
 Interrupted processing jobs resume after the prior process releases that lock.
 """
+import asyncio
 import logging
 import shutil
 import threading
+import os
+from itertools import islice
 from time import monotonic, time
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
-from sqlalchemy import select, text
+from sqlalchemy import select, text, or_
 from starlette.requests import Request
 from app.config import get_settings
 from app.database import SessionLocal, engine
@@ -25,14 +28,14 @@ logger = logging.getLogger(__name__)
 _last_cleanup = 0.0
 _LOCK = threading.Lock()
 _ADVISORY_KEY = 834928
-ACTIVE = ('receiving', 'queued', 'processing')
+ACTIVE = ('receiving', 'uploading', 'queued', 'processing')
 
 
 def summary(job):
     return dict(upload_id=job.upload_id, status=job.status, dive_id=job.result_id, error=job.last_error)
 
 
-def enqueue(db, user, file, payload):
+def reserve(db, user, filename, payload):
     from app.services.dive_access import owned_diver_ids
     from app.services.dive_code_parser import DiveCodeParser
     from app.models.diver import Diver
@@ -71,7 +74,7 @@ def enqueue(db, user, file, payload):
     path = root / uuid4().hex
     job = existing or BrowserUploadJob(user_id=user.id, upload_id=payload['upload_id'])
     job.payload = payload
-    job.filename = Path(file.filename or 'video.mp4').name[:255]
+    job.filename = Path(filename).name[:255]
     job.storage_path = str(path)
     job.status = 'receiving'
     job.attempts = 0
@@ -79,22 +82,46 @@ def enqueue(db, user, file, payload):
     job.updated_at = datetime.utcnow()
     db.add(job)
     db.commit()
+    return summary(job)
+
+
+async def receive(db, user, upload_id, request):
+    """Stream raw bytes only after a durable, account-private reservation."""
+    from app.services.offload import run_to_completion
+    user_id = user.id
+    job = db.query(BrowserUploadJob).filter_by(user_id=user_id, upload_id=upload_id).with_for_update().first()
+    if job is None:
+        raise HTTPException(404, 'Upload not found')
+    if job.status in ('queued', 'processing', 'ready'):
+        return summary(job)
+    if job.status != 'receiving':
+        raise HTTPException(409, 'Upload already in progress; check its status')
+    path, job_id = Path(job.storage_path), job.id
+    job.status = 'uploading'
+    db.commit()
+    db.rollback()  # No read transaction remains during body streaming.
     try:
+        length = request.headers.get('content-length')
+        if length and int(length) > MAX_BYTES:
+            raise HTTPException(413, 'Video exceeds 1 GB')
         size = 0
         with path.open('xb') as target:
-            while chunk := file.file.read(1024 * 1024):
+            async for chunk in request.stream():
                 size += len(chunk)
                 if size > MAX_BYTES:
                     raise HTTPException(413, 'Video exceeds 1 GB')
-                target.write(chunk)
+                if chunk:
+                    await run_to_completion(asyncio.to_thread(target.write, chunk))
         if not size:
             raise HTTPException(422, 'Empty video')
+        job = db.get(BrowserUploadJob, job_id)
         job.status = 'queued'
         db.commit()
         return summary(job)
     except BaseException:
         db.rollback()
         path.unlink(missing_ok=True)
+        job = db.get(BrowserUploadJob, job_id)
         job.status = 'failed'
         job.last_error = 'Upload interrupted; please retry'
         db.commit()
@@ -116,7 +143,7 @@ def process_one():
                 return False
         with SessionLocal() as db:
             # A crashed receiver never becomes processable; free its slot.
-            abandoned = db.query(BrowserUploadJob).filter(BrowserUploadJob.status == 'receiving', BrowserUploadJob.updated_at < datetime.utcnow() - timedelta(hours=1)).all()
+            abandoned = db.query(BrowserUploadJob).filter(BrowserUploadJob.status.in_(('receiving', 'uploading')), BrowserUploadJob.updated_at < datetime.utcnow() - timedelta(hours=1)).all()
             for job in abandoned:
                 Path(job.storage_path).unlink(missing_ok=True)
                 job.status, job.last_error = 'failed', 'Upload interrupted; please retry'
@@ -131,12 +158,18 @@ def process_one():
                     # entry. Only the globally serialized idle worker sweeps
                     # old, unreferenced folders inside the upload root.
                     root = Path(get_settings().media_cache_root).resolve() / 'browser-uploads'
-                    referenced = {Path(value).parent.resolve() for value, in db.query(MediaCacheEntry.storage_path).all()}
                     cutoff = time() - 86400
                     if root.exists():
-                        for folder in root.iterdir():
-                            if folder.is_dir() and not folder.is_symlink() and folder.resolve() not in referenced and folder.stat().st_mtime < cutoff:
-                                shutil.rmtree(folder)
+                        candidates = list(islice((folder for folder in root.iterdir()
+                            if folder.is_dir() and not folder.is_symlink() and folder.stat().st_mtime < cutoff), 100))
+                        if candidates:
+                            paths = db.query(MediaCacheEntry.storage_path).filter(or_(*(
+                                MediaCacheEntry.storage_path.startswith(str(folder) + os.sep, autoescape=True)
+                                for folder in candidates))).yield_per(100)
+                            referenced = {Path(value).parent.resolve() for value, in paths}
+                            for folder in candidates:
+                                if folder.resolve() not in referenced:
+                                    shutil.rmtree(folder)
                     _last_cleanup = monotonic()
                 db.commit()
                 return False

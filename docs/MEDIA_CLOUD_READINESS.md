@@ -47,7 +47,10 @@ again before the short publication transaction. Retry identities belong to
 one account; job status never reveals another account's upload.
 
 At most two pending uploads per account and eight globally are reserved
-before receiving bytes. Disk headroom reserves four GiB per pending clip
+before receiving bytes. The JSON reservation endpoint does not accept a file;
+a separate raw PUT streams into its reserved file and enforces the byte cap
+even when Content-Length is missing. Both proxies disable request buffering
+for this path. Reload LAN nginx and recreate the Funnel proxy after rollout. Disk headroom reserves four GiB per pending clip
 plus one GiB margin. An interrupted receiver fails after an hour; interrupted
 processing resumes when the old process releases the advisory lock. Three
 interruptions produce a retryable failure. Completed staging files are

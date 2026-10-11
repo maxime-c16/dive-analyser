@@ -56,3 +56,17 @@ class DiveResponse(DiveBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BrowserUploadReservation(BaseModel):
+    upload_id: str = Field(..., pattern=r'^[a-f0-9-]{36}$')
+    filename: str = Field(..., min_length=1, max_length=255)
+    dive_code: str = Field(..., pattern=r'^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCD]$')
+    height: str = Field(..., pattern=r'^(1|3|5|7\.5|10)m$')
+    performance: str = Field(..., pattern=r'^[FBMGP]$')
+    dive_datetime: datetime
+    diver_id: int = Field(..., ge=1)
+    visibility: str = Field('private', pattern=r'^(public|private)$')
+    notes: str = Field('', max_length=2000)
+    evaluation_requested: bool = False
+    evaluation_prompt: str = Field('', max_length=1000)

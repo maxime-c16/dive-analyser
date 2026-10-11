@@ -278,31 +278,26 @@ def create_dive(
     return _public_dive(db_dive, db)
 
 
+from app.schemas.dive import BrowserUploadReservation
+
+
 @router.post("/uploads", status_code=202)
-def queue_upload(
-    request: Request,
-    file: UploadFile = File(...),
-    dive_code: str = Form(..., pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCD]$"),
-    height: str = Form(..., pattern=r"^(1|3|5|7\.5|10)m$"),
-    performance: str = Form(..., pattern=r"^[FBMGP]$"),
-    dive_datetime: datetime = Form(...),
-    visibility: str = Form("private", pattern=r"^(public|private)$"),
-    notes: str = Form("", max_length=2000),
-    evaluation_requested: bool = Form(False),
-    evaluation_prompt: str = Form("", max_length=1000),
-    diver_id: int = Form(...),
-    upload_id: str = Form(..., pattern=r"^[a-f0-9-]{36}$"),
-    db: Session = Depends(get_db),
-):
-    from app.services.upload_queue import enqueue
+def queue_upload(body: BrowserUploadReservation, request: Request, db: Session = Depends(get_db)):
+    from app.services.upload_queue import reserve
     user = getattr(request.state, "member_user", None)
     if not user:
         raise HTTPException(401, "Authentication required")
-    payload = dict(dive_code=dive_code, height=height, performance=performance,
-        dive_datetime=dive_datetime.isoformat(), visibility=visibility, notes=notes,
-        evaluation_requested=evaluation_requested, evaluation_prompt=evaluation_prompt,
-        diver_id=diver_id, upload_id=upload_id)
-    return enqueue(db, user, file, payload)
+    payload = body.model_dump(mode='json', exclude={'filename'})
+    return reserve(db, user, body.filename, payload)
+
+
+@router.put("/uploads/{upload_id}/content", status_code=202)
+async def upload_content(upload_id: str, request: Request, db: Session = Depends(get_db)):
+    from app.services.upload_queue import receive
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    return await receive(db, user, upload_id, request)
 
 
 @router.get("/uploads/{upload_id}")

@@ -9,7 +9,14 @@ from app.services.dive_access import owned_diver_ids
 
 
 def fields(db, user, upload_id='12345678-1234-1234-1234-123456789012'):
-    return dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, user.id)[0]), upload_id=upload_id)
+    return dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=owned_diver_ids(db, user.id)[0], upload_id=upload_id, filename='video.mp4')
+
+
+def upload(client, data, filename='video.mp4', content=b'video'):
+    result = client.post('/api/v1/dives/uploads', json={**data, 'filename': filename})
+    if result.status_code == 202 and result.json()['status'] == 'receiving':
+        return client.put('/api/v1/dives/uploads/' + data['upload_id'] + '/content', content=content)
+    return result
 
 
 def test_queue_is_durable_idempotent_and_account_private(workspace, monkeypatch):
@@ -17,10 +24,10 @@ def test_queue_is_durable_idempotent_and_account_private(workspace, monkeypatch)
     db, login, _, users, _ = workspace
     monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
     data = fields(db, users['bob'])
-    result = login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')})
+    result = upload(login('bob'), data)
     assert result.status_code == 202, result.text
     assert result.json()['status'] == 'queued'
-    retry = login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('different.mp4', b'other bytes')})
+    retry = upload(login('bob'), data, 'different.mp4', b'other bytes')
     assert retry.json() == result.json()
     job = db.query(BrowserUploadJob).one()
     assert Path(job.storage_path).read_bytes() == b'video'
@@ -35,7 +42,7 @@ def test_failed_publication_keeps_no_dive_and_can_be_retried(workspace, monkeypa
     db, login, _, users, _ = workspace
     monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
     data = fields(db, users['bob'])
-    login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')})
+    upload(login('bob'), data)
     monkeypatch.setattr(upload_queue, 'engine', db.get_bind())
     monkeypatch.setattr(upload_queue, 'SessionLocal', sessionmaker(bind=db.get_bind(), expire_on_commit=False))
     before = db.query(Dive).count()
@@ -48,7 +55,7 @@ def test_failed_publication_keeps_no_dive_and_can_be_retried(workspace, monkeypa
     assert job.status == 'failed'
     assert not Path(job.storage_path).exists()
     assert db.query(Dive).count() == before
-    assert login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')}).json()['status'] == 'queued'
+    assert upload(login('bob'), data).json()['status'] == 'queued'
     assert db.query(BrowserUploadJob).count() == 1
 
 
@@ -58,7 +65,7 @@ def test_interrupted_processing_resumes_and_marks_ready(workspace, monkeypatch):
     db, login, _, users, _ = workspace
     monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
     data = fields(db, users['bob'])
-    login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')})
+    upload(login('bob'), data)
     job = db.query(BrowserUploadJob).one()
     job.status, job.attempts = 'processing', 1
     db.commit()
@@ -82,10 +89,29 @@ def test_quota_and_permissions_are_checked_before_staging(workspace, monkeypatch
     db, login, _, users, _ = workspace
     monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
     data = fields(db, users['bob'])
-    assert login('alice').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')}).status_code == 403
+    assert upload(login('alice'), data).status_code == 403
     for identity in ['12345678-1234-1234-1234-123456789012', '22345678-1234-1234-1234-123456789012']:
         data['upload_id'] = identity
-        assert login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')}).status_code == 202
+        assert upload(login('bob'), data).status_code == 202
     data['upload_id'] = '32345678-1234-1234-1234-123456789012'
-    assert login('bob').post('/api/v1/dives/uploads', data=data, files={'file': ('video.mp4', b'video')}).status_code == 429
+    assert upload(login('bob'), data).status_code == 429
     assert db.query(BrowserUploadJob).count() == 2
+
+
+def test_reservation_precedes_bytes_and_rejects_unreserved_or_oversized_body(workspace, monkeypatch):
+    from app.services import upload_queue
+    db, login, _, users, _ = workspace
+    monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
+    data = fields(db, users['bob'])
+    client = login('bob')
+    url = '/api/v1/dives/uploads/' + data['upload_id'] + '/content'
+    assert client.put(url, content=b'video').status_code == 404
+    assert client.post('/api/v1/dives/uploads', json=data).json()['status'] == 'receiving'
+    job = db.query(BrowserUploadJob).one()
+    assert not Path(job.storage_path).exists()
+    assert login('alice').put(url, content=b'video').status_code == 404
+    monkeypatch.setattr(upload_queue, 'MAX_BYTES', 3)
+    assert login('bob').put(url, content=b'too large').status_code == 413
+    db.expire_all()
+    assert db.get(BrowserUploadJob, job.id).status == 'failed'
+    assert not Path(job.storage_path).exists()

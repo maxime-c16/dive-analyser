@@ -66,15 +66,15 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
     event.preventDefault()
     if (!clip || busy) return
     setBusy(true); setError(''); setProgress(0)
-    const body = new FormData()
-    body.append('file', clip.file)
-    Object.entries({ dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: diver, upload_id: clip.id, evaluation_requested: clip.evaluation ? 'true' : 'false' }).forEach(([key, value]) => body.append(key, value))
-    if (clip.evaluation && clip.evaluationPrompt.trim()) body.append('evaluation_prompt', clip.evaluationPrompt.trim())
+    const body = { filename: clip.file.name, dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: Number(diver), upload_id: clip.id, evaluation_requested: clip.evaluation, evaluation_prompt: clip.evaluation ? clip.evaluationPrompt.trim() : '' }
     try {
-      const queued = await api.post('/api/v1/dives/uploads', body, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })
+      const reserved = await api.post('/api/v1/dives/uploads', body)
+      let job = reserved.data
+      if (job.status === 'receiving') {
+        job = (await api.put(`/api/v1/dives/uploads/${clip.id}/content`, clip.file, { headers: { 'Content-Type': 'application/octet-stream' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })).data
+      }
       setProgress(100)
-      let job = queued.data
-      while (job.status === 'queued' || job.status === 'processing' || job.status === 'receiving') {
+      while (job.status === 'queued' || job.status === 'processing' || job.status === 'receiving' || job.status === 'uploading') {
         await new Promise(resolve => setTimeout(resolve, 2000))
         job = (await api.get(`/api/v1/dives/uploads/${clip.id}`)).data
       }
