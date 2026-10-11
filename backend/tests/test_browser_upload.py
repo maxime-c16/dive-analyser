@@ -245,3 +245,22 @@ def test_cleanup_preserves_browser_playback_when_remote_path_is_disabled(workspa
     db.commit()
     assert video.exists()
     assert entry.pinned is True
+
+
+def test_cache_cleanup_is_bounded_and_reports_remaining_bytes(workspace, tmp_path):
+    from datetime import datetime, timedelta
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+    from app.services.media_cache import cleanup_cache
+    db, _, _, _, _ = workspace
+    db.query(MediaCacheEntry).delete()
+    asset = db.query(PhotosAsset).first()
+    for index in range(257):
+        path = tmp_path / f'bounded-{index}.mp4'
+        path.write_bytes(b'x')
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'bounded-{index}', rendition='proxy_360p', storage_path=str(path), size_bytes=1, content_type='video/mp4', status='ready', pinned=False, expires_at=datetime.utcnow() - timedelta(days=1)))
+    db.commit()
+    assert cleanup_cache(db, max_bytes=1) == (200, 200, 57)
+    db.commit()
+    assert db.query(MediaCacheEntry).count() == 57
+    assert cleanup_cache(db, max_bytes=1) == (57, 57, 0)

@@ -137,7 +137,7 @@ def backbone_clock(monkeypatch):
 
 def add_revision(db, uuid, sha):
     revision = MediaRevision(video_uuid=uuid, blob_sha256=sha)
-    db.add_all([revision, MediaBlobLocation(blob_sha256=sha, environment="prod", bucket="test", object_key=sha, verified=True)])
+    db.add_all([revision, MediaBlobLocation(blob_sha256=sha, environment="prod", bucket=get_settings().media_backbone_prod_bucket, object_key=sha, verified=True)])
     db.commit()
     return revision.id
 
@@ -315,10 +315,10 @@ def test_sync_ws_requires_live_login_when_auth_enabled(api_client, test_db, monk
 @pytest.mark.parametrize("rendition,has_backbone,expected", [
     ("proxy_360p", True, "backbone"),
     ("proxy_360p", False, "cache"),
-    ("proxy_720p", True, "cache"),
+    ("proxy_720p", True, "backbone"),
     ("original", True, "cache"),
 ])
-def test_playback_prefers_hq_over_preview(test_db, backbone_clock, rendition, has_backbone, expected):
+def test_playback_prefers_original_over_preview(test_db, backbone_clock, rendition, has_backbone, expected):
     from app.models.media import MediaCacheEntry
     from app.models.photos_asset import PhotosAsset
 

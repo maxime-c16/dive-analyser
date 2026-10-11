@@ -61,7 +61,10 @@ and enabled. Otherwise playback/posters remain pinned, including before
 cleanup if the operator disables that path later. Re-enabling flags does not
 silently unpin previously protected copies. Unpinned files obey the configured
 media-cache byte cap. The worker runs cleanup at most every ten minutes when
-idle. Archived source and full-resolution MP4 stay in B2. Existing pinned
+idle, removing up to 100 expired entries and 100 entries above the byte cap
+per pass. Larger backlogs need multiple passes. Set the cache cap below disk
+capacity and leave at least five GiB free for one upload reservation; free
+space admission checks remain authoritative. Archived source and full-resolution MP4 stay in B2. Existing pinned
 entries are retained; this rollout does not silently change their retention.
 
 Queue metadata persists in Postgres and staged bytes live under the existing
