@@ -1,3 +1,4 @@
+from tests.upload_helpers import publish_upload
 import pytest
 
 from tests.test_member_dive_visibility import workspace
@@ -43,8 +44,8 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     monkeypatch.setattr(browser_upload, 'prepare_video', prepare)
     fields = dict(dive_code=code, height=height, performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owner), upload_id='12345678-1234-1234-1234-123456789012')
     client = login('bob')
-    response = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
-    assert response.status_code == 201, response.text
+    response = publish_upload(db, client, data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
+    assert response.status_code == 200, response.text
     record = response.json()
     assert record['diver_id'] == owner
     assert record['person_name'] == 'bob'
@@ -55,8 +56,8 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     from app.models.media_backbone import MediaRevision, MediaBlobLocation
     assert {r.rendition_semantics for r in db.query(MediaRevision).filter_by(video_uuid=record['video_uuid']).all()} == {'browser_original', 'browser_playback'}
     assert all(row.verified for row in db.query(MediaBlobLocation).all())
-    retry = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video')})
-    assert retry.status_code == 201 and retry.json()['id'] == record['id']
+    retry = publish_upload(db, client, data=fields, files={'file': ('clip.mov', b'video')})
+    assert retry.status_code == 200 and retry.json()['id'] == record['id']
     assert len(calls) == 1
     status = client.get(f"/api/v1/media/{record['video_uuid']}/status")
     assert status.status_code == 200, status.text
@@ -72,13 +73,13 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     assert db.query(MediaJob).count() == jobs_before
     assert login('alice').get(f"/api/v1/dives/{record['id']}").status_code == 404
     fields['diver_id'] = str(owned_diver_ids(db, users['alice'].id)[0])
-    assert login('bob').post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mp4', b'video')}).status_code == 403
+    assert publish_upload(db, login('bob'), data=fields, files={'file': ('clip.mp4', b'video')}).status_code == 403
     assert len(calls) == 1
 
 
 def test_browser_upload_validates_before_processing(workspace):
-    _, login, _, _, _ = workspace
-    response = login('viewer').post('/api/v1/dives/upload', data=dict(dive_code='bad', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id='1', upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    db, login, _, _, _ = workspace
+    response = publish_upload(db, login('viewer'), data=dict(dive_code='bad', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id='1', upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
     assert response.status_code == 422
 
 
@@ -97,8 +98,9 @@ def test_b2_failure_does_not_publish_clip(workspace, monkeypatch, tmp_path):
         raise HTTPException(503, 'Video storage unavailable; please retry')
     monkeypatch.setattr(browser_upload, 'persist_original', fail)
     before = db.query(Dive).count()
-    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
-    assert response.status_code == 503
+    response = publish_upload(db, login('bob'), data=dict(dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
     assert db.query(Dive).count() == before
     assert not folder.exists()
 
@@ -158,7 +160,7 @@ def test_invalid_structural_code_is_rejected_before_video_processing(workspace, 
     def unexpected_prepare(file):
         raise AssertionError('Invalid codes must not process video')
     monkeypatch.setattr(browser_upload, 'prepare_video', unexpected_prepare)
-    response = login('bob').post('/api/v1/dives/upload', data=dict(dive_code=code, height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
+    response = publish_upload(db, login('bob'), data=dict(dive_code=code, height='3m', performance='G', dive_datetime='2026-10-05T12:00:00', diver_id=str(owned_diver_ids(db, users['bob'].id)[0]), upload_id='12345678-1234-1234-1234-123456789012'), files={'file': ('clip.mp4', b'video')})
     assert response.status_code == 422
     if code == '5501D':
         assert 'direction' in response.json()['detail']

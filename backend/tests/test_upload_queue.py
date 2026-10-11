@@ -116,3 +116,10 @@ def test_reservation_precedes_bytes_and_rejects_unreserved_or_oversized_body(wor
     db.expire_all()
     assert db.get(BrowserUploadJob, job_id).status == 'failed'
     assert not job_path.exists()
+
+
+def test_retired_multipart_route_cannot_bypass_reservations(workspace):
+    db, login, _, _, _ = workspace
+    response = login('bob').post('/api/v1/dives/upload', files={'file': ('video.mp4', b'video')})
+    assert response.status_code == 410
+    assert db.query(BrowserUploadJob).count() == 0

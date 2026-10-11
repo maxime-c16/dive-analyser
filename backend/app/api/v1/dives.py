@@ -313,7 +313,13 @@ def upload_status(upload_id: str, request: Request, db: Session = Depends(get_db
     return summary(job)
 
 
-@router.post("/upload", status_code=201)
+@router.post("/upload")
+def retired_upload():
+    # No body parameters: old clients cannot trigger multipart spooling or
+    # bypass queue reservations. The worker invokes publication internally.
+    raise HTTPException(410, "Reload the app to use the new upload flow")
+
+
 def upload_dive(
     request: Request,
     file: UploadFile = File(...),

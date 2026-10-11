@@ -1,3 +1,4 @@
+from tests.upload_helpers import publish_upload
 """Real multi-account tests for evaluation requests (issue #66, ticket 1).
 
 Covers: owner toggle + state endpoints, guessed-id denial, upload retry
@@ -189,23 +190,23 @@ def test_upload_evaluation_request_and_retry_no_duplication(workspace, monkeypat
         evaluation_requested='true', evaluation_prompt='Judge my hurdle',
     )
     client = login('bob')
-    response = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
-    assert response.status_code == 201, response.text
+    response = publish_upload(db, client, data=fields, files={'file': ('clip.mov', b'video', 'video/quicktime')})
+    assert response.status_code == 200, response.text
     record = response.json()
     assert record['evaluation_request']['active'] is True
     assert record['evaluation_request']['prompt'] == 'Judge my hurdle'
     first_request_id = record['evaluation_request']['id']
     assert db.query(EvaluationRequest).count() == 1
     # Retry with the same upload identity reuses the dive and its request.
-    retry = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video')})
-    assert retry.status_code == 201 and retry.json()['id'] == record['id']
+    retry = publish_upload(db, client, data=fields, files={'file': ('clip.mov', b'video')})
+    assert retry.status_code == 200 and retry.json()['id'] == record['id']
     assert retry.json()['evaluation_request']['id'] == first_request_id
     assert db.query(EvaluationRequest).count() == 1
     # Without the flag: no request row.
-    plain = client.post('/api/v1/dives/upload', data={
+    plain = publish_upload(db, client, data={
         **fields, 'upload_id': '99999999-1234-1234-1234-123456789012', 'evaluation_requested': 'false',
     }, files={'file': ('clip.mov', b'video')})
-    assert plain.status_code == 201 and plain.json()['evaluation_request'] is None
+    assert plain.status_code == 200 and plain.json()['evaluation_request'] is None
     assert db.query(EvaluationRequest).count() == 1
 
 
@@ -228,12 +229,13 @@ def test_failed_upload_publishes_no_request(workspace, monkeypatch, tmp_path):
     monkeypatch.setattr(browser_upload, 'persist_original', fail)
     dives_before = db.query(Dive).count()
     requests_before = db.query(EvaluationRequest).count()
-    response = login('bob').post('/api/v1/dives/upload', data=dict(
+    response = publish_upload(db, login('bob'), data=dict(
         dive_code='103B', height='3m', performance='G', dive_datetime='2026-10-05T12:00:00',
         diver_id=str(owned_diver_ids(db, users['bob'].id)[0]),
         upload_id='88888888-1234-1234-1234-123456789012', evaluation_requested='true',
     ), files={'file': ('clip.mp4', b'video')})
-    assert response.status_code == 503
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
     assert db.query(Dive).count() == dives_before
     assert db.query(EvaluationRequest).count() == requests_before
 

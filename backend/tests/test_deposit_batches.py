@@ -1,3 +1,4 @@
+from tests.upload_helpers import publish_upload
 """Deposit batches: pending acceptance, depositor access, claim links, email."""
 import sys
 from datetime import datetime, timedelta
@@ -365,9 +366,8 @@ def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
         dive_code="403B", height="3m", performance="G",
         dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
         upload_id="12345678-1234-1234-1234-123456789012", notes="serre les genoux")
-    response = login("maxime").post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")})
-    assert response.status_code == 201, response.text
+    response = publish_upload(db, login("maxime"), data=fields, files={"file": ("clip.mp4", b"video")})
+    assert response.status_code == 200, response.text
     dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
     assert dive.visibility == "private" and dive.accepted_at is None
     assert dive.notes is None  # owner's field stays theirs
@@ -375,8 +375,7 @@ def test_admin_browser_upload_on_behalf_pends(workspace, monkeypatch, tmp_path):
     assert db.query(BatchEmailOutbox).filter_by(user_id=users["alice"].id).count() == 1
     # A non-admin still cannot deposit for someone else.
     fields["upload_id"] = "22345678-1234-1234-1234-123456789012"
-    assert login("bob").post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 403
+    assert publish_upload(db, login("bob"), data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 403
 
 
 def test_captionless_admin_deposit_still_queues_the_email(workspace, monkeypatch, tmp_path):
@@ -386,9 +385,8 @@ def test_captionless_admin_deposit_still_queues_the_email(workspace, monkeypatch
         dive_code="403B", height="3m", performance="G",
         dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
         upload_id="32345678-1234-1234-1234-123456789012")
-    response = login("maxime").post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")})
-    assert response.status_code == 201, response.text
+    response = publish_upload(db, login("maxime"), data=fields, files={"file": ("clip.mp4", b"video")})
+    assert response.status_code == 200, response.text
     dive = db.query(Dive).filter(Dive.diver_id == divers["alice"].id).one()
     assert dive.accepted_at is None
     assert db.query(EvaluatorNote).filter_by(dive_id=dive.id).count() == 0
@@ -525,8 +523,7 @@ def test_admin_browser_deposit_is_not_held(workspace, monkeypatch, tmp_path):
         dive_code="403B", height="3m", performance="G",
         dive_datetime="2026-10-06T12:00:00", diver_id=str(divers["alice"].id),
         upload_id="42345678-1234-1234-1234-123456789012")
-    assert login("maxime").post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 201
+    assert publish_upload(db, login("maxime"), data=fields, files={"file": ("clip.mp4", b"video")}).status_code == 200
     assert db.query(BatchEmailOutbox).one().status == "pending"
 
 

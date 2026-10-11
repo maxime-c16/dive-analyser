@@ -197,8 +197,14 @@ def process_one():
                     file = UploadFile(source, filename=filename)
                     from datetime import datetime as dt
                     payload['dive_datetime'] = dt.fromisoformat(payload['dive_datetime'])
-                    result = upload_dive(request=request, file=file, db=db, **payload)
+                    from starlette.background import BackgroundTasks
+                    background_tasks = BackgroundTasks()
+                    result = upload_dive(request=request, file=file, db=db, background_tasks=background_tasks, **payload)
                     result_id = result['id'] if isinstance(result, dict) else result.id
+                try:
+                    asyncio.run(background_tasks())
+                except Exception:
+                    logger.exception('Upload notification delivery failed for job %s', job_id)
             status, error = 'ready', None
         except Exception as exc:
             logger.exception('Browser upload job %s failed', job_id)

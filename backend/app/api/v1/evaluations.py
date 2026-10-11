@@ -209,7 +209,8 @@ def get_evaluation_media_play(
         with evaluation_access.evaluation_media_scope(db):
             entries = evaluation_access._ready_entries(db, asset.id)
             local_original = next((entry for entry in entries if entry.rendition == 'original' and Path(entry.storage_path).is_file()), None)
-            revision = db.query(MediaRevision).filter(MediaRevision.video_uuid == asset.video_uuid, MediaRevision.rendition_semantics != 'browser_original').order_by(MediaRevision.id.desc()).first() if _flags_enabled() else None
+            revision_id = evaluation_access.backbone_originals(db, [asset.video_uuid]).get(asset.video_uuid)
+            revision = db.get(MediaRevision, revision_id) if revision_id else None
             location, reason = _resolve_verified_prod_location(db, revision) if revision else (None, None)
         if local_original:
             return evaluation_access.serve_entry(local_original.storage_path, local_original.content_type, request, head_only=request.method == 'HEAD')

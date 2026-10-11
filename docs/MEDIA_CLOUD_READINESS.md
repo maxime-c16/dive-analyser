@@ -48,6 +48,7 @@ one account; job status never reveals another account's upload.
 
 At most two pending uploads per account and eight globally are reserved
 before receiving bytes. The JSON reservation endpoint does not accept a file;
+the old multipart endpoint returns 410 without parsing its body;
 a separate raw PUT streams into its reserved file and enforces the byte cap
 even when Content-Length is missing. Both proxies disable request buffering
 for this path. Reload LAN nginx and recreate the Funnel proxy after rollout. Disk headroom reserves four GiB per pending clip
