@@ -1368,6 +1368,7 @@ const fr = {
     resetFilters: 'Réinitialiser les filtres',
     noMatches: 'Aucun plongeon ne correspond à cette recherche.',
     clearFilters: 'Tout effacer',
+    loadMore: 'Charger plus de plongeons',
     showMoreAttempts: 'Afficher 48 plongeons de plus',
     openingVideo: 'Ouverture de la vidéo…',
   },

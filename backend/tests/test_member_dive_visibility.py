@@ -250,3 +250,59 @@ def test_personal_journey_and_dd_scope_follow_account_bindings(workspace):
         assert dd.status_code == 200
         assert dd.json()['summary']['attempt_count'] == 2
     assert login('viewer').get('/api/v1/dd/overview').json()['summary']['attempt_count'] == 0
+
+
+def test_library_page_is_bounded_stable_and_filters_before_paging(workspace):
+    db, login, dives, users, session_id = workspace
+    owner_id = db.query(UserDiverAccess.diver_id).filter_by(user_id=users['bob'].id).scalar()
+    timestamp = datetime(2026, 10, 11, 12)
+    for index in range(120):
+        db.add(Dive(session_id=session_id, diver_id=owner_id, dive_code='103B',
+                    performance='G', performance_numeric=3, height='3m',
+                    dive_datetime=timestamp, visibility='private', notes='needle' if index == 0 else None))
+    db.commit()
+    client = login('bob')
+    first = client.get('/api/v1/dives/library?limit=100').json()
+    assert len(first['items']) == 100
+    assert first['next_cursor']
+    second = client.get('/api/v1/dives/library', params={'limit': 100, 'cursor': first['next_cursor']}).json()
+    assert second['next_cursor'] is None
+    ids = [row['id'] for row in first['items'] + second['items']]
+    assert len(ids) == len(set(ids)) == 122
+    needle = client.get('/api/v1/dives/library?search_text=needle').json()
+    assert len(needle['items']) == 1
+    assert needle['items'][0]['notes'] == 'needle'
+    assert login('viewer').get('/api/v1/dives/library?diver_scope=all&search_text=needle').json()['items'] == []
+    assert client.get('/api/v1/dives/library?cursor=malformed').status_code == 422
+    assert client.get('/api/v1/dives/library?limit=101').status_code == 422
+
+
+def test_library_serialization_has_constant_ownership_query_count(workspace):
+    from sqlalchemy import event
+    db, login, dives, users, session_id = workspace
+    owner_id = db.query(UserDiverAccess.diver_id).filter_by(user_id=users['bob'].id).scalar()
+    for _ in range(110):
+        db.add(Dive(session_id=session_id, diver_id=owner_id, dive_code='103B',
+                    performance='G', performance_numeric=3, height='3m',
+                    dive_datetime=datetime.now(), visibility='public'))
+    db.commit()
+    ownership_queries = []
+    def record(conn, cursor, statement, parameters, context, many):
+        if 'user_diver_access' in statement and 'FROM user_diver_access' in statement:
+            ownership_queries.append(statement)
+    engine = db.get_bind()
+    event.listen(engine, 'before_cursor_execute', record)
+    try:
+        response = login('bob').get('/api/v1/dives/library?limit=100&diver_scope=all')
+        assert response.status_code == 200, response.text
+        assert len(response.json()['items']) == 100
+        assert all(row['can_manage'] for row in response.json()['items'])
+        assert len(ownership_queries) <= 4
+    finally:
+        event.remove(engine, 'before_cursor_execute', record)
+
+
+def test_library_search_does_not_probe_other_members_private_notes(workspace):
+    _, login, dives, _, _ = workspace
+    assert login('bob').get('/api/v1/dives/library?diver_scope=all&search_text=alice%20personal').json()['items'] == []
+    assert len(login('alice').get('/api/v1/dives/library?search_text=alice%20personal').json()['items']) == 2

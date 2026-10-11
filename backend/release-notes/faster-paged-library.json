@@ -1,0 +1,11 @@
+{
+  "id": "faster-paged-library",
+  "date": "2026-10-11",
+  "title": "A faster library as your collection grows",
+  "body": "Open your library sooner, search across all your dives, and load older clips as you browse.",
+  "audience": "all",
+  "components": [
+    "backend",
+    "frontend"
+  ]
+}

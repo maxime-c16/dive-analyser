@@ -87,12 +87,15 @@ def is_pending(dive: Dive) -> bool:
     return dive.accepted_at is None and dive.batch_id is not None
 
 
-def can_manage_dive(db: Session, user, dive: Dive) -> bool:
+def can_manage_dive(db: Session, user, dive: Dive, *, owner_ids=None) -> bool:
     if not user or not user.is_active:
         return False
     if user.is_admin and dive.diver_id is None:
         return True
-    if dive.diver_id is not None and user_has_diver_access(db, user.id, dive.diver_id):
+    if dive.diver_id is not None and (
+        dive.diver_id in owner_ids if owner_ids is not None
+        else user_has_diver_access(db, user.id, dive.diver_id)
+    ):
         return True
     if is_pending(dive):
         # The depositor may tend their own pending deposits; admins may

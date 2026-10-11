@@ -5,6 +5,7 @@ export type LibrarySnapshot = {
   dives: Attempt[];
   divers: { id: number; display_name: string; is_primary_user: boolean }[];
   savedAt: number;
+  nextCursor?: string | null;
 };
 const STORAGE_KEY = 'dive-library-v1';
 export const LIBRARY_FRESH_MS = 60_000;

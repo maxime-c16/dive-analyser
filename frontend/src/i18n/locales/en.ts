@@ -1366,6 +1366,7 @@ const en = {
     resetFilters: 'Reset filters',
     noMatches: 'No attempts match this search.',
     clearFilters: 'Clear filters',
+    loadMore: 'Load more dives',
     showMoreAttempts: 'Show 48 more attempts',
     openingVideo: 'Opening video…',
   },
