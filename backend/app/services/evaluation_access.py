@@ -188,6 +188,21 @@ def _active_job(db: Session, asset_id: int) -> bool:
     )
 
 
+def backbone_originals(db, video_uuids):
+    """Exact verified PROD authority for an already-authorized media scope."""
+    from app.config import get_settings
+    from app.models.media_backbone import MediaRevision
+    from app.services.matchmaking import verified_original_clause
+    from sqlalchemy import func
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled) or not video_uuids:
+        return {}
+    return dict(db.query(MediaRevision.video_uuid, func.max(MediaRevision.id)).filter(
+        MediaRevision.video_uuid.in_(video_uuids),
+        MediaRevision.rendition_semantics != 'browser_original',
+        verified_original_clause()).group_by(MediaRevision.video_uuid).all())
+
+
 def media_status(
     db: Session,
     request_row: EvaluationRequest,
@@ -210,9 +225,8 @@ def media_status(
     else:
         entries, has_active = prefetched
     if backbone_available is None:
-        from app.api.v1.media import _backbone_revision_ids_bulk
         with evaluation_media_scope(db):
-            backbone_available = bool(_backbone_revision_ids_bulk(db, [asset.video_uuid]).get(asset.video_uuid))
+            backbone_available = bool(backbone_originals(db, [asset.video_uuid]).get(asset.video_uuid))
     playable = _playable_entry(entries)
     original = next((entry for entry in entries if entry.rendition == 'original'), None)
     full_quality = bool(original or backbone_available)

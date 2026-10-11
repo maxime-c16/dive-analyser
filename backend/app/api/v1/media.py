@@ -199,6 +199,7 @@ def _backbone_revision_ids_bulk(db: Session, video_uuids: list[str]) -> dict[str
                 fresh.append(video_uuid)
 
     if fresh:
+        from app.services.matchmaking import verified_original_clause
         revision_ids = {}
         for row in db.execute(
             select(MediaRevision.video_uuid, func.max(MediaRevision.id))
@@ -208,7 +209,7 @@ def _backbone_revision_ids_bulk(db: Session, video_uuids: list[str]) -> dict[str
                 & (MediaBlobLocation.environment == "prod")
                 & (MediaBlobLocation.verified == True),
             )
-            .where(MediaRevision.video_uuid.in_(fresh), MediaRevision.rendition_semantics != "browser_original")
+            .where(MediaRevision.video_uuid.in_(fresh), MediaRevision.rendition_semantics != "browser_original", verified_original_clause())
             .group_by(MediaRevision.video_uuid)
         ).all():
             revision_ids[row[0]] = row[1]
@@ -368,6 +369,7 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
         _backbone_id_cache.pop(cache_key, None)
 
     # Slow path: query the DB once, then cache the result
+    from app.services.matchmaking import verified_original_clause
     row = db.execute(
         select(MediaRevision.id)
         .join(
@@ -376,7 +378,7 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
             & (MediaBlobLocation.environment == "prod")
             & (MediaBlobLocation.verified == True),
         )
-        .where(MediaRevision.video_uuid == video_uuid, MediaRevision.rendition_semantics != "browser_original")
+        .where(MediaRevision.video_uuid == video_uuid, MediaRevision.rendition_semantics != "browser_original", verified_original_clause())
         .order_by(MediaRevision.id.desc())
         .limit(1)
     ).scalar_one_or_none()

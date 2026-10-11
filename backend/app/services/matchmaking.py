@@ -71,17 +71,21 @@ def original_revision_id(db, video_uuid):
     if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
         return None
     return db.query(MediaRevision.id).filter(MediaRevision.video_uuid == video_uuid,
-        verified_original_clause()).order_by(MediaRevision.id.desc()).limit(1).scalar()
+        MediaRevision.rendition_semantics != 'browser_original', verified_original_clause()).order_by(MediaRevision.id.desc()).limit(1).scalar()
 
 
 def status(db, dive, asset):
-    result = evaluation_access.media_status(db, SimpleNamespace(id=dive.id, dive_id=dive.id), asset)
-    if result.get('rendition') not in ('proxy_720p', 'original') and original_revision_id(db, dive.video_uuid):
+    revision_id = original_revision_id(db, dive.video_uuid)
+    result = evaluation_access.media_status(db, SimpleNamespace(id=dive.id, dive_id=dive.id), asset, backbone_available=bool(revision_id))
+    if result.get('rendition') != 'original' and revision_id:
         result.update(status='ready', rendition='original', playback_url='available')
         result['available_renditions'] = list(dict.fromkeys([*result['available_renditions'], 'original']))
     base = f'/api/v1/evaluations/automatic/{dive.id}/media'
     result['poster_url'] = base + '/poster' if result['poster_url'] else None
     result['playback_url'] = base + '/play' if result['playback_url'] else None
+    result['full_quality_url'] = base + '/play?rendition=original' if result.get('full_quality_url') else None
+    if result.get('preview_url'):
+        result['preview_url'] = base + '/play?' + result['preview_url'].split('?', 1)[1]
     return result
 
 
