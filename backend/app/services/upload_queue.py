@@ -22,6 +22,7 @@ from app.models.user_auth import AppUser
 from app.services.browser_upload import MAX_BYTES
 
 logger = logging.getLogger(__name__)
+_last_cleanup = 0.0
 _LOCK = threading.Lock()
 _ADVISORY_KEY = 834928
 ACTIVE = ('receiving', 'queued', 'processing')
@@ -101,6 +102,7 @@ def enqueue(db, user, file, payload):
 
 
 def process_one():
+    global _last_cleanup
     if not _LOCK.acquire(blocking=False):
         return False
     connection = None
@@ -120,6 +122,22 @@ def process_one():
                 job.status, job.last_error = 'failed', 'Upload interrupted; please retry'
             job = db.query(BrowserUploadJob).filter(BrowserUploadJob.status.in_(('queued', 'processing'))).order_by(BrowserUploadJob.created_at, BrowserUploadJob.id).first()
             if job is None:
+                if monotonic() - _last_cleanup > 600:
+                    from app.services.media_cache import cleanup_cache
+                    from app.models.media import MediaCacheEntry
+                    cleanup_cache(db)
+                    db.commit()
+                    # Crashes during preparation can leave files with no DB
+                    # entry. Only the globally serialized idle worker sweeps
+                    # old, unreferenced folders inside the upload root.
+                    root = Path(get_settings().media_cache_root).resolve() / 'browser-uploads'
+                    referenced = {Path(value).parent.resolve() for value, in db.query(MediaCacheEntry.storage_path).all()}
+                    cutoff = datetime.utcnow().timestamp() - 86400
+                    if root.exists():
+                        for folder in root.iterdir():
+                            if folder.is_dir() and not folder.is_symlink() and folder.resolve() not in referenced and folder.stat().st_mtime < cutoff:
+                                shutil.rmtree(folder)
+                    _last_cleanup = monotonic()
                 db.commit()
                 return False
             if job.attempts >= 3:
@@ -173,16 +191,9 @@ def process_one():
 def start_worker():
     stop = threading.Event()
     def run():
-        last_cleanup = 0.0
         while not stop.is_set():
             try:
                 busy = process_one()
-                if not busy and monotonic() - last_cleanup > 600:
-                    from app.services.media_cache import cleanup_cache
-                    with SessionLocal() as db:
-                        cleanup_cache(db)
-                        db.commit()
-                    last_cleanup = monotonic()
             except Exception:
                 logger.exception('Upload queue worker unavailable')
                 busy = False

@@ -103,6 +103,7 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
         <p className="break-all text-sm text-app-muted">{clip.file.name}</p>
         <video key={preview} src={preview} controls playsInline preload="metadata" className="max-h-64 w-full bg-black" />
         <p className="text-xs text-app-muted">{t("addVideos.addedAs", { name: user?.display_name })}</p>
+        <p className="text-xs text-app-muted">{t("addVideos.qualityHint")}</p>
         {owners.length > 1 && <label className="block">{t("addVideos.diver")}<select className="app-input w-full" value={diver} onChange={event => setDiver(event.target.value)} disabled={busy}>{owners.map(owner => <option key={owner.diver_id} value={owner.diver_id}>{t("addVideos.myDiverN", { id: owner.diver_id })}</option>)}</select></label>}
         <fieldset disabled={busy} className="grid grid-cols-2 gap-3">
           <label>{t("addVideos.code")}<input required pattern="(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]" placeholder="103B" className="app-input w-full" value={clip.code} onChange={event => patch({ code: event.target.value.toUpperCase() })} /></label>

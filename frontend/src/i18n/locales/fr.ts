@@ -519,6 +519,7 @@ const fr = {
     formula: 'Formule {{version}} · calculé à partir des plongeons antérieurs au {{cutoff}}.',
   },
   addVideos: {
+    qualityHint: 'Les fichiers originaux sont conservés. La lecture garde leur résolution ; une copie SDR est préparée pour les vidéos HDR. Maximum : 1 Go, 3 minutes, 4K.',
     selectVideos: 'Sélectionner des vidéos',
     add: 'Ajouter des vidéos',
     noticeAdded: '{{count}} vidéo(s) ajoutée(s) à votre bibliothèque.',
