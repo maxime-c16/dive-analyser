@@ -383,6 +383,10 @@ def upload_dive(
     try:
         manifest = persist_original(None, video_uuid, folder, register=False)
         playback_manifest = persist_original(None, video_uuid, folder, register=False, source_name='original.mp4')
+        if manifest and playback_manifest and manifest['blob_sha256'] == playback_manifest['blob_sha256']:
+            # Exact content identity is deduplicated. Identical source/output
+            # bytes are already proven to be the browser-compatible MP4.
+            manifest = playback_manifest
         # Re-check ownership/account state after preparation; permissions may
         # have changed while this large file was being processed.
         from app.models.user_auth import AppUser
