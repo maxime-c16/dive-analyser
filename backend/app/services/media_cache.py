@@ -208,21 +208,20 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     Large backlogs need multiple passes; returned byte totals remain exact.
     """
     from app.services.browser_upload import remote_playback_configured
+    eligible = MediaCacheEntry.pinned.is_(False)
     if not remote_playback_configured():
-        # Disabling remote playback must not evict the only accessible copy
-        # of a browser upload, even if it was unpinned when originally saved.
+        # Protect accessible browser renditions through the read predicate;
+        # no catalog-wide pin update is needed when delivery is disabled.
         upload_root = str(Path(get_settings().media_cache_root).resolve() / 'browser-uploads') + '/'
-        db.query(MediaCacheEntry).filter(
-            MediaCacheEntry.storage_path.startswith(upload_root, autoescape=True),
-            MediaCacheEntry.rendition.in_(('original', 'proxy_720p', 'poster')),
-        ).update({MediaCacheEntry.pinned: True}, synchronize_session=False)
-        db.expire_all()
+        protected = (MediaCacheEntry.storage_path.startswith(upload_root, autoescape=True)
+            & MediaCacheEntry.rendition.in_(('original', 'proxy_720p', 'poster')))
+        eligible = eligible & ~protected
     now = datetime.utcnow()
     removed_entries = 0
     removed_bytes = 0
 
     expired_stmt = select(MediaCacheEntry).where(
-        MediaCacheEntry.pinned.is_(False),
+        eligible,
         MediaCacheEntry.expires_at.is_not(None),
         MediaCacheEntry.expires_at < now,
     )
@@ -238,7 +237,7 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     if cap > 0 and remaining_bytes > cap:
         trim_stmt = (
             select(MediaCacheEntry)
-            .where(MediaCacheEntry.pinned.is_(False))
+            .where(eligible)
             .order_by(
                 MediaCacheEntry.last_accessed_at.asc().nullsfirst(),
                 MediaCacheEntry.created_at.asc(),

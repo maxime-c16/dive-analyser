@@ -244,7 +244,7 @@ def test_cleanup_preserves_browser_playback_when_remote_path_is_disabled(workspa
     cleanup_cache(db, max_bytes=1)
     db.commit()
     assert video.exists()
-    assert entry.pinned is True
+    assert entry.pinned is False  # Protection does not require a catalog-wide write
 
 
 def test_cache_cleanup_is_bounded_and_reports_remaining_bytes(workspace, tmp_path):

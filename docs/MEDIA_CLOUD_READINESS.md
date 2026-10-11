@@ -57,9 +57,10 @@ processing resumes when the old process releases the advisory lock. Three
 interruptions produce a retryable failure. Completed staging files are
 removed; verified local source copies expire after one day, prepared playback
 and posters after 30 days when authenticated PROD B2 playback is configured
-and enabled. Otherwise playback/posters remain pinned, including before
-cleanup if the operator disables that path later. Re-enabling flags does not
-silently unpin previously protected copies. Unpinned files obey the configured
+and enabled. Otherwise new playback/poster copies remain pinned. If the operator later
+disables remote playback, cleanup excludes existing browser playback/posters
+without rewriting the catalog. Re-enabling flags restores normal cleanup
+eligibility for previously unpinned copies; initially pinned copies stay pinned. Unpinned files obey the configured
 media-cache byte cap. The worker runs cleanup at most every ten minutes when
 idle, removing up to 100 expired entries and 100 entries above the byte cap
 per pass. Larger backlogs need multiple passes. Set the cache cap below disk
