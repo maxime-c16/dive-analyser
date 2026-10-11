@@ -222,23 +222,6 @@ function DiveLibrary() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const accessKey = libraryKey(user);
-  const filterKey = ["q", "scope", "height", "context", "performance", "modifiers"].map(key => searchParams.get(key) || "").join("|");
-  const cacheKey = accessKey ? JSON.stringify([accessKey, "paged", filterKey]) : null;
-  const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
-  const [dives, setDives] = useState<Dive[]>(cached?.dives ?? []);
-  const [divers, setDivers] = useState<Diver[]>(cached?.divers ?? []);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [shown, setShown] = useState(48);
-  const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const pageGeneration = useRef(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const scrollAnchorRef = useRef<number | null>(null);
-  const viewerReturnAttemptRef = useRef<number | null>(null);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
   const scope = (searchParams.get("scope") || ((!user || user.is_admin) ? "self" : "all")) as Scope;
@@ -261,6 +244,24 @@ function DiveLibrary() {
   };
   const pageParamsKey = JSON.stringify(pageParams);
 
+  const accessKey = libraryKey(user);
+  const cacheKey = accessKey ? JSON.stringify([accessKey, "paged", pageParamsKey]) : null;
+  const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
+  const [dives, setDives] = useState<Dive[]>(cached?.dives ?? []);
+  const [divers, setDivers] = useState<Diver[]>(cached?.divers ?? []);
+  const [loading, setLoading] = useState(!cached);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [shown, setShown] = useState(48);
+  const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageGeneration = useRef(0);
+  const loadedAccessKey = useRef(accessKey);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const scrollAnchorRef = useRef<number | null>(null);
+  const viewerReturnAttemptRef = useRef<number | null>(null);
+
   const update = (
     patch: Record<string, string | null>,
     options?: NavigateOptions,
@@ -277,10 +278,16 @@ function DiveLibrary() {
     pageGeneration.current++;
     setLoadingMore(false);
     const snapshot = readLibraryCache(cacheKey);
-    setDives(snapshot?.dives ?? []);
-    setDivers(snapshot?.divers ?? []);
+    const accountChanged = loadedAccessKey.current !== accessKey;
+    loadedAccessKey.current = accessKey;
+    // Keep the same-account matching cards mounted while filters refresh;
+    // unmounting a card between pointer-down/up drops its open action.
+    if (snapshot || accountChanged) {
+      setDives(snapshot?.dives ?? []);
+      setDivers(snapshot?.divers ?? []);
+    }
     setNextCursor(snapshot?.nextCursor ?? null);
-    setLoading(!snapshot);
+    setLoading(!snapshot && (accountChanged || dives.length === 0));
     setError(null);
     loadLibraryCache(cacheKey, async () => {
       const [diveResponse, diverResponse] = await Promise.all([
