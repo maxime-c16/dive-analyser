@@ -85,10 +85,17 @@ def cleanup_upload(folder):
     folder.rmdir()
 
 
+def remote_playback_configured():
+    settings = get_settings()
+    return bool(settings.user_auth_enabled and settings.b2_playback_canary_enabled
+        and settings.b2_upload_environment == 'prod' and settings.b2_playback_key_id
+        and settings.b2_playback_key_secret and settings.b2_playback_region)
+
+
 def cache_upload(db, asset, folder):
     for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('original.mp4', 'original', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
         path = folder / name
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=False, expires_at=datetime.utcnow() + timedelta(days=1 if rendition == 'browser_source' else 30)))
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=rendition != 'browser_source' and not remote_playback_configured(), expires_at=datetime.utcnow() + timedelta(days=1 if rendition == 'browser_source' else 30)))
 
 
 def persist_original(db, video_uuid, folder, *, register=True, source_name='source'):

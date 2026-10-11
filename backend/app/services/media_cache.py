@@ -204,6 +204,15 @@ def retire_verified_proxy_entry(db: Session, entry: MediaCacheEntry) -> int:
 
 def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, int]:
     """Remove expired unpinned entries and trim oldest unpinned entries by byte cap."""
+    from app.services.browser_upload import remote_playback_configured
+    if not remote_playback_configured():
+        # Disabling remote playback must not evict the only accessible copy
+        # of a browser upload, even if it was unpinned when originally saved.
+        upload_root = str(Path(get_settings().media_cache_root).resolve() / 'browser-uploads') + '/'
+        db.query(MediaCacheEntry).filter(
+            MediaCacheEntry.storage_path.startswith(upload_root, autoescape=True),
+            MediaCacheEntry.rendition.in_(('original', 'proxy_720p', 'poster')),
+        ).update({MediaCacheEntry.pinned: True}, synchronize_session='fetch')
     now = datetime.utcnow()
     removed_entries = 0
     removed_bytes = 0

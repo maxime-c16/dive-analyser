@@ -56,7 +56,10 @@ plus one GiB margin. An interrupted receiver fails after an hour; interrupted
 processing resumes when the old process releases the advisory lock. Three
 interruptions produce a retryable failure. Completed staging files are
 removed; verified local source copies expire after one day, prepared playback
-and posters after 30 days. These files are unpinned and obey the configured
+and posters after 30 days when authenticated PROD B2 playback is configured
+and enabled. Otherwise playback/posters remain pinned, including before
+cleanup if the operator disables that path later. Re-enabling flags does not
+silently unpin previously protected copies. Unpinned files obey the configured
 media-cache byte cap. The worker runs cleanup at most every ten minutes when
 idle. Archived source and full-resolution MP4 stay in B2. Existing pinned
 entries are retained; this rollout does not silently change their retention.
