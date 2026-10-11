@@ -152,6 +152,17 @@ def process_one():
             if not locked:
                 return False
         with SessionLocal() as db:
+            # Settlement commits before unlinking. Recover a crash in that
+            # gap, and lock rows so a concurrent retry cannot replace a path
+            # while cleanup clears it. Empty paths mark completed cleanup.
+            settled = db.query(BrowserUploadJob).filter(
+                BrowserUploadJob.status.in_(('ready', 'failed')),
+                BrowserUploadJob.storage_path != '',
+            ).order_by(BrowserUploadJob.id).limit(100).with_for_update().all()
+            for terminal in settled:
+                Path(terminal.storage_path).unlink(missing_ok=True)
+                terminal.storage_path = ''
+            db.commit()
             # A crashed receiver never becomes processable; free its slot.
             abandoned = db.query(BrowserUploadJob).filter(BrowserUploadJob.status.in_(('receiving', 'uploading')), BrowserUploadJob.updated_at < datetime.utcnow() - timedelta(hours=1)).all()
             for job in abandoned:

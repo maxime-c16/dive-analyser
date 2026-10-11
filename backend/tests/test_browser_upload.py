@@ -264,3 +264,26 @@ def test_cache_cleanup_is_bounded_and_reports_remaining_bytes(workspace, tmp_pat
     db.commit()
     assert db.query(MediaCacheEntry).count() == 57
     assert cleanup_cache(db, max_bytes=1) == (57, 57, 0)
+
+
+def test_terminal_upload_staging_cleanup_recovers_crashes_in_batches(workspace, monkeypatch, tmp_path):
+    from sqlalchemy.orm import sessionmaker
+    from app.models.browser_upload import BrowserUploadJob
+    from app.services import upload_queue
+    db, _, _, users, _ = workspace
+    paths = []
+    for index in range(105):
+        path = tmp_path / f'settled-{index}'
+        path.write_bytes(b'source')
+        paths.append(path)
+        db.add(BrowserUploadJob(user_id=users['bob'].id, upload_id=f'finished-{index}',
+            payload={}, filename='source.mov', storage_path=str(path), status='ready'))
+    db.commit()
+    monkeypatch.setattr(upload_queue, 'engine', db.get_bind())
+    monkeypatch.setattr(upload_queue, 'SessionLocal', sessionmaker(bind=db.get_bind(), expire_on_commit=False))
+    monkeypatch.setattr(upload_queue, '_last_cleanup', float('inf'))
+    assert upload_queue.process_one() is False
+    assert sum(path.exists() for path in paths) == 5
+    assert db.query(BrowserUploadJob).filter(BrowserUploadJob.storage_path != '').count() == 5
+    assert upload_queue.process_one() is False
+    assert not any(path.exists() for path in paths)
