@@ -122,6 +122,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [posterFailed, setPosterFailed] = useState(false)
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [previewSelected, setPreviewSelected] = useState(false)
+  const previewSelectedRef = useRef(false)
+  const [sourceIsPreview, setSourceIsPreview] = useState(false)
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
@@ -141,6 +145,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   }
   const framePresented = phase.kind === 'ready' && gate.presented && gate.key === gateKey
 
+  useEffect(() => { setPreviewSelected(false); previewSelectedRef.current = false; setPreviewSrc(null); setSourceIsPreview(false) }, [videoUuid])
   const failuresRef = useRef(0)
   const preparingSinceRef = useRef<number | null>(null)
   const lastPreparingStateRef = useRef<string | null>(null)
@@ -160,13 +165,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const applyStatus = useCallback((data: MediaStatus) => {
     setStatusUnknown(false)
     setCanRequest(Boolean(data.can_request))
+    setPreviewSrc(data.preview_url || null)
+    setSourceIsPreview(Boolean(!data.full_quality_url && data.preview_url))
     setPosterSrc(getPosterUrlFromStatus(data))
 
     const playbackUrl = getPlaybackUrlFromStatus(data, immersive)
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      setPhase({ kind: 'ready', src: playbackUrl, originalSrc: immersive ? data.playback_url : null })
+      setPhase({ kind: 'ready', src: previewSelectedRef.current && data.preview_url ? data.preview_url : playbackUrl })
       return
     }
 
@@ -555,6 +562,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   // grants are short-lived presigned redirects. Never creates a new media
   // job; preparation authority stays with the backend status.
   const retryPlayback = () => {
+    setPreviewSelected(false)
+    previewSelectedRef.current = false
     setDecodeError(false)
     // The decodeError flip reopens a fresh load generation. The src is
     // unchanged so nothing would reload on its own: flag a real element
@@ -785,6 +794,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
+      {(previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="absolute top-2 left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
       {/* Video decode/load failure of an otherwise ready clip. */}
       {phase.kind === 'ready' && decodeError && (
         <div
@@ -803,6 +813,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
               <RefreshCw className="h-4 w-4" />
               {t('videoPlayer.tryAgain')}
             </button>
+            {previewSrc && previewSrc !== phase.src && <button type="button" className="touch-target mt-3 block w-full rounded-lg border border-app px-4 py-2 text-app-text" onClick={() => {
+              setPreviewSelected(true)
+              previewSelectedRef.current = true
+              setDecodeError(false)
+              setPhase({ kind: 'ready', src: previewSrc })
+            }}>{t('videoPlayer.usePreview')}</button>}
           </div>
         </div>
       )}

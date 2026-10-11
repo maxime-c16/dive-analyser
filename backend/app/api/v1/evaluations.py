@@ -19,7 +19,7 @@ ownership — the CURRENT dive owner, never ``created_by``):
 
 Evaluation media is the ONLY place a member can read a private evaluation
 dive: the request-wide ORM filter is lifted inside explicitly authorized
-blocks (see ``evaluation_access``), never globally. No presigned URLs, no
+blocks (see ``evaluation_access``), never globally. Short-lived original grants, no
 download rights, no access to owner notes; no admin bonus: an admin gets no
 additional right on an attributed dive they do not own. Business codes:
 404 inaccessible/deleted · 403 SELF_EVALUATION · 409 EVALUATION_CLOSED /
@@ -27,6 +27,8 @@ RATING_ALREADY_SUBMITTED · 410 SESSION_EXPIRED.
 """
 import logging
 from uuid import UUID
+
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
@@ -197,6 +199,31 @@ def get_evaluation_media_play(
     within the active request (default keeps the HQ contract order)."""
     user = _require_user(request, db)
     _, _, asset = _media_chain(db, user, request_id)
+    # Authorization above remains evaluation-specific: an active request does
+    # not make this private dive visible in the Library or its media routes.
+    if rendition in (None, 'original'):
+        from app.api.v1.media_playback import _flags_enabled, _resolve_verified_prod_location, DENY_STORAGE_AMBIGUOUS
+        from app.models.media_backbone import MediaRevision
+        from app.services import b2_presign
+        from fastapi.responses import RedirectResponse
+        with evaluation_access.evaluation_media_scope(db):
+            entries = evaluation_access._ready_entries(db, asset.id)
+            local_original = next((entry for entry in entries if entry.rendition == 'original' and Path(entry.storage_path).is_file()), None)
+            revision = db.query(MediaRevision).filter(MediaRevision.video_uuid == asset.video_uuid, MediaRevision.rendition_semantics != 'browser_original').order_by(MediaRevision.id.desc()).first() if _flags_enabled() else None
+            location, reason = _resolve_verified_prod_location(db, revision) if revision else (None, None)
+        if local_original:
+            return evaluation_access.serve_entry(local_original.storage_path, local_original.content_type, request, head_only=request.method == 'HEAD')
+        if reason == DENY_STORAGE_AMBIGUOUS:
+            raise HTTPException(404, 'Not found')
+        if location:
+            try:
+                b2_presign.head_object(bucket=location.bucket, object_key=location.object_key)
+                signed = b2_presign.presign_get(bucket=location.bucket, object_key=location.object_key, storage_location_id=location.id)
+                response = RedirectResponse(signed.url, status_code=302)
+                _secure_headers(response)
+                return response
+            except b2_presign.PresignUnavailable:
+                raise HTTPException(503, 'Original video storage unavailable; choose a preview or retry') from None
     chosen = _select_ready_entry(db, asset, rendition, playable=True)
     return evaluation_access.serve_entry(
         chosen.storage_path, chosen.content_type, request, head_only=request.method == "HEAD",

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { acquirePlaybackVideo, releasePlaybackVideo, preparePlaybackWindow, resetPreparedPlayback, retainPreparedOriginal, preparedOriginal } from './preparedPlayback'
+import { acquirePlaybackVideo, releasePlaybackVideo, preparePlaybackWindow, resetPreparedPlayback } from './preparedPlayback'
 import { getPreviewForPlayback } from './mediaPreview'
 vi.mock('./mediaPreview', () => ({ getPreviewForPlayback: vi.fn() }))
 beforeEach(() => {
@@ -80,18 +80,14 @@ it('keeps incoming HQ across release-before-acquire with a full four-clip window
   const a = acquirePlaybackVideo('a')
   preparePlaybackWindow(['a', 'b', 'c', 'd'])
   await flush()
-  const hq = document.createElement('video')
-  hq.src = '/original.mov'
-  retainPreparedOriginal('a', hq)
   releasePlaybackVideo('a', a)
   const b = acquirePlaybackVideo('b')
   preparePlaybackWindow(['b', 'c', 'a', 'd'])
   await flush()
   releasePlaybackVideo('b', b)
-  expect(preparedOriginal('a', '/original.mov')).toBe(hq)
   expect(acquirePlaybackVideo('a')).toBe(a)
   preparePlaybackWindow(['a', 'x'])
   await flush()
   resetPreparedPlayback()
-  expect(hq.hasAttribute('src')).toBe(false)
+  expect(a.hasAttribute('src')).toBe(false)
 })

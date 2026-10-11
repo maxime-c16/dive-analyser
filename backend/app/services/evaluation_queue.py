@@ -237,6 +237,10 @@ def _batch_payloads(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) ->
                 .all()
             ):
                 active_by_asset[job.photos_asset_id] = True
+    from app.api.v1.media import _backbone_revision_ids_bulk
+    # pairs were authorized as active evaluation requests by the queue scope.
+    with evaluation_access.evaluation_media_scope(db):
+        backbone_ids = _backbone_revision_ids_bulk(db, uuids)
     items = []
     for request_row, dive in pairs:
         asset = assets.get(dive.video_uuid)
@@ -244,7 +248,7 @@ def _batch_payloads(db: Session, pairs: list[tuple[EvaluationRequest, Dive]]) ->
             media = {"status": "missing", "poster_url": None, "playback_url": None}
         else:
             prefetched = (entries_by_asset.get(asset.id, []), active_by_asset.get(asset.id, False))
-            media = evaluation_access.media_status(db, request_row, asset, prefetched=prefetched)
+            media = evaluation_access.media_status(db, request_row, asset, prefetched=prefetched, backbone_available=bool(backbone_ids.get(asset.video_uuid)))
         items.append(_item_fields(request_row, dive, media, names.get(dive.diver_id)))
     return items
 

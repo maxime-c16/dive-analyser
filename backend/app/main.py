@@ -82,7 +82,12 @@ async def lifespan(app: FastAPI):
     # Auto-import data on startup
     run_auto_import()
 
-    yield
+    from app.services.upload_queue import start_worker
+    upload_worker_stop = start_worker()
+    try:
+        yield
+    finally:
+        upload_worker_stop.set()
 
     # Shutdown
     logger.info("Shutting down Diving Analytics API")

@@ -278,6 +278,46 @@ def create_dive(
     return _public_dive(db_dive, db)
 
 
+@router.post("/uploads", status_code=202)
+def queue_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    dive_code: str = Form(..., pattern=r"^(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCD]$"),
+    height: str = Form(..., pattern=r"^(1|3|5|7\.5|10)m$"),
+    performance: str = Form(..., pattern=r"^[FBMGP]$"),
+    dive_datetime: datetime = Form(...),
+    visibility: str = Form("private", pattern=r"^(public|private)$"),
+    notes: str = Form("", max_length=2000),
+    evaluation_requested: bool = Form(False),
+    evaluation_prompt: str = Form("", max_length=1000),
+    diver_id: int = Form(...),
+    upload_id: str = Form(..., pattern=r"^[a-f0-9-]{36}$"),
+    db: Session = Depends(get_db),
+):
+    from app.services.upload_queue import enqueue
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    payload = dict(dive_code=dive_code, height=height, performance=performance,
+        dive_datetime=dive_datetime.isoformat(), visibility=visibility, notes=notes,
+        evaluation_requested=evaluation_requested, evaluation_prompt=evaluation_prompt,
+        diver_id=diver_id, upload_id=upload_id)
+    return enqueue(db, user, file, payload)
+
+
+@router.get("/uploads/{upload_id}")
+def upload_status(upload_id: str, request: Request, db: Session = Depends(get_db)):
+    from app.models.browser_upload import BrowserUploadJob
+    from app.services.upload_queue import summary
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    job = db.query(BrowserUploadJob).filter_by(user_id=user.id, upload_id=upload_id).first()
+    if job is None:
+        raise HTTPException(404, "Upload not found")
+    return summary(job)
+
+
 @router.post("/upload", status_code=201)
 def upload_dive(
     request: Request,
@@ -334,8 +374,32 @@ def upload_dive(
             diver = db.get(Diver, diver_id)
     if diver is None:
         raise HTTPException(404, "Diver not found")
+    # End the authorization read transaction before CPU/network work. Never
+    # publish a clip until original storage has been roundtrip verified.
+    user_id = user.id
+    db.rollback()
     folder, size = prepare_video(file)
     try:
+        manifest = persist_original(None, video_uuid, folder, register=False)
+        playback_manifest = persist_original(None, video_uuid, folder, register=False, source_name='original.mp4')
+        # Re-check ownership/account state after preparation; permissions may
+        # have changed while this large file was being processed.
+        from app.models.user_auth import AppUser
+        db.expire_all()
+        user = db.get(AppUser, user_id)
+        if not user or not user.is_active:
+            raise HTTPException(403, "Upload account is no longer active")
+        deposit_for_other = diver_id not in owned_diver_ids(db, user.id)
+        if deposit_for_other and not user.is_admin:
+            raise HTTPException(403, "Choose a diver you own")
+        context = db.info.get("member_access")
+        if context is not None:
+            context.update(diver_ids=owned_diver_ids(db, user.id), is_admin=bool(user.is_admin), system_mutation=deposit_for_other)
+        from app.services.dive_access import unscoped_reads
+        with unscoped_reads(db):
+            diver = db.get(Diver, diver_id)
+        if diver is None:
+            raise HTTPException(404, "Diver not found")
         # Sessions are shared calendar days. Use a Core lookup so a day with
         # only another member's private clips is reused without exposing them.
         day = dive_datetime.date()
@@ -411,7 +475,11 @@ def upload_dive(
                 logger.exception('batch email queue failed for upload %s', record.id)
         cache_upload(db, asset, folder)
         db.flush()
-        persist_original(db, video_uuid, folder)
+        if manifest is not None:
+            from app.services.media_backbone import commit_verified_ingest
+            commit_verified_ingest(db, **manifest, commit=False)
+            if playback_manifest is not None:
+                commit_verified_ingest(db, **playback_manifest, commit=False)
         invalidate_analysis_cache(db)
         db.commit()
     except BaseException:

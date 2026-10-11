@@ -55,3 +55,13 @@ it('routes replay and play through the judging transition while paused', async (
   expect(onReplay).toHaveBeenCalledTimes(2)
   expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
 })
+it('offers an explicit labelled preview when the original cannot decode', async () => {
+  vi.mocked(getEvaluationMediaStatus).mockResolvedValue({ request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready', rendition: 'original', poster_url: null, playback_url: '/play', available_renditions: ['original', 'proxy_720p'] })
+  const { container } = render(<EvaluationPlayer requestId={7} />)
+  await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=original'))
+  fireEvent.error(container.querySelector('video')!)
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+  expect(container.querySelector('video')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
+  expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p')
+})

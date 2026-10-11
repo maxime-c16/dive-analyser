@@ -11,7 +11,7 @@
  * matching the existing immersive viewer's interaction vocabulary.
  *
  * HQ contract: identical to the established viewer — the backend status
- * resolves the preferred rendition (720p proxy → original → 360p) server-side;
+ * resolves the preferred rendition (original → 720p preview → 360p preview) server-side;
  * `available_renditions` only informs the upgradability hint. When a clip is
  * playing a proxy while HQ could exist, preparation is requested once through
  * the evaluation transport (bounded, current clip only).
@@ -82,6 +82,7 @@ export default function EvaluationPlayer({
   const [cover, setCover] = useState(1)
   const [pinchProgress, setPinchProgress] = useState(0)
   const failedRenditions = useRef(new Set<string>())
+  const [decodeError, setDecodeError] = useState(false)
   const [playback, setPlayback] = useState<Playback>({ kind: 'checking' })
   // Identity guards: a response for a PREVIOUS request id (pending status
   // lookup or prepare follow-up after the jury advanced) must never replace
@@ -102,6 +103,7 @@ export default function EvaluationPlayer({
     setPlayback({ kind: 'checking' })
     setHqHint(false)
     failedRenditions.current.clear()
+    setDecodeError(false)
     setWholeFrame(false); setPinchProgress(0)
     prepareQueued.current = false
     try {
@@ -299,7 +301,7 @@ export default function EvaluationPlayer({
     if (playback.kind !== 'ready') return
     failedRenditions.current.add(playback.rendition)
     const next = playback.playableChoices.find(name => !failedRenditions.current.has(name))
-    if (next) setPlayback({ ...playback, rendition: next, src: evaluationPlaybackUrl(requestId, next, automatic), hq: HQ_RENDITIONS.has(next) })
+    if (next) setDecodeError(true)
     else setPlayback({ kind: 'failed' })
   }
 
@@ -355,6 +357,17 @@ export default function EvaluationPlayer({
         </button>
       </div>
     )
+  }
+  if (playback.kind === 'ready' && decodeError) {
+    const next = playback.playableChoices.find(name => !failedRenditions.current.has(name))
+    return <div className="eval-player eval-player-state" role="alert">
+      <p>{t('evaluations.mediaFailed')}</p>
+      <button type="button" className="eval-retry" onClick={() => { setDecodeError(false); setAttempt(value => value + 1) }}>{t('evaluations.mediaRetry')}</button>
+      {next && <button type="button" className="eval-retry" onClick={() => {
+        setDecodeError(false)
+        setPlayback({ ...playback, rendition: next, src: evaluationPlaybackUrl(requestId, next, automatic), hq: HQ_RENDITIONS.has(next) })
+      }}>{t('videoPlayer.usePreview')}</button>}
+    </div>
   }
   if (playback.kind === 'failed') {
     return (
@@ -425,18 +438,18 @@ export default function EvaluationPlayer({
           <button
             type="button"
             aria-label={t('evaluations.qualityLabelAria')}
-            title={playback.rendition === 'original' ? t('evaluations.qualityOriginal') : t('evaluations.qualityHQ')}
+            title={playback.rendition === 'original' ? t('evaluations.qualityOriginal') : `${t('videoPlayer.previewQuality')} (${playback.rendition === 'proxy_720p' ? '720p' : '360p'})`}
             className={playback.rendition === 'original' ? 'eval-quality-orig' : undefined}
             onClick={() => {
               // Cycle within the READY playable list; the first entry keeps
-              // the server's HQ-contract choice (720p proxy → original).
+              // the server's HQ-contract choice (original → 720p preview).
               const order = [...playback.playableChoices]
               const index = order.indexOf(playback.rendition)
               const next = order[(index + 1) % order.length]
               setPlayback({ ...playback, src: evaluationPlaybackUrl(requestId, next, automatic), rendition: next, hq: HQ_RENDITIONS.has(next) })
             }}
           >
-            {playback.rendition === 'original' ? t('evaluations.qualityOriginal') : t('evaluations.qualityHQ')}
+            {playback.rendition === 'original' ? t('evaluations.qualityOriginal') : `${t('videoPlayer.previewQuality')} (${playback.rendition === 'proxy_720p' ? '720p' : '360p'})`}
           </button>
         )}
       </div>

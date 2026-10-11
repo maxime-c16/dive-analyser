@@ -158,7 +158,7 @@ def test_upload_evaluation_request_and_retry_no_duplication(workspace, monkeypat
     db, login, _, users, _ = workspace
     folder = tmp_path / 'prepared'
     folder.mkdir()
-    for name in ('source', 'video.mp4', 'poster.jpg'):
+    for name in ('source', 'original.mp4', 'poster.jpg'):
         (folder / name).write_bytes(b'test')
     import boto3
     from app.config import get_settings
@@ -218,11 +218,11 @@ def test_failed_upload_publishes_no_request(workspace, monkeypatch, tmp_path):
     db, login, _, users, _ = workspace
     folder = tmp_path / 'failed-eval-upload'
     folder.mkdir()
-    for name in ('source', 'video.mp4', 'poster.jpg'):
+    for name in ('source', 'original.mp4', 'poster.jpg'):
         (folder / name).write_bytes(b'video')
     monkeypatch.setattr(browser_upload, 'prepare_video', lambda file: (folder, 5))
 
-    def fail(*args):
+    def fail(*args, **kwargs):
         raise HTTPException(503, 'Video storage unavailable; please retry')
 
     monkeypatch.setattr(browser_upload, 'persist_original', fail)
@@ -289,7 +289,7 @@ def test_evaluation_media_scope_status_play_poster_prepare(workspace, monkeypatc
     db.add_all([entry_720, entry_orig])
     db.commit()
     hq_status = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/status')
-    assert hq_status.json()['rendition'] == 'proxy_720p'  # 720p beats original
+    assert hq_status.json()['rendition'] == 'original'  # Original is the first-frame source
     from sqlalchemy import text as sql_text
     from app.models.media import MediaCacheEntry as MCE
     db.execute(sql_text("DELETE FROM media_cache_entries WHERE media_key LIKE 'hq-test-%'"))
@@ -394,3 +394,37 @@ class TestEvaluationMigrationFile:
         assert "CREATE INDEX IF NOT EXISTS" in joined
         assert "ON DELETE CASCADE" in joined
         assert "DROP TABLE IF EXISTS evaluation_requests" in sql
+
+
+def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypatch):
+    from app.config import get_settings
+    from app.models.evaluation import EvaluationRequest
+    from app.models.media_backbone import MediaRevision, MediaBlobLocation
+    from app.services import b2_presign
+    from app.services.b2_presign import PresignResult
+    db, login, dives, _, _ = workspace
+    monkeypatch.setattr(get_settings(), 'b2_playback_canary_enabled', True)
+    request_row = EvaluationRequest(dive_id=dives['alice-private'], created_by_user_id=1, active=True)
+    db.add(request_row)
+    revision = db.query(MediaRevision).filter_by(video_uuid='alice-private-video').one()
+    db.add(MediaBlobLocation(blob_sha256=revision.blob_sha256, storage_backend='b2', bucket=get_settings().media_backbone_prod_bucket, object_key='verified-original', environment='prod', verified=True))
+    db.commit()
+    monkeypatch.setattr(b2_presign, 'head_object', lambda **kw: True)
+    grants = []
+    def sign(**kw):
+        grants.append(kw)
+        return PresignResult(url='https://example.test/full.mp4', ttl_seconds=300)
+    monkeypatch.setattr(b2_presign, 'presign_get', sign)
+    client = login('bob')
+    status = client.get(f'/api/v1/evaluations/requests/{request_row.id}/media/status').json()
+    assert status['rendition'] == 'original'
+    assert status['full_quality_url'].endswith('rendition=original')
+    response = client.get(status['full_quality_url'], follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers['cache-control'] == 'private, no-store'
+    assert len(grants) == 1
+    assert client.get(f"/api/v1/dives/{dives['alice-private']}").status_code == 404
+    request_row.active = False
+    db.commit()
+    assert client.get(status['full_quality_url'], follow_redirects=False).status_code == 404
+    assert len(grants) == 1

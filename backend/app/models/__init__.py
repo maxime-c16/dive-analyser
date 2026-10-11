@@ -134,3 +134,5 @@ from app.models.fediverse import UserFediversePrefs, DiveFediverseOptin
 from app.models.evaluation import (
     EvaluationRequest, EvaluationRating, EvaluationSession, EvaluationSessionRequest,
 )
+
+from app.models.browser_upload import BrowserUploadJob

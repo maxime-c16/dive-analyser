@@ -13,8 +13,8 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     owner = owned_diver_ids(db, users['bob'].id)[0]
     folder = tmp_path / 'prepared'
     folder.mkdir()
-    for name in ('source', 'video.mp4', 'poster.jpg'):
-        (folder / name).write_bytes(b'test')
+    for name in ('source', 'original.mp4', 'poster.jpg'):
+        (folder / name).write_bytes(b'full' if name == 'original.mp4' else b'test')
     import boto3
     from app.config import get_settings
     settings = get_settings()
@@ -26,10 +26,15 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
         def close(self):
             pass
     class Client:
-        def upload_file(self, *args, **kwargs):
-            pass
+        def upload_file(self, path, *args, **kwargs):
+            from pathlib import Path
+            self.content = Path(path).read_bytes()
         def get_object(self, **kwargs):
-            return {'Body': Stream()}
+            import io
+            class Body(io.BytesIO):
+                def iter_chunks(self, chunk_size):
+                    yield self.read()
+            return {'Body': Body(self.content)}
     monkeypatch.setattr(boto3, 'client', lambda *a, **kw: Client())
     calls = []
     def prepare(file):
@@ -48,8 +53,8 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     assert record['dive_code'] == code
     assert record['platform_type'] == ('platform' if height == '10m' else 'springboard')
     from app.models.media_backbone import MediaRevision, MediaBlobLocation
-    assert db.query(MediaRevision).filter_by(video_uuid=record['video_uuid']).one().rendition_semantics == 'browser_original'
-    assert db.query(MediaBlobLocation).one().verified is True
+    assert {r.rendition_semantics for r in db.query(MediaRevision).filter_by(video_uuid=record['video_uuid']).all()} == {'browser_original', 'browser_playback'}
+    assert all(row.verified for row in db.query(MediaBlobLocation).all())
     retry = client.post('/api/v1/dives/upload', data=fields, files={'file': ('clip.mov', b'video')})
     assert retry.status_code == 201 and retry.json()['id'] == record['id']
     assert len(calls) == 1
@@ -59,7 +64,7 @@ def test_browser_upload_ownership_privacy_and_retry(workspace, monkeypatch, tmp_
     assert status.json()['poster_url']
     from app.models.media import MediaJob
     jobs_before = db.query(MediaJob).count()
-    for rendition in ('poster', 'proxy_720p'):
+    for rendition in ('poster', 'original'):
         request = client.post(f"/api/v1/media/{record['video_uuid']}/request", json={'rendition': rendition})
         assert request.status_code == 200, request.text
         assert request.json()['cache_hit'] is True
@@ -85,10 +90,10 @@ def test_b2_failure_does_not_publish_clip(workspace, monkeypatch, tmp_path):
     db, login, _, users, _ = workspace
     folder = tmp_path / 'failed-upload'
     folder.mkdir()
-    for name in ('source', 'video.mp4', 'poster.jpg'):
+    for name in ('source', 'original.mp4', 'poster.jpg'):
         (folder / name).write_bytes(b'video')
     monkeypatch.setattr(browser_upload, 'prepare_video', lambda file: (folder, 5))
-    def fail(*args):
+    def fail(*args, **kwargs):
         raise HTTPException(503, 'Video storage unavailable; please retry')
     monkeypatch.setattr(browser_upload, 'persist_original', fail)
     before = db.query(Dive).count()
@@ -183,7 +188,7 @@ def test_ten_bit_video_becomes_browser_compatible_sdr(tmp_path, monkeypatch, tra
     with source.open('rb') as file:
         folder, _ = prepare_video(UploadFile(file=file, filename=source.name))
     try:
-        stream = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', str(folder / 'video.mp4')]))['streams'][0]
+        stream = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', str(folder / 'original.mp4')]))['streams'][0]
         assert stream['codec_name'] == 'h264'
         assert stream['profile'] == 'Main'
         assert stream['pix_fmt'] == 'yuv420p'
@@ -192,6 +197,28 @@ def test_ten_bit_video_becomes_browser_compatible_sdr(tmp_path, monkeypatch, tra
             assert stream['color_primaries'] == 'bt709'
             assert stream['color_space'] == 'bt709'
         assert (folder / 'poster.jpg').stat().st_size > 0
+        assert (folder / 'source').read_bytes() == source.read_bytes()
+    finally:
+        cleanup_upload(folder)
+
+
+def test_full_resolution_and_frame_rate_are_preserved(tmp_path, monkeypatch):
+    import json
+    import shutil
+    import subprocess
+    from fastapi import UploadFile
+    from app.config import get_settings
+    from app.services.browser_upload import prepare_video, cleanup_upload
+    if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+        pytest.skip('Real video regression requires ffmpeg and ffprobe')
+    source = tmp_path / 'full.mp4'
+    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=1920x1080:r=60:d=0.15', '-c:v', 'libx264', '-threads', '1', str(source)], check=True, timeout=30)
+    monkeypatch.setattr(get_settings(), 'media_cache_root', str(tmp_path / 'cache'))
+    with source.open('rb') as file:
+        folder, _ = prepare_video(UploadFile(file=file, filename=source.name))
+    try:
+        stream = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-of', 'json', str(folder / 'original.mp4')]))['streams'][0]
+        assert (stream['width'], stream['height'], stream['r_frame_rate']) == (1920, 1080, '60/1')
         assert (folder / 'source').read_bytes() == source.read_bytes()
     finally:
         cleanup_upload(folder)

@@ -330,7 +330,7 @@ def _stub_browser_upload(monkeypatch, tmp_path):
     from app.services import browser_upload
     folder = tmp_path / "prepared"
     folder.mkdir(exist_ok=True)
-    for name in ("source", "video.mp4", "poster.jpg"):
+    for name in ("source", "original.mp4", "poster.jpg"):
         (folder / name).write_bytes(b"test")
     monkeypatch.setattr(browser_upload, "prepare_video", lambda file: (folder, 4))
     import boto3

@@ -915,6 +915,8 @@ const en = {
     requestFailed: 'Could not request media preparation',
     requesting: 'Requesting…',
     retryPrepare: 'Retry prepare',
+    usePreview: 'Play a lower-quality preview',
+    previewQuality: 'Lower-quality preview',
     loadFailed: 'Video failed to load',
     tryAgain: 'Try again',
     notCached: 'Clip not cached',

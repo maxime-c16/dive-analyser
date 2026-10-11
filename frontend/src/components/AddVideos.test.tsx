@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import AddVideos from './AddVideos'
 import { api } from '../services/api'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { display_name: 'Bob', divers: [{ diver_id: 4, access_kind: 'OWNER' }] } }) }))
-vi.mock('../services/api', () => ({ api: { post: vi.fn() } }))
+vi.mock('../services/api', () => ({ api: { post: vi.fn(), get: vi.fn() } }))
 URL.createObjectURL = vi.fn(() => 'blob:preview')
 URL.revokeObjectURL = vi.fn()
 
@@ -14,7 +14,7 @@ function select() {
 
 describe('browser clip stack', () => {
   it('saves each clip privately under its owner and advances only after success', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: {} })
+    vi.mocked(api.post).mockResolvedValue({ data: { status: 'ready' } })
     render(<AddVideos onAdded={vi.fn()} />)
     select()
     expect(screen.getByText('Video 1 / 2')).toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('browser clip stack', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
   it('keeps a failed clip and reuses the upload identity on retry', async () => {
-    vi.mocked(api.post).mockReset().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ data: {} })
+    vi.mocked(api.post).mockReset().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ data: { status: 'ready' } })
     render(<AddVideos onAdded={vi.fn()} />)
     select()
     fireEvent.click(screen.getByText('Save and next'))
@@ -44,7 +44,7 @@ describe('browser clip stack', () => {
 
 describe('evaluation request in the import flow', () => {
   it('sends evaluation_requested false by default and never a prompt', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: {} })
+    vi.mocked(api.post).mockResolvedValue({ data: { status: 'ready' } })
     render(<AddVideos onAdded={vi.fn()} />)
     select()
     fireEvent.click(screen.getByText('Save and next'))
@@ -55,7 +55,7 @@ describe('evaluation request in the import flow', () => {
   })
 
   it('requests an evaluation with its optional prompt without touching other clip fields', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: {} })
+    vi.mocked(api.post).mockResolvedValue({ data: { status: 'ready' } })
     render(<AddVideos onAdded={vi.fn()} />)
     select()
     fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'personal note' } })
@@ -72,7 +72,7 @@ describe('evaluation request in the import flow', () => {
 })
 
 it('accepts armstand codes in the browser form', async () => {
-  vi.mocked(api.post).mockReset().mockResolvedValue({ data: {} })
+  vi.mocked(api.post).mockReset().mockResolvedValue({ data: { status: 'ready' } })
   render(<AddVideos onAdded={vi.fn()} />)
   select()
   const code = screen.getByLabelText('Code') as HTMLInputElement
@@ -112,6 +112,16 @@ it('does not cancel an upload in progress with Escape', async () => {
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(confirm).not.toHaveBeenCalled()
   expect(screen.getByRole('dialog')).toBeInTheDocument()
-  finish({ data: {} }); await screen.findByText('Video 2 / 2')
+  finish({ data: { status: 'ready' } }); await screen.findByText('Video 2 / 2')
   confirm.mockRestore()
+})
+it('keeps the current clip visible while its durable job is processing', async () => {
+  vi.mocked(api.post).mockReset().mockResolvedValue({ data: { status: 'queued' } })
+  vi.mocked(api.get).mockReset().mockResolvedValue({ data: { status: 'ready', dive_id: 123 } })
+  render(<AddVideos onAdded={vi.fn()} />)
+  select(); fireEvent.click(screen.getByText('Save and next'))
+  await screen.findByRole('status')
+  expect(screen.getByText('Video 1 / 2')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByText('Video 2 / 2')).toBeInTheDocument(), { timeout: 3500 })
+  expect(api.get).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/v1\/dives\/uploads\//))
 })

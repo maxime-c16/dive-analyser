@@ -7,8 +7,8 @@ backend with HTTP Range support, so the fallback cannot leak an
 unauthenticated address.
 
 Resolution order (deterministic, evidence-based):
-1. media-cache renditions for the revision's video_uuid (proxy_720p >
-   proxy_360p > original; posters are never used as playback sources);
+1. media-cache renditions for the revision's video_uuid (original >
+   proxy_720p > proxy_360p; posters are never used as playback sources);
 2. the legacy server-side file locations used by GET /api/v1/videos/
    {video_uuid} (mounted /videos, absolute dive.video_path,
    /photos_library copies), always constrained to the same allowed-root
@@ -34,9 +34,9 @@ from app.models.media_backbone import MediaRevision
 from app.models.photos_asset import PhotosAsset
 
 _PLAYBACK_RENDITION_PREFERENCE = {
-    "proxy_720p": 0,
-    "proxy_360p": 1,
-    "original": 2,
+    "original": 0,
+    "proxy_720p": 1,
+    "proxy_360p": 2,
 }
 
 _ALLOWED_ROOTS = (

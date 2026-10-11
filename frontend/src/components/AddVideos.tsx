@@ -71,12 +71,19 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
     Object.entries({ dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: diver, upload_id: clip.id, evaluation_requested: clip.evaluation ? 'true' : 'false' }).forEach(([key, value]) => body.append(key, value))
     if (clip.evaluation && clip.evaluationPrompt.trim()) body.append('evaluation_prompt', clip.evaluationPrompt.trim())
     try {
-      await api.post('/api/v1/dives/upload', body, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })
+      const queued = await api.post('/api/v1/dives/uploads', body, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })
+      setProgress(100)
+      let job = queued.data
+      while (job.status === 'queued' || job.status === 'processing' || job.status === 'receiving') {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        job = (await api.get(`/api/v1/dives/uploads/${clip.id}`)).data
+      }
+      if (job.status !== 'ready') throw new Error(job.error || t('addVideos.errorAdd'))
       setSaved(current => current + 1)
       if (index + 1 === clips.length) finish(saved + 1)
       else setIndex(current => current + 1)
     } catch (error: any) {
-      setError(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : t('addVideos.errorAdd'))
+      setError(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : error.message || t('addVideos.errorAdd'))
     } finally { setBusy(false) }
   }
   return <>

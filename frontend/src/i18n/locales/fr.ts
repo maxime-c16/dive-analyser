@@ -916,6 +916,8 @@ const fr = {
     requestFailed: 'Impossible de demander la préparation du média',
     requesting: 'Demande en cours…',
     retryPrepare: 'Réessayer la préparation',
+    usePreview: 'Lire un aperçu de qualité réduite',
+    previewQuality: 'Aperçu de qualité réduite',
     loadFailed: 'Échec du chargement de la vidéo',
     tryAgain: 'Réessayer',
     notCached: 'Extrait non mis en cache',
