@@ -224,3 +224,24 @@ def test_full_resolution_and_frame_rate_are_preserved(tmp_path, monkeypatch):
         assert (folder / 'source').read_bytes() == source.read_bytes()
     finally:
         cleanup_upload(folder)
+
+
+def test_cleanup_preserves_browser_playback_when_remote_path_is_disabled(workspace, monkeypatch, tmp_path):
+    from datetime import datetime, timedelta
+    from app.config import get_settings
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+    from app.services.media_cache import cleanup_cache
+    db, _, _, _, _ = workspace
+    monkeypatch.setattr(get_settings(), 'b2_playback_canary_enabled', False)
+    folder = tmp_path / 'browser-uploads' / 'retained'
+    folder.mkdir(parents=True)
+    video = folder / 'original.mp4'
+    video.write_bytes(b'only accessible playback')
+    asset = db.query(PhotosAsset).first()
+    entry = MediaCacheEntry(photos_asset_id=asset.id, media_key='retention-safety', rendition='original', storage_path=str(video), size_bytes=video.stat().st_size, content_type='video/mp4', status='ready', pinned=False, expires_at=datetime.utcnow() - timedelta(days=1))
+    db.add(entry); db.commit()
+    cleanup_cache(db, max_bytes=1)
+    db.commit()
+    assert video.exists()
+    assert entry.pinned is True
