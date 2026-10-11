@@ -108,10 +108,11 @@ def test_reservation_precedes_bytes_and_rejects_unreserved_or_oversized_body(wor
     assert client.put(url, content=b'video').status_code == 404
     assert client.post('/api/v1/dives/uploads', json=data).json()['status'] == 'receiving'
     job = db.query(BrowserUploadJob).one()
-    assert not Path(job.storage_path).exists()
+    job_id, job_path = job.id, Path(job.storage_path)
+    assert not job_path.exists()
     assert login('alice').put(url, content=b'video').status_code == 404
     monkeypatch.setattr(upload_queue, 'MAX_BYTES', 3)
     assert login('bob').put(url, content=b'too large').status_code == 413
     db.expire_all()
-    assert db.get(BrowserUploadJob, job.id).status == 'failed'
-    assert not Path(job.storage_path).exists()
+    assert db.get(BrowserUploadJob, job_id).status == 'failed'
+    assert not job_path.exists()

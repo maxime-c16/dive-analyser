@@ -409,6 +409,7 @@ def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypat
     revision = db.query(MediaRevision).filter_by(video_uuid='alice-private-video').one()
     db.add(MediaBlobLocation(blob_sha256=revision.blob_sha256, storage_backend='b2', bucket=get_settings().media_backbone_prod_bucket, object_key='verified-original', environment='prod', verified=True))
     db.commit()
+    request_id = request_row.id
     monkeypatch.setattr(b2_presign, 'head_object', lambda **kw: True)
     grants = []
     def sign(**kw):
@@ -416,7 +417,7 @@ def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypat
         return PresignResult(url='https://example.test/full.mp4', ttl_seconds=300)
     monkeypatch.setattr(b2_presign, 'presign_get', sign)
     client = login('bob')
-    status = client.get(f'/api/v1/evaluations/requests/{request_row.id}/media/status').json()
+    status = client.get(f'/api/v1/evaluations/requests/{request_id}/media/status').json()
     assert status['rendition'] == 'original'
     assert status['full_quality_url'].endswith('rendition=original')
     response = client.get(status['full_quality_url'], follow_redirects=False)
@@ -424,7 +425,7 @@ def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypat
     assert response.headers['cache-control'] == 'private, no-store'
     assert len(grants) == 1
     assert client.get(f"/api/v1/dives/{dives['alice-private']}").status_code == 404
-    db.get(EvaluationRequest, request_row.id).active = False
+    db.get(EvaluationRequest, request_id).active = False
     db.commit()
     assert client.get(status['full_quality_url'], follow_redirects=False).status_code == 404
     assert len(grants) == 1
