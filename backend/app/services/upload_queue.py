@@ -7,7 +7,7 @@ Interrupted processing jobs resume after the prior process releases that lock.
 import logging
 import shutil
 import threading
-from time import monotonic
+from time import monotonic, time
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -132,7 +132,7 @@ def process_one():
                     # old, unreferenced folders inside the upload root.
                     root = Path(get_settings().media_cache_root).resolve() / 'browser-uploads'
                     referenced = {Path(value).parent.resolve() for value, in db.query(MediaCacheEntry.storage_path).all()}
-                    cutoff = datetime.utcnow().timestamp() - 86400
+                    cutoff = time() - 86400
                     if root.exists():
                         for folder in root.iterdir():
                             if folder.is_dir() and not folder.is_symlink() and folder.resolve() not in referenced and folder.stat().st_mtime < cutoff:
