@@ -387,6 +387,13 @@ def upload_dive(
             # Exact content identity is deduplicated. Identical source/output
             # bytes are already proven to be the browser-compatible MP4.
             manifest = playback_manifest
+        lease = getattr(request.state, 'upload_job', None)
+        if lease is not None:
+            from app.models.browser_upload import BrowserUploadJob
+            job_id, attempt = lease
+            job = db.query(BrowserUploadJob).filter_by(id=job_id).with_for_update().populate_existing().one()
+            if job.status != 'processing' or job.attempts != attempt:
+                raise HTTPException(409, 'Upload processing lease changed; please retry')
         # Re-check ownership/account state after preparation; permissions may
         # have changed while this large file was being processed.
         from app.models.user_auth import AppUser

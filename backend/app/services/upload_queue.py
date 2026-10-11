@@ -114,13 +114,15 @@ async def receive(db, user, upload_id, request):
                 if chunk:
                     await run_to_completion(asyncio.to_thread(target.write, chunk))
                 if monotonic() - last_heartbeat >= 30:
-                    db.query(BrowserUploadJob).filter_by(id=job_id, status='uploading').update({'updated_at': datetime.utcnow()}, synchronize_session=False)
+                    updated = db.query(BrowserUploadJob).filter_by(id=job_id, status='uploading', storage_path=str(path)).update({'updated_at': datetime.utcnow()}, synchronize_session=False)
                     db.commit()
+                    if updated != 1:
+                        raise HTTPException(409, 'Upload reservation changed; please retry')
                     last_heartbeat = monotonic()
         if not size:
             raise HTTPException(422, 'Empty video')
         job = db.query(BrowserUploadJob).filter_by(id=job_id).with_for_update().populate_existing().one()
-        if job.status != 'uploading' or not path.is_file():
+        if job.status != 'uploading' or job.storage_path != str(path) or not path.is_file():
             raise HTTPException(408, 'Upload expired; please retry')
         job.status = 'queued'
         db.commit()
@@ -129,9 +131,10 @@ async def receive(db, user, upload_id, request):
         db.rollback()
         path.unlink(missing_ok=True)
         job = db.get(BrowserUploadJob, job_id)
-        job.status = 'failed'
-        job.last_error = 'Upload interrupted; please retry'
-        db.commit()
+        if job.storage_path == str(path):
+            job.status = 'failed'
+            job.last_error = 'Upload interrupted; please retry'
+            db.commit()
         raise
 
 
@@ -187,7 +190,7 @@ def process_one():
                 return True
             job.status = 'processing'
             job.attempts += 1
-            job_id, user_id = job.id, job.user_id
+            job_id, user_id, attempt = job.id, job.user_id, job.attempts
             payload, path, filename = dict(job.payload), Path(job.storage_path), job.filename
             db.commit()
         try:
@@ -200,6 +203,7 @@ def process_one():
                 db.info['member_access'] = dict(user_id=user.id, diver_ids=owned_diver_ids(db, user.id), is_admin=bool(user.is_admin))
                 request = Request({'type': 'http', 'method': 'POST', 'path': '/api/v1/dives/upload', 'headers': []})
                 request.state.member_user = user
+                request.state.upload_job = (job_id, attempt)
                 with path.open('rb') as source:
                     file = UploadFile(source, filename=filename)
                     from datetime import datetime as dt
@@ -219,7 +223,8 @@ def process_one():
             error = exc.detail if isinstance(exc, HTTPException) and isinstance(exc.detail, str) else 'Video processing failed; please retry'
         with SessionLocal() as db:
             job = db.get(BrowserUploadJob, job_id)
-            job.status, job.result_id, job.last_error = status, result_id, error[:200] if error else None
+            if job.attempts == attempt and job.status == 'processing':
+                job.status, job.result_id, job.last_error = status, result_id, error[:200] if error else None
             db.commit()
         path.unlink(missing_ok=True)
         return True

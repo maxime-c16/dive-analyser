@@ -123,3 +123,53 @@ def test_retired_multipart_route_cannot_bypass_reservations(workspace):
     response = login('bob').post('/api/v1/dives/upload', files={'file': ('video.mp4', b'video')})
     assert response.status_code == 410
     assert db.query(BrowserUploadJob).count() == 0
+
+
+def test_chunked_ingress_enforces_actual_byte_limit(workspace, monkeypatch):
+    import asyncio
+    import pytest
+    from types import SimpleNamespace
+    from fastapi import HTTPException
+    from app.models.user_auth import AppUser
+    from app.services import upload_queue
+    db, login, _, users, _ = workspace
+    monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
+    data = fields(db, users['bob'])
+    user_id = users['bob'].id
+    login('bob').post('/api/v1/dives/uploads', json=data)
+    async def stream():
+        yield b'ab'
+        yield b'cd'
+    monkeypatch.setattr(upload_queue, 'MAX_BYTES', 3)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(upload_queue.receive(db, db.get(AppUser, user_id), data['upload_id'], SimpleNamespace(headers={}, stream=stream)))
+    assert error.value.status_code == 413
+    job = db.query(BrowserUploadJob).one()
+    assert job.status == 'failed'
+    assert not Path(job.storage_path).exists()
+
+
+def test_active_stream_refreshes_its_receiving_lease(workspace, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from datetime import timedelta
+    from app.models.user_auth import AppUser
+    from app.services import upload_queue
+    db, login, _, users, _ = workspace
+    monkeypatch.setattr(upload_queue.shutil, 'disk_usage', lambda _: type('Disk', (), {'free': 100 * 1024**3})())
+    data = fields(db, users['bob'])
+    user_id = users['bob'].id
+    login('bob').post('/api/v1/dives/uploads', json=data)
+    clock = [0]
+    monkeypatch.setattr(upload_queue, 'monotonic', lambda: clock[0])
+    async def stream():
+        db.query(BrowserUploadJob).update({'updated_at': datetime.utcnow() - timedelta(hours=2)})
+        db.commit()
+        clock[0] = 40
+        yield b'a'
+        db.expire_all()
+        assert db.query(BrowserUploadJob).one().updated_at > datetime.utcnow() - timedelta(minutes=1)
+        db.rollback()
+        yield b'b'
+    result = asyncio.run(upload_queue.receive(db, db.get(AppUser, user_id), data['upload_id'], SimpleNamespace(headers={}, stream=stream)))
+    assert result['status'] == 'queued'
