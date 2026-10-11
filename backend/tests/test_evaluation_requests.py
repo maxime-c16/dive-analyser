@@ -424,7 +424,7 @@ def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypat
     assert response.headers['cache-control'] == 'private, no-store'
     assert len(grants) == 1
     assert client.get(f"/api/v1/dives/{dives['alice-private']}").status_code == 404
-    request_row.active = False
+    db.get(EvaluationRequest, request_row.id).active = False
     db.commit()
     assert client.get(status['full_quality_url'], follow_redirects=False).status_code == 404
     assert len(grants) == 1
