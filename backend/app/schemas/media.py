@@ -39,6 +39,8 @@ class MediaStatusResponse(BaseModel):
     available_renditions: List[str] = Field(default_factory=list)
     playback_url: Optional[str] = None
     poster_url: Optional[str] = None
+    full_quality_url: Optional[str] = None
+    preview_url: Optional[str] = None
     cache_entries: List[MediaCacheEntrySummary] = Field(default_factory=list)
     job: Optional[MediaJobSummary] = None
     last_mac_seen_at: Optional[datetime] = None

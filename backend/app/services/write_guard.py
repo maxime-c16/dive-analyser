@@ -81,8 +81,11 @@ async def require_owner_for_mutation(
         )
     _session, user = resolved
     path = request.scope.get("path", "")
-    if path in ("/api/v1/dives", "/api/v1/dives/upload") or (path.startswith("/api/v1/dives/") and path.rsplit("/", 1)[-1].isdigit()):
-        if path not in ("/api/v1/dives", "/api/v1/dives/upload"):
+    if path.startswith('/api/v1/dives/uploads/') and path.endswith('/content'):
+        # The streaming route verifies the account-private reservation itself.
+        return user
+    if path in ("/api/v1/dives", "/api/v1/dives/upload", "/api/v1/dives/uploads") or (path.startswith("/api/v1/dives/") and path.rsplit("/", 1)[-1].isdigit()):
+        if path not in ("/api/v1/dives", "/api/v1/dives/upload", "/api/v1/dives/uploads"):
             from app.models.dive import Dive
             from app.services.dive_access import require_dive_owner
             dive = db.query(Dive).filter(Dive.id == int(path.rsplit("/", 1)[-1])).first()

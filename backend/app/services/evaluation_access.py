@@ -11,8 +11,8 @@ Library, analytics and derived data through the request-wide ORM filter in
   request↔dive↔media correspondence. No client boolean is authoritative;
 * deactivating the request removes the eligibility immediately (uniform 404,
   no existence disclosure);
-* no presigned URLs are issued: media bytes are streamed by the backend from
-  the verified media cache, so there is no long-lived link to expire. Browser
+* B2 originals use redirects signed for at most five minutes, after each
+  request re-authorizes the evaluation. Cached media uses authenticated URLs. Browser
   caching is limited (``Cache-Control: private, max-age=300``, account-scoped
   URLs) and documented here — after deactivation a browser may keep media for
   up to five minutes; server eligibility is revoked at once.
@@ -45,7 +45,7 @@ REQUEST_TABLE = EvaluationRequest.__tablename__
 
 # Same playback preference as the Library media transport; posters are never
 # playback sources.
-_PLAYABLE_PREFERENCE = {"proxy_720p": 0, "original": 1, "proxy_360p": 2}
+_PLAYABLE_PREFERENCE = {"original": 0, "proxy_720p": 1, "proxy_360p": 2}
 _ACTIVE_JOB_STATUSES = ("queued", "waiting_for_mac")
 PROMPT_MAX = 1000
 
@@ -188,11 +188,27 @@ def _active_job(db: Session, asset_id: int) -> bool:
     )
 
 
+def backbone_originals(db, video_uuids):
+    """Exact verified PROD authority for an already-authorized media scope."""
+    from app.config import get_settings
+    from app.models.media_backbone import MediaRevision
+    from app.services.matchmaking import verified_original_clause
+    from sqlalchemy import func
+    settings = get_settings()
+    if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled) or not video_uuids:
+        return {}
+    return dict(db.query(MediaRevision.video_uuid, func.max(MediaRevision.id)).filter(
+        MediaRevision.video_uuid.in_(video_uuids),
+        MediaRevision.rendition_semantics != 'browser_original',
+        verified_original_clause()).group_by(MediaRevision.video_uuid).all())
+
+
 def media_status(
     db: Session,
     request_row: EvaluationRequest,
     asset: PhotosAsset,
     prefetched: tuple[list[MediaCacheEntry], bool] | None = None,
+    backbone_available: bool | None = None,
 ) -> dict:
     """Stable media transport fields for ticket 3 (jury player).
 
@@ -208,9 +224,15 @@ def media_status(
             has_active = _active_job(db, asset.id)
     else:
         entries, has_active = prefetched
+    if backbone_available is None:
+        with evaluation_media_scope(db):
+            backbone_available = bool(backbone_originals(db, [asset.video_uuid]).get(asset.video_uuid))
     playable = _playable_entry(entries)
+    original = next((entry for entry in entries if entry.rendition == 'original'), None)
+    full_quality = bool(original or backbone_available)
+    preview = next((entry for rendition in ('proxy_720p', 'proxy_360p') for entry in entries if entry.rendition == rendition), None)
     poster = _poster_entry(entries)
-    if playable is not None:
+    if playable is not None or full_quality:
         status_value = "ready"
     elif has_active:
         status_value = "preparing"
@@ -221,12 +243,14 @@ def media_status(
         "dive_id": request_row.dive_id,
         "video_uuid": asset.video_uuid,
         "status": status_value,
-        # Rendition actually resolved for playback (HQ contract 720p→original
+        # Rendition actually resolved for playback (original→720p
         # →360p; the member can select another ready one via ?rendition=).
-        "rendition": playable.rendition if playable else None,
+        "rendition": "original" if full_quality else playable.rendition if playable else None,
         "poster_url": f"{base}/poster" if poster else None,
-        "playback_url": f"{base}/play" if playable else None,
-        "available_renditions": sorted({entry.rendition for entry in entries}),
+        "playback_url": f"{base}/play" if playable or full_quality else None,
+        "full_quality_url": f"{base}/play?rendition=original" if full_quality else None,
+        "preview_url": f"{base}/play?rendition={preview.rendition}" if preview else None,
+        "available_renditions": sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
     }
 
 

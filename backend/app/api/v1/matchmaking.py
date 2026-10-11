@@ -106,7 +106,7 @@ def _resolve_media(dive_id, kind, request, rendition, db):
     if kind == 'play' and (rendition == 'original' or rendition is None):
         from app.models.media import MediaCacheEntry
         cached_hq = db.query(MediaCacheEntry.id).filter(MediaCacheEntry.photos_asset_id == asset.id,
-            MediaCacheEntry.status == 'ready', MediaCacheEntry.rendition == ('original' if rendition else 'proxy_720p')).first()
+            MediaCacheEntry.status == 'ready', MediaCacheEntry.rendition == 'original').first()
         revision_id = service.original_revision_id(db, dive.video_uuid)
         if revision_id is not None and not cached_hq:
             return revision_id, user

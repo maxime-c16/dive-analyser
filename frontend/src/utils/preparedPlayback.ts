@@ -9,7 +9,6 @@ const IDLE_TTL_MS = 30_000
 interface Entry {
   uuid: string
   video: HTMLVideoElement
-  original: HTMLVideoElement | null
   active: boolean
   timer: ReturnType<typeof setTimeout> | null
 }
@@ -24,11 +23,6 @@ export function onPreparedPlaybackReset(listener: () => void) {
 
 function dispose(entry: Entry) {
   if (entry.timer) clearTimeout(entry.timer)
-  if (entry.original) {
-    entry.original.pause()
-    entry.original.removeAttribute('src')
-    entry.original.load()
-  }
   entry.video.pause()
   entry.video.removeAttribute('src')
   entry.video.load() // Abort the resource, including any presigned transfer.
@@ -36,10 +30,6 @@ function dispose(entry: Entry) {
 }
 function park(entry: Entry) {
   entry.active = false
-  if (entry.original) {
-    entry.original.pause()
-    if (entry.original.readyState >= 1 && entry.original.currentTime > 0) entry.original.currentTime = 0
-  }
   entry.video.autoplay = false
   entry.video.pause()
   entry.video.muted = true
@@ -61,10 +51,10 @@ function park(entry: Entry) {
 }
 function create(uuid: string): Entry {
   const video = document.createElement('video')
-  video.preload = 'auto'
+  video.preload = 'metadata'
   video.playsInline = true
   video.muted = true
-  const entry: Entry = { uuid, video, original: null, active: false, timer: null }
+  const entry: Entry = { uuid, video, active: false, timer: null }
   entries.set(uuid, entry)
   return entry
 }
@@ -76,6 +66,7 @@ export function acquirePlaybackVideo(uuid: string): HTMLVideoElement {
   if (entry.timer) clearTimeout(entry.timer)
   entry.timer = null
   entry.active = true
+  entry.video.preload = 'auto'
   return entry.video
 }
 export function releasePlaybackVideo(uuid: string, video: HTMLVideoElement) {
@@ -126,20 +117,5 @@ export function prepareLibraryPlayback(uuid: string, intent = false) {
   if (!uuid || [...entries.values()].some(entry => entry.active)) return
   if (!intent && desired.size >= 2) return
   preparePlaybackWindow([uuid, ...[...desired].filter(item => item !== uuid)].slice(0, 3))
-}
-
-export function preparedOriginal(uuid: string, src: string): HTMLVideoElement | null {
-  const video = entries.get(uuid)?.original
-  return video && !video.error && video.getAttribute('src') === src ? video : null
-}
-export function retainPreparedOriginal(uuid: string, video: HTMLVideoElement) {
-  const entry = entries.get(uuid)
-  if (!entry) return
-  if (entry.original && entry.original !== video) {
-    entry.original.pause()
-    entry.original.removeAttribute('src')
-    entry.original.load()
-  }
-  entry.original = video
 }
 

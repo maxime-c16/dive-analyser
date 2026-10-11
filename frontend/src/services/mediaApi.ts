@@ -8,6 +8,8 @@ export type MediaStatus = {
   available_renditions: string[]
   playback_url?: string | null
   poster_url?: string | null
+  full_quality_url?: string | null
+  preview_url?: string | null
   cache_entries?: Array<{
     id: number
     rendition: string
@@ -52,19 +54,9 @@ export async function requestMedia(
   return response.json()
 }
 
-/**
- * The source a player opens with. Never the 360p preview when an HQ source
- * exists: a ready 720p proxy (faststart, opens instantly) wins, otherwise the
- * status' own choice — the verified original, or the best cached rendition.
- * The 360p plays only when it is the sole source; the HQ poster covers the
- * original's start-up instead of a low-resolution first frame.
- */
-export function getPlaybackUrlFromStatus(status: MediaStatus, preferInstantHq = false): string | null {
-  if (preferInstantHq) {
-    const hq = status.cache_entries?.find(item => item.rendition === 'proxy_720p' && item.playback_url)
-    if (hq?.playback_url) return hq.playback_url
-  }
-  return status.playback_url || null
+/** Full quality is the default; preview fallback requires a visible choice. */
+export function getPlaybackUrlFromStatus(status: MediaStatus, _preferInstantHq = false): string | null {
+  return status.full_quality_url || status.playback_url || null
 }
 
 export function getPosterUrlFromStatus(status: MediaStatus): string | null {

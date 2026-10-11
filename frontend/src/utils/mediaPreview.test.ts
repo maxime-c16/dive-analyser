@@ -45,7 +45,7 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   expect(withoutPoster.playbackUrl).toBe('/play2');
   expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
 });
-it('resolves the ready local startup preview while retaining the original for HQ', async () => {
+it('uses the original from the first frame even when a local 720p preview exists', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
     url.endsWith('/batch') ? { 'hq': { status: 'ready', playback_url: '/api/v1/media/revisions/123/play' } }
       : { status: 'ready', playback_url: '/api/v1/media/revisions/123/play', cache_entries: [
@@ -58,7 +58,7 @@ it('resolves the ready local startup preview while retaining the original for HQ
   const pending = getPreviewForPlayback('hq')
   await vi.advanceTimersByTimeAsync(50)
   const preview = await pending
-  expect(preview.playbackUrl).toBe('/hq-preview.mp4')
+  expect(preview.playbackUrl).toBe('/api/v1/media/revisions/123/play')
   expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/123/play')
   expect(cachedPreview('hq')).toEqual(preview)
 })
@@ -111,4 +111,16 @@ it('starts the next account batch without waiting for an aborted stalled batch',
   await vi.advanceTimersByTimeAsync(0)
   expect((await old).playbackUrl).toBeNull()
   expect(cachedPreview('same')?.playbackUrl).toBe('/new-account.mp4')
+})
+
+it('refreshes a missing result when media later becomes ready', async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'missing', playback_url: null } }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'ready', playback_url: '/original.mp4' } }) })
+  vi.stubGlobal('fetch', fetcher)
+  const { getPreview, cachedPreview } = await import('./mediaPreview')
+  const first = getPreview('late'); await vi.advanceTimersByTimeAsync(50)
+  expect((await first).ready).toBe(false)
+  await vi.advanceTimersByTimeAsync(5001)
+  expect(cachedPreview('late')).toBeUndefined()
+  const next = getPreview('late'); await vi.advanceTimersByTimeAsync(50)
+  expect((await next).playbackUrl).toBe('/original.mp4')
 })

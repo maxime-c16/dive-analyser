@@ -519,6 +519,7 @@ const en = {
     formula: 'Formula {{version}} · calculated from attempts before {{cutoff}}.',
   },
   addVideos: {
+    qualityHint: 'Original files are kept. Playback keeps their resolution; HDR uploads get an SDR playback copy. Maximum: 1 GB, 3 minutes, 4K.',
     selectVideos: 'Select videos',
     add: 'Add videos',
     noticeAdded: '{{count}} video(s) added to your library.',
@@ -915,6 +916,8 @@ const en = {
     requestFailed: 'Could not request media preparation',
     requesting: 'Requesting…',
     retryPrepare: 'Retry prepare',
+    usePreview: 'Play a lower-quality preview',
+    previewQuality: 'Lower-quality preview',
     loadFailed: 'Video failed to load',
     tryAgain: 'Try again',
     notCached: 'Clip not cached',

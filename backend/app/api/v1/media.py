@@ -126,8 +126,8 @@ router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(requir
 
 
 RENDITION_PREFERENCE = {
-    "proxy_720p": 0,
-    "original": 1,
+    "original": 0,
+    "proxy_720p": 1,
     "proxy_360p": 2,
     "poster": 3,
 }
@@ -199,6 +199,7 @@ def _backbone_revision_ids_bulk(db: Session, video_uuids: list[str]) -> dict[str
                 fresh.append(video_uuid)
 
     if fresh:
+        from app.services.matchmaking import verified_original_clause
         revision_ids = {}
         for row in db.execute(
             select(MediaRevision.video_uuid, func.max(MediaRevision.id))
@@ -208,7 +209,7 @@ def _backbone_revision_ids_bulk(db: Session, video_uuids: list[str]) -> dict[str
                 & (MediaBlobLocation.environment == "prod")
                 & (MediaBlobLocation.verified == True),
             )
-            .where(MediaRevision.video_uuid.in_(fresh))
+            .where(MediaRevision.video_uuid.in_(fresh), MediaRevision.rendition_semantics != "browser_original", verified_original_clause())
             .group_by(MediaRevision.video_uuid)
         ).all():
             revision_ids[row[0]] = row[1]
@@ -368,6 +369,7 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
         _backbone_id_cache.pop(cache_key, None)
 
     # Slow path: query the DB once, then cache the result
+    from app.services.matchmaking import verified_original_clause
     row = db.execute(
         select(MediaRevision.id)
         .join(
@@ -376,7 +378,7 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
             & (MediaBlobLocation.environment == "prod")
             & (MediaBlobLocation.verified == True),
         )
-        .where(MediaRevision.video_uuid == video_uuid)
+        .where(MediaRevision.video_uuid == video_uuid, MediaRevision.rendition_semantics != "browser_original", verified_original_clause())
         .order_by(MediaRevision.id.desc())
         .limit(1)
     ).scalar_one_or_none()
@@ -397,11 +399,13 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
 
-    # A cached 360p preview must not hide an available full-quality B2 source.
-    # Keep the compact, browser-ready 720p proxy first when it exists.
-    backbone_url = None
-    if not preferred or preferred.rendition not in {"proxy_720p", "original"}:
-        backbone_url = _backbone_playback_url(db, asset.video_uuid)
+    # Original discovery is independent of preview existence.
+    backbone_url = _backbone_playback_url(db, asset.video_uuid)
+    local_original = next((entry for entry in entries if entry.rendition == "original"), None)
+    full_quality = playback_url(local_original.id) if local_original else backbone_url
+    preview = next((entry for rendition in ("proxy_720p", "proxy_360p")
+                    for entry in entries if entry.rendition == rendition), None)
+    backbone_url = full_quality
     if backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url
@@ -420,9 +424,11 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         status=status_value,
         can_request=True,
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
-        available_renditions=sorted({entry.rendition for entry in entries}),
+        available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
         poster_url=playback_url(poster.id) if poster else None,
+        full_quality_url=full_quality,
+        preview_url=playback_url(preview.id) if preview else None,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
         last_mac_seen_at=asset.last_seen_on_mac_at,
@@ -1012,7 +1018,7 @@ def _thumbnail_status_for_entries(
 ) -> dict:
     """Compact per-asset thumbnail payload for the Library grid.
 
-    Same source decision as _status_for_asset (720p/original cache first,
+    Same source decision as _status_for_asset (original cache first,
     then verified B2, then the 360p preview) minus cache_entries/job detail: the grid only
     needs a poster, a playable URL and readiness. `backbone_url` lets the
     batch route pass one bulk-resolved decision instead of a per-uuid
@@ -1021,9 +1027,8 @@ def _thumbnail_status_for_entries(
     preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)
     backbone = None
-    if not preferred or preferred.rendition not in {"proxy_720p", "original"}:
-        backbone = _backbone_playback_url(db, video_uuid) if backbone_url is _UNSET_BACKBONE else backbone_url
-    playback = backbone or (playback_url(preferred.id) if preferred else None)
+    backbone = _backbone_playback_url(db, video_uuid) if backbone_url is _UNSET_BACKBONE else backbone_url
+    playback = playback_url(preferred.id) if preferred and preferred.rendition == "original" else backbone or (playback_url(preferred.id) if preferred else None)
     status_value = "ready" if playback else "missing"
 
     return {

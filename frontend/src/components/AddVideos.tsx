@@ -66,17 +66,24 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
     event.preventDefault()
     if (!clip || busy) return
     setBusy(true); setError(''); setProgress(0)
-    const body = new FormData()
-    body.append('file', clip.file)
-    Object.entries({ dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: diver, upload_id: clip.id, evaluation_requested: clip.evaluation ? 'true' : 'false' }).forEach(([key, value]) => body.append(key, value))
-    if (clip.evaluation && clip.evaluationPrompt.trim()) body.append('evaluation_prompt', clip.evaluationPrompt.trim())
+    const body = { filename: clip.file.name, dive_code: clip.code.toUpperCase(), height: clip.height, performance: clip.rating, notes: clip.notes, visibility: clip.public ? 'public' : 'private', dive_datetime: new Date(clip.date).toISOString(), diver_id: Number(diver), upload_id: clip.id, evaluation_requested: clip.evaluation, evaluation_prompt: clip.evaluation ? clip.evaluationPrompt.trim() : '' }
     try {
-      await api.post('/api/v1/dives/upload', body, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })
+      const reserved = await api.post('/api/v1/dives/uploads', body)
+      let job = reserved.data
+      if (job.status === 'receiving') {
+        job = (await api.put(`/api/v1/dives/uploads/${clip.id}/content`, clip.file, { headers: { 'Content-Type': 'application/octet-stream' }, onUploadProgress: event => setProgress(Math.round(100 * event.loaded / (event.total || clip.file.size))) })).data
+      }
+      setProgress(100)
+      while (job.status === 'queued' || job.status === 'processing' || job.status === 'receiving' || job.status === 'uploading') {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        job = (await api.get(`/api/v1/dives/uploads/${clip.id}`)).data
+      }
+      if (job.status !== 'ready') throw new Error(job.error || t('addVideos.errorAdd'))
       setSaved(current => current + 1)
       if (index + 1 === clips.length) finish(saved + 1)
       else setIndex(current => current + 1)
     } catch (error: any) {
-      setError(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : t('addVideos.errorAdd'))
+      setError(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : error.message || t('addVideos.errorAdd'))
     } finally { setBusy(false) }
   }
   return <>
@@ -96,6 +103,7 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
         <p className="break-all text-sm text-app-muted">{clip.file.name}</p>
         <video key={preview} src={preview} controls playsInline preload="metadata" className="max-h-64 w-full bg-black" />
         <p className="text-xs text-app-muted">{t("addVideos.addedAs", { name: user?.display_name })}</p>
+        <p className="text-xs text-app-muted">{t("addVideos.qualityHint")}</p>
         {owners.length > 1 && <label className="block">{t("addVideos.diver")}<select className="app-input w-full" value={diver} onChange={event => setDiver(event.target.value)} disabled={busy}>{owners.map(owner => <option key={owner.diver_id} value={owner.diver_id}>{t("addVideos.myDiverN", { id: owner.diver_id })}</option>)}</select></label>}
         <fieldset disabled={busy} className="grid grid-cols-2 gap-3">
           <label>{t("addVideos.code")}<input required pattern="(?:[1-5][0-9]{2,3}|6[0-9]{2})[ABCDabcd]" placeholder="103B" className="app-input w-full" value={clip.code} onChange={event => patch({ code: event.target.value.toUpperCase() })} /></label>

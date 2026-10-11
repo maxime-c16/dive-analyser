@@ -2,6 +2,7 @@
 import hashlib
 import json
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -40,6 +41,13 @@ def prepare_video(file):
         video_stream = next((stream for stream in metadata.get('streams', []) if stream.get('codec_type') == 'video'), None)
         if video_stream is None:
             raise HTTPException(422, 'The file is not a readable video')
+        try:
+            duration = float(metadata.get('format', {}).get('duration', 0))
+            width, height = int(video_stream.get('width', 0)), int(video_stream.get('height', 0))
+        except (TypeError, ValueError):
+            raise HTTPException(422, 'Unable to read video dimensions or duration') from None
+        if duration <= 0 or duration > 180 or width <= 0 or height <= 0 or width * height > 4096 * 2160:
+            raise HTTPException(422, 'Use a video up to 3 minutes and 4K resolution')
         filters = []
         color_args = []
         if video_stream.get('color_transfer') in ('smpte2084', 'arib-std-b67'):
@@ -49,15 +57,19 @@ def prepare_video(file):
                             'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0',
                             'zscale=t=bt709:m=bt709:r=tv'])
             color_args = ['-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709']
-        filters.extend(["scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", 'format=yuv420p'])
-        proxy = folder / 'video.mp4'
-        result = subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-protocol_whitelist', 'file,pipe', '-f', demuxer, '-i', str(source), '-map', '0:v:0', '-map', '0:a:0?', '-vf', ','.join(filters), '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p', '-threads', '1', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', *color_args, str(proxy)], capture_output=True, timeout=600)
+        # Preserve source resolution and frame rate. Archive bytes remain untouched.
+        filters.extend(['scale=trunc(iw/2)*2:trunc(ih/2)*2', 'format=yuv420p'])
+        proxy = folder / 'original.mp4'
+        result = subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-protocol_whitelist', 'file,pipe', '-f', demuxer, '-i', str(source), '-map', '0:v:0', '-map', '0:a:0?', '-vf', ','.join(filters), '-fps_mode', 'passthrough', '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p', '-threads', '1', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-movflags', '+faststart', '-fs', str(2 * MAX_BYTES), *color_args, str(proxy)], capture_output=True, timeout=600)
         if result.returncode:
             raise HTTPException(422, 'Unable to prepare this video')
+        if proxy.stat().st_size >= 2 * MAX_BYTES:
+            raise HTTPException(413, 'Prepared video exceeds the processing limit')
         poster = folder / 'poster.jpg'
         result = subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-i', str(proxy), '-frames:v', '1', str(poster)], capture_output=True, timeout=30)
         if result.returncode:
             raise HTTPException(422, 'Unable to prepare video preview')
+        (folder / 'metadata.json').write_text(json.dumps(video_stream))
         return folder, size
     except (FileNotFoundError, subprocess.TimeoutExpired):
         cleanup_upload(folder)
@@ -73,13 +85,20 @@ def cleanup_upload(folder):
     folder.rmdir()
 
 
+def remote_playback_configured():
+    settings = get_settings()
+    return bool(settings.user_auth_enabled and settings.b2_playback_canary_enabled
+        and settings.b2_upload_environment == 'prod' and settings.b2_playback_key_id
+        and settings.b2_playback_key_secret and settings.b2_playback_region)
+
+
 def cache_upload(db, asset, folder):
-    for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('video.mp4', 'proxy_720p', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
+    for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('original.mp4', 'original', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
         path = folder / name
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=True))
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=rendition != 'browser_source' and not remote_playback_configured(), expires_at=datetime.utcnow() + timedelta(days=1 if rendition == 'browser_source' else 30)))
 
 
-def persist_original(db, video_uuid, folder):
+def persist_original(db, video_uuid, folder, *, register=True, source_name='source'):
     """Upload and roundtrip-verify original bytes before publishing a clip."""
     import boto3
     from botocore.config import Config
@@ -92,12 +111,13 @@ def persist_original(db, video_uuid, folder):
     if environment not in ("dev", "prod"):
         raise HTTPException(503, "Video storage environment is not configured correctly")
     bucket = environment_bucket(environment)
-    source = folder / 'source'
+    source = folder / source_name
+    content_type = 'video/mp4' if source_name == 'original.mp4' else 'application/octet-stream'
     sha = sha256_file(source)
     key = f'{settings.media_backbone_object_prefix}/{sha[:2]}/{sha}'
     client = boto3.client('s3', region_name=settings.b2_upload_region, endpoint_url=settings.b2_upload_endpoint_url or f'https://s3.{settings.b2_upload_region}.backblazeb2.com', aws_access_key_id=settings.b2_upload_key_id, aws_secret_access_key=settings.b2_upload_key_secret, config=Config(connect_timeout=10, read_timeout=120, retries={'total_max_attempts': 2}))
     try:
-        client.upload_file(str(source), bucket, key, ExtraArgs={'ContentType': 'application/octet-stream', 'Metadata': {'sha256': sha}})
+        client.upload_file(str(source), bucket, key, ExtraArgs={'ContentType': content_type, 'Metadata': {'sha256': sha}})
         response = client.get_object(Bucket=bucket, Key=key)
         digest = hashlib.sha256()
         size = 0
@@ -114,4 +134,10 @@ def persist_original(db, video_uuid, folder):
         raise
     except Exception:
         raise HTTPException(503, 'Video storage unavailable; please retry') from None
-    commit_verified_ingest(db, video_uuid=video_uuid, blob_sha256=sha, byte_size=size, object_key=key, storage_backend='b2', bucket=bucket, environment=environment, media_only=True, media_only_reason='Browser upload metadata stored on dive record', rendition_semantics='browser_original', source_provenance={'source': 'browser_upload'}, ingest_impl_version='browser_upload_v1', commit=False)
+    manifest = dict(video_uuid=video_uuid, blob_sha256=sha, byte_size=size, object_key=key, storage_backend='b2', bucket=bucket, environment=environment, media_only=True, media_only_reason='Browser upload metadata stored on dive record', rendition_semantics='browser_playback' if source_name == 'original.mp4' else 'browser_original', source_provenance={'source': 'browser_upload'}, ingest_impl_version='browser_upload_v2')
+    metadata_path = folder / 'metadata.json'
+    metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+    manifest.update(width=metadata.get('width'), height=metadata.get('height'), codec='h264' if source_name == 'original.mp4' else metadata.get('codec_name'))
+    if register:
+        commit_verified_ingest(db, **manifest, commit=False)
+    return manifest

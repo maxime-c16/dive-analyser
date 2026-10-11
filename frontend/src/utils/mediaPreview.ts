@@ -9,11 +9,18 @@ export type MediaPreview = {
 };
 
 const previewCache = new Map<string, MediaPreview>();
+const previewSavedAt = new Map<string, number>();
+const PREVIEW_TTL_MS = 60_000;
+const NEGATIVE_TTL_MS = 5_000;
 let previewGeneration = 0;
 const CREATED = { posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false } as const;
 
 export function cachedPreview(videoUuid: string): MediaPreview | undefined {
-  return previewCache.get(videoUuid);
+  const cached = previewCache.get(videoUuid);
+  if (cached && Date.now() - (previewSavedAt.get(videoUuid) ?? 0) < (cached.ready ? PREVIEW_TTL_MS : NEGATIVE_TTL_MS)) return cached;
+  previewCache.delete(videoUuid);
+  previewSavedAt.delete(videoUuid);
+  return undefined;
 }
 
 const BATCH_FLUSH_MS = 50;
@@ -27,7 +34,7 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getPreview(videoUuid: string): Promise<MediaPreview> {
   if (!videoUuid) return Promise.resolve({ ...CREATED });
-  const cached = previewCache.get(videoUuid);
+  const cached = cachedPreview(videoUuid);
   if (cached) return Promise.resolve(cached);
   const alreadyRunning = inFlight.get(videoUuid);
   if (alreadyRunning) return alreadyRunning;
@@ -64,6 +71,7 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
 function settle(entry: PendingEntry, preview: MediaPreview) {
   if (entry.generation !== previewGeneration) { entry.resolve({ ...CREATED }); return; }
   previewCache.set(entry.videoUuid, preview);
+  previewSavedAt.set(entry.videoUuid, Date.now());
   inFlight.delete(entry.videoUuid);
   entry.resolve(preview);
 }
@@ -121,8 +129,7 @@ async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise
 
 // Only the bounded playback window needs this extra lookup. Thumbnail
 // batches stay cheap; they deliberately omit cache-entry details. Resolve
-// a ready 720p proxy (instant HQ) instead of the large cloud original;
-// never the 360p preview (see getPlaybackUrlFromStatus).
+// the authoritative full-quality source; never hide an original behind a preview.
 const playbackLookups = new Map<string, Promise<MediaPreview>>()
 export function getPreviewForPlayback(videoUuid: string): Promise<MediaPreview> {
   const pending = playbackLookups.get(videoUuid)
@@ -134,7 +141,7 @@ export function getPreviewForPlayback(videoUuid: string): Promise<MediaPreview> 
       const status = await getMediaStatus(videoUuid)
       const playbackUrl = getPlaybackUrlFromStatus(status, true)
       const result = { ...preview, playbackUrl, originalPlaybackUrl: status.playback_url, ready: Boolean(playbackUrl) }
-      if (epoch === previewGeneration) previewCache.set(videoUuid, result)
+      if (epoch === previewGeneration) { previewCache.set(videoUuid, result); previewSavedAt.set(videoUuid, Date.now()); }
       return result
     } catch {
       return preview
@@ -149,6 +156,7 @@ export function resetMediaPreviews() {
   activeDrain?.controller.abort()
   activeDrain = null
   previewCache.clear()
+  previewSavedAt.clear()
   inFlight.clear()
   playbackLookups.clear()
   if (flushTimer !== null) clearTimeout(flushTimer)

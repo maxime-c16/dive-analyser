@@ -1,3 +1,4 @@
+from tests.upload_helpers import publish_upload
 """PR1 notifications backend: inbox isolation, prefs, and emission hooks."""
 from tests.test_member_dive_visibility import workspace  # noqa: F401 (fixture reuse)
 
@@ -152,7 +153,7 @@ def test_browser_upload_emits_exactly_one_notif(workspace, monkeypatch, tmp_path
     db.commit()
     folder = tmp_path / "prepared"
     folder.mkdir()
-    for name in ("source", "video.mp4", "poster.jpg"):
+    for name in ("source", "original.mp4", "poster.jpg"):
         (folder / name).write_bytes(b"test")
     monkeypatch.setattr(browser_upload, "prepare_video", lambda file: (folder, 4))
     monkeypatch.setattr(browser_upload, "persist_original", lambda *a, **kw: None)
@@ -165,10 +166,9 @@ def test_browser_upload_emits_exactly_one_notif(workspace, monkeypatch, tmp_path
         upload_id="12345678-1234-1234-1234-123456789012",
     )
     client = login("bob")
-    response = client.post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}
+    response = publish_upload(db, client, data=fields, files={"file": ("clip.mp4", b"video")}
     )
-    assert response.status_code == 201, response.text
+    assert response.status_code == 200, response.text
     assert (
         len(
             [
@@ -181,10 +181,9 @@ def test_browser_upload_emits_exactly_one_notif(workspace, monkeypatch, tmp_path
     )
     assert _items(login("bob"))["items"] == []
     # Idempotent retry of the same upload identity emits nothing more.
-    retry = client.post(
-        "/api/v1/dives/upload", data=fields, files={"file": ("clip.mp4", b"video")}
+    retry = publish_upload(db, client, data=fields, files={"file": ("clip.mp4", b"video")}
     )
-    assert retry.status_code == 201 and retry.json()["id"] == response.json()["id"]
+    assert retry.status_code == 200 and retry.json()["id"] == response.json()["id"]
     assert (
         len(
             [

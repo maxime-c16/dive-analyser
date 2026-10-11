@@ -203,17 +203,30 @@ def retire_verified_proxy_entry(db: Session, entry: MediaCacheEntry) -> int:
 
 
 def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, int]:
-    """Remove expired unpinned entries and trim oldest unpinned entries by byte cap."""
+    """Bounded cleanup: up to 100 expired and 100 over-cap unpinned entries.
+
+    Large backlogs need multiple passes; returned byte totals remain exact.
+    """
+    from app.services.browser_upload import remote_playback_configured
+    eligible = MediaCacheEntry.pinned.is_(False)
+    if not remote_playback_configured():
+        # Protect accessible browser renditions through the read predicate;
+        # no catalog-wide pin update is needed when delivery is disabled.
+        upload_root = str(Path(get_settings().media_cache_root).resolve() / 'browser-uploads') + '/'
+        protected = (MediaCacheEntry.storage_path.startswith(upload_root, autoescape=True)
+            & MediaCacheEntry.rendition.in_(('original', 'proxy_720p', 'poster')))
+        eligible = eligible & ~protected
     now = datetime.utcnow()
     removed_entries = 0
     removed_bytes = 0
 
     expired_stmt = select(MediaCacheEntry).where(
-        MediaCacheEntry.pinned.is_(False),
+        eligible,
         MediaCacheEntry.expires_at.is_not(None),
         MediaCacheEntry.expires_at < now,
     )
-    for entry in list(db.execute(expired_stmt).scalars().all()):
+    expired_stmt = expired_stmt.order_by(MediaCacheEntry.expires_at, MediaCacheEntry.id).limit(100)
+    for entry in db.execute(expired_stmt).scalars():
         removed_bytes += _remove_entry_file(entry)
         db.delete(entry)
         removed_entries += 1
@@ -224,13 +237,14 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     if cap > 0 and remaining_bytes > cap:
         trim_stmt = (
             select(MediaCacheEntry)
-            .where(MediaCacheEntry.pinned.is_(False))
+            .where(eligible)
             .order_by(
                 MediaCacheEntry.last_accessed_at.asc().nullsfirst(),
                 MediaCacheEntry.created_at.asc(),
-            )
+                MediaCacheEntry.id.asc(),
+            ).limit(100)
         )
-        for entry in list(db.execute(trim_stmt).scalars().all()):
+        for entry in db.execute(trim_stmt).scalars():
             if remaining_bytes <= cap:
                 break
             size = _remove_entry_file(entry)

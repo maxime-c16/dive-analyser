@@ -57,3 +57,18 @@ it('loads older server pages without duplicating rows', async () => {
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Load more dives' })).toBeNull());
   expect(vi.mocked(api.get).mock.calls.some(([url, config]) => url === '/api/v1/dives/library' && config?.params?.cursor === 'older-page')).toBe(true);
 });
+it('keeps a matching card mounted and clickable while server filters refresh', async () => {
+  data();
+  page();
+  const original = await screen.findByRole('button', { name: 'Open 103B attempt' });
+  let finish!: (result: unknown) => void;
+  const refresh = new Promise(resolve => { finish = resolve });
+  vi.mocked(api.get).mockImplementation((url) => url === '/api/v1/dives/library' ? refresh as any : Promise.resolve({ data: [] }));
+  const { fireEvent } = await import('@testing-library/react');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search dives' }), { target: { value: '103B' } });
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dives/library', expect.objectContaining({ params: expect.objectContaining({ code_prefix: '103B' }) })));
+  expect(screen.getByRole('button', { name: 'Open 103B attempt' })).toBe(original);
+  fireEvent.click(original);
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  finish({ data: { items: [attempt], next_cursor: null } });
+})

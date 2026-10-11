@@ -278,7 +278,48 @@ def create_dive(
     return _public_dive(db_dive, db)
 
 
-@router.post("/upload", status_code=201)
+from app.schemas.dive import BrowserUploadReservation
+
+
+@router.post("/uploads", status_code=202)
+def queue_upload(body: BrowserUploadReservation, request: Request, db: Session = Depends(get_db)):
+    from app.services.upload_queue import reserve
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    payload = body.model_dump(mode='json', exclude={'filename'})
+    return reserve(db, user, body.filename, payload)
+
+
+@router.put("/uploads/{upload_id}/content", status_code=202)
+async def upload_content(upload_id: str, request: Request, db: Session = Depends(get_db)):
+    from app.services.upload_queue import receive
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    return await receive(db, user, upload_id, request)
+
+
+@router.get("/uploads/{upload_id}")
+def upload_status(upload_id: str, request: Request, db: Session = Depends(get_db)):
+    from app.models.browser_upload import BrowserUploadJob
+    from app.services.upload_queue import summary
+    user = getattr(request.state, "member_user", None)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    job = db.query(BrowserUploadJob).filter_by(user_id=user.id, upload_id=upload_id).first()
+    if job is None:
+        raise HTTPException(404, "Upload not found")
+    return summary(job)
+
+
+@router.post("/upload")
+def retired_upload():
+    # No body parameters: old clients cannot trigger multipart spooling or
+    # bypass queue reservations. The worker invokes publication internally.
+    raise HTTPException(410, "Reload the app to use the new upload flow")
+
+
 def upload_dive(
     request: Request,
     file: UploadFile = File(...),
@@ -334,8 +375,43 @@ def upload_dive(
             diver = db.get(Diver, diver_id)
     if diver is None:
         raise HTTPException(404, "Diver not found")
+    # End the authorization read transaction before CPU/network work. Never
+    # publish a clip until original storage has been roundtrip verified.
+    user_id = user.id
+    db.rollback()
     folder, size = prepare_video(file)
     try:
+        manifest = persist_original(None, video_uuid, folder, register=False)
+        playback_manifest = persist_original(None, video_uuid, folder, register=False, source_name='original.mp4')
+        if manifest and playback_manifest and manifest['blob_sha256'] == playback_manifest['blob_sha256']:
+            # Exact content identity is deduplicated. Identical source/output
+            # bytes are already proven to be the browser-compatible MP4.
+            manifest = playback_manifest
+        lease = getattr(request.state, 'upload_job', None)
+        if lease is not None:
+            from app.models.browser_upload import BrowserUploadJob
+            job_id, attempt = lease
+            job = db.query(BrowserUploadJob).filter_by(id=job_id).with_for_update().populate_existing().one()
+            if job.status != 'processing' or job.attempts != attempt:
+                raise HTTPException(409, 'Upload processing lease changed; please retry')
+        # Re-check ownership/account state after preparation; permissions may
+        # have changed while this large file was being processed.
+        from app.models.user_auth import AppUser
+        db.expire_all()
+        user = db.get(AppUser, user_id)
+        if not user or not user.is_active:
+            raise HTTPException(403, "Upload account is no longer active")
+        deposit_for_other = diver_id not in owned_diver_ids(db, user.id)
+        if deposit_for_other and not user.is_admin:
+            raise HTTPException(403, "Choose a diver you own")
+        context = db.info.get("member_access")
+        if context is not None:
+            context.update(diver_ids=owned_diver_ids(db, user.id), is_admin=bool(user.is_admin), system_mutation=deposit_for_other)
+        from app.services.dive_access import unscoped_reads
+        with unscoped_reads(db):
+            diver = db.get(Diver, diver_id)
+        if diver is None:
+            raise HTTPException(404, "Diver not found")
         # Sessions are shared calendar days. Use a Core lookup so a day with
         # only another member's private clips is reused without exposing them.
         day = dive_datetime.date()
@@ -411,7 +487,11 @@ def upload_dive(
                 logger.exception('batch email queue failed for upload %s', record.id)
         cache_upload(db, asset, folder)
         db.flush()
-        persist_original(db, video_uuid, folder)
+        if manifest is not None:
+            from app.services.media_backbone import commit_verified_ingest
+            commit_verified_ingest(db, **manifest, commit=False)
+            if playback_manifest is not None:
+                commit_verified_ingest(db, **playback_manifest, commit=False)
         invalidate_analysis_cache(db)
         db.commit()
     except BaseException:

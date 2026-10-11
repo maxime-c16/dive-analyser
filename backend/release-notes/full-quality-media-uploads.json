@@ -1,0 +1,8 @@
+{
+  "id": "full-quality-media-uploads",
+  "date": "2026-10-11",
+  "title": "Full-resolution playback and reliable uploads",
+  "body": "Play available originals from the first frame, with one video and audio clock. Choose a labelled preview if your device cannot play the original. New uploads preserve the source and prepare full-resolution playback in a durable queue.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

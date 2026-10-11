@@ -519,6 +519,7 @@ const fr = {
     formula: 'Formule {{version}} · calculé à partir des plongeons antérieurs au {{cutoff}}.',
   },
   addVideos: {
+    qualityHint: 'Les fichiers originaux sont conservés. La lecture garde leur résolution ; une copie SDR est préparée pour les vidéos HDR. Maximum : 1 Go, 3 minutes, 4K.',
     selectVideos: 'Sélectionner des vidéos',
     add: 'Ajouter des vidéos',
     noticeAdded: '{{count}} vidéo(s) ajoutée(s) à votre bibliothèque.',
@@ -916,6 +917,8 @@ const fr = {
     requestFailed: 'Impossible de demander la préparation du média',
     requesting: 'Demande en cours…',
     retryPrepare: 'Réessayer la préparation',
+    usePreview: 'Lire un aperçu de qualité réduite',
+    previewQuality: 'Aperçu de qualité réduite',
     loadFailed: 'Échec du chargement de la vidéo',
     tryAgain: 'Réessayer',
     notCached: 'Extrait non mis en cache',
