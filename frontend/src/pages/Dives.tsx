@@ -140,7 +140,7 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
 function parseSearch(value: string) {
   const tokens = value.toUpperCase().trim().split(/\s+/).filter(Boolean);
   const code = tokens.find((token) => /^\d{3,4}[ABCD]?$/.test(token)) || "";
-  const height = tokens.find((token) => /^\d{1,2}M$/.test(token)) || "";
+  const height = tokens.find((token) => /^\d{1,2}(?:\.5)?M$/.test(token)) || "";
   const sync = tokens.includes("SYNC")
     ? true
     : tokens.includes("INDIVIDUAL")
@@ -222,7 +222,9 @@ function DiveLibrary() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const cacheKey = libraryKey(user);
+  const accessKey = libraryKey(user);
+  const filterKey = ["q", "scope", "height", "context", "performance", "modifiers"].map(key => searchParams.get(key) || "").join("|");
+  const cacheKey = accessKey ? JSON.stringify([accessKey, "paged", filterKey]) : null;
   const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
   const [dives, setDives] = useState<Dive[]>(cached?.dives ?? []);
   const [divers, setDivers] = useState<Diver[]>(cached?.divers ?? []);
@@ -230,6 +232,9 @@ function DiveLibrary() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [shown, setShown] = useState(48);
+  const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageGeneration = useRef(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollAnchorRef = useRef<number | null>(null);
@@ -245,6 +250,16 @@ function DiveLibrary() {
     .filter(Boolean);
   const view = (searchParams.get("view") || "grid") as View;
   const clipParam = searchParams.get("clip") || "";
+  const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
+  const pageParams = {
+    limit: 100, diver_scope: scope,
+    height: heightFilter || parsed.height.toLowerCase(),
+    performance: performanceFilter || parsed.performance,
+    code_prefix: parsed.code, search_text: parsed.text, position_filter: parsed.position,
+    ...(contextFilter ? { sync_filter: contextFilter === 'sync' } : parsed.sync !== null ? { sync_filter: parsed.sync } : {}),
+    modifier_filter: [...new Set([...modifiers, ...parsed.modifiers])].join(','),
+  };
+  const pageParamsKey = JSON.stringify(pageParams);
 
   const update = (
     patch: Record<string, string | null>,
@@ -259,24 +274,27 @@ function DiveLibrary() {
 
   useEffect(() => {
     let active = true;
+    pageGeneration.current++;
+    setLoadingMore(false);
     const snapshot = readLibraryCache(cacheKey);
     setDives(snapshot?.dives ?? []);
     setDivers(snapshot?.divers ?? []);
+    setNextCursor(snapshot?.nextCursor ?? null);
     setLoading(!snapshot);
     setError(null);
     loadLibraryCache(cacheKey, async () => {
       const [diveResponse, diverResponse] = await Promise.all([
-        api.get("/api/v1/dives", {
-          params: { limit: 5000, exclude_lineup: true, diver_scope: "all" },
-        }),
+        api.get("/api/v1/dives/library", { params: pageParams }),
         api.get("/api/v1/divers"),
       ]);
-      return { dives: diveResponse.data, divers: diverResponse.data };
+      return { dives: Array.isArray(diveResponse.data) ? diveResponse.data : diveResponse.data.items,
+        nextCursor: diveResponse.data.next_cursor ?? null, divers: diverResponse.data };
     })
-      .then(({ dives, divers }) => {
+      .then(({ dives, divers, nextCursor }) => {
         if (active) {
           setDives(dives);
           setDivers(divers);
+          setNextCursor(nextCursor ?? null);
           setError(null);
         }
       })
@@ -289,10 +307,45 @@ function DiveLibrary() {
     return () => {
       active = false;
     };
-  }, [reloadKey, cacheKey]);
+  }, [reloadKey, cacheKey, pageParamsKey]);
+
+  const loadMore = async () => {
+    if (loadingMore || !nextCursor) return;
+    const epoch = pageGeneration.current;
+    setLoadingMore(true);
+    try {
+      const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor: nextCursor } });
+      if (epoch !== pageGeneration.current) return;
+      const items: Dive[] = response.data.items;
+      setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
+        .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
+      setNextCursor(response.data.next_cursor);
+      setShown(count => count + 100);
+      setError(null);
+    } catch {
+      if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
+    } finally {
+      if (epoch === pageGeneration.current) setLoadingMore(false);
+    }
+  };
+
+  // Direct links can target an older page. Resolve that one authorized dive,
+  // then let the existing filters decide whether the viewer may show it.
+  const [resolvingClip, setResolvingClip] = useState(false);
+  const [resolvedClip, setResolvedClip] = useState('');
+  useEffect(() => {
+    if (!clipParam || loading || dives.some(dive => String(dive.id) === clipParam)) return;
+    if (!/^[1-9][0-9]*$/.test(clipParam)) { setResolvedClip(clipParam); return; }
+    let live = true;
+    setResolvingClip(true);
+    setResolvedClip('');
+    api.get(`/api/v1/dives/${clipParam}`).then(response => {
+      if (live && response.data?.id) setDives(current => current.some(d => d.id === response.data.id) ? current : [...current, response.data]);
+    }).catch(() => {}).finally(() => { if (live) { setResolvingClip(false); setResolvedClip(clipParam); } });
+    return () => { live = false; };
+  }, [clipParam, loading, cacheKey]);
 
   const primaryId = divers.find((diver) => diver.is_primary_user)?.id;
-  const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
   const filtered = useMemo(
     () =>
       dives.filter((dive) => {
@@ -379,15 +432,21 @@ function DiveLibrary() {
       ? filtered.find((dive) => String(dive.id) === clipParam) || null
       : null;
 
+  // Extend the viewer's navigation window before it reaches a page boundary.
+  useEffect(() => {
+    if (selected && nextCursor && !loadingMore && filtered.findIndex(dive => dive.id === selected.id) >= filtered.length - 3) void loadMore();
+  }, [selected?.id, nextCursor, filtered.length, loadingMore]);
+
   // Stale/invalid clip identity (bad id, removed attempt, direct stale link):
   // clear it non-destructively so the Library stays usable.
   useEffect(() => {
-    if (!clipParam || loading || error) return;
+    if (!clipParam || loading || error || resolvingClip ||
+        (!dives.some(dive => String(dive.id) === clipParam) && resolvedClip !== clipParam)) return;
     if (!filtered.some((dive) => String(dive.id) === clipParam)) {
       update({ clip: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipParam, loading, error, filtered]);
+  }, [clipParam, loading, error, filtered, resolvingClip, resolvedClip]);
 
   // Deterministic Library scroll restoration for the review loop: the anchor
   // is captured when a clip is opened and restored when the viewer closes
@@ -490,8 +549,8 @@ function DiveLibrary() {
             {t("nav.dives")}
           </h1>
           <p className="mt-0.5 text-xs text-app-muted sm:hidden">
-            <strong className="text-app-text">{filtered.length}</strong> {t("dives.attempts")} ·{" "}
-            <strong className="text-app-text">{codeCount}</strong> {t("dives.codes")}
+            <strong className="text-app-text">{filtered.length}{nextCursor ? '+' : ''}</strong> {t("dives.attempts")} ·{" "}
+            <strong className="text-app-text">{codeCount}{nextCursor ? '+' : ''}</strong> {t("dives.codes")}
           </p>
         </div>
         <button
@@ -525,11 +584,11 @@ function DiveLibrary() {
         <div className="hidden gap-2 text-sm sm:flex">
           <div className="border border-app bg-app-panel px-3 py-2">
             <span className="text-app-muted">{t("dives.attempts")} </span>
-            <strong className="ml-1 text-app-text">{filtered.length}</strong>
+            <strong className="ml-1 text-app-text">{filtered.length}{nextCursor ? '+' : ''}</strong>
           </div>
           <div className="border border-app bg-app-panel px-3 py-2">
             <span className="text-app-muted">{t("dives.codes")} </span>
-            <strong className="ml-1 text-app-text">{codeCount}</strong>
+            <strong className="ml-1 text-app-text">{codeCount}{nextCursor ? '+' : ''}</strong>
           </div>
         </div>
       </header>
@@ -767,6 +826,14 @@ function DiveLibrary() {
             )
           )}
         </section>
+      )}
+      {!loading && nextCursor && (
+        <div className="mt-5 text-center">
+          <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
+            className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">
+            {loadingMore ? t('common.loading') : t('dives.loadMore')}
+          </button>
+        </div>
       )}
       {selected && (
         <Suspense fallback={<p role="status" className="py-4 text-app-muted">{t("dives.openingVideo")}</p>}>

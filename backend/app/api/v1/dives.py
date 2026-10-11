@@ -5,7 +5,7 @@ from typing import List, Optional
 from pathlib import Path
 from datetime import datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, File, Form, UploadFile
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.strategy_options import Load
 
@@ -42,7 +42,7 @@ LIST_COLUMN_NAMES = (
 LIST_COLUMNS = tuple(getattr(Dive, _name) for _name in LIST_COLUMN_NAMES)
 
 
-def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, evaluation_map: dict[int, dict] | None = None) -> dict:
+def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, evaluation_map: dict[int, dict] | None = None, owner_ids=None) -> dict:
     """Serialize a dive with formula DD as the live display source of truth.
 
     ``dives.official_dd`` is retained as a migration/audit column and can be
@@ -85,7 +85,7 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, 
             is_active=True,
             is_admin=bool(context.get("is_admin")),
         )
-        payload["can_manage"] = can_manage_dive(db, viewer, dive)
+        payload["can_manage"] = can_manage_dive(db, viewer, dive, owner_ids=owner_ids)
     payload["pending_acceptance"] = dive.accepted_at is None and dive.batch_id is not None
     if payload["can_manage"]:
         if federate_map is None:
@@ -129,7 +129,13 @@ def list_dives(
     exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
     diver_scope: str = Query("self", pattern="^(self|all)$", description="Default to the primary diver; use all only intentionally"),
     limit: int = Query(100, ge=1, le=5000, description="Limit results"),
-    offset: int = Query(0, description="Offset for pagination"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    code_prefix: str = "",
+    search_text: str = "",
+    position_filter: str = "",
+    sync_filter: Optional[bool] = None,
+    modifier_filter: str = "",
+    cursor: Optional[str] = None,
 ):
     """
     List dives with optional filters
@@ -155,7 +161,7 @@ def list_dives(
         query = query.filter(Dive.dive_code == dive_code)
 
     if height:
-        query = query.filter(Dive.height == height)
+        query = query.filter(func.lower(func.replace(Dive.height, " ", "")) == height.lower().replace(" ", ""))
 
     if performance:
         query = query.filter(Dive.performance == performance)
@@ -172,6 +178,13 @@ def list_dives(
     if exclude_personal:
         query = query.filter(Dive.is_lineup == True)
 
+    from app.services.library_query import apply_library_filters, decode_cursor
+    query = apply_library_filters(query, db, code_prefix, search_text, position_filter, sync_filter, modifier_filter)
+    if cursor:
+        before_date, before_id = decode_cursor(cursor)
+        query = query.filter(or_(Dive.dive_datetime < before_date,
+                                 and_(Dive.dive_datetime == before_date, Dive.id < before_id)))
+    query = query.options(Load(Dive).load_only(*LIST_COLUMNS, raiseload=True))
     # Order by date and id descending. Many Photos videos can share the same
     # second-level timestamp, so id gives deterministic newest-first ties.
     dives = query.order_by(Dive.dive_datetime.desc(), Dive.id.desc()).offset(offset).limit(limit).all()
@@ -180,7 +193,31 @@ def list_dives(
 
     federate_map = optin_map(db, [dive.id for dive in dives])
     evaluation_map = evaluation_request_map(db, [dive.id for dive in dives])
-    return [_public_dive(dive, db, federate_map, evaluation_map) for dive in dives]
+    context = db.info.get("member_access")
+    owner_ids = frozenset(context["diver_ids"]) if context else None
+    return [_public_dive(dive, db, federate_map, evaluation_map, owner_ids) for dive in dives]
+
+
+@router.get("/library")
+def library_page(
+    request: Request, db: Session = Depends(get_db),
+    limit: int = Query(100, ge=1, le=100), cursor: Optional[str] = None,
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    height: str = "", performance: str = "", code_prefix: str = "",
+    search_text: str = Query("", max_length=200), position_filter: str = "",
+    sync_filter: Optional[bool] = None, modifier_filter: str = "",
+):
+    """A bounded, filtered Library page; cursor ties include id for stable order."""
+    from app.services.library_query import encode_cursor
+    rows = list_dives(request=request, db=db, session_id=None, dive_code=None,
+        height=height, performance=performance, date_from=None, date_to=None,
+        exclude_lineup=True, exclude_personal=False, diver_scope=diver_scope,
+        limit=limit + 1, offset=0, code_prefix=code_prefix, search_text=search_text,
+        position_filter=position_filter, sync_filter=sync_filter,
+        modifier_filter=modifier_filter, cursor=cursor)
+    more = len(rows) > limit
+    rows = rows[:limit]
+    return {"items": rows, "next_cursor": encode_cursor(rows[-1]) if more else None}
 
 
 @router.post("", status_code=201)
