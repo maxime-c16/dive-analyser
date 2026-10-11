@@ -58,7 +58,7 @@ def _seed_backbone_assets(test_db, count):
         test_db.add_all([
             MediaRevision(video_uuid=f"clip-{index}", blob_sha256=sha),
             MediaBlobLocation(
-                blob_sha256=sha, environment="prod", bucket="b",
+                blob_sha256=sha, environment="prod", bucket=get_settings().media_backbone_prod_bucket,
                 object_key=sha, verified=True,
             ),
         ])
