@@ -785,7 +785,7 @@ function DiveLibrary() {
               <p className="font-medium text-app-text">
                 {t("dives.noMatches")}
               </p>
-              {(activeFilters > 0 || scope !== "self") && (
+              {(activeFilters > 0) && (
                 <button
                   type="button"
                   onClick={reset}

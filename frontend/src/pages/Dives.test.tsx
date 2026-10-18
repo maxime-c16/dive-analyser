@@ -134,3 +134,15 @@ it('clearing filters preserves the chosen library and view', async () => {
   expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
   await waitFor(() => expect(screen.getAllByRole('button', { name: /Open 103B attempt/ })).toHaveLength(2))
 })
+
+
+it('only offers clear filters in an empty community library when a filter is active', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: [] })
+  render(<MemoryRouter initialEntries={['/dives?scope=all']}><Dives /></MemoryRouter>)
+  await screen.findByText('No attempts match this search.')
+  expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+  await userEvent.type(screen.getByRole('textbox', { name: 'Search dives' }), '103B')
+  await userEvent.click(await screen.findByRole('button', { name: 'Clear filters' }))
+  expect(screen.getByRole('textbox', { name: 'Search dives' })).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
+})
