@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
-import { calendarApi, type CalendarInfo, type MyClub, type Occurrence } from "../calendar/api";
+import { CalendarError, calendarApi, type CalendarInfo, type MyClub, type Occurrence } from "../calendar/api";
 import { coversDay, lastDay, matches, monthWindow, overlapsMonth, parisToday, sortOccurrences, sourceOf, spanDays, validDate } from "../calendar/model";
 import { useCalendarStrings, type CalendarContext } from "../calendar/useStrings";
 import OccurrenceView from "../calendar/OccurrenceView";
@@ -23,6 +23,7 @@ export default function Calendar() {
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
   const [items, setItems] = useState<Occurrence[]>([]);
   const [load, setLoad] = useState<Load>("loading");
+  const [incomplete, setIncomplete] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [monthDirection, setMonthDirection] = useState<"next" | "previous" | null>(null);
   const refresh = useCallback(() => setRevision((r) => r + 1), []);
@@ -45,6 +46,7 @@ export default function Calendar() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setIncomplete(false);
     setLoad((current) => (current === "ready" ? current : "loading"));
     const { from, to } = monthWindow(month);
     Promise.all([calendarApi.me(), calendarApi.calendars(), calendarApi.occurrences(from, to, controller.signal)])
@@ -55,7 +57,12 @@ export default function Calendar() {
         setItems(occurrences);
         setLoad("ready");
       })
-      .catch(() => { if (!controller.signal.aborted) setLoad("failed"); });
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setIncomplete(error instanceof CalendarError && error.code === "incomplete_occurrences");
+          setLoad("failed");
+        }
+      });
     return () => controller.abort();
   }, [month, revision]);
 
@@ -225,7 +232,7 @@ export default function Calendar() {
       </div>
       {load === "loading" && <p role="status">{t.loading}</p>}
       {load === "failed" && (
-        <p role="alert">{t.failed} <button onClick={refresh}>{t.retry}</button></p>
+        <p role="alert">{incomplete ? t.incompleteMonth : t.failed} <button onClick={refresh}>{t.retry}</button></p>
       )}
       {load === "ready" && (
         <div className="calendar-period-viewport">

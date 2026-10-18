@@ -94,3 +94,25 @@ it("estimates weekly sessions with exclusions", () => {
     ["2026-11-03", "2026-11-05", "2026-11-12", "2026-11-17", "2026-11-19", "2026-11-24"]);
   expect(weeklyDates("2026-11-03", "2026-11-01", [2], [])).toEqual([]);
 });
+
+
+it("refuses a partial agenda when a cursor remains after page ten", async () => {
+  const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+    items: [occ()], next_cursor: "more",
+  })));
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(calendarApi.occurrences("2026-10-01", "2026-11-01")).rejects.toMatchObject({
+    code: "incomplete_occurrences",
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(10);
+});
+
+it("returns a complete agenda when the tenth page has no next cursor", async () => {
+  let page = 0;
+  const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+    items: [occ({ id: ++page })], next_cursor: page < 10 ? `p${page}` : null,
+  })));
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await calendarApi.occurrences("2026-10-01", "2026-11-01")).toHaveLength(10);
+  expect(fetchMock).toHaveBeenCalledTimes(10);
+});

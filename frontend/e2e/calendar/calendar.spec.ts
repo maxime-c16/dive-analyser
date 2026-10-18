@@ -307,3 +307,14 @@ for (const keyboard of ["focused field", "keyboard dismissed"]) {
     await context.close();
   });
 }
+
+
+test("agenda explicitly reports a cursor remaining after ten pages", async ({ page }) => {
+  fake(page, "beginners");
+  await page.route("**/api/v1/calendar/occurrences?*", (route) => route.fulfill({
+    contentType: "application/json", body: JSON.stringify({ items: [], next_cursor: "more" }),
+  }));
+  await page.goto(entry());
+  await expect(page.getByRole("alert")).toContainText("would be incomplete");
+  await expect(page.locator(".calendar-event")).toHaveCount(0);
+});

@@ -133,6 +133,7 @@ export const calendarApi = {
       cursor = data.next_cursor
       if (!cursor) break
     }
+    if (cursor) throw new CalendarError(0, 'incomplete_occurrences', 'The calendar exceeds its page limit; no partial agenda is returned.')
     return items
   },
   occurrence: (id: number) => request<OccurrenceDetail>(`/occurrences/${id}`),
