@@ -445,7 +445,7 @@ class OccurrenceDiveLink(Base):
     __tablename__ = "occurrence_dive_links"
     occurrence_id = Column(Integer, ForeignKey("event_occurrences.id", ondelete="CASCADE"), primary_key=True)
     dive_id = Column(Integer, ForeignKey("dives.id", ondelete="CASCADE"), primary_key=True)
-    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), primary_key=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (Index("ix_occurrence_dive_links_user", "user_id", "occurrence_id"), MIGRATION_ONLY)
 

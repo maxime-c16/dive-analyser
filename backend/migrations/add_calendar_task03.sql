@@ -32,8 +32,17 @@ CREATE TABLE IF NOT EXISTS occurrence_dive_links (
  dive_id INTEGER NOT NULL REFERENCES dives(id) ON DELETE CASCADE,
  user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
  created_at TIMESTAMP NOT NULL DEFAULT now(),
- PRIMARY KEY (occurrence_id, dive_id)
+ PRIMARY KEY (occurrence_id, dive_id, user_id)
 );
+-- Upgrade databases initialized with the former two-column identity.
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'occurrence_dive_links'::regclass
+              AND contype = 'p' AND array_length(conkey, 1) = 2) THEN
+  ALTER TABLE occurrence_dive_links DROP CONSTRAINT occurrence_dive_links_pkey;
+  ALTER TABLE occurrence_dive_links ADD PRIMARY KEY (occurrence_id, dive_id, user_id);
+ END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS ix_occurrence_dive_links_user ON occurrence_dive_links (user_id, occurrence_id);
 
 -- Import review state: one source mapping can hold an unresolved item

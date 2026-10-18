@@ -701,3 +701,9 @@ def test_shared_owner_diver_does_not_expose_another_users_link(cal):
     assert other.status_code == 200
     assert other.json()["items"] == [{"id": dive_id, "dive_code": "101B",
         "dive_datetime": dive_time, "linked": False}]
+
+    coach = cal["login"]("coach")
+    assert coach.put(f"{url}/{dive_id}").json()["items"][0]["linked"] is True
+    assert db.query(OccurrenceDiveLink).filter_by(occurrence_id=occurrence_id, dive_id=dive_id).count() == 2
+    assert coach.delete(f"{url}/{dive_id}").json()["items"][0]["linked"] is False
+    assert cal["login"]("alice").get(url).json()["items"][0]["linked"] is True

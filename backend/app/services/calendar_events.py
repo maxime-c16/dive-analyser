@@ -553,7 +553,7 @@ def linkable_dives_query(db: Session, user: AppUser, occurrence: EventOccurrence
 
 def link_dive(db: Session, user: AppUser, occurrence_id: int, dive_id: int, on: bool) -> None:
     occurrence, event, _calendar = visible_occurrence(db, user, occurrence_id)
-    row = db.get(OccurrenceDiveLink, (occurrence.id, dive_id))
+    row = db.get(OccurrenceDiveLink, (occurrence.id, dive_id, user.id))
     if not on:
         if row is not None and row.user_id == user.id:
             db.delete(row)
