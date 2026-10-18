@@ -17,22 +17,6 @@ const previewHttps =
 export default defineConfig({
   plugins: [
     react(),
-    {
-      name: 'calendar-local-private-adapter',
-      apply: 'serve',
-      configureServer(server) {
-        server.middlewares.use('/__calendar_local/training', (_req, res) => {
-          res.setHeader('Cache-Control', 'no-store');
-          res.setHeader('Content-Type', 'application/json');
-          try {
-            const bundle = JSON.parse(fs.readFileSync(new URL('../reports/calendar/kcpm-2026-2027/import-bundle.json', import.meta.url), 'utf8'));
-            // Only exact schedule fields; never attachments, provenance paths or resource URLs.
-            const fields = ['source_key', 'local_date', 'start_local', 'end_local', 'timezone', 'venue_code', 'group_key'];
-            res.end(JSON.stringify(bundle.training_occurrences.map((row: Record<string, unknown>) => Object.fromEntries(fields.map(key => [key, row[key]])))));
-          } catch { res.statusCode = 404; res.end('{}'); }
-        });
-      },
-    },
     // Push-only service worker (PR3 notifications-push). `injectManifest`
     // builds dist/sw-push.js from src/sw-push.ts. Workbox requires its
     // `self.__WB_MANIFEST` placeholder at build time, but the worker never

@@ -5,6 +5,6 @@ export default defineConfig({
   retries: 0,
   use: { baseURL: "http://127.0.0.1:5173", trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
-  outputDir: "/tmp/calendar-task01-tests",
+  outputDir: "/tmp/calendar-task03-tests",
   reporter: "list",
 });

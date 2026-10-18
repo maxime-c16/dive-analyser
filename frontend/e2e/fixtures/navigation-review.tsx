@@ -23,9 +23,10 @@ let messages = Array.from({ length: 12 }, (_,i) => ({ id:i+1, conversation_id:1,
 const managedUser = { user_id:900002, display_name:'Fixture Fanny',email:'fixture-fanny@example.test',role:'friend',is_admin:false,is_active:true,live_sessions:0,created_at:'2026-10-01',diver_ids:[],diver_binding_total:0 }
 const nativeFetch = window.fetch.bind(window)
 window.fetch = async (input, init) => {
-  if (String(input).startsWith('/__calendar_local/')) return nativeFetch(input, init)
   const url = String(input)
-  if (url.endsWith('/auth/me')) return Response.json({ user_id: 900001, email: 'fixture@example.test', display_name: 'Local reviewer', role: 'owner', is_admin: admin, divers: [{ diver_id: 1, access_kind: 'OWNER' }] })
+  // Calendar API calls reach the network so browser tests can fulfil them (page.route).
+  if (url.startsWith('/api/v1/calendar') || url.startsWith('/api/v1/auth/signup-clubs')) return nativeFetch(input, init)
+  if (url.endsWith('/auth/me')) return Response.json({ user_id: 900001, email: 'fixture@example.test', display_name: 'Local reviewer', role: 'owner', is_admin: admin, divers: [{ diver_id: 1, access_kind: 'OWNER' }], features: { calendar: params.get('calendar') !== 'off' } })
   if (url.includes('/updates')) return Response.json({ schema: 1, version: 'v0.0.0', frontend_sha: 'a'.repeat(40), notes: params.get('path')?.startsWith('/calendar') ? [] : [{ id: 'local-review', date: '2026-10-09', title: 'Navigation simplifiée', body: 'Données locales pour vérifier la navigation et les overlays.' }] })
   if (url.includes('/messages/conversations')) {
     if (url.endsWith('/receipts')) return new Response(null, { status:204 })

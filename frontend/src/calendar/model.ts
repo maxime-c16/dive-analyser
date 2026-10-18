@@ -1,51 +1,14 @@
-export type Event = {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  end?: string;
-  zone: string;
-  venue: string;
-  source: "club" | "outing" | "competition";
-  group?: string;
-  cancelled?: boolean;
-  changed?: boolean;
-};
-export type Role = "beginners" | "advanced" | "coach" | "unassigned";
-export const visibleEvents = (events: Event[], role: Role) =>
-  events.filter((e) => !e.group || role === "coach" || e.group === role);
-export const samples: Event[] = [
-  {
-    id: "outing-demo",
-    title: "Sortie entre plongeurs / Divers’ outing",
-    date: "2026-10-24",
-    time: "10:00",
-    zone: "Europe/Paris",
-    venue: "Piscine de démonstration",
-    source: "outing",
-  },
-  {
-    id: "meet-demo",
-    title: "Rencontre de démonstration / Sample meet",
-    date: "2026-11-14",
-    time: "09:00",
-    zone: "Europe/Paris",
-    venue: "Lieu à vérifier / Venue to review",
-    source: "competition",
-  },
-];
-export function trainingEvents(rows: Record<string, string>[]): Event[] {
-  return rows.map((r) => ({
-    id: r.source_key,
-    title: "KCPM",
-    date: r.local_date,
-    time: r.start_local,
-    end: r.end_local,
-    zone: r.timezone,
-    venue: r.venue_code,
-    group: r.group_key,
-    source: "club",
-  }));
+import type { Occurrence } from "./api";
+
+export type Source = "club" | "outing" | "competition";
+
+/** Filter bucket for an occurrence: training/camp from clubs, outings,
+ * competitions (including curated federal dates). */
+export function sourceOf(o: Pick<Occurrence, "event">): Source {
+  const { event_type, calendar_kind } = o.event;
+  if (event_type === "competition" || calendar_kind === "federal") return "competition";
+  if (event_type === "outing" || calendar_kind === "personal") return "outing";
+  return "club";
 }
 
 export function validDate(value: string): boolean {
@@ -54,4 +17,42 @@ export function validDate(value: string): boolean {
     Number.isFinite(Date.parse(value)) &&
     new Date(value).toISOString().slice(0, 10) === value
   );
+}
+
+/** UTC query window covering a local month with a one-day margin either
+ * side (timezones), well inside the API's 100-day limit. */
+export function monthWindow(month: string): { from: string; to: string } {
+  const start = new Date(`${month}-01T00:00:00Z`);
+  const from = new Date(start.getTime() - 86_400_000);
+  const end = new Date(start);
+  end.setUTCMonth(end.getUTCMonth() + 1);
+  const to = new Date(end.getTime() + 86_400_000);
+  return { from: from.toISOString().replace(".000", ""), to: to.toISOString().replace(".000", "") };
+}
+
+export function inMonth(o: Pick<Occurrence, "local_date">, month: string) {
+  return o.local_date.startsWith(month);
+}
+
+export function sortOccurrences<T extends Pick<Occurrence, "local_date" | "local_start" | "id">>(items: T[]): T[] {
+  return [...items].sort((a, b) =>
+    `${a.local_date}${a.local_start ?? "00:00"}${String(a.id).padStart(10, "0")}`.localeCompare(
+      `${b.local_date}${b.local_start ?? "00:00"}${String(b.id).padStart(10, "0")}`));
+}
+
+export function matches(o: Occurrence, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  return !needle || `${o.event.title} ${o.venue_name ?? ""}`.toLowerCase().includes(needle);
+}
+
+export function addDays(day: string, days: number): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function parisToday(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(now);
 }

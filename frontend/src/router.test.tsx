@@ -5,12 +5,12 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Router, { CompetitionsRedirect, breadcrumbTrail } from './router'
 
-const role = vi.hoisted(() => ({ isAdmin: true }))
+const role = vi.hoisted(() => ({ isAdmin: true, calendar: true }))
 
 vi.mock('./contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useAuth: () => ({
-    user: { user_id: 1, email: 'test@example.com', is_admin: role.isAdmin, divers: [{ diver_id: 1, access_kind: 'OWNER' }] },
+    user: { user_id: 1, email: 'test@example.com', is_admin: role.isAdmin, divers: [{ diver_id: 1, access_kind: 'OWNER' }], features: { calendar: role.calendar } },
     checking: false,
     refresh: async () => {},
   }),
@@ -108,7 +108,17 @@ describe('minimal IA routing', () => {
     expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument()
   })
 
-  it('regular divers see the five dev primary destinations and no admin menus', async () => {
+  it('calendar flag off keeps the four labelled destinations and redirects /calendar', async () => {
+    role.isAdmin = false
+    role.calendar = false
+    renderAt('/calendar')
+    await screen.findByRole('heading', { name: 'Library', level: 1 })
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' })
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Library', 'Messages', 'Community', 'Evaluations'])
+    role.calendar = true
+  })
+
+  it('regular divers see the five flagged primary destinations and no admin menus', async () => {
     role.isAdmin = false
     renderAt('/dives')
     await screen.findByRole('heading', { name: 'Library', level: 1 })

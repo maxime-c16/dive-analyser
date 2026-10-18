@@ -34,7 +34,8 @@ from app.services import diver_invites
 from app.services.sessions import create_session
 
 PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
-MIGRATION = Path(__file__).parents[1] / "migrations" / "add_calendar_domain.sql"
+MIGRATIONS = [Path(__file__).parents[1] / "migrations" / name
+              for name in ("add_calendar_domain.sql", "add_calendar_task03.sql")]
 INVITE = "calendar-test-invite"
 PASSWORD = "correct horse battery staple"
 TODAY = datetime.utcnow().date()
@@ -46,7 +47,7 @@ def _calendar_tables():
 
 def _legacy_tables():
     seed = {"app_users", "user_credentials", "user_sessions", "login_attempts", "divers", "user_diver_access",
-            "sessions", "diver_invites", "security_audit_log"}
+            "sessions", "diver_invites", "security_audit_log", "dives"}
     tables = {Base.metadata.tables[name] for name in seed if name in Base.metadata.tables}
     while True:
         deps = {fk.column.table for t in tables for fk in t.foreign_keys}
@@ -59,7 +60,8 @@ def _apply_migration(engine):
     conn = engine.raw_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute(MIGRATION.read_text())
+            for migration in MIGRATIONS:
+                cursor.execute(migration.read_text())
         conn.commit()
     finally:
         conn.close()

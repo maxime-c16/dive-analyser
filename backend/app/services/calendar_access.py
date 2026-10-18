@@ -9,7 +9,7 @@ Grants (independent, none implies another):
 - club membership (active row)          -> club-audience events, club resources
 - staff role (coach/manager, per club)  -> both group calendars of THAT club
 - current group assignment              -> that group's calendar only
-- invitation (pending/accepted)         -> that invited-audience event only
+- invitation (not revoked)              -> that invited-audience event only
 - organizer                             -> own event (club events: while a member)
 - subscription                          -> nothing (display preference)
 App administrators manage clubs and appoint managers; ``is_admin`` never
@@ -28,7 +28,9 @@ from app.models.calendar import (
 from app.models.user_auth import AppUser
 
 STAFF_ROLES = ("coach", "manager")
-ACTIVE_INVITATION = ("pending", "accepted")
+# Task03: a declined invitee keeps read access (they may change their mind);
+# only revocation, or leaving the club, removes the grant.
+ACTIVE_INVITATION = ("pending", "accepted", "declined")
 VISIBLE_EVENT_STATUSES = ("published", "cancelled")  # cancellation is retained history
 
 # Which audiences each calendar kind may publish (write contract for Task03).

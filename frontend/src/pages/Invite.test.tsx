@@ -24,12 +24,17 @@ function renderInvite(hash = '#t=raw-token-value') {
 function mockFetch(handlers: {
   peek?: () => Response
   register?: () => Response
+  clubs?: () => Response
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
     if (url.includes('/auth/invite/peek') && method === 'POST') {
       return handlers.peek ? handlers.peek() : Response.json({ valid: true, diver_id: 7, diver_name: 'Lea', expires_at: null })
+    }
+    if (url.includes('/auth/signup-clubs')) {
+      // Calendar feature off by default: the club list answers 404.
+      return handlers.clubs ? handlers.clubs() : Response.json({ detail: 'Not found' }, { status: 404 })
     }
     if (url.includes('/auth/register-invite') && method === 'POST') {
       return handlers.register ? handlers.register() : Response.json({ user_id: 3, email: 'lea@example.test', role: 'friend', diver_id: 7 }, { status: 201 })
@@ -72,6 +77,21 @@ describe('Invite page', () => {
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument()
   })
 
+  it('sends an optional self-declared club choice when the calendar offers clubs', async () => {
+    const fetch = mockFetch({ clubs: () => Response.json([{ id: 4, name: 'KCPM Montreuil', short_name: 'KCPM' }]) })
+    renderInvite()
+    await screen.findByText('Lea')
+    fill(/email/i, 'lea@example.test')
+    fill(/^password/i, 'correct-horse-battery')
+    fill(/confirm password/i, 'correct-horse-battery')
+    fireEvent.change(await screen.findByLabelText(/^club/i), { target: { value: '4' } })
+    expect(screen.getByText(/self-declared/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /create my account/i }))
+    await waitFor(() => expect(fetch.mock.calls.some(([input]) => String(input).includes('/register-invite'))).toBe(true))
+    const call = fetch.mock.calls.find(([input]) => String(input).includes('/register-invite'))!
+    expect(JSON.parse(String(call[1]!.body))).toMatchObject({ club_id: 4 })
+  })
+
   it('requires matching passwords before calling the API', async () => {
     const fetch = mockFetch({})
     renderInvite()
@@ -81,7 +101,8 @@ describe('Invite page', () => {
     fill(/confirm password/i, 'different-password-value')
     fireEvent.click(screen.getByRole('button', { name: /create my account/i }))
     expect(await screen.findByText(/passwords do not match/i)).toBeInTheDocument()
-    expect(fetch).toHaveBeenCalledTimes(1) // only the peek
+    // Only the peek (and the optional club list): no account request.
+    expect(fetch.mock.calls.filter(([input]) => String(input).includes('/register-invite'))).toHaveLength(0)
   })
 
   it('creates the account, signs in and lands on the library', async () => {

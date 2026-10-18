@@ -1,6 +1,6 @@
 export type PrimaryTab = 'dives' | 'messages' | 'community' | 'evaluations' | 'calendar'
 export function primaryTabFor(path: string): PrimaryTab | null {
-  if (import.meta.env.DEV && /^\/calendar(?:\/|$)/.test(path)) return 'calendar'
+  if (/^\/calendar(?:\/|$)/.test(path)) return 'calendar'
   if (/^\/dives(?:\/|$)/.test(path)) return 'dives'
   if (/^\/messages(?:\/|$)/.test(path)) return 'messages'
   if (/^\/(?:community|users)(?:\/|$)/.test(path)) return 'community'

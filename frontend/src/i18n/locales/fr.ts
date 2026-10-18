@@ -990,6 +990,10 @@ const fr = {
     networkError: 'Erreur réseau — veuillez réessayer',
   },
   register: {
+    club: 'Club',
+    clubNone: 'Aucun club (plongeur indépendant)',
+    clubHelp: 'Déclaratif : choisir un club vous en rend membre immédiatement. Ce n’est pas une licence vérifiée et cela ne donne ni groupe d’entraînement ni rôle d’entraîneur ; un entraîneur attribue les groupes.',
+    errorClub: 'Ce club n’est plus disponible. Choisissez une autre option.',
     subtitle: 'Compte plongeur — consulter les plongeons publics et gérer les vôtres.',
     closed:
       'Les inscriptions sont actuellement fermées. Demandez un code d’invitation valide à un administrateur.',
@@ -1008,6 +1012,7 @@ const fr = {
     errorFailed: 'Échec de l’inscription — veuillez vérifier vos informations',
   },
   invite: {
+    errorClub: 'Ce club n’est plus disponible. Choisissez une autre option.',
     subtitle: 'Vous êtes invité(e) à récupérer les plongeons de',
     unknownDiver: 'votre plongeur',
     expiresOn: 'Ce lien expire le {{date}}',

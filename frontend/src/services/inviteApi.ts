@@ -51,7 +51,7 @@ export interface InviteRegistrationError {
 
 export async function registerWithInvite(
   token: string,
-  body: { email: string; password: string; display_name?: string },
+  body: { email: string; password: string; display_name?: string; club_id?: number },
 ): Promise<InviteRegistration> {
   const response = await fetch('/api/v1/auth/register-invite', {
     method: 'POST',
@@ -66,6 +66,9 @@ export async function registerWithInvite(
       const payload = (await response.json()) as { detail?: unknown; code?: unknown }
       detail = typeof payload?.detail === 'string' ? payload.detail : ''
       code = typeof payload?.code === 'string' ? payload.code : undefined
+      // Calendar errors carry {detail: {code, message}} (e.g. club_unavailable).
+      const nested = payload?.detail as { code?: unknown } | undefined
+      if (!code && nested && typeof nested === 'object' && typeof nested.code === 'string') code = nested.code
     } catch {
       // Non-JSON error body: fall back to the status text.
     }

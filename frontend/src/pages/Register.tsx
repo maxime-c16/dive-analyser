@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck, UserPlus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import SignupClubSelect from '../components/SignupClubSelect'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -10,6 +11,7 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [inviteCode, setInviteCode] = useState('')
+  const [clubId, setClubId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState<boolean | null>(null)
@@ -46,12 +48,14 @@ export default function Register() {
           password,
           display_name: displayName || undefined,
           invite_code: inviteCode,
+          ...(clubId !== null ? { club_id: clubId } : {}),
         }),
       })
       if (!res.ok) {
         if (res.status === 403) setError(t('register.errorInvite'))
         else if (res.status === 409) setError(t('register.errorExists'))
         else if (res.status === 429) setError(t('register.errorTooMany'))
+        else if (res.status === 422 && (await res.json().catch(() => null))?.detail?.code === 'club_unavailable') setError(t('register.errorClub'))
         else setError(t('register.errorFailed'))
         return
       }
@@ -152,6 +156,8 @@ export default function Register() {
           className="mb-5 w-full border border-app bg-app-panel-elevated px-3 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-app-accent"
           required
         />
+
+        <SignupClubSelect id="register-club" value={clubId} onChange={setClubId} />
 
         {error && (
           <p className="mb-4 text-sm text-red-400">{error}</p>

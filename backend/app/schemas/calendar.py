@@ -1,9 +1,9 @@
 """Calendar API contracts (Task02). Timestamps are ISO-8601 UTC strings
 ending in Z; all-day dates are local ISO dates with an exclusive end."""
-from datetime import date
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Slug = Field(..., min_length=2, max_length=64, pattern=r"^[a-z0-9][a-z0-9-]*$")
 ClubRole = Literal["member", "coach", "manager"]
@@ -95,10 +95,20 @@ class RosterEntry(BaseModel):
     role: ClubRole
     # Only staff see other members' groups; members see none here.
     group_id: Optional[int] = None
+    # Staff-only administration fields (None for plain members).
+    membership_id: Optional[int] = None
+    can_publish: Optional[bool] = None
+    can_assign_groups: Optional[bool] = None
+    self_declared: Optional[bool] = None
+    group_since: Optional[date] = None
 
 
 class RosterOut(BaseModel):
     club_id: int
+    my_role: Optional[ClubRole] = None
+    can_assign_groups: bool = False
+    can_manage_members: bool = False
+    groups: List[GroupOut] = []
     # App accounts only — never implies a complete club roster.
     items: List[RosterEntry]
 
@@ -110,6 +120,9 @@ class CalendarOut(BaseModel):
     club_id: Optional[int]
     training_group_id: Optional[int]
     following: bool
+    # Task03: server-computed write permission and allowed audiences.
+    can_publish: bool = False
+    allowed_audiences: List[str] = []
 
 
 class CalendarsOut(BaseModel):
@@ -138,6 +151,8 @@ class EventSummary(BaseModel):
     title: str
     timezone: str
     version: int
+    calendar_name: Optional[str] = None
+    training_group_id: Optional[int] = None
 
 
 class OccurrenceOut(BaseModel):
@@ -156,6 +171,11 @@ class OccurrenceOut(BaseModel):
     # The caller's own state only; other members' responses are never listed.
     my_interest: Optional[str] = None
     my_absence_reported: bool = False
+    # Local wall-clock view in the event timezone (display/filtering).
+    local_date: Optional[date] = None
+    local_start: Optional[str] = None
+    local_end: Optional[str] = None
+    imported: bool = False
 
 
 class OccurrencePage(BaseModel):
@@ -174,9 +194,147 @@ class EventDetail(EventSummary):
     my_invitation: Optional[str]
     resources: List[ResourceOut]
     occurrences: List[OccurrenceOut]
+    following: bool = False
+    can_edit: bool = False
+    changes: List["ChangeOut"] = []
 
 
 class OccurrenceDetail(OccurrenceOut):
     resources: List[ResourceOut]
     description: str
     venue_address: Optional[str]
+    map_url: Optional[str] = None
+    can_edit: bool = False
+    can_report_absence: bool = False
+    following: bool = False
+    my_invitation: Optional[str] = None
+    organizer_name: Optional[str] = None
+    changes: List["ChangeOut"] = []
+
+
+# --- Task03 write contracts ------------------------------------------------------
+# Local wall times are naive ISO datetimes in the event timezone; the server
+# converts them (refusing DST-gap/overlap times). All-day end is exclusive.
+
+EventType = Literal["training", "camp", "outing", "competition", "other"]
+Audience = Literal["group", "club", "community", "invited"]
+InterestState = Literal["interested", "maybe", "declined"]
+OptionalText200 = Field(None, max_length=200)
+
+
+class OccurrenceTimes(BaseModel):
+    all_day: bool = False
+    start_local: Optional[datetime] = None
+    end_local: Optional[datetime] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+
+def _plain_url(value: Optional[str]) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    if not value.startswith(("https://", "http://")):
+        raise ValueError("Links must start with https:// or http://")
+    return value
+
+
+class EventCreate(BaseModel):
+    calendar_id: Optional[int] = Field(None, gt=0)  # None = own personal calendar
+    event_type: EventType = "outing"
+    audience: Audience = "invited"
+    status: Literal["draft", "published"] = "published"
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str = Field("", max_length=4000)
+    venue_name: Optional[str] = OptionalText200
+    venue_address: Optional[str] = Field(None, max_length=300)
+    map_url: Optional[str] = Field(None, max_length=500)
+    timezone: str = Field("Europe/Paris", max_length=64)
+    when: OccurrenceTimes
+
+    @field_validator("map_url")
+    @classmethod
+    def _url(cls, v: Optional[str]) -> Optional[str]:
+        return _plain_url(v)
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Title is required")
+        return v.strip()
+
+
+class EventUpdate(BaseModel):
+    expected_version: int = Field(..., ge=1)
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=4000)
+    venue_name: Optional[str] = OptionalText200
+    venue_address: Optional[str] = Field(None, max_length=300)
+    map_url: Optional[str] = Field(None, max_length=500)
+    audience: Optional[Audience] = None
+    event_type: Optional[EventType] = None
+    status: Optional[Literal["published"]] = None
+    when: Optional[OccurrenceTimes] = None
+
+    @field_validator("map_url")
+    @classmethod
+    def _url(cls, v: Optional[str]) -> Optional[str]:
+        return _plain_url(v)
+
+
+class OccurrenceUpdate(BaseModel):
+    expected_version: int = Field(..., ge=1)
+    when: Optional[OccurrenceTimes] = None
+    venue_name: Optional[str] = OptionalText200
+
+
+class VersionedAction(BaseModel):
+    expected_version: int = Field(..., ge=1)
+
+
+class InvitationsCreate(BaseModel):
+    user_ids: List[int] = Field(..., min_length=1, max_length=50)
+
+
+class InvitationResponse(BaseModel):
+    status: Literal["accepted", "declined"]
+
+
+class InterestWrite(BaseModel):
+    state: Optional[InterestState] = None  # null clears the response
+
+
+class AbsenceWrite(BaseModel):
+    absent: bool
+
+
+class InvitationOut(BaseModel):
+    user_id: int
+    display_name: str
+    status: str
+    responded_at: Optional[str]
+
+
+class InvitationsOut(BaseModel):
+    items: List[InvitationOut]
+
+
+class LinkedDiveOut(BaseModel):
+    id: int
+    dive_code: str
+    dive_datetime: str
+    linked: bool
+
+
+class LinkedDivesOut(BaseModel):
+    items: List[LinkedDiveOut]
+
+
+class ChangeOut(BaseModel):
+    kind: str
+    at: str
+    fields: List[str]
+
+
+EventDetail.model_rebuild()
+OccurrenceDetail.model_rebuild()

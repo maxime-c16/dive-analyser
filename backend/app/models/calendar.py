@@ -36,6 +36,7 @@ DEADLINE_KINDS = ("club_cutoff", "official_entry", "dive_sheet")
 SOURCE_KINDS = ("workbook", "pdf_schedule", "organizer_page", "federation_page", "manual")
 IMPORT_STATUSES = ("previewed", "applied", "failed")
 MAPPING_TARGETS = ("event", "occurrence", "resource")
+REVIEW_STATUSES = ("needs_review", "historical", "conflict", "missing_from_source", "resolved")
 CHANGE_KINDS = ("created", "published", "updated", "time_changed", "venue_changed", "cancelled", "imported")
 
 
@@ -367,11 +368,16 @@ class CalendarSourceMapping(Base):
     last_import_run_id = Column(Integer, ForeignKey("calendar_import_runs.id", ondelete="SET NULL"), nullable=True)
     locally_overridden = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     provenance = Column(JSON, nullable=False, default=dict, server_default="{}")
+    # Task03 (add_calendar_task03.sql): unresolved import items stay here,
+    # with no target, until a curator reviews them.
+    review_status = Column(String(24), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     __table_args__ = (
         UniqueConstraint("source_id", "target_type", "external_key", name="uq_calendar_source_mapping"),
         CheckConstraint(_in("target_type", MAPPING_TARGETS), name="ck_calendar_mapping_target"),
+        CheckConstraint(f"review_status IS NULL OR {_in('review_status', REVIEW_STATUSES)}",
+                        name="ck_calendar_mapping_review"),
         Index("ix_calendar_mappings_event", "event_id"),
         Index("ix_calendar_mappings_occurrence", "occurrence_id"),
         MIGRATION_ONLY,
@@ -396,3 +402,37 @@ class CalendarChangeLog(Base):
         Index("ix_calendar_change_log_event", "event_id", "id"),
         MIGRATION_ONLY,
     )
+
+
+
+# --- Task03 (backend/migrations/add_calendar_task03.sql) -------------------
+
+class CalendarEventFollow(Base):
+    """Following one event: display preference only, never an access grant."""
+    __tablename__ = "calendar_event_follows"
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (Index("ix_calendar_event_follows_user", "user_id"), MIGRATION_ONLY)
+
+
+class CalendarIdempotencyKey(Base):
+    """Actor-scoped create key; request_hash rejects reuse for another payload."""
+    __tablename__ = "calendar_idempotency_keys"
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), primary_key=True)
+    idempotency_key = Column(String(80), primary_key=True)
+    request_hash = Column(String(64), nullable=False)
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = MIGRATION_ONLY
+
+
+class OccurrenceDiveLink(Base):
+    """A member links one of their own dives to an occurrence. Private to
+    that account; dive and media visibility are never changed."""
+    __tablename__ = "occurrence_dive_links"
+    occurrence_id = Column(Integer, ForeignKey("event_occurrences.id", ondelete="CASCADE"), primary_key=True)
+    dive_id = Column(Integer, ForeignKey("dives.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (Index("ix_occurrence_dive_links_user", "user_id", "occurrence_id"), MIGRATION_ONLY)

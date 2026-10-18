@@ -988,6 +988,10 @@ const en = {
     networkError: 'Network error — please try again',
   },
   register: {
+    club: 'Club',
+    clubNone: 'No club (independent diver)',
+    clubHelp: 'Self-declared: choosing a club makes you a member immediately. It is not a verified licence and gives no training group or coach role; a coach assigns groups.',
+    errorClub: 'This club is no longer available. Choose another option.',
     subtitle: 'Diver account — view public dives and manage your own.',
     closed:
       'Registration is currently closed. Ask an administrator for a current invite code.',
@@ -1006,6 +1010,7 @@ const en = {
     errorFailed: 'Registration failed — please check your details',
   },
   invite: {
+    errorClub: 'This club is no longer available. Choose another option.',
     subtitle: 'You have been invited to claim the dives of',
     unknownDiver: 'your diver',
     expiresOn: 'This link expires on {{date}}',

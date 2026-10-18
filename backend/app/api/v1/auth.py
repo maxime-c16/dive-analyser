@@ -812,6 +812,8 @@ async def me(
         **avatar_identity(user),
         "role": getattr(user, "role", "owner"),
         "is_admin": bool(user.is_admin),
+        # Default-off feature switches the UI needs before routing.
+        "features": {"calendar": bool(get_settings().calendar_enabled)},
         "divers": [
             {
                 "diver_id": row.diver_id,
