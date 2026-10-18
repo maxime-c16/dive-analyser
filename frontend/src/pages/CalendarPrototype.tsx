@@ -116,6 +116,7 @@ export default function CalendarPrototype() {
   }, [revision]);
   const update = (key: string, value: string) => {
     const q = new URLSearchParams(query);
+    if (key === "date" || key === "view") q.delete("returnDate");
     value ? q.set(key, value) : q.delete(key);
     setQuery(q);
   };
@@ -124,6 +125,12 @@ export default function CalendarPrototype() {
   const event = accessible.find((e) => e.id === id);
   const editing = path === "new" || path.endsWith("/edit");
   const back = "/calendar" + location.search;
+  const returnDate = query.get("returnDate");
+  const monthQuery = new URLSearchParams(query);
+  monthQuery.set("view", "month");
+  if (returnDate && validDate(returnDate)) monthQuery.set("date", returnDate);
+  monthQuery.delete("returnDate");
+  const monthBack = "/calendar?" + monthQuery;
   const openForm = (e?: Event) => {
     setForm(
       e
@@ -404,6 +411,11 @@ export default function CalendarPrototype() {
                 </div>
                 <CalendarDays size={40} aria-hidden="true" />
               </header>
+              {view === "agenda" && returnDate && validDate(returnDate) && (
+                <Link className="calendar-back" to={monthBack}>
+                  <ChevronLeft size={18} aria-hidden="true" />{t.back}
+                </Link>
+              )}
               <div className="calendar-toolbar">
                 <button onClick={() => changeMonth(-1)} aria-label={t.previous}><ChevronLeft /></button>
                 <details className="calendar-date-jump">
@@ -513,6 +525,7 @@ export default function CalendarPrototype() {
                             aria-current={day === today ? "date" : undefined}
                             onClick={() => {
                               const q = new URLSearchParams(query);
+                              q.set("returnDate", date);
                               q.set("date", day);
                               q.set("view", "agenda");
                               setQuery(q);

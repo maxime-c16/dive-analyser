@@ -79,3 +79,7 @@ Below 1024px the existing shell header provides the Calendar title, so the dupli
 ## Current and historical dates
 
 Month view highlights today with the accent circle and aria-current=date, distinguishes past dates without disabling them, and outlines the selected date independently. Agenda marks today/past events explicitly. Date context uses Europe/Paris and refreshes each minute/on window focus, including after local midnight. Past dates still open historical events. Typecheck and all 10 calendar browser tests pass, including a Paris-versus-UTC midnight case and advancing to the next local day. No production deploy.
+
+## Return from a selected date
+
+Opening a day from the month grid now keeps the originating date in URL context and exposes Back to calendar in the resulting agenda. Returning restores month view, its original selected date, source/search filters and fixture role. Event detail Back returns to the day agenda, which still offers the month return link. Explicit date/view navigation clears obsolete return context. Typecheck and all 11 calendar browser cases pass, including the month -> day -> event -> day -> original month flow.

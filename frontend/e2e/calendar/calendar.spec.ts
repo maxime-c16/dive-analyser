@@ -243,3 +243,21 @@ test("Paris today marker updates at midnight and historical dates remain usable"
   await page.clock.runFor(60_000);
   await expect(page.locator('.calendar-event-today time')).toHaveAttribute("datetime", "2026-09-11");
 });
+
+test("day drill-down returns to the same month with filters preserved", async ({ page }) => {
+  await page.goto(entry);
+  await route(page, "/calendar?date=2026-09-01&view=month&source=club&q=KCPM&role=coach");
+  await page.locator(".calendar-month > div > button").filter({ hasText: /^8$/ }).click();
+  await expect(page.getByRole("button", { name: "Agenda", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".calendar-event").first().click();
+  await page.getByRole("link", { name: "Back to calendar", exact: true }).click();
+  await page.getByRole("link", { name: "Back to calendar", exact: true }).click();
+  await expect(page.locator(".calendar-month")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "September 2026", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Training", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("searchbox")).toHaveValue("KCPM");
+  const url = await page.evaluate(() => (window as any).reviewRouter.state.location.search);
+  expect(new URLSearchParams(url).get("date")).toBe("2026-09-01");
+  expect(new URLSearchParams(url).get("role")).toBe("coach");
+  expect(new URLSearchParams(url).has("returnDate")).toBe(false);
+});
