@@ -95,7 +95,7 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
       setClips(selected.map(file => ({ file, id: newUploadId(), date: localDate(new Date(file.lastModified || Date.now())), code: '', height: '3m', rating: 'M', notes: '', public: false, evaluation: false, evaluationPrompt: '' })))
       setIndex(0); setSaved(0); setDiver(String(owners[0].diver_id)); setNotice(''); setError('')
     }} />
-    <button ref={trigger} type="button" className="touch-target border border-app-accent px-3 text-sm text-app-accent" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
+    <button ref={trigger} type="button" className="touch-target inline-flex items-center justify-center whitespace-nowrap border border-app-accent bg-app-accent px-4 text-sm font-semibold text-black hover:bg-app-accent/90" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
     {notice && <p role="status" className="text-sm text-app-muted">{notice}</p>}
     {clip && <div ref={overlayRef} className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="add-video-title">
       <form ref={form} tabIndex={-1} onSubmit={save} className="mx-auto max-w-xl space-y-4 border border-app bg-app-panel p-4 sm:p-6">

@@ -2,6 +2,7 @@ import type { MemberProfile } from './activityApi'
 import type { AvatarHud } from '../components/MemberAvatar'
 
 export type MemberIdentity = Pick<MemberProfile, 'user_id' | 'display_name' | 'handle' | 'bio' | 'avatar_url' | 'avatar_hud'>
+export type MemberSummary = MemberIdentity & { accessible_dive_count?: number; latest_dive_at?: string | null }
 export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null }
 export type DivePage = { items: ProfileDive[]; next_before: string | null }
 
@@ -15,7 +16,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.status === 204 ? undefined as T : response.json()
 }
 
-export function searchMembers(q: string, after?: number, signal?: AbortSignal): Promise<{ items: MemberIdentity[]; next_after: number | null }> {
+export function searchMembers(q: string, after?: number, signal?: AbortSignal): Promise<{ items: MemberSummary[]; next_after: number | null }> {
   const params = new URLSearchParams({ q })
   if (after) params.set('after', String(after))
   return request(`?${params}`, { signal })

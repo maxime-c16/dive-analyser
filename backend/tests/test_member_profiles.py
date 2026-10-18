@@ -131,3 +131,19 @@ def test_avatar_limit_precedes_image_decode_and_never_parses_multipart(workspace
         content=b'x' * (2 * 1024 * 1024 + 1),
         headers={'Content-Type': 'multipart/form-data; boundary=avatar'})
     assert response.status_code == 413
+
+
+def test_directory_dive_summary_matches_visible_grid(workspace):
+    db, login, dives, users, _ = workspace
+    db.get(Dive, dives['alice-private']).dive_datetime = datetime(2026, 10, 18, 12)
+    db.get(Dive, dives['alice-public']).dive_datetime = datetime(2026, 1, 1, 12)
+    db.commit()
+    for viewer, count, latest in [('viewer', 1, '2026-01-01'), ('alice', 2, '2026-10-18')]:
+        client = login(viewer)
+        rows = client.get('/api/v1/users').json()['items']
+        alice = next(row for row in rows if row['user_id'] == users['alice'].id)
+        assert alice['accessible_dive_count'] == count
+        assert alice['latest_dive_at'].startswith(latest)
+        empty = next(row for row in rows if row['user_id'] == users['viewer'].id)
+        assert empty['accessible_dive_count'] == 0
+        assert empty['latest_dive_at'] is None

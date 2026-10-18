@@ -123,3 +123,14 @@ it('the mobile switch toggles between the clip wall and the code summary', async
   await userEvent.click(screen.getByRole('button', { name: 'Clips' }))
   expect(screen.queryByText(/attempts · last/)).toBeNull()
 })
+
+it('clearing filters preserves the chosen library and view', async () => {
+  render(<MemoryRouter initialEntries={['/dives?scope=all&view=list&q=103B&height=1m']}><Dives /></MemoryRouter>)
+  await screen.findAllByRole('button', { name: /Open 103B attempt/ })
+  await userEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
+  expect(screen.getByRole('textbox', { name: 'Search dives' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Height' })).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+  await waitFor(() => expect(screen.getAllByRole('button', { name: /Open 103B attempt/ })).toHaveLength(2))
+})

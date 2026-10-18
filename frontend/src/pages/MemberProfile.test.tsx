@@ -141,10 +141,27 @@ describe("MemberProfile", () => {
     });
     renderAt("/users/9");
     await waitFor(() => expect(screen.getByRole("heading", { name: "Bob Marlin" })).toBeInTheDocument());
-    expect(screen.getByText(/Diver:/)).toBeInTheDocument();
+    expect(screen.getByText(/Diver: Bob/)).toBeInTheDocument();
+    expect(screen.getByText(/Member since/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
+    expect(screen.queryByText("diver")).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("tab", { name: "Activity" }));
     expect(await screen.findByText("Great entry!")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /103B/ })[0]).toHaveAttribute("href", "/dives?clip=5&scope=all");
+  });
+
+  it("hides a diver label that only repeats the member name and shows a plain fallback tile", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(input => {
+      const url = String(input);
+      if (url.endsWith("/users/9")) return fetchJson({ ...profile, display_name: "Sara", divers: [{ diver_id: 3, display_name: "SARA" }] });
+      if (url.includes("/users/9/dives")) return fetchJson({ items: [{ id: 43, dive_code: "301C", height: "1m", dive_datetime: "2026-10-08T12:00:00Z", visibility: "public", poster_url: null }], next_before: null });
+      return fetchJson({ items: [], next_before: null });
+    });
+    renderAt("/users/9");
+    const tile = await screen.findByRole("link", { name: "Watch 301C · 1m" });
+    expect(tile).toHaveTextContent("301C · 1m");
+    expect(screen.queryByText(/Diver:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /SARA/ })).not.toBeInTheDocument();
   });
 
   it("opens on the dive grid and links tiles to the existing player", async () => {

@@ -114,7 +114,21 @@ def search_members(q: str = Query("", max_length=120), after: int = Query(0, ge=
                                  AppUser.handle.contains(term.lower(), autoescape=True),
                                  AppUser.id.in_(linked_accounts)))
     rows = query.order_by(AppUser.id).limit(limit + 1).all()
-    return dict(items=[_identity(row) for row in rows[:limit]],
+    # One aggregate for this page, using exactly the profile grid visibility.
+    stats = {uid: (count, latest) for uid, count, latest in db.query(
+        UserDiverAccess.user_id, func.count(Dive.id),
+        func.max(func.coalesce(Dive.dive_datetime, Dive.created_at)),
+    ).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).filter(
+        UserDiverAccess.user_id.in_([row.id for row in rows[:limit]]),
+        UserDiverAccess.access_kind == "OWNER",
+        visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)),
+    ).group_by(UserDiverAccess.user_id).all()}
+    items = []
+    for row in rows[:limit]:
+        count, latest = stats.get(row.id, (0, None))
+        items.append(dict(**_identity(row), accessible_dive_count=count,
+                          latest_dive_at=latest.isoformat() + "Z" if latest else None))
+    return dict(items=items,
                 next_after=rows[limit - 1].id if len(rows) > limit else None)
 
 

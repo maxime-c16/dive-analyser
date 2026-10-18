@@ -1,0 +1,11 @@
+{
+  "id": "library-controls-cleanup",
+  "date": "2026-10-18",
+  "title": "A clearer video library",
+  "body": "Find the add-video action and your account more easily, open explanations for DB, SD and HU, and identify divers more clearly in the community library. Browse thumbnails without repeated video-status badges or unnecessary counters. Community and member profiles are more compact, with a clear Message button, a plain membership date, and cleaner preview tiles for dives without a thumbnail. Member cards show the number and latest date of dives you can access.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

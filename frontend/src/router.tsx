@@ -31,6 +31,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   Film,
   Gauge,
@@ -273,6 +274,7 @@ function Breadcrumbs() {
   const location = useLocation();
   const { t } = useTranslation();
   const crumbs = breadcrumbTrail(location.pathname, t);
+  if (location.pathname === "/dives") return null;
 
   return (
     <div className="mx-auto mb-4 hidden w-full max-w-[1320px] items-center gap-2 overflow-x-auto text-xs font-medium uppercase tracking-[0.14em] text-app-muted sm:flex">
@@ -444,14 +446,14 @@ function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="mt-auto shrink-0 border-t border-app pt-4">
               <div className="mb-3 grid gap-2"><WhatsNewButton /><NotificationsButton /></div>
-              <div className="flex items-center gap-2 px-3 text-xs text-app-muted">
-                {user && <MemberAvatar member={user} size={32} />}
-                <span className="truncate">{user?.display_name ?? user?.email}
-                {friend ? ` · ${t("roles.diver")}` : ` · ${t("roles.administrator")}`}</span>
-              </div>
-              <nav aria-label={t("nav.accountNavigationAria")} className="mt-2 space-y-1">
-                <AppNavLink to="/account" label="nav.account" icon={UserRound} />
-              </nav>
+              <IntentNavLink to="/account" aria-label={t("nav.account")} className={({ isActive }) => `flex min-h-11 w-full items-center gap-3 border px-3 py-2 text-sm hover:bg-app-panel-elevated ${isActive ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-app bg-app-panel text-app-text"}`}>
+                {user && <MemberAvatar member={user} size={24} />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{user?.display_name ?? user?.email}</span>
+                  <span className="block text-xs text-app-muted">{t("nav.account")}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              </IntentNavLink>
             </div>
 
           </div>
