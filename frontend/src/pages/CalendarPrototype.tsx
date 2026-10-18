@@ -13,6 +13,8 @@ import {
   ChevronRight,
   MapPin,
   Search,
+  SlidersHorizontal,
+  ChevronDown,
   Plus,
 } from "lucide-react";
 import {
@@ -60,6 +62,7 @@ export default function CalendarPrototype() {
   const date = validDate(query.get("date") || "") ? query.get("date")! : today;
   const month = date.slice(0, 7);
   const source = query.get("source") || "";
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const view = query.get("view") || "agenda";
   const [interest, setInterest] = useState<Record<string, boolean>>(
     session.interest,
@@ -195,27 +198,6 @@ export default function CalendarPrototype() {
   );
   return (
     <section className="calendar-prototype">
-      <details className="calendar-controls">
-        <summary>{t.prototype}</summary>
-        <label>
-          {t.role}
-          <select value={role} onChange={(e) => update("role", e.target.value)}>
-            {(["beginners", "advanced", "coach", "unassigned"] as Role[]).map(
-              (r) => (
-                <option key={r} value={r}>
-                  {t[r]}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-        <p>{t.membership}</p>
-        <p>
-          {t.count}: {events.filter((e) => e.source === "club").length} ·
-          Europe/Paris
-        </p>
-        <p>{t.local}</p>
-      </details>
       {role === "unassigned" && (
         <p role="status" className="calendar-notice">
           {t.noGroup}
@@ -415,34 +397,21 @@ export default function CalendarPrototype() {
                 <CalendarDays size={40} aria-hidden="true" />
               </header>
               <div className="calendar-toolbar">
-                <button onClick={() => changeMonth(-1)} aria-label={t.previous}>
-                  <ChevronLeft />
-                </button>
-                <h2>
-                  {new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" })
-                    .format(new Date(month + "-01T12:00:00"))}
-                </h2>
+                <button onClick={() => changeMonth(-1)} aria-label={t.previous}><ChevronLeft /></button>
+                <details className="calendar-date-jump">
+                  <summary title={t.jumpDate}>
+                    <h2>{new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" })
+                      .format(new Date(month + "-01T12:00:00"))}</h2>
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="calendar-date-popover">
+                    <label>{t.date}<input type="date" value={date}
+                      onChange={(e) => update("date", e.target.value)} /></label>
+                    <button className="calendar-mobile-today" onClick={() => update("date", today)}>{t.today}</button>
+                  </div>
+                </details>
                 <button onClick={() => changeMonth(1)} aria-label={t.next}><ChevronRight /></button>
                 <button className="calendar-today" onClick={() => update("date", today)}>{t.today}</button>
-                <details className="calendar-date-jump">
-                  <summary><CalendarDays size={18} aria-hidden="true" />{t.jumpDate}</summary>
-                  <label>{t.date}<input type="date" value={date}
-                    onChange={(e) => update("date", e.target.value)} /></label>
-                </details>
-              </div>
-              <div className="calendar-filters">
-                <div className="calendar-source-options" role="group" aria-label={t.source}>
-                  {(["", "club", "outing", "competition"] as const).map((s) => (
-                    <button key={s} aria-pressed={source === s}
-                      onClick={() => update("source", s)}>{s ? t[s] : t.allShort}</button>
-                  ))}
-                </div>
-                <label className="calendar-search">
-                  <span className="sr-only">{t.search}</span>
-                  <Search size={18} aria-hidden="true" />
-                  <input type="search" placeholder={t.search} value={query.get("q") || ""}
-                    onChange={(e) => update("q", e.target.value)} />
-                </label>
               </div>
               <div className="calendar-switch">
                 <div>
@@ -456,10 +425,32 @@ export default function CalendarPrototype() {
                     </button>
                   ))}
                 </div>
-                <button onClick={() => openForm()}>
-                  <Plus size={18} />
-                  {t.create}
-                </button>
+                <div className="calendar-quick-actions">
+                  <button className="calendar-filter-toggle" aria-label={t.filters}
+                    aria-expanded={filtersOpen} aria-controls="calendar-filters"
+                    aria-pressed={!!source || !!query.get("q")}
+                    onClick={() => setFiltersOpen(!filtersOpen)}>
+                    <SlidersHorizontal size={19} aria-hidden="true" />
+                    {(source || query.get("q")) && <span className="calendar-filter-indicator" />}
+                  </button>
+                  <button className="calendar-create" onClick={() => openForm()} aria-label={t.create}>
+                    <Plus size={18} aria-hidden="true" /><span>{t.create}</span>
+                  </button>
+                </div>
+              </div>
+              <div id="calendar-filters" className={`calendar-filters ${filtersOpen ? "calendar-filters-open" : ""}`}>
+                <div className="calendar-source-options" role="group" aria-label={t.source}>
+                  {(["", "club", "outing", "competition"] as const).map((s) => (
+                    <button key={s} aria-pressed={source === s}
+                      onClick={() => update("source", s)}>{s ? t[s] : t.allShort}</button>
+                  ))}
+                </div>
+                <label className="calendar-search">
+                  <span className="sr-only">{t.search}</span>
+                  <Search size={18} aria-hidden="true" />
+                  <input type="search" placeholder={t.search} value={query.get("q") || ""}
+                    onChange={(e) => update("q", e.target.value)} />
+                </label>
               </div>
               {load === "loading" && <p role="status">{t.loading}</p>}
               {load === "failed" && (
@@ -551,6 +542,27 @@ export default function CalendarPrototype() {
           )}
         </div>
       </div>
+      <details className="calendar-controls">
+        <summary>{t.prototype}</summary>
+        <label>
+          {t.role}
+          <select value={role} onChange={(e) => update("role", e.target.value)}>
+            {(["beginners", "advanced", "coach", "unassigned"] as Role[]).map(
+              (r) => (
+                <option key={r} value={r}>
+                  {t[r]}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <p>{t.membership}</p>
+        <p>
+          {t.count}: {events.filter((e) => e.source === "club").length} ·
+          Europe/Paris
+        </p>
+        <p>{t.local}</p>
+      </details>
     </section>
   );
 }

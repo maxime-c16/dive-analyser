@@ -203,3 +203,25 @@ test("compact filters, date jump and directional month motion respect reduced mo
   await page.getByRole("button", { name: "Next month", exact: true }).click();
   await expect(page.locator(".calendar-period")).toHaveCSS("animation-name", "none");
 });
+
+test("small phone shows useful content before scrolling and reveals secondary filters", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto(entry);
+  await route(page, "/calendar?date=2026-09-01");
+  await expect(page.locator(".calendar-event")).toHaveCount(6);
+  const firstEvent = await page.locator(".calendar-event").first().boundingBox();
+  const bottomNav = await nav(page).boundingBox();
+  expect(firstEvent!.y).toBeLessThan(240);
+  expect(firstEvent!.y + firstEvent!.height).toBeLessThan(bottomNav!.y);
+  await expect(page.getByRole("searchbox")).toBeHidden();
+  await page.getByRole("button", { name: "Search and filters", exact: true }).click();
+  await expect(page.getByRole("searchbox")).toBeVisible();
+  await page.getByRole("group", { name: "Source", exact: true }).getByRole("button", { name: "Outings", exact: true }).click();
+  await page.getByRole("button", { name: "Search and filters", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Search and filters", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Month", exact: true }).click();
+  const grid = await page.locator(".calendar-month").boundingBox();
+  expect(grid!.y).toBeLessThan(240);
+  await expect(page.getByRole("button", { name: "Create sample outing", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
