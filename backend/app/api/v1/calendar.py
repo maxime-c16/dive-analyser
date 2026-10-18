@@ -161,11 +161,20 @@ def occurrence_payloads(db: Session, user: AppUser, rows) -> list:
 @router.get("/me", response_model=s.MeOut)
 def me(user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(ClubMembership, Club).join(Club, Club.id == ClubMembership.club_id).filter(
-        ClubMembership.user_id == user.id, ClubMembership.ended_at.is_(None), Club.archived_at.is_(None)).all()
+        ClubMembership.user_id == user.id, ClubMembership.ended_at.is_(None), Club.archived_at.is_(None)) \
+        .order_by(Club.id, ClubMembership.id).limit(MAX_LIMIT).all()
+    on = access.today()
+    membership_ids = [m.id for m, _c in rows]
+    groups = {assignment.club_membership_id: group for assignment, group in db.query(
+        TrainingGroupMembership, TrainingGroup).join(TrainingGroup,
+            TrainingGroup.id == TrainingGroupMembership.group_id).filter(
+        TrainingGroupMembership.club_membership_id.in_(membership_ids),
+        TrainingGroupMembership.user_id == user.id, TrainingGroupMembership.effective_from <= on,
+        or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > on))
+        .order_by(TrainingGroupMembership.id).limit(MAX_LIMIT)} if membership_ids else {}
     clubs = []
     for m, c in rows:
-        assignment = access.current_group_assignment(db, user.id, c.id)
-        group = db.get(TrainingGroup, assignment.group_id) if assignment else None
+        group = groups.get(m.id)
         clubs.append(s.MyClubOut(club=club_out(c), membership=membership_out(m),
                                  group=group_out(group) if group else None, self_declared=m.source == "signup"))
     return s.MeOut(clubs=clubs)

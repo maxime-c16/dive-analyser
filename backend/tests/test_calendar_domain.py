@@ -742,3 +742,24 @@ def test_roster_group_list_bounded_and_group_creation_capped(cal):
     with pytest.raises(HTTPException) as exc:
         membership.create_group(db, cal["users"]["manager"], club.id, "one-too-many", "Too many")
     assert exc.value.status_code == 422 and exc.value.detail["code"] == "too_many_groups"
+
+
+def test_me_memberships_bounded_with_batched_current_groups(cal, monkeypatch):
+    db, alice = cal["db"], cal["users"]["alice"]
+    for i in range(205):
+        club = Club(slug=f"me-limit-{i}", name=f"Club {i}", timezone="Europe/Paris")
+        db.add(club)
+        db.flush()
+        db.add(ClubMembership(club_id=club.id, user_id=alice.id, role="member", source="admin_legacy"))
+    db.commit()
+    def per_club_query(*args, **kwargs):
+        raise AssertionError("N+1 assignment query")
+    monkeypatch.setattr(access, "current_group_assignment", per_club_query)
+    response = cal["login"]("alice").get("/api/v1/calendar/me")
+    assert response.status_code == 200
+    rows = response.json()["clubs"]
+    assert len(rows) == calendar_api.MAX_LIMIT
+    assert [r["club"]["id"] for r in rows] == sorted(r["club"]["id"] for r in rows)
+    own = next(r for r in rows if r["club"]["id"] == cal["clubs"]["k"].id)
+    assert own["group"]["id"] == cal["groups"]["a"].id
+    assert all(r["group"] is None for r in rows if r is not own)
