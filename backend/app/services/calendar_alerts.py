@@ -569,11 +569,23 @@ def push_payload(db: Session, d: CalendarAlertDelivery) -> dict:
     return {"title": title, "body": body, "url": _occurrence_url(d.occurrence_id)}
 
 
-def _push(db: Session, delivery_id: int, owner: str, sender) -> str:
+def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime) -> str:
     d = db.get(CalendarAlertDelivery, delivery_id, populate_existing=True)
     if d is None or d.lease_owner != owner or d.push_state != "pending":
         db.rollback()
         return "lost"
+    # Recheck immediately before every send, including crash-window retries.
+    # The inbox commit may predate revoked access, an edited session or a
+    # preference change. Keep the durable inbox row, but suppress its push.
+    reason = "feature_disabled" if not get_settings().calendar_enabled else suppression_reason(db, d, now)
+    if reason is not None:
+        db.query(CalendarAlertDelivery).filter(
+            CalendarAlertDelivery.id == delivery_id, CalendarAlertDelivery.lease_owner == owner,
+            CalendarAlertDelivery.push_state == "pending").update(
+                {"push_state": "skipped", "suppressed_reason": reason,
+                 "lease_owner": None, "lease_until": None}, synchronize_session=False)
+        db.commit()
+        return "skipped"
     payload = push_payload(db, d)
     notification = db.get(Notification, d.notification_id) if d.notification_id else None
     db.rollback()  # never hold the row lock while talking to push services
@@ -642,7 +654,7 @@ def dispatch(factory: Callable[[], Session], owner: str, now: datetime, batch: i
                 _record_failure(db, CalendarAlertDelivery, row_id, owner, now, exc)
                 stats["delivery_failed"] += 1
                 continue
-            if _push(db, row_id, owner, sender) == "sent":
+            if _push(db, row_id, owner, sender, now) == "sent":
                 stats["pushed"] += 1
     return stats
 
@@ -667,7 +679,7 @@ def retry_push(factory: Callable[[], Session], owner: str, now: datetime, batch:
                 CalendarAlertDelivery.id == row_id, CalendarAlertDelivery.push_state == "pending", free).update(
                 {"lease_owner": owner, "lease_until": now + ROW_LEASE}, synchronize_session=False)
             db.commit()
-            if claimed and _push(db, row_id, owner, sender) in ("sent", "skipped"):
+            if claimed and _push(db, row_id, owner, sender, now) in ("sent", "skipped"):
                 stats["push_retried"] += 1
     return stats
 

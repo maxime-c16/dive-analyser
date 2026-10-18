@@ -537,3 +537,49 @@ def test_real_kcpm_import_creates_no_alerts_and_stays_exact(cal, tmp_path):
     db.expire_all()
     assert sorted((o.occurrence_key, o.starts_at, o.status) for o in training_rows(db)) == snapshot
     assert ci.preview(db, ci.load_bundle(path), opts, tmp_path / "a", None)["summary"]["training"]["create"] == 0
+
+
+@pytest.mark.parametrize("change,reason", [
+    ("membership", "no_access"), ("preference", "pref_off"),
+    ("move", "changed"), ("cancel", "cancelled"),
+    ("absence", "absent"), ("feature", "feature_disabled"), ("expired", "stale"), ("none", None),
+])
+def test_crash_window_push_retry_rechecks_current_eligibility(cal, flags, change, reason):
+    place_on(cal, "ga", TODAY + timedelta(days=3))
+    interest(cal, "alice", "ga")
+    now = due_of(cal, "ga") + timedelta(minutes=1)
+    run(cal, now=now)
+    db = cal["db"]
+    delivery = deliveries(cal, user_id=uid(cal, "alice"), kind="reminder")[0]
+    delivery_id, notification_id = delivery.id, delivery.notification_id
+    # Simulate a crash after the inbox commit, before the push attempt.
+    delivery.push_state, delivery.lease_owner, delivery.lease_until = "pending", None, None
+    if change == "membership":
+        member = access.active_membership(db, cal["users"]["alice"], cal["clubs"]["k"].id)
+        member.status, member.ended_at = "left", datetime.utcnow()
+    elif change == "move":
+        db.get(EventOccurrence, delivery.occurrence_id).version += 1
+    elif change == "cancel":
+        occurrence = db.get(EventOccurrence, delivery.occurrence_id)
+        occurrence.status, occurrence.cancelled_at = "cancelled", datetime.utcnow()
+    elif change == "expired":
+        delivery.expires_at = now
+    db.commit()
+    if change == "preference":
+        assert cal["login"]("alice").put("/api/v1/notification-prefs", json={
+            "type": "calendar_reminder", "enabled": False}).status_code == 200
+    elif change == "absence":
+        assert cal["login"]("alice").put(f"{API}/occurrences/{delivery.occurrence_id}/absence",
+                                               json={"absent": True}).status_code == 200
+    elif change == "feature":
+        flags.calendar_enabled = False
+    db.rollback()
+    pushes = Pushes()
+    alerts.retry_push(factory(cal), "retry-worker", now + timedelta(minutes=1), 100, pushes)
+    db.expire_all()
+    saved = db.get(CalendarAlertDelivery, delivery_id)
+    assert saved.status == "delivered" and saved.notification_id == notification_id
+    assert db.get(Notification, notification_id) is not None
+    assert saved.suppressed_reason == reason
+    assert saved.push_state == ("sent" if reason is None else "skipped")
+    assert len(pushes) == (1 if reason is None else 0)

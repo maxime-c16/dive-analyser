@@ -162,3 +162,7 @@ Done and verified after the final PostgreSQL run:
 - Deleted this worktree's ignored copy `reports/calendar/kcpm-2026-2027/`. The private originals in the `calendar-recurrence` worktree are untouched.
 - Kept `/tmp/calendar-task05-live-shots/`: 5 screenshots, no credentials.
 - Live checkouts and the live database were never accessed.
+
+## Parent correction — push retry eligibility
+
+After01d2a5d, parent review fixed `_push` to recheck current eligibility immediately before every push, including crash-window retries. Access loss, preferences, moved/cancelled sessions, absence, expiry and feature-off now skip the push, release its lease and record the reason; the delivered inbox row remains for authorized/redacted reads. The worker's injected clock is used consistently. Added eight regression scenarios including an unchanged valid retry that still sends. Supplemental SQLite Task05+legacy notification tests:38 passed,2 skipped(PG/private-bundle); git diff --check passed. No schema/frontend changes or deployment; original PostgreSQL evidence above predates this correction. External push still has the unavoidable best-effort check/send race and is not exactly-once.
