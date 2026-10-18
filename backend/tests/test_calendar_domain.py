@@ -548,7 +548,7 @@ def test_feature_off_keeps_existing_signup_and_hides_calendar(cal, flags):
     assert client.get("/api/v1/calendar/me").status_code == 404
     assert cal["login"]("coach").get(f"/api/v1/calendar/events/{cal['events']['ga'].id}").status_code == 404
     client.cookies.clear()
-    assert client.get("/api/v1/calendar/me").status_code == 401  # session boundary first, no leak
+    assert client.get("/api/v1/calendar/me").status_code == 404  # disabled feature hidden before auth
 
 
 def test_old_app_works_before_calendar_migration(flags):
@@ -763,3 +763,15 @@ def test_me_memberships_bounded_with_batched_current_groups(cal, monkeypatch):
     own = next(r for r in rows if r["club"]["id"] == cal["clubs"]["k"].id)
     assert own["group"]["id"] == cal["groups"]["a"].id
     assert all(r["group"] is None for r in rows if r is not own)
+
+
+def test_disabled_calendar_hides_routes_before_authentication(cal, flags):
+    client = cal["client"]
+    client.cookies.clear()
+    flags.calendar_enabled = False
+    for path in ("me", "calendars", "clubs/1/members", "occurrences/1/export.ics", "admin/alerts/health"):
+        assert client.get(f"/api/v1/calendar/{path}").status_code == 404
+    assert client.post("/api/v1/calendar/events", json={}).status_code == 404
+    assert client.get("/api/v1/auth/me").status_code == 401
+    flags.calendar_enabled = True
+    assert client.get("/api/v1/calendar/me").status_code == 401
