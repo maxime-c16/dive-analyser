@@ -348,13 +348,13 @@ def build_plan(db: Session, bundle: Bundle, opts: Options) -> dict:
         m = meet_maps.get(key)
         entry = {"key": key, "title": meet["title"].strip()[:200], "disposition": disposition,
                  "start_date": meet.get("start_date"), "end_date": meet.get("end_date_exclusive"),
-                 "venue": (str(meet.get("location_raw") or "").strip() or None), "provenance": prov}
+                 "venue": (str(meet.get("location_raw") or "").strip()[:200] or None), "provenance": prov}
         if m is None:
             entry["action"] = "create"
         elif disposition == "draft" and m.event_id:
             ev = db.get(CalendarEvent, m.event_id)
             occ = db.query(EventOccurrence).filter_by(event_id=m.event_id).first()
-            same = ev is not None and occ is not None and ev.title == entry["title"] and \
+            same = ev is not None and occ is not None and ev.title == entry["title"] and ev.venue_name == entry["venue"] and \
                 _iso(occ.start_date) == entry["start_date"] and _iso(occ.end_date) == entry["end_date"]
             if same:
                 entry["action"] = "unchanged"

@@ -707,3 +707,26 @@ def test_shared_owner_diver_does_not_expose_another_users_link(cal):
     assert db.query(OccurrenceDiveLink).filter_by(occurrence_id=occurrence_id, dive_id=dive_id).count() == 2
     assert coach.delete(f"{url}/{dive_id}").json()["items"][0]["linked"] is False
     assert cal["login"]("alice").get(url).json()["items"][0]["linked"] is True
+
+
+def test_competition_venue_difference_updates_draft_and_respects_override(cal, tmp_path):
+    db, artifacts = cal["db"], tmp_path / "artifacts"
+    path = synthetic_bundle(tmp_path)
+    run_import(db, path, artifacts)
+    event = db.query(CalendarEvent).filter_by(title="Future meet").one()
+    event_id = event.id
+    event.venue_name = "Old imported venue"
+    db.commit()
+    preview, _ = run_import(db, path, artifacts)
+    item = next(c for c in preview["plan"]["competitions"] if c["title"] == "Future meet")
+    assert item["action"] == "update"
+    assert db.get(CalendarEvent, event_id).venue_name == "Lyon"
+    assert ci.build_plan(db, ci.load_bundle(path), OPTS)["competitions"][0]["action"] == "unchanged"
+    event = db.get(CalendarEvent, event_id)
+    event.venue_name = "Manual venue"
+    mapping = db.query(CalendarSourceMapping).filter_by(event_id=event_id, target_type="event").one()
+    mapping.locally_overridden = True
+    db.commit()
+    preview, _ = run_import(db, path, artifacts)
+    assert preview["plan"]["competitions"][0]["action"] == "conflict"
+    assert db.get(CalendarEvent, event_id).venue_name == "Manual venue"
