@@ -650,3 +650,26 @@ def test_workbook_mapping_reads_only_current_bundle_keys(cal, tmp_path):
     assert all("calendar_source_mappings.external_key IN" in query for query in queries)
     assert all(row["action"] == "unchanged" for row in plan["resources"])
     assert not any(row["action"] == "create" for row in plan["competitions"])
+
+
+def test_import_private_links_stay_club_only_after_community_publication(cal, tmp_path):
+    path = synthetic_bundle(tmp_path)
+    data = json.loads(path.read_text())
+    private_url = "https://docs.google.com/document/d/private-club-doc"
+    data["competition_candidates"][0]["links"].append({"cell": "F37", "url": private_url})
+    path.write_text(json.dumps(data))
+    db = cal["db"]
+    run_import(db, path, tmp_path / "artifacts")
+    event = db.query(CalendarEvent).filter_by(title="Future meet").one()
+    event.audience, event.status = "community", "published"
+    db.commit()
+    event_id = event.id
+    member = cal["login"]("alice").get(f"{API}/events/{event_id}")
+    outsider = cal["login"]("outsider").get(f"{API}/events/{event_id}")
+    assert member.status_code == outsider.status_code == 200
+    assert private_url in {r["url"] for r in member.json()["resources"]}
+    assert {r["url"] for r in outsider.json()["resources"]} == {"https://organizer.example/meet"}
+    club_doc = db.query(EventResource).filter_by(url="https://drive.google.com/file/x").one()
+    assert club_doc.restricted_to_club
+    public_doc = db.query(EventResource).filter_by(url="https://www.ffnatation.fr/x").one()
+    assert not public_doc.restricted_to_club

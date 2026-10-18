@@ -192,6 +192,11 @@ def find_source(db: Session, club_id: Optional[int], kind: str, label: str) -> O
                                            CalendarSource.club_id == club_id).order_by(CalendarSource.id).first()
 
 
+def is_private_link(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return is_whatsapp(url) or any(host == h or host.endswith("." + h) for h in PRIVATE_HOSTS)
+
+
 def link_inventory(bundle: Bundle) -> list:
     """Unique non-WhatsApp URLs embedded in the workbook (inventory only)."""
     urls = []
@@ -205,7 +210,7 @@ def link_inventory(bundle: Bundle) -> list:
         host = (urlparse(url).hostname or "").lower()
         kind = "federation_page" if any(host.endswith(h) for h in FEDERATION_HOSTS) else "organizer_page"
         out.append(dict(url=url[:1000], host=host, kind=kind,
-                        private=any(host.endswith(h) for h in PRIVATE_HOSTS)))
+                        private=is_private_link(url)))
     return out
 
 
@@ -679,7 +684,7 @@ def _apply(db: Session, plan: dict, bundle: Bundle, storage_dir: Path, actor: Op
             if is_whatsapp(link["url"]):
                 kind, label = "club_chat", "Groupe WhatsApp du club"
             db.add(EventResource(event_id=ev.id, kind=kind, label=label, url=link["url"][:1000],
-                                 restricted_to_club=kind == "club_chat",
+                                 restricted_to_club=is_private_link(link["url"]),
                                  edition_label="édition passée possible — vérifier" if kind == "results" else None))
         events.log_change(db, ev, "imported", actor, {"title": (None, ev.title)}, occ, import_run_id=wb_run.id)
         mapping(wb, "event", c["key"], event_id=ev.id, occurrence_id=occ.id, last_import_run_id=wb_run.id,
@@ -690,7 +695,7 @@ def _apply(db: Session, plan: dict, bundle: Bundle, storage_dir: Path, actor: Op
         if r["action"] != "create":
             continue
         res = EventResource(club_id=club.id, kind=r["kind"], label=r["label"], url=r["url"],
-                            restricted_to_club=r["kind"] == "club_chat", edition_label=r["edition"])
+                            restricted_to_club=is_private_link(r["url"]), edition_label=r["edition"])
         db.add(res)
         db.flush()
         mapping(wb, "resource", r["key"], resource_id=res.id, last_import_run_id=wb_run.id,
