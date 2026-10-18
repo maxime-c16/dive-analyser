@@ -225,3 +225,21 @@ test("small phone shows useful content before scrolling and reveals secondary fi
   await expect(page.getByRole("button", { name: "Create sample outing", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("Paris today marker updates at midnight and historical dates remain usable", async ({ page }) => {
+  // It is already 10 September in Paris while UTC is still on the 9th.
+  await page.clock.install({ time: new Date("2026-09-09T22:30:00Z") });
+  await page.goto(entry);
+  await route(page, "/calendar?date=2026-09-01&view=month");
+  await expect(page.locator('.calendar-month [aria-current="date"]')).toHaveText("10");
+  const pastDay = page.locator(".calendar-day-past > button").filter({ hasText: /^8$/ });
+  await expect(pastDay).toBeEnabled();
+  await expect(pastDay).toHaveAccessibleName(/Past/);
+  await pastDay.click();
+  await expect(page.locator(".calendar-event")).toHaveCount(6);
+  await expect(page.locator(".calendar-event-past").first()).toContainText("Past");
+  await expect(page.locator('.calendar-event-today time')).toHaveAttribute("datetime", "2026-09-10");
+  await page.clock.setSystemTime(new Date("2026-09-10T22:30:00Z"));
+  await page.clock.runFor(60_000);
+  await expect(page.locator('.calendar-event-today time')).toHaveAttribute("datetime", "2026-09-11");
+});

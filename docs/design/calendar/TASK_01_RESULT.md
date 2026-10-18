@@ -75,3 +75,7 @@ Replaced the three-column Date / Source / Search form with a compact toolbar: gr
 ## Small-screen density refinement
 
 Below 1024px the existing shell header provides the Calendar title, so the duplicate page hero is visually hidden (semantic heading retained). Month title opens the date picker and Today action; source/search filters collapse behind a named 44px action with an active-filter indicator. Agenda/Month and create (+ with accessible name) share one row. Prototype controls moved after the useful content on all widths. At 390px the first event starts at y=181px. Added a 320x568 regression asserting the first event fits above bottom navigation without scrolling and the month grid starts before y=240px; also exercises revealing filters and retaining their active indicator. Typecheck and all nine calendar cases passed across the main eight-case run and targeted small-phone/large-text runs. No production release.
+
+## Current and historical dates
+
+Month view highlights today with the accent circle and aria-current=date, distinguishes past dates without disabling them, and outlines the selected date independently. Agenda marks today/past events explicitly. Date context uses Europe/Paris and refreshes each minute/on window focus, including after local midnight. Past dates still open historical events. Typecheck and all 10 calendar browser tests pass, including a Paris-versus-UTC midnight case and advancing to the next local day. No production deploy.

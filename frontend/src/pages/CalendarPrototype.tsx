@@ -53,12 +53,19 @@ export default function CalendarPrototype() {
       ? query.get("role")
       : "beginners"
   ) as Role;
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, []);
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Paris",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(now);
   const date = validDate(query.get("date") || "") ? query.get("date")! : today;
   const month = date.slice(0, 7);
   const source = query.get("source") || "";
@@ -167,10 +174,10 @@ export default function CalendarPrototype() {
   const row = (e: Event) => (
     <Link
       key={e.id}
-      className={`calendar-event ${e.cancelled ? "calendar-cancelled" : ""}`}
+      className={`calendar-event ${e.cancelled ? "calendar-cancelled" : ""} ${e.date < today ? "calendar-event-past" : ""} ${e.date === today ? "calendar-event-today" : ""}`}
       to={`/calendar/${encodeURIComponent(e.id)}${location.search}`}
     >
-      <time dateTime={e.date}>
+      <time dateTime={e.date} aria-current={e.date === today ? "date" : undefined}>
         <strong>{e.date.slice(8)}</strong>
         <span>
           {new Intl.DateTimeFormat(lang, { weekday: "short" }).format(
@@ -190,6 +197,7 @@ export default function CalendarPrototype() {
           {e.time}
           {e.end ? `–${e.end}` : ""} · {e.venue}
         </p>
+        {e.date <= today && <span className="calendar-date-status">{e.date === today ? t.today : t.past}</span>}
         {e.cancelled && <p>{t.cancelled}</p>}
         {e.changed && <p>{t.changed}</p>}
       </div>
@@ -499,9 +507,10 @@ export default function CalendarPrototype() {
                     (_, i) => {
                       const day = `${month}-${String(i + 1).padStart(2, "0")}`;
                       return (
-                        <div key={day}>
+                        <div key={day} className={`${day < today ? "calendar-day-past" : ""} ${day === today ? "calendar-day-today" : ""} ${day === date ? "calendar-day-selected" : ""}`}>
                           <button
-                            aria-label={dateLabel(day)}
+                            aria-label={`${dateLabel(day)}${day === today ? ` · ${t.today}` : day < today ? ` · ${t.past}` : ""}`}
+                            aria-current={day === today ? "date" : undefined}
                             onClick={() => {
                               const q = new URLSearchParams(query);
                               q.set("date", day);
