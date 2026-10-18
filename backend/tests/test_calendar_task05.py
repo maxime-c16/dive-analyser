@@ -621,3 +621,18 @@ def test_scheduled_push_budget_preserves_inbox_and_drains_oldest(cal):
     run(cal, now=now + timedelta(minutes=1), pushes=pushes, push_limit=1)
     assert len(pushes) == 2
     assert all(d.push_state == "sent" for d in deliveries(cal))
+
+
+def test_reminders_page_past_500_candidates_and_preserve_idempotence(cal):
+    from tests.test_calendar_domain import _occ
+    db = cal["db"]
+    event = cal["events"]["fed"]
+    rows = [_occ(db, event, f"paging-{i}", 10, hour=8) for i in range(501)]
+    last = rows[-1]
+    last_id = last.id
+    db.add(OccurrenceInterest(occurrence_id=last_id, user_id=uid(cal, "alice"), state="interested"))
+    now = alerts.reminder_due(last, event) + timedelta(minutes=1)
+    db.commit()
+    assert alerts.plan_reminders(factory(cal), now, 100)["reminders_planned"] == 1
+    assert alerts.plan_reminders(factory(cal), now, 100)["reminders_planned"] == 0
+    assert deliveries(cal, kind="reminder")[0].occurrence_id == last_id

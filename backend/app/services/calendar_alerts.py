@@ -472,13 +472,31 @@ def plan_reminders(factory: Callable[[], Session], now: datetime, batch: int) ->
     more than REMINDER_GRACE in the past is never created (no replay)."""
     created = 0
     with factory() as db:
-        rows = db.query(EventOccurrence, CalendarEvent, Calendar).join(
+        candidates = db.query(EventOccurrence, CalendarEvent, Calendar).join(
             CalendarEvent, CalendarEvent.id == EventOccurrence.event_id).join(
             Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
             EventOccurrence.status == "scheduled", CalendarEvent.status == "published",
             EventOccurrence.window_start > now, EventOccurrence.window_start <= now + REMINDER_LOOKAHEAD).order_by(
-            EventOccurrence.window_start, EventOccurrence.id).limit(MAX_BATCH).all()
-        for occ, event, calendar in rows:
+            EventOccurrence.window_start, EventOccurrence.id)
+
+        def pages():
+            cursor = None
+            while True:
+                query = candidates
+                if cursor is not None:
+                    start, occurrence_id = cursor
+                    query = query.filter(or_(EventOccurrence.window_start > start,
+                        (EventOccurrence.window_start == start) & (EventOccurrence.id > occurrence_id)))
+                rows = query.limit(MAX_BATCH).all()
+                if not rows:
+                    return
+                for row in rows:
+                    yield row
+                cursor = (rows[-1][0].window_start, rows[-1][0].id)
+                if len(rows) < MAX_BATCH:
+                    return
+
+        for occ, event, calendar in pages():
             due = reminder_due(occ, event)
             if not (due <= now < due + REMINDER_GRACE):
                 continue

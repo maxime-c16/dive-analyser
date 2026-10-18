@@ -606,6 +606,8 @@ def test_apply_locks_only_current_bundle_sources(cal, tmp_path):
         event.remove(db.get_bind(), "before_cursor_execute", capture)
     assert len(queries) == 1
     assert "calendar_source_mappings.source_id IN" in queries[0]
+    assert "calendar_source_mappings.external_key IN" in queries[0]
+    assert "calendar_source_mappings.target_type =" in queries[0]
     assert "JOIN calendar_sources" not in queries[0]
 
 

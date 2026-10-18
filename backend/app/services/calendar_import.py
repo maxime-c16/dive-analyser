@@ -485,7 +485,14 @@ def apply(db: Session, bundle: Bundle, opts: Options, storage_dir: Path, actor: 
     if club is not None:
         current_source_ids = [src.id for spec in source_specs(bundle, opts)
                               if (src := find_source(db, club.id, spec["kind"], spec["label"])) is not None]
+        event_keys = {f"{opts.club_slug}:{season_of(bundle)}:{r['group_key']}"
+                      for r in bundle.data["training_occurrences"]}
+        taken = set()
+        event_keys.update(competition_key(meet, taken)
+                          for meet in bundle.data.get("competition_candidates") or [])
         event_ids = db.query(CalendarSourceMapping.event_id).filter(
+            CalendarSourceMapping.target_type == "event",
+            CalendarSourceMapping.external_key.in_(event_keys),
             CalendarSourceMapping.source_id.in_(current_source_ids),
             CalendarSourceMapping.event_id.isnot(None))
         locked = db.query(CalendarEvent).filter(CalendarEvent.id.in_(event_ids.scalar_subquery())).order_by(
