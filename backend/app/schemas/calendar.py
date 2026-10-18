@@ -176,6 +176,10 @@ class OccurrenceOut(BaseModel):
     local_start: Optional[str] = None
     local_end: Optional[str] = None
     imported: bool = False
+    # Task04: inclusive last local day (multi-day camps), weekly-series slot.
+    local_end_date: Optional[date] = None
+    series_date: Optional[date] = None
+    detached: bool = False
 
 
 class OccurrencePage(BaseModel):
@@ -197,6 +201,9 @@ class EventDetail(EventSummary):
     following: bool = False
     can_edit: bool = False
     changes: List["ChangeOut"] = []
+    recurrence: Optional["RecurrenceOut"] = None
+    itinerary: List["ItineraryItem"] = []
+    imported: bool = False
 
 
 class OccurrenceDetail(OccurrenceOut):
@@ -238,6 +245,42 @@ def _plain_url(value: Optional[str]) -> Optional[str]:
     return value
 
 
+HHMM = Field(None, pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+
+
+class RecurrenceSpec(BaseModel):
+    """Weekly repetition from the first session's date and times."""
+    weekdays: List[int] = Field(..., min_length=1, max_length=7)  # ISO: 1 = Monday
+    until_date: date  # explicit season end, inclusive
+    excluded_dates: List[date] = Field(default_factory=list, max_length=120)
+
+    @field_validator("weekdays")
+    @classmethod
+    def _days(cls, v: List[int]) -> List[int]:
+        if any(d < 1 or d > 7 for d in v):
+            raise ValueError("Weekdays are 1 (Monday) to 7 (Sunday)")
+        return sorted(set(v))
+
+
+class RecurrenceOut(BaseModel):
+    weekdays: List[int]
+    start_time: str
+    end_time: str
+    first_date: date
+    until_date: date
+    pattern_from: date
+    excluded_dates: List[date]
+
+
+class ItineraryItem(BaseModel):
+    """Camp itinerary block: informational, never separately bookable."""
+    local_date: date
+    start_time: Optional[str] = HHMM
+    end_time: Optional[str] = HHMM
+    venue_name: Optional[str] = Field(None, max_length=200)
+    label: Optional[str] = Field(None, max_length=200)
+
+
 class EventCreate(BaseModel):
     calendar_id: Optional[int] = Field(None, gt=0)  # None = own personal calendar
     event_type: EventType = "outing"
@@ -250,8 +293,11 @@ class EventCreate(BaseModel):
     map_url: Optional[str] = Field(None, max_length=500)
     timezone: str = Field("Europe/Paris", max_length=64)
     when: OccurrenceTimes
+    recurrence: Optional[RecurrenceSpec] = None
+    itinerary: Optional[List[ItineraryItem]] = Field(None, max_length=20)
+    registration_url: Optional[str] = Field(None, max_length=1000)
 
-    @field_validator("map_url")
+    @field_validator("map_url", "registration_url")
     @classmethod
     def _url(cls, v: Optional[str]) -> Optional[str]:
         return _plain_url(v)
@@ -275,8 +321,10 @@ class EventUpdate(BaseModel):
     event_type: Optional[EventType] = None
     status: Optional[Literal["published"]] = None
     when: Optional[OccurrenceTimes] = None
+    itinerary: Optional[List[ItineraryItem]] = Field(None, max_length=20)
+    registration_url: Optional[str] = Field(None, max_length=1000)
 
-    @field_validator("map_url")
+    @field_validator("map_url", "registration_url")
     @classmethod
     def _url(cls, v: Optional[str]) -> Optional[str]:
         return _plain_url(v)
@@ -286,6 +334,36 @@ class OccurrenceUpdate(BaseModel):
     expected_version: int = Field(..., ge=1)
     when: Optional[OccurrenceTimes] = None
     venue_name: Optional[str] = OptionalText200
+
+
+class ScheduleEdit(BaseModel):
+    """Scoped change to a series (Task04). one: the chosen session only;
+    future: it and the following ones; all: every upcoming session."""
+    expected_version: int = Field(..., ge=1)  # event version
+    scope: Literal["one", "future", "all"]
+    occurrence_id: Optional[int] = Field(None, gt=0)
+    # scope=one
+    when: Optional[OccurrenceTimes] = None
+    cancel: bool = False
+    # scope=future/all (omitted fields keep the current pattern)
+    weekdays: Optional[List[int]] = Field(None, min_length=1, max_length=7)
+    start_time: Optional[str] = HHMM
+    end_time: Optional[str] = HHMM
+    until_date: Optional[date] = None
+    excluded_dates: Optional[List[date]] = Field(None, max_length=120)
+    # every scope
+    venue_name: Optional[str] = OptionalText200
+
+
+class ScheduleApply(ScheduleEdit):
+    plan_hash: str = Field(..., min_length=64, max_length=64)
+
+
+class SchedulePreviewOut(BaseModel):
+    plan: dict
+    plan_hash: str
+    summary: dict
+    event_version: Optional[int] = None
 
 
 class VersionedAction(BaseModel):

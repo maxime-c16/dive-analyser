@@ -31,6 +31,7 @@ from app.models.user_auth import AppUser
 from app.schemas import calendar as s
 from app.services import calendar_access as access
 from app.services import calendar_events as events
+from app.services import calendar_recurrence as recurrence
 from app.services import calendar_membership as membership
 
 MAX_WINDOW_DAYS = 100
@@ -43,8 +44,8 @@ def calendar_gate(db: Session = Depends(get_db)) -> None:
     if not get_settings().calendar_enabled:
         raise HTTPException(404, "Not found")
     if not _schema_ready:
-        # The last table of the newest calendar migration (Task03).
-        if not inspect(db.get_bind()).has_table("occurrence_dive_links"):
+        # A table of the newest calendar migration (Task04).
+        if not inspect(db.get_bind()).has_table("calendar_recurrence_exclusions"):
             raise HTTPException(503, "Calendar schema not installed")
         _schema_ready = True
 
@@ -113,10 +114,12 @@ def event_summary(e: CalendarEvent, c: Calendar) -> dict:
 
 
 def local_view(o: EventOccurrence, e: CalendarEvent) -> dict:
+    first, last = recurrence.local_range(e, o)
     if o.is_all_day:
-        return dict(local_date=o.start_date, local_start=None, local_end=None)
+        return dict(local_date=first, local_start=None, local_end=None, local_end_date=last)
     start, end = events.utc_to_local(o.starts_at, e.timezone), events.utc_to_local(o.ends_at, e.timezone)
-    return dict(local_date=start.date(), local_start=start.strftime("%H:%M"), local_end=end.strftime("%H:%M"))
+    return dict(local_date=start.date(), local_start=start.strftime("%H:%M"), local_end=end.strftime("%H:%M"),
+                local_end_date=last)
 
 
 def recent_changes(db: Session, event_id: int, occurrence_id: Optional[int] = None) -> list:
@@ -148,7 +151,8 @@ def occurrence_payloads(db: Session, user: AppUser, rows) -> list:
                  starts_at=iso(o.starts_at), ends_at=iso(o.ends_at), start_date=o.start_date, end_date=o.end_date,
                  venue_name=o.venue_name or e.venue_name, is_filmed_session=o.filmed_session_id is not None,
                  version=o.version, event=event_summary(e, c), my_interest=interest.get(o.id),
-                 my_absence_reported=o.id in absent, imported=o.id in imported, **local_view(o, e))
+                 my_absence_reported=o.id in absent, imported=o.id in imported, series_date=o.series_date,
+                 detached=bool(o.detached), **local_view(o, e))
             for o, e, c in rows]
 
 
@@ -250,7 +254,9 @@ def event_detail(event_id: int, user: AppUser = Depends(get_current_user), db: S
         resources=[resource_out(r) for r in access.visible_event_resources(db, user, [e.id])],
         occurrences=occurrence_payloads(db, user, occ),
         following=db.get(CalendarEventFollow, (e.id, user.id)) is not None,
-        can_edit=events.can_edit(db, user, c), changes=recent_changes(db, e.id))
+        can_edit=events.can_edit(db, user, c), changes=recent_changes(db, e.id),
+        recurrence=recurrence.recurrence_out(db, e), itinerary=recurrence.itinerary_out(db, e.id),
+        imported=recurrence.is_imported(db, e.id))
 
 
 @router.get("/clubs/{club_id}/members", response_model=s.RosterOut)
@@ -413,6 +419,26 @@ def cancel_occurrence(occurrence_id: int, payload: s.VersionedAction, user: AppU
     events.cancel_occurrence(db, user, occurrence_id, payload.expected_version)
     commit(db)
     return occurrence_detail(occurrence_id, user, db)
+
+
+# --- Task04: scoped schedule edits (preview -> apply) -------------------------------
+
+@router.post("/events/{event_id}/schedule/preview", response_model=s.SchedulePreviewOut)
+def preview_schedule(event_id: int, payload: s.ScheduleEdit, user: AppUser = Depends(writer),
+                     db: Session = Depends(get_db)):
+    """Read-only: the dates that would be created, moved or cancelled and the
+    responses on them. Writer-guarded (Origin) because it is an edit step."""
+    out = recurrence.preview(db, user, event_id, payload)
+    db.rollback()
+    return out
+
+
+@router.post("/events/{event_id}/schedule/apply", response_model=s.SchedulePreviewOut)
+def apply_schedule(event_id: int, payload: s.ScheduleApply, user: AppUser = Depends(writer),
+                   db: Session = Depends(get_db)):
+    out = recurrence.apply(db, user, event_id, payload, payload.plan_hash)
+    commit(db)
+    return {**out, "plan_hash": payload.plan_hash}
 
 
 # --- Task03: invitations (existing accounts only) -------------------------------------

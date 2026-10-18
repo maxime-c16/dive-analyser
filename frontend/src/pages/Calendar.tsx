@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
 import { calendarApi, type CalendarInfo, type MyClub, type Occurrence } from "../calendar/api";
-import { inMonth, matches, monthWindow, parisToday, sortOccurrences, sourceOf, validDate } from "../calendar/model";
+import { coversDay, lastDay, matches, monthWindow, overlapsMonth, parisToday, sortOccurrences, sourceOf, spanDays, validDate } from "../calendar/model";
 import { useCalendarStrings, type CalendarContext } from "../calendar/useStrings";
 import OccurrenceView from "../calendar/OccurrenceView";
 import EventForm, { OccurrenceForm } from "../calendar/EventForm";
+import ScheduleEditor from "../calendar/ScheduleEditor";
 import ClubAdmin from "../calendar/ClubAdmin";
 import "./calendar.css";
 
@@ -70,15 +71,18 @@ export default function Calendar() {
     d.setUTCMonth(d.getUTCMonth() + offset);
     update("date", d.toISOString().slice(0, 10));
   };
-  const inThisMonth = useMemo(() => sortOccurrences(items.filter((o) => inMonth(o, month))), [items, month]);
+  const inThisMonth = useMemo(() => sortOccurrences(items.filter((o) => overlapsMonth(o, month))), [items, month]);
   const matching = inThisMonth.filter((o) =>
-    (view === "month" || o.local_date >= date) && (!source || sourceOf(o) === source) && matches(o, q));
+    (view === "month" || lastDay(o) >= date) && (!source || sourceOf(o) === source) && matches(o, q));
   const filtered = !!source || !!q.trim();
   const ctx: CalendarContext = { me, calendars, refresh };
   const search = location.search;
 
   const dateLabel = (value: string) => new Intl.DateTimeFormat(lang, {
     weekday: "short", day: "numeric", month: "long", timeZone: "UTC",
+  }).format(new Date(value + "T12:00:00Z"));
+  const shortDate = (value: string) => new Intl.DateTimeFormat(lang, {
+    weekday: "short", day: "numeric", month: "short", timeZone: "UTC",
   }).format(new Date(value + "T12:00:00Z"));
   const row = (o: Occurrence) => {
     const cancelled = o.status === "cancelled" || o.event.status === "cancelled";
@@ -96,7 +100,9 @@ export default function Calendar() {
             {o.event.calendar_kind === "group" && o.event.calendar_name ? ` · ${o.event.calendar_name}` : ""}
           </span>
           <h2>{o.event.title}</h2>
-          <p>{o.is_all_day ? t.allDay : `${o.local_start}–${o.local_end}`}{o.venue_name ? ` · ${o.venue_name}` : ""}</p>
+          <p>{spanDays(o) > 1
+            ? `${t.dateRange(shortDate(o.local_date), shortDate(lastDay(o)))}${o.is_all_day ? "" : ` · ${o.local_start}–${o.local_end}`}`
+            : o.is_all_day ? t.allDay : `${o.local_start}–${o.local_end}`}{o.venue_name ? ` · ${o.venue_name}` : ""}</p>
           {o.local_date <= today && <span className="calendar-date-status">{o.local_date === today ? t.today : t.past}</span>}
           {cancelled && <p className="calendar-badge">{t.cancelled}</p>}
           {o.event.status === "draft" && <p className="calendar-badge">{t.draft}</p>}
@@ -119,10 +125,12 @@ export default function Calendar() {
 
   let content: React.ReactNode;
   const occMatch = path.match(/^o\/(\d+)(\/edit)?$/);
+  const scheduleMatch = path.match(/^o\/(\d+)\/schedule$/);
   const editMatch = path.match(/^e\/(\d+)\/edit$/);
   const clubMatch = path.match(/^club\/(\d+)$/);
   if (path === "new") content = <EventForm ctx={ctx} defaultDate={date} />;
   else if (editMatch) content = <EventForm ctx={ctx} eventId={Number(editMatch[1])} defaultDate={date} />;
+  else if (scheduleMatch) content = <ScheduleEditor ctx={ctx} occurrenceId={Number(scheduleMatch[1])} />;
   else if (occMatch && occMatch[2]) content = <OccurrenceForm ctx={ctx} occurrenceId={Number(occMatch[1])} />;
   else if (occMatch) {
     content = (
@@ -244,11 +252,12 @@ export default function Calendar() {
                           next.set("view", "agenda");
                           setQuery(next);
                         }}>{i + 1}</button>
-                      {matching.filter((o) => o.local_date === day).map((o) => (
+                      {matching.filter((o) => coversDay(o, day)).map((o) => (
                         <Link key={o.id} to={`/calendar/o/${o.id}${search}`}
-                          aria-label={`${dateLabel(day)} ${o.event.title} ${o.local_start ?? t.allDay}`}>
+                          className={spanDays(o) > 1 ? "calendar-month-span" : undefined}
+                          aria-label={`${dateLabel(day)} ${o.event.title} ${spanDays(o) > 1 ? t.dateRange(dateLabel(o.local_date), dateLabel(lastDay(o))) : o.local_start ?? t.allDay}`}>
                           <span className={`calendar-dot calendar-dot-${sourceOf(o)}`} />
-                          <span className="calendar-month-title">{o.local_start ?? ""} {o.event.title}</span>
+                          <span className="calendar-month-title">{o.local_date === day ? (o.local_start ?? "") : "↳"} {o.event.title}</span>
                         </Link>
                       ))}
                     </div>

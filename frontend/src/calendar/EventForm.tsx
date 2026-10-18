@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   CalendarError, calendarApi, newIdempotencyKey, type Audience, type EventInput, type EventType,
-  type OccurrenceDetail, type When,
+  type ItineraryItem, type OccurrenceDetail, type When,
 } from "./api";
-import { addDays, validDate } from "./model";
+import { addDays, isoWeekday, validDate, weeklyDates } from "./model";
+import { ExcludedDates } from "./ScheduleEditor";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
 
 type Form = {
@@ -12,6 +13,8 @@ type Form = {
   event_type: EventType; audience: Audience; publish: boolean; title: string; description: string
   venue_name: string; venue_address: string; map_url: string; all_day: boolean
   date: string; last_date: string; start: string; end: string
+  repeat: boolean; weekdays: number[]; until: string; excluded: string[]
+  itinerary: ItineraryItem[]; registration: string
 };
 const TIME = /^\d{2}:\d{2}$/;
 
@@ -23,6 +26,8 @@ function when(form: Pick<Form, "all_day" | "date" | "last_date" | "start" | "end
 
 function valid(form: Form): boolean {
   if (!form.title.trim() || !validDate(form.date)) return false;
+  if (form.itinerary.some((b) => !validDate(b.local_date) || (b.start_time && b.end_time && b.end_time <= b.start_time))) return false;
+  if (form.repeat && !form.all_day && (!form.weekdays.length || !validDate(form.until) || form.until < form.date)) return false;
   if (form.all_day) return !form.last_date || (validDate(form.last_date) && form.last_date >= form.date);
   return TIME.test(form.start) && TIME.test(form.end) && form.end > form.start;
 }
@@ -47,13 +52,13 @@ function useLeaveGuard(dirty: boolean) {
 }
 
 export default function EventForm({ ctx, eventId, defaultDate }: { ctx: CalendarContext; eventId?: number; defaultDate: string }) {
-  const { t } = useCalendarStrings();
+  const { t, lang } = useCalendarStrings();
   const navigate = useNavigate();
   const location = useLocation();
   const blank: Form = {
     calendar: "personal", event_type: "outing", audience: "invited", publish: true, title: "", description: "",
     venue_name: "", venue_address: "", map_url: "", all_day: false, date: defaultDate, last_date: "",
-    start: "10:00", end: "12:00",
+    start: "10:00", end: "12:00", repeat: false, weekdays: [], until: "", excluded: [], itinerary: [], registration: "",
   };
   const [form, setForm] = useState<Form>(blank);
   const [initial, setInitial] = useState<Form>(blank);
@@ -87,9 +92,12 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
         venue_name: e.venue_name ?? "", venue_address: e.venue_address ?? "", map_url: e.map_url ?? "",
         all_day: !!o?.is_all_day, date: o?.local_date ?? defaultDate,
         last_date: o?.is_all_day && o.end_date ? addDays(o.end_date, -1) : "",
-        start: o?.local_start ?? "10:00", end: o?.local_end ?? "12:00",
+        start: o?.local_start ?? "10:00", end: o?.local_end ?? "12:00", repeat: !!e.recurrence,
+        weekdays: e.recurrence?.weekdays ?? [], until: e.recurrence?.until_date ?? "",
+        excluded: e.recurrence?.excluded_dates ?? [], itinerary: e.itinerary ?? [],
+        registration: e.resources.find((r) => r.kind === "registration")?.url ?? "",
       };
-      setSingle(e.occurrences.length === 1);
+      setSingle(e.occurrences.length === 1 && !e.recurrence);
       setVersion(e.version);
       setInitial(loaded);
       if (revision === 0) setForm(loaded); // a reload after a conflict keeps the user's input
@@ -112,6 +120,7 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid(form)) { setError(t.error); return; }
+    const repeating = form.repeat && !form.all_day && form.event_type !== "camp";
     setBusy(true);
     setError(null);
     const body: EventInput = {
@@ -121,15 +130,19 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
       title: form.title.trim(), description: form.description, venue_name: form.venue_name.trim() || null,
       venue_address: form.venue_address.trim() || null, map_url: form.map_url.trim() || null,
       timezone: "Europe/Paris", when: when(form),
+      itinerary: form.itinerary.map((b) => ({ ...b, start_time: b.start_time || null, end_time: b.end_time || null,
+        venue_name: b.venue_name?.trim() || null, label: b.label?.trim() || null })),
+      registration_url: form.registration.trim() || null,
+      ...(repeating && !eventId ? { recurrence: { weekdays: form.weekdays, until_date: form.until, excluded_dates: form.excluded } } : {}),
     };
     try {
       let saved;
       if (eventId && version !== null) {
-        const { calendar_id: _c, status, ...rest } = body;
-        void _c;
+        const { calendar_id: _c, status, recurrence: _r, ...rest } = body;
+        void _c; void _r;
         saved = await calendarApi.updateEvent(eventId, {
           ...rest, expected_version: version, ...(status === "published" && !initial.publish ? { status } : {}),
-          ...(single ? {} : { when: undefined }),
+          ...(single ? {} : { when: undefined, itinerary: undefined }),
         });
       } else {
         saved = await calendarApi.createEvent(body, key.current);
@@ -147,6 +160,13 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
     <label>{label}<input type={type} value={form[k] as string} onChange={(e) => set(k, e.target.value as never)} {...extra} /></label>
   );
   const clubCalendar = form.calendar !== "personal";
+  const canRepeat = !eventId && !form.all_day && form.event_type !== "camp";
+  const sessionCount = form.repeat ? weeklyDates(form.date, form.until, form.weekdays, form.excluded).length : 0;
+  const dayLabel = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(`${d}T12:00:00Z`));
+  const setBlock = (i: number, patch: Partial<ItineraryItem>) =>
+    set("itinerary", form.itinerary.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  const showItinerary = single && (form.event_type === "camp" || form.itinerary.length > 0);
 
   return (
     <form noValidate onSubmit={submit} className="calendar-form" aria-busy={busy}>
@@ -173,7 +193,7 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
       {field("title", t.titleField, "text", { required: true, maxLength: 200 })}
       {single && (
         <>
-          <label className="calendar-check"><input type="checkbox" checked={form.all_day} onChange={(e) => set("all_day", e.target.checked)} />{t.allDay}</label>
+          <label className="calendar-check"><input type="checkbox" {...keepFocusOnPress} checked={form.all_day} onChange={(e) => set("all_day", e.target.checked)} />{t.allDay}</label>
           {field("date", t.startDate, "date", { required: true })}
           {form.all_day ? field("last_date", t.endDate, "date") : (
             <div className="calendar-form-row">
@@ -181,11 +201,60 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
               {field("end", t.end, "time", { required: true })}
             </div>
           )}
+          {canRepeat && (
+            <label className="calendar-check"><input type="checkbox" {...keepFocusOnPress} checked={form.repeat} onChange={(e) => { const repeat = e.target.checked; setForm((f) => ({
+              ...f, repeat,
+              weekdays: f.weekdays.length || !validDate(f.date) ? f.weekdays : [isoWeekday(f.date)] })); }} />{t.repeatWeekly}</label>
+          )}
+          {canRepeat && form.repeat && (
+            <>
+              <fieldset className="calendar-weekdays-pick">
+                <legend>{t.weekdays}</legend>
+                {t.weekdayShort.map((label, i) => (
+                  <button type="button" {...keepFocusOnPress} key={label} aria-pressed={form.weekdays.includes(i + 1)}
+                    onClick={() => set("weekdays", form.weekdays.includes(i + 1) ? form.weekdays.filter((d) => d !== i + 1) : [...form.weekdays, i + 1].sort())}>{label}</button>
+                ))}
+              </fieldset>
+              {field("until", t.seasonEnd, "date", { required: true, min: form.date })}
+              <ExcludedDates t={t} dates={form.excluded} onChange={(d) => set("excluded", d)} label={dayLabel} />
+              <p role="status">{t.sessionCount(sessionCount)} {t.seriesLimit}</p>
+            </>
+          )}
         </>
+      )}
+      {!single && initial.repeat && <p className="calendar-notice">{t.scope_all_help}</p>}
+      {showItinerary && (
+        <fieldset className="calendar-itinerary-edit">
+          <legend>{t.itinerary}</legend>
+          <p>{t.itineraryNote}</p>
+          {form.itinerary.map((b, i) => (
+            <div key={i} className="calendar-itinerary-block">
+              <label>{t.blockDay}<input type="date" value={b.local_date} onChange={(e) => setBlock(i, { local_date: e.target.value })} /></label>
+              <div className="calendar-form-row">
+                <label>{t.start}<input type="time" value={b.start_time ?? ""} onChange={(e) => setBlock(i, { start_time: e.target.value })} /></label>
+                <label>{t.end}<input type="time" value={b.end_time ?? ""} onChange={(e) => setBlock(i, { end_time: e.target.value })} /></label>
+              </div>
+              <label>{t.venue}<input type="text" maxLength={200} value={b.venue_name ?? ""} onChange={(e) => setBlock(i, { venue_name: e.target.value })} /></label>
+              <label>{t.blockLabel}<input type="text" maxLength={200} value={b.label ?? ""} onChange={(e) => setBlock(i, { label: e.target.value })} /></label>
+              <button type="button" {...keepFocusOnPress} onClick={() => set("itinerary", form.itinerary.filter((_b, j) => j !== i))}>{t.removeBlock}</button>
+            </div>
+          ))}
+          {form.itinerary.length < 20 && (
+            <button type="button" {...keepFocusOnPress} onClick={() => set("itinerary", [...form.itinerary, {
+              local_date: form.itinerary[form.itinerary.length - 1]?.local_date ?? form.date, start_time: "", end_time: "",
+              venue_name: form.itinerary[form.itinerary.length - 1]?.venue_name ?? "", label: "" }])}>{t.addBlock}</button>
+          )}
+        </fieldset>
       )}
       {field("venue_name", t.venue, "text", { maxLength: 200 })}
       {field("venue_address", t.address, "text", { maxLength: 300 })}
       {field("map_url", t.mapLink, "url", { maxLength: 500 })}
+      {(form.event_type === "camp" || form.event_type === "competition" || form.registration) && (
+        <>
+          {field("registration", t.registrationLink, "url", { maxLength: 1000 })}
+          <p>{t.registrationNote}</p>
+        </>
+      )}
       <label>{t.description}<textarea value={form.description} maxLength={4000} rows={4} onChange={(e) => set("description", e.target.value)} /></label>
       {clubCalendar && !(eventId && initial.publish) && (
         <label className="calendar-check"><input type="checkbox" checked={form.publish} onChange={(e) => set("publish", e.target.checked)} />{t.publishNow}</label>

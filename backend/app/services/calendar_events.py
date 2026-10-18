@@ -27,7 +27,8 @@ from sqlalchemy.orm import Session
 
 from app.models.calendar import (
     Calendar, CalendarChangeLog, CalendarEvent, CalendarEventFollow, CalendarIdempotencyKey,
-    CalendarSourceMapping, CalendarSubscription, EventInvitation, EventOccurrence, OccurrenceAbsenceReport,
+    CalendarSourceMapping, CalendarSubscription, EventInvitation, EventOccurrence, EventResource,
+    OccurrenceAbsenceReport,
     OccurrenceDiveLink, OccurrenceInterest,
 )
 from app.models.dive import Dive
@@ -208,6 +209,11 @@ def create_event(db: Session, user: AppUser, payload, key: Optional[str]) -> tup
     db.add(occurrence)
     db.flush()
     log_change(db, event, "created", user, {"title": (None, event.title)}, occurrence)
+    from app.services import calendar_recurrence as recurrence  # Task04 (imports this module)
+    if payload.recurrence is not None:
+        recurrence.create_series(db, user, event, occurrence, payload.recurrence)
+    recurrence.set_itinerary(db, event, occurrence, payload.itinerary)
+    set_registration(db, event, payload.registration_url)
     if payload.status == "published":
         log_change(db, event, "published", user, {"status": ("draft", "published")})
     if key:
@@ -237,29 +243,44 @@ def update_event(db: Session, user: AppUser, event_id: int, payload) -> Calendar
                 changes[field] = (getattr(event, field), value)
     if "audience" in changes and payload.audience not in access.ALLOWED_AUDIENCES[calendar.kind]:
         fail(422, "invalid_audience", "This audience is not available for this calendar")
+    if changes.get("event_type", (None, None))[1] == "camp" and event.recurrence_rule:
+        fail(422, "recurrence_not_supported", "A weekly series cannot become a camp")
     occurrence, time_changes = None, {}
     if payload.when is not None:
         occurrences = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).with_for_update().all()
-        if len(occurrences) != 1:
+        if len(occurrences) != 1 or event.recurrence_rule:
             fail(422, "edit_occurrence", "This event has several dates; edit one occurrence at a time")
         occurrence = occurrences[0]
         new = occurrence_fields(payload.when, event.timezone)
         time_changes = {k: (getattr(occurrence, k), v) for k, v in new.items() if getattr(occurrence, k) != v}
+        for field, (_old, value) in time_changes.items():
+            setattr(occurrence, field, value)
     publish = payload.status == "published" and event.status == "draft"
-    if not changes and not time_changes and not publish:
+    from app.services import calendar_recurrence as recurrence
+    extra = {}
+    if "itinerary" in sent:
+        rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).all()
+        if occurrence is None and len(rows) == 1:
+            occurrence = rows[0]
+        if recurrence.set_itinerary(db, event, occurrence if len(rows) == 1 else None, payload.itinerary or []):
+            extra["itinerary"] = (None, len(payload.itinerary or []))
+    elif time_changes:
+        recurrence.check_itinerary_range(db, event, occurrence)
+    if "registration_url" in sent and set_registration(db, event, payload.registration_url):
+        extra["registration_url"] = (None, payload.registration_url)
+    if not changes and not time_changes and not publish and not extra:
         return event
     event.version += 1
     for field, (_old, value) in changes.items():
         setattr(event, field, value)
     if time_changes:
-        for field, (_old, value) in time_changes.items():
-            setattr(occurrence, field, value)
         occurrence.version += 1
         log_change(db, event, "time_changed", user, time_changes, occurrence)
     venue = {k: v for k, v in changes.items() if k in ("venue_name", "venue_address", "map_url")}
     if venue:
         log_change(db, event, "venue_changed", user, venue)
     other = {k: v for k, v in changes.items() if k not in venue}
+    other.update(extra)
     if other:
         log_change(db, event, "updated", user, other)
     if publish:
@@ -268,6 +289,24 @@ def update_event(db: Session, user: AppUser, event_id: int, payload) -> Calendar
     _mark_overridden(db, event.id)
     db.flush()
     return event
+
+
+def set_registration(db: Session, event: CalendarEvent, url: Optional[str]) -> bool:
+    """External registration link (e.g. the organizer's booking page), kept
+    as an event resource. It is separate from in-app interest."""
+    row = db.query(EventResource).filter_by(event_id=event.id, kind="registration").order_by(EventResource.id).first()
+    if not url:
+        if row is None:
+            return False
+        db.delete(row)
+        return True
+    if row is None:
+        db.add(EventResource(event_id=event.id, kind="registration", label="Registration (external site)", url=url))
+        return True
+    if row.url == url:
+        return False
+    row.url = url
+    return True
 
 
 def cancel_event(db: Session, user: AppUser, event_id: int, expected_version: int) -> CalendarEvent:
@@ -308,6 +347,8 @@ def update_occurrence(db: Session, user: AppUser, occurrence_id: int, payload) -
     if venue is not None:
         occurrence.venue_name = venue[1]
         log_change(db, event, "venue_changed", user, {"venue_name": venue}, occurrence)
+    # A weekly-series session edited on its own is kept by later pattern edits.
+    occurrence.detached = occurrence.series_date is not None
     _mark_overridden(db, event.id, occurrence.id)
     db.flush()
     return occurrence

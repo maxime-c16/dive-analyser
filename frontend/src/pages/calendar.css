@@ -350,3 +350,24 @@
   .calendar-page a.calendar-club-link > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   .calendar-page a.calendar-club-link { min-width: 44px; padding-inline: 8px; }
 }
+
+/* Task04: weekly series, scoped edits, camps */
+.calendar-page fieldset { border: 1px solid var(--app-border); border-radius: 8px; padding: 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.calendar-page legend { padding: 0 4px; font-weight: 600; }
+.calendar-scope-option { align-items: flex-start; }
+.calendar-scope-option span { display: grid; gap: 2px; }
+.calendar-scope-option small { color: var(--app-muted); }
+.calendar-weekdays-pick { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.calendar-weekdays-pick legend { grid-column: 1 / -1; }
+.calendar-weekdays-pick button { min-height: 44px; padding: 0; text-transform: capitalize; }
+.calendar-weekdays-pick button[aria-pressed="true"] { border-color: var(--app-accent); color: var(--app-accent); background: var(--app-panel-elevated); }
+.calendar-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.calendar-chips li { display: flex; align-items: center; gap: 4px; border: 1px solid var(--app-border); border-radius: 16px; padding: 2px 4px 2px 10px; }
+.calendar-chips button { min-width: 36px; min-height: 36px; border: 0; background: transparent; }
+.calendar-preview { border-left: 3px solid var(--app-accent); background: var(--app-panel); padding: 12px; }
+.calendar-preview h3 { font-size: 0.95rem; margin: 12px 0 4px; }
+.calendar-preview ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.calendar-preview small { color: var(--app-muted); display: block; }
+.calendar-itinerary { padding-left: 20px; display: grid; gap: 6px; }
+.calendar-itinerary-block { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--app-border); }
+.calendar-month a.calendar-month-span { background: var(--app-panel-elevated); border-radius: 4px; }

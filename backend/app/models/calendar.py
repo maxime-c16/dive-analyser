@@ -14,7 +14,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON, Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey,
-    ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, text,
+    ForeignKeyConstraint, Index, Integer, SmallInteger, String, Text, Time, UniqueConstraint, text,
 )
 
 from app.database import Base
@@ -229,6 +229,10 @@ class EventOccurrence(Base):
     cancelled_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Task04 (add_calendar_task04.sql): the weekly-pattern slot this row fills
+    # (kept when it moves), and "edited this session only" (pattern edits skip it).
+    series_date = Column(Date, nullable=True)
+    detached = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     __table_args__ = (
         UniqueConstraint("event_id", "occurrence_key", name="uq_occurrence_key"),
         CheckConstraint(_in("status", OCCURRENCE_STATUSES), name="ck_occurrence_status"),
@@ -240,6 +244,7 @@ class EventOccurrence(Base):
         CheckConstraint("window_end > window_start", name="ck_occurrence_window"),
         Index("ix_occurrences_window", "window_start", "id"),
         Index("ix_occurrences_event", "event_id", "window_start"),
+        Index("ix_occurrences_series", "event_id", "series_date"),
         MIGRATION_ONLY,
     )
 
@@ -436,3 +441,59 @@ class OccurrenceDiveLink(Base):
     user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (Index("ix_occurrence_dive_links_user", "user_id", "occurrence_id"), MIGRATION_ONLY)
+
+
+# --- Task04 (backend/migrations/add_calendar_task04.sql) -------------------
+
+class CalendarEventRecurrence(Base):
+    """Weekly pattern of an app-created series. Occurrences are materialized
+    when it is saved (bounded season); they stay the source of truth.
+    weekdays: ISO bitmask, bit 0 = Monday. Times are local wall times in the
+    event timezone. pattern_from: first date the current pattern applies to."""
+    __tablename__ = "calendar_event_recurrences"
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), primary_key=True)
+    weekdays = Column(SmallInteger, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+    first_date = Column(Date, nullable=False)
+    until_date = Column(Date, nullable=False)
+    pattern_from = Column(Date, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __table_args__ = (
+        CheckConstraint("weekdays BETWEEN 1 AND 127", name="ck_recurrence_weekdays"),
+        CheckConstraint("end_time > start_time", name="ck_recurrence_times"),
+        CheckConstraint("until_date >= first_date", name="ck_recurrence_dates"),
+        CheckConstraint("pattern_from >= first_date AND pattern_from <= until_date",
+                        name="ck_recurrence_pattern_from"),
+        MIGRATION_ONLY,
+    )
+
+
+class CalendarRecurrenceExclusion(Base):
+    """A date the weekly pattern skips (holiday, closure). Durable."""
+    __tablename__ = "calendar_recurrence_exclusions"
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), primary_key=True)
+    local_date = Column(Date, primary_key=True)
+    created_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = MIGRATION_ONLY
+
+
+class EventItineraryItem(Base):
+    """Camp itinerary block (day, local times, venue). Informational only:
+    never separately bookable; interest stays on the whole camp."""
+    __tablename__ = "event_itinerary_items"
+    id = Column(Integer, primary_key=True)
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
+    position = Column(SmallInteger, nullable=False)
+    local_date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=True)
+    end_time = Column(Time, nullable=True)
+    venue_name = Column(String(200), nullable=True)
+    label = Column(String(200), nullable=True)
+    __table_args__ = (
+        UniqueConstraint("event_id", "position", name="uq_itinerary_position"),
+        CheckConstraint("start_time IS NULL OR end_time IS NULL OR end_time > start_time", name="ck_itinerary_times"),
+        MIGRATION_ONLY,
+    )

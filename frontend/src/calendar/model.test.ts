@@ -1,5 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { inMonth, matches, monthWindow, sortOccurrences, sourceOf, validDate } from "./model";
+import {
+  coversDay, inMonth, lastDay, matches, monthWindow, overlapsMonth, sortOccurrences, sourceOf, spanDays, validDate, weeklyDates,
+} from "./model";
 import { CalendarError, calendarApi } from "./api";
 import { primaryTabFor } from "../navigation/mobileNavigation";
 import { strings } from "./strings";
@@ -9,7 +11,8 @@ type Over = Omit<Partial<Occurrence>, "event"> & { event?: Partial<Occurrence["e
 const occ = (over: Over = {}): Occurrence => ({
   id: 1, occurrence_key: "k", status: "scheduled", is_all_day: false, starts_at: null, ends_at: null,
   start_date: null, end_date: null, venue_name: "SNMT", version: 1, my_interest: null, my_absence_reported: false,
-  local_date: "2026-10-01", local_start: "20:00", local_end: "22:00", imported: true, ...over,
+  local_date: "2026-10-01", local_start: "20:00", local_end: "22:00", imported: true, local_end_date: "2026-10-01",
+  series_date: null, detached: false, ...over,
   event: { id: 1, calendar_id: 1, calendar_kind: "group", club_id: 1, event_type: "training", audience: "group",
     status: "published", title: "Entraînement", timezone: "Europe/Paris", version: 1, calendar_name: "A",
     training_group_id: 1, ...over.event },
@@ -71,4 +74,23 @@ it("pages through occurrence cursors", async () => {
   const items = await calendarApi.occurrences("2026-09-30T00:00:00Z", "2026-11-02T00:00:00Z");
   expect(items.map((o) => o.id)).toEqual([1, 2]);
   expect(String(fetchMock.mock.calls[1][0])).toContain("cursor=c1");
+});
+
+it("shows multi-day camps on every covered day and across month boundaries", () => {
+  // KCPM February camp: 19-21 Feb 2027 inclusive (server end_date 22 Feb exclusive).
+  const camp = occ({ is_all_day: true, local_date: "2027-02-19", local_end_date: "2027-02-21", local_start: null,
+    start_date: "2027-02-19", end_date: "2027-02-22" });
+  expect(lastDay(camp)).toBe("2027-02-21");
+  expect(spanDays(camp)).toBe(3);
+  expect(["2027-02-18", "2027-02-19", "2027-02-21", "2027-02-22"].map((d) => coversDay(camp, d))).toEqual([false, true, true, false]);
+  const crossing = occ({ local_date: "2027-01-30", local_end_date: "2027-02-02" });
+  expect(overlapsMonth(crossing, "2027-01") && overlapsMonth(crossing, "2027-02")).toBe(true);
+  expect(overlapsMonth(crossing, "2027-03")).toBe(false);
+  expect(spanDays(occ())).toBe(1);
+});
+
+it("estimates weekly sessions with exclusions", () => {
+  expect(weeklyDates("2026-11-03", "2026-11-24", [2, 4], ["2026-11-10"])).toEqual(
+    ["2026-11-03", "2026-11-05", "2026-11-12", "2026-11-17", "2026-11-19", "2026-11-24"]);
+  expect(weeklyDates("2026-11-03", "2026-11-01", [2], [])).toEqual([]);
 });

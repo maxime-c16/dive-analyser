@@ -35,7 +35,7 @@ from app.services.sessions import create_session
 
 PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
 MIGRATIONS = [Path(__file__).parents[1] / "migrations" / name
-              for name in ("add_calendar_domain.sql", "add_calendar_task03.sql")]
+              for name in ("add_calendar_domain.sql", "add_calendar_task03.sql", "add_calendar_task04.sql")]
 INVITE = "calendar-test-invite"
 PASSWORD = "correct horse battery staple"
 TODAY = datetime.utcnow().date()

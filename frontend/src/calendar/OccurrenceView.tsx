@@ -5,7 +5,7 @@ import {
   CalendarError, calendarApi, type EventDetail, type Interest, type Invitation, type LinkableDive,
   type OccurrenceDetail,
 } from "./api";
-import { sourceOf } from "./model";
+import { lastDay, sourceOf, spanDays } from "./model";
 import { searchMembers } from "../services/communityApi";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
 
@@ -54,8 +54,14 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
   const cancelled = occ.status === "cancelled" || event.status === "cancelled";
   const open = !cancelled && event.status === "published";
   const viewerZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dateText = new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
-    .format(new Date(`${occ.local_date}T12:00:00Z`));
+  const longDate = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${d}T12:00:00Z`));
+  const shortDate = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(`${d}T12:00:00Z`));
+  const multiDay = spanDays(occ) > 1;
+  const dateText = multiDay ? `${t.dateRange(longDate(occ.local_date), longDate(lastDay(occ)))} · ${t.days(spanDays(occ))}` : longDate(occ.local_date);
+  const rec = event.recurrence;
+  const series = !!rec || event.imported;
   const multi = event.occurrences.length > 1;
   const search = location.search;
 
@@ -66,8 +72,12 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       </span>
       <h1>{event.title}</h1>
       <p>
-        {dateText} · {occ.is_all_day ? t.allDay : `${occ.local_start}–${occ.local_end}`}
+        {dateText}{occ.is_all_day ? (multiDay ? "" : ` · ${t.allDay}`) : ` · ${occ.local_start}–${occ.local_end}`}
       </p>
+      {rec && (
+        <p>{t.repeatsSummary(rec.weekdays.map((d) => t.weekdayShort[d - 1]).join(", "), rec.start_time, rec.end_time, longDate(rec.until_date))}
+          {occ.detached && <span className="calendar-badge"> {t.individuallyEdited}</span>}</p>
+      )}
       {event.timezone !== viewerZone && <p>{t.timezone}: {event.timezone}</p>}
       {occ.venue_name && (
         <p className="calendar-venue"><MapPin size={18} aria-hidden="true" />{occ.venue_name}
@@ -79,6 +89,20 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       {cancelled && <p role="status" className="calendar-notice">{t.cancelledNotice}</p>}
       {!cancelled && occ.changes.some((c) => c.kind !== "cancelled") && <p role="status" className="calendar-notice">{t.changed}</p>}
       {event.description && <p className="calendar-description">{event.description}</p>}
+      {(event.itinerary ?? []).length > 0 && (
+        <div className="calendar-group">
+          <h2>{t.itinerary}</h2>
+          <ol className="calendar-itinerary">
+            {event.itinerary.map((b, i) => (
+              <li key={i}>
+                <strong>{shortDate(b.local_date)}{b.start_time ? ` · ${b.start_time}${b.end_time ? `–${b.end_time}` : ""}` : ""}</strong>
+                {b.venue_name && <span> · {b.venue_name}</span>}{b.label && <span> · {b.label}</span>}
+              </li>
+            ))}
+          </ol>
+          <p>{t.itineraryNote}</p>
+        </div>
+      )}
       {error && <p role="alert" className="calendar-error">{error} {error === t.stale && <button onClick={() => setRevision((r) => r + 1)}>{t.reload}</button>}</p>}
 
       {event.my_invitation && event.my_invitation !== "revoked" && (
@@ -157,6 +181,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
               </li>
             ))}
           </ul>
+          {event.resources.some((r) => r.kind === "registration") && <p>{t.registrationNote}</p>}
         </div>
       )}
 
@@ -167,9 +192,9 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
           {event.status === "draft" && (
             <button disabled={busy} onClick={() => act(() => calendarApi.updateEvent(event.id, { expected_version: event.version, status: "published" }))}>{t.publish}</button>
           )}
-          {!cancelled && (multi
-            ? <Link className="calendar-button" to={`/calendar/o/${occ.id}/edit${search}`}>{t.editSession}</Link>
-            : <Link className="calendar-button" to={`/calendar/e/${event.id}/edit${search}`}>{t.editEvent}</Link>)}
+          {!cancelled && series && <Link className="calendar-button" to={`/calendar/o/${occ.id}/schedule${search}`}>{t.editSchedule}</Link>}
+          {!cancelled && multi && !series && <Link className="calendar-button" to={`/calendar/o/${occ.id}/edit${search}`}>{t.editSession}</Link>}
+          {!cancelled && (!multi || rec) && <Link className="calendar-button" to={`/calendar/e/${event.id}/edit${search}`}>{t.editEvent}</Link>}
           {!cancelled && confirming === null && (
             <button disabled={busy} onClick={() => setConfirming(multi ? "session" : "event")}>{multi ? t.cancelSession : t.cancelEvent}</button>
           )}

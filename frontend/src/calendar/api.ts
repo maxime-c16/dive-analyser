@@ -18,7 +18,34 @@ export interface Occurrence {
   starts_at: string | null; ends_at: string | null; start_date: string | null; end_date: string | null
   venue_name: string | null; version: number; event: EventSummary; my_interest: Interest | null
   my_absence_reported: boolean; local_date: string; local_start: string | null; local_end: string | null
-  imported: boolean
+  imported: boolean; local_end_date: string; series_date: string | null; detached: boolean
+}
+export interface Recurrence {
+  weekdays: number[]; start_time: string; end_time: string; first_date: string; until_date: string
+  pattern_from: string; excluded_dates: string[]
+}
+export interface ItineraryItem {
+  local_date: string; start_time: string | null; end_time: string | null; venue_name: string | null; label: string | null
+}
+export type Scope = 'one' | 'future' | 'all'
+export interface ScheduleEdit {
+  expected_version: number; scope: Scope; occurrence_id?: number; when?: When; cancel?: boolean
+  weekdays?: number[]; start_time?: string; end_time?: string; until_date?: string; excluded_dates?: string[]
+  venue_name?: string | null
+}
+export interface Responses { interested: number; maybe: number; declined: number; absences: number; dive_links: number }
+interface Slot { date: string; start: string | null; end: string | null }
+export interface SchedulePlan {
+  scope: Scope; pivot: string | null; unchanged: number
+  moved: { occurrence_id: number; from: Slot; to: Slot; responses: Responses }[]
+  cancelled: (Slot & { occurrence_id: number; responses: Responses })[]
+  created: (Slot & { series_date: string })[]
+  kept: (Slot & { occurrence_id: number; reason: 'cancelled' | 'edited_individually' })[]
+}
+export interface SchedulePreview {
+  plan: SchedulePlan; plan_hash: string; event_version?: number | null
+  summary: { created: number; moved: number; cancelled: number; unchanged: number; kept: number
+    responses_kept: number; responses_on_cancelled: number; absences_affected: number }
 }
 export interface Resource {
   id: number; kind: string; label: string; url: string | null; deadline_kind: string | null; due_at: string | null
@@ -34,6 +61,7 @@ export interface EventDetail extends EventSummary {
   description: string; venue_name: string | null; venue_address: string | null; map_url: string | null
   organizer_user_id: number | null; organizer_name: string | null; my_invitation: string | null
   resources: Resource[]; occurrences: Occurrence[]; following: boolean; can_edit: boolean; changes: Change[]
+  recurrence: Recurrence | null; itinerary: ItineraryItem[]; imported: boolean
 }
 export interface CalendarInfo {
   id: number; kind: Kind; name: string; club_id: number | null; training_group_id: number | null
@@ -63,6 +91,8 @@ export interface EventInput {
   calendar_id: number | null; event_type: EventType; audience: Audience; status: 'draft' | 'published'
   title: string; description: string; venue_name: string | null; venue_address: string | null
   map_url: string | null; timezone: string; when: When
+  recurrence?: { weekdays: number[]; until_date: string; excluded_dates: string[] }
+  itinerary?: ItineraryItem[]; registration_url?: string | null
 }
 
 export class CalendarError extends Error {
@@ -116,6 +146,10 @@ export const calendarApi = {
     request<OccurrenceDetail>(`/occurrences/${id}`, json('PATCH', body)),
   cancelOccurrence: (id: number, expected_version: number) =>
     request<OccurrenceDetail>(`/occurrences/${id}/cancel`, json('POST', { expected_version })),
+  previewSchedule: (eventId: number, body: ScheduleEdit) =>
+    request<SchedulePreview>(`/events/${eventId}/schedule/preview`, json('POST', body)),
+  applySchedule: (eventId: number, body: ScheduleEdit & { plan_hash: string }) =>
+    request<SchedulePreview>(`/events/${eventId}/schedule/apply`, json('POST', body)),
   setInterest: (id: number, state: Interest | null) => request<OccurrenceDetail>(`/occurrences/${id}/interest`, json('PUT', { state })),
   setAbsence: (id: number, absent: boolean) => request<OccurrenceDetail>(`/occurrences/${id}/absence`, json('PUT', { absent })),
   followEvent: (id: number, on: boolean) => request<void>(`/events/${id}/follow`, { method: on ? 'PUT' : 'DELETE' }),
