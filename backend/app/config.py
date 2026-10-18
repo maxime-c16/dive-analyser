@@ -129,6 +129,11 @@ class Settings(BaseSettings):
     friend_registration_enabled: bool = os.getenv("FRIEND_REGISTRATION_ENABLED", "false").lower() == "true"
     friend_invite_codes: str = os.getenv("FRIEND_INVITE_CODES", "")
 
+    # Club calendar (Task02 foundation). Default OFF: /calendar routes 404,
+    # signup refuses a club_id and never touches calendar tables. Enable only
+    # after backend/migrations/add_calendar_domain.sql has been applied.
+    calendar_enabled: bool = os.getenv("CALENDAR_ENABLED", "false").lower() == "true"
+
     # Web Push (PR3 notifications-push): VAPID credentials for the push
     # fan-out that mirrors inbox rows to subscribed devices. Empty
     # defaults = push gracefully disabled (inbox + prefs keep working,

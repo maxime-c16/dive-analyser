@@ -67,3 +67,6 @@ v1_router.include_router(deposits.router, tags=['deposits'])
 
 from app.api.v1 import clip_downloads
 v1_router.include_router(clip_downloads.router, tags=['clip-downloads'])
+
+from app.api.v1 import calendar
+v1_router.include_router(calendar.router, tags=['calendar'])

@@ -143,6 +143,7 @@ def redeem_invite(
     email: str,
     password: str,
     display_name: Optional[str] = None,
+    before_commit=None,
 ) -> tuple[str, Optional[AppUser], Optional[DiverInvite]]:
     """Consume an invite and create the account it promises.
 
@@ -242,6 +243,9 @@ def redeem_invite(
             )
         )
         row.user_id = user.id
+        if before_commit is not None:
+            # Same transaction as the account (e.g. signup club membership).
+            before_commit(db, user)
         db.commit()
     except IntegrityError:
         # A redemption for a DIFFERENT diver can win the race for this email:
