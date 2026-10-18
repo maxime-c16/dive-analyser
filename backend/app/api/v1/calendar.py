@@ -175,9 +175,15 @@ def me(user: AppUser = Depends(get_current_user), db: Session = Depends(get_db))
 def calendars(user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = access.visible_calendars(db, user).order_by(Calendar.kind, Calendar.id).limit(MAX_LIMIT).all()
     following = {cid for (cid,) in db.query(CalendarSubscription.calendar_id).filter(
-        CalendarSubscription.user_id == user.id)}
+        CalendarSubscription.user_id == user.id, CalendarSubscription.calendar_id.in_([c.id for c in rows]))}
     # A personal calendar is created on the first outing (calendar_id=null).
-    writable = {c.id for c in rows if events.can_edit(db, user, c)}
+    club_ids = {c.club_id for c in rows if c.club_id is not None}
+    memberships = {m.club_id: m for m in db.query(ClubMembership).filter(
+        ClubMembership.user_id == user.id, ClubMembership.ended_at.is_(None),
+        ClubMembership.club_id.in_(club_ids)).limit(MAX_LIMIT)} if club_ids else {}
+    writable = {c.id for c in rows if user.is_active and c.archived_at is None and (
+        access.can_publish(memberships.get(c.club_id)) if c.kind in ("club", "group") else
+        c.owner_user_id == user.id if c.kind == "personal" else bool(user.is_admin))}
     items = [s.CalendarOut(id=c.id, kind=c.kind, name=c.name, club_id=c.club_id,
                            training_group_id=c.training_group_id, following=c.id in following,
                            can_publish=c.id in writable,
@@ -289,10 +295,14 @@ def club_members(club_id: int, user: AppUser = Depends(get_current_user), db: Se
         groups = {uid: (gid, since) for uid, gid, since in db.query(
             TrainingGroupMembership.user_id, TrainingGroupMembership.group_id,
             TrainingGroupMembership.effective_from).filter(
-            TrainingGroupMembership.club_id == club_id, TrainingGroupMembership.effective_from <= on,
-            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > on)).all()}
+            TrainingGroupMembership.club_id == club_id,
+            TrainingGroupMembership.user_id.in_([u.id for _m, u in rows]),
+            TrainingGroupMembership.effective_from <= on,
+            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > on))
+            .order_by(TrainingGroupMembership.id).limit(500).all()}
         club_groups = [group_out(g) for g in db.query(TrainingGroup).filter(
-            TrainingGroup.club_id == club_id, TrainingGroup.archived_at.is_(None)).order_by(TrainingGroup.name)]
+            TrainingGroup.club_id == club_id, TrainingGroup.archived_at.is_(None))
+            .order_by(TrainingGroup.name, TrainingGroup.id).limit(500)]
 
     def entry(m, u):
         base = dict(user_id=u.id, display_name=u.display_name, role=m.role)

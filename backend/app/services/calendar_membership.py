@@ -93,6 +93,9 @@ def create_group(db: Session, actor: AppUser, club_id: int, slug: str, name: str
     _club_actor(db, actor, club_id, allow_admin=True)
     if db.query(TrainingGroup).filter_by(club_id=club_id, slug=slug).one_or_none() is not None:
         fail(409, "group_exists", "A group with this slug already exists")
+    if db.query(TrainingGroup.id).filter(
+            TrainingGroup.club_id == club_id, TrainingGroup.archived_at.is_(None)).limit(500).count() >= 500:
+        fail(422, "too_many_groups", "A club can have at most 500 active training groups")
     group = TrainingGroup(club_id=club_id, slug=slug, name=name)
     db.add(group)
     db.flush()

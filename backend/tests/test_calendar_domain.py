@@ -712,3 +712,33 @@ def test_club_selection_and_resource_lists_are_bounded(cal):
     assert len(access.visible_event_resources(db, cal["users"]["alice"], [cal["events"]["ga"].id])) == access.MAX_RESOURCE_RESULTS
     assert access.club_resources(db, cal["users"]["outsider"], club.id) is None
     assert access.visible_event_resources(db, cal["users"]["bob"], [cal["events"]["ga"].id]) == []
+
+
+def test_calendar_list_batches_publishing_permissions(cal, monkeypatch):
+    for i in range(20):
+        membership.create_group(cal["db"], cal["users"]["manager"], cal["clubs"]["k"].id,
+                                f"batch-{i}", f"Batch {i}")
+    cal["db"].commit()
+    # A calendar listing must not fall back to per-calendar membership lookups.
+    def per_row_lookup(*args, **kwargs):
+        raise AssertionError("N+1 membership lookup")
+    monkeypatch.setattr(access, "active_membership", per_row_lookup)
+    response = cal["login"]("coach").get("/api/v1/calendar/calendars")
+    assert response.status_code == 200
+    own = [c for c in response.json()["items"] if c["club_id"] == cal["clubs"]["k"].id]
+    assert len(own) >= 20 and all(c["can_publish"] for c in own)
+
+
+def test_roster_group_list_bounded_and_group_creation_capped(cal):
+    db, club = cal["db"], cal["clubs"]["k"]
+    for i in range(505):
+        db.add(TrainingGroup(club_id=club.id, slug=f"limit-{i}", name=f"Limit {i:03}"))
+    db.commit()
+    response = cal["login"]("coach").get(f"/api/v1/calendar/clubs/{club.id}/members")
+    assert response.status_code == 200 and len(response.json()["groups"]) == 500
+    alice = next(m for m in response.json()["items"] if m["user_id"] == cal["users"]["alice"].id)
+    assert alice["group_id"] == cal["groups"]["a"].id
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        membership.create_group(db, cal["users"]["manager"], club.id, "one-too-many", "Too many")
+    assert exc.value.status_code == 422 and exc.value.detail["code"] == "too_many_groups"
