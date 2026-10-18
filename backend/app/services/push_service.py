@@ -159,6 +159,11 @@ def push_url(dive_id) -> str:
 
 
 def _payload_for(row: Notification) -> str:
+    # Task05 calendar alerts attach a prepared payload (generic preview for
+    # private events, authorized calendar deep link); other rows unchanged.
+    prepared = getattr(row, "_push_payload", None)
+    if isinstance(prepared, dict):
+        return json.dumps(prepared)
     return json.dumps(
         {
             "title": row.title or "Dive Analyser",

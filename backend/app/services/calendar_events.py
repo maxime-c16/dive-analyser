@@ -14,7 +14,8 @@ calendar_change_log row land in one transaction.
   by occurrence) are retained. Cancellation keeps the event and responses.
 - Editing an imported record marks its source mapping locally_overridden,
   so a later import proposes a conflict instead of overwriting it.
-- No notification is sent: change-log rows are the future outbox input.
+- No notification is sent inline: log_change/invite write the Task05 alert
+  outbox in the same transaction; the alerts worker delivers later.
 """
 import hashlib
 import json
@@ -141,10 +142,15 @@ def _mark_overridden(db: Session, event_id: int, occurrence_id: Optional[int] = 
 
 def log_change(db: Session, event: CalendarEvent, kind: str, actor: Optional[AppUser], changes: dict,
                occurrence: Optional[EventOccurrence] = None, import_run_id: Optional[int] = None) -> None:
+    """Audit row + (Task05) its alert outbox row, in the caller's transaction."""
+    from app.services import calendar_alerts
+
+    outbox = calendar_alerts.outbox_for(db, event, actor, from_import=import_run_id is not None)
     db.add(CalendarChangeLog(event_id=event.id, occurrence_id=occurrence.id if occurrence else None,
                              event_version=event.version, change_kind=kind,
                              actor_user_id=actor.id if actor else None, import_run_id=import_run_id,
-                             changes={k: [_jsonable(a), _jsonable(b)] for k, (a, b) in changes.items()}))
+                             changes={k: [_jsonable(a), _jsonable(b)] for k, (a, b) in changes.items()},
+                             outbox=outbox))
 
 
 def personal_calendar(db: Session, user: AppUser) -> Calendar:
@@ -395,15 +401,19 @@ def invite(db: Session, user: AppUser, event_id: int, user_ids: list[int]) -> li
     added = sum(1 for t in targets if t.id not in rows or rows[t.id].status == "revoked")
     if live + added > MAX_INVITES_PER_EVENT:
         fail(422, "too_many_invitations", f"An event can have at most {MAX_INVITES_PER_EVENT} invitations")
-    out = []
+    out, fresh = [], []
     for target in targets:
         row = rows.get(target.id)
         if row is None:
             row = EventInvitation(event_id=event.id, invitee_user_id=target.id, invited_by_user_id=user.id)
             db.add(row)
+            fresh.append(target.id)
         elif row.status == "revoked":  # re-invite after revocation
             row.status, row.revoked_at, row.responded_at, row.invited_by_user_id = "pending", None, None, user.id
+            fresh.append(target.id)
         out.append(row)
+    from app.services import calendar_alerts
+    calendar_alerts.note_invitations(db, event, user, fresh)
     db.flush()
     return out
 

@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 // (see docs/design/calendar/TASK_03_RESULT.md). Never point at production.
 export default defineConfig({
   testDir: "./e2e/calendar-live",
-  testIgnore: "task04.spec.ts",
+  testIgnore: ["task04.spec.ts", "task05.spec.ts"],
   workers: 1,
   retries: 0,
   timeout: 120_000,

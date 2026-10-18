@@ -141,5 +141,6 @@ from app.models.calendar import (
     Club, ClubMembership, TrainingGroup, TrainingGroupMembership, Calendar, CalendarSubscription,
     CalendarEvent, EventOccurrence, EventInvitation, OccurrenceInterest, OccurrenceAbsenceReport,
     CalendarSource, CalendarImportRun, EventResource, CalendarSourceMapping, CalendarChangeLog,
-    CalendarEventFollow, CalendarIdempotencyKey, OccurrenceDiveLink,
+    CalendarEventFollow, CalendarIdempotencyKey, OccurrenceDiveLink, CalendarAlertOutbox, CalendarAlertDelivery,
+    CalendarWorkerState,
 )

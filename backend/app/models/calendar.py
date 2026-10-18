@@ -17,6 +17,8 @@ from sqlalchemy import (
     ForeignKeyConstraint, Index, Integer, SmallInteger, String, Text, Time, UniqueConstraint, text,
 )
 
+from sqlalchemy.orm import relationship
+
 from app.database import Base
 
 MIGRATION_ONLY = {"info": {"sql_migration_only": True}}
@@ -390,8 +392,8 @@ class CalendarSourceMapping(Base):
 
 
 class CalendarChangeLog(Base):
-    """Versioned audit trail; the future notification outbox reads from here
-    (written in the same transaction as the change) — no worker yet."""
+    """Versioned audit trail. Task05: each row links to the alert outbox row
+    written in the same transaction (calendar_alerts.outbox_for)."""
     __tablename__ = "calendar_change_log"
     id = Column(Integer, primary_key=True)
     event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
@@ -402,8 +404,11 @@ class CalendarChangeLog(Base):
     import_run_id = Column(Integer, ForeignKey("calendar_import_runs.id", ondelete="SET NULL"), nullable=True)
     changes = Column(JSON, nullable=False, default=dict, server_default="{}")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    outbox_id = Column(Integer, ForeignKey("calendar_alert_outbox.id", ondelete="SET NULL"), nullable=True)
+    outbox = relationship("CalendarAlertOutbox")
     __table_args__ = (
         CheckConstraint(_in("change_kind", CHANGE_KINDS), name="ck_calendar_change_kind"),
+        Index("ix_calendar_change_log_outbox", "outbox_id"),
         Index("ix_calendar_change_log_event", "event_id", "id"),
         MIGRATION_ONLY,
     )
@@ -497,3 +502,90 @@ class EventItineraryItem(Base):
         CheckConstraint("start_time IS NULL OR end_time IS NULL OR end_time > start_time", name="ck_itinerary_times"),
         MIGRATION_ONLY,
     )
+
+
+# --- Task05 (backend/migrations/add_calendar_task05.sql) -------------------
+
+OUTBOX_STATUSES = ("pending", "done", "dead")
+DELIVERY_KINDS = ("invitation", "change", "cancellation", "reminder", "new_event")
+DELIVERY_STATUSES = ("pending", "delivered", "suppressed", "dead")
+PUSH_STATES = ("pending", "sent", "skipped", "expired")
+
+
+class CalendarAlertOutbox(Base):
+    """One row per event per writing transaction (same commit as the write)."""
+    __tablename__ = "calendar_alert_outbox"
+    id = Column(Integer, primary_key=True)
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
+    actor_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
+    from_import = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    invitee_ids = Column(JSON, nullable=False, default=list, server_default="[]")
+    status = Column(String(16), nullable=False, default="pending", server_default="pending")
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    lease_owner = Column(String(64), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    last_error = Column(String(200), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    processed_at = Column(DateTime, nullable=True)
+    __table_args__ = (
+        CheckConstraint(_in("status", OUTBOX_STATUSES), name="ck_calendar_alert_outbox_status"),
+        Index("ix_calendar_alert_outbox_due", "status", "next_attempt_at"),
+        MIGRATION_ONLY,
+    )
+
+
+class CalendarAlertDelivery(Base):
+    """One alert for one recipient; delivery_key and notification_id are unique."""
+    __tablename__ = "calendar_alert_deliveries"
+    id = Column(Integer, primary_key=True)
+    delivery_key = Column(String(160), nullable=False)
+    kind = Column(String(16), nullable=False)
+    notif_type = Column(String(64), nullable=False)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
+    occurrence_id = Column(Integer, ForeignKey("event_occurrences.id", ondelete="CASCADE"), nullable=True)
+    outbox_id = Column(Integer, ForeignKey("calendar_alert_outbox.id", ondelete="SET NULL"), nullable=True)
+    target_version = Column(Integer, nullable=True)
+    target_start = Column(DateTime, nullable=True)
+    details = Column(JSON, nullable=False, default=dict, server_default="{}")
+    due_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    status = Column(String(16), nullable=False, default="pending", server_default="pending")
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at = Column(DateTime, nullable=False)
+    lease_owner = Column(String(64), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    last_error = Column(String(200), nullable=True)
+    suppressed_reason = Column(String(32), nullable=True)
+    notification_id = Column(Integer, ForeignKey("notifications.id", ondelete="SET NULL"), nullable=True)
+    push_state = Column(String(16), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    delivered_at = Column(DateTime, nullable=True)
+    __table_args__ = (
+        UniqueConstraint("delivery_key", name="uq_calendar_alert_delivery_key"),
+        UniqueConstraint("notification_id", name="uq_calendar_alert_delivery_notification"),
+        CheckConstraint(_in("kind", DELIVERY_KINDS), name="ck_calendar_alert_delivery_kind"),
+        CheckConstraint(_in("status", DELIVERY_STATUSES), name="ck_calendar_alert_delivery_status"),
+        CheckConstraint("push_state IS NULL OR " + _in("push_state", PUSH_STATES),
+                        name="ck_calendar_alert_delivery_push"),
+        Index("ix_calendar_alert_deliveries_due", "status", "next_attempt_at"),
+        Index("ix_calendar_alert_deliveries_target", "event_id", "occurrence_id", "user_id"),
+        MIGRATION_ONLY,
+    )
+
+
+class CalendarWorkerState(Base):
+    """Leased singleton per worker name: overlapping-run exclusion + heartbeat."""
+    __tablename__ = "calendar_worker_state"
+    name = Column(String(64), primary_key=True)
+    lease_owner = Column(String(64), nullable=True)
+    lease_until = Column(DateTime, nullable=True)
+    last_started_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True)
+    last_error = Column(String(200), nullable=True)
+    last_error_at = Column(DateTime, nullable=True)
+    runs = Column(Integer, nullable=False, default=0, server_default="0")
+    failures = Column(Integer, nullable=False, default=0, server_default="0")
+    last_stats = Column(JSON, nullable=False, default=dict, server_default="{}")
+    __table_args__ = (MIGRATION_ONLY,)

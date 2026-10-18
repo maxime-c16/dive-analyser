@@ -44,8 +44,8 @@ def calendar_gate(db: Session = Depends(get_db)) -> None:
     if not get_settings().calendar_enabled:
         raise HTTPException(404, "Not found")
     if not _schema_ready:
-        # A table of the newest calendar migration (Task04).
-        if not inspect(db.get_bind()).has_table("calendar_recurrence_exclusions"):
+        # A table of the newest calendar migration (Task05).
+        if not inspect(db.get_bind()).has_table("calendar_alert_deliveries"):
             raise HTTPException(503, "Calendar schema not installed")
         _schema_ready = True
 
@@ -298,6 +298,20 @@ def club_resources(club_id: int, user: AppUser = Depends(get_current_user), db: 
     if rows is None:
         raise HTTPException(404, "Club not found")
     return [resource_out(r) for r in rows]
+
+
+# --- Task05: alert pipeline readiness (app administrators) -------------------------
+
+@router.get("/admin/alerts/health")
+def alerts_health(response: Response, admin: AppUser = Depends(require_admin), db: Session = Depends(get_db)):
+    """503 until the alerts worker has succeeded recently (missing/stale
+    worker); counts only, never event titles or recipients."""
+    from app.services import calendar_alerts
+
+    report = calendar_alerts.health(db)
+    if not report["ready"]:
+        response.status_code = 503
+    return report
 
 
 # --- Administration writes ---------------------------------------------------------

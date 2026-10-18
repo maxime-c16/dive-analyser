@@ -1,0 +1,11 @@
+{
+  "id": "calendar-pilot-reliable-alerts",
+  "date": "2026-10-18",
+  "title": "Calendar pilot: alerts prepared",
+  "body": "Calendar pilot preparation now includes invitations, change and cancellation alerts and an optional day-before reminder, with per-type settings and links that open only for people who can still see the event. The calendar and its alerts worker stay disabled until the pilot rollout; nothing is sent today.",
+  "audience": "admin",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

@@ -61,7 +61,15 @@ export const SERVER_NOTIF_TYPES = [
   'milestone',
   'sync_error',
   'guest_activity',
+  // Calendar alerts: exposed by the server (and shown here) only when the
+  // calendar feature is on; defaults mirror the backend CALENDAR_DEFAULTS.
+  'calendar_invitation',
+  'calendar_change',
+  'calendar_reminder',
+  'calendar_group_reminder',
+  'calendar_follow',
 ] as const
+
 
 export type ServerNotifType = (typeof SERVER_NOTIF_TYPES)[number]
 
@@ -74,6 +82,11 @@ export const SERVER_NOTIF_DEFAULTS: Record<ServerNotifType, boolean> = {
   milestone: true,
   sync_error: true,
   guest_activity: false,
+  calendar_invitation: true,
+  calendar_change: true,
+  calendar_reminder: true,
+  calendar_group_reminder: false,
+  calendar_follow: true,
 }
 
 const SERVER_PREFS_CACHE_KEY = 'dive-analyser.notif-prefs.server.v1'
@@ -642,6 +655,16 @@ export default function Account() {
     { type: 'sync_error', label: t('account.notifSyncError'), desc: t('account.notifSyncErrorDesc') },
     { type: 'guest_activity', label: t('account.notifGuestActivity'), desc: t('account.notifGuestActivityDesc') },
   ]
+  const calendarNotifRows: { type: ServerNotifType; label: string; desc: string }[] =
+    user?.features?.calendar === true
+      ? [
+          { type: 'calendar_invitation', label: t('account.notifCalendarInvitation'), desc: t('account.notifCalendarInvitationDesc') },
+          { type: 'calendar_change', label: t('account.notifCalendarChange'), desc: t('account.notifCalendarChangeDesc') },
+          { type: 'calendar_reminder', label: t('account.notifCalendarReminder'), desc: t('account.notifCalendarReminderDesc') },
+          { type: 'calendar_group_reminder', label: t('account.notifCalendarGroupReminder'), desc: t('account.notifCalendarGroupReminderDesc') },
+          { type: 'calendar_follow', label: t('account.notifCalendarFollow'), desc: t('account.notifCalendarFollowDesc') },
+        ]
+      : []
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -763,6 +786,30 @@ export default function Account() {
                   </div>
                 ))}
               </div>
+              {calendarNotifRows.length > 0 && (
+                <section aria-labelledby="notif-calendar-heading">
+                  <h3 id="notif-calendar-heading" className="mt-4 text-sm font-semibold text-app-text">
+                    {t('account.notifCalendarHeading')}
+                  </h3>
+                  <p className="mt-1 text-xs text-app-muted">{t('account.notifCalendarDesc')}</p>
+                  <div className="mt-1 divide-y divide-[var(--app-border)]">
+                    {calendarNotifRows.map(row => (
+                      <div key={row.type} className="flex items-center justify-between gap-4 py-3">
+                        <div>
+                          <div className="text-sm font-medium text-app-text">{row.label}</div>
+                          <div className="text-xs text-app-muted">{row.desc}</div>
+                        </div>
+                        <Toggle
+                          checked={serverNotifs.prefs[row.type]}
+                          onChange={() => void serverNotifs.setPref(row.type, !serverNotifs.prefs[row.type])}
+                          label={row.label}
+                          disabled={!serverNotifs.loaded || serverNotifs.busy === row.type}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
               <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifOnDevice')}</h3>
               <BatchEmailToggle />
               <PushOptInSection />
