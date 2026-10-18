@@ -253,7 +253,8 @@ def update_event(db: Session, user: AppUser, event_id: int, payload) -> Calendar
         fail(422, "recurrence_not_supported", "A weekly series cannot become a camp")
     occurrence, time_changes = None, {}
     if payload.when is not None:
-        occurrences = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).with_for_update().all()
+        occurrences = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).order_by(
+            EventOccurrence.id).limit(2).with_for_update().all()
         if len(occurrences) != 1 or event.recurrence_rule:
             fail(422, "edit_occurrence", "This event has several dates; edit one occurrence at a time")
         occurrence = occurrences[0]
@@ -265,7 +266,8 @@ def update_event(db: Session, user: AppUser, event_id: int, payload) -> Calendar
     from app.services import calendar_recurrence as recurrence
     extra = {}
     if "itinerary" in sent:
-        rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).all()
+        rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).order_by(
+            EventOccurrence.id).limit(2).all()
         if occurrence is None and len(rows) == 1:
             occurrence = rows[0]
         if recurrence.set_itinerary(db, event, occurrence if len(rows) == 1 else None, payload.itinerary or []):
