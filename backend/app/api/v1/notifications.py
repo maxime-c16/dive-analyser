@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _payload(row) -> dict:
-    return {
+def _payload(row, overrides: dict | None = None) -> dict:
+    out = {
         "id": row.id,
         "type": row.type,
         "title": row.title,
@@ -35,6 +35,28 @@ def _payload(row) -> dict:
         "read_at": row.read_at.isoformat() + "Z" if row.read_at else None,
         "created_at": row.created_at.isoformat() + "Z" if row.created_at else None,
     }
+    if overrides:
+        out.update(overrides)
+    return out
+
+
+def _calendar_views(db: Session, user, rows) -> dict:
+    """Task05: calendar rows are resolved for the reader at read time
+    (redacted once access is lost). Other rows are returned unchanged."""
+    if not any(row.type in notification_service.CALENDAR_TYPES for row in rows):
+        return {}
+    from app.services import calendar_alerts
+
+    try:
+        return calendar_alerts.render_for_reader(db, user, rows)
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.error("calendar notification render failed for user %s (%s)", user.id, type(exc).__name__)
+        return {row.id: {"title": calendar_alerts.REDACTED_TITLE, "body": None, "calendar": {"redacted": True}}
+                for row in rows if row.type in notification_service.CALENDAR_TYPES}
 
 
 class PrefInput(BaseModel):
@@ -67,8 +89,9 @@ def list_notifications(
     items = notification_service.list_for_user(
         db, user.id, limit=limit, unread_only=unread_only
     )
+    views = _calendar_views(db, user, items)
     return {
-        "items": [_payload(row) for row in items],
+        "items": [_payload(row, views.get(row.id)) for row in items],
         "unread_count": notification_service.count_unread(db, user.id),
     }
 
@@ -80,7 +103,7 @@ def read_notification(
     row = notification_service.mark_read(db, user.id, notif_id)
     if row is None:
         raise HTTPException(404, "Notification not found")
-    return _payload(row)
+    return _payload(row, _calendar_views(db, user, [row]).get(row.id))
 
 
 @router.post("/notifications/read-all")

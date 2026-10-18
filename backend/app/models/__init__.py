@@ -136,3 +136,11 @@ from app.models.evaluation import (
 )
 
 from app.models.browser_upload import BrowserUploadJob
+
+from app.models.calendar import (
+    Club, ClubMembership, TrainingGroup, TrainingGroupMembership, Calendar, CalendarSubscription,
+    CalendarEvent, EventOccurrence, EventInvitation, OccurrenceInterest, OccurrenceAbsenceReport,
+    CalendarSource, CalendarImportRun, EventResource, CalendarSourceMapping, CalendarChangeLog,
+    CalendarEventFollow, CalendarIdempotencyKey, OccurrenceDiveLink, CalendarAlertOutbox, CalendarAlertDelivery,
+    CalendarWorkerState,
+)

@@ -14,6 +14,7 @@ const mockAuthUser = vi.hoisted(() => ({
     role: "friend",
     is_admin: false,
     divers: [] as unknown[],
+    features: undefined as { calendar?: boolean } | undefined,
   },
 }));
 
@@ -49,6 +50,7 @@ beforeEach(() => {
     role: "friend",
     is_admin: false,
     divers: [] as unknown[],
+    features: undefined,
   };
   // fetch is undefined in jsdom unless stubbed per-test
 });
@@ -181,6 +183,37 @@ describe("Account (final V2)", () => {
     const put = calls.find(call => call.init?.method === "PUT");
     expect(put?.url).toBe("/api/v1/notification-prefs");
     expect(JSON.parse(put?.init?.body as string)).toEqual({ type: "guest_activity", enabled: true });
+  });
+
+  it("shows calendar alert toggles only when the calendar feature is on", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, init });
+      if (url === "/api/v1/notification-prefs" && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify({ type: body.type, enabled: body.enabled }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ prefs: { calendar_change: true, calendar_group_reminder: false } }), {
+        status: 200,
+      });
+    });
+    const first = renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    await screen.findByRole("switch", { name: "Guest activity alerts" });
+    expect(screen.queryByRole("switch", { name: "Reminder for every group session" })).toBeNull();
+    first.unmount();
+    mockAuthUser.current = { ...mockAuthUser.current, features: { calendar: true } };
+    renderAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const group = await screen.findByRole("switch", { name: "Reminder for every group session" });
+    await waitFor(() => expect(group).not.toBeDisabled());
+    expect(group).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("switch", { name: "Changes and cancellations" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(group);
+    await waitFor(() => expect(group).toHaveAttribute("aria-checked", "true"));
+    const put = calls.find(call => call.init?.method === "PUT");
+    expect(JSON.parse(put?.init?.body as string)).toEqual({ type: "calendar_group_reminder", enabled: true });
   });
 
   it("disables server toggles until the initial GET resolves", async () => {

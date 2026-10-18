@@ -43,6 +43,26 @@ DEFAULTS: Dict[str, bool] = {
     "guest_activity": False,
 }
 
+# Calendar alert types (Task05). Written only by the calendar alerts worker
+# (calendar_alerts) through stage(); exposed by the preferences API only when
+# CALENDAR_ENABLED, so the feature-off contract stays byte-identical.
+# - invitation: you were invited to an event
+# - change: time/venue change or cancellation of something you take part in
+#   (interest, invitation, or your assigned group's training)
+# - reminder: previous-day reminder for sessions you marked "Interested"
+# - group_reminder: previous-day reminder for every session of your assigned
+#   training group (opt-in: routine sessions, no response expected)
+# - follow: followed events/calendars (never from imported edits)
+CALENDAR_DEFAULTS: Dict[str, bool] = {
+    "calendar_invitation": True,
+    "calendar_change": True,
+    "calendar_reminder": True,
+    "calendar_group_reminder": False,
+    "calendar_follow": True,
+}
+CALENDAR_TYPES = frozenset(CALENDAR_DEFAULTS)
+_ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS}
+
 _MAX_LIST_LIMIT = 100
 _TITLE_MAX = 200
 _BODY_MAX = 600
@@ -55,8 +75,17 @@ _MAX_PUSH_IDS_PER_SCHEDULE = 50
 
 
 def _validate_type(notif_type: str) -> None:
-    if notif_type not in NOTIF_TYPES:
+    if notif_type not in NOTIF_TYPES and notif_type not in CALENDAR_TYPES:
         raise ValueError(f"Unknown notification type: {notif_type}")
+
+
+def _pref_defaults() -> Dict[str, bool]:
+    """Types the preferences API exposes: calendar ones only when enabled."""
+    from app.config import get_settings
+
+    if get_settings().calendar_enabled:
+        return dict(_ALL_DEFAULTS)
+    return dict(DEFAULTS)
 
 
 def is_enabled(db: Session, user_id: int, notif_type: str) -> bool:
@@ -68,7 +97,7 @@ def is_enabled(db: Session, user_id: int, notif_type: str) -> bool:
         .first()
     )
     if row is None:
-        return DEFAULTS[notif_type]
+        return _ALL_DEFAULTS[notif_type]
     return bool(row.enabled)
 
 
@@ -384,9 +413,9 @@ def mark_all_read(db: Session, user_id: int) -> int:
 
 def get_prefs(db: Session, user_id: int) -> Dict[str, bool]:
     """Complete type → enabled map (DEFAULTS plus stored overrides)."""
-    prefs = dict(DEFAULTS)
+    prefs = _pref_defaults()
     rows = (
-        db.query(NotificationPref).filter_by(user_id=user_id).limit(len(NOTIF_TYPES)).all()
+        db.query(NotificationPref).filter_by(user_id=user_id).limit(len(_ALL_DEFAULTS)).all()
     )
     for row in rows:
         if row.notif_type in prefs:
@@ -399,17 +428,19 @@ def list_explicit_types(db: Session, user_id: int) -> List[str]:
     rows = (
         db.query(NotificationPref.notif_type)
         .filter_by(user_id=user_id)
-        .limit(len(NOTIF_TYPES))
+        .limit(len(_ALL_DEFAULTS))
         .all()
     )
-    return sorted({row[0] for row in rows if row[0] in NOTIF_TYPES})
+    exposed = _pref_defaults()
+    return sorted({row[0] for row in rows if row[0] in exposed})
 
 
 def set_pref(
     db: Session, user_id: int, type: str, enabled: bool
 ) -> NotificationPref:
     """Upsert one preference override; raises ValueError on unknown type."""
-    _validate_type(type)
+    if type not in _pref_defaults():
+        raise ValueError(f"Unknown notification type: {type}")
     row = (
         db.query(NotificationPref)
         .filter_by(user_id=user_id, notif_type=type)
@@ -422,4 +453,29 @@ def set_pref(
         row.enabled = bool(enabled)
     db.commit()
     db.refresh(row)
+    return row
+
+
+def stage(
+    db: Session,
+    *,
+    user_id: int,
+    type: str,
+    title: str,
+    body: str = "",
+) -> Notification:
+    """Transaction-aware inbox insert (Task05 calendar path): add + flush,
+    never commit, no preference check and no push. The caller owns the
+    transaction (it re-checks preferences and eligibility, commits the row
+    together with its delivery state, then pushes best-effort). create()
+    and notify_owners_for_diver() keep their self-committing contract."""
+    _validate_type(type)
+    row = Notification(
+        user_id=user_id,
+        type=type,
+        title=(title or "")[:_TITLE_MAX],
+        body=(body or "")[:_BODY_MAX] or None,
+    )
+    db.add(row)
+    db.flush()
     return row

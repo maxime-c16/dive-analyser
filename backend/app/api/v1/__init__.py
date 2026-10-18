@@ -1,13 +1,26 @@
 """API v1 routes"""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from starlette.requests import HTTPConnection
+from app.config import get_settings
 from app.services.dive_access import member_access_context
 
 # Import route modules
 from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback, admin_users
 
-# Create v1 router
-v1_router = APIRouter(prefix="/api/v1", dependencies=[Depends(member_access_context)])
+def calendar_feature_gate(request: HTTPConnection) -> None:
+    """Disabled calendar paths must be hidden before session resolution.
+
+    The parent member-access dependency otherwise answers 401 before the
+    calendar subrouter gets a chance to apply its default-off gate.
+    """
+    path = request.url.path
+    if (path == "/api/v1/calendar" or path.startswith("/api/v1/calendar/")) and not get_settings().calendar_enabled:
+        raise HTTPException(404, "Not found")
+
+
+# Feature hiding runs first; member access remains enforced on enabled routes.
+v1_router = APIRouter(prefix="/api/v1", dependencies=[Depends(calendar_feature_gate), Depends(member_access_context)])
 
 # Include sub-routers
 v1_router.include_router(health.router, tags=["health"])
@@ -67,3 +80,6 @@ v1_router.include_router(deposits.router, tags=['deposits'])
 
 from app.api.v1 import clip_downloads
 v1_router.include_router(clip_downloads.router, tags=['clip-downloads'])
+
+from app.api.v1 import calendar
+v1_router.include_router(calendar.router, tags=['calendar'])

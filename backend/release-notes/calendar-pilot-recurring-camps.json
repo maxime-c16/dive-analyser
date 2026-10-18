@@ -1,0 +1,11 @@
+{
+  "id": "calendar-pilot-recurring-camps",
+  "date": "2026-10-18",
+  "title": "Calendar pilot: weekly sessions and camps prepared",
+  "body": "Calendar pilot preparation now covers weekly club sessions with holidays, previewed changes to one, following or all upcoming sessions without losing responses, and multi-day camps with a programme and external registration link. The calendar stays disabled until the remaining pilot checks and rollout are completed.",
+  "audience": "admin",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

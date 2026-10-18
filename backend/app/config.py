@@ -129,6 +129,14 @@ class Settings(BaseSettings):
     friend_registration_enabled: bool = os.getenv("FRIEND_REGISTRATION_ENABLED", "false").lower() == "true"
     friend_invite_codes: str = os.getenv("FRIEND_INVITE_CODES", "")
 
+    # Club calendar (Task02 foundation). Default OFF: /calendar routes 404,
+    # signup refuses a club_id and never touches calendar tables. Enable only
+    # after all four calendar migrations and the pilot worker/source gates.
+    # See docs/design/calendar/PILOT_RELEASE_CHECKLIST.md.
+    calendar_enabled: bool = os.getenv("CALENDAR_ENABLED", "false").lower() == "true"
+    # Task05: local hour (event timezone) of the previous-day reminder.
+    calendar_reminder_hour: int = min(max(int(os.getenv("CALENDAR_REMINDER_HOUR", "18")), 0), 23)
+
     # Web Push (PR3 notifications-push): VAPID credentials for the push
     # fan-out that mirrors inbox rows to subscribed devices. Empty
     # defaults = push gracefully disabled (inbox + prefs keep working,

@@ -1,0 +1,11 @@
+{
+  "id": "calendar-pilot-foundation",
+  "date": "2026-10-18",
+  "title": "Calendar pilot preparation",
+  "body": "Calendar tools for the club pilot are prepared: events, interest responses, absence reports and reviewed schedule imports. The calendar stays disabled until the remaining pilot checks and rollout are completed.",
+  "audience": "admin",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "calendar-pilot-export-readiness",
+  "date": "2026-10-18",
+  "title": "Calendar pilot: single-event download prepared",
+  "body": "The calendar pilot now includes a private single-event calendar download. Downloaded files are snapshots and do not update automatically. The calendar remains off by default. Pilot activation requires database migrations, reviewed club sources and a healthy scheduled alerts worker; the worker schedule is installed separately. This preparation does not announce an active pilot.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}

@@ -18,6 +18,7 @@ type Row = {
   dive_id: number | null
   read_at: string | null
   created_at: string
+  calendar?: Record<string, unknown>
 }
 
 const unreadRow: Row = {
@@ -213,5 +214,64 @@ describe('Notifications page', () => {
     stubInbox()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('New comment on 103B')).toBeInTheDocument()
+  })
+})
+
+describe('Calendar alerts in the inbox (Task05)', () => {
+  const moved: Row = {
+    id: 9,
+    type: 'calendar_change',
+    title: 'Groupe A training',
+    body: null,
+    dive_id: null,
+    read_at: null,
+    created_at: '2026-10-20T08:00:00Z',
+    calendar: {
+      redacted: false,
+      kind: 'change',
+      event_id: 4,
+      occurrence_id: 12,
+      url: '/calendar/o/12',
+      event_title: 'Groupe A training',
+      timezone: 'Europe/Paris',
+      starts_at: '2026-10-22T17:00:00Z',
+      start_date: null,
+      all_day: false,
+      venue_name: 'Piscine Maurice Thorez',
+      status: 'scheduled',
+      changes: [
+        { kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
+      ],
+      total: 3,
+    },
+  }
+  const redacted: Row = {
+    id: 8,
+    type: 'calendar_change',
+    title: 'Calendar update',
+    body: null,
+    dive_id: null,
+    read_at: null,
+    created_at: '2026-10-19T08:00:00Z',
+    calendar: { redacted: true },
+  }
+
+  it('renders what changed with an authorized deep link to the session', async () => {
+    rows = [{ ...moved }]
+    renderPage()
+    expect(await screen.findByText('Event changed · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).toContain('Place changed: Piscine Maurice Thorez')
+    expect(text).toContain('+2 more sessions')
+    expect(text).toMatch(/07:00 PM.*→.*07:00 PM/) // 17:00Z shown in the event timezone (Europe/Paris)
+    expect(screen.getByRole('link', { name: 'Open event' })).toHaveAttribute('href', '/calendar/o/12')
+  })
+
+  it('redacts an alert whose event is no longer visible (no title, no link)', async () => {
+    rows = [{ ...redacted }]
+    renderPage()
+    expect(await screen.findByText('This calendar notification is no longer available to you.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Calendar change' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open event' })).toBeNull()
   })
 })

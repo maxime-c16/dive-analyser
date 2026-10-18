@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Gift, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import SignupClubSelect from '../components/SignupClubSelect'
 import {
   inviteTokenFromHash,
   peekInvite,
@@ -37,6 +38,7 @@ export default function Invite() {
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [clubId, setClubId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -67,6 +69,7 @@ export default function Invite() {
     if (error.code === 'diver_claimed') return t('invite.errorClaimed')
     if (error.code === 'email_taken') return t('invite.errorExists')
     if (error.code === 'rate_limited') return t('invite.errorTooMany')
+    if (error.code === 'club_unavailable') return t('invite.errorClub')
     if (error.code === 'link_invalid' || error.status === 404) return t('invite.errorLink')
     return t('invite.errorFailed')
   }
@@ -88,6 +91,7 @@ export default function Invite() {
         email,
         password,
         display_name: displayName || undefined,
+        ...(clubId !== null ? { club_id: clubId } : {}),
       })
       setPassword('')
       setConfirm('')
@@ -203,6 +207,8 @@ export default function Invite() {
               className="mb-5 w-full border border-app bg-app-panel-elevated px-3 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-1 focus:ring-app-accent"
               required
             />
+
+            <SignupClubSelect id="invite-club" value={clubId} onChange={setClubId} />
 
             {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 

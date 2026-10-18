@@ -26,7 +26,7 @@ it('keeps Unicode mention identity in drafts per account/conversation and clears
 it('drops invalid mention spans and tolerates unavailable storage', () => {
   sessionStorage.setItem('message-draft:v1:1:3', JSON.stringify({body:'hi',mentions:[{user_id:2,start:0,end:8},null]}))
   expect(readMessageDraft(1,3)).toEqual({body:'hi',mentions:[]})
-  const spy = vi.spyOn(Storage.prototype,'getItem').mockImplementation(() => { throw new Error('denied') })
+  const spy = vi.spyOn(Object.getPrototypeOf(sessionStorage),'getItem').mockImplementation(() => { throw new Error('denied') })
   expect(readMessageDraft(1,3).body).toBe(''); expect(readTabContext(1,'dives')).toBeNull(); spy.mockRestore()
 })
 it('abandoning a failed draft clears its send identity', async () => {

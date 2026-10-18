@@ -62,8 +62,14 @@ def get_db() -> Session:
 
 
 def init_db():
-    """Initialize database (create all tables)"""
-    Base.metadata.create_all(bind=engine)
+    """Initialize database (create all tables).
+
+    Tables tagged ``sql_migration_only`` (the calendar domain) are skipped:
+    their SQL migration is an explicit deployment step, never a side effect
+    of starting a new backend image.
+    """
+    tables = [t for t in Base.metadata.sorted_tables if not t.info.get("sql_migration_only")]
+    Base.metadata.create_all(bind=engine, tables=tables)
     logger.info("Database initialized")
 
 

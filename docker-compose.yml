@@ -68,6 +68,8 @@ services:
       MAC_AGENT_API_KEYS: ${MAC_AGENT_API_KEYS:-}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://192.168.1.57:6090,http://deb-serv:6090,http://localhost:6090,https://192.168.1.57:6443,https://deb-serv:6443}
       # P5 user auth + B2 playback canary (feature flags default OFF/fail-closed)
+      # Calendar pilot: keep off until migrations, source review and worker gate.
+      CALENDAR_ENABLED: "${CALENDAR_ENABLED:-false}"
       USER_AUTH_ENABLED: "${USER_AUTH_ENABLED:-false}"
       B2_PLAYBACK_CANARY_ENABLED: "${B2_PLAYBACK_CANARY_ENABLED:-false}"
       # Friend access: invite-gated self-registration (fail-closed both ways)

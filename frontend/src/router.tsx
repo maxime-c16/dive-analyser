@@ -42,6 +42,8 @@ import {
   Waves,
   X,
 } from "lucide-react";
+const loadCalendar = () => import("./pages/Calendar");
+const CalendarPage = lazy(loadCalendar);
 const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
 const loadClaim = () => import("./pages/Claim");
@@ -92,6 +94,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
   '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
   '/messages': loadMessages, '/evaluations': loadEvaluations, '/community': loadCommunity,
+  '/calendar': loadCalendar,
 };
 
 function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
@@ -106,12 +109,26 @@ function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof 
  * Navigation labels are translation KEYS, not strings: components stay static
  * so a language change re-renders labels through useTranslation lookups.
  */
-const primaryNav = [
+const basePrimaryNav = [
   { to: "/dives", label: "nav.dives", icon: Waves } as NavItem,
   { to: "/messages", label: "nav.messages", icon: Send } as NavItem,
   { to: "/community", label: "nav.community", icon: Users } as NavItem,
   { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
 ];
+const calendarNavItem = { to: '/calendar', label: 'nav.calendar', icon: CalendarDays } as NavItem;
+
+/** Calendar is a server-flagged destination (CALENDAR_ENABLED, default off):
+ * off keeps the existing four labelled mobile targets; on gives five
+ * equal icon-only targets with accessible names. */
+function useCalendarEnabled(): boolean {
+  const { user } = useAuth();
+  return user?.features?.calendar === true;
+}
+
+function usePrimaryNav(): NavItem[] {
+  const calendar = useCalendarEnabled();
+  return calendar ? [...basePrimaryNav.slice(0, 3), calendarNavItem, basePrimaryNav[3]] : basePrimaryNav;
+}
 
 const secondaryNav = [
   { to: "/dashboard", label: "nav.overview", icon: Gauge },
@@ -128,6 +145,7 @@ const operationsNav = [
 
 const routeLabelKeys: Record<string, string> = {
   "/": "nav.dives",
+  "/calendar": "nav.calendar",
   "/messages": "nav.messages",
   "/dashboard": "nav.overview",
   "/journey": "nav.journey",
@@ -228,6 +246,7 @@ export function breadcrumbTrail(
   pathname: string,
   translate: (key: string) => string = (key) => key,
 ): Crumb[] {
+  if (/^\/calendar(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.calendar", href: pathname === "/calendar" ? undefined : "/calendar" }];
   if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
   const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
   if (analysisMatch) {
@@ -358,11 +377,12 @@ function MobileNavigation() {
   );
 }
 
-function MobileTabLink({ item, active, location, remembered }: {
+function MobileTabLink({ item, active, location, remembered, iconOnly }: {
   item: NavItem;
   active: PrimaryTab | null;
   location: ReturnType<typeof useLocation>;
   remembered: ReturnType<typeof useTabMemory>;
+  iconOnly: boolean;
 }) {
   const { t } = useTranslation();
   const messagesAria = useMessagesUnreadAria();
@@ -371,7 +391,7 @@ function MobileTabLink({ item, active, location, remembered }: {
   const rootActive = active === tab && location.pathname.replace(/\/$/, '') === to;
   const destination = active === tab ? (rootActive ? location.pathname + location.search : to) : memory?.url ?? to;
   return <IntentNavLink primaryActive={active === tab} to={destination} aria-current={active === tab ? 'page' : undefined}
-    aria-label={tab === 'messages' ? messagesAria : undefined}
+    aria-label={tab === 'messages' ? messagesAria : t(label)}
     state={{ mobileTabRestore: active === tab ? 0 : memory?.scroll ?? 0 }}
     className={`mobile-tab ${active === tab ? 'mobile-tab-active' : ''}`}
     onClick={event => {
@@ -379,7 +399,7 @@ function MobileTabLink({ item, active, location, remembered }: {
         event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
       }
     }}><span className="relative"><Icon className="h-5 w-5" />
-      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span>{t(label)}</span></IntentNavLink>;
+      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span className={iconOnly ? "sr-only" : undefined}>{t(label)}</span></IntentNavLink>;
 }
 
 function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
@@ -387,6 +407,8 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
   const location = useLocation();
   const bar = useRef<HTMLElement>(null);
   const active = primaryTabFor(location.pathname);
+  const items = usePrimaryNav();
+  const five = items.length === 5;
   useLayoutEffect(() => {
     const root = document.documentElement;
     if (policy !== 'visible' || !bar.current) { root.style.setProperty('--mobile-nav-offset', '0px'); return; }
@@ -401,8 +423,8 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
     return () => { observer.disconnect(); window.removeEventListener('resize', update); root.style.setProperty('--mobile-nav-offset', '0px'); };
   }, [policy]);
   if (policy !== 'visible') return null;
-  return <nav ref={bar} className="mobile-tab-bar lg:hidden" aria-label={t('nav.primaryNavigationAria')}>
-    {primaryNav.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} />)}
+  return <nav ref={bar} className={`mobile-tab-bar lg:hidden ${five ? "calendar-five-tabs" : ""}`} aria-label={t('nav.primaryNavigationAria')}>
+    {items.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} iconOnly={five} />)}
   </nav>;
 }
 
@@ -412,6 +434,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const friend = !user?.is_admin;
   const policy = useMobileNavPolicy();
   const remembered = useTabMemory(user?.user_id);
+  const primaryNavItems = usePrimaryNav();
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link">
@@ -427,7 +450,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             <nav className="mt-6 space-y-1" aria-label={t("nav.primaryNavigationAria")}>
-              {primaryNav.map((item) => (
+              {primaryNavItems.map((item) => (
                 <AppNavLink key={item.to} {...item} emphasis />
               ))}
             </nav>
@@ -554,6 +577,13 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Feature off: /calendar behaves like any unknown route (Library). */
+function CalendarGate() {
+  const { user } = useAuth();
+  // Keyed by account: switching accounts never shows the previous account's calendar state.
+  return user?.features?.calendar === true ? <CalendarPage key={user.user_id} /> : <Navigate to="/dives" replace />;
+}
+
 function Router() {
   const { t } = useTranslation();
   return (
@@ -598,6 +628,7 @@ function Router() {
                   <Route path="/analytics" element={<OwnerGuard><Analytics /></OwnerGuard>} />
                 <Route path="/dives" element={<Dives />} />
                 <Route path="/evaluations" element={<Evaluations />} />
+                <Route path="/calendar/*" element={<CalendarGate />} />
                 <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
                   <Route
                     path="/media/representatives"

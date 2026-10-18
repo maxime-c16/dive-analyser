@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Bell, CheckCheck, Check, Film, RefreshCw } from 'lucide-react'
+import { Bell, CalendarDays, CheckCheck, Check, Film, RefreshCw } from 'lucide-react'
 import { useNotifications } from '../components/Notifications'
-import { listNotifications, type AppNotification } from '../services/notificationsApi'
+import {
+  listNotifications,
+  type AppNotification,
+  type CalendarNotificationView,
+} from '../services/notificationsApi'
 
 function typeLabel(t: (key: string, options?: Record<string, unknown>) => string, type: string): string {
   return t(`notifications.types.${type}`, { defaultValue: type })
@@ -16,6 +20,49 @@ function formatWhen(iso: string | null): string {
   return date.toLocaleString()
 }
 
+type Translate = (key: string, options?: Record<string, unknown>) => string
+
+/** Event time in the event's own timezone (all-day: the local date). */
+function eventWhen(iso: string | null, timeZone: string, lang: string, allDay = false): string {
+  if (!iso) return ''
+  const date = new Date(allDay && iso.length === 10 ? `${iso}T12:00:00Z` : iso)
+  if (Number.isNaN(date.getTime())) return ''
+  try {
+    return date.toLocaleString(lang, allDay
+      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
+      : { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone })
+  } catch {
+    return date.toLocaleString(lang)
+  }
+}
+
+/** Plain-language lines for a calendar alert: what changed, when. */
+function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { redacted: false }>, lang: string): string[] {
+  const lines: string[] = []
+  const when = view.all_day
+    ? eventWhen(view.start_date, view.timezone, lang, true)
+    : eventWhen(view.starts_at, view.timezone, lang)
+  if (view.status === 'cancelled') lines.push(t('notifications.calendar.eventCancelled'))
+  for (const change of view.changes) {
+    if (change.kinds.includes('time_changed') && change.old_start && change.new_start) {
+      lines.push(t('notifications.calendar.moved', {
+        from: eventWhen(change.old_start, view.timezone, lang),
+        to: eventWhen(change.new_start, view.timezone, lang),
+      }))
+    }
+    if (change.kinds.includes('venue_changed')) {
+      lines.push(view.venue_name
+        ? t('notifications.calendar.venueChanged', { venue: view.venue_name })
+        : t('notifications.calendar.venueChangedNoName'))
+    }
+  }
+  if (view.total > view.changes.length) {
+    lines.push(t('notifications.calendar.more', { count: view.total - view.changes.length }))
+  }
+  if (lines.length === 0 && when) lines.push(when)
+  return Array.from(new Set(lines))
+}
+
 function NotificationRow({
   item,
   onMarkRead,
@@ -25,11 +72,24 @@ function NotificationRow({
   onMarkRead: () => void
   busy: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const unread = !item.read_at
+  const lang = i18n.resolvedLanguage?.startsWith('fr') ? 'fr' : 'en'
+  const calendar = item.calendar
+  const calendarView = calendar && !calendar.redacted ? calendar : null
+  const title = calendar
+    ? calendarView
+      ? `${t(`notifications.calendar.${calendarView.kind}`)} · ${calendarView.event_title}`
+      : typeLabel(t, item.type)
+    : item.title
+  const body = calendar
+    ? calendarView
+      ? calendarLines(t, calendarView, lang).join(' · ')
+      : t('notifications.calendar.redacted')
+    : item.body
   return (
     <article
-      aria-label={item.title}
+      aria-label={title}
       className={`border border-app bg-app-panel p-4 ${unread ? 'border-l-2 border-l-[var(--app-accent)]' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -43,9 +103,18 @@ function NotificationRow({
           </time>
         )}
       </div>
-      <h2 className="mt-1 text-base font-semibold text-app-text">{item.title}</h2>
-      {item.body && <p className="mt-1 text-sm leading-6 text-app-muted">{item.body}</p>}
+      <h2 className="mt-1 text-base font-semibold text-app-text">{title}</h2>
+      {body && <p className="mt-1 text-sm leading-6 text-app-muted">{body}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        {calendarView && calendarView.url.startsWith('/calendar') && (
+          <Link
+            to={calendarView.url}
+            className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
+          >
+            <CalendarDays className="h-4 w-4" aria-hidden />
+            {t('notifications.calendar.openEvent')}
+          </Link>
+        )}
         {item.conversation_id != null && <Link to={`/messages/${item.conversation_id}`} className="touch-target border border-app px-3 py-2 text-sm text-app-text">{t('messages.open')}</Link>}
         {item.dive_id != null && (
           <Link

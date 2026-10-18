@@ -10,7 +10,7 @@ for (const lang of ['fr','en']) for (const width of [320,390,430,767,768,1023,13
     if (width>=1024) { await expect(nav(page)).toHaveCount(0);expect(await offset(page)).toBe(0);return }
     await expect(nav(page)).toBeVisible();expect(await offset(page)).toBeGreaterThan(60)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0)
-    await expect(nav(page).getByRole('link')).toHaveCount(4)
+    await expect(nav(page).getByRole('link')).toHaveCount(5)
     await expect(nav(page).getByRole('link',{name:lang==='fr'?'Bibliothèque':'Library'})).toHaveAttribute('aria-current','page')
     const geometry = await nav(page).locator('a').evaluateAll(links => links.map(link => { const r=link.getBoundingClientRect();const label=link.querySelector('span')!.getBoundingClientRect();return {width:r.width,height:r.height,contained:label.left>=r.left&&label.right<=r.right,visible:getComputedStyle(link.querySelector('span')!).display!=='none'} }))
     for(const item of geometry){expect(item.width).toBeGreaterThanOrEqual(48);expect(item.height).toBeGreaterThanOrEqual(48);expect(item.contained).toBe(true);expect(item.visible).toBe(true)}
@@ -50,9 +50,9 @@ test('phone conversation replaces pills; draft survives notifications and send c
 test('tablet keeps pills, profile mapping and evaluation tab URL survives navigation and Back',async({page})=>{
   await page.setViewportSize({width:820,height:1024});await open(page,'path=/messages/1');await expect(nav(page)).toBeVisible()
   await go(page,'/users/900002');await expect(nav(page).getByRole('link',{name:'Community'})).toHaveAttribute('aria-current','page')
-  await nav(page).getByRole('link',{name:'Evaluations'}).click();await page.getByRole('button',{name:'My judgements',exact:true}).click()
+  await nav(page).getByRole('link',{name:'Evaluations'}).click();await page.getByRole('tab',{name:'History',exact:true}).click()
   await nav(page).getByRole('link',{name:'Library'}).click();await nav(page).getByRole('link',{name:'Evaluations'}).click()
-  expect(await page.evaluate(()=>(window as any).reviewRouter.state.location.search)).toContain('tab=judgements')
+  expect(await page.evaluate(()=>(window as any).reviewRouter.state.location.search)).toContain('tab=history')
   await page.evaluate(()=>(window as any).reviewRouter.navigate(-1));await expect(page.getByRole('heading',{name:'Library',level:1})).toBeVisible()
 })
 test('viewer, upload, jury and dirty admin actions hide pills, restore on exit',async({page})=>{
@@ -63,7 +63,7 @@ test('viewer, upload, jury and dirty admin actions hide pills, restore on exit',
   await expect(page.getByRole('dialog',{name:'103B 3 Oct 2026'})).toBeFocused()
   await page.keyboard.press('Escape');await expect(nav(page)).toBeVisible()
   await page.locator('input[type=file]').setInputFiles({name:'local.mp4',mimeType:'video/mp4',buffer:Buffer.from('local fixture video')});page.once('dialog',dialog=>dialog.accept());await expect(nav(page)).toHaveCount(0);await page.keyboard.press('Escape');await expect(nav(page)).toBeVisible()
-  await go(page,'/evaluations');await page.getByRole('button',{name:'Start / resume today’s selection',exact:true}).click();await expect(page.locator('.eval-stage-root')).toBeVisible();await expect(nav(page)).toHaveCount(0);await page.keyboard.press('Escape');await expect(nav(page)).toBeVisible();
+  await go(page,'/evaluations');await page.getByRole('button',{name:/^Deal \d+ more$/}).click();await expect(page.locator('.eval-stage-root')).toBeVisible();await expect(nav(page)).toHaveCount(0);await page.keyboard.press('Escape');await expect(nav(page)).toBeVisible();
   await go(page,'/admin/users/900002?section=profile');const name=page.getByRole('textbox',{name:'Display name',exact:true});await name.fill('Edited fixture')
   await expect(nav(page)).toHaveCount(0);expect(await offset(page)).toBe(0);await expect(page.locator('.account-savebar')).toBeVisible()
   await page.locator('.account-savebar').getByRole('button',{name:'Discard'}).click();await expect(nav(page)).toBeVisible()

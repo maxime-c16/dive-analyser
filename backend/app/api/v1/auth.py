@@ -100,6 +100,9 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=10, max_length=1024)
     display_name: Optional[str] = Field(None, min_length=1, max_length=120)
     invite_code: str = Field(..., min_length=1, max_length=255)
+    # Optional self-declared club affiliation (calendar feature). Omitted =
+    # independent diver, exactly the pre-calendar behavior.
+    club_id: Optional[int] = Field(None, gt=0)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -122,6 +125,27 @@ class RegisterInviteRequest(InviteTokenInput):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=10, max_length=1024)
     display_name: Optional[str] = Field(None, min_length=1, max_length=120)
+    club_id: Optional[int] = Field(None, gt=0)
+
+
+def _signup_club(db: Session, club_id: Optional[int]):
+    """Resolve an optional signup club choice before anything is written.
+
+    Calendar disabled (or schema not yet migrated) -> the choice is refused;
+    an omitted club never queries calendar tables.
+    """
+    if club_id is None:
+        return None
+    if not get_settings().calendar_enabled:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "club_unavailable", "message": "This club is not open for selection"},
+        )
+    from app.api.v1.calendar import calendar_gate
+    from app.services import calendar_membership
+
+    calendar_gate(db)  # 503 if enabled before the migration was applied
+    return calendar_membership.signup_club(db, club_id)
 
 
 def _registration_open() -> bool:
@@ -354,6 +378,24 @@ async def registration_status(response: Response):
     return {"registration_enabled": bool(_auth_enabled() and _registration_open())}
 
 
+@router.get("/signup-clubs")
+def signup_clubs(response: Response, db: Session = Depends(get_db)):
+    """Public: clubs selectable at signup (calendar feature only).
+
+    Self-declared affiliation, not licence verification. Names only — no
+    member, group or event data. 404 while the calendar is disabled.
+    """
+    if not _auth_enabled():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    from app.api.v1.calendar import calendar_gate
+    from app.models.calendar import Club
+
+    calendar_gate(db)
+    _secure_headers(response)
+    rows = db.query(Club).filter(Club.self_join_enabled.is_(True), Club.archived_at.is_(None)).order_by(Club.name, Club.id).limit(200)
+    return [{"id": c.id, "name": c.name, "short_name": c.short_name} for c in rows]
+
+
 @router.post("/register", status_code=201)
 async def register(
     request_body: RegisterRequest,
@@ -392,6 +434,7 @@ async def register(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         )
+    club = _signup_club(db, request_body.club_id)
 
     display_name = (request_body.display_name or "").strip() or email.split("@")[0]
     user = AppUser(email=email, display_name=display_name[:120], role=ROLE_FRIEND)
@@ -409,6 +452,10 @@ async def register(
             password_algo=ALGORITHM_LABEL,
         )
     )
+    if club is not None:
+        from app.services import calendar_membership
+
+        calendar_membership.add_signup_membership(db, user, club)
     db.commit()
     _record_attempt(db, _REGISTER_IDENTIFIER, success=True, client_ip=client_ip)
     auth_metrics.get_auth_metrics().login_success.inc()
@@ -509,12 +556,27 @@ async def register_invite(
 
     from app.services import diver_invites
 
+    try:
+        club = _signup_club(db, request_body.club_id)
+    except HTTPException as exc:
+        if exc.status_code >= 500:
+            raise
+        # Checked before redemption so a refused club never consumes the link.
+        return _invite_error(422, "club_unavailable", "This club is not open for selection")
+    before_commit = None
+    if club is not None:
+        from app.services import calendar_membership
+
+        def before_commit(session: Session, new_user: AppUser) -> None:
+            calendar_membership.add_signup_membership(session, new_user, club)
+
     outcome, user, invite = diver_invites.redeem_invite(
         db,
         request_body.token,
         email=request_body.email,
         password=request_body.password,
         display_name=request_body.display_name,
+        before_commit=before_commit,
     )
     if outcome == diver_invites.REDEEM_INVALID:
         # Unknown, used, revoked and expired are deliberately identical.
@@ -750,6 +812,8 @@ async def me(
         **avatar_identity(user),
         "role": getattr(user, "role", "owner"),
         "is_admin": bool(user.is_admin),
+        # Default-off feature switches the UI needs before routing.
+        "features": {"calendar": bool(get_settings().calendar_enabled)},
         "divers": [
             {
                 "diver_id": row.diver_id,

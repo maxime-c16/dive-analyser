@@ -15,6 +15,32 @@ export type NotificationType =
   | 'milestone'
   | 'sync_error'
   | 'guest_activity'
+  | 'calendar_invitation'
+  | 'calendar_change'
+  | 'calendar_reminder'
+  | 'calendar_group_reminder'
+  | 'calendar_follow'
+
+/** Calendar alert view, resolved by the server for the reader at read time.
+ * `redacted` rows carry no title, details or link (access was lost). */
+export type CalendarNotificationView =
+  | { redacted: true }
+  | {
+      redacted: false
+      kind: 'invitation' | 'change' | 'cancellation' | 'reminder' | 'new_event'
+      event_id: number
+      occurrence_id: number
+      url: string
+      event_title: string
+      timezone: string
+      starts_at: string | null
+      start_date: string | null
+      all_day: boolean
+      venue_name: string | null
+      status: 'scheduled' | 'cancelled'
+      changes: { kinds: string[]; old_start: string | null; new_start: string | null }[]
+      total: number
+    }
 
 export type AppNotification = {
   id: number
@@ -23,6 +49,7 @@ export type AppNotification = {
   body: string | null
   conversation_id?: number | null
   dive_id: number | null
+  calendar?: CalendarNotificationView
   read_at: string | null
   created_at: string | null
 }
