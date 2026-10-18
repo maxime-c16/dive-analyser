@@ -936,6 +936,7 @@ const fr = {
     },
   },
   nav: {
+    calendar: 'Calendrier',
     messages: "Messages",
     messagesUnreadAria: "Messages, {{count}} non lus",
     community: "Communauté",

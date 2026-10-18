@@ -26,3 +26,5 @@
 @media (max-width: 1023px) {
   .mobile-bottom-notice.mobile-bottom-notice { bottom: calc(20px + var(--mobile-nav-offset, 0px) + var(--mobile-notice-before, 0px)); max-width: calc(100vw - 32px); max-height: calc((100dvh - var(--mobile-nav-offset, 0px) - 104px) / var(--mobile-notice-count, 1)); overflow-y: auto; }
 }
+
+.calendar-prototype-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }

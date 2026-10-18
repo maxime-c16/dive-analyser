@@ -42,6 +42,7 @@ import {
   Waves,
   X,
 } from "lucide-react";
+const CalendarPrototype = lazy<React.ComponentType>(() => import.meta.env.DEV ? import('./pages/CalendarPrototype') : Promise.resolve({ default: () => null }));
 const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
 const loadClaim = () => import("./pages/Claim");
@@ -113,6 +114,8 @@ const primaryNav = [
   { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
 ];
 
+if (import.meta.env.DEV) primaryNav.splice(3, 0, { to: '/calendar', label: 'nav.calendar', icon: CalendarDays });
+
 const secondaryNav = [
   { to: "/dashboard", label: "nav.overview", icon: Gauge },
   { to: "/journey", label: "nav.journey", icon: BookOpen },
@@ -128,6 +131,7 @@ const operationsNav = [
 
 const routeLabelKeys: Record<string, string> = {
   "/": "nav.dives",
+  "/calendar": "nav.calendar",
   "/messages": "nav.messages",
   "/dashboard": "nav.overview",
   "/journey": "nav.journey",
@@ -228,6 +232,7 @@ export function breadcrumbTrail(
   pathname: string,
   translate: (key: string) => string = (key) => key,
 ): Crumb[] {
+  if (import.meta.env.DEV && /^\/calendar(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.calendar", href: pathname === "/calendar" ? undefined : "/calendar" }];
   if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
   const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
   if (analysisMatch) {
@@ -371,7 +376,7 @@ function MobileTabLink({ item, active, location, remembered }: {
   const rootActive = active === tab && location.pathname.replace(/\/$/, '') === to;
   const destination = active === tab ? (rootActive ? location.pathname + location.search : to) : memory?.url ?? to;
   return <IntentNavLink primaryActive={active === tab} to={destination} aria-current={active === tab ? 'page' : undefined}
-    aria-label={tab === 'messages' ? messagesAria : undefined}
+    aria-label={tab === 'messages' ? messagesAria : t(label)}
     state={{ mobileTabRestore: active === tab ? 0 : memory?.scroll ?? 0 }}
     className={`mobile-tab ${active === tab ? 'mobile-tab-active' : ''}`}
     onClick={event => {
@@ -379,7 +384,7 @@ function MobileTabLink({ item, active, location, remembered }: {
         event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
       }
     }}><span className="relative"><Icon className="h-5 w-5" />
-      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span>{t(label)}</span></IntentNavLink>;
+      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span className={import.meta.env.DEV ? "sr-only" : undefined}>{t(label)}</span></IntentNavLink>;
 }
 
 function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
@@ -401,7 +406,7 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
     return () => { observer.disconnect(); window.removeEventListener('resize', update); root.style.setProperty('--mobile-nav-offset', '0px'); };
   }, [policy]);
   if (policy !== 'visible') return null;
-  return <nav ref={bar} className="mobile-tab-bar lg:hidden" aria-label={t('nav.primaryNavigationAria')}>
+  return <nav ref={bar} className={`mobile-tab-bar lg:hidden ${import.meta.env.DEV ? "calendar-prototype-tabs" : ""}`} aria-label={t('nav.primaryNavigationAria')}>
     {primaryNav.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} />)}
   </nav>;
 }
@@ -598,6 +603,7 @@ function Router() {
                   <Route path="/analytics" element={<OwnerGuard><Analytics /></OwnerGuard>} />
                 <Route path="/dives" element={<Dives />} />
                 <Route path="/evaluations" element={<Evaluations />} />
+                {import.meta.env.DEV && <Route path="/calendar/*" element={<CalendarPrototype />} />}
                 <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
                   <Route
                     path="/media/representatives"

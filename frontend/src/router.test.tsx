@@ -108,12 +108,12 @@ describe('minimal IA routing', () => {
     expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument()
   })
 
-  it('regular divers see the four primary destinations and no admin menus', async () => {
+  it('regular divers see the five dev primary destinations and no admin menus', async () => {
     role.isAdmin = false
     renderAt('/dives')
     await screen.findByRole('heading', { name: 'Library', level: 1 })
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' })
-    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Library', 'Messages', 'Community', 'Evaluations'])
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Library', 'Messages', 'Community', 'Calendar', 'Evaluations'])
     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Operations' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Account navigation' }))

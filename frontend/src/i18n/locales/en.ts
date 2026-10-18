@@ -935,6 +935,7 @@ const en = {
     },
   },
   nav: {
+    calendar: 'Calendar',
     messages: "Messages",
     messagesUnreadAria: "Messages, {{count}} unread",
     community: "Community",    dives: 'Library',
