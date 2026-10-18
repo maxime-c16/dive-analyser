@@ -323,6 +323,7 @@ class CalendarImportRun(Base):
     source_id = Column(Integer, ForeignKey("calendar_sources.id", ondelete="RESTRICT"), nullable=False)
     source_sha256 = Column(String(64), nullable=False)
     parser_version = Column(String(40), nullable=False)
+    batch_id = Column(String(32), nullable=True)
     status = Column(String(16), nullable=False)
     summary = Column(JSON, nullable=False, default=dict, server_default="{}")
     created_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
@@ -331,6 +332,7 @@ class CalendarImportRun(Base):
     __table_args__ = (
         CheckConstraint(_in("status", IMPORT_STATUSES), name="ck_calendar_import_status"),
         Index("ix_calendar_import_runs_source", "source_id", "created_at"),
+        Index("ix_calendar_import_runs_batch_status", "batch_id", "status"),
         MIGRATION_ONLY,
     )
 

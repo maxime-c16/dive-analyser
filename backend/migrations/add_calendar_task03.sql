@@ -44,4 +44,11 @@ DO $$ BEGIN
   CHECK (review_status IS NULL OR review_status IN ('needs_review', 'historical', 'conflict', 'missing_from_source', 'resolved'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- Indexed batch lookup: abandoned previews must not be loaded by apply.
+ALTER TABLE calendar_import_runs ADD COLUMN IF NOT EXISTS batch_id VARCHAR(32);
+UPDATE calendar_import_runs SET batch_id = summary->>'batch_id'
+ WHERE batch_id IS NULL AND length(summary->>'batch_id') = 32;
+CREATE INDEX IF NOT EXISTS ix_calendar_import_runs_batch_status
+ ON calendar_import_runs (batch_id, status);
+
 COMMIT;

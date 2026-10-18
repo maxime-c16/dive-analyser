@@ -552,3 +552,20 @@ def test_import_rechecks_manual_change_after_preview(cal, tmp_path):
     db.rollback()
     db.expire_all()
     assert db.get(EventOccurrence, target_id).venue_name == "Manual pool"
+
+
+def test_import_apply_selects_only_indexed_requested_batch(cal, tmp_path):
+    db, artifacts = cal["db"], tmp_path / "artifacts"
+    path = synthetic_bundle(tmp_path)
+    preview = ci.preview(db, ci.load_bundle(path), OPTS, artifacts, None)
+    source_id = db.get(CalendarImportRun, preview["runs"][0]).source_id
+    for i in range(205):
+        db.add(CalendarImportRun(source_id=source_id, source_sha256="a" * 64,
+            parser_version=ci.PARSER_VERSION, status="previewed", batch_id=f"{i:032x}",
+            summary={"batch_id": f"{i:032x}", "plan_hash": "unrelated"}))
+    db.commit()
+    result = ci.apply(db, ci.load_bundle(path), OPTS, artifacts, None,
+                      preview["plan_hash"], preview["batch_id"])
+    assert result["applied"]["occurrences_created"] == 5
+    assert db.query(CalendarImportRun).filter(CalendarImportRun.status == "previewed").count() == 205
+    assert db.query(CalendarImportRun).filter_by(batch_id=preview["batch_id"], status="applied").count() == 3

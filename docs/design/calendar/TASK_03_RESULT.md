@@ -41,3 +41,7 @@ After the import-lock correction: Task03 SQLite19 passed/1 PG-only skip; Postgre
 Parent inspected migration, write authorization paths, source conflict handling, production gate and mobile screenshot. Original44 PostgreSQL and643 frontend results predate only the parent import-lock change; affected importer cases were rerun as above. No frontend changes after the recorded full browser runs.
 
 Stopped local dev backend8017, Vite5173, built preview5174, disposable caltask03-pg container and SSH tunnel55433. These preview URLs are no longer live. Private source originals and persistent artifact copies retained; temporary evidence remains under /tmp. Opus thread confirmed interrupted at the user's request; parent monitor disabled. No Task04 or additional agents started.
+
+## PR118 indexed preview batches
+
+Import previews now store a nullable32-character batch_id column indexed with status. The unpublished Task03 migration adds/backfills it from existing summary JSON and creates the index idempotently. Apply filters batch/status and the plan's source ids in SQL, loads at most source-count+1 rows, and refuses missing/duplicate/mismatched source batches. Abandoned previews are not loaded or modified. Targeted regression seeds205 unrelated previews. Reapply Task03 migration before using the revised importer on any pre-release development DB; production calendar migrations have not yet been applied.

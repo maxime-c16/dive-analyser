@@ -464,7 +464,7 @@ def preview(db: Session, bundle: Bundle, opts: Options, storage_dir: Path, actor
         for spec in plan["sources"]:
             src = find_source(db, club.id, spec["kind"], spec["label"])
             run = CalendarImportRun(source_id=src.id, source_sha256=spec["sha256"], parser_version=PARSER_VERSION,
-                                    status="previewed", created_by_user_id=actor.id if actor else None,
+                                    status="previewed", batch_id=batch, created_by_user_id=actor.id if actor else None,
                                     summary={"batch_id": batch, "plan_hash": digest, "bundle_sha256": bundle.sha256,
                                              "storage_ref": refs[spec["key"]], "counts": summarize(plan)})
             db.add(run)
@@ -497,9 +497,13 @@ def apply(db: Session, bundle: Bundle, opts: Options, storage_dir: Path, actor: 
         raise ImportError_("The plan changed since it was previewed (source or database). Preview and review again.")
     runs = []
     if batch_id:
-        runs = [r for r in db.query(CalendarImportRun).filter(CalendarImportRun.status == "previewed").all()
-                if (r.summary or {}).get("batch_id") == batch_id]
-        if not runs or any((r.summary or {}).get("plan_hash") != digest for r in runs):
+        source_ids = [spec["source_id"] for spec in plan["sources"]]
+        runs = db.query(CalendarImportRun).filter(
+            CalendarImportRun.status == "previewed", CalendarImportRun.batch_id == batch_id,
+            CalendarImportRun.source_id.in_(source_ids)).order_by(CalendarImportRun.id).limit(
+                len(source_ids) + 1).all()
+        if len(runs) != len(source_ids) or {r.source_id for r in runs} != set(source_ids) or any(
+                (r.summary or {}).get("plan_hash") != digest for r in runs):
             raise ImportError_("No previewed batch with this id and plan hash")
     try:
         result = _apply(db, plan, bundle, storage_dir, actor, runs)
