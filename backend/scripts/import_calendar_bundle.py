@@ -72,6 +72,13 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def apply_hint(result: dict) -> str:
+    hint = f"Review, then apply with: --plan-hash {result['plan_hash']}"
+    if result["batch_id"] is not None:
+        hint += f" --batch {result['batch_id']}"
+    return hint
+
+
 def main() -> int:
     args = parser().parse_args()
     try:
@@ -103,8 +110,7 @@ def main() -> int:
             out["conflicts"] = [x for t in result["plan"]["training"] for x in t["conflict"]]
             out["missing_from_source"] = [x for t in result["plan"]["training"] for x in t["missing_from_source"]]
             print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
-            print(f"\nReview, then apply with: --plan-hash {result['plan_hash']} --batch {result['batch_id']}",
-                  file=sys.stderr)
+            print("\n" + apply_hint(result), file=sys.stderr)
             return 0
         result = ci.apply(db, bundle, opts, args.artifact_dir, actor, args.plan_hash, args.batch)
         print(json.dumps(result, indent=2))

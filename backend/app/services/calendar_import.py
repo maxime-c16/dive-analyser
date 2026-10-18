@@ -471,8 +471,9 @@ def preview(db: Session, bundle: Bundle, opts: Options, storage_dir: Path, actor
             db.flush()
             run_ids.append(run.id)
         db.commit()
-    # A brand-new club has no source rows yet: the batch id + hash still gate apply.
-    return {"batch_id": batch, "plan_hash": digest, "runs": run_ids, "storage": refs, "summary": summarize(plan),
+    # New-club previews have no persisted run rows; the reviewed plan hash
+    # gates creation. Do not advertise an unusable persisted batch id.
+    return {"batch_id": batch if run_ids else None, "plan_hash": digest, "runs": run_ids, "storage": refs, "summary": summarize(plan),
             "plan": plan}
 
 
@@ -482,9 +483,11 @@ def apply(db: Session, bundle: Bundle, opts: Options, storage_dir: Path, actor: 
     # cannot be overwritten from a stale preview. Match UI event/occurrence order.
     club = db.query(Club).filter(Club.slug == opts.club_slug).with_for_update().one_or_none()
     if club is not None:
-        event_ids = db.query(CalendarSourceMapping.event_id).join(
-            CalendarSource, CalendarSource.id == CalendarSourceMapping.source_id).filter(
-            CalendarSource.club_id == club.id, CalendarSourceMapping.event_id.isnot(None))
+        current_source_ids = [src.id for spec in source_specs(bundle, opts)
+                              if (src := find_source(db, club.id, spec["kind"], spec["label"])) is not None]
+        event_ids = db.query(CalendarSourceMapping.event_id).filter(
+            CalendarSourceMapping.source_id.in_(current_source_ids),
+            CalendarSourceMapping.event_id.isnot(None))
         locked = db.query(CalendarEvent).filter(CalendarEvent.id.in_(event_ids.scalar_subquery())).order_by(
             CalendarEvent.id).with_for_update().all()
         if locked:

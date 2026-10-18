@@ -569,3 +569,41 @@ def test_import_apply_selects_only_indexed_requested_batch(cal, tmp_path):
     assert result["applied"]["occurrences_created"] == 5
     assert db.query(CalendarImportRun).filter(CalendarImportRun.status == "previewed").count() == 205
     assert db.query(CalendarImportRun).filter_by(batch_id=preview["batch_id"], status="applied").count() == 3
+
+
+def test_new_club_preview_command_applies_without_unpersisted_batch(cal, tmp_path):
+    from scripts.import_calendar_bundle import apply_hint
+    db, artifacts = cal["db"], tmp_path / "artifacts"
+    opts = ci.Options(club_slug="new-pilot", groups=OPTS.groups, season_start=OPTS.season_start,
+                      create_club_name="New pilot", create_missing_groups=True)
+    path = synthetic_bundle(tmp_path)
+    preview = ci.preview(db, ci.load_bundle(path), opts, artifacts, None)
+    assert preview["batch_id"] is None and preview["runs"] == []
+    assert "--batch" not in apply_hint(preview)
+    result = ci.apply(db, ci.load_bundle(path), opts, artifacts, None,
+                      preview["plan_hash"], preview["batch_id"])
+    assert result["applied"]["occurrences_created"] == 5
+    again = ci.preview(db, ci.load_bundle(path), opts, artifacts, None)
+    assert again["batch_id"] is not None and len(again["runs"]) == 3
+    assert f"--batch {again['batch_id']}" in apply_hint(again)
+    assert again["summary"]["training"]["create"] == 0
+
+
+def test_apply_locks_only_current_bundle_sources(cal, tmp_path):
+    from sqlalchemy import event
+    db, artifacts = cal["db"], tmp_path / "artifacts"
+    path = synthetic_bundle(tmp_path)
+    run_import(db, path, artifacts)
+    preview = ci.preview(db, ci.load_bundle(path), OPTS, artifacts, None)
+    queries = []
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if "calendar_events.id IN (SELECT calendar_source_mappings.event_id" in statement:
+            queries.append(statement)
+    event.listen(db.get_bind(), "before_cursor_execute", capture)
+    try:
+        ci.apply(db, ci.load_bundle(path), OPTS, artifacts, None, preview["plan_hash"], preview["batch_id"])
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", capture)
+    assert len(queries) == 1
+    assert "calendar_source_mappings.source_id IN" in queries[0]
+    assert "JOIN calendar_sources" not in queries[0]
