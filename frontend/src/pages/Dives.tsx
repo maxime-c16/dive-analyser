@@ -2,7 +2,7 @@ import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { appLocale } from "../utils/dateLocale";
-import { ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { HelpCircle, ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
 import { clearLibraryCache, libraryKey, loadLibraryCache, readLibraryCache } from "../services/libraryCache";
@@ -52,10 +52,12 @@ function AttemptCard({
   dive,
   onOpen,
   compact = false,
+  showDiver = false,
 }: {
   dive: Dive;
   onOpen: () => void;
   compact?: boolean;
+  showDiver?: boolean;
 }) {
   const { t } = useTranslation();
   const score = attemptScore(dive);
@@ -65,10 +67,13 @@ function AttemptCard({
       onClick={onOpen}
       data-attempt-id={dive.id}
       className={`group min-w-0 overflow-hidden border border-app bg-app-panel text-left transition-colors hover:border-app-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${compact ? "w-[13.5rem] shrink-0 sm:w-[15rem]" : ""}`}
-      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() }) })}
+      aria-label={[t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() }) }), showDiver && dive.person_name].filter(Boolean).join(" · ")}
     >
       <DiveThumbnail dive={dive} />
       <div className="p-3">
+        {showDiver && dive.person_name && (
+          <p className="mb-1 truncate text-base font-semibold text-app-text" title={dive.person_name}>{dive.person_name}</p>
+        )}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-mono text-lg font-semibold tracking-tight text-app-text">
@@ -81,7 +86,7 @@ function AttemptCard({
           <ScoreBadge dive={dive} />
         </div>
         <p className="mt-3 truncate text-xs text-app-muted">
-          {dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
+          {!showDiver && dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
         </p>
         {!compact && (
           <div className="mt-3 flex items-center justify-between border-t border-app pt-3 text-xs">
@@ -96,7 +101,7 @@ function AttemptCard({
   );
 }
 
-function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
+function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {
   const { t } = useTranslation();
   const score = attemptScore(dive);
   return (
@@ -105,12 +110,15 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
       onClick={onOpen}
       data-attempt-id={dive.id}
       className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
-      aria-label={t("dives.openAttemptAria", { code: dive.dive_code, date: "" })}
+      aria-label={[t("dives.openAttemptAria", { code: dive.dive_code, date: "" }), showDiver && dive.person_name].filter(Boolean).join(" · ")}
     >
       <div className="aspect-video overflow-hidden border border-app">
         <DiveThumbnail dive={dive} compact />
       </div>
       <div className="min-w-0">
+        {showDiver && dive.person_name && (
+          <p className="mb-1 truncate text-base font-semibold text-app-text" title={dive.person_name}>{dive.person_name}</p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-base font-semibold text-app-text">
             {dive.dive_code}
@@ -118,7 +126,7 @@ function AttemptRow({ dive, onOpen }: { dive: Dive; onOpen: () => void }) {
           <ScoreBadge dive={dive} />
         </div>
         <p className="mt-1 truncate text-xs text-app-muted">
-          {dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
+          {!showDiver && dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
         </p>
         <p className="mt-1 text-xs text-app-muted sm:hidden">
           {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm", { locale: appLocale() })}
@@ -529,7 +537,6 @@ function DiveLibrary() {
       ),
     [dives],
   );
-  const codeCount = new Set(filtered.map((dive) => dive.dive_code)).size;
   const activeFilters = [
     heightFilter,
     contextFilter,
@@ -544,8 +551,6 @@ function DiveLibrary() {
       context: null,
       performance: null,
       modifiers: null,
-      scope: "self",
-      view: null,
     });
 
   return (
@@ -555,10 +560,6 @@ function DiveLibrary() {
           <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">
             {t("nav.dives")}
           </h1>
-          <p className="mt-0.5 text-xs text-app-muted sm:hidden">
-            <strong className="text-app-text">{filtered.length}{nextCursor ? '+' : ''}</strong> {t("dives.attempts")} ·{" "}
-            <strong className="text-app-text">{codeCount}{nextCursor ? '+' : ''}</strong> {t("dives.codes")}
-          </p>
         </div>
         <button
           type="button"
@@ -588,19 +589,9 @@ function DiveLibrary() {
             </button>
           ))}
         </div>
-        <div className="hidden gap-2 text-sm sm:flex">
-          <div className="border border-app bg-app-panel px-3 py-2">
-            <span className="text-app-muted">{t("dives.attempts")} </span>
-            <strong className="ml-1 text-app-text">{filtered.length}{nextCursor ? '+' : ''}</strong>
-          </div>
-          <div className="border border-app bg-app-panel px-3 py-2">
-            <span className="text-app-muted">{t("dives.codes")} </span>
-            <strong className="ml-1 text-app-text">{codeCount}{nextCursor ? '+' : ''}</strong>
-          </div>
-        </div>
+        <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />
-      <div className="mt-3"><AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} /></div>
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
         <div className="flex flex-wrap items-center gap-2">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
@@ -615,7 +606,7 @@ function DiveLibrary() {
                 type="button"
                 onClick={() => update({ scope: value })}
                 aria-pressed={scope === value}
-                className={`min-h-0 flex-1 border px-3 text-sm ${scope === value ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+                className={`min-h-0 flex-1 whitespace-nowrap border px-3 text-sm ${scope === value ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
               >
                 {label}
               </button>
@@ -652,6 +643,8 @@ function DiveLibrary() {
               onClick={() => update({ view: "grid" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
               aria-label={t("dives.gridView")}
+              title={t("dives.gridView")}
+              aria-pressed={view === "grid"}
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
@@ -660,6 +653,8 @@ function DiveLibrary() {
               onClick={() => update({ view: "list" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
               aria-label={t("dives.listView")}
+              title={t("dives.listView")}
+              aria-pressed={view === "list"}
             >
               <List className="h-4 w-4" />
             </button>
@@ -668,6 +663,8 @@ function DiveLibrary() {
               onClick={() => update({ view: "codes" })}
               className={`touch-target inline-flex items-center justify-center border p-0 ${view === "codes" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
               aria-label={t("dives.codeView")}
+              title={t("dives.codeView")}
+              aria-pressed={view === "codes"}
             >
               <Hash className="h-4 w-4" />
             </button>
@@ -729,20 +726,32 @@ function DiveLibrary() {
                   })
                 }
                 aria-pressed={modifiers.includes(modifier)}
+                title={t(`dives.modifierDescriptions.${modifier}`)}
                 className={`min-h-0 min-w-10 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
               >
                 {modifier}
               </button>
             ))}
           </div>
+          <details className="relative col-span-2 justify-self-start sm:col-span-1">
+            <summary aria-label={t("dives.modifierHelp")} title={t("dives.modifierHelp")} className="touch-target flex cursor-pointer list-none items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent [&::-webkit-details-marker]:hidden">
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+            </summary>
+            <dl className="absolute left-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-3 border border-app bg-app-panel-elevated p-4 text-sm shadow-lg sm:left-auto sm:right-0">
+              {MODIFIERS.map(modifier => <div key={modifier}>
+                <dt className="font-semibold text-app-text">{modifier} · {t(`dives.modifierNames.${modifier}`)}</dt>
+                <dd className="mt-1 text-app-muted">{t(`dives.modifierDescriptions.${modifier}`)}</dd>
+              </div>)}
+            </dl>
+          </details>
           <button
             type="button"
             onClick={reset}
-            disabled={!activeFilters && scope === "self"}
-            className="touch-target col-span-2 inline-flex items-center justify-center gap-2 px-2 text-sm text-app-muted hover:text-app-text disabled:hidden disabled:opacity-35 sm:disabled:inline-flex"
+            disabled={!activeFilters}
+            className="touch-target col-span-2 inline-flex items-center justify-center gap-2 px-2 text-sm text-app-muted hover:text-app-text disabled:hidden"
           >
             <SlidersHorizontal className="h-4 w-4" />
-            {t("common.reset")}
+            {t("dives.resetFilters")}
           </button>
         </div>
       </section>
@@ -776,7 +785,7 @@ function DiveLibrary() {
               <p className="font-medium text-app-text">
                 {t("dives.noMatches")}
               </p>
-              {(activeFilters > 0 || scope !== "self") && (
+              {(activeFilters > 0) && (
                 <button
                   type="button"
                   onClick={reset}
@@ -789,7 +798,7 @@ function DiveLibrary() {
             </div>
           ) : (
             view === "codes" ? (
-              <CodesLayout attempts={filtered} onOpen={openClip} />
+              <CodesLayout attempts={filtered} onOpen={openClip} showDiver={scope === "all"} />
             ) : (
               <>
                 {view === "grid" ? (
@@ -799,12 +808,13 @@ function DiveLibrary() {
                         <AttemptCard
                           key={dive.id}
                           dive={dive}
+                          showDiver={scope === "all"}
                           onOpen={() => openClip(dive)}
                         />
                       ))}
                     </div>
                     <div className="sm:hidden">
-                      <WallLayout attempts={visible} onOpen={openClip} />
+                      <WallLayout attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
                     </div>
                   </>
                 ) : (
@@ -813,6 +823,7 @@ function DiveLibrary() {
                       <AttemptRow
                         key={dive.id}
                         dive={dive}
+                        showDiver={scope === "all"}
                         onOpen={() => openClip(dive)}
                       />
                     ))}

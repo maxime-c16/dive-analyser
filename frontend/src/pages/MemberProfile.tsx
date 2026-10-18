@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, ChevronLeft, Pencil } from 'lucide-react'
 import {
   getUserProfile,
   getUserActivity,
@@ -42,35 +42,33 @@ function ClipLink({ item }: { item: ActivityItem }) {
   )
 }
 
-function ProfileHead({ profile }: { profile: MemberProfileData }) {
+function ProfileHead({ profile, editing, onEdit }: { profile: MemberProfileData; editing: boolean; onEdit: () => void }) {
   const { t } = useTranslation()
+  // A diver binding that only repeats the member's own name adds nothing.
+  const own = new Set([profile.display_name, profile.handle ?? ''].map(value => value.trim().toLowerCase()))
+  const otherDivers = profile.divers.filter(diver => !own.has(diver.display_name.trim().toLowerCase()))
   return (
-    <header className="mb-5 flex flex-wrap items-center gap-4 border-b border-app pb-4">
+    <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-app pb-4">
       <MemberAvatar member={profile} large />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-56">
         <h1 className="truncate text-2xl font-semibold tracking-tight text-app-text">{profile.display_name}</h1>
-        {profile.handle && <p className="mt-1 text-sm text-app-accent">@{profile.handle}</p>}
+        {profile.handle && <p className="mt-0.5 text-sm text-app-accent">@{profile.handle}</p>}
         {profile.bio && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm text-app-text">{profile.bio}</p>}
-        <p className="mt-0.5 flex items-center gap-2 text-sm text-app-muted">
-          <span className={`border px-2 py-0.5 text-xs font-medium ${profile.is_admin ? 'border-app text-app-muted' : 'border-app-accent text-app-accent'}`}>
-            {profile.is_admin ? t('roles.administrator') : t('roles.diver')}
-          </span>
+        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-app-muted">
           {profile.joined_at && (
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-              <time dateTime={profile.joined_at}>{new Date(profile.joined_at).toLocaleDateString(appLanguage())}</time>
+              <time dateTime={profile.joined_at}>{t('profile.memberSince', { date: new Date(profile.joined_at).toLocaleDateString(appLanguage(), { year: 'numeric', month: 'long' }) })}</time>
             </span>
           )}
+          {otherDivers.length > 0 && <span>{t('profile.diverOf')} {otherDivers.map(diver => diver.display_name).join(', ')}</span>}
         </p>
       </div>
-      {profile.divers.length > 0 && (
-        <p className="ml-auto text-sm text-app-muted">
-          {t('profile.diverOf')}{' '}
-          <Link to="/dives" className="text-app-accent hover:underline">
-            {profile.divers.map(diver => diver.display_name).join(', ')}
-          </Link>
-        </p>
-      )}
+      <div className="flex shrink-0 items-start">
+        {profile.is_self
+          ? <button type="button" className="touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong" onClick={onEdit} aria-expanded={editing}><Pencil className="h-4 w-4" aria-hidden />{t('community.edit')}</button>
+          : <ProfileMessageButton userId={profile.user_id} />}
+      </div>
     </header>
   )
 }
@@ -241,12 +239,8 @@ export default function MemberProfile() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <Link to="/community" className="text-sm text-app-accent hover:underline">{t('community.back')}</Link>
-        {!profile.is_self && <ProfileMessageButton userId={profile.user_id} />}
-        {profile.is_self && <button className="touch-target border border-app px-3 text-sm text-app-text" onClick={() => setEditing(value => !value)} aria-expanded={editing}>{t('community.edit')}</button>}
-      </div>
-      <ProfileHead profile={profile} />
+      <Link to="/community" className="touch-target mb-1 inline-flex items-center gap-1 text-sm text-app-accent hover:underline"><ChevronLeft className="h-4 w-4" aria-hidden />{t('community.back')}</Link>
+      <ProfileHead profile={profile} editing={editing} onEdit={() => setEditing(value => !value)} />
       {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
       <div className="mb-5 flex border-b border-app" role="tablist" aria-label={t('community.profileSections')}>
         {PROFILE_TABS.map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {
@@ -262,12 +256,12 @@ export default function MemberProfile() {
       </div>
       {tab === 'dives' && <div role="tabpanel" id="profile-panel-dives" aria-labelledby="profile-tab-dives"><ProfileDiveGrid key={profile.user_id} userId={profile.user_id} /></div>}
       {tab === 'achievements' && (
-        <div role="tabpanel" id="profile-panel-achievements" aria-labelledby="profile-tab-achievements" className="border border-app bg-app-panel p-6">
+        <div role="tabpanel" id="profile-panel-achievements" aria-labelledby="profile-tab-achievements" className="border border-app bg-app-panel p-4 sm:p-6">
           <AchievementsPanel key={profile.user_id} userId={profile.user_id} isSelf={profile.is_self} />
         </div>
       )}
       <div hidden={tab !== 'activity'} role="tabpanel" id="profile-panel-activity" aria-labelledby="profile-tab-activity">
-      <div className="border border-app bg-app-panel p-6">
+      <div className="border border-app bg-app-panel p-4 sm:p-6">
         {error && items.length === 0 ? (
           <p role="alert" className="text-sm text-red-400">{error}</p>
         ) : !loaded && items.length === 0 ? (

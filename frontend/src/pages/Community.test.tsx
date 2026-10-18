@@ -12,6 +12,17 @@ function renderPage() { render(<I18nProvider><MemoryRouter><Community /></Memory
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('Community discovery', () => {
+  it('shows accessible dive summaries and a useful empty state', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => response({ items: [
+      { ...fanny, accessible_dive_count: 32, latest_dive_at: '2026-03-24T12:00:00Z' },
+      { ...fanny, user_id: 3, display_name: 'Alex', accessible_dive_count: 0, latest_dive_at: null },
+    ], next_after: null }))
+    renderPage()
+    expect(await screen.findByText('32 shared dives')).toBeInTheDocument()
+    expect(screen.getByText('No shared dives yet')).toBeInTheDocument()
+    expect(document.querySelector('time')).toHaveAttribute('datetime', '2026-03-24T12:00:00Z')
+  })
+
   it('searches names/handles and links to the selected member profile', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(input => response({ items: String(input).includes('q=%40fanny') ? [fanny] : [], next_after: null }))
     renderPage()

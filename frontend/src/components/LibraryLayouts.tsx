@@ -53,9 +53,11 @@ function RatingBar({ attempts }: { attempts: Attempt[] }) {
 export function WallLayout({
   attempts,
   onOpen,
+  showDiver = false,
 }: {
   attempts: Attempt[];
   onOpen: (a: Attempt) => void;
+  showDiver?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -67,10 +69,11 @@ export function WallLayout({
           onClick={() => onOpen(a)}
           data-attempt-id={a.id}
           className="group relative aspect-[3/4] overflow-hidden bg-app-panel text-left"
-          aria-label={t('dives.openCodeAttempt', { code: a.dive_code })}
+          aria-label={[t('dives.openCodeAttempt', { code: a.dive_code }), showDiver && a.person_name].filter(Boolean).join(' · ')}
         >
           <DiveThumbnail dive={a} compact />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 pb-1.5 pt-6">
+            {showDiver && a.person_name && <p className="mb-1 truncate text-xs font-semibold text-white" title={a.person_name}>{a.person_name}</p>}
             <div className="flex items-end justify-between gap-1">
               <span className="font-mono text-sm font-semibold text-white sm:text-base">
                 {a.dive_code}
@@ -81,7 +84,7 @@ export function WallLayout({
             </div>
             <div className="truncate text-[10px] text-white/70">
               {format(parseISO(a.dive_datetime), "d MMM", { locale: appLocale() })} · {a.height}
-              {a.person_name && <span className="block truncate">{a.person_name}</span>}
+              {!showDiver && a.person_name && <span className="block truncate">{a.person_name}</span>}
             </div>
           </div>
           <div className={`absolute inset-x-0 bottom-0 h-1 ${ratingDot[a.performance]}`} />
@@ -96,9 +99,11 @@ export function WallLayout({
 export function CodesLayout({
   attempts,
   onOpen,
+  showDiver = false,
 }: {
   attempts: Attempt[];
   onOpen: (a: Attempt) => void;
+  showDiver?: boolean;
 }) {
   const { t } = useTranslation();
   const codes = useMemo(() => {
@@ -148,8 +153,8 @@ export function CodesLayout({
                   type="button"
                   onClick={() => onOpen(a)}
                   data-attempt-id={a.id}
-                  title={`${format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() })} · ${attemptScore(a).toFixed(1)}`}
-                  aria-label={t('dives.openAttemptFrom', { code, date: format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() }) })}
+                  title={`${showDiver && a.person_name ? `${a.person_name} · ` : ""}${format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() })} · ${attemptScore(a).toFixed(1)}`}
+                  aria-label={[t('dives.openAttemptFrom', { code, date: format(parseISO(a.dive_datetime), "d MMM HH:mm", { locale: appLocale() }) }), showDiver && a.person_name].filter(Boolean).join(' · ')}
                   className={`flex h-6 min-h-0 min-w-6 items-center justify-center px-1 text-[10px] font-semibold tabular-nums text-black/80 hover:ring-2 hover:ring-white/60 ${ratingDot[a.performance]}`}
                 >
                   {attemptScore(a).toFixed(0)}

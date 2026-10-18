@@ -26,7 +26,8 @@ a:hover {
 }
 
 button {
-  border: 0;
+  /* Keep Preflight’s solid style so border utilities can restore an outline. */
+  border-width: 0;
   border-radius: 0;
   padding: 0;
   font-size: inherit;
