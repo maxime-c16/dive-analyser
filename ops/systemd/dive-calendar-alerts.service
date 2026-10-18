@@ -8,4 +8,4 @@ Type=oneshot
 User=mcauchy
 WorkingDirectory=/home/mcauchy/dive-analyser
 ExecStart=/home/mcauchy/dive-analyser/ops/calendar-alerts.sh
-TimeoutStartSec=90
+TimeoutStartSec=600

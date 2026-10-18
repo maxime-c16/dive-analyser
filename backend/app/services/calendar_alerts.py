@@ -55,8 +55,8 @@ from app.services import notification_service
 logger = logging.getLogger(__name__)
 
 WORKER_NAME = "calendar-alerts"
-RUN_LEASE = timedelta(minutes=5)
-ROW_LEASE = timedelta(minutes=2)
+RUN_LEASE = timedelta(minutes=12)
+ROW_LEASE = timedelta(minutes=10)
 MAX_ATTEMPTS = 6
 BACKOFF_BASE_SECONDS = 30
 BACKOFF_MAX_SECONDS = 3600
@@ -69,7 +69,7 @@ MAX_BATCH = 500
 MAX_RECIPIENTS = 2000
 MAX_DETAIL_OCCURRENCES = 10
 MAX_AFFECTED_OCCURRENCES = 400
-STALE_WORKER = timedelta(minutes=int(os.getenv("CALENDAR_ALERTS_STALE_MINUTES", "10")))
+STALE_WORKER = timedelta(minutes=int(os.getenv("CALENDAR_ALERTS_STALE_MINUTES", "15")))
 SCHEMA_TABLES = ("calendar_alert_outbox", "calendar_alert_deliveries", "calendar_worker_state")
 
 PARTICIPANT_INTEREST = ("interested", "maybe")
@@ -569,7 +569,7 @@ def push_payload(db: Session, d: CalendarAlertDelivery) -> dict:
     return {"title": title, "body": body, "url": _occurrence_url(d.occurrence_id)}
 
 
-def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime) -> str:
+def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime, budget=None) -> str:
     d = db.get(CalendarAlertDelivery, delivery_id, populate_existing=True)
     if d is None or d.lease_owner != owner or d.push_state != "pending":
         db.rollback()
@@ -586,6 +586,12 @@ def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime) -> s
                  "lease_owner": None, "lease_until": None}, synchronize_session=False)
         db.commit()
         return "skipped"
+    if budget is not None:
+        if budget[0] <= 0:
+            d.lease_owner = d.lease_until = None
+            db.commit()
+            return "deferred"
+        budget[0] -= 1
     payload = push_payload(db, d)
     notification = db.get(Notification, d.notification_id) if d.notification_id else None
     db.rollback()  # never hold the row lock while talking to push services
@@ -617,7 +623,7 @@ def web_push_sender(db: Session, notification: Notification, payload: dict) -> b
     return True
 
 
-def dispatch(factory: Callable[[], Session], owner: str, now: datetime, batch: int, sender=None) -> dict:
+def dispatch(factory: Callable[[], Session], owner: str, now: datetime, batch: int, sender=None, push_budget=None) -> dict:
     sender = web_push_sender if sender is None else sender
     stats = {"delivered": 0, "suppressed": 0, "delivery_failed": 0, "pushed": 0}
     with factory() as db:
@@ -654,12 +660,12 @@ def dispatch(factory: Callable[[], Session], owner: str, now: datetime, batch: i
                 _record_failure(db, CalendarAlertDelivery, row_id, owner, now, exc)
                 stats["delivery_failed"] += 1
                 continue
-            if _push(db, row_id, owner, sender, now) == "sent":
+            if _push(db, row_id, owner, sender, now, push_budget) == "sent":
                 stats["pushed"] += 1
     return stats
 
 
-def retry_push(factory: Callable[[], Session], owner: str, now: datetime, batch: int, sender=None) -> dict:
+def retry_push(factory: Callable[[], Session], owner: str, now: datetime, batch: int, sender=None, push_budget=None) -> dict:
     """Pushes interrupted between the inbox commit and the send: retried
     within PUSH_RETRY_WINDOW, otherwise expired (inbox stays the reference)."""
     sender = web_push_sender if sender is None else sender
@@ -673,13 +679,13 @@ def retry_push(factory: Callable[[], Session], owner: str, now: datetime, batch:
         db.commit()
         ids = sorted(r[0] for r in db.query(CalendarAlertDelivery.id).filter(
             CalendarAlertDelivery.status == "delivered", CalendarAlertDelivery.push_state == "pending",
-            free).limit(batch))
+            free).order_by(CalendarAlertDelivery.id).limit(batch))
         for row_id in ids:
             claimed = db.query(CalendarAlertDelivery).filter(
                 CalendarAlertDelivery.id == row_id, CalendarAlertDelivery.push_state == "pending", free).update(
                 {"lease_owner": owner, "lease_until": now + ROW_LEASE}, synchronize_session=False)
             db.commit()
-            if claimed and _push(db, row_id, owner, sender, now) in ("sent", "skipped"):
+            if claimed and _push(db, row_id, owner, sender, now, push_budget) in ("sent", "skipped"):
                 stats["push_retried"] += 1
     return stats
 
@@ -691,7 +697,7 @@ def new_owner() -> str:
 
 
 def run_once(factory: Callable[[], Session], *, now: Optional[datetime] = None, owner: Optional[str] = None,
-             batch: int = DEFAULT_BATCH, sender=None) -> dict:
+             batch: int = DEFAULT_BATCH, sender=None, push_limit=None) -> dict:
     """One bounded worker run. Never runs when the feature is off."""
     if not get_settings().calendar_enabled:
         return {"status": "disabled"}
@@ -707,8 +713,11 @@ def run_once(factory: Callable[[], Session], *, now: Optional[datetime] = None, 
     try:
         stats.update(expand_outbox(factory, owner, now, batch))
         stats.update(plan_reminders(factory, now, batch))
-        stats.update(dispatch(factory, owner, now, batch, sender))
-        stats.update(retry_push(factory, owner, now, batch, sender))
+        # Scheduled CLI defers all network work to the oldest-first push phase.
+        # Inbox batches remain independent of the bounded network allowance.
+        stats.update(dispatch(factory, owner, now, batch, sender, [0] if push_limit is not None else None))
+        stats.update(retry_push(factory, owner, now, batch, sender,
+                                [max(0, push_limit)] if push_limit is not None else None))
     except Exception as exc:
         with factory() as db:
             finish_run(db, owner, now, stats, error=type(exc).__name__)

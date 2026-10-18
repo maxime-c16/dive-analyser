@@ -48,7 +48,7 @@ def main(argv=None) -> int:
 
     if args.cmd == "run":
         try:
-            result = calendar_alerts.run_once(factory, batch=args.batch)
+            result = calendar_alerts.run_once(factory, batch=args.batch, push_limit=1)
         except Exception as exc:  # noqa: BLE001 - type only (no bound parameters in logs)
             print(json.dumps({"status": "failed", "error": type(exc).__name__}))
             return 1

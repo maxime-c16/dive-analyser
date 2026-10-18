@@ -44,3 +44,22 @@ esac
         code, calls = self.run_wrapper(1, 0)
         self.assertEqual(code, 1)
         self.assertEqual(len(calls), 1)
+
+
+class CalendarWorkerTimingTests(unittest.TestCase):
+    def test_scheduled_network_budget_fits_timeout_and_leases(self):
+        import re
+        source = (ROOT / "backend/app/services/calendar_alerts.py").read_text()
+        cli = (ROOT / "backend/scripts/calendar_alerts_worker.py").read_text()
+        push = (ROOT / "backend/app/services/push_service.py").read_text()
+        unit = (ROOT / "ops/systemd/dive-calendar-alerts.service").read_text()
+        devices = int(re.search(r"MAX_SUBSCRIPTIONS_PER_USER = (\d+)", push)[1])
+        timeout = int(re.search(r"_PUSH_SEND_TIMEOUT_SECONDS = (\d+)", push)[1])
+        service = int(re.search(r"TimeoutStartSec=(\d+)", unit)[1])
+        row = int(re.search(r"ROW_LEASE = timedelta\(minutes=(\d+)\)", source)[1]) * 60
+        run = int(re.search(r"RUN_LEASE = timedelta\(minutes=(\d+)\)", source)[1]) * 60
+        self.assertIn("push_limit=1", cli)
+        # Reserve both connect/read timeout intervals and time for DB phases.
+        self.assertLess(devices * timeout * 2, service)
+        self.assertLessEqual(service, row)
+        self.assertLess(service, run)

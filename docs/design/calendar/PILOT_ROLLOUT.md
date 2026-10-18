@@ -90,3 +90,7 @@ ci/ship.sh server --ref <previous-sha> --force
 ```
 
 Keep additive schema and data; do not run a down migration or restore over live data for an application rollback. Verify four mobile tabs, signup selector absent, calendar/API deep link unavailable, redacted calendar inbox rows and CLI `run` disabled on a calendar-capable rollback build. An older pre-calendar build has no calendar CLI; the removed timer must remain removed. No unauthorized recipient or media exposure. Re-enable only after the same gates; expired jobs are suppressed, not replayed. Restore DB/files only under a separate incident recovery decision.
+
+### Scheduled worker network budget
+
+The CLI commits inbox batches independently and attempts one recipient push fan-out per run (oldest first). Pending push attempts expire after15 minutes; inbox rows remain available even under push backlog. The service timeout is600s, row lease10min, run lease12min and default stale-worker threshold15min. Monitor queue age and push expiry during the adult pilot; do not describe Web Push as guaranteed. The service/timer do not install themselves.

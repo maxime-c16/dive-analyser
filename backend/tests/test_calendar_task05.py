@@ -604,3 +604,20 @@ def test_health_not_ready_with_dead_letters_even_after_success(cal, queue):
     assert response.json()["worker"] == "ok"
     assert response.json()["ready"] is False
     assert ("outbox_dead_letters" if queue == "outbox" else "deliveries_dead_letters") in response.json()["problems"]
+
+
+def test_scheduled_push_budget_preserves_inbox_and_drains_oldest(cal):
+    for key, who in (("ga", "alice"), ("gb", "bob")):
+        place_on(cal, key, TODAY + timedelta(days=3))
+        interest(cal, who, key)
+    now = due_of(cal, "ga") + timedelta(minutes=1)
+    pushes = Pushes()
+    first = run(cal, now=now, pushes=pushes, push_limit=1)
+    assert first["delivered"] == 2 and len(pushes) == 1
+    rows = deliveries(cal)
+    assert [d.push_state for d in rows] == ["sent", "pending"]
+    assert all(d.notification_id is not None for d in rows)
+    assert rows[1].lease_owner is None
+    run(cal, now=now + timedelta(minutes=1), pushes=pushes, push_limit=1)
+    assert len(pushes) == 2
+    assert all(d.push_state == "sent" for d in deliveries(cal))
