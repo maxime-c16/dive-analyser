@@ -27,6 +27,7 @@ from app.models.calendar import (
 )
 from app.models.user_auth import AppUser
 
+MAX_RESOURCE_RESULTS = 200
 STAFF_ROLES = ("coach", "manager")
 # Task03: a declined invitee keeps read access (they may change their mind);
 # only revocation, or leaving the club, removes the grant.
@@ -197,11 +198,11 @@ def visible_event_resources(db: Session, user: AppUser, event_ids):
     return db.query(EventResource).join(CalendarEvent, CalendarEvent.id == EventResource.event_id).join(
         Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
         EventResource.event_id.in_(list(event_ids)), event_visible_clause(user),
-        resource_visible_clause(user)).order_by(EventResource.id).all()
+        resource_visible_clause(user)).order_by(EventResource.id).limit(MAX_RESOURCE_RESULTS).all()
 
 
 def club_resources(db: Session, user: AppUser, club_id: int):
     """Club-wide resources: active members only."""
     if active_membership(db, user, club_id) is None:
         return None
-    return db.query(EventResource).filter(EventResource.club_id == club_id).order_by(EventResource.id).all()
+    return db.query(EventResource).filter(EventResource.club_id == club_id).order_by(EventResource.id).limit(MAX_RESOURCE_RESULTS).all()

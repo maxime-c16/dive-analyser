@@ -759,7 +759,7 @@ def health(db: Session, now: Optional[datetime] = None) -> dict:
     out["suppressed_by_reason"] = {reason: n for reason, n in db.query(
         CalendarAlertDelivery.suppressed_reason, func.count(CalendarAlertDelivery.id)).filter(
         CalendarAlertDelivery.status == "suppressed").group_by(CalendarAlertDelivery.suppressed_reason)}
-    out["ready"] = out["enabled"] and out["worker"] == "ok"
+    out["ready"] = out["enabled"] and out["worker"] == "ok" and not out["problems"]
     if not out["enabled"]:
         out["problems"].append("feature_disabled")
     return out

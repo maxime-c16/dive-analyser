@@ -583,3 +583,24 @@ def test_crash_window_push_retry_rechecks_current_eligibility(cal, flags, change
     assert saved.suppressed_reason == reason
     assert saved.push_state == ("sent" if reason is None else "skipped")
     assert len(pushes) == (1 if reason is None else 0)
+
+
+@pytest.mark.parametrize("queue", ["outbox", "delivery"])
+def test_health_not_ready_with_dead_letters_even_after_success(cal, queue):
+    now = datetime.utcnow()
+    run(cal, now=now)
+    patch_occ(cal, "coach", cal["occ"]["ga"].id, venue_name="Health regression")
+    db = cal["db"]
+    if queue == "delivery":
+        db.rollback()
+        alerts.expand_outbox(factory(cal), "health-test", now + timedelta(seconds=1), 100)
+        row = deliveries(cal)[0]
+    else:
+        row = db.query(CalendarAlertOutbox).order_by(CalendarAlertOutbox.id.desc()).first()
+    row.status = "dead"
+    db.commit()
+    response = cal["login"]("admin").get(f"{API}/admin/alerts/health")
+    assert response.status_code == 503
+    assert response.json()["worker"] == "ok"
+    assert response.json()["ready"] is False
+    assert ("outbox_dead_letters" if queue == "outbox" else "deliveries_dead_letters") in response.json()["problems"]

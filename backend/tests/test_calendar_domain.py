@@ -697,3 +697,18 @@ def test_concurrent_manager_demotions_cannot_orphan_club(cal):
         results = list(executor.map(demote, ids))
     assert sorted(results) == [200, 409]
     assert db.query(ClubMembership).filter_by(club_id=club_id, role="manager", status="active").count() == 1
+
+
+def test_club_selection_and_resource_lists_are_bounded(cal):
+    db, club = cal["db"], cal["clubs"]["k"]
+    for i in range(205):
+        db.add(Club(slug=f"bounded-{i}", name=f"Bounded {i:03}", timezone="Europe/Paris", self_join_enabled=True))
+        db.add(EventResource(club_id=club.id, kind="other", label=f"Club resource {i}"))
+        db.add(EventResource(event_id=cal["events"]["ga"].id, kind="other", label=f"Event resource {i}"))
+    db.commit()
+    client = cal["login"]("alice")
+    assert len(client.get("/api/v1/auth/signup-clubs").json()) == 200
+    assert len(access.club_resources(db, cal["users"]["alice"], club.id)) == access.MAX_RESOURCE_RESULTS
+    assert len(access.visible_event_resources(db, cal["users"]["alice"], [cal["events"]["ga"].id])) == access.MAX_RESOURCE_RESULTS
+    assert access.club_resources(db, cal["users"]["outsider"], club.id) is None
+    assert access.visible_event_resources(db, cal["users"]["bob"], [cal["events"]["ga"].id]) == []

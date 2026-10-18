@@ -392,7 +392,7 @@ def signup_clubs(response: Response, db: Session = Depends(get_db)):
 
     calendar_gate(db)
     _secure_headers(response)
-    rows = db.query(Club).filter(Club.self_join_enabled.is_(True), Club.archived_at.is_(None)).order_by(Club.name)
+    rows = db.query(Club).filter(Club.self_join_enabled.is_(True), Club.archived_at.is_(None)).order_by(Club.name, Club.id).limit(200)
     return [{"id": c.id, "name": c.name, "short_name": c.short_name} for c in rows]
 
 
