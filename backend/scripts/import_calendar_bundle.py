@@ -64,6 +64,9 @@ def parser() -> argparse.ArgumentParser:
     r = sub.add_parser("review")
     r.add_argument("--database-url", required=True)
     r.add_argument("--club", required=True)
+    r.add_argument("--limit", type=int, default=100, help="1..200 rows per review stream")
+    r.add_argument("--after-mapping-id", type=int, default=0)
+    r.add_argument("--after-draft-id", type=int, default=0)
     x = sub.add_parser("resolve")
     x.add_argument("--database-url", required=True)
     x.add_argument("--club", required=True)
@@ -87,7 +90,13 @@ def main() -> int:
             return 0
         db = sessionmaker(bind=create_engine(args.database_url))()
         if args.command == "review":
-            print(json.dumps(ci.review_queue(db, args.club), indent=2, ensure_ascii=False))
+            items = ci.review_queue(db, args.club, args.limit, args.after_mapping_id, args.after_draft_id)
+            cursors = {}
+            for kind, previous in (("mapping", args.after_mapping_id), ("draft", args.after_draft_id)):
+                stream = [row for row in items if row["queue"] == kind]
+                cursors[f"after_{kind}_id"] = stream[-1]["mapping_id"] if stream else previous
+                cursors[f"{kind}_may_have_more"] = len(stream) == args.limit
+            print(json.dumps({"items": items, "cursors": cursors}, indent=2, ensure_ascii=False))
             return 0
         if args.command == "resolve":
             print(json.dumps(ci.resolve(db, args.club, args.key, args.accept_source), indent=2))

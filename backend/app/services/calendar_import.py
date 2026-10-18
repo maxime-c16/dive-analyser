@@ -697,22 +697,30 @@ def _apply(db: Session, plan: dict, bundle: Bundle, storage_dir: Path, actor: Op
     return {"club_id": club.id, "runs": [r.id for r in run_by_source.values()], "applied": counts}
 
 
-def review_queue(db: Session, club_slug: str) -> list:
+def review_queue(db: Session, club_slug: str, limit: int = 100,
+                 after_mapping_id: int = 0, after_draft_id: int = 0) -> list:
+    """Two independently paged streams; each page contains at most 2*limit rows."""
+    if not 1 <= limit <= 200 or min(after_mapping_id, after_draft_id) < 0:
+        raise ImportError_("Review limit must be 1..200 and cursors nonnegative")
     club = db.query(Club).filter(Club.slug == club_slug).one_or_none()
     if club is None:
         return []
     rows = db.query(CalendarSourceMapping, CalendarSource).join(
         CalendarSource, CalendarSource.id == CalendarSourceMapping.source_id).filter(
         CalendarSource.club_id == club.id, CalendarSourceMapping.review_status.isnot(None),
-        CalendarSourceMapping.review_status != "resolved").order_by(CalendarSourceMapping.id).all()
+        CalendarSourceMapping.review_status != "resolved", CalendarSourceMapping.id > after_mapping_id) \
+        .order_by(CalendarSourceMapping.id).limit(limit).all()
     drafts = db.query(CalendarSourceMapping, CalendarEvent).join(
         CalendarEvent, CalendarEvent.id == CalendarSourceMapping.event_id).join(
         CalendarSource, CalendarSource.id == CalendarSourceMapping.source_id).filter(
-        CalendarSource.club_id == club.id, CalendarEvent.status == "draft").all()
-    out = [{"status": m.review_status, "source": s.label, "key": m.external_key,
+        CalendarSource.club_id == club.id, CalendarEvent.status == "draft",
+        CalendarSourceMapping.id > after_draft_id).order_by(CalendarSourceMapping.id).limit(limit).all()
+    out = [{"queue": "mapping", "mapping_id": m.id,
+            "status": m.review_status, "source": s.label, "key": m.external_key,
             "title": (m.provenance or {}).get("title"), "issue": (m.provenance or {}).get("issue"),
             "row": (m.provenance or {}).get("row")} for m, s in rows]
-    out += [{"status": "draft_unpublished", "key": m.external_key, "title": e.title, "event_id": e.id}
+    out += [{"queue": "draft", "mapping_id": m.id,
+             "status": "draft_unpublished", "key": m.external_key, "title": e.title, "event_id": e.id}
             for m, e in drafts]
     return out
 
@@ -724,7 +732,8 @@ def resolve(db: Session, club_slug: str, external_key: str, accept_source: bool)
     club = db.query(Club).filter(Club.slug == club_slug).one_or_none()
     rows = [] if club is None else db.query(CalendarSourceMapping).join(
         CalendarSource, CalendarSource.id == CalendarSourceMapping.source_id).filter(
-        CalendarSource.club_id == club.id, CalendarSourceMapping.external_key == external_key).all()
+        CalendarSource.club_id == club.id, CalendarSourceMapping.external_key == external_key) \
+        .order_by(CalendarSourceMapping.id).limit(2).all()
     if len(rows) != 1:
         raise ImportError_("No single review item with this key")
     m = rows[0]

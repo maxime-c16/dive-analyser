@@ -607,3 +607,19 @@ def test_apply_locks_only_current_bundle_sources(cal, tmp_path):
     assert len(queries) == 1
     assert "calendar_source_mappings.source_id IN" in queries[0]
     assert "JOIN calendar_sources" not in queries[0]
+
+
+def test_import_review_streams_have_stable_bounded_cursors(cal, tmp_path):
+    db = cal["db"]
+    run_import(db, synthetic_bundle(tmp_path), tmp_path / "artifacts")
+    expected = ci.review_queue(db, "kcpm", limit=200)
+    first = ci.review_queue(db, "kcpm", limit=1)
+    assert len(first) == 2 and {r["queue"] for r in first} == {"mapping", "draft"}
+    cursors = {r["queue"]: r["mapping_id"] for r in first}
+    second = ci.review_queue(db, "kcpm", limit=1,
+        after_mapping_id=cursors["mapping"], after_draft_id=cursors["draft"])
+    assert all(r["mapping_id"] > cursors[r["queue"]] for r in second)
+    assert {(r["queue"], r["mapping_id"]) for r in first + second} == {
+        (r["queue"], r["mapping_id"]) for r in expected}
+    with pytest.raises(ci.ImportError_):
+        ci.review_queue(db, "kcpm", limit=201)
