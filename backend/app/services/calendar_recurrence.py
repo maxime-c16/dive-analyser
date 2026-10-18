@@ -383,23 +383,28 @@ def summary(plan: dict) -> dict:
             "absences_affected": sum(i["responses"]["absences"] for i in affected)}
 
 
-def _locked_rows(db: Session, user: AppUser, event_id: int, lock: bool):
+def _locked_rows(db: Session, user: AppUser, event_id: int, edit, lock: bool):
     if lock:
         event, calendar = events.editable_event(db, user, event_id)
-        rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id) \
-            .order_by(EventOccurrence.id).with_for_update().all()
-        for row in rows:
-            db.refresh(row)
     else:
         event, calendar = events.visible_event(db, user, event_id)
         if not events.can_edit(db, user, calendar):
             fail(403, "forbidden", "Only the organizer or an authorized club publisher can change this event")
-        rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).order_by(EventOccurrence.id).all()
-    return event, rows
+    if edit.scope != "one" and is_imported(db, event.id):
+        fail(409, "imported_series",
+             "These dates come from the club's imported schedule and are kept exactly as published. "
+             "Change sessions one at a time, or import a corrected schedule.")
+    query = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id)
+    if edit.scope == "one":
+        query = query.filter(EventOccurrence.id == edit.occurrence_id)
+    query = query.order_by(EventOccurrence.id)
+    if lock:
+        query = query.with_for_update().populate_existing()
+    return event, query.all()
 
 
 def preview(db: Session, user: AppUser, event_id: int, edit) -> dict:
-    event, rows = _locked_rows(db, user, event_id, lock=False)
+    event, rows = _locked_rows(db, user, event_id, edit, lock=False)
     events._check_version(event, edit.expected_version, "event")
     if event.status == "cancelled":
         fail(409, "event_cancelled", "A cancelled event cannot be edited")
@@ -408,7 +413,7 @@ def preview(db: Session, user: AppUser, event_id: int, edit) -> dict:
 
 
 def apply(db: Session, user: AppUser, event_id: int, edit, expected_hash: str) -> dict:
-    event, rows = _locked_rows(db, user, event_id, lock=True)
+    event, rows = _locked_rows(db, user, event_id, edit, lock=True)
     events._check_version(event, edit.expected_version, "event")
     if event.status == "cancelled":
         fail(409, "event_cancelled", "A cancelled event cannot be edited")

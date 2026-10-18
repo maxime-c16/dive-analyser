@@ -673,3 +673,31 @@ def test_import_private_links_stay_club_only_after_community_publication(cal, tm
     assert club_doc.restricted_to_club
     public_doc = db.query(EventResource).filter_by(url="https://www.ffnatation.fr/x").one()
     assert not public_doc.restricted_to_club
+
+
+def test_shared_owner_diver_does_not_expose_another_users_link(cal):
+    db = cal["db"]
+    diver = Diver(display_name="Shared diver", canonical_name="shared-diver")
+    db.add(diver)
+    db.flush()
+    for name in ("alice", "coach"):
+        db.add(UserDiverAccess(user_id=cal["users"][name].id, diver_id=diver.id, access_kind="OWNER"))
+    occurrence = cal["occ"]["ga"]
+    occurrence_id = occurrence.id
+    session = TrainingSession(date=occurrence.starts_at.date())
+    db.add(session)
+    db.flush()
+    dive = Dive(session_id=session.id, diver_id=diver.id, dive_code="101B", performance="G",
+                performance_numeric=3, height="3m", dive_datetime=occurrence.starts_at, visibility="private")
+    db.add(dive)
+    db.flush()
+    dive_id = dive.id
+    dive_time = dive.dive_datetime.isoformat()
+    db.commit()
+    alice = cal["login"]("alice")
+    url = f"{API}/occurrences/{occurrence_id}/dives"
+    assert alice.put(f"{url}/{dive_id}").json()["items"][0]["linked"] is True
+    other = cal["login"]("coach").get(url)
+    assert other.status_code == 200
+    assert other.json()["items"] == [{"id": dive_id, "dive_code": "101B",
+        "dive_datetime": dive_time, "linked": False}]
