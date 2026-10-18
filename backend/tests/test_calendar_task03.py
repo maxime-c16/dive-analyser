@@ -625,3 +625,28 @@ def test_import_review_streams_have_stable_bounded_cursors(cal, tmp_path):
         (r["queue"], r["mapping_id"]) for r in expected}
     with pytest.raises(ci.ImportError_):
         ci.review_queue(db, "kcpm", limit=201)
+
+
+def test_workbook_mapping_reads_only_current_bundle_keys(cal, tmp_path):
+    from sqlalchemy import event
+    db, artifacts = cal["db"], tmp_path / "artifacts"
+    path = synthetic_bundle(tmp_path)
+    run_import(db, path, artifacts)
+    workbook = db.query(CalendarSource).filter_by(kind="workbook").one()
+    db.add_all([CalendarSourceMapping(source_id=workbook.id, target_type=kind,
+                                     external_key=f"historical-{kind}-{i}")
+                for kind in ("event", "resource") for i in range(501)])
+    db.commit()
+    queries = []
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if "FROM calendar_source_mappings" in statement and parameters[0] == workbook.id:
+            queries.append(statement)
+    event.listen(db.get_bind(), "before_cursor_execute", capture)
+    try:
+        plan = ci.build_plan(db, ci.load_bundle(path), OPTS)
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", capture)
+    assert len(queries) == 2
+    assert all("calendar_source_mappings.external_key IN" in query for query in queries)
+    assert all(row["action"] == "unchanged" for row in plan["resources"])
+    assert not any(row["action"] == "create" for row in plan["competitions"])

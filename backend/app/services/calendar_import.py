@@ -231,11 +231,14 @@ def edition_of(text: str) -> Optional[str]:
 
 # --- Plan -------------------------------------------------------------------------------
 
-def _mappings(db: Session, source: Optional[CalendarSource], target: str) -> dict:
+def _mappings(db: Session, source: Optional[CalendarSource], target: str, keys=None) -> dict:
     if source is None:
         return {}
-    return {m.external_key: m for m in db.query(CalendarSourceMapping).filter(
-        CalendarSourceMapping.source_id == source.id, CalendarSourceMapping.target_type == target)}
+    query = db.query(CalendarSourceMapping).filter(
+        CalendarSourceMapping.source_id == source.id, CalendarSourceMapping.target_type == target)
+    if keys is not None:
+        query = query.filter(CalendarSourceMapping.external_key.in_(keys))
+    return {m.external_key: m for m in query}
 
 
 def _iso(value) -> Optional[str]:
@@ -320,9 +323,11 @@ def build_plan(db: Session, bundle: Bundle, opts: Options) -> dict:
 
     # Competition candidates (never published by import).
     wb = sources["workbook"]
-    meet_maps, taken = _mappings(db, wb, "event"), set()
-    for meet in bundle.data.get("competition_candidates") or []:
-        key = competition_key(meet, taken)
+    taken = set()
+    candidates = [(competition_key(meet, taken), meet)
+                  for meet in bundle.data.get("competition_candidates") or []]
+    meet_maps = _mappings(db, wb, "event", [key for key, _ in candidates])
+    for key, meet in candidates:
         prov = {"artifact_sha256": meet["source"]["sha256"], "sheet": meet["source"]["sheet"],
                 "row": meet["source"]["row"], "date_raw": meet.get("date_raw"),
                 "location_raw": meet.get("location_raw"), "level_raw": meet.get("level_raw"),
@@ -359,7 +364,7 @@ def build_plan(db: Session, bundle: Bundle, opts: Options) -> dict:
             entry["action"] = "unchanged" if m.review_status in (disposition, "resolved") else "update"
         plan["competitions"].append(entry)
 
-    res_maps = _mappings(db, wb, "resource")
+    res_maps = _mappings(db, wb, "resource", [resource_key(r) for r in bundle.data.get("resources") or []])
     for r in bundle.data.get("resources") or []:
         key = resource_key(r)
         kind = "club_chat" if is_whatsapp(r.get("url")) else RESOURCE_KINDS.get(r.get("type"), "other")
@@ -370,10 +375,12 @@ def build_plan(db: Session, bundle: Bundle, opts: Options) -> dict:
                                                  "sheet": r["source"]["sheet"], "row": r["source"]["row"],
                                                  "type": r.get("type"), "notes": r.get("notes")}})
 
+    links = link_inventory(bundle)
     existing_links = set()
-    if wb is not None:
-        existing_links = {s.url for s in db.query(CalendarSource).filter(CalendarSource.parent_source_id == wb.id)}
-    for link in link_inventory(bundle):
+    if wb is not None and links:
+        existing_links = {url for (url,) in db.query(CalendarSource.url).filter(
+            CalendarSource.parent_source_id == wb.id, CalendarSource.url.in_([link["url"] for link in links]))}
+    for link in links:
         plan["link_sources"].append({**link, "action": "unchanged" if link["url"] in existing_links else "create"})
     return plan
 
