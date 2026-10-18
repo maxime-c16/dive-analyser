@@ -93,15 +93,15 @@ Covered: own group vs other group in list, calendar filter and direct detail. Co
 1. Deploy the code with `CALENDAR_ENABLED` unset (false). No schema prerequisite, and the existing signup is unchanged.
 2. Apply the migration manually on the server (ship.sh does not apply SQL), after a backup:
    `docker exec -i dive-analyser-postgres-1 psql -U diving -d diving_analyzer_db -v ON_ERROR_STOP=1 < backend/migrations/add_calendar_domain.sql`
-3. Create the club and appoint managers through the admin API (not done; no real members were changed). Set `self_join_enabled` only when the signup UI exists (Task03).
-4. Set `CALENDAR_ENABLED=true` in the runtime `.env` and restart the backend. Activation stays off until Task03 and the pilot gate.
+3. At the approved pilot activation gate (not now), enable `CALENDAR_ENABLED=true` through the repository deployment workflow. The administration API is also behind this flag.
+4. Create the club and appoint managers through the admin API (not done; no real members were changed). Set `self_join_enabled` only when the signup UI exists (Task03). Activation stays off until Task03 and the pilot gate.
 
 Rollback: set `CALENDAR_ENABLED=false` and restart. Keep the tables and rows for investigation. There is no down migration. An emergency drop would be `DROP TABLE` of the 16 tables in reverse dependency order, and only with explicit approval.
 
 ## Limits / not done
 
 - Group access uses the **current** assignment. After a transfer, a member stops seeing the previous group's past sessions. The history rows are kept for audit and future attendance views.
-- No DB exclusion constraint against overlapping closed assignment periods (that would need btree_gist). The service serializes on the open row (`FOR UPDATE`) and only ever splits it, so overlaps cannot arise through the API.
+- No DB exclusion constraint against overlapping closed assignment periods (that would need btree_gist). The service locks the club row before administration writes and explicitly rejects new open periods overlapping saved history, including after unassignment. Concurrent last-manager changes are serialized by the same club lock.
 - Interest/absence/invitation write endpoints, event create/edit/cancel, subscriptions API, recurrence expansion, import service/CLI, notifications/outbox/worker and the signup UI are not built (Task03+). The change-log rows are not written yet because no event writes exist.
 - `ALLOWED_AUDIENCES` and `can_publish_to_calendar` are defined and tested but are not yet called by any endpoint.
 - Roster list is capped at 500 and the occurrence list in event detail at 200, with no pagination.
@@ -113,3 +113,9 @@ Rollback: set `CALENDAR_ENABLED=false` and restart. Keep the tables and rows for
 - Event writes: bump `calendar_events.version` / `event_occurrences.version` and insert `calendar_change_log` in the same transaction. Time and venue edits update the occurrence in place so interests (keyed by occurrence id) are retained. Cancel sets status and `cancelled_at`. Never delete.
 - Import: create `calendar_sources` (workbook as parent, embedded links as children). Run validate → preview (`calendar_import_runs.status=previewed`) → apply in one transaction, upserting via `calendar_source_mappings(source_id, target_type, external_key)`. The stable training key excludes time and venue. Respect `locally_overridden`. Keep the private bundle out of Git.
 - Frontend: signup club selector from `/api/v1/auth/signup-clubs` (self-declared wording), the “group not assigned” state from `/calendar/me`, and agenda via `/calendar/occurrences` with ≤100-day windows and cursor paging.
+
+## Parent review corrections
+
+After 4ce31a8, parent review fixed invited-signup preservation of schema-unavailable 503 (instead of masking it as club-unavailable 422), rejection of backdated assignments overlapping closed history, and club-row locking before membership/group mutations to serialize the last-manager guard and first assignments. Added regression coverage for both errors plus a PostgreSQL-only concurrent manager-demotion test. SQL migration and schema are unchanged. Supplemental validation results are recorded in the parent thread; the original PostgreSQL/162-test evidence above pertains to 4ce31a8.
+
+Supplemental parent validation: SQLite calendar suite **23 passed, 2 skipped** (PostgreSQL-only tests); PostgreSQL calendar suite **24 passed** before adding the concurrency case, followed by the new concurrent manager-demotion case **1 passed**; signup/invitation regressions **64 passed**. `git diff --check` passed. The disposable review PostgreSQL container and its SSH tunnel were cleaned up after validation. Calendar remains default-off; no live migration or data writes, push, PR, deployment, or Task03.

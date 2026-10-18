@@ -9,6 +9,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.calendar import (
@@ -32,7 +33,8 @@ def valid_timezone(name: str) -> str:
 
 
 def _usable_club(db: Session, club_id: int) -> Club:
-    club = db.get(Club, club_id)
+    # Serialize club administration, even when there is no assignment row.
+    club = db.query(Club).filter(Club.id == club_id).with_for_update().one_or_none()
     if club is None or club.archived_at is not None:
         fail(404, "club_not_found", "Club not found")
     return club
@@ -171,6 +173,7 @@ def end_membership(db: Session, actor: AppUser, club_id: int, membership_id: int
     """Leave (self) or removal (manager/admin). History is kept; access ends
     because every policy requires an ACTIVE membership. Invited-only club
     events also lose their invitation grant."""
+    _usable_club(db, club_id)  # club lock before membership lock
     m = _membership_in_club(db, club_id, membership_id, lock=True)
     leaving = m.user_id == actor.id
     if not leaving:
@@ -229,6 +232,14 @@ def assign_group(db: Session, actor: AppUser, club_id: int, user_id: int, group_
     if group_id is None:
         db.flush()
         return None
+    # A new open period cannot overlap saved history after an unassignment.
+    overlap = db.query(TrainingGroupMembership.id).filter(
+        TrainingGroupMembership.club_id == club_id,
+        TrainingGroupMembership.user_id == target.id,
+        or_(TrainingGroupMembership.effective_to.is_(None),
+            TrainingGroupMembership.effective_to > start)).first()
+    if overlap is not None:
+        fail(422, "invalid_effective_date", "Assignment overlaps an existing group period")
     row = TrainingGroupMembership(club_id=club_id, group_id=group_id, club_membership_id=m.id, user_id=target.id,
                                   effective_from=start, assigned_by_user_id=actor.id)
     db.add(row)

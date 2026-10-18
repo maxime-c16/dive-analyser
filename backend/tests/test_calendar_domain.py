@@ -557,6 +557,10 @@ def test_old_app_works_before_calendar_migration(flags):
         assert client.get("/api/v1/calendar/me").status_code == 404
         flags.calendar_enabled = True
         assert client.get("/api/v1/calendar/me").status_code == 503
+        client.cookies.clear()
+        assert client.post("/api/v1/auth/register-invite", json={
+            "token": "unused-token-for-schema-test", "email": "new@example.test",
+            "password": PASSWORD, "club_id": 1}).status_code == 503
     finally:
         client.close()
         app.dependency_overrides.clear()
@@ -641,3 +645,51 @@ def test_postgres_migration_matches_models(cal):
         for fk in table.foreign_key_constraints:
             ondelete = fk.ondelete.upper() if fk.ondelete else None
             assert (tuple(fk.column_keys), fk.referred_table.name, ondelete) in fks, (table.name, fk.column_keys)
+
+
+def test_backdated_reassignment_cannot_overlap_closed_history(cal):
+    k, users, groups = cal["clubs"]["k"], cal["users"], cal["groups"]
+    coach = cal["login"]("coach")
+    url = f"/api/v1/calendar/clubs/{k.id}/group-assignment"
+    end = TODAY + timedelta(days=1)
+    assert coach.put(url, json={"user_id": users["alice"].id,
+        "group_id": None, "effective_from": end.isoformat()}).status_code == 200
+    conflict = coach.put(url, json={"user_id": users["alice"].id,
+        "group_id": groups["b"].id, "effective_from": TODAY.isoformat()})
+    assert conflict.status_code == 422
+    assert coach.put(url, json={"user_id": users["alice"].id,
+        "group_id": groups["b"].id, "effective_from": end.isoformat()}).status_code == 200
+
+
+@pytest.mark.skipif(not PG_URL, reason="Requires PostgreSQL row locking")
+def test_concurrent_manager_demotions_cannot_orphan_club(cal):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from fastapi import HTTPException
+
+    db = cal["db"]
+    club_id, admin_id = cal["clubs"]["k"].id, cal["users"]["admin"].id
+    manager = access.active_membership(db, cal["users"]["manager"], club_id)
+    second = access.active_membership(db, cal["users"]["bob"], club_id)
+    second.role = "manager"
+    ids = (manager.id, second.id)
+    db.commit()
+    factory = sessionmaker(bind=db.get_bind())
+    barrier = Barrier(2)
+
+    def demote(mid):
+        with factory() as session:
+            actor = session.get(AppUser, admin_id)
+            barrier.wait(timeout=10)
+            try:
+                membership.update_membership(session, actor, club_id, mid, "member", None, None)
+                session.commit()
+                return 200
+            except HTTPException as exc:
+                session.rollback()
+                return exc.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(demote, ids))
+    assert sorted(results) == [200, 409]
+    assert db.query(ClubMembership).filter_by(club_id=club_id, role="manager", status="active").count() == 1

@@ -558,7 +558,9 @@ async def register_invite(
 
     try:
         club = _signup_club(db, request_body.club_id)
-    except HTTPException:
+    except HTTPException as exc:
+        if exc.status_code >= 500:
+            raise
         # Checked before redemption so a refused club never consumes the link.
         return _invite_error(422, "club_unavailable", "This club is not open for selection")
     before_commit = None
