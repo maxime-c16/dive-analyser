@@ -67,3 +67,7 @@ node dev/verify-calendar-build.mjs
 Desktop browser emulation is not physical iPhone Safari/PWA or VoiceOver proof. Physical-device safe-area/keyboard and icon-recognition review remain necessary before a public release. No persistence, backend authorization, complete club roster, real invitations, notifications, resource verification or actual attendance is claimed. Production work belongs to later tasks and was not started.
 
 Release notes: none — dev-only design prototype
+
+## UI refinement after review
+
+Replaced the three-column Date / Source / Search form with a compact toolbar: grouped month arrows/title/Today, an expandable date picker, direct source buttons and an accessible search field. Mobile wraps filters and search without horizontal page overflow. Added 220ms directional horizontal entry transitions to agenda/month content on previous/next month changes; controls remain stationary and reduced-motion disables animation. Typecheck passes. Eight calendar browser cases pass across the main run (seven) and a targeted rerun after scoping the existing prototype-summary selector; new coverage exercises filtering, search, date jump, both animation directions and reduced motion. T3 preview inspected at 390px and desktop. Still dev-only; no production deploy.

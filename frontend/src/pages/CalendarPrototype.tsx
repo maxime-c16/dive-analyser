@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
+  Search,
   Plus,
 } from "lucide-react";
 import {
@@ -135,7 +136,9 @@ export default function CalendarPrototype() {
         venue: event.venue,
       });
   }, [path, event?.id]);
+  const [monthDirection, setMonthDirection] = useState<"next" | "previous" | null>(null);
   const changeMonth = (offset: number) => {
+    setMonthDirection(offset > 0 ? "next" : "previous");
     const d = new Date(`${month}-01T12:00:00Z`);
     d.setUTCMonth(d.getUTCMonth() + offset);
     update("date", d.toISOString().slice(0, 10));
@@ -416,46 +419,29 @@ export default function CalendarPrototype() {
                   <ChevronLeft />
                 </button>
                 <h2>
-                  {new Intl.DateTimeFormat(lang, {
-                    month: "long",
-                    year: "numeric",
-                  }).format(new Date(month + "-01T12:00:00"))}
+                  {new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" })
+                    .format(new Date(month + "-01T12:00:00"))}
                 </h2>
-                <button onClick={() => changeMonth(1)} aria-label={t.next}>
-                  <ChevronRight />
-                </button>
-                <button onClick={() => update("date", today)}>{t.today}</button>
+                <button onClick={() => changeMonth(1)} aria-label={t.next}><ChevronRight /></button>
+                <button className="calendar-today" onClick={() => update("date", today)}>{t.today}</button>
+                <details className="calendar-date-jump">
+                  <summary><CalendarDays size={18} aria-hidden="true" />{t.jumpDate}</summary>
+                  <label>{t.date}<input type="date" value={date}
+                    onChange={(e) => update("date", e.target.value)} /></label>
+                </details>
               </div>
               <div className="calendar-filters">
-                <label>
-                  {t.date}
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => update("date", e.target.value)}
-                  />
-                </label>
-                <label>
-                  {t.source}
-                  <select
-                    value={source}
-                    onChange={(e) => update("source", e.target.value)}
-                  >
-                    <option value="">{t.all}</option>
-                    {(["club", "outing", "competition"] as const).map((s) => (
-                      <option key={s} value={s}>
-                        {t[s]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t.search}
-                  <input
-                    type="search"
-                    value={query.get("q") || ""}
-                    onChange={(e) => update("q", e.target.value)}
-                  />
+                <div className="calendar-source-options" role="group" aria-label={t.source}>
+                  {(["", "club", "outing", "competition"] as const).map((s) => (
+                    <button key={s} aria-pressed={source === s}
+                      onClick={() => update("source", s)}>{s ? t[s] : t.allShort}</button>
+                  ))}
+                </div>
+                <label className="calendar-search">
+                  <span className="sr-only">{t.search}</span>
+                  <Search size={18} aria-hidden="true" />
+                  <input type="search" placeholder={t.search} value={query.get("q") || ""}
+                    onChange={(e) => update("q", e.target.value)} />
                 </label>
               </div>
               <div className="calendar-switch">
@@ -484,6 +470,8 @@ export default function CalendarPrototype() {
                   </button>
                 </p>
               )}
+              <div className="calendar-period-viewport">
+              <div key={month} className={`calendar-period calendar-period-${monthDirection || "initial"}`}>
               {view === "month" ? (
                 <div className="calendar-month">
                   <div className="calendar-weekdays">
@@ -557,6 +545,8 @@ export default function CalendarPrototype() {
                 <div className="calendar-agenda">{matching.map(row)}</div>
               )}
               {!matching.length && <p className="calendar-empty">{t.empty}</p>}
+              </div>
+              </div>
             </>
           )}
         </div>

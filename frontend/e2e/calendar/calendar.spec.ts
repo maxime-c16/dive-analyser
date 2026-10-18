@@ -88,7 +88,7 @@ test("assigned groups, direct detail guard, absence distinct from interest, URL 
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("link", { name: "Back to calendar" }).click();
   await expect(page.locator(".calendar-event")).toHaveCount(6);
-  await page.locator("summary").click();
+  await page.locator(".calendar-controls summary").click();
   await page
     .getByRole("combobox", { name: "Fixture role / assigned group" })
     .selectOption("unassigned");
@@ -176,4 +176,30 @@ test("keyboard, large text, landscape and shell overlay replacement", async ({
   await expect(nav(page)).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(nav(page)).toBeVisible();
+});
+
+test("compact filters, date jump and directional month motion respect reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(entry);
+  await route(page, "/calendar?date=2026-09-01");
+  await expect(page.locator(".calendar-event")).toHaveCount(6);
+  await page.getByRole("group", { name: "Source", exact: true }).getByRole("button", { name: "Outings", exact: true }).click();
+  await expect(page.locator(".calendar-event")).toHaveCount(0);
+  await page.getByRole("button", { name: "All", exact: true }).click();
+  await page.getByRole("searchbox").fill("missing venue");
+  await expect(page.locator(".calendar-event")).toHaveCount(0);
+  await page.getByRole("searchbox").fill("");
+  await page.locator(".calendar-date-jump summary").click();
+  await page.getByLabel("Date", { exact: true }).fill("2026-09-10");
+  await expect(page.locator(".calendar-event")).toHaveCount(4);
+  await page.locator(".calendar-date-jump summary").click();
+  await page.getByRole("button", { name: "Next month", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "October 2026" })).toBeVisible();
+  await expect(page.locator(".calendar-period")).toHaveCSS("animation-name", "calendar-next");
+  await page.getByRole("button", { name: "Previous month", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "September 2026" })).toBeVisible();
+  await expect(page.locator(".calendar-period")).toHaveCSS("animation-name", "calendar-previous");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Next month", exact: true }).click();
+  await expect(page.locator(".calendar-period")).toHaveCSS("animation-name", "none");
 });
