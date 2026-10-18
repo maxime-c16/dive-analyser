@@ -238,3 +238,20 @@ accepts them. The deploy that ships this feature needs
    unaffected).
 2. Cron on deb-serv (runs from `~/dive-analyser`, like the other `ops/*.sh`):
    `*/15 * * * * /home/mcauchy/dive-analyser/ops/send-batch-emails.sh`.
+
+### Calendar pilot (default off)
+
+Calendar needs all four `add_calendar_*.sql` migrations in order **before**
+the dependent backend, private persistent source/artifact storage, and an
+explicitly installed/healthy alerts timer. `ship.sh` does not install the timer
+or import club data. Server deployments and rollback source
+`~/.config/diveanalyzer/calendar.env` (0600) for the existing `CALENDAR_ENABLED`
+flag; Compose defaults false. A same-SHA activation requires `--force`
+(dry-run first). Enabling is global to authenticated app users, while event
+visibility remains authorization-filtered. The preparation release note is
+admin-only and does not prove worker installation.
+
+Review [pilot gates](design/calendar/PILOT_RELEASE_CHECKLIST.md) and
+[exact rollout/backout commands](design/calendar/PILOT_ROLLOUT.md) before
+activation. Keep the additive schema/data on app rollback; disable the timer
+and feature first. No Mac service is required.

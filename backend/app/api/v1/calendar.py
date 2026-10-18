@@ -235,6 +235,21 @@ def occurrence_detail(occurrence_id: int, user: AppUser = Depends(get_current_us
         organizer_name=organizer.display_name if organizer else None, changes=recent_changes(db, e.id, o.id))
 
 
+@router.get("/occurrences/{occurrence_id}/export.ics")
+def export_occurrence(occurrence_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.calendar_ics import render
+
+    row = access.visible_occurrences(db, user).filter(EventOccurrence.id == occurrence_id).one_or_none()
+    if row is None:
+        raise HTTPException(404, "Occurrence not found")
+    occurrence, event, _calendar = row
+    return Response(render(event, occurrence), media_type="text/calendar", headers={
+        "Cache-Control": "private, no-store",
+        "Content-Disposition": f'attachment; filename="calendar-{occurrence.id}.ics"',
+        "X-Content-Type-Options": "nosniff",
+    })
+
+
 @router.get("/events/{event_id}", response_model=s.EventDetail)
 def event_detail(event_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     row = access.visible_events(db, user).add_entity(Calendar).filter(CalendarEvent.id == event_id).one_or_none()

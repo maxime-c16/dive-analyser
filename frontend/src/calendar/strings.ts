@@ -2,6 +2,8 @@
 // and absence never mean attendance; no notification delivery is claimed.
 export const strings = {
   en: {
+    downloadIcs: "Download this event (.ics)",
+    icsSnapshot: "Downloaded files do not update automatically. Download again after a change or cancellation; your calendar app may ask you to replace the previous copy.",
     title: "Calendar",
     intro: "Club sessions, outings and meets in one place.",
     noGroup: (club: string) =>
@@ -200,6 +202,8 @@ export const strings = {
     days: (n: number) => `${n} days`,
   },
   fr: {
+    downloadIcs: "Télécharger cet événement (.ics)",
+    icsSnapshot: "Les fichiers téléchargés ne se mettent pas à jour automatiquement. Téléchargez à nouveau après une modification ou annulation ; votre agenda peut demander de remplacer la copie précédente.",
     title: "Calendrier",
     intro: "Séances du club, sorties et compétitions au même endroit.",
     noGroup: (club: string) =>

@@ -205,6 +205,13 @@ if [ -f "$EMAIL_ENV" ]; then
     . "$EMAIL_ENV"
     set +a
 fi
+# Calendar pilot activation survives deploy/rollback without live checkout edits.
+CALENDAR_ENV="$HOME/.config/diveanalyzer/calendar.env"
+if [ -f "$CALENDAR_ENV" ]; then
+    set -a
+    . "$CALENDAR_ENV"
+    set +a
+fi
 sha="$1"; dry_run="$2"; force="$3"; shift 3
 LIVE="${DIVE_LIVE_DIR:-$HOME/dive-analyser}"
 STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"

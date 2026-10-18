@@ -131,7 +131,8 @@ class Settings(BaseSettings):
 
     # Club calendar (Task02 foundation). Default OFF: /calendar routes 404,
     # signup refuses a club_id and never touches calendar tables. Enable only
-    # after backend/migrations/add_calendar_domain.sql has been applied.
+    # after all four calendar migrations and the pilot worker/source gates.
+    # See docs/design/calendar/PILOT_RELEASE_CHECKLIST.md.
     calendar_enabled: bool = os.getenv("CALENDAR_ENABLED", "false").lower() == "true"
     # Task05: local hour (event timezone) of the previous-day reminder.
     calendar_reminder_hour: int = min(max(int(os.getenv("CALENDAR_REMINDER_HOUR", "18")), 0), 23)

@@ -185,6 +185,11 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
         </div>
       )}
 
+      <div className="calendar-group">
+        <a className="calendar-button" href={`/api/v1/calendar/occurrences/${occ.id}/export.ics`} download>{t.downloadIcs}</a>
+        <p>{t.icsSnapshot}</p>
+      </div>
+
       <DiveLinks occurrenceId={occ.id} />
 
       {event.can_edit && (
