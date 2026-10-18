@@ -1,13 +1,14 @@
 """API v1 routes"""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
+from starlette.requests import HTTPConnection
 from app.config import get_settings
 from app.services.dive_access import member_access_context
 
 # Import route modules
 from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback, admin_users
 
-def calendar_feature_gate(request: Request) -> None:
+def calendar_feature_gate(request: HTTPConnection) -> None:
     """Disabled calendar paths must be hidden before session resolution.
 
     The parent member-access dependency otherwise answers 401 before the
