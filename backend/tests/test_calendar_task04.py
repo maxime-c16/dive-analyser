@@ -400,3 +400,20 @@ def test_real_kcpm_116_dates_stay_exact_and_refuse_pattern_edits(cal, tmp_path):
     assert sorted((o.occurrence_key, o.starts_at, o.status, o.series_date) for o in training_rows(db)) == snapshot
     again = ci.preview(db, ci.load_bundle(path), opts, tmp_path / "a", None)
     assert again["summary"]["training"]["create"] == 0
+
+
+def test_camp_itinerary_bounds_apply_to_occurrence_and_schedule_paths(cal):
+    coach = cal["login"]("coach")
+    camp = coach.post(f"{API}/events", json=camp_body(cal)).json()
+    occ = camp["occurrences"][0]
+    when = {"all_day": True, "start_date": "2027-02-19", "end_date": "2027-02-20"}
+    direct = coach.patch(f"{API}/occurrences/{occ['id']}", json={
+        "expected_version": occ["version"], "when": when})
+    assert direct.status_code == 422
+    assert direct.json()["detail"]["code"] == "itinerary_outside_dates"
+    preview = coach.post(f"{API}/events/{camp['id']}/schedule/preview", json={
+        "expected_version": camp["version"], "scope": "one", "occurrence_id": occ["id"], "when": when})
+    assert preview.status_code == 422
+    assert preview.json()["detail"]["code"] == "itinerary_outside_dates"
+    unchanged = coach.get(f"{API}/events/{camp['id']}").json()
+    assert unchanged["occurrences"][0]["end_date"] == "2027-02-22"

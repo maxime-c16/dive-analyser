@@ -333,6 +333,8 @@ def update_occurrence(db: Session, user: AppUser, occurrence_id: int, payload) -
     changes = {}
     if payload.when is not None:
         new = occurrence_fields(payload.when, event.timezone)
+        from app.services import calendar_recurrence as recurrence
+        recurrence.check_itinerary_range(db, event, EventOccurrence(**new))
         changes = {k: (getattr(occurrence, k), v) for k, v in new.items() if getattr(occurrence, k) != v}
     venue = None
     if "venue_name" in payload.model_fields_set and payload.venue_name != occurrence.venue_name:

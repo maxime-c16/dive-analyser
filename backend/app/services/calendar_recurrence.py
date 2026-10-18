@@ -258,6 +258,7 @@ def build_plan(db: Session, event: CalendarEvent, edit, occurrences: list) -> di
             plan["cancelled"].append({"occurrence_id": target.id, **old})
         else:
             new_fields = events.occurrence_fields(edit.when, tz) if edit.when is not None else _row_fields(target)
+            check_itinerary_range(db, event, EventOccurrence(**new_fields))
             new = _local(new_fields, tz)
             venue_change = venue_sent and edit.venue_name != target.venue_name
             if new != old or venue_change:
