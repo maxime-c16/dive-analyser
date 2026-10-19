@@ -3,7 +3,7 @@ import type { AvatarHud } from '../components/MemberAvatar'
 
 export type MemberIdentity = Pick<MemberProfile, 'user_id' | 'display_name' | 'handle' | 'bio' | 'avatar_url' | 'avatar_hud'>
 export type MemberSummary = MemberIdentity & { accessible_dive_count?: number; latest_dive_at?: string | null }
-export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null }
+export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null; playback_url?: string | null }
 export type DivePage = { items: ProfileDive[]; next_before: string | null }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

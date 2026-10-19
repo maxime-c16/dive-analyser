@@ -4,16 +4,16 @@ import { Film, Lock, Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getProfileDives, type ProfileDive } from '../services/communityApi'
 import { appLanguage } from '../utils/dateLocale'
+import MediaThumbnail from './MediaThumbnail'
 
 function Tile({ dive }: { dive: ProfileDive }) {
   const { t } = useTranslation()
-  const [failed, setFailed] = useState(false)
-  const hasPoster = Boolean(dive.poster_url) && !failed
-  const text = hasPoster ? 'text-white' : 'text-app-text'
+  const hasMedia = Boolean(dive.poster_url || dive.playback_url)
+  const text = hasMedia ? 'text-white' : 'text-app-text'
   return <Link to={`/dives?clip=${dive.id}&scope=all`} aria-label={t('community.openDive', { code: dive.dive_code, height: dive.height })} className="group relative block aspect-video overflow-hidden border border-app bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent">
-    {hasPoster && <img src={dive.poster_url!} alt="" loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover transition-transform group-hover:scale-105" />}
-    <span className="absolute right-2 top-2 flex gap-1 text-white">{hasPoster ? <Play className="h-4 w-4 fill-current drop-shadow" aria-hidden /> : <Film className="h-4 w-4 text-app-muted" aria-hidden />}{dive.visibility === 'private' && <Lock className={`h-4 w-4 ${hasPoster ? 'drop-shadow' : 'text-app-muted'}`} aria-label={t('community.privateDive')} />}</span>
-    <span className={`absolute inset-x-0 bottom-0 px-2 pb-2 pt-6 ${text} ${hasPoster ? 'bg-gradient-to-t from-black/90 to-transparent' : ''} sm:px-3 sm:pb-3`}><span className="block font-mono text-sm font-semibold sm:text-base">{dive.dive_code} · {dive.height}</span><time dateTime={dive.dive_datetime} className={`mt-0.5 block text-xs ${hasPoster ? 'text-white/80' : 'text-app-muted'}`}>{new Date(dive.dive_datetime).toLocaleDateString(appLanguage())}</time></span>
+    <MediaThumbnail posterUrl={dive.poster_url} playbackUrl={dive.playback_url} />
+    <span className="absolute right-2 top-2 flex gap-1 text-white">{hasMedia ? <Play className="h-4 w-4 fill-current drop-shadow" aria-hidden /> : <Film className="h-4 w-4 text-app-muted" aria-hidden />}{dive.visibility === 'private' && <Lock className={`h-4 w-4 ${hasMedia ? 'drop-shadow' : 'text-app-muted'}`} aria-label={t('community.privateDive')} />}</span>
+    <span className={`absolute inset-x-0 bottom-0 px-2 pb-2 pt-6 ${text} ${hasMedia ? 'bg-gradient-to-t from-black/90 to-transparent' : ''} sm:px-3 sm:pb-3`}><span className="block font-mono text-sm font-semibold sm:text-base">{dive.dive_code} · {dive.height}</span><time dateTime={dive.dive_datetime} className={`mt-0.5 block text-xs ${hasMedia ? 'text-white/80' : 'text-app-muted'}`}>{new Date(dive.dive_datetime).toLocaleDateString(appLanguage())}</time></span>
   </Link>
 }
 

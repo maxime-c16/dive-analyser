@@ -1,0 +1,8 @@
+{
+  "id": "profile-b2-previews",
+  "date": "2026-10-19",
+  "title": "See previews of migrated dives on member profiles",
+  "body": "Member profiles now show a video preview when a local thumbnail is missing. Media cache cleanup also recovers correctly when old previews are referenced by an upgrade history.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
