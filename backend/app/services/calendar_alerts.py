@@ -42,6 +42,7 @@ from sqlalchemy import func, inspect, or_
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.services.calendar_launch import enabled as calendar_enabled
 from app.models.calendar import (
     Calendar, CalendarAlertDelivery, CalendarAlertOutbox, CalendarChangeLog, CalendarEvent, CalendarEventFollow,
     CalendarSubscription, CalendarWorkerState, ClubMembership, EventInvitation, EventOccurrence,
@@ -595,7 +596,7 @@ def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime, budg
     # Recheck immediately before every send, including crash-window retries.
     # The inbox commit may predate revoked access, an edited session or a
     # preference change. Keep the durable inbox row, but suppress its push.
-    reason = "feature_disabled" if not get_settings().calendar_enabled else suppression_reason(db, d, now)
+    reason = "feature_disabled" if not calendar_enabled(db) else suppression_reason(db, d, now)
     if reason is not None:
         db.query(CalendarAlertDelivery).filter(
             CalendarAlertDelivery.id == delivery_id, CalendarAlertDelivery.lease_owner == owner,
@@ -716,10 +717,14 @@ def new_owner() -> str:
 
 def run_once(factory: Callable[[], Session], *, now: Optional[datetime] = None, owner: Optional[str] = None,
              batch: int = DEFAULT_BATCH, sender=None, push_limit=None) -> dict:
-    """One bounded worker run. Never runs when the feature is off."""
-    if not get_settings().calendar_enabled:
-        return {"status": "disabled"}
+    """One bounded run; disabled mode only records a readiness observation."""
     now = now or utcnow()
+    with factory() as db:
+        if schema_ready(db):
+            from app.services.calendar_launch import record_probe
+            record_probe(db, now)
+        if not calendar_enabled(db):
+            return {"status": "disabled"}
     owner = owner or new_owner()
     batch = max(1, min(int(batch), MAX_BATCH))
     with factory() as db:
@@ -750,12 +755,18 @@ def run_once(factory: Callable[[], Session], *, now: Optional[datetime] = None, 
 def health(db: Session, now: Optional[datetime] = None) -> dict:
     """Readiness of the alert pipeline (CLI status + admin endpoint)."""
     now = now or utcnow()
-    out = {"enabled": bool(get_settings().calendar_enabled), "schema": False, "worker": "missing",
+    out = {"enabled": bool(calendar_enabled(db)), "schema": False, "worker": "missing",
            "ready": False, "problems": []}
     if not schema_ready(db):
         out["problems"].append("schema_missing")
         return out
     out["schema"] = True
+    from app.models.calendar import CalendarLaunchControl
+    from app.services.calendar_launch import installed, probe_ready
+    launch_state = db.get(CalendarLaunchControl, 1) if installed(db) else None
+    out["scheduled_checks_ready"] = probe_ready(launch_state, now)
+    out["standby"] = bool(not out["enabled"] and launch_state and launch_state.last_probe_at
+                          and now - launch_state.last_probe_at < STALE_WORKER)
     state = db.get(CalendarWorkerState, WORKER_NAME)
     last = state.last_success_at if state else None
     out["last_success_at"] = _iso(last)
@@ -783,6 +794,8 @@ def health(db: Session, now: Optional[datetime] = None) -> dict:
         if counts[name].get("dead"):
             out["problems"].append(f"{name}_dead_letters")
     out["queues"] = counts
+    if any(p.endswith("dead_letters") for p in out["problems"]):
+        out["standby"] = False
     out["suppressed_by_reason"] = {reason: n for reason, n in db.query(
         CalendarAlertDelivery.suppressed_reason, func.count(CalendarAlertDelivery.id)).filter(
         CalendarAlertDelivery.status == "suppressed").group_by(CalendarAlertDelivery.suppressed_reason)}
@@ -825,7 +838,7 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
     if not cal_rows:
         return {}
     redacted = {r.id: {"title": REDACTED_TITLE, "body": None, "calendar": {"redacted": True}} for r in cal_rows}
-    if not get_settings().calendar_enabled or not schema_ready(db):
+    if not calendar_enabled(db) or not schema_ready(db):
         return redacted
     deliveries = {d.notification_id: d for d in db.query(CalendarAlertDelivery).filter(
         CalendarAlertDelivery.notification_id.in_([r.id for r in cal_rows]))}

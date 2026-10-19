@@ -1,4 +1,5 @@
 // Development-only navigation review. No backend, credentials or real accounts.
+import './clubs-review-data'
 import React, { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -24,6 +25,7 @@ const managedUser = { user_id:900002, display_name:'Fixture Fanny',email:'fixtur
 const nativeFetch = window.fetch.bind(window)
 window.fetch = async (input, init) => {
   const url = String(input)
+  if (url.includes('/api/v1/admin/clubs')) return (window as any).clubsReviewFetch(url, init)
   // Calendar API calls reach the network so browser tests can fulfil them (page.route).
   if (url.startsWith('/api/v1/calendar') || url.startsWith('/api/v1/auth/signup-clubs')) return nativeFetch(input, init)
   if (url.endsWith('/auth/me')) return Response.json({ user_id: 900001, email: 'fixture@example.test', display_name: 'Local reviewer', role: 'owner', is_admin: admin, divers: [{ diver_id: 1, access_kind: 'OWNER' }], features: { calendar: params.get('calendar') !== 'off' } })

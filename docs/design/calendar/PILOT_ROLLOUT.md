@@ -1,5 +1,14 @@
 # Calendar operational handoff
 
+**Club administration update:** after deploying the admin-clubs change and
+`add_calendar_admin.sql`, use [Administration → Clubs](ADMIN_CLUBS.md) to
+prepare memberships/imports and open or close the calendar. An explicit UI
+choice is stored in PostgreSQL and supersedes CALENDAR_ENABLED; changing the
+environment file alone no longer overrides that choice. The environment-only
+activation/backout commands below describe the original Task06 release. For
+the new release, follow ADMIN_CLUBS.md, including its emergency pause/rollback
+instructions and private storage mount. Timer installation remains manual.
+
 Commands are for the parent/operator **after release authorization**. This implementation thread did not deploy, install a timer, change live env/data/membership, or send notifications. Follow `docs/REPO_WORKFLOW.md`; never edit the live checkout. Shell examples run on deb-serv as mcauchy from an approved staged GitHub checkout unless stated. Resolve `<merged-sha>`/`<previous-sha>` from reviewed release inputs, not this worktree's unpushed branch.
 
 ## Backup, migration and storage

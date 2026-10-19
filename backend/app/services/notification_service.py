@@ -79,11 +79,11 @@ def _validate_type(notif_type: str) -> None:
         raise ValueError(f"Unknown notification type: {notif_type}")
 
 
-def _pref_defaults() -> Dict[str, bool]:
+def _pref_defaults(db: Session) -> Dict[str, bool]:
     """Types the preferences API exposes: calendar ones only when enabled."""
-    from app.config import get_settings
+    from app.services.calendar_launch import enabled
 
-    if get_settings().calendar_enabled:
+    if enabled(db):
         return dict(_ALL_DEFAULTS)
     return dict(DEFAULTS)
 
@@ -413,7 +413,7 @@ def mark_all_read(db: Session, user_id: int) -> int:
 
 def get_prefs(db: Session, user_id: int) -> Dict[str, bool]:
     """Complete type → enabled map (DEFAULTS plus stored overrides)."""
-    prefs = _pref_defaults()
+    prefs = _pref_defaults(db)
     rows = (
         db.query(NotificationPref).filter_by(user_id=user_id).limit(len(_ALL_DEFAULTS)).all()
     )
@@ -431,7 +431,7 @@ def list_explicit_types(db: Session, user_id: int) -> List[str]:
         .limit(len(_ALL_DEFAULTS))
         .all()
     )
-    exposed = _pref_defaults()
+    exposed = _pref_defaults(db)
     return sorted({row[0] for row in rows if row[0] in exposed})
 
 
@@ -439,7 +439,7 @@ def set_pref(
     db: Session, user_id: int, type: str, enabled: bool
 ) -> NotificationPref:
     """Upsert one preference override; raises ValueError on unknown type."""
-    if type not in _pref_defaults():
+    if type not in _pref_defaults(db):
         raise ValueError(f"Unknown notification type: {type}")
     row = (
         db.query(NotificationPref)

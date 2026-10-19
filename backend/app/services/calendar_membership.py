@@ -137,7 +137,7 @@ def admin_add_membership(db: Session, admin: AppUser, club_id: int, user_id: int
 
 
 def update_membership(db: Session, actor: AppUser, club_id: int, membership_id: int, role: Optional[str],
-                      can_publish: Optional[bool], can_assign_groups: Optional[bool]) -> ClubMembership:
+                      can_publish: Optional[bool], can_assign_groups: Optional[bool], *, admin_ui: bool = False) -> ClubMembership:
     """Managers set member/coach roles and coach grants; only an app
     administrator appoints or demotes a manager (never self-elevation)."""
     own = _club_actor(db, actor, club_id, allow_admin=True)
@@ -146,7 +146,7 @@ def update_membership(db: Session, actor: AppUser, club_id: int, membership_id: 
     if m.role == "manager" or role == "manager":
         if not actor.is_admin:
             fail(403, "forbidden", "Only an app administrator appoints or changes managers")
-    elif not access.can_manage_members(own):
+    elif not (admin_ui and actor.is_admin) and not access.can_manage_members(own):
         fail(403, "forbidden", "Roles and coach grants belong to the club manager")
     if m.role == "manager" and role not in (None, "manager") and _manager_count(db, club_id) <= 1:
         fail(409, "last_manager", "Appoint another manager first")
@@ -201,7 +201,7 @@ def end_membership(db: Session, actor: AppUser, club_id: int, membership_id: int
 # --- Training groups -----------------------------------------------------------
 
 def assign_group(db: Session, actor: AppUser, club_id: int, user_id: int, group_id: Optional[int],
-                 effective_from: Optional[date]) -> Optional[TrainingGroupMembership]:
+                 effective_from: Optional[date], *, admin_ui: bool = False) -> Optional[TrainingGroupMembership]:
     """Effective-dated assignment/transfer by a manager or authorized coach.
 
     The previous open row ends exactly where the new one starts (history is
@@ -209,7 +209,7 @@ def assign_group(db: Session, actor: AppUser, club_id: int, user_id: int, group_
     """
     _usable_club(db, club_id)
     own = access.active_membership(db, actor, club_id)
-    if not access.can_assign_groups(own):
+    if not (admin_ui and actor.is_admin) and not access.can_assign_groups(own):
         if own is None:
             fail(404, "club_not_found", "Club not found")
         fail(403, "forbidden", "Group assignment requires a manager or authorized coach")

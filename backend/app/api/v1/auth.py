@@ -47,6 +47,7 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.services.calendar_launch import enabled as calendar_enabled
 from app.database import get_db
 from app.models.user_auth import (
     ROLE_FRIEND,
@@ -136,7 +137,7 @@ def _signup_club(db: Session, club_id: Optional[int]):
     """
     if club_id is None:
         return None
-    if not get_settings().calendar_enabled:
+    if not calendar_enabled(db):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "club_unavailable", "message": "This club is not open for selection"},
@@ -813,7 +814,7 @@ async def me(
         "role": getattr(user, "role", "owner"),
         "is_admin": bool(user.is_admin),
         # Default-off feature switches the UI needs before routing.
-        "features": {"calendar": bool(get_settings().calendar_enabled)},
+        "features": {"calendar": bool(calendar_enabled(db))},
         "divers": [
             {
                 "diver_id": row.diver_id,
