@@ -28,6 +28,7 @@ from src.ingest.objectstore.fake import FakeObjectStore
 CANON = "7BFB4DF6-AE38-4E75-BFC3-1A8AA6F8481A"
 LOCAL = "CBE6CF91-9EEA-43BE-ACF4-1A089BB2E8E0"
 LOCAL2 = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"  # valid UUID, absent from Photos
+NEW = "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"  # valid UUID, added to Photos per-test
 TRIGGER = "new_captioned_ingestion"
 MEDIA_BYTES = b"canonical-identity-media-bytes"
 
@@ -168,7 +169,8 @@ def env(tmp_path, monkeypatch):
         ),
     )
     return SimpleNamespace(
-        config=config, state_dir=state_dir, temp_root=temp_root, commit_calls=commit_calls
+        config=config, state_dir=state_dir, temp_root=temp_root, commit_calls=commit_calls,
+        db=db,
     )
 
 
@@ -397,3 +399,225 @@ def test_mode_run_evidence_failure_reports_structured_outcome(env, capsys):
     assert out["stage"] == "evidence_capture"
     assert out["error_family"] == "ObjectStoreUnavailable"
     assert env.commit_calls == []
+
+
+# ---------------------------------------------------------------------------
+# Retry identity/evidence consistency (bot finding on head 43d5620)
+#
+# A retry with a corrected local UUID must not silently reuse canonical
+# evidence captured from the old asset while reads/bytes/commit move to the
+# new one. All entry points validate the recorded evidence photo.uuid
+# against the resolved identity (case-insensitive): safe recapture when no
+# staged bytes or journal progress bind the old evidence, explicit refusal
+# otherwise. Terminal journals stay idempotent.
+
+
+def _stage_and_capture_old(env):
+    """Stage + capture evidence under the OLD local identity (non-terminal)."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    pdw._capture_evidence(CANON, LOCAL)
+    pdw._release(CANON)
+    return pdw, staged
+
+
+def test_drive_correction_with_existing_evidence_refuses(env):
+    """_drive with a corrected UUID refuses: old evidence, no mixing."""
+    pdw, staged = _stage_and_capture_old(env)
+    with pytest.raises(ValueError, match="evidence identity mismatch"):
+        pdw._drive(CANON, staged, LOCAL2)
+    assert env.commit_calls == []
+    # Recorded evidence untouched: still the old asset, no media merged.
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == LOCAL
+    assert "media_metadata" not in evidence
+    # The valid correction persists, so retries converge loudly (see next).
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL2
+    # Journal untouched: still fresh, no media identity recorded.
+    journal = json.loads((env.state_dir / f"{CANON}.json").read_text())
+    assert journal["state"] == "DISCOVERED"
+    assert not journal.get("media")
+
+
+def test_drive_mismatch_pin_reuse_still_refuses(env):
+    """Omitted retry reuses the corrected pin and re-refuses (no revert)."""
+    pdw, staged = _stage_and_capture_old(env)
+    with pytest.raises(ValueError, match="evidence identity mismatch"):
+        pdw._drive(CANON, staged, LOCAL2)
+    pdw._release(CANON)
+    # No explicit UUID: the persisted correction is reused — and refused
+    # again, instead of silently reverting to the old asset's evidence.
+    with pytest.raises(ValueError, match="evidence identity mismatch"):
+        pdw._drive(CANON, staged)
+    assert env.commit_calls == []
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == LOCAL
+
+
+def test_stage_copy_correction_restages_and_invalidates_evidence(env):
+    """stage_copy with correction replaces bytes + invalidates old evidence.
+
+    The staged copy is rebuilt wholesale from the new asset's bytes while
+    the journal is still fresh, so dropping the superseded evidence and
+    restaging converges the retry on one identity (daemon path).
+    """
+    env.db._photos[NEW] = FakePhoto(NEW)
+    pdw, _staged = _stage_and_capture_old(env)
+    restaged = pdw.stage_copy(CANON, make_media_file(env.temp_root), TRIGGER,
+                              agent_local_uuid=NEW)
+    assert restaged is not None and restaged.is_file()
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["agent_local_uuid"] == NEW
+    assert meta["request_reason"] == TRIGGER  # provenance preserved
+    assert "triggered_at" in meta
+    # Superseded evidence invalidated for recapture (not silently reused).
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    pdw._release(CANON)
+
+    # The drive recaptures under NEW and commits canonical: one identity.
+    pdw._drive(CANON, restaged, NEW)
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["video_uuid"] == CANON
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == NEW
+
+
+def test_stage_copy_correction_with_bound_evidence_refuses(env):
+    """stage_copy refuses a correction once progress binds the old evidence."""
+    pdw, staged = _stage_and_capture_old(env)
+    old_bytes = staged.read_bytes()
+    # Simulate a drive that proceeded under the old identity: the evidence
+    # is already bound to staged media, so restaging alone cannot heal it.
+    pdw._update_evidence(CANON, lambda ev: ev.update({"media_metadata": {"container": "mov"}}))
+    with pytest.raises(ValueError, match="evidence identity mismatch"):
+        pdw.stage_copy(CANON, make_media_file(env.temp_root), TRIGGER,
+                       agent_local_uuid=LOCAL2)
+    # No mutation beyond the persisted pin: old bytes and evidence intact.
+    assert staged.is_file() and staged.read_bytes() == old_bytes
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == LOCAL
+    assert env.commit_calls == []
+    assert pdw._active == set()  # refusal happened before slot acquisition
+
+
+def test_stage_copy_correction_after_commit_skips_idempotent(env):
+    """stage_copy after a commit keeps the terminal skip (no raise, no copy)."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    pdw._drive(CANON, staged, LOCAL)  # terminal
+    assert len(env.commit_calls) == 1
+    assert pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL2) is None
+    assert len(env.commit_calls) == 1
+
+
+def test_stage_copy_correction_recaptures_when_fresh(env):
+    """Evidence-only state + correction: restage converges on one identity."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    # Evidence-only state: captured under OLD, no staged bytes, fresh journal.
+    pdw._set_stage_meta(
+        CANON,
+        {"agent_local_uuid": LOCAL, "request_reason": TRIGGER,
+         "activation": "continuous", "triggered_at": "2026-10-19T00:00:00Z"},
+    )
+    pdw._capture_evidence(CANON, LOCAL)
+    assert not pdw._staged_copy_present(CANON)
+
+    staged = pdw.stage_copy(CANON, make_media_file(env.temp_root), TRIGGER,
+                            agent_local_uuid=NEW)
+    assert staged is not None and staged.is_file()
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["agent_local_uuid"] == NEW
+    # Superseded evidence invalidated for recapture (not silently reused).
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    pdw._release(CANON)
+
+    # The drive recaptures under NEW and commits canonical: one identity.
+    pdw._drive(CANON, staged, NEW)
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["video_uuid"] == CANON
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == NEW
+
+
+def test_mode_run_correction_with_staged_bytes_refuses_structured(env, capsys):
+    """One-shot retry with correction: structured refusal, nothing combined."""
+    pdw, _staged = _stage_and_capture_old(env)
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL2)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_evidence_identity_mismatch"
+    assert env.commit_calls == []
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == LOCAL
+    assert "media_metadata" not in evidence
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL2
+
+
+def test_mode_run_mismatch_pin_reuse_still_refuses(env, capsys):
+    """One-shot retry WITHOUT --agent-local-uuid reuses the pin, refuses."""
+    pdw, _staged = _stage_and_capture_old(env)
+    assert dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL2) == 3
+    capsys.readouterr()
+    # Omitted: the persisted correction is reused — still an explicit
+    # refusal, never a silent revert to the old asset.
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_evidence_identity_mismatch"
+    assert env.commit_calls == []
+
+
+def test_caption_mutation_correction_refuses_structured(env, capsys):
+    """Caption-mutation consumes SAVED evidence: correction refuses, no write."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    pdw._drive(CANON, staged, LOCAL)  # terminal: committed under LOCAL reads
+    assert len(env.commit_calls) == 1
+    journal_before = json.loads((env.state_dir / f"{CANON}.json").read_text())
+    caption_before = journal_before["caption"]["sha256"]
+
+    rc = dual_write.mode_caption_mutation(env.config, CANON, TRIGGER, LOCAL2)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_evidence_identity_mismatch"
+    # No new commit, no evidence rewrite, no journal caption change.
+    assert len(env.commit_calls) == 1
+    evidence = json.loads((env.state_dir / f"{CANON}.evidence.json").read_text())
+    assert evidence["photo"]["uuid"] == LOCAL
+    journal_after = json.loads((env.state_dir / f"{CANON}.json").read_text())
+    assert journal_after["caption"]["sha256"] == caption_before
+
+
+def test_evidence_uuid_compare_is_case_insensitive(env):
+    """Recorded photo.uuid in another case still matches (no false refuse)."""
+    pdw, staged = _stage_and_capture_old(env)
+    evidence_path = env.state_dir / f"{CANON}.evidence.json"
+    evidence = json.loads(evidence_path.read_text())
+    evidence["photo"]["uuid"] = LOCAL.lower()
+    evidence_path.write_text(json.dumps(evidence))
+
+    pdw._drive(CANON, staged)  # omitted: pin LOCAL matches lowercase record
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["video_uuid"] == CANON
+
+
+def test_terminal_redrive_with_correction_stays_idempotent(env):
+    """Committed journal + corrected UUID: idempotent, no new commit."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    pdw._drive(CANON, staged, LOCAL)
+    assert len(env.commit_calls) == 1
+
+    pdw._drive(CANON, staged, LOCAL2)  # must not raise, must not recommit
+    assert len(env.commit_calls) == 1
+    snapshots = sorted((env.state_dir / "metrics").glob("*.json"))
+    assert json.loads(snapshots[-1].read_text())["result"] == "already_terminal"

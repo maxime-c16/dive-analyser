@@ -376,6 +376,17 @@ class ProductionDualWrite:
             if staging.exists():
                 shutil.rmtree(staging, ignore_errors=True)
             return None
+        # Evidence/identity consistency: a corrected local UUID must not
+        # silently reuse canonical evidence captured from the old asset.
+        # The staged copy below is replaced wholesale, so retained staged
+        # bytes do not block a safe recapture — but any journal/commit
+        # progress refuses before any mutation. Terminal journals returned
+        # above (idempotent skip); the pin persists via the merge below so
+        # corrections keep converging retries.
+        self._ensure_evidence_identity_consistent(
+            video_uuid, photos_local or video_uuid,
+            context="stage_copy", ignore_staged=True,
+        )
         with self._active_lock:
             if self._active:
                 logger.info(
@@ -532,6 +543,113 @@ class ProductionDualWrite:
             )
         meta["agent_local_uuid"] = photos_local
         self._set_stage_meta(video_uuid, meta)
+
+    def _read_evidence_doc(self, video_uuid: str) -> dict | None:
+        """Read the canonical evidence file without side effects.
+
+        Returns None when no evidence file exists or it is unreadable —
+        the caller then follows the normal capture path.
+        """
+        path = self.state_dir / f"{video_uuid}.evidence.json"
+        if not path.exists():
+            return None
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return doc if isinstance(doc, dict) else None
+
+    def _journal_progress_present(self, video_uuid: str) -> tuple[bool, str]:
+        """Read-only check whether durable progress binds the recorded evidence.
+
+        Returns (True, reason) when the journal advanced past DISCOVERED,
+        carries media identity, a commit receipt exists, or the evidence
+        already gained media metadata — i.e. recapturing evidence alone
+        would combine one asset's evidence with another asset's
+        bytes/commit. Creates no files (unlike IngestStateStore.load).
+        """
+        if (self.state_dir / f"{video_uuid}.commit_receipt.json").exists():
+            return True, "commit receipt present"
+        journal_path = self.state_dir / f"{video_uuid}.json"
+        if journal_path.exists():
+            try:
+                doc = json.loads(journal_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return True, "journal unreadable"
+            if not isinstance(doc, dict):
+                return True, "journal malformed"
+            if (doc.get("state") or "DISCOVERED") != "DISCOVERED":
+                return True, f"journal state {doc.get('state')}"
+            if doc.get("media"):
+                return True, "journal carries media identity"
+        evidence = self._read_evidence_doc(video_uuid)
+        if isinstance(evidence, dict) and "media_metadata" in evidence:
+            return True, "evidence already bound to staged media"
+        return False, ""
+
+    def _staged_copy_present(self, video_uuid: str) -> bool:
+        """Whether a staged byte copy from a previous attempt is retained."""
+        recorded = self._read_stage_meta(video_uuid).get("staged_path")
+        return bool(recorded) and Path(recorded).is_file()
+
+    def _ensure_evidence_identity_consistent(
+        self,
+        video_uuid: str,
+        photos_uuid: str,
+        *,
+        context: str,
+        ignore_staged: bool = False,
+        recapture: bool = True,
+    ) -> bool:
+        """Validate existing canonical evidence against the resolved identity.
+
+        Case-insensitive UUID compare. Absent evidence or a match returns
+        False (nothing to do). A mismatch raises ValueError BEFORE any
+        evidence/byte/journal mutation — never combine evidence from one
+        asset with bytes/commit from another — except for the safe recapture
+        case: a fresh journal, no commit receipt, and (unless `ignore_staged`,
+        for callers about to replace the staged copy) no retained staged
+        bytes. Recapture invalidates the superseded evidence file so the
+        caller captures fresh under the corrected identity, and returns True.
+        Pass `recapture=False` for entry points that consume saved evidence
+        in place (caption-mutation): any mismatch refuses.
+
+        The caller persists the (valid) pin first, so a correction keeps
+        converging retries on one identity — an omitted retry re-hits this
+        explicit refusal instead of silently reverting to the old asset.
+        """
+        evidence = self._read_evidence_doc(video_uuid)
+        if evidence is None:
+            return False
+        recorded = (evidence.get("photo") or {}).get("uuid")
+        if isinstance(recorded, str) and recorded.upper() == photos_uuid.upper():
+            return False
+        progress, reason = self._journal_progress_present(video_uuid)
+        staged = False if ignore_staged else self._staged_copy_present(video_uuid)
+        if not recapture or progress or staged:
+            detail = reason or ("staged bytes present" if staged else "recapture refused")
+            raise ValueError(
+                f"evidence identity mismatch for {video_uuid[:8]} ({context}): "
+                f"recorded photo.uuid {recorded!r} != resolved {photos_uuid!r} "
+                f"({detail}); refusing to combine evidence from one asset with "
+                "bytes/commit from another. Reset "
+                f"{video_uuid}.evidence.json, {video_uuid}.stage.json and "
+                f"{video_uuid}.json in the state dir, then retry with the "
+                "corrected identity."
+            )
+        # Safe recapture: the old evidence binds nothing durable — no journal
+        # progress, no commit receipt, no retained staged bytes — so drop it
+        # and let the caller capture fresh under the corrected identity.
+        logger.info(
+            "dual-write %s (%s): evidence identity %r superseded by %r with "
+            "no durable progress; invalidating evidence for recapture",
+            video_uuid[:8],
+            context,
+            recorded,
+            photos_uuid,
+        )
+        (self.state_dir / f"{video_uuid}.evidence.json").unlink(missing_ok=True)
+        return True
 
     def _capture_evidence(self, video_uuid: str, photos_uuid: str | None = None) -> None:
         """Exact-caption + shadow parity + provenance evidence (0600).
@@ -767,6 +885,17 @@ class ProductionDualWrite:
             self._write_metrics_snapshot(run_id, metrics)
             return
 
+        # Evidence/identity consistency: a corrected local UUID keeps any
+        # existing canonical evidence file, so an existence check alone
+        # would combine the old asset's evidence with the new identity's
+        # reads/bytes/commit. Validate or safely recapture here — before
+        # capture, ffprobe, and the coordinator — and refuse (typed error,
+        # no mutation beyond the persisted pin) when staged bytes or journal
+        # progress already bind the old evidence. Terminal journals returned
+        # above, preserving idempotence.
+        self._ensure_evidence_identity_consistent(
+            video_uuid, photos_uuid, context="drive",
+        )
         if not (self.state_dir / f"{video_uuid}.evidence.json").exists():
             self._capture_evidence(video_uuid, photos_uuid)
         media_meta = ffprobe_metadata(staged_path, self.config.media.ffprobe_path)
@@ -1021,6 +1150,26 @@ def mode_caption_mutation(
     # identity instead of falling back to canonical.
     pdw._pin_agent_local_uuid(video_uuid, photos_local)
     photos_uuid = photos_local or video_uuid
+    try:
+        pdw._ensure_evidence_identity_consistent(
+            video_uuid, photos_uuid,
+            context="caption-mutation", recapture=False,
+        )
+    except ValueError as exc:
+        # Caption-mutation consumes the SAVED evidence (fingerprint gate,
+        # caption bytes, commit provenance): a corrected identity must never
+        # mix new reads with old saved evidence. Refuse, never recapture in
+        # place — recapture would erase the before/after fingerprint gate.
+        print(
+            json.dumps(
+                {
+                    "mode": "caption-mutation",
+                    "outcome": "refused_evidence_identity_mismatch",
+                    "error": str(exc)[:300],
+                }
+            )
+        )
+        return 3
     state_dir = pdw.state_dir
     state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
     state_store.load(video_uuid)
@@ -1277,6 +1426,21 @@ def mode_run(
             )
         )
         return 0
+    try:
+        evidence_recaptured = pdw._ensure_evidence_identity_consistent(
+            video_uuid, photos_uuid, context="dual-write-run",
+        )
+    except ValueError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "refused_evidence_identity_mismatch",
+                    "error": str(exc)[:300],
+                }
+            )
+        )
+        return 3
     if not (state_dir / f"{video_uuid}.evidence.json").exists():
         try:
             pdw._capture_evidence(video_uuid, photos_uuid)
@@ -1316,9 +1480,17 @@ def mode_run(
         acquired = False
         # Production vault: the legacy pipeline's checksum-validated
         # materialization source (same bytes the transcoder consumed).
+        # Skipped on an evidence recapture: the vault bytes were validated
+        # for the previously pinned asset, so reusing them with recaptured
+        # evidence would combine one asset's bytes with another's caption —
+        # materialize fresh from Photos under the corrected identity instead.
         try:
             sv_cfg = getattr(config.media, "source_vault", None)
-            if sv_cfg is not None and getattr(sv_cfg, "enabled", False):
+            if (
+                not evidence_recaptured
+                and sv_cfg is not None
+                and getattr(sv_cfg, "enabled", False)
+            ):
                 from ..source_vault import MediaSourceVault
 
                 vault = MediaSourceVault(
@@ -1385,6 +1557,20 @@ def mode_run(
     run_started = time.time()
     try:
         pdw._drive(video_uuid, staged_path, photos_local)
+    except ValueError as exc:
+        # Evidence/identity race refused inside the drive (evidence changed
+        # between the pre-stage check above and the drive's own gate):
+        # structured refusal, no partial commit.
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "refused_evidence_identity_mismatch",
+                    "error": str(exc)[:300],
+                }
+            )
+        )
+        return 3
     except ObjectStoreError as exc:
         print(
             json.dumps(
