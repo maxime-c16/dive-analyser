@@ -146,3 +146,21 @@ it('only offers clear filters in an empty community library when a filter is act
   expect(screen.getByRole('textbox', { name: 'Search dives' })).toHaveValue('')
   expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
 })
+
+it('keeps clear filters clickable while an empty-library search is still loading', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: [] })
+  render(<MemoryRouter initialEntries={['/dives?scope=all']}><Dives /></MemoryRouter>)
+  await screen.findByText('No attempts match this search.')
+  let finish!: (value: { data: never[] }) => void
+  const pending = new Promise<{ data: never[] }>(resolve => { finish = resolve })
+  vi.mocked(api.get).mockImplementation((url: string, config?: any) =>
+    url === '/api/v1/dives/library' && config?.params?.code_prefix === '103B'
+      ? pending : Promise.resolve({ data: [] }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search dives' }), { target: { value: '103B' } })
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dives/library', expect.objectContaining({ params: expect.objectContaining({ code_prefix: '103B' }) })))
+  await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+  expect(screen.getByRole('textbox', { name: 'Search dives' })).toHaveValue('')
+  finish({ data: [] })
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument())
+  expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
+})
