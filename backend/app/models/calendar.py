@@ -23,6 +23,18 @@ from app.database import Base
 
 MIGRATION_ONLY = {"info": {"sql_migration_only": True}}
 
+
+class CalendarLaunchControl(Base):
+    __tablename__ = "calendar_launch_control"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_calendar_launch_singleton"), MIGRATION_ONLY)
+    id = Column(Integer, primary_key=True)
+    enabled = Column(Boolean, nullable=True)
+    changed_by_user_id = Column(Integer, ForeignKey("app_users.id"))
+    changed_at = Column(DateTime)
+    accepted_checks = Column(JSON, nullable=False, default=dict)
+    probe_count = Column(Integer, nullable=False, default=0)
+    last_probe_at = Column(DateTime)
+
 CLUB_ROLES = ("member", "coach", "manager")
 MEMBERSHIP_STATUSES = ("active", "left", "removed")
 MEMBERSHIP_SOURCES = ("signup", "admin_legacy", "manager")

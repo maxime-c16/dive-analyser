@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, Database, Gift, HardDrive, Loader2, Mail, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
+import { Activity, Building2, AlertTriangle, CheckCircle2, Database, Gift, HardDrive, Loader2, Mail, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminUsers from '../components/AdminUsers'
 import AdminDiverInvites from '../components/AdminDiverInvites'
 import HeldBatchEmails from '../components/HeldBatchEmails'
+import AdminClubs from '../components/AdminClubs'
 
 function bytes(value?: number | null) {
   if (value == null) return 'Unknown'
@@ -48,7 +49,10 @@ export default function Admin() {
   const directoryChange = useCallback((query: string, status: string, offset: number) => {
     setSearch(previous => { const next = new URLSearchParams(previous); for (const [key, value] of Object.entries({ q: query, status: status === 'all' ? '' : status, offset: offset ? String(offset) : '' })) { if (value) next.set(key, value); else next.delete(key) }; return next }, { replace: true })
   }, [setSearch])
-  const [tab, setTab] = useState<'users' | 'invites' | 'emails' | 'system'>('users')
+  type AdminTab = 'users' | 'invites' | 'emails' | 'clubs' | 'system'
+  const requestedTab = search.get('tab')
+  const tab: AdminTab = requestedTab && ['invites', 'emails', 'clubs', 'system'].includes(requestedTab) ? requestedTab as AdminTab : 'users'
+  const setTab = (value: AdminTab) => setSearch(previous => { const next = new URLSearchParams(previous); if (value === 'users') next.delete('tab'); else next.set('tab', value); return next }, { replace: true })
   const [status, setStatus] = useState<OperationsStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,7 +98,7 @@ export default function Admin() {
   return <div className="ops-workspace mx-auto max-w-[1420px] space-y-6">
     <header className="border-b border-app pb-5">
       <div><h1 className="text-3xl font-semibold tracking-tight text-app-text">Administration</h1></div>
-      <nav aria-label="Administration sections" className="mt-4 flex gap-2">
+      <nav aria-label="Administration sections" className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setTab('users')}
@@ -128,6 +132,7 @@ export default function Admin() {
           <Mail className="h-4 w-4" aria-hidden />
           Emails
         </button>
+        <button type="button" onClick={() => setTab('clubs')} aria-current={tab === 'clubs' ? 'true' : undefined} className={`touch-target inline-flex items-center gap-2 border px-4 text-sm font-medium ${tab === 'clubs' ? 'border-app-strong bg-app-panel text-app-text' : 'border-app text-app-muted hover:text-app-text'}`}><Building2 className="h-4 w-4" aria-hidden />Clubs</button>
         <button
           type="button"
           onClick={() => setTab('system')}
@@ -146,6 +151,8 @@ export default function Admin() {
       <AdminUsers currentUserId={user?.user_id} onManage={manage} initialQuery={search.get('q') ?? ''} initialStatus={search.get('status') === 'disabled' ? 'disabled' : search.get('status') === 'active' ? 'active' : 'all'} initialOffset={Math.max(0, Number(search.get('offset')) || 0)} onDirectoryChange={directoryChange} />
     ) : tab === 'invites' ? (
       <AdminDiverInvites />
+    ) : tab === 'clubs' ? (
+      <AdminClubs />
     ) : tab === 'emails' ? (
       <HeldBatchEmails />
     ) : (

@@ -43,6 +43,8 @@ services:
       - ./media/videos:/videos:ro
       - ./media/cache:/app/media-cache
       - ./media/analysis-artifacts:/app/analysis-artifacts
+      # Club source documents must never share the nginx-served media volume.
+      - ${HOME}/.local/share/diveanalyzer/calendar-private:/app/calendar-private
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-diving}:${POSTGRES_PASSWORD:-CHANGE_ME_USE_RUNTIME_ENV}@postgres:5432/${POSTGRES_DB:-diving_analyzer_db}
       PYTHONUNBUFFERED: 1

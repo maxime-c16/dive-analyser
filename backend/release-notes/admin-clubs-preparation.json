@@ -1,0 +1,8 @@
+{
+  "id": "admin-clubs-preparation",
+  "date": "2026-10-19",
+  "title": "Prepare clubs from Administration",
+  "body": "Administrators can create clubs and groups, attach existing accounts, assign roles and groups, and preview prepared schedule imports while the calendar is closed. A launch checklist controls opening and closing the calendar. Source staging and installing the scheduled alerts worker remain server setup steps.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}

@@ -2,20 +2,22 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from starlette.requests import HTTPConnection
-from app.config import get_settings
+from app.database import get_db
+from sqlalchemy.orm import Session
+from app.services.calendar_launch import enabled as calendar_enabled
 from app.services.dive_access import member_access_context
 
 # Import route modules
 from app.api.v1 import dives, sessions, health, analytics, import_data, videos, media, journey, ws_sync, dive_codes, dd_operations, execution, psychology, dive_analysis, divers, training_periods, personal_dive_value, analysis, media_backbone, auth, media_playback, admin_users
 
-def calendar_feature_gate(request: HTTPConnection) -> None:
+def calendar_feature_gate(request: HTTPConnection, db: Session = Depends(get_db)) -> None:
     """Disabled calendar paths must be hidden before session resolution.
 
     The parent member-access dependency otherwise answers 401 before the
     calendar subrouter gets a chance to apply its default-off gate.
     """
     path = request.url.path
-    if (path == "/api/v1/calendar" or path.startswith("/api/v1/calendar/")) and not get_settings().calendar_enabled:
+    if (path == "/api/v1/calendar" or path.startswith("/api/v1/calendar/")) and not calendar_enabled(db):
         raise HTTPException(404, "Not found")
 
 
@@ -83,3 +85,6 @@ v1_router.include_router(clip_downloads.router, tags=['clip-downloads'])
 
 from app.api.v1 import calendar
 v1_router.include_router(calendar.router, tags=['calendar'])
+
+from app.api.v1 import calendar_admin
+v1_router.include_router(calendar_admin.router, tags=["admin"])

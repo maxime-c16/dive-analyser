@@ -69,7 +69,9 @@ def main(argv=None) -> int:
                 for row in report.get("dead_letters", []):
                     print(f"dead {row['table']} id={row['id']} event={row['event_id']} attempts={row['attempts']} "
                           f"error={row['last_error']}")
-            return 0 if report["ready"] else 2
+            # Disabled standby observations verify the scheduled command without
+            # dispatching notifications. HTTP readiness remains false until open.
+            return 0 if report["ready"] or report.get("standby") else 2
         count = calendar_alerts.requeue_dead(db, args.table, args.id)
         print(json.dumps({"requeued": count}))
         return 0

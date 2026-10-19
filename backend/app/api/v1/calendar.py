@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.admin_users import require_admin
 from app.api.v1.auth import _origin_allowed, get_current_user
 from app.config import get_settings
+from app.services.calendar_launch import enabled as calendar_enabled
 from app.database import get_db
 from app.models.calendar import (
     Calendar, CalendarChangeLog, CalendarEvent, CalendarEventFollow, CalendarSourceMapping, CalendarSubscription,
@@ -41,7 +42,7 @@ _schema_ready = False
 
 def calendar_gate(db: Session = Depends(get_db)) -> None:
     global _schema_ready
-    if not get_settings().calendar_enabled:
+    if not calendar_enabled(db):
         raise HTTPException(404, "Not found")
     if not _schema_ready:
         # A table of the newest calendar migration (Task05).
