@@ -84,3 +84,23 @@ rollback. Additive tables and imported data are retained.
 
 No live rollout, source staging, memberships, timer installation, notifications
 or calendar activation are performed by developing this feature.
+
+## Local verification (19 October 2026)
+
+- Selected calendar/auth/notification regression suite:166 passed,8 optional
+  cases skipped. Final administration suite including batch/candidate search:
+  10 passed. Frontend administration/forms:12 passed; TypeScript + production
+  build passed. Release-note validation and diff whitespace checks passed.
+- Disposable PostgreSQL16:39 distinct domain/admin cases passed across the
+  initial run and focused continuations, including idempotent migrations/model
+  parity, batch rollback, cross-club rejection and disabled worker observations.
+  The first parity run found an unnamed model check constraint; naming it to
+  match SQL fixed the rerun. Final candidate-search case was run on SQLite.
+- Browser: real app components with synthetic development-only API data,
+  desktop screenshots and mobile390px checks. Physical iPhone/VoiceOver and real
+  calendar-client acceptance remain unverified. No claim of live production data
+  or a full browser-to-PostgreSQL flow from these screenshots.
+- Standard ci/gate.sh could not start on this Mac because flock is unavailable
+  (its misleading fallback says another gate is running). No gate bypass or
+  CI success is claimed; Linux hosted CI remains required before merge/deploy.
+- Disposable PostgreSQL container and SSH tunnel were removed/stopped.
