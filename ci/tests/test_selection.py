@@ -85,6 +85,13 @@ class SelectionTests(unittest.TestCase):
 
 
 class AggregateTests(unittest.TestCase):
+    def test_postgres_major_version_matches_deployment(self):
+        import yaml
+        workflow = yaml.safe_load((CI.parent / '.github/workflows/ci.yml').read_text())
+        compose = yaml.safe_load((CI.parent / 'docker-compose.yml').read_text())
+        self.assertEqual(workflow['jobs']['postgres']['services']['postgres']['image'],
+                         compose['services']['postgres']['image'])
+
     def test_actual_gate_shell_rejects_failed_cancelled_or_missing_checks(self):
         # Exercise the shell shipped in the workflow, including skipped-job handling.
         import yaml
