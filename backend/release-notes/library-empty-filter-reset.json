@@ -1,0 +1,8 @@
+{
+  "id": "library-empty-filter-reset",
+  "date": "2026-10-19",
+  "title": "Clear an empty library search reliably",
+  "body": "The clear-filters action stays available while an empty library refreshes, so a search in progress no longer swallows your click.",
+  "audience": "all",
+  "components": ["frontend"]
+}

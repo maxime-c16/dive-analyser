@@ -265,6 +265,7 @@ function DiveLibrary() {
   const [loadingMore, setLoadingMore] = useState(false);
   const pageGeneration = useRef(0);
   const loadedAccessKey = useRef(accessKey);
+  const hasLoadedLibrary = useRef(Boolean(cached));
   const [playbackRate, setPlaybackRate] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollAnchorRef = useRef<number | null>(null);
@@ -288,6 +289,7 @@ function DiveLibrary() {
     const snapshot = readLibraryCache(cacheKey);
     const accountChanged = loadedAccessKey.current !== accessKey;
     loadedAccessKey.current = accessKey;
+    if (accountChanged) hasLoadedLibrary.current = false;
     // Keep the same-account matching cards mounted while filters refresh;
     // unmounting a card between pointer-down/up drops its open action.
     if (snapshot || accountChanged) {
@@ -295,7 +297,9 @@ function DiveLibrary() {
       setDivers(snapshot?.divers ?? []);
     }
     setNextCursor(snapshot?.nextCursor ?? null);
-    setLoading(!snapshot && (accountChanged || dives.length === 0));
+    // An empty result is still a loaded library. Keep its filter-reset action
+    // mounted during refresh too, so a pending query cannot swallow the click.
+    setLoading(!snapshot && !hasLoadedLibrary.current);
     setError(null);
     loadLibraryCache(cacheKey, async () => {
       const [diveResponse, diverResponse] = await Promise.all([
@@ -307,6 +311,7 @@ function DiveLibrary() {
     })
       .then(({ dives, divers, nextCursor }) => {
         if (active) {
+          hasLoadedLibrary.current = true;
           setDives(dives);
           setDivers(divers);
           setNextCursor(nextCursor ?? null);
