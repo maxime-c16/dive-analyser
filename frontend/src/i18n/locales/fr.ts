@@ -949,6 +949,7 @@ const fr = {
       queued: 'en file d’attente',
       waiting_for_mac: 'en attente du Mac',
       claimed: 'pris en charge',
+      materializing: 'récupération de la vidéo source',
       exporting: 'export en cours',
       transcoding: 'transcodage en cours',
       uploading: 'envoi en cours',

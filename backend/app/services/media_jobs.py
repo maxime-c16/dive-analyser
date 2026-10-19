@@ -60,6 +60,19 @@ def latest_active_job_for_asset(db: Session, photos_asset_id: int) -> MediaJob |
     return db.execute(stmt).scalars().first()
 
 
+def latest_playback_failure_for_asset(db: Session, photos_asset_id: int) -> MediaJob | None:
+    """Keep a completed preparation failure visible until a newer video job.
+
+    A successful poster does not make the video playable. Conversely, an old
+    failed attempt must not reappear after a later successful video expires.
+    """
+    job = db.execute(select(MediaJob).where(
+        MediaJob.photos_asset_id == photos_asset_id,
+        MediaJob.rendition != "poster",
+    ).order_by(MediaJob.created_at.desc(), MediaJob.id.desc()).limit(1)).scalars().first()
+    return job if job and job.status in {"failed", "unavailable"} else None
+
+
 def to_job_summary(job: MediaJob | None) -> MediaJobSummary | None:
     """Convert job model to API shape."""
     if not job:

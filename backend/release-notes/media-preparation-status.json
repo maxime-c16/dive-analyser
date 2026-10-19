@@ -1,0 +1,8 @@
+{
+  "id": "media-preparation-status",
+  "date": "2026-10-19",
+  "title": "Keep tracking clips while their source video is retrieved",
+  "body": "Clip preparation continues updating while the source video is retrieved. If preparation fails, the player shows the failure and offers a deliberate retry instead of returning to “Clip not cached”.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
