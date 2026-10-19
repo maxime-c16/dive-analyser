@@ -27,7 +27,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         exit 1
     fi
     if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
-        echo "pre-push: commit or stash changes first so CI tests the pushed commit" >&2
+        echo "pre-push: commit changes first so CI tests the pushed commit" >&2
         exit 1
     fi
     if [ "$remote_sha" = "$ZERO" ]; then
@@ -66,12 +66,26 @@ fi
 if [ -n "${DIVE_CI_TIERS:-}" ]; then
     exec "$GATE" "$DIVE_CI_TIERS"
 fi
-if [ "$full" = 1 ]; then
+if [ "$full" = 1 ] && [ "${DIVE_CI_LOCAL_FULL:-0}" = 1 ]; then
     echo "pre-push: range unavailable — running all tiers" >&2
     exec "$GATE" all
+fi
+# GitHub is the authoritative full gate. Opt in to changed-component checks
+# locally with DIVE_CI_LOCAL_FULL=1, or specify DIVE_CI_TIERS explicitly.
+if [ "${DIVE_CI_LOCAL_FULL:-0}" != 1 ]; then
+    echo "pre-push: fast (full checks run on GitHub; DIVE_CI_LOCAL_FULL=1 opts in locally)"
+    exec "$GATE" fast
 fi
 tiers="$("$GATE" tiers -- "${changed[@]}")"
 echo "pre-push: $tiers"
 # Tier names are validated by gate.sh; filenames never undergo word splitting.
 read -r -a selected <<<"$tiers"
-exec "$GATE" "${selected[@]}"
+local_tiers=()
+for tier in "${selected[@]}"; do
+    if [ "$tier" = postgres ] && [ -z "${CALENDAR_TEST_DATABASE_URL:-}" ]; then
+        echo "pre-push: PostgreSQL checks run on GitHub (set CALENDAR_TEST_DATABASE_URL to run locally)"
+    else
+        local_tiers+=("$tier")
+    fi
+done
+exec "$GATE" "${local_tiers[@]}"

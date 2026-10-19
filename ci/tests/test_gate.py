@@ -88,9 +88,24 @@ class HookTests(unittest.TestCase):
         (self.root / 'docs').mkdir()
         (self.root / 'docs/tip.md').write_text('')
         self.commit('docs tip')
+        self.env['DIVE_CI_LOCAL_FULL'] = '1'
         run = self.run_hook()
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn('backend', run.stdout)
+
+    def test_default_push_is_fast_even_for_backend(self):
+        (self.root / 'backend').mkdir()
+        (self.root / 'backend/app.py').write_text('')
+        self.commit('backend change')
+        run = self.run_hook()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.splitlines()[-1], 'fast')
+
+    def test_explicit_tiers_override_fast_default(self):
+        self.env['DIVE_CI_TIERS'] = 'fast backend'
+        run = self.run_hook()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.splitlines()[-1], 'fast backend')
 
     def test_annotated_tag_at_head_is_tested(self):
         self.git('tag', '-a', 'v1', '-m', 'release')
@@ -108,9 +123,10 @@ class HookTests(unittest.TestCase):
         self.assertNotEqual(self.run_hook(new=old).returncode, 0)
 
     def test_unknown_range_runs_full_gate(self):
+        self.env['DIVE_CI_LOCAL_FULL'] = '1'
         run = self.run_hook(old='1' * 40)
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn('all', run.stdout)
+        self.assertEqual(run.stdout.splitlines()[-1], 'all')
 
     def test_delete_does_not_need_gate(self):
         self.gate.unlink()
@@ -127,7 +143,7 @@ class HookTests(unittest.TestCase):
                                                cwd=self.root, env=self.env, text=True).split())
         self.assertEqual(tiers('docs/readme.md'), {'fast'})
         self.assertEqual(tiers('mac-agent/src/metadata.py'), {'fast', 'agent'})
-        self.assertEqual(tiers('ci/lib.sh'), {'fast', 'frontend', 'backend', 'agent'})
+        self.assertEqual(tiers('ci/lib.sh'), {'fast', 'frontend', 'backend', 'agent', 'postgres', 'images'})
         self.assertEqual(tiers('frontend/Dockerfile.deploy'), {'fast', 'frontend', 'images'})
 
     def test_installer_preserves_unrelated_hook(self):

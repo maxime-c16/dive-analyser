@@ -5,7 +5,7 @@
 #   * The host is small (2 CPU, ~1.9 GB free RAM). Nothing here runs in
 #     parallel, and long jobs are niced so the live dive-analyser stack
 #     keeps serving traffic while CI runs.
-#   * There is no CI provider. Everything runs from git hooks / the CLI.
+#   * GitHub runs tiers on separate runners; local/deploy gates stay serial.
 
 set -euo pipefail
 

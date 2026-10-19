@@ -3,8 +3,8 @@
 #
 # Why this exists in this shape
 # ----------------------------
-# The enforcement point is a local pre-push hook. No daemon or hosted
-# service is needed; the same entrypoint can run on a hosted runner later.
+# GitHub is the authoritative gate; the local pre-push hook defaults to fast.
+# Each hosted runner runs one selected tier; local/deploy gates stay serial.
 #
 # The host is small (2 CPU, ~1.9 GB free RAM, production stack co-resident),
 # so checks are ordered by cost and the cheap ones run first. A typo should
@@ -43,10 +43,7 @@ unset GIT_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORI
       GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX GIT_QUARANTINE_PATH GIT_GRAFT_FILE \
       GIT_INDEX_VERSION GIT_SHARED_REPOSITORY 2>/dev/null || true
 
-# Tiers that only need re-running when their inputs change.
-FRONTEND_PATHS='^(frontend/|nginx/|docker-compose\.yml|package-lock)'
-BACKEND_PATHS='^(backend/|docker-compose\.yml|docker/|layer2/)'
-IMAGES_PATHS='^(backend/Dockerfile|frontend/Dockerfile|docker-compose\.yml|nginx/|backend/requirements\.txt|frontend/package-lock\.json)'
+# Path selection is shared with GitHub through ci/select-tiers.py.
 
 # ===========================================================================
 # Tier: fast — static guards. No dependency installation, sub-second.
@@ -199,6 +196,7 @@ tier_backend() {
       export DATABASE_URL="sqlite:///:memory:" AUTO_IMPORT=false DB_TEST=0
       export PYTHONPATH="$ROOT:$ROOT/backend" DIVE_CI_RESULT_FILE="$result"
       ci_run backend-pytest "$CI_BACKEND_PYTHON" -m pytest tests/ \
+        --junitxml="$(ci_cache_dir)/logs/backend-junit.xml" \
         -p ci.pytest_results -m "not performance" -q --tb=short \
         --strict-markers --asyncio-mode=auto \
         -W error::pytest.PytestUnhandledCoroutineWarning
@@ -214,6 +212,7 @@ tier_agent() {
     ci_agent_python
     ( cd "$ROOT/mac-agent" &&
       ci_run agent-pytest "$CI_AGENT_PYTHON" -m pytest tests/ -q --tb=short \
+        --junitxml="$(ci_cache_dir)/logs/agent-junit.xml" \
         --strict-markers --asyncio-mode=auto \
         -W error::pytest.PytestUnhandledCoroutineWarning
     ) || { ci_record agent FAIL "portable agent tests failed"; return 1; }
@@ -227,6 +226,7 @@ tier_images() {
     ci_step "images: docker build"
     if ! ci_have docker; then ci_record images FAIL "docker not available"; return 1; fi
     local rc=0 tag="ci-build-$(git -C "$ROOT" rev-parse --short HEAD)-$$"
+    ci_run proxy-config bash "$SCRIPT_DIR/check-proxies.sh" || return 1
 
     # Frontend production image. This is the artifact that actually gets
     # deployed (compose references it by tag and has no build section for it),
@@ -257,18 +257,7 @@ tier_images() {
 # ===========================================================================
 cmd_tiers() {
     [ "${1:-}" = "--" ] && shift
-    local out="fast" f
-    for f in "$@"; do
-        case "$f" in
-            ci/*) out="$out frontend backend agent" ;;
-            mac-agent/*) out="$out agent" ;;
-        esac
-        if printf '%s' "$f" | grep -qE "$BACKEND_PATHS"; then out="$out backend"; fi
-        if printf '%s' "$f" | grep -qE "$FRONTEND_PATHS"; then out="$out frontend"; fi
-        if printf '%s' "$f" | grep -qE "$IMAGES_PATHS";    then out="$out images";    fi
-    done
-    printf '%s\n' $out | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' '
-    echo
+    python3 "$SCRIPT_DIR/select-tiers.py" "$@"
 }
 
 # ===========================================================================
@@ -283,27 +272,32 @@ main() {
     # Join *all* arguments. The pre-push hook invokes this as
     # `gate.sh fast backend frontend`, so reading only $1 would silently drop
     # every tier after the first and let an ungated change through.
-    local spec="${*:-default}"
+    local spec
+    if [ "${1:-}" = --tier ]; then
+        [ "$#" -eq 2 ] || ci_die "usage: ci/gate.sh --tier fast|frontend|backend|agent|postgres|images"
+        # Hosted workers rely on the same checkout's successful plan/fast job.
+        spec="$2"
+    else
+        spec="${*:-default}"
+        case "$spec" in
+            fast)     spec="fast" ;;
+            frontend) spec="fast frontend" ;;
+            backend)  spec="fast backend" ;;
+            agent)    spec="fast agent" ;;
+            images)   spec="fast images" ;;
+            all)      spec="fast frontend backend agent images" ;;
+            default)  spec="${DIVE_CI_TIERS:-fast frontend backend agent}" ;;
+        esac
+    fi
 
-    # Single-word conveniences expand to a full tier set; a multi-word spec is
-    # taken as-is.
-    case "$spec" in
-        fast)     spec="fast" ;;
-        frontend) spec="fast frontend" ;;
-        backend)  spec="fast backend" ;;
-        agent)    spec="fast agent" ;;
-        images)   spec="fast images" ;;
-        all)      spec="fast frontend backend agent images" ;;
-        default)  spec="${DIVE_CI_TIERS:-fast frontend backend agent}" ;;
-    esac
-
+    # PostgreSQL is hosted separately; explicit local runs require a disposable DB.
     # Validate the whole spec before doing any work, so a typo costs a second
     # instead of failing three minutes in.
     local t
     for t in $spec; do
         case "$t" in
-            fast|frontend|backend|agent|images) ;;
-            *) ci_die "unknown tier: '$t' in '$spec' (use fast|frontend|backend|agent|images|all|tiers)" ;;
+            fast|frontend|backend|agent|postgres|images) ;;
+            *) ci_die "unknown tier: '$t' in '$spec' (use fast|frontend|backend|agent|postgres|images|all|tiers)" ;;
         esac
     done
 
@@ -321,6 +315,7 @@ main() {
             frontend) tier_frontend || rc_any=1 ;;
             backend)  tier_backend  || rc_any=1 ;;
             agent)    tier_agent    || rc_any=1 ;;
+            postgres) bash "$SCRIPT_DIR/postgres.sh" || rc_any=1 ;;
             images)   tier_images   || rc_any=1 ;;
             *) ci_die "unknown tier: $t" ;;
         esac
