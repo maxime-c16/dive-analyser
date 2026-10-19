@@ -290,7 +290,8 @@ class TestWebSocketPerformance:
         assert len(tracker.get_all_active()) == 1000
         assert duration < 1.0  # Should complete in <1 second
 
-    def test_tracker_progress_updates(self):
+    @pytest.mark.parametrize("benchmark", [False, pytest.param(True, marks=pytest.mark.performance)])
+    def test_tracker_progress_updates(self, benchmark):
         """Test performance of progress updates."""
         tracker = SyncStatusTracker()
 
@@ -307,9 +308,14 @@ class TestWebSocketPerformance:
 
         duration = time.perf_counter() - start
 
-        assert duration < 1.0  # 1000 updates in <1 second
+        active = tracker.get_all_active()
+        assert len(active) == 100
+        assert all(s.synced_count == 100 for s in active.values())
+        if benchmark:
+            assert duration < 1.0  # 1000 updates in <1 second
 
-    def test_tracker_completion_performance(self):
+    @pytest.mark.parametrize("benchmark", [False, pytest.param(True, marks=pytest.mark.performance)])
+    def test_tracker_completion_performance(self, benchmark):
         """Test performance of completing syncs."""
         tracker = SyncStatusTracker()
 
@@ -326,9 +332,12 @@ class TestWebSocketPerformance:
         duration = time.perf_counter() - start
 
         assert len(tracker.get_all_completed()) == 100
-        assert duration < 0.5  # Complete 100 syncs in <500ms
+        assert tracker.get_all_active() == {}
+        if benchmark:
+            assert duration < 0.5  # Complete 100 syncs in <500ms
 
-    def test_client_event_storage(self):
+    @pytest.mark.parametrize("benchmark", [False, pytest.param(True, marks=pytest.mark.performance)])
+    def test_client_event_storage(self, benchmark):
         """Test client event storage performance."""
         client = SyncStatusClient("ws://localhost:8000/ws", "client-1")
 
@@ -345,9 +354,13 @@ class TestWebSocketPerformance:
         duration = time.perf_counter() - start
 
         assert len(client.received_events) == 10000
-        assert duration < 0.5  # Store 10000 events in <500ms
+        assert client.received_events[0]['sync_id'] == 'sync-0'
+        assert client.received_events[-1]['data']['progress'] == 99
+        if benchmark:
+            assert duration < 0.5  # Store 10000 events in <500ms
 
-    def test_event_filtering_performance(self):
+    @pytest.mark.parametrize("benchmark", [False, pytest.param(True, marks=pytest.mark.performance)])
+    def test_event_filtering_performance(self, benchmark):
         """Test performance of filtering events."""
         client = SyncStatusClient("ws://localhost:8000/ws", "client-1")
 
@@ -367,7 +380,10 @@ class TestWebSocketPerformance:
 
         duration = time.perf_counter() - start
 
-        assert duration < 0.5  # 100 filters of 1000 events in <500ms
+        assert len(events) == 333
+        assert all(event['type'] == 'sync_progress' for event in events)
+        if benchmark:
+            assert duration < 0.5  # 100 filters of 1000 events in <500ms
 
 
 class TestWebSocketIntegration:

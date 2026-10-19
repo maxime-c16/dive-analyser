@@ -1,31 +1,143 @@
 name: CI
 
-# Hosted gate. The pre-push hook enforces correctness locally, but GitHub can't
-# see that result; this check gives `master`'s branch protection (and
-# auto-merge) a signal it can wait on. It runs the same tiers as a local
-# `ci/gate.sh` (fast + frontend + backend + agent) without image builds.
-
 on:
   pull_request:
 
-jobs:
-  gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      # Pinned to the same checkout commit the review workflow already trusts.
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+permissions:
+  contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      postgres: ${{ steps.select.outputs.postgres }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -m pip install pyyaml
+      - name: Select checks from the complete PR diff
+        id: select
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python ci/select-tiers.py --base "$BASE_SHA" --head "$HEAD_SHA" --github-output
+      - name: Validate static guards before starting expensive jobs
+        run: ci/gate.sh fast
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ci-plan-logs
+          path: ~/.cache/dive-ci/logs/
+          retention-days: 7
 
+  checks:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            ci/requirements-agent.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/cache@v4
+        if: matrix.tier == 'backend' || matrix.tier == 'agent'
+        with:
+          path: ~/.cache/dive-ci/venv-*
+          key: venv-${{ runner.os }}-${{ runner.arch }}-${{ steps.python.outputs.python-version }}-${{ matrix.tier }}-${{ hashFiles('backend/requirements.txt', 'ci/requirements-agent.txt', 'ci/lib.sh') }}
+      - run: python -m pip install pyyaml
+      - name: Run selected tier
+        env:
+          TIER: ${{ matrix.tier }}
+        run: ci/gate.sh "$TIER"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ matrix.tier }}-logs
+          path: ~/.cache/dive-ci/logs/
+          retention-days: 7
 
-      - name: Install gate system deps
-        run: python -m pip install pyyaml
+  postgres:
+    needs: plan
+    if: needs.plan.outputs.postgres == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: calendar_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d calendar_test_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CALENDAR_TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/calendar_test_ci
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/dive-ci/venv-*
+          key: venv-${{ runner.os }}-${{ runner.arch }}-${{ steps.python.outputs.python-version }}-backend-${{ hashFiles('backend/requirements.txt', 'ci/requirements-agent.txt', 'ci/lib.sh') }}
+      - name: PostgreSQL SQL, migration parity and concurrency checks
+        run: bash ci/postgres.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-postgres-logs
+          path: ~/.cache/dive-ci/logs/
+          retention-days: 7
 
-      - name: Run gate
-        run: ci/gate.sh
+  # Keep this stable name as the single required branch-protection context.
+  # A failed plan or a cancelled/failed selected job must never produce green.
+  gate:
+    if: always()
+    needs: [plan, checks, postgres]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every selected check to pass
+        env:
+          PLAN: ${{ needs.plan.result }}
+          CHECKS: ${{ needs.checks.result }}
+          POSTGRES: ${{ needs.postgres.result }}
+          POSTGRES_REQUIRED: ${{ needs.plan.outputs.postgres }}
+        run: |
+          test "$PLAN" = success
+          test "$CHECKS" = success
+          if [ "$POSTGRES_REQUIRED" = true ]; then
+            test "$POSTGRES" = success
+          else
+            test "$POSTGRES" = skipped
+          fi

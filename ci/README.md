@@ -1,10 +1,24 @@
 # Local CI
 
-The existing pre-push design stays: no CI server, daemon, test matrix, or idle
-memory use. Checks run sequentially at low CPU priority on the box that also
-serves the app. A shared lock prevents concurrent gates across worktrees;
-Vitest uses one worker, Node's heap defaults to 768 MB, numerical libraries
-use one thread, and each test/build command has a 15-minute timeout.
+GitHub is the authoritative correctness gate. The pre-push hook runs `fast`
+by default so the developer does not wait for the same suites twice. Opt in
+to changed-component local checks with `DIVE_CI_LOCAL_FULL=1`, or choose tiers
+with `DIVE_CI_TIERS`. Clean-tree, pushed-commit and missing-gate guards remain.
+
+Hosted CI selects suites from the complete PR base/head diff, validates cheap
+static guards first, then runs independent frontend/backend/agent/image tiers
+in parallel. PostgreSQL has its own disposable service. A final check named
+`gate` rejects any failed/cancelled selected job or failed plan. Docs and
+release-note-only changes still produce this check. Unknown paths and changes
+to CI/workflows select all checks. Superseded CI/review runs are cancelled;
+OpenCode review has a 15-minute timeout. Its green action status means execution
+completed, not that the comment verdict is APPROVE; findings remain reviewable.
+
+Local/deployment gates stay sequential and use a shared lock: they can run on
+the small server alongside production. Hosted Python environments are cached
+by OS, architecture, Python version, dependency content and environment setup;
+pip/npm download caches are also enabled. Per-tier logs and Python JUnit
+reports are retained as Actions artifacts for seven days.
 
 ```bash
 ci/install-hooks.sh      # install/update the shared Git pre-push hook
@@ -13,7 +27,8 @@ ci/gate.sh fast          # cheapest checks only
 ci/gate.sh frontend      # frontend tests + TypeScript + production bundle
 ci/gate.sh backend       # API/service tests against isolated SQLite
 ci/gate.sh agent         # portable Mac-agent logic on Linux
-ci/gate.sh images        # build production images without deploying
+ci/gate.sh images        # parse both nginx configs + build production images
+CALENDAR_TEST_DATABASE_URL=postgresql://.../calendar_test_ci ci/postgres.sh
 ci/gate.sh all           # correctness checks + images
 ```
 
@@ -41,10 +56,20 @@ flow. Runtime audit logs remain ignored by Git.
 
 ## Push selection and reproducibility
 
-Docs-only pushes run `fast`. Frontend changes add `frontend`; backend/layer2
-changes add `backend`; Mac-agent changes add `agent`. Compose changes add
-backend/frontend/images. Changes under `ci/` rerun every correctness tier.
-Dockerfile and dependency changes also build images.
+Hosted path selection lives in `ci/select-tiers.py`, also used by opted-in
+local checks. Docs and JSON release notes need only `fast`; frontend changes
+add frontend, backend/layer2 changes add backend and PostgreSQL, Mac-agent
+changes add agent. Compose/nginx changes add image/proxy checks and dependent
+suites. Dependency/Dockerfile changes build images. CI/workflow/unknown code
+changes select all tiers. A note JSON under `backend/release-notes/` does not
+by itself select the backend suite.
+
+PostgreSQL checks execute the production activity UNION builder, apply all five
+calendar migrations twice, compare SQL schema/model constraints, and exercise
+real row-lock/idempotency/outbox races. They require a disposable PostgreSQL
+`calendar_test_*` database and never use the application DB. Opted-in local
+pushes omit this tier unless its explicit URL is set. This is targeted coverage,
+not proof of every historical migration or a production rollout.
 
 The hook examines all commits introduced by a new branch, not just its tip.
 Existing refs use the old/new tree diff, including force pushes. Unknown ranges
@@ -68,7 +93,7 @@ under `~/.cache/dive-ci/` (`DIVE_CI_CACHE` overrides this).
 
 ## Explicitly outside the default gate
 
-- Wall-clock performance/load tests: run separately on a quiet box with
+- Wall-clock performance/load tests (including WebSocket timing variants): run separately on a quiet box with
   `pytest tests/test_performance_sync.py tests/test_load_concurrent.py tests/test_websocket_sync.py -m performance --asyncio-mode=auto`.
 - Layer-2 live database probes: opt in with `DB_TEST=1`; they use Docker and
   host data. The local gate forces `DB_TEST=0` and never probes production.
@@ -110,3 +135,15 @@ failure. Rules, hosts and rollback: `docs/REPO_WORKFLOW.md`.
 The updated shared pre-push hook is installed and verified against `ci/pre-push`.
 Its push-range and clean-tree checks are active. Worktrees on branches without
 `ci/` must merge these files before pushing; missing gates now block pushes.
+
+## Merge protection and deployment
+
+Use `gate` as the single required GitHub Actions status check on `master`.
+Do not require individual matrix jobs: they are intentionally skipped for
+unrelated changes. Requiring an up-to-date branch is a separate policy choice,
+not needed to enforce the latest-head gate.
+
+The deployment still performs its environment-specific health checks, proxy
+reload, rollback and frontend validation. Reusing exact tested build artifacts
+is deferred: removing deployment checks without that provenance would reduce
+coverage. No application deploy or manual SQL is needed for this CI-only change.
