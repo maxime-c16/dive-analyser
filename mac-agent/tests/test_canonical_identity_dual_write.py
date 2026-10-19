@@ -27,6 +27,7 @@ from src.ingest.objectstore.fake import FakeObjectStore
 
 CANON = "7BFB4DF6-AE38-4E75-BFC3-1A8AA6F8481A"
 LOCAL = "CBE6CF91-9EEA-43BE-ACF4-1A089BB2E8E0"
+LOCAL2 = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"  # valid UUID, absent from Photos
 TRIGGER = "new_captioned_ingestion"
 MEDIA_BYTES = b"canonical-identity-media-bytes"
 
@@ -276,3 +277,123 @@ def test_single_identity_behavior_unchanged(env):
     pdw._drive(db_uuid, staged)
     assert len(env.commit_calls) == 1
     assert env.commit_calls[0]["video_uuid"] == db_uuid
+
+
+# ---------------------------------------------------------------------------
+# Retry/identity consistency (round-2 review findings)
+#
+# Rule: a valid explicit local UUID overrides the pin and persists for future
+# retries; an omitted argument retains the pin; malformed values raise a
+# typed error before any file/state mutation — never a silent fallback to
+# an unrelated canonical Photos lookup.
+
+
+def test_stage_copy_explicit_correction_overrides_stale_pin(env):
+    """A valid explicit local UUID corrects the pin and persists."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL
+    pdw._release(CANON)
+
+    staged2 = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL2)
+    assert staged2 is not None
+    meta = pdw._read_stage_meta(CANON)
+    # Correction persisted; original trigger provenance untouched.
+    assert meta["agent_local_uuid"] == LOCAL2
+    assert meta["request_reason"] == TRIGGER
+    assert meta["activation"] == "continuous"
+    assert "triggered_at" in meta
+    pdw._release(CANON)
+
+
+def test_drive_explicit_correction_overrides_pin_and_drives_reads(env):
+    """_drive with an explicit local UUID persists it and reads through it.
+
+    LOCAL2 is absent from Photos, so the drive must fail on the LOCAL2
+    lookup — proving the explicit identity was actually used for reads and
+    persisted, not silently replaced by the stale pin.
+    """
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+
+    with pytest.raises(ObjectStoreUnavailable, match="asset not found"):
+        pdw._drive(CANON, staged, LOCAL2)
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL2
+    assert env.commit_calls == []
+    pdw._release(CANON)
+
+
+def test_mode_run_omitted_local_reuses_pin_and_merges_provenance(env, capsys):
+    """One-shot retry without --agent-local-uuid reuses the pin and merges."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    meta_before = pdw._read_stage_meta(CANON)
+    pdw._release(CANON)
+
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "driven"
+
+    # Commit under canonical; provenance merged, not replaced.
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["video_uuid"] == CANON
+    meta_after = pdw._read_stage_meta(CANON)
+    assert meta_after["triggered_at"] == meta_before["triggered_at"]
+    assert meta_after["request_reason"] == TRIGGER
+    assert meta_after["activation"] == "continuous"
+    assert meta_after["agent_local_uuid"] == LOCAL
+    assert meta_after["run_mode"] == "one_shot_production_runtime"
+
+
+def test_malformed_explicit_local_rejected_before_mutation(env):
+    """Malformed explicit identity: typed error, no files, no lookups."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    with pytest.raises(ValueError, match="malformed agent_local_uuid"):
+        pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid="not-a-uuid")
+    assert not (env.state_dir / f"{CANON}.stage.json").exists()
+    assert not (env.temp_root / "dual_write_staging" / CANON).exists()
+
+    with pytest.raises(ValueError, match="malformed agent_local_uuid"):
+        pdw._drive(CANON, env.temp_root / "source.mov", "not-a-uuid")
+    assert not (env.state_dir / "metrics").exists()
+    assert not (env.state_dir / f"{CANON}.json").exists()
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+
+
+def test_malformed_recorded_pin_rejected_not_silently_ignored(env):
+    """A corrupt recorded pin raises instead of falling back to canonical."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    pdw._set_stage_meta(CANON, {"agent_local_uuid": "junk"})
+    with pytest.raises(ValueError, match="recorded agent_local_uuid"):
+        pdw._drive(CANON, env.temp_root / "source.mov", None)
+    assert env.commit_calls == []
+
+
+def test_mode_run_malformed_local_reports_refused(env, capsys):
+    """One-shot with a malformed local UUID: structured refusal, no writes."""
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, "bad-uuid")
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_malformed_agent_local_uuid"
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    assert not (env.state_dir / f"{CANON}.stage.json").exists()
+
+
+def test_mode_run_evidence_failure_reports_structured_outcome(env, capsys):
+    """Evidence capture failure: retryable_failure, unexpected errors unmasked."""
+    # No local UUID anywhere: the canonical UUID does not resolve in Photos.
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER)
+    assert rc == 1
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "retryable_failure"
+    assert out["stage"] == "evidence_capture"
+    assert out["error_family"] == "ObjectStoreUnavailable"
+    assert env.commit_calls == []

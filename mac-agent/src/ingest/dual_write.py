@@ -63,7 +63,7 @@ from .caption import (
 )
 from .coordinator import ObjectStoreIngestCoordinator
 from .media_content_type import video_content_type
-from .errors import ObjectStoreUnavailable
+from .errors import ObjectStoreError, ObjectStoreUnavailable
 from .objectstore.b2 import B2Config, BackblazeB2Store
 from .state_store import IngestStateStore
 from .states import IngestState
@@ -159,7 +159,6 @@ class _CountingStore:
 
 class _PinnedCaptionProvider:
     """Pin Photos-bound caption reads to the agent-local asset UUID.
-
     The coordinator is keyed by the canonical dive UUID (journal, workdir,
     commit payload), but caption providers query the Photos library, where
     only the agent-local asset UUID resolves. This adapter keeps the
@@ -174,6 +173,38 @@ class _PinnedCaptionProvider:
 
     def get_caption(self, _video_uuid: str):
         return self._inner.get_caption(self._photos_uuid)
+
+
+def _resolve_agent_local_uuid(
+    video_uuid: str,
+    explicit: str | None,
+    recorded: str | None,
+) -> str | None:
+    """Resolve the Photos-bound local identity with consistent retry rules.
+
+    - A valid explicit UUID always wins and (via _pin_agent_local_uuid)
+      persists, so a correction converges future retries on one identity.
+    - An omitted argument retains the pinned identity, if any.
+    - Malformed explicit OR recorded values raise ValueError (typed error)
+      instead of silently falling back to an unrelated canonical Photos
+      lookup. Single-identity callers pass neither and resolve to None,
+      preserving the legacy behavior exactly.
+    """
+    if explicit is not None:
+        if not isinstance(explicit, str) or not UUID_PATTERN.match(explicit):
+            raise ValueError(
+                f"malformed agent_local_uuid for {video_uuid[:8]}: {explicit!r}"
+            )
+        return explicit
+    if recorded is not None:
+        if not isinstance(recorded, str) or not UUID_PATTERN.match(recorded):
+            raise ValueError(
+                f"recorded agent_local_uuid for {video_uuid[:8]} is malformed: "
+                f"{recorded!r}; refusing to fall back to an unrelated "
+                "canonical Photos lookup"
+            )
+        return recorded
+    return None
 
 
 class ProductionDualWrite:
@@ -256,7 +287,7 @@ class ProductionDualWrite:
             if (request_reason or "") == (self.dual.trigger_reason or ""):
                 return True
         candidates = {video_uuid.upper()}
-        if agent_local_uuid and UUID_PATTERN.match(agent_local_uuid):
+        if isinstance(agent_local_uuid, str) and UUID_PATTERN.match(agent_local_uuid):
             candidates.add(agent_local_uuid.upper())
         return any(
             u in {a.upper() for a in self.dual.allowlist} for u in candidates
@@ -299,6 +330,16 @@ class ProductionDualWrite:
         """
         if not self.should_process(video_uuid, request_reason, agent_local_uuid):
             return None
+        # Identity rule (retry-safe): a valid explicit local UUID overrides
+        # the pin and persists; an omitted argument retains the pinned
+        # identity. The chosen identity is validated BEFORE any file or state
+        # mutation, so a malformed value can never trigger an unrelated
+        # canonical Photos lookup or be persisted.
+        photos_local = _resolve_agent_local_uuid(
+            video_uuid,
+            agent_local_uuid,
+            self._read_stage_meta(video_uuid).get("agent_local_uuid"),
+        )
         self._ensure_dirs()
         try:
             source_bytes = Path(source_path).stat().st_size
@@ -380,8 +421,9 @@ class ProductionDualWrite:
         # under which activation boundary it was armed.
         # Both identities are recorded: the canonical UUID keys every durable
         # file, while the agent-local UUID is kept for Photos-bound reads.
-        # First trigger wins for provenance (P9-B); the local UUID is pinned
-        # the same way so a later re-drive cannot silently re-key the asset.
+        # First trigger wins for provenance (P9-B). A valid explicit local
+        # UUID overrides a stale pin and persists, so corrections converge
+        # future retries on one identity — never silent divergence.
         meta = self._read_stage_meta(video_uuid)
         meta.setdefault("triggered_at", utcnow())
         meta.setdefault("request_reason", request_reason or "")
@@ -391,8 +433,20 @@ class ProductionDualWrite:
             if (request_reason or "") == (self.dual.trigger_reason or "")
             else "allowlist",
         )
-        if agent_local_uuid:
-            meta.setdefault("agent_local_uuid", agent_local_uuid)
+        if photos_local is not None:
+            previous = meta.get("agent_local_uuid")
+            meta["agent_local_uuid"] = photos_local
+            if (
+                previous is not None
+                and isinstance(previous, str)
+                and previous.upper() != photos_local.upper()
+            ):
+                logger.info(
+                    "dual-write %s: agent-local UUID correction %s -> %s persists for retries",
+                    video_uuid[:8],
+                    previous,
+                    photos_local,
+                )
         meta.update(
             {
                 "staged_path": str(target),
@@ -452,6 +506,33 @@ class ProductionDualWrite:
         except ValueError:
             return {}
 
+    def _pin_agent_local_uuid(self, video_uuid: str, photos_local: str | None) -> None:
+        """Persist a resolved local identity without clobbering provenance.
+
+        Merge-only: records the validated local UUID when it is new or a
+        correction (case-insensitive compare, explicit value wins), and is a
+        no-op when nothing is resolved or the pin already matches. Never
+        touches triggered_at/request_reason/activation or staged bytes.
+        """
+        if photos_local is None:
+            return
+        meta = self._read_stage_meta(video_uuid)
+        previous = meta.get("agent_local_uuid")
+        if (
+            isinstance(previous, str)
+            and previous.upper() == photos_local.upper()
+        ):
+            return
+        if previous is not None:
+            logger.info(
+                "dual-write %s: agent-local UUID correction %s -> %s persists for retries",
+                video_uuid[:8],
+                previous,
+                photos_local,
+            )
+        meta["agent_local_uuid"] = photos_local
+        self._set_stage_meta(video_uuid, meta)
+
     def _capture_evidence(self, video_uuid: str, photos_uuid: str | None = None) -> None:
         """Exact-caption + shadow parity + provenance evidence (0600).
 
@@ -463,6 +544,13 @@ class ProductionDualWrite:
         canonical UUID does not resolve in Photos when the agent carries its
         own asset identity.
         """
+        if photos_uuid is not None and (
+            not isinstance(photos_uuid, str) or not UUID_PATTERN.match(photos_uuid)
+        ):
+            raise ValueError(
+                f"malformed photos_uuid for evidence capture of {video_uuid[:8]}: "
+                f"{photos_uuid!r}"
+            )
         lookup_uuid = photos_uuid or video_uuid
         db = get_photos_db(self.library_path)
         matches = db.photos(uuid=[lookup_uuid])
@@ -645,15 +733,19 @@ class ProductionDualWrite:
         payload (server-side MediaRevision identity). Photos-bound reads
         (evidence capture, caption provider) use `agent_local_uuid` when it
         differs — the canonical UUID need not resolve in the local Photos
-        library. Falls back to the stage metadata's recorded local UUID so
-        a re-drive without an explicit argument keeps the same identity.
+        library. A valid explicit value overrides the pin and persists, so
+        corrections converge future retries; an omitted value retains the
+        pin. Malformed values raise ValueError before any file/state
+        mutation — never a silent fallback to canonical Photos lookup.
         """
+        photos_local = _resolve_agent_local_uuid(
+            video_uuid,
+            agent_local_uuid,
+            self._read_stage_meta(video_uuid).get("agent_local_uuid"),
+        )
+        self._pin_agent_local_uuid(video_uuid, photos_local)
+        photos_uuid = photos_local or video_uuid
         self._ensure_dirs()
-        if agent_local_uuid is None:
-            recorded = self._read_stage_meta(video_uuid).get("agent_local_uuid")
-            if recorded and UUID_PATTERN.match(recorded):
-                agent_local_uuid = recorded
-        photos_uuid = agent_local_uuid or video_uuid
         run_id = self._new_run_id(video_uuid)
         metrics: dict[str, Any] = {
             "version": METRICS_VERSION,
@@ -907,7 +999,28 @@ def mode_caption_mutation(
             )
         )
         return 3
-    photos_uuid = agent_local_uuid or video_uuid
+    try:
+        photos_local = _resolve_agent_local_uuid(
+            video_uuid,
+            agent_local_uuid,
+            pdw._read_stage_meta(video_uuid).get("agent_local_uuid"),
+        )
+    except ValueError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "caption-mutation",
+                    "outcome": "refused_malformed_agent_local_uuid",
+                    "error": str(exc),
+                }
+            )
+        )
+        return 3
+    # Persist a valid explicit correction so retries need not retype it;
+    # resolving the pin first means an omitted argument reuses the recorded
+    # identity instead of falling back to canonical.
+    pdw._pin_agent_local_uuid(video_uuid, photos_local)
+    photos_uuid = photos_local or video_uuid
     state_dir = pdw.state_dir
     state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
     state_store.load(video_uuid)
@@ -1118,7 +1231,9 @@ def mode_run(
 
     `video_uuid` is the canonical dive UUID (journal/vault/commit identity);
     `agent_local_uuid` is the Photos asset UUID for library reads and
-    Photos materialization when it differs from canonical."""
+    Photos materialization when it differs from canonical. An omitted
+    argument reuses the pinned identity from a previous trigger; a valid
+    explicit value corrects the pin and persists for future retries."""
     pdw = ProductionDualWrite.from_config(config)
     if pdw is None:
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_flags_off"}))
@@ -1126,7 +1241,25 @@ def mode_run(
     if not pdw.should_process(video_uuid, request_reason, agent_local_uuid):
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_activated"}))
         return 3
-    photos_uuid = agent_local_uuid or video_uuid
+    try:
+        photos_local = _resolve_agent_local_uuid(
+            video_uuid,
+            agent_local_uuid,
+            pdw._read_stage_meta(video_uuid).get("agent_local_uuid"),
+        )
+    except ValueError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "refused_malformed_agent_local_uuid",
+                    "error": str(exc),
+                }
+            )
+        )
+        return 3
+    pdw._pin_agent_local_uuid(video_uuid, photos_local)
+    photos_uuid = photos_local or video_uuid
     if env_file:
         pdw.env_file = str(Path(env_file).expanduser())
     state_dir = pdw.state_dir
@@ -1145,7 +1278,23 @@ def mode_run(
         )
         return 0
     if not (state_dir / f"{video_uuid}.evidence.json").exists():
-        pdw._capture_evidence(video_uuid, photos_uuid)
+        try:
+            pdw._capture_evidence(video_uuid, photos_uuid)
+        except ObjectStoreError as exc:
+            # Structured recovery response, same shape as the drive
+            # failures below: retryable without masking unexpected errors
+            # (only ObjectStoreError is caught here).
+            print(
+                json.dumps(
+                    {
+                        "mode": "dual-write-run",
+                        "outcome": "retryable_failure",
+                        "error_family": type(exc).__name__,
+                        "stage": "evidence_capture",
+                    }
+                )
+            )
+            return 1
 
     # Preferred source of canonical bytes: an existing staging copy produced
     # by the legacy pipeline hook (§16 — reuse already-materialized legacy
@@ -1216,20 +1365,26 @@ def mode_run(
                 shutil.rmtree(workdir, ignore_errors=True)
             staged_path = materialize_from_photos(photos_uuid, workdir)
 
-    pdw._set_stage_meta(
-        video_uuid,
+    # Merge into the existing stage metadata: provenance (triggered_at,
+    # request_reason, activation) and the pinned local identity (written
+    # above, before evidence capture) survive; only the staged-bytes fields
+    # and run mode are refreshed. A wholesale replace would silently drop
+    # the original trigger provenance and the split pin the evidence above
+    # was captured under.
+    merged = dict(stage_meta)
+    merged.update(
         {
             "staged_path": str(staged_path),
             "staged_bytes": staged_path.stat().st_size,
             "copy_seconds": stage_meta.get("copy_seconds", 0.0),
             "run_mode": "one_shot_production_runtime",
-            **({"agent_local_uuid": photos_uuid} if photos_uuid != video_uuid else {}),
-        },
+        }
     )
+    pdw._set_stage_meta(video_uuid, merged)
     pdw._ensure_dirs()
     run_started = time.time()
     try:
-        pdw._drive(video_uuid, staged_path, photos_uuid)
+        pdw._drive(video_uuid, staged_path, photos_local)
     except ObjectStoreError as exc:
         print(
             json.dumps(
