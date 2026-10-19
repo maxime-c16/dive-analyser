@@ -157,6 +157,25 @@ class _CountingStore:
         return self._inner.presign_get(key, ttl_seconds)
 
 
+class _PinnedCaptionProvider:
+    """Pin Photos-bound caption reads to the agent-local asset UUID.
+
+    The coordinator is keyed by the canonical dive UUID (journal, workdir,
+    commit payload), but caption providers query the Photos library, where
+    only the agent-local asset UUID resolves. This adapter keeps the
+    canonical identity for everything durable while serving caption bytes
+    from the local asset — mirroring the migration engine, which commits
+    item.video_uuid (canonical) with captions read via resolved_asset_uuid.
+    """
+
+    def __init__(self, inner, photos_uuid: str):
+        self._inner = inner
+        self._photos_uuid = photos_uuid
+
+    def get_caption(self, _video_uuid: str):
+        return self._inner.get_caption(self._photos_uuid)
+
+
 class ProductionDualWrite:
     """Legacy-primary additive object-store ingest for the production agent."""
 
@@ -208,7 +227,12 @@ class ProductionDualWrite:
 
     # -- guards -------------------------------------------------------------
 
-    def should_process(self, video_uuid: str, request_reason: str | None = None) -> bool:
+    def should_process(
+        self,
+        video_uuid: str,
+        request_reason: str | None = None,
+        agent_local_uuid: str | None = None,
+    ) -> bool:
         """Activation boundary (P7 packet §5/§6).
 
         Two disjoint triggers:
@@ -216,6 +240,13 @@ class ProductionDualWrite:
           new-captioned-ingestion request reason (an existing production
           media-job event stream — no scanning, no backlog sweep);
         - canary/debug: explicit allowlist membership (unchanged P4.2 guard).
+
+        Identity rule: `video_uuid` is the CANONICAL dive UUID (durable
+        journal/commit identity). `agent_local_uuid` is the Photos asset
+        UUID the Mac agent resolved locally; it may differ from canonical
+        whenever the agent's Photos library carries its own asset identity.
+        The canary allowlist names assets, so either identity may satisfy it;
+        the journal/commit key is always the canonical UUID.
         """
         if not (self.os_cfg.enabled and self.dual.enabled):
             return False
@@ -224,7 +255,12 @@ class ProductionDualWrite:
         if self.dual.continuous_new_ingest:
             if (request_reason or "") == (self.dual.trigger_reason or ""):
                 return True
-        return video_uuid.upper() in {u.upper() for u in self.dual.allowlist}
+        candidates = {video_uuid.upper()}
+        if agent_local_uuid and UUID_PATTERN.match(agent_local_uuid):
+            candidates.add(agent_local_uuid.upper())
+        return any(
+            u in {a.upper() for a in self.dual.allowlist} for u in candidates
+        )
 
     def _ensure_dirs(self) -> None:
         if self._state_dir_ready:
@@ -240,19 +276,28 @@ class ProductionDualWrite:
         video_uuid: str,
         source_path: Path,
         request_reason: str | None = None,
+        agent_local_uuid: str | None = None,
     ) -> Path | None:
         """Copy the already-materialized legacy bytes into the dual-write temp
         area while the legacy pipeline still owns them.
+
+        `video_uuid` is the CANONICAL dive UUID: journal files, stage
+        metadata and (via _drive) the commit payload are keyed by it, so the
+        server registers MediaRevisions under the dive identity — never under
+        a Mac-local Photos asset UUID. `agent_local_uuid` (when different)
+        is recorded in the stage metadata and used ONLY for Photos-bound
+        reads (evidence capture, caption providers). When omitted, the
+        single-identity legacy behavior is unchanged.
 
         Returns None (skip) when the asset is not activated (continuous
         reason or canary allowlist), the journal is already terminal, the
         single backpressure slot is occupied (a tiny bounded pending marker
         is recorded in the latter case; no staged media bytes accumulate),
         or free disk cannot hold the staged copy plus the guard margin.
-        Raises on real staging errors (legacy path unaffected either way —
+        Raises on real staging errors (legacy path unaffected either way -
         the caller catches and continues).
         """
-        if not self.should_process(video_uuid, request_reason):
+        if not self.should_process(video_uuid, request_reason, agent_local_uuid):
             return None
         self._ensure_dirs()
         try:
@@ -333,6 +378,10 @@ class ProductionDualWrite:
         # trigger wins) and never clobbered, so a later observation of the
         # stage metadata can reconstruct WHEN the natural ingest was seen and
         # under which activation boundary it was armed.
+        # Both identities are recorded: the canonical UUID keys every durable
+        # file, while the agent-local UUID is kept for Photos-bound reads.
+        # First trigger wins for provenance (P9-B); the local UUID is pinned
+        # the same way so a later re-drive cannot silently re-key the asset.
         meta = self._read_stage_meta(video_uuid)
         meta.setdefault("triggered_at", utcnow())
         meta.setdefault("request_reason", request_reason or "")
@@ -342,6 +391,8 @@ class ProductionDualWrite:
             if (request_reason or "") == (self.dual.trigger_reason or "")
             else "allowlist",
         )
+        if agent_local_uuid:
+            meta.setdefault("agent_local_uuid", agent_local_uuid)
         meta.update(
             {
                 "staged_path": str(target),
@@ -352,11 +403,17 @@ class ProductionDualWrite:
         self._set_stage_meta(video_uuid, meta)
         return target
 
-    def launch(self, video_uuid: str, staged_path: Path) -> bool:
-        """Start the background verified-ingest for a staged copy."""
+    def launch(
+        self, video_uuid: str, staged_path: Path, agent_local_uuid: str | None = None
+    ) -> bool:
+        """Start the background verified-ingest for a staged copy.
+
+        `video_uuid` is the canonical dive UUID; `agent_local_uuid` is the
+        Photos asset UUID for Photos-bound reads (evidence, captions).
+        """
         worker = threading.Thread(
             target=self._run_guarded,
-            args=(video_uuid, Path(staged_path)),
+            args=(video_uuid, Path(staged_path), agent_local_uuid),
             name=f"dual-write-{video_uuid[:8].lower()}",
             daemon=True,
         )
@@ -367,9 +424,11 @@ class ProductionDualWrite:
         with self._active_lock:
             self._active.discard(video_uuid)
 
-    def _run_guarded(self, video_uuid: str, staged_path: Path) -> None:
+    def _run_guarded(
+        self, video_uuid: str, staged_path: Path, agent_local_uuid: str | None = None
+    ) -> None:
         try:
-            self._drive(video_uuid, staged_path)
+            self._drive(video_uuid, staged_path, agent_local_uuid)
         except Exception as exc:  # failure isolation: never propagate
             logger.warning("dual-write %s failed: %s", video_uuid[:8], exc)
         finally:
@@ -393,20 +452,27 @@ class ProductionDualWrite:
         except ValueError:
             return {}
 
-    def _capture_evidence(self, video_uuid: str) -> None:
+    def _capture_evidence(self, video_uuid: str, photos_uuid: str | None = None) -> None:
         """Exact-caption + shadow parity + provenance evidence (0600).
 
         Read-only with respect to Photos; no caption authority change.
+
+        `video_uuid` is the canonical dive UUID (evidence file identity);
+        `photos_uuid` is the agent-local Photos asset UUID actually queried
+        in the library. A bare canonical substitution here would break: the
+        canonical UUID does not resolve in Photos when the agent carries its
+        own asset identity.
         """
+        lookup_uuid = photos_uuid or video_uuid
         db = get_photos_db(self.library_path)
-        matches = db.photos(uuid=[video_uuid])
+        matches = db.photos(uuid=[lookup_uuid])
         if not matches:
-            raise ObjectStoreUnavailable(f"asset not found in Photos library: {video_uuid}")
+            raise ObjectStoreUnavailable(f"asset not found in Photos library: {lookup_uuid}")
         photo = matches[0]
         stable = self._stable_provider()
         shadow = PhotosDbCaptionProviderShadow(self.library_path)
-        stable_result = stable.get_caption(video_uuid)
-        shadow_result = shadow.get_caption(video_uuid)
+        stable_result = stable.get_caption(lookup_uuid)
+        shadow_result = shadow.get_caption(lookup_uuid)
         parity = compare_caption_providers([(video_uuid, stable_result, shadow_result)])
         evidence = {
             "captured_at": utcnow(),
@@ -570,8 +636,24 @@ class ProductionDualWrite:
 
         return commit_db_fn
 
-    def _drive(self, video_uuid: str, staged_path: Path) -> None:
+    def _drive(
+        self, video_uuid: str, staged_path: Path, agent_local_uuid: str | None = None
+    ) -> None:
+        """Drive one asset through verified ingest under its canonical UUID.
+
+        `video_uuid` keys the journal, workdir, evidence file and commit
+        payload (server-side MediaRevision identity). Photos-bound reads
+        (evidence capture, caption provider) use `agent_local_uuid` when it
+        differs — the canonical UUID need not resolve in the local Photos
+        library. Falls back to the stage metadata's recorded local UUID so
+        a re-drive without an explicit argument keeps the same identity.
+        """
         self._ensure_dirs()
+        if agent_local_uuid is None:
+            recorded = self._read_stage_meta(video_uuid).get("agent_local_uuid")
+            if recorded and UUID_PATTERN.match(recorded):
+                agent_local_uuid = recorded
+        photos_uuid = agent_local_uuid or video_uuid
         run_id = self._new_run_id(video_uuid)
         metrics: dict[str, Any] = {
             "version": METRICS_VERSION,
@@ -594,7 +676,7 @@ class ProductionDualWrite:
             return
 
         if not (self.state_dir / f"{video_uuid}.evidence.json").exists():
-            self._capture_evidence(video_uuid)
+            self._capture_evidence(video_uuid, photos_uuid)
         media_meta = ffprobe_metadata(staged_path, self.config.media.ffprobe_path)
         photos_duration = 0.0
         try:
@@ -654,7 +736,12 @@ class ProductionDualWrite:
             materialize_fn=materialize,
             commit_db_fn=commit_db_fn,
             temp_root=self.temp_root,
-            caption_provider=self._stable_provider(),
+            # Pin the Photos-bound caption read to the agent-local asset;
+            # the coordinator's canonical video_uuid still keys the journal
+            # and the commit payload.
+            caption_provider=_PinnedCaptionProvider(
+                self._stable_provider(), photos_uuid
+            ),
             min_free_disk_bytes=int(self.os_cfg.min_free_disk_bytes),
             storage_backend=self.os_cfg.storage_backend or "b2",
             bucket=b2_config.bucket,
@@ -791,7 +878,12 @@ INGEST_IMPL_VERSION = "media_backbone_v1"
 RENDITION_SEMANTICS = "photos_edited_rendition"
 
 
-def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = None) -> int:
+def mode_caption_mutation(
+    config,
+    video_uuid: str,
+    request_reason: str | None = None,
+    agent_local_uuid: str | None = None,
+) -> int:
     """Caption-only update through the normal production transport.
 
     Gate: Photos edit fingerprint MUST be unchanged (media unchanged).
@@ -799,18 +891,23 @@ def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = 
     ZERO B2 upload (no object-store operations at all). The commit goes
     through the authenticated backend endpoint; server-side idempotence
     makes retries safe.
+
+    `video_uuid` is the canonical dive UUID (journal/commit identity);
+    `agent_local_uuid` is the Photos asset UUID for library reads when it
+    differs from canonical.
     """
     pdw = ProductionDualWrite.from_config(config)
     if pdw is None:
         print(json.dumps({"mode": "caption-mutation", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid, request_reason):
+    if not pdw.should_process(video_uuid, request_reason, agent_local_uuid):
         print(
             json.dumps(
                 {"mode": "caption-mutation", "outcome": "refused_not_activated"}
             )
         )
         return 3
+    photos_uuid = agent_local_uuid or video_uuid
     state_dir = pdw.state_dir
     state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
     state_store.load(video_uuid)
@@ -832,9 +929,9 @@ def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = 
         (state_dir / f"{video_uuid}.evidence.json").read_text(encoding="utf-8")
     )
     db = get_photos_db(pdw.library_path)
-    matches = db.photos(uuid=[video_uuid])
+    matches = db.photos(uuid=[photos_uuid])
     if not matches:
-        raise SystemExit(f"asset not found: {video_uuid}")
+        raise SystemExit(f"asset not found: {photos_uuid}")
     photo = matches[0]
     new_fingerprint = pdw._edit_fingerprint(photo)
     if new_fingerprint != evidence.get("edit_fingerprint"):
@@ -851,7 +948,7 @@ def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = 
         return 2
 
     stable = pdw._stable_provider()
-    stable_result: CaptionResult = stable.get_caption(video_uuid)
+    stable_result: CaptionResult = stable.get_caption(photos_uuid)
     if not stable_result.available:
         raise SystemExit(f"caption unavailable: {stable_result.error}")
     if stable_result.sha256 == (doc.get("caption") or {}).get("sha256"):
@@ -867,7 +964,7 @@ def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = 
         return 1
 
     shadow = PhotosDbCaptionProviderShadow(pdw.library_path)
-    shadow_result = shadow.get_caption(video_uuid)
+    shadow_result = shadow.get_caption(photo.uuid)
     parity = compare_caption_providers([(video_uuid, stable_result, shadow_result)])
     media_meta = evidence.get("media_metadata") or {}
     parsed = parse_caption_metadata(stable_result.raw or "")
@@ -1005,20 +1102,31 @@ def mode_caption_mutation(config, video_uuid: str, request_reason: str | None = 
 RENDITION_SEMANTICS_RUN = RENDITION_SEMANTICS
 
 
-def mode_run(config, video_uuid: str, env_file: str | None = None, request_reason: str | None = None) -> int:
+def mode_run(
+    config,
+    video_uuid: str,
+    env_file: str | None = None,
+    request_reason: str | None = None,
+    agent_local_uuid: str | None = None,
+) -> int:
     """Drive ONE allowlisted asset through verified object-store ingest,
     running inside the production agent runtime context (same interpreter,
     host, user, Photos TCC) with the authenticated backend commit transport.
 
     The legacy path for the asset must already be healthy; this mode is the
-    additive object-store leg only (and the retry/recovery entry point)."""
+    additive object-store leg only (and the retry/recovery entry point).
+
+    `video_uuid` is the canonical dive UUID (journal/vault/commit identity);
+    `agent_local_uuid` is the Photos asset UUID for library reads and
+    Photos materialization when it differs from canonical."""
     pdw = ProductionDualWrite.from_config(config)
     if pdw is None:
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid, request_reason):
+    if not pdw.should_process(video_uuid, request_reason, agent_local_uuid):
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_activated"}))
         return 3
+    photos_uuid = agent_local_uuid or video_uuid
     if env_file:
         pdw.env_file = str(Path(env_file).expanduser())
     state_dir = pdw.state_dir
@@ -1037,7 +1145,7 @@ def mode_run(config, video_uuid: str, env_file: str | None = None, request_reaso
         )
         return 0
     if not (state_dir / f"{video_uuid}.evidence.json").exists():
-        pdw._capture_evidence(video_uuid)
+        pdw._capture_evidence(video_uuid, photos_uuid)
 
     # Preferred source of canonical bytes: an existing staging copy produced
     # by the legacy pipeline hook (§16 — reuse already-materialized legacy
@@ -1106,7 +1214,7 @@ def mode_run(config, video_uuid: str, env_file: str | None = None, request_reaso
             workdir = staging_root / "work"
             if workdir.exists():
                 shutil.rmtree(workdir, ignore_errors=True)
-            staged_path = materialize_from_photos(video_uuid, workdir)
+            staged_path = materialize_from_photos(photos_uuid, workdir)
 
     pdw._set_stage_meta(
         video_uuid,
@@ -1115,12 +1223,13 @@ def mode_run(config, video_uuid: str, env_file: str | None = None, request_reaso
             "staged_bytes": staged_path.stat().st_size,
             "copy_seconds": stage_meta.get("copy_seconds", 0.0),
             "run_mode": "one_shot_production_runtime",
+            **({"agent_local_uuid": photos_uuid} if photos_uuid != video_uuid else {}),
         },
     )
     pdw._ensure_dirs()
     run_started = time.time()
     try:
-        pdw._drive(video_uuid, staged_path)
+        pdw._drive(video_uuid, staged_path, photos_uuid)
     except ObjectStoreError as exc:
         print(
             json.dumps(
@@ -1176,6 +1285,13 @@ def main(argv=None) -> int:
         "activation boundary (required for non-allowlisted assets when "
         "dual_write.continuous_new_ingest is enabled).",
     )
+    parser.add_argument(
+        "--agent-local-uuid",
+        default=None,
+        help="Photos asset UUID for library reads (evidence, captions, "
+        "Photos materialization) when it differs from the canonical "
+        "--video-uuid dive identity. Omit when both identities are equal.",
+    )
     args = parser.parse_args(argv)
 
     from ..config import Config
@@ -1184,9 +1300,14 @@ def main(argv=None) -> int:
     if not config.validate():
         raise SystemExit("invalid config")
     if args.mode == "caption-mutation":
-        return mode_caption_mutation(config, args.video_uuid, args.request_reason)
+        return mode_caption_mutation(
+            config, args.video_uuid, args.request_reason, args.agent_local_uuid
+        )
     if args.mode == "run":
-        return mode_run(config, args.video_uuid, args.env_file, args.request_reason)
+        return mode_run(
+            config, args.video_uuid, args.env_file, args.request_reason,
+            args.agent_local_uuid,
+        )
     return 2
 
 

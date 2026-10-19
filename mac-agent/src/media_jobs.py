@@ -183,8 +183,17 @@ class MediaJobProcessor:
             # canary allowlist entries) arm the additive B2 leg.
             if b2_source is None:
                 # A B2-sourced job's original is already in the object store.
+                # Identity boundary: the dual-write leg registers the
+                # CANONICAL dive UUID server-side (MediaRevision identity),
+                # while Photos-bound reads stay on the agent-local asset UUID
+                # (exporter source_for_job above). Passing the local UUID as
+                # the durable identity would orphan the revision under an
+                # identity no dive references (dive 2991 precedent).
                 await self._trigger_dual_write(
-                    video_uuid, source, job.get("request_reason")
+                    canonical_video_uuid,
+                    source,
+                    job.get("request_reason"),
+                    agent_local_uuid=video_uuid,
                 )
                 exporter.cleanup_source_after_success(source)
             logger.info(f"Media job {job_id} finalized cache entry {result.get('cache_entry_id')}")
@@ -205,20 +214,32 @@ class MediaJobProcessor:
                 b2_source.unlink(missing_ok=True)
 
     async def _trigger_dual_write(
-        self, video_uuid: str, source: Path, request_reason: str | None = None
+        self,
+        video_uuid: str,
+        source: Path,
+        request_reason: str | None = None,
+        agent_local_uuid: str | None = None,
     ) -> None:
         """Stage + launch the additive object-store ingest after legacy success.
 
         Failure semantics (packet §24/§40): any dual-write problem is logged
         and left as OBJECT_STORE_PENDING_RETRY state; the legacy result of
         this job is already durable and is never rolled back or deleted.
+
+        `video_uuid` is the CANONICAL dive UUID (durable journal/commit
+        identity); `agent_local_uuid` is the Photos asset UUID for
+        Photos-bound reads when it differs.
         """
         dual_write = self.dual_write
         if dual_write is None:
             return
         try:
             staged = await asyncio.to_thread(
-                dual_write.stage_copy, video_uuid, source, request_reason
+                dual_write.stage_copy,
+                video_uuid,
+                source,
+                request_reason,
+                agent_local_uuid,
             )
         except Exception as exc:
             logger.warning(
@@ -228,7 +249,7 @@ class MediaJobProcessor:
             )
             return
         if staged is not None:
-            dual_write.launch(video_uuid, staged)
+            dual_write.launch(video_uuid, staged, agent_local_uuid)
 
     async def _keep_materialization_lease_alive(self, job_id: int) -> None:
         """Renew a claimed job while Photos materialization awaits iCloud."""
