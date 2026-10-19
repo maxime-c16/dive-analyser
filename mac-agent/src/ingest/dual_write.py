@@ -341,6 +341,10 @@ class ProductionDualWrite:
             self._read_stage_meta(video_uuid).get("agent_local_uuid"),
         )
         self._ensure_dirs()
+        # Pin the validated identity BEFORE every early return below, so an
+        # omitted retry keeps converging on the corrected identity instead of
+        # silently reverting to a canonical Photos lookup.
+        self._pin_agent_local_uuid(video_uuid, photos_local)
         try:
             source_bytes = Path(source_path).stat().st_size
         except OSError as exc:
@@ -357,20 +361,26 @@ class ProductionDualWrite:
                 source_bytes,
                 margin,
             )
-            self._set_stage_meta(
-                video_uuid,
+            # Merge refusal fields into the existing meta: a wholesale
+            # replace would drop the just-pinned agent_local_uuid and the
+            # original trigger provenance (triggered_at/request_reason).
+            existing_meta = self._read_stage_meta(video_uuid)
+            existing_meta.update(
                 {
                     "staging_refused": True,
                     "skip_reason": "insufficient_disk_for_staging",
                     "free_bytes": free_bytes,
                     "source_bytes": source_bytes,
                     "refused_at": utcnow(),
-                },
+                }
             )
+            self._set_stage_meta(video_uuid, existing_meta)
             return None
-        state_store = IngestStateStore(self.state_dir / f"{video_uuid}.json")
-        state_store.load(video_uuid)
-        if state_store.state.is_terminal:
+        # Read-only terminal check BEFORE any journal load/mutation:
+        # a terminal journal stays an idempotent skip even with a corrected
+        # identity, and a refusal must never create the journal file.
+        terminal, _ = self._journal_terminal_readonly(video_uuid)
+        if terminal:
             # clean up a retained staging copy from any previous attempt
             staging = self.temp_root / "dual_write_staging" / video_uuid
             if staging.exists():
@@ -383,15 +393,21 @@ class ProductionDualWrite:
         # never auto-invalidate (an early backpressure skip or a failed copy
         # after invalidation would let a later retry capture fresh evidence
         # for stale bytes). Terminal journals returned above (idempotent
-        # skip); the pin persists via the merge below so corrections keep
-        # converging retries on an explicit refusal.
-        # Persist the valid pin before the gate (like _drive/mode_run) so an
-        # omitted retry re-hits the explicit refusal instead of reverting.
-        self._pin_agent_local_uuid(video_uuid, photos_local)
+        # skip); the pin persists above so corrections keep converging
+        # retries on an explicit refusal.
         self._ensure_evidence_identity_consistent(
             video_uuid, photos_local or video_uuid,
             context="stage_copy", ignore_staged=True,
         )
+        state_store = IngestStateStore(self.state_dir / f"{video_uuid}.json")
+        state_store.load(video_uuid)
+        if state_store.state.is_terminal:
+            # Race: journal turned terminal between the read-only check and
+            # the load above; same idempotent skip, no evidence mutation.
+            staging = self.temp_root / "dual_write_staging" / video_uuid
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+            return None
         with self._active_lock:
             if self._active:
                 logger.info(
@@ -563,6 +579,32 @@ class ProductionDualWrite:
         except (OSError, ValueError):
             return None
         return doc if isinstance(doc, dict) else None
+
+    def _journal_terminal_readonly(self, video_uuid: str) -> tuple[bool, str | None]:
+        """Read-only terminal check that never creates or repairs the journal.
+
+        Returns (is_terminal, state_or_None). Absent, unreadable, or
+        malformed journals report (False, None-or-state) so the caller can
+        run the evidence gate BEFORE any IngestStateStore.load() that would
+        create/overwrite the file on a refusal path. Only the two terminal
+        states from the existing journal schema count as terminal.
+        """
+        journal_path = self.state_dir / f"{video_uuid}.json"
+        if not journal_path.exists():
+            return False, None
+        try:
+            doc = json.loads(journal_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False, None
+        if not isinstance(doc, dict):
+            return False, None
+        state = doc.get("state")
+        if state in (
+            IngestState.CACHE_CLEANED.value,
+            IngestState.QUARANTINED.value,
+        ):
+            return True, state
+        return False, state if isinstance(state, str) else None
 
     def _journal_progress_present(self, video_uuid: str) -> tuple[bool, str]:
         """Read-only check whether durable progress binds the recorded evidence.
@@ -871,23 +913,37 @@ class ProductionDualWrite:
             },
         }
         state_store = IngestStateStore(self.state_dir / f"{video_uuid}.json")
-        state_store.load(video_uuid)
-        if state_store.state.is_terminal:
-            metrics["result"] = "already_terminal"
-            metrics["completed_at"] = utcnow()
-            self._write_metrics_snapshot(run_id, metrics)
-            return
+        # Read-only terminal check BEFORE the evidence gate and BEFORE any
+        # journal load: a terminal journal stays idempotent even with a
+        # corrected identity, and load() would otherwise create/overwrite
+        # the journal on a refusal path.
+        terminal_readonly, _ = self._journal_terminal_readonly(video_uuid)
+        if terminal_readonly:
+            state_store.load(video_uuid)
+            if state_store.state.is_terminal:
+                metrics["result"] = "already_terminal"
+                metrics["completed_at"] = utcnow()
+                self._write_metrics_snapshot(run_id, metrics)
+                return
 
         # Evidence/identity consistency: a corrected local UUID keeps any
         # existing canonical evidence file, so an existence check alone
         # would combine the old asset's evidence with the new identity's
         # reads/bytes/commit. Any mismatch refuses here — before capture,
         # ffprobe, and the coordinator — with the recorded evidence retained
-        # (typed error, no mutation beyond the persisted pin). Terminal
-        # journals returned above, preserving idempotence.
+        # (typed error, no journal mutation beyond the persisted pin).
+        # Terminal journals returned above, preserving idempotence.
         self._ensure_evidence_identity_consistent(
             video_uuid, photos_uuid, context="drive",
         )
+        state_store.load(video_uuid)
+        if state_store.state.is_terminal:
+            # Race: journal turned terminal between the read-only check and
+            # the load above; same idempotent outcome, no evidence mutation.
+            metrics["result"] = "already_terminal"
+            metrics["completed_at"] = utcnow()
+            self._write_metrics_snapshot(run_id, metrics)
+            return
         if not (self.state_dir / f"{video_uuid}.evidence.json").exists():
             self._capture_evidence(video_uuid, photos_uuid)
         media_meta = ffprobe_metadata(staged_path, self.config.media.ffprobe_path)
@@ -1404,15 +1460,17 @@ def mode_run(
     if env_file:
         pdw.env_file = str(Path(env_file).expanduser())
     state_dir = pdw.state_dir
-    state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
-    state_store.load(video_uuid)
-    if state_store.state.is_terminal:
+    # Read-only terminal check BEFORE the evidence gate and BEFORE any
+    # journal load: load() would otherwise create/overwrite the journal on
+    # a refusal path (absent/corrupt journal + evidence mismatch).
+    terminal_readonly, terminal_state = pdw._journal_terminal_readonly(video_uuid)
+    if terminal_readonly:
         print(
             json.dumps(
                 {
                     "mode": "dual-write-run",
                     "outcome": "already_terminal",
-                    "state": state_store.state.value,
+                    "state": terminal_state,
                     "zero_new_ops": True,
                 }
             )
@@ -1433,6 +1491,22 @@ def mode_run(
             )
         )
         return 3
+    # The evidence gate passed with no journal mutation; now load (which may
+    # create a fresh journal) and re-check terminal for a post-gate race.
+    state_store = IngestStateStore(state_dir / f"{video_uuid}.json")
+    state_store.load(video_uuid)
+    if state_store.state.is_terminal:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "already_terminal",
+                    "state": state_store.state.value,
+                    "zero_new_ops": True,
+                }
+            )
+        )
+        return 0
     if not (state_dir / f"{video_uuid}.evidence.json").exists():
         try:
             pdw._capture_evidence(video_uuid, photos_uuid)

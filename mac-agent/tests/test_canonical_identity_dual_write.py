@@ -686,3 +686,150 @@ def test_terminal_redrive_with_correction_stays_idempotent(env):
     assert len(env.commit_calls) == 1
     snapshots = sorted((env.state_dir / "metrics").glob("*.json"))
     assert json.loads(snapshots[-1].read_text())["result"] == "already_terminal"
+
+
+# ---------------------------------------------------------------------------
+# Bot findings on head c4f1cb3: journal-mutation ordering + low-disk pin loss.
+#
+# - insufficient_disk must merge refusal fields (never replace the stage
+#   document) and persist the validated pin before the early return;
+# - terminal status (read-only) then evidence consistency must precede any
+#   IngestStateStore.load(), so an evidence refusal leaves an absent journal
+#   absent and a corrupt journal byte-identical.
+
+
+def test_stage_copy_insufficient_disk_merges_pin_and_provenance(env, monkeypatch):
+    """Low-disk refusal keeps the pin/provenance and persists a correction."""
+    import shutil as _shutil
+
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    pdw._set_stage_meta(
+        CANON,
+        {
+            "agent_local_uuid": LOCAL,
+            "request_reason": TRIGGER,
+            "activation": "continuous",
+            "triggered_at": "2026-10-19T00:00:00Z",
+        },
+    )
+    # Force the low-disk branch regardless of real free space.
+    monkeypatch.setattr(
+        _shutil, "disk_usage", lambda path: _shutil._ntuple_diskusage(0, 0, 0)
+        if hasattr(_shutil, "_ntuple_diskusage")
+        else type("U", (), {"free": 0})(),
+    )
+    env.config.object_store.min_free_disk_bytes = 10**12
+
+    source = make_media_file(env.temp_root)
+    assert pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=NEW) is None
+
+    meta = pdw._read_stage_meta(CANON)
+    # Correction persisted; original provenance untouched; refusal merged.
+    assert meta["agent_local_uuid"] == NEW
+    assert meta["request_reason"] == TRIGGER
+    assert meta["activation"] == "continuous"
+    assert meta["triggered_at"] == "2026-10-19T00:00:00Z"
+    assert meta["skip_reason"] == "insufficient_disk_for_staging"
+    assert meta["staging_refused"] is True
+    # No journal mutation on this early return.
+    assert not (env.state_dir / f"{CANON}.json").exists()
+    assert env.commit_calls == []
+
+    # Omitted retry reuses the corrected pin and refuses the same way,
+    # without losing the pin or provenance.
+    assert pdw.stage_copy(CANON, source, TRIGGER) is None
+    meta2 = pdw._read_stage_meta(CANON)
+    assert meta2["agent_local_uuid"] == NEW
+    assert meta2["request_reason"] == TRIGGER
+    assert meta2["triggered_at"] == "2026-10-19T00:00:00Z"
+    assert not (env.state_dir / f"{CANON}.json").exists()
+
+
+def _evidence_only_state(env, old_local=LOCAL):
+    """Evidence captured under old_local with the journal removed (absent)."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    pdw._set_stage_meta(
+        CANON,
+        {"agent_local_uuid": old_local, "request_reason": TRIGGER,
+         "activation": "continuous", "triggered_at": "2026-10-19T00:00:00Z"},
+    )
+    pdw._capture_evidence(CANON, old_local)
+    journal = env.state_dir / f"{CANON}.json"
+    if journal.exists():
+        journal.unlink()
+    return pdw
+
+
+def test_evidence_mismatch_absent_journal_stays_absent(env, capsys):
+    """Refusal on every entrypoint creates no journal when none exists."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    source = make_media_file(env.temp_root)
+
+    # stage_copy
+    pdw = _evidence_only_state(env)
+    try:
+        pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=NEW)
+        assert False, "expected evidence identity mismatch"
+    except ValueError as exc:
+        assert "evidence identity mismatch" in str(exc)
+    assert not (env.state_dir / f"{CANON}.json").exists()
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == NEW
+
+    # _drive
+    pdw2 = _evidence_only_state(env)
+    staged = env.temp_root / "staged.bin"
+    staged.write_bytes(MEDIA_BYTES)
+    try:
+        pdw2._drive(CANON, staged, NEW)
+        assert False, "expected evidence identity mismatch"
+    except ValueError as exc:
+        assert "evidence identity mismatch" in str(exc)
+    assert not (env.state_dir / f"{CANON}.json").exists()
+
+    # mode_run (structured refusal, exit 3)
+    pdw3 = _evidence_only_state(env)
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, NEW)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_evidence_identity_mismatch"
+    assert not (env.state_dir / f"{CANON}.json").exists()
+    assert env.commit_calls == []
+
+
+def test_evidence_mismatch_corrupt_journal_stays_byte_identical(env, capsys):
+    """Refusal never repairs/overwrites a corrupt journal (read-only gate)."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    corrupt = b"not-json{{{corrupt-journal"
+    source = make_media_file(env.temp_root)
+    staged_file = env.temp_root / "staged.bin"
+    staged_file.write_bytes(MEDIA_BYTES)
+
+    # stage_copy
+    pdw = _evidence_only_state(env)
+    (env.state_dir / f"{CANON}.json").write_bytes(corrupt)
+    try:
+        pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=NEW)
+        assert False, "expected evidence identity mismatch"
+    except ValueError as exc:
+        assert "evidence identity mismatch" in str(exc)
+    assert (env.state_dir / f"{CANON}.json").read_bytes() == corrupt
+
+    # _drive
+    pdw2 = _evidence_only_state(env)
+    (env.state_dir / f"{CANON}.json").write_bytes(corrupt)
+    try:
+        pdw2._drive(CANON, staged_file, NEW)
+        assert False, "expected evidence identity mismatch"
+    except ValueError as exc:
+        assert "evidence identity mismatch" in str(exc)
+    assert (env.state_dir / f"{CANON}.json").read_bytes() == corrupt
+
+    # mode_run
+    pdw3 = _evidence_only_state(env)
+    (env.state_dir / f"{CANON}.json").write_bytes(corrupt)
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, NEW)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_evidence_identity_mismatch"
+    assert (env.state_dir / f"{CANON}.json").read_bytes() == corrupt
+    assert env.commit_calls == []
