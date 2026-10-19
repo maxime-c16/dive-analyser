@@ -120,6 +120,42 @@ def test_member_endpoints_require_browser_session(workspace):
     assert client.put('/api/v1/users/me/profile', json={'display_name': 'No'}).status_code == 401
 
 
+def test_profile_grid_falls_back_to_verified_b2_without_a_local_poster(workspace, monkeypatch):
+    from app.config import get_settings
+    from app.models.media import MediaCacheEntry
+    from app.models.media_backbone import MediaBlobLocation
+    db, login, dives, users, _ = workspace
+    monkeypatch.setattr(get_settings(), 'b2_playback_canary_enabled', True)
+    db.query(MediaCacheEntry).delete()
+    db.add(MediaBlobLocation(blob_sha256='a' * 64, environment='prod',
+        storage_backend='b2', bucket=get_settings().media_backbone_prod_bucket,
+        object_key='original.mov', verified=True))
+    db.commit()
+
+    client = login('viewer')
+    rows = client.get(f"/api/v1/users/{users['alice'].id}/dives").json()['items']
+    assert [row['id'] for row in rows] == [dives['alice-public']]
+    assert rows[0]['poster_url'] is None
+    assert rows[0]['playback_url'].startswith('/api/v1/media/revisions/')
+    # The URL remains authenticated and rechecks visibility on every grant.
+    db.get(Dive, dives['alice-public']).visibility = 'private'
+    db.commit()
+    assert client.get(rows[0]['playback_url']).status_code == 404
+    assert client.get(f"/api/v1/users/{users['alice'].id}/dives").json()['items'] == []
+
+
+def test_profile_grid_ignores_deleted_poster_and_uses_local_video(workspace):
+    from app.models.media import MediaCacheEntry
+    db, login, dives, users, _ = workspace
+    dive = db.get(Dive, dives['alice-public'])
+    db.add(MediaCacheEntry(photos_asset_id=dive.photos_asset_id, media_key='missing-poster',
+        rendition='poster', storage_path='/nonexistent/poster.jpg', size_bytes=10, status='ready'))
+    db.commit()
+    row = login('viewer').get(f"/api/v1/users/{users['alice'].id}/dives").json()['items'][0]
+    assert row['poster_url'] is None
+    assert row['playback_url'].startswith('/api/v1/media/cache/')
+
+
 def test_avatar_limit_precedes_image_decode_and_never_parses_multipart(workspace, monkeypatch):
     from starlette.formparsers import MultiPartParser
     _, login, _, _, _ = workspace

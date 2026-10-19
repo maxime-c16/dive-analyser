@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -230,6 +231,42 @@ def test_cleanup_trims_to_byte_cap(test_db: Session, tmp_path: Path):
     assert remaining == 3
     assert not old_file.exists()
     assert keep_file.exists()
+
+
+@pytest.mark.parametrize('expired', [True, False])
+def test_cleanup_releases_upgrade_fk_before_removing_cached_media(test_db, tmp_path, expired):
+    from sqlalchemy import text
+    from app.models.media_catalog import CaptionedMediaCatalog, MediaResolutionUpgradeItem, MediaResolutionUpgradeRun
+    from tests.test_media_catalog import _seed_agent
+    get_settings.cache_clear()
+    get_settings().media_cache_root = str(tmp_path)
+    # SQLite defaults to ignoring FKs; enable enforcement to reproduce the
+    # exact production failure rather than testing an unprotected delete.
+    test_db.execute(text('PRAGMA foreign_keys=ON'))
+    _seed_agent(test_db)
+    asset = _asset(test_db)
+    path = tmp_path / 'expired.mp4'
+    path.write_bytes(b'video')
+    entry = _cache_entry(test_db, asset, path, size_bytes=5,
+        expires_at=datetime.utcnow() - timedelta(days=1) if expired else None)
+    catalog = CaptionedMediaCatalog(agent_id='mac-media-01', agent_local_uuid=asset.video_uuid,
+        photos_asset_id=asset.id, raw_caption='101C 1m')
+    run = MediaResolutionUpgradeRun()
+    test_db.add_all([catalog, run]); test_db.flush()
+    item = MediaResolutionUpgradeItem(run_id=run.id, catalog_item_id=catalog.id,
+        old_cache_entry_id=entry.id, status='planned')
+    test_db.add(item); test_db.commit()
+    assert test_db.execute(text('PRAGMA foreign_keys')).scalar() == 1
+
+    removed, size, remaining = cleanup_cache(test_db, max_bytes=0 if expired else 1)
+    test_db.commit()
+    assert (removed, size, remaining) == (1, 5, 0)
+    assert not path.exists()
+    test_db.refresh(item)
+    assert item.old_cache_entry_id is None
+    assert item.status == 'planned'
+    assert test_db.get(MediaCacheEntry, entry.id) is None
+    assert cleanup_cache(test_db, max_bytes=1) == (0, 0, 0)
 
 
 def test_reclaim_expired_claimed_exporting_and_uploading_jobs(test_db: Session):

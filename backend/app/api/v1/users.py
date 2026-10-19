@@ -20,6 +20,7 @@ always involve a dive that is still visible to the requester, so the deep link
 """
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 import re
 import warnings
 from typing import Literal
@@ -42,7 +43,6 @@ from app.models.dive_share import DiveGuest, DiveGuestLike
 from app.models.dive_social import DiveComment, DiveCommentLike, DiveGuestCommentLike, DiveLike
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services.dive_access import owned_diver_ids, visible_dive_clause
-from app.services.media_cache import playback_url
 from app.services import achievements
 from app.services.member_avatar import avatar_identity
 
@@ -233,15 +233,27 @@ def profile_dives(user_id: int, before: str | None = None,
         query = query.filter(or_(stamp < when, and_(stamp == when, Dive.id < dive_id)))
     rows = query.order_by(stamp.desc(), Dive.id.desc()).limit(limit + 1).all()
     page = rows[:limit]
-    # Batched poster lookup; playback endpoint rechecks current access.
-    posters = dict(db.query(PhotosAsset.video_uuid, MediaCacheEntry.id).join(
+    # Profiles need the same B2 fallback as the library: most migrated clips
+    # have no local poster. Resolve the page in batches, after visibility.
+    from app.api.v1.media import _backbone_revision_ids_bulk, _thumbnail_status_for_entries
+    uuids = [row.video_uuid for row in page if row.video_uuid]
+    revisions = _backbone_revision_ids_bulk(db, uuids)
+    entries = {}
+    for video_uuid, entry in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
         MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).filter(
-        PhotosAsset.video_uuid.in_([row.video_uuid for row in page if row.video_uuid]),
-        MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready").order_by(MediaCacheEntry.id).all())
+        PhotosAsset.video_uuid.in_(uuids), MediaCacheEntry.status == "ready"
+    ).order_by(MediaCacheEntry.id.desc()).all():
+        if Path(entry.storage_path).is_file():
+            entries.setdefault(video_uuid, []).append(entry)
+    previews = {uuid: _thumbnail_status_for_entries(
+        db, uuid, entries.get(uuid, []),
+        f"/api/v1/media/revisions/{revisions[uuid]}/play" if revisions.get(uuid) else None,
+    ) for uuid in uuids}
     return dict(items=[dict(id=row.id, dive_code=row.dive_code, height=row.height,
                             dive_datetime=(row.dive_datetime or row.created_at).isoformat() + "Z",
                             visibility=row.visibility,
-                            poster_url=playback_url(posters[row.video_uuid]) if row.video_uuid in posters else None)
+                            poster_url=previews.get(row.video_uuid, {}).get("poster_url"),
+                            playback_url=previews.get(row.video_uuid, {}).get("playback_url"))
                        for row in page],
                 next_before=f"{(page[-1].dive_datetime or page[-1].created_at).isoformat()}|{page[-1].id}" if len(rows) > limit else None)
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from shutil import move
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -208,7 +208,7 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     Large backlogs need multiple passes; returned byte totals remain exact.
     """
     from app.services.browser_upload import remote_playback_configured
-    eligible = MediaCacheEntry.pinned.is_(False)
+    eligible = MediaCacheEntry.pinned.is_(False) & (MediaCacheEntry.status == "ready")
     if not remote_playback_configured():
         # Protect accessible browser renditions through the read predicate;
         # no catalog-wide pin update is needed when delivery is disabled.
@@ -226,7 +226,9 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
         MediaCacheEntry.expires_at < now,
     )
     expired_stmt = expired_stmt.order_by(MediaCacheEntry.expires_at, MediaCacheEntry.id).limit(100)
-    for entry in db.execute(expired_stmt).scalars():
+    expired = list(db.execute(expired_stmt).scalars())
+    _release_upgrade_references(db, expired)
+    for entry in expired:
         removed_bytes += _remove_entry_file(entry)
         db.delete(entry)
         removed_entries += 1
@@ -244,7 +246,16 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
                 MediaCacheEntry.id.asc(),
             ).limit(100)
         )
+        # Select the actual eviction set before touching files or audit FKs.
+        trim = []
+        planned_bytes = remaining_bytes
         for entry in db.execute(trim_stmt).scalars():
+            if planned_bytes <= cap:
+                break
+            trim.append(entry)
+            planned_bytes -= entry.size_bytes
+        _release_upgrade_references(db, trim)
+        for entry in trim:
             if remaining_bytes <= cap:
                 break
             size = _remove_entry_file(entry)
@@ -255,6 +266,22 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
         db.flush()
 
     return removed_entries, removed_bytes, _cache_size(db)
+
+
+def _release_upgrade_references(db: Session, entries: list[MediaCacheEntry]) -> None:
+    """Release optional cache pointers, as resolution-upgrade retirement does.
+
+    Upgrade history outlives disposable renditions. Releasing its FKs in one
+    statement prevents cleanup from unlinking files then rolling back on the
+    first referenced row, leaving nonexistent files advertised as ready.
+    """
+    if not entries:
+        return
+    from app.models.media_catalog import MediaResolutionUpgradeItem
+    db.execute(update(MediaResolutionUpgradeItem).where(
+        MediaResolutionUpgradeItem.old_cache_entry_id.in_([entry.id for entry in entries])
+    ).values(old_cache_entry_id=None).execution_options(synchronize_session="fetch"))
+    db.flush()
 
 
 def _suffix_for(rendition: str, content_type: str) -> str:
