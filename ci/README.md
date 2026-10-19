@@ -73,7 +73,7 @@ not proof of every historical migration or a production rollout.
 
 The hook examines all commits introduced by a new branch, not just its tip.
 Existing refs use the old/new tree diff, including force pushes. Unknown ranges
-run all tiers. Deleting a ref needs no tests. Filenames are read with NUL
+run all local tiers when `DIVE_CI_LOCAL_FULL=1`; the default remains `fast`. Deleting a ref needs no tests. Filenames are read with NUL
 separators. Annotated tags are peeled to their commit before checking HEAD. A push must
 match HEAD in a clean worktree so checks test the actual
 pushed code. The hook blocks if its gate is absent.
