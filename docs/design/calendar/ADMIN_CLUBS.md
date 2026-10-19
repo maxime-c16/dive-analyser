@@ -37,6 +37,13 @@ Never stage private source documents under media/cache: nginx serves that
 volume. Back up calendar-private alongside the database. No nginx mount is
 added. Local development can set CALENDAR_PRIVATE_ROOT to another private dir.
 
+After the normal `ci/ship.sh server --ref <merged-sha>` deployment, follow the
+Compose-change step in `docs/REPO_WORKFLOW.md`: from the deployed Compose
+project run `docker-compose exec -T nginx nginx -s reload` (or
+`docker-compose up -d nginx`). The new bind mount is backend-only and is applied
+when ship recreates that container; nginx receives no private source mount.
+Verify the LAN and public proxy health checks after the reload.
+
 Sources are prepared with the existing source reader, reviewed, then staged as
 `inbox/<identifier>/bundle.json` plus `inbox/<identifier>/sources/<original-name>`.
 The identifier is lowercase letters/digits/hyphens, max64. Stage at most100
