@@ -44,6 +44,7 @@ const ACTIVE_PREPARATION_STATES = [
   'queued',
   'waiting_for_mac',
   'claimed',
+  'materializing',
   'exporting',
   'transcoding',
   'uploading',
@@ -68,15 +69,7 @@ function preparationLabel(state: string) {
   return state.replace(/_/g, ' ')
 }
 
-const PREPARATION_STATE_KEYS = [
-  'queued',
-  'waiting_for_mac',
-  'claimed',
-  'exporting',
-  'transcoding',
-  'uploading',
-  'verifying',
-]
+const PREPARATION_STATE_KEYS = ACTIVE_PREPARATION_STATES
 
 interface DiveVideoPlayerProps {
   diveCode: string

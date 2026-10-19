@@ -70,6 +70,7 @@ from app.services.media_jobs import (
     fail_media_job,
     heartbeat_media_job,
     latest_active_job_for_asset,
+    latest_playback_failure_for_asset,
     lease_media_jobs,
     mark_job_ready,
     mark_job_uploaded,
@@ -406,6 +407,8 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     preview = next((entry for rendition in ("proxy_720p", "proxy_360p")
                     for entry in entries if entry.rendition == rendition), None)
     backbone_url = full_quality
+    if not backbone_url and not preferred and not job:
+        job = latest_playback_failure_for_asset(db, asset.id)
     if backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url

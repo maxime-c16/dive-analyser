@@ -181,6 +181,35 @@ it('Retry status check re-runs the lookup and never posts a prepare request', as
   expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/cached.mp4')
 })
 
+it('keeps polling while retrieving a source, then plays the prepared clip', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce({ ...missing, status: 'materializing' })
+    .mockResolvedValue(ready)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  expect(screen.getByRole('status')).toHaveTextContent('Preparing media: retrieving source video')
+  expect(screen.queryByRole('button', { name: 'Prepare clip' })).not.toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS) })
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/cached.mp4')
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('shows a retrieval failure after an active preparation without silently resetting it', async () => {
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus)
+    .mockResolvedValueOnce({ ...missing, status: 'materializing' })
+    .mockResolvedValue({ ...missing, status: 'unavailable', job: {
+      id: 1, status: 'unavailable', rendition: 'proxy_720p', last_error: 'source retrieval failed',
+    } })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await flushInitialCheck()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MEDIA_POLL_INTERVAL_MS) })
+  expect(screen.getByRole('alert')).toHaveTextContent('source retrieval failed')
+  expect(screen.getByRole('button', { name: 'Retry prepare' })).toBeInTheDocument()
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
 it('a single transient poll failure preserves the last known state and recovery clears it', async () => {
   vi.useFakeTimers()
   vi.mocked(getMediaStatus)

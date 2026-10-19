@@ -948,6 +948,7 @@ const en = {
       queued: 'queued',
       waiting_for_mac: 'waiting for mac',
       claimed: 'claimed',
+      materializing: 'retrieving source video',
       exporting: 'exporting',
       transcoding: 'transcoding',
       uploading: 'uploading',
