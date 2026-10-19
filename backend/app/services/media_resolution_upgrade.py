@@ -17,7 +17,12 @@ from app.models.media_catalog import (
 )
 from app.models.photos_asset import PhotosAsset
 from app.services.diver_identity import get_primary_diver
-from app.services.media_cache import ready_entry_for_key, retire_verified_proxy_entry, sha256_file
+from app.services.media_cache import (
+    _release_upgrade_references,
+    ready_entry_for_key,
+    retire_verified_proxy_entry,
+    sha256_file,
+)
 from app.services.media_jobs import ACTIVE_JOB_STATUSES, create_or_reuse_media_job
 from app.services.media_keys import build_media_key
 
@@ -189,11 +194,12 @@ def advance_resolution_upgrade_runs(db: Session) -> list[int]:
         if target:
             if old_entry and old_entry.status == "ready" and not old_entry.pinned:
                 try:
-                    # Preserve the completed item while releasing the FK before
-                    # deleting the replaced cache row.
-                    item.old_cache_entry_id = None
-                    db.add(item)
-                    db.flush()
+                    # The same 360p row can be referenced by several upgrade
+                    # items (re-seeded runs, duplicate catalog rows for one
+                    # asset). The FK is shared history: release every
+                    # reference before deleting the replaced cache row, or
+                    # the delete rolls back the whole heartbeat unit.
+                    _release_upgrade_references(db, [old_entry])
                     retire_verified_proxy_entry(db, old_entry)
                 except ValueError as exc:
                     _finish(run, item, "failed", str(exc))
