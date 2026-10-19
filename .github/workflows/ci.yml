@@ -17,6 +17,7 @@ jobs:
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
       postgres: ${{ steps.select.outputs.postgres }}
+      checks: ${{ steps.select.outputs.checks }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -42,6 +43,7 @@ jobs:
 
   checks:
     needs: plan
+    if: needs.plan.outputs.checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -71,7 +73,7 @@ jobs:
       - name: Run selected tier
         env:
           TIER: ${{ matrix.tier }}
-        run: ci/gate.sh "$TIER"
+        run: ci/gate.sh --tier "$TIER"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -131,11 +133,19 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           CHECKS: ${{ needs.checks.result }}
+          CHECKS_REQUIRED: ${{ needs.plan.outputs.checks }}
           POSTGRES: ${{ needs.postgres.result }}
           POSTGRES_REQUIRED: ${{ needs.plan.outputs.postgres }}
         run: |
           test "$PLAN" = success
-          test "$CHECKS" = success
+          if [ "$CHECKS_REQUIRED" = true ]; then
+            test "$CHECKS" = success
+          elif [ "$CHECKS_REQUIRED" = false ]; then
+            test "$CHECKS" = skipped
+          else
+            echo "Missing tier selection output" >&2
+            exit 1
+          fi
           if [ "$POSTGRES_REQUIRED" = true ]; then
             test "$POSTGRES" = success
           elif [ "$POSTGRES_REQUIRED" = false ]; then

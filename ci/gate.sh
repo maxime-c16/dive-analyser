@@ -272,19 +272,23 @@ main() {
     # Join *all* arguments. The pre-push hook invokes this as
     # `gate.sh fast backend frontend`, so reading only $1 would silently drop
     # every tier after the first and let an ungated change through.
-    local spec="${*:-default}"
-
-    # Single-word conveniences expand to a full tier set; a multi-word spec is
-    # taken as-is.
-    case "$spec" in
-        fast)     spec="fast" ;;
-        frontend) spec="fast frontend" ;;
-        backend)  spec="fast backend" ;;
-        agent)    spec="fast agent" ;;
-        images)   spec="fast images" ;;
-        all)      spec="fast frontend backend agent images" ;;
-        default)  spec="${DIVE_CI_TIERS:-fast frontend backend agent}" ;;
-    esac
+    local spec
+    if [ "${1:-}" = --tier ]; then
+        [ "$#" -eq 2 ] || ci_die "usage: ci/gate.sh --tier fast|frontend|backend|agent|postgres|images"
+        # Hosted workers rely on the same checkout's successful plan/fast job.
+        spec="$2"
+    else
+        spec="${*:-default}"
+        case "$spec" in
+            fast)     spec="fast" ;;
+            frontend) spec="fast frontend" ;;
+            backend)  spec="fast backend" ;;
+            agent)    spec="fast agent" ;;
+            images)   spec="fast images" ;;
+            all)      spec="fast frontend backend agent images" ;;
+            default)  spec="${DIVE_CI_TIERS:-fast frontend backend agent}" ;;
+        esac
+    fi
 
     # PostgreSQL is hosted separately; explicit local runs require a disposable DB.
     # Validate the whole spec before doing any work, so a typo costs a second

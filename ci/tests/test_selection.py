@@ -82,6 +82,7 @@ class SelectionTests(unittest.TestCase):
             data = dict(line.split('=', 1) for line in output.read_text().splitlines())
             self.assertEqual(json.loads(data['matrix']), {'tier': ['fast']})
             self.assertEqual(data['postgres'], 'false')
+            self.assertEqual(data['checks'], 'false')
 
 
 class AggregateTests(unittest.TestCase):
@@ -101,8 +102,39 @@ class AggregateTests(unittest.TestCase):
         self.assertEqual(set(job['needs']), {'plan', 'checks', 'postgres'})
         script = job['steps'][0]['run']
         for plan, checks, postgres in itertools.product(['success', 'failure', 'cancelled', 'skipped'], repeat=3):
-            for required in ['true', 'false', '']:
-                env = dict(os.environ, PLAN=plan, CHECKS=checks, POSTGRES=postgres, POSTGRES_REQUIRED=required)
+            for required, checks_required in itertools.product(['true', 'false', ''], repeat=2):
+                env = dict(os.environ, PLAN=plan, CHECKS=checks, POSTGRES=postgres,
+                           POSTGRES_REQUIRED=required, CHECKS_REQUIRED=checks_required)
                 run = subprocess.run(['bash', '-e', '-c', script], env=env, capture_output=True)
-                expected = required in ('true', 'false') and plan == checks == 'success' and postgres == ('success' if required == 'true' else 'skipped')
-                self.assertEqual(run.returncode == 0, expected, (plan, checks, postgres, required))
+                expected = (required in ('true', 'false') and checks_required in ('true', 'false')
+                            and plan == 'success'
+                            and checks == ('success' if checks_required == 'true' else 'skipped')
+                            and postgres == ('success' if required == 'true' else 'skipped'))
+                self.assertEqual(run.returncode == 0, expected, (plan, checks, postgres, required, checks_required))
+
+
+class TierInvocationTests(unittest.TestCase):
+    def test_hosted_tier_omits_fast_and_local_command_keeps_it(self):
+        # Execute the real argument dispatcher with stubbed expensive tiers.
+        # This exercises the CLI boundary without installing application packages.
+        source = (CI / 'gate.sh').read_text()
+        main = source[source.index('main() {'):source.rindex('\nmain "$@"')]
+        with tempfile.TemporaryDirectory() as tmp:
+            env = dict(os.environ, DIVE_CI_CACHE=tmp)
+            script = '''
+source "$1/lib.sh"
+flock() { return 0; }
+nproc() { echo 2; }
+tier_fast() { echo FAST_SENTINEL; }
+tier_backend() { echo BACKEND_SENTINEL; }
+''' + main + '\nmain "${@:2}"\n'
+            for args, expected in [(['--tier', 'backend'], ['BACKEND_SENTINEL']),
+                                   (['backend'], ['FAST_SENTINEL', 'BACKEND_SENTINEL'])]:
+                run = subprocess.run(['bash', '-c', script, '_', str(CI), *args],
+                                     env=env, capture_output=True, text=True)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual([l for l in run.stdout.splitlines() if l.endswith('_SENTINEL')], expected)
+            for args in [['--tier'], ['--tier', 'all'], ['--tier', 'backend', 'agent']]:
+                run = subprocess.run(['bash', '-c', script, '_', str(CI), *args],
+                                     env=env, capture_output=True, text=True)
+                self.assertNotEqual(run.returncode, 0)

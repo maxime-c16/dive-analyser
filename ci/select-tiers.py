@@ -61,6 +61,7 @@ def main():
         with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
             out.write(f'matrix={json.dumps({"tier": workers or ["fast"]})}\n')
             out.write(f'postgres={str("postgres" in tiers).lower()}\n')
+            out.write(f'checks={str(bool(workers)).lower()}\n')
         print('Selected tiers: ' + ' '.join(tiers))
     else:
         print(' '.join(tiers))

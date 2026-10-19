@@ -7,7 +7,7 @@ with `DIVE_CI_TIERS`. Clean-tree, pushed-commit and missing-gate guards remain.
 
 Hosted CI selects suites from the complete PR base/head diff, validates cheap
 static guards first, then runs independent frontend/backend/agent/image tiers
-in parallel. PostgreSQL has its own disposable service. A final check named
+in parallel with `ci/gate.sh --tier <name>` (without repeating static guards). PostgreSQL has its own disposable service. A final check named
 `gate` rejects any failed/cancelled selected job or failed plan. Docs and
 release-note-only changes still produce this check. Unknown paths and changes
 to CI/workflows select all checks. Superseded CI/review runs are cancelled;
