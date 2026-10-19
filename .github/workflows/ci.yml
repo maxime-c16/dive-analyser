@@ -138,6 +138,9 @@ jobs:
           test "$CHECKS" = success
           if [ "$POSTGRES_REQUIRED" = true ]; then
             test "$POSTGRES" = success
-          else
+          elif [ "$POSTGRES_REQUIRED" = false ]; then
             test "$POSTGRES" = skipped
+          else
+            echo "Missing PostgreSQL selection output" >&2
+            exit 1
           fi

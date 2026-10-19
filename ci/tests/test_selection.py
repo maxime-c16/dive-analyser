@@ -45,6 +45,35 @@ class SelectionTests(unittest.TestCase):
             self.assertEqual(data['postgres'], 'true')
             self.assertEqual(set(json.loads(data['matrix'])['tier']), {'frontend', 'backend', 'agent', 'images'})
 
+    def test_complete_diff_keeps_earlier_commits_and_deleted_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, env=env, text=True).strip()
+            git('init', '-q')
+            git('config', 'user.name', 'CI test')
+            git('config', 'user.email', 'ci@example.invalid')
+            (root / 'backend').mkdir()
+            path = root / 'backend/name with spaces.py'
+            path.write_text('legacy')
+            git('add', '.')
+            git('commit', '-qm', 'base')
+            base = git('rev-parse', 'HEAD')
+            path.unlink()
+            git('add', '-A')
+            git('commit', '-qm', 'delete backend module')
+            (root / 'README.md').write_text('docs tip')
+            git('add', '.')
+            git('commit', '-qm', 'docs')
+            output = root / 'outputs'
+            subprocess.run(['python3', str(CI / 'select-tiers.py'), '--base', base,
+                            '--head', git('rev-parse', 'HEAD'), '--github-output'], cwd=root,
+                           env=dict(env, GITHUB_OUTPUT=str(output)), check=True, capture_output=True)
+            data = dict(line.split('=', 1) for line in output.read_text().splitlines())
+            self.assertEqual(data['postgres'], 'true')
+            self.assertEqual(json.loads(data['matrix']), {'tier': ['backend']})
+
     def test_empty_diff_still_has_a_runnable_check(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'outputs'
@@ -68,5 +97,5 @@ class AggregateTests(unittest.TestCase):
             for required in ['true', 'false', '']:
                 env = dict(os.environ, PLAN=plan, CHECKS=checks, POSTGRES=postgres, POSTGRES_REQUIRED=required)
                 run = subprocess.run(['bash', '-e', '-c', script], env=env, capture_output=True)
-                expected = plan == checks == 'success' and postgres == ('success' if required == 'true' else 'skipped')
+                expected = required in ('true', 'false') and plan == checks == 'success' and postgres == ('success' if required == 'true' else 'skipped')
                 self.assertEqual(run.returncode == 0, expected, (plan, checks, postgres, required))
