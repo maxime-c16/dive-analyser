@@ -10,7 +10,7 @@ not the runbook's default 18 GiB. The runtime configuration already differed
 from defaults before this change; no storage threshold was lowered.
 `ops/media-worker-slots.py` requires at least max(existing stop, 8 GiB) plus
 2.5 GB peak-work headroom to activate two slots. It defaults to dry run, validates
-the complete config, preserves a 0600 backup, and refuses concurrent edits.
+the complete config, preserves a 0600 backup, and serializes cooperating controller updates with an advisory lock.
 The 8 GiB allowance is an activation check; ongoing processing still uses the
 existing live configured reserve. It is not a per-job source-size enforcement.
 
@@ -80,3 +80,11 @@ failures use one indexed per-asset lookup, not a full-history window rank.
 The output estimate uses public-cache medians only. A repeat read-only run
 verified the scoped queries against production; ordinary ongoing upgrades can
 change cache counts between snapshots.
+
+The slot controller locks `.media-config.lock` before its first configuration
+read and holds that persistent-inode lock through validation, recheck, backup
+and atomic replacement. Competing controller processes fail before reading or
+writing the config. All managed config writers must use this lock; arbitrary
+editors ignoring it are outside the serialization guarantee. Focused tests
+cover another process holding the lock, preservation of newer settings on
+rollback, private backup/config permissions and low-disk rollback.
