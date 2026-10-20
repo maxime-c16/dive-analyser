@@ -125,12 +125,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [posterFailed, setPosterFailed] = useState(false)
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(() => initialSeed?.previewPlaybackUrl ?? null)
   const [previewSelected, setPreviewSelected] = useState(false)
   const previewSelectedRef = useRef(false)
   const originalSelectedRef = useRef(false)
   const presentedSourceRef = useRef<{ uuid: string; src: string } | null>(null)
-  const [sourceIsPreview, setSourceIsPreview] = useState(false)
+  const [sourceIsPreview, setSourceIsPreview] = useState(() => Boolean(initialSeed?.previewPlaybackUrl && initialSeed.previewPlaybackUrl === initialSeed.playbackUrl))
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
@@ -153,7 +153,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     if (phase.kind === 'ready' && framePresented) presentedSourceRef.current = { uuid: videoUuid, src: phase.src }
   }, [videoUuid, phase, framePresented])
 
-  useEffect(() => { setPreviewSelected(false); previewSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null; setPreviewSrc(null); setSourceIsPreview(false) }, [videoUuid])
+  useEffect(() => {
+    const seed = playbackSeed(videoUuid)
+    setPreviewSelected(false); previewSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
+    setPreviewSrc(seed?.previewPlaybackUrl ?? null)
+    setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
+  }, [videoUuid])
   const failuresRef = useRef(0)
   const preparingSinceRef = useRef<number | null>(null)
   const lastPreparingStateRef = useRef<string | null>(null)
@@ -240,6 +245,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setAutoMuted(false)
 
     const seed = playbackSeed(videoUuid)
+    setPreviewSrc(seed?.previewPlaybackUrl ?? null)
+    setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
     if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
     if (seed?.playbackUrl) {
       // Seeding the ready phase with a previously issued playback URL
