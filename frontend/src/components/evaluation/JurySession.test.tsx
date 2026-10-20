@@ -17,10 +17,10 @@ import type { QueueBatch, SubmissionResponse } from '../../services/evaluationAp
 vi.mock('../DiveVideoPlayer', () => ({ default: () => <div>Video</div> }))
 let autoFinishVideo = true
 let autoBufferVideo = true
-vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure, onBuffered, preloadOnly }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void; onBuffered?: () => void; preloadOnly?: boolean }) => {
+vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure, onBuffered, onPrepared, preloadOnly }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void; onBuffered?: () => void; onPrepared?: () => void; preloadOnly?: boolean }) => {
   React.useEffect(() => { if (autoBufferVideo) onBuffered?.() }, [requestId])
   React.useEffect(() => { if (autoFinishVideo && watching) onEnded?.() }, [requestId, watching])
-  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><button onClick={onBuffered}>Buffer video</button><span>{preloadOnly ? 'PreloadVideo' : 'EvalVideo'}</span></div>
+  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><button onClick={onBuffered}>Buffer video</button><button onClick={onPrepared}>Prepare video</button><span>{preloadOnly ? 'PreloadVideo' : 'EvalVideo'}</span></div>
 } }))
 vi.mock('../../services/evaluationApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../services/evaluationApi')>()
@@ -521,7 +521,7 @@ it('uses the configured size in the automatic note and allocation', async () => 
   expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), false, 8)
 })
 
-it.each(['ready', 'preparing'] as const)('keeps results visible until the %s next video has buffered, then reuses it', async (status) => {
+it.each([['ready', 'Buffer video'], ['preparing', 'Buffer video'], ['ready', 'Prepare video']] as const)('keeps results visible until the %s next video can advance via %s, then reuses it', async (status, signal) => {
   autoBufferVideo = false
   vi.mocked(getQueue).mockResolvedValueOnce({ ...batch, items: batch.items.map(item => 'media' in item && item.request_id === 12 ? { ...item, media: { ...item.media, status } } : item) })
   vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
@@ -534,7 +534,7 @@ it.each(['ready', 'preparing'] as const)('keeps results visible until the %s nex
   await userEvent.click(screen.getByRole('button', { name: 'Next dive' }))
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
   expect(screen.getByRole('img', { name: 'Your score card 6.5' })).toBeInTheDocument()
-  fireEvent.click(within(upcoming).getByText('Buffer video'))
+  fireEvent.click(within(upcoming).getByText(signal))
   await screen.findByText('105C · 3m')
   expect(document.querySelector('[data-request="12"]')).toBe(upcoming)
   expect(upcoming.closest('[hidden]')).toBeNull()

@@ -67,6 +67,11 @@ reported as a temporary workaround; it does not validate browser playback.
 
 Required services: backend, frontend, Mac agent. No SQL migration.
 Follow REPO_WORKFLOW.md: PR, merge, `ci/ship.sh all --dry-run`, then ship.
+After recreating the backend, reload both nginx front doors so cached upstream
+container addresses are refreshed: the LAN `dive-analyser-nginx-1` and Funnel
+`dive-funnel-funnel-proxy-1`. The normal `ci/ship.sh server` deployment performs
+both reloads. Follow the Compose/nginx instructions in `REPO_WORKFLOW.md` if
+applying the Compose change separately; a backend-only recreation is incomplete.
 The release catalog lists the two required server services; the Mac agent must also be deployed. Do not enable extra slots before
 observing the one-slot drain change with real jobs.
 

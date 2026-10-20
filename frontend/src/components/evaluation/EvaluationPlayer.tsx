@@ -393,8 +393,18 @@ export default function EvaluationPlayer({
   function mediaError() {
     if (playback.kind !== 'ready') return
     failedRenditions.current.add(playback.rendition)
-    const next = playback.playableChoices.find(name => !failedRenditions.current.has(name))
-    if (next) setDecodeError(true)
+    const next = ['proxy_720p', 'proxy_360p', 'original'].find(name => playback.playableChoices.includes(name) && !failedRenditions.current.has(name))
+    if (next && (preloadOnly || !hasDecodedFrameRef.current)) {
+      // Hidden slots and the first-frame overlay cannot offer an actionable
+      // fallback button. Try each ready rendition once before reporting failure.
+      setDecodeError(false)
+      setPlayback({ ...playback, rendition: next, src: evaluationPlaybackUrl(requestId, next, automatic), hq: HQ_RENDITIONS.has(next) })
+      // Originals stream rather than download to a blob. Let this fallback
+      // become visible because iOS may defer hidden-video decoding; the
+      // active first-frame gate still remains in place after promotion.
+      if (preloadOnly && next === 'original') onPrepared?.()
+    }
+    else if (next) setDecodeError(true)
     else setPlayback({ kind: 'failed' })
   }
 
