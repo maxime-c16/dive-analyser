@@ -110,10 +110,11 @@ export default function EvaluationPlayer({
   const requestEpochRef = useRef(0)
   const source = useEvaluationVideoSource(playback.kind === 'ready' ? playback.src : undefined, playback.kind === 'ready' ? playback.rendition : undefined)
   useEffect(() => {
-    // iOS may defer decoding hidden videos. A fully downloaded blob is enough
-    // to promote the next slot; the visible player still gates on its frame.
-    if (source.src?.startsWith('blob:')) onPrepared?.()
-  }, [source.src, onPrepared])
+    // iOS may defer hidden decoding. Blob downloads are prepared; a streaming
+    // fallback must also be allowed to become visible so it can decode.
+    // Neither signal bypasses the active player's first-frame gate.
+    if (source.src && (preloadOnly || source.src.startsWith('blob:'))) onPrepared?.()
+  }, [source.src, preloadOnly, onPrepared])
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(!soundPreferred)
   const [slow, setSlow] = useState(false)
@@ -399,10 +400,6 @@ export default function EvaluationPlayer({
       // fallback button. Try each ready rendition once before reporting failure.
       setDecodeError(false)
       setPlayback({ ...playback, rendition: next, src: evaluationPlaybackUrl(requestId, next, automatic), hq: HQ_RENDITIONS.has(next) })
-      // Originals stream rather than download to a blob. Let this fallback
-      // become visible because iOS may defer hidden-video decoding; the
-      // active first-frame gate still remains in place after promotion.
-      if (preloadOnly && next === 'original') onPrepared?.()
     }
     else if (next) setDecodeError(true)
     else setPlayback({ kind: 'failed' })

@@ -218,9 +218,7 @@ it('reports a closed evaluation without fake-saving', async () => {
 it('passes through the server skip endpoint and reaches the summary with the recap', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(skipRequest).mockResolvedValue(undefined)
-  render(<MemoryRouter><JurySession /></MemoryRouter>)
-  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByText('107B · 3m')
+  await openFirstDive()
   expect(screen.getByRole('button', { name: 'Quit session' })).toBeInTheDocument()
   await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await waitFor(() => expect(skipRequest).toHaveBeenCalledWith(5, 11))

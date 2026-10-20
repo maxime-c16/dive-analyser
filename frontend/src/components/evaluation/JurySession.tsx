@@ -96,7 +96,7 @@ export default function JurySession({
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
   const [watching, setWatching] = useState(true)
   const [buffered, setBuffered] = useState<Set<number>>(() => new Set())
-  const [downloaded, setDownloaded] = useState<Set<number>>(() => new Set())
+  const [prepared, setPrepared] = useState<Set<number>>(() => new Set())
   const [waitingForNext, setWaitingForNext] = useState(false)
   const [unavailable, setUnavailable] = useState<Set<number>>(() => new Set())
   const [mediaAttempts, setMediaAttempts] = useState<Record<number, number>>({})
@@ -243,7 +243,7 @@ export default function JurySession({
   }
 
   async function start() {
-    setBuffered(new Set()); setDownloaded(new Set()); setUnavailable(new Set()); setWaitingForNext(false)
+    setBuffered(new Set()); setPrepared(new Set()); setUnavailable(new Set()); setWaitingForNext(false)
     setScore(null); setComment(''); setCommentOpen(false); setQuitRequested(false)
     setError('')
     setSessionExpired(false)
@@ -372,7 +372,7 @@ export default function JurySession({
     : []
 
   const preparingFirstFrame = stageItem !== null && phase.kind === 'reviewing' && !buffered.has(stageItem.request_id)
-  const nextBuffered = !upcomingItem || downloaded.has(upcomingItem.request_id) || buffered.has(upcomingItem.request_id) || unavailable.has(upcomingItem.request_id)
+  const nextBuffered = !upcomingItem || prepared.has(upcomingItem.request_id) || buffered.has(upcomingItem.request_id) || unavailable.has(upcomingItem.request_id)
   useEffect(() => {
     if (waitingForNext && nextBuffered && !supersededRef.current) {
       setWaitingForNext(false)
@@ -412,7 +412,7 @@ export default function JurySession({
                 <button type="button" className="eval-start" onClick={() => {
                   const item = phase.item
                   setBuffered(previous => { const next = new Set(previous); next.delete(item.request_id); return next })
-                  setDownloaded(previous => { const next = new Set(previous); next.delete(item.request_id); return next })
+                  setPrepared(previous => { const next = new Set(previous); next.delete(item.request_id); return next })
                   setMediaAttempts(previous => ({ ...previous, [item.request_id]: (previous[item.request_id] ?? 0) + 1 }))
                   replayDive(); setPhase({ kind: 'reviewing', item })
                 }}>{t('evaluations.retry')}</button>
@@ -450,7 +450,7 @@ export default function JurySession({
                     replayToken={active ? replayCount : 0}
                     watching={active && watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
                     onBuffered={() => setBuffered(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
-                    onPrepared={() => setDownloaded(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
+                    onPrepared={() => setPrepared(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
                     onEnded={active ? () => setWatching(false) : undefined}
                     onReplay={active && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? replayDive : undefined}
                     onFailure={active ? () => { setWatching(false); setPhase({ kind: 'media-unavailable', item, reason: 'missing' }) } : () => setUnavailable(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}

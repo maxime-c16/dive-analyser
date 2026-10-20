@@ -194,10 +194,28 @@ it('recovers a hidden preview automatically and reports failure only after exhau
   expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(onFailure).not.toHaveBeenCalled()
+  onPrepared.mockClear()
   fireEvent.error(container.querySelector('video')!)
   expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=original')
   expect(onPrepared).toHaveBeenCalledOnce()
   expect(onFailure).not.toHaveBeenCalled()
   fireEvent.error(container.querySelector('video')!)
   await waitFor(() => expect(onFailure).toHaveBeenCalledOnce())
+})
+
+it('allows an oversized streaming preview to advance without hidden loadeddata', async () => {
+  vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: vi.fn(), revokeObjectURL: vi.fn() }))
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('large', { headers: { 'content-length': String(17 * 1024 * 1024) } })))
+  try {
+    vi.mocked(getEvaluationMediaStatus).mockResolvedValue({ request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready', rendition: 'proxy_720p', poster_url: null, playback_url: '/play', available_renditions: ['proxy_720p'] })
+    const onPrepared = vi.fn()
+    const onBuffered = vi.fn()
+    const { container } = render(<EvaluationPlayer requestId={7} preloadOnly paused onPrepared={onPrepared} onBuffered={onBuffered} />)
+    await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p'))
+    expect(onPrepared).toHaveBeenCalled()
+    expect(onBuffered).not.toHaveBeenCalled()
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

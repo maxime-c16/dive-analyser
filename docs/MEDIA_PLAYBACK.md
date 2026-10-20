@@ -60,6 +60,10 @@ reported as a temporary workaround; it does not validate browser playback.
   Sources already leased elsewhere are excluded from subsequent allocation.
 - Hidden iOS videos may defer decoding: a fully downloaded blob can promote
   the next slot, while visible playback continues to wait for a decoded frame.
+  Oversized previews and other streaming fallbacks become promotable once
+  their source is assigned, without requiring a hidden decode event. They
+  may still load after promotion; this readiness signal does not claim that
+  the streaming file is downloaded or decoded.
   The decode timeout starts after the visible source exists.
 - Compose DNS upstreams change to 1.1.1.1/1.0.0.1 after observed Docker DNS
   failures. Recreate the backend via normal deployment, then verify actual B2
