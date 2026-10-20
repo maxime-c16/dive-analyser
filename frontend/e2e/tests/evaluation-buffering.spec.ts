@@ -140,6 +140,9 @@ for (const viewport of [
         expect(box.x).toBeGreaterThanOrEqual(video!.x)
         expect(box.x + box.width).toBeLessThanOrEqual(video!.x + video!.width)
       }
+      // Watching uses the full phone viewport; the scoring side panel is hidden.
+      // The narrower landscape video area only applies after playback ends below.
+      if (viewport.height <= 500) expect(video!.width).toBe(viewport.width)
       const rail = await stage.locator('.eval-player-controls').boundingBox()
       expect(rail!.height).toBeLessThanOrEqual(54)
       expect(rail!.y).toBeGreaterThanOrEqual(0)
@@ -154,6 +157,13 @@ for (const viewport of [
       await expect(stage.getByRole('group', { name: 'Judging actions' })).toBeVisible()
       const judgingRail = (await stage.locator('.eval-player-controls').boundingBox())!
       const judgingVideo = (await stage.locator('.eval-stage-video').boundingBox())!
+      expect(judgingRail.height).toBeLessThanOrEqual(104)
+      if (viewport.width === 568 && viewport.height === 320) {
+        expect(judgingVideo.width).toBeCloseTo(255.6, 0)
+        const rows = await stage.locator('.eval-player-controls button').evaluateAll(buttons =>
+          new Set(buttons.map(button => (button as HTMLElement).offsetTop)).size)
+        expect(rows).toBe(2)
+      }
       for (const button of await stage.locator('.eval-player-controls button').all()) {
         const box = (await button.boundingBox())!
         expect(box.x).toBeGreaterThanOrEqual(judgingVideo.x)
