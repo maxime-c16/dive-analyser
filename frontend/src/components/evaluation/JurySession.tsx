@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, MessageSquare, SendHorizontal } from 'lucide-react'
 import { ScoreCard } from './ScoreCards'
 import EvaluationPlayer from './EvaluationPlayer'
+import EvaluationWarmUp from './EvaluationWarmUp'
 import EvaluationStage from './EvaluationStage'
 import ScoreInput from './ScoreInput'
 import ResultsBoard from './ResultsBoard'
@@ -94,6 +95,11 @@ export default function JurySession({
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
   const [watching, setWatching] = useState(true)
+  const [buffered, setBuffered] = useState<Set<number>>(() => new Set())
+  const [downloaded, setDownloaded] = useState<Set<number>>(() => new Set())
+  const [waitingForNext, setWaitingForNext] = useState(false)
+  const [unavailable, setUnavailable] = useState<Set<number>>(() => new Set())
+  const [mediaAttempts, setMediaAttempts] = useState<Record<number, number>>({})
   const [quitRequested, setQuitRequested] = useState(false)
   const [replayCount, setReplayCount] = useState(0)
   const [sessionExpired, setSessionExpired] = useState(false)
@@ -215,7 +221,7 @@ export default function JurySession({
     setWatching(true)
     setReplayCount(0)
     const next = batchRef.current.shift()!
-    if (next.media.status === 'ready' && next.media.playback_url) {
+    if (next.media.status === 'preparing' || (next.media.status === 'ready' && next.media.playback_url)) {
       setPhase({ kind: 'reviewing', item: next })
     } else {
       setPhase({
@@ -237,6 +243,7 @@ export default function JurySession({
   }
 
   async function start() {
+    setBuffered(new Set()); setDownloaded(new Set()); setUnavailable(new Set()); setWaitingForNext(false)
     setScore(null); setComment(''); setCommentOpen(false); setQuitRequested(false)
     setError('')
     setSessionExpired(false)
@@ -349,13 +356,29 @@ export default function JurySession({
     // In-flight votes land as persisted rows server-side; the UI here just
     // stays retired: no reveal resurrect, and pass() stops advancing too.
     supersededRef.current = true
+    setWaitingForNext(false)
     setPhase({ kind: 'summary' })
   }
 
-  const replayDive = () => { setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
+  const replayDive = () => { setWaitingForNext(false); setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
 
   const inStage = phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal' || phase.kind === 'media-unavailable' || phase.kind === 'closed'
   const stageItem = inStage ? (phase as { item: QueueItem }).item : null
+  // Keep one upcoming video element alive, then promote that same element.
+  // No shared media cache and no preparation jobs for the rest of the queue.
+  const upcomingItem = stageItem ? batchRef.current[0] : undefined
+  const playerItems = stageItem
+    ? [stageItem, ...(upcomingItem ? [upcomingItem] : [])]
+    : []
+
+  const preparingFirstFrame = stageItem !== null && phase.kind === 'reviewing' && !buffered.has(stageItem.request_id)
+  const nextBuffered = !upcomingItem || downloaded.has(upcomingItem.request_id) || buffered.has(upcomingItem.request_id) || unavailable.has(upcomingItem.request_id)
+  useEffect(() => {
+    if (waitingForNext && nextBuffered && !supersededRef.current) {
+      setWaitingForNext(false)
+      void advance()
+    }
+  }, [waitingForNext, nextBuffered, advance])
 
   return (
     <section className="eval-session" aria-label={t('evaluations.juryArea')}>
@@ -367,7 +390,7 @@ export default function JurySession({
           {sessionExpired && <p className="eval-note" role="status">{t('evaluations.sessionNew')}</p>}
         </div>
       )}
-      {phase.kind === 'loading' && <p className="eval-status" role="status">{t('common.loading')}</p>}
+      {phase.kind === 'loading' && <EvaluationWarmUp />}
       {phase.kind === 'loading-error' && (
         <div className="eval-state" role="alert">
           <p>{t('evaluations.loadError')}</p>
@@ -381,6 +404,22 @@ export default function JurySession({
           open
           onClose={() => { if (phase.kind === 'reviewing' && (score !== null || comment.trim())) setQuitRequested(true); else quit() }}
           hideChrome={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
+          preparing={preparingFirstFrame || phase.kind === 'media-unavailable'}
+          overlays={preparingFirstFrame ? <div className="eval-stage-preparation"><EvaluationWarmUp /><button className="eval-pass" onClick={() => void pass()}>{t('evaluations.pass')}</button></div> : phase.kind === 'media-unavailable' ? <div className="eval-stage-preparation">
+            <div className="eval-preparation-error" role="alert">
+              <p>{t('evaluations.mediaFailed')}</p>
+              <div className="eval-preparation-actions">
+                <button type="button" className="eval-start" onClick={() => {
+                  const item = phase.item
+                  setBuffered(previous => { const next = new Set(previous); next.delete(item.request_id); return next })
+                  setDownloaded(previous => { const next = new Set(previous); next.delete(item.request_id); return next })
+                  setMediaAttempts(previous => ({ ...previous, [item.request_id]: (previous[item.request_id] ?? 0) + 1 }))
+                  replayDive(); setPhase({ kind: 'reviewing', item })
+                }}>{t('evaluations.retry')}</button>
+                <button type="button" className="eval-pass" onClick={() => void pass()}>{t('evaluations.pass')}</button>
+              </div>
+            </div>
+          </div> : undefined}
           phase={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? 'watching' : phase.kind}
           head={
             <>
@@ -393,16 +432,33 @@ export default function JurySession({
           }
           prompt={stageItem.prompt}
           video={
-            <EvaluationPlayer
-              key={`eval-video-${stageItem.request_id}-${replayCount}`}
-              requestId={stageItem.request_id}
-              automatic={automatic}
-              watching={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
-              onEnded={() => setWatching(false)}
-              onReplay={phase.kind === 'reviewing' || phase.kind === 'reveal' ? replayDive : undefined}
-              onFailure={() => { setWatching(false); setPhase({ kind: 'media-unavailable', item: stageItem, reason: 'missing' }) }}
-              paused={!watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
-            />
+            <>
+              {playerItems.map(item => {
+                const active = item.request_id === stageItem.request_id
+                return <div key={`${item.request_id}-${mediaAttempts[item.request_id] ?? 0}`} hidden={!active} className="eval-player-slot">
+                  <EvaluationPlayer
+                    requestId={item.request_id}
+                    automatic={automatic}
+                    initialMedia={!mediaAttempts[item.request_id] && item.media.rendition && item.media.available_renditions ? {
+                      ...item.media,
+                      request_id: item.request_id,
+                      dive_id: item.dive_id,
+                      video_uuid: item.dive.video_uuid,
+                      available_renditions: item.media.available_renditions,
+                    } : undefined}
+                    preloadOnly={!active}
+                    replayToken={active ? replayCount : 0}
+                    watching={active && watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
+                    onBuffered={() => setBuffered(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
+                    onPrepared={() => setDownloaded(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
+                    onEnded={active ? () => setWatching(false) : undefined}
+                    onReplay={active && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? replayDive : undefined}
+                    onFailure={active ? () => { setWatching(false); setPhase({ kind: 'media-unavailable', item, reason: 'missing' }) } : () => setUnavailable(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
+                    paused={(active && preparingFirstFrame) || !active || !watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
+                  />
+                </div>
+              })}
+            </>
           }
         >
           {quitRequested && <QuitQuestion onStay={() => setQuitRequested(false)} onQuit={() => { setQuitRequested(false); quit() }} />}
@@ -441,15 +497,9 @@ export default function JurySession({
               results={phase.results}
               automatic={automatic}
               onReplay={replayDive}
-              onNext={() => void advance()}
+              waiting={waitingForNext}
+              onNext={() => { if (nextBuffered) void advance(); else setWaitingForNext(true) }}
             />
-          )}
-          {phase.kind === 'media-unavailable' && (
-            <div className="eval-state" role="alert">
-              <p>{phase.reason === 'closed' ? t('evaluations.mediaClosed') : t('evaluations.mediaMissing')}</p>
-              <button type="button" className="eval-start" onClick={() => { const item = phase.item; replayDive(); setPhase({ kind: 'reviewing', item }) }}>{t('evaluations.retry')}</button>
-              <button type="button" onClick={() => void pass()}>{t('evaluations.pass')}</button>
-            </div>
           )}
           {phase.kind === 'closed' && (
             <div className="eval-state" role="alert">
@@ -572,15 +622,15 @@ function JudgingDock({
 /* Reveal: peers flip first (staggered), then MY card arrives once.    */
 /* my_rating already sits in results.ratings — never duplicated.       */
 /* ------------------------------------------------------------------ */
-function RevealPanel({ score, results, automatic, onNext, onReplay }: {
-  score: number; results: JuryResults; automatic: boolean; onNext: () => void; onReplay: () => void
+function RevealPanel({ score, results, automatic, onNext, onReplay, waiting = false }: {
+  score: number; results: JuryResults; automatic: boolean; onNext: () => void; onReplay: () => void; waiting?: boolean
 }) {
   const { t } = useTranslation()
   return <div className="eval-reveal">
     <ResultsBoard results={results} score={score} automatic={automatic} />
     <div className="eval-judge-actions">
       <button type="button" className="eval-pass eval-replay" onClick={onReplay} aria-label={t('evaluations.replayAria')}>↺</button>
-      <button type="button" className="eval-confirm" onClick={onNext}>{t('evaluations.next')}</button>
+      <button type="button" className="eval-confirm" disabled={waiting} onClick={onNext}>{t(waiting ? 'common.loading' : 'evaluations.next')}</button>
     </div>
   </div>
 }

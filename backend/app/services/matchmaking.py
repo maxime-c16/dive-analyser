@@ -92,20 +92,15 @@ def status(db, dive, asset):
 
 
 def _ready_clause():
-    """SQL readiness shared by stack allocation and bounded resume lookup."""
+    """Only assign ready browser previews, never cloud-only originals.
+
+    Original quality remains available through the authorized media route.
+    Cold clips enter a later selection after bounded background preparation.
+    """
     from app.models.media import MediaCacheEntry
-    ready = exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
+    return exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
         PhotosAsset.video_uuid == Dive.video_uuid, MediaCacheEntry.status == 'ready',
-        MediaCacheEntry.rendition.in_(('proxy_720p', 'original', 'proxy_360p'))))
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
-        from app.models.media_backbone import MediaRevision
-        backbone_ready = exists(select(1).select_from(MediaRevision).where(
-            MediaRevision.video_uuid == Dive.video_uuid, verified_original_clause()))
-        has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
-        ready = ready | (backbone_ready & has_asset)
-    return ready
+        MediaCacheEntry.rendition.in_(('proxy_720p', 'proxy_360p'))))
 
 
 def stack(db, user, key, size=5):
@@ -157,7 +152,7 @@ def stack(db, user, key, size=5):
         asset = db.query(PhotosAsset).filter_by(video_uuid=dive.video_uuid).first()
         if asset:
             try:
-                evaluation_access.prepare_media(db, dive, asset, reason='automatic_review')
+                evaluation_access.prepare_media(db, dive, asset, reason='automatic_review_warmup')
             except Exception:
                 db.rollback()
                 logging.getLogger(__name__).exception('Automatic review preparation failed for dive %s', dive.id)

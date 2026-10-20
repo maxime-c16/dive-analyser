@@ -266,16 +266,27 @@ def prepare_media(db: Session, dive: Dive, asset: PhotosAsset, reason: str = "ev
     created: list[str] = []
     reused: list[str] = []
     with evaluation_media_scope(db):
-        from app.services.media_jobs import create_or_reuse_media_job
+        from app.services.media_jobs import create_or_reuse_media_job, latest_playback_failure_for_asset
 
+        if reason == "automatic_review_warmup":
+            previous_failure = latest_playback_failure_for_asset(db, asset.id)
+            if previous_failure and (previous_failure.last_error or "").startswith("invalid_video_uuid"):
+                # Automatic browsing must not endlessly retry a permanently
+                # invalid Photos identity. Explicit Prepare remains available
+                # after an administrator repairs the source mapping.
+                return created, reused
         entries = _ready_entries(db, asset.id)
-        good_playable = any(entry.rendition in ("proxy_720p", "original") for entry in entries)
+        good_playable = any(entry.rendition == "proxy_720p" for entry in entries)
         try:
             if not good_playable:
-                _, _, was_created = create_or_reuse_media_job(db, asset=asset, rendition="proxy_720p", reason=reason)
+                _, job, was_created = create_or_reuse_media_job(db, asset=asset, rendition="proxy_720p", reason=reason)
+                if reason in {"automatic_review", "evaluation_request"}:
+                    job.priority = min(job.priority if job.priority is not None else 100, 5)
                 (created if was_created else reused).append("proxy_720p")
             if _poster_entry(entries) is None:
-                _, _, was_created = create_or_reuse_media_job(db, asset=asset, rendition="poster", reason=reason)
+                _, job, was_created = create_or_reuse_media_job(db, asset=asset, rendition="poster", reason=reason)
+                if reason in {"automatic_review", "evaluation_request"}:
+                    job.priority = min(job.priority if job.priority is not None else 100, 6)
                 (created if was_created else reused).append("poster")
             db.commit()
         except Exception:

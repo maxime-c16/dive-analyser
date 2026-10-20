@@ -58,6 +58,20 @@ def test_job_lease_owner_is_enforced(test_db):
     assert heartbeat_media_job(test_db, job.id, "mac-media-01", "exporting", 10).progress == 10
 
 
+def test_another_worker_cannot_lease_a_busy_source(test_db):
+    from datetime import timedelta
+    asset = PhotosAsset(video_uuid="11111111-1111-1111-1111-111111111111", media_type="video")
+    test_db.add(asset); test_db.flush()
+    active = MediaJob(photos_asset_id=asset.id, media_key="busy-proxy", rendition="proxy_720p",
+        status="transcoding", claimed_by="first-worker", claimed_until=datetime.utcnow() + timedelta(minutes=5))
+    pending = MediaJob(photos_asset_id=asset.id, media_key="pending-poster", rendition="poster", status="queued")
+    test_db.add_all([active, pending]); test_db.flush()
+    request = MediaJobLeaseRequest(agent_id="second-worker", capabilities=["poster"], max_jobs=1)
+    assert lease_media_jobs(test_db, request) == []
+    active.status = "ready"; test_db.flush()
+    assert [job.job_id for job in lease_media_jobs(test_db, request)] == [pending.id]
+
+
 def test_job_lease_uses_agent_local_uuid_and_preserves_canonical_uuid(test_db):
     _agent(test_db)
     canonical = "11111111-1111-4111-8111-111111111111"

@@ -97,6 +97,8 @@ export type QueueDivePayload = {
 }
 
 export type QueueMediaPayload = {
+  rendition?: string | null
+  available_renditions?: string[]
   status: 'ready' | 'preparing' | 'missing'
   poster_url: string | null
   playback_url: string | null

@@ -17,9 +17,11 @@ import '../components/evaluation/evaluationA.css'
 import '../components/evaluation/evaluationHub.css'
 import AutomaticScores from '../components/evaluation/AutomaticScores'
 import JudgeTable from '../components/evaluation/JudgeTable'
+import WarmUp from '../components/evaluation/EvaluationWarmUp'
 import { getEvaluationOverview, type EvaluationOverview } from '../services/evaluationApi'
 
-const JurySession = lazy(() => import('../components/evaluation/JurySession'))
+const loadJurySession = () => import('../components/evaluation/JurySession')
+const JurySession = lazy(loadJurySession)
 
 type Tab = 'judge' | 'dives' | 'history'
 const TABS: Array<{ key: Tab; label: string }> = [
@@ -131,6 +133,7 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
     getEvaluationOverview().then(setOverview).catch(() => setFailed(true))
   }, [])
   useEffect(refresh, [refresh])
+  useEffect(() => { void loadJurySession() }, [])
 
   const resume = overview?.today.resume ?? null
   const daily = useCallback((): Active => resume
@@ -189,17 +192,5 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
       onRequests={() => setActive({ kind: 'requests' })}
       onHistory={onHistory}
     />
-  )
-}
-
-/** Three card backs bouncing on the springboard while the jury warms up. */
-function WarmUp() {
-  const { t } = useTranslation()
-  return (
-    <div className="eval-warmup" role="status">
-      <span className="eval-warmup-cards" aria-hidden><i /><i /><i /></span>
-      <span className="eval-warmup-board" aria-hidden />
-      <p>{t('evaluations.warmUp')}</p>
-    </div>
   )
 }

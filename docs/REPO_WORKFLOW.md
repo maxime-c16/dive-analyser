@@ -255,3 +255,8 @@ Review [pilot gates](design/calendar/PILOT_RELEASE_CHECKLIST.md) and
 [exact rollout/backout commands](design/calendar/PILOT_ROLLOUT.md) before
 activation. Keep the additive schema/data on app rollback; disable the timer
 and feature first. No Mac service is required.
+
+### Evaluation media rollout
+
+See [the media playback runbook](MEDIA_PLAYBACK.md) for measurements, worker
+concurrency, DNS validation, staged rollout, and rollback.
