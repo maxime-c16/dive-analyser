@@ -5,7 +5,7 @@ vi.mock('./mediaPreview', () => ({ getPreviewForPlayback: vi.fn() }))
 beforeEach(() => {
   vi.useFakeTimers()
   vi.mocked(getPreviewForPlayback).mockImplementation(async uuid => ({
-    playbackUrl: `/api/v1/media/revisions/${uuid}/play`, posterUrl: null, videoThumbUrl: null, ready: true,
+    playbackUrl: `/api/v1/media/revisions/${uuid}/play`, posterUrl: null, videoThumbUrl: null, ready: true, playbackResolved: true,
   }))
 })
 afterEach(() => { resetPreparedPlayback(); vi.useRealTimers(); vi.clearAllMocks() })
@@ -97,11 +97,19 @@ it('preloads ready preview bytes while keeping original-only warming conservativ
   vi.mocked(getPreviewForPlayback).mockImplementation(async uuid => ({
     playbackUrl: uuid === 'preview' ? '/preview.mp4' : '/original.mov',
     previewPlaybackUrl: uuid === 'preview' ? '/preview.mp4' : null,
-    posterUrl: null, videoThumbUrl: null, ready: true,
+    posterUrl: null, videoThumbUrl: null, ready: true, playbackResolved: true,
   }))
   preparePlaybackWindow(['preview', 'original'])
   await flush()
   const videos = create.mock.results.map(result => result.value).filter(value => value instanceof HTMLVideoElement) as HTMLVideoElement[]
   expect(videos.find(video => video.getAttribute('src') === '/preview.mp4')?.preload).toBe('auto')
   expect(videos.find(video => video.getAttribute('src') === '/original.mov')?.preload).toBe('metadata')
+})
+
+it('does not warm an unresolved local original after playback status fails', async () => {
+  vi.mocked(getPreviewForPlayback).mockResolvedValue({ playbackUrl: '/api/v1/media/cache/42/play', posterUrl: null, videoThumbUrl: null, ready: true })
+  const create = vi.spyOn(document, 'createElement')
+  preparePlaybackWindow(['unresolved'])
+  await flush()
+  expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(0)
 })

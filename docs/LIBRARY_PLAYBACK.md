@@ -2,8 +2,10 @@
 
 The Library player, playback cache, and native preloading window now choose
 an existing 720p/360p browser preview ahead of the camera original. A tile's
-unresolved cloud-original URL no longer starts a transfer before playback
-status can reveal a ready preview. Tile batches still request posters/status
+unresolved playback URL (local cache or cloud) no longer starts a transfer before playback
+status can reveal a ready preview. Only rendition-resolved cache entries can
+seed playback immediately; native warming skips unresolved results after a
+failed detailed status lookup. Tile batches still request posters/status
 only; the bounded playback window resolves detailed status once per cache TTL.
 Ready nearby previews use native `preload=auto`; original-only speculative
 sources retain `preload=metadata`. This remains browser-discretionary preloading.

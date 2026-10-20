@@ -73,9 +73,9 @@ function preparationLabel(state: string) {
 
 function playbackSeed(videoUuid: string) {
   const seed = videoUuid ? cachedPreview(videoUuid) : undefined
-  // A tile's cheap batch may advertise only the cloud original. Wait for
-  // playback resolution before starting that transfer ahead of a ready proxy.
-  return seed?.playbackUrl?.includes('/media/revisions/') && !seed.playbackResolved
+  // A tile's cheap batch does not identify its rendition: either a local
+  // cache URL or a cloud URL may be an original. Resolve before playback.
+  return seed?.playbackUrl && !seed.playbackResolved
     ? { ...seed, playbackUrl: null } : seed
 }
 

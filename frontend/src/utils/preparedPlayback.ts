@@ -80,7 +80,7 @@ export function warmPlaybackVideo(uuid: string) {
   if (!uuid || !canPrefetch()) return
   const epoch = generation
   void getPreviewForPlayback(uuid).then(preview => {
-    if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl) return
+    if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl || !preview.playbackResolved) return
     const entry = entries.get(uuid) ?? create(uuid)
     if (entry.active) return
     // Ready previews are small; anticipate bytes as well as metadata.

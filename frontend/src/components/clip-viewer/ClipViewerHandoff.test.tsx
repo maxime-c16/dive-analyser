@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { act, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import ClipViewer, { FEED_PUSH_DURATION_MS } from './ClipViewer'
-import { getPreview } from '../../utils/mediaPreview'
+import { getPreviewForPlayback } from '../../utils/mediaPreview'
 import type { Attempt } from '../../utils/attemptPresentation'
 
 // Regression coverage for issue #57 at the viewer level: the incoming-clip
@@ -117,7 +117,7 @@ function stubPagerEnvironment() {
 async function seedPreviewCache() {
   stubMediaFetch()
   await act(async () => {
-    await Promise.all(attempts.map((attempt) => getPreview(attempt.video_uuid!)))
+    await Promise.all(attempts.map((attempt) => getPreviewForPlayback(attempt.video_uuid!)))
   })
 }
 
