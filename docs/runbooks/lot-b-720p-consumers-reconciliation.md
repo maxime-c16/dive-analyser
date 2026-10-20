@@ -19,13 +19,16 @@ does NOT validate its quality (no HQ1080 in this lot).
   720p, falls back to 360p.
 - `backend/app/services/media_catalog.py`: ready sets, proxy/media states,
   population planning and averages accept 720p with 360p fallback; new
-  population work requests 720p, never 360p. `catalog_summary` keeps the
-  legacy `proxy_360p` key (same counts) and adds `proxy_720p`/`proxy`.
-  All three proxy keys count the same aggregated `proxy_state`, which is
-  ready when 720p *or* legacy 360p is ready: `proxy_720p` does NOT measure
-  720p-only coverage, so dashboards must not read it as true 720p counts.
-- `backend/app/services/media_recall.py`: readiness exposes `proxy_720p`
-  and `proxy` (any) alongside the legacy `proxy_360p` key.
+  population work requests 720p, never 360p. `catalog_summary` reports TRUE
+  720p coverage under `proxy_720p` (counted from ready `proxy_720p` cache
+  entries for the catalogued assets: a 360-only asset counts as `missing`
+  there, never `ready`). The generic `proxy` key and the legacy
+  `proxy_360p` key both report the same playable any-proxy state (ready
+  when 720p *or* legacy 360p is ready) for existing dashboards; neither
+  measures 720p-only coverage.
+- `backend/app/services/media_recall.py`: readiness exposes true `proxy_720p`
+  alongside the generic `proxy` (any) and the legacy `proxy_360p` key, which
+  also reports the playable any-proxy state (not 360p-only) for old dashboards.
 - `backend/app/services/representative_population.py` + schemas: Tier 1 and
   replacement endpoints accept `poster` + `proxy_720p` only.
 - `mac-agent/src/source_vault.py`: `mark_media_ready` finalises on poster +
@@ -98,7 +101,8 @@ deletes, finalises, or mutates retention.
 
 - `backend/tests/test_lot_b_720p_consumers.py`: 720p-only asset is ready
   everywhere; legacy 360p-only asset stays readable but still queues a
-  720p upgrade.
+  720p upgrade; catalog summary announces 720p only for true 720p cache
+  entries while the generic/legacy proxy keys keep any-proxy compatibility.
 - `mac-agent/tests/test_source_vault_720p_finalization.py`: 720p+poster
   finalises with grace; legacy 360p still finalises; request/failed
   transcode never finalises; cleanup skips unverified/pinned/active.

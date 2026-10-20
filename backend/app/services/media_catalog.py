@@ -223,16 +223,36 @@ def catalog_summary(db: Session, revision: int | None = None) -> dict:
     if not revision:
         return {"catalog_revision": None, "total": 0, "eligibility": {}, "media": {}, "exclusions": {}}
     rows = db.execute(select(CaptionedMediaCatalog).where(CaptionedMediaCatalog.catalog_revision == revision)).scalars().all()
+    # Lot B: proxy_720p MUST be true 720p coverage, counted from ready cache
+    # entries — never the aggregated any-proxy proxy_state (which also counts
+    # legacy 360p). A 360-only asset is playable but its 720p is missing.
+    asset_ids = {row.photos_asset_id for row in rows if row.photos_asset_id}
+    ready_720p_assets = set(db.execute(select(MediaCacheEntry.photos_asset_id).where(
+        MediaCacheEntry.photos_asset_id.in_(sorted(asset_ids)),
+        MediaCacheEntry.status == "ready",
+        MediaCacheEntry.rendition == "proxy_720p",
+    )).scalars()) if asset_ids else set()
+    proxy_any = dict(Counter(row.proxy_state for row in rows))
+    true_720p_states = []
+    for row in rows:
+        if row.photos_asset_id in ready_720p_assets:
+            true_720p_states.append("ready")
+        elif row.proxy_state == "ready":
+            # Playable through the legacy 360p fallback: 720p still missing.
+            true_720p_states.append("missing")
+        else:
+            true_720p_states.append(row.proxy_state)
     return {
         "catalog_revision": revision,
         "total": len(rows),
         "eligibility": dict(Counter(row.eligibility for row in rows)),
         "media": dict(Counter(row.media_state for row in rows)),
         "poster": dict(Counter(row.poster_state for row in rows)),
-        "proxy_720p": dict(Counter(row.proxy_state for row in rows)),
-        # Legacy key kept for existing dashboards: same counts as proxy_720p.
-        "proxy_360p": dict(Counter(row.proxy_state for row in rows)),
-        "proxy": dict(Counter(row.proxy_state for row in rows)),
+        "proxy_720p": dict(Counter(true_720p_states)),
+        # Legacy key kept for existing dashboards: playable proxy (720p or
+        # legacy 360p), identical to the generic proxy key below.
+        "proxy_360p": dict(proxy_any),
+        "proxy": dict(proxy_any),
         "exclusions": dict(Counter(row.exclusion_code for row in rows if row.exclusion_code)),
         "photos_local_state": dict(Counter(row.photos_local_state for row in rows)),
         "read_only": True,
