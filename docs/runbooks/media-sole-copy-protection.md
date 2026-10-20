@@ -59,8 +59,24 @@ without a catalog-wide write
   untouched (720p stays ~406x720 60 fps until a future durable HQ/light
   pipeline ships — outside Lots A/B; Lot B #135 only repoints 360p
   consumers and does not publish HQ/light replicas).
+- Transition guard (deploy-time only, not a code change):
+  `backend/migrations/protect_browser_safe_insert_guard.sql` is an
+  idempotent BEFORE INSERT trigger forcing ready `proxy_720p`/`poster`
+  rows pinned with NULL expiry at birth — including rows written by the
+  OLD finalizer while it is still deployed. It is installed BEFORE the
+  stock UPDATE and dropped AFTER the post-deploy reconciliation (§3);
+  teardown is `backend/migrations/drop_protect_browser_safe_insert_guard.sql`.
 
 ## 3. Babysitter procedure (apply AFTER merge, never in this lot)
+
+Why a guard, not "re-run until zero": the old finalizer keeps inserting
+while the old cleaner keeps evicting, so a stock UPDATE alone never
+converges — a sole unpinned row born after the UPDATE can be deleted
+before the post-deploy reconciliation, and re-running the UPDATE cannot
+resurrect it. The INSERT guard below stops the inflow atomically inside
+Postgres, so the procedure converges in a bounded number of steps with
+no API pause (reads AND uploads keep serving throughout; the guard is a
+sub-millisecond BEFORE INSERT trigger, not a lock).
 
 1. `git fetch origin && git status` on a checkout at the merged master SHA.
 2. Dry-run first: `ci/ship.sh server --dry-run` and read the output.
@@ -72,24 +88,49 @@ without a catalog-wide write
    plus the 360-only legacy remainder counted separately in §1 (small
    volume per audit; record the aggregate counts/bytes, no per-clip
    detail).
-4. Apply by hand (no migration runner):
+4. Install the transitional INSERT guard (idempotent, < 1 s, no table
+   rewrite, old backend keeps working — its inserts simply land pinned):
+   `psql "$DATABASE_URL" -f backend/migrations/protect_browser_safe_insert_guard.sql`
+   Verify, still read-only in effect:
+   - `SELECT count(*) FROM pg_trigger WHERE tgname =
+     'trg_protect_browser_safe_cache_entries';` → 1.
+   - Functional check inside a rolled-back transaction (writes nothing):
+     `BEGIN; WITH a AS (SELECT id FROM photos_assets LIMIT 1) INSERT INTO
+     media_cache_entries (photos_asset_id, media_key, rendition,
+     storage_path, size_bytes, status, pinned, expires_at) SELECT id,
+     'guard-verify-' || md5(random()::text), 'proxy_720p',
+     '/tmp/guard-verify.mp4', 1, 'ready', FALSE, now() FROM a RETURNING
+     pinned, expires_at;` → `t | null. `ROLLBACK;`
+     From this point on, every new ready `proxy_720p`/`poster` row is born
+     pinned with no TTL — including rows written by the OLD finalizer —
+     so neither cleaner pass can see it.
+5. Apply the stock UPDATE by hand (no migration runner):
    `psql "$DATABASE_URL" -f backend/migrations/protect_browser_safe_cache_entries.sql`
    Record the `UPDATE <n>` count but do NOT require `<n>` == preflight
-   rows_to_protect: finalizer jobs running concurrently may insert new
-   unpinned rows between preflight and apply. Safe to re-run (idempotent
-   WHERE clause). If postflight residual > 0, re-apply until 0 — including
-   once more after the new finalizer is live, in case rows finalized with
-   the old code appeared in between.
-5. Postflight: same preflight script. Gate: §4
+   rows_to_protect: concurrent jobs may have committed between preflight
+   and apply. Safe to re-run (idempotent WHERE clause).
+6. Postflight: same preflight script. Gate: §4
    `residual_unprotected_rows` MUST be 0. §5a must show zero
    browser_source/original rows touched; §5b lists shadowed 360p rows
    (720p ready present) and must show zero pinned by this migration —
-   those rows stay on the upgrade-retirement path. A non-zero residual
-   after the first apply is not a failure: re-run the migration
-   (idempotent) and re-check until the gate passes.
-6. Then deploy normally: `ci/ship.sh server` (SQL first, backend second,
+   those rows stay on the upgrade-retirement path. If residual > 0 after
+   the first apply, re-run the stock UPDATE AT MOST ONCE and re-check:
+   the only possible residual is a pre-guard transaction that committed
+   late — new unpinned inflow is stopped, so this converges. A second
+   non-zero residual is a real finding: stop and investigate, do not loop.
+7. Then deploy normally: `ci/ship.sh server` (SQL first, backend second,
    per `docs/REPO_WORKFLOW.md`). Mac deploy NOT required (no agent change).
-7. Verify: `SELECT COUNT(*) FROM media_cache_entries WHERE status='ready'
+   No API pause is needed at any step: the guard holds the invariant while
+   old AND new writers run.
+8. Final reconciliation after the new backend is live: re-run the stock
+   UPDATE once, then postflight → 0. (Catches a pre-guard late commit;
+   the new finalizer writes pinned rows itself, so no new residual can
+   appear while the guard stands.)
+9. Drop the guard (restores intentional unpinned-insert flexibility for
+   the future durable pipeline; already-pinned rows stay pinned):
+   `psql "$DATABASE_URL" -f backend/migrations/drop_protect_browser_safe_insert_guard.sql`
+   Verify: pg_trigger count → 0, then postflight residual still 0.
+10. Verify: `SELECT COUNT(*) FROM media_cache_entries WHERE status='ready'
    AND (pinned IS NOT TRUE OR expires_at IS NOT NULL)
    AND (rendition IN ('proxy_720p','poster')
      OR (rendition = 'proxy_360p'
@@ -100,14 +141,21 @@ without a catalog-wide write
 
 ## 4. Rollback
 
-No rollback SQL needed. The migration only pins rows and clears their TTL;
-reverting the backend does not unpin anything (fail-safe direction: the old
-cleaner already respects `pinned`). If a row must ever become evictable
-again, that is an explicit per-row admin unpin (`POST
-/media/cache/{id}/pin`), never a migration. Do NOT unpin sole-copy rows
-until a future durable pipeline (outside Lots A/B) publishes verified
-durable replicas and documents the unpin-on-replicate rule. Lot B (#135)
-only repoints 360p consumers; it does not authorize unpinning.
+No rollback SQL needed for the stock UPDATE: the migration only pins rows
+and clears their TTL; reverting the backend does not unpin anything
+(fail-safe direction: the old cleaner already respects `pinned`). If a
+row must ever become evictable again, that is an explicit per-row admin
+unpin (`POST /media/cache/{id}/pin`), never a migration. Do NOT unpin
+sole-copy rows until a future durable pipeline (outside Lots A/B)
+publishes verified durable replicas and documents the unpin-on-replicate
+rule. Lot B (#135) only repoints 360p consumers; it does not authorize
+unpinning.
+
+Guard rollback is instant and safe at ANY point (including mid-procedure):
+`psql "$DATABASE_URL" -f backend/migrations/drop_protect_browser_safe_insert_guard.sql`
+(DROP TRIGGER IF EXISTS + DROP FUNCTION IF EXISTS; no row deleted, no file
+touched). Old and new backends work with or without the guard; dropping
+early only re-opens the window — do not drop before step 8 passes.
 
 ## 5. Limits / non-goals
 
