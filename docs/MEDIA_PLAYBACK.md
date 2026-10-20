@@ -148,3 +148,10 @@ not measured outcomes. Missing media preparation is a separate metric.
 Do not claim production "after" results until deployment and comparable samples
 exist. Roll back through `ci/ship.sh` to the prior merged SHA if regressions
 appear; preserve the baseline and failure evidence.
+
+## Rollout checkpoint
+
+The [20 October rollout report](reviews/media-playback/rollout-2026-10-20.md)
+records verified service versions, DNS probes, the first post-deployment job
+window and the production-versus-development HDR test distinction. Playback
+first-frame targets still require comparable real browser samples.

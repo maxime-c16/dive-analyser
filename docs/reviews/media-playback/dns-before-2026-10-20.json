@@ -1,0 +1,28 @@
+{
+  "captured_at": "2026-10-20T15:46:06.489432+00:00",
+  "kind": "container_embedded_dns_b2_A_lookup",
+  "timeout_seconds": 2,
+  "samples": [
+    {
+      "result": "resolved",
+      "milliseconds": 194.25
+    },
+    {
+      "result": "resolved",
+      "milliseconds": 369.4
+    },
+    {
+      "result": "resolved",
+      "milliseconds": 803.42
+    },
+    {
+      "result": "resolved",
+      "milliseconds": 14.6
+    },
+    {
+      "result": "resolved",
+      "milliseconds": 14.32
+    }
+  ],
+  "deployed_sha": "f146e096192109c2b33feba845690fc78e8fef93"
+}
