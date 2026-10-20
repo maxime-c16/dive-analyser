@@ -17,15 +17,24 @@ does NOT validate its quality (no HQ1080 in this lot).
   proxy. Replacement creation rejects 360p.
 - `backend/app/services/dive_analysis_service.py`: attempt media prefers
   720p, falls back to 360p.
-- `backend/app/services/media_catalog.py`: ready sets, proxy/media states,
+- `backend/app/services/media_catalog.py`: ready sets, poster/media states,
   population planning and averages accept 720p with 360p fallback; new
-  population work requests 720p, never 360p. `catalog_summary` reports TRUE
-  720p coverage under `proxy_720p` (counted from ready `proxy_720p` cache
-  entries for the catalogued assets: a 360-only asset counts as `missing`
-  there, never `ready`). The generic `proxy` key and the legacy
-  `proxy_360p` key both report the same playable any-proxy state (ready
-  when 720p *or* legacy 360p is ready) for existing dashboards; neither
-  measures 720p-only coverage.
+  population work requests 720p, never 360p. Target readiness is poster +
+  TRUE 720p (`media_state` is `ready` only then; poster + legacy 360p is
+  `partial`). `proxy_state` keeps the playable any-proxy semantic (ready
+  when 720p *or* legacy 360p is ready) for existing dashboards. The plan,
+  candidates and refresh verify true 720p coverage live from ready
+  `proxy_720p` cache entries — never from the stored `media_state` alone —
+  so rows stored before this lot (poster + 360p recorded as `ready`) are
+  still scheduled for their 720p upgrade instead of counted as cached.
+  `catalog_summary` reports TRUE 720p coverage under `proxy_720p` (counted
+  from ready `proxy_720p` cache entries for the catalogued assets: a 360-only
+  asset counts as `missing` there, never `ready`). The generic `proxy` key
+  and the legacy `proxy_360p` key both report the same playable any-proxy
+  state (ready when 720p *or* legacy 360p is ready) for existing dashboards;
+  neither measures 720p-only coverage. Population growth estimates count
+  every asset missing true 720p. A job that reports `ready` without a cache
+  entry no longer recurses forever; the run waits for the next refresh.
 - `backend/app/services/media_recall.py`: readiness exposes true `proxy_720p`
   alongside the generic `proxy` (any) and the legacy `proxy_360p` key, which
   also reports the playable any-proxy state (not 360p-only) for old dashboards.
@@ -103,6 +112,12 @@ deletes, finalises, or mutates retention.
   everywhere; legacy 360p-only asset stays readable but still queues a
   720p upgrade; catalog summary announces 720p only for true 720p cache
   entries while the generic/legacy proxy keys keep any-proxy compatibility.
+- `backend/tests/test_catalog_720p_population_readiness.py`: poster+360p
+  ingests as `partial` with a playable proxy; the plan schedules the 720p
+  upgrade (including stale pre-lot rows stored as `ready`); start/refresh
+  creates exactly one `proxy_720p` job, never 360p, and does not finish
+  early; the item completes only after true 720p lands; 720p-ready assets
+  create no duplicate jobs; representative priority classes are unchanged.
 - `mac-agent/tests/test_source_vault_720p_finalization.py`: 720p+poster
   finalises with grace; legacy 360p still finalises; request/failed
   transcode never finalises; cleanup skips unverified/pinned/active.

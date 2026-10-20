@@ -24,6 +24,32 @@ RETRYABLE_PREFIXES = ("permission_", "photos_access_", "osxphotos_export_timeout
 NEW_RECALL_MIN_FREE_BYTES = 5 * 1024**3
 PROJECTED_RECALL_MIN_FREE_BYTES = 5 * 1024**3
 
+# Lot B target readiness: production needs poster + TRUE proxy_720p. A legacy
+# proxy_360p keeps the clip playable (proxy_state "ready") but never counts as
+# target readiness: media_state "ready" requires a real proxy_720p cache entry.
+# Planning and population always verify true 720p coverage live from the cache
+# because catalog rows stored before this lot may still say "ready" for a
+# poster + legacy-360p asset whose 720p upgrade never ran.
+TARGET_PROXY_RENDITION = "proxy_720p"
+LEGACY_PROXY_FALLBACK = "proxy_360p"
+
+
+def _ready_720p_asset_ids(db: Session, asset_ids: set[int]) -> set[int]:
+    """Return asset ids with a ready proxy_720p cache entry."""
+    ids = sorted(asset_id for asset_id in asset_ids if asset_id)
+    if not ids:
+        return set()
+    return set(db.execute(select(MediaCacheEntry.photos_asset_id).where(
+        MediaCacheEntry.photos_asset_id.in_(ids),
+        MediaCacheEntry.status == "ready",
+        MediaCacheEntry.rendition == TARGET_PROXY_RENDITION,
+    )).scalars())
+
+
+def _target_ready(row: CaptionedMediaCatalog, ready_720p: set[int]) -> bool:
+    """True only when poster and TRUE 720p are ready (fallback 360p excluded)."""
+    return row.poster_state == "ready" and (row.photos_asset_id in ready_720p)
+
 
 def start_catalog_run(db: Session, agent_id: str) -> MediaCatalogRun:
     agent = db.get(MediaAgent, agent_id)
@@ -141,9 +167,12 @@ def ingest_catalog_chunk(db: Session, run: MediaCatalogRun, records: list[dict],
         last_error = _error_code(jobs[0].last_error) if jobs else None
         poster_state = "ready" if "poster" in ready else "unavailable" if last_error else "missing"
         # Lot B: 720p is the production proxy; a legacy 360p keeps the clip
-        # playable until its 720p upgrade lands.
+        # playable until its 720p upgrade lands. proxy_state reports that
+        # playable fallback, while media_state tracks the production target:
+        # only poster + TRUE 720p is "ready"; poster + legacy 360p is
+        # "partial" so planning still schedules the missing 720p upgrade.
         proxy_state = "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else "unavailable" if last_error else "missing"
-        media_state = "ready" if ("poster" in ready and ("proxy_720p" in ready or "proxy_360p" in ready)) else "partial" if ready else "unavailable" if last_error else "missing"
+        media_state = "ready" if ("poster" in ready and "proxy_720p" in ready) else "partial" if ready else "unavailable" if last_error else "missing"
         local_state = "local" if record.get("local_available") else "icloud" if record.get("in_cloud") else "missing" if record.get("is_missing") else "unknown"
 
         item = db.execute(select(CaptionedMediaCatalog).where(
@@ -268,9 +297,13 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
         CaptionedMediaCatalog.eligibility == "eligible",
     )).scalars().all()
     now = datetime.utcnow()
+    # Live 720p coverage: rows stored before Lot B may still say media_state
+    # "ready" for a poster + legacy-360p asset. Target readiness is decided
+    # here from real cache entries, never from the stored media_state alone.
+    ready_720p = _ready_720p_asset_ids(db, {row.photos_asset_id for row in rows if row.photos_asset_id})
     planned = []
     for row in rows:
-        if row.media_state == "ready":
+        if _target_ready(row, ready_720p):
             priority_class, priority = "cached", 999
         elif row.representative_role == "median":
             priority_class, priority = "P1", 20
@@ -291,7 +324,9 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
     rolling_peak = min(max(int(peak_source * 2.5), 1_250_000_000), 3 * 1024**3)
     avg_poster = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready")).scalar() or 100_000
     avg_proxy = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition.in_({"proxy_720p", "proxy_360p"}), MediaCacheEntry.status == "ready")).scalar() or 300_000
-    final_growth = int(sum((0 if row.poster_state == "ready" else avg_poster) + (0 if row.proxy_state == "ready" else avg_proxy) for row, _, _ in active))
+    # A 360p-playable asset still needs its 720p upgrade: growth counts every
+    # asset missing TRUE 720p, not every asset missing any proxy.
+    final_growth = int(sum((0 if row.poster_state == "ready" else avg_poster) + (0 if row.photos_asset_id in ready_720p else avg_proxy) for row, _, _ in active))
     agent = db.get(MediaAgent, "mac-media-01")
     free = int(agent.internal_free_bytes or 0) if agent else 0
     blocked = []
@@ -302,6 +337,10 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
     if free - rolling_peak < PROJECTED_RECALL_MIN_FREE_BYTES:
         blocked.append("projected_free_space_below_recall_gate")
     counts = Counter(priority_class for _, priority_class, _ in planned)
+    pending_720p_upgrades = sum(
+        1 for row, _, _ in active
+        if row.poster_state == "ready" and row.photos_asset_id not in ready_720p
+    )
     return {
         "dry_run": True,
         "scope": scope,
@@ -310,6 +349,9 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
         "already_fully_ready": counts.get("cached", 0),
         "poster_only": sum(1 for row, _, _ in active if row.poster_state == "ready" and row.proxy_state != "ready"),
         "fully_missing": sum(1 for row, _, _ in active if row.poster_state != "ready" and row.proxy_state != "ready"),
+        # Playable through the legacy 360p fallback but still missing TRUE
+        # 720p: these assets are scheduled for a 720p upgrade, not skipped.
+        "playable_fallback_pending_720p": pending_720p_upgrades,
         "retryable": counts.get("P4", 0),
         "priority_counts": dict(counts),
         "known_source_bytes": sum(known_sizes),
@@ -323,7 +365,7 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
         "jobs_created": 0,
         "recalls_created": 0,
         "source_files_created": 0,
-        "sample": [{"catalog_item_id": row.id, "priority_class": cls, "priority": priority, "dive_code": row.canonical_dive_code} for row, cls, priority in planned[:20]],
+        "sample": [{"catalog_item_id": row.id, "priority_class": cls, "priority": priority, "dive_code": row.canonical_dive_code, "needs_720p_upgrade": row.photos_asset_id not in ready_720p} for row, cls, priority in planned[:20]],
     }
 
 
@@ -334,7 +376,6 @@ def _population_candidates(db: Session, catalog_item_ids: list[int] | None = Non
     stmt = select(CaptionedMediaCatalog).where(
         CaptionedMediaCatalog.catalog_revision == revision,
         CaptionedMediaCatalog.eligibility == "eligible",
-        CaptionedMediaCatalog.media_state != "ready",
         CaptionedMediaCatalog.id.not_in(
             select(MediaCatalogPopulationItem.catalog_item_id).where(
                 MediaCatalogPopulationItem.completed_at.is_not(None),
@@ -344,6 +385,11 @@ def _population_candidates(db: Session, catalog_item_ids: list[int] | None = Non
     if catalog_item_ids:
         stmt = stmt.where(CaptionedMediaCatalog.id.in_(catalog_item_ids))
     rows = db.execute(stmt).scalars().all()
+    # Live 720p coverage: never trust the stored media_state alone — rows
+    # stored before Lot B may say "ready" for a poster + legacy-360p asset.
+    # Only poster + TRUE 720p is a target-ready cache hit.
+    ready_720p = _ready_720p_asset_ids(db, {row.photos_asset_id for row in rows if row.photos_asset_id})
+    rows = [row for row in rows if not _target_ready(row, ready_720p)]
     now = datetime.utcnow()
     candidates = []
     for row in rows:
@@ -532,8 +578,11 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
         return refresh_catalog_population_run(db, run)
     ready = _ready_renditions(db, catalog)
     item.poster_status = "ready" if "poster" in ready else item.poster_status
+    # proxy_status reports the playable fallback (720p preferred, legacy 360p
+    # accepted) for dashboards, but the item only completes once TRUE 720p is
+    # ready: a poster + 360p asset keeps running until its 720p lands.
     item.proxy_status = "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else item.proxy_status
-    if "poster" in ready and ("proxy_720p" in ready or "proxy_360p" in ready):
+    if "poster" in ready and "proxy_720p" in ready:
         _finish_population_item(run, item, "ready")
         db.flush()
         return refresh_catalog_population_run(db, run)
@@ -567,8 +616,12 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
             return run
         return refresh_catalog_population_run(db, run)
     if job and job.status == "ready":
-        setattr(item, f"{rendition.replace('proxy_720p', 'proxy').replace('proxy_360p', 'proxy')}_status", "ready")
-        return refresh_catalog_population_run(db, run)
+        if rendition in ready:
+            setattr(item, f"{rendition.replace('proxy_720p', 'proxy').replace('proxy_360p', 'proxy')}_status", "ready")
+            return refresh_catalog_population_run(db, run)
+        # Job claims ready but the cache entry is not there yet: wait for the
+        # next refresh instead of recursing forever on the same item.
+        return run
     if not job:
         asset = db.get(PhotosAsset, catalog.photos_asset_id)
         _, job, _ = create_or_reuse_media_job(db, asset, rendition, f"catalog_population_stage_{run.stage}")
