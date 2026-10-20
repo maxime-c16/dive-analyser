@@ -193,3 +193,26 @@ def results(dive_id: int, request: Request, response: Response,
         raise HTTPException(404, 'Not found')
     _secure_headers(response)
     return service.results(db, user, dive_id, limit=limit, offset=offset)
+
+
+@router.get('/dives/{dive_id}/evaluation')
+def dive_evaluation(dive_id: int, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Player tab: which circuit takes this member's vote, and its results once allowed."""
+    from app.services import dive_evaluation as player
+    user = _require_user(request, db)
+    _secure_headers(response)
+    return player.context(db, user, player.visible_dive(db, dive_id))
+
+
+@router.post('/dives/{dive_id}/evaluation/ratings')
+def rate_dive(dive_id: int, body: RatingInput, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Player vote: the active request first, otherwise the public community circuit."""
+    from app.services import dive_evaluation as player
+    from app.services import achievements
+    _same_origin(request)
+    user = _require_user(request, db)
+    out = player.rate(db, user, player.visible_dive(db, dive_id), body.score_half_steps, (body.comment or '').strip() or None)
+    if out['circuit'] == 'request':
+        achievements.award(db, user.id, achievements.RATING)
+    _secure_headers(response)
+    return out

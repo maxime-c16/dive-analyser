@@ -372,3 +372,37 @@ export async function getEvaluationOverview(): Promise<EvaluationOverview> {
   const { data } = await api.get('/api/v1/evaluations/overview')
   return data
 }
+
+// ---------------------------------------------------------------------------
+// Player tab: one vote per member and dive, routed server-side to the active
+// request first, otherwise to the public community circuit.
+// ---------------------------------------------------------------------------
+
+export type DiveEvaluation = {
+  dive_id: number
+  /** open: can vote · rated: own vote stored · owner: own dive · closed: no circuit */
+  state: 'open' | 'rated' | 'owner' | 'closed'
+  circuit: 'request' | 'automatic' | null
+  prompt: string | null
+  /** Only for owners and members whose vote is stored. */
+  results: JuryResults | null
+  my_rating: RatingRecord | null
+  automatic_excluded?: boolean
+}
+
+export async function getDiveEvaluation(diveId: number): Promise<DiveEvaluation> {
+  const { data } = await api.get(`/api/v1/dives/${diveId}/evaluation`)
+  return data
+}
+
+export async function rateDive(
+  diveId: number,
+  scoreHalfSteps: number,
+  comment: string | null,
+): Promise<SubmissionResponse & { circuit: 'request' | 'automatic' }> {
+  const { data } = await api.post(`/api/v1/dives/${diveId}/evaluation/ratings`, {
+    score_half_steps: scoreHalfSteps,
+    comment,
+  })
+  return data
+}

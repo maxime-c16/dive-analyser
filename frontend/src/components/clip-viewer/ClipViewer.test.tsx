@@ -2,7 +2,7 @@ import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import ClipViewer, { pinchState } from './ClipViewer'
 
 vi.mock('../../services/api', () => ({ api: { get: vi.fn().mockResolvedValue({ data: { liked: false, like_count: 0, comment_count: 0 } }), put: vi.fn() } }))
@@ -84,6 +84,29 @@ const attempt = (id: number, options: Partial<Attempt> = {}): Attempt => ({
 })
 
 const attempts = [attempt(1), attempt(2), attempt(3), attempt(4), attempt(5)]
+
+/** Phone layout: overlay actions, bottom sheet, footer navigation. */
+function stubPhoneLayout() {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia')
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes('max-width: 599px'),
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent() { return false },
+    }),
+  })
+  return () => {
+    if (descriptor) Object.defineProperty(window, 'matchMedia', descriptor)
+    else delete (window as { matchMedia?: unknown }).matchMedia
+  }
+}
 
 function renderClipViewer(
   index: number,
@@ -220,18 +243,21 @@ it('the playback-rate select reports the chosen rate', async () => {
 })
 
 it('Details is closed by default and toggles secondary metadata', async () => {
+  onTestFinished(stubPhoneLayout())
   renderClipViewer(1)
   const detailsButton = screen.getByRole('button', { name: /Details/ })
   expect(detailsButton).toHaveAttribute('aria-expanded', 'false')
-  const panel = document.getElementById('clip-viewer-details')!
-  expect(panel).toHaveAttribute('hidden')
+  const sheet = document.getElementById('clip-review-panel')!
+  expect(sheet).toHaveAttribute('inert')
   await userEvent.click(detailsButton)
   expect(detailsButton).toHaveAttribute('aria-expanded', 'true')
-  expect(panel).not.toHaveAttribute('hidden')
+  expect(sheet).not.toHaveAttribute('inert')
+  expect(within(sheet).getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true')
+  const panel = document.getElementById('clip-viewer-details')!
   expect(within(panel).getByText('Raw caption')).toBeInTheDocument()
   expect(within(panel).getByText('103B G/G DB')).toBeInTheDocument()
   await userEvent.click(detailsButton)
-  expect(panel).toHaveAttribute('hidden')
+  expect(sheet).toHaveAttribute('inert')
 })
 
 it('Analysis is a secondary link that preserves the review return path', () => {
@@ -275,6 +301,7 @@ it('the dialog itself is never inert', () => {
 })
 
 it('Tab wraps from the last control back to the first inside the viewer', () => {
+  onTestFinished(stubPhoneLayout())
   const { container } = renderClipViewer(1)
   const dialog = screen.getByRole('dialog')
   const next = screen.getByRole('button', { name: 'Next' })
@@ -285,6 +312,7 @@ it('Tab wraps from the last control back to the first inside the viewer', () => 
 })
 
 it('Shift+Tab wraps from the first control to the last inside the viewer', () => {
+  onTestFinished(stubPhoneLayout())
   const { container } = renderClipViewer(1)
   const back = screen.getByRole('button', { name: 'Back to Library' })
   back.focus()
@@ -314,13 +342,14 @@ it('hidden Details content is never a Tab target', () => {
 
 
 it('swiping up the description expands details without the following click closing it', () => {
+  onTestFinished(stubPhoneLayout())
   renderClipViewer(1)
   const button = screen.getByRole('button', { name: /Details/ })
   fireEvent(button, new MouseEvent('pointerdown', { bubbles: true, clientY: 300 }))
   fireEvent(button, new MouseEvent('pointerup', { bubbles: true, clientY: 200 }))
   fireEvent.click(button, { detail: 1 })
   expect(button).toHaveAttribute('aria-expanded', 'true')
-  expect(document.getElementById('clip-viewer-details')).not.toHaveAttribute('hidden')
+  expect(document.getElementById('clip-review-panel')).not.toHaveAttribute('inert')
 })
 
 // ---- Mobile feed-pager: the dive follows the finger (TikTok/Reels-like) ----
@@ -750,4 +779,33 @@ it('pinchState maps finger travel to clean progress with a rounded overshoot', (
   expect(pinchState(true, 1.1).clean).toBe(true)
   expect(pinchState(false, 1.5)).toMatchObject({ progress: 0, overshoot: 0 })
   expect(pinchState(true, NaN)).toMatchObject({ progress: 1, clean: true })
+})
+
+// ---- Studio layout (tablets and desktops) ----
+
+it('studio shows the dive in a side panel with tabs, steps and the same-day filmstrip', async () => {
+  const day = (id: number) => attempt(id, { dive_datetime: '2026-10-18T17:00:00', dive_code: id === 3 ? '201C' : '5122D', height: '1m' })
+  const list = [day(1), day(2), day(3)]
+  const onMove = vi.fn()
+  render(
+    <MemoryRouter>
+      <ClipViewer attempt={list[0]} attempts={list} onClose={() => {}} onMove={onMove} playbackRate={1} onPlaybackRateChange={() => {}} />
+    </MemoryRouter>,
+  )
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveClass('is-studio')
+  expect(within(dialog).getByRole('heading', { name: '5122D' })).toBeInTheDocument()
+  expect(screen.getByText('Forward somersault 1 twist free')).toBeInTheDocument()
+  expect(screen.getByText(/1m springboard · DD 2.0 · Individual/)).toBeInTheDocument()
+  // One like control, in the panel; no overlay copy.
+  expect(screen.getAllByRole('button', { name: 'Like dive' })).toHaveLength(1)
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+  // Anonymous viewers get comments and details, no evaluation tab.
+  expect(screen.queryByRole('tab', { name: /Evaluation/ })).toBeNull()
+  expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true')
+  const strip = screen.getByRole('navigation', { name: 'Dives from the same day' })
+  expect(within(strip).getAllByRole('button')).toHaveLength(3)
+  expect(within(strip).getAllByRole('button')[0]).toHaveAttribute('aria-current', 'true')
+  await userEvent.click(within(strip).getByRole('button', { name: /Open 201C/ }))
+  expect(onMove).toHaveBeenCalledWith(list[2])
 })

@@ -200,7 +200,10 @@ def results(db, user, dive_id, limit=50, offset=0):
         'provisional': True, 'ratings': [payload(r) for r in rows], 'my_rating': payload(mine) if mine else None}
 
 
-def rate(db, user, dive_id, score, comment, video_uuid):
+def rate(db, user, dive_id, score, comment, video_uuid, require_assignment=True):
+    """Immutable automatic vote. The jury stack path requires the dive to be
+    assigned in the voter's selection; the player path (any eligible public
+    dive the member can watch) passes ``require_assignment=False``."""
     dive, asset = authorize(db, user, dive_id, lock=True)
     if dive.video_uuid != video_uuid:
         raise HTTPException(409, {'code': 'EVALUATION_CLOSED', 'message': 'Video changed; reload the selection'})
@@ -209,7 +212,7 @@ def rate(db, user, dive_id, score, comment, video_uuid):
         if old.score_half_steps != score or old.comment != comment:
             raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED', 'message': 'Vote is immutable'})
     else:
-        assigned = db.query(ReviewStackItem).join(ReviewStack).filter(
+        assigned = not require_assignment or db.query(ReviewStackItem).join(ReviewStack).filter(
             ReviewStack.user_id == user.id, ReviewStackItem.dive_id == dive_id, ReviewStackItem.video_uuid == video_uuid, ReviewStackItem.skipped_at.is_(None)).first()
         if not assigned or status(db, dive, asset)['status'] != 'ready':
             raise HTTPException(404, 'Not found')
@@ -223,7 +226,7 @@ def rate(db, user, dive_id, score, comment, video_uuid):
             winner = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
             if winner is None:
                 raise
-            return rate(db, user, dive_id, score, comment, video_uuid)
+            return rate(db, user, dive_id, score, comment, video_uuid, require_assignment)
     panel = results(db, user, dive_id)
     return {'rating': panel['my_rating'], 'results': panel}
 
