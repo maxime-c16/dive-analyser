@@ -1,0 +1,130 @@
+{
+  "captured_at": "2026-10-20T14:26:22.341601+00:00",
+  "window_hours": 24,
+  "queue": [
+    {
+      "status": "cancelled",
+      "rendition": "poster",
+      "jobs": 1,
+      "oldest_age_seconds": 8023747.7
+    },
+    {
+      "status": "failed",
+      "rendition": "poster",
+      "jobs": 17,
+      "oldest_age_seconds": 8912122.1
+    },
+    {
+      "status": "failed",
+      "rendition": "proxy_360p",
+      "jobs": 26,
+      "oldest_age_seconds": 8889086.3
+    },
+    {
+      "status": "ready",
+      "rendition": "poster",
+      "jobs": 1003,
+      "oldest_age_seconds": 8910099.3
+    },
+    {
+      "status": "ready",
+      "rendition": "proxy_360p",
+      "jobs": 1010,
+      "oldest_age_seconds": 8909900.3
+    },
+    {
+      "status": "ready",
+      "rendition": "proxy_720p",
+      "jobs": 1788,
+      "oldest_age_seconds": 7623727.3
+    },
+    {
+      "status": "unavailable",
+      "rendition": "poster",
+      "jobs": 340,
+      "oldest_age_seconds": 8889391.2
+    },
+    {
+      "status": "unavailable",
+      "rendition": "proxy_360p",
+      "jobs": 297,
+      "oldest_age_seconds": 8884636.8
+    },
+    {
+      "status": "unavailable",
+      "rendition": "proxy_720p",
+      "jobs": 1632,
+      "oldest_age_seconds": 7629668.8
+    }
+  ],
+  "completed_last_24h": [
+    {
+      "rendition": "poster",
+      "request_reason": "automatic_review",
+      "jobs": 6,
+      "queue_p50_seconds": 109.32439649999999,
+      "queue_p95_seconds": 145.36344375,
+      "processing_p50_seconds": 9.3257455,
+      "processing_p95_seconds": 10.570928499999999
+    },
+    {
+      "rendition": "proxy_720p",
+      "request_reason": "automatic_review",
+      "jobs": 6,
+      "queue_p50_seconds": 62.131728,
+      "queue_p95_seconds": 103.957375,
+      "processing_p50_seconds": 11.6554775,
+      "processing_p95_seconds": 16.68210925
+    },
+    {
+      "rendition": "proxy_720p",
+      "request_reason": "resolution_upgrade_720p",
+      "jobs": 985,
+      "queue_p50_seconds": 15.692386,
+      "queue_p95_seconds": 29.686265000000002,
+      "processing_p50_seconds": 14.248668,
+      "processing_p95_seconds": 26.117182199999995
+    }
+  ],
+  "cached_renditions": [
+    {
+      "rendition": "poster",
+      "status": "ready",
+      "entries": 1004,
+      "bytes": 153441568.0
+    },
+    {
+      "rendition": "proxy_360p",
+      "status": "ready",
+      "entries": 193,
+      "bytes": 57781134.0
+    },
+    {
+      "rendition": "proxy_720p",
+      "status": "ready",
+      "entries": 1123,
+      "bytes": 1214160784.0
+    }
+  ],
+  "workers": [
+    {
+      "active": true,
+      "leasing_enabled": true,
+      "photos_access_status": "ok",
+      "workers": 1,
+      "freshest_heartbeat_age_seconds": 89.152381,
+      "minimum_internal_free_bytes": 14128668672,
+      "minimum_vault_free_bytes": 14128668672
+    },
+    {
+      "active": true,
+      "leasing_enabled": false,
+      "photos_access_status": "ok",
+      "workers": 1,
+      "freshest_heartbeat_age_seconds": 6824648.537745,
+      "minimum_internal_free_bytes": 6614196224,
+      "minimum_vault_free_bytes": null
+    }
+  ],
+  "deployed_sha": "f146e096192109c2b33feba845690fc78e8fef93"
+}

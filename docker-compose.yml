@@ -29,6 +29,12 @@ services:
 
   # FastAPI Backend
   backend:
+    # The host's Google resolver times out from this bridge network, causing
+    # original playback HEAD checks to fail before a storage redirect. Docker
+    # keeps internal service discovery; use reachable upstreams for B2/SMTP.
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
     build:
       context: ./backend
       dockerfile: Dockerfile

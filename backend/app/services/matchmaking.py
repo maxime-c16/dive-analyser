@@ -92,20 +92,15 @@ def status(db, dive, asset):
 
 
 def _ready_clause():
-    """SQL readiness shared by stack allocation and bounded resume lookup."""
+    """Only assign ready browser previews, never cloud-only originals.
+
+    Original quality remains available through the authorized media route.
+    Cold clips enter a later selection after bounded background preparation.
+    """
     from app.models.media import MediaCacheEntry
-    ready = exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
+    return exists(select(1).select_from(PhotosAsset).join(MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).where(
         PhotosAsset.video_uuid == Dive.video_uuid, MediaCacheEntry.status == 'ready',
-        MediaCacheEntry.rendition.in_(('proxy_720p', 'original', 'proxy_360p'))))
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
-        from app.models.media_backbone import MediaRevision
-        backbone_ready = exists(select(1).select_from(MediaRevision).where(
-            MediaRevision.video_uuid == Dive.video_uuid, verified_original_clause()))
-        has_asset = exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))
-        ready = ready | (backbone_ready & has_asset)
-    return ready
+        MediaCacheEntry.rendition.in_(('proxy_720p', 'proxy_360p'))))
 
 
 def stack(db, user, key, size=5):
@@ -157,7 +152,7 @@ def stack(db, user, key, size=5):
         asset = db.query(PhotosAsset).filter_by(video_uuid=dive.video_uuid).first()
         if asset:
             try:
-                evaluation_access.prepare_media(db, dive, asset, reason='automatic_review')
+                evaluation_access.prepare_media(db, dive, asset, reason='automatic_review_warmup')
             except Exception:
                 db.rollback()
                 logging.getLogger(__name__).exception('Automatic review preparation failed for dive %s', dive.id)
@@ -179,8 +174,9 @@ def queue(db, user, stack_id):
         if dive.video_uuid != item.video_uuid:
             continue
         media = status(db, dive, asset)
-        if media['status'] != 'ready':
-            continue
+        # Assignment is stable even if its preview expires after allocation.
+        # Return cold media so the player can prepare/retry it; queue GETs
+        # must not enqueue work or silently remove an assigned dive.
         name = db.query(Diver.display_name).filter_by(id=dive.diver_id).scalar()
         items.append({'request_id': dive.id, 'dive_id': dive.id, 'prompt': None,
             'dive': {'id': dive.id, 'video_uuid': dive.video_uuid, 'dive_code': dive.dive_code,
@@ -252,16 +248,17 @@ def _stack_progress(db, user, row, items, voted):
 
 
 def today(db, user):
-    """Read-only UTC-day progress; load at most daily + newest playable stack."""
+    """Read-only UTC-day progress; load daily + newest resumable stack."""
     now = datetime.utcnow()
     start = datetime(now.year, now.month, now.day)
     daily_row = db.query(ReviewStack).filter_by(user_id=user.id, key='daily:' + start.date().isoformat()).first()
     voted_item = exists(select(1).where(AutomaticRating.evaluator_user_id == user.id,
         AutomaticRating.dive_id == ReviewStackItem.dive_id).correlate(ReviewStackItem))
-    playable_item = eligible(db, user).filter(Dive.id == ReviewStackItem.dive_id,
-        Dive.video_uuid == ReviewStackItem.video_uuid, _ready_clause()).exists()
+    resumable_item = eligible(db, user).filter(Dive.id == ReviewStackItem.dive_id,
+        Dive.video_uuid == ReviewStackItem.video_uuid,
+        exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))).exists()
     unfinished = exists(select(1).where(ReviewStackItem.stack_id == ReviewStack.id,
-        ReviewStackItem.skipped_at.is_(None), ~voted_item, playable_item).correlate(ReviewStack))
+        ReviewStackItem.skipped_at.is_(None), ~voted_item, resumable_item).correlate(ReviewStack))
     resume_row = db.query(ReviewStack).filter(ReviewStack.user_id == user.id,
         ReviewStack.created_at >= start, unfinished).order_by(ReviewStack.id.desc()).first()
     rows = [daily_row] if daily_row is not None else []

@@ -77,6 +77,7 @@ def processor(tmp_path):
         enabled=True, source_vault=SimpleNamespace(enabled=False), temp_dir=str(tmp_path)))
     sync = SimpleNamespace(heartbeat_media_job=AsyncMock(), fail_media_job=AsyncMock())
     proc = MediaJobProcessor.__new__(MediaJobProcessor)
+    proc._photos_lock = asyncio.Lock()
     proc.config, proc.sync_client, proc.agent_id, proc.source_vault, proc.dual_write = config, sync, "mac-media-01", None, None
     exporter = SimpleNamespace(source_for_job=AsyncMock(), cleanup_source_after_success=MagicMock())
     seen = {}
@@ -136,3 +137,29 @@ def test_photos_fallback_registers_canonical_and_reads_local(tmp_path, monkeypat
     assert trigger.args[1] == photos  # staged legacy bytes, unchanged
     assert trigger.args[2] is None  # job() carries no request_reason
     assert trigger.kwargs == {"agent_local_uuid": "local"}
+
+
+def test_parallel_jobs_serialize_photos_access(tmp_path, monkeypatch):
+    import src.media_jobs as media_jobs
+    monkeypatch.setattr(media_jobs, 'download_b2_source', AsyncMock(return_value=None))
+    proc, exporter, uploader, _ = processor(tmp_path)
+    source = tmp_path / 'photos.mov'; source.write_bytes(b'photos')
+    active = 0
+    peak = 0
+
+    async def export(*args, **kwargs):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return source
+
+    exporter.source_for_job.side_effect = export
+
+    async def exercise():
+        await asyncio.gather(proc._process_job(job()), proc._process_job({**job(), 'job_id': 8}))
+
+    asyncio.run(exercise())
+    assert peak == 1
+    assert uploader.upload_and_finalize.await_count == 2

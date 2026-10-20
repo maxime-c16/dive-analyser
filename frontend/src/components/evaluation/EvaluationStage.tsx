@@ -29,8 +29,10 @@ export default function EvaluationStage({
   children,
   hideChrome = false,
   phase,
+  preparing = false,
 }: {
   open: boolean
+  preparing?: boolean
   phase?: string
   hideChrome?: boolean
   onClose: () => void
@@ -98,13 +100,14 @@ export default function EvaluationStage({
       ref={containerRef}
       tabIndex={-1}
       data-phase={phase}
+      data-preparing={preparing ? 'true' : undefined}
       data-watching={hideChrome ? 'true' : undefined}
       data-chrome-revealed={chromeRevealed ? 'true' : undefined}
       onPointerDown={() => revealChrome(false)}
       onKeyDown={() => revealChrome(true)}
     >
       {/* The video IS the stage: full viewport layer under every overlay. */}
-      <div className="eval-stage-video">{video}</div>
+      <div className="eval-stage-video" aria-hidden={preparing || undefined} {...(preparing ? { inert: '' } : {})}>{video}</div>
       {overlays}
       <header className="eval-stage-head">
         <button type="button" className="eval-quit" onClick={onClose} aria-label={t('evaluations.quit')}>

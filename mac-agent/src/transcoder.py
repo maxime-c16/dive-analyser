@@ -39,7 +39,7 @@ class Transcoder:
         if rendition == "poster":
             output = self.temp_dir / f"{media_key}.jpg"
             cmd = [
-                self.ffmpeg_path, "-y", "-ignore_unknown", "-i", str(source),
+                self.ffmpeg_path, "-y", "-ignore_unknown", "-threads", "2", "-i", str(source),
                 "-map", "0:v:0", "-an", "-sn", "-dn", "-map_metadata", "-1",
                 "-ss", "00:00:01", "-frames:v", "1",
                 str(output),
@@ -71,7 +71,7 @@ class Transcoder:
         audio_stream_index: int | None = None,
     ) -> list[str]:
         cmd = [
-            self.ffmpeg_path, "-y", "-ignore_unknown", "-i", str(source),
+            self.ffmpeg_path, "-y", "-ignore_unknown", "-threads", "2", "-i", str(source),
             "-map", "0:v:0",
         ]
         if audio_stream_index is None:
@@ -81,7 +81,7 @@ class Transcoder:
         cmd.extend([
             "-sn", "-dn", "-map_metadata", "-1", "-map_chapters", "-1",
             "-vf", f"scale=-2:{max_height}:out_range=tv,format=yuv420p",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+            "-filter_threads", "1", "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-crf", str(crf),
             "-profile:v", "main", "-pix_fmt", "yuv420p",
             "-color_range", "tv", "-colorspace", "bt709",
             "-color_primaries", "bt709", "-color_trc", "bt709",

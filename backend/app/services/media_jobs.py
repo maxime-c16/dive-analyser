@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.models.media import MediaJob
@@ -118,10 +118,13 @@ def create_or_reuse_media_job(
 def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLeasedJob]:
     """Lease queued jobs for a Mac agent.
 
-    This is intentionally simple for Phase 3. The database partial unique index
-    prevents duplicate active jobs; later phases can add SKIP LOCKED if needed.
+    Serialize allocation across API processes, excluding sources already leased
+    by another worker. The lock lasts only until the caller commits the lease.
     """
+    if db.bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(73125, 1)"))
     reclaim_expired_media_jobs(db)
+    busy_assets = select(MediaJob.photos_asset_id).where(MediaJob.status.in_(LEASED_JOB_STATUSES))
     stmt = (
         select(MediaJob)
         .join(PhotosAsset, PhotosAsset.id == MediaJob.photos_asset_id)
@@ -129,6 +132,7 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             MediaJob.status.in_({"queued", "waiting_for_mac"}),
             MediaJob.rendition.in_(request.capabilities),
             MediaJob.attempts < MediaJob.max_attempts,
+            MediaJob.photos_asset_id.not_in(busy_assets),
         )
         .order_by(MediaJob.priority.asc(), MediaJob.created_at.asc())
         # Fetch a small ordered window, then choose at most one rendition per

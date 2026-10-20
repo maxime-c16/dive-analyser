@@ -1,0 +1,11 @@
+{
+  "id": "evaluation-buffered-transitions",
+  "date": "2026-10-20",
+  "title": "Smoother evaluation playback",
+  "body": "New evaluation selections use clips with ready previews. Explicit preparation takes priority over background warming, and the next preview downloads while you score. Playback waits for a decoded frame; replay and background jobs keep the current video stable. Diver names and dive codes stay visible over mobile video and beside it on larger screens, with a compact quality selector.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

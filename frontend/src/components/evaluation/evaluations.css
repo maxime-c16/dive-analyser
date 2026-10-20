@@ -1169,7 +1169,6 @@
 
 /* Watch first: nothing covers the take until it ends. Tap/keyboard can
    temporarily recover navigation and player controls; Escape always exits. */
-.eval-stage-root[data-watching='true']:not([data-chrome-revealed='true']) .eval-stage-head,
 .eval-stage-root[data-watching='true'] .eval-prompt-sheet,
 .eval-player[data-watching='true'] .eval-hq-hint,
 .eval-stage-root[data-watching='true']:not([data-chrome-revealed='true']) .eval-player-controls {

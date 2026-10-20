@@ -39,6 +39,7 @@ class MediaJobProcessor:
         self.transcoder = None
         self.uploader = None
         self.source_vault = None
+        self._photos_lock = asyncio.Lock()
         # P4 production dual-write: None unless BOTH flags are enabled
         # (object_store.enabled AND dual_write.enabled); None = legacy-only.
         self.dual_write = ProductionDualWrite.from_config(config)
@@ -139,12 +140,18 @@ class MediaJobProcessor:
                     b2_source = await download_b2_source(job, Path(self.config.media.temp_dir))
                 except B2SourceError as exc:
                     logger.warning("Media job %s: B2 original unusable (%s); using Photos export", job_id, exc)
-                source = b2_source or await exporter.source_for_job(
-                    video_uuid,
-                    rendition,
-                    vault_video_uuid=canonical_video_uuid,
-                    retention_class=retention_class,
-                )
+                if b2_source is not None:
+                    source = b2_source
+                else:
+                    # Multiple B2 downloads/conversions may overlap, but the
+                    # Photos/iCloud materializer must remain single-file.
+                    async with self._photos_lock:
+                        source = await exporter.source_for_job(
+                            video_uuid,
+                            rendition,
+                            vault_video_uuid=canonical_video_uuid,
+                            retention_class=retention_class,
+                        )
             finally:
                 lease_keepalive.cancel()
                 try:
@@ -306,7 +313,7 @@ async def run_media_job_loop(
     sync_client: SyncClient,
     stop_event: asyncio.Event,
 ) -> None:
-    """Run periodic media job polling while enabled."""
+    """Drain available batches; poll at the configured interval only when idle."""
     if not config.media.enabled:
         logger.info("Media job polling disabled")
         return
@@ -319,7 +326,12 @@ async def run_media_job_loop(
 
     while not stop_event.is_set():
         try:
-            await processor.process_once()
+            processed = await processor.process_once()
+            if processed > 0:
+                # Yield so shutdown and the metadata loop remain responsive,
+                # but do not add a polling interval to every queued batch.
+                await asyncio.sleep(0)
+                continue
         except Exception as e:
             logger.warning(f"Media job polling failed: {e}")
 

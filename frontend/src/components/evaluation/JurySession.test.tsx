@@ -16,9 +16,11 @@ import type { QueueBatch, SubmissionResponse } from '../../services/evaluationAp
 
 vi.mock('../DiveVideoPlayer', () => ({ default: () => <div>Video</div> }))
 let autoFinishVideo = true
-vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void }) => {
+let autoBufferVideo = true
+vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure, onBuffered, onPrepared, preloadOnly, paused }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void; onBuffered?: () => void; onPrepared?: () => void; preloadOnly?: boolean; paused?: boolean }) => {
+  React.useEffect(() => { if (autoBufferVideo) onBuffered?.() }, [requestId])
   React.useEffect(() => { if (autoFinishVideo && watching) onEnded?.() }, [requestId, watching])
-  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><span>EvalVideo</span></div>
+  return <div data-request={requestId} data-paused={paused ? 'true' : 'false'}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><button onClick={onBuffered}>Buffer video</button><button onClick={onPrepared}>Prepare video</button><span>{preloadOnly ? 'PreloadVideo' : 'EvalVideo'}</span></div>
 } }))
 vi.mock('../../services/evaluationApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../services/evaluationApi')>()
@@ -68,6 +70,7 @@ const voteResponse: SubmissionResponse = {
 beforeEach(() => {
   vi.clearAllMocks()
   autoFinishVideo = true
+  autoBufferVideo = true
   vi.mocked(createSession).mockResolvedValue({ session_id: 5, expires_at: 'tomorrow', created: true })
 })
 
@@ -91,6 +94,15 @@ it('reaches the queue on the FIRST start (async session id regression)', async (
   expect(vi.mocked(getQueue).mock.calls[0][0]).toBe(5)
   expect(vi.mocked(getQueue).mock.calls[0][1]).toEqual(expect.any(String))
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
+})
+
+it('opens a preparing first clip in the player instead of marking it closed', async () => {
+  const preparing = item(11, '107B')
+  if ('media' in preparing) preparing.media = { status: 'preparing', playback_url: null, poster_url: null }
+  vi.mocked(getQueue).mockResolvedValue({ ...batch, items: [preparing] })
+  await openFirstDive()
+  expect(screen.getByText('EvalVideo')).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 it('rotates the batch id after a consumed batch (no repeated batch)', async () => {
@@ -206,9 +218,7 @@ it('reports a closed evaluation without fake-saving', async () => {
 it('passes through the server skip endpoint and reaches the summary with the recap', async () => {
   vi.mocked(getQueue).mockResolvedValueOnce(batch)
   vi.mocked(skipRequest).mockResolvedValue(undefined)
-  render(<MemoryRouter><JurySession /></MemoryRouter>)
-  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
-  await screen.findByText('107B · 3m')
+  await openFirstDive()
   expect(screen.getByRole('button', { name: 'Quit session' })).toBeInTheDocument()
   await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
   await waitFor(() => expect(skipRequest).toHaveBeenCalledWith(5, 11))
@@ -507,4 +517,35 @@ it('uses the configured size in the automatic note and allocation', async () => 
   fireEvent.click(screen.getByRole('button', { name: /Start.*resume/i }))
   await screen.findByText('EvalVideo')
   expect(createAutomaticStack).toHaveBeenCalledWith(expect.any(String), false, 8)
+})
+
+it.each([['ready', 'Buffer video'], ['preparing', 'Buffer video'], ['ready', 'Prepare video']] as const)('keeps results visible until the %s next video can advance via %s, then reuses it', async (status, signal) => {
+  autoBufferVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce({ ...batch, items: batch.items.map(item => 'media' in item && item.request_id === 12 ? { ...item, media: { ...item.media, status } } : item) })
+  vi.mocked(submitRating).mockResolvedValueOnce(voteResponse)
+  await openFirstDive()
+  const upcoming = document.querySelector<HTMLElement>('[data-request="12"]')!
+  expect(upcoming.closest('[hidden]')).not.toBeNull()
+  await choose(11)
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
+  await screen.findByRole('img', { name: 'Your score card 6.5' })
+  await userEvent.click(screen.getByRole('button', { name: 'Next dive' }))
+  expect(screen.getByText('107B · 3m')).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: 'Your score card 6.5' })).toBeInTheDocument()
+  fireEvent.click(within(upcoming).getByText(signal))
+  await screen.findByText('105C · 3m')
+  expect(document.querySelector('[data-request="12"]')).toBe(upcoming)
+  expect(upcoming.closest('[hidden]')).toBeNull()
+})
+
+it('starts the visible player behind the first-frame overlay while keeping the next player paused', async () => {
+  autoFinishVideo = false
+  autoBufferVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  await openFirstDive()
+  expect(document.querySelector('[data-request="11"]')).toHaveAttribute('data-paused', 'false')
+  expect(document.querySelector('[data-request="12"]')).toHaveAttribute('data-paused', 'true')
+  expect(screen.getByRole('dialog')).toHaveAttribute('data-preparing', 'true')
+  fireEvent.click(within(document.querySelector<HTMLElement>('[data-request="11"]')!).getByText('Buffer video'))
+  expect(screen.getByRole('dialog')).not.toHaveAttribute('data-preparing', 'true')
 })
