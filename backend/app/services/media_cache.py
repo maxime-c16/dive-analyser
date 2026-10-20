@@ -27,6 +27,18 @@ logger = logging.getLogger(__name__)
 # row is a sole copy. Lot B (#135) only repoints 360p consumers; it does not
 # publish durable HQ/light replicas.
 #
+# Transitional legacy cover (SQL stock only, see
+# backend/migrations/protect_browser_safe_cache_entries.sql): ready
+# proxy_360p rows with NO ready proxy_720p for the same photos_asset_id are
+# still the only readable proxy of their clip and are pinned by the
+# migration until a verified 720p replaces them. The finalizer deliberately
+# does NOT pin new 360p rows (no new 360p production in this lot; Lot B
+# stops new 360p jobs) and pinned-ness never gates production: a missing
+# 360p is not an error. Pinned 360p rows never block the verified-720p
+# upgrade: advance_resolution_upgrade_runs marks the item upgraded and
+# retains (does not retire) pinned rows, while unpinned shadowed 360p rows
+# stay eligible for the planned retirement.
+#
 # Sole copies are pinned at finalization (see finalize_cache_entry) so the
 # cleaner spares them from BOTH eviction paths: TTL expiry AND quota trim.
 # Setting expires_at=NULL alone would NOT be enough: cleanup_cache evicts
