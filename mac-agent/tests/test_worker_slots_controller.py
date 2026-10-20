@@ -17,7 +17,15 @@ def controller(tmp_path, monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     config = tmp_path / 'config.yaml'
-    config.write_text('server:\n  url: https://example.invalid\n  api_key: test-placeholder\nmedia:\n  max_jobs: 1\n')
+    library = tmp_path / 'test.photoslibrary'
+    library.mkdir()
+    config.write_text(yaml.safe_dump({
+        'server': {'url': 'https://example.invalid', 'api_key': 'test-placeholder'},
+        'photos': {'library_path': str(library)},
+        'media': {'max_jobs': 1},
+    }))
+    # A home with no default Photos library catches accidental host dependencies.
+    monkeypatch.setenv('HOME', str(tmp_path / 'empty-home'))
     monkeypatch.setattr(module.shutil, 'disk_usage', lambda p: SimpleNamespace(free=50 * 1024**3))
     return module, config
 
