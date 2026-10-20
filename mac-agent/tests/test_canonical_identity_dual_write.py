@@ -313,17 +313,41 @@ def test_stage_copy_explicit_correction_overrides_stale_pin(env):
 def test_drive_explicit_correction_overrides_pin_and_drives_reads(env):
     """_drive with an explicit local UUID persists it and reads through it.
 
-    LOCAL2 is absent from Photos, so the drive must fail on the LOCAL2
-    lookup — proving the explicit identity was actually used for reads and
-    persisted, not silently replaced by the stale pin.
+    LOCAL2 is absent from Photos, so a FRESH drive (no retained staged bytes)
+    must fail on the LOCAL2 lookup — proving the explicit identity was
+    actually used for reads and persisted, not silently replaced by the
+    stale pin. With retained staged bytes bound to the old identity, the
+    same correction instead refuses with a staged-identity mismatch before
+    any Photos lookup (immutable byte binding, separate from the mutable pin).
     """
     pdw = dual_write.ProductionDualWrite.from_config(env.config)
     source = make_media_file(env.temp_root)
     staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
     assert staged is not None
+    old_bytes = staged.read_bytes()
 
-    with pytest.raises(ObjectStoreUnavailable, match="asset not found"):
+    # Retained staged bytes bound to LOCAL + correction to LOCAL2: refuse
+    # before any Photos lookup, pin persists, old bytes/binding retained.
+    with pytest.raises(ValueError, match="staged identity mismatch"):
         pdw._drive(CANON, staged, LOCAL2)
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL2
+    assert pdw._read_stage_meta(CANON)["staged_photos_uuid"] == LOCAL
+    assert staged.is_file() and staged.read_bytes() == old_bytes
+    assert env.commit_calls == []
+    pdw._release(CANON)
+
+    # Fresh drive with no retained staged bytes proves the read path uses the
+    # corrected identity: clear the stage binding/file, then the LOCAL2
+    # Photos lookup fails (LOCAL2 absent from the library).
+    pdw._set_stage_meta(
+        CANON,
+        {"agent_local_uuid": LOCAL, "request_reason": TRIGGER,
+         "activation": "continuous", "triggered_at": "2026-10-19T00:00:00Z"},
+    )
+    import shutil as _shutil
+    _shutil.rmtree(pdw.temp_root / "dual_write_staging" / CANON, ignore_errors=True)
+    with pytest.raises(ObjectStoreUnavailable, match="asset not found"):
+        pdw._drive(CANON, env.temp_root / "source.mov", LOCAL2)
     assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL2
     assert env.commit_calls == []
     pdw._release(CANON)
@@ -833,3 +857,219 @@ def test_evidence_mismatch_corrupt_journal_stays_byte_identical(env, capsys):
     assert out["outcome"] == "refused_evidence_identity_mismatch"
     assert (env.state_dir / f"{CANON}.json").read_bytes() == corrupt
     assert env.commit_calls == []
+
+
+# ---------------------------------------------------------------------------
+# Bot findings on head 38617c8 (run 39399697056): immutable staged-bytes
+# binding + canary pin-aware activation.
+#
+# High: mode_run reused any staged file with the expected size after the retry
+# pin changed. When evidence capture failed for the original local UUID, a
+# retry with a corrected UUID captured new evidence and committed the OLD
+# asset's staged bytes. The binding (`staged_photos_uuid`, effective Photos
+# UUID at acquire time) is immutable and separate from the mutable retry pin;
+# mismatches refuse before capture/commit. Legacy stage docs without a binding
+# are conservative (dual refuses, single-identity compat allowed).
+# Medium: should_process ran before the recorded pin was resolved, so a canary
+# retry omitting agent_local_uuid was refused when the allowlist named only
+# the pinned local UUID. Entry points now resolve the recorded pin first and
+# include it in the activation check.
+
+
+def _stage_old_bytes_no_evidence(env):
+    """Old staged bytes bound to LOCAL, evidence capture failed (no file)."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["staged_photos_uuid"] == LOCAL
+    # Evidence capture failed for the original UUID: no evidence file.
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    pdw._release(CANON)
+    return pdw, staged
+
+
+def test_mode_run_old_staged_no_evidence_correction_refuses_before_capture(env, capsys):
+    """High repro: old bytes + no evidence + correction refuses pre-capture."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    pdw, staged = _stage_old_bytes_no_evidence(env)
+    old_bytes = staged.read_bytes()
+
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, NEW)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_staged_identity_mismatch"
+    assert "staged identity mismatch" in out["error"]
+    # No capture happened for the new identity; old bytes/binding retained.
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    assert staged.is_file() and staged.read_bytes() == old_bytes
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["agent_local_uuid"] == NEW  # correction persists for convergence
+    assert meta["staged_photos_uuid"] == LOCAL  # binding never relabelled
+    assert env.commit_calls == []
+
+
+def test_mode_run_old_staged_no_evidence_omitted_retry_still_refuses(env, capsys):
+    """Omitted retry reuses the corrected pin and refuses the old bytes."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    pdw, staged = _stage_old_bytes_no_evidence(env)
+    assert dual_write.mode_run(env.config, CANON, None, TRIGGER, NEW) == 3
+    capsys.readouterr()
+
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_staged_identity_mismatch"
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    assert env.commit_calls == []
+    assert pdw._read_stage_meta(CANON)["staged_photos_uuid"] == LOCAL
+
+
+def test_drive_old_staged_no_evidence_correction_refuses(env):
+    """_drive with old bytes + no evidence + correction refuses pre-capture."""
+    env.db._photos[NEW] = FakePhoto(NEW)
+    pdw, staged = _stage_old_bytes_no_evidence(env)
+    with pytest.raises(ValueError, match="staged identity mismatch"):
+        pdw._drive(CANON, staged, NEW)
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    assert env.commit_calls == []
+    pdw._release(CANON)
+
+
+def test_staged_binding_set_on_copy_and_survives_early_failures(env, monkeypatch):
+    """Binding written only on successful copy; early exits never relabel."""
+    import shutil as _shutil
+    _real_disk_usage = _shutil.disk_usage
+
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    assert pdw._read_stage_meta(CANON)["staged_photos_uuid"] == LOCAL
+    old_bytes = staged.read_bytes()
+    pdw._release(CANON)
+
+    # Low-disk with a correction: pin persists, binding + provenance survive.
+    monkeypatch.setattr(
+        _shutil, "disk_usage", lambda path: _shutil._ntuple_diskusage(0, 0, 0)
+        if hasattr(_shutil, "_ntuple_diskusage")
+        else type("U", (), {"free": 0})(),
+    )
+    env.config.object_store.min_free_disk_bytes = 10**12
+    assert pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=NEW) is None
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["agent_local_uuid"] == NEW
+    assert meta["staged_photos_uuid"] == LOCAL
+    assert meta["request_reason"] == TRIGGER
+    assert staged.is_file() and staged.read_bytes() == old_bytes
+    env.config.object_store.min_free_disk_bytes = 0
+    monkeypatch.setattr(_shutil, "disk_usage", _real_disk_usage)
+    pdw._release(CANON)
+
+    # Backpressure with no evidence mismatch: skip marker only, no relabel.
+    pdw2 = dual_write.ProductionDualWrite.from_config(env.config)
+    pdw2._set_stage_meta(
+        CANON,
+        {"agent_local_uuid": LOCAL, "staged_path": str(staged),
+         "staged_bytes": len(old_bytes), "staged_photos_uuid": LOCAL,
+         "request_reason": TRIGGER, "activation": "continuous",
+         "triggered_at": "2026-10-19T00:00:00Z"},
+    )
+    pdw2._active.add("OTHER-11111111-1111-4111-8111-111111111111")
+    try:
+        assert pdw2.stage_copy(CANON, source, TRIGGER) is None
+    finally:
+        pdw2._active.discard("OTHER-11111111-1111-4111-8111-111111111111")
+    meta2 = pdw2._read_stage_meta(CANON)
+    assert meta2["staged_photos_uuid"] == LOCAL
+    assert staged.is_file() and staged.read_bytes() == old_bytes
+    pdw2._release(CANON)
+
+    # Copy failure never relabels the binding (stale-attempt cleanup may
+    # remove the old bytes before the failed copy; the binding still names
+    # the old identity — never the unacquired new bytes).
+    pdw3 = dual_write.ProductionDualWrite.from_config(env.config)
+    def _boom(*args, **kwargs):
+        raise OSError("injected copy failure")
+    monkeypatch.setattr(_shutil, "copy2", _boom)
+    with pytest.raises(OSError, match="injected copy failure"):
+        pdw3.stage_copy(CANON, source, TRIGGER)
+    assert pdw3._read_stage_meta(CANON)["staged_photos_uuid"] == LOCAL
+    assert pdw3._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL
+    assert env.commit_calls == []
+    pdw3._release(CANON)
+
+
+def test_legacy_staged_without_binding_single_compat_dual_refuses(env):
+    """Legacy stage docs: single-identity reuses, dual-identity refuses."""
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    source = make_media_file(env.temp_root)
+    staged = pdw.stage_copy(CANON, source, TRIGGER, agent_local_uuid=LOCAL)
+    assert staged is not None
+    pdw._release(CANON)
+    # Strip the binding to simulate a pre-binding stage doc.
+    meta = pdw._read_stage_meta(CANON)
+    del meta["staged_photos_uuid"]
+    pdw._set_stage_meta(CANON, meta)
+
+    # Single-identity resolution keeps compat: the staged gate allows reuse
+    # and the drive proceeds to the Photos lookup (SINGLE absent from the
+    # library, so capture fails — proving no premature staged refusal).
+    SINGLE = "11111111-1111-1111-1111-111111111111"
+    single_stage_dir = env.temp_root / "single_stage"
+    single_stage_dir.mkdir(exist_ok=True)
+    single_file = single_stage_dir / "staged.mov"
+    single_file.write_bytes(MEDIA_BYTES)
+    pdw._set_stage_meta(
+        SINGLE,
+        {"request_reason": TRIGGER, "activation": "continuous",
+         "triggered_at": "2026-10-19T00:00:00Z",
+         "staged_path": str(single_file), "staged_bytes": single_file.stat().st_size},
+    )
+    with pytest.raises(ObjectStoreUnavailable, match="asset not found"):
+        pdw._drive(SINGLE, single_file)
+    pdw._release(SINGLE)
+
+    # Dual-identity retry with unproven legacy bytes refuses before capture.
+    with pytest.raises(ValueError, match="staged identity mismatch"):
+        pdw._drive(CANON, staged, LOCAL)
+    assert env.commit_calls == []
+
+
+def test_canary_local_only_allowlist_pin_reuse_across_entrypoints(env, capsys):
+    """Medium repro: recorded pin satisfies canary activation when omitted."""
+    cohort = [
+        LOCAL,
+        "11111111-1111-1111-1111-111111111111",
+        "22222222-2222-2222-2222-222222222222",
+        "33333333-3333-3333-3333-333333333333",
+        "44444444-4444-4444-4444-444444444444",
+    ]
+    env.config.dual_write.continuous_new_ingest = False
+    env.config.dual_write.allowlist = list(cohort)
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    assert pdw is not None
+    source = make_media_file(env.temp_root)
+
+    # Explicit local activates via the allowlist (canonical alone would not).
+    assert pdw.should_process(CANON, None) is False
+    assert pdw.should_process(CANON, None, LOCAL) is True
+    staged = pdw.stage_copy(CANON, source, None, agent_local_uuid=LOCAL)
+    assert staged is not None and staged.is_file()
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL
+    pdw._release(CANON)
+
+    # Omitted retry reuses the recorded pin for activation (not refused).
+    staged2 = pdw.stage_copy(CANON, source, None)
+    assert staged2 is not None and staged2.is_file()
+    assert pdw._read_stage_meta(CANON)["agent_local_uuid"] == LOCAL
+    pdw._release(CANON)
+
+    # One-shot run with an omitted local UUID is not an activation refusal:
+    # it proceeds past activation (drives to verified commit here).
+    rc = dual_write.mode_run(env.config, CANON, None, None)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] != "refused_not_activated"
+    assert out["outcome"] == "driven"

@@ -207,6 +207,25 @@ def _resolve_agent_local_uuid(
     return None
 
 
+def _entry_is_activated(pdw, video_uuid: str, request_reason: str | None,
+                        explicit: str | None, recorded: str | None) -> bool:
+    """Activation check that includes the recorded pin.
+
+    `should_process` is evaluated with the explicit value, the recorded pin,
+    and neither (canonical-only). Any allowlisted identity activates; the
+    continuous trigger reason activates regardless. Callers must resolve
+    (validate) first so malformed values raise before this read-only check —
+    `should_process` alone would silently ignore a malformed UUID.
+    """
+    for cand in (explicit, recorded, None):
+        try:
+            if pdw.should_process(video_uuid, request_reason, cand):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 class ProductionDualWrite:
     """Legacy-primary additive object-store ingest for the production agent."""
 
@@ -328,18 +347,20 @@ class ProductionDualWrite:
         Raises on real staging errors (legacy path unaffected either way -
         the caller catches and continues).
         """
-        if not self.should_process(video_uuid, request_reason, agent_local_uuid):
-            return None
-        # Identity rule (retry-safe): a valid explicit local UUID overrides
-        # the pin and persists; an omitted argument retains the pinned
-        # identity. The chosen identity is validated BEFORE any file or state
-        # mutation, so a malformed value can never trigger an unrelated
-        # canonical Photos lookup or be persisted.
+        # Resolve BEFORE activation so a recorded pin can satisfy a
+        # canary allowlist that names only the local asset (omitted retry),
+        # and so malformed explicit/recorded values raise before any file or
+        # state mutation (never a silent canonical fallback).
+        recorded_raw = self._read_stage_meta(video_uuid).get("agent_local_uuid")
         photos_local = _resolve_agent_local_uuid(
             video_uuid,
             agent_local_uuid,
-            self._read_stage_meta(video_uuid).get("agent_local_uuid"),
+            recorded_raw,
         )
+        if not _entry_is_activated(
+            self, video_uuid, request_reason, agent_local_uuid, recorded_raw
+        ):
+            return None
         self._ensure_dirs()
         # Pin the validated identity BEFORE every early return below, so an
         # omitted retry keeps converging on the corrected identity instead of
@@ -398,6 +419,12 @@ class ProductionDualWrite:
         self._ensure_evidence_identity_consistent(
             video_uuid, photos_local or video_uuid,
             context="stage_copy", ignore_staged=True,
+        )
+        # Journal progress must not be rebound to a new identity without
+        # evidence: a correction with durable progress but no proving evidence
+        # refuses before any byte/journal mutation (pin already persists).
+        self._ensure_progress_binding_consistent(
+            video_uuid, photos_local or video_uuid, context="stage_copy",
         )
         state_store = IngestStateStore(self.state_dir / f"{video_uuid}.json")
         state_store.load(video_uuid)
@@ -479,10 +506,16 @@ class ProductionDualWrite:
                     previous,
                     photos_local,
                 )
+        # Immutable byte binding: recorded ONLY on successful copy. Early
+        # returns above (low-disk, backpressure) and copy failures never
+        # relabel old bytes. Legacy docs without a binding are handled by the
+        # staged gate in _drive/mode_run (single-identity compat, dual refuse).
+        photos_uuid = photos_local or video_uuid
         meta.update(
             {
                 "staged_path": str(target),
                 "staged_bytes": target.stat().st_size,
+                "staged_photos_uuid": photos_uuid,
                 "copy_seconds": round(copy_seconds, 3),
             }
         )
@@ -564,6 +597,103 @@ class ProductionDualWrite:
             )
         meta["agent_local_uuid"] = photos_local
         self._set_stage_meta(video_uuid, meta)
+
+    def _ensure_staged_binding_consistent(
+        self, video_uuid: str, photos_uuid: str, *, context: str,
+    ) -> bool:
+        """Refuse reuse of staged bytes bound to a different Photos identity.
+
+        Immutable binding (`staged_photos_uuid`, the effective Photos UUID the
+        bytes were acquired under) is separate from the mutable retry pin
+        (`agent_local_uuid`). A correction must never capture new evidence and
+        then commit the old asset's bytes. Any mismatch raises ValueError
+        BEFORE any evidence/byte/journal mutation, retaining old bytes.
+
+        Legacy stage docs predate the binding: when no binding is recorded,
+        single-identity runs (resolved == canonical) are allowed for
+        compatibility, but dual-identity retries are refused because the byte
+        identity cannot be proven. Binding is written only on successful
+        acquire/copy — low-disk, backpressure and copy-failure paths never
+        relabel old bytes.
+        """
+        meta = self._read_stage_meta(video_uuid)
+        staged_path = meta.get("staged_path")
+        if not staged_path or not Path(staged_path).is_file():
+            return False
+        binding = meta.get("staged_photos_uuid")
+        if isinstance(binding, str) and binding.upper() == photos_uuid.upper():
+            return False
+        progress, reason = self._journal_progress_present(video_uuid)
+        if binding is None:
+            if photos_uuid.upper() == video_uuid.upper():
+                return False  # legacy single-identity compat: bytes are canonical
+            detail = reason or "legacy staged bytes without identity binding"
+            raise ValueError(
+                f"staged identity mismatch for {video_uuid[:8]} ({context}): "
+                f"staged bytes have no recorded Photos binding and cannot be "
+                f"proven to belong to resolved {photos_uuid!r} ({detail}); "
+                f"refusing to combine unproven bytes with new evidence/commit. "
+                f"Recorded bytes retained; requires operator-reviewed recovery."
+            )
+        raise ValueError(
+            f"staged identity mismatch for {video_uuid[:8]} ({context}): "
+            f"staged bytes bound to {binding!r} != resolved {photos_uuid!r} "
+            f"({reason or 'staged bytes present'}); refusing to capture new "
+            f"evidence for one asset and commit another asset's bytes. "
+            f"Recorded bytes retained; requires operator-reviewed recovery."
+        )
+
+    def _ensure_progress_binding_consistent(
+        self, video_uuid: str, photos_uuid: str, *, context: str,
+    ) -> bool:
+        """Refuse rebinding durable journal progress without evidence.
+
+        When the journal already advanced (media identity, commit receipt, or
+        evidence bound to media) but no evidence file exists to prove the
+        resolved identity, a correction must not rebind that progress to new
+        bytes/evidence. Single-identity runs are allowed for compatibility;
+        dual-identity runs are refused before any mutation.
+        """
+        if self._read_evidence_doc(video_uuid) is not None:
+            return False  # evidence gate already validated the match
+        progress, reason = self._journal_progress_present(video_uuid)
+        if not progress:
+            return False
+        if photos_uuid.upper() == video_uuid.upper():
+            return False  # single-identity compat
+        raise ValueError(
+            f"staged identity mismatch for {video_uuid[:8]} ({context}): "
+            f"durable journal progress ({reason}) exists without evidence "
+            f"proving resolved {photos_uuid!r}; refusing to rebind progress "
+            f"to a new identity without evidence. Requires "
+            f"operator-reviewed recovery."
+        )
+
+    def _read_vault_sidecar_binding(self, video_uuid: str) -> str | None:
+        """Peek the production vault sidecar binding without a full recall.
+
+        Read-only: returns the sidecar's `agent_local_uuid` when the vault is
+        enabled and a sidecar exists, else None (no vault guard). Never raises:
+        an unreadable sidecar simply yields no guard — the later full recall
+        still validates checksums before any byte is trusted.
+        """
+        try:
+            sv_cfg = getattr(getattr(self.config, "media", None), "source_vault", None)
+            if sv_cfg is None or not getattr(sv_cfg, "enabled", False):
+                return None
+            root = Path(str(getattr(sv_cfg, "root", ""))).expanduser()
+            sidecar = root / video_uuid.upper() / "source.json"
+            if not sidecar.is_file() or sidecar.is_symlink():
+                return None
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return None
+            val = data.get("agent_local_uuid")
+            if isinstance(val, str) and UUID_PATTERN.match(val):
+                return val
+            return None
+        except Exception:
+            return None
 
     def _read_evidence_doc(self, video_uuid: str) -> dict | None:
         """Read the canonical evidence file without side effects.
@@ -936,6 +1066,16 @@ class ProductionDualWrite:
         self._ensure_evidence_identity_consistent(
             video_uuid, photos_uuid, context="drive",
         )
+        # Immutable staged-bytes binding: old retained bytes must not be
+        # committed under a corrected identity, even when evidence capture
+        # previously failed (no evidence file). Refuses before capture/ffprobe
+        # and before any journal mutation beyond the persisted pin.
+        self._ensure_staged_binding_consistent(
+            video_uuid, photos_uuid, context="drive",
+        )
+        self._ensure_progress_binding_consistent(
+            video_uuid, photos_uuid, context="drive",
+        )
         state_store.load(video_uuid)
         if state_store.state.is_terminal:
             # Race: journal turned terminal between the read-only check and
@@ -1169,18 +1309,12 @@ def mode_caption_mutation(
     if pdw is None:
         print(json.dumps({"mode": "caption-mutation", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid, request_reason, agent_local_uuid):
-        print(
-            json.dumps(
-                {"mode": "caption-mutation", "outcome": "refused_not_activated"}
-            )
-        )
-        return 3
+    recorded_raw_cm = pdw._read_stage_meta(video_uuid).get("agent_local_uuid")
     try:
         photos_local = _resolve_agent_local_uuid(
             video_uuid,
             agent_local_uuid,
-            pdw._read_stage_meta(video_uuid).get("agent_local_uuid"),
+            recorded_raw_cm,
         )
     except ValueError as exc:
         print(
@@ -1190,6 +1324,15 @@ def mode_caption_mutation(
                     "outcome": "refused_malformed_agent_local_uuid",
                     "error": str(exc),
                 }
+            )
+        )
+        return 3
+    if not _entry_is_activated(
+        pdw, video_uuid, request_reason, agent_local_uuid, recorded_raw_cm
+    ):
+        print(
+            json.dumps(
+                {"mode": "caption-mutation", "outcome": "refused_not_activated"}
             )
         )
         return 3
@@ -1435,14 +1578,12 @@ def mode_run(
     if pdw is None:
         print(json.dumps({"mode": "dual-write-run", "outcome": "refused_flags_off"}))
         return 3
-    if not pdw.should_process(video_uuid, request_reason, agent_local_uuid):
-        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_activated"}))
-        return 3
+    recorded_raw = pdw._read_stage_meta(video_uuid).get("agent_local_uuid")
     try:
         photos_local = _resolve_agent_local_uuid(
             video_uuid,
             agent_local_uuid,
-            pdw._read_stage_meta(video_uuid).get("agent_local_uuid"),
+            recorded_raw,
         )
     except ValueError as exc:
         print(
@@ -1454,6 +1595,11 @@ def mode_run(
                 }
             )
         )
+        return 3
+    if not _entry_is_activated(
+        pdw, video_uuid, request_reason, agent_local_uuid, recorded_raw
+    ):
+        print(json.dumps({"mode": "dual-write-run", "outcome": "refused_not_activated"}))
         return 3
     pdw._pin_agent_local_uuid(video_uuid, photos_local)
     photos_uuid = photos_local or video_uuid
@@ -1486,6 +1632,45 @@ def mode_run(
                 {
                     "mode": "dual-write-run",
                     "outcome": "refused_evidence_identity_mismatch",
+                    "error": str(exc)[:300],
+                }
+            )
+        )
+        return 3
+    try:
+        # Immutable staged-bytes binding BEFORE any evidence capture: old
+        # retained bytes from a failed capture must not be committed under a
+        # corrected identity. Vault sidecars are peeked read-only here for
+        # the same reason — a mismatched vault source refuses before capture.
+        pdw._ensure_staged_binding_consistent(
+            video_uuid, photos_uuid, context="dual-write-run",
+        )
+        pdw._ensure_progress_binding_consistent(
+            video_uuid, photos_uuid, context="dual-write-run",
+        )
+        _vault_binding = pdw._read_vault_sidecar_binding(video_uuid)
+        _has_staged = bool(
+            (pdw._read_stage_meta(video_uuid).get("staged_path"))
+            and Path(pdw._read_stage_meta(video_uuid).get("staged_path")).is_file()
+        )
+        if (
+            not _has_staged
+            and isinstance(_vault_binding, str)
+            and _vault_binding.upper() != photos_uuid.upper()
+        ):
+            raise ValueError(
+                f"staged identity mismatch for {video_uuid[:8]} (dual-write-run): "
+                f"production vault source bound to {_vault_binding!r} != resolved "
+                f"{photos_uuid!r}; refusing to capture new evidence for one asset "
+                f"and commit another asset's vault bytes. Requires "
+                f"operator-reviewed recovery."
+            )
+    except ValueError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "dual-write-run",
+                    "outcome": "refused_staged_identity_mismatch",
                     "error": str(exc)[:300],
                 }
             )
@@ -1541,13 +1726,52 @@ def mode_run(
             and expected_bytes
             and candidate.stat().st_size == int(expected_bytes)
         ):
+            # Binding re-check after evidence capture (defense in depth):
+            # size alone never proves identity — the recorded binding must
+            # still match the resolved Photos UUID.
+            _binding = stage_meta.get("staged_photos_uuid")
+            if isinstance(_binding, str):
+                if _binding.upper() != photos_uuid.upper():
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "dual-write-run",
+                                "outcome": "refused_staged_identity_mismatch",
+                                "error": (
+                                    f"staged identity mismatch for {video_uuid[:8]} "
+                                    f"(dual-write-run): staged bytes bound to "
+                                    f"{_binding!r} != resolved {photos_uuid!r}; "
+                                    f"refusing to commit old bytes under new evidence."
+                                )[:300],
+                            }
+                        )
+                    )
+                    return 3
+            elif photos_uuid.upper() != video_uuid.upper():
+                # Legacy staged doc without binding: dual-identity reuse is
+                # unproven — refuse (single-identity compat allowed).
+                print(
+                    json.dumps(
+                        {
+                            "mode": "dual-write-run",
+                            "outcome": "refused_staged_identity_mismatch",
+                            "error": (
+                                f"staged identity mismatch for {video_uuid[:8]} "
+                                f"(dual-write-run): legacy staged bytes without "
+                                f"binding cannot be proven for {photos_uuid!r}."
+                            )[:300],
+                        }
+                    )
+                )
+                return 3
             staged_path = candidate
     if staged_path is None:
         acquired = False
         # Production vault: the legacy pipeline's checksum-validated
         # materialization source (same bytes the transcoder consumed).
-        # Reached only after the identity gate above refused any evidence
-        # mismatch, so vault/staged bytes and evidence share one identity.
+        # Reached only after the identity gates above refused any evidence,
+        # staged-binding, progress, or vault-sidecar mismatch, so
+        # vault/staged bytes and evidence share one identity.
         try:
             sv_cfg = getattr(config.media, "source_vault", None)
             if (
@@ -1564,10 +1788,35 @@ def mode_run(
                 )
                 recalled = vault.resolve(video_uuid)
                 if recalled is not None:
+                    # Vault bytes must also prove their Photos identity: the
+                    # sidecar binding must match the resolved UUID.
+                    _vbind = pdw._read_vault_sidecar_binding(video_uuid)
+                    if (
+                        isinstance(_vbind, str)
+                        and _vbind.upper() != photos_uuid.upper()
+                    ):
+                        print(
+                            json.dumps(
+                                {
+                                    "mode": "dual-write-run",
+                                    "outcome": "refused_staged_identity_mismatch",
+                                    "error": (
+                                        f"staged identity mismatch for {video_uuid[:8]} "
+                                        f"(dual-write-run): vault source bound to "
+                                        f"{_vbind!r} != resolved {photos_uuid!r}."
+                                    )[:300],
+                                }
+                            )
+                        )
+                        return 3
                     staged_path = recalled.path
                     acquired = True
-        except Exception:
-            acquired = False
+        except Exception as exc:
+            # A structured staged-identity refusal above returns already; any
+            # other vault failure falls back to Photos materialization.
+            if isinstance(exc, SystemExit):
+                raise
+            acquired = False if staged_path is None else acquired
         if not acquired:
             from ..media_materializer import MediaMaterializer
 
@@ -1611,6 +1860,11 @@ def mode_run(
         {
             "staged_path": str(staged_path),
             "staged_bytes": staged_path.stat().st_size,
+            # Immutable byte binding for future retries: only written when
+            # bytes were successfully acquired above (staged reuse validated,
+            # vault recall validated, or fresh Photos materialization which is
+            # inherently bound to the resolved UUID).
+            "staged_photos_uuid": photos_uuid,
             "copy_seconds": stage_meta.get("copy_seconds", 0.0),
             "run_mode": "one_shot_production_runtime",
         }
@@ -1621,15 +1875,21 @@ def mode_run(
     try:
         pdw._drive(video_uuid, staged_path, photos_local)
     except ValueError as exc:
-        # Evidence/identity race refused inside the drive (evidence changed
-        # between the pre-stage check above and the drive's own gate):
-        # structured refusal, no partial commit.
+        # Identity race refused inside the drive (evidence/staged binding
+        # changed between the pre-stage checks above and the drive's own
+        # gates): structured refusal, no partial commit.
+        _msg = str(exc)
+        _outcome = (
+            "refused_staged_identity_mismatch"
+            if "staged identity mismatch" in _msg
+            else "refused_evidence_identity_mismatch"
+        )
         print(
             json.dumps(
                 {
                     "mode": "dual-write-run",
-                    "outcome": "refused_evidence_identity_mismatch",
-                    "error": str(exc)[:300],
+                    "outcome": _outcome,
+                    "error": _msg[:300],
                 }
             )
         )
