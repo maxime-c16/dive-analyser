@@ -9,7 +9,7 @@ import DiveVideoPlayer, {
   MEDIA_POLL_INTERVAL_MS,
 } from './DiveVideoPlayer'
 import { getMediaStatus, requestMedia, type MediaStatus } from '../services/mediaApi'
-import { getPreview } from '../utils/mediaPreview'
+import { getPreview, getPreviewForPlayback, resetMediaPreviews } from '../utils/mediaPreview'
 
 vi.mock('../services/mediaApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/mediaApi')>()
@@ -350,12 +350,14 @@ it('a status failure never destroys a previously known preparation state present
 
 // ---- Fast path: the shared preview cache seeds instant open/swipe ----
 
-async function seedPreviewCache(uuid: string, playbackUrl: string | null) {
+async function seedPreviewCache(uuid: string, playbackUrl: string | null, resolved = true) {
+  resetMediaPreviews()
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ [uuid]: { status: 'ready', poster_url: '/seeded.jpg', playback_url: playbackUrl } }),
   }))
-  const previews = [getPreview(uuid)]
+  if (resolved && playbackUrl) vi.mocked(getMediaStatus).mockResolvedValueOnce({ ...ready, playback_url: playbackUrl, poster_url: '/seeded.jpg' })
+  const previews = [resolved ? getPreviewForPlayback(uuid) : getPreview(uuid)]
   await act(async () => { await vi.advanceTimersByTimeAsync(50) })
   return Promise.all(previews)
 }
@@ -415,6 +417,7 @@ it('a preview known to lack playback never fakes a ready clip', async () => {
 // failures — with stale frame callbacks unable to reveal another generation.
 
 async function seedPreviewNow(uuid: string, playbackUrl: string | null, posterUrl: string | null = '/seeded.jpg') {
+  resetMediaPreviews()
   vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input).includes('/api/v1/media/status/batch')) {
       return {
@@ -426,7 +429,8 @@ async function seedPreviewNow(uuid: string, playbackUrl: string | null, posterUr
     }
     return { ok: true, body: null, json: async () => ({}) }
   }))
-  await act(async () => { await getPreview(uuid) })
+  if (playbackUrl) vi.mocked(getMediaStatus).mockResolvedValueOnce({ ...ready, playback_url: playbackUrl, poster_url: posterUrl })
+  await act(async () => { await getPreviewForPlayback(uuid) })
 }
 
 const cover = () => document.querySelector('[data-testid="clip-cover"]')
@@ -876,4 +880,62 @@ it('play/scrub affordances wait for the presented frame while gestures stay live
   expect(document.querySelector('.clip-transport')).not.toBeNull()
   expect(document.querySelector('.clip-progress')).not.toBeNull()
   expect(document.querySelector('.clip-play-indicator')).not.toBeNull()
+})
+
+it('starts on the preview and only loads the original after an explicit quality choice', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...ready, full_quality_url: '/camera-hlg.mov', playback_url: '/camera-hlg.mov', preview_url: '/sdr-720.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="preview-first" immersive />)
+  const video = await screen.findByLabelText('103B 1m dive video')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-720.mp4'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  expect(video).toHaveAttribute('src', '/camera-hlg.mov')
+  fireEvent.error(video)
+  fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
+  expect(video).toHaveAttribute('src', '/sdr-720.mp4')
+})
+
+it.each(['/api/v1/media/revisions/42/play', '/api/v1/media/cache/42/play'])('resolves an unresolved tile original before starting its preview (%s)', async url => {
+  vi.useFakeTimers()
+  await seedPreviewCache('cloud-seed', url, false)
+  let finish!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(resolve => { finish = resolve }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="cloud-seed" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).not.toHaveAttribute('src')
+  await act(async () => { finish({ ...ready, playback_url: url, full_quality_url: url, preview_url: '/resolved-preview.mp4' }) })
+  expect(video).toHaveAttribute('src', '/resolved-preview.mp4')
+})
+
+it('keeps a presented seeded preview when status discovers a higher preview quality', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('stable-seed', '/sdr-360.mp4')
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="stable-seed" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  Object.defineProperty(video, 'readyState', { configurable: true, value: 2 })
+  fireEvent.loadedData(video)
+  await act(async () => { await vi.advanceTimersByTimeAsync(32) })
+  await act(async () => { resolve({ ...ready, full_quality_url: '/original.mov', preview_url: '/sdr-720.mp4', cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/sdr-360.mp4' }, { id: 2, rendition: 'proxy_720p', playback_url: '/sdr-720.mp4' }] }) })
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+})
+
+it('keeps seeded quality choices and preview recovery when status revalidation fails', async () => {
+  vi.useFakeTimers()
+  resetMediaPreviews()
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ 'seed-quality': { status: 'ready', playback_url: '/api/v1/media/cache/42/play', poster_url: '/poster.jpg' } }) }))
+  vi.mocked(getMediaStatus).mockResolvedValueOnce({ ...ready, playback_url: '/api/v1/media/cache/42/play', full_quality_url: '/original.mov', preview_url: '/preview.mp4' })
+  const resolved = getPreviewForPlayback('seed-quality')
+  await act(async () => { await vi.advanceTimersByTimeAsync(50); await resolved })
+  vi.mocked(getMediaStatus).mockRejectedValue(new Error('status offline'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="seed-quality" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).toHaveAttribute('src', '/preview.mp4')
+  expect(screen.getByRole('button', { name: 'Change video quality' })).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(INITIAL_STATUS_ATTEMPTS * 2000) })
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  expect(video).toHaveAttribute('src', '/original.mov')
+  fireEvent.error(video)
+  fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
+  expect(video).toHaveAttribute('src', '/preview.mp4')
 })

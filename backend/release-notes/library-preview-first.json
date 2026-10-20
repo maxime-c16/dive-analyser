@@ -1,0 +1,8 @@
+{
+  "id": "library-preview-first",
+  "date": "2026-10-20",
+  "title": "Faster Library video playback",
+  "body": "Library videos start with a ready preview when available. Nearby previews preload ahead of navigation, and a video that has started stays on its chosen quality. Use the quality button to watch the original, or return to the preview if it cannot play.",
+  "audience": "all",
+  "components": ["frontend"]
+}

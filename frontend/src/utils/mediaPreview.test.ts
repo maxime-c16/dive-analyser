@@ -45,7 +45,7 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   expect(withoutPoster.playbackUrl).toBe('/play2');
   expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
 });
-it('uses the original from the first frame even when a local 720p preview exists', async () => {
+it('starts with the 720p preview while preserving explicit original access', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
     url.endsWith('/batch') ? { 'hq': { status: 'ready', playback_url: '/api/v1/media/revisions/123/play' } }
       : { status: 'ready', playback_url: '/api/v1/media/revisions/123/play', cache_entries: [
@@ -58,11 +58,11 @@ it('uses the original from the first frame even when a local 720p preview exists
   const pending = getPreviewForPlayback('hq')
   await vi.advanceTimersByTimeAsync(50)
   const preview = await pending
-  expect(preview.playbackUrl).toBe('/api/v1/media/revisions/123/play')
+  expect(preview.playbackUrl).toBe('/hq-preview.mp4')
   expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/123/play')
   expect(cachedPreview('hq')).toEqual(preview)
 })
-it('never starts on the 360p preview when only it and the B2 original exist', async () => {
+it('starts with the 360p preview when it and the B2 original exist', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
     url.endsWith('/batch') ? { 'sd': { status: 'ready', playback_url: '/api/v1/media/revisions/9/play' } }
       : { status: 'ready', playback_url: '/api/v1/media/revisions/9/play', cache_entries: [
@@ -74,8 +74,8 @@ it('never starts on the 360p preview when only it and the B2 original exist', as
   const pending = getPreviewForPlayback('sd')
   await vi.advanceTimersByTimeAsync(50)
   const preview = await pending
-  expect(preview.playbackUrl).toBe('/api/v1/media/revisions/9/play')
-  expect(preview.playbackUrl).not.toBe('/small.mp4')
+  expect(preview.playbackUrl).toBe('/small.mp4')
+  expect(preview.originalPlaybackUrl).toBe('/api/v1/media/revisions/9/play')
 })
 it('does not let a pre-logout status response repopulate the next account cache', async () => {
   let resolve!: (response: unknown) => void

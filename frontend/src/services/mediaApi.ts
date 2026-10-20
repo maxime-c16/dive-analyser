@@ -54,9 +54,24 @@ export async function requestMedia(
   return response.json()
 }
 
-/** Full quality is the default; preview fallback requires a visible choice. */
+/** Ready browser previews avoid large/HDR camera originals on startup. */
+export function getPreviewPlaybackUrl(status: MediaStatus): string | null {
+  return status.preview_url
+    || status.cache_entries?.find(entry => entry.rendition === 'proxy_720p' && entry.playback_url)?.playback_url
+    || status.cache_entries?.find(entry => entry.rendition === 'proxy_360p' && entry.playback_url)?.playback_url
+    || null
+}
+
+export function getOriginalPlaybackUrl(status: MediaStatus): string | null {
+  const previews = [status.preview_url, ...status.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []]
+  return status.full_quality_url
+    || status.cache_entries?.find(entry => entry.rendition === 'original' && entry.playback_url)?.playback_url
+    || (!previews.includes(status.playback_url) ? status.playback_url : null)
+    || null
+}
+
 export function getPlaybackUrlFromStatus(status: MediaStatus, _preferInstantHq = false): string | null {
-  return status.full_quality_url || status.playback_url || null
+  return getPreviewPlaybackUrl(status) || getOriginalPlaybackUrl(status) || status.playback_url || null
 }
 
 export function getPosterUrlFromStatus(status: MediaStatus): string | null {
