@@ -297,7 +297,7 @@ export default function EvaluationPlayer({
   // browser still grants the gesture context, fall back silently otherwise
   // (iOS); no promise of guaranteed audio autoplay.
   useEffect(() => {
-    if (playback.kind !== 'ready' || paused) return
+    if (playback.kind !== 'ready' || paused || !source.src) return
     const video = videoRef.current
     if (!video || userPausedRef.current) return
     const start = async () => {

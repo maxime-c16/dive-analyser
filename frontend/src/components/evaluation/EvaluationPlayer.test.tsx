@@ -264,3 +264,25 @@ it('uses newly ready renditions when the existing first-frame timer expires', as
     vi.useRealTimers()
   }
 })
+
+it('recovers a stalled preview download through the next ready rendition', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: vi.fn(() => 'blob:recovered-preview'), revokeObjectURL: vi.fn() }))
+  vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]))))
+  let dispose = () => {}
+  try {
+    const initialMedia = { request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready' as const, rendition: 'proxy_720p', poster_url: null, playback_url: '/play', available_renditions: ['proxy_720p', 'proxy_360p'] }
+    const onFailure = vi.fn()
+    const { container, unmount } = render(<EvaluationPlayer requestId={7} initialMedia={initialMedia} watching onFailure={onFailure} />)
+    dispose = unmount
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(fetch).mock.calls[1][0]).toContain('rendition=proxy_360p')
+    expect(container.querySelector('video')).toHaveAttribute('src', 'blob:recovered-preview')
+    expect(onFailure).not.toHaveBeenCalled()
+  } finally {
+    dispose()
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  }
+})

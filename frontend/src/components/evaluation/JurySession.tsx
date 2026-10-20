@@ -454,7 +454,7 @@ export default function JurySession({
                     onEnded={active ? () => setWatching(false) : undefined}
                     onReplay={active && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? replayDive : undefined}
                     onFailure={active ? () => { setWatching(false); setPhase({ kind: 'media-unavailable', item, reason: 'missing' }) } : () => setUnavailable(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
-                    paused={(active && preparingFirstFrame) || !active || !watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
+                    paused={!active || !watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
                   />
                 </div>
               })}

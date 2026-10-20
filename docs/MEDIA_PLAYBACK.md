@@ -67,6 +67,9 @@ reported as a temporary workaround; it does not validate browser playback.
   may still load after promotion; this readiness signal does not claim that
   the streaming file is downloaded or decoded.
   The decode timeout starts after the visible source exists.
+  The visible source starts playback behind the first-frame overlay; the
+  overlay never pauses startup. Preview fetch and body reads share a 30 s
+  deadline, with aborted/stalled downloads routed through rendition fallback.
 - Compose DNS upstreams change to 1.1.1.1/1.0.0.1 after observed Docker DNS
   failures. Recreate the backend via normal deployment, then verify actual B2
   access; a LAN frontend preview does not apply this production setting.

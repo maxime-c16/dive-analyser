@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import useEvaluationVideoSource from './useEvaluationVideoSource'
+import useEvaluationVideoSource, { PREVIEW_DOWNLOAD_TIMEOUT_MS } from './useEvaluationVideoSource'
 
 const createObjectURL = vi.fn((_blob: Blob) => 'blob:preview')
 const revokeObjectURL = vi.fn()
@@ -9,7 +9,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   createObjectURL.mockClear(); revokeObjectURL.mockClear()
 })
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 it('buffers an authenticated preview before exposing its playable source and releases it on unmount', async () => {
   vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'video/mp4' } }))
@@ -51,5 +51,21 @@ it('aborts a pending transfer and ignores completion after the evaluation player
   unmount()
   expect(signal?.aborted).toBe(true)
   await act(async () => { finish(new Response(new Uint8Array([1, 2, 3]))) })
+  expect(createObjectURL).not.toHaveBeenCalled()
+})
+
+it.each(['headers', 'body'] as const)('bounds a stalled preview %s and ignores its late completion', async stage => {
+  vi.useFakeTimers()
+  let finish!: (response: Response) => void
+  if (stage === 'headers') vi.mocked(fetch).mockReturnValue(new Promise(resolve => { finish = resolve }))
+  else vi.mocked(fetch).mockResolvedValue(new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array([1])) } })))
+  const { result } = renderHook(() => useEvaluationVideoSource('/evaluation/stalled', 'proxy_720p'))
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  expect(result.current.src).toBeUndefined()
+  await act(async () => { await vi.advanceTimersByTimeAsync(PREVIEW_DOWNLOAD_TIMEOUT_MS) })
+  expect(result.current.error?.message).toContain('timed out')
+  expect(vi.mocked(fetch).mock.calls[0][1]?.signal?.aborted).toBe(true)
+  if (stage === 'headers') await act(async () => { finish(new Response(new Uint8Array([1, 2, 3]))) })
+  expect(result.current.src).toBeUndefined()
   expect(createObjectURL).not.toHaveBeenCalled()
 })

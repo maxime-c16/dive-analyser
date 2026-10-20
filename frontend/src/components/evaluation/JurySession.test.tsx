@@ -17,10 +17,10 @@ import type { QueueBatch, SubmissionResponse } from '../../services/evaluationAp
 vi.mock('../DiveVideoPlayer', () => ({ default: () => <div>Video</div> }))
 let autoFinishVideo = true
 let autoBufferVideo = true
-vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure, onBuffered, onPrepared, preloadOnly }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void; onBuffered?: () => void; onPrepared?: () => void; preloadOnly?: boolean }) => {
+vi.mock('./EvaluationPlayer', () => ({ default: ({ requestId, onEnded, watching, onFailure, onBuffered, onPrepared, preloadOnly, paused }: { requestId: number; onEnded?: () => void; watching?: boolean; onFailure?: () => void; onBuffered?: () => void; onPrepared?: () => void; preloadOnly?: boolean; paused?: boolean }) => {
   React.useEffect(() => { if (autoBufferVideo) onBuffered?.() }, [requestId])
   React.useEffect(() => { if (autoFinishVideo && watching) onEnded?.() }, [requestId, watching])
-  return <div data-request={requestId}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><button onClick={onBuffered}>Buffer video</button><button onClick={onPrepared}>Prepare video</button><span>{preloadOnly ? 'PreloadVideo' : 'EvalVideo'}</span></div>
+  return <div data-request={requestId} data-paused={paused ? 'true' : 'false'}><button onClick={onEnded}>Finish video</button><button onClick={onFailure}>Fail video</button><button onClick={onBuffered}>Buffer video</button><button onClick={onPrepared}>Prepare video</button><span>{preloadOnly ? 'PreloadVideo' : 'EvalVideo'}</span></div>
 } }))
 vi.mock('../../services/evaluationApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../services/evaluationApi')>()
@@ -536,4 +536,16 @@ it.each([['ready', 'Buffer video'], ['preparing', 'Buffer video'], ['ready', 'Pr
   await screen.findByText('105C · 3m')
   expect(document.querySelector('[data-request="12"]')).toBe(upcoming)
   expect(upcoming.closest('[hidden]')).toBeNull()
+})
+
+it('starts the visible player behind the first-frame overlay while keeping the next player paused', async () => {
+  autoFinishVideo = false
+  autoBufferVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  await openFirstDive()
+  expect(document.querySelector('[data-request="11"]')).toHaveAttribute('data-paused', 'false')
+  expect(document.querySelector('[data-request="12"]')).toHaveAttribute('data-paused', 'true')
+  expect(screen.getByRole('dialog')).toHaveAttribute('data-preparing', 'true')
+  fireEvent.click(within(document.querySelector<HTMLElement>('[data-request="11"]')!).getByText('Buffer video'))
+  expect(screen.getByRole('dialog')).not.toHaveAttribute('data-preparing', 'true')
 })
