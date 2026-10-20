@@ -10,13 +10,14 @@
 .eval-stage-head-center { min-width: 0; flex: 1; display: flex; gap: 8px; align-items: center; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; border-radius: 0; }
 .eval-head-owner, .eval-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .eval-quit, .eval-prompt-toggle { width: 44px; height: 44px; min-width: 44px; border-radius: 999px; background: #0d1113b3; border: 1px solid var(--app-border-strong); box-shadow: none; backdrop-filter: none; }
-.eval-stage-video { position: absolute; inset: 60px var(--eval-panel-width) 0 0; }
+.eval-stage-root .eval-stage-video { position: absolute; inset: 60px var(--eval-panel-width) 0 0; }
 .eval-player { position: absolute; inset: 0; padding: 0; border: 0; display: block; overflow: hidden; background: #000; }
 .eval-player video { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; object-fit: contain; border: 0; border-radius: 0; touch-action: none; }
-.eval-player-controls { position: absolute; left: 50%; right: auto; top: auto; bottom: 10px; flex-direction: row; transform: translateX(-50%); display: flex; max-width: calc(100% - 16px); gap: 4px; padding: 4px; border: 0; border-radius: 999px; background: #0008; box-shadow: none; }
-.eval-player-controls button { flex: none; width: 44px; height: 44px; min-width: 44px; min-height: 44px; border: 1px solid var(--app-border-strong); border-radius: 999px; background: #0d1113b3; }
-.eval-stage-dock { position: absolute; inset: 60px 0 0 auto; width: var(--eval-panel-width); max-width: none; margin: 0; padding: 0; display: flex; }
-.eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { flex: 1; min-height: 0; height: 100%; max-height: none; display: flex; flex-direction: column; gap: 12px; padding: 20px 16px 0; border: 0; border-radius: 0; background: var(--app-panel); box-shadow: none; backdrop-filter: none; overflow: hidden; }
+/* Keep the compact toolbar when lazy routing loads evaluations.css later. */
+.eval-stage-root .eval-player-controls { position: absolute; left: 50%; right: auto; top: auto; bottom: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; transform: translateX(-50%); display: flex; width: max-content; max-width: calc(100% - 16px); gap: 4px; padding: 4px; border: 0; border-radius: 999px; background: #0008; box-shadow: none; }
+.eval-stage-root .eval-player-controls button { flex: none; width: 44px; height: 44px; min-width: 44px; min-height: 44px; border: 1px solid var(--app-border-strong); border-radius: 999px; background: #0d1113b3; }
+.eval-stage-root .eval-stage-dock { position: absolute; inset: 60px 0 0 auto; width: var(--eval-panel-width); max-width: none; margin: 0; padding: 0; display: flex; }
+.eval-stage-root .eval-stage-dock > .eval-judging, .eval-stage-root .eval-stage-dock > .eval-reveal { flex: 1; min-height: 0; height: 100%; max-height: none; display: flex; flex-direction: column; gap: 12px; padding: 20px 16px 0; border: 0; border-radius: 0; background: var(--app-panel); box-shadow: none; backdrop-filter: none; overflow: hidden; }
 .eval-score-input { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
 .eval-score-card { display: grid; justify-items: center; gap: 4px; padding: 0; min-width: 0; min-height: 0; }
 .eval-score-card .eval-card { --eval-card-w: clamp(76px,14dvh,118px); border-radius: 3px; }
@@ -69,13 +70,13 @@
 .eval-recap-list .eval-card { --eval-card-w: 40px; }
 @media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
   .eval-stage-root { top: var(--eval-visible-top,0px); height: var(--eval-visible-height,100dvh); --eval-panel-width: 100%; }
-  .eval-stage-video { inset: 56px 0 300px; }
+  .eval-stage-root .eval-stage-video { inset: 56px 0 300px; }
   .eval-stage-head { height: 56px; }
   .eval-stage-head-center { flex-wrap: wrap; gap: 2px 8px; }
   .eval-head-owner { flex-basis: 100%; font-size: 14px; }
   .eval-stage-head .eval-meta, .eval-stage-head .eval-count { font-size: 11px; }
-  .eval-stage-dock { top: auto; height: 300px; }
-  .eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { padding: 8px 10px 0; gap: 6px; }
+  .eval-stage-root .eval-stage-dock { top: auto; height: 300px; }
+  .eval-stage-root .eval-stage-dock > .eval-judging, .eval-stage-root .eval-stage-dock > .eval-reveal { padding: 8px 10px 0; gap: 6px; }
   .eval-score-input { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 10px; flex: 1; align-content: start; }
   .eval-score-card { align-self: start; }
   .eval-score-card .eval-card { --eval-card-w: 48px; }
@@ -91,13 +92,13 @@
   .eval-results-peers { grid-column: 2; grid-row: 2; justify-content: start; gap: 8px; }
   .eval-results-peers .eval-card { --eval-card-w: 36px; }
   .eval-jury-pagination { grid-column: 2; grid-row: 3; justify-content: start; }
-  .eval-keyboard-open .eval-stage-video { visibility: hidden; }
-  .eval-keyboard-open .eval-stage-dock { height: min(300px,calc(100% - 56px)); }
+  .eval-stage-root.eval-keyboard-open .eval-stage-video { visibility: hidden; }
+  .eval-stage-root.eval-keyboard-open .eval-stage-dock { height: min(300px,calc(100% - 56px)); }
 }
 @media (max-width: 599px) { .eval-player[data-watching=true] video { transform: scale(calc(var(--eval-cover,1) * 1.002)); } }
 @media (orientation: landscape) and (max-height: 500px) {
-  .eval-stage-video { inset: 56px min(420px,55vw) 0 0; }
-  .eval-stage-dock { width: min(420px,55vw); top: 56px; height: auto; }
+  .eval-stage-root .eval-stage-video { inset: 56px min(420px,55vw) 0 0; }
+  .eval-stage-root .eval-stage-dock { width: min(420px,55vw); top: 56px; height: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .eval-card-raised { animation: none; } }
 
@@ -108,7 +109,7 @@
 
 .eval-card-number.is-two { transform: scaleX(.46); }
 
-.eval-stage-dock > .eval-judging > .eval-score-input { flex: 1; }
+.eval-stage-root .eval-stage-dock > .eval-judging > .eval-score-input { flex: 1; }
 @media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
   .eval-judge-actions .eval-pass { padding: 6px 10px; }
 }
@@ -116,8 +117,8 @@
 .eval-card-spiral { background: none; border-radius: 0; padding: 0; }
 .eval-card-spiral line { stroke: #3c3c3a; stroke-width: 3.2; vector-effect: non-scaling-stroke; }
 .eval-card-spiral ellipse { fill: none; stroke: #6d6d69; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-.eval-player-controls .eval-sound-on { background: #54beab26; }
-.eval-stage-dock > .eval-judging, .eval-stage-dock > .eval-reveal { position: relative; }
+.eval-stage-root .eval-player-controls .eval-sound-on { background: #54beab26; }
+.eval-stage-root .eval-stage-dock > .eval-judging, .eval-stage-root .eval-stage-dock > .eval-reveal { position: relative; }
 
 /* Action row: icon buttons stay square; Confirm takes the remaining width. */
 .eval-judge-actions .eval-confirm { flex: 1; }
@@ -157,7 +158,7 @@
 .eval-preparation-actions button { flex: 1; min-height: 48px; padding: 10px 16px; }
 
 /* Quality is a labelled pill; circular targets remain for icon controls. */
-.eval-player-controls .eval-quality-toggle { width: auto; min-width: 62px; padding: 0 12px; white-space: nowrap; font-size: 12px; font-weight: 650; }
+.eval-stage-root .eval-player-controls .eval-quality-toggle { width: auto; min-width: 62px; padding: 0 12px; white-space: nowrap; font-size: 12px; font-weight: 650; }
 
 /* While watching on larger screens, identity occupies the judging side rail
    rather than covering any part of the dive picture. */
@@ -182,7 +183,7 @@
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-meta { font-size: 13px; }
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-count { position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 16px; padding: 5px 8px; border-radius: 999px; background: #0d1113b3; }
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-prompt-toggle { position: absolute; right: 10px; top: calc(8px + env(safe-area-inset-top)); pointer-events: auto; }
-  .eval-player-controls { bottom: calc(10px + env(safe-area-inset-bottom)); gap: 2px; }
-  .eval-player-controls .eval-quality-toggle { min-width: 58px; padding: 0 8px; }
+  .eval-stage-root .eval-player-controls { bottom: calc(10px + env(safe-area-inset-bottom)); gap: 2px; }
+  .eval-stage-root .eval-player-controls .eval-quality-toggle { min-width: 58px; padding: 0 8px; }
 }
 .eval-stage-root[data-preparing=true] .eval-stage-head-center { visibility: hidden; }

@@ -88,46 +88,94 @@ test('a failed download stays in one error view and Retry performs a fresh downl
   await expect.poll(() => page.locator('video').first().evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0)
 })
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-  test(`keeps identity visible and quality text contained at ${viewport.width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport)
-    await page.route('**/api/**', async route => {
-      const url = route.request().url()
-      if (url.includes('/media/play')) { await route.fulfill({ contentType: 'video/mp4', body: clip }); return }
-      let json: unknown = {}
-      if (url.endsWith('/stacks')) json = { session_id: 5 }
-      if (url.includes('/queue')) json = { batch_id: 'fixture', has_more: false, items: [{ request_id: 1, dive_id: 1, prompt: null, dive: { id: 1, video_uuid: 'fixture-1', dive_code: '101B', height: '3m', owner_display_name: 'Reviewer' }, media: media(1) }] }
-      if (url.includes('/media/status')) json = media(1)
-      await route.fulfill({ json })
+for (const viewport of [
+  { width: 320, height: 568 }, { width: 375, height: 667 },
+  { width: 390, height: 844 }, { width: 430, height: 932 },
+  { width: 568, height: 320 }, { width: 844, height: 390 },
+  { width: 599, height: 800 }, { width: 600, height: 800 },
+  { width: 768, height: 1024 }, { width: 1024, height: 768 },
+  { width: 1280, height: 720 }, { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]) {
+  for (const lateBaseStyles of [false, true]) {
+    test(`keeps identity visible and quality text contained at ${viewport.width}x${viewport.height} (late base styles: ${lateBaseStyles})`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport)
+      await page.route('**/api/**', async route => {
+        const url = route.request().url()
+        if (url.includes('/media/play')) { await route.fulfill({ contentType: 'video/mp4', body: clip }); return }
+        let json: unknown = {}
+        if (url.endsWith('/stacks')) json = { session_id: 5 }
+        if (url.includes('/queue')) json = { batch_id: 'fixture', has_more: false, items: [{ request_id: 1, dive_id: 1, prompt: null, dive: { id: 1, video_uuid: 'fixture-1', dive_code: '101B', height: '3m', owner_display_name: 'Reviewer' }, media: media(1) }] }
+        if (url.includes('/media/status')) json = media(1)
+        await route.fulfill({ json })
+      })
+      await page.goto('/e2e/fixtures/evaluation-review.html')
+      // Library loads evaluationA before the lazy Evaluations route loads its base CSS.
+      if (lateBaseStyles) await page.addStyleTag({ path: 'src/components/evaluation/evaluations.css' })
+      const stage = page.getByRole('dialog')
+      await expect(stage).not.toHaveAttribute('data-preparing', 'true')
+      await expect.poll(() => page.locator('video').first().evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0)
+      await expect(stage.locator('.eval-head-owner')).toBeVisible()
+      await expect(stage.locator('.eval-meta')).toBeVisible()
+      const identity = await stage.locator('.eval-stage-head-center').boundingBox()
+      const video = await stage.locator('.eval-stage-video').boundingBox()
+      expect(identity).not.toBeNull(); expect(video).not.toBeNull()
+      if (viewport.width >= 600 && viewport.width > viewport.height && viewport.height > 500) expect(identity!.x).toBeGreaterThanOrEqual(video!.x + video!.width)
+      else {
+        expect(identity!.x).toBeGreaterThanOrEqual(video!.x)
+        expect(identity!.y + identity!.height).toBeLessThan(video!.y + video!.height)
+      }
+      await page.locator('video').first().evaluate((v: HTMLVideoElement) => { v.loop = true })
+      await stage.dispatchEvent('pointerdown')
+      await page.locator('video').first().dispatchEvent('pointermove')
+      const quality = stage.locator('.eval-quality-toggle')
+      await expect(quality).toHaveText('720p')
+      expect(await quality.evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
+      await page.screenshot({ path: testInfo.outputPath(`identity-${viewport.width}.png`) })
+      await quality.click()
+      await expect(quality).toHaveText('Original')
+      expect(await quality.evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
+      for (const button of await stage.locator('.eval-player-controls button').all()) {
+        const box = (await button.boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(video!.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(video!.x + video!.width)
+      }
+      // Watching uses the full phone viewport; the scoring side panel is hidden.
+      // The narrower landscape video area only applies after playback ends below.
+      if (viewport.height <= 500) expect(video!.width).toBe(viewport.width)
+      const rail = await stage.locator('.eval-player-controls').boundingBox()
+      expect(rail!.height).toBeLessThanOrEqual(54)
+      expect(rail!.y).toBeGreaterThanOrEqual(0)
+      expect(rail!.y + rail!.height).toBeLessThanOrEqual(viewport.height)
+      const chip = await quality.boundingBox()
+      expect(chip!.height).toBe(44)
+      expect(chip!.width).toBeLessThan(100)
+      expect(rail!.x).toBeGreaterThanOrEqual(0)
+      expect(rail!.x + rail!.width).toBeLessThanOrEqual(viewport.width)
+      await page.locator('video').first().dispatchEvent('ended')
+      await expect(stage).not.toHaveAttribute('data-watching', 'true')
+      await expect(stage.getByRole('group', { name: 'Judging actions' })).toBeVisible()
+      const judgingRail = (await stage.locator('.eval-player-controls').boundingBox())!
+      const judgingVideo = (await stage.locator('.eval-stage-video').boundingBox())!
+      expect(judgingRail.height).toBeLessThanOrEqual(104)
+      if (viewport.width === 568 && viewport.height === 320) {
+        expect(judgingVideo.width).toBeCloseTo(255.6, 0)
+        const rows = await stage.locator('.eval-player-controls button').evaluateAll(buttons =>
+          new Set(buttons.map(button => (button as HTMLElement).offsetTop)).size)
+        expect(rows).toBe(2)
+      }
+      for (const button of await stage.locator('.eval-player-controls button').all()) {
+        const box = (await button.boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(judgingVideo.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(judgingVideo.x + judgingVideo.width)
+        expect(box.y).toBeGreaterThanOrEqual(judgingVideo.y)
+        expect(box.y + box.height).toBeLessThanOrEqual(judgingVideo.y + judgingVideo.height)
+      }
+      const dock = (await stage.locator('.eval-stage-dock').boundingBox())!
+      expect(judgingRail.x + judgingRail.width <= dock.x + 1 || judgingRail.y + judgingRail.height <= dock.y + 1).toBe(true)
+      await page.screenshot({ path: testInfo.outputPath(`judging-${viewport.width}x${viewport.height}.png`) })
     })
-    await page.goto('/e2e/fixtures/evaluation-review.html')
-    const stage = page.getByRole('dialog')
-    await expect(stage).not.toHaveAttribute('data-preparing', 'true')
-    await expect.poll(() => page.locator('video').first().evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0)
-    await expect(stage.locator('.eval-head-owner')).toBeVisible()
-    await expect(stage.locator('.eval-meta')).toBeVisible()
-    const identity = await stage.locator('.eval-stage-head-center').boundingBox()
-    const video = await stage.locator('.eval-stage-video').boundingBox()
-    expect(identity).not.toBeNull(); expect(video).not.toBeNull()
-    if (viewport.width > 600) expect(identity!.x).toBeGreaterThanOrEqual(video!.x + video!.width)
-    else {
-      expect(identity!.x).toBeGreaterThanOrEqual(video!.x)
-      expect(identity!.y + identity!.height).toBeLessThan(video!.y + video!.height)
-    }
-    await page.locator('video').first().evaluate((v: HTMLVideoElement) => { v.loop = true })
-    await stage.dispatchEvent('pointerdown')
-    await page.locator('video').first().dispatchEvent('pointermove')
-    const quality = stage.locator('.eval-quality-toggle')
-    await expect(quality).toHaveText('720p')
-    expect(await quality.evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
-    await page.screenshot({ path: testInfo.outputPath(`identity-${viewport.width}.png`) })
-    await quality.click()
-    await expect(quality).toHaveText('Original')
-    expect(await quality.evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
-    const rail = await stage.locator('.eval-player-controls').boundingBox()
-    expect(rail!.x).toBeGreaterThanOrEqual(0)
-    expect(rail!.x + rail!.width).toBeLessThanOrEqual(viewport.width)
-  })
+  }
 }
 
 test('waits for preview preparation without requesting the failing cloud original', async ({ page }) => {
