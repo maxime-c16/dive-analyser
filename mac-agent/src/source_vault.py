@@ -31,6 +31,12 @@ class VaultSource:
     volume_uuid: str
     retention_class: str
     validated_at: str
+    # Identity binding proven by the recalled sidecar itself (bound to the
+    # exact bytes validated above). None when the sidecar predates the
+    # binding or carries a malformed value — the caller must then treat the
+    # bytes as unproven and never relabel them for a split identity.
+    agent_local_uuid: str | None = None
+    canonical_video_uuid: str | None = None
 
 
 class MediaSourceVault:
@@ -90,6 +96,22 @@ class MediaSourceVault:
             raise SourceVaultError("source_vault_checksum_or_size_mismatch")
         if data.get("volume_uuid", "").upper() != mount["volume_uuid"]:
             raise SourceVaultError("source_vault_sidecar_volume_mismatch")
+        # Validated identity binding for the exact bytes recalled above.
+        # Read from the SAME sidecar parsed for this recall (no second peek,
+        # no TOCTOU): a missing/malformed value yields None (unproven), never
+        # a guess. Callers gate split-identity reuse on a valid match.
+        _raw_binding = data.get("agent_local_uuid")
+        _binding = (
+            str(_raw_binding).upper()
+            if isinstance(_raw_binding, str) and UUID_RE.fullmatch(_raw_binding)
+            else None
+        )
+        _raw_canon = data.get("canonical_video_uuid")
+        _canon = (
+            str(_raw_canon).upper()
+            if isinstance(_raw_canon, str) and UUID_RE.fullmatch(_raw_canon)
+            else None
+        )
         return VaultSource(
             video_uuid=video_uuid.upper(),
             path=source_path,
@@ -99,6 +121,8 @@ class MediaSourceVault:
             volume_uuid=mount["volume_uuid"],
             retention_class=data["retention_class"],
             validated_at=data["validated_at"],
+            agent_local_uuid=_binding,
+            canonical_video_uuid=_canon,
         )
 
     def import_source(
@@ -162,7 +186,12 @@ class MediaSourceVault:
         sidecar_tmp = uuid_dir / "source.json.partial"
         sidecar_tmp.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
         sidecar_tmp.replace(uuid_dir / "source.json")
-        return VaultSource(video_uuid.upper(), destination, source_kind, size, checksum, mount["volume_uuid"], retention_class, validated_at)
+        return VaultSource(
+            video_uuid.upper(), destination, source_kind, size, checksum,
+            mount["volume_uuid"], retention_class, validated_at,
+            (agent_local_uuid or video_uuid).upper(),
+            (canonical_video_uuid or video_uuid).upper(),
+        )
 
     def storage_status(self, *, additional_bytes: int = 0) -> dict:
         mount = self.validate_mount()

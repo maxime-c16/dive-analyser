@@ -115,3 +115,24 @@ def test_unusable_b2_original_falls_back_to_photos_export(tmp_path, monkeypatch)
     exporter.source_for_job.assert_awaited_once()
     proc._trigger_dual_write.assert_awaited_once()
     proc.sync_client.fail_media_job.assert_not_called()
+
+
+def test_photos_fallback_registers_canonical_and_reads_local(tmp_path, monkeypatch):
+    """Dive-2991 regression: the durable dual-write identity is the canonical
+    dive UUID while the Photos export stays on the agent-local asset UUID."""
+    run, _ = fake_curl(code=22)
+    monkeypatch.setattr(b2_source, "_curl", run)
+    proc, exporter, uploader, seen = processor(tmp_path)
+    photos = tmp_path / "photos.mov"; photos.write_bytes(b"from-photos")
+    exporter.source_for_job.return_value = photos
+    asyncio.run(proc._process_job(job()))
+    # Photos-bound read: local UUID first arg, canonical as vault identity.
+    (call,) = exporter.source_for_job.await_args_list
+    assert call.args[0] == "local"
+    assert call.kwargs.get("vault_video_uuid") == "canon"
+    # Durable registration: canonical UUID, local UUID pinned for reads.
+    (trigger,) = proc._trigger_dual_write.await_args_list
+    assert trigger.args[0] == "canon"
+    assert trigger.args[1] == photos  # staged legacy bytes, unchanged
+    assert trigger.args[2] is None  # job() carries no request_reason
+    assert trigger.kwargs == {"agent_local_uuid": "local"}

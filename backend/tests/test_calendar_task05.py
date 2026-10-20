@@ -7,8 +7,9 @@ The worker is driven with an injected clock and a recording push sender.
 """
 import os
 import threading
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy.orm import sessionmaker
@@ -178,7 +179,9 @@ def test_pending_changes_are_merged_into_one_up_to_date_alert(cal):
     assert [(d.status, d.suppressed_reason) for d in rows] == [("suppressed", "superseded"), ("delivered", None)]
     change = inbox(cal, "una")[0]["calendar"]["changes"][0]
     original = datetime.combine(TODAY + timedelta(days=1), time(18)).isoformat() + "Z"
-    assert change["old_start"] == original and change["new_start"].startswith(f"{day}T12:00")
+    expected_utc = datetime.combine(day, time(14), tzinfo=ZoneInfo("Europe/Paris")).astimezone(timezone.utc)
+    expected_new = expected_utc.replace(tzinfo=None).isoformat() + "Z"
+    assert change["old_start"] == original and change["new_start"] == expected_new
 
 
 def test_cancellation_and_publication_alerts(cal):
