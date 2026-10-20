@@ -1,0 +1,10 @@
+{
+  "id": "compact-mobile-evaluation-controls",
+  "date": "2026-10-21",
+  "title": "Compact video controls on mobile",
+  "body": "The video quality button and playback controls stay compact without covering the dive or scoring panel.",
+  "audience": "all",
+  "components": [
+    "frontend"
+  ]
+}
