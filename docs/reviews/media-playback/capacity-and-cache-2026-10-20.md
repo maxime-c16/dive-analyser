@@ -33,13 +33,13 @@ with `--slots 1 --apply`, then the same dry-run and managed worker restart.
 The [read-only inventory](cache-inventory-2026-10-20.json) covers 2,582 distinct
 public assets with a matching public, non-lineup dive:
 
-- 1,353 missing local preview files; 1,771 missing posters.
-- 763 complete local packages; 1,819 assets missing at least one component.
-- 1,813 repair candidates have a verified production replica; 1,813 have an
+- 1,350 missing local preview files; 1,771 missing posters.
+- 764 complete local packages; 1,818 assets missing at least one component.
+- 1,812 repair candidates have a verified production replica; 1,812 have an
   active Photos identity. These are separate counts; six have no known source. Four latest preview failures
   mention an invalid Photos identity.
-- About 33.49 GB of known source bytes and six unknown source sizes.
-  Estimated missing output at catalog median: 1.57 GB. This excludes source
+- About 33.47 GB of known source bytes and six unknown source sizes.
+  Estimated missing output at catalog median: 1.62 GB. This excludes source
   peak space, HDR replacements, transfer overhead and growth.
 - All 12 sampled preview streams retain HDR transfer tags. This is a bounded,
   deterministic sample, not a population estimate or a visual color diagnosis.
@@ -73,3 +73,10 @@ start, and rejects reversed, timezone-free or future windows. This avoids
 presenting overlapping rolling windows as independent before/after evidence.
 Run the slot controller with the deployed Mac Python and its code as PYTHONPATH;
 never copy configuration or its backups into Git. Review the JSON plan first.
+
+Review follow-up: database reads use keyset batches of 250 canonical public
+assets; cache reads are scoped to each batch and streamed. Latest preview
+failures use one indexed per-asset lookup, not a full-history window rank.
+The output estimate uses public-cache medians only. A repeat read-only run
+verified the scoped queries against production; ordinary ongoing upgrades can
+change cache counts between snapshots.

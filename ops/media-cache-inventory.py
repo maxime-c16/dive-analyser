@@ -10,7 +10,7 @@ from pathlib import Path
 import statistics
 import subprocess
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from app.config import get_settings
 from app.database import engine
 
@@ -20,10 +20,7 @@ owners = defaultdict(Counter)
 sizes = defaultdict(list)
 probe_results = Counter()
 cutoff = datetime(2026, 10, 20, 20, 5, 18)
-with engine.connect() as connection:
-    connection.execute(text('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'))
-    connection.execute(text("SET LOCAL statement_timeout='10s'"))
-    assets = connection.execute(text('''SELECT p.id,p.video_uuid,coalesce(p.file_size_bytes,
+ASSET_QUERY = """SELECT p.id,p.video_uuid,coalesce(p.file_size_bytes,
         (SELECT min(b.byte_size) FROM media_revisions r JOIN media_blobs b ON b.sha256=r.blob_sha256
          JOIN media_blob_locations l ON l.blob_sha256=b.sha256
          WHERE r.video_uuid=p.video_uuid AND l.verified AND l.environment='prod')) file_size_bytes,
@@ -34,9 +31,41 @@ with engine.connect() as connection:
                WHERE i.photos_asset_id=p.id AND a.active AND a.leasing_enabled) photos_identity
         FROM photos_assets p WHERE EXISTS(SELECT 1 FROM dives d WHERE d.photos_asset_id=p.id
                AND d.visibility='public' AND d.video_uuid=p.video_uuid AND NOT d.is_lineup)
-        ORDER BY p.id''')).mappings().all()
-    entries = connection.execute(text("SELECT photos_asset_id,rendition,storage_backend,storage_path,size_bytes,created_at FROM media_cache_entries WHERE status='ready' AND rendition IN ('proxy_720p','proxy_360p','poster') ORDER BY photos_asset_id,rendition")).mappings().all()
-    failures = dict(connection.execute(text("SELECT photos_asset_id,last_error FROM (SELECT photos_asset_id,last_error,row_number() OVER(PARTITION BY photos_asset_id ORDER BY created_at DESC,id DESC) rank FROM media_jobs WHERE rendition IN ('proxy_720p','proxy_360p')) latest WHERE rank=1 AND last_error LIKE '%invalid_video_uuid%'")).all())
+        AND p.id > :last_id ORDER BY p.id LIMIT :batch_size"""
+
+ENTRY_QUERY = """SELECT photos_asset_id,rendition,storage_backend,storage_path,size_bytes,created_at
+    FROM media_cache_entries WHERE photos_asset_id IN :asset_ids AND status='ready'
+    AND rendition IN ('proxy_720p','proxy_360p','poster') ORDER BY photos_asset_id,rendition"""
+FAILURE_QUERY = """SELECT p.id,latest.last_error FROM photos_assets p
+    JOIN LATERAL (SELECT j.last_error FROM media_jobs j WHERE j.photos_asset_id=p.id
+        AND j.rendition IN ('proxy_720p','proxy_360p')
+        ORDER BY j.created_at DESC,j.id DESC LIMIT 1) latest ON true
+    WHERE p.id IN :asset_ids AND latest.last_error LIKE '%invalid_video_uuid%'"""
+
+with engine.connect() as connection:
+    connection.execute(text('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'))
+    connection.execute(text("SET LOCAL statement_timeout='10s'"))
+    assets, entries, failures = [], [], {}
+    last_id = 0
+    batch_size = 250
+    while True:
+        batch = connection.execute(text(ASSET_QUERY),
+                                   {'last_id': last_id, 'batch_size': batch_size}).mappings().all()
+        if not batch:
+            break
+        asset_ids = [asset['id'] for asset in batch]
+        assets.extend(batch)
+        last_id = asset_ids[-1]
+        # Both dependent queries are restricted to this canonical public batch.
+        # Streaming also bounds driver-side buffers if an asset has many rows.
+        for partition in connection.execution_options(stream_results=True).execute(
+                text(ENTRY_QUERY).bindparams(bindparam('asset_ids', expanding=True)),
+                {'asset_ids': asset_ids}).mappings().partitions(batch_size):
+            entries.extend(partition)
+        for partition in connection.execution_options(stream_results=True).execute(
+                text(FAILURE_QUERY).bindparams(bindparam('asset_ids', expanding=True)),
+                {'asset_ids': asset_ids}).partitions(batch_size):
+            failures.update(dict(partition))
     connection.rollback()
 by_asset = defaultdict(dict)
 for row in entries:
