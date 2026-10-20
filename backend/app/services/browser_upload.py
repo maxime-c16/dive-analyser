@@ -95,7 +95,25 @@ def remote_playback_configured():
 def cache_upload(db, asset, folder):
     for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('original.mp4', 'original', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
         path = folder / name
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=rendition != 'browser_source' and not remote_playback_configured(), expires_at=datetime.utcnow() + timedelta(days=1 if rendition == 'browser_source' else 30)))
+        if rendition == 'poster':
+            # Posters have no durable replica anywhere (B2 holds originals
+            # only): the local file is the sole copy, unconditionally.
+            pinned = True
+            expires_at = None
+        elif rendition == 'browser_source':
+            # Raw upload bytes are roundtrip-verified into B2 before the dive
+            # is published (persist_original): the local copy stays a
+            # disposable 1-day staging file and must remain evictable.
+            pinned = False
+            expires_at = datetime.utcnow() + timedelta(days=1)
+        else:
+            # Playback MP4 bytes are roundtrip-verified into B2 as well, but
+            # the app can only serve them remotely when the playback
+            # credential is configured; otherwise local is the sole readable
+            # copy.
+            pinned = not remote_playback_configured()
+            expires_at = datetime.utcnow() + timedelta(days=30)
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=pinned, expires_at=expires_at))
 
 
 def persist_original(db, video_uuid, folder, *, register=True, source_name='source'):

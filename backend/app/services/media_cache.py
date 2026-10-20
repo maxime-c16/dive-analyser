@@ -18,6 +18,21 @@ from app.schemas.media import MediaCacheEntrySummary
 logger = logging.getLogger(__name__)
 
 
+# Renditions that are the only browser-readable copy of a clip.
+#
+# Verified 2026-10-21 (media-paths audit): B2 holds camera originals only, no
+# preview and no poster exists outside the deb-serv media-cache volume. Until
+# the Lot B durable-derivative pipeline publishes web renditions to B2 with a
+# verified replica ledger, every proxy_720p/poster row is a sole copy.
+#
+# Sole copies are pinned at finalization (see finalize_cache_entry) so the
+# cleaner spares them from BOTH eviction paths: TTL expiry AND quota trim.
+# Setting expires_at=NULL alone would NOT be enough: cleanup_cache evicts
+# unpinned rows over the byte cap regardless of expiry. Never declare a
+# retention guarantee with expires_at=NULL only.
+SOLE_COPY_BROWSER_SAFE_RENDITIONS = ("proxy_720p", "poster")
+
+
 def playback_url(entry_id: int) -> str:
     """Browser-facing playback URL for a verified cache entry."""
     return f"/api/v1/media/cache/{entry_id}/play"
@@ -171,6 +186,10 @@ def finalize_cache_entry(
         size_bytes=size_bytes,
         checksum_sha256=checksum_sha256,
         status="ready",
+        # Sole browser-safe copies stay pinned until a durable replica
+        # exists (Lot B). pinned is what exempts a row from BOTH cleaner
+        # paths; expires_at=NULL alone would still allow quota eviction.
+        pinned=job.rendition in SOLE_COPY_BROWSER_SAFE_RENDITIONS,
         expires_at=_default_expiry(job.rendition),
     )
     db.add(entry)
@@ -208,6 +227,10 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     Large backlogs need multiple passes; returned byte totals remain exact.
     """
     from app.services.browser_upload import remote_playback_configured
+    # pinned is the sole-copy guarantee: rows pinned at finalization (sole
+    # browser-safe previews/posters, explicit browser retentions) are exempt
+    # from BOTH the TTL pass below and the quota trim. expires_at=NULL alone
+    # never exempts a row from the trim.
     eligible = MediaCacheEntry.pinned.is_(False) & (MediaCacheEntry.status == "ready")
     if not remote_playback_configured():
         # Protect accessible browser renditions through the read predicate;
@@ -297,6 +320,10 @@ def _default_expiry(rendition: str) -> datetime | None:
         return None
     if rendition == "original":
         return datetime.utcnow() + timedelta(days=3)
+    if rendition in SOLE_COPY_BROWSER_SAFE_RENDITIONS:
+        # Sole browser-safe copies never expire by TTL. Quota eviction is
+        # blocked by the pinned flag set at finalization, not by this.
+        return None
     return datetime.utcnow() + timedelta(days=30)
 
 
