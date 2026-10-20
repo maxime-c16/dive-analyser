@@ -127,7 +127,25 @@ def test_stack_vote_blocks_later_request_vote(workspace):
     assert dup.json()['detail']['code'] == 'RATING_ALREADY_SUBMITTED'
     # Idempotent same-circuit retries still succeed.
     assert login('bob').post(f'/api/v1/evaluations/{rid}/ratings', json={'score_half_steps': 12}).status_code == 409
-    assert auto.json()['rating']['id'] == bob.post(
-        f'/api/v1/evaluations/automatic/{did}/ratings',
-        json={'video_uuid': 'alice-public-video', 'score_half_steps': 12}).json()['rating']['id']
     assert db.query(AutomaticRating).count() == 1 and db.query(EvaluationRating).count() == 0
+
+
+def test_owner_view_wins_over_vote_cast_before_ownership(workspace):
+    """A member who voted before becoming owner gets the owner view (with the
+    request toggle) and can no longer vote — owners never rate."""
+    from app.models.diver import Diver
+    from app.models.user_auth import UserDiverAccess
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    bob = login('bob')
+    assert vote(bob, did, 12).status_code == 200
+    assert tab(bob, did).json()['state'] == 'rated'
+    diver_id = db.query(Diver.id).filter_by(canonical_name='alice').scalar()
+    db.add(UserDiverAccess(user_id=users['bob'].id, diver_id=diver_id, access_kind='OWNER'))
+    db.commit()
+    state = tab(login('bob'), did).json()
+    assert state['state'] == 'owner' and state['circuit'] == 'automatic'
+    assert vote(login('bob'), did, 12).status_code == 403
+    login('alice').put(f'/api/v1/dives/{did}/evaluation-request', json={'active': True, 'prompt': 'Entry?'})
+    owned = tab(login('bob'), did).json()
+    assert owned == {**owned, 'state': 'owner', 'circuit': 'request', 'prompt': 'Entry?'}

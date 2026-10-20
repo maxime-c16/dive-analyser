@@ -46,8 +46,21 @@ def _automatic_excluded(db: Session, dive: Dive) -> bool:
 
 
 def context(db: Session, user, dive: Dive) -> dict:
-    is_owner = dive.diver_id is not None and dive.diver_id in set(owned_diver_ids(db, user.id))
     request_row = evaluation_access.request_for_dive(db, dive.id)
+    out = {"dive_id": dive.id, "state": "closed", "circuit": None, "prompt": None, "results": None, "my_rating": None}
+    # Ownership wins over a vote cast before the member became owner (bot
+    # review PR 127): only the owner view carries the request toggle, and
+    # owners never vote. A prior vote stays stored but no longer drives the tab.
+    if dive.diver_id is not None and dive.diver_id in set(owned_diver_ids(db, user.id)):
+        request_active = bool(request_row is not None and request_row.active)
+        if request_active:
+            return {**out, "state": "owner", "circuit": "request", "prompt": request_row.prompt,
+                    "results": evaluation_ratings._results_payload(db, request_row, user.id)}
+        if dive.visibility == "public":
+            return {**out, "state": "owner", "circuit": "automatic",
+                    "results": matchmaking.results(db, user, dive.id),
+                    "automatic_excluded": _automatic_excluded(db, dive)}
+        return {**out, "state": "owner"}
     request_vote = (
         db.query(EvaluationRating)
         .filter(EvaluationRating.request_id == request_row.id, EvaluationRating.evaluator_user_id == user.id)
@@ -61,8 +74,6 @@ def context(db: Session, user, dive: Dive) -> dict:
         .first()
     )
     request_active = bool(request_row is not None and request_row.active)
-    out = {"dive_id": dive.id, "state": "closed", "circuit": None, "prompt": None, "results": None, "my_rating": None}
-
     if request_vote is not None:
         results = evaluation_ratings._results_payload(db, request_row, user.id)
         return {**out, "state": "rated", "circuit": "request", "prompt": request_row.prompt,
@@ -70,15 +81,6 @@ def context(db: Session, user, dive: Dive) -> dict:
     if automatic_vote is not None:
         results = matchmaking.results(db, user, dive.id)
         return {**out, "state": "rated", "circuit": "automatic", "results": results, "my_rating": results["my_rating"]}
-    if is_owner:
-        if request_active:
-            return {**out, "state": "owner", "circuit": "request", "prompt": request_row.prompt,
-                    "results": evaluation_ratings._results_payload(db, request_row, user.id)}
-        if dive.visibility == "public":
-            return {**out, "state": "owner", "circuit": "automatic",
-                    "results": matchmaking.results(db, user, dive.id),
-                    "automatic_excluded": _automatic_excluded(db, dive)}
-        return {**out, "state": "owner"}
     if request_active and dive.video_uuid:
         return {**out, "state": "open", "circuit": "request", "prompt": request_row.prompt}
     if _automatic_open(db, user, dive):
