@@ -48,52 +48,6 @@ function RatingBar({ attempts }: { attempts: Attempt[] }) {
   );
 }
 
-/* ---------- Wall: dense portrait tiles, score overlaid ---------- */
-
-export function WallLayout({
-  attempts,
-  onOpen,
-  showDiver = false,
-}: {
-  attempts: Attempt[];
-  onOpen: (a: Attempt) => void;
-  showDiver?: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 sm:gap-2 lg:grid-cols-6 2xl:grid-cols-8">
-      {attempts.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          onClick={() => onOpen(a)}
-          data-attempt-id={a.id}
-          className="group relative aspect-[3/4] overflow-hidden bg-app-panel text-left"
-          aria-label={[t('dives.openCodeAttempt', { code: a.dive_code }), showDiver && a.person_name].filter(Boolean).join(' · ')}
-        >
-          <DiveThumbnail dive={a} compact />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 pb-1.5 pt-6">
-            {showDiver && a.person_name && <p className="mb-1 truncate text-xs font-semibold text-white" title={a.person_name}>{a.person_name}</p>}
-            <div className="flex items-end justify-between gap-1">
-              <span className="font-mono text-sm font-semibold text-white sm:text-base">
-                {a.dive_code}
-              </span>
-              <span className="text-xs font-semibold tabular-nums text-white">
-                {attemptScore(a).toFixed(1)}
-              </span>
-            </div>
-            <div className="truncate text-[10px] text-white/70">
-              {format(parseISO(a.dive_datetime), "d MMM", { locale: appLocale() })} · {a.height}
-              {!showDiver && a.person_name && <span className="block truncate">{a.person_name}</span>}
-            </div>
-          </div>
-          <div className={`absolute inset-x-0 bottom-0 h-1 ${ratingDot[a.performance]}`} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /* ---------- By code: one row per dive, attempt history as squares ---------- */
 
 export function CodesLayout({

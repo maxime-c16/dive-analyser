@@ -267,7 +267,7 @@ it('an empty result set is distinct from a failure and offers Clear filters', as
   expect(await screen.findByText('No attempts match this search.')).toBeInTheDocument()
   expect(screen.queryByText('The dive library could not be loaded.')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: /Clear filters/ }))
-  expect(await screen.findAllByRole('button', { name: /Open 103B attempt/ })).toHaveLength(6)
+  expect(await screen.findAllByRole('button', { name: /Open 103B attempt/ })).toHaveLength(3)
 })
 
 it('a library load failure exposes what failed and a working Retry', async () => {

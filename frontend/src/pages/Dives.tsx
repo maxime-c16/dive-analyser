@@ -21,7 +21,8 @@ import {
 } from "../utils/attemptPresentation";
 import AddVideos from "../components/AddVideos";
 import DiveThumbnail from "../components/DiveThumbnail";
-import { CodesLayout, WallLayout } from "../components/LibraryLayouts";
+import { CodesLayout } from "../components/LibraryLayouts";
+import { LibraryCardGrid } from "../components/LibraryCards";
 import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
 import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
@@ -45,59 +46,6 @@ function ScoreBadge({ dive }: { dive: Dive }) {
     >
       {performanceLabel(dive.performance) || dive.performance}
     </span>
-  );
-}
-
-function AttemptCard({
-  dive,
-  onOpen,
-  compact = false,
-  showDiver = false,
-}: {
-  dive: Dive;
-  onOpen: () => void;
-  compact?: boolean;
-  showDiver?: boolean;
-}) {
-  const { t } = useTranslation();
-  const score = attemptScore(dive);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      data-attempt-id={dive.id}
-      className={`group min-w-0 overflow-hidden border border-app bg-app-panel text-left transition-colors hover:border-app-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${compact ? "w-[13.5rem] shrink-0 sm:w-[15rem]" : ""}`}
-      aria-label={[t("dives.openAttemptAria", { code: dive.dive_code, date: format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() }) }), showDiver && dive.person_name].filter(Boolean).join(" · ")}
-    >
-      <DiveThumbnail dive={dive} />
-      <div className="p-3">
-        {showDiver && dive.person_name && (
-          <p className="mb-1 truncate text-base font-semibold text-app-text" title={dive.person_name}>{dive.person_name}</p>
-        )}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="font-mono text-lg font-semibold tracking-tight text-app-text">
-              {dive.dive_code}
-            </div>
-            <p className="mt-1 truncate text-xs text-app-muted">
-              {format(parseISO(dive.dive_datetime), "d MMM yyyy · HH:mm", { locale: appLocale() })}
-            </p>
-          </div>
-          <ScoreBadge dive={dive} />
-        </div>
-        <p className="mt-3 truncate text-xs text-app-muted">
-          {!showDiver && dive.person_name ? `${dive.person_name} · ` : ""}{attemptSummary(dive)}
-        </p>
-        {!compact && (
-          <div className="mt-3 flex items-center justify-between border-t border-app pt-3 text-xs">
-            <span className="text-app-muted">{t("dives.score")}</span>
-            <span className="font-semibold text-app-text">
-              {score.toFixed(1)} / 10
-            </span>
-          </div>
-        )}
-      </div>
-    </button>
   );
 }
 
@@ -807,21 +755,7 @@ function DiveLibrary() {
             ) : (
               <>
                 {view === "grid" ? (
-                  <>
-                    <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {visible.map((dive) => (
-                        <AttemptCard
-                          key={dive.id}
-                          dive={dive}
-                          showDiver={scope === "all"}
-                          onOpen={() => openClip(dive)}
-                        />
-                      ))}
-                    </div>
-                    <div className="sm:hidden">
-                      <WallLayout attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
-                    </div>
-                  </>
+                  <LibraryCardGrid attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
                 ) : (
                   <div className="border border-app bg-app-panel">
                     {visible.map((dive) => (

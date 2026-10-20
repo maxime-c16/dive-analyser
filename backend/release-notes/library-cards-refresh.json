@@ -1,0 +1,8 @@
+{
+  "id": "library-cards-refresh",
+  "date": "2026-10-20",
+  "title": "Clearer library cards",
+  "body": "Each dive now shows its full name, score and DD, and the library is grouped by day.",
+  "audience": "all",
+  "components": ["frontend"]
+}
