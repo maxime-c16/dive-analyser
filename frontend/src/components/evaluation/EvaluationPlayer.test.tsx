@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import EvaluationPlayer from './EvaluationPlayer'
 import { getEvaluationMediaStatus, prepareEvaluationMedia } from '../../services/evaluationApi'
@@ -217,5 +217,50 @@ it('allows an oversized streaming preview to advance without hidden loadeddata',
     expect(URL.createObjectURL).not.toHaveBeenCalled()
   } finally {
     vi.unstubAllGlobals()
+  }
+})
+
+it.each(['decoded', 'exhausted'] as const)('tries remaining renditions after a first-frame timeout (%s)', async outcome => {
+  vi.useFakeTimers()
+  try {
+    const onFailure = vi.fn()
+    const initialMedia = { request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready' as const, rendition: 'proxy_720p', poster_url: null, playback_url: '/play', available_renditions: ['original', 'proxy_720p', 'proxy_360p'] }
+    const { container } = render(<EvaluationPlayer requestId={7} initialMedia={initialMedia} watching onFailure={onFailure} />)
+    expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p')
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+    expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
+    expect(onFailure).not.toHaveBeenCalled()
+    if (outcome === 'decoded') {
+      fireEvent.loadedData(container.querySelector('video')!)
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
+      expect(onFailure).not.toHaveBeenCalled()
+    } else {
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+      expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=original')
+      expect(onFailure).not.toHaveBeenCalled()
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+      expect(onFailure).toHaveBeenCalledOnce()
+    }
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('uses newly ready renditions when the existing first-frame timer expires', async () => {
+  vi.useFakeTimers()
+  try {
+    const initialMedia = { request_id: 7, dive_id: 7, video_uuid: 'clip', status: 'ready' as const, rendition: 'proxy_360p', poster_url: null, playback_url: '/play', available_renditions: ['proxy_360p'] }
+    let finish!: (value: Awaited<ReturnType<typeof prepareEvaluationMedia>>) => void
+    vi.mocked(prepareEvaluationMedia).mockReturnValue(new Promise(resolve => { finish = resolve }))
+    const onFailure = vi.fn()
+    const { container } = render(<EvaluationPlayer requestId={7} initialMedia={initialMedia} watching onFailure={onFailure} />)
+    await act(async () => { finish({ ...initialMedia, available_renditions: ['proxy_360p', 'proxy_720p'], created_jobs: [], reused_jobs: [] }) })
+    expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_360p')
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+    expect(container.querySelector('video')?.getAttribute('src')).toContain('rendition=proxy_720p')
+    expect(onFailure).not.toHaveBeenCalled()
+  } finally {
+    vi.useRealTimers()
   }
 })

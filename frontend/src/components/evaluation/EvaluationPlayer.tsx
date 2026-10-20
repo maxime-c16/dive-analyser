@@ -108,6 +108,7 @@ export default function EvaluationPlayer({
   // lookup or prepare follow-up after the jury advanced) must never replace
   // the new dive's playback — the juror would score dive A while watching B.
   const requestEpochRef = useRef(0)
+  const mediaErrorRef = useRef<() => void>(() => {})
   const source = useEvaluationVideoSource(playback.kind === 'ready' ? playback.src : undefined, playback.kind === 'ready' ? playback.rendition : undefined)
   useEffect(() => {
     // iOS may defer hidden decoding. Blob downloads are prepared; a streaming
@@ -280,7 +281,7 @@ export default function EvaluationPlayer({
   useEffect(() => {
     if (playback.kind !== 'ready' || preloadOnly || decodeError || !source.src) return
     const timer = window.setTimeout(() => {
-      if (!hasDecodedFrameRef.current && (!videoRef.current || videoRef.current.readyState < 2)) setPlayback({ kind: 'failed' })
+      if (!hasDecodedFrameRef.current && (!videoRef.current || videoRef.current.readyState < 2)) mediaErrorRef.current()
     }, 20_000)
     return () => window.clearTimeout(timer)
   }, [preloadOnly, playback.kind, source.src, decodeError])
@@ -404,6 +405,7 @@ export default function EvaluationPlayer({
     else if (next) setDecodeError(true)
     else setPlayback({ kind: 'failed' })
   }
+  mediaErrorRef.current = mediaError
 
   function togglePlay() {
     if (paused) { onReplay?.(); return }
