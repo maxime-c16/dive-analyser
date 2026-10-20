@@ -21,6 +21,9 @@ does NOT validate its quality (no HQ1080 in this lot).
   population planning and averages accept 720p with 360p fallback; new
   population work requests 720p, never 360p. `catalog_summary` keeps the
   legacy `proxy_360p` key (same counts) and adds `proxy_720p`/`proxy`.
+  All three proxy keys count the same aggregated `proxy_state`, which is
+  ready when 720p *or* legacy 360p is ready: `proxy_720p` does NOT measure
+  720p-only coverage, so dashboards must not read it as true 720p counts.
 - `backend/app/services/media_recall.py`: readiness exposes `proxy_720p`
   and `proxy` (any) alongside the legacy `proxy_360p` key.
 - `backend/app/services/representative_population.py` + schemas: Tier 1 and
