@@ -90,3 +90,44 @@ def test_daily_selection_path_still_requires_assignment(workspace):
     _, login, dives, _, _ = workspace
     path = f'/api/v1/evaluations/automatic/{dives["alice-public"]}/ratings'
     assert login('viewer').post(path, json={'video_uuid': 'alice-public-video', 'score_half_steps': 10}).status_code == 404
+
+
+def test_request_vote_blocks_later_stack_vote(workspace):
+    """Request circuit first (via the player), then the daily selection: 409."""
+    import uuid
+    db, login, dives, _, _ = workspace
+    did = dives['alice-public']
+    assert login('alice').put(f'/api/v1/dives/{did}/evaluation-request', json={'active': True}).status_code == 200
+    bob = login('bob')
+    assert vote(bob, did, 15).status_code == 200
+    sid = bob.post('/api/v1/evaluations/automatic/stacks',
+                   json={'daily': True, 'client_session_id': str(uuid.uuid4())}).json()['session_id']
+    assert did in {i['dive_id'] for i in bob.get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue').json()['items']}
+    dup = bob.post(f'/api/v1/evaluations/automatic/{did}/ratings',
+                   json={'video_uuid': 'alice-public-video', 'score_half_steps': 12})
+    assert dup.status_code == 409, dup.text
+    assert dup.json()['detail']['code'] == 'RATING_ALREADY_SUBMITTED'
+    assert db.query(AutomaticRating).count() == 0 and db.query(EvaluationRating).count() == 1
+
+
+def test_stack_vote_blocks_later_request_vote(workspace):
+    """Automatic circuit first (via a stack), then the request endpoint: 409."""
+    import uuid
+    db, login, dives, _, _ = workspace
+    did = dives['alice-public']
+    bob = login('bob')
+    assert bob.post('/api/v1/evaluations/automatic/stacks',
+                    json={'daily': True, 'client_session_id': str(uuid.uuid4())}).status_code == 200
+    auto = bob.post(f'/api/v1/evaluations/automatic/{did}/ratings',
+                    json={'video_uuid': 'alice-public-video', 'score_half_steps': 12})
+    assert auto.status_code == 200, auto.text
+    rid = login('alice').put(f'/api/v1/dives/{did}/evaluation-request', json={'active': True}).json()['id']
+    dup = login('bob').post(f'/api/v1/evaluations/{rid}/ratings', json={'score_half_steps': 12})
+    assert dup.status_code == 409, dup.text
+    assert dup.json()['detail']['code'] == 'RATING_ALREADY_SUBMITTED'
+    # Idempotent same-circuit retries still succeed.
+    assert login('bob').post(f'/api/v1/evaluations/{rid}/ratings', json={'score_half_steps': 12}).status_code == 409
+    assert auto.json()['rating']['id'] == bob.post(
+        f'/api/v1/evaluations/automatic/{did}/ratings',
+        json={'video_uuid': 'alice-public-video', 'score_half_steps': 12}).json()['rating']['id']
+    assert db.query(AutomaticRating).count() == 1 and db.query(EvaluationRating).count() == 0

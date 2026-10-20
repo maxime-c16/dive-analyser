@@ -1,7 +1,9 @@
 """Small-pool matchmaking. Public-only, fair by owner, retry-stable stacks.
 
-UTC daily boundary; skips cool down 7 days. One automatic vote per account
-and dive, independent of manual requests. No reservation across reviewers.
+UTC daily boundary; skips cool down 7 days. One vote per account and dive
+across both circuits: a request-circuit vote blocks an automatic vote and
+vice versa (each circuit still stores its own rows). No reservation across
+reviewers.
 """
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -212,6 +214,15 @@ def rate(db, user, dive_id, score, comment, video_uuid, require_assignment=True)
         if old.score_half_steps != score or old.comment != comment:
             raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED', 'message': 'Vote is immutable'})
     else:
+        # Cross-circuit single vote (bot review PR 127): the shared dive lock
+        # taken by authorize() above serializes this check against a
+        # concurrent request-circuit vote on the same dive.
+        from app.models.evaluation import EvaluationRating
+        request_row = evaluation_access.request_for_dive(db, dive_id)
+        if request_row is not None and db.query(EvaluationRating.id).filter_by(
+                request_id=request_row.id, evaluator_user_id=user.id).first() is not None:
+            raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED',
+                'message': 'This dive was already rated in the request circuit (one vote per member and dive)'})
         assigned = not require_assignment or db.query(ReviewStackItem).join(ReviewStack).filter(
             ReviewStack.user_id == user.id, ReviewStackItem.dive_id == dive_id, ReviewStackItem.video_uuid == video_uuid, ReviewStackItem.skipped_at.is_(None)).first()
         if not assigned or status(db, dive, asset)['status'] != 'ready':
