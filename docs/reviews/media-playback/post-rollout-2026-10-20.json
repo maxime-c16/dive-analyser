@@ -1,0 +1,112 @@
+{
+  "captured_at": "2026-10-20T19:57:41.221599+00:00",
+  "since_utc": "2026-10-20T16:14:40Z",
+  "queue": [
+    {
+      "status": "cancelled",
+      "rendition": "poster",
+      "jobs": 1,
+      "oldest_age_seconds": 8043626.6
+    },
+    {
+      "status": "failed",
+      "rendition": "poster",
+      "jobs": 17,
+      "oldest_age_seconds": 8932000.9
+    },
+    {
+      "status": "failed",
+      "rendition": "proxy_360p",
+      "jobs": 26,
+      "oldest_age_seconds": 8908965.2
+    },
+    {
+      "status": "ready",
+      "rendition": "poster",
+      "jobs": 1003,
+      "oldest_age_seconds": 8929978.1
+    },
+    {
+      "status": "ready",
+      "rendition": "proxy_360p",
+      "jobs": 1010,
+      "oldest_age_seconds": 8929779.2
+    },
+    {
+      "status": "ready",
+      "rendition": "proxy_720p",
+      "jobs": 2048,
+      "oldest_age_seconds": 7643606.2
+    },
+    {
+      "status": "unavailable",
+      "rendition": "poster",
+      "jobs": 340,
+      "oldest_age_seconds": 8909270.1
+    },
+    {
+      "status": "unavailable",
+      "rendition": "proxy_360p",
+      "jobs": 297,
+      "oldest_age_seconds": 8904515.7
+    },
+    {
+      "status": "unavailable",
+      "rendition": "proxy_720p",
+      "jobs": 1632,
+      "oldest_age_seconds": 7649547.7
+    }
+  ],
+  "completed_created_after_rollout": [
+    {
+      "rendition": "proxy_720p",
+      "request_reason": "resolution_upgrade_720p",
+      "jobs": 176,
+      "queue_p50_seconds": 15.2920285,
+      "queue_p95_seconds": 29.456808,
+      "processing_p50_seconds": 14.875607500000001,
+      "processing_p95_seconds": 19.72611075
+    }
+  ],
+  "cached_renditions": [
+    {
+      "rendition": "poster",
+      "status": "ready",
+      "entries": 1004,
+      "bytes": 153441568.0
+    },
+    {
+      "rendition": "proxy_360p",
+      "status": "ready",
+      "entries": 193,
+      "bytes": 57781134.0
+    },
+    {
+      "rendition": "proxy_720p",
+      "status": "ready",
+      "entries": 1383,
+      "bytes": 1515984675.0
+    }
+  ],
+  "workers": [
+    {
+      "active": true,
+      "leasing_enabled": true,
+      "photos_access_status": "ok",
+      "workers": 1,
+      "freshest_heartbeat_age_seconds": 32.606053,
+      "minimum_internal_free_bytes": 13260578816,
+      "minimum_vault_free_bytes": 13267558400
+    },
+    {
+      "active": true,
+      "leasing_enabled": false,
+      "photos_access_status": "ok",
+      "workers": 1,
+      "freshest_heartbeat_age_seconds": 6844527.417709,
+      "minimum_internal_free_bytes": 6614196224,
+      "minimum_vault_free_bytes": null
+    }
+  ],
+  "deployed_sha": "9ba5294317999f1e20b40968fa2a419472509318"
+}

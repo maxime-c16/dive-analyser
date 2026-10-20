@@ -36,6 +36,7 @@ class Transcoder:
 
     async def build(self, source: Path, media_key: str, rendition: str) -> RenditionArtifact:
         """Generate the requested rendition."""
+        streams = self._probe_streams(source) if rendition.startswith("proxy_") else []
         if rendition == "poster":
             output = self.temp_dir / f"{media_key}.jpg"
             cmd = [
@@ -47,11 +48,11 @@ class Transcoder:
             content_type = "image/jpeg"
         elif rendition == "proxy_360p":
             output = self.temp_dir / f"{media_key}.mp4"
-            cmd = self._proxy_cmd(source, output, 360, 28, "96k", self._real_audio_stream_index(source))
+            cmd = self._proxy_cmd(source, output, 360, 28, "96k", self._real_audio_stream_index(source, streams), self._video_transfer(streams))
             content_type = "video/mp4"
         elif rendition == "proxy_720p":
             output = self.temp_dir / f"{media_key}.mp4"
-            cmd = self._proxy_cmd(source, output, 720, 25, "128k", self._real_audio_stream_index(source))
+            cmd = self._proxy_cmd(source, output, 720, 25, "128k", self._real_audio_stream_index(source, streams), self._video_transfer(streams))
             content_type = "video/mp4"
         elif rendition == "original":
             return _artifact(source, "application/octet-stream", is_temporary=False)
@@ -69,7 +70,18 @@ class Transcoder:
         crf: int,
         audio_bitrate: str,
         audio_stream_index: int | None = None,
+        color_transfer: str | None = None,
     ) -> list[str]:
+        filters = []
+        if color_transfer in ("smpte2084", "arib-std-b67"):
+            # HDR must be linearized and tone mapped before writing SDR tags.
+            filters.extend([
+                "zscale=t=linear:npl=100", "format=gbrpf32le",
+                "zscale=p=bt709", "tonemap=tonemap=hable:desat=0",
+                "zscale=t=bt709:m=bt709:r=tv",
+            ])
+        filters.append(f"scale=-2:{max_height}:out_range=tv,format=yuv420p")
+        filters.append("setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709")
         cmd = [
             self.ffmpeg_path, "-y", "-ignore_unknown", "-threads", "2", "-i", str(source),
             "-map", "0:v:0",
@@ -80,7 +92,7 @@ class Transcoder:
             cmd.extend(["-map", f"0:{audio_stream_index}"])
         cmd.extend([
             "-sn", "-dn", "-map_metadata", "-1", "-map_chapters", "-1",
-            "-vf", f"scale=-2:{max_height}:out_range=tv,format=yuv420p",
+            "-vf", ",".join(filters),
             "-filter_threads", "1", "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-crf", str(crf),
             "-profile:v", "main", "-pix_fmt", "yuv420p",
             "-color_range", "tv", "-colorspace", "bt709",
@@ -92,30 +104,39 @@ class Transcoder:
         cmd.extend(["-movflags", "+faststart", str(output)])
         return cmd
 
-    def _real_audio_stream_index(self, source: Path) -> int | None:
+    def _probe_streams(self, source: Path) -> list[dict]:
         ffprobe_path = str(Path(self.ffmpeg_path).with_name("ffprobe")) if "/" in self.ffmpeg_path else "ffprobe"
         try:
             result = subprocess.run(
                 [
                     ffprobe_path,
                     "-v", "error",
-                    "-show_entries", "stream=index,codec_type,codec_name",
+                    "-show_entries", "stream=index,codec_type,codec_name,color_transfer",
                     "-of", "json",
                     str(source),
                 ],
                 check=True,
                 capture_output=True,
                 text=True,
+                timeout=30,
             )
         except Exception:
-            return None
+            raise TranscodeError("Unable to probe source streams") from None
 
         try:
             streams = json.loads(result.stdout).get("streams", [])
-        except json.JSONDecodeError:
-            return None
+            if not isinstance(streams, list) or not any(s.get("codec_type") == "video" for s in streams):
+                raise ValueError("Missing video stream")
+            return streams
+        except (ValueError, TypeError, AttributeError):
+            raise TranscodeError("Unable to read source video metadata") from None
 
-        for stream in streams:
+    @staticmethod
+    def _video_transfer(streams: list[dict]) -> str | None:
+        return next((s.get("color_transfer") for s in streams if s.get("codec_type") == "video"), None)
+
+    def _real_audio_stream_index(self, source: Path, streams: list[dict] | None = None) -> int | None:
+        for stream in streams if streams is not None else self._probe_streams(source):
             if stream.get("codec_type") != "audio":
                 continue
             codec_name = stream.get("codec_name")
