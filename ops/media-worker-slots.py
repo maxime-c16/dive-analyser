@@ -55,8 +55,7 @@ def update_slots(config: Path, slots: int, apply: bool = False) -> dict:
                 if config.read_bytes() != original:
                     raise RuntimeError('Configuration changed during planning')
                 backup = config.with_name('config.pre-slots-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.yaml')
-                with backup.open('xb') as target:
-                    os.chmod(backup, 0o600)
+                with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as target:
                     target.write(original)
                 os.replace(temporary, config)
                 result['changed'] = True

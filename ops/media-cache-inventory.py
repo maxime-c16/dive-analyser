@@ -34,8 +34,11 @@ ASSET_QUERY = """SELECT p.id,p.video_uuid,coalesce(p.file_size_bytes,
         AND p.id > :last_id ORDER BY p.id LIMIT :batch_size"""
 
 ENTRY_QUERY = """SELECT photos_asset_id,rendition,storage_backend,storage_path,size_bytes,created_at
-    FROM media_cache_entries WHERE photos_asset_id IN :asset_ids AND status='ready'
-    AND rendition IN ('proxy_720p','proxy_360p','poster') ORDER BY photos_asset_id,rendition"""
+    FROM (SELECT photos_asset_id,rendition,storage_backend,storage_path,size_bytes,created_at,
+          row_number() OVER(PARTITION BY photos_asset_id,rendition ORDER BY created_at DESC,id DESC) rank
+          FROM media_cache_entries WHERE photos_asset_id IN :asset_ids AND status='ready'
+          AND rendition IN ('proxy_720p','proxy_360p','poster')) latest
+    WHERE rank=1 ORDER BY photos_asset_id,rendition"""
 FAILURE_QUERY = """SELECT p.id,latest.last_error FROM photos_assets p
     JOIN LATERAL (SELECT j.last_error FROM media_jobs j WHERE j.photos_asset_id=p.id
         AND j.rendition IN ('proxy_720p','proxy_360p')

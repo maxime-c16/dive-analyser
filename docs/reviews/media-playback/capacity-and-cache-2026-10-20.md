@@ -88,3 +88,11 @@ writing the config. All managed config writers must use this lock; arbitrary
 editors ignoring it are outside the serialization guarantee. Focused tests
 cover another process holding the lock, preservation of newer settings on
 rollback, private backup/config permissions and low-disk rollback.
+
+Latest-row selection is deterministic per asset/rendition (`created_at DESC,
+id DESC`) before file checks, so an older file cannot hide a missing latest
+entry. Backup creation uses exclusive `os.open` with mode 0600 atomically;
+permissions do not depend on a later chmod or a restrictive shell umask.
+Regression tests exercise duplicate/same-date cache rows and the requested
+backup creation flags and mode. The revised inventory completed another
+read-only production run without changing jobs or media.

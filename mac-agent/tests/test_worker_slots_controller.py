@@ -74,3 +74,18 @@ def test_low_disk_refuses_increase_but_allows_rollback(controller, monkeypatch):
         module.update_slots(config, 2, apply=True)
     assert error.value.code == 2
     assert config.read_bytes() == original
+
+
+def test_backup_is_created_with_private_permissions_atomically(controller, monkeypatch):
+    module, config = controller
+    original_open = module.os.open
+    backups = []
+    def inspect_open(path, flags, mode=0o777, **kwargs):
+        if Path(path).name.startswith('config.pre-slots-'):
+            backups.append((flags, mode))
+        return original_open(path, flags, mode, **kwargs)
+    monkeypatch.setattr(module.os, 'open', inspect_open)
+    module.update_slots(config, 2, apply=True)
+    flags, mode = backups[0]
+    assert flags & module.os.O_CREAT and flags & module.os.O_EXCL
+    assert mode == 0o600
