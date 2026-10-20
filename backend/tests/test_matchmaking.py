@@ -500,3 +500,34 @@ def test_background_warmup_does_not_retry_invalid_identity(workspace):
     db.add(failed); db.commit()
     assert evaluation_access.prepare_media(db, dive, asset, reason='automatic_review_warmup') == ([], [])
     assert db.query(MediaJob).filter_by(photos_asset_id=asset.id).count() == 1
+
+
+@pytest.mark.parametrize('media_state', ['original', 'preparing', 'missing'])
+def test_existing_cold_selection_remains_resumable_without_get_side_effects(workspace, media_state):
+    from app.models.media import MediaCacheEntry, MediaJob
+    from app.models.photos_asset import PhotosAsset
+    db, login, dives, _, _ = workspace
+    client = login('bob')
+    sid, assigned = stack(client, daily=False)
+    assert len(assigned) == 1
+    asset = db.query(PhotosAsset).filter_by(video_uuid='alice-public-video').one()
+    entries = db.query(MediaCacheEntry).filter_by(photos_asset_id=asset.id)
+    if media_state == 'original':
+        entries.one().rendition = 'original'
+    else:
+        entries.delete()
+        if media_state == 'preparing':
+            db.add(MediaJob(photos_asset_id=asset.id, media_key='cold-resume-proxy',
+                rendition='proxy_720p', status='queued'))
+    db.commit()
+    jobs_before = db.query(MediaJob).count()
+    overview = client.get('/api/v1/evaluations/overview')
+    assert overview.status_code == 200
+    assert overview.json()['today']['resume']['stack_id'] == sid
+    assert overview.json()['today']['resume']['remaining'] == 1
+    resumed = client.get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue')
+    assert resumed.status_code == 200
+    assert [item['dive_id'] for item in resumed.json()['items']] == [dives['alice-public']]
+    assert resumed.json()['items'][0]['media']['status'] == ('ready' if media_state == 'original' else media_state)
+    assert db.query(MediaJob).count() == jobs_before
+    assert login('alice').get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue').status_code == 404

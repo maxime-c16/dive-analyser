@@ -49,7 +49,9 @@ reported as a temporary workaround; it does not validate browser playback.
   retain each video element across promotion and replay. Background jobs may
   add quality choices but cannot replace a video after its first decoded frame.
 - Admit ready previews to new automatic selections. Existing selections can
-  still contain cold clips. This temporarily narrows the pool; it is not a
+  still contain cold clips and remain resumable for preparation/retry, subject
+  to current authorization and unchanged video identity. Resume/queue GETs do
+  not create preparation jobs. This temporarily narrows the pool; it is not a
   replacement for ingestion/backfill coverage.
 - Interactive preparation priority is 5 (poster 6), ahead of ingestion 10 and
   background warming 100. Reuse active jobs rather than duplicate them.

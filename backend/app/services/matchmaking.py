@@ -174,8 +174,9 @@ def queue(db, user, stack_id):
         if dive.video_uuid != item.video_uuid:
             continue
         media = status(db, dive, asset)
-        if media['status'] != 'ready':
-            continue
+        # Assignment is stable even if its preview expires after allocation.
+        # Return cold media so the player can prepare/retry it; queue GETs
+        # must not enqueue work or silently remove an assigned dive.
         name = db.query(Diver.display_name).filter_by(id=dive.diver_id).scalar()
         items.append({'request_id': dive.id, 'dive_id': dive.id, 'prompt': None,
             'dive': {'id': dive.id, 'video_uuid': dive.video_uuid, 'dive_code': dive.dive_code,
@@ -247,16 +248,17 @@ def _stack_progress(db, user, row, items, voted):
 
 
 def today(db, user):
-    """Read-only UTC-day progress; load at most daily + newest playable stack."""
+    """Read-only UTC-day progress; load daily + newest resumable stack."""
     now = datetime.utcnow()
     start = datetime(now.year, now.month, now.day)
     daily_row = db.query(ReviewStack).filter_by(user_id=user.id, key='daily:' + start.date().isoformat()).first()
     voted_item = exists(select(1).where(AutomaticRating.evaluator_user_id == user.id,
         AutomaticRating.dive_id == ReviewStackItem.dive_id).correlate(ReviewStackItem))
-    playable_item = eligible(db, user).filter(Dive.id == ReviewStackItem.dive_id,
-        Dive.video_uuid == ReviewStackItem.video_uuid, _ready_clause()).exists()
+    resumable_item = eligible(db, user).filter(Dive.id == ReviewStackItem.dive_id,
+        Dive.video_uuid == ReviewStackItem.video_uuid,
+        exists(select(1).where(PhotosAsset.video_uuid == Dive.video_uuid))).exists()
     unfinished = exists(select(1).where(ReviewStackItem.stack_id == ReviewStack.id,
-        ReviewStackItem.skipped_at.is_(None), ~voted_item, playable_item).correlate(ReviewStack))
+        ReviewStackItem.skipped_at.is_(None), ~voted_item, resumable_item).correlate(ReviewStack))
     resume_row = db.query(ReviewStack).filter(ReviewStack.user_id == user.id,
         ReviewStack.created_at >= start, unfinished).order_by(ReviewStack.id.desc()).first()
     rows = [daily_row] if daily_row is not None else []
