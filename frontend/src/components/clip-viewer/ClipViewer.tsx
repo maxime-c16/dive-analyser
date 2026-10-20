@@ -4,6 +4,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   MessageCircle,
   X,
@@ -11,18 +13,24 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
-import { attemptDate } from "../../utils/attemptPresentation";
+import {
+  attemptDate,
+  attemptScore,
+  modifiersFor,
+  platformTypeName,
+} from "../../utils/attemptPresentation";
+import { diveCodeName } from "../../i18n/diveNames";
 import { cachedPreview, getPreview } from "../../utils/mediaPreview";
 import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { useModalOverlay, isTopOverlay } from "../../utils/overlays";
 import type { FeedDragEnd } from "./ImmersiveControls";
 import DiveVideoPlayer from "../DiveVideoPlayer";
-import ClipViewerNavigation from "./ClipViewerNavigation";
-import ClipMetadataSummary from "./ClipMetadataSummary";
+import ClipViewerNavigation, { PLAYBACK_RATES } from "./ClipViewerNavigation";
+import ClipFilmstrip from "./ClipFilmstrip";
+import ClipEvaluation, { useDiveEvaluation } from "./ClipEvaluation";
 import DiveManagement from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
 import FederateDiveControl from "./FederateDiveControl";
-import EvaluationRequestControl from "./EvaluationRequestControl";
 import ClipDetails from "./ClipDetails";
 import ClipComments from "./ClipComments";
 import ShareDiveButton from "./ShareDiveButton";
@@ -52,6 +60,12 @@ export const FEED_COMMIT_FRACTION = 0.25;
 export const FEED_FLING_VELOCITY_PX_MS = 0.6;
 export const FEED_FLING_MIN_PX = 24;
 const MOBILE_PAGER_QUERY = "(max-width: 599px)";
+// Tablets and desktops: video, filmstrip and a permanent side panel. Phones
+// (and phones in landscape) keep the immersive overlay player.
+export const STUDIO_QUERY =
+  "(min-width: 1024px), (min-width: 600px) and (min-height: 600px)";
+
+type PanelTab = "evaluation" | "comments" | "details";
 
 // Pinch-to-clean-view (Instagram-style). Closing two fingers by this much of
 // the starting span takes the view all the way to clean; past it the video
@@ -168,17 +182,26 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
   const [manageOpen, setManageOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(9 / 16);
-  const [wide, setWide] = useState(
-    () => window.matchMedia?.("(min-width: 1024px)").matches ?? true,
+  const [studio, setStudio] = useState(
+    () => window.matchMedia?.(STUDIO_QUERY).matches ?? true,
   );
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  // The panel tab survives moving between dives; on phones the panel is a
+  // sheet opened from the overlay (comments button, description swipe).
+  const [tab, setTab] = useState<PanelTab>("evaluation");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const detailsOpen = sheetOpen && tab === "details";
+  const commentsOpen = sheetOpen && tab === "comments";
+  const openSheet = (next: PanelTab) => {
+    setTab(next);
+    setSheetOpen(true);
+    setManageOpen(false);
+  };
   // Pinch-in on the video: overlays hide and the whole frame shows, like
   // Instagram. Per-dive: moving to another clip restores the overlays.
   const [cleanView, setCleanView] = useState(false);
@@ -195,6 +218,8 @@ export default function ClipViewer({
     retry,
   } = useDiveSocial(attempt.id);
   const { user } = useAuth();
+  const evaluation = useDiveEvaluation(attempt.id, Boolean(user));
+  const panelTab: PanelTab = !user && tab === "evaluation" ? "details" : tab;
   // Hover/pointer-down on the Analysis action speculatively prepares the
   // analysis result so the destination page meets ready data instead of
   // opening on a compute round-trip. Consume-once: the page's own call
@@ -226,14 +251,13 @@ export default function ClipViewer({
   const [pagerEnabled, setPagerEnabled] = useState(shouldEnableFeedPager);
   const prevAttempt = index > 0 ? attempts[index - 1] : null;
   const nextAttempt = index < total - 1 ? attempts[index + 1] : null;
-  const panelOpen = detailsOpen || commentsOpen || manageOpen;
+  const panelOpen = sheetOpen;
   const panelRef = useRef<HTMLElement>(null);
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
   const commentsButtonRef = useRef<HTMLButtonElement>(null);
   const scrimRef = useRef<HTMLButtonElement>(null);
   const closePanel = () => {
-    setDetailsOpen(false);
-    setCommentsOpen(false);
+    setSheetOpen(false);
     setManageOpen(false);
   };
   const setFrameTransform = (el: HTMLDivElement | null, y: number | null) => {
@@ -480,8 +504,7 @@ export default function ClipViewer({
 
   useEffect(() => {
     setManageOpen(false);
-    setDetailsOpen(false);
-    setCommentsOpen(false);
+    setSheetOpen(false);
     setCleanView(false);
     setAspectRatio(9 / 16);
   }, [attempt.id]);
@@ -560,19 +583,19 @@ export default function ClipViewer({
   }, [pinching]);
 
   useEffect(() => {
-    const media = window.matchMedia?.("(min-width: 1024px)");
+    const media = window.matchMedia?.(STUDIO_QUERY);
     if (!media) return;
-    const update = () => setWide(media.matches);
+    const update = () => setStudio(media.matches);
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
   useLayoutEffect(() => {
-    panelRef.current?.toggleAttribute("inert", !wide && !panelOpen);
-  }, [wide, panelOpen]);
+    panelRef.current?.toggleAttribute("inert", !studio && !panelOpen);
+  }, [studio, panelOpen]);
   useModalOverlay(dialogRef, { onClose,
     fallbackFocus: () => document.querySelector<HTMLInputElement>('input[data-dives-search]'),
   });
-  useModalOverlay(panelRef, { enabled: panelOpen, layer: 51, extraRef: scrimRef, onClose: closePanel,
+  useModalOverlay(panelRef, { enabled: panelOpen && !studio, layer: 51, extraRef: scrimRef, onClose: closePanel,
     returnFocus: () => (commentsOpen ? commentsButtonRef : detailsButtonRef).current,
   });
 
@@ -675,6 +698,65 @@ export default function ClipViewer({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose, onMove, attempts, index, total, panelOpen]);
 
+  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const fullName = diveCodeName(attempt.dive_code, lang);
+  const diveName = fullName === attempt.dive_code ? "" : fullName;
+  const facts = [
+    `${attempt.height} ${platformTypeName(attempt.platform_type)}`,
+    attempt.official_dd ? `DD ${attempt.official_dd.toFixed(1)}` : null,
+    attempt.is_sync ? "SYNC" : t("analysis.individual"),
+    ...modifiersFor(attempt),
+    attemptDate(attempt),
+  ].filter(Boolean);
+  const description = attempt.notes || attempt.raw_caption;
+  const canShare = Boolean(user || (attempt.can_manage && attempt.video_uuid));
+  const shareButton = canShare && (
+    <ShareDiveButton key={attempt.id} id={attempt.id} allowLink={!!(attempt.can_manage && attempt.video_uuid)} allowDm={!!user} />
+  );
+  const downloadButton = user && attempt.video_uuid && (
+    <DownloadDiveButton key={`download-${attempt.id}`} id={attempt.id} />
+  );
+  const analysisLink = (
+    <Link
+      to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
+      state={{ returnTo: `${location.pathname}${location.search}` }}
+      aria-label={t("clipViewer.analysis")}
+      {...analysisIntent}
+    >
+      <BarChart3 size={studio ? 18 : 25} />
+      <span>{t("clipViewer.analysis")}</span>
+    </Link>
+  );
+  const tabs: Array<[PanelTab, string, boolean]> = [
+    ...(user
+      ? [["evaluation", t("clipViewer.tabEvaluation"), evaluation.data?.state === "open"] as [PanelTab, string, boolean]]
+      : []),
+    ["comments", t("clipViewer.comments"), false],
+    ["details", t("clipViewer.details"), false],
+  ];
+  const updateCommentCount = (delta: number) =>
+    setSocial((value) =>
+      value
+        ? { ...value, comment_count: Math.max(0, value.comment_count + delta) }
+        : value,
+    );
+  const speedSelect = (
+    <label className="clip-speed">
+      <span className="sr-only">{t("clipNav.speed")}</span>
+      <select
+        aria-label={t("clipNav.playbackSpeed")}
+        value={playbackRate}
+        onChange={(event) => onPlaybackRateChange(Number(event.target.value))}
+      >
+        {PLAYBACK_RATES.map((rate) => (
+          <option key={rate} value={rate}>
+            {rate}×
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <div
       className="fixed inset-0 z-50 overscroll-none bg-app"
@@ -687,7 +769,7 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className={`clip-viewer${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}`}
+        className={`clip-viewer${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}`}
       >
         <header className="clip-header">
           <button
@@ -699,15 +781,37 @@ export default function ClipViewer({
             <ArrowLeft size={20} />
             <span>{t("nav.dives")}</span>
           </button>
-          <div className="clip-header-label">
-            <span className="clip-live-dot" />
-            {t("clipViewer.diveReview")}
+          {!studio && (
+            <div className="clip-header-label">
+              <span className="clip-live-dot" />
+              {t("clipViewer.diveReview")}
+            </div>
+          )}
+          <div className="clip-header-end">
+            {studio && speedSelect}
+            <span className="clip-counter" aria-live="polite">
+              <b>{index + 1}</b> / {total}
+            </span>
           </div>
-          <span className="clip-counter">
-            {index + 1} / {total}
-          </span>
         </header>
         <div className="clip-layout">
+          {studio && (
+            <ClipFilmstrip attempt={attempt} attempts={attempts} onSelect={onMove} />
+          )}
+          <div className="clip-stage-column">
+          <div className="clip-stage-row">
+          {studio && (
+            <button
+              type="button"
+              className="clip-step"
+              onClick={() => navigate(-1)}
+              disabled={index <= 0}
+              aria-label={t("clipNav.previous")}
+              title={`${t("clipNav.previous")} (Shift+←)`}
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
           <div ref={viewportRef} className="clip-stage-viewport">
             {pagerEnabled && prevAttempt && (
               <ClipNeighborFrame
@@ -757,6 +861,8 @@ export default function ClipViewer({
                 {t("clipViewer.noLinkedClip")}
               </div>
             )}
+            {!studio && (
+              <>
             <div className="clip-stage-shade" />
             <div className="clip-actions">
               <button
@@ -778,30 +884,18 @@ export default function ClipViewer({
                 aria-label={t("clipViewer.comments")}
                 aria-expanded={commentsOpen}
                 aria-controls="clip-review-panel"
-                onClick={() => {
-                  setCommentsOpen(!commentsOpen);
-                  setDetailsOpen(false);
-                  setManageOpen(false);
-                }}
+                onClick={() => (commentsOpen ? closePanel() : openSheet("comments"))}
               >
                 <MessageCircle size={25} />
                 <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
-              {(user || (attempt.can_manage && attempt.video_uuid)) && <ShareDiveButton key={attempt.id} id={attempt.id} allowLink={!!(attempt.can_manage && attempt.video_uuid)} allowDm={!!user} />}
-              {user && attempt.video_uuid && <DownloadDiveButton key={`download-${attempt.id}`} id={attempt.id} />}
-              <Link
-                to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
-                state={{ returnTo: `${location.pathname}${location.search}` }}
-                aria-label={t("clipViewer.analysis")}
-                {...analysisIntent}
-              >
-                <BarChart3 size={25} />
-                <span>{t("clipViewer.analysis")}</span>
-              </Link>
+              {shareButton}
+              {downloadButton}
+              {analysisLink}
             </div>
             <div className="clip-caption">
               <div className="clip-caption-eyebrow">
-                {attempt.height} <span>·</span> {attempt.platform_type}{" "}
+                {attempt.height} <span>·</span> {platformTypeName(attempt.platform_type)}{" "}
                 <span>·</span>{" "}
                 {attempt.visibility === "private" ? t("clipViewer.private") : t("clipViewer.public")}
               </div>
@@ -826,23 +920,19 @@ export default function ClipViewer({
                     descriptionGesture.current - event.clientY > 30
                   ) {
                     descriptionSwiped.current = true;
-                    setDetailsOpen(true);
-                    setCommentsOpen(false);
+                    openSheet("details");
                   }
                   descriptionGesture.current = null;
                 }}
                 onPointerCancel={() => { descriptionGesture.current = null; }}
                 onClick={(event) => {
                   if (event.detail !== 0 && descriptionSwiped.current) return;
-                  setDetailsOpen(!detailsOpen);
-                  setCommentsOpen(false);
-                  setManageOpen(false);
+                  if (detailsOpen) closePanel();
+                  else openSheet("details");
                 }}
               >
                 <span>
-                  {attempt.notes ||
-                    attempt.raw_caption ||
-                    t("clipViewer.defaultCaption")}
+                  {diveName || description || t("clipViewer.defaultCaption")}
                 </span>
                 <strong>
                   {t("clipViewer.details")} <ChevronUp size={14} />
@@ -854,6 +944,8 @@ export default function ClipViewer({
                 </p>
               )}
             </div>
+              </>
+            )}
           </div>
           {pagerEnabled && nextAttempt && (
             <ClipNeighborFrame
@@ -864,7 +956,21 @@ export default function ClipViewer({
             />
           )}
           </div>
-          {panelOpen && (
+          {studio && (
+            <button
+              type="button"
+              className="clip-step"
+              onClick={() => navigate(1)}
+              disabled={index >= total - 1}
+              aria-label={t("clipNav.next")}
+              title={`${t("clipNav.next")} (Shift+→)`}
+            >
+              <ChevronRight size={20} />
+            </button>
+          )}
+          </div>
+          </div>
+          {panelOpen && !studio && (
             <button
               type="button"
               tabIndex={-1}
@@ -878,56 +984,95 @@ export default function ClipViewer({
             ref={panelRef}
             tabIndex={-1}
             id="clip-review-panel"
-            className={`clip-panel ${panelOpen ? "is-open" : ""} ${commentsOpen ? "clip-panel-comments" : ""}`}
-            aria-label={commentsOpen ? t("clipViewer.comments") : t("clipViewer.diveDetails")}
+            className={`clip-panel ${panelOpen ? "is-open" : ""} ${commentsOpen && !studio ? "clip-panel-comments" : ""}`}
+            aria-label={t("clipViewer.diveDetails")}
           >
-            <div className="clip-panel-heading">
-              <div>
-                <span className="clip-eyebrow">
-                  {commentsOpen ? t("clipViewer.discussion") : t("clipViewer.theAttempt")}
-                </span>
-                <h3>{commentsOpen ? t("clipViewer.comments") : attempt.dive_code}</h3>
+            {studio ? (
+              <>
+                <div className="clip-panel-summary">
+                  <div className="clip-panel-title">
+                    <h2 id="clip-viewer-title">{attempt.dive_code}</h2>
+                    <span className="clip-panel-score">{attemptScore(attempt).toFixed(1)}</span>
+                  </div>
+                  {diveName && <p className="clip-panel-name">{diveName}</p>}
+                  <p className="clip-panel-facts">{facts.join(" · ")}</p>
+                </div>
+                <div className="clip-panel-actions">
+                  <button
+                    type="button"
+                    aria-label={t("clipViewer.likeDive")}
+                    aria-pressed={social?.liked ?? false}
+                    disabled={!social || socialBusy}
+                    onClick={() => void like(!social?.liked)}
+                  >
+                    <Heart size={18} fill={social?.liked ? "currentColor" : "none"} />
+                    <span>{social?.like_count ?? 0}</span>
+                  </button>
+                  {shareButton}
+                  {downloadButton}
+                  {analysisLink}
+                </div>
+                {socialError && (
+                  <p className="clip-social-error" role="alert">
+                    {socialError} <button onClick={retry}>{t("common.retry")}</button>
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="clip-panel-heading">
+                <div>
+                  <span className="clip-eyebrow">{t("clipViewer.theAttempt")}</span>
+                  <h3>{attempt.dive_code}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="clip-panel-close"
+                  aria-label={t("clipViewer.closePanel")}
+                  onClick={closePanel}
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="clip-panel-close"
-                aria-label={t("clipViewer.closePanel")}
-                onClick={closePanel}
-              >
-                <X size={20} />
-              </button>
+            )}
+            <div className="clip-panel-tabs" role="tablist" aria-label={t("clipViewer.diveDetails")}>
+              {tabs.map(([key, label, pending]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  id={`clip-tab-${key}`}
+                  aria-selected={panelTab === key}
+                  aria-controls="clip-panel-body"
+                  className={pending && panelTab !== key ? "has-pending" : undefined}
+                  onClick={() => setTab(key)}
+                >
+                  {label}
+                  {key === "comments" && social ? <span>{social.comment_count}</span> : null}
+                  {pending && panelTab !== key ? <span className="sr-only">{t("clipViewer.toRate")}</span> : null}
+                </button>
+              ))}
             </div>
-            <div className="clip-panel-scroll">
-              {commentsOpen ? (
-                <ClipComments
-                  key={attempt.id}
-                  id={attempt.id}
-                  onCountChange={(delta) =>
-                    setSocial((value) =>
-                      value
-                        ? {
-                            ...value,
-                            comment_count: Math.max(
-                              0,
-                              value.comment_count + delta,
-                            ),
-                          }
-                        : value,
-                    )
-                  }
+            <div className="clip-panel-scroll" id="clip-panel-body" role="tabpanel" aria-labelledby={`clip-tab-${panelTab}`}>
+              {panelTab === "evaluation" ? (
+                <ClipEvaluation
+                  attempt={attempt}
+                  evaluation={evaluation.data}
+                  error={evaluation.error}
+                  onReload={evaluation.reload}
+                  onRated={evaluation.setData}
+                  onUpdate={onUpdate}
                 />
+              ) : panelTab === "comments" ? (
+                <ClipComments key={attempt.id} id={attempt.id} onCountChange={updateCommentCount} />
               ) : (
                 <>
-                  <ClipMetadataSummary attempt={attempt} />
-                  <div className="clip-panel-description">
-                    <span className="clip-eyebrow">{t("clipViewer.description")}</span>
-                    <p>
-                      {attempt.notes ||
-                        attempt.raw_caption ||
-                        t("clipViewer.noDescription")}
-                    </p>
-                  </div>
-                  <ClipDetails attempt={attempt} open={detailsOpen} />
+                  {description && (
+                    <div className="clip-panel-description">
+                      <span className="clip-eyebrow">{t("clipViewer.description")}</span>
+                      <p>{description}</p>
+                    </div>
+                  )}
+                  <ClipDetails attempt={attempt} open />
                   <div className="clip-management">
                     {attempt.can_manage && onUpdate ? (
                       <>
@@ -941,13 +1086,6 @@ export default function ClipViewer({
                           attempt={attempt}
                           onUpdate={onUpdate}
                         />
-                        {attempt.video_uuid && attempt.diver_id != null && (
-                          <EvaluationRequestControl
-                            key={`evaluation-${attempt.id}`}
-                            attempt={attempt}
-                            onUpdate={onUpdate}
-                          />
-                        )}
                       </>
                     ) : (
                       <span>
@@ -977,23 +1115,20 @@ export default function ClipViewer({
                 </>
               )}
             </div>
-            <p className="clip-gesture-hint">
-              Tap to pause · Double tap to like
-              <br />
-              Hold for 2× · Swipe to change dive
-            </p>
           </aside>
         </div>
-        <footer className="clip-navigation">
-          <ClipViewerNavigation
-            index={index}
-            total={total}
-            onPrevious={() => navigate(-1)}
-            onNext={() => navigate(1)}
-            playbackRate={playbackRate}
-            onPlaybackRateChange={onPlaybackRateChange}
-          />
-        </footer>
+        {!studio && (
+          <footer className="clip-navigation">
+            <ClipViewerNavigation
+              index={index}
+              total={total}
+              onPrevious={() => navigate(-1)}
+              onNext={() => navigate(1)}
+              playbackRate={playbackRate}
+              onPlaybackRateChange={onPlaybackRateChange}
+            />
+          </footer>
+        )}
       </section>
     </div>
   );

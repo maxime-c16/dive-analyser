@@ -1,7 +1,9 @@
 """Small-pool matchmaking. Public-only, fair by owner, retry-stable stacks.
 
-UTC daily boundary; skips cool down 7 days. One automatic vote per account
-and dive, independent of manual requests. No reservation across reviewers.
+UTC daily boundary; skips cool down 7 days. One vote per account and dive
+across both circuits: a request-circuit vote blocks an automatic vote and
+vice versa (each circuit still stores its own rows). No reservation across
+reviewers.
 """
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -200,7 +202,10 @@ def results(db, user, dive_id, limit=50, offset=0):
         'provisional': True, 'ratings': [payload(r) for r in rows], 'my_rating': payload(mine) if mine else None}
 
 
-def rate(db, user, dive_id, score, comment, video_uuid):
+def rate(db, user, dive_id, score, comment, video_uuid, require_assignment=True):
+    """Immutable automatic vote. The jury stack path requires the dive to be
+    assigned in the voter's selection; the player path (any eligible public
+    dive the member can watch) passes ``require_assignment=False``."""
     dive, asset = authorize(db, user, dive_id, lock=True)
     if dive.video_uuid != video_uuid:
         raise HTTPException(409, {'code': 'EVALUATION_CLOSED', 'message': 'Video changed; reload the selection'})
@@ -209,7 +214,16 @@ def rate(db, user, dive_id, score, comment, video_uuid):
         if old.score_half_steps != score or old.comment != comment:
             raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED', 'message': 'Vote is immutable'})
     else:
-        assigned = db.query(ReviewStackItem).join(ReviewStack).filter(
+        # Cross-circuit single vote (bot review PR 127): the shared dive lock
+        # taken by authorize() above serializes this check against a
+        # concurrent request-circuit vote on the same dive.
+        from app.models.evaluation import EvaluationRating
+        request_row = evaluation_access.request_for_dive(db, dive_id)
+        if request_row is not None and db.query(EvaluationRating.id).filter_by(
+                request_id=request_row.id, evaluator_user_id=user.id).first() is not None:
+            raise HTTPException(409, {'code': 'RATING_ALREADY_SUBMITTED',
+                'message': 'This dive was already rated in the request circuit (one vote per member and dive)'})
+        assigned = not require_assignment or db.query(ReviewStackItem).join(ReviewStack).filter(
             ReviewStack.user_id == user.id, ReviewStackItem.dive_id == dive_id, ReviewStackItem.video_uuid == video_uuid, ReviewStackItem.skipped_at.is_(None)).first()
         if not assigned or status(db, dive, asset)['status'] != 'ready':
             raise HTTPException(404, 'Not found')
@@ -223,7 +237,7 @@ def rate(db, user, dive_id, score, comment, video_uuid):
             winner = db.query(AutomaticRating).filter_by(dive_id=dive_id, evaluator_user_id=user.id).first()
             if winner is None:
                 raise
-            return rate(db, user, dive_id, score, comment, video_uuid)
+            return rate(db, user, dive_id, score, comment, video_uuid, require_assignment)
     panel = results(db, user, dive_id)
     return {'rating': panel['my_rating'], 'results': panel}
 

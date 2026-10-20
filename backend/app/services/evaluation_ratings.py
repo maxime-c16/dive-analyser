@@ -6,7 +6,9 @@ Error policy (stable codes for the frontend):
   dive owner, evaluator = account with a stored vote — nobody else);
 - 403 SELF_EVALUATION on the account's own dive;
 - 409 RATING_ALREADY_SUBMITTED when the existing content differs (immutable
-  votes), 409 EVALUATION_CLOSED for a NEW vote after deactivation;
+  votes), or when the member already rated the same dive in the other
+  circuit (one vote per member and dive); 409 EVALUATION_CLOSED for a NEW
+  vote after deactivation;
 - 410 SESSION_EXPIRED (sessions module);
 - 422 invalid score/comment.
 
@@ -140,6 +142,12 @@ def submit_rating(
         dive = db.get(Dive, request_row.dive_id) if request_row else None
         if request_row is None or dive is None:
             raise HTTPException(404, "Not found")
+        # Cross-circuit single vote (bot review PR 127): lock the dive row
+        # FIRST — the same order as matchmaking.authorize(lock=True) — so a
+        # concurrent automatic vote on the same dive cannot commit between
+        # the check below and our insert. No-op on SQLite (tests).
+        if db.get_bind().dialect.name == "postgresql":
+            db.query(Dive).filter(Dive.id == dive.id).with_for_update().populate_existing().first()
         existing = (
             db.query(EvaluationRating)
             .filter(
@@ -161,8 +169,31 @@ def submit_rating(
                 "rating": _rating_payload(existing),
                 "results": _results_payload(db, request_row, user.id),
             }
+        # Owners never vote (bot review PR 127): current ownership is checked
+        # before the cross-circuit vote below, so a member who rated before
+        # becoming owner gets 403 SELF_EVALUATION, not 409, on new attempts.
         if dive.diver_id in set(owned_diver_ids(db, user.id)):
             raise SubmissionBlocked("SELF_EVALUATION", "You cannot rate your own dive", 403)
+        # Cross-circuit single vote (bot review PR 127): a member who already
+        # rated this dive in the automatic circuit cannot open a second vote
+        # here. Same-content retries are handled by the branch above, so this
+        # only rejects genuinely NEW votes. Checked under the shared dive lock
+        # taken above, mirroring matchmaking.rate.
+        from app.models.matchmaking import AutomaticRating
+        if (
+            db.query(AutomaticRating.id)
+            .filter(
+                AutomaticRating.dive_id == dive.id,
+                AutomaticRating.evaluator_user_id == user.id,
+            )
+            .first()
+            is not None
+        ):
+            raise SubmissionBlocked(
+                "RATING_ALREADY_SUBMITTED",
+                "This dive was already rated in the community circuit (one vote per member and dive)",
+                409,
+            )
         if not request_row.active:
             raise SubmissionBlocked("EVALUATION_CLOSED", "This evaluation is closed to new votes", 409)
         # Serialize vote/deactivation where the dialect allows it: after a
