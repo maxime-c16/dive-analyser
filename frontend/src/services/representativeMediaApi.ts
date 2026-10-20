@@ -67,7 +67,9 @@ export type RepresentativeGallery = {
       proxy_ready: number
       total: number
       poster: number
+      proxy_720p?: number
       proxy_360p: number
+      proxy?: number
       fully_ready: boolean
     }
     representatives: RepresentativeCard[]
@@ -190,7 +192,7 @@ export function replaceRepresentative(
     body: JSON.stringify({
       replacement_dive_id: replacementDiveId,
       prepare,
-      renditions: ['poster', 'proxy_360p'],
+      renditions: ['poster', 'proxy_720p'],
       diver_scope: diverId ? 'selected' : diverScope,
       diver_id: diverId ? Number(diverId) : null,
     }),

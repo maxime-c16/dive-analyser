@@ -68,7 +68,7 @@ def test_manifest_selects_low_median_high_by_exact_canonical_code(test_db):
         MediaCacheEntry(
             photos_asset_id=high.photos_asset_id,
             media_key="b" * 64,
-            rendition="proxy_360p",
+            rendition="proxy_720p",
             storage_path="/tmp/high-proxy.mp4",
             content_type="video/mp4",
             size_bytes=100,
@@ -96,7 +96,7 @@ def test_manifest_selects_low_median_high_by_exact_canonical_code(test_db):
     assert [item["attempt_id"] for item in codes["103B"]["representatives"]] == [low.id, median.id, high.id]
     assert codes["103B"]["representatives"][0]["performance"] == "B"
     assert codes["103B"]["representatives"][2]["cache"]["poster"]["ready"] is True
-    assert codes["103B"]["representatives"][2]["cache"]["proxy_360p"]["ready"] is True
+    assert codes["103B"]["representatives"][2]["cache"]["proxy_720p"]["ready"] is True
     assert "poster_previously_unavailable" in codes["103B"]["representatives"][0]["warnings"]
     assert codes["103C"]["representatives"][0]["attempt_id"] == tuck.id
     assert manifest["selection_policy"]["jobs_created"] is False
@@ -122,7 +122,7 @@ def test_representative_gallery_is_read_only_and_reports_states(test_db):
     test_db.add(MediaJob(
         photos_asset_id=low.photos_asset_id,
         media_key="f" * 64,
-        rendition="proxy_360p",
+        rendition="proxy_720p",
         status="unavailable",
         last_error="materialized_video_not_found",
     ))
@@ -253,7 +253,7 @@ def test_replace_preserves_history_and_prepare_false_creates_zero_jobs(test_db):
         role="median",
         replacement_dive_id=replacement.id,
         prepare=False,
-        renditions=["poster", "proxy_360p"],
+        renditions=["poster", "proxy_720p"],
     )
     test_db.commit()
 
@@ -278,7 +278,7 @@ def test_ready_media_remap_only_promotes_fully_cached_same_code_candidates(test_
     test_db.add_all([
         MediaJob(photos_asset_id=original.photos_asset_id, media_key="s" * 64, rendition="poster", status="unavailable", last_error="materialized_video_not_found"),
         MediaCacheEntry(photos_asset_id=ready.photos_asset_id, media_key="t" * 64, rendition="poster", storage_path="/tmp/ready.jpg", content_type="image/jpeg", size_bytes=10, status="ready"),
-        MediaCacheEntry(photos_asset_id=ready.photos_asset_id, media_key="u" * 64, rendition="proxy_360p", storage_path="/tmp/ready.mp4", content_type="video/mp4", size_bytes=100, status="ready"),
+        MediaCacheEntry(photos_asset_id=ready.photos_asset_id, media_key="u" * 64, rendition="proxy_720p", storage_path="/tmp/ready.mp4", content_type="video/mp4", size_bytes=100, status="ready"),
         RepresentativeMediaSelection(dive_code="103B", selection_role="median", dive_id=original.id, active=True, selection_reason="initial_manifest"),
     ])
     test_db.commit()

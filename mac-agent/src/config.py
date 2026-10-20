@@ -115,7 +115,9 @@ class MediaConfig:
 
     def __post_init__(self):
         if self.capabilities is None:
-            self.capabilities = ["poster", "proxy_360p", "proxy_720p"]
+            # Lot B: no new 360p. Legacy 360p rows stay readable server-side
+            # until replaced; the Mac only produces poster + 720p by default.
+            self.capabilities = ["poster", "proxy_720p"]
         if self.local_asset_overrides is None:
             self.local_asset_overrides = {}
         if self.source_vault is None:
@@ -779,7 +781,6 @@ media:
   ffmpeg_path: ffmpeg
   capabilities:
     - poster
-    - proxy_360p
     - proxy_720p
   local_asset_overrides: {}
 

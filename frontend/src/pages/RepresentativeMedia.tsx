@@ -56,7 +56,8 @@ function RepresentativeCardView({
   const { t } = useTranslation()
   const failure = rep.media.failure
   const posterReady = rep.media.renditions.poster.status === 'ready'
-  const proxyReady = rep.media.renditions.proxy_360p.status === 'ready'
+  // Lot B: 720p is the production proxy; legacy 360p stays readable until replaced.
+  const proxyReady = rep.media.renditions.proxy_720p?.status === 'ready' || rep.media.renditions.proxy_360p?.status === 'ready'
   const mediaLabel = proxyReady
     ? t('repMedia.mediaVideoReady')
     : posterReady
@@ -83,7 +84,7 @@ function RepresentativeCardView({
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(rep.media.renditions.poster.status)}</div></div>
-          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(rep.media.renditions.proxy_360p.status)}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{mediaStatusLabel((rep.media.renditions.proxy_720p?.status === 'ready' ? 'ready' : rep.media.renditions.proxy_360p?.status) ?? 'missing')}</div></div>
         </div>
         {failure && (
           <details className="border border-app p-3">

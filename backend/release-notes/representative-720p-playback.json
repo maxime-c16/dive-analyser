@@ -1,0 +1,8 @@
+{
+  "id": "representative-720p-playback",
+  "date": "2026-10-21",
+  "title": "Representatives play again with ready 720p previews",
+  "body": "Representative galleries, dive analysis attempts and the catalogue now play a ready 720p preview when one exists. Older 360p files keep playing as a fallback until their 720p replacement is ready. New imports queue poster plus 720p only; image quality and encodings are unchanged.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

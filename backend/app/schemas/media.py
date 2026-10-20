@@ -137,14 +137,14 @@ class MediaCleanupResponse(BaseModel):
 
 class RepresentativePrepareRequest(BaseModel):
     tier: int = Field(1, ge=1, le=1)
-    renditions: List[str] = Field(default_factory=lambda: ["poster", "proxy_360p"])
+    renditions: List[str] = Field(default_factory=lambda: ["poster", "proxy_720p"])
     dry_run: bool = True
 
 
 class RepresentativeReplaceRequest(BaseModel):
     replacement_dive_id: int = Field(..., ge=1)
     prepare: bool = False
-    renditions: List[str] = Field(default_factory=lambda: ["poster", "proxy_360p"])
+    renditions: List[str] = Field(default_factory=lambda: ["poster", "proxy_720p"])
     diver_scope: str = "self"
     diver_id: int | None = None
 

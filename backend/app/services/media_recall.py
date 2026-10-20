@@ -112,7 +112,10 @@ def build_recall_manifest(
             "reason": reason,
             "media_readiness": {
                 "poster": "ready" if "poster" in ready else "missing",
-                "proxy_360p": "ready" if "proxy_360p" in ready else "missing",
+                "proxy_720p": "ready" if "proxy_720p" in ready else "missing",
+                # Legacy key kept for existing dashboards; same playable proxy.
+                "proxy_360p": "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else "missing",
+                "proxy": "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else "missing",
             },
             "source_readiness": "ready" if source else "missing",
             "known_failure_history": failures,

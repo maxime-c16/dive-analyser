@@ -24,10 +24,16 @@ from app.services.performance_scoring import dive_score_10
 from app.services.diver_identity import get_primary_diver
 
 CANONICAL_DIVE_CODE_RE = re.compile(r"^\d{3,4}[ABCD]$")
-REQUIRED_RENDITIONS = ("poster", "proxy_360p")
+# Lot B: new production target. Legacy 360p rows are never produced anymore
+# but stay readable as a playback fallback until their 720p upgrade lands.
+# Recognizing the existing 720p file does NOT validate its quality (no HQ1080
+# in this lot); encodings are untouched.
+REQUIRED_RENDITIONS = ("poster", "proxy_720p")
+LEGACY_PROXY_FALLBACK = "proxy_360p"
+PROXY_PREFERENCE = ("proxy_720p", "proxy_360p")
 ROLE_LABELS = {"low": "Low", "median": "Typical", "high": "High"}
 REPLACEMENT_REASON = "representative_replacement"
-ALLOWED_REPLACEMENT_RENDITIONS = {"poster", "proxy_360p"}
+ALLOWED_REPLACEMENT_RENDITIONS = {"poster", "proxy_720p"}
 READY_REMAP_REASON = "auto_ready_media_remap"
 
 
@@ -292,17 +298,31 @@ def _rendition_state(photos_asset_id: int, rendition: str, cache: dict[int, dict
     }
 
 
+def _preferred_proxy_rendition(renditions: dict[str, dict]) -> str | None:
+    """Return the playable proxy rendition: 720p first, legacy 360p fallback."""
+    for rendition in PROXY_PREFERENCE:
+        if renditions.get(rendition, {}).get("status") == "ready":
+            return rendition
+    return None
+
+
+def _is_playable_ready(ready: set[str]) -> bool:
+    """Poster plus any proxy (720p preferred, legacy 360p fallback)."""
+    return "poster" in ready and ("proxy_720p" in ready or "proxy_360p" in ready)
+
+
 def _aggregate_state(renditions: dict[str, dict], has_replacement: bool) -> str:
-    poster_ready = renditions["poster"]["status"] == "ready"
-    proxy_ready = renditions["proxy_360p"]["status"] == "ready"
-    statuses = {renditions["poster"]["status"], renditions["proxy_360p"]["status"]}
-    if poster_ready and proxy_ready:
+    poster_ready = renditions.get("poster", {}).get("status") == "ready"
+    proxy_rendition = _preferred_proxy_rendition(renditions)
+    statuses = {renditions.get("poster", {}).get("status"), (renditions.get(proxy_rendition, {}) if proxy_rendition else {}).get("status")}
+    if poster_ready and proxy_rendition:
         return "ready"
-    if poster_ready or proxy_ready:
+    if poster_ready or proxy_rendition:
         return "partial"
-    if statuses == {"missing"}:
+    flat = {renditions.get("poster", {}).get("status"), renditions.get("proxy_720p", {}).get("status"), renditions.get("proxy_360p", {}).get("status")}
+    if flat == {"missing"}:
         return "missing"
-    if "unavailable" in statuses or "failed" in statuses:
+    if "unavailable" in flat or "failed" in flat:
         return "replacement_available" if has_replacement else "replacement_exhausted"
     return "unavailable"
 
@@ -340,9 +360,11 @@ def _representative_payload(
     candidates = replacement_candidates(db, dive.dive_code, role, limit=1, current_dive_id=dive.id, diver_scope=diver_scope, diver_id=diver_id)
     renditions = {
         rendition: _rendition_state(dive.photos_asset_id, rendition, cache, jobs)
-        for rendition in REQUIRED_RENDITIONS
+        for rendition in ("poster", "proxy_720p", "proxy_360p")
     }
     state = _aggregate_state(renditions, bool(candidates))
+    proxy_rendition = _preferred_proxy_rendition(renditions)
+    proxy_state = renditions[proxy_rendition] if proxy_rendition else {"status": "missing", "playback_url": None, "failure": None}
     return {
         "role": role,
         "label": ROLE_LABELS.get(role, role.title()),
@@ -355,9 +377,10 @@ def _representative_payload(
         "media": {
             "state": state,
             "poster_url": renditions["poster"]["playback_url"],
-            "playback_url": renditions["proxy_360p"]["playback_url"],
+            "playback_url": proxy_state.get("playback_url"),
+            "proxy_rendition": proxy_rendition,
             "renditions": renditions,
-            "failure": renditions["proxy_360p"]["failure"] or renditions["poster"]["failure"],
+            "failure": proxy_state.get("failure") or renditions["poster"]["failure"],
         },
         "replacement": {
             "available": bool(candidates),
@@ -465,7 +488,7 @@ def build_representative_media_manifest(
                             "playback_url": playback_url(cached[rendition].id) if rendition in cached else None,
                             "size_bytes": cached[rendition].size_bytes if rendition in cached else None,
                         }
-                        for rendition in REQUIRED_RENDITIONS
+                        for rendition in ("poster", "proxy_720p", "proxy_360p")
                     },
                     "needed_renditions": missing,
                     "warnings": _candidate_warnings(dive, latest_jobs),
@@ -600,7 +623,9 @@ def representative_gallery(
         reps = sorted(by_code[code], key=lambda item: {"low": 0, "median": 1, "high": 2}.get(item["role"], 9))
         all_reps.extend(reps)
         poster_ready = sum(1 for rep in reps if rep["media"]["renditions"]["poster"]["status"] == "ready")
-        proxy_ready = sum(1 for rep in reps if rep["media"]["renditions"]["proxy_360p"]["status"] == "ready")
+        proxy_ready = sum(1 for rep in reps if _preferred_proxy_rendition(rep["media"]["renditions"]) is not None)
+        proxy_720p_ready = sum(1 for rep in reps if rep["media"]["renditions"].get("proxy_720p", {}).get("status") == "ready")
+        proxy_360p_ready = sum(1 for rep in reps if rep["media"]["renditions"].get("proxy_360p", {}).get("status") == "ready")
         dives.append({
             "dive_code": code,
             "coverage": {
@@ -608,7 +633,8 @@ def representative_gallery(
                 "proxy_ready": proxy_ready,
                 "total": len(reps),
                 "poster": poster_ready / len(reps) if reps else 0,
-                "proxy_360p": proxy_ready / len(reps) if reps else 0,
+                "proxy_720p": proxy_720p_ready / len(reps) if reps else 0,
+                "proxy_360p": proxy_360p_ready / len(reps) if reps else 0,
                 "fully_ready": bool(reps) and all(rep["media"]["state"] == "ready" for rep in reps),
             },
             "representatives": reps,
@@ -632,7 +658,7 @@ def representative_gallery(
             "codes_partially_ready": partial_codes,
             "codes_zero_ready": zero_ready_codes,
             "poster_ready": sum(1 for rep in all_reps if rep["media"]["renditions"]["poster"]["status"] == "ready"),
-            "proxy_ready": sum(1 for rep in all_reps if rep["media"]["renditions"]["proxy_360p"]["status"] == "ready"),
+            "proxy_ready": sum(1 for rep in all_reps if _preferred_proxy_rendition(rep["media"]["renditions"]) is not None),
         },
         "dives": dives,
     }
@@ -706,6 +732,11 @@ def replacement_candidates(
             "score_distance": round(abs(dive_score_10(dive) - target_score), 2),
         }
         ready_bonus = sum(1 for rendition in REQUIRED_RENDITIONS if rendition in cache.get(dive.photos_asset_id, {}))
+        # Legacy 360p counts as a playable proxy for ranking, without
+        # outranking a real 720p: poster + any proxy = 2, poster-only = 1.
+        cached_here = cache.get(dive.photos_asset_id, {})
+        if "proxy_720p" not in cached_here and "proxy_360p" in cached_here:
+            ready_bonus = (1 if "poster" in cached_here else 0) + 1
         mismatch_count = sum(1 for key in ("height_match", "diver_match", "sync_match", "modifier_match", "performance_match") if not similarity[key])
         viability_rank = {
             "ready": 0,
@@ -878,7 +909,8 @@ def plan_ready_representative_remap(
 
     The planner never schedules recall/transcode jobs. It only substitutes an
     unavailable or incomplete role with a same-code candidate whose poster and
-    proxy are already durable cache entries.
+    proxy are already durable cache entries (720p preferred, legacy 360p
+    accepted as a fallback).
     """
     effective = _effective_representative_dives(db, diver_scope=diver_scope, diver_id=diver_id)
     asset_ids = {dive.photos_asset_id for dive, _ in effective.values() if dive.photos_asset_id}
@@ -888,7 +920,7 @@ def plan_ready_representative_remap(
 
     for (code, role), (current, selection) in sorted(effective.items()):
         current_ready = set(cache.get(current.photos_asset_id, {}))
-        if set(REQUIRED_RENDITIONS).issubset(current_ready):
+        if _is_playable_ready(current_ready):
             continue
         # The existing candidate ranking enforces exact code, active diver
         # scope, role score proximity, context similarity, and no duplicate
@@ -903,7 +935,7 @@ def plan_ready_representative_remap(
              and candidate["similarity"]["height_match"]
              and candidate["similarity"]["sync_match"]
              and candidate["similarity"]["modifier_match"]
-             and set(REQUIRED_RENDITIONS).issubset(set(candidate["ready_renditions"]))),
+             and _is_playable_ready(set(candidate["ready_renditions"]))),
             None,
         )
         if not ready_candidate:

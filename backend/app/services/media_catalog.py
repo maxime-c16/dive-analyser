@@ -121,7 +121,7 @@ def ingest_catalog_chunk(db: Session, run: MediaCatalogRun, records: list[dict],
             ready = set(db.execute(select(MediaCacheEntry.rendition).where(
                 MediaCacheEntry.photos_asset_id == asset.id,
                 MediaCacheEntry.status == "ready",
-                MediaCacheEntry.rendition.in_({"poster", "proxy_360p"}),
+                MediaCacheEntry.rendition.in_({"poster", "proxy_720p", "proxy_360p"}),
             )).scalars())
             jobs = db.execute(select(MediaJob).where(
                 MediaJob.photos_asset_id == asset.id,
@@ -140,8 +140,10 @@ def ingest_catalog_chunk(db: Session, run: MediaCatalogRun, records: list[dict],
 
         last_error = _error_code(jobs[0].last_error) if jobs else None
         poster_state = "ready" if "poster" in ready else "unavailable" if last_error else "missing"
-        proxy_state = "ready" if "proxy_360p" in ready else "unavailable" if last_error else "missing"
-        media_state = "ready" if {"poster", "proxy_360p"}.issubset(ready) else "partial" if ready else "unavailable" if last_error else "missing"
+        # Lot B: 720p is the production proxy; a legacy 360p keeps the clip
+        # playable until its 720p upgrade lands.
+        proxy_state = "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else "unavailable" if last_error else "missing"
+        media_state = "ready" if ("poster" in ready and ("proxy_720p" in ready or "proxy_360p" in ready)) else "partial" if ready else "unavailable" if last_error else "missing"
         local_state = "local" if record.get("local_available") else "icloud" if record.get("in_cloud") else "missing" if record.get("is_missing") else "unknown"
 
         item = db.execute(select(CaptionedMediaCatalog).where(
@@ -227,7 +229,10 @@ def catalog_summary(db: Session, revision: int | None = None) -> dict:
         "eligibility": dict(Counter(row.eligibility for row in rows)),
         "media": dict(Counter(row.media_state for row in rows)),
         "poster": dict(Counter(row.poster_state for row in rows)),
+        "proxy_720p": dict(Counter(row.proxy_state for row in rows)),
+        # Legacy key kept for existing dashboards: same counts as proxy_720p.
         "proxy_360p": dict(Counter(row.proxy_state for row in rows)),
+        "proxy": dict(Counter(row.proxy_state for row in rows)),
         "exclusions": dict(Counter(row.exclusion_code for row in rows if row.exclusion_code)),
         "photos_local_state": dict(Counter(row.photos_local_state for row in rows)),
         "read_only": True,
@@ -265,7 +270,7 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
     peak_source = max(known_sizes, default=500_000_000)
     rolling_peak = min(max(int(peak_source * 2.5), 1_250_000_000), 3 * 1024**3)
     avg_poster = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready")).scalar() or 100_000
-    avg_proxy = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition == "proxy_360p", MediaCacheEntry.status == "ready")).scalar() or 300_000
+    avg_proxy = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition.in_({"proxy_720p", "proxy_360p"}), MediaCacheEntry.status == "ready")).scalar() or 300_000
     final_growth = int(sum((0 if row.poster_state == "ready" else avg_poster) + (0 if row.proxy_state == "ready" else avg_proxy) for row, _, _ in active))
     agent = db.get(MediaAgent, "mac-media-01")
     free = int(agent.internal_free_bytes or 0) if agent else 0
@@ -454,7 +459,7 @@ def _ready_renditions(db: Session, catalog: CaptionedMediaCatalog) -> set[str]:
     return set(db.execute(select(MediaCacheEntry.rendition).where(
         MediaCacheEntry.photos_asset_id == catalog.photos_asset_id,
         MediaCacheEntry.status == "ready",
-        MediaCacheEntry.rendition.in_({"poster", "proxy_360p"}),
+        MediaCacheEntry.rendition.in_({"poster", "proxy_720p", "proxy_360p"}),
     )).scalars())
 
 
@@ -507,13 +512,13 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
         return refresh_catalog_population_run(db, run)
     ready = _ready_renditions(db, catalog)
     item.poster_status = "ready" if "poster" in ready else item.poster_status
-    item.proxy_status = "ready" if "proxy_360p" in ready else item.proxy_status
-    if {"poster", "proxy_360p"}.issubset(ready):
+    item.proxy_status = "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else item.proxy_status
+    if "poster" in ready and ("proxy_720p" in ready or "proxy_360p" in ready):
         _finish_population_item(run, item, "ready")
         db.flush()
         return refresh_catalog_population_run(db, run)
 
-    rendition = "poster" if "poster" not in ready else "proxy_360p"
+    rendition = "poster" if "poster" not in ready else "proxy_720p"
     job_id_field = "poster_job_id" if rendition == "poster" else "proxy_job_id"
     job = db.get(MediaJob, getattr(item, job_id_field)) if getattr(item, job_id_field) else None
     if job and job.status in {"failed", "unavailable"}:
@@ -542,7 +547,7 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
             return run
         return refresh_catalog_population_run(db, run)
     if job and job.status == "ready":
-        setattr(item, f"{rendition.replace('proxy_360p', 'proxy')}_status", "ready")
+        setattr(item, f"{rendition.replace('proxy_720p', 'proxy').replace('proxy_360p', 'proxy')}_status", "ready")
         return refresh_catalog_population_run(db, run)
     if not job:
         asset = db.get(PhotosAsset, catalog.photos_asset_id)

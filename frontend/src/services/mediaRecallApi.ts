@@ -37,7 +37,7 @@ export type RecallItem = {
   priority: number
   priority_class: string
   reason: string
-  media_readiness: { poster: string; proxy_360p: string }
+  media_readiness: { poster: string; proxy_720p?: string; proxy_360p: string; proxy?: string }
   source_readiness: string
   known_failure_history: string[]
   estimated_source_bytes?: number | null
@@ -58,7 +58,7 @@ export type CatalogRun = {
 
 export type CatalogSummary = {
   catalog_revision?: number | null; total: number; eligibility: Record<string, number>
-  media: Record<string, number>; poster: Record<string, number>; proxy_360p: Record<string, number>
+  media: Record<string, number>; poster: Record<string, number>; proxy_720p?: Record<string, number>; proxy_360p: Record<string, number>; proxy?: Record<string, number>
   exclusions: Record<string, number>; photos_local_state: Record<string, number>; read_only?: boolean
 }
 

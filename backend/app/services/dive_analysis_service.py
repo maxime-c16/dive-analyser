@@ -265,7 +265,10 @@ class DiveAnalysisService:
         result = []
         for dive in dives:
             cached = entries.get(dive.photos_asset_id, []) if dive.photos_asset_id else []
-            proxy = next((item for item in cached if item.rendition == "proxy_360p"), None)
+            # Lot B: prefer 720p, keep legacy 360p readable until replaced.
+            proxy = next((item for item in cached if item.rendition == "proxy_720p"), None) or next(
+                (item for item in cached if item.rendition == "proxy_360p"), None
+            )
             poster = next((item for item in cached if item.rendition == "poster"), None)
             job = jobs.get(dive.photos_asset_id) if dive.photos_asset_id else None
             result.append({
