@@ -1,0 +1,40 @@
+{
+  "samples": [
+    {
+      "at": "2026-10-20T20:12:17.858554+00:00",
+      "worker_and_ffmpeg_cpu_percent": 0.0,
+      "worker_and_ffmpeg_rss_bytes": 995344384,
+      "processes": 2,
+      "free_bytes": 13252648960
+    },
+    {
+      "at": "2026-10-20T20:12:32.942214+00:00",
+      "worker_and_ffmpeg_cpu_percent": 0.0,
+      "worker_and_ffmpeg_rss_bytes": 995352576,
+      "processes": 2,
+      "free_bytes": 13252620288
+    },
+    {
+      "at": "2026-10-20T20:12:48.009399+00:00",
+      "worker_and_ffmpeg_cpu_percent": 165.3,
+      "worker_and_ffmpeg_rss_bytes": 1575682048,
+      "processes": 3,
+      "free_bytes": 13232021504
+    },
+    {
+      "at": "2026-10-20T20:13:03.086360+00:00",
+      "worker_and_ffmpeg_cpu_percent": 0.0,
+      "worker_and_ffmpeg_rss_bytes": 1013600256,
+      "processes": 2,
+      "free_bytes": 13249142784
+    },
+    {
+      "at": "2026-10-20T20:13:18.159337+00:00",
+      "worker_and_ffmpeg_cpu_percent": 0.0,
+      "worker_and_ffmpeg_rss_bytes": 1013604352,
+      "processes": 2,
+      "free_bytes": 13249142784
+    }
+  ],
+  "worker_sha": "e2f2654af7ba039bb5d4313892e5e6c13c4a20cd"
+}

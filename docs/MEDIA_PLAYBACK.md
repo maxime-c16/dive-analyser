@@ -155,3 +155,12 @@ The [20 October rollout report](reviews/media-playback/rollout-2026-10-20.md)
 records verified service versions, DNS probes, the first post-deployment job
 window and the production-versus-development HDR test distinction. Playback
 first-frame targets still require comparable real browser samples.
+
+## Capacity and repair checkpoint
+
+The [two-slot and cache report](reviews/media-playback/capacity-and-cache-2026-10-20.md)
+records the live configuration distinction, activation, limited real workload,
+resource samples and the read-only repair inventory. Two slots are enabled;
+production throughput improvement is not established. Historical repair is
+paused under the 30 GiB projected-free rule. The inventory and windowed snapshot
+tools do not enqueue jobs or change readiness.

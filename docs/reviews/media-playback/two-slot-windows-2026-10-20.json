@@ -1,0 +1,37 @@
+{
+  "one_slot": {
+    "captured_at": "2026-10-20T20:12:27.248574+00:00",
+    "window_start_utc": "2026-10-20T20:09:04Z",
+    "window_end_utc": "2026-10-20T20:11:04Z",
+    "filter_created_in_window": true,
+    "completed_in_window": [
+      {
+        "rendition": "proxy_720p",
+        "request_reason": "resolution_upgrade_720p",
+        "jobs": 1,
+        "queue_p50_seconds": 26.923492,
+        "queue_p95_seconds": 26.923492,
+        "processing_p50_seconds": 14.258929,
+        "processing_p95_seconds": 14.258929
+      }
+    ]
+  },
+  "two_slots": {
+    "captured_at": "2026-10-20T20:13:36.287063+00:00",
+    "window_start_utc": "2026-10-20T20:11:34Z",
+    "window_end_utc": "2026-10-20T20:13:34Z",
+    "filter_created_in_window": true,
+    "completed_in_window": [
+      {
+        "rendition": "proxy_720p",
+        "request_reason": "resolution_upgrade_720p",
+        "jobs": 1,
+        "queue_p50_seconds": 18.910311,
+        "queue_p95_seconds": 18.910311,
+        "processing_p50_seconds": 15.604239,
+        "processing_p95_seconds": 15.604239
+      }
+    ]
+  },
+  "limit": "One completed job in each window, different clips; not a throughput or latency improvement estimate. No simultaneous two-job execution observed."
+}
