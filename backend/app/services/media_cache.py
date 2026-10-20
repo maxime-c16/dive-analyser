@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 #
 # Verified 2026-10-21 (media-paths audit): B2 holds camera originals only, no
 # preview and no poster exists outside the deb-serv media-cache volume. Until
-# the Lot B durable-derivative pipeline publishes web renditions to B2 with a
-# verified replica ledger, every proxy_720p/poster row is a sole copy.
+# a future durable-derivative pipeline (outside Lots A/B) publishes web
+# renditions to B2 with a verified replica ledger, every proxy_720p/poster
+# row is a sole copy. Lot B (#135) only repoints 360p consumers; it does not
+# publish durable HQ/light replicas.
 #
 # Sole copies are pinned at finalization (see finalize_cache_entry) so the
 # cleaner spares them from BOTH eviction paths: TTL expiry AND quota trim.
@@ -187,8 +189,9 @@ def finalize_cache_entry(
         checksum_sha256=checksum_sha256,
         status="ready",
         # Sole browser-safe copies stay pinned until a durable replica
-        # exists (Lot B). pinned is what exempts a row from BOTH cleaner
-        # paths; expires_at=NULL alone would still allow quota eviction.
+        # exists (future durable pipeline, not Lot B). pinned is what
+        # exempts a row from BOTH cleaner paths; expires_at=NULL alone
+        # would still allow quota eviction.
         pinned=job.rendition in SOLE_COPY_BROWSER_SAFE_RENDITIONS,
         expires_at=_default_expiry(job.rendition),
     )

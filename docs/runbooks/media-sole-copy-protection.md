@@ -44,7 +44,9 @@ without a catalog-wide write
 - Migration `backend/migrations/protect_browser_safe_cache_entries.sql`
   applies the same state to the stock (ready 720p/poster rows only).
 - No rendition bytes are rewritten; image quality and frame rate are
-  untouched (720p stays ~406x720 60 fps until Lot B ships hq/light).
+  untouched (720p stays ~406x720 60 fps until a future durable HQ/light
+  pipeline ships — outside Lots A/B; Lot B #135 only repoints 360p
+  consumers and does not publish HQ/light replicas).
 
 ## 3. Babysitter procedure (apply AFTER merge, never in this lot)
 
@@ -57,11 +59,17 @@ without a catalog-wide write
    Expected scale (audit 2026-10-21): ~1 651 previews + posters, ~1.7 Go.
 4. Apply by hand (no migration runner):
    `psql "$DATABASE_URL" -f backend/migrations/protect_browser_safe_cache_entries.sql`
-   Must report `UPDATE <n>` with `<n>` == preflight rows_to_protect total.
-   Safe to re-run (idempotent WHERE clause).
+   Record the `UPDATE <n>` count but do NOT require `<n>` == preflight
+   rows_to_protect: finalizer jobs running concurrently may insert new
+   unpinned rows between preflight and apply. Safe to re-run (idempotent
+   WHERE clause). If postflight residual > 0, re-apply until 0 — including
+   once more after the new finalizer is live, in case rows finalized with
+   the old code appeared in between.
 5. Postflight: same preflight script. Gate: §4
    `residual_unprotected_rows` MUST be 0. §5 must show zero 360p/
-   browser_source/original rows touched.
+   browser_source/original rows touched. A non-zero residual after the
+   first apply is not a failure: re-run the migration (idempotent) and
+   re-check until the gate passes.
 6. Then deploy normally: `ci/ship.sh server` (SQL first, backend second,
    per `docs/REPO_WORKFLOW.md`). Mac deploy NOT required (no agent change).
 7. Verify: `SELECT COUNT(*) FROM media_cache_entries WHERE status='ready'
@@ -75,8 +83,9 @@ reverting the backend does not unpin anything (fail-safe direction: the old
 cleaner already respects `pinned`). If a row must ever become evictable
 again, that is an explicit per-row admin unpin (`POST
 /media/cache/{id}/pin`), never a migration. Do NOT unpin sole-copy rows
-until Lot B publishes verified durable replicas and documents the
-unpin-on-replicate rule.
+until a future durable pipeline (outside Lots A/B) publishes verified
+durable replicas and documents the unpin-on-replicate rule. Lot B (#135)
+only repoints 360p consumers; it does not authorize unpinning.
 
 ## 5. Limits / non-goals
 
@@ -85,8 +94,13 @@ unpin-on-replicate rule.
 - Quota pressure with all sole copies pinned can only evict non-sole rows;
   if the volume fills, the answer is disk, not unpinning.
 - 360p consumers (representatives, DiveAnalysis, catalog, vault) are Lot B:
-  untouched here.
+  untouched here. Legacy 360p rows keep their existing TTL/quota policy in
+  this lot — including clips whose only readable rendition today is still
+  360p. This lot performs no 360p backfill, no 360p deletion, and no vault
+  cleanup: do not purge 360p rows during the transition; their fate is
+  decided by Lot B (#135), not here.
 - Reader selection, grille fallback, priority, leases, auth: untouched.
 - The `pinned` flag now doubles as the system sole-copy marker; a manual
   unpin re-exposes a sole copy to BOTH cleaner passes. Admin UI callers
-  should treat unpinning 720p/poster rows as destructive until Lot B.
+  should treat unpinning 720p/poster rows as destructive until a future
+  durable pipeline documents the unpin-on-replicate rule (not Lot B).
