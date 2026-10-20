@@ -255,3 +255,151 @@ def test_representative_priority_preserved_for_720p_upgrade(test_db):
 
     candidates = _population_candidates(test_db)
     assert [(item.id, cls, priority) for item, cls, priority in candidates] == [(row.id, "P1", 20)]
+
+
+def test_evicted_poster_with_720p_stays_candidate_and_queues_poster(test_db):
+    """A poster evicted after cataloging must not look cached.
+
+    Stored poster_state stays "ready" (no rescan ran) but no live poster
+    entry exists while 720p is present: the asset stays a population
+    candidate and queues a poster job, not a proxy one.
+    """
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="evict")
+    _ready(test_db, asset, "poster", "e1" * 32)
+    _ready(test_db, asset, "proxy_720p", "e2" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-evict")
+    assert _row(test_db).media_state == "ready"
+
+    # Cache cleanup evicts the unpinned poster; the catalog row is stale.
+    test_db.query(MediaCacheEntry).filter_by(photos_asset_id=asset.id, rendition="poster").delete()
+    test_db.commit()
+    assert _row(test_db).poster_state == "ready"  # stale stored state
+
+    plan = catalog_population_plan(test_db)
+    assert plan["already_fully_ready"] == 0
+    assert [row.id for row, _, _ in _population_candidates(test_db)] == [_row(test_db).id]
+    summary = catalog_summary(test_db)
+    assert summary["poster"].get("ready", 0) == 0
+    assert summary["poster"].get("missing", 0) == 1
+    assert summary["proxy"].get("ready", 0) == 1
+    assert summary["media"].get("ready", 0) == 0
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    jobs = test_db.query(MediaJob).all()
+    assert len(jobs) == 1
+    assert jobs[0].rendition == "poster"
+    # Item labels must not restore the stale stored ready.
+    assert run.items[0].poster_status == "missing"
+    assert run.items[0].proxy_status == "ready"
+
+
+def test_summary_counts_live_720p_added_after_scan_without_rescan(test_db):
+    """Population output lands between scans: stored proxy_state is stale.
+
+    At scan time only the poster existed (stored proxy "missing"); the 720p
+    proxy is created afterwards with no rescan. The summary must announce a
+    playable proxy AND true 720p from live entries, and the plan must treat
+    the asset as fully ready.
+    """
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="late720")
+    _ready(test_db, asset, "poster", "f1" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-late720")
+    assert _row(test_db).proxy_state == "missing"
+
+    _ready(test_db, asset, "proxy_720p", "f2" * 32)
+    test_db.commit()
+    assert _row(test_db).proxy_state == "missing"  # no rescan ran
+
+    summary = catalog_summary(test_db)
+    assert summary["proxy"].get("ready", 0) == 1
+    assert summary["proxy_360p"].get("ready", 0) == 1
+    assert summary["proxy_720p"].get("ready", 0) == 1
+    assert summary["poster"].get("ready", 0) == 1
+    assert summary["media"].get("ready", 0) == 1
+
+    plan = catalog_population_plan(test_db)
+    assert plan["already_fully_ready"] == 1
+    assert _population_candidates(test_db) == []
+
+
+def test_poster_added_after_scan_recognized_without_rescan(test_db):
+    """A poster materialized after the scan counts live for plan/growth."""
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="latepost")
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-latepost")
+    assert _row(test_db).poster_state == "missing"
+
+    _ready(test_db, asset, "poster", "g1" * 32)
+    test_db.commit()
+
+    summary = catalog_summary(test_db)
+    assert summary["poster"].get("ready", 0) == 1
+    plan = catalog_population_plan(test_db)
+    assert plan["already_fully_ready"] == 0  # 720p still missing
+    assert plan["poster_only"] == 1
+    assert plan["fully_missing"] == 0
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    jobs = test_db.query(MediaJob).all()
+    assert len(jobs) == 1
+    assert jobs[0].rendition == "proxy_720p"
+
+
+def test_720p_deleted_leaving_360p_is_playable_but_not_target(test_db):
+    """Losing 720p with 360p left: readable via fallback, still needs upgrade."""
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="drop720")
+    _ready(test_db, asset, "poster", "h1" * 32)
+    _ready(test_db, asset, "proxy_720p", "h2" * 32)
+    _ready(test_db, asset, "proxy_360p", "h3" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-drop720")
+    assert _row(test_db).media_state == "ready"
+
+    test_db.query(MediaCacheEntry).filter_by(photos_asset_id=asset.id, rendition="proxy_720p").delete()
+    test_db.commit()
+
+    plan = catalog_population_plan(test_db)
+    assert plan["already_fully_ready"] == 0
+    assert plan["playable_fallback_pending_720p"] == 1
+    assert [row.id for row, _, _ in _population_candidates(test_db)] == [_row(test_db).id]
+
+    summary = catalog_summary(test_db)
+    assert summary["proxy"].get("ready", 0) == 1
+    assert summary["proxy_360p"].get("ready", 0) == 1
+    assert summary["proxy_720p"].get("ready", 0) == 0
+    assert summary["media"].get("ready", 0) == 0
+    assert summary["media"].get("partial", 0) == 1
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    jobs = test_db.query(MediaJob).all()
+    assert len(jobs) == 1
+    assert jobs[0].rendition == "proxy_720p"

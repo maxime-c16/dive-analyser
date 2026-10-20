@@ -19,22 +19,27 @@ does NOT validate its quality (no HQ1080 in this lot).
   720p, falls back to 360p.
 - `backend/app/services/media_catalog.py`: ready sets, poster/media states,
   population planning and averages accept 720p with 360p fallback; new
-  population work requests 720p, never 360p. Target readiness is poster +
-  TRUE 720p (`media_state` is `ready` only then; poster + legacy 360p is
-  `partial`). `proxy_state` keeps the playable any-proxy semantic (ready
-  when 720p *or* legacy 360p is ready) for existing dashboards. The plan,
-  candidates and refresh verify true 720p coverage live from ready
-  `proxy_720p` cache entries — never from the stored `media_state` alone —
-  so rows stored before this lot (poster + 360p recorded as `ready`) are
-  still scheduled for their 720p upgrade instead of counted as cached.
-  `catalog_summary` reports TRUE 720p coverage under `proxy_720p` (counted
-  from ready `proxy_720p` cache entries for the catalogued assets: a 360-only
-  asset counts as `missing` there, never `ready`). The generic `proxy` key
-  and the legacy `proxy_360p` key both report the same playable any-proxy
-  state (ready when 720p *or* legacy 360p is ready) for existing dashboards;
-  neither measures 720p-only coverage. Population growth estimates count
-  every asset missing true 720p. A job that reports `ready` without a cache
-  entry no longer recurses forever; the run waits for the next refresh.
+  population work requests 720p, never 360p. Target readiness is live poster
+  + live TRUE 720p (`media_state` is `ready` only then; poster + legacy 360p
+  is `partial`). `proxy_state` keeps the playable fallback semantic (ready
+  when live 720p *or* live legacy 360p is ready) for existing dashboards.
+  The plan, candidates, growth estimates, counters and refresh verify live
+  ready poster/720p/360p cache entries through one bounded helper scoped to
+  the catalogued assets (`_live_ready_map`) — never from stored states
+  alone — so rows stored before this lot (poster + 360p recorded as `ready`)
+  are still scheduled for their 720p upgrade, and a poster evicted by cache
+  cleanup after cataloging is rebuilt instead of counted as cached. Stored
+  states are kept only for non-ready outcomes (errors/missing); a stale
+  stored `ready` with no live file reports `missing`, never `ready`.
+  `catalog_summary` reports TRUE 720p coverage under `proxy_720p` (live 720p
+  only: 360-only or evicted assets count as `missing`, never `ready`). The
+  generic `proxy` key and the legacy `proxy_360p` key both report live
+  playable any-proxy state (ready when a live 720p *or* live legacy 360p
+  entry exists), so 720p output created between scans is announced without
+  waiting for the next scan. Neither measures 720p-only coverage.
+  Population growth counts live missing posters plus assets missing true
+  720p. A job that reports `ready` without a cache entry no longer recurses
+  forever; the run waits for the next refresh.
 - `backend/app/services/media_recall.py`: readiness exposes true `proxy_720p`
   alongside the generic `proxy` (any) and the legacy `proxy_360p` key, which
   also reports the playable any-proxy state (not 360p-only) for old dashboards.
@@ -118,6 +123,12 @@ deletes, finalises, or mutates retention.
   creates exactly one `proxy_720p` job, never 360p, and does not finish
   early; the item completes only after true 720p lands; 720p-ready assets
   create no duplicate jobs; representative priority classes are unchanged.
+  Live-readiness round: stored-ready poster evicted with 720p present stays
+  a candidate and queues a poster job (item labels downgrade the stale
+  ready); 720p created after the scan is announced (`proxy`/`proxy_720p`/
+  legacy keys) without a rescan and the asset counts as cached; a poster
+  added after the scan is recognized and queues 720p; deleting 720p leaving
+  360p stays playable but re-queues the 720p upgrade.
 - `mac-agent/tests/test_source_vault_720p_finalization.py`: 720p+poster
   finalises with grace; legacy 360p still finalises; request/failed
   transcode never finalises; cleanup skips unverified/pinned/active.
