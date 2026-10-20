@@ -273,16 +273,16 @@ export default function EvaluationPlayer({
   }, [hqHint, playback.kind, requestId, automatic, preloadOnly, updatePreparedChoices])
 
   useEffect(() => {
-    if ((watching || preloadOnly) && (playback.kind === 'failed' || decodeError)) onFailure?.()
-  }, [watching, preloadOnly, playback.kind, decodeError, onFailure])
+    if ((watching || preloadOnly) && playback.kind === 'failed') onFailure?.()
+  }, [watching, preloadOnly, playback.kind, onFailure])
 
   useEffect(() => {
-    if (playback.kind !== 'ready' || preloadOnly || !source.src) return
+    if (playback.kind !== 'ready' || preloadOnly || decodeError || !source.src) return
     const timer = window.setTimeout(() => {
       if (!hasDecodedFrameRef.current && (!videoRef.current || videoRef.current.readyState < 2)) setPlayback({ kind: 'failed' })
     }, 20_000)
     return () => window.clearTimeout(timer)
-  }, [preloadOnly, playback.kind, source.src])
+  }, [preloadOnly, playback.kind, source.src, decodeError])
 
   useEffect(() => {
     if (source.error) mediaError()
