@@ -1641,7 +1641,11 @@ def mode_run(
         # Immutable staged-bytes binding BEFORE any evidence capture: old
         # retained bytes from a failed capture must not be committed under a
         # corrected identity. Vault sidecars are peeked read-only here for
-        # the same reason — a mismatched vault source refuses before capture.
+        # the same reason — a KNOWN mismatched vault source refuses before
+        # capture. A missing/malformed/unreadable sidecar (None) is unproven
+        # but not a known mismatch: it proceeds to capture and the
+        # after-recall gate then skips vault reuse for split identities
+        # (Photos materialization) instead of relabelling unproven bytes.
         pdw._ensure_staged_binding_consistent(
             video_uuid, photos_uuid, context="dual-write-run",
         )
@@ -1788,13 +1792,16 @@ def mode_run(
                 )
                 recalled = vault.resolve(video_uuid)
                 if recalled is not None:
-                    # Vault bytes must also prove their Photos identity: the
-                    # sidecar binding must match the resolved UUID.
-                    _vbind = pdw._read_vault_sidecar_binding(video_uuid)
-                    if (
-                        isinstance(_vbind, str)
-                        and _vbind.upper() != photos_uuid.upper()
-                    ):
+                    # Vault bytes must prove their Photos identity via the
+                    # binding validated at recall time (recalled.* — bound to
+                    # the exact bytes above). A second sidecar peek here would
+                    # be TOCTOU-unproven, so it is never trusted for reuse.
+                    # Known mismatch refuses per the existing contract; a
+                    # missing/malformed binding (None) is unproven: split
+                    # identities fall through to Photos materialization,
+                    # single-identity legacy entries keep compat.
+                    _vbind = getattr(recalled, "agent_local_uuid", None)
+                    if isinstance(_vbind, str) and _vbind.upper() != photos_uuid.upper():
                         print(
                             json.dumps(
                                 {
@@ -1809,8 +1816,20 @@ def mode_run(
                             )
                         )
                         return 3
-                    staged_path = recalled.path
-                    acquired = True
+                    if _vbind is None and photos_uuid.upper() != video_uuid.upper():
+                        # Unproven vault bytes for a split identity: never
+                        # reuse, never relabel — fall through to the resolved
+                        # Photos materialization below.
+                        logger.warning(
+                            "dual-write-run %s: vault source without proven "
+                            "Photos binding skipped for split identity %s; "
+                            "materializing from Photos",
+                            video_uuid[:8],
+                            photos_uuid,
+                        )
+                    else:
+                        staged_path = recalled.path
+                        acquired = True
         except Exception as exc:
             # A structured staged-identity refusal above returns already; any
             # other vault failure falls back to Photos materialization.
@@ -1847,6 +1866,7 @@ def mode_run(
             workdir = staging_root / "work"
             if workdir.exists():
                 shutil.rmtree(workdir, ignore_errors=True)
+            workdir.mkdir(parents=True, exist_ok=True)
             staged_path = materialize_from_photos(photos_uuid, workdir)
 
     # Merge into the existing stage metadata: provenance (triggered_at,

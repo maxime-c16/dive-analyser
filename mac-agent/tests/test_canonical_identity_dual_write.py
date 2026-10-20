@@ -1073,3 +1073,220 @@ def test_canary_local_only_allowlist_pin_reuse_across_entrypoints(env, capsys):
     out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert out["outcome"] != "refused_not_activated"
     assert out["outcome"] == "driven"
+
+
+# ---------------------------------------------------------------------------
+# Bot finding run 39401052754 (head 914dd42): vault sidecar binding bypass.
+#
+# `_read_vault_sidecar_binding` returns None for an absent/malformed
+# `agent_local_uuid`, so the precheck AND the old after-recall second peek
+# both bypassed: mode_run recalled those unproven vault bytes and relabelled
+# them as bound to the resolved UUID at the stage-meta merge. The fix binds
+# provenance to the exact bytes recalled — `VaultSource` now carries the
+# sidecar identity validated at recall time, and the after-recall gate uses
+# only that (never a second peek, no TOCTOU):
+# - split identity + valid matching vault binding → vault reuse;
+# - split identity + known vault mismatch → strict refusal (existing
+#   contract), before capture (precheck) and after recall, with no relabel;
+# - split identity + missing/malformed/unreadable binding → never trust the
+#   vault for reuse: fall through to resolved-Photos materialization;
+# - single identity + missing binding → legacy compat reuse (unchanged).
+
+VAULT_BYTES = b"vault-validated-source-bytes-39401052754" * 4
+PHOTOS_BYTES = b"photos-fresh-materialization-bytes-39401052754" * 4
+
+
+def _enable_split_vault(env, tmp_path, monkeypatch, *, binding=LOCAL,
+                        omit_binding=False, malformed=False):
+    """Create a real vault sidecar for CANON and arm mode_run to use it.
+
+    Returns (materialize_calls, vault_path). The vault validators are faked
+    (size/sha from the written file, fixed volume) so the sidecar content —
+    including absent/malformed bindings — drives the identity gates exactly
+    as production sidecars do.
+    """
+    import src.source_vault as sv_mod
+
+    monkeypatch.setattr(
+        sv_mod, "validate_video_source",
+        lambda path, ffprobe: (path.stat().st_size, "b" * 64),
+    )
+    monkeypatch.setattr(sv_mod, "sha256_file", lambda path: "b" * 64)
+    monkeypatch.setattr(sv_mod, "volume_uuid_for_path", lambda path: "VOL")
+    root = tmp_path / "vault"
+    root.mkdir(parents=True, exist_ok=True)
+    src_file = tmp_path / "vault_src.mov"
+    src_file.write_bytes(VAULT_BYTES)
+    vault = sv_mod.MediaSourceVault(
+        str(root), "VOL", "ffprobe-fake",
+        volume_uuid_resolver=lambda p: "VOL",
+    )
+    imported = vault.import_source(
+        CANON, src_file, source_kind="manual_photos_export",
+        retention_class="recent", canonical_video_uuid=CANON,
+        agent_local_uuid=LOCAL,
+    )
+    sidecar = imported.path.parent / "source.json"
+    data = json.loads(sidecar.read_text())
+    assert data["size_bytes"] == len(VAULT_BYTES)
+    if omit_binding:
+        del data["agent_local_uuid"]
+    elif malformed:
+        data["agent_local_uuid"] = "junk-not-a-uuid"
+    elif binding is not None:
+        data["agent_local_uuid"] = binding
+    sidecar.write_text(json.dumps(data))
+
+    env.config.media.source_vault = SimpleNamespace(
+        enabled=True, root=str(root), volume_uuid="VOL",
+    )
+    env.config.media.materialization_dir = str(tmp_path / "mat")
+    env.config.media.materialization_max_bytes = 2_000_000_000
+    env.config.media.materialization_use_photokit = False
+    env.config.media.osxphotos_path = "osxphotos"
+
+    calls: list = []
+
+    class FakeMaterializer:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def materialize(self, asset_uuid):
+            calls.append(asset_uuid)
+            out = tmp_path / f"photos_{asset_uuid[:8]}.mov"
+            out.write_bytes(PHOTOS_BYTES)
+            return out
+
+        def cleanup_failed_residue(self, asset_uuid):
+            pass
+
+    monkeypatch.setattr(
+        "src.media_materializer.MediaMaterializer", FakeMaterializer
+    )
+    return calls, imported.path
+
+
+def test_mode_run_vault_valid_match_reused(env, tmp_path, monkeypatch, capsys):
+    """Split identity + valid matching vault binding: vault bytes reused."""
+    calls, vault_path = _enable_split_vault(env, tmp_path, monkeypatch)
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "driven"
+    assert calls == []  # no Photos materialization: vault reuse
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["video_uuid"] == CANON
+    assert env.commit_calls[0]["blob"]["sha256"] == sha256_bytes(VAULT_BYTES)
+    meta = dual_write.ProductionDualWrite.from_config(env.config)._read_stage_meta(CANON)
+    assert meta["staged_photos_uuid"] == LOCAL
+    assert Path(meta["staged_path"]).resolve() == vault_path.resolve()
+
+
+def test_mode_run_vault_absent_binding_falls_back_to_photos(
+    env, tmp_path, monkeypatch, capsys
+):
+    """Split identity + sidecar without binding: vault never trusted."""
+    calls, vault_path = _enable_split_vault(
+        env, tmp_path, monkeypatch, omit_binding=True
+    )
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "driven"
+    assert calls == [LOCAL]  # resolved Photos asset materialized
+    assert len(env.commit_calls) == 1
+    assert env.commit_calls[0]["blob"]["sha256"] == sha256_bytes(PHOTOS_BYTES)
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    meta = pdw._read_stage_meta(CANON)
+    # Binding names the resolved Photos asset actually materialized — the
+    # unproven vault bytes were never relabelled.
+    assert meta["staged_photos_uuid"] == LOCAL
+    assert Path(meta["staged_path"]).resolve() != vault_path.resolve()
+    assert Path(meta["staged_path"]).read_bytes() == PHOTOS_BYTES
+
+
+def test_mode_run_vault_malformed_binding_falls_back_to_photos(
+    env, tmp_path, monkeypatch, capsys
+):
+    """Split identity + malformed sidecar binding: same Photos fallback."""
+    calls, vault_path = _enable_split_vault(
+        env, tmp_path, monkeypatch, malformed=True
+    )
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "driven"
+    assert calls == [LOCAL]
+    assert env.commit_calls[0]["blob"]["sha256"] == sha256_bytes(PHOTOS_BYTES)
+    meta = dual_write.ProductionDualWrite.from_config(env.config)._read_stage_meta(CANON)
+    assert meta["staged_photos_uuid"] == LOCAL
+    assert Path(meta["staged_path"]).resolve() != vault_path.resolve()
+
+
+def test_mode_run_vault_mismatch_refuses_without_relabel(
+    env, tmp_path, monkeypatch, capsys
+):
+    """Split identity + known vault mismatch: strict refusal, no relabel."""
+    calls, _vault_path = _enable_split_vault(
+        env, tmp_path, monkeypatch, binding=LOCAL2
+    )
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_staged_identity_mismatch"
+    assert "staged identity mismatch" in out["error"]
+    # Precheck refused before capture: no evidence, no commit, no Photos
+    # materialization, and no staged-bytes binding was ever written.
+    assert not (env.state_dir / f"{CANON}.evidence.json").exists()
+    assert env.commit_calls == []
+    assert calls == []
+    pdw = dual_write.ProductionDualWrite.from_config(env.config)
+    meta = pdw._read_stage_meta(CANON)
+    assert meta["agent_local_uuid"] == LOCAL  # pin persists for convergence
+    assert "staged_photos_uuid" not in meta  # unproven bytes never relabelled
+
+
+def test_mode_run_vault_mismatch_refuses_despite_peek_miss(
+    env, tmp_path, monkeypatch, capsys
+):
+    """After-recall gate uses the recalled binding, never a second peek.
+
+    The precheck peek is forced to miss (None — e.g. unreadable at precheck
+    time) while the recalled sidecar proves a mismatch: the run must still
+    refuse rather than reuse. This guards the TOCTOU the finding reports.
+    """
+    calls, _vault_path = _enable_split_vault(
+        env, tmp_path, monkeypatch, binding=LOCAL2
+    )
+    monkeypatch.setattr(
+        dual_write.ProductionDualWrite, "_read_vault_sidecar_binding",
+        lambda self, video_uuid: None,
+    )
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER, LOCAL)
+    assert rc == 3
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "refused_staged_identity_mismatch"
+    assert env.commit_calls == []
+    assert calls == []
+    meta = dual_write.ProductionDualWrite.from_config(env.config)._read_stage_meta(CANON)
+    assert "staged_photos_uuid" not in meta
+
+
+def test_mode_run_vault_legacy_single_identity_reuse_unchanged(
+    env, tmp_path, monkeypatch, capsys
+):
+    """Single identity + binding-less legacy sidecar: compat reuse kept."""
+    env.db._photos[CANON] = FakePhoto(CANON)
+    calls, vault_path = _enable_split_vault(
+        env, tmp_path, monkeypatch, omit_binding=True
+    )
+    # No local UUID anywhere: single identity (resolved == canonical).
+    rc = dual_write.mode_run(env.config, CANON, None, TRIGGER)
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["outcome"] == "driven"
+    assert calls == []  # legacy vault bytes reused, no Photos export
+    assert env.commit_calls[0]["blob"]["sha256"] == sha256_bytes(VAULT_BYTES)
+    meta = dual_write.ProductionDualWrite.from_config(env.config)._read_stage_meta(CANON)
+    assert meta["staged_photos_uuid"] == CANON
+    assert Path(meta["staged_path"]).resolve() == vault_path.resolve()
