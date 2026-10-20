@@ -149,3 +149,9 @@ def test_owner_view_wins_over_vote_cast_before_ownership(workspace):
     login('alice').put(f'/api/v1/dives/{did}/evaluation-request', json={'active': True, 'prompt': 'Entry?'})
     owned = tab(login('bob'), did).json()
     assert owned == {**owned, 'state': 'owner', 'circuit': 'request', 'prompt': 'Entry?'}
+    # Direct request route as the new owner: 403 SELF_EVALUATION (not 409),
+    # even though the automatic-circuit vote predates the ownership.
+    rid = login('alice').get(f'/api/v1/dives/{did}/evaluation-request').json()['id']
+    direct = login('bob').post(f'/api/v1/evaluations/{rid}/ratings', json={'score_half_steps': 12})
+    assert direct.status_code == 403, direct.text
+    assert direct.json()['detail']['code'] == 'SELF_EVALUATION'

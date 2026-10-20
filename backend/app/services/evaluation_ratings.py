@@ -169,6 +169,11 @@ def submit_rating(
                 "rating": _rating_payload(existing),
                 "results": _results_payload(db, request_row, user.id),
             }
+        # Owners never vote (bot review PR 127): current ownership is checked
+        # before the cross-circuit vote below, so a member who rated before
+        # becoming owner gets 403 SELF_EVALUATION, not 409, on new attempts.
+        if dive.diver_id in set(owned_diver_ids(db, user.id)):
+            raise SubmissionBlocked("SELF_EVALUATION", "You cannot rate your own dive", 403)
         # Cross-circuit single vote (bot review PR 127): a member who already
         # rated this dive in the automatic circuit cannot open a second vote
         # here. Same-content retries are handled by the branch above, so this
@@ -189,8 +194,6 @@ def submit_rating(
                 "This dive was already rated in the community circuit (one vote per member and dive)",
                 409,
             )
-        if dive.diver_id in set(owned_diver_ids(db, user.id)):
-            raise SubmissionBlocked("SELF_EVALUATION", "You cannot rate your own dive", 403)
         if not request_row.active:
             raise SubmissionBlocked("EVALUATION_CLOSED", "This evaluation is closed to new votes", 409)
         # Serialize vote/deactivation where the dialect allows it: after a
