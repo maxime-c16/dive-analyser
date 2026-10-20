@@ -98,7 +98,7 @@ it('reaches the queue on the FIRST start (async session id regression)', async (
 
 it('opens a preparing first clip in the player instead of marking it closed', async () => {
   const preparing = item(11, '107B')
-  preparing.media = { status: 'preparing', playback_url: null, poster_url: null }
+  if ('media' in preparing) preparing.media = { status: 'preparing', playback_url: null, poster_url: null }
   vi.mocked(getQueue).mockResolvedValue({ ...batch, items: [preparing] })
   await openFirstDive()
   expect(screen.getByText('EvalVideo')).toBeInTheDocument()
