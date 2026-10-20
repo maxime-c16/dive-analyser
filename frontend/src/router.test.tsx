@@ -24,6 +24,20 @@ vi.mock('./services/api', () => ({ api: { get: vi.fn().mockResolvedValue({ data:
 vi.mock('./services/mediaApi', () => ({
   getMediaStatus: vi.fn().mockResolvedValue({ poster_url: null, playback_url: null }),
 }))
+// Routing assertions need the real lazy page, not Recharts' cold transform
+// graph. The production build still compiles the actual chart renderer.
+vi.mock('recharts', () => {
+  const Chart = ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>
+  const Decoration = () => null
+  return {
+    AreaChart: Chart, BarChart: Chart, PieChart: Chart, LineChart: Chart,
+    ResponsiveContainer: Chart,
+    Area: Decoration, Bar: Decoration, Pie: Decoration, Cell: Decoration,
+    Line: Decoration, XAxis: Decoration, YAxis: Decoration,
+    CartesianGrid: Decoration, Tooltip: Decoration, Legend: Decoration,
+  }
+})
+
 vi.mock('./components/DiveVideoPlayer', () => ({
   default: ({ videoUuid }: { videoUuid: string }) => <div>Native player {videoUuid}</div>,
 }))
@@ -61,7 +75,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// Cold lazy-route imports (charts, transformed by Vitest) can take well over
+// Cold lazy-route imports transformed by Vitest can take well over
 // 5s on the shared 2-CPU server while the gate runs next to production.
 const LAZY_ROUTE_WAIT = 20_000
 const LAZY_ROUTE_TEST_TIMEOUT = 30_000
@@ -75,7 +89,7 @@ describe('minimal IA routing', () => {
   it('/dashboard resolves to the Dashboard (secondary, not home)', async () => {
     renderAt('/dashboard')
     expect(screen.getByRole('status')).toHaveTextContent('Loading page')
-    // The cold dynamic import includes chart modules transformed by Vitest.
+    // Resolve the real lazy page while keeping chart rendering out of this routing test.
     expect(await screen.findByRole('heading', { name: 'Training Dashboard' }, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
   }, LAZY_ROUTE_TEST_TIMEOUT)
 
