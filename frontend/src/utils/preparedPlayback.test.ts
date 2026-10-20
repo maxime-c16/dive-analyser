@@ -91,3 +91,17 @@ it('keeps incoming HQ across release-before-acquire with a full four-clip window
   resetPreparedPlayback()
   expect(a.hasAttribute('src')).toBe(false)
 })
+
+it('preloads ready preview bytes while keeping original-only warming conservative', async () => {
+  const create = vi.spyOn(document, 'createElement')
+  vi.mocked(getPreviewForPlayback).mockImplementation(async uuid => ({
+    playbackUrl: uuid === 'preview' ? '/preview.mp4' : '/original.mov',
+    previewPlaybackUrl: uuid === 'preview' ? '/preview.mp4' : null,
+    posterUrl: null, videoThumbUrl: null, ready: true,
+  }))
+  preparePlaybackWindow(['preview', 'original'])
+  await flush()
+  const videos = create.mock.results.map(result => result.value).filter(value => value instanceof HTMLVideoElement) as HTMLVideoElement[]
+  expect(videos.find(video => video.getAttribute('src') === '/preview.mp4')?.preload).toBe('auto')
+  expect(videos.find(video => video.getAttribute('src') === '/original.mov')?.preload).toBe('metadata')
+})

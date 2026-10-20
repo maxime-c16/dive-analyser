@@ -1,4 +1,4 @@
-import { getMediaStatus, getPlaybackUrlFromStatus } from '../services/mediaApi'
+import { getMediaStatus, getPlaybackUrlFromStatus, getOriginalPlaybackUrl, getPreviewPlaybackUrl } from '../services/mediaApi'
 
 export type MediaPreview = {
   posterUrl: string | null;
@@ -6,6 +6,8 @@ export type MediaPreview = {
   playbackUrl: string | null;
   ready: boolean;
   originalPlaybackUrl?: string | null;
+  previewPlaybackUrl?: string | null;
+  playbackResolved?: boolean;
 };
 
 const previewCache = new Map<string, MediaPreview>();
@@ -129,18 +131,18 @@ async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise
 
 // Only the bounded playback window needs this extra lookup. Thumbnail
 // batches stay cheap; they deliberately omit cache-entry details. Resolve
-// the authoritative full-quality source; never hide an original behind a preview.
+// the preview-first source; thumbnail batches remain cheap and poster-only.
 const playbackLookups = new Map<string, Promise<MediaPreview>>()
 export function getPreviewForPlayback(videoUuid: string): Promise<MediaPreview> {
   const pending = playbackLookups.get(videoUuid)
   if (pending) return pending
   const epoch = previewGeneration
   const lookup = getPreview(videoUuid).then(async preview => {
-    if (!preview.playbackUrl?.includes('/media/revisions/')) return preview
+    if (!preview.playbackUrl || preview.playbackResolved) return preview
     try {
       const status = await getMediaStatus(videoUuid)
       const playbackUrl = getPlaybackUrlFromStatus(status, true)
-      const result = { ...preview, playbackUrl, originalPlaybackUrl: status.playback_url, ready: Boolean(playbackUrl) }
+      const result = { ...preview, playbackUrl, originalPlaybackUrl: getOriginalPlaybackUrl(status), previewPlaybackUrl: getPreviewPlaybackUrl(status), playbackResolved: true, ready: Boolean(playbackUrl) }
       if (epoch === previewGeneration) { previewCache.set(videoUuid, result); previewSavedAt.set(videoUuid, Date.now()); }
       return result
     } catch {

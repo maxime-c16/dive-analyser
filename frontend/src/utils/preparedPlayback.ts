@@ -83,6 +83,9 @@ export function warmPlaybackVideo(uuid: string) {
     if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl) return
     const entry = entries.get(uuid) ?? create(uuid)
     if (entry.active) return
+    // Ready previews are small; anticipate bytes as well as metadata.
+    // Originals retain conservative metadata-only preloading.
+    entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl ? 'auto' : 'metadata'
     if (entry.video.getAttribute('src') !== preview.playbackUrl) {
       entry.video.src = preview.playbackUrl
     }

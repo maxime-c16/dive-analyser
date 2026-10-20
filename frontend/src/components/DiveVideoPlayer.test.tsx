@@ -877,3 +877,37 @@ it('play/scrub affordances wait for the presented frame while gestures stay live
   expect(document.querySelector('.clip-progress')).not.toBeNull()
   expect(document.querySelector('.clip-play-indicator')).not.toBeNull()
 })
+
+it('starts on the preview and only loads the original after an explicit quality choice', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...ready, full_quality_url: '/camera-hlg.mov', playback_url: '/camera-hlg.mov', preview_url: '/sdr-720.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="preview-first" immersive />)
+  const video = await screen.findByLabelText('103B 1m dive video')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-720.mp4'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  expect(video).toHaveAttribute('src', '/camera-hlg.mov')
+  fireEvent.error(video)
+  fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
+  expect(video).toHaveAttribute('src', '/sdr-720.mp4')
+})
+
+it('does not start a tile-seeded cloud original while preview resolution is pending', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('cloud-seed', '/api/v1/media/revisions/42/play')
+  vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="cloud-seed" immersive />)
+  expect(screen.getByLabelText('103B 1m dive video')).not.toHaveAttribute('src')
+})
+
+it('keeps a presented seeded preview when status discovers a higher preview quality', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('stable-seed', '/sdr-360.mp4')
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="stable-seed" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  Object.defineProperty(video, 'readyState', { configurable: true, value: 2 })
+  fireEvent.loadedData(video)
+  await act(async () => { await vi.advanceTimersByTimeAsync(32) })
+  await act(async () => { resolve({ ...ready, full_quality_url: '/original.mov', preview_url: '/sdr-720.mp4', cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/sdr-360.mp4' }, { id: 2, rendition: 'proxy_720p', playback_url: '/sdr-720.mp4' }] }) })
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+})
