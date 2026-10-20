@@ -18,6 +18,31 @@ This excludes Photos, downloads, uploads, live contention and peak memory;
 it does not establish an end-user playback improvement or production capacity.
 No live worker setting was changed for this benchmark.
 
+### Additional file-selection diagnosis supplied at 16:18
+
+The reported failing clip was an approximately 30 MB iPhone MOV original in
+B2: HEVC 10-bit HLG (`arib-std-b67`), with the MP4/MOV `moov` metadata at the
+end of the file. The report observed Safari taking 20–30 seconds to start,
+then playing audio with a black image, despite an SDR proxy already being
+ready. Treat these timings and file details as supplied incident evidence,
+not a new measurement from our benchmark. They identify a separate cause
+from worker load: which artifact the player selects and can decode.
+
+The general player's existing selection prioritizes `full_quality_url`.
+This evaluation change explicitly prefers 720p/360p previews and leaves the
+original behind a quality selection; its regression tests include a ready
+original plus a ready proxy. Apply the same policy to the general player in
+the next playback stage. Do not assume that `yuv420p` alone produces SDR:
+HLG/PQ sources require tone mapping and correct SDR color metadata during
+ingestion. Verify generated proxies as H.264 8-bit SDR with fast-start metadata.
+
+The supplied diagnosis also mentions two failing backend HDR-to-SDR tests on
+master. Relevant parametrized cases exist in `test_browser_upload.py`, but
+their reported failure status has not been independently reproduced here.
+Reproduce both HLG and PQ cases with the deployment ffmpeg build before
+declaring HDR ingestion fixed. An original downloaded for VLC/QuickTime was
+reported as a temporary workaround; it does not validate browser playback.
+
 ## Stage 1: remove avoidable waits and stabilize playback
 
 - Prefer ready browser previews, download the current and next small preview,
@@ -64,6 +89,7 @@ an expired lease cannot finalize a reassigned job under a reused identity.
 ## Stage 3: ingestion and coverage (remaining work)
 
 Create and verify a browser-compatible preview and poster during ingestion,
+including HEVC 10-bit HLG/PQ-to-H.264 SDR conversion and color validation,
 with durable rendition storage and explicit package readiness. Browser uploads
 must produce these directly without depending on Photos or a synthetic UUID.
 Retain originals for explicit original-quality playback. Implement durable
