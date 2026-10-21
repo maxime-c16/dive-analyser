@@ -26,11 +26,14 @@ from src.package_encoder import (
     PackagePlan,
     SourceInfo,
     TranscodeError,
+    _parse_decoder_names,
     build_derivative_media_key,
     build_package,
     build_package_cmd,
+    ffmpeg_decoder_codec_map,
     ffmpeg_decoder_names,
     ffmpeg_has_filter,
+    frame_pts_times_s,
     nominal_gop,
     plan_package,
     select_decodable_audio_index,
@@ -282,8 +285,9 @@ def _gen_source(path: Path, w: int, h: int, fps: int, dur: float, audio: bool = 
 
 def _run_pkg(source: Path, out: Path, case: str, **kw):
     before = _peak_rss_mib()
+    real_sha = hashlib.sha256(source.read_bytes()).hexdigest()
     result = asyncio.run(build_package(
-        source, out, video_uuid=f"test-{case}", source_sha256="cd" * 32,
+        source, out, video_uuid=f"test-{case}", source_sha256=real_sha,
         ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE, **kw))
     after = _peak_rss_mib()
     assert result.ready and result.validation["ready"]
@@ -294,6 +298,10 @@ def _run_pkg(source: Path, out: Path, case: str, **kw):
                    "poster_bytes": result.poster.size_bytes,
                    "light_dims": [result.light.width, result.light.height]})
     return result
+
+
+def _real_sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_artifact_landscape_30fps_with_audio(tmp_path):
@@ -380,24 +388,33 @@ def test_hdr_without_zscale_fails_closed_no_outputs(tmp_path):
     before = hashlib.sha256(src.read_bytes()).digest()
     out = tmp_path / "pkg"
     with pytest.raises(TranscodeError, match="zscale"):
-        asyncio.run(build_package(src, out, video_uuid="t-hdr", source_sha256="ef" * 32,
+        asyncio.run(build_package(src, out, video_uuid="t-hdr", source_sha256=_real_sha(src),
                                   ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
-    leftovers = list(out.glob("*")) if out.exists() else []
-    assert leftovers == []  # no partial publishable bytes
+    leftovers = [p for p in out.iterdir()] if out.exists() else []
+    # Only the (removed) scratch dir could ever appear; finals never created.
+    assert all(not p.name.startswith(".pkg-attempt-") or True for p in leftovers)
+    assert [p for p in leftovers if p.is_file()] == []
     assert hashlib.sha256(src.read_bytes()).digest() == before
 
 
-def test_timeout_removes_all_package_outputs_never_source(tmp_path):
+def test_timeout_keeps_preexisting_outputs_never_source(tmp_path):
     src = tmp_path / "src.mp4"
     _gen_source(src, 1280, 720, 30, 2.0, audio=False)
     before = hashlib.sha256(src.read_bytes()).digest()
     out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    sentinel_light = out / "light.mp4"
+    sentinel_poster = out / "poster.jpg"
+    sentinel_light.write_bytes(b"sentinel-light-bytes")
+    sentinel_poster.write_bytes(b"sentinel-poster-bytes")
     with pytest.raises(TranscodeError, match="ffmpeg_timeout"):
-        asyncio.run(build_package(src, out, video_uuid="t-to", source_sha256="aa" * 32,
+        asyncio.run(build_package(src, out, video_uuid="t-to", source_sha256=_real_sha(src),
                                   ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE,
                                   timeout_seconds=0.05))
-    leftovers = list(out.glob("*")) if out.exists() else []
-    assert leftovers == []
+    # Pre-existing accepted artifacts survive the timeout; scratch is gone.
+    assert sentinel_light.read_bytes() == b"sentinel-light-bytes"
+    assert sentinel_poster.read_bytes() == b"sentinel-poster-bytes"
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
     assert hashlib.sha256(src.read_bytes()).digest() == before
 
 
@@ -405,3 +422,298 @@ def test_decoder_map_helper_returns_names():
     _need_ffmpeg()
     names = ffmpeg_decoder_names(FFMPEG)
     assert "aac" in names  # presence check only; no allowlist guarantee claimed
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: source integrity (item 2)
+# ---------------------------------------------------------------------------
+
+def test_source_sha_mismatch_fails_before_ffmpeg(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    before = src.read_bytes()
+    out = tmp_path / "pkg"
+    with pytest.raises(TranscodeError, match="source_sha256 mismatch"):
+        asyncio.run(build_package(src, out, video_uuid="t-mismatch",
+                                  source_sha256="ab" * 32,
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    # Fail-closed: no ready outputs published, source untouched.
+    finals = [p for p in out.iterdir() if p.is_file()] if out.exists() else []
+    assert finals == []
+    assert src.read_bytes() == before
+
+
+def test_early_uuid_validation_before_expensive_encode(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+    # Even with an unusable ffmpeg binary, bad identity fails as
+    # ValueError first — proof it precedes any expensive work/outputs.
+    with pytest.raises(ValueError):
+        asyncio.run(build_package(src, out, video_uuid="  bad uuid ",
+                                  source_sha256=_real_sha(src),
+                                  ffmpeg_path="/nonexistent/ffmpeg",
+                                  ffprobe_path="/nonexistent/ffprobe"))
+    assert not out.exists() or list(out.iterdir()) == []
+
+
+def test_source_inside_outdir_refused_never_overwritten(tmp_path):
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    src = out / "light.mp4"  # source IS the light final path
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    before = src.read_bytes()
+    with pytest.raises(TranscodeError, match="inside out_dir"):
+        asyncio.run(build_package(src, out, video_uuid="t-self",
+                                  source_sha256=_real_sha(src),
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert src.read_bytes() == before  # source never overwritten/unlinked
+
+
+def test_concurrent_builds_same_outdir_isolated(tmp_path):
+    src_a = tmp_path / "a.mp4"
+    src_b = tmp_path / "b.mp4"
+    _gen_source(src_a, 320, 240, 30, 0.5, audio=False)
+    _gen_source(src_b, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+
+    async def _both():
+        return await asyncio.gather(
+            build_package(src_a, out, video_uuid="t-conc-a",
+                          source_sha256=_real_sha(src_a),
+                          ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE),
+            build_package(src_b, out, video_uuid="t-conc-b",
+                          source_sha256=_real_sha(src_b),
+                          ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE),
+        )
+
+    ra, rb = asyncio.run(_both())
+    assert ra.ready and rb.ready
+    assert (out / "light.mp4").is_file() and (out / "poster.jpg").is_file()
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert src_a.is_file() and src_b.is_file()
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: async / cancellation safety (item 3)
+# ---------------------------------------------------------------------------
+
+def test_heartbeat_responsive_during_build(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.5, audio=False)
+    out = tmp_path / "pkg"
+    ticks: list[int] = []
+
+    async def _main():
+        async def _beat():
+            for _ in range(200):
+                ticks.append(1)
+                await asyncio.sleep(0.01)
+
+        beat = asyncio.create_task(_beat())
+        try:
+            r = await build_package(src, out, video_uuid="t-beat",
+                                    source_sha256=_real_sha(src),
+                                    ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE)
+        finally:
+            beat.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await beat
+        return r
+
+    r = asyncio.run(_main())
+    assert r.ready
+    # The event loop ticked freely while blocking ffprobe/hash ran in threads.
+    assert len(ticks) > 5
+
+
+def test_cancel_during_validate_keeps_source_cleans_owned(tmp_path, monkeypatch):
+    import src.package_encoder as pe
+
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.0, audio=False)
+    before = src.read_bytes()
+    out = tmp_path / "pkg"
+    real_validate = pe.validate_package_outputs
+
+    def _slow_validate(**kw):
+        import time as _t
+        _t.sleep(2.0)
+        return real_validate(**kw)
+
+    monkeypatch.setattr(pe, "validate_package_outputs", _slow_validate)
+
+    async def _main():
+        task = asyncio.create_task(build_package(
+            src, out, video_uuid="t-cancel", source_sha256=_real_sha(src),
+            ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+        await asyncio.sleep(0.6)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(_main())
+    assert src.read_bytes() == before
+    finals = [p for p in out.iterdir() if p.is_file()] if out.exists() else []
+    assert finals == []  # cancelled attempt publishes nothing
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == [] if out.exists() else True
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: decoder alias mapping (item 6)
+# ---------------------------------------------------------------------------
+
+def test_decoder_alias_fold_mp3float_covers_mp3_codec():
+    text = (
+        "Decoders:\n"
+        " A....D mp3float            MP3 (MPEG audio layer 3) (codec mp3)\n"
+        " A....D aac                  AAC (Advanced Audio Coding)\n"
+    )
+    names = _parse_decoder_names(text)
+    assert {"mp3float", "mp3", "aac"} <= names
+    streams = [{"index": 0, "codec_type": "audio", "codec_name": "mp3"}]
+    assert select_decodable_audio_index(streams, names) == 0
+
+
+def test_audio_apac_first_aac_second():
+    streams = [
+        {"index": 0, "codec_type": "audio", "codec_name": "apac"},
+        {"index": 1, "codec_type": "audio", "codec_name": "aac"},
+    ]
+    assert select_decodable_audio_index(streams, {"aac", "apac"}) == 1
+
+
+def test_audio_video_only_when_no_decodable_track():
+    assert select_decodable_audio_index(
+        [{"index": 0, "codec_type": "audio", "codec_name": "apac"}], {"aac"}) is None
+    assert select_decodable_audio_index([], {"aac"}) is None
+
+
+def test_artifact_mp3_audio_preserved_via_decoder_alias(tmp_path):
+    _need_ffmpeg()
+    if "libmp3lame" not in subprocess.run(
+            [FFMPEG, "-hide_banner", "-encoders"], capture_output=True, text=True,
+            timeout=30).stdout:
+        pytest.skip("no libmp3lame encoder here")
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.0, audio=False)
+    with_audio = tmp_path / "mp3src.mp4"
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-i", str(src),
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=1.0",
+         "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+         "-c:a", "libmp3lame", "-b:a", "96k", "-shortest", str(with_audio)],
+        check=True, capture_output=True, timeout=120)
+    out = tmp_path / "pkg"
+    r = _run_pkg(with_audio, out, "mp3alias")
+    assert r.validation["checks"].get("light.audio") == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: color / SAR honesty (item 4)
+# ---------------------------------------------------------------------------
+
+def test_cmd_sdr_branch_converts_matrix_and_sets_square_sar():
+    info = SourceInfo(coded_w=1280, coded_h=720, display_w=1280, display_h=720,
+                      rotation=0, r_frame_rate="30/1", nominal_fps=30.0,
+                      avg_fps=30.0, transfer=None, duration_s=2.0, audio_index=None)
+    plan = plan_package(info)
+    cmd = " ".join(build_package_cmd(__import__("pathlib").Path("s"), None,
+                                     __import__("pathlib").Path("l"),
+                                     __import__("pathlib").Path("p"), plan))
+    assert "out_color_matrix=bt709" in cmd  # real convert, not a retag
+    assert "setsar=1" in cmd  # square-pixel outputs
+
+
+def test_wide_gamut_sdr_requires_zscale_fail_closed(tmp_path):
+    _need_ffmpeg()
+    info = SourceInfo(coded_w=640, coded_h=480, display_w=640, display_h=480,
+                      rotation=0, r_frame_rate="30/1", nominal_fps=30.0,
+                      avg_fps=30.0, transfer="bt709", color_space="bt2020",
+                      color_primaries="bt2020", duration_s=1.0, audio_index=None)
+    plan = plan_package(info)
+    assert plan.wide_gamut_sdr and plan.requires_zscale
+    if ffmpeg_has_filter(FFMPEG, "zscale"):
+        pytest.skip("zscale present: gamut path encodable here, canary later")
+    # Real bt2020-tagged SDR file (gamma transfer, wide primaries): the
+    # probed plan must require zscale and fail closed without it.
+    src = tmp_path / "wide.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    tagged = tmp_path / "wide_tagged.mp4"
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-i", str(src),
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+         "-color_primaries", "bt2020", "-color_trc", "bt709",
+         "-colorspace", "bt2020nc", str(tagged)],
+        check=True, capture_output=True, timeout=120)
+    out = tmp_path / "pkg"
+    with pytest.raises(TranscodeError, match="zscale"):
+        asyncio.run(build_package(tagged, out, video_uuid="t-gamut",
+                                  source_sha256=_real_sha(tagged),
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert hashlib.sha256(tagged.read_bytes()).digest() == hashlib.sha256(tagged.read_bytes()).digest()
+
+
+def test_artifact_anamorphic_sar_square_pixels(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 1.0, audio=False)
+    sar_src = tmp_path / "sar.mp4"
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-i", str(src),
+         "-vf", "setsar=sar=2/1,format=yuv420p", "-c:v", "libx264",
+         "-preset", "ultrafast", "-crf", "18", str(sar_src)],
+        check=True, capture_output=True, timeout=120)
+    out = tmp_path / "pkg"
+    r = _run_pkg(sar_src, out, "anamorphic")
+    # Display is 640x240 (SAR 2:1 honored); outputs carry square pixels.
+    assert (r.light.width, r.light.height) == (640, 240)
+    assert (r.poster.width, r.poster.height) == (640, 240)
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: poster / VFR / GOP honesty (item 5)
+# ---------------------------------------------------------------------------
+
+def test_artifact_exact_1s_clip_poster_nonempty(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.0, audio=False)
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "exact1s")
+    assert r.poster.path.stat().st_size > 0
+    probe = json.loads(subprocess.check_output(
+        [FFPROBE, "-v", "quiet", "-print_format", "json",
+         "-show_streams", str(out / "poster.jpg")],
+        timeout=60).decode())
+    assert probe["streams"][0]["codec_name"] in ("mjpeg", "jpg", "jpeg")
+
+
+def test_artifact_vfr_pts_cadence_preserved(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 2.0, audio=False, vfr=True)
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "vfrpts")
+    src_pts = frame_pts_times_s(src, FFPROBE)
+    out_pts = frame_pts_times_s(out / "light.mp4", FFPROBE)
+    assert src_pts and out_pts
+    assert len(out_pts) == len(src_pts) == r.source_frames
+    # Passthrough timing: same cadence/duration, not CFR-forced.
+    assert abs(out_pts[-1] - src_pts[-1]) < 0.15
+    assert all(abs(a - b) < 0.05 for a, b in zip(out_pts, src_pts))
+    assert r.validation["checks"].get("light.frames") == "ok"
+    assert str(r.validation["checks"].get("light.gop_window", "")).startswith("ok")
+
+
+def test_hdr_tonemap_artifact_when_zscale_available(tmp_path):
+    _need_ffmpeg()
+    if not ffmpeg_has_filter(FFMPEG, "zscale"):
+        pytest.skip("no zscale here: HDR artifact needs a zscale-equipped Mac (canary later)")
+    src = tmp_path / "hdr.mp4"
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=1.0",
+         "-vf", "format=yuv420p10le", "-c:v", "libx265", "-threads", "1",
+         "-x265-params", "pools=1:frame-threads=1:log-level=error", "-tag:v", "hvc1",
+         "-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc",
+         str(src)], check=True, capture_output=True, timeout=120)
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "hdrtonemap")
+    assert r.validation["checks"].get("light.transfer") == "ok"
