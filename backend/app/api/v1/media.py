@@ -1631,6 +1631,23 @@ async def publish_package_slot(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
+    # Canary hard budget (authoritative, not an estimate): committed
+    # durable derivative bytes + this slot's CLAIMED size must fit the
+    # 2 GiB cap BEFORE a byte streams to disk. Estimates never promise
+    # this bound; this check does (serial one-package fleet + this
+    # gate = overshoot bounded to the single in-flight slot, which is
+    # refused here when it does not fit).
+    try:
+        from app.services.canary_budget import CanaryBudgetExceeded, check_publish_budget
+
+        check_publish_budget(db, size_bytes)
+    except HTTPException:
+        raise
+    except CanaryBudgetExceeded as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     from app.services.media_cache import cache_upload_staging_path
 
     staging_path = cache_upload_staging_path(job_id, lease_token)
