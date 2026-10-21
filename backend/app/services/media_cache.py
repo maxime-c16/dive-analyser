@@ -218,24 +218,53 @@ def queue_reclaim_orphans(db, paths: list[str]) -> None:
         db.info.setdefault(_RECLAIM_ORPHANS_KEY, []).extend(paths)
 
 
+# Max bind parameters per reference-lookup query. SQLite caps at 999 (older)
+# / 32766 and Postgres at 65535 — 500 per chunk stays clear of both while
+# keeping even large backlogs to a handful of queries.
+_RECLAIM_LOOKUP_CHUNK_SIZE = 500
+
+
 def drain_reclaim_orphans(db) -> int:
     """Unlink queued reclaim orphans, after a successful commit.
 
     Call exactly once after the owning transaction commits — never after a
-    rollback. Each path is re-checked: a job pointing at it again (caller
-    drained without committing) keeps its file. A crash between commit and
-    drain leaks a file, never loses one.
+    rollback. Referenced paths are fetched with batched ``IN`` lookups
+    (stable-order deduped, <=500 binds per query, zero queries when empty),
+    then only unreferenced paths are unlinked. A path still pointed at by
+    any job — including one shared by several jobs — keeps its file. A
+    lookup failure keeps every file (fail closed: references unknown, and a
+    failed chunk may have aborted the transaction — never delete on
+    unknown). A crash between commit and drain leaks a file, never loses
+    one. Queued paths are unique per-request staging files that the normal
+    producer never reuses, so no new unlink race is introduced.
     """
     pending = db.info.pop(_RECLAIM_ORPHANS_KEY, [])
-    removed = 0
-    for raw in pending:
-        try:
-            still = (
-                db.execute(select(MediaJob.id).where(MediaJob.upload_tmp_path == raw)).scalar_one_or_none()
+    unique = list(dict.fromkeys(p for p in pending if p))
+    if not unique:
+        return 0
+    try:
+        referenced: set[str] = set()
+        for start in range(0, len(unique), _RECLAIM_LOOKUP_CHUNK_SIZE):
+            chunk = unique[start:start + _RECLAIM_LOOKUP_CHUNK_SIZE]
+            rows = (
+                db.execute(
+                    select(MediaJob.upload_tmp_path).where(
+                        MediaJob.upload_tmp_path.in_(chunk)
+                    )
+                )
+                .scalars()
+                .all()
             )
-        except Exception:
-            still = True
-        if still is not None:
+            referenced.update(r for r in rows if r)
+    except Exception:
+        logger.warning(
+            "drain_reclaim_orphans lookup failed; keeping %d queued files",
+            len(unique),
+        )
+        return 0
+    removed = 0
+    for raw in unique:
+        if raw in referenced:
             continue
         try:
             Path(raw).unlink(missing_ok=True)
