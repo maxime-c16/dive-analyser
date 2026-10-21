@@ -1342,14 +1342,17 @@ async def upload_job_artifact(
             accepted = mark_job_uploaded(db, job_id, agent_id, str(staging_path), checksum_sha256, size_bytes, lease_token)
         except (ValueError, PermissionError) as exc:
             db.rollback()
-            # The claim moved mid-upload (re-lease/reclaim): these staging
-            # bytes belong to a dead attempt — remove only the staging file,
-            # never the canonical live bytes.
+            # The claim moved mid-upload (re-lease/reclaim), or the staging
+            # file vanished after hashing: these staging bytes belong to a
+            # dead attempt — remove only the staging file, never live bytes.
             staging_path.unlink(missing_ok=True)
             if isinstance(exc, ValueError):
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
         db.commit()
+        # Post-commit only: unlink the superseded staging (if any) queued by
+        # the accept. A crash before this leaks a file, never loses one.
+        drain_reclaim_orphans(db)
         return accepted
 
     job = await run_to_completion(asyncio.to_thread(_verify_and_accept))

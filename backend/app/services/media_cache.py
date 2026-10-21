@@ -189,13 +189,11 @@ def cache_upload_staging_path(job_id: int, lease_token: str | None) -> Path:
 def promote_upload_staging(staging: Path, job: MediaJob) -> Path:
     """Atomically promote one staging file to the canonical attempt path.
 
-    Called inside the row-locked accept transaction, after the guard passed:
-    concurrent same-attempt uploads serialize here, last writer wins, and no
-    loser ever deletes the winner's bytes. Returns the canonical path.
-    Synthetic service-level callers pass a fake path (guard tests never
-    touch bytes); when the staging file is absent and is not already the
-    canonical path, the pointer still advances to canonical without file
-    ops — the route always hashes a real staging file first.
+    DEPRECATED (D2 final): accepts are now staging-direct — the job pointer
+    aims at the unique verified per-request staging file, and the previous
+    pointer is orphaned post-commit. This helper is retained only for
+    pre-existing rows/tests that already address the canonical path; new
+    code must not call it (replace-before-commit corrupts on rollback).
     """
     canonical = cache_tmp_path(job)
     staging = Path(staging)

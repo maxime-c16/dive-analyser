@@ -190,3 +190,56 @@ def test_reclaim_serializes_with_guard_both_orders(pg):
     t2.join(timeout=10)
     assert result2 == ["acquired"]
     db.rollback()
+
+
+def test_reclaim_refreshes_cached_identity_row(pg):
+    """Reclaim must act on the committed row, not the cached attempt.
+
+    Same session preloaded token/path/attempts/expiry; a concurrent
+    commit moves the claim to a new token + path + attempts and expires
+    it. Reclaim must queue the CURRENT path and clear the CURRENT token,
+    not the stale cached ones; selection still comes from SQL expiry.
+    """
+    from app.models.media import MediaJob
+    from app.services.media_jobs import reclaim_expired_media_jobs
+
+    engine, factory, db, prefix = pg
+    jid, agent = _seed(factory, prefix)
+    old_path = f"/tmp/{prefix}-old.bin"
+    s = factory()
+    try:
+        j = s.get(MediaJob, jid)
+        j.upload_tmp_path = old_path
+        j.output_checksum_sha256 = "a" * 64
+        j.output_size_bytes = 7
+        s.commit()
+    finally:
+        s.close()
+
+    preloaded = db.get(MediaJob, jid)
+    assert preloaded.upload_tmp_path == old_path
+    old_token = preloaded.lease_token
+    assert preloaded.claimed_until is not None and preloaded.claimed_until > datetime.utcnow()
+
+    new_token = "tok-new-0000000000000000000009"
+    new_path = f"/tmp/{prefix}-new.bin"
+    other = factory()
+    try:
+        oj = other.get(MediaJob, jid)
+        oj.lease_token = new_token
+        oj.upload_tmp_path = new_path
+        oj.output_checksum_sha256 = "b" * 64
+        oj.output_size_bytes = 8
+        oj.attempts = preloaded.attempts + 1
+        oj.claimed_until = datetime.utcnow() - timedelta(seconds=1)
+        other.commit()
+    finally:
+        other.close()
+
+    assert reclaim_expired_media_jobs(db) == 1
+    assert db.info.get("media_jobs_reclaim_orphans") == [new_path]
+    assert preloaded.lease_token is None and preloaded.claimed_by is None
+    assert preloaded.upload_tmp_path is None
+    assert preloaded.attempts == 2
+    assert preloaded.status == "queued"
+    db.rollback()

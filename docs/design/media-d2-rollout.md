@@ -102,11 +102,14 @@ later cleanup.
   Reclaim serializes with the row guards via SELECT ... FOR UPDATE (both
   orders, bounded lock timeouts); orphans are unlinked only after the
   owner's commit (a rollback resurrects the row with its bytes intact).
-- Uploads stream to per-request staging and promote atomically to the
-  per-attempt canonical path inside the row-locked accept: a same-attempt
-  retry can never unlink or interleave the live attempt's accepted bytes
-  (last writer wins; losers remove only their own staging). Stale bytes are
-  rejected pre-write and removed post-hash on a mid-upload re-lease.
+- Uploads stream to per-request staging and the row-locked accept points
+  the job directly at the verified staging file (no canonical overwrite):
+  a same-attempt retry can never unlink or interleave the live attempt's
+  accepted bytes (last writer wins; the superseded staging is orphaned
+  post-commit, losers remove only their own staging). A rollback leaks the
+  new staging file but leaves the old artifact untouched (leak, never
+  corruption). Stale bytes are rejected pre-write and removed post-hash
+  on a mid-upload re-lease.
 - Worker keepalive is monotonic: a lagging phase echo renews the lease
   without regressing status/progress (uploading never pulls verifying back,
   so a valid finalize cannot be broken by a keepalive).

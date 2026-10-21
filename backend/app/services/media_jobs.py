@@ -286,7 +286,9 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
     path's outer lock). Orphan tmp files are QUEUED on the session and
     unlinked only after the owner's commit via drain_reclaim_orphans: a
     rollback resurrects the row, and an already-unlinked file would leave a
-    pointer with no bytes.
+    pointer with no bytes. Callers that never drain (status peeks) leak the
+    file until the next draining caller (lease/request/upload) — a leak,
+    never a loss: the row already points nowhere.
     """
     from app.services.media_cache import queue_reclaim_orphans
 
@@ -301,6 +303,7 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
             MediaJob.claimed_until < now,
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     jobs = list(db.execute(stmt).scalars().all())
     reclaimed = 0
@@ -497,31 +500,44 @@ def mark_job_uploaded(
     before streaming bytes, but only this check — re-run after the hash,
     in the committing transaction — decides. A mid-upload re-lease is
     rejected here and the orphaned bytes are removed by the caller.
-    ``tmp_path`` is the caller's per-request staging file; it is promoted
-    atomically to the canonical per-attempt path inside the lock, so a
-    concurrent same-attempt retry serializes here (last wins) and never
-    deletes the winner's bytes.
+
+    Fail-closed: ``tmp_path`` must be a regular file at accept time (the
+    route hashed it seconds earlier; it can vanish before this commit).
+    A missing path, directory, or otherwise non-file staging is rejected
+    without touching job state — the job never enters ``verifying``
+    pointing at nonexistent bytes.
+
+    Staging-direct (no canonical overwrite): ``tmp_path`` is the caller's
+    unique per-request staging file; the pointer aims at it directly.
+    The previous pointer (if any) is queued for unlink after the owner's
+    commit via ``queue_reclaim_orphans`` — a rollback therefore leaks the
+    new staging file but leaves the old artifact untouched (leak, never
+    corruption). Concurrent same-attempt accepts serialize on the row
+    lock; last writer wins and the loser's file is drained post-commit.
     """
-    from app.services.media_cache import promote_upload_staging
+    from app.services.media_cache import queue_reclaim_orphans
 
     job = _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=True)
 
     staging = Path(tmp_path)
-    if staging.exists() and staging.is_file():
-        canonical = promote_upload_staging(staging, job)
-    else:
-        # Synthetic guard tests pass fake paths (no bytes staged; the route
-        # always hashes a real staging file first). Advance the pointer
-        # without file ops so guard semantics stay testable.
-        canonical = staging
+    try:
+        is_file = staging.is_file()
+    except OSError:
+        is_file = False
+    if not is_file:
+        raise ValueError("Uploaded artifact missing")
+
+    old_path = job.upload_tmp_path
     job.status = "verifying"
     job.progress = 95
-    job.upload_tmp_path = str(canonical)
+    job.upload_tmp_path = str(staging)
     job.output_checksum_sha256 = checksum_sha256
     job.output_size_bytes = size_bytes
     job.updated_at = datetime.utcnow()
     db.add(job)
     db.flush()
+    if old_path and old_path != str(staging):
+        queue_reclaim_orphans(db, [old_path])
     return job
 
 

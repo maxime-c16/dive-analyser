@@ -82,7 +82,7 @@ def _lease(test_db, agent_id=AGENT, token_capable=True, **kwargs):
     return leased[0]
 
 
-def test_valid_claim_mints_token_and_full_cycle_succeeds(test_db):
+def test_valid_claim_mints_token_and_full_cycle_succeeds(test_db, tmp_path):
     _agent(test_db)
     asset = _asset(test_db)
     _queued_job(test_db, asset)
@@ -93,10 +93,14 @@ def test_valid_claim_mints_token_and_full_cycle_succeeds(test_db):
     assert job.status == "claimed"
 
     heartbeat_media_job(test_db, job.id, AGENT, "transcoding", 35, leased.lease_token)
+    staging = tmp_path / "accept.bin"
+    staging.write_bytes(b"cycle-bytes")
+    digest = hashlib.sha256(b"cycle-bytes").hexdigest()
     marked = mark_job_uploaded(
-        test_db, job.id, AGENT, "/tmp/nowhere.bin", "a" * 64, 12, leased.lease_token
+        test_db, job.id, AGENT, str(staging), digest, len(b"cycle-bytes"), leased.lease_token
     )
     assert marked.status == "verifying"
+    assert marked.upload_tmp_path == str(staging)
     failed = fail_media_job(test_db, job.id, AGENT, "boom", "failed", leased.lease_token)
     assert failed.status == "failed" and failed.last_error == "boom"
 
@@ -372,8 +376,9 @@ def test_upload_route_rejects_stale_token_end_to_end(api_client, test_db, tmp_pa
             headers=headers,
         )
         assert ok.status_code == 200, ok.text
-        live_tmp = tmp_path / "tmp" / f"job-{job_id}-{token1}.partial"
-        assert live_tmp.read_bytes() == body
+        live_pointer = ok.json()["upload_tmp_path"]
+        assert live_pointer and live_pointer.endswith(".staging")
+        assert __import__("pathlib").Path(live_pointer).read_bytes() == body
 
         # Expire + reclaim + re-lease (same agent, new token).
         job = test_db.get(_MJ, job_id)
@@ -403,7 +408,7 @@ def test_upload_route_rejects_stale_token_end_to_end(api_client, test_db, tmp_pa
         settings.media_cache_root = saved_root
 
 
-def test_heartbeat_is_monotonic_and_never_regresses_verifying(test_db):
+def test_heartbeat_is_monotonic_and_never_regresses_verifying(test_db, tmp_path):
     """A lagging keepalive echo must not pull verifying back to uploading."""
     _agent(test_db)
     asset = _asset(test_db)
@@ -411,8 +416,11 @@ def test_heartbeat_is_monotonic_and_never_regresses_verifying(test_db):
     leased = _lease(test_db)
     job = test_db.get(MediaJob, leased.job_id)
     live_token = leased.lease_token
+    staging = tmp_path / "mono.bin"
+    staging.write_bytes(b"mono-bytes")
+    digest = hashlib.sha256(b"mono-bytes").hexdigest()
     mark_job_uploaded(
-        test_db, job.id, AGENT, "/tmp/nowhere.bin", "a" * 64, 12, live_token
+        test_db, job.id, AGENT, str(staging), digest, len(b"mono-bytes"), live_token
     )
     assert test_db.get(MediaJob, job.id).status == "verifying"
     stayed = heartbeat_media_job(test_db, job.id, AGENT, "uploading", 80, live_token)
@@ -493,3 +501,117 @@ def test_guarded_job_refreshes_preloaded_stale_row(test_db):
         other.close()
     with pytest.raises(PermissionError, match="media_job_lease_token_mismatch"):
         _guarded_job(test_db, leased.job_id, AGENT, leased.lease_token, {"claimed"}, lock=True)
+
+
+def test_accept_rejects_missing_directory_and_replaced_staging(test_db, tmp_path):
+    """Fail-closed accept: missing/dir/non-file never marks verifying."""
+    _agent(test_db)
+    asset = _asset(test_db)
+    _queued_job(test_db, asset)
+    leased = _lease(test_db)
+    job = test_db.get(MediaJob, leased.job_id)
+
+    missing = tmp_path / "gone.bin"
+    with pytest.raises(ValueError, match="Uploaded artifact missing"):
+        mark_job_uploaded(test_db, job.id, AGENT, str(missing), "a" * 64, 3, leased.lease_token)
+    job = test_db.get(MediaJob, leased.job_id)
+    assert job.status == "claimed" and job.upload_tmp_path is None
+
+    subdir = tmp_path / "as-dir"
+    subdir.mkdir()
+    with pytest.raises(ValueError, match="Uploaded artifact missing"):
+        mark_job_uploaded(test_db, job.id, AGENT, str(subdir), "a" * 64, 3, leased.lease_token)
+    job = test_db.get(MediaJob, leased.job_id)
+    assert job.status == "claimed" and job.upload_tmp_path is None
+    assert subdir.is_dir()
+
+    replaced = tmp_path / "replaced.bin"
+    replaced.write_bytes(b"staged-bytes")
+    replaced.unlink()
+    replaced.mkdir()
+    with pytest.raises(ValueError, match="Uploaded artifact missing"):
+        mark_job_uploaded(test_db, job.id, AGENT, str(replaced), "a" * 64, 3, leased.lease_token)
+    job = test_db.get(MediaJob, leased.job_id)
+    assert job.status == "claimed" and job.upload_tmp_path is None
+    assert replaced.is_dir()
+
+    valid = tmp_path / "valid.bin"
+    valid.write_bytes(b"valid-bytes")
+    digest = hashlib.sha256(b"valid-bytes").hexdigest()
+    marked = mark_job_uploaded(
+        test_db, job.id, AGENT, str(valid), digest, len(b"valid-bytes"), leased.lease_token
+    )
+    assert marked.status == "verifying" and marked.upload_tmp_path == str(valid)
+    assert valid.read_bytes() == b"valid-bytes"
+
+
+def test_accept_rollback_keeps_old_artifact_and_leaks_new(test_db, tmp_path):
+    """Staging-direct: a rolled-back accept leaks the new file, keeps old."""
+    from app.services.media_cache import drain_reclaim_orphans
+
+    settings = get_settings()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path)
+    try:
+        _agent(test_db)
+        asset = _asset(test_db)
+        _queued_job(test_db, asset)
+        leased = _lease(test_db)
+        job = test_db.get(MediaJob, leased.job_id)
+
+        first = media_cache.cache_upload_staging_path(job.id, leased.lease_token)
+        first.write_bytes(b"first-bytes")
+        digest_a = hashlib.sha256(b"first-bytes").hexdigest()
+        mark_job_uploaded(test_db, job.id, AGENT, str(first), digest_a, len(b"first-bytes"), leased.lease_token)
+        test_db.commit()
+        assert test_db.get(MediaJob, job.id).upload_tmp_path == str(first)
+
+        second = media_cache.cache_upload_staging_path(job.id, leased.lease_token)
+        assert second != first
+        second.write_bytes(b"second-bytes")
+        digest_b = hashlib.sha256(b"second-bytes").hexdigest()
+        mark_job_uploaded(test_db, job.id, AGENT, str(second), digest_b, len(b"second-bytes"), leased.lease_token)
+        # Old file untouched until the owner's commit drains it.
+        assert first.read_bytes() == b"first-bytes"
+        test_db.rollback()
+        assert test_db.get(MediaJob, job.id).upload_tmp_path == str(first)
+        assert first.read_bytes() == b"first-bytes"
+        assert second.read_bytes() == b"second-bytes"
+    finally:
+        settings.media_cache_root = saved_root
+
+
+def test_duplicate_accepts_serialize_last_wins_and_drains_loser(test_db, tmp_path):
+    """Same-attempt retries: last accept wins; loser drained post-commit."""
+    from app.services.media_cache import cache_upload_staging_path, drain_reclaim_orphans
+
+    settings = get_settings()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path)
+    try:
+        _agent(test_db)
+        asset = _asset(test_db)
+        _queued_job(test_db, asset)
+        leased = _lease(test_db)
+        job = test_db.get(MediaJob, leased.job_id)
+
+        first = cache_upload_staging_path(job.id, leased.lease_token)
+        first.write_bytes(b"first-bytes")
+        digest_a = hashlib.sha256(b"first-bytes").hexdigest()
+        mark_job_uploaded(test_db, job.id, AGENT, str(first), digest_a, len(b"first-bytes"), leased.lease_token)
+        test_db.commit()
+        drain_reclaim_orphans(test_db)
+
+        second = cache_upload_staging_path(job.id, leased.lease_token)
+        assert second != first
+        second.write_bytes(b"second-bytes")
+        digest_b = hashlib.sha256(b"second-bytes").hexdigest()
+        mark_job_uploaded(test_db, job.id, AGENT, str(second), digest_b, len(b"second-bytes"), leased.lease_token)
+        test_db.commit()
+        drain_reclaim_orphans(test_db)
+
+        assert test_db.get(MediaJob, job.id).upload_tmp_path == str(second)
+        assert second.read_bytes() == b"second-bytes"
+        assert not first.exists()
+    finally:
+        settings.media_cache_root = saved_root
