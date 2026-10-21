@@ -1426,23 +1426,30 @@
   min-height: 0;
 }
 .clip-viewer.is-studio .clip-stage-row {
+  container-type: size;
   align-items: center;
   justify-content: center;
   gap: 16px;
   padding: 16px;
 }
 .clip-viewer.is-studio .clip-stage-viewport {
-  flex: 0 1 auto;
-  height: 100%;
+  flex: none;
   max-width: 100%;
   background: transparent;
 }
+/* Explicit width from the row's container units: Safari does not transfer
+   aspect-ratio through a percentage height when shrink-wrapping the
+   viewport, which collapsed the stage to its borders. Container units
+   exclude the row padding; 120px = gaps (2×16) + step buttons (2×44). */
 .clip-viewer.is-studio .clip-stage-viewport > .clip-stage,
 .clip-viewer.is-studio .clip-stage {
   flex: none;
-  height: 100%;
-  width: auto;
-  max-width: 100%;
+  width: min(
+    calc(100cqw - 120px),
+    calc(100cqh * var(--clip-aspect, 0.5625))
+  );
+  height: auto;
+  max-width: none;
   aspect-ratio: var(--clip-aspect, 0.5625);
   margin: 0;
   border: 1px solid var(--app-border);

@@ -1,0 +1,8 @@
+{
+  "id": "safari-desktop-player-fix",
+  "date": "2026-10-21",
+  "title": "Desktop player works again in Safari",
+  "body": "On tablet and desktop Safari, the dive video shows at full size again beside the filmstrip and the evaluation panel.",
+  "audience": "all",
+  "components": ["frontend"]
+}
