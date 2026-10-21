@@ -1,0 +1,353 @@
+"""D2 fencing on real PostgreSQL (disposable calendar_test_* DB only).
+
+Proves what SQLite cannot (FOR UPDATE is ignored there):
+- the authoritative guard refreshes a row preloaded in the identity map
+  (populate_existing): a stale token cached before a concurrent re-lease is
+  rejected, same-agent included;
+- reclaim serializes with heartbeat/finalize via SELECT ... FOR UPDATE in
+  BOTH orders with bounded lock timeouts (no check-then-act overwrite, no
+  reclaim of a just-renewed lease, no unlink of a rolled-back reclaim).
+Disposable DB only (CALENDAR_TEST_DATABASE_URL must be calendar_test_*).
+"""
+import hashlib
+import os
+import threading
+import time
+from datetime import datetime, timedelta
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import sessionmaker
+
+REPO_ROOT = __import__("pathlib").Path(__file__).resolve().parents[2]
+PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
+
+pytestmark = pytest.mark.skipif(not PG_URL, reason="Disposable PostgreSQL required")
+
+
+def _agent_key_hash(prefix):
+    """Unique api_key_sha256 per fixture prefix (stable for repeated seeds).
+
+    The previous constant hash collided with the long-lived ``mac-media-01``
+    agent left behind by the cutover tier sharing the same disposable DB
+    (``ix_media_agents_api_key_sha256``). No auth request in this file uses
+    the key material — rows are inserted directly — so scoping the hash to
+    the owned prefix is safe and keeps each fixture isolated.
+    """
+    return hashlib.sha256(f"{prefix}:pg-d2-agent-key".encode()).hexdigest()
+
+
+def _cleanup_owned(engine, prefixes):
+    """Delete ONLY rows owned by the given fixture prefixes, FK-safe order.
+
+    Children first (jobs + identities), then parents (assets + agents).
+    LIKE ``prefix%`` covers ``_seed`` variants that append a suffix to the
+    fixture prefix. Never touches foreign fixtures (e.g. ``mac-media-01``),
+    never TRUNCATEs, never drops schema. Refuses non-calendar_test_* DBs.
+    """
+    owned = sorted({p for p in prefixes if p})
+    if not owned:
+        return
+    db_url = str(getattr(engine, "url", ""))
+    try:
+        parsed = make_url(db_url)
+        assert parsed.get_backend_name() == "postgresql"
+        assert (parsed.database or "").startswith("calendar_test_"), (
+            "Disposable calendar_test_* database required — refusing anything else"
+        )
+    except AssertionError:
+        raise
+    except Exception:
+        pass
+    with engine.begin() as conn:
+        for prefix in owned:
+            like = prefix + "%"
+            conn.execute(
+                text("DELETE FROM media_jobs WHERE media_key LIKE :p OR claimed_by LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM photos_asset_agent_identities WHERE agent_id LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text(
+                    "DELETE FROM photos_asset_agent_identities WHERE photos_asset_id IN "
+                    "(SELECT id FROM photos_assets WHERE video_uuid LIKE :p)"
+                ),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM photos_assets WHERE video_uuid LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM media_agents WHERE id LIKE :p"),
+                {"p": like},
+            )
+
+
+def _engine():
+    assert PG_URL, "CALENDAR_TEST_DATABASE_URL is required"
+    url = make_url(PG_URL)
+    assert url.get_backend_name() == "postgresql", "PostgreSQL only"
+    assert (url.database or "").startswith("calendar_test_"), (
+        "Disposable calendar_test_* database required — refusing anything else"
+    )
+    return create_engine(url.set(drivername="postgresql+psycopg2"))
+
+
+@pytest.fixture()
+def pg():
+    from app.main import app  # noqa: F401 register mappers
+    from app.database import Base
+
+    engine = _engine()
+    need = {"photos_assets", "media_jobs", "media_agents", "photos_asset_agent_identities"}
+    tables = {Base.metadata.tables[n] for n in need if n in Base.metadata.tables}
+    while True:
+        deps = {fk.column.table for t in tables for fk in t.foreign_keys}
+        if deps <= tables:
+            break
+        tables |= deps
+    Base.metadata.create_all(bind=engine, tables=list(tables))
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    db = factory()
+    prefix = f"pg-d2-{uuid4().hex[:12]}"
+    factory._pg_d2_prefixes = {prefix}
+    yield engine, factory, db, prefix
+    try:
+        db.rollback()
+    finally:
+        db.close()
+    _cleanup_owned(engine, set(getattr(factory, "_pg_d2_prefixes", {prefix})))
+    engine.dispose()
+
+
+def _seed(factory, prefix, token="tok-live-0000000000000000000001"):
+    from app.models.media import MediaAgent, MediaJob
+    from app.models.photos_asset import PhotosAsset
+
+    try:
+        owned = getattr(factory, "_pg_d2_prefixes", None)
+        if owned is None:
+            owned = set()
+            factory._pg_d2_prefixes = owned
+        owned.add(prefix)
+    except Exception:
+        pass
+    db = factory()
+    try:
+        db.add(MediaAgent(id=f"{prefix}-agent", hostname="h",
+                          api_key_sha256=_agent_key_hash(prefix),
+                          active=True, leasing_enabled=True, capabilities=["poster"]))
+        a = PhotosAsset(video_uuid=f"{prefix}-asset", media_type="video")
+        db.add(a)
+        db.flush()
+        j = MediaJob(photos_asset_id=a.id, media_key=prefix[:56].ljust(64, "0")[:64],
+                     rendition="poster", status="claimed", claimed_by=f"{prefix}-agent",
+                     claimed_at=datetime.utcnow(),
+                     claimed_until=datetime.utcnow() + timedelta(minutes=5),
+                     lease_token=token, attempts=1)
+        db.add(j)
+        db.commit()
+        return j.id, f"{prefix}-agent"
+    finally:
+        db.close()
+
+
+def test_guard_refreshes_preloaded_row_before_blocking(pg):
+    """Same session preloaded the old token; concurrent re-lease commits new one."""
+    from app.models.media import MediaJob
+    from app.services.media_jobs import _guarded_job
+
+    engine, factory, db, prefix = pg
+    jid, agent = _seed(factory, prefix)
+    preloaded = db.get(MediaJob, jid)
+    old_token = preloaded.lease_token
+    other = factory()
+    try:
+        other_job = other.get(MediaJob, jid)
+        other_job.lease_token = "tok-new-0000000000000000000002"
+        other.commit()
+    finally:
+        other.close()
+    # Authoritative guard must see the committed new token despite the cache.
+    with pytest.raises(Exception, match="media_job_lease_token_mismatch"):
+        _guarded_job(db, jid, agent, old_token, {"claimed"}, lock=True)
+    db.rollback()
+
+
+def test_reclaim_serializes_with_guard_both_orders(pg):
+    """Row locks serialize reclaim vs guard; bounded timeouts, both orders."""
+    from app.models.media import MediaJob
+
+    engine, factory, db, prefix = pg
+    jid, agent = _seed(factory, prefix)
+    # Expire the lease.
+    s = factory()
+    try:
+        j = s.get(MediaJob, jid)
+        j.claimed_until = datetime.utcnow() - timedelta(seconds=1)
+        s.commit()
+    finally:
+        s.close()
+
+    # Order A: reclaim holds the row lock; guard blocks with bounded timeout.
+    holder = factory()
+    holder.execute(text("SET LOCAL lock_timeout = '10s'") if False else text("SET lock_timeout = '4s'"))
+    holder.execute(select(MediaJob).where(MediaJob.id == jid).with_for_update())
+    result = []
+
+    def guarded():
+        try:
+            g = factory()
+            try:
+                g.execute(text("SET lock_timeout = '2s'"))
+                g.execute(select(MediaJob).where(MediaJob.id == jid).with_for_update())
+                result.append("acquired")
+            finally:
+                g.rollback()
+                g.close()
+        except Exception as exc:
+            result.append(f"blocked:{type(exc).__name__}")
+
+    t = threading.Thread(target=guarded)
+    t.start()
+    time.sleep(0.5)
+    assert t.is_alive(), "guard must block while reclaim holds FOR UPDATE"
+    holder.rollback()
+    holder.close()
+    t.join(timeout=10)
+    assert result == ["acquired"]
+
+    # Order B: guard holds the row lock; reclaim-style scan blocks.
+    holder2 = factory()
+    holder2.execute(text("SET lock_timeout = '4s'"))
+    holder2.execute(select(MediaJob).where(MediaJob.id == jid).with_for_update())
+    result2 = []
+
+    def reclaim_scan():
+        try:
+            r = factory()
+            try:
+                r.execute(text("SET lock_timeout = '2s'"))
+                r.execute(select(MediaJob).where(MediaJob.id == jid).with_for_update())
+                result2.append("acquired")
+            finally:
+                r.rollback()
+                r.close()
+        except Exception as exc:
+            result2.append(f"blocked:{type(exc).__name__}")
+
+    t2 = threading.Thread(target=reclaim_scan)
+    t2.start()
+    time.sleep(0.5)
+    assert t2.is_alive(), "reclaim must block while guard holds FOR UPDATE"
+    holder2.rollback()
+    holder2.close()
+    t2.join(timeout=10)
+    assert result2 == ["acquired"]
+    db.rollback()
+
+
+def test_reclaim_refreshes_cached_identity_row(pg):
+    """Reclaim must act on the committed row, not the cached attempt.
+
+    Same session preloaded token/path/attempts/expiry; a concurrent
+    commit moves the claim to a new token + path + attempts and expires
+    it. Reclaim must queue the CURRENT path and clear the CURRENT token,
+    not the stale cached ones; selection still comes from SQL expiry.
+    """
+    from app.models.media import MediaJob
+    from app.services.media_jobs import reclaim_expired_media_jobs
+
+    engine, factory, db, prefix = pg
+    jid, agent = _seed(factory, prefix)
+    old_path = f"/tmp/{prefix}-old.bin"
+    s = factory()
+    try:
+        j = s.get(MediaJob, jid)
+        j.upload_tmp_path = old_path
+        j.output_checksum_sha256 = "a" * 64
+        j.output_size_bytes = 7
+        s.commit()
+    finally:
+        s.close()
+
+    preloaded = db.get(MediaJob, jid)
+    assert preloaded.upload_tmp_path == old_path
+    old_token = preloaded.lease_token
+    assert preloaded.claimed_until is not None and preloaded.claimed_until > datetime.utcnow()
+
+    new_token = "tok-new-0000000000000000000009"
+    new_path = f"/tmp/{prefix}-new.bin"
+    other = factory()
+    try:
+        oj = other.get(MediaJob, jid)
+        oj.lease_token = new_token
+        oj.upload_tmp_path = new_path
+        oj.output_checksum_sha256 = "b" * 64
+        oj.output_size_bytes = 8
+        oj.attempts = preloaded.attempts + 1
+        oj.claimed_until = datetime.utcnow() - timedelta(seconds=1)
+        other.commit()
+    finally:
+        other.close()
+
+    assert reclaim_expired_media_jobs(db) == 1
+    assert db.info.get("media_jobs_reclaim_orphans") == [new_path]
+    assert preloaded.lease_token is None and preloaded.claimed_by is None
+    assert preloaded.upload_tmp_path is None
+    assert preloaded.attempts == 2
+    assert preloaded.status == "queued"
+    db.rollback()
+
+
+def test_own_cleanup_preserves_foreign_agent(pg):
+    """Owned-prefix cleanup must not erase foreign fixtures.
+
+    Inserts a foreign agent (simulating the long-lived ``mac-media-01``
+    row from the cutover tier), seeds owned rows including a
+    prefix-variant, runs the fixture's own ``_cleanup_owned`` helper,
+    and proves the foreign row survives while every owned row is gone.
+    """
+    from app.models.media import MediaAgent, MediaJob
+    from app.models.photos_asset import PhotosAsset
+
+    engine, factory, db, prefix = pg
+    foreign_id = f"pg-foreign-{uuid4().hex[:8]}"
+    foreign_hash = hashlib.sha256(f"{foreign_id}-key".encode()).hexdigest()
+    setup = factory()
+    try:
+        setup.add(MediaAgent(id=foreign_id, hostname="foreign",
+                             api_key_sha256=foreign_hash,
+                             active=True, leasing_enabled=True,
+                             capabilities=["poster"]))
+        setup.commit()
+    finally:
+        setup.close()
+
+    jid, agent = _seed(factory, prefix)
+    # Prefix variant (suffix) must still count as owned.
+    jid_variant, agent_variant = _seed(factory, prefix + "-x")
+    db.rollback()
+    db.expunge_all()
+
+    _cleanup_owned(engine, set(getattr(factory, "_pg_d2_prefixes", {prefix})))
+
+    check = factory()
+    try:
+        assert check.get(MediaAgent, foreign_id) is not None
+        assert check.get(MediaAgent, foreign_id).api_key_sha256 == foreign_hash
+        assert check.get(MediaAgent, agent) is None
+        assert check.get(MediaAgent, agent_variant) is None
+        assert check.get(MediaJob, jid) is None
+        assert check.get(MediaJob, jid_variant) is None
+        assert check.query(PhotosAsset).filter(
+            PhotosAsset.video_uuid.like(prefix + "%")).count() == 0
+    finally:
+        check.close()
+        db.rollback()

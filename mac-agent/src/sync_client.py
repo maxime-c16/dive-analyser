@@ -571,6 +571,9 @@ class SyncClient:
             "capabilities": capabilities,
             "max_jobs": max_jobs,
             "lease_seconds": lease_seconds,
+            # D2 fencing: this worker stores the returned lease_token and
+            # echoes it on every mutation of the claim.
+            "supports_lease_token": True,
         }
         status, body = await asyncio.to_thread(
             _curl_post,
@@ -591,10 +594,13 @@ class SyncClient:
         agent_id: str,
         status_value: str,
         progress: int,
+        lease_token: str | None = None,
     ) -> Dict[str, Any]:
         """Send media job heartbeat/progress."""
         url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/heartbeat"
         payload = {"agent_id": agent_id, "status": status_value, "progress": progress}
+        if lease_token is not None:
+            payload["lease_token"] = lease_token
         status, body = await asyncio.to_thread(
             _curl_post,
             url,
@@ -614,10 +620,13 @@ class SyncClient:
         agent_id: str,
         error: str,
         status_value: str = "failed",
+        lease_token: str | None = None,
     ) -> Dict[str, Any]:
         """Mark a media job failed/unavailable."""
         url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/fail"
         payload = {"agent_id": agent_id, "error": error, "status": status_value}
+        if lease_token is not None:
+            payload["lease_token"] = lease_token
         status, body = await asyncio.to_thread(
             _curl_post,
             url,
@@ -636,6 +645,7 @@ class SyncClient:
         job_id: int,
         artifact,
         agent_id: str,
+        lease_token: str | None = None,
     ) -> Dict[str, Any]:
         """Upload a generated media artifact for a job."""
         url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/upload"
@@ -644,6 +654,8 @@ class SyncClient:
             "checksum_sha256": artifact.checksum_sha256,
             "size_bytes": str(artifact.size_bytes),
         }
+        if lease_token is not None:
+            fields["lease_token"] = lease_token
         status, body = await asyncio.to_thread(
             _curl_multipart_post,
             url,
@@ -663,6 +675,7 @@ class SyncClient:
         job_id: int,
         artifact,
         agent_id: str,
+        lease_token: str | None = None,
     ) -> Dict[str, Any]:
         """Finalize an uploaded media job artifact into the server cache."""
         url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/finalize"
@@ -672,6 +685,8 @@ class SyncClient:
             "size_bytes": artifact.size_bytes,
             "content_type": artifact.content_type,
         }
+        if lease_token is not None:
+            payload["lease_token"] = lease_token
         status, body = await asyncio.to_thread(
             _curl_post,
             url,

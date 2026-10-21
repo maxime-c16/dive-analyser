@@ -152,11 +152,126 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
 
 
 def cache_tmp_path(job: MediaJob) -> Path:
-    """Return temp upload path for a job, creating parent dirs."""
+    """Return temp upload path for a job claim, creating parent dirs.
+
+    D2: the path is per claim attempt (fencing token), not per job. A stale
+    attempt's bytes land on — or are rejected before touching — a different
+    path than the live attempt's, so an old upload can never overwrite the
+    current tmp bytes. Legacy tokenless claims share the `legacy` path
+    (pre-D2 behaviour) and disappear with the drain.
+    """
     settings = get_settings()
     tmp_dir = Path(settings.media_cache_root).resolve() / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    return tmp_dir / f"job-{job.id}-{job.media_key}.partial"
+    attempt = job.lease_token or "legacy"
+    return tmp_dir / f"job-{job.id}-{attempt}.partial"
+
+
+def cache_upload_staging_path(job_id: int, lease_token: str | None) -> Path:
+    """Return a unique per-request staging path for one upload attempt.
+
+    Same-attempt duplicate requests (client retry after a timeout) must not
+    share bytes: they stream to distinct staging files, and only the
+    authoritative row-locked accept promotes one staging to the canonical
+    per-attempt path. A retry therefore can never unlink or interleave the
+    live attempt's accepted bytes. Staging still carries the attempt token so
+    orphans are attributable and reclaim never touches a live attempt.
+    """
+    import uuid as _uuid
+
+    settings = get_settings()
+    tmp_dir = Path(settings.media_cache_root).resolve() / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    attempt = lease_token or "legacy"
+    return tmp_dir / f"job-{job_id}-{attempt}.{_uuid.uuid4().hex}.staging"
+
+
+def promote_upload_staging(staging: Path, job: MediaJob) -> Path:
+    """Atomically promote one staging file to the canonical attempt path.
+
+    DEPRECATED (D2 final): accepts are now staging-direct — the job pointer
+    aims at the unique verified per-request staging file, and the previous
+    pointer is orphaned post-commit. This helper is retained only for
+    pre-existing rows/tests that already address the canonical path; new
+    code must not call it (replace-before-commit corrupts on rollback).
+    """
+    canonical = cache_tmp_path(job)
+    staging = Path(staging)
+    try:
+        if staging.resolve() == canonical.resolve():
+            return canonical
+    except OSError:
+        pass
+    try:
+        staging.replace(canonical)
+    except FileNotFoundError:
+        pass
+    return canonical
+
+
+_RECLAIM_ORPHANS_KEY = "media_jobs_reclaim_orphans"
+
+
+def queue_reclaim_orphans(db, paths: list[str]) -> None:
+    """Queue reclaim orphan tmps for unlink after the owner's commit."""
+    if paths:
+        db.info.setdefault(_RECLAIM_ORPHANS_KEY, []).extend(paths)
+
+
+# Max bind parameters per reference-lookup query. SQLite caps at 999 (older)
+# / 32766 and Postgres at 65535 — 500 per chunk stays clear of both while
+# keeping even large backlogs to a handful of queries.
+_RECLAIM_LOOKUP_CHUNK_SIZE = 500
+
+
+def drain_reclaim_orphans(db) -> int:
+    """Unlink queued reclaim orphans, after a successful commit.
+
+    Call exactly once after the owning transaction commits — never after a
+    rollback. Referenced paths are fetched with batched ``IN`` lookups
+    (stable-order deduped, <=500 binds per query, zero queries when empty),
+    then only unreferenced paths are unlinked. A path still pointed at by
+    any job — including one shared by several jobs — keeps its file. A
+    lookup failure keeps every file (fail closed: references unknown, and a
+    failed chunk may have aborted the transaction — never delete on
+    unknown). A crash between commit and drain leaks a file, never loses
+    one. Queued paths are unique per-request staging files that the normal
+    producer never reuses, so no new unlink race is introduced.
+    """
+    pending = db.info.pop(_RECLAIM_ORPHANS_KEY, [])
+    unique = list(dict.fromkeys(p for p in pending if p))
+    if not unique:
+        return 0
+    try:
+        referenced: set[str] = set()
+        for start in range(0, len(unique), _RECLAIM_LOOKUP_CHUNK_SIZE):
+            chunk = unique[start:start + _RECLAIM_LOOKUP_CHUNK_SIZE]
+            rows = (
+                db.execute(
+                    select(MediaJob.upload_tmp_path).where(
+                        MediaJob.upload_tmp_path.in_(chunk)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            referenced.update(r for r in rows if r)
+    except Exception:
+        logger.warning(
+            "drain_reclaim_orphans lookup failed; keeping %d queued files",
+            len(unique),
+        )
+        return 0
+    removed = 0
+    for raw in unique:
+        if raw in referenced:
+            continue
+        try:
+            Path(raw).unlink(missing_ok=True)
+            removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def cache_final_path(job: MediaJob, content_type: str) -> Path:

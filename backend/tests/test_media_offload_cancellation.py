@@ -10,6 +10,7 @@ with its temp file promoted, or a half transaction.
 import asyncio
 import hashlib
 import threading
+from datetime import datetime
 
 import pytest
 
@@ -22,6 +23,8 @@ from app.services import media_cache
 
 
 def _seed_verifying_job(test_db, cache_root):
+    from datetime import timedelta
+
     root = cache_root / "media-cache"
     tmp_dir = root / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -32,7 +35,13 @@ def _seed_verifying_job(test_db, cache_root):
     test_db.flush()
     job = MediaJob(
         photos_asset_id=asset.id, media_key="z" * 64, rendition="proxy_360p",
-        status="verifying", claimed_by="agent-x", upload_tmp_path=str(artifact),
+        status="verifying", claimed_by="agent-x",
+        # D2: finalize requires a current unexpired lease (tokenless legacy
+        # claim here — require-flag is off in tests — but never an
+        # absent/expired one).
+        claimed_at=datetime.utcnow(),
+        claimed_until=datetime.utcnow() + timedelta(minutes=5),
+        upload_tmp_path=str(artifact),
     )
     test_db.add(job)
     test_db.commit()

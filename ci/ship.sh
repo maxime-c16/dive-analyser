@@ -222,6 +222,15 @@ if [ -f "$CALENDAR_ENV" ]; then
     . "$CALENDAR_ENV"
     set +a
 fi
+# D2 lease-fencing sunset switch (default off = bounded drain). Same pattern:
+# sourced for Compose on deploy and rollback, never echoed, never in Git.
+# Same-SHA activation requires --force (identical SHAs are skipped otherwise).
+MEDIA_JOBS_ENV="$HOME/.config/diveanalyzer/media-jobs.env"
+if [ -f "$MEDIA_JOBS_ENV" ]; then
+    set -a
+    . "$MEDIA_JOBS_ENV"
+    set +a
+fi
 sha="$1"; dry_run="$2"; force="$3"; auto_scope="$4"; shift 4
 LIVE="${DIVE_LIVE_DIR:-$HOME/dive-analyser}"
 STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"

@@ -83,6 +83,16 @@ class Settings(BaseSettings):
     # B2 original, so the Mac transcodes from B2 instead of a Photos/iCloud
     # export (which timed out for most of the corpus).
     media_jobs_b2_source_enabled: bool = os.getenv("MEDIA_JOBS_B2_SOURCE_ENABLED", "true").lower() == "true"
+    # D2 lease fencing (docs/design/media-d2-rollout.md). False during the
+    # bounded SERVER-before-MAC drain: tokenless mutations are accepted ONLY
+    # for claims that are themselves tokenless (pre-D2 or old-worker leases).
+    # Flip to true after the Mac D2 deploy + drain so every mutation needs a
+    # fencing token; the token is never optional afterwards.
+    media_jobs_require_lease_token: bool = os.getenv("MEDIA_JOBS_REQUIRE_LEASE_TOKEN", "false").lower() == "true"
+    # D2 ffmpeg hard timeout (seconds) for rendition transcodes. The Mac
+    # worker enforces it (kill + reap + temp cleanup); the future server
+    # fallback producer (D4) reuses this same bound. No unbounded ffmpeg.
+    media_transcoder_timeout_seconds: int = int(os.getenv("MEDIA_TRANSCODER_TIMEOUT_SECONDS", "2700"))
 
     # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +
     # Path=/ and Secure in every HTTPS deployment; AUTH_COOKIE_SECURE may be
