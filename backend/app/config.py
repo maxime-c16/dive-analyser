@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     # worker enforces it (kill + reap + temp cleanup); the future server
     # fallback producer (D4) reuses this same bound. No unbounded ffmpeg.
     media_transcoder_timeout_seconds: int = int(os.getenv("MEDIA_TRANSCODER_TIMEOUT_SECONDS", "2700"))
+    # D3b2 fenced web packages (hq/light/poster, single-pass). Default OFF:
+    # no package job is queued or leased while false, and old flows stay
+    # byte-identical (poster + 720p, same priorities). Activation is a
+    # parent decision with a healthy capable worker (see
+    # docs/design/media-d3b2-fenced-slots.md). Never flip in code.
+    media_web_packages_enabled: bool = os.getenv("MEDIA_WEB_PACKAGES_ENABLED", "false").lower() == "true"
 
     # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +
     # Path=/ and Secure in every HTTPS deployment; AUTH_COOKIE_SECURE may be

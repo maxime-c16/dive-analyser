@@ -70,6 +70,10 @@ class MediaJobProcessor:
         self.uploader = None
         self.source_vault = None
         self._photos_lock = asyncio.Lock()
+        # D3b2: packages run one at a time per worker (single-pass encodes
+        # are memory-heavy; the server additionally caps ONE active package
+        # fleet-wide). Legacy poster/proxy slots keep their 2-slot policy.
+        self._package_semaphore = asyncio.Semaphore(1)
         # P4 production dual-write: None unless BOTH flags are enabled
         # (object_store.enabled AND dual_write.enabled); None = legacy-only.
         self.dual_write = ProductionDualWrite.from_config(config)
@@ -130,6 +134,27 @@ class MediaJobProcessor:
         async def process(job: dict) -> None:
             job_id = job["job_id"]
             lease_token = job.get("lease_token")
+            # D3b2: web_package jobs always run the real single-pass
+            # producer (never the Phase-3 placeholder fail), one at a time
+            # per worker under the package semaphore.
+            if job.get("rendition") == "web_package":
+                async with self._package_semaphore:
+                    try:
+                        await self.sync_client.heartbeat_media_job(job_id, self.agent_id, "claimed", 1, lease_token)
+                    except Exception as exc:
+                        logger.warning("Media job %s initial heartbeat failed, skipping attempt: %s", job_id, exc)
+                        return
+                    from .package_jobs import process_package_job
+                    try:
+                        await process_package_job(self, job)
+                    except _LeaseLost as exc:
+                        logger.warning("Media job %s package abandoned: %s", job_id, exc)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        await self._fail_quietly(job_id, str(exc), "failed", lease_token)
+                        logger.warning("Media job %s package failed: %s", job_id, exc)
+                return
             try:
                 await self.sync_client.heartbeat_media_job(job_id, self.agent_id, "claimed", 1, lease_token)
             except Exception as exc:

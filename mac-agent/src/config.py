@@ -639,7 +639,7 @@ class Config:
         if self.media.max_jobs < 1 or self.media.max_jobs > 5:
             raise ValueError(f"max_jobs must be between 1 and 5 (got {self.media.max_jobs})")
 
-        allowed = {"poster", "proxy_360p", "proxy_720p", "original"}
+        allowed = {"poster", "proxy_360p", "proxy_720p", "original", "web_package"}
         invalid = [item for item in self.media.capabilities if item not in allowed]
         if invalid:
             raise ValueError(f"unsupported capabilities: {invalid}")

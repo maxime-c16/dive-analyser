@@ -610,6 +610,7 @@ def publish_derivative(
     local_path: str | Path,
     *,
     s3_client: Any | None = None,
+    pre_commit_hook: Any | None = None,
 ) -> dict[str, Any]:
     """Publish one derivative artifact (upload → verify → commit).
 
@@ -628,10 +629,13 @@ def publish_derivative(
     Network first (upload + full-byte verify, no row locks held and no
     writes pending — revalidation reads are rolled back before the
     upload), then ONE DB transaction: position on the ledger identity →
-    source-drift check → backbone commit + ledger upsert, with a second
-    source recheck immediately before commit. Any drift commits
-    ``stale``, never ``ready``; an existing ``ready`` row is never
-    modified. B2 orphans are retained.
+    source-drift check → fenced guard (optional ``pre_commit_hook``) →
+    backbone commit + ledger upsert, with a second source recheck
+    immediately before commit. Any drift commits ``stale``, never
+    ``ready``; an existing ``ready`` row is never modified. B2 orphans
+    are retained. The hook runs with the ledger row lock held, inside
+    the committing unit: a fencing rejection there rolls back without
+    promoting anything (D3b2 lease-token + source recheck + slot commit).
     """
     from app.services.media_backbone import DERIVATIVE_ROLE_TO_SEMANTICS
     from app.services.media_backbone import commit_verified_ingest
@@ -759,6 +763,45 @@ def publish_derivative(
                 environment=environment,
             )
             # NOT REACHED — _commit_stale_attempt commits then raises.
+
+        if pre_commit_hook is not None:
+            # D3b2 fenced guard: runs with the ledger row lock held, inside
+            # the committing unit, BEFORE any ready decision (including
+            # idempotent replays). A stale lease / source mismatch raises
+            # here; the unit rolls back and the verified B2 bytes stay a
+            # safe orphan. The hook may also stage the job's finalized_slots
+            # in the same transaction (committed atomically with the ledger
+            # below).
+            try:
+                pre_commit_hook(
+                    db,
+                    ctx,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    object_key=key,
+                    bucket=bucket,
+                    environment=environment,
+                )
+            except _CommittedStale:
+                raise
+            except (DerivativePublishError, StaleSourceError, DerivativeIdentityConflict):
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise
+            except PermissionError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+            except ValueError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
 
         if existing is not None and existing.status == "ready":
             if existing.derivative_blob_sha256 == derivative_sha:

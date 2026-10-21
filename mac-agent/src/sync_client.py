@@ -700,6 +700,59 @@ class SyncClient:
             raise RuntimeError(f"finalize media job failed: {status} {error}")
         return data
 
+    async def publish_package_slot(
+        self,
+        job_id: int,
+        agent_id: str,
+        lease_token: str | None,
+        slot: str,
+        file_path: str,
+        checksum_sha256: str,
+        size_bytes: int,
+        content_type: str,
+        source_sha256: str,
+        hq_aliased_to: str | None = None,
+        source_width: int | None = None,
+        source_height: int | None = None,
+    ) -> Dict[str, Any]:
+        """Publish one web_package slot (single-step fenced upload).
+
+        Streams the slot bytes to unique per-request staging; the server
+        validates (ffprobe/SHA/alias), B2-publishes with a full-byte
+        roundtrip verify (no row lock during the network), then commits the
+        ledger + finalized_slots atomically under the D2 lease guard.
+        """
+        url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/package/slots"
+        fields: Dict[str, Any] = {
+            "agent_id": agent_id,
+            "slot": slot,
+            "checksum_sha256": checksum_sha256,
+            "size_bytes": str(size_bytes),
+            "content_type": content_type,
+            "source_sha256": source_sha256,
+        }
+        if lease_token is not None:
+            fields["lease_token"] = lease_token
+        if hq_aliased_to is not None:
+            fields["hq_aliased_to"] = hq_aliased_to
+        if source_width is not None:
+            fields["source_width"] = str(source_width)
+        if source_height is not None:
+            fields["source_height"] = str(source_height)
+        status, body = await asyncio.to_thread(
+            _curl_multipart_post,
+            url,
+            fields,
+            str(file_path),
+            self.server_config.api_key or "",
+            self.server_config.timeout_seconds or 30.0,
+            self.server_config.ca_cert_path,
+        )
+        ok, data, error = _parse_response(status, body)
+        if not ok:
+            raise RuntimeError(f"publish package slot failed: {status} {error}")
+        return data
+
     async def heartbeat_media_agent(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/agents/heartbeat"
         status, body = await asyncio.to_thread(
