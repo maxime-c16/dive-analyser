@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     # parent decision with a healthy capable worker (see
     # docs/design/media-d3b2-fenced-slots.md). Never flip in code.
     media_web_packages_enabled: bool = os.getenv("MEDIA_WEB_PACKAGES_ENABLED", "false").lower() == "true"
+    # D3b2 broad automatic ingestion (default OFF, independent of the master
+    # lease flag above). When false, newly ingested clips ALWAYS queue legacy
+    # poster + 720p — even with the master flag on and a capable worker —
+    # so turning the master flag on for a bounded explicit canary (small
+    # allowlisted admin queue, reviewed tool, user auth) can never trigger
+    # library-wide package queueing. The parent enables broad ingestion only
+    # after canary proof. Never flip in code.
+    media_web_packages_auto_ingest_enabled: bool = os.getenv("MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED", "false").lower() == "true"
 
     # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +
     # Path=/ and Secure in every HTTPS deployment; AUTH_COOKIE_SECURE may be

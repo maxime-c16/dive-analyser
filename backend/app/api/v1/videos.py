@@ -59,11 +59,15 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> str | None:
     encodings are untouched. 720p comes first so players open the clip in
     HQ from its first view.
 
-    D3b2 (gated, default OFF): when MEDIA_WEB_PACKAGES_ENABLED is true AND a
+    D3b2 (gated, default OFF): when MEDIA_WEB_PACKAGES_ENABLED is true AND
+    MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED is true AND a
     healthy package-capable worker just checked in, queue ONE web_package
     job instead of poster + 720p (never both — no duplicate). Otherwise the
     legacy poster + 720p path runs byte-identically (same renditions, same
-    priorities). Newly ingested clips default to the legacy path until a
+    priorities). The master flag alone (auto-ingest OFF) admits ONLY
+    explicitly queued canary jobs through the lease path — broad ingestion
+    stays legacy until a parent enables auto-ingest after canary proof.
+    Newly ingested clips default to the legacy path until a
     parent explicitly activates packages.
     """
     if os.environ.get("NEW_VIDEO_AUTO_MEDIA_ENABLED", "false").lower() != "true":
@@ -74,9 +78,11 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> str | None:
     if not asset:
         return None
     try:
+        from app.config import get_settings as _pkg_settings
+
         from app.services.web_packages import package_worker_available
 
-        if package_worker_available(db):
+        if _pkg_settings().media_web_packages_auto_ingest_enabled and package_worker_available(db):
             from app.services.media_jobs import WEB_PACKAGE_RENDITION
 
             # Fail closed per clip: a package without a verified canonical

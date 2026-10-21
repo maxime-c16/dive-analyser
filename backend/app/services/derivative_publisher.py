@@ -168,6 +168,14 @@ class MissingCredentials(DerivativePublishError):
     """B2 upload credential/environment not configured (fail closed)."""
 
 
+class DirtySessionError(DerivativePublishError):
+    """Caller session held pending writes (retryable internal error).
+
+    Distinct from fencing/client errors so routes can return 500 (retryable
+    internal) instead of 409 (client-stale). Never a stale lease.
+    """
+
+
 class _CommittedStale(StaleSourceError):
     """Internal: stale record was COMMITTED before this was raised.
 
@@ -312,7 +320,7 @@ def _require_clean_session(db) -> None:
     BEFORE any network upload.
     """
     if db.new or db.dirty or db.deleted:
-        raise DerivativePublishError(
+        raise DirtySessionError(
             "publish_derivative requires a session with no pending writes; "
             "commit or roll back caller work before publishing"
         )

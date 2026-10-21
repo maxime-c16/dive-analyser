@@ -278,6 +278,15 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             from app.services.web_packages import set_finalized_state as _set_state
 
             _prev = _get_state(job)
+            try:
+                _blob_w = int(_blob.width) if _blob is not None and _blob.width else None
+                _blob_h = int(_blob.height) if _blob is not None and _blob.height else None
+                if _blob_w is not None and _blob_w <= 0:
+                    _blob_w = None
+                if _blob_h is not None and _blob_h <= 0:
+                    _blob_h = None
+            except (TypeError, ValueError):
+                _blob_w, _blob_h = None, None
             if (
                 _prev.get("source_sha256") is not None
                 and (
@@ -288,6 +297,8 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
                 _prev = {
                     "source_sha256": _rev.blob_sha256,
                     "source_revision_id": int(_rev.id),
+                    "source_width": _blob_w,
+                    "source_height": _blob_h,
                     "transform_version": _version,
                     "hq_aliased_to": None,
                     "slots": {},
@@ -295,6 +306,8 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             else:
                 _prev["source_sha256"] = _rev.blob_sha256
                 _prev["source_revision_id"] = int(_rev.id)
+                _prev["source_width"] = _blob_w
+                _prev["source_height"] = _blob_h
                 _prev["transform_version"] = _version
                 _prev.setdefault("slots", {})
                 if _prev.get("hq_aliased_to") not in (None, "light"):

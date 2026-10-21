@@ -18,8 +18,12 @@ change is rejected there; the verified B2 bytes stay a safe orphan, never
 promoted. No DB row lock is held during the network phase.
 
 ``finalized_slots`` (NULL = empty, backward compatible) is a dict
-``{"source_sha256", "transform_version", "hq_aliased_to", "slots": {slot:
-{"derivative_sha256", "size_bytes"}}}``. Legacy code ignores it. A job is
+``{"source_sha256", "source_revision_id", "source_width", "source_height",
+"transform_version", "hq_aliased_to", "slots": {slot:
+{"derivative_sha256", "size_bytes"}}}``. The pin (source SHA + revision +
+dims + transform) is persisted at lease; a job without a complete pin is
+rejected fail-closed (no web_package job predates pinning, so there is no
+legacy unpinned shape to honor). Legacy code ignores it. A job is
 ready ONLY when every applicable slot is VERIFIED DURABLE in the ledger
 (cache-only never counts). ``PackageResult.ready`` on the Mac means
 LOCAL-VALIDATED only, never durable — the distinction is explicit.
@@ -47,9 +51,11 @@ def _short_side(w: int | None, h: int | None) -> int | None:
 
 def get_finalized_state(job) -> dict[str, Any]:
     """Normalize job.finalized_slots (NULL/[]/{} backward compatible)."""
+    _empty = {"source_sha256": None, "source_revision_id": None, "source_width": None,
+              "source_height": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
     raw = getattr(job, "finalized_slots", None)
     if raw is None or raw == [] or raw == {}:
-        return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
+        return dict(_empty)
     if isinstance(raw, list):
         # Legacy unexpected shape: treat as slot list without pinning.
         slots: dict[str, Any] = {}
@@ -59,24 +65,30 @@ def get_finalized_state(job) -> dict[str, Any]:
                     "derivative_sha256": entry["derivative_sha256"],
                     "size_bytes": entry.get("size_bytes"),
                 }
-        return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": slots}
+        out = dict(_empty)
+        out["slots"] = slots
+        return out
     if isinstance(raw, dict):
         slots_raw = raw.get("slots", {})
         slots = dict(slots_raw) if isinstance(slots_raw, dict) else {}
         return {
             "source_sha256": raw.get("source_sha256") or raw.get("expected_source_sha256"),
             "source_revision_id": raw.get("source_revision_id"),
+            "source_width": raw.get("source_width"),
+            "source_height": raw.get("source_height"),
             "transform_version": raw.get("transform_version"),
             "hq_aliased_to": raw.get("hq_aliased_to"),
             "slots": slots,
         }
-    return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
+    return dict(_empty)
 
 
 def set_finalized_state(job, state: dict[str, Any]) -> None:
     job.finalized_slots = {
         "source_sha256": state.get("source_sha256"),
         "source_revision_id": state.get("source_revision_id"),
+        "source_width": state.get("source_width"),
+        "source_height": state.get("source_height"),
         "transform_version": state.get("transform_version"),
         "hq_aliased_to": state.get("hq_aliased_to"),
         "slots": dict(state.get("slots", {})),
@@ -195,32 +207,64 @@ def check_small_source_alias(
 ) -> list[str]:
     """Validate the hq_aliased_to claim against server truth, return applicable slots.
 
-    Server truth is ``MediaBlob.width/height`` for the pinned canonical SHA
-    (verified ingest metadata). The worker claim (``claimed_w/h``) is NEVER
-    trusted: it is accepted only as a consistency hint when server dims are
-    known, and the alias is refused when server dims are unknown (fail
-    closed). An alias requires a genuinely small source (short side < 1080)
-    and, for the light slot, exact expected dims (no upscale, no over-cap,
-    ratio/SAR and orientation preserved via the encoder's short-side rule).
+    Server truth is the LEASE-PINNED canonical source dims (``source_width`` /
+    ``source_height`` persisted at lease from ``MediaBlob.width/height``),
+    falling back to a live ``MediaBlob`` read only when the pin predates dims
+    persistence. The worker claim (``claimed_w/h``) is NEVER trusted: it is
+    accepted only as a consistency hint when server dims are known, and the
+    alias is refused when server dims are unknown (fail closed). An alias
+    requires a genuinely small source (short side < 1080) and, for the light
+    slot, exact expected dims (no upscale, no over-cap, ratio/SAR and
+    orientation preserved via the encoder's short-side rule).
+
+    Non-alias slots: when server dims are known, hq/light/poster must ALL
+    match exact expected dims (poster rides the encoder's light-scale branch,
+    so poster expected == light expected). When server dims are unknown the
+    alias is refused but non-alias slots are admitted on caps/format alone
+    (even dims, short side within cap) — the server then CANNOT prove
+    no-upscale; that residual is documented, enforced upstream by the
+    reviewed worker encoder on the SHA-pinned source, and the canary must
+    prefer sources with known canonical dims. No source-original download
+    exists server-side to probe here, and client claims are never adopted.
     """
     if hq_aliased_to is not None and hq_aliased_to != "light":
         raise ValueError("hq_aliased_to must be 'light' when present")
     # Resolve the pinned source SHA: explicit param wins, else the job pin,
     # else the lease-time persisted pin. Never the worker claim.
     _pin_sha = source_sha256
+    _pin_w = _pin_h = None
     if not _pin_sha:
         try:
-            _pin_sha = (get_finalized_state(job).get("source_sha256") or "")
+            _st = get_finalized_state(job)
+            _pin_sha = _st.get("source_sha256") or ""
+            _pin_w, _pin_h = _st.get("source_width"), _st.get("source_height")
         except Exception:
             _pin_sha = ""
+    else:
+        try:
+            _st = get_finalized_state(job)
+            _pin_w, _pin_h = _st.get("source_width"), _st.get("source_height")
+        except Exception:
+            pass
+    def _known_dims() -> tuple[int | None, int | None]:
+        try:
+            if _pin_w and _pin_h and int(_pin_w) > 0 and int(_pin_h) > 0:
+                return int(_pin_w), int(_pin_h)
+        except (TypeError, ValueError):
+            pass
+        if _pin_sha:
+            return _server_source_dims(db, str(_pin_sha))
+        return None, None
     if hq_aliased_to != "light":
         # Non-alias: when server dims + probed dims are both known, enforce
-        # exact target dims (no up/down beyond cap, ratio/SAR + orientation
-        # preserved). When server dims are unknown, caps are enforced by
-        # validate_slot_artifact; exactness is checked when possible.
+        # exact target dims for hq/light/poster (no up/down beyond cap,
+        # ratio/SAR + orientation preserved). Poster rides the encoder's
+        # light-scale branch: poster expected == light expected. When server
+        # dims are unknown, caps are enforced by validate_slot_artifact;
+        # exactness is checked when possible (documented residual).
         if probed_w is not None and probed_h is not None and _pin_sha:
-            server_w, server_h = _server_source_dims(db, str(_pin_sha))
-            if server_w is not None and server_h is not None and slot in ("hq", "light"):
+            server_w, server_h = _known_dims()
+            if server_w is not None and server_h is not None and slot in ("hq", "light", "poster"):
                 try:
                     cap_target = _SHORT_SIDE_HQ_CAP if slot == "hq" else _SHORT_SIDE_LIGHT_CAP
                     exp_w, exp_h = _expected_short_side_dims(server_w, server_h, cap_target)
@@ -232,7 +276,7 @@ def check_small_source_alias(
                         f"for source {server_w}x{server_h}"
                     )
         return list(PACKAGE_SLOTS)
-    server_w, server_h = _server_source_dims(db, str(_pin_sha or ""))
+    server_w, server_h = _known_dims()
     if server_w is None or server_h is None:
         raise ValueError("hq_aliased_to rejected: canonical source dims unknown; refusing alias (fail closed)")
     ref_short = _short_side(server_w, server_h)
@@ -294,12 +338,15 @@ _HDR_TRANSFERS = {"smpte2084", "arib-std-b67", "smpte2084pq"}
 def _ffmpeg_decode_ok(path: Path) -> bool | None:
     """Bounded decode probe: can ffmpeg decode the file to null (fail closed).
 
+    Uses ``-xerror`` so corrupt/truncated packets FAIL (a plain decode
+    returns 0 while concealing packet errors — proven by the real-MP4 tier:
+    a 75%-truncated faststart file probes clean but must not validate).
     Returns True when decode succeeds, False when ffmpeg proves corrupt, None
     when ffmpeg is unavailable (caller fails closed for hq/light).
     """
     try:
         out = subprocess.run(
-            ["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"],
+            ["ffmpeg", "-v", "error", "-xerror", "-i", str(path), "-f", "null", "-"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             timeout=60,
@@ -452,8 +499,9 @@ def make_slot_guard(
 
     Runs with the ledger row lock held, inside the committing unit: validates
     the D2 lease (owner/expiry/token via ``_guarded_job`` with row lock),
-    the lease-pinned source/version (claimed == pin == ctx on EVERY slot, token
-    bound to the same attempt), then accumulates the slot into
+    the lease-pinned source/revision/version (claimed == pin == ctx on EVERY
+    slot, explicit transform echo required — no ctx fallback, token bound to
+    the same attempt), then accumulates the slot into
     ``finalized_slots`` and marks the job ready ONLY when every applicable
     slot is VERIFIED DURABLE in the ledger (PROD replica required; DEV never
     counts). The current slot is trusted via the publisher's roundtrip proof
@@ -491,62 +539,81 @@ def make_slot_guard(
         if getattr(job, "rendition", None) != "web_package":
             raise ValueError("package slot guard requires a web_package job")
         # Lease-pinned identity: claimed == pin == ctx on EVERY slot.
-        # The pin was persisted at lease (source SHA + transform). A source
-        # change between lease and first slot must REJECT (not retag), and a
-        # transform mismatch on later slots must reject (first slot cannot set
-        # from a CLAIM transform over ctx).
+        # The pin was persisted at lease (source SHA + revision + version).
+        # Fail closed on a missing pin: no web_package job predates lease
+        # pinning (the rendition never queued before this flag), so a job
+        # without a pin is never "legacy" — it is corrupt/stale and must
+        # re-lease, never bind from worker claims. A source change between
+        # lease and first slot REJECTS (not retags), and a transform
+        # mismatch on any slot rejects. No ctx fallback for a missing
+        # claim: tests and callers must echo the lease transform explicitly.
         state = get_finalized_state(job)
         _pinned_source = (state.get("source_sha256") or "")
         _pinned_version = state.get("transform_version")
+        _pinned_rev = state.get("source_revision_id")
         _pinned_alias = state.get("hq_aliased_to")
         _claimed_source = (claimed_source_sha256 or "").lower()
         _ctx_source = (ctx.source_blob_sha256 or "").lower()
         _ctx_version = (ctx.transform_version or "")
-        # Backward compat: tests/callers that omit the transform pin mean
-        # "the canonical transform" (ctx). Explicit mismatches still reject.
-        _claimed_version = (claimed_transform_version or transform_version or _ctx_version or "")
-        if _pinned_source:
-            if _claimed_source != _pinned_source.lower():
-                from app.services.derivative_publisher import StaleSourceError
+        if not _pinned_source or not _pinned_version or _pinned_rev is None:
+            from app.services.derivative_publisher import StaleSourceError
 
-                raise StaleSourceError(
-                    "package slot source does not match lease pin; refusing ready (source changed since lease)"
-                )
-            if _ctx_source != _pinned_source.lower():
-                from app.services.derivative_publisher import StaleSourceError
+            raise StaleSourceError(
+                "package job has no lease pin (source/revision/version); re-lease required"
+            )
+        if not claimed_transform_version or not str(claimed_transform_version).strip():
+            raise ValueError("package slot request is missing the lease transform pin")
+        if transform_version is None or not str(transform_version).strip():
+            raise ValueError("package slot guard is missing the lease transform pin")
+        _claimed_version = str(claimed_transform_version).strip()
+        if str(transform_version).strip() != _claimed_version:
+            raise ValueError(
+                f"package transform mismatch: guard {_claimed_version!r} != request {transform_version!r}"
+            )
+        if _claimed_source != _pinned_source.lower():
+            from app.services.derivative_publisher import StaleSourceError
 
-                raise StaleSourceError("package slot source does not match canonical source; refusing ready")
-        else:
-            # Legacy job without a lease pin (queued before the pin): bind
-            # only when claimed == ctx (current canonical), otherwise reject
-            # instead of retagging to a newer revision.
-            if _claimed_source != _ctx_source:
-                from app.services.derivative_publisher import StaleSourceError
+            raise StaleSourceError(
+                "package slot source does not match lease pin; refusing ready (source changed since lease)"
+            )
+        if _ctx_source != _pinned_source.lower():
+            from app.services.derivative_publisher import StaleSourceError
 
-                raise StaleSourceError("package slot source does not match canonical source; refusing ready")
-        # Transform must agree lease-pin == ctx == request on EVERY slot.
-        _effective_pinned_version = _pinned_version or _ctx_version
-        if _pinned_version:
-            if str(_claimed_version or "").strip() != str(_pinned_version).strip():
-                raise ValueError(
-                    f"package transform mismatch: claimed {_claimed_version!r} != lease pin {_pinned_version!r}"
-                )
-            if str(_ctx_version or "").strip() != str(_pinned_version).strip():
-                from app.services.derivative_publisher import StaleSourceError
+            raise StaleSourceError("package slot source does not match canonical source; refusing ready")
+        if _claimed_version != str(_pinned_version).strip():
+            raise ValueError(
+                f"package transform mismatch: claimed {_claimed_version!r} != lease pin {_pinned_version!r}"
+            )
+        if str(_ctx_version or "").strip() != str(_pinned_version).strip():
+            from app.services.derivative_publisher import StaleSourceError
 
-                raise StaleSourceError(
-                    f"package transform drifted: ctx {_ctx_version!r} != lease pin {_pinned_version!r}"
-                )
-        else:
-            # No pin yet: claimed must equal ctx (cannot set pin from a claim
-            # that disagrees with the canonical transform).
-            if str(_claimed_version or "").strip() != str(_ctx_version or "").strip():
-                raise ValueError(
-                    f"package transform mismatch: claimed {_claimed_version!r} != canonical {_ctx_version!r}"
-                )
-        # Alias cannot flip mid-package (including None vs "light").
-        if _pinned_alias is not None and hq_aliased_to != _pinned_alias:
-            raise ValueError("hq_aliased_to changed between slots in one package")
+            raise StaleSourceError(
+                f"package transform drifted: ctx {_ctx_version!r} != lease pin {_pinned_version!r}"
+            )
+        try:
+            _ctx_rev_id = int(getattr(ctx, "source_revision_id", 0) or 0) or None
+        except (TypeError, ValueError):
+            _ctx_rev_id = None
+        try:
+            _pin_rev_id = int(_pinned_rev) if _pinned_rev is not None else None
+        except (TypeError, ValueError):
+            _pin_rev_id = None
+        if _pin_rev_id is None or _ctx_rev_id != _pin_rev_id:
+            from app.services.derivative_publisher import StaleSourceError
+
+            raise StaleSourceError(
+                "package source revision changed since lease; refusing ready"
+            )
+        # Alias cannot flip mid-package. The lease persists
+        # hq_aliased_to=None meaning "not yet decided": the FIRST slot (no
+        # EARLIER slots finalized yet) decides it; once any earlier slot is
+        # finalized the alias is pinned — including None (an hq-finalized
+        # package can never become light-aliased later: NONE -> light
+        # after an hq slot rejects here).
+        _prior_slots = {k: v for k, v in state.get("slots", {}).items() if k != _slot}
+        if _prior_slots:
+            if hq_aliased_to != _pinned_alias:
+                raise ValueError("hq_aliased_to changed between slots in one package")
         if job.status == "ready":
             # Idempotent replay after completion: only the exact same bytes
             # for an already-finalized slot dedupe; anything else is stale.
@@ -573,32 +640,16 @@ def make_slot_guard(
                 "derivative_sha256": derivative_sha,
                 "size_bytes": derivative_size,
             }
-        # Pin the derivation identity on first slot; later slots must agree.
-        # The lease already persisted the pin (source + version); here we
-        # only fill a missing legacy pin (claimed == ctx already proven) and
-        # enforce agreement otherwise. A source change between lease and first
-        # slot REJECTS (not retags): the pinned source must equal ctx.
-        if state.get("source_sha256") is None:
-            state["source_sha256"] = ctx.source_blob_sha256
-            state["transform_version"] = _claimed_version or ctx.transform_version
+        # The lease pin is authoritative and already proven above
+        # (claimed == pin == ctx for source, revision and transform). The
+        # only decision a slot records is the alias: the lease persists
+        # hq_aliased_to=None ("not yet decided") and the first slot sets it;
+        # later slots must agree (enforced above against earlier slots, and
+        # rechecked here against the stored value).
+        if state.get("hq_aliased_to") is None:
             state["hq_aliased_to"] = hq_aliased_to
-            try:
-                _ctx_rev_id = int(getattr(ctx, "source_revision_id", 0) or 0) or None
-            except (TypeError, ValueError):
-                _ctx_rev_id = None
-            state["source_revision_id"] = _ctx_rev_id
-        else:
-            if str(state["source_sha256"]).lower() != _ctx_source.lower():
-                from app.services.derivative_publisher import StaleSourceError
-
-                raise StaleSourceError("package source changed between slots; refusing ready")
-            if str(state.get("transform_version") or "") != str(_effective_pinned_version or ""):
-                # Keep the lease pin authoritative; a drift here is stale.
-                from app.services.derivative_publisher import StaleSourceError
-
-                raise StaleSourceError("package transform changed between slots; refusing ready")
-            if hq_aliased_to != state.get("hq_aliased_to"):
-                raise ValueError("hq_aliased_to changed between slots in one package")
+        if hq_aliased_to != state.get("hq_aliased_to"):
+            raise ValueError("hq_aliased_to changed between slots in one package")
         set_finalized_state(job, state)
         # Ready ONLY when every applicable slot is VERIFIED DURABLE in the
         # ledger (PROD replica). The current slot is proven by this TX's

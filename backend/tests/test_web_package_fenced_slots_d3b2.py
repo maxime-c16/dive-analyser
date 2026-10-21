@@ -585,3 +585,250 @@ def test_format_corrupt_hdr_rejected(test_db, monkeypatch, tmp_path):
                                        expected_sha256=_sha(_TINY_JPEG),
                                        expected_size=len(_TINY_JPEG))
     assert probed["width"] == 320
+
+
+def _prod_env(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "b2_upload_key_id", "k")
+    monkeypatch.setattr(settings, "b2_upload_key_secret", "s")
+    monkeypatch.setattr(settings, "b2_upload_region", "r")
+    monkeypatch.setattr(settings, "b2_upload_environment", "prod")
+    return settings
+
+
+def test_missing_lease_pin_rejected_fail_closed(test_db, monkeypatch, _presign, tmp_path):
+    """No web_package job predates lease pinning: a pin-less job REJECTS.
+
+    There is no legacy unpinned shape to honor (the rendition never queued
+    before this flag), so claimed == ctx agreement must NOT bind a pin —
+    the slot refuses with StaleSourceError and nothing is promoted.
+    """
+    from datetime import datetime, timedelta
+
+    from app.services.derivative_publisher import (
+        StaleSourceError,
+        build_publication_context,
+        publish_derivative,
+    )
+    from app.services.media_keys import get_derivative_transform_version
+    from app.services import web_packages as wp
+
+    _prod_env(monkeypatch)
+    _agent(test_db)
+    asset = _asset(test_db)
+    sha = _seed_camera_source(test_db, asset.video_uuid)
+    job = MediaJob(photos_asset_id=asset.id, media_key="m" + "0" * 63,
+                   rendition="web_package", status="claimed",
+                   claimed_by="mac-media-01", lease_token="t" * 32, attempts=1)
+    job.claimed_until = datetime.utcnow() + timedelta(minutes=5)
+    test_db.add(job)
+    test_db.flush()
+    assert job.finalized_slots is None
+    test_db.commit()
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
+    ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
+    assert ctx.source_blob_sha256.lower() == sha.lower()
+    tv = get_derivative_transform_version()
+    guard = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token="t" * 32,
+        claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
+        hq_aliased_to=None, transform_version=tv, claimed_transform_version=tv)
+    with pytest.raises(StaleSourceError, match="no lease pin"):
+        publish_derivative(test_db, ctx, _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq"),
+                           s3_client=FakeS3(), pre_commit_hook=guard)
+    test_db.refresh(job)
+    assert job.status != "ready"
+
+
+def test_missing_claimed_transform_rejected(test_db, monkeypatch, _presign, tmp_path):
+    """The transform echo is required explicitly: no ctx fallback.
+
+    A slot request that omits the lease transform pin fails instead of
+    silently adopting the canonical version (tests and callers included).
+    """
+    from app.services import media_jobs as mj
+    from app.services.derivative_publisher import (
+        DerivativePublishError,
+        build_publication_context,
+        publish_derivative,
+    )
+    from app.services import web_packages as wp
+
+    _prod_env(monkeypatch)
+    _agent(test_db)
+    asset = _asset(test_db)
+    sha = _seed_camera_source(test_db, asset.video_uuid)
+    job = _package_job(test_db, asset)
+    leased = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+        agent_id="mac-media-01", capabilities=["web_package"],
+        max_jobs=1, supports_lease_token=True))[0]
+    test_db.commit()
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
+    ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
+    guard = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token=leased.lease_token,
+        claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
+        hq_aliased_to=None, transform_version=None, claimed_transform_version=None)
+    with pytest.raises(DerivativePublishError, match="lease transform pin"):
+        publish_derivative(test_db, ctx, _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq"),
+                           s3_client=FakeS3(), pre_commit_hook=guard)
+
+
+def test_alias_none_to_light_after_hq_finalized_rejected(test_db, monkeypatch, _presign, tmp_path):
+    """NONE -> light after an hq slot finalized is an alias flip: reject.
+
+    The lease persists hq_aliased_to=None ("not yet decided"); the first
+    slot decides it (here: hq, alias None). A later light-aliased slot for
+    the same package must fail even though the small source would otherwise
+    admit the alias.
+    """
+    from app.services import media_jobs as mj
+    from app.services.derivative_publisher import (
+        DerivativePublishError,
+        build_publication_context,
+        publish_derivative,
+    )
+    from app.services.media_keys import get_derivative_transform_version
+    from app.services import web_packages as wp
+
+    _prod_env(monkeypatch)
+    _agent(test_db)
+    small_uuid = "66666666-6666-6666-6666-666666666666"
+    small = _asset(test_db, uuid=small_uuid, width=640, height=360)
+    small_sha = _seed_camera_source(test_db, small_uuid, raw=b"small-src", width=640, height=360)
+    job = _package_job(test_db, small)
+    leased = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+        agent_id="mac-media-01", capabilities=["web_package"],
+        max_jobs=1, supports_lease_token=True))[0]
+    tv = leased.transform_version or get_derivative_transform_version()
+    test_db.commit()
+    # hq slot, no alias: a 640x360 source is already under every cap, so the
+    # encoder never upscales — hq/light/poster expected dims are (640, 360).
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 640, "height": 360})
+    ctx = build_publication_context(test_db, video_uuid=small_uuid, role="hq")
+    applicable = wp.check_small_source_alias(
+        db=test_db, job=job, slot="hq", hq_aliased_to=None,
+        claimed_w=640, claimed_h=360, probed_w=640, probed_h=360,
+        source_sha256=small_sha)
+    assert applicable == ["hq", "light", "poster"]
+    guard = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token=leased.lease_token,
+        claimed_source_sha256=small_sha, slot="hq", applicable=applicable,
+        hq_aliased_to=None, transform_version=tv, claimed_transform_version=tv)
+    publish_derivative(test_db, ctx, _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq"),
+                       s3_client=FakeS3(), pre_commit_hook=guard)
+    # Light slot claiming the alias now: the alias check itself would admit
+    # it (genuinely small source, exact light dims), but the guard refuses
+    # the flip because an hq slot already finalized under alias None.
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 640, "height": 360})
+    applicable2 = wp.check_small_source_alias(
+        db=test_db, job=job, slot="light", hq_aliased_to="light",
+        claimed_w=640, claimed_h=360, probed_w=640, probed_h=360,
+        source_sha256=small_sha)
+    assert applicable2 == ["light", "poster"]
+    ctx2 = build_publication_context(test_db, video_uuid=small_uuid, role="light")
+    guard2 = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token=leased.lease_token,
+        claimed_source_sha256=small_sha, slot="light", applicable=applicable2,
+        hq_aliased_to="light", transform_version=tv, claimed_transform_version=tv)
+    with pytest.raises(DerivativePublishError, match="hq_aliased_to changed"):
+        publish_derivative(test_db, ctx2, _slot_file(tmp_path, "light.bin", _TINY_JPEG + b"l"),
+                           s3_client=FakeS3(), pre_commit_hook=guard2)
+
+
+def test_slot_publish_error_taxonomy():
+    """Route error taxonomy: stale 409 vs provider 502/503 vs internal 500."""
+    from app.api.v1.media import _slot_publish_http_error
+    from app.services.derivative_publisher import (
+        DerivativeIdentityConflict,
+        DerivativePublishError,
+        DirtySessionError,
+        MissingCredentials,
+        MissingSourceError,
+        StaleSourceError,
+        VerificationFailed,
+    )
+
+    assert _slot_publish_http_error(DirtySessionError("dirty")).status_code == 500
+    err502 = _slot_publish_http_error(VerificationFailed("derivative upload failed; please retry"))
+    assert err502.status_code == 502
+    assert _slot_publish_http_error(MissingCredentials("x")).status_code == 503
+    assert _slot_publish_http_error(StaleSourceError("stale")).status_code == 409
+    assert _slot_publish_http_error(DerivativeIdentityConflict("c")).status_code == 409
+    assert _slot_publish_http_error(MissingSourceError("gone")).status_code == 409
+    assert _slot_publish_http_error(DerivativePublishError("fenced")).status_code == 409
+    assert _slot_publish_http_error(ValueError("bad format")).status_code == 409
+    assert _slot_publish_http_error(PermissionError("expired")).status_code == 409
+    # Unknown internals are sanitized (raw message never echoed) and chained
+    # at the call site; the helper returns the generic retryable detail.
+    generic = _slot_publish_http_error(RuntimeError("/secret/path boom"))
+    assert generic.status_code == 500
+    assert "/secret/path" not in str(generic.detail)
+
+
+def _fresh_capable_agent(db):
+    from datetime import datetime
+
+    agent = _agent(db)
+    agent.last_seen_at = datetime.utcnow()
+    db.flush()
+    return agent
+
+
+def test_auto_ingest_off_queues_legacy_despite_master_on(test_db, monkeypatch, _presign):
+    """Master flag on + auto-ingest off: broad ingestion stays legacy.
+
+    The master lease flag admits ONLY explicitly queued canary jobs; newly
+    ingested clips must never queue packages library-wide until the parent
+    enables auto-ingest after canary proof.
+    """
+    from types import SimpleNamespace
+
+    from app.api.v1.videos import _queue_new_captioned_media
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "media_web_packages_auto_ingest_enabled", False)
+    monkeypatch.setenv("NEW_VIDEO_AUTO_MEDIA_ENABLED", "true")
+    _fresh_capable_agent(test_db)
+    asset = _asset(test_db)
+    _seed_camera_source(test_db, asset.video_uuid, width=1920, height=1080)
+    decision = _queue_new_captioned_media(
+        test_db, SimpleNamespace(id=1, photos_asset_id=asset.id))
+    assert decision == "legacy"
+    jobs = test_db.query(MediaJob).filter_by(photos_asset_id=asset.id).all()
+    assert sorted(j.rendition for j in jobs) == ["poster", "proxy_720p"]
+
+
+def test_auto_ingest_on_queues_package(test_db, monkeypatch, _presign):
+    """Master flag on + auto-ingest on: new clips queue ONE package."""
+    from types import SimpleNamespace
+
+    from app.api.v1.videos import _queue_new_captioned_media
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "media_web_packages_auto_ingest_enabled", True)
+    monkeypatch.setenv("NEW_VIDEO_AUTO_MEDIA_ENABLED", "true")
+    _fresh_capable_agent(test_db)
+    asset = _asset(test_db)
+    _seed_camera_source(test_db, asset.video_uuid, width=1920, height=1080)
+    decision = _queue_new_captioned_media(
+        test_db, SimpleNamespace(id=2, photos_asset_id=asset.id))
+    assert decision == "package"
+    jobs = test_db.query(MediaJob).filter_by(photos_asset_id=asset.id).all()
+    assert [j.rendition for j in jobs] == ["web_package"]
+
+
+def test_flag_policy_compose_and_config_defaults():
+    """Flag policy plumbing: both flags default false in config + compose."""
+    from pathlib import Path
+
+    from app.config import Settings
+
+    assert Settings.model_fields["media_web_packages_enabled"].default is False
+    assert Settings.model_fields["media_web_packages_auto_ingest_enabled"].default is False
+    compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
+    assert "MEDIA_WEB_PACKAGES_ENABLED: \"${MEDIA_WEB_PACKAGES_ENABLED:-false}\"" in compose
+    assert "MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED: \"${MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED:-false}\"" in compose

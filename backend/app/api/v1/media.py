@@ -1456,6 +1456,54 @@ async def finalize_job_artifact(
     )
 
 
+def _slot_publish_http_error(exc: Exception) -> HTTPException:
+    """Map a slot-publish failure to an explicit HTTP status (testable).
+
+    409 = client-stale (re-lease/refresh); 502 = B2 provider failure;
+    503 = storage unconfigured; 500 = retryable internal error. Provider and
+    internal details are sanitized (never raw tracebacks/paths/secrets);
+    the ``from exc`` chain at the call site preserves logs server-side.
+    """
+    from app.services.derivative_publisher import (
+        DerivativeIdentityConflict,
+        DerivativePublishError,
+        DirtySessionError,
+        MissingCredentials,
+        MissingSourceError,
+        StaleSourceError,
+        VerificationFailed,
+    )
+
+    if isinstance(exc, DirtySessionError):
+        # Our own session held pending writes: retryable INTERNAL error,
+        # never a client-stale lease.
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="package publish unavailable; please retry",
+        )
+    if isinstance(exc, VerificationFailed):
+        # B2 provider roundtrip failed: sanitized publisher detail only.
+        return HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc) or "derivative storage verification failed; please retry",
+        )
+    if isinstance(exc, MissingCredentials):
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Video storage is not configured yet",
+        )
+    if isinstance(exc, (StaleSourceError, DerivativeIdentityConflict,
+                        MissingSourceError, DerivativePublishError,
+                        ValueError, PermissionError)):
+        # Stale attempt / identity conflict / missing source / fencing
+        # wrapper ("fenced claim rejected"): client-stale, not a server bug.
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="package publish failed; please retry",
+    )
+
+
 @router.post("/jobs/{job_id}/package/slots")
 async def publish_package_slot(
     job_id: int,
@@ -1487,6 +1535,14 @@ async def publish_package_slot(
     attempt (re-leased mid-upload, source changed) is rejected with 409 and
     its verified B2 bytes stay a safe orphan. The job is ready ONLY when
     every applicable slot is VERIFIED DURABLE (never cache-only).
+
+    Error taxonomy (explicit): 400 = client format/validation failure
+    (bad bytes, HDR, tags, faststart, alias, size); 409 = client-stale
+    (expired/re-leased lease, source/revision/transform drift, identity
+    conflict, missing canonical source); 502 = B2 provider roundtrip
+    failure (sanitized, retryable); 503 = storage not configured;
+    500 = retryable internal error (dirty session, invariant breach,
+    unexpected failure — sanitized detail, chained server-side).
     """
     from app.services.media_jobs import WEB_PACKAGE_RENDITION
     from app.services.web_packages import (
@@ -1546,7 +1602,11 @@ async def publish_package_slot(
         from app.services.derivative_publisher import (
             DerivativeIdentityConflict,
             DerivativePublishError,
+            DirtySessionError,
+            MissingCredentials,
+            MissingSourceError,
             StaleSourceError,
+            VerificationFailed,
             build_publication_context,
             publish_derivative,
         )
@@ -1590,10 +1650,29 @@ async def publish_package_slot(
             db.rollback()
             staging_path.unlink(missing_ok=True)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        except Exception as exc:
+        except MissingCredentials as exc:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Video storage is not configured yet",
+            ) from exc
+        except MissingSourceError as exc:
+            # Canonical source vanished between lease and slot: client-stale,
+            # re-lease (never a server fault).
             db.rollback()
             staging_path.unlink(missing_ok=True)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except Exception as exc:
+            # Unexpected context-build failure (e.g. DB read): retryable
+            # internal error, sanitized detail (never str(exc)), chained for
+            # server logs.
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="package publish unavailable; please retry",
+            ) from exc
         if source_sha256.lower() != ctx.source_blob_sha256.lower():
             db.rollback()
             staging_path.unlink(missing_ok=True)
@@ -1613,18 +1692,10 @@ async def publish_package_slot(
         )
         try:
             result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)
-        except StaleSourceError as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-        except DerivativeIdentityConflict as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-        except DerivativePublishError as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-        except (ValueError, PermissionError) as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+            raise _slot_publish_http_error(exc) from exc
         try:
             db.refresh(job)
         except Exception:
