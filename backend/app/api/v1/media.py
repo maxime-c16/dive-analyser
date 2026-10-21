@@ -401,10 +401,50 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
 
 
 def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
+    from app.schemas.media import DerivativeStatusBlock
+
     entries = ready_entries_for_asset(db, asset.id)
     preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
+
+    # D5 durable-derivative read (additive, read-only): when a ready
+    # light/HQ derivative exists for the CURRENT canonical source +
+    # transform, the starter (preview/playback) and player poster resolve
+    # to the durable B2 bytes instead of legacy cache files. Legacy
+    # original discovery, preferred/available selection below is untouched
+    # and stays the fallback for clips without durable versions
+    # (available/preferred never pretend legacy proxy entries exist).
+    # No jobs, no conversions, no writes here.
+    derivatives_payload = None
+    derivative_light_url = None
+    derivative_hq_url = None
+    derivative_poster_url = None
+    settings = get_settings()
+    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
+        from app.services.derivative_read import safe_resolve_clip_derivatives
+
+        # Old-schema databases (pre-D1 migration) have no derivative
+        # ledger: safe_resolve returns None, legacy status keeps serving
+        # and derivatives stay absent. Any other DB error propagates.
+        clip = safe_resolve_clip_derivatives(db, asset.video_uuid)
+        if clip is not None:
+            derivatives_payload = DerivativeStatusBlock(**clip.to_status_payload())
+            light = clip.roles.get("light")
+            if light is not None and light.state == "ready" and light.playback_url:
+                derivative_light_url = light.playback_url
+            hq = clip.roles.get("hq")
+            if hq is not None and hq.state == "ready" and hq.playback_url:
+                derivative_hq_url = hq.playback_url
+            poster_role = clip.roles.get("poster")
+            if poster_role is not None and poster_role.state == "ready":
+                derivative_poster_url = poster_role.playback_url
+    # Authoritative durable starter: ready light first (fast first frame),
+    # else ready HQ (HQ-only clips have no light proof). Poster-only is
+    # NOT playable and never makes the clip ready. Non-ready ledger
+    # states (stale/superseded/preparing/unavailable) and DEV-only or
+    # wrong-version rows resolve to no URL above, so they stay not-ready.
+    durable_start_url = derivative_light_url or derivative_hq_url
 
     # Original discovery is independent of preview existence.
     backbone_url = _backbone_playback_url(db, asset.video_uuid)
@@ -415,7 +455,18 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     backbone_url = full_quality
     if not backbone_url and not preferred and not job:
         job = latest_playback_failure_for_asset(db, asset.id)
-    if backbone_url:
+    if durable_start_url:
+        # Authoritative starter: verified durable light (fast first frame),
+        # else ready HQ, for the CURRENT canonical source + transform wins
+        # over any legacy backbone original or cached proxy. The camera
+        # original stays the explicit full-quality choice (full_quality_url
+        # untouched); playback_url is the default starter, so it must be
+        # the durable bytes when ready. Checked before any legacy job so an
+        # active job never overrides verified durable readiness.
+        # Poster-only stays not-ready (no start URL).
+        status_value = "ready"
+        final_playback_url = durable_start_url
+    elif backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url
     elif preferred:
@@ -435,9 +486,10 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
-        poster_url=playback_url(poster.id) if poster else None,
+        poster_url=derivative_poster_url or (playback_url(poster.id) if poster else None),
         full_quality_url=full_quality,
-        preview_url=playback_url(preview.id) if preview else None,
+        preview_url=durable_start_url or (playback_url(preview.id) if preview else None),
+        derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
         last_mac_seen_at=asset.last_seen_on_mac_at,

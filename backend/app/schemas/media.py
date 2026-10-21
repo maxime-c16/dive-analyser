@@ -31,6 +31,33 @@ class MediaCacheEntrySummary(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+class DerivativeRoleStatus(BaseModel):
+    """One durable-derivative role's honest read state (D5).
+
+    Only ``state == 'ready'`` carries a playback URL (distinct bytes or
+    an honest small-source HQ alias via ``aliased_to == 'light'``).
+    Every other state (missing|preparing|stale|superseded|unavailable)
+    reports no URL: the player falls back to legacy renditions.
+    """
+
+    state: str = "missing"
+    playback_url: Optional[str] = None
+    revision_id: Optional[int] = None
+    aliased_to: Optional[str] = None
+
+
+class DerivativeStatusBlock(BaseModel):
+    """Whole-clip durable-derivative read for one canonical source."""
+
+    source_revision_id: Optional[int] = None
+    transform_version: Optional[str] = None
+    start: Optional[str] = None
+    recommended: Optional[str] = None
+    hq: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)
+    light: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)
+    poster: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)
+
+
 class MediaStatusResponse(BaseModel):
     video_uuid: str
     status: str
@@ -41,6 +68,7 @@ class MediaStatusResponse(BaseModel):
     poster_url: Optional[str] = None
     full_quality_url: Optional[str] = None
     preview_url: Optional[str] = None
+    derivatives: Optional[DerivativeStatusBlock] = None
     cache_entries: List[MediaCacheEntrySummary] = Field(default_factory=list)
     job: Optional[MediaJobSummary] = None
     last_mac_seen_at: Optional[datetime] = None

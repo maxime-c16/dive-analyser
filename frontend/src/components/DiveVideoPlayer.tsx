@@ -7,6 +7,7 @@ import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveCont
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
 import {
+  getDerivativePlaybackUrl,
   getMediaStatus,
   getPlaybackUrlFromStatus,
   getPreviewPlaybackUrl,
@@ -126,10 +127,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
   const [previewSrc, setPreviewSrc] = useState<string | null>(() => initialSeed?.previewPlaybackUrl ?? null)
+  const [lightSrc, setLightSrc] = useState<string | null>(null)
+  const [hqSrc, setHqSrc] = useState<string | null>(null)
   const [previewSelected, setPreviewSelected] = useState(false)
   const previewSelectedRef = useRef(false)
+  const hqSelectedRef = useRef(false)
   const originalSelectedRef = useRef(false)
   const presentedSourceRef = useRef<{ uuid: string; src: string } | null>(null)
+  const previewChoicesRef = useRef<string[]>([])
   const [sourceIsPreview, setSourceIsPreview] = useState(() => Boolean(initialSeed?.previewPlaybackUrl && initialSeed.previewPlaybackUrl === initialSeed.playbackUrl))
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
@@ -155,8 +160,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
 
   useEffect(() => {
     const seed = playbackSeed(videoUuid)
-    setPreviewSelected(false); previewSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
+    setPreviewSelected(false); previewSelectedRef.current = false; hqSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
+    setLightSrc(null)
+    setHqSrc(null)
     setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
   }, [videoUuid])
   const failuresRef = useRef(0)
@@ -179,18 +186,47 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setStatusUnknown(false)
     setCanRequest(Boolean(data.can_request))
     const previewUrl = getPreviewPlaybackUrl(data)
+    const hqUrl = getDerivativePlaybackUrl(data, 'hq')
+    const lightUrl = getDerivativePlaybackUrl(data, 'light')
     const originalUrl = getOriginalPlaybackUrl(data)
     setPreviewSrc(previewUrl)
+    setLightSrc(lightUrl)
+    setHqSrc(hqUrl)
     setPosterSrc(getPosterUrlFromStatus(data))
 
     const playbackUrl = getPlaybackUrlFromStatus(data, immersive)
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      let chosen = originalSelectedRef.current && originalUrl ? originalUrl : previewSelectedRef.current && previewUrl ? previewUrl : playbackUrl
+      let chosen = hqSelectedRef.current && hqUrl ? hqUrl : originalSelectedRef.current && originalUrl ? originalUrl : previewSelectedRef.current && previewUrl ? previewUrl : playbackUrl
       const presented = presentedSourceRef.current
-      const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []]
-      if (presented?.uuid === videoUuid && [originalUrl, playbackUrl, ...previewChoices].includes(presented.src)) chosen = presented.src
+      const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
+      previewChoicesRef.current = previewChoices
+      // Durable-first handover rooted in actual role URLs, not the mixed
+      // starter: without a backbone original the backend playback_url (and
+      // the getOriginalPlaybackUrl fallback through it) can be the same
+      // legacy cached proxy the seed presented. Preserving that mixed URL
+      // would pin the legacy seed over the ready durable light rendition.
+      // When a durable role is ready only independently confirmed URLs are
+      // preservable — the ready light/HQ role URLs plus a true original
+      // (backbone/local-original, never the mixed fallback and never a
+      // legacy preview choice). Explicit HQ/original choices and an
+      // already-durable current source are still preserved; there is no
+      // automatic light→HQ upgrade and the HQ decode fallback stays on
+      // durable light across revalidation. Legacy-only queues keep the
+      // presented-preview pin.
+      const durableStarter = lightUrl ?? hqUrl
+      if (presented?.uuid === videoUuid) {
+        if (durableStarter) {
+          const originalCacheUrl = data.cache_entries?.find(entry => entry.rendition === 'original' && entry.playback_url)?.playback_url ?? null
+          const confirmedOriginal = (data.full_quality_url ?? originalCacheUrl) || null
+          const preservable = [lightUrl, hqUrl, confirmedOriginal].filter((url): url is string => !!url)
+          if (preservable.includes(presented.src)) chosen = presented.src
+        } else {
+          const preservable = [originalUrl, hqUrl, playbackUrl, ...previewChoices]
+          if (preservable.includes(presented.src)) chosen = presented.src
+        }
+      }
       setSourceIsPreview(previewChoices.includes(chosen))
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })
       return
@@ -585,6 +621,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const retryPlayback = () => {
     setPreviewSelected(false)
     previewSelectedRef.current = false
+    hqSelectedRef.current = false
     originalSelectedRef.current = false
     presentedSourceRef.current = null
     setDecodeError(false)
@@ -593,6 +630,36 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     // restart, and the cover holds until the source re-presents.
     needsRestartRef.current = true
     retryStatusCheck()
+  }
+
+  // Explicit quality cycle: starter (light derivative, HQ when light is
+  // missing, else legacy preview) → HQ derivative when ready → camera
+  // original. One step per tap, no automatic upgrades: the starter stays
+  // until the viewer chooses. Aliased HQ (small source) shares the light
+  // URL and is deduplicated out of the cycle. With no light proof but a
+  // ready HQ, the legacy preview is not a current proof and stays out.
+  const qualityOptions = (src: string | null | undefined): string[] => {
+    if (phase.kind !== 'ready' || !src) return []
+    const starter = lightSrc ?? hqSrc ?? previewSrc
+    return [...new Set([starter, lightSrc ? hqSrc : null, phase.originalSrc].filter((url): url is string => !!url))]
+  }
+  const qualityLabel = (src: string): string => {
+    if (src === hqSrc && hqSrc) return t('videoPlayer.hqLabel')
+    if (phase.kind === 'ready' && src === phase.originalSrc) return t('videoPlayer.originalQuality')
+    return hqSrc ? t('videoPlayer.lightLabel') : t('videoPlayer.previewLabel')
+  }
+  const cycleQuality = () => {
+    if (phase.kind !== 'ready') return
+    const options = qualityOptions(phase.src)
+    if (options.length < 2) return
+    const next = options[(options.indexOf(phase.src) + 1) % options.length]
+    previewSelectedRef.current = next === previewSrc
+    hqSelectedRef.current = next === hqSrc
+    originalSelectedRef.current = next === phase.originalSrc
+    setPreviewSelected(next === previewSrc)
+    setSourceIsPreview(previewChoicesRef.current.includes(next))
+    presentedSourceRef.current = null
+    setPhase({ ...phase, src: next })
   }
 
   const stateLabel = (state: string) =>
@@ -833,16 +900,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           )}
         </div>
       )}
-      {phase.kind === 'ready' && !decodeError && phase.originalSrc && previewSrc && phase.originalSrc !== previewSrc && (
-        <button type="button" className="absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={() => {
-          const original = phase.src !== phase.originalSrc
-          originalSelectedRef.current = original
-          previewSelectedRef.current = !original
-          setPreviewSelected(!original)
-          setSourceIsPreview(!original)
-          presentedSourceRef.current = null
-          setPhase({ ...phase, src: original ? phase.originalSrc! : previewSrc })
-        }}>{phase.src === phase.originalSrc ? t('videoPlayer.originalQuality') : t('videoPlayer.previewLabel')}</button>
+      {phase.kind === 'ready' && !decodeError && qualityOptions(phase.src).length > 1 && (
+        <button type="button" className="absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={cycleQuality}>{qualityLabel(phase.src)}</button>
       )}
       {/* Video decode/load failure of an otherwise ready clip. */}
       {phase.kind === 'ready' && decodeError && (

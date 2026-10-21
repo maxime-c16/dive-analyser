@@ -133,6 +133,9 @@ def _resolve_verified_prod_location(
             environment="prod",
             verified=True,
         )
+        # Bounded probe: 0 -> missing, 1 -> candidate, >= 2 -> ambiguous.
+        # We only need to distinguish 0/1/many, never the full replica set.
+        .limit(2)
         .all()
     )
     if len(locations) == 0:
@@ -194,6 +197,56 @@ def _deny(db: Session, user_id: int, revision_id: int, reason: str):
     )
     metrics.denied.inc()
     raise HTTPException(404, "Not found")
+
+
+def _is_derivative_revision(revision: MediaRevision | None) -> bool:
+    """Whether this revision carries durable-derivative bytes (D5).
+
+    Derived revisions are served ONLY from their verified PROD B2
+    replica. Falling back to a legacy cache file would hand the browser
+    mislabeled bytes (e.g. a 720p proxy at an HQ URL), so the legacy
+    fallback never applies to them: missing storage is a uniform 404,
+    a presign failure an explicit 503.
+    """
+    from app.services.media_backbone import is_derived_rendition_semantics
+
+    return revision is not None and is_derived_rendition_semantics(
+        getattr(revision, "rendition_semantics", None)
+    )
+
+
+def _has_current_derivative_proof(db: Session, revision: MediaRevision) -> bool:
+    """Authoritative current-source/version/ready PROD proof (D5).
+
+    A derived revision is servable ONLY when the shared resolver reports
+    the SAME revision id as ready for the clip's CURRENT canonical
+    camera-original source SHA + current transform version with exactly
+    one verified PROD location. A direct request for a known revision
+    whose source has since drifted, whose transform version is stale, or
+    whose ledger row left ``ready`` (verifying/stale/superseded) fails
+    here even though the revision row itself still carries bytes and may
+    still have a verified location: the status contract would no longer
+    advertise this URL, so the play route must not honor it either.
+
+    Runs AFTER authorization but BEFORE any location signing or ALLOWED
+    grant: denials are uniform 404 with zero presign calls. Posters and
+    the small-source HQ alias are covered the same way (the alias shares
+    the light revision id, so it passes exactly when light is provable).
+    A pre-D1 database (no ledger table) yields no proof and fails closed.
+    """
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+    from app.services.derivative_publisher import MissingSourceError
+
+    try:
+        clip = safe_resolve_clip_derivatives(db, revision.video_uuid)
+    except (MissingSourceError, ValueError):
+        return False
+    if clip is None:
+        return False
+    return any(
+        decision.state == "ready" and decision.revision_id == revision.id
+        for decision in clip.roles.values()
+    )
 
 
 async def _serve_legacy_fallback(
@@ -273,14 +326,25 @@ async def play_media_revision(
         # legacy copy, unknown revision → DENY alike).
         _deny(db, user.id, revision_id, decision.reason)
 
+    derived_only = _is_derivative_revision(revision)
+    if derived_only and not _has_current_derivative_proof(db, revision):
+        # The revision is no longer (or never was) the current PROD proof
+        # for its clip: stale source, wrong transform version, non-ready
+        # ledger, or missing/ambiguous/DEV-only storage. Uniform 404 with
+        # zero presign calls and no legacy fallback (derived bytes must
+        # never be substituted with cache bytes at a stable revision URL).
+        _deny(db, user.id, revision.id, "derivative_not_current")
+
     lookup_started = playback_metrics.now_ms()
     location, storage_deny = _resolve_verified_prod_location(db, revision)
     metrics.storage_lookup_latency.observe(playback_metrics.now_ms() - lookup_started)
 
     if location is None:
-        if storage_deny == DENY_STORAGE_AMBIGUOUS:
+        if storage_deny == DENY_STORAGE_AMBIGUOUS or derived_only:
             # B2_INTEGRITY/AMBIGUITY: fail closed. Never sign an ambiguous
-            # object; never fall back from an integrity fault.
+            # object; never fall back from an integrity fault. Derived
+            # revisions additionally never fall back to legacy cache bytes
+            # (they would be mislabeled renditions at a stable URL).
             _deny(db, user.id, revision.id, storage_deny)
         # NO_PROD_B2_REPLICA: authorized legacy fallback.
         return await _serve_legacy_fallback(
@@ -312,8 +376,18 @@ async def play_media_revision(
         metrics.presign_latency.observe(playback_metrics.now_ms() - presign_started)
     except b2_presign.PresignUnavailable:
         # B2_TEMPORARY_FAILURE: authorized legacy fallback when available,
-        # else explicit provider failure.
+        # else explicit provider failure. Derived revisions never take the
+        # legacy path (mislabeled bytes): explicit 503 instead.
         metrics.provider_failures.inc()
+        if derived_only:
+            _record_grant(
+                db,
+                user_id=user.id,
+                outcome=OUTCOME_PROVIDER_FAILURE,
+                media_revision_id=revision.id,
+                denial_reason="presign_unavailable",
+            )
+            raise HTTPException(503, "B2 provider unavailable")
         return await _serve_legacy_fallback(
             db, request, revision, user.id, reason="presign_unavailable"
         )

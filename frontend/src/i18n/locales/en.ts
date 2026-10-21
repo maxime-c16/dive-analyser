@@ -964,6 +964,8 @@ const en = {
     changeQuality: 'Change video quality',
     originalQuality: 'Original',
     previewLabel: 'Preview',
+    lightLabel: 'Light',
+    hqLabel: 'HQ',
     previewQuality: 'Lower-quality preview',
     loadFailed: 'Video failed to load',
     tryAgain: 'Try again',
