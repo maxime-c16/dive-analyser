@@ -14,7 +14,13 @@
 #   --allow-unmerged   allow a ref that is not reachable from origin/master
 #   --dry-run          show the plan, change nothing
 #   --force            redeploy even if the host is already at that commit
+#   --server-gate      run the server gate even if GitHub already passed it
+#   --full             rebuild both images even if only one side changed
 #   --skip-gate | --frontend-only | --backend-only    passed to ci/deploy.sh
+#
+# Server deploys skip the server gate when GitHub's required `gate` check
+# already passed on the exact same tree (ci/gate-proof.py), and rebuild only
+# the image(s) whose inputs changed since the running containers' commits.
 #
 # Runs from any checkout that can fetch GitHub (the laptop, or deb-serv
 # itself). Hosts are reached through the ssh aliases below; when the script is
@@ -35,7 +41,7 @@ MAC_SSH="${DIVE_MAC_SSH:-diveanalyzer-mac}"
 MAC_HOSTNAME="${DIVE_MAC_HOSTNAME:-mac-server}"
 GITHUB_SLUG="maxime-c16/dive-analyser"
 
-usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift
 case "$cmd" in
@@ -48,6 +54,8 @@ REF="origin/master"
 ALLOW_UNMERGED=0
 DRY_RUN=0
 FORCE=0
+SERVER_GATE=0
+AUTO_SCOPE=1
 DEPLOY_FLAGS=()
 
 while [ $# -gt 0 ]; do
@@ -56,6 +64,8 @@ while [ $# -gt 0 ]; do
         --allow-unmerged) ALLOW_UNMERGED=1 ;;
         --dry-run) DRY_RUN=1 ;;
         --force) FORCE=1 ;;
+        --server-gate) SERVER_GATE=1 ;;
+        --full) AUTO_SCOPE=0 ;;
         --skip-gate|--frontend-only|--backend-only) DEPLOY_FLAGS+=("$1") ;;
         *) ci_die "unknown option: $1" ;;
     esac
@@ -79,9 +89,9 @@ run_on() {
         bash -s -- "$@" <<<"$script"
     else
         [ $# -gt 0 ] && quoted="$(printf '%q ' "$@")"
-        # ssh does not forward the environment; pass SHIP_FROM explicitly.
+        # ssh does not forward the environment; pass ours explicitly.
         ssh -o BatchMode=yes -o ConnectTimeout=10 "$ssh_alias" \
-            "SHIP_FROM=$(printf '%q' "${SHIP_FROM:-}") bash -s -- $quoted" <<<"$script"
+            "SHIP_FROM=$(printf '%q' "${SHIP_FROM:-}") DIVE_GATE_PROOF=$(printf '%q' "${DIVE_GATE_PROOF:-}") bash -s -- $quoted" <<<"$script"
     fi
 }
 
@@ -186,7 +196,7 @@ do_status() {
 
 # ------------------------------------------------------------------- server
 
-# Args: sha dry_run force [deploy.sh flags...]
+# Args: sha dry_run force auto_scope [deploy.sh flags...]
 server_script='
 set -uo pipefail
 # Runtime upload secrets live outside the deployed checkout. Export them for
@@ -221,7 +231,7 @@ if [ -f "$MEDIA_JOBS_ENV" ]; then
     . "$MEDIA_JOBS_ENV"
     set +a
 fi
-sha="$1"; dry_run="$2"; force="$3"; shift 3
+sha="$1"; dry_run="$2"; force="$3"; auto_scope="$4"; shift 4
 LIVE="${DIVE_LIVE_DIR:-$HOME/dive-analyser}"
 STATE="$HOME/.cache/dive-ci"; mkdir -p "$STATE"
 LOCK="$STATE/deploy.lock"
@@ -281,6 +291,36 @@ fi
 if [ "$up_to_date" = 1 ] && [ "$force" != 1 ]; then
     echo "✓ server already at ${sha:0:7} ($services) — nothing to do (use --force to redeploy)"
     exit 0
+fi
+
+# Rebuild only what changed since each running container was built (its SHA
+# label, not HEAD: a partial deploy leaves the other service on an older
+# commit). The frontend image is built from frontend/ alone; compose changes
+# can alter either service; everything else (backend/, ci/, ops/, ...) goes
+# with the backend, which bind-mounts the checkout. Unknown labels rebuild.
+case " $* " in *" --frontend-only "*|*" --backend-only "*) auto_scope=0 ;; esac
+if [ "$auto_scope" = 1 ]; then
+    running_sha() {
+        local label
+        label="$(docker inspect "dive-analyser-$1-1" --format "{{index .Config.Labels \"dive.analyser/sha\"}}" 2>/dev/null)"
+        [ -n "$label" ] && git rev-parse --verify --quiet "$label^{commit}"
+    }
+    need_frontend=1; need_backend=1
+    if fe_base="$(running_sha frontend)" \
+        && [ -z "$(git diff --name-only "$fe_base" "$sha" -- frontend/ docker-compose.yml)" ]; then
+        need_frontend=0
+    fi
+    if be_base="$(running_sha backend)" \
+        && [ -z "$(git diff --name-only "$be_base" "$sha" -- . ":(exclude)frontend/")" ]; then
+        need_backend=0
+    fi
+    if [ "$need_frontend" = 1 ] && [ "$need_backend" = 0 ]; then
+        echo "  scope: frontend only (backend inputs unchanged since ${be_base:0:7}; --full to override)"
+        set -- "$@" --frontend-only
+    elif [ "$need_frontend" = 0 ] && [ "$need_backend" = 1 ]; then
+        echo "  scope: backend only (frontend/ unchanged since ${fe_base:0:7}; --full to override)"
+        set -- "$@" --backend-only
+    fi
 fi
 
 echo "  ${prev:0:7} -> ${sha:0:7}"
@@ -345,9 +385,32 @@ printf "%s server %s -> %s %s by %s\n" "$(date -u +%FT%TZ)" "${prev:0:7}" "${sha
 exit "$rc"
 '
 
+# Skip the server gate when GitHub already passed its required gate on this
+# exact tree. Any doubt (API down, different tree, red or missing check) runs
+# the server gate as before.
+github_gate_proof() {
+    local flag proof
+    for flag in "${DEPLOY_FLAGS[@]+"${DEPLOY_FLAGS[@]}"}"; do
+        [ "$flag" = --skip-gate ] && return 0
+    done
+    if [ "$SERVER_GATE" -eq 1 ]; then
+        ci_log "server gate requested (--server-gate)"
+        return 0
+    fi
+    if proof="$(python3 "$SCRIPT_DIR/gate-proof.py" "$SHA" --root "$ROOT" --repo "$GITHUB_SLUG")"; then
+        ci_log "gate: $proof — the server will not re-run it"
+        DIVE_GATE_PROOF="$proof"
+        export DIVE_GATE_PROOF
+        DEPLOY_FLAGS+=(--skip-gate)
+    else
+        ci_log "gate: no GitHub proof ($proof) — the server will run it"
+    fi
+}
+
 do_server() {
     ci_step "server: deploy $SHORT"
-    run_on server "$server_script" "$SHA" "$DRY_RUN" "$FORCE" "${DEPLOY_FLAGS[@]+"${DEPLOY_FLAGS[@]}"}"
+    github_gate_proof
+    run_on server "$server_script" "$SHA" "$DRY_RUN" "$FORCE" "$AUTO_SCOPE" "${DEPLOY_FLAGS[@]+"${DEPLOY_FLAGS[@]}"}"
 }
 
 # ---------------------------------------------------------------------- mac

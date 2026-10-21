@@ -120,7 +120,9 @@ when running on a larger machine.
 Deploy only through `ci/ship.sh` (`status | server | mac | all`, `--dry-run`
 first). It ships exact commits from GitHub `origin/master`, checks the commit
 out in the live server dir, and calls `ci/deploy.sh`, which runs the
-`fast frontend` gate, builds SHA-labelled images, swaps containers, reloads
+`fast frontend` gate (skipped when `ci/gate-proof.py` shows GitHub's `gate`
+already passed on the identical tree), builds SHA-labelled images for the
+side(s) that changed, swaps containers, reloads
 both nginx proxies, health-checks (LAN and public Funnel) and rolls back on
 failure. Rules, hosts and rollback: `docs/REPO_WORKFLOW.md`.
 
@@ -144,6 +146,8 @@ unrelated changes. Requiring an up-to-date branch is a separate policy choice,
 not needed to enforce the latest-head gate.
 
 The deployment still performs its environment-specific health checks, proxy
-reload, rollback and frontend validation. Reusing exact tested build artifacts
-is deferred: removing deployment checks without that provenance would reduce
-coverage. No application deploy or manual SQL is needed for this CI-only change.
+reload, rollback and frontend validation. It reuses GitHub's gate result only
+with provenance: the deployed commit's tree must be identical to a commit whose
+`gate` check passed (`ci/gate-proof.py`). Without that proof the server runs
+its own gate. Reusing tested build *artifacts* (images built in Actions and
+pulled by the server) is still deferred. No application deploy or manual SQL is needed for this CI-only change.
