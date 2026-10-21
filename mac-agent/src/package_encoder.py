@@ -970,6 +970,62 @@ def _rename_attempt_to_result_sync(
     raise TranscodeError("package_encoder: could not claim unique result dir")
 
 
+def _harvest_completed_rename(
+    rename_task: "asyncio.Task",
+    *,
+    out_dir: Path,
+    video_uuid: str,
+    attempt_dir: Path,
+) -> Path | None:
+    """Return the owned result dir when the rename thread already finished.
+
+    ``_shield_await`` waits out the rename thread and then re-raises
+    ``CancelledError``, so a cancel arriving during publish leaves the
+    atomic ``os.rename`` completed but ``result_dir`` unassigned. The
+    generic ``except`` below would then clean the (now gone) attempt dir
+    and leak the fresh ``pkg-*`` dir.
+
+    This harvests ``rename_task.result()`` (own task only, never a scan)
+    and returns it IFF ownership is proven: a ``Path`` inside ``out_dir``
+    named ``pkg-<sanitized-uuid>-*``, a real dir (not a symlink), with the
+    owned attempt dir consumed. Anything else -> ``None`` (fail-closed,
+    never claim unowned target/siblings/source).
+    """
+    try:
+        if not rename_task.done() or rename_task.cancelled():
+            return None
+        completed = rename_task.result()
+    except BaseException:
+        return None
+    except Exception:
+        return None
+    if not isinstance(completed, Path):
+        return None
+    try:
+        safe = _sanitize_uuid_for_dir(video_uuid)
+        name = completed.name
+        if not name.startswith(f"pkg-{safe}-"):
+            return None
+        out_real = Path(os.path.realpath(out_dir))
+        try:
+            parent_real = Path(os.path.realpath(completed.parent))
+        except Exception:
+            return None
+        if parent_real != out_real:
+            return None
+        if Path(os.path.realpath(str(completed))) == Path(os.path.realpath(str(attempt_dir))):
+            return None
+        # Rename consumed the attempt: if it still exists the rename did
+        # not happen (failure path) and there is nothing to harvest.
+        if Path(attempt_dir).exists():
+            return None
+        if completed.is_symlink() or not completed.is_dir():
+            return None
+        return completed
+    except Exception:
+        return None
+
+
 async def _shield_await(task: "asyncio.Task") -> object:
     """Await a thread-owned task to completion, preserving cancellation.
 
@@ -1250,6 +1306,20 @@ async def build_package(
         try:
             result_dir = await _shield_await(rename_task)
         except BaseException:
+            # Cancel (or timeout) raced the atomic publish rename:
+            # _shield_await waited out the thread then re-raised, so the
+            # rename may already have moved attempt_dir -> pkg-* while
+            # result_dir is still unassigned. Harvest the completed path
+            # (ownership-proven) so the outer cleanup removes ONLY that
+            # owned result dir instead of leaking it. Never touches
+            # siblings/source; generic shield semantics unchanged.
+            harvested = _harvest_completed_rename(
+                rename_task, out_dir=out_dir,
+                video_uuid=video_uuid, attempt_dir=attempt_dir,
+            )
+            if harvested is not None:
+                result_dir = harvested
+                attempt_claimed = True
             raise
         assert isinstance(result_dir, Path)
         # Attempt dir is now the result dir: do not rmtree it below.

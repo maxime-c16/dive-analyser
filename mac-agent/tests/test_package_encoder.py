@@ -690,6 +690,101 @@ def test_cancel_during_validate_keeps_source_cleans_owned(tmp_path, monkeypatch)
     assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == [] if out.exists() else True
 
 
+def test_cancel_during_rename_cleans_owned_result_no_leak(tmp_path, monkeypatch):
+    """Deterministic publish-boundary cancel: rename thread paused, cancel,
+    release so the real atomic rename FINISHES, then CancelledError must
+    still propagate with NO owned residue.
+
+    Not a cancel-before/after fake: the barrier proves the build reached
+    the WHOLEDIR rename, the release proves the rename actually completed
+    (old code leaked the fresh pkg-* dir here because result_dir was never
+    assigned). Previously completed result + sentinel files + sources stay
+    intact; the cancelled build publishes nothing.
+    """
+    import threading
+
+    import src.package_encoder as pe
+
+    _need_ffmpeg()
+    good_src = tmp_path / "good.mp4"
+    cancel_src = tmp_path / "cancel.mp4"
+    _gen_source(good_src, 320, 240, 30, 1.0, audio=False)
+    _gen_source(cancel_src, 320, 240, 30, 1.0, audio=False)
+    good_before = good_src.read_bytes()
+    cancel_before = cancel_src.read_bytes()
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    sentinel = {
+        "hq.mp4": b"sentinel-hq",
+        "light.mp4": b"sentinel-light",
+        "poster.jpg": b"sentinel-poster",
+    }
+    for name, blob in sentinel.items():
+        (out / name).write_bytes(blob)
+
+    r_good = asyncio.run(build_package(
+        good_src, out, video_uuid="t-good-rename",
+        source_sha256=_real_sha(good_src),
+        ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r_good.ready and r_good.result_dir.is_dir()
+    good_light_before = r_good.light.path.read_bytes()
+    good_poster_before = r_good.poster.path.read_bytes()
+    pkg_before = {p for p in out.iterdir() if p.name.startswith("pkg-")}
+    assert r_good.result_dir in pkg_before
+
+    entered = threading.Event()
+    release = threading.Event()
+    real_rename = pe.os.rename
+
+    def _blocking_rename(a, b, *args, **kwargs):
+        try:
+            if Path(a).name.startswith(".pkg-attempt-"):
+                entered.set()
+                assert release.wait(timeout=60), "rename thread never released"
+        finally:
+            pass
+        return real_rename(a, b, *args, **kwargs)
+
+    monkeypatch.setattr(pe.os, "rename", _blocking_rename)
+
+    async def _main():
+        task = asyncio.create_task(build_package(
+            cancel_src, out, video_uuid="t-cancel-rename",
+            source_sha256=_real_sha(cancel_src),
+            ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+        try:
+            entered_reached = await asyncio.to_thread(entered.wait, 90.0)
+            assert entered_reached, "build never reached publish rename"
+            # Cancel WHILE the rename thread is paused inside os.rename.
+            task.cancel()
+            await asyncio.sleep(0.2)
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+            try:
+                await asyncio.wait_for(task, timeout=30)
+            except (asyncio.CancelledError, Exception):
+                pass
+            assert task.done()
+
+    asyncio.run(_main())
+
+    # Cancelled build published nothing and left no owned residue.
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert {p for p in out.iterdir() if p.name.startswith("pkg-")} == pkg_before
+    # Previously completed result + sentinels + sources intact.
+    assert r_good.light.path.read_bytes() == good_light_before
+    assert r_good.poster.path.read_bytes() == good_poster_before
+    for name, blob in sentinel.items():
+        assert (out / name).read_bytes() == blob
+    assert good_src.read_bytes() == good_before
+    assert cancel_src.read_bytes() == cancel_before
+
+
 # ---------------------------------------------------------------------------
 # Review fixes: decoder alias mapping (item 6)
 # ---------------------------------------------------------------------------
