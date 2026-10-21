@@ -77,11 +77,8 @@ async def download_clip(dive_id: int, request: Request, for_share: bool = Query(
     # D1: exclude future durable-derivative revisions (derived_*) from the
     # newest-revision pick so downloads stay the camera original; with no
     # derived_* rows this is a no-op (existing behavior preserved).
-    from app.services.media_backbone import derived_semantics_exclusion_clause
-    revision = db.query(MediaRevision).filter(
-        MediaRevision.video_uuid == dive.video_uuid,
-        derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
-    ).order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc()).first()
+    from app.services.media_backbone import newest_original_revision
+    revision = newest_original_revision(db, dive.video_uuid)
     source = None
     location = None
     provider_failed = False

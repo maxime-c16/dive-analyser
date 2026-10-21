@@ -58,9 +58,24 @@ def build_derivative_media_key(
     source SHAs and empty transform versions raise ``ValueError`` before any
     hashing, so no caller can mint a key for an identity the ledger would
     reject.
+
+    Encoding contract (D1, no existing rows): fields are joined with ``|``
+    under the ``derivative-v1`` domain prefix. ``|`` is therefore rejected
+    in ``video_uuid`` and ``transform_version`` so the encoded identity stays
+    unambiguous. Surrounding whitespace is rejected (it would otherwise
+    produce distinct keys for the same logical identity), ``video_uuid`` is
+    capped at 100 chars (the ``media_derivatives.video_uuid`` DB contract)
+    and ``transform_version`` at 40 chars (the ledger column contract).
+    ``source_sha256`` must be an exact 64-char lowercase hex SHA-256.
     """
     if not isinstance(video_uuid, str) or not video_uuid.strip():
         raise ValueError("video_uuid must be a non-empty string")
+    if video_uuid != video_uuid.strip():
+        raise ValueError(f"video_uuid must not have surrounding whitespace: {video_uuid!r}")
+    if "|" in video_uuid:
+        raise ValueError(f"video_uuid must not contain '|': {video_uuid!r}")
+    if len(video_uuid) > 100:
+        raise ValueError(f"video_uuid must be <= 100 chars (media_derivatives.video_uuid contract): {len(video_uuid)}")
     if role not in DERIVATIVE_ROLES:
         raise ValueError(
             f"unknown derivative role {role!r}; expected one of {sorted(DERIVATIVE_ROLES)}"
@@ -70,5 +85,9 @@ def build_derivative_media_key(
     version = transform_version if transform_version is not None else get_derivative_transform_version()
     if not isinstance(version, str) or not version.strip() or len(version) > 40:
         raise ValueError(f"invalid transform_version: {transform_version!r}")
+    if version != version.strip():
+        raise ValueError(f"transform_version must not have surrounding whitespace: {transform_version!r}")
+    if "|" in version:
+        raise ValueError(f"transform_version must not contain '|': {transform_version!r}")
     raw = "|".join(["derivative-v1", video_uuid, role, source_sha256, version])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

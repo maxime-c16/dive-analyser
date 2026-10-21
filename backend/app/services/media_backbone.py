@@ -79,6 +79,28 @@ def derived_semantics_exclusion_clause(column):
     return column.notlike(r"derived\_%", escape="\\")
 
 
+def newest_original_revision(db: Session, video_uuid: str) -> MediaRevision | None:
+    """Newest non-derivative revision for one clip (guest/download pick).
+
+    Shared helper behind the guest-stream and download endpoints: newest
+    revision by (observed_at DESC, id DESC) with the D1
+    `derived_semantics_exclusion_clause` applied on top of the legacy
+    newest-first behavior. With no `derived_*` rows this is exactly the
+    pre-D1 pick; once derivatives exist they are skipped so guest/download
+    stay the camera original (including `browser_original` when it is
+    newest — the true camera bytes for browser clips).
+    """
+    return (
+        db.query(MediaRevision)
+        .filter(
+            MediaRevision.video_uuid == video_uuid,
+            derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
+        )
+        .order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc())
+        .first()
+    )
+
+
 def caption_sha256(persisted_raw: str) -> str:
     """SHA-256 over the exact persisted caption representation (UTF-8 bytes).
 

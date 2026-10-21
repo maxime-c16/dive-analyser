@@ -1,37 +1,38 @@
 """D1 durable-derivative foundation on real PostgreSQL (disposable calendar_test_* DB only).
 
-Scope: additive schema + deterministic derivative keys + shared
-original-selector policy. D1 is publish- and read-inert: no job references
-`media_derivatives`, no route serves it, no `persist_derivative` network
-publisher exists yet (deferred to the publication slice after fencing).
+Scope: additive schema + shared original-selector policy. D1 is publish-
+and read-inert: no job references `media_derivatives`, no route serves it,
+no `persist_derivative` network publisher exists yet (deferred to the
+publication slice after fencing).
 
 Proves on disposable PostgreSQL (CI `postgres` tier, never production):
 
-- the real migration file applies twice (idempotent re-run);
-- model/migration parity (SQLAlchemy metadata matches the migrated schema,
-  including the D1 nullable columns and their NULL legacy defaults);
-- ledger identity + CHECK constraints (unique
-  (video_uuid, source_sha, role, transform_version); role/status allowlists;
-  status default `verifying`);
+- the real migration file builds D1 objects from a TRUE pre-D1 baseline
+  (applied twice: idempotent re-run);
+- model/migration semantic parity (nullable/NULL-default contract, status
+  server default, CHECK allowlists, required index coverage);
+- ledger identity + CHECK constraints + ``ON CONFLICT (column list)``
+  upsert shape (not ``ON CONSTRAINT <name>``);
 - legacy-row compatibility (rows written the way old code writes them —
   without the new columns — read back with NULLs; old SELECT shapes still
   work);
-- `build_derivative_media_key` determinism + fail-closed validation, and
-  legacy `build_media_key` byte-stability (the legacy transform default is
-  untouched; derivative versioning is a separate setting);
-- original-selector regressions: every pre-existing selector keeps its
-  exact behavior for all legitimate rendition semantics
-  (`photos_edited_rendition`, `browser_original`, `browser_playback`) and
-  only gains exclusion of future `derived_*` rows. In particular
-  `browser_original` (the true camera original for browser clips) is still
-  selectable as a transcode source via `_b2_source`, while playback
-  selectors keep excluding it exactly as before.
+- original-selector regressions via the ACTUAL selectors: every
+  pre-existing selector keeps its exact behavior for all legitimate
+  rendition semantics and only gains exclusion of future ``derived_*``
+  rows. Guest/download coverage calls the real shared helper
+  ``newest_original_revision`` (the function both endpoints call), not a
+  rebuilt query.
 
-Scope hygiene: only `photos_assets`, `media_cache_entries`, `media_jobs`,
-`media_blobs`, `media_blob_locations`, `media_revisions` and
-`media_derivatives` (+ FK closure) are created if missing; rows use a
-per-test key prefix and are deleted afterwards. Nothing outside the
-disposable database is touched.
+Pure key/selector-policy unit tests (no PG needed) live in
+``tests/test_media_derivatives_d1.py`` so normal backend CI covers them.
+
+Scope hygiene: only ``photos_assets``, ``media_cache_entries``,
+``media_jobs``, ``media_blobs``, ``media_blob_locations``,
+``media_revisions`` and ``media_derivatives`` (+ FK closure) are created
+if missing; the fixture first drops D1 objects to reach a true pre-D1
+baseline (D1-owned table/columns only — no other test owns them), then
+applies the real migration twice. Rows use a per-test key prefix and are
+deleted afterwards. Nothing outside the disposable database is touched.
 """
 
 import hashlib
@@ -71,7 +72,17 @@ def _apply_sql_file(engine, path):
         conn.exec_driver_sql(path.read_text())
 
 
-def _ensure_tables(engine):
+def _ensure_pre_d1_baseline(engine):
+    """Create base tables, then strip D1 objects to reach TRUE pre-D1 state.
+
+    ``Base.metadata.create_all`` uses the NEW metadata (it already knows
+    ``media_derivatives`` and the new cache/job columns), so calling it
+    alone would mask a migration that forgets CREATE/ALTER. Dropping the
+    D1-owned table/columns FIRST forces the real migration file to be the
+    only thing that can recreate them: if the migration's CREATE TABLE or
+    any ALTER COLUMN is removed, the parity test below fails.
+    Only D1-owned objects are dropped; no other test owns them.
+    """
     from app.main import app  # noqa: F401  register the complete mapper set
     from app.database import Base
 
@@ -82,16 +93,26 @@ def _ensure_tables(engine):
         "media_blobs",
         "media_blob_locations",
         "media_revisions",
-        "media_derivatives",
     }
     tables = {Base.metadata.tables[name] for name in seed if name in Base.metadata.tables}
-    assert seed <= {t.name for t in tables}, f"D1 models missing: {seed - {t.name for t in tables}}"
+    assert seed <= {t.name for t in tables}, f"baseline models missing: {seed - {t.name for t in tables}}"
     while True:
         deps = {fk.column.table for t in tables for fk in t.foreign_keys}
         if deps <= tables:
             break
         tables |= deps
     Base.metadata.create_all(engine, tables=tables)
+    # Strip D1 objects -> true pre-D1 baseline (idempotent).
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS media_derivatives")
+        conn.exec_driver_sql(
+            "ALTER TABLE media_cache_entries DROP COLUMN IF EXISTS source_blob_sha256"
+        )
+        conn.exec_driver_sql(
+            "ALTER TABLE media_cache_entries DROP COLUMN IF EXISTS transform_version"
+        )
+        conn.exec_driver_sql("ALTER TABLE media_jobs DROP COLUMN IF EXISTS lease_token")
+        conn.exec_driver_sql("ALTER TABLE media_jobs DROP COLUMN IF EXISTS finalized_slots")
 
 
 @pytest.fixture()
@@ -99,7 +120,7 @@ def pg():
     from app.config import get_settings
 
     engine = _engine()
-    _ensure_tables(engine)
+    _ensure_pre_d1_baseline(engine)
     # Real migration, twice: idempotency is the deploy precondition.
     _apply_sql_file(engine, MIGRATION_PATH)
     _apply_sql_file(engine, MIGRATION_PATH)
@@ -187,13 +208,26 @@ def _verified_revision(session, prefix, video_uuid, semantics, bucket, *, tag=No
     return revision
 
 
-def test_migration_idempotent_and_models_aligned(pg):
-    """Real SQL twice + SQLAlchemy metadata parity for every D1 object."""
+def _col_type_str(col):
+    return str(col.get("type", "")).upper()
+
+
+def test_migration_creates_d1_objects_from_pre_d1_baseline(pg):
+    """Real SQL builds D1 objects from pre-D1 state + semantic model parity.
+
+    Fails if the migration's CREATE TABLE or any ALTER COLUMN is removed
+    (the fixture strips D1 objects first, so only the migration can
+    recreate them). Asserts semantic parity — nullable, NULL legacy
+    defaults, status server default, types, CHECKs, required index
+    coverage — not exact index names (model single-column index names and
+    SQL names intentionally differ; coverage is what matters).
+    """
     from app.database import Base
 
     engine, factory, session, prefix, settings = pg
     inspector = inspect(engine)
 
+    # The migration (and only the migration) recreated these.
     assert inspector.has_table("media_derivatives")
     columns = {c["name"]: c for c in inspector.get_columns("media_derivatives")}
     for name in (
@@ -201,39 +235,79 @@ def test_migration_idempotent_and_models_aligned(pg):
         "derivative_blob_sha256", "status", "verified_at", "created_at",
     ):
         assert name in columns, f"media_derivatives.{name} missing after migration"
-    assert columns["status"]["default"] == "'verifying'::character varying"
 
-    cache_columns = {c["name"] for c in inspector.get_columns("media_cache_entries")}
-    assert "source_blob_sha256" in cache_columns
-    assert "transform_version" in cache_columns
-    job_columns = {c["name"] for c in inspector.get_columns("media_jobs")}
-    assert "lease_token" in job_columns
-    assert "finalized_slots" in job_columns
+    # Semantic type parity: VARCHAR lengths + nullable + defaults.
+    assert "100" in _col_type_str(columns["video_uuid"])
+    assert "64" in _col_type_str(columns["source_blob_sha256"])
+    assert "64" in _col_type_str(columns["derivative_blob_sha256"])
+    assert "20" in _col_type_str(columns["role"])
+    assert "40" in _col_type_str(columns["transform_version"])
+    assert "20" in _col_type_str(columns["status"])
+    assert columns["video_uuid"]["nullable"] is False
+    assert columns["source_blob_sha256"]["nullable"] is False
+    assert columns["derivative_blob_sha256"]["nullable"] is False
+    assert columns["verified_at"]["nullable"] is True
+    # Status server default proves the model/SQL parity the runbook needs:
+    # a raw INSERT without status lands 'verifying' from the DB default.
+    assert columns["status"]["default"] is not None
+    assert "verifying" in columns["status"]["default"]
 
-    # Model/migration parity: every model column exists in the migrated schema
-    # with a compatible nullable/default contract.
+    cache_cols = {c["name"]: c for c in inspector.get_columns("media_cache_entries")}
+    assert cache_cols["source_blob_sha256"]["nullable"] is True
+    assert cache_cols["transform_version"]["nullable"] is True
+    assert cache_cols["source_blob_sha256"]["default"] is None
+    job_cols = {c["name"]: c for c in inspector.get_columns("media_jobs")}
+    assert job_cols["lease_token"]["nullable"] is True
+    assert job_cols["finalized_slots"]["nullable"] is True
+    # finalized_slots ships NULL-default (not DEFAULT '[]'): NULL = no slot
+    # finalized yet; D3 must treat NULL as empty.
+    assert job_cols["finalized_slots"]["default"] is None
+
+    # Every model column exists in the migrated schema.
     for table_name in ("media_derivatives", "media_cache_entries", "media_jobs"):
         model_cols = Base.metadata.tables[table_name].columns
         migrated = {c["name"]: c for c in inspector.get_columns(table_name)}
         for col in model_cols:
             assert col.name in migrated, f"{table_name}.{col.name} missing in migrated schema"
+        for col in model_cols:
+            if col.name in migrated and table_name == "media_derivatives":
+                # Nullable contract must agree (types intentionally differ in
+                # spelling: model String/DateTime vs SQL VARCHAR/TIMESTAMP).
+                assert bool(col.nullable) == bool(migrated[col.name]["nullable"]), (
+                    f"{table_name}.{col.name} nullable mismatch: "
+                    f"model={col.nullable} sql={migrated[col.name]['nullable']}"
+                )
 
+    # Ledger identity: unique coverage on the full derivation identity,
+    # whether as a unique constraint or a unique index.
     uniques = inspector.get_unique_constraints("media_derivatives")
     indexes = inspector.get_indexes("media_derivatives")
+    identity = ["role", "source_blob_sha256", "transform_version", "video_uuid"]
     assert any(
-        sorted(u["column_names"]) == ["role", "source_blob_sha256", "transform_version", "video_uuid"]
-        for u in uniques
+        sorted(u["column_names"]) == identity for u in uniques
     ) or any(
-        sorted(i["column_names"]) == ["role", "source_blob_sha256", "transform_version", "video_uuid"]
-        and i["unique"]
-        for i in indexes
+        sorted(i["column_names"]) == identity and i["unique"] for i in indexes
     ), (uniques, indexes)
+    # Required query coverage: clip+role+status composite exists (exact name
+    # asserted — it is the shared lookup path — while single-column index
+    # names are intentionally allowed to differ by convention).
+    assert any(
+        i["name"] == "ix_media_derivative_clip_role"
+        and list(i["column_names"]) == ["video_uuid", "role", "status"]
+        for i in indexes
+    ), indexes
+    # Single-column coverage (names may differ; columns must be indexed).
+    indexed_cols = {c for i in indexes for c in i["column_names"]}
+    for col in ("video_uuid", "source_blob_sha256", "derivative_blob_sha256"):
+        assert col in indexed_cols, f"{col} has no index coverage: {indexes}"
     checks = {c["name"]: c["sqltext"] for c in inspector.get_check_constraints("media_derivatives")}
     assert "ck_media_derivative_role" in checks, checks
     assert "ck_media_derivative_status" in checks, checks
+    assert "hq" in str(checks["ck_media_derivative_role"])
+    assert "ready" in str(checks["ck_media_derivative_status"])
 
 
-def test_ledger_identity_constraints_and_status_default(pg):
+def test_ledger_identity_constraints_status_default_and_upsert_shape(pg):
     from app.models.media_backbone import MediaDerivative
 
     engine, factory, session, prefix, settings = pg
@@ -253,12 +327,50 @@ def test_ledger_identity_constraints_and_status_default(pg):
     assert first.status == "verifying"
     assert first.verified_at is None
 
+    # Server-side DEFAULT: a raw INSERT without status lands 'verifying'
+    # (proves the SQL DEFAULT, independent of the ORM default).
+    raw_uuid = f"{prefix}-raw-default"
+    session.execute(
+        text(
+            "INSERT INTO media_derivatives "
+            "(video_uuid, source_blob_sha256, role, transform_version, derivative_blob_sha256) "
+            "VALUES (:v, :s, 'light', 'ffmpeg-h264-web-v1', :d)"
+        ),
+        {"v": raw_uuid, "s": _sha(f"{prefix}-raw-src"), "d": _sha(f"{prefix}-raw-der")},
+    )
+    session.commit()
+    got = session.execute(
+        text("SELECT status FROM media_derivatives WHERE video_uuid = :v"), {"v": raw_uuid}
+    ).scalar_one()
+    assert got == "verifying"
+
     # Replay of the same derivation identity is rejected (future publisher
     # upserts on this identity instead of inserting blindly).
     session.add(MediaDerivative(derivative_blob_sha256=_sha("other"), **identity))
     with pytest.raises(IntegrityError):
         session.commit()
     session.rollback()
+
+    # Future-publisher upsert shape: ON CONFLICT (column list) — not
+    # ON CONSTRAINT <name> — resolves the same identity.
+    session.execute(
+        text(
+            "INSERT INTO media_derivatives "
+            "(video_uuid, source_blob_sha256, role, transform_version, derivative_blob_sha256, status) "
+            "VALUES (:v, :s, 'hq', 'ffmpeg-h264-web-v1', :d2, 'ready') "
+            "ON CONFLICT (video_uuid, source_blob_sha256, role, transform_version) "
+            "DO UPDATE SET status = EXCLUDED.status"
+        ),
+        {"v": video_uuid, "s": source_sha, "d2": _sha(f"{prefix}-upsert")},
+    )
+    session.commit()
+    assert (
+        session.query(MediaDerivative)
+        .filter_by(video_uuid=video_uuid, role="hq")
+        .one()
+        .status
+        == "ready"
+    )
 
     # Same source, different role: distinct derivation.
     session.add(
@@ -287,9 +399,6 @@ def test_ledger_identity_constraints_and_status_default(pg):
             session.commit()
         session.rollback()
 
-    rows = session.query(MediaDerivative).filter_by(video_uuid=video_uuid).all()
-    assert {(r.role, r.status) for r in rows} == {("hq", "verifying"), ("light", "verifying")}
-
 
 def test_legacy_rows_default_null_and_old_code_shape(pg):
     """Old code writes rows without the new columns: NULLs, still servable."""
@@ -311,6 +420,21 @@ def test_legacy_rows_default_null_and_old_code_shape(pg):
     job = MediaJob(photos_asset_id=asset.id, media_key=f"{prefix}-job", rendition="proxy_720p")
     session.add_all([cache_row, job])
     session.commit()
+    cache_id, job_id = cache_row.id, job.id
+
+    # Raw SQL shape (what old code's SELECTs see): new columns read NULL.
+    row = session.execute(
+        text(
+            "SELECT source_blob_sha256, transform_version FROM media_cache_entries WHERE id = :i"
+        ),
+        {"i": cache_id},
+    ).one()
+    assert row[0] is None and row[1] is None
+    jrow = session.execute(
+        text("SELECT lease_token, finalized_slots FROM media_jobs WHERE id = :i"),
+        {"i": job_id},
+    ).one()
+    assert jrow[0] is None and jrow[1] is None
 
     check = factory()
     try:
@@ -321,54 +445,12 @@ def test_legacy_rows_default_null_and_old_code_shape(pg):
         assert len(ready_entries_for_asset(check, asset.id)) == 1
         stored_job = check.query(MediaJob).filter_by(media_key=f"{prefix}-job").one()
         assert stored_job.lease_token is None
+        # D3 contract: NULL finalized_slots means "no slot finalized yet".
         assert stored_job.finalized_slots is None
+        assert (stored_job.finalized_slots or []) == []
         assert stored_job.status == "queued"
     finally:
         check.close()
-
-
-def test_derivative_key_determinism_and_fail_closed_validation(pg):
-    from app.services.media_keys import (
-        build_derivative_media_key,
-        build_media_key,
-    )
-
-    engine, factory, session, prefix, settings = pg
-    video_uuid = f"{prefix}-clip"
-    source_sha = _sha(f"{prefix}-source")
-    version = "ffmpeg-h264-web-v1"
-
-    first = build_derivative_media_key(video_uuid, "hq", source_sha, version)
-    assert first == build_derivative_media_key(video_uuid, "hq", source_sha, version)
-    assert len(first) == 64
-    # Identity is (clip, role, source, version): each axis separates keys.
-    assert build_derivative_media_key(video_uuid, "light", source_sha, version) != first
-    assert build_derivative_media_key(video_uuid, "hq", _sha("other-source"), version) != first
-    assert build_derivative_media_key(video_uuid, "hq", source_sha, "ffmpeg-h264-web-v2") != first
-    assert build_derivative_media_key(f"{prefix}-other", "hq", source_sha, version) != first
-    # Default version resolves from settings, pinned to the web chain.
-    assert settings.media_derivative_transform_version == "ffmpeg-h264-web-v1"
-    assert build_derivative_media_key(video_uuid, "hq", source_sha) == first
-
-    for bad in (
-        dict(video_uuid="", role="hq", source_sha256=source_sha, transform_version=version),
-        dict(video_uuid=video_uuid, role="proxy_720p", source_sha256=source_sha, transform_version=version),
-        dict(video_uuid=video_uuid, role="hq", source_sha256="short", transform_version=version),
-        dict(video_uuid=video_uuid, role="hq", source_sha256="X" * 64, transform_version=version),
-        dict(video_uuid=video_uuid, role="hq", source_sha256=source_sha, transform_version=""),
-        dict(video_uuid=video_uuid, role="hq", source_sha256=source_sha, transform_version="x" * 41),
-    ):
-        with pytest.raises(ValueError):
-            build_derivative_media_key(**bad)
-
-    # Legacy keys are byte-stable: the legacy transform default is untouched
-    # and derivative versioning never leaks into legacy inputs.
-    assert settings.media_transform_version == "ffmpeg-h264-v1"
-    legacy = build_media_key(video_uuid, "proxy_720p")
-    assert legacy == hashlib.sha256(
-        f"{video_uuid}:proxy_720p:{settings.media_transform_version}:"
-        f"{settings.media_export_policy_version}".encode()
-    ).hexdigest()
 
 
 def test_original_selectors_preserve_legitimate_semantics_and_exclude_derived(pg):
@@ -377,6 +459,7 @@ def test_original_selectors_preserve_legitimate_semantics_and_exclude_derived(pg
     from app.services.matchmaking import original_revision_id
     from app.services.evaluation_access import backbone_originals
     from app.api.v1.media import _backbone_playback_url, _backbone_revision_ids_bulk
+    from app.services.media_backbone import newest_original_revision
 
     engine, factory, session, prefix, settings = pg
     bucket = settings.media_backbone_prod_bucket
@@ -395,6 +478,9 @@ def test_original_selectors_preserve_legitimate_semantics_and_exclude_derived(pg
     assert _backbone_playback_url(session, video_uuid) == f"/api/v1/media/revisions/{playable.id}/play"
     assert _backbone_revision_ids_bulk(session, [video_uuid]) == {video_uuid: playable.id}
     assert backbone_originals(session, [video_uuid]) == {video_uuid: playable.id}
+    # Guest/download newest-revision pick via the ACTUAL shared helper both
+    # endpoints call (not a rebuilt query): newest derived is skipped.
+    assert newest_original_revision(session, video_uuid).id == playable.id
 
     # A clip with ONLY a raw browser original still resolves it as playable —
     # the pre-D1 behavior for that corner is unchanged (the `!=
@@ -404,6 +490,9 @@ def test_original_selectors_preserve_legitimate_semantics_and_exclude_derived(pg
     raw_only_rev = _verified_revision(session, prefix, raw_only, "browser_original", bucket)
     assert original_revision_id(session, raw_only) is None  # unchanged: raw alone is not served as playable
     assert _backbone_playback_url(session, raw_only) is None
+    # The shared helper preserves legacy newest-first behavior for
+    # non-derivative rows: the lone raw original is still returned.
+    assert newest_original_revision(session, raw_only).id == raw_only_rev.id
 
     # The transcode source keeps the true camera original eligible: newest
     # verified revision regardless of (non-derivative) semantics.
@@ -441,19 +530,8 @@ def test_original_selectors_preserve_legitimate_semantics_and_exclude_derived(pg
         source = _b2_source(session, job)
         assert source.get("source_sha256") == raw.blob_sha256
 
-    # Guest/download newest-revision picks also skip future derivatives.
+    # Guest/download helper also skips future derivatives added later.
     _verified_revision(session, prefix, video_uuid, "derived_light", bucket)
-    from app.services.media_backbone import derived_semantics_exclusion_clause
-    from app.models.media_backbone import MediaRevision
-
-    newest_original = (
-        session.query(MediaRevision)
-        .filter(
-            MediaRevision.video_uuid == video_uuid,
-            derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
-        )
-        .order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc())
-        .first()
-    )
+    newest_original = newest_original_revision(session, video_uuid)
     assert newest_original is not None
     assert not newest_original.rendition_semantics.startswith("derived_")

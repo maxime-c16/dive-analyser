@@ -231,16 +231,30 @@ class MediaDerivative(Base):
     fencing) commits alongside `commit_verified_ingest`, whose revision
     carries the matching `derived_*` rendition semantics. D1 is
     publish- and read-inert: no job references this table and no route
-    serves it, so rows can only be written by hand/tests until D3.
+    serves it, so rows can only be written by hand/tests until D3. A
+    `ready` row in D1 therefore proves nothing about storage (no
+    roundtrip verify ran); the future publisher may mark `ready` only
+    after the D3 upload→roundtrip-verify→commit sequence.
 
-    STORAGE AUTHORITY: like `MediaRevision`, `video_uuid` is the
+    STORAGE AUTHORITY: by convention `video_uuid` is the
     application-owned logical clip identity recorded as an indexed string
-    (no FK cascade entanglement) and both SHAs are content identities (no
-    FK to `media_blobs`: the blob row may land in the same transaction
-    from a future publisher, and the ledger must stay insertable without
-    ordering constraints). The migration is fully reversible by dropping
-    this table plus the D1 nullable columns alone; old code boots on the
-    new schema (it never touches these columns).
+    (no FK cascade entanglement) and both SHAs are content identities with
+    no FK to `media_blobs` — the same convention as `MediaRevision`
+    (whose `blob_sha256` likewise carries no FK). The future publisher
+    commits the blob, its verified location, the `derived_*` revision and
+    this ledger row in one transaction with application-level ordering.
+
+    Ledger identity is a UNIQUE INDEX (`uq_media_derivative_identity`),
+    not a table constraint, so the future publisher upserts with
+    `ON CONFLICT (video_uuid, source_blob_sha256, role, transform_version)`
+    (column list), never `ON CONSTRAINT <name>`. `finalized_slots` on
+    `media_jobs` ships NULL-default in D1 (NULL = no slot finalized yet);
+    D3 must treat NULL as empty.
+
+    Schema rollback is NOT supported (runbook: never roll back this
+    migration — drops would destroy ledger history later slices depend
+    on). Old code boots on the new schema (it never touches these
+    columns).
     """
 
     __tablename__ = "media_derivatives"
