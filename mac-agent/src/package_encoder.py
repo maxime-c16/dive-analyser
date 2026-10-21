@@ -944,9 +944,18 @@ def _early_identity_check(video_uuid: str, version: str, source_sha256: str) -> 
     build_derivative_media_key(video_uuid, "light", source_sha256, version)
 
 
-def _stat_snapshot(path: Path) -> tuple[int, int]:
+def _stat_snapshot(path: Path) -> tuple[int, int, int, int, int]:
+    """Stable source-identity tuple: (dev, ino, ctime_ns, size, mtime_ns).
+
+    Size+mtime alone lets a same-size replacement that preserves mtime
+    pass while ffmpeg reads different bytes. Including the device/inode
+    (path-swap -> new inode) and ctime (any replace/in-place rewrite
+    bumps ctime, even when mtime is restored) closes that hole for
+    normal replacements. Bracket every hash with before/after snapshots
+    so a swap mid-hash cannot pass.
+    """
     st = path.stat()
-    return (st.st_size, st.st_mtime_ns)
+    return (st.st_dev, st.st_ino, st.st_ctime_ns, st.st_size, st.st_mtime_ns)
 
 
 def _cleanup_attempt_dir(attempt_dir: Path | None) -> None:
@@ -1124,7 +1133,10 @@ async def build_package(
     confined to an owned per-attempt scratch dir that is removed on
     failure, pre-existing ``out_dir`` files are never written, replaced,
     or deleted on success OR failure, and the source is never written
-    or unlinked. There are NO shared stable finals: each build renames
+    or unlinked. Source identity is (dev, ino, ctime_ns, size, mtime_ns)
+    plus a pre-encode SHA and a post-encode SHA re-verified after
+    validation/meta immediately before publish; any mismatch fails
+    closed without retagging outputs onto a changed source. There are NO shared stable finals: each build renames
     its own attempt dir to a UNIQUE owned ``pkg-*`` result dir and
     returns paths inside it. The retained dir is an immutable local
     package artifact owned by the producer until the future publisher
@@ -1170,7 +1182,9 @@ async def build_package(
         # Source integrity: hash ACTUAL bytes off-loop and compare to the
         # caller-provided SHA before encoding. The old code trusted the
         # string syntactically, so ready keys could bind the wrong revision.
-        # Stat snapshot guards against the file changing under us.
+        # The snapshot is (dev, ino, ctime_ns, size, mtime_ns): bracketing
+        # the hash with before/after snapshots means a same-size replace
+        # that preserves mtime cannot pass (new inode + fresh ctime).
         stat_before = _stat_snapshot(src_resolved)
         actual_sha_task = asyncio.create_task(asyncio.to_thread(_sha256, src_resolved))
         try:
@@ -1322,6 +1336,39 @@ async def build_package(
                 raise
         except Exception as exc:
             raise TranscodeError(f"package metadata failed: {exc}") from exc
+
+        # Final source-identity gate AFTER validation/meta, immediately
+        # before the atomic publish. Validation/meta run long ffprobe
+        # passes; verifying earlier would leave a window where the source
+        # changes after we checked but before we publish. So re-verify
+        # here: bracket an off-loop post-encode hash with before/after
+        # stat snapshots and compare the digest to the pre-encode actual
+        # (which already equalled the caller-provided expected SHA).
+        # A same-size replace preserving mtime fails via inode/ctime; an
+        # in-place rewrite restoring mtime fails via ctime or via the
+        # digest. Honest limits: this is path-identity, not an open file
+        # handle, so we do not claim an adversarial swap-and-restore
+        # guarantee (a restore that also restores the full stat tuple
+        # within the window is out of scope). A private immutable input
+        # copy would be stronger but duplicates the whole original on
+        # disk; out of scope here. Normal replacement is covered, and
+        # outputs are never retagged onto a changed source.
+        # Cancel-safe: _shield_await waits the hash thread out before
+        # re-raising, so a cancel here cleans ONLY the owned attempt and
+        # the loop stays responsive (hash runs off-loop).
+        post_stat_before = _stat_snapshot(src_resolved)
+        post_sha_task = asyncio.create_task(asyncio.to_thread(_sha256, src_resolved))
+        try:
+            post_sha = await _shield_await(post_sha_task)
+        except BaseException:
+            raise
+        post_stat_after = _stat_snapshot(src_resolved)
+        if post_stat_before != stat_before or post_stat_after != stat_before:
+            raise TranscodeError("package_encoder: source changed during encode; refusing ready")
+        if post_stat_after != post_stat_before:
+            raise TranscodeError("package_encoder: source changed while verifying; refusing ready")
+        if post_sha != actual_sha or post_sha != source_sha256.lower():
+            raise TranscodeError("package_encoder: source digest changed during encode; refusing ready")
 
         # Publish: NO shared finals. Rename the WHOLE owned attempt dir to
         # a UNIQUE owned result dir (single atomic rename). The returned

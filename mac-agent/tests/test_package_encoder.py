@@ -8,6 +8,7 @@ on a zscale-equipped Mac is NOT authorized here.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import os
@@ -1157,3 +1158,263 @@ def test_artifact_vfr_threshold_past_last_frame_still_succeeds(tmp_path):
     assert r.poster.path.stat().st_size > 0
     assert r.poster.path.read_bytes()[:2] == b"\xff\xd8"
     assert r.validation["checks"].get("light.frames") == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Review fix: source identity after encode (comment 6323802628)
+# ---------------------------------------------------------------------------
+
+def _mutate_same_size_different_bytes(data: bytes) -> bytes:
+    assert len(data) > 64
+    mut = bytearray(data)
+    mid = len(mut) // 2
+    mut[mid] ^= 0xFF
+    # Avoid accidental no-op (0xFF flip always changes the byte).
+    assert bytes(mut) != data
+    return bytes(mut)
+
+
+def test_source_replace_same_size_preserved_mtime_fails_closed(tmp_path, monkeypatch):
+    """Same-size atomic replace preserving mtime must fail via inode/ctime.
+
+    REAL valid source mutated to same-size different bytes, swapped via
+    ``os.replace`` (new inode) with mtime restored to the nanosecond.
+    The old size+mtime check would PASS; the hardened
+    (dev, ino, ctime_ns, size, mtime_ns) tuple + post-encode digest must
+    raise TranscodeError with no ready/results residue. A prior good
+    result in the same out_dir stays intact; sources are never deleted.
+    """
+    import src.package_encoder as pe
+
+    _need_ffmpeg()
+    good_src = tmp_path / "good.mp4"
+    _gen_source(good_src, 320, 240, 30, 0.5, audio=False)
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    r_good = asyncio.run(build_package(
+        good_src, out, video_uuid="t-id-good",
+        source_sha256=_real_sha(good_src),
+        ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r_good.ready
+    good_light_before = r_good.light.path.read_bytes()
+    n_pkg_before = len([p for p in out.iterdir() if p.name.startswith("pkg-")])
+
+    orig_stat = src.stat()
+    orig_bytes = src.read_bytes()
+    real_sha = _real_sha(src)
+    mut_bytes = _mutate_same_size_different_bytes(orig_bytes)
+    real_validate = pe.validate_package_outputs
+
+    def _swap_then_validate(**kw):
+        tmp_swap = src.with_name(src.name + ".swap")
+        tmp_swap.write_bytes(mut_bytes)
+        os.utime(tmp_swap, ns=(orig_stat.st_atime_ns, orig_stat.st_mtime_ns))
+        os.replace(tmp_swap, src)
+        return real_validate(**kw)
+
+    monkeypatch.setattr(pe, "validate_package_outputs", _swap_then_validate)
+    with pytest.raises(TranscodeError, match="source (changed|digest)"):
+        asyncio.run(build_package(
+            src, out, video_uuid="t-id-replace",
+            source_sha256=real_sha,
+            ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+
+    new_stat = src.stat()
+    # Old check would have passed: same size + same mtime.
+    assert new_stat.st_size == orig_stat.st_size
+    assert new_stat.st_mtime_ns == orig_stat.st_mtime_ns
+    # Hardened check fires: different file identity.
+    assert (new_stat.st_ino != orig_stat.st_ino
+            or new_stat.st_ctime_ns != orig_stat.st_ctime_ns)
+    # Fail-closed: no new ready dir, no scratch, sources kept, sibling intact.
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert len([p for p in out.iterdir() if p.name.startswith("pkg-")]) == n_pkg_before
+    assert r_good.light.path.read_bytes() == good_light_before
+    assert src.is_file() and good_src.is_file()
+
+
+def test_source_inplace_rewrite_restored_mtime_fails_closed(tmp_path, monkeypatch):
+    """In-place overwrite restoring mtime must fail via ctime or digest.
+
+    Same inode/size/mtime as before, but ctime is fresh and the bytes
+    differ. Either signal must fail the build closed.
+    """
+    import src.package_encoder as pe
+
+    _need_ffmpeg()
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    orig_stat = src.stat()
+    orig_bytes = src.read_bytes()
+    real_sha = _real_sha(src)
+    mut_bytes = _mutate_same_size_different_bytes(orig_bytes)
+    assert len(mut_bytes) == len(orig_bytes)
+    real_validate = pe.validate_package_outputs
+
+    def _overwrite_then_validate(**kw):
+        with open(src, "r+b") as f:
+            f.seek(len(orig_bytes) // 2)
+            f.write(mut_bytes[len(mut_bytes) // 2:len(mut_bytes) // 2 + 1])
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                pass
+        os.utime(src, ns=(orig_stat.st_atime_ns, orig_stat.st_mtime_ns))
+        return real_validate(**kw)
+
+    monkeypatch.setattr(pe, "validate_package_outputs", _overwrite_then_validate)
+    with pytest.raises(TranscodeError, match="source (changed|digest)"):
+        asyncio.run(build_package(
+            src, out, video_uuid="t-id-inplace",
+            source_sha256=real_sha,
+            ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+
+    new_stat = src.stat()
+    assert new_stat.st_ino == orig_stat.st_ino  # truly in place
+    assert new_stat.st_size == orig_stat.st_size
+    assert new_stat.st_mtime_ns == orig_stat.st_mtime_ns
+    # At least one hardened signal differs: fresh ctime and/or new bytes.
+    assert (new_stat.st_ctime_ns != orig_stat.st_ctime_ns
+            or _real_sha(src) != real_sha)
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert [p for p in out.iterdir() if p.name.startswith("pkg-")] == []
+    assert src.is_file()
+
+
+def test_post_digest_discrimination_stats_mocked_identical(tmp_path, monkeypatch):
+    """Proves the post-encode digest check is real, not just stat.
+
+    Stats are mocked to a constant so every ``_stat_snapshot`` compares
+    equal; only the post-encode SHA (different bytes) can fail the build.
+    """
+    import src.package_encoder as pe
+
+    _need_ffmpeg()
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    real_sha = _real_sha(src)
+    orig_bytes = src.read_bytes()
+    mut_bytes = _mutate_same_size_different_bytes(orig_bytes)
+    fixed = pe._stat_snapshot(src)
+    monkeypatch.setattr(pe, "_stat_snapshot", lambda _p: fixed)
+    real_validate = pe.validate_package_outputs
+
+    def _swap_then_validate(**kw):
+        src.write_bytes(mut_bytes)
+        return real_validate(**kw)
+
+    monkeypatch.setattr(pe, "validate_package_outputs", _swap_then_validate)
+    with pytest.raises(TranscodeError, match="source digest changed"):
+        asyncio.run(build_package(
+            src, out, video_uuid="t-id-postdigest",
+            source_sha256=real_sha,
+            ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    # Stats were forced identical, bytes really changed: digest did the work.
+    assert _real_sha(src) != real_sha
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert [p for p in out.iterdir() if p.name.startswith("pkg-")] == []
+    assert src.is_file()
+
+
+def test_unchanged_source_passes_with_actual_sha_keys(tmp_path):
+    """Unchanged source still builds; keys bind the ACTUAL pre-encode SHA."""
+    _need_ffmpeg()
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    real_sha = _real_sha(src)
+    out = tmp_path / "pkg"
+    r = asyncio.run(build_package(
+        src, out, video_uuid="t-id-clean",
+        source_sha256=real_sha,
+        ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r.ready and r.source_sha256 == real_sha
+    expect_light = build_derivative_media_key(
+        "t-id-clean", "light", real_sha, DERIVATIVE_TRANSFORM_VERSION_DEFAULT)
+    assert r.media_keys["light"] == expect_light
+    _assert_result_bytes_match(r, check_hq=False)
+
+
+def test_cancel_during_post_hash_cleans_owned_no_leak(tmp_path, monkeypatch):
+    """Cancel while the post-encode source hash runs: safe cleanup.
+
+    The hash thread is shield-awaited (heartbeat stays responsive: the
+    loop ticks while blocked), CancelledError propagates, ONLY the owned
+    attempt is removed, and the source is untouched. No extra encoder
+    pass: the barrier wraps the post-encode ``_sha256`` of the source.
+    """
+    import threading
+
+    import src.package_encoder as pe
+
+    _need_ffmpeg()
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 320, 240, 30, 0.5, audio=False)
+    before = src.read_bytes()
+    real_sha = _real_sha(src)
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    src_real = Path(os.path.realpath(src))
+    real_sha256 = pe._sha256
+    entered = threading.Event()
+    release = threading.Event()
+    counter: list[int] = [0]
+    lock = threading.Lock()
+
+    def _gated_sha(path):
+        is_source = False
+        try:
+            is_source = Path(os.path.realpath(str(path))) == src_real
+        except Exception:
+            is_source = False
+        if is_source:
+            with lock:
+                counter[0] += 1
+                my_n = counter[0]
+            # Second source hash == post-encode verification hash.
+            if my_n == 2:
+                entered.set()
+                assert release.wait(timeout=60), "post-hash thread never released"
+        return real_sha256(path)
+
+    monkeypatch.setattr(pe, "_sha256", _gated_sha)
+    ticks: list[int] = []
+
+    async def _main():
+        async def _beat():
+            for _ in range(300):
+                ticks.append(1)
+                await asyncio.sleep(0.01)
+
+        beat = asyncio.create_task(_beat())
+        try:
+            task = asyncio.create_task(build_package(
+                src, out, video_uuid="t-id-cancelpost",
+                source_sha256=real_sha,
+                ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+            reached = await asyncio.to_thread(entered.wait, 90.0)
+            assert reached, "build never reached post-encode hash"
+            await asyncio.sleep(0.1)
+            task.cancel()
+            await asyncio.sleep(0.1)
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert task.done()
+        finally:
+            release.set()
+            beat.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await beat
+
+    asyncio.run(_main())
+    assert len(ticks) > 5  # loop stayed responsive while hash blocked
+    assert src.read_bytes() == before
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert [p for p in out.iterdir() if p.name.startswith("pkg-")] == []
