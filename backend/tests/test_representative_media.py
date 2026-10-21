@@ -298,3 +298,87 @@ def test_ready_media_remap_only_promotes_fully_cached_same_code_candidates(test_
     active = test_db.query(RepresentativeMediaSelection).filter_by(active=True, dive_code="103B", selection_role="median").one()
     assert active.dive_id == ready.id
     assert active.selection_reason == "auto_ready_media_remap"
+
+
+def _low_rep(test_db, code="103B"):
+    gallery = representative_gallery(test_db, dive_code=code)
+    reps = gallery["dives"][0]["representatives"]
+    return next(rep for rep in reps if rep["role"] == "low")
+
+
+def _ready_entry(test_db, asset_id, rendition, key, size=100):
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset_id, media_key=key, rendition=rendition,
+        storage_path=f"/tmp/{key}",
+        content_type="image/jpeg" if rendition == "poster" else "video/mp4",
+        size_bytes=size, status="ready",
+    ))
+
+
+def test_gallery_preserves_720p_failure_without_proxy_ready(test_db):
+    """Failed 720p, no proxy file: the target failure stays in media.failure."""
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    low = _dive(test_db, session, code="103B", performance="B", uuid="fail720-low", days=1)
+    _dive(test_db, session, code="103B", performance="M", uuid="fail720-mid", days=2)
+    _dive(test_db, session, code="103B", performance="P", uuid="fail720-high", days=3)
+    _ready_entry(test_db, low.photos_asset_id, "poster", "w" * 64)
+    test_db.add(MediaJob(
+        photos_asset_id=low.photos_asset_id, media_key="x" * 64,
+        rendition="proxy_720p", status="failed",
+        last_error="osxphotos_export_failed:boom",
+    ))
+    test_db.commit()
+
+    rep = _low_rep(test_db)
+    assert rep["media"]["proxy_rendition"] is None
+    assert rep["media"]["playback_url"] is None
+    assert rep["media"]["state"] == "partial"
+    assert rep["media"]["failure"]["code"] == "osxphotos_export_failed"
+
+
+def test_gallery_keeps_360p_playable_and_reports_720p_failure(test_db):
+    """Failed 720p with a ready 360p: playable fallback, failure still visible."""
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    low = _dive(test_db, session, code="103B", performance="B", uuid="fb360-low", days=1)
+    _dive(test_db, session, code="103B", performance="M", uuid="fb360-mid", days=2)
+    _dive(test_db, session, code="103B", performance="P", uuid="fb360-high", days=3)
+    _ready_entry(test_db, low.photos_asset_id, "poster", "y" * 64)
+    _ready_entry(test_db, low.photos_asset_id, "proxy_360p", "z" * 64)
+    test_db.add(MediaJob(
+        photos_asset_id=low.photos_asset_id, media_key="v" * 64,
+        rendition="proxy_720p", status="failed",
+        last_error="osxphotos_export_failed:boom",
+    ))
+    test_db.commit()
+
+    rep = _low_rep(test_db)
+    assert rep["media"]["proxy_rendition"] == "proxy_360p"
+    assert rep["media"]["playback_url"] is not None
+    assert rep["media"]["state"] == "ready"
+    assert rep["media"]["failure"]["code"] == "osxphotos_export_failed"
+
+
+def test_gallery_reports_queued_720p_before_missing_360p(test_db):
+    """Queued 720p with no 360p: target job state, not a synthetic missing."""
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    low = _dive(test_db, session, code="103B", performance="B", uuid="q720-low", days=1)
+    _dive(test_db, session, code="103B", performance="M", uuid="q720-mid", days=2)
+    _dive(test_db, session, code="103B", performance="P", uuid="q720-high", days=3)
+    _ready_entry(test_db, low.photos_asset_id, "poster", "u" * 64)
+    test_db.add(MediaJob(
+        photos_asset_id=low.photos_asset_id, media_key="t" * 64,
+        rendition="proxy_720p", status="queued",
+    ))
+    test_db.commit()
+
+    rep = _low_rep(test_db)
+    assert rep["media"]["renditions"]["proxy_720p"]["status"] == "queued"
+    assert rep["media"]["proxy_rendition"] is None
+    assert rep["media"]["state"] == "partial"
+    assert rep["media"]["failure"] is None

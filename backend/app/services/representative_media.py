@@ -364,7 +364,24 @@ def _representative_payload(
     }
     state = _aggregate_state(renditions, bool(candidates))
     proxy_rendition = _preferred_proxy_rendition(renditions)
-    proxy_state = renditions[proxy_rendition] if proxy_rendition else {"status": "missing", "playback_url": None, "failure": None}
+    if proxy_rendition:
+        proxy_state = renditions[proxy_rendition]
+    else:
+        # No playable proxy: report the 720p target job state (queued/failed)
+        # before the 360p state so an upgrade failure is never replaced by a
+        # synthetic "missing" that drops media.failure.
+        target_state = renditions.get("proxy_720p", {})
+        fallback_state = renditions.get("proxy_360p", {})
+        if target_state.get("status") not in (None, "missing"):
+            proxy_state = target_state
+        elif fallback_state.get("status") not in (None, "missing"):
+            proxy_state = fallback_state
+        else:
+            proxy_state = {"status": "missing", "playback_url": None, "failure": None}
+    # A ready 360p fallback stays playable while the 720p upgrade failure is
+    # still reported: failure never flips a readable state to failed (state
+    # comes from _aggregate_state above, untouched here).
+    failure = proxy_state.get("failure") or renditions.get("proxy_720p", {}).get("failure") or renditions["poster"]["failure"]
     return {
         "role": role,
         "label": ROLE_LABELS.get(role, role.title()),
@@ -380,7 +397,7 @@ def _representative_payload(
             "playback_url": proxy_state.get("playback_url"),
             "proxy_rendition": proxy_rendition,
             "renditions": renditions,
-            "failure": proxy_state.get("failure") or renditions["poster"]["failure"],
+            "failure": failure,
         },
         "replacement": {
             "available": bool(candidates),

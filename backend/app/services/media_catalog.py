@@ -23,6 +23,10 @@ PLACEHOLDER_ERRORS = {"materialization_only_placeholders", "materialized_video_n
 RETRYABLE_PREFIXES = ("permission_", "photos_access_", "osxphotos_export_timeout", "osxphotos_export_failed")
 NEW_RECALL_MIN_FREE_BYTES = 5 * 1024**3
 PROJECTED_RECALL_MIN_FREE_BYTES = 5 * 1024**3
+# Growth fallback when no ready 720p observation exists yet: deliberately above
+# the legacy mixed-proxy average so a 360p-dominated cache never shrinks the
+# projection. Informational only; free-space gates use source-byte peaks.
+MISSING_720P_GROWTH_FALLBACK_BYTES = 1_000_000
 
 # Lot B target readiness: production needs poster + TRUE proxy_720p. A legacy
 # proxy_360p keeps the clip playable (proxy_state "ready") but never counts as
@@ -391,7 +395,11 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
     peak_source = max(known_sizes, default=500_000_000)
     rolling_peak = min(max(int(peak_source * 2.5), 1_250_000_000), 3 * 1024**3)
     avg_poster = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready")).scalar() or 100_000
-    avg_proxy = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition.in_({"proxy_720p", "proxy_360p"}), MediaCacheEntry.status == "ready")).scalar() or 300_000
+    # A missing 720p output is estimated from TRUE 720p observations only: a
+    # cache dominated by small legacy 360p files must not shrink the
+    # projection. With no 720p observation yet, use the conservative fallback.
+    avg_proxy_720p = db.execute(select(func.avg(MediaCacheEntry.size_bytes)).where(MediaCacheEntry.rendition == "proxy_720p", MediaCacheEntry.status == "ready")).scalar()
+    avg_proxy = int(avg_proxy_720p) if avg_proxy_720p else MISSING_720P_GROWTH_FALLBACK_BYTES
     # A 360p-playable asset still needs its 720p upgrade, and an evicted
     # poster must be rebuilt: growth counts live missing poster + missing
     # true 720p, never stale stored states.
@@ -446,12 +454,22 @@ def _population_candidates(db: Session, catalog_item_ids: list[int] | None = Non
     revision = db.execute(select(func.max(CaptionedMediaCatalog.catalog_revision))).scalar_one_or_none()
     if not revision:
         raise ValueError("catalog_not_available")
+    # A pre-Lot-B run could complete poster + 360p as target-ready. Reconsider
+    # success-completed items ("ready", "skipped_cached") against the CURRENT
+    # live target (poster + TRUE 720p): anything still missing its upgrade or
+    # evicted since stays a candidate. Failure outcomes ("partial",
+    # "unavailable") keep their terminal exclusion, so retry and
+    # permanent-failure semantics are unchanged. Intra-run dedup is intact:
+    # each catalog row is considered once per run and the unique
+    # (run_id, catalog_item_id) index rejects duplicates; job creation still
+    # reuses an active job instead of duplicating it.
     stmt = select(CaptionedMediaCatalog).where(
         CaptionedMediaCatalog.catalog_revision == revision,
         CaptionedMediaCatalog.eligibility == "eligible",
         CaptionedMediaCatalog.id.not_in(
             select(MediaCatalogPopulationItem.catalog_item_id).where(
                 MediaCatalogPopulationItem.completed_at.is_not(None),
+                MediaCatalogPopulationItem.status.not_in(("ready", "skipped_cached")),
             )
         ),
     )

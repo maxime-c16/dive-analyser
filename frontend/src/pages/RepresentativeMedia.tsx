@@ -42,6 +42,17 @@ function stateClass(state: string) {
   return 'text-app-muted'
 }
 
+// Lot B: 720p is the production proxy, legacy 360p the playable fallback.
+// Order: ready 720p, then ready 360p, then the 720p job state (queued/failed),
+// then the 360p state — a queued/failed 720p job with no 360p entry must not
+// read as missing.
+export function proxyDisplayStatus(renditions: RepresentativeCard['media']['renditions']): string {
+  if (renditions.proxy_720p?.status === 'ready' || renditions.proxy_360p?.status === 'ready') return 'ready'
+  const target = renditions.proxy_720p?.status
+  if (target && target !== 'missing') return target
+  return renditions.proxy_360p?.status ?? 'missing'
+}
+
 function RepresentativeCardView({
   code,
   rep,
@@ -84,7 +95,7 @@ function RepresentativeCardView({
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.poster')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(rep.media.renditions.poster.status)}</div></div>
-          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{mediaStatusLabel((rep.media.renditions.proxy_720p?.status === 'ready' ? 'ready' : rep.media.renditions.proxy_360p?.status) ?? 'missing')}</div></div>
+          <div className="border border-app p-2"><span className="text-app-muted">{t('analysis.proxy')}</span><div className="mt-1 text-app-text">{mediaStatusLabel(proxyDisplayStatus(rep.media.renditions))}</div></div>
         </div>
         {failure && (
           <details className="border border-app p-3">

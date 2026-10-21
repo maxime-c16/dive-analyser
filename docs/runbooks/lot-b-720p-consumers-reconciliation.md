@@ -14,7 +14,11 @@ does NOT validate its quality (no HQ1080 in this lot).
 - `backend/app/services/representative_media.py`: production target is
   `("poster", "proxy_720p")`; reading accepts legacy 360p as fallback.
   Playback URL, proxy state, coverage and remap planning use the preferred
-  proxy. Replacement creation rejects 360p.
+  proxy. Replacement creation rejects 360p. When no proxy is ready, the
+  720p target job state (queued/failed) is reported before the 360p state,
+  so a failed upgrade's error stays in `media.failure`; a ready 360p
+  fallback keeps playback while the 720p failure is still reported, never
+  flipping a readable state to failed.
 - `backend/app/services/dive_analysis_service.py`: attempt media prefers
   720p, falls back to 360p.
 - `backend/app/services/media_catalog.py`: ready sets, poster/media states,
@@ -40,6 +44,16 @@ does NOT validate its quality (no HQ1080 in this lot).
   Population growth counts live missing posters plus assets missing true
   720p. A job that reports `ready` without a cache entry no longer recurses
   forever; the run waits for the next refresh.
+  A pre-Lot-B population item completed as `ready` (poster + legacy 360p)
+  does not block its 720p upgrade: success-completed items (`ready`,
+  `skipped_cached`) are reconsidered against live target readiness, while
+  terminal failure outcomes (`partial`, `unavailable`) keep their exclusion
+  so retry and permanent-failure semantics are unchanged. Intra-run dedup
+  (unique `run_id` + `catalog_item_id`) and active-job reuse still guard
+  duplicates. Growth for a missing 720p is averaged from TRUE 720p
+  observations only (never mixed with small legacy 360p files); with no 720p
+  observation yet, the documented conservative
+  `MISSING_720P_GROWTH_FALLBACK_BYTES` applies.
 - `backend/app/services/media_recall.py`: readiness exposes true `proxy_720p`
   alongside the generic `proxy` (any) and the legacy `proxy_360p` key, which
   also reports the playable any-proxy state (not 360p-only) for old dashboards.
@@ -56,7 +70,9 @@ does NOT validate its quality (no HQ1080 in this lot).
   `representativeMediaApi.ts` sends `['poster','proxy_720p']` for replace and
   types the new coverage keys; `mediaRecallApi.ts` types the new readiness
   keys. Player transport (`mediaApi.ts`, `EvaluationPlayer.tsx`) already
-  preferred 720p.
+  preferred 720p. The proxy cell uses `proxyDisplayStatus`: ready 720p,
+  then ready 360p, then the 720p job state, then the 360p state — a
+  queued/failed 720p job with no 360p entry no longer reads as missing.
 
 ## What was deliberately NOT changed (lot A ownership)
 
@@ -128,9 +144,21 @@ deletes, finalises, or mutates retention.
   ready); 720p created after the scan is announced (`proxy`/`proxy_720p`/
   legacy keys) without a rescan and the asset counts as cached; a poster
   added after the scan is recognized and queues 720p; deleting 720p leaving
-  360p stays playable but re-queues the 720p upgrade.
+  360p stays playable but re-queues the 720p upgrade. Completed-item round:
+  an old success-completed poster+360p item is reconsidered and queues one
+  720p job; an evicted cache after an old completed 720p item is
+  reconsidered; a terminally failed item stays excluded (no infinite retry).
+  Growth round: a 360p-dominated cache with one bigger 720p file projects
+  from the 720p observation only; with no 720p observation the documented
+  conservative fallback applies.
 - `mac-agent/tests/test_source_vault_720p_finalization.py`: 720p+poster
   finalises with grace; legacy 360p still finalises; request/failed
   transcode never finalises; cleanup skips unverified/pinned/active.
 - Updated: `test_representative_media.py`, `test_representative_population.py`,
-  `test_media_node.py` (production target is now 720p).
+  `test_media_node.py` (production target is now 720p). Representative round:
+  a failed 720p with no proxy keeps the error in `media.failure`; a ready
+  360p fallback stays playable while still reporting the 720p failure; a
+  queued 720p with no 360p keeps the target job state. Frontend round:
+  `proxyDisplayStatus` unit tests (ready 720p, ready 360p, queued/failed
+  720p with no 360p, 360p fallback, both missing) plus render tests for a
+  queued 720p proxy cell and a ready-fallback cell with failure details.

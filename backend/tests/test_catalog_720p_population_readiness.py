@@ -13,10 +13,15 @@ from datetime import datetime
 
 from app.models.dive import Dive
 from app.models.media import MediaAgent, MediaCacheEntry, MediaJob
-from app.models.media_catalog import CaptionedMediaCatalog
+from app.models.media_catalog import (
+    CaptionedMediaCatalog,
+    MediaCatalogPopulationItem,
+    MediaCatalogPopulationRun,
+)
 from app.models.photos_asset import PhotosAsset, PhotosAssetAgentIdentity
 from app.models.session import Session as SessionModel
 from app.services.media_catalog import (
+    MISSING_720P_GROWTH_FALLBACK_BYTES,
     _population_candidates,
     catalog_population_plan,
     ingest_catalog_chunk,
@@ -502,3 +507,171 @@ def test_failed_720p_upgrade_without_proxy_announces_failure(test_db):
     assert item.status == "partial"
     assert item.proxy_status == "failed"
     assert item.last_error_code == "worker_failed"
+
+
+def _old_completed_item(test_db, row, *, status="ready"):
+    """Simulate an item completed by an older population run."""
+    run = MediaCatalogPopulationRun(
+        catalog_revision=row.catalog_revision, status="complete", scope="bounded",
+        stage=1, total_items=1, completed_items=1, ready_items=1 if status == "ready" else 0,
+        started_at=datetime(2026, 1, 1), completed_at=datetime(2026, 1, 2),
+    )
+    test_db.add(run)
+    test_db.flush()
+    test_db.add(MediaCatalogPopulationItem(
+        run_id=run.id, catalog_item_id=row.id, priority=70,
+        priority_class="P3", status=status,
+        poster_status="ready",
+        proxy_status="ready" if status == "ready" else status,
+        source_status="missing",
+        completed_at=datetime(2026, 1, 2),
+    ))
+    test_db.commit()
+    return run
+
+
+def test_old_success_completed_360p_item_reconsidered_for_720p_upgrade(test_db):
+    """A pre-Lot-B run completed poster + 360p as target-ready.
+
+    The success completion must not block the missing 720p upgrade: the item
+    is reconsidered against live target readiness and queues exactly one
+    720p job (active-job reuse still guards duplicates).
+    """
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="old360")
+    _ready(test_db, asset, "poster", "m1" * 32)
+    _ready(test_db, asset, "proxy_360p", "m2" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-old360")
+
+    _old_completed_item(test_db, _row(test_db), status="ready")
+
+    plan = catalog_population_plan(test_db)
+    assert plan["already_fully_ready"] == 0
+    assert plan["playable_fallback_pending_720p"] == 1
+    assert [row.id for row, _, _ in _population_candidates(test_db)] == [_row(test_db).id]
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    jobs = test_db.query(MediaJob).all()
+    assert len(jobs) == 1
+    assert jobs[0].rendition == "proxy_720p"
+    assert run.items[0].completed_at is None
+
+
+def test_evicted_cache_after_old_completed_720p_reconsidered(test_db):
+    """A fully-ready item completed long ago, then evicted, upgrades again."""
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="oldevict")
+    _ready(test_db, asset, "poster", "m3" * 32)
+    _ready(test_db, asset, "proxy_720p", "m4" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-oldevict")
+    assert _row(test_db).media_state == "ready"
+
+    _old_completed_item(test_db, _row(test_db), status="ready")
+    assert _population_candidates(test_db) == []
+
+    test_db.query(MediaCacheEntry).filter_by(photos_asset_id=asset.id, rendition="proxy_720p").delete()
+    test_db.commit()
+
+    assert [row.id for row, _, _ in _population_candidates(test_db)] == [_row(test_db).id]
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    jobs = test_db.query(MediaJob).all()
+    assert len(jobs) == 1
+    assert jobs[0].rendition == "proxy_720p"
+
+
+def test_failed_completed_item_stays_excluded(test_db):
+    """Terminal failure outcomes keep their exclusion: no infinite retry."""
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="oldfail")
+    _ready(test_db, asset, "poster", "m5" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-oldfail")
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    _fail_proxy_job_and_refresh(test_db, run, status="unavailable", error="source_missing:gone")
+    assert run.items[0].status == "partial"
+    assert run.items[0].completed_at is not None
+
+    # The 720p target is still missing live, but the terminal failure is not
+    # re-queued by the next plan.
+    assert _population_candidates(test_db) == []
+
+
+def _sized_ready(test_db, asset, rendition, key, size_bytes):
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key=key, rendition=rendition,
+        storage_path=f"/tmp/{key}",
+        content_type="image/jpeg" if rendition == "poster" else "video/mp4",
+        size_bytes=size_bytes, status="ready",
+    ))
+
+
+def _ingest_two(test_db, first, second):
+    run = start_catalog_run(test_db, "mac-media-01")
+    run.status = "cataloging"
+    records = []
+    for local_uuid, cloud in (first, second):
+        records.append({
+            "agent_local_uuid": local_uuid, "cloud_fingerprint": cloud,
+            "raw_caption": "103B G 1m", "captured_at": datetime(2026, 1, 1),
+            "duration_seconds": 12.0, "width": 1920, "height": 1080,
+            "estimated_source_bytes": 20_000_000, "filename": "clip.mov",
+            "local_available": False, "is_missing": True, "in_cloud": True,
+            "is_hidden": False,
+            "parsed_metadata": {"dive_code": "103B", "height": "1m", "performance": "G"},
+        })
+    ingest_catalog_chunk(test_db, run, records, 2)
+    test_db.commit()
+
+
+def test_growth_uses_720p_observations_only(test_db):
+    """A 360p-dominated cache must not shrink the 720p growth projection."""
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset_small, uuid_small = _seed_catalog_asset(test_db, session, tag="grow360", code="103B")
+    asset_big, uuid_big = _seed_catalog_asset(test_db, session, tag="grow720", code="104B")
+    _sized_ready(test_db, asset_small, "poster", "n1" * 32, 50_000)
+    _sized_ready(test_db, asset_small, "proxy_360p", "n2" * 32, 100_000)
+    _sized_ready(test_db, asset_big, "poster", "n3" * 32, 50_000)
+    _sized_ready(test_db, asset_big, "proxy_720p", "n4" * 32, 2_000_000)
+    test_db.commit()
+    _ingest_two(test_db, (uuid_small, "cloud-grow360"), (uuid_big, "cloud-grow720"))
+
+    plan = catalog_population_plan(test_db)
+    # Only the 360p asset still needs its 720p upgrade, estimated from the
+    # TRUE 720p observation (2 MB), not dragged down by the small 360p file.
+    assert plan["estimated_debian_cache_growth_bytes"] == 2_000_000
+
+
+def test_growth_falls_back_without_720p_observations(test_db):
+    """No 720p observation yet: documented conservative fallback, no 360p math."""
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="grownone")
+    _sized_ready(test_db, asset, "poster", "n5" * 32, 50_000)
+    _sized_ready(test_db, asset, "proxy_360p", "n6" * 32, 80_000)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-grownone")
+
+    plan = catalog_population_plan(test_db)
+    assert plan["estimated_debian_cache_growth_bytes"] == MISSING_720P_GROWTH_FALLBACK_BYTES
+    assert MISSING_720P_GROWTH_FALLBACK_BYTES > 80_000
