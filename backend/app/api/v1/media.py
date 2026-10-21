@@ -1311,6 +1311,18 @@ async def upload_job_artifact(
 
     staging_path = cache_upload_staging_path(job_id, lease_token)
     actual_size = 0
+    # Pre-accept ownership: the streaming phase owns this unique per-request
+    # staging file until the accept worker takes over. Any read/write/close
+    # failure or cancellation here must remove ONLY this staging file (the
+    # DB-backed cleaner never sees it). Once _verify_and_accept starts, it
+    # owns the file — checksum/guard failures unlink inside the worker, and
+    # success leaves the committed job pointer untouched. No outer blind
+    # unlink and no DB check here: a TOCTOU re-read could mistake the
+    # committed pointer for an orphan and delete live bytes, and a blind
+    # finally would delete the accepted artifact when run_to_completion
+    # re-raises CancelledError AFTER the worker already committed (the
+    # deferred-thread boundary: cancel while hashing still runs the worker
+    # to completion, then re-raises here).
     try:
         while True:
             chunk = await file.read(1024 * 1024)
@@ -1318,8 +1330,14 @@ async def upload_job_artifact(
                 break
             actual_size += len(chunk)
             write_upload_chunk(staging_path, chunk)
-    finally:
         await file.close()
+    except BaseException:
+        try:
+            await file.close()
+        except BaseException:
+            pass
+        staging_path.unlink(missing_ok=True)
+        raise
 
     if actual_size != size_bytes:
         staging_path.unlink(missing_ok=True)
