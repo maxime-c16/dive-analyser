@@ -16,11 +16,13 @@ COPY requirements.txt .
 # Install Python dependencies with minimal cache
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Create the non-root user before copying the code so ownership is set by
+# COPY --chown in the same layer, instead of a recursive chown that rewrites
+# every file into an extra layer on each deploy.
+RUN adduser -D diver && chown diver:diver /app
 
-# Create non-root user for security (optional but good practice)
-RUN adduser -D diver && chown -R diver:diver /app
+# Copy application code
+COPY --chown=diver:diver . .
 USER diver
 
 # Health check

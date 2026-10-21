@@ -233,6 +233,7 @@ tier_images() {
     # so it is the one whose breakage would actually bite.
     ci_run image-frontend \
         docker build -f "$ROOT/frontend/Dockerfile.deploy" \
+        --build-arg "APP_SHA=$(git -C "$ROOT" rev-parse HEAD)" \
         -t "dive-analyser-frontend:$tag" "$ROOT/frontend" \
         || { rc=1; ci_err "frontend image build failed"; }
 

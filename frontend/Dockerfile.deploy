@@ -1,12 +1,24 @@
-FROM node:20-alpine AS build
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
+# Dependencies are the only cacheable part: this layer is reused until the
+# lockfile changes, which saves a full `npm ci` on most deploys.
 COPY package*.json ./
 RUN npm ci
 
-COPY . .
+FROM deps AS build
+
+# Cache fence. The daemon's layer cache once shipped a stale bundle (COPY and
+# npm-run-build cache-hit on changed sources), so every layer below must be
+# rebuilt for each commit. A RUN that consumes the commit SHA changes on every
+# commit, which invalidates everything after it under any builder, regardless
+# of how COPY computes its cache key. The same commit rebuilt is a cache hit,
+# which is correct: deploys only build clean checkouts of that commit.
 ARG APP_SHA=dev
+RUN echo "$APP_SHA" > /tmp/source-sha
+
+COPY . .
 ENV VITE_APP_SHA=$APP_SHA
 RUN npm run build
 

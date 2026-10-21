@@ -6,7 +6,9 @@
 #   1. Refuse to deploy a dirty tree. Deploying uncommitted files is how you
 #      end up unable to explain what is running.
 #   2. Refuse to run without a green gate (skip with --skip-gate for hotfixes,
-#      which is then reported loudly).
+#      which is then reported loudly). ci/ship.sh skips it quietly only when
+#      GitHub's required gate already passed on this exact tree, and says so
+#      through DIVE_GATE_PROOF.
 #   3. Tag the incoming image with the git SHA, remember the *currently running*
 #      image id, and only then swap. If health checks fail, put the old image
 #      back and re-verify before reporting failure.
@@ -90,12 +92,20 @@ fi
 
 # ------------------------------------------------------------ 2. gate
 
+# A backend-only deploy ships no frontend code, so it skips the frontend tier.
+gate_tiers="fast frontend"
+[ "$ONLY" = "backend" ] && gate_tiers="fast"
+
 if [ "$SKIP_GATE" -eq 0 ]; then
-    ci_step "gate"
-    if ! ci_run gate "$ROOT/ci/gate.sh" fast frontend; then
+    ci_step "gate ($gate_tiers)"
+    # shellcheck disable=SC2086
+    if ! ci_run gate "$ROOT/ci/gate.sh" $gate_tiers; then
         ci_die "gate failed — not deploying"
     fi
     ci_ok "gate green"
+elif [ -n "${DIVE_GATE_PROOF:-}" ]; then
+    ci_step "gate"
+    ci_ok "already verified on GitHub: $DIVE_GATE_PROOF"
 else
     ci_warn "skipping gate (--skip-gate): deploying WITHOUT CI verification"
 fi
@@ -189,16 +199,16 @@ rollback() {
 if [ "$ONLY" != "backend" ]; then
     ci_step "build: frontend production image"
     if [ "$DRY_RUN" -eq 1 ]; then
-        ci_warn "would run: docker build --no-cache -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
+        ci_warn "would run: docker build -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
     else
-        # --no-cache: the daemon's layer cache once shipped a stale frontend
-        # bundle (COPY/npm-run-build cache-hit on changed sources), so
-        # /register + /account 404'd into the login redirect while the
-        # deploy reported success. Health checks only probe status codes
-        # and cannot catch content staleness, so always rebuild frontend
-        # from scratch. Deploys are infrequent; correctness beats minutes.
+        # The daemon's layer cache once shipped a stale frontend bundle
+        # (COPY/npm-run-build cache-hit on changed sources), so /register +
+        # /account 404'd into the login redirect while the deploy reported
+        # success. Health checks cannot catch content staleness. The
+        # Dockerfile therefore fences the cache with APP_SHA: `npm ci` is
+        # reused while the lockfile is unchanged, but sources and the bundle
+        # are rebuilt for every commit. APP_SHA must stay the full commit SHA.
         ci_run build-frontend docker build \
-            --no-cache \
             -f "$ROOT/frontend/Dockerfile.deploy" \
             -t "$FRONTEND_IMAGE:sha-$sha" \
             --label "dive.analyser/sha=$sha" \

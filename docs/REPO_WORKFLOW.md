@@ -94,17 +94,25 @@ Full setup and rationale: `docs/CD.md`.
    or if its HEAD isn't on GitHub (that would lose work).
 2. Takes a lock (`~/.cache/dive-ci/deploy.lock`), then
    `git checkout --detach <sha>` in `~/dive-analyser`.
-3. Runs that commit's `ci/deploy.sh`: gate (fast + frontend tiers), build
-   images tagged `sha-<sha>`, recreate the backend and frontend containers,
-   reload both nginx front doors (LAN `dive-analyser-nginx-1` and Funnel
+3. Picks the scope: only the frontend if nothing outside `frontend/` changed
+   since the running backend's commit, only the backend if `frontend/` and
+   `docker-compose.yml` are unchanged since the running frontend's commit,
+   otherwise both (`--full` forces both).
+4. Runs that commit's `ci/deploy.sh`: gate (fast + frontend tiers; fast only
+   for a backend-only deploy), build images tagged `sha-<sha>`, recreate the
+   backend and/or frontend containers, reload both nginx front doors (LAN `dive-analyser-nginx-1` and Funnel
    `dive-funnel-funnel-proxy-1`; they cache container IPs), and health-check
-   over HTTPS.
-4. If anything fails, it restores the previous checkout. If the failure came
+   over HTTPS. The server gate is skipped when GitHub's required `gate`
+   check already passed on a commit with the *identical tree* (normally the
+   merged PR's head; see `ci/gate-proof.py`). If the tree differs, the check
+   is missing or red, or GitHub can't be reached, the server runs the gate as
+   before. `--server-gate` forces it.
+5. If anything fails, it restores the previous checkout. If the failure came
    after the containers were swapped, it also restores the previous images
    and recreates the backend: the backend bind-mounts `./backend`, so source
    and image have to roll back together. A gate or build failure restarts
    nothing.
-5. Appends a line to `~/.cache/dive-ci/deploys.log`.
+6. Appends a line to `~/.cache/dive-ci/deploys.log`.
 
 **Mac deploy** (`ci/ship.sh mac`):
 
