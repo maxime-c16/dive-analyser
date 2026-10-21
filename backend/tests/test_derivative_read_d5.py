@@ -734,10 +734,25 @@ def test_ambiguous_derivative_location_fails_closed(client, db, python_streamed_
 
 
 # ------------------------------------------------------- evaluation
+# Evaluation stays off the derivative read path until a real consumer
+# cutover lands: per-item derivative resolution here would reintroduce
+# N+1 round trips after the queue's batched probes. Library status keeps
+# the shared resolver; evaluation keeps legacy entries + backbone only.
 
 
-def test_evaluation_status_carries_derivative_choice(client, db):
+def test_evaluation_status_carries_no_derivatives(client, db, monkeypatch):
+    import app.services.derivative_read as derivative_read_module
     from app.services import evaluation_access
+
+    def _fail(_db, _uuid, **_kwargs):
+        raise AssertionError("evaluation status must not resolve derivatives")
+
+    monkeypatch.setattr(
+        derivative_read_module, "safe_resolve_clip_derivatives", _fail
+    )
+    monkeypatch.setattr(
+        derivative_read_module, "resolve_clip_derivatives", _fail
+    )
 
     dive = db.query(Dive).filter_by(video_uuid=UUID_FULL).one()
     asset = db.query(PhotosAsset).filter_by(video_uuid=UUID_FULL).one()
@@ -748,11 +763,44 @@ def test_evaluation_status_carries_derivative_choice(client, db):
     payload = evaluation_access.media_status(
         db, request_row, asset, prefetched=([], False), backbone_available=True
     )
-    assert payload["derivatives"]["light"]["state"] == "ready"
-    assert payload["derivatives"]["hq"]["state"] == "ready"
-    assert payload["derivatives"]["recommended"] == "hq"
+    assert "derivatives" not in payload
     # Playback selection unchanged (legacy entries + backbone original).
     assert payload["playback_url"] == f"/api/v1/evaluations/requests/{request_row.id}/media/play"
+
+
+def test_evaluation_queue_batch_does_not_call_derivative_resolver(db, monkeypatch):
+    import app.services.derivative_read as derivative_read_module
+    from app.services import evaluation_queue
+
+    calls: list = []
+
+    def _fail(_db, _uuid, **_kwargs):
+        calls.append(_uuid)
+        raise AssertionError("queue batch must not resolve derivatives per item")
+
+    monkeypatch.setattr(
+        derivative_read_module, "safe_resolve_clip_derivatives", _fail
+    )
+    monkeypatch.setattr(
+        derivative_read_module, "resolve_clip_derivatives", _fail
+    )
+
+    user = db.query(AppUser).filter_by(email="user-a@example.test").one()
+    pairs = []
+    for uuid in (UUID_FULL, UUID_SMALL):
+        dive = db.query(Dive).filter_by(video_uuid=uuid).one()
+        request_row = EvaluationRequest(
+            dive_id=dive.id, active=True, created_by_user_id=user.id
+        )
+        db.add(request_row)
+        db.flush()
+        pairs.append((request_row, dive))
+    items = evaluation_queue._batch_payloads(db, pairs)
+    assert calls == []
+    assert len(items) == 2
+    for item in items:
+        assert set(item["media"]) == {"status", "poster_url", "playback_url"}
+        assert "derivatives" not in item["media"]
 
 
 # ------------------------------------------------------- review fixes

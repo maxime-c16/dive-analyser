@@ -234,25 +234,6 @@ def media_status(
     full_quality = bool(original or backbone_available)
     preview = next((entry for rendition in ('proxy_720p', 'proxy_360p') for entry in entries if entry.rendition == rendition), None)
     poster = _poster_entry(entries)
-    # D5 durable-derivative read (additive, read-only): the same shared
-    # selector as Library status. Playback selection here is unchanged
-    # (legacy entries + backbone original); the block only discloses the
-    # honest hq/light/poster choice for a future cutover. Never breaks
-    # legacy status on old-schema databases.
-    derivatives_payload = None
-    if backbone_available is not None:
-        from app.config import get_settings as _get_settings
-
-        _settings = _get_settings()
-        if _settings.user_auth_enabled and _settings.b2_playback_canary_enabled:
-            from app.services.derivative_read import safe_resolve_clip_derivatives
-
-            # Old-schema databases (pre-D1 migration) have no derivative
-            # ledger: safe_resolve returns None and legacy status keeps
-            # serving. Any other DB error propagates.
-            derivatives_payload = safe_resolve_clip_derivatives(db, asset.video_uuid)
-            if derivatives_payload is not None:
-                derivatives_payload = derivatives_payload.to_status_payload()
     if playable is not None or full_quality:
         status_value = "ready"
     elif has_active:
@@ -272,7 +253,6 @@ def media_status(
         "full_quality_url": f"{base}/play?rendition=original" if full_quality else None,
         "preview_url": f"{base}/play?rendition={preview.rendition}" if preview else None,
         "available_renditions": sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
-        "derivatives": derivatives_payload,
     }
 
 
