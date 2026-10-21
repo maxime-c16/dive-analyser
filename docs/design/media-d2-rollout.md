@@ -9,6 +9,12 @@ are already live and NULL) and no user-visible behavior.
 1. **Server deploy** (`ci/ship.sh server --dry-run`, then `server`).
    No manual SQL. The new code reads/writes only the D1 columns; old code
    already ignores them, and the new server still serves old workers (below).
+   This PR changes `docker-compose.yml`: follow the repository's proxy step
+   after the server deploy (`docker-compose up -d nginx` in the server stack).
+   `ci/deploy.sh` already reloads both `dive-analyser-nginx-1` and
+   `dive-funnel-funnel-proxy-1` after replacing application containers; verify
+   both reloads succeeded in the ship log and both LAN/public health checks
+   pass. Recreating nginx alone does not replace the Funnel proxy reload.
 2. **Mac deploy** (`ci/ship.sh mac`) once the server is healthy. Verify the
    agent runs the new SHA and the pid is stable (ship.sh checks this); a
    lingering old worker process keeps minting tokenless leases, so the
