@@ -69,11 +69,17 @@ durable derivative replaces them.
   decoder in 8.1.2 — Q2 repro). The server producer (`browser_upload.py:63`)
   gets the same selector; add a regression test running the exact Q2 command
   shape against a fixture probe JSON with an `apac` first track.
-- Portrait rule (fixes Q1): scale on the **short side**
-  (`scale=720:-2` / `scale=1080:-2`, i.e. `scale=-2:<short-side>` semantics),
-  never `scale=-2:720` height-fixed. No upscale: source short side < 720 gets
-  `light` only (= source size, still tone-mapped/SDR/faststart); source short
-  side < 1080 gets no distinct `hq`.
+- Portrait rule (fixes Q1): scale on the **short side** — portrait
+  `scale=<short>:-2` (width-fixed, e.g. `scale=720:-2` → 720×1280),
+  landscape `scale=-2:<short>` (height-fixed, e.g. `scale=-2:720` →
+  1280×720) — computed from display (rotation-adjusted) dimensions, never
+  the legacy `scale=-2:720` height-fixed-for-everything shape that produced
+  406×720 portrait previews. D3a implements this as explicit even W:H dims
+  under the same short-side rule (long side proportional, ceil-to-even,
+  stepped down if the ceil overshoots the source). No upscale: source short
+  side < 720 gets `light` only (= source size, still tone-mapped/SDR/
+  faststart); source short side < 1080 gets no distinct `hq` (reported
+  honestly as absent-aliased-to-light, never a duplicate encode).
 
 ## 2. Schema (additive; manual SQL, see §7)
 
@@ -398,3 +404,74 @@ needs D3–D5. D7 needs everything.
 6. `web_package` as a new job rendition vs three co-leased per-rendition
    jobs: this plan picks the package job (one lease, one source fetch, one
    pass). Confirm against Mac 8 Gio memory for parallel x264 encoders.
+
+## 11. D3a appendix: Mac single-pass package encoder (UNWIRED, this slice)
+
+D3a delivers the encoder + artifact validation only. Nothing is queued,
+published, or served: `media_jobs.py`, ingestion, the server lease API,
+schemas, and publisher jobs are untouched. `Transcoder.build` legacy
+behavior is byte-identical. D2 keepalive/timeout/kill/reap/gather/Photos-lock
+semantics are preserved (the encoder reuses the same timeout→SIGKILL→
+shield-reap→cleanup-partial pattern and never touches the source).
+
+### Interface (`mac-agent/src/package_encoder.py`)
+
+- `plan_package(SourceInfo) -> PackagePlan`: pure. Display dims
+  (stream side-data → tags → first-frame fallback), HDR flag (HLG/PQ only),
+  GOP from the nominal cadence, HQ/light/poster dims under the §1
+  short-side rule, `hq_aliased_to="light"` when HQ is honestly absent.
+- `build_package_cmd(...) -> list[str]`: pure. One decode, one tone-map
+  (HDR) or none (SDR), `split=` to HQ/light/poster branches, per-branch
+  explicit even scales, `-fps_mode passthrough`, High@CRF23,
+  `maxrate 12M`/`bufsize 24M` on HQ only, AAC from the selected track or
+  `-an`, `+faststart`, poster `-q:v 3` with a `t>=1s` select for clips ≥ 1 s.
+  Threads bounded per variant (default 2).
+- `select_decodable_audio_index(streams, available_decoders=None)`: skips
+  unnamed/`none`/`apac` (case-insensitive) plus any named codec with no
+  local decoder when a decoder map is passed. No allowlist decode guarantee
+  is claimed without that map.
+- `build_derivative_media_key(...)`: exact D1 `derivative-v1` encoding mirror
+  (same fail-closed validation); parity unit-tested.
+- `async build_package(source, out_dir, *, video_uuid, source_sha256, ...)
+  -> PackageResult`: probe → decoder-aware audio re-resolution → fail-closed
+  zscale refusal for HDR on unequipped builds → single ffmpeg run under the
+  D2 timeout → ffprobe validation of ACTUAL outputs → `ready=True` result
+  carrying `(video_uuid, source_sha256, transform_version)`, per-role SHAs /
+  sizes / dims, and per-role derivative media keys. Any failure (timeout,
+  cancel, nonzero exit, validation) removes ALL new package outputs, never
+  the source; partial sets are never reported ready.
+- `validate_package_outputs(...)`: per-mp4 codec/profile/pix-fmt/BT.709
+  tags/dims/frame-count/faststart/GOP-window/audio checks; poster JPEG
+  magic/dims/not-HDR-tagged. GOP allows a single keyframe for clips < 2 s.
+
+### Test evidence (`mac-agent/tests/test_package_encoder.py`, 31 tests)
+
+Synthetic lavfi fixtures in pytest tmp only (no media in Git). This Mac's
+Homebrew ffmpeg (8.1.2, libx264, tonemap, no zscale) ran the SDR matrix:
+landscape/portrait 60/30, VFR (frames preserved, no `-r`), SEI-rotation
+(display 480×640 honored), small source (no upscale, HQ→light alias),
+sub-second clip (poster without select), timeout kill + full cleanup with
+source intact. Command-shape tests cover HDR single-tonemap-split and SDR
+tonemap-skip. HDR artifact cases SKIP meaningfully (no zscale here) while
+the fail-closed refusal is proven on a tagged HEVC fixture (no outputs left,
+source intact). A zscale-equipped Mac canary stays NOT authorized in this
+slice. Synthetic timings (legit, NOT production): portrait 720×1280 package
+0.64 s, HQ 1080p package 0.75 s, small clips < 0.2 s; max child RSS observed
+~516 MiB during the suite (test-content only). No VMAF/quality or
+prod-latency claims are made here.
+
+Memory: one package runs two bounded x264 encoders concurrently. Two
+package slots (four encoders) on the 8 GiB Mac are NOT enabled until a real
+Mac memory test passes.
+
+### Next publication contract (parent B2 slice, NOT in D3a)
+
+The publisher takes a `ready=True` `PackageResult` and, per applicable slot
+(`hq` skipped when `hq_aliased_to` is set), runs the §4 sequence unchanged:
+upload bytes → ranged-GET roundtrip sha+size verify → `persist_derivative`
+commit (`derived_*` semantics + `media_derivatives` ready upsert) → cache
+finalize with per-slot media key + `source_sha`/`transform_version` stamp and
+`finalized_slots` accumulation. `mark_job_ready` only when all applicable
+slots finalize; source-revision drift at finalize commits `stale`, never
+`ready`. D3a provides the bytes + identity + proof; the publisher provides
+durability + ledger + read-path wiring.
