@@ -168,7 +168,7 @@ class SourceInfo:
     color_primaries: str | None = None
     pix_fmt: str | None = None
     sar: str | None = None
-    duration_s: float | None = None
+    duration_s: float | None = None  # VIDEO stream end (never container); None = unknown -> first frame
     audio_index: int | None = None
 
 
@@ -339,6 +339,61 @@ def _parse_sar(sar: object) -> float | None:
     return n_f / d_f
 
 
+def _video_duration_s(video: dict) -> float | None:
+    """Video-stream duration in seconds, never the container duration.
+
+    The container (``format.duration``) is the max over all streams, so a
+    long audio tail makes it longer than the video. Poster ``select`` and
+    the short-clip GOP check must use the VIDEO end, or a ``t=1`` select
+    on a 0.5 s video + 3 s audio source emits no frames and fails the
+    whole package. Pure metadata already in the probe dict: no extra
+    decode, no frame list buffering (8 GiB box). Unknown -> None, and
+    callers fall back to the first frame.
+    """
+    try:
+        raw = video.get("duration")
+        if raw is not None:
+            v = float(raw)
+            if v > 0.0 and math.isfinite(v):
+                return v
+    except (TypeError, ValueError):
+        pass
+    try:
+        ts_raw, tb_raw = video.get("duration_ts"), video.get("time_base")
+        if ts_raw is not None and isinstance(tb_raw, str) and "/" in tb_raw:
+            ts = int(ts_raw) if not isinstance(ts_raw, int) else ts_raw
+            n_s, d_s = tb_raw.split("/", 1)
+            n_f, d_f = float(n_s), float(d_s)
+            if ts > 0 and d_f and n_f > 0 and math.isfinite(n_f) and math.isfinite(d_f):
+                v = ts * n_f / d_f
+                if v > 0.0 and math.isfinite(v):
+                    return v
+    except (TypeError, ValueError):
+        pass
+    try:
+        nb_raw = video.get("nb_frames")
+        if nb_raw is not None:
+            nb = int(nb_raw) if not isinstance(nb_raw, int) else nb_raw
+            fps = 0.0
+            for key in ("avg_frame_rate", "r_frame_rate"):
+                try:
+                    fr = video.get(key) or "0/1"
+                    fn_s, fd_s = str(fr).split("/", 1)
+                    fn, fd = float(fn_s), float(fd_s)
+                    if fd and fn > 0:
+                        fps = fn / fd
+                        break
+                except (ValueError, AttributeError, TypeError):
+                    continue
+            if nb > 0 and fps > 0 and math.isfinite(fps):
+                v = nb / fps
+                if v > 0.0 and math.isfinite(v):
+                    return v
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def probe_source(source: Path, ffprobe_path: str = "ffprobe") -> SourceInfo:
     try:
         result = subprocess.run(
@@ -380,8 +435,10 @@ def probe_source(source: Path, ffprobe_path: str = "ffprobe") -> SourceInfo:
         afr = video.get("avg_frame_rate") or "0/1"
         an, ad = afr.split("/")
         avg = float(an) / float(ad) if float(ad) else None
-        fmt = data.get("format", {})
-        duration = float(fmt["duration"]) if fmt.get("duration") else None
+        # VIDEO stream end only: container duration can exceed it when
+        # audio runs longer (0.5 s video + 3 s AAC -> format 3.0 s).
+        # Unknown stays None -> poster falls back to the first frame.
+        duration = _video_duration_s(video)
         audio_index = select_decodable_audio_index(streams)
         return SourceInfo(
             coded_w=w, coded_h=h, display_w=dw, display_h=dh, rotation=rotation,

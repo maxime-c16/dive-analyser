@@ -27,6 +27,8 @@ from src.package_encoder import (
     SourceInfo,
     TranscodeError,
     _parse_decoder_names,
+    _poster_thumb_time,
+    _video_duration_s,
     build_derivative_media_key,
     build_package,
     build_package_cmd,
@@ -36,6 +38,7 @@ from src.package_encoder import (
     frame_pts_times_s,
     nominal_gop,
     plan_package,
+    probe_source,
     select_decodable_audio_index,
     short_side_target_dims,
 )
@@ -943,3 +946,95 @@ def test_hdr_tonemap_artifact_when_zscale_available(tmp_path):
     out = tmp_path / "pkg"
     r = _run_pkg(src, out, "hdrtonemap")
     assert r.validation["checks"].get("light.transfer") == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Review fix: container duration must never drive poster/GOP (item: probe_source)
+# ---------------------------------------------------------------------------
+
+def test_video_duration_prefers_stream_over_container():
+    assert _video_duration_s({"duration": "0.500000"}) == pytest.approx(0.5)
+    assert _video_duration_s({"duration": "2.0"}) == pytest.approx(2.0)
+    # duration_ts + time_base fallback (no duration field).
+    assert _video_duration_s({"duration_ts": 7680, "time_base": "1/15360"}) == pytest.approx(0.5)
+    # nb_frames / fps fallback (avg first, then r_frame).
+    assert _video_duration_s(
+        {"nb_frames": "15", "avg_frame_rate": "30/1", "r_frame_rate": "30/1"}
+    ) == pytest.approx(0.5)
+    assert _video_duration_s(
+        {"nb_frames": "15", "avg_frame_rate": "0/0", "r_frame_rate": "30/1"}
+    ) == pytest.approx(0.5)
+
+
+def test_video_duration_missing_or_invalid_is_none_safe_fallback():
+    assert _video_duration_s({}) is None
+    assert _video_duration_s({"duration": "0"}) is None
+    assert _video_duration_s({"duration": "-1"}) is None
+    assert _video_duration_s({"duration": "nan"}) is None
+    assert _video_duration_s({"duration": "bogus"}) is None
+    assert _video_duration_s({"duration_ts": 0, "time_base": "1/90000"}) is None
+    assert _video_duration_s({"nb_frames": "0", "avg_frame_rate": "30/1"}) is None
+    # Unknown -> first frame (no select), never an empty-poster failure.
+    assert _poster_thumb_time(None, 30.0) is None
+    assert _poster_thumb_time(0.5, 30.0) is None
+    # Normal long clip still pins near 1 s (existing contract preserved).
+    thumb = _poster_thumb_time(2.0, 30.0)
+    assert thumb is not None and abs(thumb - 1.0) < 0.01
+    short_plan = plan_package(_mk_info(320, 240, duration_s=None))
+    assert short_plan.poster_thumb_t is None
+    assert "select=" not in " ".join(
+        build_package_cmd(Path("s"), None, Path("l"), Path("p"), short_plan))
+
+
+def _gen_long_audio_source(path: Path, w: int = 320, h: int = 240,
+                           fps: int = 30, video_dur: float = 0.5,
+                           audio_dur: float = 3.0) -> None:
+    """REAL fixture: short video + long AAC, deliberately WITHOUT -shortest.
+
+    Proves ``format.duration`` (container, ~audio) exceeds the VIDEO stream
+    end. The old container-based poster (select gte 1 s) emitted zero
+    frames here and failed the whole package.
+    """
+    _need_ffmpeg()
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y",
+         "-f", "lavfi", "-i", f"testsrc2=s={w}x{h}:r={fps}:d={video_dur}",
+         "-f", "lavfi", "-i", f"sine=frequency=440:duration={audio_dur}",
+         "-map", "0:v:0", "-map", "1:a:0",
+         "-vf", "format=yuv420p",
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+         "-color_range", "tv", "-colorspace", "bt709",
+         "-color_primaries", "bt709", "-color_trc", "bt709",
+         "-c:a", "aac", "-b:a", "96k",
+         str(path)],
+        check=True, capture_output=True, timeout=120)
+
+
+def test_artifact_long_audio_short_video_poster_and_gop_use_video_end(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_long_audio_source(src, video_dur=0.5, audio_dur=3.0)
+    fmt = json.loads(subprocess.check_output(
+        [FFPROBE, "-v", "quiet", "-print_format", "json",
+         "-show_format", "-show_streams", str(src)],
+        timeout=60).decode())
+    container_dur = float(fmt["format"]["duration"])
+    video_stream = next(s for s in fmt["streams"] if s.get("codec_type") == "video")
+    assert container_dur >= 2.9  # fixture really has container > video
+    assert float(video_stream.get("duration", "0")) <= 0.6
+    info = probe_source(src, FFPROBE)
+    # probe_source must report the VIDEO end, never the container end.
+    assert info.duration_s is not None and info.duration_s < 1.0
+    assert info.duration_s == pytest.approx(float(video_stream["duration"]), abs=0.05)
+    assert info.audio_index is not None
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "longaudio")
+    # Poster is a real non-empty JPEG via first-frame fallback (no select
+    # past the video end); all video outputs preserved frame-for-frame.
+    assert r.poster.path.stat().st_size > 0
+    assert r.poster.path.read_bytes()[:2] == b"\xff\xd8"
+    assert r.validation["checks"].get("light.frames") == "ok"
+    assert r.validation["checks"].get("poster.jpeg_magic") == "ok"
+    # GOP short-clip shape uses the VIDEO duration: a single keyframe on a
+    # 0.5 s video is correct even though the container is ~3 s of audio.
+    # With container duration this check FAILed (keys=1, dur 3 s).
+    assert str(r.validation["checks"].get("light.gop_window", "")).startswith("ok")
