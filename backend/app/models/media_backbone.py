@@ -36,6 +36,7 @@ REPLICAS are separate concepts.
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     JSON,
     BigInteger,
     Boolean,
@@ -218,5 +219,62 @@ class IngestObjectState(Base):
             "environment",
             "object_key",
             unique=True,
+        ),
+    )
+
+
+class MediaDerivative(Base):
+    """D1 durable-derivative ledger (HQ/light/poster web renditions).
+
+    One row per derivation: the (video_uuid, source revision, role,
+    transform version) identity that a future publisher (D3, after D2
+    fencing) commits alongside `commit_verified_ingest`, whose revision
+    carries the matching `derived_*` rendition semantics. D1 is
+    publish- and read-inert: no job references this table and no route
+    serves it, so rows can only be written by hand/tests until D3.
+
+    STORAGE AUTHORITY: like `MediaRevision`, `video_uuid` is the
+    application-owned logical clip identity recorded as an indexed string
+    (no FK cascade entanglement) and both SHAs are content identities (no
+    FK to `media_blobs`: the blob row may land in the same transaction
+    from a future publisher, and the ledger must stay insertable without
+    ordering constraints). The migration is fully reversible by dropping
+    this table plus the D1 nullable columns alone; old code boots on the
+    new schema (it never touches these columns).
+    """
+
+    __tablename__ = "media_derivatives"
+
+    id = Column(Integer, primary_key=True, index=True)
+    video_uuid = Column(String(100), nullable=False, index=True)
+    source_blob_sha256 = Column(String(64), nullable=False, index=True)
+    role = Column(String(20), nullable=False, index=True)
+    transform_version = Column(String(40), nullable=False)
+    derivative_blob_sha256 = Column(String(64), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="verifying", server_default="verifying", index=True)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('hq', 'light', 'poster')", name="ck_media_derivative_role"
+        ),
+        CheckConstraint(
+            "status IN ('verifying', 'ready', 'stale', 'superseded')",
+            name="ck_media_derivative_status",
+        ),
+        Index(
+            "uq_media_derivative_identity",
+            "video_uuid",
+            "source_blob_sha256",
+            "role",
+            "transform_version",
+            unique=True,
+        ),
+        Index(
+            "ix_media_derivative_clip_role",
+            "video_uuid",
+            "role",
+            "status",
         ),
     )

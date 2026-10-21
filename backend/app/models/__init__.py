@@ -46,6 +46,7 @@ from app.models.training_period import TrainingPeriod
 from app.models.media_backbone import (
     MediaBlob,
     MediaBlobLocation,
+    MediaDerivative,
     MediaRevision,
     CaptionRevision,
     IngestObjectState,
@@ -104,6 +105,7 @@ __all__ = [
     "TrainingPeriod",
     "MediaBlob",
     "MediaBlobLocation",
+    "MediaDerivative",
     "MediaRevision",
     "CaptionRevision",
     "IngestObjectState",

@@ -208,7 +208,14 @@ def guest_video(request: Request, access=Depends(guest_access), db: Session = De
     dive, _ = access
     # Reuse production storage authority and path/Range safety, with a separate
     # capability boundary. Never expose workspace media preparation endpoints.
-    revision = db.query(MediaRevision).filter_by(video_uuid=dive.video_uuid).order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc()).first()
+    # D1: exclude future durable-derivative revisions (derived_*) so the guest
+    # stream stays the camera original; with no derived_* rows this is a
+    # no-op (existing newest-first behavior preserved otherwise).
+    from app.services.media_backbone import derived_semantics_exclusion_clause
+    revision = db.query(MediaRevision).filter(
+        MediaRevision.video_uuid == dive.video_uuid,
+        derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
+    ).order_by(MediaRevision.observed_at.desc(), MediaRevision.id.desc()).first()
     provider_failed = False
     if revision:
         location, reason = _resolve_verified_prod_location(db, revision)

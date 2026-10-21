@@ -193,6 +193,7 @@ def backbone_originals(db, video_uuids):
     from app.config import get_settings
     from app.models.media_backbone import MediaRevision
     from app.services.matchmaking import verified_original_clause
+    from app.services.media_backbone import derived_semantics_exclusion_clause
     from sqlalchemy import func
     settings = get_settings()
     if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled) or not video_uuids:
@@ -200,6 +201,7 @@ def backbone_originals(db, video_uuids):
     return dict(db.query(MediaRevision.video_uuid, func.max(MediaRevision.id)).filter(
         MediaRevision.video_uuid.in_(video_uuids),
         MediaRevision.rendition_semantics != 'browser_original',
+        derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
         verified_original_clause()).group_by(MediaRevision.video_uuid).all())
 
 

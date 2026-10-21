@@ -42,6 +42,42 @@ RENDITION_SEMANTICS_DEFAULT = "photos_edited_rendition"
 CAPTION_HASH_ENCODING = "utf-8"
 SUPPORTED_ENVIRONMENTS = ("dev", "prod")
 
+# D1 durable derivatives (HQ/light/poster): rendition semantics for ledger
+# rows committed through `commit_verified_ingest`, and the derivation roles
+# they map from. All derivative semantics share the `derived_` prefix; the
+# shared original-selector policy excludes that prefix (never an allowlist
+# of camera originals, which differs per selector — see below).
+DERIVED_RENDITION_SEMANTICS = ("derived_hq", "derived_light", "derived_poster")
+
+DERIVATIVE_ROLES = ("hq", "light", "poster")
+
+DERIVATIVE_ROLE_TO_SEMANTICS = {
+    "hq": "derived_hq",
+    "light": "derived_light",
+    "poster": "derived_poster",
+}
+
+DERIVATIVE_STATUSES = ("verifying", "ready", "stale", "superseded")
+
+
+def is_derived_rendition_semantics(value: str | None) -> bool:
+    """Python-side check: is this rendition semantics a durable derivative?"""
+    return isinstance(value, str) and value.startswith("derived_")
+
+
+def derived_semantics_exclusion_clause(column):
+    """SQLAlchemy clause excluding durable-derivative rendition semantics.
+
+    Prefix-based (not an explicit triple) so a future role added under the
+    same `derived_` convention is excluded automatically. Applied ON TOP of
+    each selector's existing filter: selectors that already exclude
+    `browser_original` keep that exclusion; selectors that serve the newest
+    revision regardless keep that behavior for every non-derivative row.
+    With no `derived_*` rows present (the whole of D1), the clause is a
+    strict no-op.
+    """
+    return column.notlike(r"derived\_%", escape="\\")
+
 
 def caption_sha256(persisted_raw: str) -> str:
     """SHA-256 over the exact persisted caption representation (UTF-8 bytes).

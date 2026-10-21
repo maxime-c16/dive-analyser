@@ -69,11 +69,14 @@ def verified_original_clause():
 def original_revision_id(db, video_uuid):
     from app.config import get_settings
     from app.models.media_backbone import MediaRevision
+    from app.services.media_backbone import derived_semantics_exclusion_clause
     settings = get_settings()
     if not (settings.user_auth_enabled and settings.b2_playback_canary_enabled):
         return None
     return db.query(MediaRevision.id).filter(MediaRevision.video_uuid == video_uuid,
-        MediaRevision.rendition_semantics != 'browser_original', verified_original_clause()).order_by(MediaRevision.id.desc()).limit(1).scalar()
+        MediaRevision.rendition_semantics != 'browser_original',
+        derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
+        verified_original_clause()).order_by(MediaRevision.id.desc()).limit(1).scalar()
 
 
 def status(db, dive, asset):
