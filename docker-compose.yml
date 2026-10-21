@@ -93,6 +93,11 @@ services:
       MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS: "${MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS:-120}"
       MEDIA_PLAYBACK_HEAD_CACHE_SECONDS: "${MEDIA_PLAYBACK_HEAD_CACHE_SECONDS:-300}"
       MEDIA_JOBS_B2_SOURCE_ENABLED: "${MEDIA_JOBS_B2_SOURCE_ENABLED:-true}"
+      # D2 lease fencing sunset switch (default off = bounded drain). Runtime
+      # value comes from ~/.config/diveanalyzer/media-jobs.env on deb-serv
+      # (sourced by ci/ship.sh), never from Git. Same-SHA activation needs
+      # --force (ship.sh skips identical SHAs otherwise).
+      MEDIA_JOBS_REQUIRE_LEASE_TOKEN: "${MEDIA_JOBS_REQUIRE_LEASE_TOKEN:-false}"
       B2_UPLOAD_KEY_ID: ${B2_UPLOAD_KEY_ID:-}
       B2_UPLOAD_KEY_SECRET: ${B2_UPLOAD_KEY_SECRET:-}
       B2_UPLOAD_REGION: ${B2_UPLOAD_REGION:-}

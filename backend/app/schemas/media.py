@@ -67,6 +67,12 @@ class MediaJobLeaseRequest(BaseModel):
     capabilities: List[str] = Field(default_factory=lambda: ["poster", "proxy_360p", "proxy_720p"])
     max_jobs: int = Field(1, ge=1, le=5)
     lease_seconds: int = Field(300, ge=60, le=3600)
+    # D2 lease fencing: workers that understand per-claim fencing tokens set
+    # this. Old workers omit it (False) and receive legacy tokenless leases
+    # during the bounded SERVER-before-MAC drain (see
+    # docs/design/media-d2-rollout.md). After the drain,
+    # MEDIA_JOBS_REQUIRE_LEASE_TOKEN=true rejects non-token leases.
+    supports_lease_token: bool = False
 
 
 class MediaLeasedJob(BaseModel):
@@ -78,6 +84,10 @@ class MediaLeasedJob(BaseModel):
     status: str
     request_reason: Optional[str] = None
     export_options: dict = Field(default_factory=dict)
+    # D2 fencing token for this claim (uuid4 hex). None only for legacy
+    # tokenless leases issued to old workers during the drain window.
+    # Every heartbeat/upload/finalize/fail for a tokened claim must echo it.
+    lease_token: Optional[str] = None
     # Verified B2 original to transcode from (signed, short-lived). Absent
     # when no verified replica exists or signing is unavailable: the agent
     # then falls back to its Photos export.
@@ -94,12 +104,18 @@ class MediaJobHeartbeatRequest(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=100)
     status: str = Field(..., pattern="^(claimed|materializing|exporting|transcoding|uploading|verifying)$")
     progress: int = Field(0, ge=0, le=100)
+    # D2 fencing token echoed from the lease. None = legacy worker; accepted
+    # only while the stored claim is itself tokenless (pre-D2 drain).
+    lease_token: Optional[str] = None
 
 
 class MediaJobFailRequest(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=100)
     error: str = Field(..., min_length=1)
     status: str = Field("failed", pattern="^(failed|unavailable)$")
+    # D2 fencing token (same rule as heartbeat): a stale worker must not
+    # fail a job that has since been re-leased to a new attempt.
+    lease_token: Optional[str] = None
 
 
 class MediaJobUploadResponse(BaseModel):
@@ -115,6 +131,8 @@ class MediaJobFinalizeRequest(BaseModel):
     checksum_sha256: str = Field(..., min_length=64, max_length=64)
     size_bytes: int = Field(..., ge=1)
     content_type: str = Field("application/octet-stream", max_length=100)
+    # D2 fencing token echoed from the lease (same rule as heartbeat).
+    lease_token: Optional[str] = None
 
 
 class MediaJobFinalizeResponse(BaseModel):

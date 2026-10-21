@@ -106,6 +106,11 @@ class MediaConfig:
     temp_dir: str = "~/.diveanalyzer/media_tmp"
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
+    # D2: hard timeout (seconds) for one ffmpeg transcode. Generous default
+    # (45 min); the worker kills + reaps + cleans up past it and fails the
+    # job with `ffmpeg_timeout`. Mirrors backend
+    # `media_transcoder_timeout_seconds`.
+    transcode_timeout_seconds: int = 2700
     osxphotos_path: str = "osxphotos"
     enforce_storage_thresholds: bool = False
     failed_diagnostics_dir: str = "~/.diveanalyzer/failed_diagnostics"
@@ -339,6 +344,7 @@ class Config:
                 temp_dir=str(Path(media_data.get('temp_dir', "~/.diveanalyzer/media_tmp")).expanduser()),
                 ffmpeg_path=media_data.get('ffmpeg_path', "ffmpeg"),
                 ffprobe_path=media_data.get('ffprobe_path', "ffprobe"),
+                transcode_timeout_seconds=int(media_data.get('transcode_timeout_seconds', 2700)),
                 osxphotos_path=media_data.get('osxphotos_path', "osxphotos"),
                 enforce_storage_thresholds=media_data.get('enforce_storage_thresholds', False),
                 failed_diagnostics_dir=str(Path(media_data.get('failed_diagnostics_dir', "~/.diveanalyzer/failed_diagnostics")).expanduser()),

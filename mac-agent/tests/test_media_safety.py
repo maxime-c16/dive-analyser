@@ -90,25 +90,71 @@ def test_distinct_leased_jobs_run_concurrently():
     assert sync_client.heartbeat_media_job.await_count == 2
 
 
-def test_materialization_keepalive_renews_existing_job_lease(monkeypatch):
+def test_whole_job_keepalive_echoes_phase_and_token(monkeypatch):
     config = SimpleNamespace(
         agent=SimpleNamespace(id="mac-media-01"),
         media=SimpleNamespace(source_vault=SimpleNamespace(enabled=False)),
     )
     sync_client = SimpleNamespace(heartbeat_media_job=AsyncMock())
     processor = MediaJobProcessor(config, sync_client)
-    monkeypatch.setattr("src.media_jobs.MATERIALIZATION_LEASE_HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr("src.media_jobs.LEASE_KEEPALIVE_SECONDS", 0.01)
 
     async def run_keepalive():
-        task = asyncio.create_task(processor._keep_materialization_lease_alive(99))
+        phase = {"status": "transcoding", "progress": 35}
+        lease_lost = asyncio.Event()
+        task = asyncio.create_task(processor._keep_lease_alive(99, "tok-1", phase, lease_lost))
+        await asyncio.sleep(0.03)
+        assert not lease_lost.is_set()
+        phase["status"] = "uploading"
         await asyncio.sleep(0.03)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
 
     asyncio.run(run_keepalive())
-    assert sync_client.heartbeat_media_job.await_count >= 1
-    sync_client.heartbeat_media_job.assert_awaited_with(99, "mac-media-01", "materializing", 5)
+    assert sync_client.heartbeat_media_job.await_count >= 2
+    sync_client.heartbeat_media_job.assert_awaited_with(99, "mac-media-01", "uploading", 35, "tok-1")
+
+
+def test_keepalive_abandons_on_lease_rejection(monkeypatch):
+    config = SimpleNamespace(
+        agent=SimpleNamespace(id="mac-media-01"),
+        media=SimpleNamespace(source_vault=SimpleNamespace(enabled=False)),
+    )
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(side_effect=RuntimeError("heartbeat failed: 409 media_job_lease_token_mismatch"))
+    )
+    processor = MediaJobProcessor(config, sync_client)
+    monkeypatch.setattr("src.media_jobs.LEASE_KEEPALIVE_SECONDS", 0.01)
+
+    async def run_keepalive():
+        lease_lost = asyncio.Event()
+        await processor._keep_lease_alive(99, "stale", {"status": "transcoding", "progress": 35}, lease_lost)
+        assert lease_lost.is_set()
+
+    asyncio.run(run_keepalive())
+    assert sync_client.heartbeat_media_job.await_count == 1
+
+
+def test_keepalive_retry_is_bounded_on_transient_errors(monkeypatch):
+    config = SimpleNamespace(
+        agent=SimpleNamespace(id="mac-media-01"),
+        media=SimpleNamespace(source_vault=SimpleNamespace(enabled=False)),
+    )
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(side_effect=RuntimeError("boom: connection reset"))
+    )
+    processor = MediaJobProcessor(config, sync_client)
+    monkeypatch.setattr("src.media_jobs.LEASE_KEEPALIVE_SECONDS", 0.01)
+
+    async def run_keepalive():
+        lease_lost = asyncio.Event()
+        await processor._keep_lease_alive(99, "tok", {"status": "uploading", "progress": 80}, lease_lost)
+        assert lease_lost.is_set()
+
+    asyncio.run(run_keepalive())
+    import src.media_jobs as jobs_module
+    assert sync_client.heartbeat_media_job.await_count == jobs_module.MAX_KEEPALIVE_FAILURES
 
 
 def test_missing_local_asset_fails_cleanly_when_materialization_disabled():

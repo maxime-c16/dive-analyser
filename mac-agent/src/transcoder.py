@@ -1,11 +1,25 @@
 """ffmpeg-based rendition generation for media jobs."""
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+
+# D2 publication integrity: no unbounded ffmpeg subprocess, ever. One
+# transcode may legitimately take a long time (large 4K60 source on a
+# loaded Mac), so the default bound is generous (45 min) and
+# config-overridable — but it is always enforced: timeout kills the
+# process, reaps it, removes the partial output, and fails the job with
+# `ffmpeg_timeout`. Mirrors backend `media_transcoder_timeout_seconds`
+# (same default; the D4 server fallback reuses that bound).
+DEFAULT_TRANSCODE_TIMEOUT_SECONDS = 2700
+# Upper bound for reaping a killed ffmpeg before giving up the wait (the
+# SIGKILL is already issued; this only bounds teardown, never the encode).
+REAP_TIMEOUT_SECONDS = 30
 
 
 @dataclass
@@ -29,10 +43,11 @@ class TranscodeError(RuntimeError):
 class Transcoder:
     """Generate poster/proxy artifacts with ffmpeg."""
 
-    def __init__(self, temp_dir: str, ffmpeg_path: str = "ffmpeg"):
+    def __init__(self, temp_dir: str, ffmpeg_path: str = "ffmpeg", timeout_seconds: int = DEFAULT_TRANSCODE_TIMEOUT_SECONDS):
         self.temp_dir = Path(temp_dir).expanduser()
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.ffmpeg_path = ffmpeg_path
+        self.timeout_seconds = timeout_seconds
 
     async def build(self, source: Path, media_key: str, rendition: str) -> RenditionArtifact:
         """Generate the requested rendition."""
@@ -59,7 +74,7 @@ class Transcoder:
         else:
             raise TranscodeError(f"Unsupported rendition: {rendition}")
 
-        await self._run(cmd)
+        await self._run(cmd, output)
         return _artifact(output, content_type)
 
     def _proxy_cmd(
@@ -147,16 +162,45 @@ class Transcoder:
                 return index
         return None
 
-    async def _run(self, cmd: list[str]) -> None:
+    async def _run(self, cmd: list[str], output: Path) -> None:
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await process.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+        except asyncio.TimeoutError:
+            await _kill_and_reap(process)
+            # The partial output of a timed-out encode is useless and must
+            # not linger for a later attempt to mistake for a result. Only
+            # the generated output is removed — the source is never touched.
+            output.unlink(missing_ok=True)
+            raise TranscodeError(
+                f"ffmpeg_timeout after {self.timeout_seconds}s command={' '.join(cmd)}"
+            ) from None
+        except asyncio.CancelledError:
+            await _kill_and_reap(process)
+            output.unlink(missing_ok=True)
+            raise
         if process.returncode != 0:
             detail = stderr.decode("utf-8", errors="replace")[-1000:] or stdout.decode("utf-8", errors="replace")[-1000:]
             raise TranscodeError(f"ffmpeg_failed command={' '.join(cmd)}\n{detail}")
+
+
+async def _kill_and_reap(process: "asyncio.subprocess.Process") -> None:
+    """SIGKILL a runaway/cancelled ffmpeg and wait until it is reaped.
+
+    The wait is shielded so repeated cancellation cannot strand a zombie,
+    and bounded so teardown cannot hang forever (the kill is already
+    issued; worst case init reaps the child).
+    """
+    try:
+        process.kill()
+    except ProcessLookupError:
+        pass
+    with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
+        await asyncio.wait_for(asyncio.shield(process.wait()), timeout=REAP_TIMEOUT_SECONDS)
 
 
 def _artifact(path: Path, content_type: str, is_temporary: bool = True) -> RenditionArtifact:
