@@ -1,0 +1,8 @@
+{
+  "id": "browser-safe-playback-retention",
+  "date": "2026-10-21",
+  "title": "Keep every video playable while durable copies are built",
+  "body": "Previews and posters are now kept on the server until a durable copy exists, so clips stay watchable instead of expiring. No action needed; playback is unchanged.",
+  "audience": "all",
+  "components": ["backend"]
+}

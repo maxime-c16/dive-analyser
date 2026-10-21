@@ -255,10 +255,13 @@ def test_cache_cleanup_is_bounded_and_reports_remaining_bytes(workspace, tmp_pat
     db, _, _, _, _ = workspace
     db.query(MediaCacheEntry).delete()
     asset = db.query(PhotosAsset).first()
+    # Boundedness mechanics run on disposable staging rows: sole-copy
+    # renditions (720p/poster/sole-360p) are never eviction candidates, so a
+    # boundedness test built on them would assert nothing.
     for index in range(257):
-        path = tmp_path / f'bounded-{index}.mp4'
+        path = tmp_path / f'bounded-{index}.bin'
         path.write_bytes(b'x')
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'bounded-{index}', rendition='proxy_360p', storage_path=str(path), size_bytes=1, content_type='video/mp4', status='ready', pinned=False, expires_at=datetime.utcnow() - timedelta(days=1)))
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'bounded-{index}', rendition='browser_source', storage_path=str(path), size_bytes=1, content_type='application/octet-stream', status='ready', pinned=False, expires_at=datetime.utcnow() - timedelta(days=1)))
     db.commit()
     assert cleanup_cache(db, max_bytes=1) == (200, 200, 57)
     db.commit()

@@ -36,13 +36,17 @@ def _cache_entry(
     size_bytes: int = 1,
     expires_at: datetime | None = None,
 ) -> MediaCacheEntry:
+    # Eviction mechanics run on disposable staging rows: sole-copy renditions
+    # (720p/poster/sole-360p) are never eviction candidates, so a mechanics
+    # test built on them would assert nothing. Sole-copy protection itself is
+    # covered by backend/tests/test_media_sole_copy_protection.py.
     entry = MediaCacheEntry(
         photos_asset_id=asset.id,
         media_key=uuid4().hex + uuid4().hex,
-        rendition="poster",
+        rendition="browser_source",
         storage_backend="local_fs",
         storage_path=str(path),
-        content_type="image/jpeg",
+        content_type="application/octet-stream",
         size_bytes=size_bytes,
         status="ready",
         pinned=pinned,
@@ -152,7 +156,7 @@ def test_cleanup_deletes_normal_unpinned_file_inside_cache_root(test_db: Session
     get_settings.cache_clear()
     get_settings().media_cache_root = str(tmp_path)
     asset = _asset(test_db)
-    media_file = tmp_path / "poster.jpg"
+    media_file = tmp_path / "staging.bin"
     media_file.write_bytes(b"x" * 5)
     _cache_entry(test_db, asset, media_file, size_bytes=5, expires_at=datetime.utcnow() - timedelta(seconds=1))
 
@@ -167,7 +171,7 @@ def test_cleanup_preserves_pinned_entries(test_db: Session, tmp_path: Path):
     get_settings.cache_clear()
     get_settings().media_cache_root = str(tmp_path)
     asset = _asset(test_db)
-    media_file = tmp_path / "pinned.jpg"
+    media_file = tmp_path / "pinned.bin"
     media_file.write_bytes(b"x")
     _cache_entry(test_db, asset, media_file, pinned=True, expires_at=datetime.utcnow() - timedelta(seconds=1))
 
@@ -218,8 +222,8 @@ def test_cleanup_trims_to_byte_cap(test_db: Session, tmp_path: Path):
     get_settings.cache_clear()
     get_settings().media_cache_root = str(tmp_path)
     asset = _asset(test_db)
-    old_file = tmp_path / "old.jpg"
-    keep_file = tmp_path / "keep.jpg"
+    old_file = tmp_path / "old.bin"
+    keep_file = tmp_path / "keep.bin"
     old_file.write_bytes(b"x" * 8)
     keep_file.write_bytes(b"x" * 3)
     _cache_entry(test_db, asset, old_file, size_bytes=8)
