@@ -1466,8 +1466,8 @@ def _slot_publish_http_error(exc: Exception) -> HTTPException:
     """
     from app.services.derivative_publisher import (
         DerivativeIdentityConflict,
-        DerivativePublishError,
         DirtySessionError,
+        FencedSlotConflict,
         MissingCredentials,
         MissingSourceError,
         StaleSourceError,
@@ -1493,10 +1493,14 @@ def _slot_publish_http_error(exc: Exception) -> HTTPException:
             detail="Video storage is not configured yet",
         )
     if isinstance(exc, (StaleSourceError, DerivativeIdentityConflict,
-                        MissingSourceError, DerivativePublishError,
-                        ValueError, PermissionError)):
-        # Stale attempt / identity conflict / missing source / fencing
-        # wrapper ("fenced claim rejected"): client-stale, not a server bug.
+                        MissingSourceError, FencedSlotConflict)):
+        # Explicit fencing/stale conflicts only (lease owner/expiry/token
+        # mismatch, source/revision/transform drift, identity conflict,
+        # missing canonical source): client-stale, re-lease/refresh. The
+        # generic DerivativePublishError base (unexpected DB/commit/internal
+        # failures) and raw ValueError/PermissionError fall through to the
+        # sanitized 500 below so the Mac client retries instead of failing
+        # the package as terminal.
         return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

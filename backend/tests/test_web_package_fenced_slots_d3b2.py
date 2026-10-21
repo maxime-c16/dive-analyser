@@ -744,6 +744,7 @@ def test_slot_publish_error_taxonomy():
         DerivativeIdentityConflict,
         DerivativePublishError,
         DirtySessionError,
+        FencedSlotConflict,
         MissingCredentials,
         MissingSourceError,
         StaleSourceError,
@@ -757,14 +758,185 @@ def test_slot_publish_error_taxonomy():
     assert _slot_publish_http_error(StaleSourceError("stale")).status_code == 409
     assert _slot_publish_http_error(DerivativeIdentityConflict("c")).status_code == 409
     assert _slot_publish_http_error(MissingSourceError("gone")).status_code == 409
-    assert _slot_publish_http_error(DerivativePublishError("fenced")).status_code == 409
-    assert _slot_publish_http_error(ValueError("bad format")).status_code == 409
-    assert _slot_publish_http_error(PermissionError("expired")).status_code == 409
+    # Explicit fencing rejections stay 409 (client-stale, re-lease).
+    fenced = _slot_publish_http_error(FencedSlotConflict("media_job_lease_token_mismatch"))
+    assert fenced.status_code == 409
+    assert "media_job_lease_token_mismatch" in str(fenced.detail)
+    # Generic publisher failures are retryable internals: 500 sanitized.
+    planted = "/secret/planted-xyz DerivativePublishError boom"
+    generic_pub = _slot_publish_http_error(DerivativePublishError(planted))
+    assert generic_pub.status_code == 500
+    assert "/secret/planted-xyz" not in str(generic_pub.detail)
+    # Raw unexpected hook types are NOT stale: 500, never 409.
+    assert _slot_publish_http_error(ValueError("bad format")).status_code == 500
+    assert _slot_publish_http_error(PermissionError("expired")).status_code == 500
     # Unknown internals are sanitized (raw message never echoed) and chained
     # at the call site; the helper returns the generic retryable detail.
     generic = _slot_publish_http_error(RuntimeError("/secret/path boom"))
     assert generic.status_code == 500
     assert "/secret/path" not in str(generic.detail)
+
+
+def test_fenced_hook_rejection_stays_409_normal_path(test_db, monkeypatch, _presign, tmp_path):
+    """Stale same-agent lease stays 409 on the normal path (not 500).
+
+    A fencing-hook PermissionError (lease token bound to a superseded
+    attempt, e.g. the old token after a same-agent reclaim) is wrapped as
+    the explicit ``FencedSlotConflict`` — never the generic publisher base —
+    so the route returns 409 (re-lease) and the Mac client does not treat a
+    true stale as a terminal success-side failure.
+    """
+    from app.api.v1.media import _slot_publish_http_error
+    from app.services import media_jobs as mj
+    from app.services.derivative_publisher import (
+        FencedSlotConflict,
+        build_publication_context,
+        publish_derivative,
+    )
+    from app.services.media_keys import get_derivative_transform_version as _vtv
+    from app.services import web_packages as wp
+
+    _prod_env(monkeypatch)
+    _agent(test_db)
+    asset = _asset(test_db)
+    sha = _seed_camera_source(test_db, asset.video_uuid)
+    job = _package_job(test_db, asset)
+    leased = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+        agent_id="mac-media-01", capabilities=["web_package"],
+        max_jobs=1, supports_lease_token=True))[0]
+    test_db.commit()
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
+    ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
+    _tv = leased.transform_version or _vtv()
+    # Stale token: the shape an old attempt carries after the same agent
+    # re-leases (new token minted, this one dead).
+    stale_guard = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token="stale-superseded-token",
+        claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
+        hq_aliased_to=None, transform_version=_tv, claimed_transform_version=_tv)
+    with pytest.raises(FencedSlotConflict, match="lease_token|token|lease"):
+        publish_derivative(test_db, ctx, _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq"),
+                           s3_client=FakeS3(), pre_commit_hook=stale_guard)
+    # And the route mapper keeps it 409 (client-stale, re-lease).
+    mapped = _slot_publish_http_error(
+        FencedSlotConflict("media_job_lease_token_mismatch"))
+    assert mapped.status_code == 409
+    test_db.refresh(job)
+    assert job.status != "ready"
+
+
+def test_fenced_hook_rejection_stays_409_rival_path(test_db, monkeypatch, _presign, tmp_path):
+    """Stale lease stays 409 on the IntegrityError rival path too.
+
+    When a concurrent same-identity winner forces the rival re-read branch
+    AND the fencing hook rejects (stale token), the rival-path wrapper must
+    also raise ``FencedSlotConflict`` (409) — not the generic base (500).
+    True stale must never become a retryable-internal 500.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.api.v1.media import _slot_publish_http_error
+    from app.services import media_jobs as mj
+    import app.services.derivative_publisher as dp
+    from app.services.derivative_publisher import (
+        FencedSlotConflict,
+        build_publication_context,
+        publish_derivative,
+    )
+    from app.services.media_keys import get_derivative_transform_version as _vtv
+    from app.services import web_packages as wp
+
+    _prod_env(monkeypatch)
+    _agent(test_db)
+    asset = _asset(test_db)
+    sha = _seed_camera_source(test_db, asset.video_uuid)
+    job = _package_job(test_db, asset)
+    leased = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+        agent_id="mac-media-01", capabilities=["web_package"],
+        max_jobs=1, supports_lease_token=True))[0]
+    test_db.commit()
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
+    # Force the rival branch: first ledger read raises IntegrityError
+    # (concurrent same-identity winner), later reads behave normally.
+    _orig_read = dp._read_existing_ledger_row
+    _calls = {"n": 0}
+
+    def _flaky_read(db, ctx, for_update=True):
+        _calls["n"] += 1
+        if _calls["n"] == 1:
+            raise IntegrityError("INSERT INTO media_derivative", {}, Exception("mock rival winner"))
+        return _orig_read(db, ctx, for_update=for_update)
+
+    monkeypatch.setattr(dp, "_read_existing_ledger_row", _flaky_read)
+    ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
+    _tv = leased.transform_version or _vtv()
+    stale_guard = wp.make_slot_guard(
+        job_id=job.id, agent_id="mac-media-01", lease_token="stale-superseded-token",
+        claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
+        hq_aliased_to=None, transform_version=_tv, claimed_transform_version=_tv)
+    with pytest.raises(FencedSlotConflict, match="lease_token|token|lease"):
+        publish_derivative(test_db, ctx, _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq"),
+                           s3_client=FakeS3(), pre_commit_hook=stale_guard)
+    assert _calls["n"] >= 2  # rival branch was actually exercised
+    mapped = _slot_publish_http_error(
+        FencedSlotConflict("media_job_lease_token_mismatch"))
+    assert mapped.status_code == 409
+    test_db.refresh(job)
+    assert job.status != "ready"
+
+
+def test_route_generic_publish_failure_500_sanitized(api_client, test_db, monkeypatch, _presign, tmp_path):
+    """Route-level: a generic publisher/DB-commit failure is 500, sanitized.
+
+    Simulates the wrapped commit failure from
+    ``derivative_publisher.py`` (generic base error carrying an internal
+    message): the Mac client must see a retryable 500 with the generic
+    detail — never a terminal 409, never the raw secret/path.
+    """
+    from app.config import get_settings as _gs
+    import app.services.derivative_publisher as dp
+    import app.services.web_packages as wp
+    from app.services.derivative_publisher import DerivativePublishError
+
+    settings = _gs()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path / "cache")
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "b2_upload_key_id", "k")
+    monkeypatch.setattr(settings, "b2_upload_key_secret", "s")
+    monkeypatch.setattr(settings, "b2_upload_region", "r")
+    monkeypatch.setattr(settings, "b2_upload_environment", "prod")
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1920, "height": 1080})
+
+    def _boom(*args, **kwargs):
+        raise DerivativePublishError("/secret/route-planted-xyz commit failed")
+
+    monkeypatch.setattr(dp, "publish_derivative", _boom)
+    try:
+        job_id, token, pin, sha = _route_lease_package(test_db, monkeypatch, _presign)
+        fpath, digest, size = _route_slot_files(tmp_path)
+        with fpath.open("rb") as fh:
+            resp = api_client.post(
+                f"/api/v1/media/jobs/{job_id}/package/slots",
+                data={
+                    "agent_id": _ROUTE_AGENT,
+                    "lease_token": token,
+                    "slot": "hq",
+                    "checksum_sha256": digest,
+                    "size_bytes": str(size),
+                    "content_type": "video/mp4",
+                    "source_sha256": sha,
+                    "source_width": "1920",
+                    "source_height": "1080",
+                    "transform_version": pin,
+                },
+                files={"file": ("hq.mp4", fh, "video/mp4")},
+                headers=_ROUTE_HEADERS,
+            )
+        assert resp.status_code == 500, resp.text
+        assert "/secret/route-planted-xyz" not in resp.text
+    finally:
+        settings.media_cache_root = saved_root
 
 
 def _fresh_capable_agent(db):

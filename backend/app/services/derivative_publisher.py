@@ -176,6 +176,19 @@ class DirtySessionError(DerivativePublishError):
     """
 
 
+class FencedSlotConflict(DerivativePublishError):
+    """Explicit fenced-lease rejection (client-stale, re-lease required).
+
+    Raised ONLY when the D3b2 pre-commit fencing hook rejects the attempt
+    (lease owner/expiry/token mismatch, transform/source pin drift, invalid
+    slot state for this package): the attempt is stale, the Mac client must
+    re-lease, and the verified B2 bytes stay a safe orphan. Deliberately
+    distinct from the generic ``DerivativePublishError`` base, which wraps
+    unexpected DB/commit/internal failures (retryable 500, sanitized):
+    routes map this subclass to 409 and the base to 500.
+    """
+
+
 class _CommittedStale(StaleSourceError):
     """Internal: stale record was COMMITTED before this was raised.
 
@@ -803,13 +816,13 @@ def publish_derivative(
                     db.rollback()
                 except Exception:
                     pass
-                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
             except ValueError as exc:
                 try:
                     db.rollback()
                 except Exception:
                     pass
-                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
 
         if existing is not None and existing.status == "ready":
             if existing.derivative_blob_sha256 == derivative_sha:
@@ -944,13 +957,13 @@ def publish_derivative(
                     db.rollback()
                 except Exception:
                     pass
-                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
             except ValueError as exc:
                 try:
                     db.rollback()
                 except Exception:
                     pass
-                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
         if (
             rival is not None
             and rival.derivative_blob_sha256 == derivative_sha
