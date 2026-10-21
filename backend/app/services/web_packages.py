@@ -121,7 +121,7 @@ def package_worker_available(db) -> bool:
     cutoff = datetime.utcnow() - timedelta(minutes=15)
     # Bounded DB-side capability check: exact JSON-array membership via the
     # quote-delimited token (JSON encodes "web_package" with surrounding
-    # quotes, so LIKE '%"web_package"%' cannot match not_web_package or
+    # quotes, with the underscore escaped so LIKE cannot match not_web_package or
     # web_package_v2). Portable: PostgreSQL JSON cast to TEXT and SQLite
     # JSON TEXT both compare here; no ORM load, LIMIT 1, no Python fallback.
     stmt = (
@@ -132,7 +132,7 @@ def package_worker_available(db) -> bool:
             MediaAgent.leasing_enabled.is_(True),
             MediaAgent.last_seen_at.is_not(None),
             MediaAgent.last_seen_at >= cutoff,
-            cast(MediaAgent.capabilities, Text).like('%"web_package"%'),
+            cast(MediaAgent.capabilities, Text).like('%"web!_package"%', escape="!"),
         )
         .limit(1)
     )

@@ -118,6 +118,7 @@ def test_negative_substring_traps(test_db, monkeypatch):
     _mk_agent(test_db, "agent-trap1", ["not_web_package"])
     _mk_agent(test_db, "agent-trap2", ["web_package_v2"])
     _mk_agent(test_db, "agent-trap3", ["prefix_web_package", "web_package_suffix"])
+    _mk_agent(test_db, "agent-wildcard-trap", ["webXpackage"])
     assert wp.package_worker_available(test_db) is False
 
 
@@ -152,14 +153,14 @@ def test_sql_is_bounded_and_quoted(test_db, monkeypatch):
     lite = str(stmt.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
     assert "LIMIT" in lite.upper() and "1" in lite, f"expected LIMIT 1, got: {lite}"
     # Exact quoted token in the DB filter (no bare substring).
-    assert '"web_package"' in lite, f"expected quoted token, got: {lite}"
+    assert '"web!_package"' in lite, f"expected quoted token, got: {lite}"
     assert "LIKE" in lite.upper(), f"expected LIKE filter, got: {lite}"
     # No full-entity ORM select: scalar probe, not media_agents.* entity load.
     assert "media_agents" in lite.lower()
 
     # Same statement must compile on the PostgreSQL dialect (real-PG path).
     pg = str(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
-    assert "LIMIT" in pg.upper() and '"web_package"' in pg and "LIKE" in pg.upper()
+    assert "LIMIT" in pg.upper() and '"web!_package"' in pg and "LIKE" in pg.upper()
 
 
 PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
