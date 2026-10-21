@@ -72,6 +72,7 @@ UUID_AMBIG = "D5000000-0000-4000-8000-000000000007"
 UUID_NOSRC = "D5000000-0000-4000-8000-000000000008"
 UUID_OLDSRC = "D5000000-0000-4000-8000-000000000009"
 UUID_LEGACY = "D5000000-0000-4000-8000-000000000010"
+UUID_SMALL_RECORDEDHQ = "D5000000-0000-4000-8000-000000000011"
 
 SRC_FULL = _sha("d5-full-src")
 SRC_SMALL = _sha("d5-small-src")
@@ -84,6 +85,7 @@ SRC_NOSRC = _sha("d5-nosrc-src")
 SRC_OLDSRC_NEW = _sha("d5-oldsrc-new")
 SRC_OLDSRC_OLD = _sha("d5-oldsrc-old")
 SRC_LEGACY = _sha("d5-legacy-src")
+SRC_SMALL_RECORDEDHQ = _sha("d5-small-recordedhq-src")
 
 
 def _loc(db, sha, env, bucket, key):
@@ -185,6 +187,7 @@ def _seed_world(db, tmp_path):
         (UUID_NOSRC, "108B", d1, (1920, 1080), SRC_NOSRC),
         (UUID_OLDSRC, "109B", d1, (1920, 1080), SRC_OLDSRC_NEW),
         (UUID_LEGACY, "110B", d1, (1920, 1080), SRC_LEGACY),
+        (UUID_SMALL_RECORDEDHQ, "111B", d1, (640, 480), SRC_SMALL_RECORDEDHQ),
     ]
     for uuid, code, diver, dims, src in specs:
         db.add(
@@ -231,6 +234,17 @@ def _seed_world(db, tmp_path):
             _derivative(db, uuid, src, "light", dsha)
             _rev(db, uuid, dsha, "derived_light")
             _loc(db, dsha, "prod", PROD_BUCKET, f"blobs/sha256/derived/light-{dsha[:8]}.bin")
+        elif uuid == UUID_SMALL_RECORDEDHQ:
+            # Small source WITH a recorded (stale) HQ row: a distinct HQ
+            # was attempted, so light must never be served as HQ.
+            for role, status, semantics in (
+                ("light", "ready", "derived_light"),
+                ("hq", "stale", "derived_hq"),
+            ):
+                dsha = _sha(f"d5-small-recordedhq-{role}")
+                _derivative(db, uuid, src, role, dsha, status=status)
+                _rev(db, uuid, dsha, semantics)
+                _loc(db, dsha, "prod", PROD_BUCKET, f"blobs/sha256/derived/{role}-{dsha[:8]}.bin")
         elif uuid == UUID_STALE:
             dsha = _sha("d5-stale-light")
             _derivative(db, uuid, src, "light", dsha, status="stale")
@@ -628,6 +642,10 @@ def test_old_schema_without_ledger_table_keeps_legacy_status(db, flags, fake_pre
         body = r.json()
         assert body["derivatives"] is None
         assert body["status"] == "ready"
+        # The aborted ledger probe ran in a SAVEPOINT: the session still
+        # serves legacy queries afterwards (on Postgres a naked failed
+        # statement would poison the whole transaction).
+        assert old.query(MediaCacheEntry).count() == 1
     finally:
         app.dependency_overrides.clear()
         old.close()
@@ -735,3 +753,152 @@ def test_evaluation_status_carries_derivative_choice(client, db):
     assert payload["derivatives"]["recommended"] == "hq"
     # Playback selection unchanged (legacy entries + backbone original).
     assert payload["playback_url"] == f"/api/v1/evaluations/requests/{request_row.id}/media/play"
+
+
+# ------------------------------------------------------- review fixes
+
+
+def test_small_source_with_recorded_hq_row_never_aliases(client):
+    body = _status(client, UUID_SMALL_RECORDEDHQ)
+    deriv = body["derivatives"]
+    assert deriv["light"]["state"] == "ready"
+    assert deriv["light"]["playback_url"] is not None
+    # A recorded (stale) HQ row proves a distinct HQ was attempted for
+    # this source + transform: the honest ledger state wins and light is
+    # never served as HQ, even on a small source.
+    assert deriv["hq"]["state"] == "stale"
+    assert deriv["hq"]["playback_url"] is None
+    assert deriv["hq"]["aliased_to"] is None
+    assert deriv["start"] == "light"
+    assert deriv["recommended"] == "light"
+
+
+def test_derivative_play_denied_after_source_drift_zero_presign(client, db, fake_presign, monkeypatch):
+    import app.api.v1.media_playback as playback_module
+
+    _behavior, presign_calls = fake_presign
+    head_calls = []
+    real_head = playback_module.b2_presign.head_object
+
+    def _counting_head(bucket, object_key):
+        head_calls.append((bucket, object_key))
+        return real_head(bucket, object_key)
+
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", _counting_head)
+
+    body = _status(client, UUID_FULL)
+    light_url = body["derivatives"]["light"]["playback_url"]
+    r = client.get(light_url, follow_redirects=False)
+    assert r.status_code == 302, r.text
+    presigns_after_allow = len(presign_calls)
+    heads_after_allow = len(head_calls)
+    allowed_after_allow = db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count()
+    assert allowed_after_allow == 1
+
+    # The canonical source drifts: a newer verified PROD camera-original
+    # revision lands. The previously valid derivative URL must die.
+    new_src = _sha("d5-full-src-v2")
+    db.add(MediaBlob(sha256=new_src, byte_size=10_000_001, width=1920, height=1080))
+    db.flush()
+    db.add(MediaRevision(video_uuid=UUID_FULL, blob_sha256=new_src))
+    db.flush()
+    _loc(db, new_src, "prod", PROD_BUCKET, f"blobs/sha256/{new_src[:2]}/{new_src}.mov")
+    db.commit()
+
+    r = client.get(light_url, follow_redirects=False)
+    assert r.status_code == 404, r.text
+    # Zero presign on deny: neither the provider HEAD nor presign ran, no
+    # ALLOWED grant was minted; the denial is recorded as not-current.
+    assert len(presign_calls) == presigns_after_allow
+    assert len(head_calls) == heads_after_allow
+    assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count() == allowed_after_allow
+    denied = (
+        db.query(MediaPlaybackGrant)
+        .filter_by(outcome="DENIED", denial_reason="derivative_not_current")
+        .all()
+    )
+    assert len(denied) == 1
+    # Status agrees: the old derivative is no longer advertised.
+    body = _status(client, UUID_FULL)
+    assert body["derivatives"]["light"]["state"] == "missing"
+    assert body["derivatives"]["light"]["playback_url"] is None
+
+
+def test_derivative_play_denied_after_ledger_status_and_version_change(client, db, fake_presign):
+    _behavior, presign_calls = fake_presign
+    body = _status(client, UUID_FULL)
+    light_url = body["derivatives"]["light"]["playback_url"]
+    assert client.get(light_url, follow_redirects=False).status_code == 302
+    presigns_after_allow = len(presign_calls)
+
+    light_row = (
+        db.query(MediaDerivative)
+        .filter_by(video_uuid=UUID_FULL, role="light", source_blob_sha256=SRC_FULL)
+        .one()
+    )
+    light_row.status = "stale"
+    db.commit()
+    try:
+        r = client.get(light_url, follow_redirects=False)
+        assert r.status_code == 404, r.text
+        assert len(presign_calls) == presigns_after_allow
+    finally:
+        light_row.status = "ready"
+        db.commit()
+
+    # Back to ready, then the transform version moves on: same 404.
+    light_row.transform_version = "ffmpeg-h264-web-v0"
+    db.commit()
+    try:
+        r = client.get(light_url, follow_redirects=False)
+        assert r.status_code == 404, r.text
+        assert len(presign_calls) == presigns_after_allow
+    finally:
+        light_row.transform_version = get_settings().media_derivative_transform_version
+        db.commit()
+
+
+def test_three_verified_locations_still_ambiguous(client, db, python_streamed_media):
+    light_sha = (
+        db.query(MediaDerivative.derivative_blob_sha256)
+        .filter_by(video_uuid=UUID_AMBIG, role="light")
+        .scalar()
+    )
+    # The bounded probe reads at most 2 rows: 3 verified replicas must
+    # still report ambiguous and fail closed.
+    _loc(db, light_sha, "prod", PROD_BUCKET, "blobs/sha256/derived/light-extra.bin")
+    db.commit()
+    body = _status(client, UUID_AMBIG)
+    assert body["derivatives"]["light"]["state"] == "unavailable"
+    assert body["derivatives"]["light"]["playback_url"] is None
+    rev_id = _derived_revision_id(db, UUID_AMBIG, "derived_light")
+    r = client.get(f"/api/v1/media/revisions/{rev_id}/play", follow_redirects=False)
+    assert r.status_code == 404, r.text
+
+
+def test_status_discloses_no_signed_urls_or_secrets(client):
+    import json
+
+    body = _status(client, UUID_FULL)
+    raw = json.dumps(body)
+    assert "X-Amz-Signature" not in raw
+    assert "backblazeb2" not in raw.lower()
+    assert "bucket" not in raw
+    assert "object_key" not in raw
+    for role in ("hq", "light", "poster"):
+        entry = body["derivatives"][role]
+        assert entry["playback_url"].startswith("/api/v1/media/revisions/")
+        assert entry["playback_url"].endswith("/play")
+
+
+def test_unrelated_db_error_not_masked_as_missing_derivatives(client, monkeypatch):
+    import sqlalchemy.exc
+
+    import app.services.derivative_read as derivative_read_module
+
+    def _boom(_db, _uuid, **_kwargs):
+        raise sqlalchemy.exc.OperationalError("SELECT 1", {}, Exception("connection reset"))
+
+    monkeypatch.setattr(derivative_read_module, "resolve_clip_derivatives", _boom)
+    with pytest.raises(sqlalchemy.exc.OperationalError):
+        client.get(f"/api/v1/media/{UUID_FULL}/status")

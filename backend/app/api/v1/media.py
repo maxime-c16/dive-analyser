@@ -419,16 +419,12 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     derivative_poster_url = None
     settings = get_settings()
     if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
-        from sqlalchemy.exc import SQLAlchemyError
+        from app.services.derivative_read import safe_resolve_clip_derivatives
 
-        from app.services.derivative_read import resolve_clip_derivatives
-
-        try:
-            clip = resolve_clip_derivatives(db, asset.video_uuid)
-        except SQLAlchemyError:
-            # Old-schema databases (pre-D1 migration) have no derivative
-            # ledger: legacy status keeps serving, derivatives stay absent.
-            clip = None
+        # Old-schema databases (pre-D1 migration) have no derivative
+        # ledger: safe_resolve returns None, legacy status keeps serving
+        # and derivatives stay absent. Any other DB error propagates.
+        clip = safe_resolve_clip_derivatives(db, asset.video_uuid)
         if clip is not None:
             derivatives_payload = DerivativeStatusBlock(**clip.to_status_payload())
             light = clip.roles.get("light")

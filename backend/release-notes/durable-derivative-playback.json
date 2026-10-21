@@ -1,8 +1,0 @@
-{
-  "id": "durable-derivative-playback",
-  "date": "2026-10-22",
-  "title": "Faster clip starts from durable web versions",
-  "body": "Clips with a verified web version now start on a light stream for a fast first frame, with an explicit HQ choice that keeps full quality. The player still offers the camera original where no web version exists yet, and older cached previews keep working as before.",
-  "audience": "all",
-  "components": ["frontend", "backend"]
-}

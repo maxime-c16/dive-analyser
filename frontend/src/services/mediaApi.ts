@@ -92,20 +92,24 @@ export function getDerivativePosterUrl(status: MediaStatus): string | null {
 
 /** Ordered explicit quality choices: starter light, HQ, camera original.
 
-Entries are only listed when their URL is known, so the player toggle
-never offers a choice it cannot play. HQ may honestly alias light for
-small sources (same bytes, no upscale); the label stays HQ. */
+Only proven URLs are listed, so the player toggle never offers a choice
+it cannot play. With a ready light the starter is light; with no light
+but a ready HQ the starter is HQ and the legacy preview stays out (it is
+not a current proof). HQ may honestly alias light for small sources
+(same bytes, no upscale); the label stays HQ. */
 export function getQualityChoices(status: MediaStatus): Array<{ key: string; label: string; url: string }> {
   const choices: Array<{ key: string; label: string; url: string }> = []
   const light = getDerivativePlaybackUrl(status, 'light')
+  const hq = getDerivativePlaybackUrl(status, 'hq')
   const preview = getPreviewPlaybackUrl(status)
   if (light) {
     choices.push({ key: 'light', label: 'Light', url: light })
+  } else if (hq) {
+    choices.push({ key: 'hq', label: 'HQ', url: hq })
   } else if (preview) {
     choices.push({ key: 'preview', label: 'Preview', url: preview })
   }
-  const hq = getDerivativePlaybackUrl(status, 'hq')
-  if (hq && hq !== choices[0]?.url) {
+  if (light && hq && hq !== light) {
     choices.push({ key: 'hq', label: 'HQ', url: hq })
   }
   const original = getOriginalPlaybackUrl(status)
@@ -135,7 +139,18 @@ export function getOriginalPlaybackUrl(status: MediaStatus): string | null {
 }
 
 export function getPlaybackUrlFromStatus(status: MediaStatus, _preferInstantHq = false): string | null {
-  return getPreviewPlaybackUrl(status) || getOriginalPlaybackUrl(status) || status.playback_url || null
+  // Durable-first starter: ready light (fast first frame), else ready HQ
+  // (HQ-only clips have no light proof), else the legacy preview chain,
+  // else the camera original. With no derivatives block this is exactly
+  // the legacy preview-first order.
+  return (
+    getDerivativePlaybackUrl(status, 'light')
+    || getDerivativePlaybackUrl(status, 'hq')
+    || getPreviewPlaybackUrl(status)
+    || getOriginalPlaybackUrl(status)
+    || status.playback_url
+    || null
+  )
 }
 
 export function getPosterUrlFromStatus(status: MediaStatus): string | null {

@@ -241,18 +241,18 @@ def media_status(
     # legacy status on old-schema databases.
     derivatives_payload = None
     if backbone_available is not None:
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.config import get_settings as _get_settings
 
         _settings = _get_settings()
         if _settings.user_auth_enabled and _settings.b2_playback_canary_enabled:
-            try:
-                from app.services.derivative_read import resolve_clip_derivatives
+            from app.services.derivative_read import safe_resolve_clip_derivatives
 
-                derivatives_payload = resolve_clip_derivatives(db, asset.video_uuid).to_status_payload()
-            except SQLAlchemyError:
-                derivatives_payload = None
+            # Old-schema databases (pre-D1 migration) have no derivative
+            # ledger: safe_resolve returns None and legacy status keeps
+            # serving. Any other DB error propagates.
+            derivatives_payload = safe_resolve_clip_derivatives(db, asset.video_uuid)
+            if derivatives_payload is not None:
+                derivatives_payload = derivatives_payload.to_status_payload()
     if playable is not None or full_quality:
         status_value = "ready"
     elif has_active:

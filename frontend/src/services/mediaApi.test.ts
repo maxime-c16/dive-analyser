@@ -105,5 +105,45 @@ describe('D5 derivative contract helpers', () => {
     expect(getDerivativePlaybackUrl(status, 'light')).toBeNull()
     const keys = getQualityChoices(status).map(choice => choice.key)
     expect(keys).toEqual(['preview', 'original'])
+    // Legacy order is unchanged: preview first, never the original.
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/cache/7/play')
+  })
+
+  it('starts HQ-only clips on the HQ derivative, never the legacy preview', () => {
+    const status: MediaStatus = {
+      ...base,
+      preview_url: '/api/v1/media/cache/7/play',
+      cache_entries: [{ id: 7, rendition: 'proxy_720p', playback_url: '/api/v1/media/cache/7/play' }],
+      derivatives: {
+        source_revision_id: 1,
+        transform_version: 'ffmpeg-h264-web-v1',
+        start: 'hq',
+        recommended: 'hq',
+        hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+        light: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+        poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      },
+    }
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/2/play')
+    const choices = getQualityChoices(status)
+    expect(choices.map(choice => choice.key)).toEqual(['hq', 'original'])
+    expect(choices[0].url).toBe('/api/v1/media/revisions/2/play')
+  })
+
+  it('starts light with no cache entries at all', () => {
+    const status: MediaStatus = {
+      ...base,
+      preview_url: '/api/v1/media/revisions/3/play',
+      derivatives: {
+        source_revision_id: 1,
+        transform_version: 'ffmpeg-h264-web-v1',
+        start: 'light',
+        recommended: 'hq',
+        hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+        light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+        poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+      },
+    }
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/3/play')
   })
 })

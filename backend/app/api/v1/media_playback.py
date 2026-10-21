@@ -133,6 +133,9 @@ def _resolve_verified_prod_location(
             environment="prod",
             verified=True,
         )
+        # Bounded probe: 0 -> missing, 1 -> candidate, >= 2 -> ambiguous.
+        # We only need to distinguish 0/1/many, never the full replica set.
+        .limit(2)
         .all()
     )
     if len(locations) == 0:
@@ -209,6 +212,40 @@ def _is_derivative_revision(revision: MediaRevision | None) -> bool:
 
     return revision is not None and is_derived_rendition_semantics(
         getattr(revision, "rendition_semantics", None)
+    )
+
+
+def _has_current_derivative_proof(db: Session, revision: MediaRevision) -> bool:
+    """Authoritative current-source/version/ready PROD proof (D5).
+
+    A derived revision is servable ONLY when the shared resolver reports
+    the SAME revision id as ready for the clip's CURRENT canonical
+    camera-original source SHA + current transform version with exactly
+    one verified PROD location. A direct request for a known revision
+    whose source has since drifted, whose transform version is stale, or
+    whose ledger row left ``ready`` (verifying/stale/superseded) fails
+    here even though the revision row itself still carries bytes and may
+    still have a verified location: the status contract would no longer
+    advertise this URL, so the play route must not honor it either.
+
+    Runs AFTER authorization but BEFORE any location signing or ALLOWED
+    grant: denials are uniform 404 with zero presign calls. Posters and
+    the small-source HQ alias are covered the same way (the alias shares
+    the light revision id, so it passes exactly when light is provable).
+    A pre-D1 database (no ledger table) yields no proof and fails closed.
+    """
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+    from app.services.derivative_publisher import MissingSourceError
+
+    try:
+        clip = safe_resolve_clip_derivatives(db, revision.video_uuid)
+    except (MissingSourceError, ValueError):
+        return False
+    if clip is None:
+        return False
+    return any(
+        decision.state == "ready" and decision.revision_id == revision.id
+        for decision in clip.roles.values()
     )
 
 
@@ -289,11 +326,18 @@ async def play_media_revision(
         # legacy copy, unknown revision → DENY alike).
         _deny(db, user.id, revision_id, decision.reason)
 
+    derived_only = _is_derivative_revision(revision)
+    if derived_only and not _has_current_derivative_proof(db, revision):
+        # The revision is no longer (or never was) the current PROD proof
+        # for its clip: stale source, wrong transform version, non-ready
+        # ledger, or missing/ambiguous/DEV-only storage. Uniform 404 with
+        # zero presign calls and no legacy fallback (derived bytes must
+        # never be substituted with cache bytes at a stable revision URL).
+        _deny(db, user.id, revision.id, "derivative_not_current")
+
     lookup_started = playback_metrics.now_ms()
     location, storage_deny = _resolve_verified_prod_location(db, revision)
     metrics.storage_lookup_latency.observe(playback_metrics.now_ms() - lookup_started)
-
-    derived_only = _is_derivative_revision(revision)
 
     if location is None:
         if storage_deny == DENY_STORAGE_AMBIGUOUS or derived_only:

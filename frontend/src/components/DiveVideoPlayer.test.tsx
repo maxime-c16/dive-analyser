@@ -988,3 +988,71 @@ it('derivative clips start on light and cycle HQ then original explicitly', asyn
   // Quality switches never create preparation jobs.
   expect(requestMedia).not.toHaveBeenCalled()
 })
+
+it('a failed HQ derivative falls back to the durable light preview', async () => {
+  const derivativeReady = {
+    ...missing,
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/9/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: '/api/v1/media/revisions/9/play',
+    poster_url: '/api/v1/media/revisions/4/play',
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+    },
+  }
+  vi.mocked(getMediaStatus).mockResolvedValue(derivativeReady)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  // The HQ bytes fail to decode: the player offers the durable light
+  // preview (no re-request, no jump to the camera original).
+  fireEvent.error(video)
+  fireEvent.click(await screen.findByRole('button', { name: 'Play a lower-quality preview' }))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('derivative posters ride the authenticated revision route with an honest fallback', async () => {
+  const derivativeReady = {
+    ...missing,
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/9/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: '/api/v1/media/revisions/9/play',
+    poster_url: '/api/v1/media/revisions/4/play',
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+    },
+  }
+  vi.mocked(getMediaStatus).mockResolvedValue(derivativeReady)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    // The poster is the authenticated revision route (cookies apply), not
+    // a signed URL: the <video> poster and the cover <img> share it.
+    await waitFor(() => expect(video).toHaveAttribute('poster', '/api/v1/media/revisions/4/play'))
+    const img = document.querySelector('[data-testid="clip-cover"] img')
+    expect(img).toHaveAttribute('src', '/api/v1/media/revisions/4/play')
+    // A poster that fails to load degrades to an honest placeholder.
+    fireEvent.error(img as Element)
+    expect(document.querySelector('[data-testid="clip-cover"]')).toHaveTextContent('No preview image available')
+  } finally {
+    playSpy.mockRestore()
+  }
+})

@@ -129,6 +129,9 @@ def _verified_prod_location(db: Session, derivative_sha: str, environment: str):
     locations = (
         db.query(MediaBlobLocation)
         .filter_by(blob_sha256=derivative_sha, environment=environment, verified=True)
+        # Bounded probe: 0 -> missing, 1 -> candidate, >= 2 -> ambiguous.
+        # We only need to distinguish 0/1/many, never the full replica set.
+        .limit(2)
         .all()
     )
     if len(locations) == 0:
@@ -281,12 +284,19 @@ def resolve_clip_derivatives(
             source_revision_id=source_revision_id,
         )
 
-    # Small-source HQ alias: no distinct HQ encode exists below the floor;
-    # the light proof IS the HQ bytes (never an upscale). Unknown dims
+    # Small-source HQ alias: ONLY when the producer never recorded a
+    # distinct HQ for this source + transform (no ledger row at all) and
+    # the coded short side is below the floor does the HQ choice resolve
+    # to the durable light proof. A recorded HQ row that is not servable
+    # (stale/superseded/verifying/unavailable) is NEVER aliased: it proves
+    # a distinct HQ was attempted, so serving light as HQ would hide the
+    # honest ledger state (and the coded-dims inference is unreliable for
+    # anamorphic SAR-adjusted or rotated sources — the encoder plans from
+    # SAR-adjusted display dims, see PR143 SAR!=1 residual). Unknown dims
     # refuse the alias fail-closed.
     hq = decisions["hq"]
     light = decisions["light"]
-    if hq.state != "ready" and light.state == "ready":
+    if hq.reason == "no_derivative_row" and light.state == "ready":
         if short_side is not None and short_side < HQ_SHORT_SIDE_FLOOR:
             decisions["hq"] = DerivativeDecision(
                 role="hq",
@@ -316,3 +326,62 @@ def resolve_clip_derivatives(
         start=start,
         recommended=recommended,
     )
+
+
+def _is_missing_ledger_table(exc: BaseException) -> bool:
+    """Whether this DB error is the absent pre-D1 derivative ledger.
+
+    SQLite reports ``no such table: media_derivatives`` (OperationalError);
+    Postgres reports undefined-table ``42P01`` ... does not exist
+    (ProgrammingError). Anything else — a dead connection, a bad row, a
+    bug — is NOT an old schema and must propagate.
+    """
+    orig = getattr(exc, "orig", None)
+    if orig is not None:
+        if getattr(orig, "pgcode", None) == "42P01":
+            return True
+        text = str(orig).lower()
+        if "media_derivatives" in text and (
+            "does not exist" in text or "no such table" in text or "undefined" in text
+        ):
+            return True
+    text = str(exc).lower()
+    return "media_derivatives" in text and (
+        "no such table" in text or "does not exist" in text or "undefined" in text
+    )
+
+
+def safe_resolve_clip_derivatives(
+    db: Session,
+    video_uuid: str,
+    *,
+    transform_version: Optional[str] = None,
+    environment: str = "prod",
+) -> Optional[ClipDerivatives]:
+    """Old-schema-tolerant wrapper around :func:`resolve_clip_derivatives`.
+
+    Returns ``None`` ONLY when the derivative ledger table itself is
+    absent (pre-D1 database): legacy status keeps serving, derivatives
+    stay undisclosed. Any other DB error propagates — unrelated failures
+    must never masquerade as "no derivatives".
+
+    The probe runs in a SAVEPOINT so the aborted statement does not leave
+    the caller's transaction broken (on Postgres a failed statement
+    poisons the whole transaction until rollback; without the savepoint
+    every legacy query after the probe would fail).
+    """
+    from sqlalchemy.exc import OperationalError, ProgrammingError
+
+    savepoint = db.begin_nested()
+    try:
+        clip = resolve_clip_derivatives(
+            db, video_uuid, transform_version=transform_version, environment=environment
+        )
+    except (OperationalError, ProgrammingError) as exc:
+        savepoint.rollback()
+        if _is_missing_ledger_table(exc):
+            return None
+        raise
+    else:
+        savepoint.commit()
+        return clip

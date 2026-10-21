@@ -127,6 +127,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [canRequest, setCanRequest] = useState(false)
   const [decodeError, setDecodeError] = useState(false)
   const [previewSrc, setPreviewSrc] = useState<string | null>(() => initialSeed?.previewPlaybackUrl ?? null)
+  const [lightSrc, setLightSrc] = useState<string | null>(null)
   const [hqSrc, setHqSrc] = useState<string | null>(null)
   const [previewSelected, setPreviewSelected] = useState(false)
   const previewSelectedRef = useRef(false)
@@ -161,6 +162,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     const seed = playbackSeed(videoUuid)
     setPreviewSelected(false); previewSelectedRef.current = false; hqSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
+    setLightSrc(null)
     setHqSrc(null)
     setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
   }, [videoUuid])
@@ -187,6 +189,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     const hqUrl = getDerivativePlaybackUrl(data, 'hq')
     const originalUrl = getOriginalPlaybackUrl(data)
     setPreviewSrc(previewUrl)
+    setLightSrc(getDerivativePlaybackUrl(data, 'light'))
     setHqSrc(hqUrl)
     setPosterSrc(getPosterUrlFromStatus(data))
 
@@ -604,14 +607,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     retryStatusCheck()
   }
 
-  // Explicit quality cycle: starter (light derivative, else legacy
-  // preview) → HQ derivative when ready → camera original. One step per
-  // tap, no automatic upgrades: the starter stays until the viewer
-  // chooses. Aliased HQ (small source) shares the light URL and is
-  // deduplicated out of the cycle.
+  // Explicit quality cycle: starter (light derivative, HQ when light is
+  // missing, else legacy preview) → HQ derivative when ready → camera
+  // original. One step per tap, no automatic upgrades: the starter stays
+  // until the viewer chooses. Aliased HQ (small source) shares the light
+  // URL and is deduplicated out of the cycle. With no light proof but a
+  // ready HQ, the legacy preview is not a current proof and stays out.
   const qualityOptions = (src: string | null | undefined): string[] => {
     if (phase.kind !== 'ready' || !src) return []
-    return [...new Set([previewSrc, hqSrc, phase.originalSrc].filter((url): url is string => !!url))]
+    const starter = lightSrc ?? hqSrc ?? previewSrc
+    return [...new Set([starter, lightSrc ? hqSrc : null, phase.originalSrc].filter((url): url is string => !!url))]
   }
   const qualityLabel = (src: string): string => {
     if (src === hqSrc && hqSrc) return t('videoPlayer.hqLabel')
