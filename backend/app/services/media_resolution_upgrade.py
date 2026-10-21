@@ -199,7 +199,7 @@ def advance_resolution_upgrade_runs(db: Session) -> list[int]:
                     # asset). The FK is shared history: release every
                     # reference before deleting the replaced cache row, or
                     # the delete rolls back the whole heartbeat unit.
-                    _release_upgrade_references(db, [old_entry])
+                    _release_upgrade_references(db, [old_entry.id])
                     retire_verified_proxy_entry(db, old_entry)
                 except ValueError as exc:
                     _finish(run, item, "failed", str(exc))

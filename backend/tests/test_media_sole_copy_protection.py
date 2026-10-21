@@ -12,7 +12,15 @@ evicts unpinned rows regardless of expiry.
 The audit's xfail reproductions
 (t3code-media-paths-audit-20261021/.../test_media_paths_audit_2026_10_21.py)
 stay untouched; these are the passing counterparts for the Lot A scope.
+
+Runtime enforcement is two layers (backend/app/services/media_cache.py):
+selection excludes sole copies outright (even unpinned — stock before the
+migration, rows born under the old runtime), and every eviction re-checks
+eligibility atomically at DELETE time, so a row pinned after selection is
+never unlinked. No trigger exists; none of these tests simulates one.
 """
+
+import pytest
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -429,3 +437,299 @@ def test_pinned_sole_360p_does_not_block_verified_720p_upgrade(test_db, tmp_path
     # Pinned legacy proxy retained (not retired), verified 720p untouched.
     assert test_db.get(MediaCacheEntry, old_entry.id) is not None
     assert old_path.exists() and new_path.exists()
+
+
+def test_cleanup_spares_unpinned_sole_copies_without_migration(test_db, tmp_path):
+    """Barrier reprise, no trigger: old-runtime rows — unpinned, expiring —
+    survive BOTH cleaner passes once the new code serves. Protection here is
+    pin-independent (selection excludes sole copies outright)."""
+    from app.services.media_cache import cleanup_cache
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-reprise")
+    sole_asset = _asset(test_db, "lot-a-reprise-360")
+    paths = {}
+    for rendition, name, owner in (("proxy_720p", "old-720.mp4", asset), ("poster", "old-poster.jpg", asset),
+                            ("proxy_360p", "old-360.mp4", sole_asset)):
+        path = tmp_path / name
+        path.write_bytes(b"sole-copy-bytes!")
+        paths[rendition] = path
+        test_db.add(MediaCacheEntry(
+            photos_asset_id=owner.id, media_key=f"lot-a-reprise-{rendition}",
+            rendition=rendition, storage_path=str(path),
+            content_type="image/jpeg" if rendition == "poster" else "video/mp4",
+            size_bytes=path.stat().st_size, status="ready", pinned=False,
+            expires_at=datetime.utcnow() - timedelta(days=1),
+        ))
+    staging = tmp_path / "staging.bin"
+    staging.write_bytes(b"staging")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-reprise-staging",
+        rendition="browser_source", storage_path=str(staging),
+        content_type="application/octet-stream",
+        size_bytes=staging.stat().st_size, status="ready", pinned=False,
+        expires_at=datetime.utcnow() + timedelta(days=1),
+    ))
+    test_db.commit()
+
+    # TTL pass: the expired sole rows are not candidates at all.
+    removed, _, _ = cleanup_cache(test_db)
+    test_db.commit()
+    assert removed == 0
+
+    # Quota pressure at exactly the sole bytes: only staging can go.
+    sole_bytes = sum(p.stat().st_size for p in paths.values())
+    removed, _, remaining = cleanup_cache(test_db, max_bytes=sole_bytes)
+    test_db.commit()
+    assert removed == 1
+    assert remaining == sole_bytes
+    rows = {r.rendition: r for r in test_db.query(MediaCacheEntry).all()}
+    assert set(rows) == {"proxy_720p", "poster", "proxy_360p"}
+    assert all(r.pinned is False for r in rows.values())
+    assert all(paths[r].exists() for r in rows)
+    assert not staging.exists()
+
+
+def test_cleanup_update_evict_interleaving_pins_and_spares(test_db, tmp_path):
+    """Select → stock UPDATE (real migration file) → evict, with a mix of
+    unpinned sole rows and a genuinely evictable staging row: the staging
+    row goes (eviction still works) while the sole rows survive AND are
+    pinned by the UPDATE. Layer 1 means sole rows are never candidates, so
+    the UPDATE cannot race the cleaner for them — this test proves the real
+    interleaving does exactly that."""
+    from sqlalchemy import text as _sql_text
+
+    from app.services.media_cache import evict_cleanup_candidates, select_cleanup_candidates
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-race")
+    sole_asset = _asset(test_db, "lot-a-race-360")
+    paths = []
+    for rendition, owner in (("proxy_720p", asset), ("poster", asset), ("proxy_360p", sole_asset)):
+        path = tmp_path / f"race-{rendition}.bin"
+        path.write_bytes(b"race-bytes-12345")
+        paths.append(path)
+        test_db.add(MediaCacheEntry(
+            photos_asset_id=owner.id, media_key=f"lot-a-race-{rendition}",
+            rendition=rendition, storage_path=str(path),
+            content_type="video/mp4", size_bytes=path.stat().st_size,
+            status="ready", pinned=False,
+            expires_at=datetime.utcnow() - timedelta(days=1),
+        ))
+    staging = tmp_path / "race-staging.bin"
+    staging.write_bytes(b"staging-bytes-!")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-race-staging",
+        rendition="browser_source", storage_path=str(staging),
+        content_type="application/octet-stream",
+        size_bytes=staging.stat().st_size, status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    test_db.commit()
+
+    # Cleaner selects while everything is still unpinned: only the staging
+    # row is a candidate — sole rows are excluded outright.
+    ttl, trim = select_cleanup_candidates(test_db)
+    assert [r.id for r in ttl] == [
+        r.id for r in test_db.query(MediaCacheEntry)
+        .filter_by(media_key="lot-a-race-staging").all()
+    ]
+
+    # ...then the stock UPDATE lands before the eviction.
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "migrations" / "protect_browser_safe_cache_entries.sql"
+    )
+    test_db.execute(_sql_text(migration.read_text()))
+    test_db.commit()
+
+    removed, _ = evict_cleanup_candidates(test_db, ttl, trim)
+    test_db.commit()
+    assert removed == 1
+    assert not staging.exists()
+    assert all(p.exists() for p in paths)
+    rows = {r.media_key: r for r in test_db.query(MediaCacheEntry).all()}
+    assert set(rows) == {
+        "lot-a-race-proxy_720p", "lot-a-race-poster", "lot-a-race-proxy_360p",
+    }
+    assert all(r.pinned is True and r.expires_at is None for r in rows.values())
+
+
+def test_evict_skips_candidate_pinned_after_select(test_db, tmp_path):
+    """Layer 2, non-vacuous: a staging row IS a candidate at selection, then
+    a concurrent pin lands before its DELETE — the atomic re-check must skip
+    it, file intact."""
+    from sqlalchemy import update as _sa_update
+
+    from app.services.media_cache import evict_cleanup_candidates, select_cleanup_candidates
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-layer2")
+    path = tmp_path / "layer2.bin"
+    path.write_bytes(b"layer2-bytes-123")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-layer2",
+        rendition="browser_source", storage_path=str(path),
+        content_type="application/octet-stream",
+        size_bytes=path.stat().st_size, status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    test_db.commit()
+
+    ttl, trim = select_cleanup_candidates(test_db)
+    assert len(ttl) == 1
+
+    # A concurrent transaction pins the row; synchronize_session=False keeps
+    # this session's view stale, exactly like a separate backend connection.
+    test_db.execute(
+        _sa_update(MediaCacheEntry)
+        .where(MediaCacheEntry.media_key == "lot-a-layer2")
+        .values(pinned=True)
+        .execution_options(synchronize_session=False)
+    )
+    test_db.commit()
+
+    removed, removed_bytes = evict_cleanup_candidates(test_db, ttl, trim)
+    test_db.commit()
+    assert (removed, removed_bytes) == (0, 0)
+    assert path.exists()
+    row = test_db.query(MediaCacheEntry).filter_by(media_key="lot-a-layer2").one()
+    assert row.pinned is True
+
+
+def test_cleanup_evicts_shadowed_360p_but_spares_sole(test_db, tmp_path):
+    """Layer 1 is rendition-precise: an expired unpinned 720p is spared, an
+    expired shadowed 360p is evicted, and an unexpired shadowed 360p goes
+    under quota pressure."""
+    from app.services.media_cache import cleanup_cache
+
+    get_settings().media_cache_root = str(tmp_path)
+    sole_asset = _asset(test_db, "lot-a-sole360")
+    sole = tmp_path / "sole-360.mp4"
+    sole.write_bytes(b"sole-360-bytes!!")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=sole_asset.id, media_key="lot-a-sole360",
+        rendition="proxy_360p", storage_path=str(sole),
+        content_type="video/mp4", size_bytes=sole.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    shadow_asset = _asset(test_db, "lot-a-shadowed")
+    keep720 = tmp_path / "keep-720.mp4"
+    keep720.write_bytes(b"keep-720-bytesss")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=shadow_asset.id, media_key="lot-a-keep720",
+        rendition="proxy_720p", storage_path=str(keep720),
+        content_type="video/mp4", size_bytes=keep720.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    drop360 = tmp_path / "drop-360.mp4"
+    drop360.write_bytes(b"drop-360-bytesss")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=shadow_asset.id, media_key="lot-a-drop360",
+        rendition="proxy_360p", storage_path=str(drop360),
+        content_type="video/mp4", size_bytes=drop360.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    test_db.commit()
+
+    removed, _, _ = cleanup_cache(test_db)
+    test_db.commit()
+    assert removed == 1
+    assert sole.exists() and keep720.exists() and not drop360.exists()
+    assert {r.media_key for r in test_db.query(MediaCacheEntry).all()} == {
+        "lot-a-sole360", "lot-a-keep720",
+    }
+
+    # Unexpired shadowed 360p is still quota-evictable.
+    drop360b = tmp_path / "drop-360b.mp4"
+    drop360b.write_bytes(b"drop-360b-bytess")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=shadow_asset.id, media_key="lot-a-drop360b",
+        rendition="proxy_360p", storage_path=str(drop360b),
+        content_type="video/mp4", size_bytes=drop360b.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() + timedelta(days=1),
+    ))
+    test_db.commit()
+    keep_bytes = sole.stat().st_size + keep720.stat().st_size
+    removed, _, remaining = cleanup_cache(test_db, max_bytes=keep_bytes)
+    test_db.commit()
+    assert removed == 1
+    assert remaining == keep_bytes
+    assert sole.exists() and keep720.exists() and not drop360b.exists()
+
+
+def test_retire_refuses_row_pinned_after_load(test_db, tmp_path):
+    """retire_verified_proxy_entry re-checks atomically: a pin landing after
+    the caller loaded the row must fail, not unlink on stale state."""
+    from sqlalchemy import update as _sa_update
+
+    from app.services.media_cache import retire_verified_proxy_entry
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-retire-race")
+    path = tmp_path / "race-360.mp4"
+    path.write_bytes(b"retire-race-bytes")
+    entry = MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-retire-race",
+        rendition="proxy_360p", storage_path=str(path),
+        content_type="video/mp4", size_bytes=path.stat().st_size,
+        status="ready", pinned=False, expires_at=None,
+    )
+    test_db.add(entry)
+    test_db.commit()
+
+    # A concurrent admin pin lands after our load (entry still reads False).
+    test_db.execute(
+        _sa_update(MediaCacheEntry)
+        .where(MediaCacheEntry.id == entry.id)
+        .values(pinned=True)
+        .execution_options(synchronize_session=False)
+    )
+    test_db.commit()
+    assert entry.pinned is False
+    with pytest.raises(ValueError, match="no_longer_retirable"):
+        retire_verified_proxy_entry(test_db, entry)
+    test_db.rollback()
+    assert path.exists()
+    row = test_db.query(MediaCacheEntry).filter_by(media_key="lot-a-retire-race").one()
+    assert row.pinned is True
+
+
+def test_file_gate_reports_missing_sole_file(test_db, tmp_path):
+    """find_missing_sole_copy_files: all present → clean; a deleted file with
+    a live row → reported by id (pre-UPDATE gate)."""
+    from app.services.media_cache import find_missing_sole_copy_files
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-gate")
+    sole_asset = _asset(test_db, "lot-a-gate-360")
+    alive = tmp_path / "alive-720.mp4"
+    alive.write_bytes(b"alive-bytes-1234")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-gate-720",
+        rendition="proxy_720p", storage_path=str(alive),
+        content_type="video/mp4", size_bytes=alive.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    dead = tmp_path / "dead-360.mp4"
+    dead.write_bytes(b"dead-bytes-12345")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=sole_asset.id, media_key="lot-a-gate-360",
+        rendition="proxy_360p", storage_path=str(dead),
+        content_type="video/mp4", size_bytes=dead.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    test_db.commit()
+    assert find_missing_sole_copy_files(test_db) == {"checked": 2, "missing": []}
+
+    dead.unlink()
+    result = find_missing_sole_copy_files(test_db)
+    assert result["checked"] == 2
+    assert [m["rendition"] for m in result["missing"]] == ["proxy_360p"]
+    assert all(set(m) == {"id", "rendition", "photos_asset_id"} for m in result["missing"])
