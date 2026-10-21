@@ -56,6 +56,7 @@ from app.services.media_cache import (
     get_playable_entry,
     cache_tmp_path,
     cleanup_cache,
+    drain_pending_retirement_unlinks,
     finalize_cache_entry,
     playback_url,
     ready_entries_for_asset,
@@ -674,10 +675,13 @@ def _advance_background_media_work(db: Session) -> None:
     resolution upgrades). The upgrade path verifies 720p artifacts with a
     full-file SHA-256, so the work runs on a worker thread instead of the
     event loop, and the caller commits inside the same cancellation-safe
-    unit."""
+    unit. Retired 360p files unlink only after that commit drains the
+    retirement queue: a rolled-back transaction resurrects its rows, so an
+    earlier unlink would strand an advertised ready row with no bytes."""
     advance_armed_catalog_population_rollovers(db)
     advance_resolution_upgrade_runs(db)
     db.commit()
+    drain_pending_retirement_unlinks(db)
 
 
 @router.post("/agents/heartbeat")

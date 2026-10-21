@@ -8,7 +8,7 @@ from pathlib import Path
 from shutil import move
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, inspect as sa_inspect, select, update
 from sqlalchemy.orm import Session, aliased
 
 from app.config import get_settings
@@ -236,32 +236,77 @@ def set_cache_entry_pinned(db: Session, entry_id: int, pinned: bool) -> MediaCac
     return entry
 
 
+# Session-info key holding (entry_id, storage_path) pairs queued by
+# retire_verified_proxy_entry. Drained once, after the owner's commit.
+_PENDING_RETIREMENT_UNLINKS_KEY = "media_cache_pending_retirement_unlinks"
+
+
 def retire_verified_proxy_entry(db: Session, entry: MediaCacheEntry) -> int:
-    """Remove one unpinned proxy after a higher validated rendition replaces it.
+    """Remove one unpinned proxy row after a higher validated rendition replaces it.
 
     The final DELETE re-checks the unpinned ready state atomically: a row
     pinned (or otherwise changed) after the caller loaded it is left alone
-    instead of being unlinked on stale state.
+    instead of being unlinked on stale state. synchronize_session=False: the
+    DELETE is purely by primary key and never touches in-session state, so
+    the caller's handle is detached explicitly below — and only when it
+    actually belongs to this session (a stale handle from a sibling session
+    must not abort the retirement with InvalidRequestError).
+
+    The FILE is not unlinked here. The caller owns the transaction and may
+    still roll back: a rollback resurrects the row, and an already-unlinked
+    file would leave a ready row advertised with no bytes. The removal is
+    queued on the session instead; the transaction owner unlinks it after a
+    successful commit with drain_pending_retirement_unlinks. Returns the
+    bytes scheduled for removal.
     """
     if entry.rendition != "proxy_360p":
         raise ValueError("only_proxy_360p_entries_can_be_retired")
     if entry.pinned:
         raise ValueError("pinned_proxy_entry_cannot_be_retired")
     storage_path = entry.storage_path
+    size_bytes = int(entry.size_bytes or 0)
     entry_id = entry.id
     deleted = db.execute(
-        delete(MediaCacheEntry).where(
+        delete(MediaCacheEntry)
+        .where(
             MediaCacheEntry.id == entry_id,
             MediaCacheEntry.rendition == "proxy_360p",
             MediaCacheEntry.status == "ready",
             MediaCacheEntry.pinned.is_(False),
         )
+        .execution_options(synchronize_session=False)
     ).rowcount
     db.flush()
     if not deleted:
         raise ValueError("proxy_entry_no_longer_retirable")
-    db.expunge(entry)
-    return _remove_file_by_path(entry_id, storage_path)
+    if sa_inspect(entry).session is db:
+        db.expunge(entry)
+    db.info.setdefault(_PENDING_RETIREMENT_UNLINKS_KEY, []).append((entry_id, storage_path))
+    return size_bytes
+
+
+def drain_pending_retirement_unlinks(db: Session) -> int:
+    """Unlink files queued by retire_verified_proxy_entry, after commit.
+
+    Call exactly once, after the owning transaction commits successfully —
+    never after a rollback. Each queued file is re-checked first: a row
+    that is somehow live again (caller drained without committing) keeps
+    its file. Same path-safety rules as the cleaner. Returns bytes actually
+    freed. A crash between commit and drain leaks a file, never loses one.
+    """
+    pending = db.info.pop(_PENDING_RETIREMENT_UNLINKS_KEY, [])
+    freed = 0
+    for entry_id, storage_path in pending:
+        still_there = db.execute(
+            select(MediaCacheEntry.id).where(MediaCacheEntry.id == entry_id)
+        ).scalar_one_or_none()
+        if still_there is not None:
+            logger.warning(
+                "Skipping retirement unlink for live row: entry_id=%s", entry_id
+            )
+            continue
+        freed += _remove_file_by_path(entry_id, storage_path)
+    return freed
 
 
 def _sole_copy_exclusion_clause():
@@ -316,7 +361,8 @@ def select_cleanup_candidates(db: Session) -> tuple[list, list]:
     ORM instances. Both lists are bounded (100 rows each); large backlogs
     need multiple passes. Pass the result to evict_cleanup_candidates; the
     gap between the two calls is exactly where a concurrent pin (e.g. the
-    stock migration UPDATE) must — and does — block the eviction.
+    stock migration UPDATE) — or a replacement 720p losing ready status —
+    must, and does, block the eviction.
     """
     eligible = _cleanup_eligible_clause()
     now = datetime.utcnow()
@@ -361,18 +407,19 @@ def select_cleanup_candidates(db: Session) -> tuple[list, list]:
 
 
 def _delete_if_still_evictable(db: Session, entry_id: int, *, expired_before: datetime | None) -> bool:
-    """Delete one candidate only if it is still evictable right now.
+    """Delete one candidate only if it is still fully eligible right now.
 
-    The check and the DELETE are a single statement, so a row pinned (or
-    un-expired, or moved out of ready) by a concurrent transaction — e.g.
-    the stock migration UPDATE landing after this cleaner's SELECT — is left
-    alone and, crucially, its file is never unlinked. Returns True when the
-    row was deleted.
+    The full eligibility check and the DELETE are a single statement: a row
+    pinned, un-expired, moved out of ready, or newly a sole copy (its ready
+    720p replacement lost ready status after selection — the shadow turned
+    sole mid-pass) by a concurrent transaction is left alone and, crucially,
+    its file is never unlinked. Returns True when the row was deleted.
     """
     conditions = [
         MediaCacheEntry.id == entry_id,
         MediaCacheEntry.status == "ready",
         MediaCacheEntry.pinned.is_(False),
+        ~_sole_copy_exclusion_clause(),
     ]
     if expired_before is not None:
         conditions += [
@@ -445,10 +492,16 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
 
     Fail-safe eviction, two layers (see _sole_copy_exclusion_clause and
     _delete_if_still_evictable): selection excludes sole copies outright, and
-    every eviction re-checks eligibility atomically at DELETE time, so a row
-    pinned after selection — e.g. by the stock migration UPDATE — is never
-    unlinked. Deletes commit before any file is unlinked: a crash can leak a
-    file, never lose one.
+    every eviction re-checks full eligibility atomically at DELETE time, so
+    a row pinned after selection — e.g. by the stock migration UPDATE — is
+    never unlinked. Deletes commit before any file is unlinked: a crash can
+    leak a file, never lose one.
+
+    The eviction commits the caller's session (row deletes + upgrade-FK
+    releases) before unlinking, so pass a session with no uncommitted
+    unrelated work. Both in-tree callers satisfy this: POST /cache/cleanup
+    uses a fresh request session, and the upload-queue idle worker calls it
+    after committing its own bookkeeping.
     """
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(

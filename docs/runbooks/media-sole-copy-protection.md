@@ -23,11 +23,25 @@ selection never returns a ready `proxy_720p`/`poster` row, nor a ready
 is live, before any migration runs, and rows born under the old runtime
 after the last UPDATE are spared without any trigger.
 
-Layer 2 — atomic per-row re-check (`_delete_if_still_evictable`): the
-eligibility check and the DELETE are one statement, so a row pinned (or
-un-expired, or moved out of ready) after selection is skipped — never
-unlinked. Deletes commit before any file is unlinked: a crash can leak a
-file, never lose one.
+Layer 2 — atomic per-row re-check (`_delete_if_still_evictable`): the FULL
+eligibility check and the DELETE are one statement, so a row pinned,
+un-expired, moved out of ready, or newly a sole copy (its ready 720p lost
+ready status after selection — the shadow turned sole mid-pass) is
+skipped — never unlinked. Deletes commit before any file is unlinked: a
+crash can leak a file, never lose one.
+
+Retirement (verified-720p upgrade path, `retire_verified_proxy_entry`): the
+row DELETE is conditional (unpinned + ready, re-checked atomically) but the
+FILE unlinks only after the owning transaction commits. The retirement
+queues the removal on the session; the heartbeat unit
+(`_advance_background_media_work`) drains the queue after its commit. A
+rollback resurrects the row with its file still in place — never an
+advertised ready row with no bytes. Draining after anything but a
+successful commit is a caller bug; the drain re-checks the row is gone and
+keeps the file of any row that is somehow live. A pin landing between load
+and retirement (the stock migration pinning a shadowed 360p mid-upgrade)
+finishes the item `upgraded` with the pinned row retained — the validated
+720p is already serving — instead of failing the upgrade.
 
 Key point: **`expires_at=NULL` alone never protects a row from the quota
 trim.** The sole-copy guarantee is `pinned=TRUE` (durable marker) plus the

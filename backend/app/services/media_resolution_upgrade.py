@@ -137,6 +137,21 @@ def _validated_target_entry(db: Session, item: MediaResolutionUpgradeItem) -> Me
     return entry
 
 
+def _retired_row_now_pinned(db: Session, old_entry: MediaCacheEntry) -> bool:
+    """Fresh-read whether the row retire refused is now pinned.
+
+    Bypasses the identity map — the in-session handle may predate the pin —
+    so only a row that is present AND pinned counts as the expected pin
+    race. A row that vanished, or changed any other way, is a real failure.
+    """
+    return (
+        db.execute(
+            select(MediaCacheEntry.pinned).where(MediaCacheEntry.id == old_entry.id)
+        ).scalar_one_or_none()
+        is True
+    )
+
+
 def _finish(run: MediaResolutionUpgradeRun, item: MediaResolutionUpgradeItem, status: str, error: str | None = None) -> None:
     if item.completed_at:
         return
@@ -202,7 +217,14 @@ def advance_resolution_upgrade_runs(db: Session) -> list[int]:
                     _release_upgrade_references(db, [old_entry.id])
                     retire_verified_proxy_entry(db, old_entry)
                 except ValueError as exc:
-                    _finish(run, item, "failed", str(exc))
+                    if str(exc) == "proxy_entry_no_longer_retirable" and _retired_row_now_pinned(db, old_entry):
+                        # Expected race: the stock migration pinned the row
+                        # after it was loaded. The 720p is validated and
+                        # serving, so retain the pinned row exactly like the
+                        # load-time pinned path instead of failing the item.
+                        _finish(run, item, "upgraded")
+                    else:
+                        _finish(run, item, "failed", str(exc))
                 else:
                     _finish(run, item, "upgraded")
             else:

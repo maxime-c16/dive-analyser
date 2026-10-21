@@ -662,6 +662,104 @@ def test_cleanup_evicts_shadowed_360p_but_spares_sole(test_db, tmp_path):
     assert sole.exists() and keep720.exists() and not drop360b.exists()
 
 
+def test_retire_tolerates_detached_handle(test_db, tmp_path):
+    """synchronize_session=False + guarded expunge: retiring through a
+    handle detached before the call (stale across session reuse) must
+    succeed instead of aborting the upgrade with InvalidRequestError —
+    the DELETE is purely by primary key."""
+    from app.services.media_cache import (
+        drain_pending_retirement_unlinks,
+        retire_verified_proxy_entry,
+    )
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-detached")
+    path = tmp_path / "detached-360.mp4"
+    path.write_bytes(b"detached-360-bytess")
+    entry = MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-detached-360",
+        rendition="proxy_360p", storage_path=str(path),
+        content_type="video/mp4", size_bytes=path.stat().st_size,
+        status="ready", pinned=False, expires_at=None,
+    )
+    test_db.add(entry)
+    test_db.commit()
+    size = entry.size_bytes
+
+    test_db.expunge(entry)  # stale handle, e.g. held across session reuse
+    scheduled = retire_verified_proxy_entry(test_db, entry)
+    assert scheduled == size
+    test_db.commit()
+    # The commit alone unlinks nothing; the owner's drain frees the file.
+    assert path.exists()
+    assert drain_pending_retirement_unlinks(test_db) == size
+    assert not path.exists()
+    assert test_db.query(MediaCacheEntry).filter_by(media_key="lot-a-detached-360").count() == 0
+
+
+def test_evict_rechecks_sole_copy_when_720_loses_ready(test_db, tmp_path):
+    """Layer-2 full re-check: a shadowed 360 selected while evictable must be
+    spared when its ready 720p loses ready status before the DELETE — the
+    shadow turned sole mid-pass. A genuinely evictable staging row still
+    goes, so eviction keeps working."""
+    from sqlalchemy import update as _sa_update
+
+    from app.services.media_cache import evict_cleanup_candidates, select_cleanup_candidates
+
+    get_settings().media_cache_root = str(tmp_path)
+    asset = _asset(test_db, "lot-a-midpass")
+    good = tmp_path / "midpass-720.mp4"
+    good.write_bytes(b"midpass-720-bytess")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-midpass-720",
+        rendition="proxy_720p", storage_path=str(good),
+        content_type="video/mp4", size_bytes=good.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    shadow = tmp_path / "midpass-360.mp4"
+    shadow.write_bytes(b"midpass-360-bytess")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-midpass-360",
+        rendition="proxy_360p", storage_path=str(shadow),
+        content_type="video/mp4", size_bytes=shadow.stat().st_size,
+        status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    staging = tmp_path / "midpass-staging.bin"
+    staging.write_bytes(b"midpass-staging!")
+    test_db.add(MediaCacheEntry(
+        photos_asset_id=asset.id, media_key="lot-a-midpass-staging",
+        rendition="browser_source", storage_path=str(staging),
+        content_type="application/octet-stream",
+        size_bytes=staging.stat().st_size, status="ready", pinned=False,
+        expires_at=datetime.utcnow() - timedelta(days=1),
+    ))
+    test_db.commit()
+
+    ttl, trim = select_cleanup_candidates(test_db)
+    assert {row.id for row in ttl} >= {
+        r.id for r in test_db.query(MediaCacheEntry).filter(
+            MediaCacheEntry.media_key.in_(["lot-a-midpass-360", "lot-a-midpass-staging"])
+        ).all()
+    }
+
+    # Interleaving: the 720p replacement fails verification before eviction.
+    test_db.execute(
+        _sa_update(MediaCacheEntry)
+        .where(MediaCacheEntry.media_key == "lot-a-midpass-720")
+        .values(status="failed")
+    )
+    test_db.commit()
+
+    removed, _ = evict_cleanup_candidates(test_db, ttl, trim)
+    assert removed == 1
+    rows = {r.media_key: r for r in test_db.query(MediaCacheEntry).all()}
+    assert set(rows) == {"lot-a-midpass-720", "lot-a-midpass-360"}
+    assert shadow.exists() and not staging.exists()
+    assert rows["lot-a-midpass-360"].status == "ready"
+
+
 def test_retire_refuses_row_pinned_after_load(test_db, tmp_path):
     """retire_verified_proxy_entry re-checks atomically: a pin landing after
     the caller loaded the row must fail, not unlink on stale state."""
@@ -697,6 +795,10 @@ def test_retire_refuses_row_pinned_after_load(test_db, tmp_path):
     assert path.exists()
     row = test_db.query(MediaCacheEntry).filter_by(media_key="lot-a-retire-race").one()
     assert row.pinned is True
+    # A refused retirement queues nothing: there is nothing to drain.
+    from app.services.media_cache import drain_pending_retirement_unlinks
+
+    assert drain_pending_retirement_unlinks(test_db) == 0
 
 
 def test_file_gate_reports_missing_sole_file(test_db, tmp_path):

@@ -286,6 +286,47 @@ def test_evict_skips_candidate_pinned_after_select(pg):
         check.close()
 
 
+def test_evict_rechecks_sole_copy_mid_pass(pg):
+    """Layer-2 full re-check on real Postgres: a shadowed 360p selected
+    while evictable is spared when its ready 720p loses ready status before
+    the DELETE — the shadow turned sole mid-pass — while a genuinely
+    evictable staging row still goes."""
+    from sqlalchemy import text as _sql_text
+
+    from app.models.media import MediaCacheEntry as _Entry
+    from app.services.media_cache import (
+        evict_cleanup_candidates,
+        select_cleanup_candidates,
+    )
+
+    engine, factory, session, prefix, tmp_path = pg
+    asset = _asset(session, prefix)
+    good720 = _insert(session, tmp_path, asset, "proxy_720p",
+                      key=f"{prefix}-s720")
+    shadow = _insert(session, tmp_path, asset, "proxy_360p",
+                     key=f"{prefix}-s360")
+    staging = _insert(session, tmp_path, asset, "browser_source",
+                      key=f"{prefix}-sstag")
+    session.commit()
+
+    ttl, trim = select_cleanup_candidates(session)
+    assert {row.id for row in ttl} >= {shadow.id, staging.id}
+
+    # Interleaving: the 720p replacement fails verification before eviction.
+    session.execute(_sql_text(
+        "UPDATE media_cache_entries SET status = 'failed',"
+        " updated_at = CURRENT_TIMESTAMP WHERE id = :i"
+    ), {"i": good720.id})
+    session.commit()
+
+    removed, _ = evict_cleanup_candidates(session, ttl, trim)
+    assert removed == 1
+    assert session.get(_Entry, shadow.id) is not None
+    assert Path(shadow.storage_path).exists()
+    assert session.get(_Entry, staging.id) is None
+    assert not Path(staging.storage_path).exists()
+
+
 def test_old_writer_reprise_survives_both_passes(pg):
     """No trigger, no pin: old-runtime rows survive the REAL cleanup."""
     from app.services.media_cache import cleanup_cache
@@ -354,6 +395,8 @@ def test_legacy_360_cast_sole_spared_shadowed_evictable(pg):
 
     # Shadowed 360p stays eligible for the verified-720p retirement path:
     # a pinned 360p refuses, an unpinned one retires, the 720p is untouched.
+    # The file unlinks only when the owner drains the queue after commit —
+    # a commit alone resurrects nothing and unlinks nothing.
     pinned_360 = _insert(session, tmp_path, shadow_asset, "proxy_360p",
                          expired=False, pinned=True, key=f"{prefix}-pinned360")
     with pytest.raises(ValueError, match="pinned_proxy_entry_cannot_be_retired"):
@@ -361,10 +404,17 @@ def test_legacy_360_cast_sole_spared_shadowed_evictable(pg):
     session.rollback()
     shadowed = _insert(session, tmp_path, shadow_asset, "proxy_360p",
                        expired=False, key=f"{prefix}-shadow360b")
-    freed = retire_verified_proxy_entry(session, shadowed)
+    shadowed_path = Path(shadowed.storage_path)
+    expected = shadowed.size_bytes
+    scheduled = retire_verified_proxy_entry(session, shadowed)
+    assert scheduled == expected
     session.commit()
-    assert freed == shadowed.size_bytes
     assert session.get(MediaCacheEntry, shadowed.id) is None
+    assert shadowed_path.exists()
+    from app.services.media_cache import drain_pending_retirement_unlinks
+
+    assert drain_pending_retirement_unlinks(session) == expected
+    assert not shadowed_path.exists()
     assert session.get(MediaCacheEntry, shadow_720.id) is not None
     assert Path(shadow_720.storage_path).exists()
 
