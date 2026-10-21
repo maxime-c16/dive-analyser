@@ -61,7 +61,10 @@ Environment policy: the source is ALWAYS canonical PROD, but the
 publish environment (dev or prod, from ``b2_upload_environment``)
 selects the destination bucket via the allowlist. A dev publish commits
 its blob location in the DEV bucket only; it never creates a PROD
-location, so it can never be served as a prod-ready replica. The
+location, so it can never be served as a prod-ready replica. A later
+publish of the same bytes in another env uploads + full-GET verifies in
+that env and commits that env's replica before any dedup ``ready``
+(including ``IntegrityError`` rival replays). The
 ``media_derivatives`` ledger row itself carries no environment — it is
 a content proof, and env scoping lives on the blob locations (D3b2
 readers must resolve locations in their serving environment).
@@ -436,7 +439,7 @@ def _b2_upload_client():
             endpoint_url=settings.b2_upload_endpoint_url
             or f"https://s3.{settings.b2_upload_region}.backblazeb2.com",
             aws_access_key_id=settings.b2_upload_key_id,
-            aws_access_key_secret=settings.b2_upload_key_secret,
+            aws_secret_access_key=settings.b2_upload_key_secret,
             config=Config(connect_timeout=10, read_timeout=120, retries={"total_max_attempts": 2}),
         )
     except MissingCredentials:
@@ -480,8 +483,8 @@ def _upload_and_roundtrip_verify(
             key,
             ExtraArgs={"ContentType": content_type, "Metadata": {"sha256": derivative_sha}},
         )
-    except Exception as exc:
-        raise VerificationFailed("derivative upload failed; please retry") from exc
+    except Exception:
+        raise VerificationFailed("derivative upload failed; please retry") from None
     try:
         response = client.get_object(Bucket=bucket, Key=key)
         body = response["Body"]
@@ -509,8 +512,8 @@ def _upload_and_roundtrip_verify(
                 pass
     except VerificationFailed:
         raise
-    except Exception as exc:
-        raise VerificationFailed("derivative storage verification failed; please retry") from exc
+    except Exception:
+        raise VerificationFailed("derivative storage verification failed; please retry") from None
     if digest.hexdigest() != derivative_sha or size != derivative_size:
         raise VerificationFailed("derivative storage verification failed; please retry")
 
@@ -560,6 +563,45 @@ def _resolve_current_source_sha(db, video_uuid: str) -> tuple[str | None, bool]:
     except MissingSourceError:
         return None, True
     return current.blob_sha256, False
+
+
+def _ensure_current_env_backbone(db, ctx, *, derivative_sha, derivative_size, key, bucket, environment) -> None:
+    """Flush blob + verified location + revision for the current env (no commit).
+
+    The ``media_derivatives`` ledger identity carries no environment — it
+    is a content proof — so an idempotent replay (or an ``IntegrityError``
+    rival replay) with the same bytes must still record THIS environment's
+    verified replica before returning ``ready``. A DEV publish therefore
+    never counts as PROD proof: a later PROD publish of the same bytes
+    commits its own PROD location/revision here and only then dedups.
+    Caller commits; this only flushes. Never touches the ledger row.
+    """
+    from app.services.media_backbone import DERIVATIVE_ROLE_TO_SEMANTICS
+    from app.services.media_backbone import commit_verified_ingest
+
+    semantics = DERIVATIVE_ROLE_TO_SEMANTICS.get(ctx.role, f"derived_{ctx.role}")
+    commit_verified_ingest(
+        db,
+        video_uuid=ctx.video_uuid,
+        blob_sha256=derivative_sha,
+        byte_size=derivative_size,
+        object_key=key,
+        storage_backend="b2",
+        bucket=bucket,
+        verified=True,
+        media_only=True,
+        media_only_reason=f"durable derivative {ctx.role} roundtrip-verified",
+        rendition_semantics=semantics,
+        source_provenance={
+            "source": "derivative_publisher_d3b1",
+            "source_blob_sha256": ctx.source_blob_sha256,
+            "role": ctx.role,
+            "transform_version": ctx.transform_version,
+        },
+        ingest_impl_version="derivative_publisher_d3b1",
+        environment=environment,
+        commit=False,
+    )
 
 
 def publish_derivative(
@@ -689,12 +731,12 @@ def publish_derivative(
         except Exception:
             pass
         raise
-    except Exception as exc:
+    except Exception:
         try:
             db.rollback()
         except Exception:
             pass
-        raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
+        raise DerivativePublishError("derivative publish failed; ledger unchanged") from None
 
     # DB unit: position on the ledger identity (locking on PG) →
     # source-drift check → backbone commit + ledger upsert → pre-commit
@@ -722,6 +764,20 @@ def publish_derivative(
             if existing.derivative_blob_sha256 == derivative_sha:
                 # Idempotent replay: same bytes already durable. The
                 # source was rechecked above, so this ready is current.
+                # The ledger carries no env, but readers resolve replicas
+                # per-env: commit THIS env's verified location/revision
+                # before deduping, so DEV-ready never serves as PROD
+                # proof without a PROD upload + full-GET verify (done
+                # above) and a PROD replica commit (done here).
+                _ensure_current_env_backbone(
+                    db,
+                    ctx,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    key=key,
+                    bucket=bucket,
+                    environment=environment,
+                )
                 db.commit()
                 return {
                     "video_uuid": ctx.video_uuid,
@@ -813,6 +869,21 @@ def publish_derivative(
             and rival.derivative_blob_sha256 == derivative_sha
             and rival.status == "ready"
         ):
+            # Same-bytes rival won the ledger race: this env still needs
+            # its own verified replica (upload + full-GET verify already
+            # proved THESE bytes in THIS bucket above). Commit it before
+            # deduping so DEV-ready never counts as PROD proof.
+            rival_id = rival.id
+            _ensure_current_env_backbone(
+                db,
+                ctx,
+                derivative_sha=derivative_sha,
+                derivative_size=derivative_size,
+                key=key,
+                bucket=bucket,
+                environment=environment,
+            )
+            db.commit()
             return {
                 "video_uuid": ctx.video_uuid,
                 "role": ctx.role,
@@ -824,7 +895,7 @@ def publish_derivative(
                 "environment": environment,
                 "status": "ready",
                 "deduplicated": True,
-                "media_derivative_id": rival.id,
+                "media_derivative_id": rival_id,
             }
         raise DerivativeIdentityConflict(
             "derivative identity concurrently committed; refusing overwrite"

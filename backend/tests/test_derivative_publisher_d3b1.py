@@ -721,3 +721,189 @@ def test_stale_attempt_records_backbone_without_ready_or_jobs(db, creds, tmp_pat
     from app.models.media import MediaJob
 
     assert db.query(MediaJob).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Review round: boto3 kwarg, cross-env replica, traceback privacy.
+# ---------------------------------------------------------------------------
+
+
+def test_b2_upload_client_uses_secret_access_key_kwarg(db, creds, monkeypatch):
+    """Regression: the default factory must pass boto3's real kwarg.
+
+    The old ``aws_access_key_secret`` name made every default-client
+    construction fail (TypeError → MissingCredentials). Capture the
+    kwargs the factory passes to ``boto3.client`` and pin the correct
+    ``aws_secret_access_key`` name.
+    """
+    import sys
+    import types
+
+    from app.services import derivative_publisher as mod
+
+    captured: dict = {}
+
+    def _capture(*args, **kwargs):
+        captured.update(kwargs)
+        captured["_args"] = args
+
+        class _Dummy:
+            pass
+
+        return _Dummy()
+
+    stub = types.ModuleType("boto3")
+    stub.client = _capture  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "boto3", stub)
+    # botocore is imported by the factory; keep the real one.
+    client = mod._b2_upload_client()
+    assert client is not None
+    assert captured.get("aws_secret_access_key") == "test-secret-xyz"
+    assert "aws_access_key_secret" not in captured
+    assert captured.get("aws_access_key_id") == "test-key"
+
+
+def test_b2_upload_client_real_constructor_fake_endpoint(db, creds, monkeypatch):
+    """The factory builds a real boto3 client with fake keys + local endpoint.
+
+    No network and no EC2 metadata lookup: explicit keys + region +
+    local endpoint mean client construction stays local. This proves the
+    kwarg is valid against the real boto3 constructor (not just a patch).
+    """
+    import boto3  # real, from backend requirements (CI venv)
+
+    monkeypatch.setattr(creds, "b2_upload_key_id", "FAKE-TEST-KEY")
+    monkeypatch.setattr(creds, "b2_upload_key_secret", "FAKE-TEST-SECRET")
+    monkeypatch.setattr(creds, "b2_upload_region", "us-east-1")
+    monkeypatch.setattr(creds, "b2_upload_endpoint_url", "http://127.0.0.1:9")
+
+    from app.services import derivative_publisher as mod
+
+    client = mod._b2_upload_client()
+    # Real S3 client object, pointed at the fake local endpoint.
+    assert client.meta.endpoint_url == "http://127.0.0.1:9"
+    assert client.meta.region_name == "us-east-1"
+
+
+def test_dev_then_prod_same_bytes_commits_prod_replica(db, creds, tmp_path, monkeypatch):
+    """DEV-ready never counts as PROD proof: PROD re-verifies + commits.
+
+    Same identity + same bytes across envs stays ONE ledger row, but the
+    second (PROD) publish must upload + full-GET verify in PROD and commit
+    its own verified PROD replica before deduping. Exactly one row, two
+    env locations, right buckets/keys.
+    """
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+
+    uuid = "clip-devenv-cross"
+    _seed_camera_source(db, uuid)
+    payload = b"cross-env-bytes" * 64
+    artifact = tmp_path / "a.bin"
+    artifact.write_bytes(payload)
+    sha = _sha(payload)
+
+    fake = FakeS3()
+    monkeypatch.setattr(creds, "b2_upload_environment", "dev")
+    dev_ctx = _ctx(db, uuid)
+    assert dev_ctx.environment == "dev"
+    dev_out = publish_derivative(db, dev_ctx, artifact, s3_client=fake)
+    assert dev_out["status"] == "ready" and dev_out["environment"] == "dev"
+    assert db.query(MediaBlobLocation).filter_by(blob_sha256=sha, environment="prod", verified=True).count() == 0
+
+    monkeypatch.setattr(creds, "b2_upload_environment", "prod")
+    prod_ctx = _ctx(db, uuid)
+    assert prod_ctx.environment == "prod"
+    # Same local bytes, new env: must re-upload + re-verify in PROD.
+    uploads_before = fake.calls["upload"]
+    prod_out = publish_derivative(db, prod_ctx, artifact, s3_client=fake)
+    assert prod_out["status"] == "ready" and prod_out["deduplicated"] is True
+    assert prod_out["derivative_blob_sha256"] == dev_out["derivative_blob_sha256"]
+    assert fake.calls["upload"] == uploads_before + 1
+
+    # Exactly one ledger row (identity carries no env), still ready.
+    rows = db.query(MediaDerivative).filter_by(video_uuid=uuid).all()
+    assert len(rows) == 1 and rows[0].status == "ready"
+    assert rows[0].derivative_blob_sha256 == sha
+
+    # Both env replicas exist, each in its allowlisted bucket, same key.
+    dev_loc = db.query(MediaBlobLocation).filter_by(blob_sha256=sha, environment="dev", verified=True).one()
+    prod_loc = db.query(MediaBlobLocation).filter_by(blob_sha256=sha, environment="prod", verified=True).one()
+    assert dev_loc.bucket == creds.media_backbone_dev_bucket
+    assert prod_loc.bucket == creds.media_backbone_prod_bucket
+    assert prod_loc.object_key == prod_out["object_key"] == dev_out["object_key"]
+    assert prod_loc.storage_backend == "b2" and prod_loc.object_key != ""
+
+
+def test_prod_then_dev_does_not_downgrade_source_stays_prod(db, creds, tmp_path, monkeypatch):
+    """Reverse env order: DEV replica added, PROD ready untouched, source PROD."""
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+
+    uuid = "clip-prodenv-cross"
+    _seed_camera_source(db, uuid)
+    payload = b"reverse-env-bytes" * 64
+    artifact = tmp_path / "a.bin"
+    artifact.write_bytes(payload)
+    sha = _sha(payload)
+    fake = FakeS3()
+
+    # PROD first (creds default env is prod).
+    assert creds.b2_upload_environment == "prod"
+    prod_ctx = _ctx(db, uuid)
+    prod_out = publish_derivative(db, prod_ctx, artifact, s3_client=fake)
+    assert prod_out["environment"] == "prod"
+
+    monkeypatch.setattr(creds, "b2_upload_environment", "dev")
+    dev_ctx = _ctx(db, uuid)
+    dev_out = publish_derivative(db, dev_ctx, artifact, s3_client=fake)
+    assert dev_out["status"] == "ready" and dev_out["deduplicated"] is True
+
+    rows = db.query(MediaDerivative).filter_by(video_uuid=uuid).all()
+    assert len(rows) == 1 and rows[0].status == "ready"
+    assert rows[0].derivative_blob_sha256 == sha
+    # Both replicas present; PROD bucket still correct.
+    prod_loc = db.query(MediaBlobLocation).filter_by(blob_sha256=sha, environment="prod", verified=True).one()
+    dev_loc = db.query(MediaBlobLocation).filter_by(blob_sha256=sha, environment="dev", verified=True).one()
+    assert prod_loc.bucket == creds.media_backbone_prod_bucket
+    assert dev_loc.bucket == creds.media_backbone_dev_bucket
+    # Canonical source still the PROD camera original (derivatives excluded).
+    rev, _blob, _loc = resolve_canonical_source_revision(db, uuid)
+    assert rev.blob_sha256 != sha
+    assert _loc.environment == "prod" and _loc.bucket == creds.media_backbone_prod_bucket
+
+
+def test_provider_traceback_hides_secrets_both_paths(db, creds, tmp_path):
+    """traceback.format_exception must not echo provider secrets (upload + get)."""
+    import traceback
+
+    uuid = "clip-tb-privacy"
+    _seed_camera_source(db, uuid)
+    ctx = _ctx(db, uuid)
+    artifact = tmp_path / "a.bin"
+    artifact.write_bytes(b"tb-bytes" * 64)
+    secret = "SECRET-LEAK-PROBE-TB-9f8a"
+    endpoint = "https://leak-endpoint-tb.example:9999/secret-path"
+
+    class LeakyUpload(FakeS3):
+        def upload_file(self, *a, **k):
+            raise RuntimeError(f"upload down {secret} {endpoint} key=test-secret-xyz")
+
+    class LeakyGet(FakeS3):
+        def get_object(self, **k):
+            raise RuntimeError(f"get down {secret} {endpoint} key=test-secret-xyz")
+
+    for fake in (LeakyUpload(), LeakyGet()):
+        with pytest.raises(VerificationFailed) as excinfo:
+            publish_derivative(db, ctx, artifact, s3_client=fake)
+        assert secret not in str(excinfo.value)
+        assert endpoint not in str(excinfo.value)
+        assert "test-secret-xyz" not in str(excinfo.value)
+        assert excinfo.value.__cause__ is None
+        tb_text = "".join(
+            traceback.format_exception(
+                type(excinfo.value), excinfo.value, excinfo.value.__traceback__
+            )
+        )
+        assert secret not in tb_text
+        assert endpoint not in tb_text
+        assert "test-secret-xyz" not in tb_text
+    assert db.query(MediaDerivative).count() == 0
