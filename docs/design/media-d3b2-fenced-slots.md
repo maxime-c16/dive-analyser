@@ -89,6 +89,18 @@ Mac (`mac-agent`, gated by server + capability):
   `PackageResult.ready` = LOCAL-VALIDATED, never durable (explicit). Slot
   publishes echo the lease `transform_version` (server enforces pin == ctx ==
   request on every slot).
+- Publication timeout (bounded): `server.package_publish_timeout_seconds`
+  (default 600 s, valid [60, 1800]) covers the WHOLE multipart upload +
+  server ffprobe/decode/B2 upload + full GET verify per slot — NOT the 30 s
+  generic API default (legacy calls keep 30 s). Sizing: HD slots plus
+  server-side verification need minutes at slow uplink (~2 GiB worst case +
+  ~100 s server verify, with headroom); never unbounded. Per-request
+  override only (global pool/bounds untouched); bytes stream via curl
+  `-F file=@path` (never full memory). The D2 whole-job keepalive runs
+  concurrently while awaiting, renewing the lease (<=45 s), so a long
+  publish does not lose the claim; transient timeout/5xx retries reuse the
+  same bytes + lease nonce (idempotent same-bytes dedupe), 400/401/403/404/
+  409 fail immediately (client-stale, never retry).
 - One package at a time per worker (semaphore); server enforces the fleet
   global. Vault `mark_media_ready("web_package")` sets BOTH poster + proxy
   sides ONLY after server `job_ready` (every applicable slot VERIFIED DURABLE,
@@ -103,6 +115,8 @@ parity, lease pin persisted incl. revision + canonical dims + global cap +
 no-source skip, old-worker legacy, 3-slot ready + idempotent retry, expiry +
 SAME-agent reclaim reject + fresh-token success, source-changed stale +
 missing-pin fail-closed (no legacy binding) + missing-transform-echo reject +
+route-level required echo (missing 422 before staging, blank 400/409 strict,
+wrong-even-if-default 409, correct-pin HTTP happy path) +
 NONE->light-after-hq alias-flip reject + exact hq/light/poster dims when
 canonical dims known (poster expected == light expected) + alias truth
 (server dims, unknown fail-closed) + corrupt/HDR/missing-BT709/bad
@@ -123,7 +137,11 @@ cap serialized, source-changed first slot reject-not-retag — fake B2 barrier,
 real PG TX, lease + publish paths, not guard alone) +
 `test_package_jobs.py` (4 mocked: single pass/threads/slots + transform pin
 echo, Photos identity refusal, lease-lost abandonment, no placeholder fail;
-vault `web_package` sets both sides only after `job_ready`).
+vault `web_package` sets both sides only after `job_ready`) +
+`test_package_publish_timeout.py` (dedicated 600 s default, [60, 1800] clamp,
+real transport forwarding not mock constant, custom 900 s forwarded, legacy
+30 s preserved, transient retry same-bytes idempotent vs 409 terminal,
+keepalive spans slow publish).
 Selectable suites: D2+D3b1+D3b2 SQLite + PG tier pass (see evidence below).
 Mac tests pass with a local `osxphotos` stub (this Mac lacks the module; CI
 Linux runs them via its boundary).

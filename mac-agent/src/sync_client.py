@@ -722,6 +722,21 @@ class SyncClient:
         validates (ffprobe/SHA/alias), B2-publishes with a full-byte
         roundtrip verify (no row lock during the network), then commits the
         ledger + finalized_slots atomically under the D2 lease guard.
+
+        Timeout: uses the dedicated bounded ``package_publish_timeout_seconds``
+        (default 600 s, valid [60, 1800]) for the whole multipart upload +
+        server verification roundtrip — NOT the 30 s generic API default.
+        The file streams via curl ``-F file=@path`` (never full memory);
+        the timeout is a per-request override, preserving the global client
+        pool/bounds. The D2 whole-job keepalive runs concurrently while this
+        awaits, renewing the lease (<=45 s), so a long publish does not lose
+        the claim.
+
+        Retries: bounded via the existing ``RetryConfig`` for transient
+        failures only (timeout/status 0, 502/503/500). Same bytes + same
+        lease nonce each attempt, so a commit-ambiguous timeout safely
+        dedupes server-side (idempotent per-slot same-bytes retry); 400 /
+        401 / 403 / 404 / 409 fail immediately (client-stale, never retry).
         """
         url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/package/slots"
         fields: Dict[str, Any] = {
@@ -742,19 +757,42 @@ class SyncClient:
             fields["source_height"] = str(source_height)
         if transform_version is not None:
             fields["transform_version"] = transform_version
-        status, body = await asyncio.to_thread(
-            _curl_multipart_post,
-            url,
-            fields,
-            str(file_path),
-            self.server_config.api_key or "",
-            self.server_config.timeout_seconds or 30.0,
-            self.server_config.ca_cert_path,
-        )
-        ok, data, error = _parse_response(status, body)
-        if not ok:
-            raise RuntimeError(f"publish package slot failed: {status} {error}")
-        return data
+        try:
+            publish_timeout = int(
+                getattr(self.server_config, "package_publish_timeout_seconds", 600) or 600
+            )
+        except (TypeError, ValueError):
+            publish_timeout = 600
+        publish_timeout = max(60, min(1800, publish_timeout))
+        max_attempts = (self.retry_config.max_retries if self.retry_config else 0) + 1
+        last_error: str = ""
+        last_status: int = 0
+        for attempt in range(max_attempts):
+            status, body = await asyncio.to_thread(
+                _curl_multipart_post,
+                url,
+                fields,
+                str(file_path),
+                self.server_config.api_key or "",
+                float(publish_timeout),
+                self.server_config.ca_cert_path,
+            )
+            ok, data, error = _parse_response(status, body)
+            if ok:
+                return data
+            last_status, last_error = status, error
+            # Terminal client-stale / auth / validation: never retry.
+            if status in (400, 401, 403, 404, 409):
+                raise RuntimeError(f"publish package slot failed: {status} {error}")
+            if attempt < max_attempts - 1:
+                try:
+                    delay = self.retry_config.get_delay(attempt) if self.retry_config else 1.0
+                except Exception:
+                    delay = 1.0
+                await asyncio.sleep(delay)
+                continue
+            raise RuntimeError(f"publish package slot failed: {last_status} {last_error}")
+        raise RuntimeError(f"publish package slot failed: {last_status} {last_error}")
 
     async def heartbeat_media_agent(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/agents/heartbeat"

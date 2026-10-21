@@ -35,6 +35,13 @@ class ServerConfig:
     api_key: str
     timeout_seconds: int = 30
     ca_cert_path: str = ""
+    # D3b2 package publish: separate bounded per-request timeout for the
+    # whole multipart upload + server ffprobe/decode/B2 roundtrip + full GET.
+    # HD slots (hq/light/poster mp4 + JPEG) plus server-side verification
+    # need minutes, not the 30 s API default. Bounded [60, 1800], default
+    # 600 s: ~2 GiB worst case at slow uplink + ~100 s server verify, with
+    # headroom; never unbounded, never raises the global API default.
+    package_publish_timeout_seconds: int = 600
 
 
 @dataclass
@@ -268,6 +275,9 @@ class Config:
                 api_key=server_data['api_key'],
                 timeout_seconds=server_data.get('timeout_seconds', 30),
                 ca_cert_path=str(Path(ca_cert_path).expanduser()) if ca_cert_path else "",
+                package_publish_timeout_seconds=int(
+                    server_data.get('package_publish_timeout_seconds', 600)
+                ),
             )
 
             agent_data = data.get('agent', {})
@@ -460,6 +470,7 @@ class Config:
         try:
             self._validate_api_key(self.server.api_key)
             self._validate_ca_cert_path(self.server.ca_cert_path)
+            self._validate_package_publish_timeout()
         except ValueError as e:
             errors.append(f"server: {e}")
 
@@ -597,6 +608,24 @@ class Config:
     def _validate_ca_cert_path(self, path: str) -> None:
         if path and not Path(path).is_file():
             raise ValueError(f"CA certificate file not found: {path}")
+
+    def _validate_package_publish_timeout(self) -> None:
+        """Bounded per-request timeout for fenced package publish.
+
+        Covers the whole multipart upload + server ffprobe/decode/B2
+        roundtrip + full GET. Default 600 s, valid [60, 1800]: HD slots
+        need minutes at slow uplink plus ~100 s server verify; never
+        unbounded, never raises the 30 s global API default.
+        """
+        value = getattr(self.server, "package_publish_timeout_seconds", 600)
+        try:
+            ivalue = int(value)
+        except (TypeError, ValueError):
+            raise ValueError("package_publish_timeout_seconds must be an integer")
+        if not 60 <= ivalue <= 1800:
+            raise ValueError(
+                f"package_publish_timeout_seconds must be within [60, 1800] (got {value})"
+            )
 
     def _validate_api_key(self, key: str) -> None:
         """Validate API key strength and format."""
@@ -762,6 +791,7 @@ def create_example_config() -> None:
   url: https://192.168.1.57:8000
   api_key: YOUR_API_KEY_HERE
   timeout_seconds: 30
+  package_publish_timeout_seconds: 600
 
 photos:
   library_path: ~/Pictures/Photos Library.photoslibrary

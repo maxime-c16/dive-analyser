@@ -1517,7 +1517,7 @@ async def publish_package_slot(
     hq_aliased_to: str | None = Form(None),
     source_width: int | None = Form(None),
     source_height: int | None = Form(None),
-    transform_version: str | None = Form(None),
+    transform_version: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -1610,7 +1610,6 @@ async def publish_package_slot(
             build_publication_context,
             publish_derivative,
         )
-        from app.services.media_keys import get_derivative_transform_version
 
         try:
             probed = validate_slot_artifact(
@@ -1645,7 +1644,9 @@ async def publish_package_slot(
             )
         canonical_uuid = job.asset.video_uuid
         try:
-            ctx = build_publication_context(db, video_uuid=canonical_uuid, role=slot)
+            ctx = build_publication_context(
+                db, video_uuid=canonical_uuid, role=slot, transform_version=transform_version
+            )
         except (ValueError, PermissionError) as exc:
             db.rollback()
             staging_path.unlink(missing_ok=True)
@@ -1687,8 +1688,8 @@ async def publish_package_slot(
             slot=slot,
             applicable=applicable,
             hq_aliased_to=hq_aliased_to,
-            transform_version=transform_version or get_derivative_transform_version(),
-            claimed_transform_version=transform_version or get_derivative_transform_version(),
+            transform_version=transform_version,
+            claimed_transform_version=transform_version,
         )
         try:
             result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)

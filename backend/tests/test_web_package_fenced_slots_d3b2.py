@@ -832,3 +832,253 @@ def test_flag_policy_compose_and_config_defaults():
     compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
     assert "MEDIA_WEB_PACKAGES_ENABLED: \"${MEDIA_WEB_PACKAGES_ENABLED:-false}\"" in compose
     assert "MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED: \"${MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED:-false}\"" in compose
+
+
+# --- D3b2 review fix: route-level transform_version binding (HTTP, not guard-only) ---
+
+_ROUTE_KEY = "k" * 48
+_ROUTE_AGENT = "mac-media-01"
+_ROUTE_HEADERS = {"X-API-Key": _ROUTE_KEY}
+
+
+def _route_lease_package(test_db, monkeypatch, _presign):
+    """Lease one web_package job; returns (job_id, token, pin_version, source_sha)."""
+    from app.services import media_jobs as mj
+    from app.schemas.media import MediaJobLeaseRequest
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "media_jobs_require_lease_token", True)
+    _agent(test_db)
+    asset = _asset(test_db)
+    sha = _seed_camera_source(test_db, asset.video_uuid, width=1920, height=1080)
+    job_row = _package_job(test_db, asset)
+    leased = mj.lease_media_jobs(
+        test_db,
+        MediaJobLeaseRequest(
+            agent_id=_ROUTE_AGENT,
+            capabilities=["web_package"],
+            max_jobs=1,
+            supports_lease_token=True,
+        ),
+    )
+    assert len(leased) == 1
+    test_db.commit()
+    return job_row.id, leased[0].lease_token, leased[0].transform_version, sha
+
+
+def _route_slot_files(tmp_path, slot="hq"):
+    import hashlib as _hl
+
+    data = _TINY_JPEG + b"route-" + slot.encode()
+    p = tmp_path / f"route-{slot}.bin"
+    p.write_bytes(data)
+    return p, _hl.sha256(data).hexdigest(), len(data)
+
+
+def test_route_missing_transform_version_422_before_staging(
+    api_client, test_db, monkeypatch, _presign, tmp_path
+):
+    """Missing required echo is 422 via route binding, before staging/network.
+
+    FastAPI Form(...) validation rejects before the handler body runs, so no
+    per-request staging file is created and no B2/DB work happens.
+    """
+    from app.config import get_settings as _gs
+
+    settings = _gs()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path / "cache")
+    try:
+        job_id, token, _pin, sha = _route_lease_package(test_db, monkeypatch, _presign)
+        fpath, digest, size = _route_slot_files(tmp_path)
+        with fpath.open("rb") as fh:
+            resp = api_client.post(
+                f"/api/v1/media/jobs/{job_id}/package/slots",
+                data={
+                    "agent_id": _ROUTE_AGENT,
+                    "lease_token": token,
+                    "slot": "hq",
+                    "checksum_sha256": digest,
+                    "size_bytes": str(size),
+                    "content_type": "video/mp4",
+                    "source_sha256": sha,
+                    "source_width": "1920",
+                    "source_height": "1080",
+                    # transform_version intentionally omitted
+                },
+                files={"file": ("hq.mp4", fh, "video/mp4")},
+                headers=_ROUTE_HEADERS,
+            )
+        assert resp.status_code == 422, resp.text
+        # No staging: tmp dir never created files for the rejected request.
+        staged = list((tmp_path / "cache" / "tmp").glob("*")) if (tmp_path / "cache" / "tmp").exists() else []
+        assert staged == []
+    finally:
+        settings.media_cache_root = saved_root
+
+
+def test_route_blank_transform_rejected_strict(api_client, test_db, monkeypatch, _presign, tmp_path):
+    """Blank/whitespace echo is 400/409 (strict identity, never coerced).
+
+    Empty-string omission is transport-equivalent to missing (422) and still
+    fail-closed; whitespace present-but-blank must be 400/409, never adopted.
+    """
+    from app.config import get_settings as _gs
+
+    settings = _gs()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path / "cache")
+    try:
+        job_id, token, _pin, sha = _route_lease_package(test_db, monkeypatch, _presign)
+        # Empty string: fail-closed (422 missing-equivalent or 400/409).
+        fpath, digest, size = _route_slot_files(tmp_path)
+        with fpath.open("rb") as fh:
+            resp = api_client.post(
+                f"/api/v1/media/jobs/{job_id}/package/slots",
+                data={
+                    "agent_id": _ROUTE_AGENT,
+                    "lease_token": token,
+                    "slot": "hq",
+                    "checksum_sha256": digest,
+                    "size_bytes": str(size),
+                    "content_type": "video/mp4",
+                    "source_sha256": sha,
+                    "source_width": "1920",
+                    "source_height": "1080",
+                    "transform_version": "",
+                },
+                files={"file": ("hq.mp4", fh, "video/mp4")},
+                headers=_ROUTE_HEADERS,
+            )
+        assert resp.status_code in (400, 409, 422), resp.text
+        # Whitespace present-but-blank: strict 400/409, never coerced.
+        for bad in ("   ", "\t\n "):
+            fpath, digest, size = _route_slot_files(tmp_path)
+            with fpath.open("rb") as fh:
+                resp = api_client.post(
+                    f"/api/v1/media/jobs/{job_id}/package/slots",
+                    data={
+                        "agent_id": _ROUTE_AGENT,
+                        "lease_token": token,
+                        "slot": "hq",
+                        "checksum_sha256": digest,
+                        "size_bytes": str(size),
+                        "content_type": "video/mp4",
+                        "source_sha256": sha,
+                        "source_width": "1920",
+                        "source_height": "1080",
+                        "transform_version": bad,
+                    },
+                    files={"file": ("hq.mp4", fh, "video/mp4")},
+                    headers=_ROUTE_HEADERS,
+                )
+            assert resp.status_code in (400, 409), f"{bad!r}: {resp.status_code} {resp.text}"
+    finally:
+        settings.media_cache_root = saved_root
+
+
+def test_route_wrong_transform_rejected_even_when_matches_server_default(
+    api_client, test_db, monkeypatch, _presign, tmp_path
+):
+    """A changed version is rejected even when it matches the current default.
+
+    Lease pins v1, then the server default moves to v2: posting v2 (which
+    equals the live default) must still 409 because claimed != lease pin.
+    This is the regression the optional-Form fallback allowed.
+    """
+    from app.config import get_settings as _gs
+    import app.services.web_packages as wp
+
+    settings = _gs()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path / "cache")
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "b2_upload_key_id", "k")
+    monkeypatch.setattr(settings, "b2_upload_key_secret", "s")
+    monkeypatch.setattr(settings, "b2_upload_region", "r")
+    monkeypatch.setattr(settings, "b2_upload_environment", "prod")
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1920, "height": 1080})
+    s3 = FakeS3()
+    import app.services.derivative_publisher as dp
+
+    monkeypatch.setattr(dp, "_b2_upload_client", lambda: s3)
+    try:
+        job_id, token, pin, sha = _route_lease_package(test_db, monkeypatch, _presign)
+        assert pin
+        # Move the live server default away from the pin.
+        monkeypatch.setattr(settings, "media_derivative_transform_version", pin + "-v2")
+        wrong = pin + "-v2"
+        assert wrong != pin
+        fpath, digest, size = _route_slot_files(tmp_path)
+        with fpath.open("rb") as fh:
+            resp = api_client.post(
+                f"/api/v1/media/jobs/{job_id}/package/slots",
+                data={
+                    "agent_id": _ROUTE_AGENT,
+                    "lease_token": token,
+                    "slot": "hq",
+                    "checksum_sha256": digest,
+                    "size_bytes": str(size),
+                    "content_type": "video/mp4",
+                    "source_sha256": sha,
+                    "source_width": "1920",
+                    "source_height": "1080",
+                    "transform_version": wrong,
+                },
+                files={"file": ("hq.mp4", fh, "video/mp4")},
+                headers=_ROUTE_HEADERS,
+            )
+        assert resp.status_code == 409, resp.text
+        assert "transform" in resp.text.lower()
+    finally:
+        settings.media_cache_root = saved_root
+
+
+def test_route_correct_pin_happy_path_single_slot(
+    api_client, test_db, monkeypatch, _presign, tmp_path
+):
+    """Correct lease echo via HTTP succeeds (route binding, not guard-only)."""
+    from app.config import get_settings as _gs
+    import app.services.web_packages as wp
+
+    settings = _gs()
+    saved_root = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path / "cache")
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "b2_upload_key_id", "k")
+    monkeypatch.setattr(settings, "b2_upload_key_secret", "s")
+    monkeypatch.setattr(settings, "b2_upload_region", "r")
+    monkeypatch.setattr(settings, "b2_upload_environment", "prod")
+    monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1920, "height": 1080})
+    s3 = FakeS3()
+    import app.services.derivative_publisher as dp
+
+    monkeypatch.setattr(dp, "_b2_upload_client", lambda: s3)
+    try:
+        job_id, token, pin, sha = _route_lease_package(test_db, monkeypatch, _presign)
+        fpath, digest, size = _route_slot_files(tmp_path)
+        with fpath.open("rb") as fh:
+            resp = api_client.post(
+                f"/api/v1/media/jobs/{job_id}/package/slots",
+                data={
+                    "agent_id": _ROUTE_AGENT,
+                    "lease_token": token,
+                    "slot": "hq",
+                    "checksum_sha256": digest,
+                    "size_bytes": str(size),
+                    "content_type": "video/mp4",
+                    "source_sha256": sha,
+                    "source_width": "1920",
+                    "source_height": "1080",
+                    "transform_version": pin,
+                },
+                files={"file": ("hq.mp4", fh, "video/mp4")},
+                headers=_ROUTE_HEADERS,
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["slot"] == "hq"
+        assert body["job_ready"] is False
+    finally:
+        settings.media_cache_root = saved_root
