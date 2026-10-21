@@ -54,9 +54,9 @@ from app.services.legacy_gate import require_legacy_media_user
 from app.services.user_access import can_user_access_cache_entry
 from app.services.media_cache import (
     get_playable_entry,
-    cache_tmp_path,
     cleanup_cache,
     drain_pending_retirement_unlinks,
+    drain_reclaim_orphans,
     finalize_cache_entry,
     playback_url,
     ready_entries_for_asset,
@@ -1149,6 +1149,7 @@ async def request_media(
         reason=request.reason,
     )
     db.commit()
+    drain_reclaim_orphans(db)
     db.refresh(job)
 
     status_response = _status_for_asset(db, asset)
@@ -1229,6 +1230,7 @@ async def lease_jobs(
         # (MEDIA_JOBS_REQUIRE_LEASE_TOKEN=true) — old worker must upgrade.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     db.commit()
+    drain_reclaim_orphans(db)
     return MediaJobLeaseResponse(jobs=jobs)
 
 
@@ -1295,17 +1297,19 @@ async def upload_job_artifact(
     # row-locked after the hash, inside the committing transaction — a
     # mid-upload re-lease is rejected there (check-then-act race closed).
     try:
-        peeked = _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=False)
+        _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=False)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    # D2: per-attempt tmp path. Only this attempt's path is ever unlinked
-    # or written here — a stale attempt can no longer overwrite (or delete)
-    # the live attempt's bytes.
-    tmp_path = cache_tmp_path(peeked)
-    tmp_path.unlink(missing_ok=True)
+    # D2: per-request staging. Duplicate same-attempt requests (client retry)
+    # stream to distinct staging files; only the authoritative row-locked
+    # accept promotes one staging to the canonical per-attempt path. Never
+    # unlink the canonical here: it may hold already-accepted live bytes.
+    from app.services.media_cache import cache_upload_staging_path
+
+    staging_path = cache_upload_staging_path(job_id, lease_token)
     actual_size = 0
     try:
         while True:
@@ -1313,12 +1317,12 @@ async def upload_job_artifact(
             if not chunk:
                 break
             actual_size += len(chunk)
-            write_upload_chunk(tmp_path, chunk)
+            write_upload_chunk(staging_path, chunk)
     finally:
         await file.close()
 
     if actual_size != size_bytes:
-        tmp_path.unlink(missing_ok=True)
+        staging_path.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
 
     # Full-artifact reads belong on a worker thread: hashing gigabyte-scale
@@ -1327,20 +1331,21 @@ async def upload_job_artifact(
     # a cancelled upload never leaves an unverified-accepted artifact or a
     # half transaction behind the session teardown.
     def _verify_and_accept():
-        actual_checksum = sha256_file(tmp_path)
+        actual_checksum = sha256_file(staging_path)
         if actual_checksum != checksum_sha256:
-            tmp_path.unlink(missing_ok=True)
+            staging_path.unlink(missing_ok=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Uploaded checksum mismatch",
             )
         try:
-            accepted = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes, lease_token)
+            accepted = mark_job_uploaded(db, job_id, agent_id, str(staging_path), checksum_sha256, size_bytes, lease_token)
         except (ValueError, PermissionError) as exc:
             db.rollback()
-            # The claim moved mid-upload (re-lease/reclaim): these bytes
-            # belong to a dead attempt and must not linger.
-            tmp_path.unlink(missing_ok=True)
+            # The claim moved mid-upload (re-lease/reclaim): these staging
+            # bytes belong to a dead attempt — remove only the staging file,
+            # never the canonical live bytes.
+            staging_path.unlink(missing_ok=True)
             if isinstance(exc, ValueError):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))

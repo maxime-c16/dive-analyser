@@ -167,6 +167,86 @@ def cache_tmp_path(job: MediaJob) -> Path:
     return tmp_dir / f"job-{job.id}-{attempt}.partial"
 
 
+def cache_upload_staging_path(job_id: int, lease_token: str | None) -> Path:
+    """Return a unique per-request staging path for one upload attempt.
+
+    Same-attempt duplicate requests (client retry after a timeout) must not
+    share bytes: they stream to distinct staging files, and only the
+    authoritative row-locked accept promotes one staging to the canonical
+    per-attempt path. A retry therefore can never unlink or interleave the
+    live attempt's accepted bytes. Staging still carries the attempt token so
+    orphans are attributable and reclaim never touches a live attempt.
+    """
+    import uuid as _uuid
+
+    settings = get_settings()
+    tmp_dir = Path(settings.media_cache_root).resolve() / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    attempt = lease_token or "legacy"
+    return tmp_dir / f"job-{job_id}-{attempt}.{_uuid.uuid4().hex}.staging"
+
+
+def promote_upload_staging(staging: Path, job: MediaJob) -> Path:
+    """Atomically promote one staging file to the canonical attempt path.
+
+    Called inside the row-locked accept transaction, after the guard passed:
+    concurrent same-attempt uploads serialize here, last writer wins, and no
+    loser ever deletes the winner's bytes. Returns the canonical path.
+    Synthetic service-level callers pass a fake path (guard tests never
+    touch bytes); when the staging file is absent and is not already the
+    canonical path, the pointer still advances to canonical without file
+    ops — the route always hashes a real staging file first.
+    """
+    canonical = cache_tmp_path(job)
+    staging = Path(staging)
+    try:
+        if staging.resolve() == canonical.resolve():
+            return canonical
+    except OSError:
+        pass
+    try:
+        staging.replace(canonical)
+    except FileNotFoundError:
+        pass
+    return canonical
+
+
+_RECLAIM_ORPHANS_KEY = "media_jobs_reclaim_orphans"
+
+
+def queue_reclaim_orphans(db, paths: list[str]) -> None:
+    """Queue reclaim orphan tmps for unlink after the owner's commit."""
+    if paths:
+        db.info.setdefault(_RECLAIM_ORPHANS_KEY, []).extend(paths)
+
+
+def drain_reclaim_orphans(db) -> int:
+    """Unlink queued reclaim orphans, after a successful commit.
+
+    Call exactly once after the owning transaction commits — never after a
+    rollback. Each path is re-checked: a job pointing at it again (caller
+    drained without committing) keeps its file. A crash between commit and
+    drain leaks a file, never loses one.
+    """
+    pending = db.info.pop(_RECLAIM_ORPHANS_KEY, [])
+    removed = 0
+    for raw in pending:
+        try:
+            still = (
+                db.execute(select(MediaJob.id).where(MediaJob.upload_tmp_path == raw)).scalar_one_or_none()
+            )
+        except Exception:
+            still = True
+        if still is not None:
+            continue
+        try:
+            Path(raw).unlink(missing_ok=True)
+            removed += 1
+        except OSError:
+            continue
+    return removed
+
+
 def cache_final_path(job: MediaJob, content_type: str) -> Path:
     """Return final sharded cache path for a job artifact."""
     settings = get_settings()

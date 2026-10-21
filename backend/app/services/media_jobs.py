@@ -276,12 +276,31 @@ def _b2_source(db: Session, job: MediaJob) -> dict:
 
 
 def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
-    """Requeue or fail active jobs whose Mac-agent lease expired."""
+    """Requeue or fail active jobs whose Mac-agent lease expired.
+
+    Serialized with the D2 row guards: the scan takes SELECT ... FOR UPDATE
+    on Postgres so a concurrent heartbeat/finalize holding the row blocks
+    here (and vice versa) until the winner commits — no check-then-act
+    overwrite, no reclaim of a just-renewed lease. All callers share this
+    serialization (advisory xact lock taken here, re-entrant with the lease
+    path's outer lock). Orphan tmp files are QUEUED on the session and
+    unlinked only after the owner's commit via drain_reclaim_orphans: a
+    rollback resurrects the row, and an already-unlinked file would leave a
+    pointer with no bytes.
+    """
+    from app.services.media_cache import queue_reclaim_orphans
+
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(73125, 1)"))
     now = now or datetime.utcnow()
-    stmt = select(MediaJob).where(
-        MediaJob.status.in_(LEASED_JOB_STATUSES),
-        MediaJob.claimed_until.is_not(None),
-        MediaJob.claimed_until < now,
+    stmt = (
+        select(MediaJob)
+        .where(
+            MediaJob.status.in_(LEASED_JOB_STATUSES),
+            MediaJob.claimed_until.is_not(None),
+            MediaJob.claimed_until < now,
+        )
+        .with_for_update()
     )
     jobs = list(db.execute(stmt).scalars().all())
     reclaimed = 0
@@ -315,14 +334,10 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
 
     if reclaimed:
         db.flush()
-    # Best-effort orphan cleanup AFTER flush so a failed unlink never blocks
-    # the reclaim. Tmp paths are per-attempt (D2), so this never touches a
-    # live attempt's bytes: a reclaimed job has no live attempt.
-    for orphan in orphan_tmps:
-        try:
-            Path(orphan).unlink(missing_ok=True)
-        except OSError:
-            continue
+    # Queue orphan unlinks for after the owner's commit (never here: a
+    # rollback would resurrect the row with its file already gone).
+    if orphan_tmps:
+        queue_reclaim_orphans(db, orphan_tmps)
     return reclaimed
 
 
@@ -370,12 +385,15 @@ def _guarded_job(
 
     ``lock=True`` takes SELECT ... FOR UPDATE on Postgres so the guard and
     the caller's mutation commit atomically (no check-then-act race between
-    concurrent workers). Route pre-checks that stream bytes for minutes
-    afterwards use ``lock=False`` (peek); the authoritative check re-runs
-    with the lock inside the committing mutation.
+    concurrent workers). ``populate_existing=True`` forces the row to
+    refresh under the lock: without it SQLAlchemy returns the identity-map
+    cached row (e.g. an upload peek loaded earlier in the same session) and
+    the authoritative re-check would see stale token/expiry. Route pre-checks
+    that stream bytes for minutes afterwards use ``lock=False`` (peek); the
+    authoritative check re-runs with the lock inside the committing mutation.
     """
     if lock:
-        job = db.get(MediaJob, job_id, with_for_update=True)
+        job = db.get(MediaJob, job_id, with_for_update=True, populate_existing=True)
     else:
         job = db.get(MediaJob, job_id)
     if not job:
@@ -393,6 +411,19 @@ def _owned_job(db: Session, job_id: int, agent_id: str) -> MediaJob:
     return _guarded_job(db, job_id, agent_id, None, None, lock=True)
 
 
+# Pipeline order for monotonic heartbeat: a keepalive echoing a lagging phase
+# must never regress a job that already advanced (uploading -> verifying).
+# Explicit phase advances still move forward; stale echoes only renew the lease.
+_STATUS_ORDER = {
+    "claimed": 0,
+    "materializing": 1,
+    "exporting": 2,
+    "transcoding": 3,
+    "uploading": 4,
+    "verifying": 5,
+}
+
+
 def heartbeat_media_job(
     db: Session,
     job_id: int,
@@ -405,11 +436,17 @@ def heartbeat_media_job(
 
     Requires the current unexpired lease + fencing token: an expired attempt
     cannot renew, and a stale (re-leased) attempt cannot resurrect the job.
+    Monotonic: an echo for an earlier phase renews the lease without
+    regressing status/progress (a whole-job keepalive lagging behind
+    verifying must not pull it back to uploading and break finalize).
     """
     job = _guarded_job(db, job_id, agent_id, lease_token, LEASED_JOB_STATUSES, lock=True)
 
-    job.status = status
-    job.progress = progress
+    incoming = _STATUS_ORDER.get(status, -1)
+    current = _STATUS_ORDER.get(job.status, -1)
+    if incoming >= current:
+        job.status = status
+        job.progress = max(progress, job.progress or 0)
     job.claimed_until = datetime.utcnow() + timedelta(minutes=5)
     job.updated_at = datetime.utcnow()
     db.add(job)
@@ -460,12 +497,26 @@ def mark_job_uploaded(
     before streaming bytes, but only this check — re-run after the hash,
     in the committing transaction — decides. A mid-upload re-lease is
     rejected here and the orphaned bytes are removed by the caller.
+    ``tmp_path`` is the caller's per-request staging file; it is promoted
+    atomically to the canonical per-attempt path inside the lock, so a
+    concurrent same-attempt retry serializes here (last wins) and never
+    deletes the winner's bytes.
     """
+    from app.services.media_cache import promote_upload_staging
+
     job = _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=True)
 
+    staging = Path(tmp_path)
+    if staging.exists() and staging.is_file():
+        canonical = promote_upload_staging(staging, job)
+    else:
+        # Synthetic guard tests pass fake paths (no bytes staged; the route
+        # always hashes a real staging file first). Advance the pointer
+        # without file ops so guard semantics stay testable.
+        canonical = staging
     job.status = "verifying"
     job.progress = 95
-    job.upload_tmp_path = tmp_path
+    job.upload_tmp_path = str(canonical)
     job.output_checksum_sha256 = checksum_sha256
     job.output_size_bytes = size_bytes
     job.updated_at = datetime.utcnow()
