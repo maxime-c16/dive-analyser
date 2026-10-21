@@ -686,11 +686,13 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
         _finish_population_item(run, item, "unavailable")
         return refresh_catalog_population_run(db, run)
     ready = _ready_renditions(db, catalog)
-    item.poster_status = "ready" if "poster" in ready else item.poster_status
+    item.poster_status = _stored_unless_stale_ready(item.poster_status, "poster" in ready)
     # proxy_status reports the playable fallback (720p preferred, legacy 360p
     # accepted) for dashboards, but the item only completes once TRUE 720p is
     # ready: a poster + 360p asset keeps running until its 720p lands.
-    item.proxy_status = "ready" if ("proxy_720p" in ready or "proxy_360p" in ready) else item.proxy_status
+    item.proxy_status = _stored_unless_stale_ready(
+        item.proxy_status, "proxy_720p" in ready or "proxy_360p" in ready
+    )
     if "poster" in ready and "proxy_720p" in ready:
         _finish_population_item(run, item, "ready")
         db.flush()
