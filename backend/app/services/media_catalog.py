@@ -431,9 +431,16 @@ def catalog_population_plan(db: Session, *, scope: str = "all_eligible_captioned
     if free - rolling_peak < PROJECTED_RECALL_MIN_FREE_BYTES:
         blocked.append("projected_free_space_below_recall_gate")
     counts = Counter(priority_class for _, priority_class, _ in planned)
+    # Playable fallback pending a TRUE 720p upgrade: live poster + live
+    # legacy 360p present, live 720p missing. Poster-only assets have no
+    # playable fallback and are excluded; 720p-ready assets are excluded;
+    # stale stored 360p with no live entry is excluded (live map only).
     pending_720p_upgrades = sum(
         1 for row, _, _ in active
-        if _live_poster_ready(row, live_ready) and row.photos_asset_id not in ready_720p
+        if _live_poster_ready(row, live_ready)
+        and row.photos_asset_id is not None
+        and LEGACY_PROXY_FALLBACK in live_ready.get(row.photos_asset_id, set())
+        and row.photos_asset_id not in ready_720p
     )
     return {
         "dry_run": True,
@@ -744,9 +751,21 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
         if rendition in ready:
             setattr(item, f"{rendition.replace('proxy_720p', 'proxy').replace('proxy_360p', 'proxy')}_status", "ready")
             return refresh_catalog_population_run(db, run)
-        # Job claims ready but the cache entry is not there yet: wait for the
-        # next refresh instead of recursing forever on the same item.
-        return run
+        # Ready job with no live ready cache entry: the file was evicted
+        # after the job completed (finalize commits the cache entry and the
+        # ready status atomically in media.py _finalize_and_commit, so a
+        # ready-without-entry state cannot be a finalize race). The stale
+        # pointer would otherwise return here on every refresh, leaving the
+        # run active and blocking later runs. Clear only this item's pointer
+        # — never the historic job row others may reference — and fall
+        # through to queue/reuse a REPLACEMENT below. create_or_reuse only
+        # reuses ACTIVE jobs for the same media_key, so the historic ready
+        # job is never reused and an already-queued replacement is deduped
+        # instead of duplicated (one replacement per refresh, progress on
+        # the next poll, finish once its entry lands).
+        setattr(item, job_id_field, None)
+        db.flush()
+        job = None
     if not job:
         asset = db.get(PhotosAsset, catalog.photos_asset_id)
         _, job, _ = create_or_reuse_media_job(db, asset, rendition, f"catalog_population_stage_{run.stage}")
