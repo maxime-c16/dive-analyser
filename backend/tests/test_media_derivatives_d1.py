@@ -77,6 +77,7 @@ def test_derivative_key_fail_closed_validation():
         dict(video_uuid=video_uuid, role="hq", source_sha256="X" * 64, transform_version=version),
         dict(video_uuid=video_uuid, role="hq", source_sha256=_sha("s").upper(), transform_version=version),
         dict(video_uuid=video_uuid, role="hq", source_sha256=f" {source_sha}", transform_version=version),
+        dict(video_uuid=video_uuid, role="hq", source_sha256=source_sha + "\n", transform_version=version),
         # Bad versions: empty, blank, over 40 chars.
         dict(video_uuid=video_uuid, role="hq", source_sha256=source_sha, transform_version=""),
         dict(video_uuid=video_uuid, role="hq", source_sha256=source_sha, transform_version="   "),

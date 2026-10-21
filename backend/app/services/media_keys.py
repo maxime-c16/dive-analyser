@@ -80,7 +80,7 @@ def build_derivative_media_key(
         raise ValueError(
             f"unknown derivative role {role!r}; expected one of {sorted(DERIVATIVE_ROLES)}"
         )
-    if not isinstance(source_sha256, str) or not _SHA256_HEX_RE.match(source_sha256):
+    if not isinstance(source_sha256, str) or not _SHA256_HEX_RE.fullmatch(source_sha256):
         raise ValueError(f"malformed source_sha256: {source_sha256!r}")
     version = transform_version if transform_version is not None else get_derivative_transform_version()
     if not isinstance(version, str) or not version.strip() or len(version) > 40:
