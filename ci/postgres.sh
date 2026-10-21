@@ -16,6 +16,7 @@ ci_run postgres-pytest "$CI_BACKEND_PYTHON" -m pytest \
     tests/test_postgres_activity.py \
     tests/test_postgres_media_cutover.py \
     tests/test_postgres_media_derivatives_d1.py \
+    tests/test_postgres_derivative_publisher_d3b1.py \
     tests/test_postgres_media_job_fencing_d2.py \
     tests/test_calendar_domain.py::test_postgres_migration_matches_models \
     tests/test_calendar_domain.py::test_database_constraints \
