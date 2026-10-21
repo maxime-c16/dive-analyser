@@ -26,8 +26,67 @@ PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(not PG_URL, reason="Disposable PostgreSQL required")
 
-KEY = "k" * 48
-AGENT = "mac-media-01"
+
+def _agent_key_hash(prefix):
+    """Unique api_key_sha256 per fixture prefix (stable for repeated seeds).
+
+    The previous constant hash collided with the long-lived ``mac-media-01``
+    agent left behind by the cutover tier sharing the same disposable DB
+    (``ix_media_agents_api_key_sha256``). No auth request in this file uses
+    the key material — rows are inserted directly — so scoping the hash to
+    the owned prefix is safe and keeps each fixture isolated.
+    """
+    return hashlib.sha256(f"{prefix}:pg-d2-agent-key".encode()).hexdigest()
+
+
+def _cleanup_owned(engine, prefixes):
+    """Delete ONLY rows owned by the given fixture prefixes, FK-safe order.
+
+    Children first (jobs + identities), then parents (assets + agents).
+    LIKE ``prefix%`` covers ``_seed`` variants that append a suffix to the
+    fixture prefix. Never touches foreign fixtures (e.g. ``mac-media-01``),
+    never TRUNCATEs, never drops schema. Refuses non-calendar_test_* DBs.
+    """
+    owned = sorted({p for p in prefixes if p})
+    if not owned:
+        return
+    db_url = str(getattr(engine, "url", ""))
+    try:
+        parsed = make_url(db_url)
+        assert parsed.get_backend_name() == "postgresql"
+        assert (parsed.database or "").startswith("calendar_test_"), (
+            "Disposable calendar_test_* database required — refusing anything else"
+        )
+    except AssertionError:
+        raise
+    except Exception:
+        pass
+    with engine.begin() as conn:
+        for prefix in owned:
+            like = prefix + "%"
+            conn.execute(
+                text("DELETE FROM media_jobs WHERE media_key LIKE :p OR claimed_by LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM photos_asset_agent_identities WHERE agent_id LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text(
+                    "DELETE FROM photos_asset_agent_identities WHERE photos_asset_id IN "
+                    "(SELECT id FROM photos_assets WHERE video_uuid LIKE :p)"
+                ),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM photos_assets WHERE video_uuid LIKE :p"),
+                {"p": like},
+            )
+            conn.execute(
+                text("DELETE FROM media_agents WHERE id LIKE :p"),
+                {"p": like},
+            )
 
 
 def _engine():
@@ -57,19 +116,13 @@ def pg():
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     db = factory()
     prefix = f"pg-d2-{uuid4().hex[:12]}"
+    factory._pg_d2_prefixes = {prefix}
     yield engine, factory, db, prefix
     try:
         db.rollback()
     finally:
         db.close()
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        for table in ("media_jobs", "photos_assets", "media_agents", "photos_asset_agent_identities"):
-            try:
-                conn.exec_driver_sql(
-                    f"DELETE FROM {table} WHERE id IN (SELECT id FROM {table} LIMIT 100000)"
-                )
-            except Exception:
-                pass
+    _cleanup_owned(engine, set(getattr(factory, "_pg_d2_prefixes", {prefix})))
     engine.dispose()
 
 
@@ -77,10 +130,18 @@ def _seed(factory, prefix, token="tok-live-0000000000000000000001"):
     from app.models.media import MediaAgent, MediaJob
     from app.models.photos_asset import PhotosAsset
 
+    try:
+        owned = getattr(factory, "_pg_d2_prefixes", None)
+        if owned is None:
+            owned = set()
+            factory._pg_d2_prefixes = owned
+        owned.add(prefix)
+    except Exception:
+        pass
     db = factory()
     try:
         db.add(MediaAgent(id=f"{prefix}-agent", hostname="h",
-                          api_key_sha256=hashlib.sha256(KEY.encode()).hexdigest(),
+                          api_key_sha256=_agent_key_hash(prefix),
                           active=True, leasing_enabled=True, capabilities=["poster"]))
         a = PhotosAsset(video_uuid=f"{prefix}-asset", media_type="video")
         db.add(a)
@@ -243,3 +304,50 @@ def test_reclaim_refreshes_cached_identity_row(pg):
     assert preloaded.attempts == 2
     assert preloaded.status == "queued"
     db.rollback()
+
+
+def test_own_cleanup_preserves_foreign_agent(pg):
+    """Owned-prefix cleanup must not erase foreign fixtures.
+
+    Inserts a foreign agent (simulating the long-lived ``mac-media-01``
+    row from the cutover tier), seeds owned rows including a
+    prefix-variant, runs the fixture's own ``_cleanup_owned`` helper,
+    and proves the foreign row survives while every owned row is gone.
+    """
+    from app.models.media import MediaAgent, MediaJob
+    from app.models.photos_asset import PhotosAsset
+
+    engine, factory, db, prefix = pg
+    foreign_id = f"pg-foreign-{uuid4().hex[:8]}"
+    foreign_hash = hashlib.sha256(f"{foreign_id}-key".encode()).hexdigest()
+    setup = factory()
+    try:
+        setup.add(MediaAgent(id=foreign_id, hostname="foreign",
+                             api_key_sha256=foreign_hash,
+                             active=True, leasing_enabled=True,
+                             capabilities=["poster"]))
+        setup.commit()
+    finally:
+        setup.close()
+
+    jid, agent = _seed(factory, prefix)
+    # Prefix variant (suffix) must still count as owned.
+    jid_variant, agent_variant = _seed(factory, prefix + "-x")
+    db.rollback()
+    db.expunge_all()
+
+    _cleanup_owned(engine, set(getattr(factory, "_pg_d2_prefixes", {prefix})))
+
+    check = factory()
+    try:
+        assert check.get(MediaAgent, foreign_id) is not None
+        assert check.get(MediaAgent, foreign_id).api_key_sha256 == foreign_hash
+        assert check.get(MediaAgent, agent) is None
+        assert check.get(MediaAgent, agent_variant) is None
+        assert check.get(MediaJob, jid) is None
+        assert check.get(MediaJob, jid_variant) is None
+        assert check.query(PhotosAsset).filter(
+            PhotosAsset.video_uuid.like(prefix + "%")).count() == 0
+    finally:
+        check.close()
+        db.rollback()
