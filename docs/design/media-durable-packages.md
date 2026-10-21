@@ -416,49 +416,84 @@ shield-reap→cleanup-partial pattern and never touches the source).
 
 ### Interface (`mac-agent/src/package_encoder.py`)
 
-- `plan_package(SourceInfo) -> PackagePlan`: pure. Display dims
-  (stream side-data → tags → first-frame fallback), HDR flag (HLG/PQ only),
-  GOP from the nominal cadence, HQ/light/poster dims under the §1
-  short-side rule, `hq_aliased_to="light"` when HQ is honestly absent.
+- `plan_package(SourceInfo) -> PackagePlan`: pure. Display dims are
+  SAR-adjusted (anamorphic sources) and rotation-adjusted (stream
+  side-data → tags → first-frame fallback); HDR flag (HLG/PQ only);
+  `wide_gamut_sdr` when SDR transfer rides bt2020-family space/primaries
+  (needs zscale gamut conversion, else fail-closed); GOP from the nominal
+  cadence; HQ/light/poster dims under the §1 short-side rule,
+  `hq_aliased_to="light"` when HQ is honestly absent; `poster_thumb_t` =
+  latest in-interval timestamp at-or-before 1 s (backed off ~2.5 frame
+  intervals so exact-length clips still match a real frame), `None`
+  (= first frame) for short/unknown durations.
 - `build_package_cmd(...) -> list[str]`: pure. One decode, one tone-map
-  (HDR) or none (SDR), `split=` to HQ/light/poster branches, per-branch
-  explicit even scales, `-fps_mode passthrough`, High@CRF23,
+  (HDR) / gamut pre-convert (wide-gamut SDR) / direct split (narrow SDR),
+  `split=` to HQ/light/poster branches, per-branch explicit even scales
+  with **real matrix conversion** (`out_color_matrix=bt709`, not a
+  retag) + `setsar=1` square pixels, `-fps_mode passthrough`, High@CRF23,
   `maxrate 12M`/`bufsize 24M` on HQ only, AAC from the selected track or
-  `-an`, `+faststart`, poster `-q:v 3` with a `t>=1s` select for clips ≥ 1 s.
+  `-an`, `+faststart`, poster `-q:v 3` with a safe `t>=thumb_t` select.
   Threads bounded per variant (default 2).
 - `select_decodable_audio_index(streams, available_decoders=None)`: skips
   unnamed/`none`/`apac` (case-insensitive) plus any named codec with no
-  local decoder when a decoder map is passed. No allowlist decode guarantee
-  is claimed without that map.
+  local decoder when a decoder map is passed. The map
+  (`ffmpeg_decoder_names`, alias-folded so `mp3` counts when only
+  `mp3float` exists) preserves usable audio; an empty map is unprovable
+  and keeps the denylist-only choice while the encode fails closed.
 - `build_derivative_media_key(...)`: exact D1 `derivative-v1` encoding mirror
   (same fail-closed validation); parity unit-tested.
 - `async build_package(source, out_dir, *, video_uuid, source_sha256, ...)
-  -> PackageResult`: probe → decoder-aware audio re-resolution → fail-closed
-  zscale refusal for HDR on unequipped builds → single ffmpeg run under the
-  D2 timeout → ffprobe validation of ACTUAL outputs → `ready=True` result
-  carrying `(video_uuid, source_sha256, transform_version)`, per-role SHAs /
-  sizes / dims, and per-role derivative media keys. Any failure (timeout,
-  cancel, nonzero exit, validation) removes ALL new package outputs, never
-  the source; partial sets are never reported ready.
+  -> PackageResult`: early D1 identity validation (bad UUID/version fails
+  before any work); source must resolve OUTSIDE the output tree
+  (source==finals refused, never overwritten); ACTUAL source bytes are
+  hashed off-loop and compared to the caller SHA before encoding, with
+  stat snapshots before/after hash/probe/encode failing closed on change;
+  per-attempt unique scratch dir inside `out_dir` (concurrent builds
+  isolated; finals published by atomic replace only on success;
+  pre-existing finals never deleted on failure; scratch only removed);
+  probe/audio re-resolution/zscale refusal all off-loop; single ffmpeg run
+  under the D2 timeout (kill→shield-reap→scratch cleanup, source never
+  touched); cancel-safe shielded validation/meta (thread awaited before
+  cleanup/re-raise, never unlinking under a live probe); ffprobe
+  validation of ACTUAL outputs → `ready=True` result carrying
+  `(video_uuid, actual_source_sha256, transform_version)`, per-role SHAs /
+  sizes / dims, and per-role derivative media keys. All blocking I/O runs
+  in threads so the worker heartbeat stays responsive.
 - `validate_package_outputs(...)`: per-mp4 codec/profile/pix-fmt/BT.709
   tags/dims/frame-count/faststart/GOP-window/audio checks; poster JPEG
-  magic/dims/not-HDR-tagged. GOP allows a single keyframe for clips < 2 s.
+  magic/dims/not-HDR-tagged. GOP allows a single keyframe for clips < 2 s
+  (VFR-tolerant window, evidence recorded).
 
-### Test evidence (`mac-agent/tests/test_package_encoder.py`, 31 tests)
+### Test evidence (`mac-agent/tests/test_package_encoder.py`, 47 tests)
 
 Synthetic lavfi fixtures in pytest tmp only (no media in Git). This Mac's
 Homebrew ffmpeg (8.1.2, libx264, tonemap, no zscale) ran the SDR matrix:
-landscape/portrait 60/30, VFR (frames preserved, no `-r`), SEI-rotation
-(display 480×640 honored), small source (no upscale, HQ→light alias),
-sub-second clip (poster without select), timeout kill + full cleanup with
-source intact. Command-shape tests cover HDR single-tonemap-split and SDR
-tonemap-skip. HDR artifact cases SKIP meaningfully (no zscale here) while
-the fail-closed refusal is proven on a tagged HEVC fixture (no outputs left,
-source intact). A zscale-equipped Mac canary stays NOT authorized in this
-slice. Synthetic timings (legit, NOT production): portrait 720×1280 package
-0.64 s, HQ 1080p package 0.75 s, small clips < 0.2 s; max child RSS observed
-~516 MiB during the suite (test-content only). No VMAF/quality or
+landscape/portrait 60/30, VFR (frame count + PTS cadence/duration
+preserved, no `-r`), SEI-rotation (display 480×640 honored), anamorphic
+SAR (SAR-adjusted dims, square-pixel outputs), small source (no upscale,
+HQ→light alias), sub-second and EXACT-1.0 s clips (poster non-empty via a
+safe in-interval thumb time), mp3-audio source (decoder-alias preserved,
+AAC output), timeout kill with pre-existing finals intact + source intact,
+SHA-mismatch refusal before ffmpeg, source-inside-outdir refusal, early
+UUID/version failure before work, concurrent same-outdir builds isolated,
+cancellation during validation (source intact, nothing published),
+heartbeat responsiveness during blocking phases. Command-shape tests cover
+HDR single-tonemap-split, SDR tonemap-skip, matrix-convert + setsar
+branches, and the wide-gamut plan flag. HDR/wide-gamut artifact cases SKIP
+meaningfully on zscale-less builds while the fail-closed refusals are
+proven on tagged fixtures (nothing published, sources intact). A
+zscale-equipped Mac canary stays NOT authorized in this slice; HDR
+tone-map output is NOT claimed verified until that artifact runs.
+Synthetic timings (legit, NOT production): portrait 720×1280 package
+~0.6 s, HQ 1080p package ~0.8 s, small clips < 0.2 s. No VMAF/quality or
 prod-latency claims are made here.
+
+Residual limits (accepted, recorded): no whole-package wall-clock bound
+(ffmpeg timeout + per-probe bounds only); stale `.pkg-attempt-*` dirs from
+a hard-killed process are left for the operator (never auto-swept, so a
+live concurrent attempt is never at risk); unknown/missing color metadata
+is treated as narrow SDR (documented assumption); VFR GOP length is
+nominal (~1 s at r_frame_rate) with a tolerant 0.4–2.5 s evidence window.
 
 Memory: one package runs two bounded x264 encoders concurrently. Two
 package slots (four encoders) on the 8 GiB Mac are NOT enabled until a real
