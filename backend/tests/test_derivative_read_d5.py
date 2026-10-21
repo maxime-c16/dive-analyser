@@ -652,6 +652,26 @@ def test_old_schema_without_ledger_table_keeps_legacy_status(db, flags, fake_pre
         engine.dispose()
 
 
+def test_durable_starter_wins_playback_url_over_backbone_and_legacy(client, db):
+    # Authoritative starter semantics: the verified durable light starter is
+    # the default playback_url even when a backbone original exists (the
+    # camera original stays the explicit full-quality choice). Legacy-only
+    # clips without derivatives keep the backbone starter unchanged.
+    full = _status(client, UUID_FULL)
+    light_url = full["derivatives"]["light"]["playback_url"]
+    assert light_url is not None
+    assert full["status"] == "ready"
+    assert full["playback_url"] == light_url
+    assert full["preview_url"] == light_url
+    assert full["full_quality_url"] is not None
+    assert full["full_quality_url"] != light_url
+
+    legacy = _status(client, UUID_LEGACY)
+    assert legacy["derivatives"]["light"]["state"] == "missing"
+    assert legacy["status"] == "ready"
+    assert legacy["playback_url"] == legacy["full_quality_url"]
+
+
 # ------------------------------------------------------- HTTP contract
 
 

@@ -202,16 +202,30 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       const presented = presentedSourceRef.current
       const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
       previewChoicesRef.current = previewChoices
-      // Durable-first handover: a legacy cache preview that already presented
-      // must not pin the player when a durable derivative is ready — the
-      // authoritative light/HQ starter wins. Explicit HQ/original choices
-      // and an already-durable current source are still preserved.
-      const durableReady = Boolean(lightUrl || hqUrl)
+      // Durable-first handover rooted in actual role URLs, not the mixed
+      // starter: without a backbone original the backend playback_url (and
+      // the getOriginalPlaybackUrl fallback through it) can be the same
+      // legacy cached proxy the seed presented. Preserving that mixed URL
+      // would pin the legacy seed over the ready durable light rendition.
+      // When a durable role is ready only independently confirmed URLs are
+      // preservable — the ready light/HQ role URLs plus a true original
+      // (backbone/local-original, never the mixed fallback and never a
+      // legacy preview choice). Explicit HQ/original choices and an
+      // already-durable current source are still preserved; there is no
+      // automatic light→HQ upgrade and the HQ decode fallback stays on
+      // durable light across revalidation. Legacy-only queues keep the
+      // presented-preview pin.
+      const durableStarter = lightUrl ?? hqUrl
       if (presented?.uuid === videoUuid) {
-        const preservable = durableReady
-          ? [originalUrl, hqUrl, playbackUrl]
-          : [originalUrl, hqUrl, playbackUrl, ...previewChoices]
-        if (preservable.includes(presented.src)) chosen = presented.src
+        if (durableStarter) {
+          const originalCacheUrl = data.cache_entries?.find(entry => entry.rendition === 'original' && entry.playback_url)?.playback_url ?? null
+          const confirmedOriginal = (data.full_quality_url ?? originalCacheUrl) || null
+          const preservable = [lightUrl, hqUrl, confirmedOriginal].filter((url): url is string => !!url)
+          if (preservable.includes(presented.src)) chosen = presented.src
+        } else {
+          const preservable = [originalUrl, hqUrl, playbackUrl, ...previewChoices]
+          if (preservable.includes(presented.src)) chosen = presented.src
+        }
       }
       setSourceIsPreview(previewChoices.includes(chosen))
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })

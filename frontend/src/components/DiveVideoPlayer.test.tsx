@@ -1162,3 +1162,130 @@ it('keeps HQ decode fallback on durable light across revalidation', async () => 
   await waitFor(() => expect(again).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
   expect(requestMedia).not.toHaveBeenCalled()
 })
+
+it('hands a presented legacy seed to durable light with zero original/cache backend data', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('zero-cache-durable', '/sdr-360.mp4')
+  vi.useRealTimers()
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="zero-cache-durable" />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+  await presentFirstFrame(video)
+  // Actual backend shape after the authoritative-starter fix: no backbone
+  // original, zero legacy cache entries, durable light ready.
+  const durableZeroCache = {
+    ...missing,
+    video_uuid: 'zero-cache-durable',
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/3/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: null,
+    poster_url: null,
+    cache_entries: [],
+    job: null,
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  await act(async () => { resolve(durableZeroCache) })
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await presentFirstFrame(video)
+  // Repeated status (revalidation) in both call patterns stays on the
+  // durable starter: no flip back to the legacy seed, no invented upgrade.
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableZeroCache })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="zero-cache-durable" immersive />)
+  const immersiveVideo = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(immersiveVideo).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableZeroCache })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="zero-cache-durable" />)
+  const back = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(back).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('hands legacy cached proxies to durable light even when the mixed playback URL is the legacy proxy', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('mixed-legacy-playback', '/sdr-360.mp4')
+  vi.useRealTimers()
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="mixed-legacy-playback" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+  await presentFirstFrame(video)
+  // Pre-fix backend shape: no backbone original, one legacy cached proxy,
+  // and the mixed playback_url is that same proxy while durable light is
+  // ready. The player must not preserve the mixed URL — only the actual
+  // durable role URL wins.
+  const mixedLegacy = {
+    ...missing,
+    video_uuid: 'mixed-legacy-playback',
+    status: 'ready',
+    playback_url: '/sdr-360.mp4',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: null,
+    poster_url: null,
+    cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/sdr-360.mp4' }],
+    job: null,
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  await act(async () => { resolve(mixedLegacy) })
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await presentFirstFrame(video)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...mixedLegacy })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="mixed-legacy-playback" />)
+  const back = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(back).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('leaves a genuine legacy-only presented preview unchanged', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('genuine-legacy', '/sdr-360.mp4')
+  vi.useRealTimers()
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="genuine-legacy" />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+  await presentFirstFrame(video)
+  const legacyOnly = {
+    ...missing,
+    video_uuid: 'genuine-legacy',
+    status: 'ready',
+    playback_url: '/sdr-360.mp4',
+    preview_url: '/sdr-360.mp4',
+    full_quality_url: '/original.mov',
+    poster_url: null,
+    cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/sdr-360.mp4' }],
+    job: null,
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'original',
+      recommended: 'original',
+      hq: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      light: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  await act(async () => { resolve(legacyOnly) })
+  await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-360.mp4'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})

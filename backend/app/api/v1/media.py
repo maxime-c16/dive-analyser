@@ -455,21 +455,23 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     backbone_url = full_quality
     if not backbone_url and not preferred and not job:
         job = latest_playback_failure_for_asset(db, asset.id)
-    if backbone_url:
+    if durable_start_url:
+        # Authoritative starter: verified durable light (fast first frame),
+        # else ready HQ, for the CURRENT canonical source + transform wins
+        # over any legacy backbone original or cached proxy. The camera
+        # original stays the explicit full-quality choice (full_quality_url
+        # untouched); playback_url is the default starter, so it must be
+        # the durable bytes when ready. Checked before any legacy job so an
+        # active job never overrides verified durable readiness.
+        # Poster-only stays not-ready (no start URL).
+        status_value = "ready"
+        final_playback_url = durable_start_url
+    elif backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url
     elif preferred:
         status_value = "ready"
         final_playback_url = playback_url(preferred.id)
-    elif durable_start_url:
-        # Verified durable light/HQ for the CURRENT canonical source +
-        # transform is playable even with zero legacy cache entries and
-        # no backbone original (browser_original canonical sources are
-        # excluded from the legacy original selector). Checked before
-        # any legacy job so an active job never overrides verified
-        # durable readiness. Poster-only stays not-ready (no start URL).
-        status_value = "ready"
-        final_playback_url = durable_start_url
     elif job:
         status_value = job.status
         final_playback_url = None
