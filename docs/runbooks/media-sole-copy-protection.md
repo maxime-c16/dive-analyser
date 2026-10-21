@@ -74,9 +74,10 @@ while the old cleaner keeps evicting, so a stock UPDATE alone never
 converges — a sole unpinned row born after the UPDATE can be deleted
 before the post-deploy reconciliation, and re-running the UPDATE cannot
 resurrect it. The INSERT guard below stops the inflow atomically inside
-Postgres, so the procedure converges in a bounded number of steps with
-no API pause (reads AND uploads keep serving throughout; the guard is a
-sub-millisecond BEFORE INSERT trigger, not a lock).
+Postgres, so the procedure converges in a bounded number of steps.
+Reads AND uploads keep serving throughout: once installed, the guard is a
+plain BEFORE INSERT trigger (no lock taken per row); only the one-time
+install DDL takes a brief bounded table lock (see step 4).
 
 1. `git fetch origin && git status` on a checkout at the merged master SHA.
 2. Dry-run first: `ci/ship.sh server --dry-run` and read the output.
@@ -88,9 +89,20 @@ sub-millisecond BEFORE INSERT trigger, not a lock).
    plus the 360-only legacy remainder counted separately in §1 (small
    volume per audit; record the aggregate counts/bytes, no per-clip
    detail).
-4. Install the transitional INSERT guard (idempotent, < 1 s, no table
-   rewrite, old backend keeps working — its inserts simply land pinned):
+4. Install the transitional INSERT guard (single idempotent transaction —
+   one `psql -f` run commits DROP TRIGGER + CREATE TRIGGER together, so no
+   committed instant ever has the guard absent; old backend keeps working —
+   its inserts simply land pinned):
    `psql "$DATABASE_URL" -f backend/migrations/protect_browser_safe_insert_guard.sql`
+   The file sets `lock_timeout = '5s'` and `statement_timeout = '30s'`:
+   install DDL takes a brief AccessExclusive lock on the table, bounded
+   rather than zero. If the install aborts on `lock_timeout`, a writer
+   held the table — wait for a quiet moment (between cleaner passes) and
+   run the file again. Do NOT raise the timeouts to force it through, do
+   NOT run the file from two sessions at once, and do NOT split the file
+   into separate statements (the single transaction is what closes the
+   reinstall window). Reads and uploads keep serving throughout; only a
+   writer transaction overlapping the brief DDL waits.
    Verify, still read-only in effect:
    - `SELECT count(*) FROM pg_trigger WHERE tgname =
      'trg_protect_browser_safe_cache_entries';` → 1.
@@ -120,14 +132,17 @@ sub-millisecond BEFORE INSERT trigger, not a lock).
    non-zero residual is a real finding: stop and investigate, do not loop.
 7. Then deploy normally: `ci/ship.sh server` (SQL first, backend second,
    per `docs/REPO_WORKFLOW.md`). Mac deploy NOT required (no agent change).
-   No API pause is needed at any step: the guard holds the invariant while
-   old AND new writers run.
+   The guard holds the invariant while old AND new writers run; no pause
+   is needed at any step beyond the brief bounded install lock (step 4).
 8. Final reconciliation after the new backend is live: re-run the stock
    UPDATE once, then postflight → 0. (Catches a pre-guard late commit;
    the new finalizer writes pinned rows itself, so no new residual can
    appear while the guard stands.)
-9. Drop the guard (restores intentional unpinned-insert flexibility for
-   the future durable pipeline; already-pinned rows stay pinned):
+9. Drop the guard ONLY after step 8 passes (reconciliation at zero AND new
+   finalizer confirmed live; restores intentional unpinned-insert
+   flexibility for the future durable pipeline; already-pinned rows
+   stay pinned). While any pre-Lot-A writer may still run — including
+   after a rollback to the old backend — the guard stays installed:
    `psql "$DATABASE_URL" -f backend/migrations/drop_protect_browser_safe_insert_guard.sql`
    Verify: pg_trigger count → 0, then postflight residual still 0.
 10. Verify: `SELECT COUNT(*) FROM media_cache_entries WHERE status='ready'
@@ -151,11 +166,16 @@ publishes verified durable replicas and documents the unpin-on-replicate
 rule. Lot B (#135) only repoints 360p consumers; it does not authorize
 unpinning.
 
-Guard rollback is instant and safe at ANY point (including mid-procedure):
+Guard teardown is a single idempotent transaction:
 `psql "$DATABASE_URL" -f backend/migrations/drop_protect_browser_safe_insert_guard.sql`
-(DROP TRIGGER IF EXISTS + DROP FUNCTION IF EXISTS; no row deleted, no file
-touched). Old and new backends work with or without the guard; dropping
-early only re-opens the window — do not drop before step 8 passes.
+(DROP TRIGGER IF EXISTS + DROP FUNCTION IF EXISTS in one transaction with
+bounded lock timeouts; no row deleted, no file touched). Dropping is only
+safe AFTER step 8 passes (reconciliation at zero AND new finalizer
+confirmed live): while any pre-Lot-A writer may still run — including
+after a rollback to the old backend — the guard must stay installed.
+Dropping early re-opens the migration — swap window. If a rollback to
+the old backend happens after the drop, re-apply the guard file first,
+then reconcile again.
 
 ## 5. Limits / non-goals
 
@@ -179,3 +199,13 @@ early only re-opens the window — do not drop before step 8 passes.
   should treat unpinning 720p/poster/sole-360p rows as destructive until
   a future durable pipeline documents the unpin-on-replicate rule
   (not Lot B).
+- Transition-born 360p rows are NOT protected by the guard (by design):
+  a ready 360p row inserted mid-transition — by old or new runtime —
+  lands unpinned with its normal TTL and stays evictable, exactly as
+  today. This bounds, rather than holes, the guarantee: 360p is never a
+  production requirement, Lot B serves 720p wherever a ready 720p
+  exists, and sole-proxy 360p STOCK is covered by the stock UPDATE plus
+  reconciliation. The retirement path for shadowed 360p rows stays open
+  (`retire_verified_proxy_entry` refuses pinned rows, and the guard
+  pins none). CI proves this on real Postgres
+  (`backend/tests/test_postgres_media_guard.py`).

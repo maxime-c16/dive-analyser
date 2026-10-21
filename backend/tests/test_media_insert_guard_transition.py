@@ -23,8 +23,10 @@ no API pause. This file covers that transition:
 Note: the backend tier runs on in-memory SQLite, which cannot execute the
 plpgsql trigger itself. Static tests assert the deployed SQL text matches
 the exact predicate simulated here in Python (`_guard_predicate`, kept
-line-for-line with the trigger body); the runbook verifies the real
-trigger on Postgres with a rolled-back INSERT before the stock UPDATE.
+line-for-line with the trigger body); the real trigger is proven on
+disposable Postgres by backend/tests/test_postgres_media_guard.py (CI
+postgres job) and the runbook re-verifies it with a rolled-back INSERT
+before the stock UPDATE.
 """
 
 from datetime import datetime, timedelta
@@ -125,6 +127,23 @@ def test_drop_sql_is_idempotent_and_narrow():
     assert "DROP FUNCTION IF EXISTS protect_browser_safe_cache_entries_fn()" in text
     assert "UPDATE" not in text
     assert "DELETE" not in text
+
+
+def test_guard_install_file_is_single_bounded_transaction():
+    # The reinstall window only stays closed if DROP + CREATE commit together
+    # with bounded lock timeouts. This single structural assertion (run here
+    # in the portable backend tier) fails if anyone splits the install file
+    # back into autocommit statements or drops the timeouts; the behavior it
+    # protects is proven at runtime on real Postgres by
+    # backend/tests/test_postgres_media_guard.py, not mirrored here.
+    for path in (GUARD_PATH, DROP_PATH):
+        lines = [ln for ln in path.read_text().splitlines()
+                 if ln.strip() and not ln.strip().startswith('--')]
+        assert lines[0] == 'BEGIN;', path.name
+        assert lines[-1] == 'COMMIT;', path.name
+        body = chr(10).join(lines)
+        assert 'SET LOCAL lock_timeout' in body, path.name
+        assert 'SET LOCAL statement_timeout' in body, path.name
 
 
 def test_guard_scope_agrees_with_stock_and_finalizer():
