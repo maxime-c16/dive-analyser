@@ -157,6 +157,24 @@ async def process_package_job(processor, job: dict) -> dict:
                 source_height=int(result.source_h),
                 transform_version=transform_version,
             )
+            slot_ready = bool((last or {}).get("job_ready"))
+            if slot_ready:
+                # Authoritative terminal proof: the server marked the job
+                # ready (every applicable slot VERIFIED DURABLE). Heartbeats
+                # are rejected for ready jobs (409 invalid_state) by design,
+                # so skip the verifying heartbeat that would abandon this
+                # proven completion before vault marking. A concurrent
+                # keepalive terminal-409 race sets lease_lost spuriously —
+                # the publish proof wins, so clear it. A real pre-completion
+                # lease loss cannot reach here: a stale publish is rejected
+                # 409 instead of returning job_ready.
+                if lease_lost.is_set():
+                    lease_lost.clear()
+                logger.info(
+                    "Media job %s slot %s durable (job_ready=%s)",
+                    job_id, slot, (last or {}).get("job_ready"),
+                )
+                continue
             processor._raise_if_lease_lost(lease_lost, job_id)
             await processor._heartbeat_checked(job_id, "verifying", 95, lease_token, lease_lost, phase)
             logger.info(

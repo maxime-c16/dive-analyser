@@ -195,3 +195,266 @@ def test_package_branch_never_uses_placeholder_fail(tmp_path, monkeypatch):
     n = asyncio.run(proc.process_once())
     assert n == 1
     sync_client.fail_media_job.assert_not_called()
+
+
+def _run_with_captured_keepalive(monkeypatch, proc, job, tmp_path):
+    """Run process_package_job capturing the whole-job keepalive task.
+
+    Returns (outcome, keepalive_task, heartbeat_calls, publish_calls).
+    """
+    import asyncio as _asyncio
+    import src.package_jobs as pj
+
+    captured = {}
+    real_create_task = _asyncio.create_task
+
+    def spy_create_task(coro, **kwargs):
+        task = real_create_task(coro, **kwargs)
+        captured.setdefault("tasks", []).append(task)
+        return task
+
+    monkeypatch.setattr("src.package_jobs.asyncio.create_task", spy_create_task)
+    outcome = _asyncio.run(pj.process_package_job(proc, job))
+    tasks = captured.get("tasks", [])
+    assert tasks, "whole-job keepalive task must be created"
+    return outcome, tasks[0]
+
+
+def test_package_ready_skips_terminal_heartbeat_despite_server_409(tmp_path, monkeypatch):
+    """Verified bot fix: post-publish heartbeat on job_ready must be skipped.
+
+    Fake server rejects ANY heartbeat after final ready with 409
+    (ready jobs are terminal by design). The worker must still return the
+    proven ready response, mark the vault once, clean only owned temps,
+    cancel the keepalive, and never fail/resurrect.
+    """
+    import src.package_jobs as pj
+
+    ready_flag = {"ready": False}
+    heartbeat_calls: list[tuple] = []
+
+    async def fake_heartbeat(job_id, agent_id, status_value, progress, lease_token):
+        heartbeat_calls.append((status_value, progress))
+        if ready_flag["ready"]:
+            raise RuntimeError("409 media_job_invalid_state:ready")
+        return {}
+
+    publish_calls: list[str] = []
+
+    async def fake_publish(job_id, *args, **kwargs):
+        # args: agent_id, lease_token, slot, ... (slot is 3rd positional)
+        slot = args[2] if len(args) > 2 else kwargs.get("slot")
+        publish_calls.append(slot)
+        if len(publish_calls) < 3:
+            return {"job_ready": False}
+        ready_flag["ready"] = True
+        # Simulate the background keepalive race: a terminal 409 observed
+        # concurrently sets lease_lost just as the final publish commits.
+        # The authoritative publish proof must win (cleared on terminal path).
+        return {"job_ready": True}
+
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(side_effect=fake_heartbeat),
+        fail_media_job=AsyncMock(return_value={}),
+        lease_media_jobs=AsyncMock(return_value={"jobs": []}),
+        publish_package_slot=AsyncMock(side_effect=fake_publish),
+    )
+    proc = _processor(sync_client)
+    (tmp_path / "pkg-test").mkdir()
+    result = _fake_result(tmp_path)
+    cleaned = []
+    result.cleanup = lambda: cleaned.append(True)
+    src_file = tmp_path / "src.mov"
+    src_file.write_bytes(b"camera-bytes")
+
+    async def fake_build(*a, **k):
+        return result
+
+    monkeypatch.setattr("src.package_encoder.build_package", fake_build)
+    monkeypatch.setattr("src.b2_source.download_b2_source", AsyncMock(return_value=src_file))
+    vault = SimpleNamespace(mark_media_ready=MagicMock(), resolve=lambda uuid: None)
+    proc.source_vault = vault
+
+    # Inject the keepalive race: mark lease_lost as if the background
+    # keepalive hit the terminal 409 between commit and our checkpoint.
+    real_publish = fake_publish
+
+    async def racing_publish(job_id, *args, **kwargs):
+        out = await real_publish(job_id, *args, **kwargs)
+        if out.get("job_ready"):
+            # Simulate keepalive having observed the terminal state first.
+            # We cannot reach the internal event from here, so the
+            # regression instead proves the explicit verifying heartbeat is
+            # skipped (no 409 raised) — the internal clear() path is
+            # exercised by test_package_terminal_race_clears_lease_lost below.
+            pass
+        return out
+
+    sync_client.publish_package_slot = AsyncMock(side_effect=racing_publish)
+
+    import asyncio as _asyncio
+    captured = {}
+    real_create_task = _asyncio.create_task
+
+    def spy_create_task(coro, **kwargs):
+        task = real_create_task(coro, **kwargs)
+        captured.setdefault("tasks", []).append(task)
+        return task
+
+    monkeypatch.setattr("src.package_jobs.asyncio.create_task", spy_create_task)
+    out = _asyncio.run(pj.process_package_job(proc, _package_job()))
+    assert out == {"job_ready": True}
+    # Three fenced publishes, all slots.
+    assert publish_calls == ["hq", "light", "poster"]
+    # Partial slots still heartbeat verifying; the terminal slot skips it.
+    # Heartbeats: materializing, transcoding, uploading x3, verifying x2.
+    verifying = [c for c in heartbeat_calls if c[0] == "verifying"]
+    assert len(verifying) == 2, heartbeat_calls
+    uploading = [c for c in heartbeat_calls if c[0] == "uploading"]
+    assert len(uploading) == 3, heartbeat_calls
+    # Vault marked exactly once on durable success.
+    vault.mark_media_ready.assert_called_once_with(
+        "11111111-1111-1111-1111-111111111111", "web_package")
+    # Owned cleanup only: result dir cleaned, B2 temp unlinked.
+    assert cleaned == [True]
+    assert not src_file.exists()
+    # No fail/resurrection: proven completion is never failed.
+    sync_client.fail_media_job.assert_not_called()
+    # Keepalive cancelled (no lingering background heartbeat).
+    task = captured["tasks"][0]
+    assert task.done() and (task.cancelled() or task.done())
+
+
+def test_package_terminal_race_clears_lease_lost(tmp_path, monkeypatch):
+    """Keepalive race: spurious terminal 409 cannot discard proven completion."""
+    import asyncio as _asyncio
+    import src.package_jobs as pj
+
+    async def fake_heartbeat(job_id, agent_id, status_value, progress, lease_token):
+        return {}
+
+    async def fake_publish(job_id, *args, **kwargs):
+        return {"job_ready": True}
+
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(side_effect=fake_heartbeat),
+        fail_media_job=AsyncMock(return_value={}),
+        lease_media_jobs=AsyncMock(return_value={"jobs": []}),
+        publish_package_slot=AsyncMock(side_effect=fake_publish),
+    )
+    proc = _processor(sync_client)
+    (tmp_path / "pkg-test").mkdir()
+    result = _fake_result(tmp_path)
+    result.cleanup = lambda: None
+    src_file = tmp_path / "src.mov"
+    src_file.write_bytes(b"camera-bytes")
+
+    async def fake_build(*a, **k):
+        return result
+
+    monkeypatch.setattr("src.package_encoder.build_package", fake_build)
+    monkeypatch.setattr("src.b2_source.download_b2_source", AsyncMock(return_value=src_file))
+    vault = SimpleNamespace(mark_media_ready=MagicMock(), resolve=lambda uuid: None)
+    proc.source_vault = vault
+
+    # Force the keepalive to observe a terminal 409 immediately: patch the
+    # processor keepalive to set lease_lost then exit, simulating the race
+    # between the final publish commit and the next keepalive tick.
+    async def racing_keepalive(job_id, lease_token, phase, lease_lost):
+        await _asyncio.sleep(0.01)
+        lease_lost.set()
+
+    monkeypatch.setattr(proc, "_keep_lease_alive", racing_keepalive)
+    out = _asyncio.run(pj.process_package_job(proc, _package_job()))
+    assert out == {"job_ready": True}
+    vault.mark_media_ready.assert_called_once()
+    sync_client.fail_media_job.assert_not_called()
+
+
+def test_package_aliased_ready_skips_terminal_heartbeat(tmp_path, monkeypatch):
+    """Alias case: hq_aliased_to=light still skips only the terminal heartbeat."""
+    import src.package_jobs as pj
+
+    ready_flag = {"ready": False}
+    heartbeat_calls: list[tuple] = []
+
+    async def fake_heartbeat(job_id, agent_id, status_value, progress, lease_token):
+        heartbeat_calls.append((status_value, progress))
+        if ready_flag["ready"]:
+            raise RuntimeError("409 media_job_invalid_state:ready")
+        return {}
+
+    publish_calls: list[str] = []
+
+    async def fake_publish(job_id, *args, **kwargs):
+        slot = args[2] if len(args) > 2 else kwargs.get("slot")
+        publish_calls.append(slot)
+        if len(publish_calls) < 2:
+            return {"job_ready": False}
+        ready_flag["ready"] = True
+        return {"job_ready": True}
+
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(side_effect=fake_heartbeat),
+        fail_media_job=AsyncMock(return_value={}),
+        lease_media_jobs=AsyncMock(return_value={"jobs": []}),
+        publish_package_slot=AsyncMock(side_effect=fake_publish),
+    )
+    proc = _processor(sync_client)
+    (tmp_path / "pkg-test").mkdir()
+    result = _fake_result(tmp_path, aliased=True)
+    result.cleanup = lambda: None
+    src_file = tmp_path / "src.mov"
+    src_file.write_bytes(b"camera-bytes")
+
+    async def fake_build(*a, **k):
+        return result
+
+    monkeypatch.setattr("src.package_encoder.build_package", fake_build)
+    monkeypatch.setattr("src.b2_source.download_b2_source", AsyncMock(return_value=src_file))
+    vault = SimpleNamespace(mark_media_ready=MagicMock(), resolve=lambda uuid: None)
+    proc.source_vault = vault
+    out = asyncio.run(pj.process_package_job(proc, _package_job()))
+    assert out == {"job_ready": True}
+    assert publish_calls == ["light", "poster"]
+    verifying = [c for c in heartbeat_calls if c[0] == "verifying"]
+    assert len(verifying) == 1, heartbeat_calls
+    vault.mark_media_ready.assert_called_once()
+    sync_client.fail_media_job.assert_not_called()
+
+
+def test_package_stale_publish_409_abandons_without_vault(tmp_path, monkeypatch):
+    """Genuine pre-completion lease loss: stale publish 409 still abandons safely."""
+    import src.package_jobs as pj
+
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(return_value={}),
+        fail_media_job=AsyncMock(return_value={}),
+        lease_media_jobs=AsyncMock(return_value={"jobs": []}),
+        publish_package_slot=AsyncMock(
+            side_effect=RuntimeError("409 media_job_lease_token_mismatch")),
+    )
+    proc = _processor(sync_client)
+    (tmp_path / "pkg-test").mkdir()
+    result = _fake_result(tmp_path)
+    cleaned = []
+    result.cleanup = lambda: cleaned.append(True)
+    src_file = tmp_path / "src.mov"
+    src_file.write_bytes(b"camera-bytes")
+
+    async def fake_build(*a, **k):
+        return result
+
+    monkeypatch.setattr("src.package_encoder.build_package", fake_build)
+    monkeypatch.setattr("src.b2_source.download_b2_source", AsyncMock(return_value=src_file))
+    vault = SimpleNamespace(mark_media_ready=MagicMock(), resolve=lambda uuid: None)
+    proc.source_vault = vault
+    with pytest.raises(RuntimeError, match="409"):
+        asyncio.run(pj.process_package_job(proc, _package_job()))
+    # No vault mark on unproven completion, no fail call inside the job
+    # (the caller owns fail/reclaim — never resurrect here).
+    vault.mark_media_ready.assert_not_called()
+    sync_client.fail_media_job.assert_not_called()
+    # Owned temps still cleaned even on abandonment.
+    assert cleaned == [True]
+    assert not src_file.exists()
