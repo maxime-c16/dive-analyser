@@ -305,3 +305,92 @@ async def test_valid_upload_accepted_and_sibling_untouched(test_db, tmp_path, mo
         assert job.upload_tmp_path == str(accepted)
     finally:
         settings.media_cache_root = saved
+
+
+@pytest.mark.asyncio
+async def test_hash_open_failure_cleans_only_this_staging(test_db, tmp_path, monkeypatch):
+    """sha256 open failure: staging was streamed, then unreadable. Clean
+    only this request file; old pointer + sibling survive, job not verifying."""
+    from fastapi import HTTPException as _HTTPException
+
+    settings = get_settings()
+    saved = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path)
+    try:
+        _agent(test_db)
+        asset = _asset(test_db, uuid="ffffffff-6666-6666-6666-666666666666")
+        _queued_job(test_db, asset)
+        leased = _lease(test_db)
+        job_id, token = leased.job_id, leased.lease_token
+        old_path, sibling_path = _seed_old_and_sibling(test_db, tmp_path, job_id, token)
+        before = _staging_files(tmp_path)
+
+        monkeypatch.setattr(media_api, "_agent_auth", lambda *a, **k: None)
+
+        def boom_open(path):
+            raise OSError("synthetic-hash-open-boom")
+
+        monkeypatch.setattr(media_api, "sha256_file", boom_open)
+        body = b"hash-open-bytes-1234"
+        fake = _FakeUpload([body])
+        with pytest.raises(_HTTPException) as exc:
+            await media_api.upload_job_artifact(
+                job_id, AGENT, hashlib.sha256(body).hexdigest(), len(body),
+                fake, token, test_db, {"key": "test"},
+            )
+        assert exc.value.status_code == 400
+        assert "unreadable" in exc.value.detail
+        after = _staging_files(tmp_path)
+        assert after == before
+        assert old_path.read_bytes() == b"old-accepted-bytes"
+        assert sibling_path.read_bytes() == b"sibling-bytes"
+        job = test_db.get(MediaJob, job_id)
+        assert job.status != "verifying"
+        assert job.upload_tmp_path == str(old_path)
+    finally:
+        settings.media_cache_root = saved
+
+
+@pytest.mark.asyncio
+async def test_hash_read_failure_cleans_only_this_staging(test_db, tmp_path, monkeypatch):
+    """sha256 mid-read failure: same ownership as open failure. Only this
+    request file goes; old + sibling preserved, job not verifying."""
+    from fastapi import HTTPException as _HTTPException
+
+    settings = get_settings()
+    saved = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path)
+    try:
+        _agent(test_db)
+        asset = _asset(test_db, uuid="11111111-7777-7777-7777-777777777777")
+        _queued_job(test_db, asset)
+        leased = _lease(test_db)
+        job_id, token = leased.job_id, leased.lease_token
+        old_path, sibling_path = _seed_old_and_sibling(test_db, tmp_path, job_id, token)
+        before = _staging_files(tmp_path)
+
+        monkeypatch.setattr(media_api, "_agent_auth", lambda *a, **k: None)
+
+        def boom_read(path):
+            # Staging exists (streamed OK); the hash read itself fails.
+            assert Path(path).exists()
+            raise OSError("synthetic-hash-read-boom")
+
+        monkeypatch.setattr(media_api, "sha256_file", boom_read)
+        body = b"hash-read-bytes-5678"
+        fake = _FakeUpload([body])
+        with pytest.raises(_HTTPException) as exc:
+            await media_api.upload_job_artifact(
+                job_id, AGENT, hashlib.sha256(body).hexdigest(), len(body),
+                fake, token, test_db, {"key": "test"},
+            )
+        assert exc.value.status_code == 400
+        after = _staging_files(tmp_path)
+        assert after == before
+        assert old_path.read_bytes() == b"old-accepted-bytes"
+        assert sibling_path.read_bytes() == b"sibling-bytes"
+        job = test_db.get(MediaJob, job_id)
+        assert job.status != "verifying"
+        assert job.upload_tmp_path == str(old_path)
+    finally:
+        settings.media_cache_root = saved

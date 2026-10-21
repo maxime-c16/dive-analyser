@@ -1311,18 +1311,10 @@ async def upload_job_artifact(
 
     staging_path = cache_upload_staging_path(job_id, lease_token)
     actual_size = 0
-    # Pre-accept ownership: the streaming phase owns this unique per-request
-    # staging file until the accept worker takes over. Any read/write/close
-    # failure or cancellation here must remove ONLY this staging file (the
-    # DB-backed cleaner never sees it). Once _verify_and_accept starts, it
-    # owns the file — checksum/guard failures unlink inside the worker, and
-    # success leaves the committed job pointer untouched. No outer blind
-    # unlink and no DB check here: a TOCTOU re-read could mistake the
-    # committed pointer for an orphan and delete live bytes, and a blind
-    # finally would delete the accepted artifact when run_to_completion
-    # re-raises CancelledError AFTER the worker already committed (the
-    # deferred-thread boundary: cancel while hashing still runs the worker
-    # to completion, then re-raises here).
+    # Staging ownership: streaming owns this unique file until the verify
+    # worker takes over. Clean only this file on pre-accept failure. Never
+    # unlink after commit or via a DB re-read: TOCTOU could match the live
+    # pointer, and run_to_completion re-raises cancel AFTER commit.
     try:
         while True:
             chunk = await file.read(1024 * 1024)
@@ -1343,13 +1335,20 @@ async def upload_job_artifact(
         staging_path.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
 
-    # Full-artifact reads belong on a worker thread: hashing gigabyte-scale
-    # proxies on the loop stalls every concurrent request. Verify + accept
-    # (hash, guarded mark uploaded, commit) is one cancellation-safe unit so
-    # a cancelled upload never leaves an unverified-accepted artifact or a
-    # half transaction behind the session teardown.
+    # Hash + guarded accept + commit runs to completion on a worker, even
+    # if this handler is cancelled mid-hash. Ownership: uncommitted staging
+    # (hash/checksum/guard/flush failure) unlinks only this unique file;
+    # once committed, the job pointer owns it — never unlink here.
     def _verify_and_accept():
-        actual_checksum = sha256_file(staging_path)
+        try:
+            actual_checksum = sha256_file(staging_path)
+        except OSError as exc:
+            # Open/read failure before accept: uncommitted unique staging.
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded artifact unreadable",
+            ) from exc
         if actual_checksum != checksum_sha256:
             staging_path.unlink(missing_ok=True)
             raise HTTPException(
@@ -1359,17 +1358,28 @@ async def upload_job_artifact(
         try:
             accepted = mark_job_uploaded(db, job_id, agent_id, str(staging_path), checksum_sha256, size_bytes, lease_token)
         except (ValueError, PermissionError) as exc:
+            # Stale claim or staging vanished pre-commit: dead attempt.
             db.rollback()
-            # The claim moved mid-upload (re-lease/reclaim), or the staging
-            # file vanished after hashing: these staging bytes belong to a
-            # dead attempt — remove only the staging file, never live bytes.
             staging_path.unlink(missing_ok=True)
             if isinstance(exc, ValueError):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-        db.commit()
-        # Post-commit only: unlink the superseded staging (if any) queued by
-        # the accept. A crash before this leaks a file, never loses one.
+        except Exception:
+            # Flush/DB failure before commit: nothing durable yet.
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise
+        try:
+            db.commit()
+        except Exception:
+            # Commit outcome ambiguous (may have committed): leak, never
+            # delete — staging may now be the live pointer.
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise
+        # Post-commit only: drop the superseded staging queued by accept.
         drain_reclaim_orphans(db)
         return accepted
 
