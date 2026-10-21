@@ -309,6 +309,10 @@ class TestStateAuthorityArchitecture:
             backend_dir / "app" / "models" / "media_backbone.py",
             backend_dir / "app" / "services" / "media_backbone.py",
             backend_dir / "tests" / "test_media_backbone.py",
+            # Disposable PostgreSQL fixtures remove only their own ledger
+            # rows after exercising the commit service. Runtime callers
+            # remain restricted to the model and commit service above.
+            backend_dir / "tests" / "test_postgres_derivative_publisher_d3b1.py",
         }
         hits = []
         for py in backend_dir.rglob("*.py"):
