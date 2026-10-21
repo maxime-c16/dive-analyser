@@ -42,7 +42,7 @@ def test_prepare_dry_run_creates_zero_jobs(api_client, test_db, auth_headers):
 
     response = api_client.post(
         "/api/v1/media/representative-manifest/prepare",
-        json={"tier": 1, "renditions": ["poster", "proxy_360p"], "dry_run": True},
+        json={"tier": 1, "renditions": ["poster", "proxy_720p"], "dry_run": True},
         headers=auth_headers,
     )
 
@@ -68,7 +68,7 @@ def test_prepare_execution_creates_only_missing_jobs_and_run_items(api_client, t
 
     response = api_client.post(
         "/api/v1/media/representative-manifest/prepare",
-        json={"tier": 1, "renditions": ["poster", "proxy_360p"], "dry_run": False},
+        json={"tier": 1, "renditions": ["poster", "proxy_720p"], "dry_run": False},
         headers=auth_headers,
     )
 
@@ -79,24 +79,25 @@ def test_prepare_execution_creates_only_missing_jobs_and_run_items(api_client, t
     assert test_db.query(MediaJob).count() == 5
     run = test_db.query(MediaPopulationRun).one()
     assert run.total_jobs == 5
-    assert all(job.rendition in {"poster", "proxy_360p"} for job in test_db.query(MediaJob).all())
+    assert all(job.rendition in {"poster", "proxy_720p"} for job in test_db.query(MediaJob).all())
     assert all(job.request_reason == "representative_tier1_population" for job in test_db.query(MediaJob).all())
 
 
-def test_prepare_rejects_original_proxy720_and_second_active_run(api_client, test_db, auth_headers):
+def test_prepare_rejects_original_proxy360_and_second_active_run(api_client, test_db, auth_headers):
     _seed_representatives(test_db)
     original = api_client.post(
         "/api/v1/media/representative-manifest/prepare",
         json={"tier": 1, "renditions": ["original"], "dry_run": True},
         headers=auth_headers,
     )
-    proxy720 = api_client.post(
+    legacy360 = api_client.post(
         "/api/v1/media/representative-manifest/prepare",
-        json={"tier": 1, "renditions": ["proxy_720p"], "dry_run": True},
+        json={"tier": 1, "renditions": ["proxy_360p"], "dry_run": True},
         headers=auth_headers,
     )
     assert original.status_code == 422
-    assert proxy720.status_code == 422
+    # Lot B: no new 360p is produced; legacy rows stay readable only.
+    assert legacy360.status_code == 422
 
     first = api_client.post(
         "/api/v1/media/representative-manifest/prepare",

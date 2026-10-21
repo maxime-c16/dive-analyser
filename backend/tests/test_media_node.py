@@ -247,5 +247,6 @@ def test_new_captioned_dive_queues_hq_proxy_before_the_preview(test_db, monkeypa
     _queue_new_captioned_media(test_db, SimpleNamespace(photos_asset_id=asset.id))
     test_db.flush()
     jobs = test_db.query(MediaJob).filter_by(photos_asset_id=asset.id).order_by(MediaJob.id).all()
-    assert [job.rendition for job in jobs] == ["poster", "proxy_720p", "proxy_360p"]
+    # Lot B: ingestion queues poster + 720p only; legacy 360p is read-only.
+    assert [job.rendition for job in jobs] == ["poster", "proxy_720p"]
     assert all(job.priority == 10 and job.request_reason == "new_captioned_ingestion" for job in jobs)

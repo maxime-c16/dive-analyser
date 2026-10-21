@@ -246,7 +246,14 @@ class MediaSourceVault:
         }
 
     def mark_media_ready(self, video_uuid: str, rendition: str) -> None:
-        """Record durable Debian output completion and start temporary grace."""
+        """Record durable Debian output completion and start temporary grace.
+
+        Lot B: a source is finalised by poster + any proxy (720p preferred,
+        legacy 360p accepted for old rows). A mere job request or a failed
+        transcode never calls this (callers only mark after a verified
+        upload + finalize); without both sides this stays unverified and
+        cleanup keeps skipping it. Retention guards are unchanged.
+        """
         validate_uuid(video_uuid)
         uuid_dir = self._safe_uuid_dir(video_uuid)
         sidecar = uuid_dir / "source.json"
@@ -255,8 +262,9 @@ class MediaSourceVault:
         data = json.loads(sidecar.read_text())
         if rendition == "poster":
             data["poster_ready"] = True
-        elif rendition == "proxy_360p":
+        elif rendition in ("proxy_720p", "proxy_360p"):
             data["proxy_ready"] = True
+            data["proxy_rendition"] = rendition
         data["last_accessed_at"] = datetime.now(timezone.utc).isoformat()
         if data.get("poster_ready") and data.get("proxy_ready"):
             data["durable_outputs_verified"] = True

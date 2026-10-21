@@ -16,7 +16,7 @@ from app.services.media_jobs import ACTIVE_JOB_STATUSES, create_or_reuse_media_j
 from app.services.media_keys import build_media_key
 from app.services.representative_media import build_representative_media_manifest
 
-ALLOWED_POPULATION_RENDITIONS = {"poster", "proxy_360p"}
+ALLOWED_POPULATION_RENDITIONS = {"poster", "proxy_720p"}
 BAND_ORDER = {"median": 0, "high": 1, "low": 2}
 POPULATION_REASON = "representative_tier1_population"
 TERMINAL_ITEM_STATUSES = {"ready", "failed", "unavailable", "skipped_cached"}

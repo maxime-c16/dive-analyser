@@ -1027,10 +1027,11 @@ def _thumbnail_status_for_entries(
     """Compact per-asset thumbnail payload for the Library grid.
 
     Same source decision as _status_for_asset (original cache first,
-    then verified B2, then the 360p preview) minus cache_entries/job detail: the grid only
-    needs a poster, a playable URL and readiness. `backbone_url` lets the
-    batch route pass one bulk-resolved decision instead of a per-uuid
-    lookup; _UNSET_BACKBONE keeps the single-asset fallback behavior.
+    then verified B2, then the 720p preview with legacy 360p fallback) minus
+    cache_entries/job detail: the grid only needs a poster, a playable URL
+    and readiness. `backbone_url` lets the batch route pass one
+    bulk-resolved decision instead of a per-uuid lookup; _UNSET_BACKBONE
+    keeps the single-asset fallback behavior.
     """
     preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)

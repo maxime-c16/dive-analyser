@@ -66,7 +66,6 @@ media:
   failed_diagnostics_dir: "~/.diveanalyzer/failed_diagnostics"
   capabilities:
     - poster
-    - proxy_360p
     - proxy_720p
   local_asset_overrides: {}
   source_vault:

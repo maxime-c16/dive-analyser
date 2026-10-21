@@ -43,6 +43,11 @@ jobs:
 
             Rules of engagement: read-only. Do not edit files or create commits. Complete the
             review in one pass. Do not ask clarifying questions. Do not output a plan.
+            Non-interactive: never wait on permission prompts. Rely on the existing CI
+            checks results plus targeted read-only commands inside the workspace. Do not
+            run ci/gate.sh (or ci/postgres.sh) with the default cache outside the workspace;
+            if a gate run is unavoidable, run only
+            DIVE_CI_CACHE=$GITHUB_WORKSPACE/.cache/dive-ci ci/gate.sh fast.
             Precedence: the PR diff first, then repo contracts (docs/REPO_WORKFLOW.md,
             ci/README.md, backend/app/api/v1/auth.py header, backend/app/config.py defaults)
             over generic best practices. If a repo contract conflicts with a generic rule,

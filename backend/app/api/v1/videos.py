@@ -49,9 +49,12 @@ CLEANUP_SECONDS = 7 * 24 * 60 * 60  # 7 days
 
 
 def _queue_new_captioned_media(db: Session, dive: Dive) -> None:
-    """Queue poster + HQ proxy (+ the small 360p the source vault and grid
-    thumbnails rely on) only for a newly inserted dive. 720p comes before
-    360p so players open the clip in HQ from its first view."""
+    """Queue poster + 720p proxy only for a newly inserted dive.
+
+    Lot B: no new 360p is produced at ingestion. Legacy 360p rows remain
+    readable as a fallback until replaced by a 720p upgrade; rendering and
+    encodings are untouched. 720p comes first so players open the clip in
+    HQ from its first view."""
     if os.environ.get("NEW_VIDEO_AUTO_MEDIA_ENABLED", "false").lower() != "true":
         return
     if not dive.photos_asset_id:
@@ -59,7 +62,7 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> None:
     asset = db.get(PhotosAsset, dive.photos_asset_id)
     if not asset:
         return
-    for rendition in ("poster", "proxy_720p", "proxy_360p"):
+    for rendition in ("poster", "proxy_720p"):
         _, job, _ = create_or_reuse_media_job(db, asset, rendition, "new_captioned_ingestion")
         job.priority = 10
         job.max_attempts = min(job.max_attempts or 2, 2)
@@ -742,7 +745,7 @@ async def stream_video(
         video_path = dive.video_path
 
         if not video_path:
-            cached_proxy = _ready_cached_media_for_uuid(db, video_uuid, "proxy_360p")
+            cached_proxy = _ready_proxy_for_uuid(db, video_uuid)
             if cached_proxy:
                 return RedirectResponse(url=playback_url(cached_proxy.id), status_code=307)
 
@@ -851,12 +854,12 @@ async def check_video_availability(
         if not decision.allowed:
             raise HTTPException(status_code=404, detail="Video not found")
     try:
-        cached_proxy = _ready_cached_media_for_uuid(db, video_uuid, "proxy_360p")
+        cached_proxy = _ready_proxy_for_uuid(db, video_uuid)
         if cached_proxy:
             return {
                 "available": True,
                 "source": "media_cache",
-                "rendition": "proxy_360p",
+                "rendition": cached_proxy.rendition,
                 "playback_url": playback_url(cached_proxy.id),
                 "size": cached_proxy.size_bytes,
                 "status": "ready",
@@ -913,6 +916,18 @@ async def check_video_availability(
     except Exception as e:
         print(f"Error checking video {video_uuid}: {str(e)}")
         return {"available": False}
+
+
+def _ready_proxy_for_uuid(db: Session, video_uuid: str) -> MediaCacheEntry | None:
+    """Prefer a ready 720p proxy, fall back to a legacy ready 360p.
+
+    No new 360p rows are produced; the fallback only keeps old clips
+    playable until their 720p upgrade lands. Returns the entry with its
+    real rendition so callers report the actual quality served.
+    """
+    return _ready_cached_media_for_uuid(db, video_uuid, "proxy_720p") or _ready_cached_media_for_uuid(
+        db, video_uuid, "proxy_360p"
+    )
 
 
 def _ready_cached_media_for_uuid(db: Session, video_uuid: str, rendition: str) -> MediaCacheEntry | None:
