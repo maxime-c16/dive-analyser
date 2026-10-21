@@ -950,3 +950,41 @@ it('keeps seeded quality choices and preview recovery when status revalidation f
   fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
   expect(video).toHaveAttribute('src', '/preview.mp4')
 })
+
+it('derivative clips start on light and cycle HQ then original explicitly', async () => {
+  const derivativeReady = {
+    ...missing,
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/9/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: '/api/v1/media/revisions/9/play',
+    poster_url: '/api/v1/media/revisions/4/play',
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+    },
+  }
+  vi.mocked(getMediaStatus).mockResolvedValue(derivativeReady)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  // Default starter is the durable light revision (fast first frame),
+  // never the camera original.
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  const toggle = screen.getByRole('button', { name: 'Change video quality' })
+  expect(toggle).toHaveTextContent('Light')
+  fireEvent.click(toggle)
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  expect(toggle).toHaveTextContent('HQ')
+  fireEvent.click(toggle)
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/9/play'))
+  expect(toggle).toHaveTextContent('Original')
+  fireEvent.click(toggle)
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  // Quality switches never create preparation jobs.
+  expect(requestMedia).not.toHaveBeenCalled()
+})

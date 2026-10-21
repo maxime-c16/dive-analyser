@@ -196,6 +196,22 @@ def _deny(db: Session, user_id: int, revision_id: int, reason: str):
     raise HTTPException(404, "Not found")
 
 
+def _is_derivative_revision(revision: MediaRevision | None) -> bool:
+    """Whether this revision carries durable-derivative bytes (D5).
+
+    Derived revisions are served ONLY from their verified PROD B2
+    replica. Falling back to a legacy cache file would hand the browser
+    mislabeled bytes (e.g. a 720p proxy at an HQ URL), so the legacy
+    fallback never applies to them: missing storage is a uniform 404,
+    a presign failure an explicit 503.
+    """
+    from app.services.media_backbone import is_derived_rendition_semantics
+
+    return revision is not None and is_derived_rendition_semantics(
+        getattr(revision, "rendition_semantics", None)
+    )
+
+
 async def _serve_legacy_fallback(
     db: Session,
     request: Request,
@@ -277,10 +293,14 @@ async def play_media_revision(
     location, storage_deny = _resolve_verified_prod_location(db, revision)
     metrics.storage_lookup_latency.observe(playback_metrics.now_ms() - lookup_started)
 
+    derived_only = _is_derivative_revision(revision)
+
     if location is None:
-        if storage_deny == DENY_STORAGE_AMBIGUOUS:
+        if storage_deny == DENY_STORAGE_AMBIGUOUS or derived_only:
             # B2_INTEGRITY/AMBIGUITY: fail closed. Never sign an ambiguous
-            # object; never fall back from an integrity fault.
+            # object; never fall back from an integrity fault. Derived
+            # revisions additionally never fall back to legacy cache bytes
+            # (they would be mislabeled renditions at a stable URL).
             _deny(db, user.id, revision.id, storage_deny)
         # NO_PROD_B2_REPLICA: authorized legacy fallback.
         return await _serve_legacy_fallback(
@@ -312,8 +332,18 @@ async def play_media_revision(
         metrics.presign_latency.observe(playback_metrics.now_ms() - presign_started)
     except b2_presign.PresignUnavailable:
         # B2_TEMPORARY_FAILURE: authorized legacy fallback when available,
-        # else explicit provider failure.
+        # else explicit provider failure. Derived revisions never take the
+        # legacy path (mislabeled bytes): explicit 503 instead.
         metrics.provider_failures.inc()
+        if derived_only:
+            _record_grant(
+                db,
+                user_id=user.id,
+                outcome=OUTCOME_PROVIDER_FAILURE,
+                media_revision_id=revision.id,
+                denial_reason="presign_unavailable",
+            )
+            raise HTTPException(503, "B2 provider unavailable")
         return await _serve_legacy_fallback(
             db, request, revision, user.id, reason="presign_unavailable"
         )

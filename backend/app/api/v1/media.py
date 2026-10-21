@@ -401,10 +401,42 @@ def _backbone_playback_url(db: Session, video_uuid: str) -> "str | None":
 
 
 def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
+    from app.schemas.media import DerivativeStatusBlock
+
     entries = ready_entries_for_asset(db, asset.id)
     preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
+
+    # D5 durable-derivative read (additive, read-only): when a ready
+    # light/poster derivative exists for the CURRENT canonical source +
+    # transform, the starter (preview) and player poster resolve to the
+    # durable B2 bytes instead of legacy cache files. Legacy selection
+    # below is untouched and stays the fallback for clips without
+    # durable versions. No jobs, no conversions, no writes here.
+    derivatives_payload = None
+    derivative_light_url = None
+    derivative_poster_url = None
+    settings = get_settings()
+    if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.services.derivative_read import resolve_clip_derivatives
+
+        try:
+            clip = resolve_clip_derivatives(db, asset.video_uuid)
+        except SQLAlchemyError:
+            # Old-schema databases (pre-D1 migration) have no derivative
+            # ledger: legacy status keeps serving, derivatives stay absent.
+            clip = None
+        if clip is not None:
+            derivatives_payload = DerivativeStatusBlock(**clip.to_status_payload())
+            light = clip.roles.get("light")
+            if light is not None and light.state == "ready":
+                derivative_light_url = light.playback_url
+            poster_role = clip.roles.get("poster")
+            if poster_role is not None and poster_role.state == "ready":
+                derivative_poster_url = poster_role.playback_url
 
     # Original discovery is independent of preview existence.
     backbone_url = _backbone_playback_url(db, asset.video_uuid)
@@ -435,9 +467,10 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
-        poster_url=playback_url(poster.id) if poster else None,
+        poster_url=derivative_poster_url or (playback_url(poster.id) if poster else None),
         full_quality_url=full_quality,
-        preview_url=playback_url(preview.id) if preview else None,
+        preview_url=derivative_light_url or (playback_url(preview.id) if preview else None),
+        derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
         last_mac_seen_at=asset.last_seen_on_mac_at,

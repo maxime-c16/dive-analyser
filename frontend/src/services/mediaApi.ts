@@ -1,5 +1,24 @@
 export type MediaRendition = 'poster' | 'proxy_360p' | 'proxy_720p'
 
+export type DerivativeRole = 'hq' | 'light' | 'poster'
+
+export type DerivativeRoleStatus = {
+  state: string
+  playback_url?: string | null
+  revision_id?: number | null
+  aliased_to?: string | null
+}
+
+export type DerivativeStatusBlock = {
+  source_revision_id?: number | null
+  transform_version?: string | null
+  start?: string | null
+  recommended?: string | null
+  hq: DerivativeRoleStatus
+  light: DerivativeRoleStatus
+  poster: DerivativeRoleStatus
+}
+
 export type MediaStatus = {
   video_uuid: string
   status: string
@@ -10,6 +29,7 @@ export type MediaStatus = {
   poster_url?: string | null
   full_quality_url?: string | null
   preview_url?: string | null
+  derivatives?: DerivativeStatusBlock | null
   cache_entries?: Array<{
     id: number
     rendition: string
@@ -54,6 +74,50 @@ export async function requestMedia(
   return response.json()
 }
 
+/** Ready durable-derivative playback URL for one role (D5 read contract).
+
+Only a `ready` role (distinct bytes or an honest small-source HQ alias)
+resolves: every other ledger state reports no URL and the player keeps
+its legacy fallback. Never invents a URL. */
+export function getDerivativePlaybackUrl(status: MediaStatus, role: DerivativeRole): string | null {
+  const entry = status.derivatives?.[role]
+  if (!entry || entry.state !== 'ready' || !entry.playback_url) return null
+  return entry.playback_url
+}
+
+/** Ready durable-derivative poster URL, or null (legacy poster stays). */
+export function getDerivativePosterUrl(status: MediaStatus): string | null {
+  return getDerivativePlaybackUrl(status, 'poster')
+}
+
+/** Ordered explicit quality choices: starter light, HQ, camera original.
+
+Entries are only listed when their URL is known, so the player toggle
+never offers a choice it cannot play. HQ may honestly alias light for
+small sources (same bytes, no upscale); the label stays HQ. */
+export function getQualityChoices(status: MediaStatus): Array<{ key: string; label: string; url: string }> {
+  const choices: Array<{ key: string; label: string; url: string }> = []
+  const light = getDerivativePlaybackUrl(status, 'light')
+  const preview = getPreviewPlaybackUrl(status)
+  if (light) {
+    choices.push({ key: 'light', label: 'Light', url: light })
+  } else if (preview) {
+    choices.push({ key: 'preview', label: 'Preview', url: preview })
+  }
+  const hq = getDerivativePlaybackUrl(status, 'hq')
+  if (hq && hq !== choices[0]?.url) {
+    choices.push({ key: 'hq', label: 'HQ', url: hq })
+  }
+  const original = getOriginalPlaybackUrl(status)
+  if (original && !choices.some(choice => choice.url === original)) {
+    choices.push({ key: 'original', label: 'Original', url: original })
+  }
+  const playback = status.playback_url
+  if (playback && !choices.some(choice => choice.url === playback)) {
+    choices.push({ key: 'playback', label: 'Playback', url: playback })
+  }
+  return choices
+}
 /** Ready browser previews avoid large/HDR camera originals on startup. */
 export function getPreviewPlaybackUrl(status: MediaStatus): string | null {
   return status.preview_url

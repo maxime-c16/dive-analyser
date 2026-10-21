@@ -965,6 +965,8 @@ const fr = {
     changeQuality: 'Changer la qualité vidéo',
     originalQuality: 'Originale',
     previewLabel: 'Aperçu',
+    lightLabel: 'Léger',
+    hqLabel: 'HQ',
     previewQuality: 'Aperçu de qualité réduite',
     loadFailed: 'Échec du chargement de la vidéo',
     tryAgain: 'Réessayer',
