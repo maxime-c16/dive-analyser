@@ -1,4 +1,14 @@
-"""Idempotent media job creation and status assembly."""
+"""Interactive preparation wins over background backfill on the same queue.
+
+The lease query already orders by ``priority`` ascending, so this table is
+the whole policy: a lower number is claimed first. Ingestion stays at 10,
+the 720p backfill at 60, and the default at 100. Explicit interactive
+reasons (Library ``user_view``, jury ``automatic_review`` /
+``evaluation_request``) promote the 720p proxy to 5 and the poster to 6 —
+including promotion of an already-queued job on reuse, without duplicating
+it. Measured by queue selection order in tests, not by wall-clock latency
+(no device timing is claimed here).
+"""
 
 from datetime import datetime, timedelta
 
@@ -9,6 +19,22 @@ from app.models.media import MediaJob
 from app.models.photos_asset import PhotosAsset, PhotosAssetAgentIdentity
 from app.schemas.media import MediaJobLeaseRequest, MediaJobSummary, MediaLeasedJob
 from app.services.media_keys import build_media_key
+
+
+INTERACTIVE_PROXY_PRIORITY = 5
+INTERACTIVE_POSTER_PRIORITY = 6
+
+_INTERACTIVE_REASONS = {"user_view", "automatic_review", "evaluation_request"}
+
+
+def _interactive_priority(rendition: str, reason: str | None) -> int | None:
+    if reason not in _INTERACTIVE_REASONS:
+        return None
+    if rendition == "proxy_720p":
+        return INTERACTIVE_PROXY_PRIORITY
+    if rendition == "poster":
+        return INTERACTIVE_POSTER_PRIORITY
+    return None
 
 
 ACTIVE_JOB_STATUSES = {
@@ -99,7 +125,12 @@ def create_or_reuse_media_job(
     reclaim_expired_media_jobs(db)
     media_key = build_media_key(asset.video_uuid, rendition)
     existing = active_job_for_key(db, media_key)
+    target_priority = _interactive_priority(rendition, reason)
     if existing:
+        if target_priority is not None and (existing.priority is None or existing.priority > target_priority):
+            existing.priority = target_priority
+            db.add(existing)
+            db.flush()
         return media_key, existing, False
 
     job = MediaJob(
@@ -110,6 +141,8 @@ def create_or_reuse_media_job(
         request_reason=reason,
         progress=0,
     )
+    if target_priority is not None:
+        job.priority = target_priority
     db.add(job)
     db.flush()
     return media_key, job, True

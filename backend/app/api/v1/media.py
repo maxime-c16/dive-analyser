@@ -1021,24 +1021,38 @@ async def get_media_status(
     return _status_for_asset(db, asset)
 
 
+def _web_preview_entry(entries):
+    """First browser-compatible cached preview, 720p before legacy 360p.
+
+    The Library grid may only ever render these cheap local entries: never
+    the camera original and never a B2 revision URL (which would mint a
+    grant, a B2 HEAD, a presigned 302 and HEVC range traffic per tile, and
+    render black on browsers without HEVC). No media conversion happens
+    here; this is a selection over already-ready entries.
+    """
+    for rendition in ("proxy_720p", "proxy_360p"):
+        for entry in entries:
+            if entry.rendition == rendition:
+                return entry
+    return None
+
+
 def _thumbnail_status_for_entries(
     db: Session, video_uuid: str, entries: list, backbone_url: "str | None | object" = _UNSET_BACKBONE,
 ) -> dict:
     """Compact per-asset thumbnail payload for the Library grid.
 
-    Same source decision as _status_for_asset (original cache first,
-    then verified B2, then the 720p preview with legacy 360p fallback) minus
-    cache_entries/job detail: the grid only needs a poster, a playable URL
-    and readiness. `backbone_url` lets the batch route pass one
-    bulk-resolved decision instead of a per-uuid lookup; _UNSET_BACKBONE
-    keeps the single-asset fallback behavior.
+    Poster first, then the ready web preview, else nothing: the grid shows
+    a placeholder rather than loading the camera original. ``backbone_url``
+    is accepted for call compatibility but deliberately ignored — the grid
+    must never expose a B2 revision URL, so no per-tile grant can occur.
+    The full player status (``_status_for_asset``) keeps the explicit
+    original fallback; only the tile payload is bounded here.
     """
-    preferred = _preferred_entry(entries)
     poster = _poster_entry(entries)
-    backbone = None
-    backbone = _backbone_playback_url(db, video_uuid) if backbone_url is _UNSET_BACKBONE else backbone_url
-    playback = playback_url(preferred.id) if preferred and preferred.rendition == "original" else backbone or (playback_url(preferred.id) if preferred else None)
-    status_value = "ready" if playback else "missing"
+    preview = _web_preview_entry(entries)
+    playback = playback_url(preview.id) if preview else None
+    status_value = "ready" if (poster or preview) else "missing"
 
     return {
         "video_uuid": video_uuid,
@@ -1055,8 +1069,11 @@ async def get_media_status_batch(
 ) -> dict:
     """Status summary for many library thumbnails in one request.
 
-    Payload-shape contract: same playback/poster decision as
-    GET /{video_uuid}/status, minus cache_entries/job detail. Bounded to
+    Tile payload: poster plus the ready web preview only — never the
+    camera original and never a B2 revision URL, so a grid scroll mints
+    no playback grants and downloads no original bytes. The full player
+    status (GET /{video_uuid}/status) keeps the explicit original
+    fallback. Bounded to
     MAX_STATUS_BATCH uuids so one grid cannot fan a request out into a
     corpus scan; larger libraries page naturally through the Intersection
     Observer visibility gate.
@@ -1090,19 +1107,14 @@ async def get_media_status_batch(
             for row in rows:
                 entries_by_asset[row.photos_asset_id].append(row)
 
-    # Cold backbone lookups (auth+B2 enabled, no local proxy) resolve in ONE
-    # grouped query instead of a per-uuid revision lookup; the shared cache
-    # is warmed either way.
-    backbone_by_uuid = _backbone_revision_ids_bulk(db, seen)
+    # No B2 revision lookup on the tile path: thumbnails never expose an
+    # original URL, so no grant, HEAD, 302 or Range traffic can originate
+    # from a grid scroll. Unknown uuids still answer (missing), never 404.
     result: dict[str, dict] = {}
     for video_uuid in seen:
         asset_id = next((aid for aid, uid in uuid_by_asset.items() if uid == video_uuid), None)
         entries = entries_by_asset.get(asset_id, []) if asset_id else []
-        revision_id = backbone_by_uuid.get(video_uuid)
-        backbone_url = (
-            f"/api/v1/media/revisions/{revision_id}/play" if revision_id is not None else None
-        ) if revision_id is not None or video_uuid in backbone_by_uuid else _UNSET_BACKBONE
-        result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, backbone_url)
+        result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, None)
     return result
 
 

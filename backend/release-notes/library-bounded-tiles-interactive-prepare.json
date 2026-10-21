@@ -1,0 +1,8 @@
+{
+  "id": "library-bounded-tiles-interactive-prepare",
+  "date": "2026-10-21",
+  "title": "Vignettes plus légères et préparation plus rapide",
+  "body": "La bibliothèque n'ouvre plus la vidéo d'origine dans les vignettes : elle affiche l'affiche, l'aperçu léger ou un simple repère. Quand un clip n'existe qu'en version d'origine, le lecteur le signale et propose de préparer une version compatible, traitée en priorité.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

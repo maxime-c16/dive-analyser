@@ -24,9 +24,12 @@ export default function DiveThumbnail({
     const cached = cachedPreview(dive.video_uuid);
     if (cached) {
       setPreview(cached);
-      // Only the first two visible candidates are prepared speculatively.
+      // Only the first two visible candidates are prepared speculatively —
+      // and only when a cheap local web preview is already ready. Warming an
+      // original-only or poster-only tile would mint a B2 playback grant per
+      // tile, so those tiles render without any speculative element.
       const rect = containerRef.current?.getBoundingClientRect();
-      if (cached.ready && rect && rect.bottom > 0 && rect.top < window.innerHeight) prepareLibraryPlayback(dive.video_uuid);
+      if (cached.videoThumbUrl && rect && rect.bottom > 0 && rect.top < window.innerHeight) prepareLibraryPlayback(dive.video_uuid);
       return;
     }
     // Gate the fetch behind IntersectionObserver so we only hit the
@@ -43,7 +46,7 @@ export default function DiveThumbnail({
           getPreview(dive.video_uuid!).then((result) => {
             if (active) {
               setPreview(result);
-              if (result.ready) prepareLibraryPlayback(dive.video_uuid!);
+              if (result.videoThumbUrl) prepareLibraryPlayback(dive.video_uuid!);
             }
           });
         }
@@ -83,14 +86,16 @@ export default function DiveThumbnail({
           loading="lazy"
           onError={() => setImgError(true)}
         />
-      ) : preview?.videoThumbUrl || preview?.playbackUrl ? (
-        // Poster missing (or failed to load) but a playable proxy exists —
-        // e.g. the poster job failed while the proxy succeeded. Render the
-        // video frame directly instead of a blank tile. Muted + no autoplay
-        // so the grid stays silent and cheap; preload="metadata" shows the
-        // first frame without downloading the whole clip.
+      ) : preview?.videoThumbUrl ? (
+        // Poster missing (or failed to load) but a ready local web preview
+        // exists — render its first frame directly instead of a blank tile.
+        // Only already-ready cache previews are eligible here: the camera
+        // original (B2 revision URL) must never load from a grid tile.
+        // Muted + no autoplay so the grid stays silent and cheap;
+        // preload="metadata" shows the first frame without downloading
+        // the whole clip.
         <video
-          src={(preview.videoThumbUrl || preview.playbackUrl) as string}
+          src={preview.videoThumbUrl as string}
           className="h-full w-full object-cover"
           muted
           playsInline

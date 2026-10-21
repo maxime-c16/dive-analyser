@@ -31,8 +31,8 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   const fetcher = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
-      'uuid-a': { status: 'ready', poster_url: '/poster.jpg', playback_url: '/play' },
-      'uuid-b': { status: 'ready', poster_url: null, playback_url: '/play2' },
+      'uuid-a': { status: 'ready', poster_url: '/api/v1/media/cache/1/play', playback_url: '/api/v1/media/cache/2/play' },
+      'uuid-b': { status: 'missing', poster_url: null, playback_url: null },
     }),
   });
   vi.stubGlobal('fetch', fetcher);
@@ -40,10 +40,31 @@ it('keeps the playback URL alongside the poster so instant open can seed it', as
   const batch = Promise.all([getPreview('uuid-a'), getPreview('uuid-b')]);
   await vi.advanceTimersByTimeAsync(50);
   const [withPoster, withoutPoster] = await batch;
-  expect(withPoster.playbackUrl).toBe('/play');
+  expect(withPoster.playbackUrl).toBe('/api/v1/media/cache/2/play');
+  expect(withPoster.videoThumbUrl).toBe('/api/v1/media/cache/2/play');
   expect(withPoster.ready).toBe(true);
-  expect(withoutPoster.playbackUrl).toBe('/play2');
-  expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/play');
+  // No poster and no ready web preview: placeholder, nothing to warm.
+  expect(withoutPoster.playbackUrl).toBeNull();
+  expect(withoutPoster.videoThumbUrl).toBeNull();
+  expect(withoutPoster.ready).toBe(false);
+  expect(cachedPreview('uuid-a')!.playbackUrl).toBe('/api/v1/media/cache/2/play');
+});
+it('never exposes a B2 original as a tile source', async () => {
+  const fetcher = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      'original-only': { status: 'missing', poster_url: null, playback_url: null },
+    }),
+  });
+  vi.stubGlobal('fetch', fetcher);
+  const { getPreview } = await import('./mediaPreview');
+  const pending = getPreview('original-only');
+  await vi.advanceTimersByTimeAsync(50);
+  const preview = await pending;
+  // The tile shows a placeholder: no <video> source, no grant, no download.
+  expect(preview.videoThumbUrl).toBeNull();
+  expect(preview.playbackUrl).toBeNull();
+  expect(preview.ready).toBe(false);
 });
 it('starts with the 720p preview while preserving explicit original access', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () =>
@@ -114,7 +135,7 @@ it('starts the next account batch without waiting for an aborted stalled batch',
 })
 
 it('refreshes a missing result when media later becomes ready', async () => {
-  const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'missing', playback_url: null } }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'ready', playback_url: '/original.mp4' } }) })
+  const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'missing', playback_url: null } }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ late: { status: 'ready', poster_url: null, playback_url: '/api/v1/media/cache/9/play' } }) })
   vi.stubGlobal('fetch', fetcher)
   const { getPreview, cachedPreview } = await import('./mediaPreview')
   const first = getPreview('late'); await vi.advanceTimersByTimeAsync(50)
@@ -122,5 +143,6 @@ it('refreshes a missing result when media later becomes ready', async () => {
   await vi.advanceTimersByTimeAsync(5001)
   expect(cachedPreview('late')).toBeUndefined()
   const next = getPreview('late'); await vi.advanceTimersByTimeAsync(50)
-  expect((await next).playbackUrl).toBe('/original.mp4')
+  expect((await next).playbackUrl).toBe('/api/v1/media/cache/9/play')
+  expect((await next).videoThumbUrl).toBe('/api/v1/media/cache/9/play')
 })

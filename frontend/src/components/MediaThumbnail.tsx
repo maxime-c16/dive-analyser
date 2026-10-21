@@ -23,7 +23,9 @@ export default function MediaThumbnail({ posterUrl, playbackUrl, label = '' }: {
   // Safari may stop at metadata without painting a frame at time zero.
   // A tiny media fragment requests a frame without autoplay or downloading
   // every original in a long profile grid. Keep the authenticated app URL.
-  const videoUrl = playbackUrl ? `${playbackUrl.split('#')[0]}#t=0.001` : null
+  // Only cheap local web previews may render here: a B2 revision URL would
+  // mint a playback grant per tile, so it falls back to no video.
+  const videoUrl = playbackUrl && playbackUrl.includes('/media/cache/') ? `${playbackUrl.split('#')[0]}#t=0.001` : null
   return <div ref={container} className="h-full w-full">
     {posterUrl && failedPoster !== posterUrl
       ? <img src={posterUrl} alt={label} loading="lazy" onError={() => setFailedPoster(posterUrl)} className="h-full w-full object-cover" />

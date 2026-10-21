@@ -233,11 +233,11 @@ def profile_dives(user_id: int, before: str | None = None,
         query = query.filter(or_(stamp < when, and_(stamp == when, Dive.id < dive_id)))
     rows = query.order_by(stamp.desc(), Dive.id.desc()).limit(limit + 1).all()
     page = rows[:limit]
-    # Profiles need the same B2 fallback as the library: most migrated clips
-    # have no local poster. Resolve the page in batches, after visibility.
-    from app.api.v1.media import _backbone_revision_ids_bulk, _thumbnail_status_for_entries
+    # Profiles follow the same bounded tile rule as the Library grid: poster
+    # plus the ready local web preview only — never the camera original and
+    # never a B2 revision URL, so profile tiles mint no playback grants.
+    from app.api.v1.media import _thumbnail_status_for_entries
     uuids = [row.video_uuid for row in page if row.video_uuid]
-    revisions = _backbone_revision_ids_bulk(db, uuids)
     entries = {}
     for video_uuid, entry in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
         MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id).filter(
@@ -246,8 +246,7 @@ def profile_dives(user_id: int, before: str | None = None,
         if Path(entry.storage_path).is_file():
             entries.setdefault(video_uuid, []).append(entry)
     previews = {uuid: _thumbnail_status_for_entries(
-        db, uuid, entries.get(uuid, []),
-        f"/api/v1/media/revisions/{revisions[uuid]}/play" if revisions.get(uuid) else None,
+        db, uuid, entries.get(uuid, []), None,
     ) for uuid in uuids}
     return dict(items=[dict(id=row.id, dive_code=row.dive_code, height=row.height,
                             dive_datetime=(row.dive_datetime or row.created_at).isoformat() + "Z",
