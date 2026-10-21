@@ -111,7 +111,7 @@ def package_worker_available(db) -> bool:
     """
     from datetime import datetime, timedelta
 
-    from sqlalchemy import select
+    from sqlalchemy import cast, literal, select, Text
 
     from app.config import get_settings
     from app.models.media import MediaAgent
@@ -119,19 +119,24 @@ def package_worker_available(db) -> bool:
     if not get_settings().media_web_packages_enabled:
         return False
     cutoff = datetime.utcnow() - timedelta(minutes=15)
-    agents = list(
-        db.execute(
-            select(MediaAgent).where(
-                MediaAgent.active.is_(True),
-                MediaAgent.leasing_enabled.is_(True),
-                MediaAgent.last_seen_at.is_not(None),
-                MediaAgent.last_seen_at >= cutoff,
-            )
+    # Bounded DB-side capability check: exact JSON-array membership via the
+    # quote-delimited token (JSON encodes "web_package" with surrounding
+    # quotes, so LIKE '%"web_package"%' cannot match not_web_package or
+    # web_package_v2). Portable: PostgreSQL JSON cast to TEXT and SQLite
+    # JSON TEXT both compare here; no ORM load, LIMIT 1, no Python fallback.
+    stmt = (
+        select(literal(1))
+        .select_from(MediaAgent)
+        .where(
+            MediaAgent.active.is_(True),
+            MediaAgent.leasing_enabled.is_(True),
+            MediaAgent.last_seen_at.is_not(None),
+            MediaAgent.last_seen_at >= cutoff,
+            cast(MediaAgent.capabilities, Text).like('%"web_package"%'),
         )
-        .scalars()
-        .all()
+        .limit(1)
     )
-    return any("web_package" in (agent.capabilities or []) for agent in agents)
+    return db.execute(stmt).scalar_one_or_none() is not None
 
 
 def _server_source_dims(db, source_sha256: str) -> tuple[int | None, int | None]:
