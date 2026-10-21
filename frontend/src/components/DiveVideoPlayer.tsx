@@ -187,9 +187,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setCanRequest(Boolean(data.can_request))
     const previewUrl = getPreviewPlaybackUrl(data)
     const hqUrl = getDerivativePlaybackUrl(data, 'hq')
+    const lightUrl = getDerivativePlaybackUrl(data, 'light')
     const originalUrl = getOriginalPlaybackUrl(data)
     setPreviewSrc(previewUrl)
-    setLightSrc(getDerivativePlaybackUrl(data, 'light'))
+    setLightSrc(lightUrl)
     setHqSrc(hqUrl)
     setPosterSrc(getPosterUrlFromStatus(data))
 
@@ -201,7 +202,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       const presented = presentedSourceRef.current
       const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
       previewChoicesRef.current = previewChoices
-      if (presented?.uuid === videoUuid && [originalUrl, hqUrl, playbackUrl, ...previewChoices].includes(presented.src)) chosen = presented.src
+      // Durable-first handover: a legacy cache preview that already presented
+      // must not pin the player when a durable derivative is ready — the
+      // authoritative light/HQ starter wins. Explicit HQ/original choices
+      // and an already-durable current source are still preserved.
+      const durableReady = Boolean(lightUrl || hqUrl)
+      if (presented?.uuid === videoUuid) {
+        const preservable = durableReady
+          ? [originalUrl, hqUrl, playbackUrl]
+          : [originalUrl, hqUrl, playbackUrl, ...previewChoices]
+        if (preservable.includes(presented.src)) chosen = presented.src
+      }
       setSourceIsPreview(previewChoices.includes(chosen))
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })
       return

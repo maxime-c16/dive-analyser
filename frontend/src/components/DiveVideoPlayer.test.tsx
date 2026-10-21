@@ -1056,3 +1056,109 @@ it('derivative posters ride the authenticated revision route with an honest fall
     playSpy.mockRestore()
   }
 })
+
+it('switches a presented legacy seed to the durable light starter', async () => {
+  vi.useFakeTimers()
+  await seedPreviewCache('legacy-durable', '/sdr-360.mp4')
+  let resolve!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { resolve = done }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="legacy-durable" />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
+  Object.defineProperty(video, 'readyState', { configurable: true, value: 2 })
+  fireEvent.loadedData(video)
+  await act(async () => { await vi.advanceTimersByTimeAsync(32) })
+  const durable = {
+    ...ready,
+    video_uuid: 'legacy-durable',
+    playback_url: '/sdr-360.mp4',
+    preview_url: '/sdr-360.mp4',
+    full_quality_url: '/original.mov',
+    cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/sdr-360.mp4' }],
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  await act(async () => { resolve(durable) })
+  expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play')
+})
+
+it('keeps an explicit HQ choice and never auto-upgrades light to HQ', async () => {
+  const durable = {
+    ...missing,
+    video_uuid: 'explicit-hq',
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/9/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: '/api/v1/media/revisions/9/play',
+    poster_url: null,
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  vi.mocked(getMediaStatus).mockResolvedValue(durable)
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="explicit-hq" />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await presentFirstFrame(video)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durable })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="explicit-hq" immersive />)
+  const immersiveVideo = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(immersiveVideo).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  await waitFor(() => expect(immersiveVideo).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  await presentFirstFrame(immersiveVideo)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durable })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="explicit-hq" />)
+  const back = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(back).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})
+
+it('keeps HQ decode fallback on durable light across revalidation', async () => {
+  const durable = {
+    ...missing,
+    video_uuid: 'hq-fallback',
+    status: 'ready',
+    playback_url: '/api/v1/media/revisions/9/play',
+    preview_url: '/api/v1/media/revisions/3/play',
+    full_quality_url: '/api/v1/media/revisions/9/play',
+    poster_url: null,
+    derivatives: {
+      source_revision_id: 1,
+      transform_version: 'ffmpeg-h264-web-v1',
+      start: 'light',
+      recommended: 'hq',
+      hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+      light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+      poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+    },
+  }
+  vi.mocked(getMediaStatus).mockResolvedValue(durable)
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="hq-fallback" />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  fireEvent.error(video)
+  fireEvent.click(await screen.findByRole('button', { name: 'Play a lower-quality preview' }))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await presentFirstFrame(video)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durable })
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="hq-fallback" immersive />)
+  const again = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(again).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  expect(requestMedia).not.toHaveBeenCalled()
+})
