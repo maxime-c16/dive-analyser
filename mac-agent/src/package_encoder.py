@@ -27,9 +27,15 @@ Contract (quality annex sections 6+8, bench ``single_pass.py``):
 - HDR (HLG ``arib-std-b67`` / PQ ``smpte2084``) tone-maps once via
   zscale->hable->BT.709. If the ffmpeg build lacks ``zscale``, fail CLOSED
   (raise before encoding) rather than publishing HDR-black SDR bytes.
-- Timeouts/cancel (D2 semantics): kill + reap the ffmpeg process, remove ALL
-  new package outputs, never touch the source. A partial output set is never
-  reported ready.
+- Timeouts/cancel (D2 semantics): kill + reap the ffmpeg process, remove
+  ONLY the owned attempt dir, never touch the source, siblings,
+  pre-existing files, or another build's dir. A partial output set is
+  never reported ready.
+- Ownership: NO shared finals. Each build renames its attempt dir to a
+  UNIQUE owned ``pkg-*`` result dir and returns paths inside it; the dir
+  is an immutable local artifact until the future publisher verifies B2
+  and calls ``PackageResult.cleanup()`` (owned dir only). ``ready=True``
+  means LOCAL-VALIDATED, not durable B2.
 - Memory: each x264 encode is bounded to ``threads_per_variant`` (default 2,
   mirroring the worker). One package runs two encoders concurrently; two
   package jobs would run four. Do NOT enable two package slots in production
@@ -673,6 +679,36 @@ class PackageResult:
     encode_seconds: float = 0.0
     validation: dict = field(default_factory=dict)
     ready: bool = False
+    # Owned immutable local package directory holding the validated
+    # hq/light/poster bytes. ``ready=True`` means LOCAL-VALIDATED only,
+    # NOT durable B2: the future publisher uploads from here, verifies,
+    # then calls ``cleanup()``. Until then the producer owns this dir and
+    # nothing else may write, replace, or delete inside it.
+    result_dir: Path | None = None
+
+    def cleanup(self) -> None:
+        """Remove ONLY the owned ``result_dir``. Idempotent.
+
+        Never deletes the source, siblings, ``out_dir`` itself, or any
+        other build's directory. Refuses anything that does not look
+        like an owned ``pkg-*`` result dir inside its own parent.
+        Local cleanup is not a retention policy and never a broad
+        source cleanup — the future publisher calls this after a
+        verified B2 commit.
+        """
+        owned = self.result_dir
+        if owned is None:
+            return
+        try:
+            name = Path(owned).name
+            if not name.startswith("pkg-"):
+                return
+            target = Path(owned)
+            if not target.is_dir() or target.is_symlink():
+                return
+            shutil.rmtree(target, ignore_errors=True)
+        except Exception:
+            pass
 
 
 def _sha256(path: Path) -> str:
@@ -892,6 +928,48 @@ def _cleanup_attempt_dir(attempt_dir: Path | None) -> None:
         shutil.rmtree(attempt_dir, ignore_errors=True)
 
 
+def _sanitize_uuid_for_dir(video_uuid: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", video_uuid)[:50].strip("._-")
+    return safe or "clip"
+
+
+def _rename_attempt_to_result_sync(
+    attempt_dir: Path, out_dir: Path, video_uuid: str
+) -> Path:
+    """Rename the owned attempt dir to a UNIQUE owned result dir (atomic).
+
+    Single ``os.rename`` of the whole directory: no shared stable
+    ``hq.mp4``/``light.mp4``/``poster.jpg`` finals exist, so concurrent
+    builds can never overwrite each other's returned paths, a partial
+    multi-file replace cannot mix old/new finals, and a small-source
+    build has no shared HQ to delete. The suffix comes from the
+    mkdtemp-unique attempt name, so two builds with the same uuid still
+    land in distinct dirs. Raises on failure without touching any other
+    dir or any pre-existing file.
+    """
+    name = attempt_dir.name
+    suffix = name[len(".pkg-attempt-"):] if name.startswith(".pkg-attempt-") else None
+    if not suffix:
+        import uuid as _uuid
+
+        suffix = _uuid.uuid4().hex[:8]
+    safe = _sanitize_uuid_for_dir(video_uuid)
+    for _ in range(5):
+        candidate = out_dir / f"pkg-{safe}-{suffix}"
+        try:
+            os.rename(attempt_dir, candidate)
+            return candidate
+        except FileExistsError:
+            import uuid as _uuid
+
+            suffix = _uuid.uuid4().hex[:8]
+            continue
+    # Last attempt lets the error propagate (fail-closed, own attempt kept
+    # for the caller to clean; nothing else touched).
+    os.rename(attempt_dir, out_dir / f"pkg-{safe}-{suffix}")
+    raise TranscodeError("package_encoder: could not claim unique result dir")
+
+
 async def _shield_await(task: "asyncio.Task") -> object:
     """Await a thread-owned task to completion, preserving cancellation.
 
@@ -959,11 +1037,17 @@ async def build_package(
     Fail-closed throughout: any problem raises ``TranscodeError`` (bad
     identity raises ``ValueError`` before any work), partial outputs are
     confined to an owned per-attempt scratch dir that is removed on
-    failure, pre-existing ``out_dir`` files are never deleted on
-    failure, and the source is never written or unlinked. A returned
-    result with ``ready=True`` passed every ffprobe check on the FINAL
-    bytes. All blocking I/O runs in threads so the worker heartbeat
-    loop stays responsive.
+    failure, pre-existing ``out_dir`` files are never written, replaced,
+    or deleted on success OR failure, and the source is never written
+    or unlinked. There are NO shared stable finals: each build renames
+    its own attempt dir to a UNIQUE owned ``pkg-*`` result dir and
+    returns paths inside it. The retained dir is an immutable local
+    package artifact owned by the producer until the future publisher
+    verifies B2 and calls ``PackageResult.cleanup()`` (owned dir only).
+    A returned result with ``ready=True`` means LOCAL-VALIDATED (every
+    ffprobe check passed on the final bytes), NOT durable B2. All
+    blocking I/O runs in threads so the worker heartbeat stays
+    responsive.
     """
     if not isinstance(source_sha256, str) or not _SHA256_HEX_RE.fullmatch(source_sha256):
         raise ValueError(f"malformed source_sha256: {source_sha256!r}")
@@ -986,11 +1070,14 @@ async def build_package(
     src_resolved = Path(os.path.realpath(src_path))
 
     # Owned per-attempt scratch dir, unique inside out_dir: concurrent
-    # package builds on the same out_dir encode in isolation and final
-    # outputs are published by atomic replace only on success. Pre-existing
-    # out_dir files are NEVER overwritten in place (no ``-y`` onto finals)
-    # and failure cleanup removes ONLY this dir.
+    # package builds on the same out_dir encode in isolation. On success
+    # the WHOLE dir is renamed to a UNIQUE owned pkg-* result dir and
+    # retained as the immutable artifact; pre-existing out_dir files are
+    # NEVER written/replaced/deleted, and failure/cancel removes ONLY
+    # the owned attempt.
     attempt_dir = Path(tempfile.mkdtemp(prefix=".pkg-attempt-", dir=str(out_dir)))
+    result_dir: Path | None = None
+    attempt_claimed = False
     process: "asyncio.subprocess.Process | None" = None
     import time as _time
 
@@ -1079,9 +1166,6 @@ async def build_package(
         hq_tmp = attempt_dir / "hq.mp4" if plan.hq_applicable else None
         light_tmp = attempt_dir / "light.mp4"
         poster_tmp = attempt_dir / "poster.jpg"
-        hq_out = out_dir / "hq.mp4"
-        light_out = out_dir / "light.mp4"
-        poster_out = out_dir / "poster.jpg"
         cmd = build_package_cmd(
             src_resolved, hq_tmp, light_tmp, poster_tmp, plan,
             ffmpeg_path=ffmpeg_path, threads_per_variant=threads_per_variant,
@@ -1154,37 +1238,38 @@ async def build_package(
         except Exception as exc:
             raise TranscodeError(f"package metadata failed: {exc}") from exc
 
-        # Publish: atomic replace of finals from owned scratch. Pre-existing
-        # finals are replaced ONLY here on success — never overwritten in
-        # place, never deleted on failure.
-        def _publish_sync() -> None:
-            os.replace(hq_tmp, hq_out) if (hq_tmp is not None and plan.hq_applicable) else None
-            os.replace(light_tmp, light_out)
-            os.replace(poster_tmp, poster_out)
-            if not plan.hq_applicable:
-                with contextlib.suppress(FileNotFoundError):
-                    os.unlink(hq_out)
-
-        pub_task = asyncio.create_task(asyncio.to_thread(_publish_sync))
+        # Publish: NO shared finals. Rename the WHOLE owned attempt dir to
+        # a UNIQUE owned result dir (single atomic rename). The returned
+        # paths live inside that immutable artifact; concurrent builds
+        # never overwrite each other, a partial replace cannot mix
+        # old/new finals, and there is no shared HQ for a small-source
+        # build to delete. Pre-existing out_dir files are never touched.
+        rename_task = asyncio.create_task(asyncio.to_thread(
+            _rename_attempt_to_result_sync, attempt_dir, out_dir, video_uuid,
+        ))
         try:
-            await _shield_await(pub_task)
+            result_dir = await _shield_await(rename_task)
         except BaseException:
             raise
+        assert isinstance(result_dir, Path)
+        # Attempt dir is now the result dir: do not rmtree it below.
+        attempt_claimed = True
+
+        def _final(role: str, meta: OutputMeta | None) -> OutputMeta | None:
+            if meta is None:
+                return None
+            name = "hq.mp4" if role == "hq" else ("light.mp4" if role == "light" else "poster.jpg")
+            return OutputMeta(role=meta.role, path=result_dir / name, sha256=meta.sha256,
+                              size_bytes=meta.size_bytes, width=meta.width, height=meta.height)
 
         keys = {
             role: build_derivative_media_key(video_uuid, role, actual_sha, version)
             for role in (["hq", "light", "poster"] if plan.hq_applicable else ["light", "poster"])
         }
 
-        def _retarget(meta: OutputMeta | None, final: Path | None) -> OutputMeta | None:
-            if meta is None or final is None:
-                return None
-            return OutputMeta(role=meta.role, path=final, sha256=meta.sha256,
-                              size_bytes=meta.size_bytes, width=meta.width, height=meta.height)
-
-        hq_meta = _retarget(hq_meta_tmp, hq_out if plan.hq_applicable else None)
-        light_meta = _retarget(light_meta_tmp, light_out)
-        poster_meta = _retarget(poster_meta_tmp, poster_out)
+        hq_meta = _final("hq", hq_meta_tmp) if plan.hq_applicable else None
+        light_meta = _final("light", light_meta_tmp)
+        poster_meta = _final("poster", poster_meta_tmp)
         assert light_meta is not None and poster_meta is not None
         result = PackageResult(
             video_uuid=video_uuid, source_sha256=actual_sha, transform_version=version,
@@ -1193,13 +1278,22 @@ async def build_package(
             hq=hq_meta, hq_aliased_to=plan.hq_aliased_to,
             light=light_meta, poster=poster_meta, media_keys=keys,
             encode_seconds=round(elapsed, 2), validation=report, ready=True,
+            result_dir=result_dir,
         )
-        finally_block_result = result
-        _cleanup_attempt_dir(attempt_dir)
-        return finally_block_result
+        return result
     except BaseException as _exc:
         if process is not None and process.returncode is None:
             with contextlib.suppress(Exception):
                 await _kill_and_reap(process)
-        _cleanup_attempt_dir(attempt_dir)
+        # Failure/cancel removes ONLY the owned attempt; if the atomic
+        # rename already succeeded, remove ONLY the owned result dir —
+        # never another build's dir, never pre-existing files, never the
+        # source. If the result was never returned (cancel at the publish
+        # boundary), this is the only cleanup; siblings are untouched.
+        if attempt_claimed and isinstance(result_dir, Path):
+            with contextlib.suppress(Exception):
+                if result_dir.is_dir() and result_dir.name.startswith("pkg-"):
+                    shutil.rmtree(result_dir, ignore_errors=True)
+        else:
+            _cleanup_attempt_dir(attempt_dir)
         raise

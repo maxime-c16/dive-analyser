@@ -445,26 +445,37 @@ shield-reap→cleanup-partial pattern and never touches the source).
 - `async build_package(source, out_dir, *, video_uuid, source_sha256, ...)
   -> PackageResult`: early D1 identity validation (bad UUID/version fails
   before any work); source must resolve OUTSIDE the output tree
-  (source==finals refused, never overwritten); ACTUAL source bytes are
-  hashed off-loop and compared to the caller SHA before encoding, with
-  stat snapshots before/after hash/probe/encode failing closed on change;
-  per-attempt unique scratch dir inside `out_dir` (concurrent builds
-  isolated; finals published by atomic replace only on success;
-  pre-existing finals never deleted on failure; scratch only removed);
-  probe/audio re-resolution/zscale refusal all off-loop; single ffmpeg run
-  under the D2 timeout (kill→shield-reap→scratch cleanup, source never
-  touched); cancel-safe shielded validation/meta (thread awaited before
+  (source==finals refused, never overwritten — kept fail-closed; now
+  advisory since no shared finals are ever written but still enforced);
+  ACTUAL source bytes are hashed off-loop and compared to the caller SHA
+  before encoding, with stat snapshots before/after hash/probe/encode
+  failing closed on change; per-attempt unique scratch dir inside `out_dir`
+  (concurrent builds isolated); single ffmpeg run under the D2 timeout
+  (kill→shield-reap→own-attempt cleanup, source never touched);
+  cancel-safe shielded validation/meta (thread awaited before
   cleanup/re-raise, never unlinking under a live probe); ffprobe
-  validation of ACTUAL outputs → `ready=True` result carrying
-  `(video_uuid, actual_source_sha256, transform_version)`, per-role SHAs /
-  sizes / dims, and per-role derivative media keys. All blocking I/O runs
-  in threads so the worker heartbeat stays responsive.
+  validation of ACTUAL outputs; then ONE atomic rename of the whole
+  attempt dir to a UNIQUE owned `pkg-<uuid>-<suffix>` result dir — NO
+  shared stable `hq.mp4`/`light.mp4`/`poster.jpg` finals, no multi-file
+  replace (no partial mixed package), no shared HQ for a small-source
+  build to unlink, pre-existing `out_dir` files untouched on success AND
+  failure, failure/cancel removes ONLY the owned attempt (cancel at the
+  publish boundary cleans the owned result dir only, never others);
+  returns `ready=True` carrying `(video_uuid, actual_source_sha256,
+  transform_version)`, per-role SHAs/sizes/dims with paths INSIDE the
+  owned `result_dir`, and per-role derivative media keys. The retained
+  dir is an immutable local package artifact owned by the producer until
+  the publisher verifies B2 and calls `PackageResult.cleanup()` (owned
+  dir only, idempotent; local cleanup is not a retention policy and
+  never a broad source cleanup). `ready=True` means LOCAL-VALIDATED,
+  NOT durable B2. All blocking I/O runs in threads so the worker
+  heartbeat stays responsive.
 - `validate_package_outputs(...)`: per-mp4 codec/profile/pix-fmt/BT.709
   tags/dims/frame-count/faststart/GOP-window/audio checks; poster JPEG
   magic/dims/not-HDR-tagged. GOP allows a single keyframe for clips < 2 s
   (VFR-tolerant window, evidence recorded).
 
-### Test evidence (`mac-agent/tests/test_package_encoder.py`, 47 tests)
+### Test evidence (`mac-agent/tests/test_package_encoder.py`, 51 tests, 1 meaningful skip)
 
 Synthetic lavfi fixtures in pytest tmp only (no media in Git). This Mac's
 Homebrew ffmpeg (8.1.2, libx264, tonemap, no zscale) ran the SDR matrix:
@@ -475,15 +486,24 @@ HQ→light alias), sub-second and EXACT-1.0 s clips (poster non-empty via a
 safe in-interval thumb time), mp3-audio source (decoder-alias preserved,
 AAC output), timeout kill with pre-existing finals intact + source intact,
 SHA-mismatch refusal before ffmpeg, source-inside-outdir refusal, early
-UUID/version failure before work, concurrent same-outdir builds isolated,
-cancellation during validation (source intact, nothing published),
-heartbeat responsiveness during blocking phases. Command-shape tests cover
+UUID/version failure before work, heartbeat responsiveness during blocking
+phases. Package-ownership matrix (no shared finals): TWO concurrent builds
+with DIFFERENT SHAs/dims/framecounts in the same out_dir — after both
+return ALL first+second paths still hash-match their metadata in distinct
+owned `pkg-*` dirs; small-source build cannot delete the previous HQ;
+sentinel `out_dir/hq.mp4+light.mp4+poster.jpg` unmodified on SUCCESS (and
+on timeout failure); injected publish/rename failure keeps the good result
+intact with only its `pkg-*` dir left; repeated `PackageResult.cleanup()`
+removes only the owned dir, never source/siblings/out_dir. Cancellation
+during validation (source intact, nothing published, owned scratch only
+removed). Command-shape tests cover
 HDR single-tonemap-split, SDR tonemap-skip, matrix-convert + setsar
 branches, and the wide-gamut plan flag. HDR/wide-gamut artifact cases SKIP
 meaningfully on zscale-less builds while the fail-closed refusals are
 proven on tagged fixtures (nothing published, sources intact). A
 zscale-equipped Mac canary stays NOT authorized in this slice; HDR
-tone-map output is NOT claimed verified until that artifact runs.
+tone-map output is NOT claimed verified until that artifact runs
+(needs a CI/zscale ffmpeg later, no prod work now).
 Synthetic timings (legit, NOT production): portrait 720×1280 package
 ~0.6 s, HQ 1080p package ~0.8 s, small clips < 0.2 s. No VMAF/quality or
 prod-latency claims are made here.
@@ -491,9 +511,12 @@ prod-latency claims are made here.
 Residual limits (accepted, recorded): no whole-package wall-clock bound
 (ffmpeg timeout + per-probe bounds only); stale `.pkg-attempt-*` dirs from
 a hard-killed process are left for the operator (never auto-swept, so a
-live concurrent attempt is never at risk); unknown/missing color metadata
-is treated as narrow SDR (documented assumption); VFR GOP length is
-nominal (~1 s at r_frame_rate) with a tolerant 0.4–2.5 s evidence window.
+live concurrent attempt is never at risk); retained `pkg-*` result dirs
+are owned immutable artifacts until the publisher verifies B2 and calls
+`cleanup()` — local cleanup is not a retention policy; unknown/missing
+color metadata is treated as narrow SDR (documented assumption); VFR GOP
+length is nominal (~1 s at r_frame_rate) with a tolerant 0.4–2.5 s
+evidence window.
 
 Memory: one package runs two bounded x264 encoders concurrently. Two
 package slots (four encoders) on the 8 GiB Mac are NOT enabled until a real
@@ -503,10 +526,13 @@ Mac memory test passes.
 
 The publisher takes a `ready=True` `PackageResult` and, per applicable slot
 (`hq` skipped when `hq_aliased_to` is set), runs the §4 sequence unchanged:
-upload bytes → ranged-GET roundtrip sha+size verify → `persist_derivative`
-commit (`derived_*` semantics + `media_derivatives` ready upsert) → cache
-finalize with per-slot media key + `source_sha`/`transform_version` stamp and
-`finalized_slots` accumulation. `mark_job_ready` only when all applicable
+upload bytes FROM THE OWNED `result_dir` paths → ranged-GET roundtrip
+sha+size verify → `persist_derivative` commit (`derived_*` semantics +
+`media_derivatives` ready upsert) → cache finalize with per-slot media key
++ `source_sha`/`transform_version` stamp and `finalized_slots`
+accumulation, then `PackageResult.cleanup()` (owned dir only, after
+verified commit — never before). `mark_job_ready` only when all applicable
 slots finalize; source-revision drift at finalize commits `stale`, never
-`ready`. D3a provides the bytes + identity + proof; the publisher provides
-durability + ledger + read-path wiring.
+`ready`. D3a provides the bytes + identity + proof (`ready` =
+LOCAL-VALIDATED, not durable); the publisher provides durability + ledger
++ read-path wiring.

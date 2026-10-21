@@ -359,7 +359,7 @@ def test_artifact_vfr_preserves_frames_no_forced_rate(tmp_path):
     out = tmp_path / "pkg"
     r = _run_pkg(src, out, "vfr")
     probe = json.loads(subprocess.check_output(
-        [FFPROBE, "-v", "quiet", "-print_format", "json", "-show_streams", str(out / "light.mp4")],
+        [FFPROBE, "-v", "quiet", "-print_format", "json", "-show_streams", str(r.light.path)],
         timeout=60).decode())
     assert r.source_frames > 0
     assert r.validation["checks"].get("light.frames") == "ok"
@@ -415,6 +415,7 @@ def test_timeout_keeps_preexisting_outputs_never_source(tmp_path):
     assert sentinel_light.read_bytes() == b"sentinel-light-bytes"
     assert sentinel_poster.read_bytes() == b"sentinel-poster-bytes"
     assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+    assert [p for p in out.iterdir() if p.name.startswith("pkg-")] == []
     assert hashlib.sha256(src.read_bytes()).digest() == before
 
 
@@ -470,28 +471,158 @@ def test_source_inside_outdir_refused_never_overwritten(tmp_path):
     assert src.read_bytes() == before  # source never overwritten/unlinked
 
 
-def test_concurrent_builds_same_outdir_isolated(tmp_path):
+def _hash_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _assert_result_bytes_match(result, *, check_hq: bool = True) -> None:
+    assert result.result_dir is not None and result.result_dir.is_dir()
+    assert result.light.path.parent == result.result_dir
+    assert result.poster.path.parent == result.result_dir
+    assert _hash_file(result.light.path) == result.light.sha256
+    assert result.light.path.stat().st_size == result.light.size_bytes
+    assert _hash_file(result.poster.path) == result.poster.sha256
+    if check_hq and result.hq is not None:
+        assert result.hq.path.parent == result.result_dir
+        assert _hash_file(result.hq.path) == result.hq.sha256
+
+
+def test_concurrent_builds_same_outdir_immutable(tmp_path):
+    # TWO concurrent builds, DIFFERENT sources (SHA/dims/frames), same out_dir.
+    # Old shared-finals design overwrote the first result's paths after
+    # return; now each build owns a unique immutable result dir.
     src_a = tmp_path / "a.mp4"
     src_b = tmp_path / "b.mp4"
-    _gen_source(src_a, 320, 240, 30, 0.5, audio=False)
-    _gen_source(src_b, 320, 240, 30, 0.5, audio=False)
+    _gen_source(src_a, 640, 480, 30, 1.5, audio=False)   # short 480, no HQ
+    _gen_source(src_b, 1280, 720, 30, 1.0, audio=False)  # short 720, no HQ
+    sha_a, sha_b = _real_sha(src_a), _real_sha(src_b)
+    assert sha_a != sha_b
     out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
 
     async def _both():
         return await asyncio.gather(
             build_package(src_a, out, video_uuid="t-conc-a",
-                          source_sha256=_real_sha(src_a),
+                          source_sha256=sha_a,
                           ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE),
             build_package(src_b, out, video_uuid="t-conc-b",
-                          source_sha256=_real_sha(src_b),
+                          source_sha256=sha_b,
                           ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE),
         )
 
     ra, rb = asyncio.run(_both())
     assert ra.ready and rb.ready
-    assert (out / "light.mp4").is_file() and (out / "poster.jpg").is_file()
+    assert ra.source_sha256 == sha_a and rb.source_sha256 == sha_b
+    assert (ra.light.width, ra.light.height) != (rb.light.width, rb.light.height)
+    assert ra.source_frames != rb.source_frames
+    assert ra.result_dir != rb.result_dir
+    # After BOTH return, ALL first+second paths still match their metadata.
+    _assert_result_bytes_match(ra)
+    _assert_result_bytes_match(rb)
+    # No shared stable finals exist; no scratch left; sources intact.
+    assert not (out / "light.mp4").exists()
+    assert not (out / "poster.jpg").exists()
+    assert not (out / "hq.mp4").exists()
     assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
     assert src_a.is_file() and src_b.is_file()
+
+
+def test_small_source_build_cannot_delete_previous_hq(tmp_path):
+    # Big source (HQ applicable) then a small source (HQ aliased) in the
+    # same out_dir: the old code's `os.unlink(hq_out)` deleted the first
+    # build's HQ. Now there is no shared HQ to delete.
+    big = tmp_path / "big.mp4"
+    small = tmp_path / "small.mp4"
+    _gen_source(big, 1920, 1080, 30, 1.2, audio=False)
+    _gen_source(small, 320, 240, 30, 0.5, audio=False)
+    out = tmp_path / "pkg"
+    r_big = asyncio.run(build_package(big, out, video_uuid="t-bighq",
+                                      source_sha256=_real_sha(big),
+                                      ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r_big.hq is not None
+    hq_bytes_before = r_big.hq.path.read_bytes()
+    r_small = asyncio.run(build_package(small, out, video_uuid="t-small",
+                                        source_sha256=_real_sha(small),
+                                        ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r_small.hq is None and r_small.hq_aliased_to == "light"
+    assert r_big.hq.path.read_bytes() == hq_bytes_before
+    _assert_result_bytes_match(r_big)
+    _assert_result_bytes_match(r_small)
+
+
+def test_sentinel_shared_finals_untouched_on_success(tmp_path):
+    # Pre-existing out_dir/hq.mp4 + light.mp4 + poster.jpg are never
+    # written/replaced/deleted — on SUCCESS (this test) and on failure
+    # (timeout test). Results live in owned pkg-* dirs instead.
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.0, audio=False)
+    out = tmp_path / "pkg"
+    out.mkdir(parents=True, exist_ok=True)
+    for name, blob in (("hq.mp4", b"sentinel-hq"), ("light.mp4", b"sentinel-light"),
+                       ("poster.jpg", b"sentinel-poster")):
+        (out / name).write_bytes(blob)
+    r = asyncio.run(build_package(src, out, video_uuid="t-sentinel-ok",
+                                  source_sha256=_real_sha(src),
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    assert r.ready
+    assert (out / "hq.mp4").read_bytes() == b"sentinel-hq"
+    assert (out / "light.mp4").read_bytes() == b"sentinel-light"
+    assert (out / "poster.jpg").read_bytes() == b"sentinel-poster"
+    assert r.light.path.parent == r.result_dir and r.light.path.name == "light.mp4"
+    assert r.light.path != out / "light.mp4"
+    _assert_result_bytes_match(r)
+
+
+def test_publish_rename_failure_keeps_other_result_intact(tmp_path, monkeypatch):
+    import src.package_encoder as pe
+
+    good_src = tmp_path / "good.mp4"
+    bad_src = tmp_path / "bad.mp4"
+    _gen_source(good_src, 640, 480, 30, 1.0, audio=False)
+    _gen_source(bad_src, 640, 480, 30, 1.0, audio=False)
+    out = tmp_path / "pkg"
+    r_good = asyncio.run(build_package(good_src, out, video_uuid="t-good",
+                                       source_sha256=_real_sha(good_src),
+                                       ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    good_light_before = r_good.light.path.read_bytes()
+    real_rename = pe.os.rename
+
+    def _fail_once(a, b, *args, **kwargs):
+        monkeypatch.setattr(pe.os, "rename", real_rename)
+        raise OSError("injected publish failure")
+
+    monkeypatch.setattr(pe.os, "rename", _fail_once)
+    with pytest.raises((OSError, TranscodeError)):
+        asyncio.run(build_package(bad_src, out, video_uuid="t-bad",
+                                  source_sha256=_real_sha(bad_src),
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    # The good result is intact; the failed attempt left no pkg dir behind
+    # beyond the good one, no scratch, sources intact.
+    assert r_good.light.path.read_bytes() == good_light_before
+    _assert_result_bytes_match(r_good)
+    assert good_src.is_file() and bad_src.is_file()
+    pkg_dirs = [p for p in out.iterdir() if p.name.startswith("pkg-")]
+    assert len(pkg_dirs) == 1 and pkg_dirs[0] == r_good.result_dir
+    assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
+
+
+def test_result_cleanup_owned_only_idempotent(tmp_path):
+    src = tmp_path / "src.mp4"
+    _gen_source(src, 640, 480, 30, 1.0, audio=False)
+    out = tmp_path / "pkg"
+    sibling = out / "sibling.txt"
+    out.mkdir(parents=True, exist_ok=True)
+    sibling.write_bytes(b"sibling")
+    r = asyncio.run(build_package(src, out, video_uuid="t-cleanup",
+                                  source_sha256=_real_sha(src),
+                                  ffmpeg_path=FFMPEG, ffprobe_path=FFPROBE))
+    owned = r.result_dir
+    assert owned is not None and owned.is_dir()
+    r.cleanup()
+    assert not owned.exists()
+    r.cleanup()  # idempotent, never raises, never touches anything else
+    assert not owned.exists()
+    assert src.is_file() and sibling.read_bytes() == b"sibling" and out.is_dir()
 
 
 # ---------------------------------------------------------------------------
@@ -682,7 +813,7 @@ def test_artifact_exact_1s_clip_poster_nonempty(tmp_path):
     assert r.poster.path.stat().st_size > 0
     probe = json.loads(subprocess.check_output(
         [FFPROBE, "-v", "quiet", "-print_format", "json",
-         "-show_streams", str(out / "poster.jpg")],
+         "-show_streams", str(r.poster.path)],
         timeout=60).decode())
     assert probe["streams"][0]["codec_name"] in ("mjpeg", "jpg", "jpeg")
 
@@ -693,7 +824,7 @@ def test_artifact_vfr_pts_cadence_preserved(tmp_path):
     out = tmp_path / "pkg"
     r = _run_pkg(src, out, "vfrpts")
     src_pts = frame_pts_times_s(src, FFPROBE)
-    out_pts = frame_pts_times_s(out / "light.mp4", FFPROBE)
+    out_pts = frame_pts_times_s(r.light.path, FFPROBE)
     assert src_pts and out_pts
     assert len(out_pts) == len(src_pts) == r.source_frames
     # Passthrough timing: same cadence/duration, not CFR-forced.
