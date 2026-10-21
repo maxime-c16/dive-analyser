@@ -403,3 +403,102 @@ def test_720p_deleted_leaving_360p_is_playable_but_not_target(test_db):
     jobs = test_db.query(MediaJob).all()
     assert len(jobs) == 1
     assert jobs[0].rendition == "proxy_720p"
+
+
+def _fail_proxy_job_and_refresh(test_db, run, *, status, error):
+    job = test_db.query(MediaJob).one()
+    assert job.rendition == "proxy_720p"
+    job.status = status
+    job.last_error = error
+    test_db.commit()
+    refresh_catalog_population_run(test_db, run)
+    test_db.commit()
+    return test_db.query(MediaJob).one()
+
+
+def test_failed_720p_upgrade_keeps_live_360p_fallback_ready(test_db):
+    """Poster + live 360p + failed 720p job: proxy stays ready, item partial."""
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="fail360")
+    _ready(test_db, asset, "poster", "k1" * 32)
+    _ready(test_db, asset, "proxy_360p", "k2" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-fail360")
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    assert run.items[0].proxy_status == "ready"
+    assert run.items[0].completed_at is None
+
+    _fail_proxy_job_and_refresh(test_db, run, status="failed", error="worker_failed:boom")
+
+    item = run.items[0]
+    assert item.status == "partial"
+    assert item.completed_at is not None
+    assert item.proxy_status == "ready"
+    assert item.last_error_code == "worker_failed"
+    assert run.partial_items == 1
+    assert run.ready_items == 0
+
+    summary = catalog_summary(test_db)
+    assert summary["proxy"].get("ready", 0) == 1
+    assert summary["proxy_720p"].get("ready", 0) == 0
+    assert summary["media"].get("partial", 0) == 1
+
+
+def test_unavailable_720p_upgrade_keeps_live_360p_fallback_ready(test_db):
+    """Same as above with an unavailable 720p job."""
+    from app.services.media_catalog import catalog_summary
+
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="unav360")
+    _ready(test_db, asset, "poster", "k3" * 32)
+    _ready(test_db, asset, "proxy_360p", "k4" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-unav360")
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+
+    _fail_proxy_job_and_refresh(test_db, run, status="unavailable", error="source_missing:gone")
+
+    item = run.items[0]
+    assert item.status == "partial"
+    assert item.proxy_status == "ready"
+    assert item.last_error_code == "source_missing"
+    assert run.partial_items == 1
+
+    summary = catalog_summary(test_db)
+    assert summary["proxy"].get("ready", 0) == 1
+    assert summary["proxy_720p"].get("ready", 0) == 0
+
+
+def test_failed_720p_upgrade_without_proxy_announces_failure(test_db):
+    """No live proxy + failed 720p job: proxy_status reports the failure."""
+    _seed_agent(test_db)
+    session = SessionModel(date=datetime(2026, 1, 1).date())
+    test_db.add(session)
+    test_db.flush()
+    asset, local_uuid = _seed_catalog_asset(test_db, session, tag="failnone")
+    _ready(test_db, asset, "poster", "k5" * 32)
+    test_db.commit()
+    _ingest(test_db, local_uuid, "cloud-failnone")
+
+    run = start_catalog_population_run(test_db, limit=10, stage=1)
+    test_db.commit()
+    assert run.items[0].proxy_status != "ready"
+
+    _fail_proxy_job_and_refresh(test_db, run, status="failed", error="worker_failed:boom")
+
+    item = run.items[0]
+    assert item.status == "partial"
+    assert item.proxy_status == "failed"
+    assert item.last_error_code == "worker_failed"

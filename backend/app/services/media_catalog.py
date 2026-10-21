@@ -678,7 +678,12 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
             item.poster_status = job.status
             _finish_population_item(run, item, "unavailable")
         else:
-            item.proxy_status = job.status
+            # A failed 720p upgrade must not hide a live playable fallback:
+            # poster + 360p stays proxy ready while the item finishes partial
+            # with the upgrade error. Only announce failed/unavailable when no
+            # live 720p or 360p entry exists.
+            if "proxy_720p" not in ready and "proxy_360p" not in ready:
+                item.proxy_status = job.status
             _finish_population_item(run, item, "partial")
         db.flush()
         if (
