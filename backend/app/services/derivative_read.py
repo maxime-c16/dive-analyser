@@ -339,7 +339,13 @@ def _is_missing_ledger_table(exc: BaseException) -> bool:
     orig = getattr(exc, "orig", None)
     if orig is not None:
         if getattr(orig, "pgcode", None) == "42P01":
-            return True
+            # Narrow: 42P01 fires for ANY missing relation. Only the
+            # ledger table itself counts as an old schema; a missing
+            # source/aux table must propagate (real 42P01 message names
+            # the relation, e.g. relation "media_derivatives" does not
+            # exist).
+            combined = f"{orig} {exc}".lower()
+            return "media_derivatives" in combined
         text = str(orig).lower()
         if "media_derivatives" in text and (
             "does not exist" in text or "no such table" in text or "undefined" in text
