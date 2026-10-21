@@ -147,6 +147,11 @@ required the flag the canary was supposed to justify):
    `MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED` still `false` (runtime
    `~/.config/diveanalyzer/media-jobs.env`, mode 600, never Git; compose
    defaults `false`).
+   Because Compose changes, follow `docs/REPO_WORKFLOW.md` after shipping:
+   `docker-compose up -d nginx` in the server stack (or the documented
+   reload alternative). Ship already reloads both LAN and Funnel proxies;
+   verify both reloads and health checks in its log. Recreate a proxy only
+   when needed to apply changed mounts/configuration.
 3. Mac deploy (managed safe path, ONE canary only): `ci/ship.sh mac` with an
    explicit `web_package`-capable config on ONE canary worker
    (`media.capabilities` adds `web_package`; default stays
