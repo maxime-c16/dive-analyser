@@ -48,25 +48,69 @@ logger = logging.getLogger(__name__)
 CLEANUP_SECONDS = 7 * 24 * 60 * 60  # 7 days
 
 
-def _queue_new_captioned_media(db: Session, dive: Dive) -> None:
-    """Queue poster + 720p proxy only for a newly inserted dive.
+class _NoPackageSource(Exception):
+    """Internal: no verified canonical source, so queue legacy instead."""
 
+
+def _queue_new_captioned_media(db: Session, dive: Dive) -> str | None:
+    """Queue media work for a newly inserted dive; report the decision.
     Lot B: no new 360p is produced at ingestion. Legacy 360p rows remain
     readable as a fallback until replaced by a 720p upgrade; rendering and
     encodings are untouched. 720p comes first so players open the clip in
-    HQ from its first view."""
+    HQ from its first view.
+
+    D3b2 (gated, default OFF): when MEDIA_WEB_PACKAGES_ENABLED is true AND
+    MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED is true AND a
+    healthy package-capable worker just checked in, queue ONE web_package
+    job instead of poster + 720p (never both — no duplicate). Otherwise the
+    legacy poster + 720p path runs byte-identically (same renditions, same
+    priorities). The master flag alone (auto-ingest OFF) admits ONLY
+    explicitly queued canary jobs through the lease path — broad ingestion
+    stays legacy until a parent enables auto-ingest after canary proof.
+    Newly ingested clips default to the legacy path until a
+    parent explicitly activates packages.
+    """
     if os.environ.get("NEW_VIDEO_AUTO_MEDIA_ENABLED", "false").lower() != "true":
-        return
+        return None
     if not dive.photos_asset_id:
-        return
+        return None
     asset = db.get(PhotosAsset, dive.photos_asset_id)
     if not asset:
-        return
+        return None
+    try:
+        from app.config import get_settings as _pkg_settings
+
+        from app.services.web_packages import package_worker_available
+
+        if _pkg_settings().media_web_packages_auto_ingest_enabled and package_worker_available(db):
+            from app.services.media_jobs import WEB_PACKAGE_RENDITION
+
+            # Fail closed per clip: a package without a verified canonical
+            # source has nothing to pin the encoder to (B2 preferred, Photos
+            # only with exact SHA proof). Queue legacy instead of a doomed
+            # package that would burn attempts refusing to encode.
+            try:
+                from app.services.derivative_publisher import resolve_canonical_source_revision
+
+                resolve_canonical_source_revision(db, asset.video_uuid)
+            except Exception:
+                raise _NoPackageSource()
+            _, job, _ = create_or_reuse_media_job(db, asset, WEB_PACKAGE_RENDITION, "new_captioned_ingestion")
+            job.priority = 10
+            job.max_attempts = min(job.max_attempts or 2, 2)
+            db.add(job)
+            logger.info("Queued web_package for dive %s (gated package path)", dive.id)
+            return "package"
+    except _NoPackageSource:
+        pass
+    except Exception:
+        logger.warning("Package queue check failed; falling back to legacy poster+720p", exc_info=True)
     for rendition in ("poster", "proxy_720p"):
         _, job, _ = create_or_reuse_media_job(db, asset, rendition, "new_captioned_ingestion")
         job.priority = 10
         job.max_attempts = min(job.max_attempts or 2, 2)
         db.add(job)
+    return "legacy"
 
 
 # ========== VIDEO SYNC ENDPOINTS (for mac-agent) ==========

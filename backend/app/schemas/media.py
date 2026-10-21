@@ -94,6 +94,13 @@ class MediaLeasedJob(BaseModel):
     source_url: Optional[str] = None
     source_sha256: Optional[str] = None
     source_size_bytes: Optional[int] = None
+    # D3b2 fenced web package (rendition == "web_package" only): the exact
+    # transform identity pinned at lease plus the per-slot derivative media
+    # keys the worker must stamp. Legacy renditions leave these None so old
+    # workers and old flows are byte-identical.
+    transform_version: Optional[str] = None
+    expected_slots: Optional[List[str]] = None
+    package_media_keys: Optional[dict] = None
 
 
 class MediaJobLeaseResponse(BaseModel):
@@ -140,6 +147,52 @@ class MediaJobFinalizeResponse(BaseModel):
     status: str
     cache_entry_id: int
     playback_url: str
+
+
+class MediaPackageSlotFinalizeRequest(BaseModel):
+    """Finalize one web_package slot (hq/light/poster) into durable storage.
+
+    The worker uploads slot bytes first (slot upload route), then calls this
+    with the staged checksum/size plus the source identity it actually
+    encoded. The server re-validates everything (lease token + expiry with a
+    row lock, canonical source SHA, transform version, slot format via
+    ffprobe) before any B2 publish, and commits the ledger row plus the
+    job's finalized_slots atomically. A stale attempt (re-leased mid-upload,
+    source changed) is rejected with 409 and its verified B2 bytes are kept
+    as a safe orphan — never promoted to ready.
+    """
+
+    agent_id: str = Field(..., min_length=1, max_length=100)
+    slot: str = Field(..., pattern="^(hq|light|poster)$")
+    checksum_sha256: str = Field(..., min_length=64, max_length=64)
+    size_bytes: int = Field(..., ge=1)
+    content_type: str = Field("application/octet-stream", max_length=100)
+    # D2 fencing token echoed from the lease (same rule as heartbeat).
+    lease_token: Optional[str] = None
+    # Source the worker actually encoded (must match the canonical source
+    # pinned at lease AND the current canonical source at commit).
+    source_sha256: str = Field(..., min_length=64, max_length=64)
+    # Small-source honesty: when the source short side is below a role
+    # floor the worker declares hq_aliased_to="light" and omits hq. The
+    # server checks the claim against the actual probed slot dims instead
+    # of trusting it blindly (see web_packages.expected_slots_for_source).
+    hq_aliased_to: Optional[str] = Field(None, pattern="^(light)$")
+    source_width: Optional[int] = Field(None, ge=1)
+    source_height: Optional[int] = Field(None, ge=1)
+    # Lease-pinned transform echoed from the lease payload (must equal the
+    # persisted job pin AND the canonical transform on EVERY slot). The slot
+    # route requires the same field as Form data; this schema keeps the
+    # contract truthful for any future JSON callers.
+    transform_version: Optional[str] = Field(None, max_length=40)
+
+
+class MediaPackageSlotFinalizeResponse(BaseModel):
+    job_id: int
+    slot: str
+    status: str
+    derivative_status: str
+    job_ready: bool
+    finalized_slots: List[str] = Field(default_factory=list)
 
 
 class MediaPinResponse(BaseModel):

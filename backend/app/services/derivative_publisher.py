@@ -168,6 +168,27 @@ class MissingCredentials(DerivativePublishError):
     """B2 upload credential/environment not configured (fail closed)."""
 
 
+class DirtySessionError(DerivativePublishError):
+    """Caller session held pending writes (retryable internal error).
+
+    Distinct from fencing/client errors so routes can return 500 (retryable
+    internal) instead of 409 (client-stale). Never a stale lease.
+    """
+
+
+class FencedSlotConflict(DerivativePublishError):
+    """Explicit fenced-lease rejection (client-stale, re-lease required).
+
+    Raised ONLY when the D3b2 pre-commit fencing hook rejects the attempt
+    (lease owner/expiry/token mismatch, transform/source pin drift, invalid
+    slot state for this package): the attempt is stale, the Mac client must
+    re-lease, and the verified B2 bytes stay a safe orphan. Deliberately
+    distinct from the generic ``DerivativePublishError`` base, which wraps
+    unexpected DB/commit/internal failures (retryable 500, sanitized):
+    routes map this subclass to 409 and the base to 500.
+    """
+
+
 class _CommittedStale(StaleSourceError):
     """Internal: stale record was COMMITTED before this was raised.
 
@@ -312,7 +333,7 @@ def _require_clean_session(db) -> None:
     BEFORE any network upload.
     """
     if db.new or db.dirty or db.deleted:
-        raise DerivativePublishError(
+        raise DirtySessionError(
             "publish_derivative requires a session with no pending writes; "
             "commit or roll back caller work before publishing"
         )
@@ -610,6 +631,7 @@ def publish_derivative(
     local_path: str | Path,
     *,
     s3_client: Any | None = None,
+    pre_commit_hook: Any | None = None,
 ) -> dict[str, Any]:
     """Publish one derivative artifact (upload → verify → commit).
 
@@ -628,10 +650,13 @@ def publish_derivative(
     Network first (upload + full-byte verify, no row locks held and no
     writes pending — revalidation reads are rolled back before the
     upload), then ONE DB transaction: position on the ledger identity →
-    source-drift check → backbone commit + ledger upsert, with a second
-    source recheck immediately before commit. Any drift commits
-    ``stale``, never ``ready``; an existing ``ready`` row is never
-    modified. B2 orphans are retained.
+    source-drift check → fenced guard (optional ``pre_commit_hook``) →
+    backbone commit + ledger upsert, with a second source recheck
+    immediately before commit. Any drift commits ``stale``, never
+    ``ready``; an existing ``ready`` row is never modified. B2 orphans
+    are retained. The hook runs with the ledger row lock held, inside
+    the committing unit: a fencing rejection there rolls back without
+    promoting anything (D3b2 lease-token + source recheck + slot commit).
     """
     from app.services.media_backbone import DERIVATIVE_ROLE_TO_SEMANTICS
     from app.services.media_backbone import commit_verified_ingest
@@ -760,6 +785,45 @@ def publish_derivative(
             )
             # NOT REACHED — _commit_stale_attempt commits then raises.
 
+        if pre_commit_hook is not None:
+            # D3b2 fenced guard: runs with the ledger row lock held, inside
+            # the committing unit, BEFORE any ready decision (including
+            # idempotent replays). A stale lease / source mismatch raises
+            # here; the unit rolls back and the verified B2 bytes stay a
+            # safe orphan. The hook may also stage the job's finalized_slots
+            # in the same transaction (committed atomically with the ledger
+            # below).
+            try:
+                pre_commit_hook(
+                    db,
+                    ctx,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    object_key=key,
+                    bucket=bucket,
+                    environment=environment,
+                )
+            except _CommittedStale:
+                raise
+            except (DerivativePublishError, StaleSourceError, DerivativeIdentityConflict):
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise
+            except PermissionError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
+            except ValueError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
+
         if existing is not None and existing.status == "ready":
             if existing.derivative_blob_sha256 == derivative_sha:
                 # Idempotent replay: same bytes already durable. The
@@ -851,19 +915,55 @@ def publish_derivative(
             db.rollback()
         except Exception:
             pass
-        # Concurrent same-identity winner: re-read the rival AND recheck
-        # the source (a drifted source never resolves to ready, even for
-        # an idempotent replay).
-        rival = _read_existing_ledger_row(db, ctx, for_update=False)
+        # Concurrent same-identity winner: re-read the rival UNDER the ledger
+        # row lock (FOR UPDATE on PG) AND recheck the source, then run the
+        # fenced hook in the SAME TX before any ready decision (a drifted
+        # source never resolves to ready, even for an idempotent replay).
+        # Lock ordering stays ledger -> job (never job -> ledger) so two
+        # concurrent slots for one job (different ledger rows, one job row)
+        # serialize without deadlock. No ready (including dedup) returns
+        # without the D2 current-claim + source authoritative check.
+        rival = _read_existing_ledger_row(db, ctx, for_update=True)
         rival_sha, rival_drifted = _resolve_current_source_sha(db, ctx.video_uuid)
-        try:
-            db.rollback()
-        except Exception:
-            pass
         if rival_drifted or rival_sha != ctx.source_blob_sha256:
+            try:
+                db.rollback()
+            except Exception:
+                pass
             raise StaleSourceError(
                 "canonical source changed during commit; recorded nothing, not ready"
             ) from None
+        if pre_commit_hook is not None:
+            try:
+                pre_commit_hook(
+                    db,
+                    ctx,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    object_key=key,
+                    bucket=bucket,
+                    environment=environment,
+                )
+            except _CommittedStale:
+                raise
+            except (DerivativePublishError, StaleSourceError, DerivativeIdentityConflict):
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise
+            except PermissionError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
+            except ValueError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise FencedSlotConflict(str(exc) or "fenced claim rejected") from exc
         if (
             rival is not None
             and rival.derivative_blob_sha256 == derivative_sha

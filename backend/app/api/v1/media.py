@@ -32,6 +32,7 @@ from app.schemas.media import (
     MediaJobLeaseResponse,
     MediaJobUploadResponse,
     MediaCleanupResponse,
+    MediaPackageSlotFinalizeResponse,
     MediaPinResponse,
     RepresentativePrepareRequest,
     RepresentativeReplaceRequest,
@@ -1452,6 +1453,285 @@ async def finalize_job_artifact(
         status=job.status,
         cache_entry_id=entry.id,
         playback_url=playback_url(entry.id),
+    )
+
+
+def _slot_publish_http_error(exc: Exception) -> HTTPException:
+    """Map a slot-publish failure to an explicit HTTP status (testable).
+
+    409 = client-stale (re-lease/refresh); 502 = B2 provider failure;
+    503 = storage unconfigured; 500 = retryable internal error. Provider and
+    internal details are sanitized (never raw tracebacks/paths/secrets);
+    the ``from exc`` chain at the call site preserves logs server-side.
+    """
+    from app.services.derivative_publisher import (
+        DerivativeIdentityConflict,
+        DirtySessionError,
+        FencedSlotConflict,
+        MissingCredentials,
+        MissingSourceError,
+        StaleSourceError,
+        VerificationFailed,
+    )
+
+    if isinstance(exc, DirtySessionError):
+        # Our own session held pending writes: retryable INTERNAL error,
+        # never a client-stale lease.
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="package publish unavailable; please retry",
+        )
+    if isinstance(exc, VerificationFailed):
+        # B2 provider roundtrip failed: sanitized publisher detail only.
+        return HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc) or "derivative storage verification failed; please retry",
+        )
+    if isinstance(exc, MissingCredentials):
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Video storage is not configured yet",
+        )
+    if isinstance(exc, (StaleSourceError, DerivativeIdentityConflict,
+                        MissingSourceError, FencedSlotConflict)):
+        # Explicit fencing/stale conflicts only (lease owner/expiry/token
+        # mismatch, source/revision/transform drift, identity conflict,
+        # missing canonical source): client-stale, re-lease/refresh. The
+        # generic DerivativePublishError base (unexpected DB/commit/internal
+        # failures) and raw ValueError/PermissionError fall through to the
+        # sanitized 500 below so the Mac client retries instead of failing
+        # the package as terminal.
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="package publish failed; please retry",
+    )
+
+
+@router.post("/jobs/{job_id}/package/slots")
+async def publish_package_slot(
+    job_id: int,
+    agent_id: str = Form(...),
+    lease_token: str | None = Form(None),
+    slot: str = Form(...),
+    checksum_sha256: str = Form(...),
+    size_bytes: int = Form(...),
+    content_type: str = Form("application/octet-stream"),
+    source_sha256: str = Form(...),
+    hq_aliased_to: str | None = Form(None),
+    source_width: int | None = Form(None),
+    source_height: int | None = Form(None),
+    transform_version: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    api_key: dict = Depends(verify_api_key),
+) -> MediaPackageSlotFinalizeResponse:
+    """Publish one web_package slot (hq/light/poster) to durable storage.
+
+    Single-step fenced publish (DEFAULT DISABLED via
+    MEDIA_WEB_PACKAGES_ENABLED): streams the slot bytes to unique
+    per-request staging (D2 rules), validates format via ffprobe on ACTUAL
+    bytes plus the claimed source/version/role/size/SHA, then publishes
+    through the D3b1 publisher (B2 upload + full-byte roundtrip verify, no
+    row lock held during the network) with a fenced pre-commit guard that
+    rechecks the D2 lease (owner/expiry/token, row-locked) and the source
+    identity atomically with the ledger + finalized_slots commit. A stale
+    attempt (re-leased mid-upload, source changed) is rejected with 409 and
+    its verified B2 bytes stay a safe orphan. The job is ready ONLY when
+    every applicable slot is VERIFIED DURABLE (never cache-only).
+
+    Error taxonomy (explicit): 400 = client format/validation failure
+    (bad bytes, HDR, tags, faststart, alias, size); 409 = client-stale
+    (expired/re-leased lease, source/revision/transform drift, identity
+    conflict, missing canonical source); 502 = B2 provider roundtrip
+    failure (sanitized, retryable); 503 = storage not configured;
+    500 = retryable internal error (dirty session, invariant breach,
+    unexpected failure — sanitized detail, chained server-side).
+    """
+    from app.services.media_jobs import WEB_PACKAGE_RENDITION
+    from app.services.web_packages import (
+        applicable_slots,
+        check_small_source_alias,
+        get_finalized_state,
+        make_slot_guard,
+        validate_slot_artifact,
+    )
+
+    _agent_auth(db, agent_id, api_key)
+    if not get_settings().media_web_packages_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="media_web_packages_disabled")
+    if slot not in ("hq", "light", "poster"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown package slot")
+    if hq_aliased_to is not None and hq_aliased_to != "light":
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="hq_aliased_to must be 'light'")
+    job = db.get(MediaJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    if job.rendition != WEB_PACKAGE_RENDITION:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="not a web_package job")
+    # Peek (unlocked) pre-check: reject stale/expired/foreign attempts BEFORE
+    # their bytes touch the disk. The authoritative check re-runs row-locked
+    # inside the publisher's committing unit.
+    try:
+        _guarded_job(db, job_id, agent_id, lease_token, None, lock=False)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    from app.services.media_cache import cache_upload_staging_path
+
+    staging_path = cache_upload_staging_path(job_id, lease_token)
+    actual_size = 0
+    try:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            actual_size += len(chunk)
+            write_upload_chunk(staging_path, chunk)
+        await file.close()
+    except BaseException:
+        try:
+            await file.close()
+        except BaseException:
+            pass
+        staging_path.unlink(missing_ok=True)
+        raise
+    if actual_size != size_bytes:
+        staging_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
+
+    def _publish_and_commit():
+        from app.services.derivative_publisher import (
+            DerivativeIdentityConflict,
+            DerivativePublishError,
+            DirtySessionError,
+            MissingCredentials,
+            MissingSourceError,
+            StaleSourceError,
+            VerificationFailed,
+            build_publication_context,
+            publish_derivative,
+        )
+
+        try:
+            probed = validate_slot_artifact(
+                path=staging_path, slot=slot, expected_sha256=checksum_sha256, expected_size=size_bytes
+            )
+        except ValueError as exc:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        try:
+            applicable = check_small_source_alias(
+                db=db,
+                job=job,
+                slot=slot,
+                hq_aliased_to=hq_aliased_to,
+                claimed_w=source_width,
+                claimed_h=source_height,
+                probed_w=probed.get("width"),
+                probed_h=probed.get("height"),
+                source_sha256=source_sha256,
+            )
+        except ValueError as exc:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if slot not in applicable:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"slot {slot!r} is not applicable for this package",
+            )
+        canonical_uuid = job.asset.video_uuid
+        try:
+            ctx = build_publication_context(
+                db, video_uuid=canonical_uuid, role=slot, transform_version=transform_version
+            )
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except MissingCredentials as exc:
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Video storage is not configured yet",
+            ) from exc
+        except MissingSourceError as exc:
+            # Canonical source vanished between lease and slot: client-stale,
+            # re-lease (never a server fault).
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except Exception as exc:
+            # Unexpected context-build failure (e.g. DB read): retryable
+            # internal error, sanitized detail (never str(exc)), chained for
+            # server logs.
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="package publish unavailable; please retry",
+            ) from exc
+        if source_sha256.lower() != ctx.source_blob_sha256.lower():
+            db.rollback()
+            staging_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="package slot source changed; refusing ready"
+            )
+        guard = make_slot_guard(
+            job_id=job_id,
+            agent_id=agent_id,
+            lease_token=lease_token,
+            claimed_source_sha256=source_sha256,
+            slot=slot,
+            applicable=applicable,
+            hq_aliased_to=hq_aliased_to,
+            transform_version=transform_version,
+            claimed_transform_version=transform_version,
+        )
+        try:
+            result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise _slot_publish_http_error(exc) from exc
+        try:
+            db.refresh(job)
+        except Exception:
+            pass
+        state = get_finalized_state(job)
+        finalized = sorted(state.get("slots", {}).keys())
+        return {
+            "derivative_status": result.get("status", "ready"),
+            "job_status": job.status,
+            "job_ready": job.status == "ready",
+            "finalized_slots": finalized,
+            "applicable": applicable,
+        }
+
+    try:
+        outcome = await run_to_completion(asyncio.to_thread(_publish_and_commit))
+    finally:
+        # Staging is never referenced by the job row (ledger is the
+        # authority); unlink our unique staging unless the commit outcome was
+        # ambiguous (exception path already cleaned its own staging; a
+        # commit-ambiguous error leaks rather than deletes).
+        staging_path.unlink(missing_ok=True)
+    if outcome["job_status"] == "ready" and len(outcome["finalized_slots"]) < len(outcome["applicable"]):
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="package ready without all slots")
+    return MediaPackageSlotFinalizeResponse(
+        job_id=job.id,
+        slot=slot,
+        status=outcome["job_status"],
+        derivative_status=outcome["derivative_status"],
+        job_ready=outcome["job_ready"],
+        finalized_slots=outcome["finalized_slots"],
     )
 
 

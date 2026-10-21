@@ -700,6 +700,100 @@ class SyncClient:
             raise RuntimeError(f"finalize media job failed: {status} {error}")
         return data
 
+    async def publish_package_slot(
+        self,
+        job_id: int,
+        agent_id: str,
+        lease_token: str | None,
+        slot: str,
+        file_path: str,
+        checksum_sha256: str,
+        size_bytes: int,
+        content_type: str,
+        source_sha256: str,
+        hq_aliased_to: str | None = None,
+        source_width: int | None = None,
+        source_height: int | None = None,
+        transform_version: str | None = None,
+    ) -> Dict[str, Any]:
+        """Publish one web_package slot (single-step fenced upload).
+
+        Streams the slot bytes to unique per-request staging; the server
+        validates (ffprobe/SHA/alias), B2-publishes with a full-byte
+        roundtrip verify (no row lock during the network), then commits the
+        ledger + finalized_slots atomically under the D2 lease guard.
+
+        Timeout: uses the dedicated bounded ``package_publish_timeout_seconds``
+        (default 600 s, valid [60, 1800]) for the whole multipart upload +
+        server verification roundtrip — NOT the 30 s generic API default.
+        The file streams via curl ``-F file=@path`` (never full memory);
+        the timeout is a per-request override, preserving the global client
+        pool/bounds. The D2 whole-job keepalive runs concurrently while this
+        awaits, renewing the lease (<=45 s), so a long publish does not lose
+        the claim.
+
+        Retries: bounded via the existing ``RetryConfig`` for transient
+        failures only (timeout/status 0, 502/503/500). Same bytes + same
+        lease nonce each attempt, so a commit-ambiguous timeout safely
+        dedupes server-side (idempotent per-slot same-bytes retry); 400 /
+        401 / 403 / 404 / 409 fail immediately (client-stale, never retry).
+        """
+        url = f"{self.server_config.url}/api/v1/media/jobs/{job_id}/package/slots"
+        fields: Dict[str, Any] = {
+            "agent_id": agent_id,
+            "slot": slot,
+            "checksum_sha256": checksum_sha256,
+            "size_bytes": str(size_bytes),
+            "content_type": content_type,
+            "source_sha256": source_sha256,
+        }
+        if lease_token is not None:
+            fields["lease_token"] = lease_token
+        if hq_aliased_to is not None:
+            fields["hq_aliased_to"] = hq_aliased_to
+        if source_width is not None:
+            fields["source_width"] = str(source_width)
+        if source_height is not None:
+            fields["source_height"] = str(source_height)
+        if transform_version is not None:
+            fields["transform_version"] = transform_version
+        try:
+            publish_timeout = int(
+                getattr(self.server_config, "package_publish_timeout_seconds", 600) or 600
+            )
+        except (TypeError, ValueError):
+            publish_timeout = 600
+        publish_timeout = max(60, min(1800, publish_timeout))
+        max_attempts = (self.retry_config.max_retries if self.retry_config else 0) + 1
+        last_error: str = ""
+        last_status: int = 0
+        for attempt in range(max_attempts):
+            status, body = await asyncio.to_thread(
+                _curl_multipart_post,
+                url,
+                fields,
+                str(file_path),
+                self.server_config.api_key or "",
+                float(publish_timeout),
+                self.server_config.ca_cert_path,
+            )
+            ok, data, error = _parse_response(status, body)
+            if ok:
+                return data
+            last_status, last_error = status, error
+            # Terminal client-stale / auth / validation: never retry.
+            if status in (400, 401, 403, 404, 409):
+                raise RuntimeError(f"publish package slot failed: {status} {error}")
+            if attempt < max_attempts - 1:
+                try:
+                    delay = self.retry_config.get_delay(attempt) if self.retry_config else 1.0
+                except Exception:
+                    delay = 1.0
+                await asyncio.sleep(delay)
+                continue
+            raise RuntimeError(f"publish package slot failed: {last_status} {last_error}")
+        raise RuntimeError(f"publish package slot failed: {last_status} {last_error}")
+
     async def heartbeat_media_agent(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.server_config.url}/api/v1/media/agents/heartbeat"
         status, body = await asyncio.to_thread(

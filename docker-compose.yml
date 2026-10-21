@@ -98,6 +98,17 @@ services:
       # (sourced by ci/ship.sh), never from Git. Same-SHA activation needs
       # --force (ship.sh skips identical SHAs otherwise).
       MEDIA_JOBS_REQUIRE_LEASE_TOKEN: "${MEDIA_JOBS_REQUIRE_LEASE_TOKEN:-false}"
+      # D3b2 fenced web packages (hq/light/poster single pass). Default OFF:
+      # no package job is queued or leased while false. Runtime value comes
+      # from ~/.config/diveanalyzer/media-jobs.env on deb-serv (sourced by
+      # ci/ship.sh), never from Git. Same-SHA activation needs --force.
+      MEDIA_WEB_PACKAGES_ENABLED: "${MEDIA_WEB_PACKAGES_ENABLED:-false}"
+      # D3b2 broad automatic package ingestion (default OFF). Master flag on +
+      # auto-ingest off admits ONLY explicitly queued canary jobs; broad
+      # queueing needs both flags. Runtime values come from
+      # ~/.config/diveanalyzer/media-jobs.env on deb-serv (sourced by
+      # ci/ship.sh), never from Git. Same-SHA activation needs --force.
+      MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED: "${MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED:-false}"
       B2_UPLOAD_KEY_ID: ${B2_UPLOAD_KEY_ID:-}
       B2_UPLOAD_KEY_SECRET: ${B2_UPLOAD_KEY_SECRET:-}
       B2_UPLOAD_REGION: ${B2_UPLOAD_REGION:-}

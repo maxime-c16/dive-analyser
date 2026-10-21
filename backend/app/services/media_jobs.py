@@ -50,6 +50,12 @@ ACTIVE_JOB_STATUSES = {
     "verifying",
 }
 
+# D3b2 fenced web package: one job produces hq/light/poster in a single
+# ffmpeg pass. Gated by MEDIA_WEB_PACKAGES_ENABLED (default false); old
+# workers never advertise the capability so they never receive it.
+WEB_PACKAGE_RENDITION = "web_package"
+PACKAGE_SLOTS = ("hq", "light", "poster")
+
 LEASED_JOB_STATUSES = {
     "claimed",
     "materializing",
@@ -155,6 +161,9 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
 
     Serialize allocation across API processes, excluding sources already leased
     by another worker. The lock lasts only until the caller commits the lease.
+    D3b2: at most ONE active web_package across the whole fleet (global cap,
+    not one per agent) — enforced here under the advisory lock so two
+    concurrent leases cannot both mint a package.
     """
     if db.bind.dialect.name == "postgresql":
         db.execute(text("SELECT pg_advisory_xact_lock(73125, 1)"))
@@ -165,13 +174,41 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
         from app.config import get_settings
         if get_settings().media_jobs_require_lease_token:
             raise PermissionError("media_job_lease_upgrade_required")
+    from app.config import get_settings as _lease_settings
+    _packages_enabled = _lease_settings().media_web_packages_enabled
+    _requested = set(request.capabilities or [])
+    if not _packages_enabled and WEB_PACKAGE_RENDITION in _requested:
+        # Flag off: behave as if the capability was never requested (old
+        # flows stay byte-identical; no package job is leased).
+        _requested = set(r for r in _requested if r != WEB_PACKAGE_RENDITION)
+        if not _requested:
+            db.flush()
+            return []
+    _package_active = False
+    if WEB_PACKAGE_RENDITION in _requested and _packages_enabled:
+        _package_active = (
+            db.execute(
+                select(MediaJob.id).where(
+                    MediaJob.rendition == WEB_PACKAGE_RENDITION,
+                    MediaJob.status.in_(LEASED_JOB_STATUSES),
+                ).limit(1)
+            ).scalar_one_or_none()
+            is not None
+        )
+        if _package_active:
+            # Global one-package cap: a leased package anywhere blocks any
+            # new package lease (legacy renditions still lease normally).
+            _requested = set(r for r in _requested if r != WEB_PACKAGE_RENDITION)
+            if not _requested:
+                db.flush()
+                return []
     busy_assets = select(MediaJob.photos_asset_id).where(MediaJob.status.in_(LEASED_JOB_STATUSES))
     stmt = (
         select(MediaJob)
         .join(PhotosAsset, PhotosAsset.id == MediaJob.photos_asset_id)
         .where(
             MediaJob.status.in_({"queued", "waiting_for_mac"}),
-            MediaJob.rendition.in_(request.capabilities),
+            MediaJob.rendition.in_(sorted(_requested)),
             MediaJob.attempts < MediaJob.max_attempts,
             MediaJob.photos_asset_id.not_in(busy_assets),
         )
@@ -184,9 +221,16 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
     candidates = list(db.execute(stmt).scalars().all())
     jobs = []
     selected_assets: set[int] = set()
+    _package_leased_in_batch = False
     for candidate in candidates:
         if candidate.photos_asset_id in selected_assets:
             continue
+        if candidate.rendition == WEB_PACKAGE_RENDITION:
+            # Global one-package cap within the batch too: a single lease
+            # response never mints two packages (worker runs one at a time).
+            if _package_leased_in_batch:
+                continue
+            _package_leased_in_batch = True
         jobs.append(candidate)
         selected_assets.add(candidate.photos_asset_id)
         if len(jobs) >= request.max_jobs:
@@ -202,6 +246,73 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             )
         ).scalar_one_or_none()
         local_uuid = identity.local_uuid if identity else job.asset.video_uuid
+        _pkg_b2: dict = {}
+        _pkg_payload: dict = {}
+        if job.rendition == WEB_PACKAGE_RENDITION:
+            # ONE canonical source resolved ONCE under the advisory lock.
+            # Missing canonical => skip (fail closed, no doomed attempt, no
+            # attempt burned, job stays queued for a future source).
+            try:
+                _rev, _blob, _loc = _resolve_package_canonical(db, job.asset.video_uuid)
+            except Exception:
+                continue
+            from app.services import b2_presign as _presign_mod
+            from app.services.media_keys import get_derivative_transform_version as _ver_fn
+
+            try:
+                _signed = _presign_mod.presign_get(bucket=_loc.bucket, object_key=_loc.object_key)
+            except _presign_mod.PresignUnavailable:
+                continue
+            _version = _ver_fn()
+            _pkg_b2 = {
+                "source_url": _signed.url,
+                "source_sha256": _rev.blob_sha256,
+                "source_size_bytes": _blob.byte_size if _blob else None,
+            }
+            _pkg_payload = _package_lease_payload_for_rev(db, job, _rev, _blob, _version)
+            # Persist the pin BEFORE commit: source SHA + revision + version.
+            # Reuse durable partial slots only when the pin is unchanged
+            # (same source + same transform); otherwise reset slots so a
+            # source change between lease and first slot cannot be retagged.
+            from app.services.web_packages import get_finalized_state as _get_state
+            from app.services.web_packages import set_finalized_state as _set_state
+
+            _prev = _get_state(job)
+            try:
+                _blob_w = int(_blob.width) if _blob is not None and _blob.width else None
+                _blob_h = int(_blob.height) if _blob is not None and _blob.height else None
+                if _blob_w is not None and _blob_w <= 0:
+                    _blob_w = None
+                if _blob_h is not None and _blob_h <= 0:
+                    _blob_h = None
+            except (TypeError, ValueError):
+                _blob_w, _blob_h = None, None
+            if (
+                _prev.get("source_sha256") is not None
+                and (
+                    str(_prev.get("source_sha256")).lower() != _rev.blob_sha256.lower()
+                    or _prev.get("transform_version") != _version
+                )
+            ):
+                _prev = {
+                    "source_sha256": _rev.blob_sha256,
+                    "source_revision_id": int(_rev.id),
+                    "source_width": _blob_w,
+                    "source_height": _blob_h,
+                    "transform_version": _version,
+                    "hq_aliased_to": None,
+                    "slots": {},
+                }
+            else:
+                _prev["source_sha256"] = _rev.blob_sha256
+                _prev["source_revision_id"] = int(_rev.id)
+                _prev["source_width"] = _blob_w
+                _prev["source_height"] = _blob_h
+                _prev["transform_version"] = _version
+                _prev.setdefault("slots", {})
+                if _prev.get("hq_aliased_to") not in (None, "light"):
+                    _prev["hq_aliased_to"] = None
+            _set_state(job, _prev)
         # D2 fencing: a fresh token per claim (and per reclaim, including the
         # SAME agent). The previous attempt's token dies with this write, so
         # its late heartbeat/upload/finalize/fail is rejected instead of
@@ -216,36 +327,89 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
         job.progress = max(job.progress or 0, 1)
         job.updated_at = now
         db.add(job)
-        leased.append(MediaLeasedJob(
-            job_id=job.id,
-            video_uuid=local_uuid,
-            canonical_video_uuid=job.asset.video_uuid,
-            rendition=job.rendition,
-            media_key=job.media_key,
-            status=job.status,
-            request_reason=job.request_reason,
-            export_options=_export_options(job.rendition),
-            lease_token=job.lease_token,
-            **_b2_source(db, job),
-        ))
+        if job.rendition == WEB_PACKAGE_RENDITION:
+            leased.append(MediaLeasedJob(
+                job_id=job.id,
+                video_uuid=local_uuid,
+                canonical_video_uuid=job.asset.video_uuid,
+                rendition=job.rendition,
+                media_key=job.media_key,
+                status=job.status,
+                request_reason=job.request_reason,
+                export_options=_export_options(job.rendition),
+                lease_token=job.lease_token,
+                **_pkg_b2,
+                **_pkg_payload,
+            ))
+        else:
+            leased.append(MediaLeasedJob(
+                job_id=job.id,
+                video_uuid=local_uuid,
+                canonical_video_uuid=job.asset.video_uuid,
+                rendition=job.rendition,
+                media_key=job.media_key,
+                status=job.status,
+                request_reason=job.request_reason,
+                export_options=_export_options(job.rendition),
+                lease_token=job.lease_token,
+                **_b2_source(db, job),
+            ))
 
     db.flush()
     return leased
 
 
-_B2_SOURCE_RENDITIONS = {"poster", "proxy_360p", "proxy_720p"}
+_B2_SOURCE_RENDITIONS = {"poster", "proxy_360p", "proxy_720p", WEB_PACKAGE_RENDITION}
+
+
+def _resolve_package_canonical(db: Session, video_uuid: str):
+    """ONE canonical camera source for web_package (fail closed).
+
+    Uses the D3b1 ``resolve_canonical_source_revision`` (newest verified
+    PROD camera original, ``browser_playback`` excluded, verified B2 replica
+    in the allowlisted PROD bucket). The lease resolves ONCE under the
+    advisory lock and reuses the SAME (rev, blob, location) for the signed
+    URL, the pinned SHA/size, the derivative keys and the persisted job pin
+    — so URL/SHA/size/keys can never diverge (transcoded vs camera).
+    Raises when no canonical source exists: the package must not be leased
+    (fail closed, no doomed attempt wasted).
+    """
+    from app.services.derivative_publisher import resolve_canonical_source_revision
+
+    return resolve_canonical_source_revision(db, video_uuid)
 
 
 def _b2_source(db: Session, job: MediaJob) -> dict:
-    """Signed download of the newest verified PROD original, or nothing."""
+    """Signed download of the newest verified PROD original, or nothing.
+
+    web_package ALWAYS uses the ONE canonical camera source
+    (``resolve_canonical_source_revision``, ``browser_playback`` excluded)
+    so the signed URL can never diverge from the lease pin (transcoded vs
+    camera). Legacy renditions keep the historical selector byte-identical.
+    """
     from app.config import get_settings
-    from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
     from app.services import b2_presign
-    from app.services.matchmaking import verified_original_clause
-    from app.services.media_backbone import derived_semantics_exclusion_clause
 
     if job.rendition not in _B2_SOURCE_RENDITIONS or not get_settings().media_jobs_b2_source_enabled:
         return {}
+    if job.rendition == WEB_PACKAGE_RENDITION:
+        try:
+            _rev, _blob, _loc = _resolve_package_canonical(db, job.asset.video_uuid)
+        except Exception:
+            return {}
+        try:
+            signed = b2_presign.presign_get(bucket=_loc.bucket, object_key=_loc.object_key)
+        except b2_presign.PresignUnavailable:
+            return {}
+        return {
+            "source_url": signed.url,
+            "source_sha256": _rev.blob_sha256,
+            "source_size_bytes": _blob.byte_size if _blob else None,
+        }
+    from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
+    from app.services.matchmaking import verified_original_clause
+    from app.services.media_backbone import derived_semantics_exclusion_clause
+
     revision = db.execute(
         select(MediaRevision)
         .where(MediaRevision.video_uuid == job.asset.video_uuid,
@@ -562,4 +726,68 @@ def _export_options(rendition: str) -> dict:
         return {"kind": "proxy", "container": "mp4", "codec": "h264", "max_height": 720}
     if rendition == "original":
         return {"kind": "original"}
+    if rendition == WEB_PACKAGE_RENDITION:
+        # D3b2: single-pass package (hq/light/poster). The worker downloads
+        # the canonical B2 original pinned at lease (source_sha256 in the
+        # leased payload, never browser_playback) and runs package_encoder
+        # once with threads=1 per variant. Small sources alias hq->light.
+        return {"kind": "package", "slots": list(PACKAGE_SLOTS), "threads_per_variant": 1}
     return {"kind": rendition}
+
+
+def _package_lease_payload_for_rev(db: Session, job: MediaJob, rev, blob, version: str) -> dict:
+    """Build lease payload from an already-resolved canonical revision."""
+    from app.services.media_keys import build_derivative_media_key
+
+    source_sha = rev.blob_sha256
+    keys: dict[str, str] = {}
+    for slot in PACKAGE_SLOTS:
+        try:
+            keys[slot] = build_derivative_media_key(job.asset.video_uuid, slot, source_sha, version)
+        except ValueError:
+            continue
+    return {
+        "transform_version": version,
+        "expected_slots": list(PACKAGE_SLOTS),
+        "package_media_keys": keys,
+    }
+
+
+def _package_lease_payload(db: Session, job: MediaJob) -> dict:
+    """Pinned package identity for web_package leases (else empty).
+
+    Legacy helper kept for direct callers/tests: resolves the canonical
+    source itself (fail-closed when missing) but does NOT persist the pin —
+    persistence happens in ``lease_media_jobs`` under the advisory lock.
+    New lease code must use ``_package_lease_payload_for_rev`` with the
+    already-resolved revision so URL/SHA/keys share ONE source.
+    """
+    if job.rendition != WEB_PACKAGE_RENDITION:
+        return {}
+    from app.services.media_keys import build_derivative_media_key, get_derivative_transform_version
+
+    # Source SHA comes from the same canonical resolution as _b2_source;
+    # when no verified source exists the lease carries no pin and the
+    # worker must not start a package (finalize would go stale anyway).
+    source_sha = None
+    try:
+        from app.services.derivative_publisher import resolve_canonical_source_revision
+
+        _rev, _blob, _loc = resolve_canonical_source_revision(db, job.asset.video_uuid)
+        source_sha = _rev.blob_sha256
+    except Exception:
+        source_sha = None
+    if not source_sha:
+        return {"transform_version": get_derivative_transform_version(), "expected_slots": list(PACKAGE_SLOTS)}
+    version = get_derivative_transform_version()
+    keys: dict[str, str] = {}
+    for slot in PACKAGE_SLOTS:
+        try:
+            keys[slot] = build_derivative_media_key(job.asset.video_uuid, slot, source_sha, version)
+        except ValueError:
+            continue
+    return {
+        "transform_version": version,
+        "expected_slots": list(PACKAGE_SLOTS),
+        "package_media_keys": keys,
+    }
