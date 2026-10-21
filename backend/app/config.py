@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     analysis_artifact_root: str = os.getenv("ANALYSIS_ARTIFACT_ROOT", "/app/analysis-artifacts")
     media_transform_version: str = os.getenv("MEDIA_TRANSFORM_VERSION", "ffmpeg-h264-v1")
     media_export_policy_version: str = os.getenv("MEDIA_EXPORT_POLICY_VERSION", "photos-export-v1")
+    # D1 durable derivatives (HQ/light/poster): transform identity for NEW
+    # derivative keys ONLY. Deliberately separate from
+    # `media_transform_version` (legacy `build_media_key` input): changing
+    # the legacy default would invalidate existing cache/job keys, so the
+    # legacy default stays `ffmpeg-h264-v1` and derivatives carry their own
+    # version (`ffmpeg-h264-web-v1` = the §1 single-pass SDR/H264 chain).
+    media_derivative_transform_version: str = os.getenv(
+        "MEDIA_DERIVATIVE_TRANSFORM_VERSION", "ffmpeg-h264-web-v1"
+    )
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))

@@ -227,12 +227,15 @@ def _b2_source(db: Session, job: MediaJob) -> dict:
     from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
     from app.services import b2_presign
     from app.services.matchmaking import verified_original_clause
+    from app.services.media_backbone import derived_semantics_exclusion_clause
 
     if job.rendition not in _B2_SOURCE_RENDITIONS or not get_settings().media_jobs_b2_source_enabled:
         return {}
     revision = db.execute(
         select(MediaRevision)
-        .where(MediaRevision.video_uuid == job.asset.video_uuid, verified_original_clause())
+        .where(MediaRevision.video_uuid == job.asset.video_uuid,
+               derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
+               verified_original_clause())
         .order_by(MediaRevision.id.desc())
         .limit(1)
     ).scalar_one_or_none()

@@ -44,6 +44,13 @@ class MediaCacheEntry(Base):
     pinned = Column(Boolean, nullable=False, default=False)
     last_accessed_at = Column(DateTime, nullable=True, index=True)
     expires_at = Column(DateTime, nullable=True, index=True)
+    # D1 durable derivatives (additive, nullable): the source revision and
+    # transform version a future `hq`/`light`/`poster` cache row was derived
+    # from. Legacy rows keep NULL (= pre-derivative stock, served under the
+    # #134 sole-copy rules until a durable derivative replaces them). D1
+    # writes nothing here; no read path consults these columns yet.
+    source_blob_sha256 = Column(String(64), nullable=True, index=True)
+    transform_version = Column(String(40), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -76,6 +83,14 @@ class MediaJob(Base):
     upload_tmp_path = Column(Text, nullable=True)
     output_checksum_sha256 = Column(String(64), nullable=True)
     output_size_bytes = Column(BigInteger, nullable=True)
+    # D1 reservations for D2 fencing / D3 package finalization (additive,
+    # nullable): `lease_token` is the D2 claim token verified on
+    # heartbeat/upload/finalize alongside `claimed_by` (stale attempts
+    # rejected after re-lease); `finalized_slots` accumulates the D3
+    # per-slot (`hq`/`light`/`poster`) finalize record. D1 writes nothing
+    # here; old code ignores both columns.
+    lease_token = Column(String(36), nullable=True)
+    finalized_slots = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
