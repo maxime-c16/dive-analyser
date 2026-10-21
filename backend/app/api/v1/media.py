@@ -675,9 +675,10 @@ def _advance_background_media_work(db: Session) -> None:
     resolution upgrades). The upgrade path verifies 720p artifacts with a
     full-file SHA-256, so the work runs on a worker thread instead of the
     event loop, and the caller commits inside the same cancellation-safe
-    unit. Retired 360p files unlink only after that commit drains the
-    retirement queue: a rolled-back transaction resurrects its rows, so an
-    earlier unlink would strand an advertised ready row with no bytes."""
+    unit. Legacy 360p files are retained in this transition (no retirement:
+    the item is marked upgraded, row and file kept); the retirement-queue
+    drain stays wired but queues nothing, so a rolled-back transaction
+    trivially keeps rows and files together."""
     advance_armed_catalog_population_rollovers(db)
     advance_resolution_upgrade_runs(db)
     db.commit()

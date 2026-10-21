@@ -18,9 +18,7 @@ from app.models.media_catalog import (
 from app.models.photos_asset import PhotosAsset
 from app.services.diver_identity import get_primary_diver
 from app.services.media_cache import (
-    _release_upgrade_references,
     ready_entry_for_key,
-    retire_verified_proxy_entry,
     sha256_file,
 )
 from app.services.media_jobs import ACTIVE_JOB_STATUSES, create_or_reuse_media_job
@@ -138,11 +136,14 @@ def _validated_target_entry(db: Session, item: MediaResolutionUpgradeItem) -> Me
 
 
 def _retired_row_now_pinned(db: Session, old_entry: MediaCacheEntry) -> bool:
-    """Fresh-read whether the row retire refused is now pinned.
+    """Fresh-read whether a legacy row is now pinned (retained helper).
 
-    Bypasses the identity map — the in-session handle may predate the pin —
-    so only a row that is present AND pinned counts as the expected pin
-    race. A row that vanished, or changed any other way, is a real failure.
+    Retained for the future explicit verified retirement stage; the
+    heartbeat path below does not retire in this transition (see
+    advance_resolution_upgrade_runs). Bypasses the identity map — the
+    in-session handle may predate the pin — so only a row that is present
+    AND pinned counts as the expected pin race. A row that vanished, or
+    changed any other way, is a real failure.
     """
     return (
         db.execute(
@@ -203,33 +204,23 @@ def advance_resolution_upgrade_runs(db: Session) -> list[int]:
             continue
 
         run.current_item_id = item.id
-        old_entry = db.get(MediaCacheEntry, item.old_cache_entry_id) if item.old_cache_entry_id else None
 
         target = _validated_target_entry(db, item)
         if target:
-            if old_entry and old_entry.status == "ready" and not old_entry.pinned:
-                try:
-                    # The same 360p row can be referenced by several upgrade
-                    # items (re-seeded runs, duplicate catalog rows for one
-                    # asset). The FK is shared history: release every
-                    # reference before deleting the replaced cache row, or
-                    # the delete rolls back the whole heartbeat unit.
-                    _release_upgrade_references(db, [old_entry.id])
-                    retire_verified_proxy_entry(db, old_entry)
-                except ValueError as exc:
-                    if str(exc) == "proxy_entry_no_longer_retirable" and _retired_row_now_pinned(db, old_entry):
-                        # Expected race: the stock migration pinned the row
-                        # after it was loaded. The 720p is validated and
-                        # serving, so retain the pinned row exactly like the
-                        # load-time pinned path instead of failing the item.
-                        _finish(run, item, "upgraded")
-                    else:
-                        _finish(run, item, "failed", str(exc))
-                else:
-                    _finish(run, item, "upgraded")
-            else:
-                # Pinned 360p entries are retained, but never block a 720p upgrade.
-                _finish(run, item, "upgraded")
+            # Interim conservative retention: the item finishes upgraded and
+            # the legacy 360p row AND file are retained — pinned or not —
+            # with no row delete and no unlink. The same MVCC race that
+            # forced all-360p cleaner exclusion applies here: the 720p
+            # validation above reads a snapshot that does not serialize
+            # with a concurrent transaction changing that 720p out of
+            # ready, so deleting the 360p now could remove the sole
+            # playable copy after the replacement invalidates. Retaining
+            # costs temporary extra disk (shadowed 360p accumulates until
+            # a future explicit verified retirement correctly serializes
+            # with replacement status changes); no generic-cleaner pass
+            # offsets it. The validated 720p is already serving, so
+            # progression never blocks on retention.
+            _finish(run, item, "upgraded")
             advanced.append(run.id)
             continue
 

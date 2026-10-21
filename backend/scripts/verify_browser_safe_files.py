@@ -4,7 +4,8 @@ Usage (from the live checkout on deb-serv, after the deploy barrier):
 
     docker compose exec backend python scripts/verify_browser_safe_files.py
 
-Checks every sole-copy row (same scope as the stock migration) still has
+Checks every retained row (cleaner retention set: 720p/poster plus every
+ready 360p — a superset of the stock-migration sole scope) still has
 its file on disk. Exit 0 when all files are present, 1 otherwise. SELECTs +
 filesystem stats only: no row written, no file touched. Output is aggregates
 + entry ids (no paths, no per-clip detail).

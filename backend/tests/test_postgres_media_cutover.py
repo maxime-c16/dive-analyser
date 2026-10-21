@@ -2,20 +2,27 @@
 
 No trigger exists in this lot: the barrier is the deploy (the swap stops
 old cleaners and writers — both live in the backend container) and the
-enforcement is the fail-safe cleanup (dynamic sole-copy exclusion + atomic
-per-row re-check). THIS file is the real proof on disposable PostgreSQL
+enforcement is conservative retention (every ready 720p/poster/360p row
+excluded from the generic TTL/quota cleaner, independent of replacement
+status) plus deferred upgrade retirement (heartbeat marks upgraded, retains
+legacy files). THIS file is the real proof on disposable PostgreSQL
 (CI `postgres` job, never production):
 
 - select-then-pin blocks unlink: a cleaner that selected rows BEFORE the
   stock UPDATE pins them cannot unlink their files (the old-cleaner race,
   closed by the deployed code, with real thread interleaving);
-- old-writer reprise: unpinned 720p/poster rows born under the old runtime
-  survive BOTH real `cleanup_cache` passes with no trigger involved;
-- legacy 360 cast: a transition-born sole-proxy 360p is spared while a
-  shadowed 360p stays TTL/quota-evictable and the verified-720p retirement
-  path stays open;
-- stock UPDATE idempotence + zero residual with the real migration SQL file;
-- the read-only file gate reports a dead sole-copy file.
+- old-writer reprise: unpinned 720p/poster/360p rows born under the old
+  runtime survive BOTH real `cleanup_cache` passes with no trigger;
+- legacy 360 cast: transition-born 360p rows (sole AND shadowed) are
+  spared by the generic cleaner while disposable staging still goes; the
+  verified-720p heartbeat retains (never retires) legacy files;
+- MVCC true-overlap: a concurrent 720p status change held UNCOMMITTED
+  across the cleaner DELETE cannot make the cleaner remove the 360p
+  (conservative exclusion needs no snapshot coordination), while a safe
+  staging candidate is still processed;
+- stock UPDATE idempotence + zero residual with the real migration SQL file
+  (sole-360p marker scope unchanged; runtime enforcement is broader);
+- the read-only file gate reports a dead retained file.
 
 Scope hygiene: only `photos_assets` (+ FK closure), `media_cache_entries`
 and `media_resolution_upgrade_items` tables are created if missing; rows
@@ -30,7 +37,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import bindparam, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -116,6 +123,61 @@ def _asset(session, prefix):
     session.add(asset)
     session.commit()
     return asset
+
+
+def _seed_agent_once(session):
+    """Get-or-create the mac-media-01 agent (idempotent across tests sharing
+    one disposable DB — a second plain seed would hit the PK)."""
+    from app.models.media import MediaAgent
+    from tests.test_media_catalog import _seed_agent
+
+    agent = session.get(MediaAgent, "mac-media-01")
+    if agent is None:
+        _seed_agent(session)
+        session.commit()
+        agent = session.get(MediaAgent, "mac-media-01")
+    return agent
+
+
+def _delete_upgrade_scope(factory, *, entry_ids=(), item_ids=(),
+                           catalog_ids=(), run_ids=(), asset_ids=()):
+    """Delete upgrade-scenario rows the prefix fixture cannot see.
+
+    Rows keyed by build_media_key (sha hex) never match the fixture's
+    ``prefix%`` DELETE, so without this they leak into later tests in the
+    same disposable DB (byte sums, file-gate counts). FK-safe order:
+    items → catalog → entries → runs → assets.
+    """
+    deut = factory()
+    try:
+        if item_ids:
+            deut.execute(text(
+                "DELETE FROM media_resolution_upgrade_items WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+                {"ids": list(item_ids)})
+        if catalog_ids:
+            deut.execute(text(
+                "DELETE FROM captioned_media_catalog WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+                {"ids": list(catalog_ids)})
+        if entry_ids:
+            deut.execute(text(
+                "DELETE FROM media_cache_entries WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+                {"ids": list(entry_ids)})
+        if run_ids:
+            deut.execute(text(
+                "DELETE FROM media_resolution_upgrade_runs WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+                {"ids": list(run_ids)})
+        if asset_ids:
+            deut.execute(text(
+                "DELETE FROM photos_assets WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+                {"ids": list(asset_ids)})
+        deut.commit()
+    finally:
+        deut.close()
 
 
 def _insert(session, tmp_path, asset, rendition, *, status="ready", pinned=False,
@@ -287,10 +349,10 @@ def test_evict_skips_candidate_pinned_after_select(pg):
 
 
 def test_evict_rechecks_sole_copy_mid_pass(pg):
-    """Layer-2 full re-check on real Postgres: a shadowed 360p selected
-    while evictable is spared when its ready 720p loses ready status before
-    the DELETE — the shadow turned sole mid-pass — while a genuinely
-    evictable staging row still goes."""
+    """Conservative exclusion on real Postgres: a 360p row is never a
+    cleanup candidate — sole or shadowed — so a 720p losing ready status
+    before eviction cannot endanger it. A genuinely evictable staging row
+    still goes."""
     from sqlalchemy import text as _sql_text
 
     from app.models.media import MediaCacheEntry as _Entry
@@ -310,7 +372,9 @@ def test_evict_rechecks_sole_copy_mid_pass(pg):
     session.commit()
 
     ttl, trim = select_cleanup_candidates(session)
-    assert {row.id for row in ttl} >= {shadow.id, staging.id}
+    # Only staging is ever a candidate — the shadowed 360p is excluded
+    # outright, so no 720p status change can endanger it.
+    assert {row.id for row in ttl} == {staging.id}
 
     # Interleaving: the 720p replacement fails verification before eviction.
     session.execute(_sql_text(
@@ -366,11 +430,15 @@ def test_old_writer_reprise_survives_both_passes(pg):
 
 
 def test_legacy_360_cast_sole_spared_shadowed_evictable(pg):
-    """Transition-born 360p: sole-proxy spared, shadowed TTL-evictable."""
+    """Transition-born 360p: sole AND shadowed 360p spared by the generic
+    cleaner (conservative retention); disposable staging still goes. The
+    verified-720p heartbeat retains (never retires) legacy files in this
+    transition — pinned rows refuse the deferred path, unpinned rows are
+    retained with the item marked upgraded."""
     from app.models.media import MediaCacheEntry
     from app.services.media_cache import cleanup_cache, retire_verified_proxy_entry
 
-    engine, session, prefix, tmp_path = pg[0], pg[2], pg[3], pg[4]
+    engine, factory, session, prefix, tmp_path = pg
     sole_asset = _asset(session, prefix)
     shadow_asset = _asset(session, prefix + "-sh")
 
@@ -381,42 +449,344 @@ def test_legacy_360_cast_sole_spared_shadowed_evictable(pg):
                          expired=False, key=f"{prefix}-shadow720")
     shadow_360 = _insert(session, tmp_path, shadow_asset, "proxy_360p",
                          key=f"{prefix}-shadow360")
+    staging = _insert(session, tmp_path, shadow_asset, "browser_source",
+                      key=f"{prefix}-staging360")
     session.commit()
 
+    # Generic cleaner: staging goes, every proxy row survives — including
+    # the shadowed 360p (conservative exclusion, not evictable).
     removed, _, _ = cleanup_cache(session)
     session.commit()
     assert removed == 1
-    assert session.get(MediaCacheEntry, shadow_360.id) is None
-    assert not Path(shadow_360.storage_path).exists()
+    assert session.get(MediaCacheEntry, staging.id) is None
+    assert not Path(staging.storage_path).exists()
+    assert session.get(MediaCacheEntry, shadow_360.id) is not None
+    assert Path(shadow_360.storage_path).exists()
     assert session.get(MediaCacheEntry, fresh_sole.id) is not None
     assert Path(fresh_sole.storage_path).exists()
     assert session.get(MediaCacheEntry, shadow_720.id) is not None
     assert Path(shadow_720.storage_path).exists()
 
-    # Shadowed 360p stays eligible for the verified-720p retirement path:
-    # a pinned 360p refuses, an unpinned one retires, the 720p is untouched.
-    # The file unlinks only when the owner drains the queue after commit —
-    # a commit alone resurrects nothing and unlinks nothing.
+    # Deferred upgrade retirement: a pinned 360p refuses the (retained,
+    # future-owned) direct path, and the heartbeat retains unpinned legacy
+    # files with the item marked upgraded — no row delete, no unlink.
     pinned_360 = _insert(session, tmp_path, shadow_asset, "proxy_360p",
                          expired=False, pinned=True, key=f"{prefix}-pinned360")
     with pytest.raises(ValueError, match="pinned_proxy_entry_cannot_be_retired"):
         retire_verified_proxy_entry(session, pinned_360)
     session.rollback()
-    shadowed = _insert(session, tmp_path, shadow_asset, "proxy_360p",
-                       expired=False, key=f"{prefix}-shadow360b")
-    shadowed_path = Path(shadowed.storage_path)
-    expected = shadowed.size_bytes
-    scheduled = retire_verified_proxy_entry(session, shadowed)
-    assert scheduled == expected
-    session.commit()
-    assert session.get(MediaCacheEntry, shadowed.id) is None
-    assert shadowed_path.exists()
-    from app.services.media_cache import drain_pending_retirement_unlinks
 
-    assert drain_pending_retirement_unlinks(session) == expected
-    assert not shadowed_path.exists()
-    assert session.get(MediaCacheEntry, shadow_720.id) is not None
-    assert Path(shadow_720.storage_path).exists()
+    from app.models.media_catalog import (
+        CaptionedMediaCatalog,
+        MediaResolutionUpgradeItem,
+        MediaResolutionUpgradeRun,
+    )
+    from app.services.media_keys import build_media_key
+    from app.services.media_resolution_upgrade import advance_resolution_upgrade_runs
+    import hashlib
+
+    _seed_agent_once(session)
+    keep_asset = _asset(session, prefix + "-up")
+    keep_asset.video_uuid = f"{prefix}-up-uuid"
+    session.commit()
+    scope = {"entries": [], "items": [], "catalogs": [], "runs": [],
+             "assets": [keep_asset.id]}
+    try:
+        old_bytes = b"retain-legacy-360p"
+        old_path = tmp_path / f"{prefix}-retain360.mp4"
+        old_path.write_bytes(old_bytes)
+        old_entry = MediaCacheEntry(
+            photos_asset_id=keep_asset.id,
+            media_key=build_media_key(keep_asset.video_uuid, "proxy_360p"),
+            rendition="proxy_360p", storage_backend="local_fs",
+            storage_path=str(old_path), content_type="video/mp4",
+            size_bytes=len(old_bytes),
+            checksum_sha256=hashlib.sha256(old_bytes).hexdigest(),
+            status="ready", pinned=False, expires_at=None,
+        )
+        new_bytes = b"validated-720p-kept!!"
+        new_path = tmp_path / f"{prefix}-keep720.mp4"
+        new_path.write_bytes(new_bytes)
+        new_entry = MediaCacheEntry(
+            photos_asset_id=keep_asset.id,
+            media_key=build_media_key(keep_asset.video_uuid, "proxy_720p"),
+            rendition="proxy_720p", storage_backend="local_fs",
+            storage_path=str(new_path), content_type="video/mp4",
+            size_bytes=len(new_bytes),
+            checksum_sha256=hashlib.sha256(new_bytes).hexdigest(),
+            status="ready", pinned=False, expires_at=None,
+        )
+        session.add_all([old_entry, new_entry])
+        session.flush()
+        scope["entries"] += [old_entry.id, new_entry.id]
+        catalog = CaptionedMediaCatalog(
+            agent_id="mac-media-01", agent_local_uuid=keep_asset.video_uuid,
+            photos_asset_id=keep_asset.id, raw_caption="101C 1m",
+            canonical_video_uuid=keep_asset.video_uuid,
+        )
+        run = MediaResolutionUpgradeRun(status="running")
+        session.add_all([catalog, run])
+        session.flush()
+        scope["catalogs"] += [catalog.id]
+        scope["runs"] += [run.id]
+        item = MediaResolutionUpgradeItem(
+            run_id=run.id, catalog_item_id=catalog.id,
+            old_cache_entry_id=old_entry.id, status="queued",
+        )
+        session.add(item)
+        session.commit()
+        scope["items"] += [item.id]
+
+        advanced = advance_resolution_upgrade_runs(session)
+        session.commit()
+        assert advanced == [run.id]
+        session.refresh(item)
+        assert item.status == "upgraded"
+        assert session.get(MediaCacheEntry, old_entry.id) is not None
+        assert old_path.exists() and new_path.exists()
+    finally:
+        session.rollback()
+        _delete_upgrade_scope(factory, entry_ids=scope["entries"],
+                              item_ids=scope["items"],
+                              catalog_ids=scope["catalogs"],
+                              run_ids=scope["runs"],
+                              asset_ids=scope["assets"])
+
+
+def test_mvcc_overlap_720_invalidation_cannot_remove_360(pg):
+    """True MVCC overlap on real Postgres: a concurrent 720p status change
+    held UNCOMMITTED across the cleaner DELETE cannot remove the 360p.
+
+    The old NOT EXISTS (ready 720p) check read the DELETE statement
+    snapshot: the concurrent UPDATE sits uncommitted, the DELETE sees the
+    old ready 720p, deletes the shadowed 360p, then commits/unlinks after
+    the 720p invalidation lands — sole-copy loss. Conservative exclusion
+    needs no snapshot coordination: the 360p is never a candidate, so the
+    overlap is harmless. A safe staging candidate is still processed, so
+    eviction keeps working. Barriers + timeouts prove real overlap (not
+    commit-before-delete)."""
+    from sqlalchemy import text as _sql_text
+
+    from app.models.media import MediaCacheEntry as _Entry
+    from app.services.media_cache import (
+        evict_cleanup_candidates,
+        select_cleanup_candidates,
+    )
+
+    engine, factory, session, prefix, tmp_path = pg
+    asset = _asset(session, prefix)
+    good720 = _insert(session, tmp_path, asset, "proxy_720p",
+                      key=f"{prefix}-ov720")
+    shadow = _insert(session, tmp_path, asset, "proxy_360p",
+                     key=f"{prefix}-ov360")
+    staging = _insert(session, tmp_path, asset, "browser_source",
+                      key=f"{prefix}-ovstag")
+    session.commit()
+    shadow_id, staging_id, good_id = shadow.id, staging.id, good720.id
+    shadow_file = Path(shadow.storage_path)
+    session.close()  # setup must hold nothing; threads own their txns
+
+    selected = threading.Event()
+    holding = threading.Event()
+    release = threading.Event()
+    outcome = {}
+
+    def cleaner():
+        worker = factory()
+        try:
+            ttl, trim = select_cleanup_candidates(worker)
+            # Conservative exclusion: the shadowed 360p is never selected,
+            # even though its 720p still reads ready here.
+            outcome["selected"] = sorted(r.id for r in ttl)
+            assert shadow_id not in outcome["selected"], (
+                "shadowed 360p must never be a cleaner candidate"
+            )
+            selected.set()
+            assert holding.wait(60), "720p invalidation never held uncommitted"
+            removed, _ = evict_cleanup_candidates(worker, ttl, trim)
+            outcome["removed"] = removed
+        finally:
+            worker.close()
+            release.set()
+
+    thread = threading.Thread(target=cleaner, name="pg-mvcc-overlap-cleaner")
+    thread.start()
+    updater = factory()
+    try:
+        assert selected.wait(60), "cleaner never selected"
+        # Concurrent invalidation, HELD UNCOMMITTED across the DELETE.
+        updater.execute(_sql_text(
+            "UPDATE media_cache_entries SET status = 'failed',"
+            " updated_at = CURRENT_TIMESTAMP WHERE id = :i"
+        ), {"i": good_id})
+        updater.flush()
+        holding.set()
+        assert release.wait(60), "cleaner DELETE never finished under overlap"
+        # Now commit the invalidation: the 360p is the sole playable copy.
+        updater.commit()
+        thread.join(60)
+        assert not thread.is_alive(), "cleaner thread hung"
+    finally:
+        holding.set()
+        release.set()
+        thread.join(60)
+        updater.close()
+
+    assert outcome["selected"] == [staging_id]
+    assert outcome["removed"] == 1
+    check = factory()
+    try:
+        assert check.get(_Entry, staging_id) is None
+        survivor = check.get(_Entry, shadow_id)
+        assert survivor is not None and survivor.status == "ready"
+        assert shadow_file.exists()
+        assert not Path(staging.storage_path).exists()
+        failed720 = check.get(_Entry, good_id)
+        assert failed720 is not None and failed720.status == "failed"
+    finally:
+        check.close()
+
+
+def test_mvcc_overlap_upgrade_retains_legacy(pg):
+    """Upgrade overlap on real Postgres: a 720p invalidation held
+    UNCOMMITTED across the heartbeat advance cannot remove the legacy 360p.
+
+    The heartbeat validates the 720p on its snapshot (still reads ready
+    under overlap) and — deferred in this transition — marks the item
+    upgraded while retaining the legacy row AND file. Committing the
+    invalidation afterwards leaves the 360p as the sole playable copy,
+    intact. Barriers + timeouts prove real overlap."""
+    import hashlib
+
+    from sqlalchemy import text as _sql_text
+
+    from app.models.media import MediaCacheEntry as _Entry
+    from app.models.media_catalog import (
+        CaptionedMediaCatalog,
+        MediaResolutionUpgradeItem,
+        MediaResolutionUpgradeRun,
+    )
+    from app.services.media_keys import build_media_key
+    from app.services.media_resolution_upgrade import advance_resolution_upgrade_runs
+
+    engine, factory, session, prefix, tmp_path = pg
+    _seed_agent_once(session)
+    asset = _asset(session, prefix + "-mvcc-up")
+    asset.video_uuid = f"{prefix}-mvcc-up-uuid"
+    session.commit()
+    scope = {"entries": [], "items": [], "catalogs": [], "runs": [],
+             "assets": [asset.id]}
+
+    old_bytes = b"mvcc-legacy-360p"
+    old_path = tmp_path / f"{prefix}-mvcc360.mp4"
+    old_path.write_bytes(old_bytes)
+    session.add(_Entry(
+        photos_asset_id=asset.id,
+        media_key=build_media_key(asset.video_uuid, "proxy_360p"),
+        rendition="proxy_360p", storage_backend="local_fs",
+        storage_path=str(old_path), content_type="video/mp4",
+        size_bytes=len(old_bytes),
+        checksum_sha256=hashlib.sha256(old_bytes).hexdigest(),
+        status="ready", pinned=False, expires_at=None,
+    ))
+    new_bytes = b"mvcc-validated-720p!!"
+    new_path = tmp_path / f"{prefix}-mvcc720.mp4"
+    new_path.write_bytes(new_bytes)
+    new_row = _Entry(
+        photos_asset_id=asset.id,
+        media_key=build_media_key(asset.video_uuid, "proxy_720p"),
+        rendition="proxy_720p", storage_backend="local_fs",
+        storage_path=str(new_path), content_type="video/mp4",
+        size_bytes=len(new_bytes),
+        checksum_sha256=hashlib.sha256(new_bytes).hexdigest(),
+        status="ready", pinned=False, expires_at=None,
+    )
+    session.add(new_row)
+    session.flush()
+    new_id = new_row.id
+    catalog = CaptionedMediaCatalog(
+        agent_id="mac-media-01", agent_local_uuid=asset.video_uuid,
+        photos_asset_id=asset.id, raw_caption="101C 1m",
+        canonical_video_uuid=asset.video_uuid,
+    )
+    run = MediaResolutionUpgradeRun(status="running")
+    session.add_all([catalog, run])
+    session.flush()
+    old_id = session.execute(_sql_text(
+        "SELECT id FROM media_cache_entries WHERE media_key = :k"
+    ), {"k": build_media_key(asset.video_uuid, "proxy_360p")}).scalar_one()
+    item = MediaResolutionUpgradeItem(
+        run_id=run.id, catalog_item_id=catalog.id,
+        old_cache_entry_id=old_id, status="queued",
+    )
+    session.add(item)
+    session.commit()
+    run_id, item_id = run.id, item.id
+    scope["entries"] += [old_id, new_id]
+    scope["catalogs"] += [catalog.id]
+    scope["runs"] += [run.id]
+    scope["items"] += [item.id]
+    session.close()
+
+    holding = threading.Event()
+    validated = threading.Event()
+    done = threading.Event()
+    outcome = {}
+
+    def heartbeat():
+        worker = factory()
+        try:
+            # True overlap: only validate AFTER the 720p invalidation is
+            # held uncommitted — the snapshot still reads ready.
+            assert holding.wait(60), "720p invalidation never held"
+            advanced = advance_resolution_upgrade_runs(worker)
+            worker.commit()
+            outcome["advanced"] = advanced
+            validated.set()
+        finally:
+            worker.close()
+            done.set()
+
+    thread = threading.Thread(target=heartbeat, name="pg-mvcc-upgrade")
+    thread.start()
+    updater = factory()
+    try:
+        # Hold the 720p invalidation uncommitted across the heartbeat's
+        # validation + commit, then commit it afterwards.
+        updater.execute(_sql_text(
+            "UPDATE media_cache_entries SET status = 'failed',"
+            " updated_at = CURRENT_TIMESTAMP WHERE id = :i"
+        ), {"i": new_id})
+        updater.flush()
+        holding.set()
+        assert validated.wait(60), "heartbeat never advanced under overlap"
+        updater.commit()
+        thread.join(60)
+        assert not thread.is_alive(), "heartbeat thread hung"
+    finally:
+        holding.set()
+        thread.join(60)
+        updater.close()
+    assert done.is_set()
+
+    assert outcome["advanced"] == [run_id]
+    check = factory()
+    try:
+        from app.services.media_cache import drain_pending_retirement_unlinks
+
+        assert drain_pending_retirement_unlinks(check) == 0
+        survivor = check.get(_Entry, old_id)
+        assert survivor is not None and survivor.status == "ready"
+        assert old_path.exists() and new_path.exists()
+        it = check.get(MediaResolutionUpgradeItem, item_id)
+        assert it.status == "upgraded"
+    finally:
+        check.close()
+        _delete_upgrade_scope(factory, entry_ids=scope["entries"],
+                              item_ids=scope["items"],
+                              catalog_ids=scope["catalogs"],
+                              run_ids=scope["runs"],
+                              asset_ids=scope["assets"])
 
 
 def test_stock_update_idempotent_and_residual_zero(pg):

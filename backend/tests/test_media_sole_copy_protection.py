@@ -13,11 +13,14 @@ The audit's xfail reproductions
 (t3code-media-paths-audit-20261021/.../test_media_paths_audit_2026_10_21.py)
 stay untouched; these are the passing counterparts for the Lot A scope.
 
-Runtime enforcement is two layers (backend/app/services/media_cache.py):
-selection excludes sole copies outright (even unpinned — stock before the
-migration, rows born under the old runtime), and every eviction re-checks
+Runtime enforcement is conservative (backend/app/services/media_cache.py):
+selection excludes every 720p/poster/360p row outright — sole or shadowed,
+independent of replacement status — and every eviction re-checks
 eligibility atomically at DELETE time, so a row pinned after selection is
 never unlinked. No trigger exists; none of these tests simulates one.
+No 360p row is deleted by the generic cleaner in this transition, and the
+upgrade heartbeat retains (never retires) legacy 360p files: obsolete 360p
+is owned solely by a future explicit verified retirement.
 """
 
 import pytest
@@ -288,9 +291,10 @@ def test_stock_migration_protects_sole_proxy_360p_only(test_db, tmp_path):
 
 def test_stock_migration_leaves_shadowed_360p_untouched(test_db, tmp_path):
     """A ready 360p shadowed by a ready 720p for the same asset is NOT
-    pinned: it stays on the planned upgrade-retirement path (Lot B serves
-    720p; advance_resolution_upgrade_runs retires unpinned 360p after 720p
-    validation and retains pinned rows without blocking the upgrade)."""
+    pinned by the stock migration (sole-only marker scope), but it is still
+    retained in this transition: the generic cleaner excludes every 360p
+    and the upgrade heartbeat retains (never retires) legacy files. Lot B
+    serves 720p; a future explicit verified retirement owns obsolete 360p."""
     from sqlalchemy import text as _sql_text
 
     get_settings().media_cache_root = str(tmp_path)
@@ -367,8 +371,9 @@ def test_pinned_sole_360p_does_not_block_verified_720p_upgrade(test_db, tmp_path
     """Upgrade interaction: when a verified 720p replaces a pinned sole-proxy
     360p, advance_resolution_upgrade_runs still marks the item upgraded and
     retains the pinned 360p (no retirement, no failure). No stock is deleted
-    by this lot; shadowed unpinned 360p rows stay eligible for the planned
-    retirement path."""
+    by this lot; shadowed unpinned 360p rows are likewise retained (upgrade
+    retains, cleaner excludes every 360p) until a future explicit verified
+    retirement owns them."""
     import hashlib
     from sqlalchemy import text as _sql_text
 
@@ -598,9 +603,12 @@ def test_evict_skips_candidate_pinned_after_select(test_db, tmp_path):
 
 
 def test_cleanup_evicts_shadowed_360p_but_spares_sole(test_db, tmp_path):
-    """Layer 1 is rendition-precise: an expired unpinned 720p is spared, an
-    expired shadowed 360p is evicted, and an unexpired shadowed 360p goes
-    under quota pressure."""
+    """Interim conservative retention: EVERY ready 360p is spared by the
+    generic cleaner — sole AND shadowed — independent of replacement
+    status (MVCC fix: the old NOT EXISTS (ready 720p) check read the
+    statement snapshot and did not serialize with a concurrent 720p status
+    change). An expired unpinned 720p is spared, an expired shadowed 360p
+    is retained, and disposable staging still goes under both passes."""
     from app.services.media_cache import cleanup_cache
 
     get_settings().media_cache_root = str(tmp_path)
@@ -635,31 +643,36 @@ def test_cleanup_evicts_shadowed_360p_but_spares_sole(test_db, tmp_path):
     ))
     test_db.commit()
 
+    # TTL pass: nothing proxy-related goes; only disposable staging could.
+    # Here there is no staging yet, so zero rows removed and every proxy
+    # file survives — including the shadowed 360p.
     removed, _, _ = cleanup_cache(test_db)
     test_db.commit()
-    assert removed == 1
-    assert sole.exists() and keep720.exists() and not drop360.exists()
+    assert removed == 0
+    assert sole.exists() and keep720.exists() and drop360.exists()
     assert {r.media_key for r in test_db.query(MediaCacheEntry).all()} == {
-        "lot-a-sole360", "lot-a-keep720",
+        "lot-a-sole360", "lot-a-keep720", "lot-a-drop360",
     }
 
-    # Unexpired shadowed 360p is still quota-evictable.
-    drop360b = tmp_path / "drop-360b.mp4"
-    drop360b.write_bytes(b"drop-360b-bytess")
+    # Unexpired shadowed 360p is still retained under quota pressure:
+    # only disposable staging is evictable.
+    staging = tmp_path / "retained-staging.bin"
+    staging.write_bytes(b"staging-bytesss!")
     test_db.add(MediaCacheEntry(
-        photos_asset_id=shadow_asset.id, media_key="lot-a-drop360b",
-        rendition="proxy_360p", storage_path=str(drop360b),
-        content_type="video/mp4", size_bytes=drop360b.stat().st_size,
-        status="ready", pinned=False,
+        photos_asset_id=shadow_asset.id, media_key="lot-a-staging",
+        rendition="browser_source", storage_path=str(staging),
+        content_type="application/octet-stream",
+        size_bytes=staging.stat().st_size, status="ready", pinned=False,
         expires_at=datetime.utcnow() + timedelta(days=1),
     ))
     test_db.commit()
-    keep_bytes = sole.stat().st_size + keep720.stat().st_size
-    removed, _, remaining = cleanup_cache(test_db, max_bytes=keep_bytes)
+    proxy_bytes = sole.stat().st_size + keep720.stat().st_size + drop360.stat().st_size
+    removed, _, remaining = cleanup_cache(test_db, max_bytes=proxy_bytes)
     test_db.commit()
     assert removed == 1
-    assert remaining == keep_bytes
-    assert sole.exists() and keep720.exists() and not drop360b.exists()
+    assert remaining == proxy_bytes
+    assert sole.exists() and keep720.exists() and drop360.exists()
+    assert not staging.exists()
 
 
 def test_retire_tolerates_detached_handle(test_db, tmp_path):
@@ -698,10 +711,10 @@ def test_retire_tolerates_detached_handle(test_db, tmp_path):
 
 
 def test_evict_rechecks_sole_copy_when_720_loses_ready(test_db, tmp_path):
-    """Layer-2 full re-check: a shadowed 360 selected while evictable must be
-    spared when its ready 720p loses ready status before the DELETE — the
-    shadow turned sole mid-pass. A genuinely evictable staging row still
-    goes, so eviction keeps working."""
+    """Conservative exclusion (MVCC fix): a 360p row is never a cleanup
+    candidate — sole or shadowed — so a 720p losing ready status mid-pass
+    cannot turn a selected 360p into a sole copy mid-pass. A genuinely
+    evictable staging row still goes, so eviction keeps working."""
     from sqlalchemy import update as _sa_update
 
     from app.services.media_cache import evict_cleanup_candidates, select_cleanup_candidates
@@ -738,9 +751,11 @@ def test_evict_rechecks_sole_copy_when_720_loses_ready(test_db, tmp_path):
     test_db.commit()
 
     ttl, trim = select_cleanup_candidates(test_db)
-    assert {row.id for row in ttl} >= {
+    # Only the staging row is ever a candidate — the shadowed 360p is
+    # excluded outright, so no 720p status change can endanger it.
+    assert {row.id for row in ttl} == {
         r.id for r in test_db.query(MediaCacheEntry).filter(
-            MediaCacheEntry.media_key.in_(["lot-a-midpass-360", "lot-a-midpass-staging"])
+            MediaCacheEntry.media_key == "lot-a-midpass-staging"
         ).all()
     }
 

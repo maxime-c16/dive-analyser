@@ -13,35 +13,40 @@ Two bounded passes (100 rows each), fail-safe in two layers:
 
 | Pass | Deletes | Spares |
 |---|---|---|
-| TTL | `status=ready`, unpinned, `expires_at < now`, not sole | pinned rows, NULL-expiry rows, ALL sole copies |
-| Quota trim | unpinned `ready` rows, LRU, until under `media_cache_max_bytes` | pinned rows (any expiry), ALL sole copies |
+| TTL | `status=ready`, unpinned, `expires_at < now`, not retained | pinned rows, NULL-expiry rows, ALL 720p/poster/360p |
+| Quota trim | unpinned `ready` rows, LRU, until under `media_cache_max_bytes` | pinned rows (any expiry), ALL 720p/poster/360p |
 
-Layer 1 — dynamic sole-copy exclusion (`_sole_copy_exclusion_clause`):
-selection never returns a ready `proxy_720p`/`poster` row, nor a ready
-`proxy_360p` row with no ready `proxy_720p` for the same asset —
-**regardless of pinned**. Stock rows are spared the moment the new backend
+Layer 1 — conservative retention (`_sole_copy_exclusion_clause`):
+selection never returns a ready `proxy_720p`/`poster`/`proxy_360p` row —
+**regardless of pinned, regardless of replacement status**. This is
+deliberately broader than the stock migration (sole-only marker): the
+previous NOT EXISTS (ready 720p) eligibility check read the DELETE
+statement snapshot and did not serialize with a concurrent transaction
+changing that 720p out of ready, so a shadowed-360p DELETE could land
+after its replacement invalidated and remove the sole playable copy.
+Excluding every 360p from the generic cleaner closes this with no
+locking; temporary extra disk (shadowed 360p retained) is acceptable
+versus data loss. Stock rows are spared the moment the new backend
 is live, before any migration runs, and rows born under the old runtime
 after the last UPDATE are spared without any trigger.
 
 Layer 2 — atomic per-row re-check (`_delete_if_still_evictable`): the FULL
 eligibility check and the DELETE are one statement, so a row pinned,
-un-expired, moved out of ready, or newly a sole copy (its ready 720p lost
-ready status after selection — the shadow turned sole mid-pass) is
-skipped — never unlinked. Deletes commit before any file is unlinked: a
-crash can leak a file, never lose one.
+un-expired, or moved out of ready is skipped — never unlinked. Deletes
+commit before any file is unlinked: a crash can leak a file, never lose
+one. No 360p row reaches this DELETE via the generic cleaner at all.
 
-Retirement (verified-720p upgrade path, `retire_verified_proxy_entry`): the
-row DELETE is conditional (unpinned + ready, re-checked atomically) but the
-FILE unlinks only after the owning transaction commits. The retirement
-queues the removal on the session; the heartbeat unit
-(`_advance_background_media_work`) drains the queue after its commit. A
-rollback resurrects the row with its file still in place — never an
-advertised ready row with no bytes. Draining after anything but a
-successful commit is a caller bug; the drain re-checks the row is gone and
-keeps the file of any row that is somehow live. A pin landing between load
-and retirement (the stock migration pinning a shadowed 360p mid-upgrade)
-finishes the item `upgraded` with the pinned row retained — the validated
-720p is already serving — instead of failing the upgrade.
+Retirement (verified-720p upgrade path): DEFERRED in this transition.
+`advance_resolution_upgrade_runs` marks the item `upgraded` and retains
+the legacy 360p row AND file (pinned or not) — no row DELETE, no unlink.
+The same MVCC race applies to the upgrade's 720p validation snapshot, so
+deleting the 360p there could also remove the sole copy after a
+concurrent 720p invalidation. `retire_verified_proxy_entry` is retained
+for a future explicit verified retirement that correctly serializes with
+replacement status changes; the heartbeat does not call it here. The
+drain helper (`drain_pending_retirement_unlinks`) stays wired but queues
+nothing in this lot; a rollback still resurrects rows with files intact
+by construction (nothing was unlinked).
 
 Key point: **`expires_at=NULL` alone never protects a row from the quota
 trim.** The sole-copy guarantee is `pinned=TRUE` (durable marker) plus the
@@ -58,8 +63,8 @@ Finalization defaults after this lot:
 | `browser_source` | browser (`cache_upload`) | FALSE (B2 roundtrip-verified) | +1 d, evictable |
 | `original` | Mac local staging | FALSE | +3 d |
 | `proxy_360p` sole-proxy stock | SQL stock only (migration) | TRUE until a verified 720p exists | NULL |
-| `proxy_360p` shadowed (720p ready) | none here | FALSE (upgrade-retirement path) | unchanged |
-| `proxy_360p` new rows | none (no new 360p in this lot) | FALSE, spared by layer 1 while sole-proxy | +30 d |
+| `proxy_360p` shadowed (720p ready) | none here | FALSE, retained by conservative cleaner exclusion (NOT evicted, NOT retired in this lot) | unchanged |
+| `proxy_360p` new rows | none (no new 360p in this lot) | FALSE, spared by conservative exclusion (all 360p, protection without a pin) | +30 d |
 
 Pre-existing guard (kept): when remote playback is NOT configured,
 `cleanup_cache` additionally excludes `browser-uploads/` original/720p/poster
@@ -72,20 +77,25 @@ without a catalog-wide write
 - `finalize_cache_entry` pins `proxy_720p`/`poster`, expiry NULL for 720p.
   It deliberately does NOT pin new `proxy_360p` rows: this lot produces no
   new 360p (no backfill, no finalizer change; Lot B stops new 360p jobs),
-  and a missing 360p is never a production requirement. New sole-proxy 360p
-  rows are still spared by cleaner layer 1 (protection without a pin), so
-  when a verified 720p later shadows them they are unpinned and stay
-  eligible for the planned retirement.
+  and a missing 360p is never a production requirement. Every 360p row is
+  still spared by conservative cleaner exclusion (all 360p, protection
+  without a pin); no 360p row is retired by the heartbeat in this lot
+  either (upgrade marks `upgraded`, retains the file).
 - `cache_upload` pins browser posters unconditionally with NULL expiry;
   playback MP4 keeps the conditional pin; `browser_source` stays 1-day
   disposable.
 - `cleanup_cache` is fail-safe (§1, two layers) and exposes its seam:
   `select_cleanup_candidates` (select, never touch) +
   `evict_cleanup_candidates` (atomic re-check, commit, then unlink).
+  No 360p row is deleted by either pass; obsolete 360p is owned solely by
+  a future explicit verified retirement, never by this cleaner.
 - Migration `backend/migrations/protect_browser_safe_cache_entries.sql`
   pins the stock (ready 720p/poster rows, PLUS ready `proxy_360p` rows that
-  are still the ONLY ready proxy of their clip). Shadowed 360p rows stay
-  unpinned on the upgrade-retirement path. No rendition bytes are rewritten.
+  are still the ONLY ready proxy of their clip). Scope stays sole-only on
+  purpose: the marker pins what must survive, while the runtime cleaner
+  protects all 360p (enforcement). Shadowed 360p rows stay unpinned AND
+  retained (not evicted, not retired) in this transition. No rendition
+  bytes are rewritten.
 - `backend/scripts/verify_browser_safe_files.py` (read-only): reports
   sole-copy rows whose file is missing from disk. Pre-UPDATE gate (§3).
 - No INSERT trigger, no transient guard. See §2b for why.
@@ -98,9 +108,9 @@ file touched. Consequences, all load-bearing for the procedure:
 
 1. **The SQL is not a schema prerequisite.** The old backend runs fine on
    pinned rows (its cleaner already excludes `pinned` rows from both
-   passes), and the new backend runs fine on unpinned stock (cleaner layer 1
-   spares sole copies regardless of pin). Either order boots; the safe order
-   is code first, data second.
+   passes), and the new backend runs fine on unpinned stock (conservative
+   exclusion spares 720p/poster/360p regardless of pin). Either order
+   boots; the safe order is code first, data second.
 2. **The swap is the barrier that ends old cleaners.** `ci/ship.sh server`
    recreates the backend container (`compose up --force-recreate`): the old
    process is stopped and only the new image serves afterwards. Both cleanup
@@ -109,7 +119,7 @@ file touched. Consequences, all load-bearing for the procedure:
    so no old writer survives the swap. After the barrier, the ONLY cleaner
    that can race the UPDATE is the new fail-safe one, and the ONLY writers
    are the new pinning finalizer (plus the unchanged 360p job path, covered
-   by layer 1 while sole-proxy).
+   by conservative exclusion for all 360p).
 3. **A trigger cannot fix the old-cleaner race anyway.** A DB trigger fires
    on INSERT; it cannot cancel a filesystem UNLINK the old cleaner already
    decided on (`cleanup_cache` unlinks selected files before deleting their
@@ -171,12 +181,13 @@ container swap; the UPDATE itself takes only row locks).
    `residual_unprotected_rows` MUST be 0. §5a must show zero
    browser_source/original rows touched; §5b lists shadowed 360p rows
    (720p ready present) and must show zero pinned by this migration —
-   those rows stay on the upgrade-retirement path. If residual > 0 after
-   the first apply, re-run the stock UPDATE AT MOST ONCE and re-check:
-   the only possible residual is a transaction that committed late — no new
-   unpinned inflow can appear (new writers pin; layer 1 spares the rest),
-   so this converges. A second non-zero residual is a real finding: stop
-   and investigate, do not loop.
+   those rows stay unpinned AND retained (not evicted, not retired) in
+   this transition. If residual > 0 after the first apply, re-run the
+   stock UPDATE AT MOST ONCE and re-check: the only possible residual is
+   a transaction that committed late — no new unpinned inflow can appear
+   (new writers pin; conservative exclusion spares the rest), so this
+   converges. A second non-zero residual is a real finding: stop and
+   investigate, do not loop.
 9. Verify: `SELECT COUNT(*) FROM media_cache_entries WHERE status='ready'
    AND (pinned IS NOT TRUE OR expires_at IS NOT NULL)
    AND (rendition IN ('proxy_720p','poster')
@@ -216,19 +227,24 @@ After any rollback:
 
 ## 5. Limits / non-goals
 
-- Capacity is bounded but not infinite: protection retains ~1.7 Go + growth.
-  Watch the media-cache volume; quota trim still evicts everything else.
-- Quota pressure with all sole copies spared can only evict non-sole rows;
-  if the volume fills, the answer is disk, not unpinning.
+- Capacity is bounded but not infinite: protection retains ~1.7 Go +
+  growth, PLUS shadowed 360p retained conservatively until a future
+  explicit verified retirement owns obsolete 360p (no generic-cleaner
+  pass offsets this; no broad cleanup to reclaim it). Watch the
+  media-cache volume; quota trim still evicts everything else.
+- Quota pressure with all 720p/poster/360p spared can only evict non-proxy
+  rows; if the volume fills, the answer is disk, not unpinning and not a
+  one-off purge.
 - 360p consumers (representatives, DiveAnalysis, catalog, vault) are Lot B:
   untouched here. Legacy 360p rows that are still the ONLY ready proxy of
   their clip are pinned by the stock migration (transitional retention,
   not a durable replica) so Lot B re-lecture keeps working until a
-  verified 720p replaces them; shadowed 360p rows keep their existing
-  policy and stay eligible for the planned upgrade retirement. This lot
-  performs no 360p backfill, no 360p deletion, and no vault cleanup: do
-  not purge 360p rows during the transition, and do not unpin sole-proxy
-  360p rows until the future durable pipeline (outside Lots A/B) is live.
+  verified 720p replaces them; shadowed 360p rows stay unpinned but are
+  retained by conservative cleaner exclusion AND by deferred upgrade
+  retirement (no eviction, no unlink in this lot). This lot performs no
+  360p backfill, no 360p deletion, and no vault cleanup: do not purge
+  360p rows during the transition, and do not unpin sole-proxy 360p rows
+  until the future durable pipeline (outside Lots A/B) is live.
   360p is never a production requirement here.
 - Reader selection, grille fallback, priority, leases, auth: untouched.
 - The `pinned` flag now doubles as the system sole-copy marker; a manual
@@ -238,9 +254,7 @@ After any rollback:
   (not Lot B).
 - New 360p rows born mid-transition (old prepare jobs completing, old or
   new runtime) land unpinned with their normal TTL. They are spared by
-  cleaner layer 1 exactly while they are the sole proxy of their clip —
-  best-effort retention, as before this lot — and become normally
-  evictable/retireable once a ready 720p shadows them. Do not claim they
-  are pinned; they are protected by exclusion, not by marker. CI proves
-  this on real Postgres
-  (`backend/tests/test_postgres_media_cutover.py`).
+  conservative cleaner exclusion (all 360p, exactly like stock) and
+  retained by deferred upgrade retirement — protection by exclusion and
+  retention, not by marker. Do not claim they are pinned. CI proves this
+  on real Postgres (`backend/tests/test_postgres_media_cutover.py`).

@@ -13,9 +13,10 @@
 -- the replacement would break guaranteed re-lecture. This migration pins
 -- those 360-only rows as a transitional retention (not a durable replica).
 -- 360p rows that already have a ready 720p for the same asset are NOT
--- pinned here: they stay eligible for the planned upgrade retirement path
--- (advance_resolution_upgrade_runs retires unpinned 360p after 720p
--- validation, and retains pinned 360p without blocking the upgrade).
+-- pinned here: they stay unpinned and retained in this transition (the
+-- generic cleaner excludes every 360p and the upgrade heartbeat retains
+-- legacy files without retiring — a future explicit verified retirement
+-- owns obsolete 360p once it serializes with replacement changes).
 -- No new 360p is produced by this lot (no backfill, no finalizer change);
 -- 360p is never a production requirement.
 --
@@ -39,9 +40,9 @@
 --   cleaner already excludes pinned rows from both passes, and NULL expiry
 --   rows were never TTL-eligible. Safe to apply BEFORE the new backend
 --   deploys (required order per docs/REPO_WORKFLOW.md: SQL first, then ship).
---   The upgrade path is unaffected: pinned 360p rows are retained (not
---   retired) and the item is still marked upgraded, so retention never
---   blocks progression.
+--   The upgrade path is unaffected: legacy 360p rows are retained (never
+--   retired in this transition) and the item is still marked upgraded, so
+--   retention never blocks progression.
 -- - ROLLBACK: no rollback SQL is needed. If the deploy is reverted, the
 --   pinned rows simply stay protected (fail-safe direction). Unpinning, if
 --   ever wanted, is an explicit per-row admin action, not a migration.

@@ -6,13 +6,15 @@
 -- All counts are aggregates (rendition-level counts/bytes); no per-clip,
 -- per-user, or path data is returned.
 --
--- Protected scope:
+-- Protected scope (migration marker; the runtime cleaner additionally
+-- retains every ready 360p, shadowed or sole, and the upgrade heartbeat
+-- retains legacy files without retiring in this transition):
 -- - proxy_720p + poster: every ready row (sole copies).
 -- - proxy_360p: only ready rows with NO ready proxy_720p for the same
 --   photos_asset_id (sole-proxy legacy stock still served by Lot B
 --   consumers until a verified 720p replaces them). 360p rows shadowed by
---   a ready 720p stay on the normal upgrade-retirement path and are NOT
---   protected here.
+--   a ready 720p stay unpinned here but are still retained at runtime
+--   (conservative cleaner exclusion + deferred retirement).
 --
 -- 1. Rows the migration will protect, by rendition.
 SELECT rendition,
@@ -100,8 +102,9 @@ WHERE status = 'ready'
   );
 
 -- 5. Untouched renditions (informational: proves the migration scope did not
--- leak into disposable staging files, and that shadowed 360p rows stay on
--- the upgrade-retirement path).
+-- leak into disposable staging files, and that shadowed 360p rows stay
+-- unpinned — retained by conservative cleaner exclusion and deferred
+-- upgrade retirement, not retired, in this transition).
 -- 5a. Disposable staging files: never protected.
 SELECT rendition,
        COUNT(*) AS rows_total,

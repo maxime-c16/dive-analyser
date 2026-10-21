@@ -1,12 +1,17 @@
-"""Heartbeat-path regression: retiring a replaced 360p proxy must release every
-upgrade-item reference to the shared cache row first.
+"""Heartbeat-path regression: the upgrade heartbeat must retain legacy 360p.
 
-Production failure (2026-10-19): media_cache_entries.id=178 was referenced by
-two media_resolution_upgrade_items rows (a failed history item from completed
-run 1 and the current item of running run 2). The heartbeat path nulled only
-the current item's FK, so retire_verified_proxy_entry's DELETE raised
-ForeignKeyViolation, the whole heartbeat unit rolled back, last_seen_at froze,
-and the Mac agent logged HTTP 500 every 5 minutes.
+Interim conservative retention (MVCC fix): advance_resolution_upgrade_runs
+marks the item upgraded and retains the legacy 360p row AND file — pinned
+or not — with no row delete and no unlink. The 720p validation snapshot
+does not serialize with a concurrent 720p status change, so deleting here
+could remove the sole copy. A future explicit verified retirement owns
+obsolete 360p once it serializes correctly.
+
+Production history (2026-10-19): media_cache_entries.id=178 was referenced
+by two media_resolution_upgrade_items rows; the old heartbeat nulled only
+the current item's FK, so the retirement DELETE raised ForeignKeyViolation
+and froze heartbeats. That path is deferred here — the FKs stay intact
+because nothing is deleted — and these tests prove retention + progression.
 """
 
 import hashlib
@@ -66,8 +71,8 @@ def test_advance_releases_every_reference_before_retiring_shared_proxy(
 ):
     get_settings.cache_clear()
     get_settings().media_cache_root = str(tmp_path)
-    # SQLite defaults to ignoring FKs; enable enforcement to reproduce the
-    # exact production failure rather than testing an unprotected delete.
+    # SQLite defaults to ignoring FKs; enable enforcement so the shared-row
+    # history shape is exercised exactly, even though nothing is deleted.
     test_db.execute(text("PRAGMA foreign_keys=ON"))
     _seed_agent(test_db)
     asset = PhotosAsset(video_uuid="upgrade-shared-proxy-uuid")
@@ -125,22 +130,24 @@ def test_advance_releases_every_reference_before_retiring_shared_proxy(
     advanced = advance_resolution_upgrade_runs(test_db)
     test_db.commit()
 
+    # Deferred retirement: the legacy row AND file are retained, the item
+    # still progresses to upgraded, and shared history FKs stay intact
+    # (nothing deleted, so no FK release needed and no heartbeat abort).
     assert advanced == [run.id]
-    assert test_db.get(MediaCacheEntry, old_entry.id) is None
-    # The commit alone unlinks nothing: the owner's drain frees the file.
+    assert test_db.get(MediaCacheEntry, old_entry.id) is not None
     assert old_path.exists()
     from app.services.media_cache import drain_pending_retirement_unlinks
 
-    assert drain_pending_retirement_unlinks(test_db) == len(b"old-proxy-bytes")
-    assert not old_path.exists()
+    assert drain_pending_retirement_unlinks(test_db) == 0
+    assert old_path.exists()
     # The validated 720p replacement is untouched.
     assert new_path.exists()
     test_db.refresh(item)
     test_db.refresh(history_item)
     assert item.status == "upgraded"
     assert item.completed_at is not None
-    assert item.old_cache_entry_id is None
-    assert history_item.old_cache_entry_id is None
+    assert item.old_cache_entry_id == old_entry.id
+    assert history_item.old_cache_entry_id == old_entry.id
     assert history_item.status == "failed"
     test_db.refresh(run)
     assert run.upgraded_items == 1
@@ -209,8 +216,9 @@ def _build_upgrade_scenario(test_db: Session, tmp_path: Path, video_uuid: str):
 def test_rollback_after_retire_keeps_advertised_file(
     test_db: Session, tmp_path: Path
 ):
-    """Concern 2 core: the retirement queues the unlink but the commit never
-    happens — a rollback must leave the ready row AND its file in place."""
+    """Deferred retirement: the upgrade queues nothing, so a rollback leaves
+    the ready row AND its file in place trivially — and draining after a
+    rollback touches nothing."""
     from app.services.media_cache import drain_pending_retirement_unlinks
     from app.services.media_resolution_upgrade import advance_resolution_upgrade_runs
 
@@ -222,14 +230,15 @@ def test_rollback_after_retire_keeps_advertised_file(
 
     advanced = advance_resolution_upgrade_runs(test_db)
     assert advanced == [scenario["run"].id]
-    # Queued, not unlinked: the file is still advertised as ready.
+    # Nothing queued, nothing unlinked: the file is still advertised ready.
     assert old_path.exists()
+    assert drain_pending_retirement_unlinks(test_db) == 0
     test_db.rollback()
 
     row = test_db.get(MediaCacheEntry, old_entry.id)
     assert row is not None and row.status == "ready"
     assert old_path.exists()
-    # Draining after a rollback must not touch the resurrected row's file.
+    # Draining after a rollback must not touch the retained row's file.
     assert drain_pending_retirement_unlinks(test_db) == 0
     assert old_path.exists()
 
@@ -237,13 +246,9 @@ def test_rollback_after_retire_keeps_advertised_file(
 def test_pin_landing_mid_upgrade_retains_row_and_marks_upgraded(
     test_db: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    """Expected pin race: the stock migration pins the 360p after the
-    upgrade loaded it but before the retirement DELETE. The validated 720p
-    is serving, so the item finishes upgraded with the pinned row retained
-    — no failure, no unlink."""
-    from sqlalchemy import update as _sa_update
-
-    import app.services.media_resolution_upgrade as upgrade_mod
+    """Deferred retirement: whether or not the stock migration pins the 360p
+    mid-upgrade, the validated 720p serving means the item finishes upgraded
+    with the row retained — no failure, no unlink, no retirement call."""
     from app.services.media_cache import drain_pending_retirement_unlinks
 
     get_settings.cache_clear()
@@ -253,27 +258,22 @@ def test_pin_landing_mid_upgrade_retains_row_and_marks_upgraded(
     old_entry, old_path = scenario["old_entry"], scenario["old_path"]
     item = scenario["item"]
 
-    real_retire = upgrade_mod.retire_verified_proxy_entry
+    import app.services.media_resolution_upgrade as upgrade_mod
 
-    def pin_then_retire(db, entry):
-        # Same-transaction concurrent pin, bypassing session sync so the
-        # caller's handle stays stale (as a real concurrent UPDATE would).
-        db.execute(
-            _sa_update(MediaCacheEntry)
-            .where(MediaCacheEntry.id == entry.id)
-            .values(pinned=True)
-            .execution_options(synchronize_session=False)
-        )
-        return real_retire(db, entry)
+    called = []
 
-    monkeypatch.setattr(upgrade_mod, "retire_verified_proxy_entry", pin_then_retire)
+    def fail_if_retire(db, entry):
+        called.append(entry.id)
+        raise AssertionError("retirement must stay deferred in this transition")
+
+    monkeypatch.setattr(upgrade_mod, "retire_verified_proxy_entry", fail_if_retire, raising=False)
     advanced = upgrade_mod.advance_resolution_upgrade_runs(test_db)
     test_db.commit()
 
     assert advanced == [scenario["run"].id]
+    assert called == []
     test_db.refresh(item)
     assert item.status == "upgraded"
-    test_db.refresh(old_entry)
-    assert old_entry.pinned is True
+    assert test_db.get(MediaCacheEntry, old_entry.id) is not None
     assert old_path.exists() and scenario["new_path"].exists()
     assert drain_pending_retirement_unlinks(test_db) == 0

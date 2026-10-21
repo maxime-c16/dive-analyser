@@ -9,7 +9,7 @@ from shutil import move
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, inspect as sa_inspect, select, update
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models.media import MediaCacheEntry, MediaJob
@@ -27,25 +27,48 @@ logger = logging.getLogger(__name__)
 # row is a sole copy. Lot B (#135) only repoints 360p consumers; it does not
 # publish durable HQ/light replicas.
 #
+# Interim conservative retention (MVCC fix, 2026-10-21): the generic
+# TTL/quota cleaner excludes EVERY ready proxy_360p row, independent of
+# whether a ready proxy_720p exists for the same asset. The previous
+# NOT EXISTS (ready 720p) check inside the DELETE read the statement
+# snapshot and did not serialize with a concurrent transaction changing
+# that 720p row out of ready: the concurrent UPDATE sits uncommitted, the
+# DELETE sees the old ready 720p, deletes the shadowed 360p, then commits
+# and unlinks the file after the 720p invalidation lands — removing the
+# sole playable copy. Locking the replacement row before eligibility and
+# re-evaluating on a fresh snapshot would serialize this, but needs
+# Postgres READ COMMITTED blocking/EPQ care, FK + row-lock ordering
+# discipline, and SQLite-compatible behavior across every 720p writer —
+# too much machinery for this small protection lot. Excluding all 360p
+# from the generic cleaner achieves the original sole-copy goal with no
+# locking: temporary extra disk (shadowed 360p retained) is acceptable
+# versus data loss. No broad automatic cleanup offsets this retention.
+# Obsolete 360p is owned solely by a future explicit verified retirement
+# that correctly serializes with replacement status changes — not by the
+# generic cleaner.
+#
 # A ready proxy_360p row with NO ready proxy_720p for the same
 # photos_asset_id is still the only readable proxy of its clip (legacy
 # 360-only stock; Lot B keeps serving it until a verified 720p replaces
-# it). The stock migration pins those rows AND every ready 720p/poster row
-# (see backend/migrations/protect_browser_safe_cache_entries.sql), but
-# protection never depends on the pin having landed: cleanup_cache below
-# excludes sole copies dynamically, so stock rows are spared after the swap
-# even before the UPDATE runs, and rows born under the old runtime after the
-# last UPDATE are spared without any trigger.
+# it). The stock migration pins those sole-proxy rows AND every ready
+# 720p/poster row
+# (see backend/migrations/protect_browser_safe_cache_entries.sql) — the
+# migration scope stays sole-only (marker), while the runtime cleaner
+# protects all 360p (enforcement). Protection never depends on the pin
+# having landed: cleanup_cache below excludes these renditions
+# dynamically, so stock rows are spared after the swap even before the
+# UPDATE runs, and rows born under the old runtime after the last UPDATE
+# are spared without any trigger.
 #
 # The finalizer deliberately does NOT pin new 360p rows (no new 360p
 # production in this lot; Lot B stops new 360p jobs) and pinned-ness never
-# gates production: a missing 360p is not an error. A new sole-proxy 360p
-# row is still spared by the cleaner's dynamic exclusion (protection without
-# a pin), so when a verified 720p later shadows it the row is unpinned and
-# stays eligible for the planned retirement. Pinned 360p rows never block
-# the verified-720p upgrade: advance_resolution_upgrade_runs marks the item
-# upgraded and retains (does not retire) pinned rows, while unpinned
-# shadowed 360p rows stay eligible for the planned retirement.
+# gates production: a missing 360p is not an error. Every 360p row is
+# still spared by the cleaner's conservative exclusion (protection without
+# a pin). The verified-720p upgrade heartbeat does NOT retire 360p rows
+# in this transition (see advance_resolution_upgrade_runs): it marks the
+# item upgraded and retains the legacy file, because the same MVCC race
+# applies to the upgrade's 720p validation snapshot. No 360p row is
+# deleted by this lot via either path.
 #
 # Sole copies are pinned at finalization (see finalize_cache_entry) AND
 # excluded from cleanup by rendition (see _sole_copy_exclusion_clause), so
@@ -54,6 +77,12 @@ logger = logging.getLogger(__name__)
 # evicts unpinned rows over the byte cap regardless of expiry. Never declare
 # a retention guarantee with expires_at=NULL only.
 SOLE_COPY_BROWSER_SAFE_RENDITIONS = ("proxy_720p", "poster")
+
+# Interim: every ready proxy_360p row is excluded from the generic
+# TTL/quota cleaner, shadowed or sole (see header). Kept separate from
+# SOLE_COPY_BROWSER_SAFE_RENDITIONS (finalizer pin scope) on purpose: the
+# stock migration still pins sole-360p only, while cleanup protects all.
+CLEANER_RETAINED_PROXY_RENDITIONS = ("proxy_720p", "poster", "proxy_360p")
 
 
 def playback_url(entry_id: int) -> str:
@@ -244,6 +273,17 @@ _PENDING_RETIREMENT_UNLINKS_KEY = "media_cache_pending_retirement_unlinks"
 def retire_verified_proxy_entry(db: Session, entry: MediaCacheEntry) -> int:
     """Remove one unpinned proxy row after a higher validated rendition replaces it.
 
+    DEFERRED in this transition: the heartbeat upgrade path
+    (advance_resolution_upgrade_runs) does NOT call this — it marks the
+    item upgraded and retains the legacy 360p file. The same MVCC race
+    that forced conservative cleaner retention applies here: the 720p
+    validation snapshot does not serialize with a concurrent transaction
+    changing that 720p out of ready, so a retirement DELETE could remove
+    the sole playable copy. A future explicit verified retirement may
+    call this only once it correctly serializes with replacement status
+    changes. Retained for that stage; not part of this lot's deletion
+    surface.
+
     The final DELETE re-checks the unpinned ready state atomically: a row
     pinned (or otherwise changed) after the caller loaded it is left alone
     instead of being unlinked on stale state. synchronize_session=False: the
@@ -310,34 +350,33 @@ def drain_pending_retirement_unlinks(db: Session) -> int:
 
 
 def _sole_copy_exclusion_clause():
-    """Match rows the cleaner must never evict: sole browser-readable copies.
+    """Match rows the generic cleaner must never evict (interim: conservative).
 
     proxy_720p/poster rows are always sole copies (B2 holds camera originals
-    only). A proxy_360p row is a sole copy while no ready proxy_720p exists
-    for the same asset. The clause ignores pinned on purpose: it protects
-    stock rows before the migration pins them, and rows born under the old
-    runtime after the last UPDATE, with no trigger involved.
+    only). EVERY ready proxy_360p row is excluded too, shadowed or sole,
+    independent of replacement status — see the header: the previous
+    NOT EXISTS (ready 720p) eligibility check read the DELETE statement
+    snapshot and did not serialize with a concurrent 720p status change,
+    so a shadowed-360p DELETE could land after its replacement invalidated.
+    The stock migration still pins sole-360p only (marker); the cleaner
+    protects all 360p (enforcement). The clause ignores pinned on purpose:
+    it protects stock rows before the migration pins them, and rows born
+    under the old runtime after the last UPDATE, with no trigger involved.
+    Obsolete 360p is owned solely by a future explicit verified retirement
+    that serializes with replacement changes — never by this cleaner.
     """
-    newer = aliased(MediaCacheEntry)
-    return MediaCacheEntry.rendition.in_(SOLE_COPY_BROWSER_SAFE_RENDITIONS) | (
-        (MediaCacheEntry.rendition == "proxy_360p")
-        & ~select(newer.id)
-        .where(
-            newer.photos_asset_id == MediaCacheEntry.photos_asset_id,
-            newer.rendition == "proxy_720p",
-            newer.status == "ready",
-        )
-        .exists()
-    )
+    return MediaCacheEntry.rendition.in_(CLEANER_RETAINED_PROXY_RENDITIONS)
 
 
 def _cleanup_eligible_clause():
-    """Rows either cleaner pass may consider: ready, unpinned, not sole."""
+    """Rows either cleaner pass may consider: ready, unpinned, not retained."""
     from app.services.browser_upload import remote_playback_configured
     # pinned is the durable sole-copy marker: rows pinned at finalization
     # (sole browser-safe previews/posters, explicit browser retentions) or by
     # the stock migration are exempt from BOTH passes below. expires_at=NULL
-    # alone never exempts a row from the trim.
+    # alone never exempts a row from the trim. Interim: every ready 720p,
+    # poster, AND 360p row is excluded regardless of pin (see
+    # _sole_copy_exclusion_clause) — obsolete 360p is never cleaner-owned.
     eligible = (
         MediaCacheEntry.pinned.is_(False)
         & (MediaCacheEntry.status == "ready")
@@ -361,8 +400,10 @@ def select_cleanup_candidates(db: Session) -> tuple[list, list]:
     ORM instances. Both lists are bounded (100 rows each); large backlogs
     need multiple passes. Pass the result to evict_cleanup_candidates; the
     gap between the two calls is exactly where a concurrent pin (e.g. the
-    stock migration UPDATE) — or a replacement 720p losing ready status —
-    must, and does, block the eviction.
+    stock migration UPDATE) must, and does, block the eviction. Interim:
+    720p/poster/360p rows are never candidates at all, so no 720p status
+    change can turn a selected 360p into a sole copy mid-pass — 360p
+    simply never reaches the DELETE.
     """
     eligible = _cleanup_eligible_clause()
     now = datetime.utcnow()
@@ -410,10 +451,11 @@ def _delete_if_still_evictable(db: Session, entry_id: int, *, expired_before: da
     """Delete one candidate only if it is still fully eligible right now.
 
     The full eligibility check and the DELETE are a single statement: a row
-    pinned, un-expired, moved out of ready, or newly a sole copy (its ready
-    720p replacement lost ready status after selection — the shadow turned
-    sole mid-pass) by a concurrent transaction is left alone and, crucially,
-    its file is never unlinked. Returns True when the row was deleted.
+    pinned, un-expired, or moved out of ready by a concurrent transaction
+    is left alone and, crucially, its file is never unlinked. The rendition
+    exclusion is re-checked here too (defense in depth — selection already
+    excludes 720p/poster/360p outright). Returns True when the row was
+    deleted.
     """
     conditions = [
         MediaCacheEntry.id == entry_id,
@@ -440,7 +482,7 @@ def evict_cleanup_candidates(
     """Evict pre-selected candidates with an atomic per-row re-check.
 
     A candidate selected while unpinned but pinned before its DELETE (or
-    shadowed, un-expired, non-ready) is skipped: no unlink, no row delete.
+    un-expired, non-ready) is skipped: no unlink, no row delete.
     Deletes commit before any file is unlinked — a crash can leak a file,
     never lose one. Returns ``(removed_entries, removed_bytes)``.
     """
@@ -473,8 +515,8 @@ def _delete_one_with_fk_release(db: Session, entry_id: int, *, expired_before: d
 
     The FK release must precede the DELETE (the pointer is a real database
     FK), but a candidate skipped by the atomic re-check must keep its
-    pointer so a later verified 720p can still retire it. A savepoint holds
-    both statements: skip → rollback (pointer restored), delete → keep.
+    pointer so history stays intact. A savepoint holds both statements:
+    skip → rollback (pointer restored), delete → keep.
     """
     savepoint = db.begin_nested()
     _release_upgrade_references(db, [entry_id])
@@ -491,11 +533,14 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     Large backlogs need multiple passes; returned byte totals remain exact.
 
     Fail-safe eviction, two layers (see _sole_copy_exclusion_clause and
-    _delete_if_still_evictable): selection excludes sole copies outright, and
-    every eviction re-checks full eligibility atomically at DELETE time, so
-    a row pinned after selection — e.g. by the stock migration UPDATE — is
-    never unlinked. Deletes commit before any file is unlinked: a crash can
-    leak a file, never lose one.
+    _delete_if_still_evictable): selection excludes 720p/poster/360p rows
+    outright (interim conservative retention — every ready 360p,
+    shadowed or sole), and every eviction re-checks full eligibility
+    atomically at DELETE time, so a row pinned after selection — e.g. by
+    the stock migration UPDATE — is never unlinked. Deletes commit before
+    any file is unlinked: a crash can leak a file, never lose one. No 360p
+    row is deleted by this cleaner; obsolete 360p is owned solely by a
+    future explicit verified retirement.
 
     The eviction commits the caller's session (row deletes + upgrade-FK
     releases) before unlinking, so pass a session with no uncommitted
@@ -511,16 +556,16 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
 
 
 def _release_upgrade_references(db: Session, entry_ids: list[int]) -> None:
-    """Release optional cache pointers, as resolution-upgrade retirement does.
+    """Release optional cache pointers before a row delete commits.
 
     Upgrade history outlives disposable renditions. Releasing its FKs before
     the eviction commit prevents cleanup from unlinking files then rolling
     back on the first referenced row, leaving nonexistent files advertised as
     ready. Callers release only rows actually deleted (see
     _delete_one_with_fk_release): a candidate skipped by the atomic re-check
-    keeps its upgrade pointer, so a later verified 720p can still retire it.
-    synchronize_session=False: callers work on ids and re-read rows they
-    need; no in-memory upgrade item may silently flip.
+    keeps its upgrade pointer. synchronize_session=False: callers work on
+    ids and re-read rows they need; no in-memory upgrade item may silently
+    flip.
     """
     if not entry_ids:
         return
@@ -532,14 +577,16 @@ def _release_upgrade_references(db: Session, entry_ids: list[int]) -> None:
 
 
 def find_missing_sole_copy_files(db: Session) -> dict:
-    """Check sole-copy rows still have their file on disk (read-only).
+    """Check retained rows still have their file on disk (read-only).
 
-    Same scope as the stock migration: ready proxy_720p/poster rows plus
-    ready proxy_360p rows with no ready proxy_720p for the same asset. Used
-    as a pre-UPDATE gate after the deploy barrier: a missing file with a
-    live row means an old-runtime eviction raced the swap's container kill
-    (file unlinked, row delete rolled back) — pinning that row would certify
-    a dead file. Returns ``{"checked": n, "missing": [{"id", "rendition",
+    Interim scope is the cleaner retention set: ready proxy_720p/poster
+    rows plus EVERY ready proxy_360p row (superset of the stock-migration
+    sole scope — the gate therefore also covers shadowed 360p retained by
+    conservative exclusion). Used as a pre-UPDATE gate after the deploy
+    barrier: a missing file with a live row means an old-runtime eviction
+    raced the swap's container kill (file unlinked, row delete rolled
+    back) — pinning that row would certify a dead file. Returns
+    ``{"checked": n, "missing": [{"id", "rendition",
     "photos_asset_id"}]}`` — no paths. SELECTs + filesystem stats only.
     """
     rows = db.execute(
