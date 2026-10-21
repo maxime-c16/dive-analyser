@@ -40,22 +40,35 @@ MISSING_720P_GROWTH_FALLBACK_BYTES = 1_000_000
 TARGET_PROXY_RENDITION = "proxy_720p"
 LEGACY_PROXY_FALLBACK = "proxy_360p"
 LIVE_CATALOG_RENDITIONS = ("poster", TARGET_PROXY_RENDITION, LEGACY_PROXY_FALLBACK)
+# Max asset ids per live-readiness query. Each batch binds len(chunk) ids plus
+# one status and len(LIVE_CATALOG_RENDITIONS) rendition parameters, so 500 ids
+# stay well under SQLite's ~999 and Postgres' ~65535 bind limits even for full
+# catalog summary/plan scopes.
+_LIVE_READY_BATCH_SIZE = 500
 
 
 def _live_ready_map(db: Session, asset_ids: set[int]) -> dict[int, set[str]]:
-    """Map asset id -> live ready renditions (poster/720p/360p), one bounded query."""
-    ids = sorted(asset_id for asset_id in asset_ids if asset_id)
+    """Map asset id -> live ready renditions (poster/720p/360p), in bounded batches.
+
+    Only the supplied asset ids are queried, in chunks of at most
+    ``_LIVE_READY_BATCH_SIZE`` ids per query (never the whole cache table and
+    never one unbounded ``IN`` clause). Missing ids map to empty sets and
+    duplicate ids are merged into a single entry per asset.
+    """
+    ids = sorted({asset_id for asset_id in asset_ids if asset_id})
     if not ids:
         return {}
     live: dict[int, set[str]] = {asset_id: set() for asset_id in ids}
-    for asset_id, rendition in db.execute(select(
-        MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition,
-    ).where(
-        MediaCacheEntry.photos_asset_id.in_(ids),
-        MediaCacheEntry.status == "ready",
-        MediaCacheEntry.rendition.in_(LIVE_CATALOG_RENDITIONS),
-    )):
-        live.setdefault(asset_id, set()).add(rendition)
+    for start in range(0, len(ids), _LIVE_READY_BATCH_SIZE):
+        chunk = ids[start:start + _LIVE_READY_BATCH_SIZE]
+        for asset_id, rendition in db.execute(select(
+            MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition,
+        ).where(
+            MediaCacheEntry.photos_asset_id.in_(chunk),
+            MediaCacheEntry.status == "ready",
+            MediaCacheEntry.rendition.in_(LIVE_CATALOG_RENDITIONS),
+        )):
+            live.setdefault(asset_id, set()).add(rendition)
     return live
 
 
@@ -529,7 +542,7 @@ def start_catalog_population_run(
         }
     db.add(run)
     db.flush()
-    # Seed item labels from live ready entries (one bounded query): a stored
+    # Seed item labels from live ready entries (bounded batched queries): a stored
     # ready whose file was evicted after cataloging must not look done here.
     live_ready = _live_ready_map(db, {row.photos_asset_id for row, _, _ in candidates if row.photos_asset_id})
     for row, priority_class, priority in candidates:
