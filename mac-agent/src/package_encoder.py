@@ -168,7 +168,7 @@ class SourceInfo:
     color_primaries: str | None = None
     pix_fmt: str | None = None
     sar: str | None = None
-    duration_s: float | None = None  # VIDEO stream end (never container); None = unknown -> first frame
+    duration_s: float | None = None  # VIDEO stream end (never container); None = unknown
     audio_index: int | None = None
 
 
@@ -343,12 +343,11 @@ def _video_duration_s(video: dict) -> float | None:
     """Video-stream duration in seconds, never the container duration.
 
     The container (``format.duration``) is the max over all streams, so a
-    long audio tail makes it longer than the video. Poster ``select`` and
-    the short-clip GOP check must use the VIDEO end, or a ``t=1`` select
-    on a 0.5 s video + 3 s audio source emits no frames and fails the
-    whole package. Pure metadata already in the probe dict: no extra
-    decode, no frame list buffering (8 GiB box). Unknown -> None, and
-    callers fall back to the first frame.
+    long audio tail makes it longer than the video. The short-clip GOP
+    check must use the VIDEO end, or a 0.5 s video + 3 s audio source
+    would be misread as a long clip. Pure metadata already in the probe
+    dict: no extra decode, no frame list buffering (8 GiB box).
+    Unknown -> None (callers treat it as short).
     """
     try:
         raw = video.get("duration")
@@ -437,7 +436,6 @@ def probe_source(source: Path, ffprobe_path: str = "ffprobe") -> SourceInfo:
         avg = float(an) / float(ad) if float(ad) else None
         # VIDEO stream end only: container duration can exceed it when
         # audio runs longer (0.5 s video + 3 s AAC -> format 3.0 s).
-        # Unknown stays None -> poster falls back to the first frame.
         duration = _video_duration_s(video)
         audio_index = select_decodable_audio_index(streams)
         return SourceInfo(
@@ -528,30 +526,6 @@ def _is_wide_gamut(info: SourceInfo) -> bool:
     return False
 
 
-def _poster_thumb_time(duration_s: float | None, nominal_fps: float) -> float | None:
-    """Thumbnail timestamp that always lies inside the frame interval.
-
-    The old ``duration >= 1 -> select gte(t,1)`` emitted an empty poster
-    for exact-1.0 s clips (last frame < 1 s) and for unknown durations.
-    Now: no select (first frame) when the duration is unknown or under
-    1 s; otherwise the latest safe time at-or-before 1 s, backed off by
-    one frame interval so the selected frame provably exists even for
-    exact-length or VFR sources.
-    """
-    if duration_s is None or duration_s < 1.0:
-        return None
-    fps = nominal_fps if nominal_fps and nominal_fps > 0 else 60.0
-    # Back off ~2.5 frame intervals from the duration edge so the select
-    # provably matches a real frame even for exact-length clips (the old
-    # one-interval backoff landed just past the last frame timestamp:
-    # 1.0 s @ 30 fps ends at 0.9667 < 0.967 -> empty poster -> EOF fail).
-    # Long clips still pin at ~1 s, avoiding black leaders.
-    thumb_t = min(1.0, max(0.0, duration_s - 2.5 / fps))
-    if thumb_t <= 0.0:
-        return None
-    return round(thumb_t, 3)
-
-
 @dataclass
 class PackagePlan:
     display_w: int
@@ -564,9 +538,7 @@ class PackagePlan:
     hq_dims: tuple[int, int] | None
     hq_aliased_to: str | None  # "light" when HQ is honestly absent
     light_dims: tuple[int, int]
-    poster_dims: tuple[int, int]
-    poster_needs_select: bool  # legacy flag (= poster_thumb_t is not None)
-    poster_thumb_t: float | None  # safe select timestamp, None = first frame
+    poster_dims: tuple[int, int]  # poster rides the light-scale branch; always first decoded frame
     audio_index: int | None
 
 
@@ -587,13 +559,11 @@ def plan_package(info: SourceInfo) -> PackagePlan:
         hq_dims = None
         alias = "light"
     poster_dims = light_dims  # poster rides the light-scale branch size
-    thumb_t = _poster_thumb_time(info.duration_s, info.nominal_fps)
     return PackagePlan(
         display_w=info.display_w, display_h=info.display_h, is_hdr=is_hdr,
         wide_gamut_sdr=wide_sdr, requires_zscale=(is_hdr or wide_sdr), gop=gop,
         hq_applicable=hq_applicable, hq_dims=hq_dims, hq_aliased_to=alias,
         light_dims=light_dims, poster_dims=poster_dims,
-        poster_needs_select=(thumb_t is not None), poster_thumb_t=thumb_t,
         audio_index=info.audio_index,
     )
 
@@ -674,11 +644,13 @@ def build_package_cmd(
     graph_parts.append(f"{labels[idx]}{_scale_branch(lw, lh)}[lt]")
     idx += 1
     pw, ph = plan.poster_dims
-    if plan.poster_thumb_t is not None:
-        t = f"{plan.poster_thumb_t:.3f}"
-        graph_parts.append(f"{labels[idx]}select='gte(t\\,{t})',{_scale_branch(pw, ph)}[po]")
-    else:
-        graph_parts.append(f"{labels[idx]}{_scale_branch(pw, ph)}[po]")
+    # Poster is always the first decoded frame: no time-select. Any
+    # threshold/backoff can land past the last real frame in VFR sources
+    # with a long gap near the end (zero matching frames -> empty JPEG
+    # -> whole package fails), while -frames:v 1 on the shared branch is
+    # guaranteed on any valid video. A representative-frame (~1 s)
+    # quality strategy is explicitly deferred to a later slice.
+    graph_parts.append(f"{labels[idx]}{_scale_branch(pw, ph)}[po]")
     graph = ";".join(graph_parts)
 
     audio = (

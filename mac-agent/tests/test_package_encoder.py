@@ -27,7 +27,6 @@ from src.package_encoder import (
     SourceInfo,
     TranscodeError,
     _parse_decoder_names,
-    _poster_thumb_time,
     _video_duration_s,
     build_derivative_media_key,
     build_package,
@@ -236,11 +235,21 @@ def test_cmd_apac_audio_maps_video_only():
     assert "-an" in cmd and "0:None" not in " ".join(cmd)
 
 
-def test_cmd_poster_select_frame_only_for_long_clips():
-    long_plan = plan_package(_mk_info(1280, 720, duration_s=2.0))
-    short_plan = plan_package(_mk_info(320, 240, duration_s=0.5))
-    assert "select=" in " ".join(build_package_cmd(Path("s"), None, Path("l"), Path("p"), long_plan))
-    assert "select=" not in " ".join(build_package_cmd(Path("s"), None, Path("l"), Path("p"), short_plan))
+def test_cmd_poster_is_first_frame_never_selects():
+    # Contract (review fix): the poster is always the first decoded frame.
+    # No time-select exists at any duration: any threshold/backoff can
+    # land past the last real frame in VFR sources with a long gap near
+    # the end (zero matching frames -> empty JPEG -> whole package
+    # fails), while -frames:v 1 on the shared branch is guaranteed.
+    # (Replaces the old threshold/backoff pin; a representative-frame
+    # quality strategy is deferred to a later slice.)
+    for kw in (dict(duration_s=2.0), dict(duration_s=0.5), dict(duration_s=None)):
+        plan = plan_package(_mk_info(1280, 720, **kw))
+        assert not hasattr(plan, "poster_thumb_t")
+        assert not hasattr(plan, "poster_needs_select")
+        joined = " ".join(build_package_cmd(Path("s"), None, Path("l"), Path("p"), plan))
+        assert "select=" not in joined
+        assert "-frames:v" in joined and "1" in joined
 
 
 # ---------------------------------------------------------------------------
@@ -974,16 +983,13 @@ def test_video_duration_missing_or_invalid_is_none_safe_fallback():
     assert _video_duration_s({"duration": "bogus"}) is None
     assert _video_duration_s({"duration_ts": 0, "time_base": "1/90000"}) is None
     assert _video_duration_s({"nb_frames": "0", "avg_frame_rate": "30/1"}) is None
-    # Unknown -> first frame (no select), never an empty-poster failure.
-    assert _poster_thumb_time(None, 30.0) is None
-    assert _poster_thumb_time(0.5, 30.0) is None
-    # Normal long clip still pins near 1 s (existing contract preserved).
-    thumb = _poster_thumb_time(2.0, 30.0)
-    assert thumb is not None and abs(thumb - 1.0) < 0.01
-    short_plan = plan_package(_mk_info(320, 240, duration_s=None))
-    assert short_plan.poster_thumb_t is None
-    assert "select=" not in " ".join(
-        build_package_cmd(Path("s"), None, Path("l"), Path("p"), short_plan))
+    # Poster no longer uses time at all (always first decoded frame), so
+    # unknown/short/long durations all build a select-free command; the
+    # VIDEO duration above is still what the short-clip GOP check uses.
+    for kw in (dict(duration_s=None), dict(duration_s=0.5), dict(duration_s=2.0)):
+        plan = plan_package(_mk_info(320, 240, **kw))
+        assert "select=" not in " ".join(
+            build_package_cmd(Path("s"), None, Path("l"), Path("p"), plan))
 
 
 def _gen_long_audio_source(path: Path, w: int = 320, h: int = 240,
@@ -1038,3 +1044,116 @@ def test_artifact_long_audio_short_video_poster_and_gop_use_video_end(tmp_path):
     # 0.5 s video is correct even though the container is ~3 s of audio.
     # With container duration this check FAILed (keys=1, dur 3 s).
     assert str(r.validation["checks"].get("light.gop_window", "")).startswith("ok")
+
+
+def _gen_vfr_sparse_tail_gap(path: Path, w: int = 320, h: int = 240,
+                             fps: int = 60, dur: float = 2.0) -> None:
+    """REAL fixture: VFR with sparse frames and a long gap near the end.
+
+    Dense 60 fps for the first 0.5 s, then only every 6th frame
+    (timestamps preserved, so real 0.1 s gaps), plus one trailing frame
+    at ~1.9 s after a ~1.4 s gap. ``r_frame_rate`` stays 60/1 (high
+    nominal cadence) while the actual tail is sparse.
+    """
+    _need_ffmpeg()
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y",
+         "-f", "lavfi", "-i", f"testsrc2=s={w}x{h}:r={fps}:d={dur}",
+         "-vf", "select='lt(t\\,0.5)+gte(t\\,1.9)*eq(mod(n\\,6)\\,0)',"
+                "setpts=PTS-STARTPTS,format=yuv420p",
+         "-vsync", "vfr",
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+         "-color_range", "tv", "-colorspace", "bt709",
+         "-color_primaries", "bt709", "-color_trc", "bt709",
+         str(path)],
+        check=True, capture_output=True, timeout=120)
+
+
+def _gen_vfr_sparse_early_end(path: Path, w: int = 320, h: int = 240) -> None:
+    """REAL fixture: sparse VFR whose last decoded frame precedes 1 s.
+
+    Every 6th frame of a 60 fps base (real 0.1 s gaps, timestamps
+    preserved), ending at 0.7 s. Models the wild tail shape (long-gap
+    VFR / edit-list durations) where the video end sits past the last
+    decoded frame: the removed threshold heuristic computed
+    ``min(1.0, duration - 2.5/nominal)`` = 1.0 s for a 2 s / 60 fps
+    source, i.e. strictly after this file's last frame.
+    """
+    _need_ffmpeg()
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y",
+         "-f", "lavfi", "-i", f"testsrc2=s={w}x{h}:r=60:d=0.77",
+         "-vf", "select='lt(t\\,0.77)*eq(mod(n\\,6)\\,0)',"
+                "setpts=PTS-STARTPTS,format=yuv420p",
+         "-vsync", "vfr",
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+         "-color_range", "tv", "-colorspace", "bt709",
+         "-color_primaries", "bt709", "-color_trc", "bt709",
+         str(path)],
+        check=True, capture_output=True, timeout=120)
+
+
+def test_artifact_vfr_sparse_tail_gap_first_frame_poster(tmp_path):
+    """VFR long-gap tail: threshold-free poster stays non-empty.
+
+    The removed ``select gte(t, <thumb>)`` heuristic could not be proven
+    to match a frame once a long VFR gap covered the threshold (and any
+    video end past the last decoded frame leaves zero matching frames:
+    empty JPEG -> whole package fails). The poster is now the first
+    decoded frame by construction: no threshold, no backoff, no second
+    pass, same single decode/tone-map process.
+    """
+    src = tmp_path / "src.mp4"
+    _gen_vfr_sparse_tail_gap(src)
+    info = probe_source(src, FFPROBE)
+    assert info.r_frame_rate == "60/1"  # high nominal cadence, sparse tail
+    assert info.duration_s is not None and info.duration_s > 1.5
+    last_pts = frame_pts_times_s(src, FFPROBE)[-1]
+    assert last_pts > 1.5  # trailing frame exists after the ~1.4 s gap
+    plan = plan_package(info)
+    assert "select=" not in " ".join(
+        build_package_cmd(Path("s"), None, Path("l"), Path("p"), plan))
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "vfrsparsetail")
+    assert r.poster.path.stat().st_size > 0
+    assert r.poster.path.read_bytes()[:2] == b"\xff\xd8"
+    assert r.validation["checks"].get("poster.jpeg_magic") == "ok"
+    # All HQ/light frames preserved frame-for-frame (passthrough, no CFR).
+    assert r.validation["checks"].get("light.frames") == "ok"
+    assert str(r.validation["checks"].get("light.gop_window", "")).startswith("ok")
+
+
+def test_artifact_vfr_threshold_past_last_frame_still_succeeds(tmp_path):
+    """Threshold-beyond-last-frame shape succeeds via first-frame poster.
+
+    Uses the sparse early-ending VFR fixture (last decoded PTS 0.7 s):
+    the removed heuristic's 1.0 s threshold for a 2 s / 60 fps source
+    sits strictly after the last frame, and running that exact old
+    ``select`` graph against these real timestamps yields zero frames
+    (ffmpeg writes nothing -> the old package failed validation). The
+    threshold-free build on the SAME bytes succeeds with a non-empty
+    JPEG and preserved video frames.
+    """
+    _need_ffmpeg()
+    src = tmp_path / "src.mp4"
+    _gen_vfr_sparse_early_end(src)
+    pts = frame_pts_times_s(src, FFPROBE)
+    assert pts and pts[-1] < 1.0
+    # The removed heuristic computed min(1.0, duration - 2.5/nominal):
+    # 1.0 s for a 2 s / 60 fps source. That exact old select graph on
+    # these real timestamps matches nothing (proves the failure mode).
+    old_poster = tmp_path / "old_poster.jpg"
+    proc = subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-i", str(src),
+         "-vf", "select='gte(t\\,1.000)',scale=320:240:flags=bicubic,"
+                "format=yuv420p",
+         "-frames:v", "1", str(old_poster)],
+        capture_output=True, timeout=120)
+    assert proc.returncode != 0 or not old_poster.exists() \
+        or old_poster.stat().st_size == 0
+    # Same bytes, threshold-free contract: first decoded frame, success.
+    out = tmp_path / "pkg"
+    r = _run_pkg(src, out, "vfrthresholdpastlast")
+    assert r.poster.path.stat().st_size > 0
+    assert r.poster.path.read_bytes()[:2] == b"\xff\xd8"
+    assert r.validation["checks"].get("light.frames") == "ok"

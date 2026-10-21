@@ -422,17 +422,21 @@ shield-reap→cleanup-partial pattern and never touches the source).
   `wide_gamut_sdr` when SDR transfer rides bt2020-family space/primaries
   (needs zscale gamut conversion, else fail-closed); GOP from the nominal
   cadence; HQ/light/poster dims under the §1 short-side rule,
-  `hq_aliased_to="light"` when HQ is honestly absent; `poster_thumb_t` =
-  latest in-interval timestamp at-or-before 1 s (backed off ~2.5 frame
-  intervals so exact-length clips still match a real frame), `None`
-  (= first frame) for short/unknown durations.
+  `hq_aliased_to="light"` when HQ is honestly absent. The poster is
+  always the first decoded frame (plain contract; no time-select, no
+  threshold/backoff): any threshold can land past the last real frame
+  in VFR sources with a long gap near the end, yielding zero frames
+  and failing the whole package, while `-frames:v 1` on the shared
+  branch is guaranteed on any valid video. A representative-frame
+  (~1 s) poster quality strategy is explicitly deferred.
 - `build_package_cmd(...) -> list[str]`: pure. One decode, one tone-map
   (HDR) / gamut pre-convert (wide-gamut SDR) / direct split (narrow SDR),
   `split=` to HQ/light/poster branches, per-branch explicit even scales
   with **real matrix conversion** (`out_color_matrix=bt709`, not a
   retag) + `setsar=1` square pixels, `-fps_mode passthrough`, High@CRF23,
   `maxrate 12M`/`bufsize 24M` on HQ only, AAC from the selected track or
-  `-an`, `+faststart`, poster `-q:v 3` with a safe `t>=thumb_t` select.
+  `-an`, `+faststart`, poster `-q:v 3` with `-frames:v 1` (first decoded
+  frame, never a time-select).
   Threads bounded per variant (default 2).
 - `select_decodable_audio_index(streams, available_decoders=None)`: skips
   unnamed/`none`/`apac` (case-insensitive) plus any named codec with no
@@ -475,16 +479,19 @@ shield-reap→cleanup-partial pattern and never touches the source).
   magic/dims/not-HDR-tagged. GOP allows a single keyframe for clips < 2 s
   (VFR-tolerant window, evidence recorded).
 
-### Test evidence (`mac-agent/tests/test_package_encoder.py`, 51 tests, 1 meaningful skip)
+### Test evidence (`mac-agent/tests/test_package_encoder.py`, 57 tests, 1 meaningful skip)
 
 Synthetic lavfi fixtures in pytest tmp only (no media in Git). This Mac's
 Homebrew ffmpeg (8.1.2, libx264, tonemap, no zscale) ran the SDR matrix:
 landscape/portrait 60/30, VFR (frame count + PTS cadence/duration
 preserved, no `-r`), SEI-rotation (display 480×640 honored), anamorphic
 SAR (SAR-adjusted dims, square-pixel outputs), small source (no upscale,
-HQ→light alias), sub-second and EXACT-1.0 s clips (poster non-empty via a
-safe in-interval thumb time), mp3-audio source (decoder-alias preserved,
-AAC output), timeout kill with pre-existing finals intact + source intact,
+HQ→light alias), sub-second, EXACT-1.0 s, and long-audio/short-video
+clips (poster non-empty via the first-decoded-frame contract; video
+duration still drives the short-clip GOP check), VFR sparse-tail-gap
+regression (threshold-free poster non-empty where the removed heuristic
+computed past the last frame, all video frames preserved), mp3-audio
+source (decoder-alias preserved, AAC output), timeout kill with pre-existing finals intact + source intact,
 SHA-mismatch refusal before ffmpeg, source-inside-outdir refusal, early
 UUID/version failure before work, heartbeat responsiveness during blocking
 phases. Package-ownership matrix (no shared finals): TWO concurrent builds
