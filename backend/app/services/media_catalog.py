@@ -699,6 +699,15 @@ def refresh_catalog_population_run(db: Session, run: MediaCatalogPopulationRun) 
     rendition = "poster" if "poster" not in ready else "proxy_720p"
     job_id_field = "poster_job_id" if rendition == "poster" else "proxy_job_id"
     job = db.get(MediaJob, getattr(item, job_id_field)) if getattr(item, job_id_field) else None
+    # A run active across the Lot-B deploy can point proxy_job_id at a legacy
+    # proxy_360p job. That job may still serve other consumers, so never
+    # cancel/delete it: clear only this item's stale pointer and create/reuse
+    # the target 720p job below. The stale pointer must not count as target
+    # readiness, nor must an old failed/unavailable 360p read as a 720p
+    # failure while the 720p upgrade never ran.
+    if job is not None and (job.rendition != rendition or job.photos_asset_id != catalog.photos_asset_id):
+        setattr(item, job_id_field, None)
+        job = None
     if job and job.status in {"failed", "unavailable"}:
         item.last_error_code = (job.last_error or job.status).split(":", 1)[0]
         previous = db.execute(select(MediaCatalogPopulationItem).where(
