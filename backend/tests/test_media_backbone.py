@@ -313,6 +313,7 @@ class TestStateAuthorityArchitecture:
             # rows after exercising the commit service. Runtime callers
             # remain restricted to the model and commit service above.
             backend_dir / "tests" / "test_postgres_derivative_publisher_d3b1.py",
+            backend_dir / "tests" / "test_postgres_web_package_fenced_slots_d3b2.py",
         }
         hits = []
         for py in backend_dir.rglob("*.py"):
