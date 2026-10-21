@@ -1,6 +1,7 @@
 -- protect_browser_safe_preflight.sql — Lot A read-only pre/postflight.
 --
--- Run BEFORE applying backend/migrations/protect_browser_safe_cache_entries.sql
+-- Run AFTER the deploy barrier (runbook §3 steps 1-4) and BEFORE applying
+-- backend/migrations/protect_browser_safe_cache_entries.sql
 -- (captures the affected scope + required capacity) and AFTER (must show zero
 -- residual expiring/unpinned sole-copy rows). Read-only: only SELECTs.
 -- All counts are aggregates (rendition-level counts/bytes); no per-clip,

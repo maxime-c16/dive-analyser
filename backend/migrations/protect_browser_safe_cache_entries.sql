@@ -36,18 +36,31 @@
 --   live and whenever postflight shows a residual (concurrent finalizers
 --   may insert unpinned rows between preflight and apply).
 -- - BACKWARD COMPATIBLE: no schema change, no row deleted, no media file
---   touched. The previous backend keeps working on the migrated schema: its
+--   touched. Either order boots: the old backend tolerates pinned rows (its
 --   cleaner already excludes pinned rows from both passes, and NULL expiry
---   rows were never TTL-eligible. Safe to apply BEFORE the new backend
---   deploys (required order per docs/REPO_WORKFLOW.md: SQL first, then ship).
+--   rows were never TTL-eligible) and the new backend tolerates unpinned
+--   stock (conservative exclusion spares every ready 720p/poster/360p
+--   regardless of pin). The required procedure is still code-first: confirm
+--   the deploy barrier (new SHA healthy, no old-backend container, runbook
+--   §3 steps 1-4) BEFORE running this UPDATE. Do NOT apply before the
+--   barrier: the old cleaner stays unsafe for unpinned sole-copy rows until
+--   the swap stops it. This code-first exception holds ONLY because this SQL
+--   is data-only with no schema dependency; it does not change the global
+--   docs/REPO_WORKFLOW.md rule (schema migrations still go SQL-first).
 --   The upgrade path is unaffected: legacy 360p rows are retained (never
 --   retired in this transition) and the item is still marked upgraded, so
 --   retention never blocks progression.
--- - ROLLBACK: no rollback SQL is needed. If the deploy is reverted, the
---   pinned rows simply stay protected (fail-safe direction). Unpinning, if
---   ever wanted, is an explicit per-row admin action, not a migration.
+-- - ROLLBACK: no rollback SQL is needed. Rollback unpins nothing, so pinned
+--   rows stay protected (fail-safe direction) — but rows born under the old
+--   writer AFTER a rollback are NOT automatically protected (old finalizer
+--   leaves 720p/poster unpinned, old cleaner has no layer-1 exclusion).
+--   After any rollback, re-run the residual query, re-apply this UPDATE for
+--   new old-writer rows, and re-deploy forward; rows evicted while old code
+--   served are gone (no backfill in this lot). Unpinning, if ever wanted,
+--   is an explicit per-row admin action, not a migration.
 --
--- Apply by hand against Postgres (no migration runner). The babysitter runs
+-- Apply by hand against Postgres (no migration runner), AFTER the deploy
+-- barrier. The babysitter runs
 -- backend/scripts/protect_browser_safe_preflight.sql before AND after, and
 -- only proceeds when the postflight shows zero residual expiring rows.
 UPDATE media_cache_entries
