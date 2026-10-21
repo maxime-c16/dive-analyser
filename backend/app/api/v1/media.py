@@ -409,13 +409,16 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     job = latest_active_job_for_asset(db, asset.id)
 
     # D5 durable-derivative read (additive, read-only): when a ready
-    # light/poster derivative exists for the CURRENT canonical source +
-    # transform, the starter (preview) and player poster resolve to the
-    # durable B2 bytes instead of legacy cache files. Legacy selection
-    # below is untouched and stays the fallback for clips without
-    # durable versions. No jobs, no conversions, no writes here.
+    # light/HQ derivative exists for the CURRENT canonical source +
+    # transform, the starter (preview/playback) and player poster resolve
+    # to the durable B2 bytes instead of legacy cache files. Legacy
+    # original discovery, preferred/available selection below is untouched
+    # and stays the fallback for clips without durable versions
+    # (available/preferred never pretend legacy proxy entries exist).
+    # No jobs, no conversions, no writes here.
     derivatives_payload = None
     derivative_light_url = None
+    derivative_hq_url = None
     derivative_poster_url = None
     settings = get_settings()
     if settings.user_auth_enabled and settings.b2_playback_canary_enabled:
@@ -428,11 +431,20 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         if clip is not None:
             derivatives_payload = DerivativeStatusBlock(**clip.to_status_payload())
             light = clip.roles.get("light")
-            if light is not None and light.state == "ready":
+            if light is not None and light.state == "ready" and light.playback_url:
                 derivative_light_url = light.playback_url
+            hq = clip.roles.get("hq")
+            if hq is not None and hq.state == "ready" and hq.playback_url:
+                derivative_hq_url = hq.playback_url
             poster_role = clip.roles.get("poster")
             if poster_role is not None and poster_role.state == "ready":
                 derivative_poster_url = poster_role.playback_url
+    # Authoritative durable starter: ready light first (fast first frame),
+    # else ready HQ (HQ-only clips have no light proof). Poster-only is
+    # NOT playable and never makes the clip ready. Non-ready ledger
+    # states (stale/superseded/preparing/unavailable) and DEV-only or
+    # wrong-version rows resolve to no URL above, so they stay not-ready.
+    durable_start_url = derivative_light_url or derivative_hq_url
 
     # Original discovery is independent of preview existence.
     backbone_url = _backbone_playback_url(db, asset.video_uuid)
@@ -449,6 +461,15 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     elif preferred:
         status_value = "ready"
         final_playback_url = playback_url(preferred.id)
+    elif durable_start_url:
+        # Verified durable light/HQ for the CURRENT canonical source +
+        # transform is playable even with zero legacy cache entries and
+        # no backbone original (browser_original canonical sources are
+        # excluded from the legacy original selector). Checked before
+        # any legacy job so an active job never overrides verified
+        # durable readiness. Poster-only stays not-ready (no start URL).
+        status_value = "ready"
+        final_playback_url = durable_start_url
     elif job:
         status_value = job.status
         final_playback_url = None
@@ -465,7 +486,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         playback_url=final_playback_url,
         poster_url=derivative_poster_url or (playback_url(poster.id) if poster else None),
         full_quality_url=full_quality,
-        preview_url=derivative_light_url or (playback_url(preview.id) if preview else None),
+        preview_url=durable_start_url or (playback_url(preview.id) if preview else None),
         derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),

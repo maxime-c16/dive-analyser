@@ -146,4 +146,88 @@ describe('D5 derivative contract helpers', () => {
     }
     expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/3/play')
   })
+
+  it('starts browser-original light-only clips with zero cache and no original', () => {
+    // Actual backend shape for a browser_original canonical source with
+    // a ready durable light, zero cache entries and no backbone original.
+    const status: MediaStatus = {
+      video_uuid: 'browser-light',
+      status: 'ready',
+      can_request: true,
+      available_renditions: [],
+      playback_url: '/api/v1/media/revisions/3/play',
+      poster_url: '/api/v1/media/revisions/4/play',
+      full_quality_url: null,
+      preview_url: '/api/v1/media/revisions/3/play',
+      cache_entries: [],
+      job: null,
+      derivatives: {
+        source_revision_id: 1,
+        transform_version: 'ffmpeg-h264-web-v1',
+        start: 'light',
+        recommended: 'light',
+        hq: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+        light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+        poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+      },
+    }
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/3/play')
+    expect(getPreviewPlaybackUrl(status)).toBe('/api/v1/media/revisions/3/play')
+    expect(getQualityChoices(status).map(choice => choice.key)).toEqual(['light'])
+  })
+
+  it('starts browser-original HQ-only clips on the HQ derivative', () => {
+    const status: MediaStatus = {
+      video_uuid: 'browser-hq',
+      status: 'ready',
+      can_request: true,
+      available_renditions: [],
+      playback_url: '/api/v1/media/revisions/2/play',
+      poster_url: null,
+      full_quality_url: null,
+      preview_url: '/api/v1/media/revisions/2/play',
+      cache_entries: [],
+      job: null,
+      derivatives: {
+        source_revision_id: 1,
+        transform_version: 'ffmpeg-h264-web-v1',
+        start: 'hq',
+        recommended: 'hq',
+        hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+        light: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+        poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+      },
+    }
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/2/play')
+    expect(getQualityChoices(status).map(choice => choice.key)).toEqual(['hq'])
+  })
+
+  it('offers nothing playable for poster-only durable clips', () => {
+    const status: MediaStatus = {
+      video_uuid: 'browser-poster',
+      status: 'missing',
+      can_request: true,
+      available_renditions: [],
+      playback_url: null,
+      poster_url: '/api/v1/media/revisions/4/play',
+      full_quality_url: null,
+      preview_url: null,
+      cache_entries: [],
+      job: null,
+      derivatives: {
+        source_revision_id: 1,
+        transform_version: 'ffmpeg-h264-web-v1',
+        start: 'original',
+        recommended: 'original',
+        hq: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+        light: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+        poster: { state: 'ready', playback_url: '/api/v1/media/revisions/4/play', revision_id: 4, aliased_to: null },
+      },
+    }
+    expect(getDerivativePlaybackUrl(status, 'light')).toBeNull()
+    expect(getDerivativePlaybackUrl(status, 'hq')).toBeNull()
+    expect(getPlaybackUrlFromStatus(status)).toBeNull()
+    expect(getPreviewPlaybackUrl(status)).toBeNull()
+    expect(getQualityChoices(status)).toEqual([])
+  })
 })

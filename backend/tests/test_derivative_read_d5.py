@@ -950,3 +950,152 @@ def test_unrelated_db_error_not_masked_as_missing_derivatives(client, monkeypatc
     monkeypatch.setattr(derivative_read_module, "resolve_clip_derivatives", _boom)
     with pytest.raises(sqlalchemy.exc.OperationalError):
         client.get(f"/api/v1/media/{UUID_FULL}/status")
+
+
+# ------------------------------------------------------- review round3
+# Ready durable light/HQ is authoritative for a browser_original canonical
+# source even with zero legacy cache entries and no backbone original
+# (browser_original is excluded from the legacy original selector).
+# Poster-only must NOT read ready; stale rows stay not-ready; an active
+# legacy job must not override verified durable readiness.
+
+
+UUID_BROWSER_LIGHT = "D5000000-0000-4000-8000-000000000021"
+UUID_BROWSER_HQ = "D5000000-0000-4000-8000-000000000022"
+UUID_BROWSER_POSTER = "D5000000-0000-4000-8000-000000000023"
+UUID_BROWSER_JOB = "D5000000-0000-4000-8000-000000000024"
+UUID_BROWSER_STALE = "D5000000-0000-4000-8000-000000000025"
+
+
+def _seed_browser_clip(db, uuid, dive_code, roles, src_seed, status_by_role=None):
+    """Minimal browser_original canonical clip with zero cache and no Mac.
+
+    * source revision semantics ``browser_original`` + one verified PROD
+      B2 replica (canonical for the durable resolver, excluded from the
+      legacy backbone original selector);
+    * requested durable roles as ready (current transform) with derived
+      revisions + verified PROD locations;
+    * no MediaCacheEntry rows, no MediaJob rows.
+    """
+    from datetime import datetime, timedelta
+
+    status_by_role = status_by_role or {}
+    diver = db.query(Diver).filter_by(canonical_name="diver-a").one()
+    session_row = db.query(SessionModel).order_by(SessionModel.id).first()
+    db.add(
+        Dive(
+            visibility="private",
+            session_id=session_row.id,
+            dive_code=dive_code,
+            performance="G",
+            performance_numeric=3,
+            height="1m",
+            video_uuid=uuid,
+            diver_id=diver.id,
+            dive_datetime=datetime.utcnow() - timedelta(hours=1),
+        )
+    )
+    src = _sha(src_seed)
+    db.add(MediaBlob(sha256=src, byte_size=10_000_000, width=1920, height=1080))
+    db.flush()
+    _rev(db, uuid, src, "browser_original")
+    _loc(db, src, "prod", PROD_BUCKET, f"blobs/sha256/{src[:2]}/{src}.mov")
+    for role in roles:
+        dsha = _sha(f"{src_seed}-{role}")
+        _derivative(db, uuid, src, role, dsha, status=status_by_role.get(role, "ready"))
+        semantics = {"hq": "derived_hq", "light": "derived_light", "poster": "derived_poster"}[role]
+        _rev(db, uuid, dsha, semantics)
+        _loc(db, dsha, "prod", PROD_BUCKET, f"blobs/sha256/derived/{role}-{dsha[:8]}.bin")
+    db.add(PhotosAsset(video_uuid=uuid, media_type="video"))
+    db.commit()
+    return src
+
+
+def test_browser_original_light_only_is_ready_with_zero_cache(client, db):
+    _seed_browser_clip(db, UUID_BROWSER_LIGHT, "201B", ("light", "poster"), "d5-browser-light-src")
+    body = _status(client, UUID_BROWSER_LIGHT)
+    deriv = body["derivatives"]
+    assert deriv["light"]["state"] == "ready"
+    light_url = deriv["light"]["playback_url"]
+    assert light_url is not None
+    # Authoritative readiness: no backbone original (browser_original
+    # excluded), no legacy entries, yet playable.
+    assert body["status"] == "ready"
+    assert body["playback_url"] == light_url
+    assert body["preview_url"] == light_url
+    # Original discovery untouched: no backbone, no local original, and
+    # the original must never be served as the web-ready starter.
+    assert body["full_quality_url"] is None
+    assert body["available_renditions"] == []
+    assert body["preferred_rendition"] is None
+    assert body["cache_entries"] == []
+    assert body["job"] is None
+
+
+def test_browser_original_hq_only_is_ready_with_zero_cache(client, db):
+    _seed_browser_clip(db, UUID_BROWSER_HQ, "202B", ("hq",), "d5-browser-hq-src")
+    body = _status(client, UUID_BROWSER_HQ)
+    deriv = body["derivatives"]
+    assert deriv["hq"]["state"] == "ready"
+    assert deriv["light"]["state"] == "missing"
+    hq_url = deriv["hq"]["playback_url"]
+    assert hq_url is not None
+    assert body["status"] == "ready"
+    assert body["playback_url"] == hq_url
+    assert body["preview_url"] == hq_url
+    assert body["full_quality_url"] is None
+    assert body["available_renditions"] == []
+    assert body["cache_entries"] == []
+
+
+def test_browser_original_poster_only_stays_not_ready(client, db):
+    _seed_browser_clip(db, UUID_BROWSER_POSTER, "203B", ("poster",), "d5-browser-poster-src")
+    body = _status(client, UUID_BROWSER_POSTER)
+    deriv = body["derivatives"]
+    assert deriv["poster"]["state"] == "ready"
+    assert deriv["light"]["state"] == "missing"
+    assert deriv["hq"]["state"] == "missing"
+    # Poster alone is never playable readiness.
+    assert body["status"] == "missing"
+    assert body["playback_url"] is None
+    assert body["preview_url"] is None
+    assert body["poster_url"] == deriv["poster"]["playback_url"]
+
+
+def test_browser_original_stale_light_stays_not_ready(client, db):
+    _seed_browser_clip(
+        db, UUID_BROWSER_STALE, "205B", ("light",), "d5-browser-stale-src",
+        status_by_role={"light": "stale"},
+    )
+    body = _status(client, UUID_BROWSER_STALE)
+    assert body["derivatives"]["light"]["state"] == "stale"
+    assert body["derivatives"]["light"]["playback_url"] is None
+    assert body["status"] == "missing"
+    assert body["playback_url"] is None
+    assert body["preview_url"] is None
+
+
+def test_browser_original_active_job_does_not_override_durable_ready(client, db):
+    src = _seed_browser_clip(db, UUID_BROWSER_JOB, "204B", ("light",), "d5-browser-job-src")
+    asset = db.query(PhotosAsset).filter_by(video_uuid=UUID_BROWSER_JOB).one()
+    db.add(
+        MediaJob(
+            photos_asset_id=asset.id,
+            media_key="d5-browser-job-key",
+            rendition="proxy_720p",
+            status="queued",
+            priority=5,
+            request_reason="user_view",
+        )
+    )
+    db.commit()
+    body = _status(client, UUID_BROWSER_JOB)
+    light_url = body["derivatives"]["light"]["playback_url"]
+    assert light_url is not None
+    assert body["status"] == "ready"
+    assert body["playback_url"] == light_url
+    assert body["preview_url"] == light_url
+    # The active legacy job is still disclosed, but it does not override
+    # verified durable readiness.
+    assert body["job"] is not None
+    assert body["job"]["status"] == "queued"
