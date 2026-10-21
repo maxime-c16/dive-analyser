@@ -143,11 +143,15 @@ def _server_source_dims(db, source_sha256: str) -> tuple[int | None, int | None]
     """Server-verified canonical source dims (fail closed, never client trust).
 
     Preferred truth is ``MediaBlob.width/height`` for the pinned canonical
-    SHA (populated by verified ingest). ``PhotosAsset`` dims are NOT used:
-    they may reflect a non-canonical edited rendition (SAR/rotation) and
-    cannot prove the camera bytes the encoder hashed. When the blob has no
-    dims, return (None, None) so the alias path refuses (fail closed) instead
-    of trusting the worker claim.
+    SHA (populated by verified ingest from RAW ffprobe stream
+    width/height). These are CODED dims: pre-rotation, pre-SAR. The
+    encoder plans every slot from DISPLAY dims (SAR-adjusted, then
+    rotation-swapped), so callers must compare through
+    ``_expected_orientations`` (rotation-aware), never raw equality.
+    ``PhotosAsset`` dims are NOT used: they may reflect a non-canonical
+    edited rendition (SAR/rotation) and cannot prove the camera bytes the
+    encoder hashed. When the blob has no dims, return (None, None) so the
+    alias path refuses (fail closed) instead of trusting the worker claim.
     """
     if not source_sha256:
         return None, None
@@ -198,6 +202,29 @@ def _expected_short_side_dims(source_w: int, source_h: int, short_target: int) -
     return (long_t, target_even)
 
 
+def _expected_orientations(source_w: int, source_h: int, short_target: int) -> set[tuple[int, int]]:
+    """Rotation-aware expected dims: ``{E, transpose(E)}`` for coded ``E``.
+
+    The encoder plans from DISPLAY dims (SAR-adjusted, then
+    rotation-swapped for 90/270-degree sources); the server holds CODED
+    dims only (``MediaBlob.width/height`` are raw ffprobe stream dims —
+    verified: ingest stores ``video_stream["width"/"height"]`` verbatim,
+    no rotation/SAR/displaymatrix anywhere server-side). A 90/270-degree
+    rotation only swaps axes, so a rotation-only (SAR == 1) source's honest
+    output is exactly ``E`` or its transpose — identical short side, caps,
+    pixel count, and scale. Accepting either admits valid rotated output
+    without weakening the no-upscale / no-wrong-scale proof: the only newly
+    admitted lie versus exact match is pure transposition, which preserves
+    every scale property this check proves (and the reviewed encoder never
+    emits it for the wrong source — it autorotates from SHA-verified bytes).
+    SAR != 1 (anamorphic) matches NEITHER candidate: display width is
+    ``round(coded_w * SAR)`` with server-unknown SAR, so those outputs fail
+    closed here (documented residual, not guesswork).
+    """
+    exp_w, exp_h = _expected_short_side_dims(source_w, source_h, short_target)
+    return {(exp_w, exp_h), (exp_h, exp_w)}
+
+
 def check_small_source_alias(
     *,
     db,
@@ -215,22 +242,42 @@ def check_small_source_alias(
     Server truth is the LEASE-PINNED canonical source dims (``source_width`` /
     ``source_height`` persisted at lease from ``MediaBlob.width/height``),
     falling back to a live ``MediaBlob`` read only when the pin predates dims
-    persistence. The worker claim (``claimed_w/h``) is NEVER trusted: it is
-    accepted only as a consistency hint when server dims are known, and the
-    alias is refused when server dims are unknown (fail closed). An alias
-    requires a genuinely small source (short side < 1080) and, for the light
-    slot, exact expected dims (no upscale, no over-cap, ratio/SAR and
-    orientation preserved via the encoder's short-side rule).
+    persistence. Those dims are CODED (raw ffprobe stream dims: pre-rotation,
+    pre-SAR — the only verified source geometry the server holds; no
+    rotation/SAR/displaymatrix is persisted anywhere, and no per-slot
+    source download exists to re-probe). The worker claim (``claimed_w/h``,
+    which the encoder reports as DISPLAY dims) is NEVER trusted: it is
+    ignored entirely, and the alias is refused when server dims are unknown
+    (fail closed). An alias requires a genuinely small source (short side
+    < 1080 — rotation-invariant, so rotation needs no alias change) and, for
+    the light slot, rotation-aware exact dims (probed output must equal the
+    coded-derived expectation or its transpose, via
+    ``_expected_orientations``).
 
-    Non-alias slots: when server dims are known, hq/light/poster must ALL
-    match exact expected dims (poster rides the encoder's light-scale branch,
-    so poster expected == light expected). When server dims are unknown the
-    alias is refused but non-alias slots are admitted on caps/format alone
-    (even dims, short side within cap) — the server then CANNOT prove
-    no-upscale; that residual is documented, enforced upstream by the
-    reviewed worker encoder on the SHA-pinned source, and the canary must
-    prefer sources with known canonical dims. No source-original download
-    exists server-side to probe here, and client claims are never adopted.
+    Non-alias slots: when server dims + probed dims are both known, hq/light/
+    poster must ALL match the rotation-aware expectation (poster rides the
+    encoder's light-scale branch, so poster expected == light expected).
+    Rotation-only sources (SAR == 1, including all phone-camera footage)
+    therefore validate exactly; anamorphic (SAR != 1) honest output matches
+    neither candidate and is REFUSED (fail closed) because the server cannot
+    derive display width from coded dims alone — an availability wart in the
+    fail-closed direction, never an admitted guess. When server dims are
+    unknown the alias is refused but non-alias slots are admitted on
+    caps/format alone (even dims, short side within cap) — the server then
+    CANNOT prove no-upscale; that residual is documented, enforced upstream
+    by the reviewed worker encoder on the SHA-pinned source, and the canary
+    must prefer sources with known canonical dims. No source-original
+    download exists server-side to probe here, and client claims are never
+    adopted.
+
+    Narrow plan for full display-dims provenance (needs schema/new source
+    proof, NOT done here — no invented metadata, no DDL this round):
+    persist ``display_width/display_height`` (+ rotation/SAR) at
+    verified-ingest time (the ingest paths already hold the full ffprobe
+    video-stream JSON) as new NULLABLE ``MediaBlob`` columns via a small
+    migration (NULL = unknown → fail closed exactly as today), then compute
+    expectations from display dims here. Alternative: a one-time ranged
+    ffprobe of the canonical B2 bytes at lease (no per-slot download).
     """
     if hq_aliased_to is not None and hq_aliased_to != "light":
         raise ValueError("hq_aliased_to must be 'light' when present")
@@ -262,23 +309,29 @@ def check_small_source_alias(
         return None, None
     if hq_aliased_to != "light":
         # Non-alias: when server dims + probed dims are both known, enforce
-        # exact target dims for hq/light/poster (no up/down beyond cap,
-        # ratio/SAR + orientation preserved). Poster rides the encoder's
-        # light-scale branch: poster expected == light expected. When server
-        # dims are unknown, caps are enforced by validate_slot_artifact;
-        # exactness is checked when possible (documented residual).
+        # rotation-aware exact target dims for hq/light/poster (no up/down
+        # beyond cap, scale preserved; orientation up to transpose since the
+        # server holds coded dims while the encoder emits display dims).
+        # Poster rides the encoder's light-scale branch: poster expected ==
+        # light expected. Anamorphic (SAR != 1) honest output matches neither
+        # candidate and fails closed (documented residual). When server dims
+        # are unknown, caps are enforced by validate_slot_artifact; exactness
+        # is checked when possible (documented residual).
         if probed_w is not None and probed_h is not None and _pin_sha:
             server_w, server_h = _known_dims()
             if server_w is not None and server_h is not None and slot in ("hq", "light", "poster"):
                 try:
                     cap_target = _SHORT_SIDE_HQ_CAP if slot == "hq" else _SHORT_SIDE_LIGHT_CAP
-                    exp_w, exp_h = _expected_short_side_dims(server_w, server_h, cap_target)
+                    candidates = _expected_orientations(server_w, server_h, cap_target)
                 except ValueError as exc:
                     raise ValueError(f"{slot} target dims invalid: {exc}") from exc
-                if (int(probed_w), int(probed_h)) != (exp_w, exp_h):
+                if (int(probed_w), int(probed_h)) not in candidates:
+                    exp_w, exp_h = _expected_short_side_dims(server_w, server_h, cap_target)
                     raise ValueError(
                         f"{slot} dims {probed_w}x{probed_h} != expected {exp_w}x{exp_h} "
-                        f"for source {server_w}x{server_h}"
+                        f"for source {server_w}x{server_h} "
+                        f"(rotation-aware candidates {sorted(candidates)}; anamorphic "
+                        f"SAR!=1 sources are not provable from coded dims alone — failing closed)"
                     )
         return list(PACKAGE_SLOTS)
     server_w, server_h = _known_dims()
@@ -291,13 +344,16 @@ def check_small_source_alias(
         if probed_w is None or probed_h is None:
             raise ValueError("light slot dims unreadable; cannot prove small-source alias")
         try:
-            exp_w, exp_h = _expected_short_side_dims(server_w, server_h, _SHORT_SIDE_LIGHT_CAP)
+            candidates = _expected_orientations(server_w, server_h, _SHORT_SIDE_LIGHT_CAP)
         except ValueError as exc:
             raise ValueError(f"hq_aliased_to rejected: {exc}") from exc
-        if (int(probed_w), int(probed_h)) != (exp_w, exp_h):
+        if (int(probed_w), int(probed_h)) not in candidates:
+            exp_w, exp_h = _expected_short_side_dims(server_w, server_h, _SHORT_SIDE_LIGHT_CAP)
             raise ValueError(
                 f"hq_aliased_to rejected: light dims {probed_w}x{probed_h} != expected {exp_w}x{exp_h} "
-                f"for source {server_w}x{server_h}"
+                f"for source {server_w}x{server_h} "
+                f"(rotation-aware candidates {sorted(candidates)}; anamorphic "
+                f"SAR!=1 sources are not provable from coded dims alone — failing closed)"
             )
     return ["light", "poster"]
 
