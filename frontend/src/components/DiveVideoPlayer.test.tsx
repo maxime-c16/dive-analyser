@@ -325,6 +325,17 @@ it('a video decode error exposes an accessible retry that re-checks status witho
   expect(requestMedia).not.toHaveBeenCalled()
 })
 
+it('an original-only clip honestly shows original quality with an explicit prepare action', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
+  await screen.findByLabelText('103B 1m dive video')
+  // The viewer keeps the playable original, but says so — and offers an
+  // explicit compatible preparation instead of hiding it.
+  expect(screen.getByText('Original')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Prepare clip/ }))
+  expect(requestMedia).toHaveBeenCalledWith('uuid', 'proxy_720p')
+})
+
 it('media readiness is announced once and preparation states use status semantics', async () => {
   vi.useFakeTimers()
   vi.mocked(getMediaStatus).mockResolvedValue(ready)

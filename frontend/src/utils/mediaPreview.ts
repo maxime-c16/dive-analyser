@@ -55,18 +55,31 @@ type StatusShape = {
   status: string
 };
 
+function isGridSafeThumbUrl(url: string | null | undefined): url is string {
+  // Grid tiles may only render cheap local web previews. A B2 revision URL
+  // (/media/revisions/{id}/play) would mint a playback grant plus B2 HEAD /
+  // presigned 302 / HEVC range traffic per visible tile and render black
+  // where HEVC is unsupported — so it must never become a tile source.
+  return !!url && url.includes('/media/cache/');
+}
+
 function previewFromStatus(videoUuid: string, status: StatusShape | undefined): MediaPreview {
   if (!status) {
     return { ...CREATED };
   }
+  const playback = status.playback_url || null;
   return {
     posterUrl: status.poster_url || null,
-    // Keep playback availability for the viewer; Library tiles use posters only.
+    // A ready local web preview doubles as the tile's motion fallback when
+    // the poster is missing or its bytes fail to load. The camera original
+    // (B2 revision URL) must never become a tile source: it would mint a
+    // playback grant plus B2 HEAD / presigned 302 / HEVC range traffic per
+    // visible tile and render black where HEVC is unsupported.
     // playbackUrl is retained separately so instant open/swipe can seed the
     // player without waiting for its own status round-trip.
-    videoThumbUrl: !status.poster_url && status.playback_url ? status.playback_url : null,
-    playbackUrl: status.playback_url || null,
-    ready: Boolean(status.playback_url),
+    videoThumbUrl: isGridSafeThumbUrl(playback) ? playback : null,
+    playbackUrl: playback,
+    ready: Boolean(status.poster_url || (playback && isGridSafeThumbUrl(playback))),
   };
 }
 

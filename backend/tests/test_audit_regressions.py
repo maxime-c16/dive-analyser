@@ -337,10 +337,17 @@ def test_playback_prefers_original_over_preview(test_db, backbone_clock, renditi
     assert result.status == "ready"
     assert result.playback_url == url
     assert result.preferred_rendition == ("original" if expected == "backbone" else rendition)
+    # Tiles stay bounded even where the player prefers the original: only a
+    # ready local web preview is ever exposed, never a B2 revision URL.
     batch = media._thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
-    assert batch["playback_url"] == url
+    if rendition in ("proxy_720p", "proxy_360p"):
+        assert batch["playback_url"] == media.playback_url(entry.id)
+        assert batch["status"] == "ready"
+    else:
+        assert batch["playback_url"] is None
+        assert batch["status"] == "missing"
     bulk = media._thumbnail_status_for_entries(
         test_db, asset.video_uuid, [entry],
         backbone_url=f"/api/v1/media/revisions/{revision}/play" if has_backbone else None,
     )
-    assert bulk["playback_url"] == url
+    assert bulk == batch

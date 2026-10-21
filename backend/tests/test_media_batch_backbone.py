@@ -1,10 +1,10 @@
-"""Batch thumbnail status: cold-backbone batching and friend-role access.
+"""Batch thumbnail status: bounded tiles and friend-role access.
 
-Review P2 x2 on the batch route:
-- with auth+B2 enabled and a cold revision cache, backbone lookups must
-  resolve in one grouped query (not one per uuid);
-- authenticated friends must receive the read-only summary (403 from the
-  mutation guard would collapse the frontend into per-uuid GETs).
+The Library grid batch is deliberately bounded: tiles expose the poster
+plus the ready local web preview only — never the camera original and
+never a B2 revision URL. A grid scroll therefore mints no playback grants
+and downloads no original bytes; the full player status
+(GET /{video_uuid}/status) keeps the explicit original fallback.
 """
 
 from datetime import datetime
@@ -72,7 +72,7 @@ def _seed_backbone_assets(test_db, count):
     test_db.commit()
 
 
-def test_batch_cold_backbone_resolves_in_one_grouped_query(api_client, test_db, monkeypatch):
+def test_batch_never_touches_backbone_for_tiles(api_client, test_db, monkeypatch):
     _flags_on(monkeypatch)
     headers, _user = _session_headers(test_db)
     try:
@@ -95,22 +95,15 @@ def test_batch_cold_backbone_resolves_in_one_grouped_query(api_client, test_db, 
 
         assert response.status_code == 200
         body = response.json()
-        assert all(body[f"clip-{index}"]["status"] == "ready" for index in range(10))
-        assert all(
-            body[f"clip-{index}"]["playback_url"].startswith("/api/v1/media/revisions/")
-            for index in range(10)
-        )
-        media_revision_selects = [
+        # Backbone-only assets render as placeholders: no B2 URL is ever
+        # exposed to a tile, so no grant or original download can follow.
+        assert all(body[f"clip-{index}"]["status"] == "missing" for index in range(10))
+        assert all(body[f"clip-{index}"]["playback_url"] is None for index in range(10))
+        backbone_selects = [
             s for s in statements
-            if s.startswith("SELECT") and "FROM media_revisions" in s
+            if s.startswith("SELECT") and ("FROM media_revisions" in s or "FROM media_blob_locations" in s)
         ]
-        blob_location_selects = [
-            s for s in statements
-            if s.startswith("SELECT") and "FROM media_blob_locations" in s
-            and "media_revisions" not in s
-        ]
-        assert len(media_revision_selects) <= 1, media_revision_selects
-        assert len(blob_location_selects) <= 1, blob_location_selects
+        assert backbone_selects == [], backbone_selects
     finally:
         media._backbone_id_cache.clear()
 

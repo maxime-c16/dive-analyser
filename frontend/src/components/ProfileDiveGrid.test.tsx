@@ -30,12 +30,25 @@ function visible() {
   act(() => intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver))
 }
 
-it('loads a silent B2 first frame only when the tile approaches the viewport', async () => {
+it('never loads a B2 original from a tile, even near the viewport', async () => {
+  const { container } = await grid()
+  expect(container.querySelector('video')).toBeNull()
+  visible()
+  // A B2 revision URL is not a renderable tile source: no grant, no
+  // download, no black tile — the clip link stays usable.
+  expect(container.querySelector('video')).toBeNull()
+  expect(screen.getByRole('link', { name: /102C/ })).toHaveAttribute('href', '/dives?clip=557&scope=all')
+})
+
+it('renders the ready local web preview once the tile approaches the viewport', async () => {
+  const page = await getProfileDives(20)
+  page.items[0].playback_url = '/api/v1/media/cache/20/play'
+  vi.mocked(getProfileDives).mockResolvedValue(page)
   const { container } = await grid()
   expect(container.querySelector('video')).toBeNull()
   visible()
   const video = container.querySelector('video')!
-  expect(video).toHaveAttribute('src', '/api/v1/media/revisions/1785/play#t=0.001')
+  expect(video).toHaveAttribute('src', '/api/v1/media/cache/20/play#t=0.001')
   expect(video).toHaveAttribute('preload', 'metadata')
   expect(video.muted).toBe(true)
   expect(video.autoplay).toBe(false)
@@ -43,9 +56,10 @@ it('loads a silent B2 first frame only when the tile approaches the viewport', a
   expect(screen.getByRole('link', { name: /102C/ })).toHaveAttribute('href', '/dives?clip=557&scope=all')
 })
 
-it('uses the poster first and recovers with B2 if its request fails', async () => {
+it('uses the poster first and recovers with the ready web preview if its request fails', async () => {
   const page = await getProfileDives(20)
   page.items[0].poster_url = '/api/v1/media/cache/20/play'
+  page.items[0].playback_url = '/api/v1/media/cache/21/play'
   vi.mocked(getProfileDives).mockResolvedValue(page)
   const { container } = await grid()
   expect(container.querySelector('img')).toHaveAttribute('src', '/api/v1/media/cache/20/play')

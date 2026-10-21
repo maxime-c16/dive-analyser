@@ -120,10 +120,12 @@ def test_member_endpoints_require_browser_session(workspace):
     assert client.put('/api/v1/users/me/profile', json={'display_name': 'No'}).status_code == 401
 
 
-def test_profile_grid_falls_back_to_verified_b2_without_a_local_poster(workspace, monkeypatch):
+def test_profile_grid_never_serves_originals_without_a_local_preview(workspace, monkeypatch):
+    from app.api.v1 import media as media_api
     from app.config import get_settings
     from app.models.media import MediaCacheEntry
     from app.models.media_backbone import MediaBlobLocation
+    from app.models.photos_asset import PhotosAsset
     db, login, dives, users, _ = workspace
     monkeypatch.setattr(get_settings(), 'b2_playback_canary_enabled', True)
     db.query(MediaCacheEntry).delete()
@@ -135,12 +137,17 @@ def test_profile_grid_falls_back_to_verified_b2_without_a_local_poster(workspace
     client = login('viewer')
     rows = client.get(f"/api/v1/users/{users['alice'].id}/dives").json()['items']
     assert [row['id'] for row in rows] == [dives['alice-public']]
+    # Bounded tile: placeholder, no B2 URL, no grant — even though a verified
+    # original exists.
     assert rows[0]['poster_url'] is None
-    assert rows[0]['playback_url'].startswith('/api/v1/media/revisions/')
+    assert rows[0]['playback_url'] is None
+    # The full player status keeps the explicit original fallback behind auth.
+    asset = db.query(PhotosAsset).filter_by(video_uuid='alice-public-video').one()
+    assert media_api._status_for_asset(db, asset).playback_url.startswith('/api/v1/media/revisions/')
     # The URL remains authenticated and rechecks visibility on every grant.
     db.get(Dive, dives['alice-public']).visibility = 'private'
     db.commit()
-    assert client.get(rows[0]['playback_url']).status_code == 404
+    assert client.get(media_api._status_for_asset(db, asset).playback_url).status_code == 404
     assert client.get(f"/api/v1/users/{users['alice'].id}/dives").json()['items'] == []
 
 

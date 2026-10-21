@@ -56,12 +56,13 @@ it('falls back to the playable proxy when the poster is missing (poster job fail
   expect(video).toHaveAttribute('src', '/api/v1/media/cache/2289/play')
 })
 
-it('falls back to video when the poster image fails to load', () => {
-  // Production never sets videoThumbUrl alongside a poster URL
-  // (mediaPreview.ts), so exercise the playbackUrl fallback path.
+it('falls back to the ready web preview when the poster image fails to load', () => {
+  // The tile carries both the poster and its cheap local web preview, so a
+  // broken poster recovers to motion instead of a blank tile. A B2 original
+  // URL would never be carried here (mediaPreview.ts filters it out).
   vi.mocked(cachedPreview).mockReturnValue({
     posterUrl: '/api/v1/media/cache/broken/play',
-    videoThumbUrl: null,
+    videoThumbUrl: '/api/v1/media/cache/2289/play',
     playbackUrl: '/api/v1/media/cache/2289/play',
     ready: true,
   })
@@ -70,6 +71,18 @@ it('falls back to video when the poster image fails to load', () => {
   const video = container.querySelector('video')
   expect(video).not.toBeNull()
   expect(video).toHaveAttribute('src', '/api/v1/media/cache/2289/play')
+})
+
+it('shows a placeholder rather than the camera original when no web preview exists', () => {
+  vi.mocked(cachedPreview).mockReturnValue({
+    posterUrl: null,
+    videoThumbUrl: null,
+    playbackUrl: '/api/v1/media/revisions/1785/play',
+    ready: false,
+  })
+  const { container } = render(<DiveThumbnail dive={dive} compact />)
+  expect(container.querySelector('video')).toBeNull()
+  expect(screen.getByText('201C')).toBeInTheDocument()
 })
 
 it('compact placeholder still shows the dive code when nothing is playable', () => {
