@@ -179,6 +179,11 @@ class MediaPackageSlotFinalizeRequest(BaseModel):
     hq_aliased_to: Optional[str] = Field(None, pattern="^(light)$")
     source_width: Optional[int] = Field(None, ge=1)
     source_height: Optional[int] = Field(None, ge=1)
+    # Lease-pinned transform echoed from the lease payload (must equal the
+    # persisted job pin AND the canonical transform on EVERY slot). The slot
+    # route requires the same field as Form data; this schema keeps the
+    # contract truthful for any future JSON callers.
+    transform_version: Optional[str] = Field(None, max_length=40)
 
 
 class MediaPackageSlotFinalizeResponse(BaseModel):

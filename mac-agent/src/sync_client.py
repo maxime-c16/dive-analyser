@@ -714,6 +714,7 @@ class SyncClient:
         hq_aliased_to: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        transform_version: str | None = None,
     ) -> Dict[str, Any]:
         """Publish one web_package slot (single-step fenced upload).
 
@@ -739,6 +740,8 @@ class SyncClient:
             fields["source_width"] = str(source_width)
         if source_height is not None:
             fields["source_height"] = str(source_height)
+        if transform_version is not None:
+            fields["transform_version"] = transform_version
         status, body = await asyncio.to_thread(
             _curl_multipart_post,
             url,

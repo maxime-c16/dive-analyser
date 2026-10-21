@@ -49,7 +49,7 @@ def get_finalized_state(job) -> dict[str, Any]:
     """Normalize job.finalized_slots (NULL/[]/{} backward compatible)."""
     raw = getattr(job, "finalized_slots", None)
     if raw is None or raw == [] or raw == {}:
-        return {"source_sha256": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
+        return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
     if isinstance(raw, list):
         # Legacy unexpected shape: treat as slot list without pinning.
         slots: dict[str, Any] = {}
@@ -59,22 +59,24 @@ def get_finalized_state(job) -> dict[str, Any]:
                     "derivative_sha256": entry["derivative_sha256"],
                     "size_bytes": entry.get("size_bytes"),
                 }
-        return {"source_sha256": None, "transform_version": None, "hq_aliased_to": None, "slots": slots}
+        return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": slots}
     if isinstance(raw, dict):
         slots_raw = raw.get("slots", {})
         slots = dict(slots_raw) if isinstance(slots_raw, dict) else {}
         return {
             "source_sha256": raw.get("source_sha256") or raw.get("expected_source_sha256"),
+            "source_revision_id": raw.get("source_revision_id"),
             "transform_version": raw.get("transform_version"),
             "hq_aliased_to": raw.get("hq_aliased_to"),
             "slots": slots,
         }
-    return {"source_sha256": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
+    return {"source_sha256": None, "source_revision_id": None, "transform_version": None, "hq_aliased_to": None, "slots": {}}
 
 
 def set_finalized_state(job, state: dict[str, Any]) -> None:
     job.finalized_slots = {
         "source_sha256": state.get("source_sha256"),
+        "source_revision_id": state.get("source_revision_id"),
         "transform_version": state.get("transform_version"),
         "hq_aliased_to": state.get("hq_aliased_to"),
         "slots": dict(state.get("slots", {})),
@@ -120,19 +122,68 @@ def package_worker_available(db) -> bool:
     return any("web_package" in (agent.capabilities or []) for agent in agents)
 
 
-def _server_source_dims(job) -> tuple[int | None, int | None]:
-    asset = getattr(job, "asset", None)
-    if asset is None:
+def _server_source_dims(db, source_sha256: str) -> tuple[int | None, int | None]:
+    """Server-verified canonical source dims (fail closed, never client trust).
+
+    Preferred truth is ``MediaBlob.width/height`` for the pinned canonical
+    SHA (populated by verified ingest). ``PhotosAsset`` dims are NOT used:
+    they may reflect a non-canonical edited rendition (SAR/rotation) and
+    cannot prove the camera bytes the encoder hashed. When the blob has no
+    dims, return (None, None) so the alias path refuses (fail closed) instead
+    of trusting the worker claim.
+    """
+    if not source_sha256:
         return None, None
     try:
-        w, h = int(asset.width or 0) or None, int(asset.height or 0) or None
-    except (TypeError, ValueError):
-        return None, None
-    return w, h
+        from app.models.media_backbone import MediaBlob
+
+        blob = db.get(MediaBlob, source_sha256.lower()) if db is not None else None
+        if blob is not None and blob.width and blob.height:
+            try:
+                w, h = int(blob.width), int(blob.height)
+                if w > 0 and h > 0:
+                    return w, h
+            except (TypeError, ValueError):
+                pass
+    except Exception:
+        pass
+    return None, None
+
+
+def _expected_short_side_dims(source_w: int, source_h: int, short_target: int) -> tuple[int, int]:
+    """Mirror encoder ``short_side_target_dims`` (never upscale, always even).
+
+    Used to validate exact target dims (no up/down beyond cap, ratio/SAR and
+    orientation preserved). Duplicated here so the server does not import the
+    Mac encoder.
+    """
+    if source_w < 2 or source_h < 2:
+        raise ValueError(f"invalid source dims {source_w}x{source_h}")
+
+    def _even_ceil(x: float) -> int:
+        import math
+
+        n = int(math.ceil(x))
+        return n if n % 2 == 0 else n + 1
+
+    short = min(source_w, source_h)
+    long = max(source_w, source_h)
+    portrait = source_h > source_w
+    if short_target >= short:
+        return (source_w - (source_w % 2), source_h - (source_h % 2))
+    long_t = _even_ceil(long * short_target / short)
+    max_long_even = long - (long % 2)
+    if long_t > max_long_even:
+        long_t = max_long_even
+    target_even = short_target if short_target % 2 == 0 else short_target - 1
+    if portrait:
+        return (target_even, long_t)
+    return (long_t, target_even)
 
 
 def check_small_source_alias(
     *,
+    db,
     job,
     slot: str,
     hq_aliased_to: str | None,
@@ -140,38 +191,65 @@ def check_small_source_alias(
     claimed_h: int | None,
     probed_w: int | None,
     probed_h: int | None,
+    source_sha256: str | None = None,
 ) -> list[str]:
     """Validate the hq_aliased_to claim against server truth, return applicable slots.
 
-    Server dims (PhotosAsset width/height from ingestion) are preferred over
-    the worker's claimed dims — the claim is checked, never trusted alone.
-    An alias requires a genuinely small source (short side < 1080) and, for
-    the light slot, proof of no upscale against the server dims.
+    Server truth is ``MediaBlob.width/height`` for the pinned canonical SHA
+    (verified ingest metadata). The worker claim (``claimed_w/h``) is NEVER
+    trusted: it is accepted only as a consistency hint when server dims are
+    known, and the alias is refused when server dims are unknown (fail
+    closed). An alias requires a genuinely small source (short side < 1080)
+    and, for the light slot, exact expected dims (no upscale, no over-cap,
+    ratio/SAR and orientation preserved via the encoder's short-side rule).
     """
     if hq_aliased_to is not None and hq_aliased_to != "light":
         raise ValueError("hq_aliased_to must be 'light' when present")
+    # Resolve the pinned source SHA: explicit param wins, else the job pin,
+    # else the lease-time persisted pin. Never the worker claim.
+    _pin_sha = source_sha256
+    if not _pin_sha:
+        try:
+            _pin_sha = (get_finalized_state(job).get("source_sha256") or "")
+        except Exception:
+            _pin_sha = ""
     if hq_aliased_to != "light":
+        # Non-alias: when server dims + probed dims are both known, enforce
+        # exact target dims (no up/down beyond cap, ratio/SAR + orientation
+        # preserved). When server dims are unknown, caps are enforced by
+        # validate_slot_artifact; exactness is checked when possible.
+        if probed_w is not None and probed_h is not None and _pin_sha:
+            server_w, server_h = _server_source_dims(db, str(_pin_sha))
+            if server_w is not None and server_h is not None and slot in ("hq", "light"):
+                try:
+                    cap_target = _SHORT_SIDE_HQ_CAP if slot == "hq" else _SHORT_SIDE_LIGHT_CAP
+                    exp_w, exp_h = _expected_short_side_dims(server_w, server_h, cap_target)
+                except ValueError as exc:
+                    raise ValueError(f"{slot} target dims invalid: {exc}") from exc
+                if (int(probed_w), int(probed_h)) != (exp_w, exp_h):
+                    raise ValueError(
+                        f"{slot} dims {probed_w}x{probed_h} != expected {exp_w}x{exp_h} "
+                        f"for source {server_w}x{server_h}"
+                    )
         return list(PACKAGE_SLOTS)
-    server_w, server_h = _server_source_dims(job)
-    ref_w, ref_h = server_w, server_h
-    ref_source = "server"
-    if ref_w is None or ref_h is None:
-        # No server dims: fall back to the worker claim, but still enforce
-        # small-source + no-upscale against the probed slot bytes.
-        ref_w, ref_h, ref_source = claimed_w, claimed_h, "claimed"
-    if ref_w is None or ref_h is None:
-        raise ValueError("hq_aliased_to requires known source dimensions")
-    ref_short = _short_side(ref_w, ref_h)
+    server_w, server_h = _server_source_dims(db, str(_pin_sha or ""))
+    if server_w is None or server_h is None:
+        raise ValueError("hq_aliased_to rejected: canonical source dims unknown; refusing alias (fail closed)")
+    ref_short = _short_side(server_w, server_h)
     if ref_short is None or ref_short >= _SHORT_SIDE_HQ_CAP:
-        raise ValueError(f"hq_aliased_to rejected: {ref_source} source short side {ref_short} is not small")
+        raise ValueError(f"hq_aliased_to rejected: server source short side {ref_short} is not small")
     if slot == "light":
-        probed_short = _short_side(probed_w, probed_h)
-        if probed_short is None:
+        if probed_w is None or probed_h is None:
             raise ValueError("light slot dims unreadable; cannot prove small-source alias")
-        if probed_short >= _SHORT_SIDE_HQ_CAP:
-            raise ValueError("hq_aliased_to rejected: light output is not small-source sized")
-        if probed_short > ref_short:
-            raise ValueError("hq_aliased_to rejected: light output upscaled beyond source")
+        try:
+            exp_w, exp_h = _expected_short_side_dims(server_w, server_h, _SHORT_SIDE_LIGHT_CAP)
+        except ValueError as exc:
+            raise ValueError(f"hq_aliased_to rejected: {exc}") from exc
+        if (int(probed_w), int(probed_h)) != (exp_w, exp_h):
+            raise ValueError(
+                f"hq_aliased_to rejected: light dims {probed_w}x{probed_h} != expected {exp_w}x{exp_h} "
+                f"for source {server_w}x{server_h}"
+            )
     return ["light", "poster"]
 
 
@@ -213,6 +291,26 @@ def _mp4_faststart_ok(path: Path) -> bool | None:
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67", "smpte2084pq"}
 
 
+def _ffmpeg_decode_ok(path: Path) -> bool | None:
+    """Bounded decode probe: can ffmpeg decode the file to null (fail closed).
+
+    Returns True when decode succeeds, False when ffmpeg proves corrupt, None
+    when ffmpeg is unavailable (caller fails closed for hq/light).
+    """
+    try:
+        out = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+        return out.returncode == 0
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return False
+
+
 def validate_slot_artifact(
     *,
     path: Path,
@@ -224,7 +322,10 @@ def validate_slot_artifact(
 
     Returns probed ``{"width", "height", "codec", ...}`` for the alias check.
     Rejects corrupt/truncated/wrong-size bytes (SHA/size), unreadable media,
-    wrong containers, and HDR-tagged outputs (packages must be SDR BT.709).
+    wrong containers, non-BT.709 outputs, non-faststart MP4s (None counts as
+    failure), and undecodable packets (bounded ffmpeg decode to null).
+    Packages must be SDR BT.709 H.264 High / yuv420p / MP4 faststart; posters
+    must be real JPEGs (magic + mjpeg codec) with valid dims.
     """
     if slot not in PACKAGE_SLOTS:
         raise ValueError(f"unknown package slot {slot!r}")
@@ -259,20 +360,80 @@ def validate_slot_artifact(
             raise ValueError(f"{slot} must be H.264 (got {video.get('codec_name')!r})")
         if video.get("pix_fmt") != "yuv420p":
             raise ValueError(f"{slot} must be yuv420p SDR (got {video.get('pix_fmt')!r})")
+        profile = str(video.get("profile", "") or "")
+        if profile.lower() != "high":
+            raise ValueError(f"{slot} must be H.264 High profile (got {profile!r})")
+        for _key in ("color_transfer", "color_primaries", "color_space"):
+            _val = str(video.get(_key, "") or "").lower()
+            if _val != "bt709":
+                raise ValueError(f"{slot} must be BT.709 ({_key}={_val!r}); packages must be tone-mapped SDR")
+        fmt_name = str((data.get("format", {}) or {}).get("format_name", "") or "").lower()
+        if "mp4" not in fmt_name and "mov" not in fmt_name:
+            raise ValueError(f"{slot} must be MP4 container (got {fmt_name!r})")
         if not width or not height or width <= 0 or height <= 0:
             raise ValueError(f"{slot} has invalid dims")
         if width % 2 or height % 2:
             raise ValueError(f"{slot} dims must be even (got {width}x{height})")
-        if _mp4_faststart_ok(path) is False:
-            raise ValueError(f"{slot} is not faststart (moov after mdat)")
+        _fast = _mp4_faststart_ok(path)
+        if _fast is not True:
+            raise ValueError(f"{slot} is not faststart (moov before mdat required, got {_fast})")
         short = _short_side(int(width), int(height))
         cap = _SHORT_SIDE_HQ_CAP if slot == "hq" else _SHORT_SIDE_LIGHT_CAP
         if short is not None and short > cap:
             raise ValueError(f"{slot} short side {short} exceeds cap {cap}")
+        if _ffmpeg_decode_ok(path) is not True:
+            raise ValueError(f"{slot} failed bounded decode probe; refusing corrupt packets")
     else:
+        if video.get("codec_name") not in ("mjpeg", "jpg", "jpeg"):
+            raise ValueError(f"poster must be JPEG (got {video.get('codec_name')!r})")
         if not width or not height or width <= 0 or height <= 0:
             raise ValueError("poster has invalid dims")
+        if int(width) % 2 or int(height) % 2:
+            raise ValueError(f"poster dims must be even (got {width}x{height})")
+        _pshort = _short_side(int(width), int(height))
+        if _pshort is not None and _pshort > _SHORT_SIDE_LIGHT_CAP:
+            raise ValueError(f"poster short side {_pshort} exceeds cap {_SHORT_SIDE_LIGHT_CAP}")
     return {"width": int(width), "height": int(height), "codec": video.get("codec_name"), "pix_fmt": video.get("pix_fmt")}
+
+
+def _is_ledger_slot_durable(db, *, video_uuid: str, source_sha256: str, role: str,
+                            transform_version: str, derivative_sha256: str) -> bool:
+    """True when the ledger + PROD replica prove this slot durable (fail closed).
+
+    Requires a ``ready`` ``MediaDerivative`` row with the exact identity +
+    bytes, plus a verified PROD B2 replica for the derivative bytes. DEV-only
+    replicas, ``stale``/``verifying`` rows, removed rows, or SHA mismatches
+    never count — so a DEV publish can never mark a production job ready, and
+    a pruned/stale ledger cannot fake readiness.
+    """
+    try:
+        from sqlalchemy import select
+
+        from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+
+        row = db.execute(
+            select(MediaDerivative).where(
+                MediaDerivative.video_uuid == video_uuid,
+                MediaDerivative.source_blob_sha256 == source_sha256.lower(),
+                MediaDerivative.role == role,
+                MediaDerivative.transform_version == transform_version,
+            )
+        ).scalar_one_or_none()
+        if row is None or row.status != "ready":
+            return False
+        if str(row.derivative_blob_sha256 or "").lower() != derivative_sha256.lower():
+            return False
+        loc = db.execute(
+            select(MediaBlobLocation).where(
+                MediaBlobLocation.blob_sha256 == derivative_sha256.lower(),
+                MediaBlobLocation.environment == "prod",
+                MediaBlobLocation.verified.is_(True),
+                MediaBlobLocation.storage_backend == "b2",
+            ).limit(1)
+        ).scalar_one_or_none()
+        return loc is not None
+    except Exception:
+        return False
 
 
 def make_slot_guard(
@@ -285,16 +446,20 @@ def make_slot_guard(
     applicable: list[str],
     hq_aliased_to: str | None,
     transform_version: str | None,
+    claimed_transform_version: str | None = None,
 ):
     """Build the publisher pre-commit hook for one slot.
 
     Runs with the ledger row lock held, inside the committing unit: validates
     the D2 lease (owner/expiry/token via ``_guarded_job`` with row lock),
-    the source pin (claimed == ctx == current canonical is checked by the
-    publisher drift guards; here we bind the job to the same pin), then
-    accumulates the slot into ``finalized_slots`` and marks the job ready
-    ONLY when every applicable slot is durably recorded. Idempotent per-slot
-    retries (same bytes) dedupe; different bytes conflict.
+    the lease-pinned source/version (claimed == pin == ctx on EVERY slot, token
+    bound to the same attempt), then accumulates the slot into
+    ``finalized_slots`` and marks the job ready ONLY when every applicable
+    slot is VERIFIED DURABLE in the ledger (PROD replica required; DEV never
+    counts). The current slot is trusted via the publisher's roundtrip proof
+    (same TX); prior slots are re-read from the ledger (stale/removed never
+    counts). Idempotent per-slot retries (same bytes) dedupe; different bytes
+    conflict. Alias cannot flip mid-package.
     """
     from app.services.media_jobs import LEASED_JOB_STATUSES, _guarded_job
 
@@ -306,14 +471,16 @@ def make_slot_guard(
 
         if _slot not in _applicable:
             raise ValueError(f"slot {_slot!r} is not applicable for this package")
-        if claimed_source_sha256.lower() != ctx.source_blob_sha256.lower():
-            from app.services.derivative_publisher import StaleSourceError
-
-            raise StaleSourceError("package slot source does not match canonical source; refusing ready")
+        # Applicable must match the alias (cannot smuggle hq when aliased).
+        _expected_applicable = ["light", "poster"] if hq_aliased_to == "light" else ["hq", "light", "poster"]
+        if sorted(_applicable) != sorted(_expected_applicable):
+            raise ValueError(f"applicable {sorted(_applicable)} does not match hq_aliased_to={hq_aliased_to!r}")
         # Row-locked authoritative lease recheck: expiry, owner, token. A
         # mid-upload re-lease (even to the SAME agent) carries a new token,
         # so the stale attempt's token mismatches here and its verified B2
-        # bytes stay a safe orphan.
+        # bytes stay a safe orphan. The job row lock is held through commit
+        # (FOR UPDATE in this TX), so expiry cannot slip between this check
+        # and the commit; reclaim blocks on the same row lock.
         try:
             job = _guarded_job(db, job_id, agent_id, lease_token, None, lock=True)
         except ValueError:
@@ -323,10 +490,66 @@ def make_slot_guard(
             raise StaleSourceError("package job not found; refusing ready") from None
         if getattr(job, "rendition", None) != "web_package":
             raise ValueError("package slot guard requires a web_package job")
+        # Lease-pinned identity: claimed == pin == ctx on EVERY slot.
+        # The pin was persisted at lease (source SHA + transform). A source
+        # change between lease and first slot must REJECT (not retag), and a
+        # transform mismatch on later slots must reject (first slot cannot set
+        # from a CLAIM transform over ctx).
+        state = get_finalized_state(job)
+        _pinned_source = (state.get("source_sha256") or "")
+        _pinned_version = state.get("transform_version")
+        _pinned_alias = state.get("hq_aliased_to")
+        _claimed_source = (claimed_source_sha256 or "").lower()
+        _ctx_source = (ctx.source_blob_sha256 or "").lower()
+        _ctx_version = (ctx.transform_version or "")
+        # Backward compat: tests/callers that omit the transform pin mean
+        # "the canonical transform" (ctx). Explicit mismatches still reject.
+        _claimed_version = (claimed_transform_version or transform_version or _ctx_version or "")
+        if _pinned_source:
+            if _claimed_source != _pinned_source.lower():
+                from app.services.derivative_publisher import StaleSourceError
+
+                raise StaleSourceError(
+                    "package slot source does not match lease pin; refusing ready (source changed since lease)"
+                )
+            if _ctx_source != _pinned_source.lower():
+                from app.services.derivative_publisher import StaleSourceError
+
+                raise StaleSourceError("package slot source does not match canonical source; refusing ready")
+        else:
+            # Legacy job without a lease pin (queued before the pin): bind
+            # only when claimed == ctx (current canonical), otherwise reject
+            # instead of retagging to a newer revision.
+            if _claimed_source != _ctx_source:
+                from app.services.derivative_publisher import StaleSourceError
+
+                raise StaleSourceError("package slot source does not match canonical source; refusing ready")
+        # Transform must agree lease-pin == ctx == request on EVERY slot.
+        _effective_pinned_version = _pinned_version or _ctx_version
+        if _pinned_version:
+            if str(_claimed_version or "").strip() != str(_pinned_version).strip():
+                raise ValueError(
+                    f"package transform mismatch: claimed {_claimed_version!r} != lease pin {_pinned_version!r}"
+                )
+            if str(_ctx_version or "").strip() != str(_pinned_version).strip():
+                from app.services.derivative_publisher import StaleSourceError
+
+                raise StaleSourceError(
+                    f"package transform drifted: ctx {_ctx_version!r} != lease pin {_pinned_version!r}"
+                )
+        else:
+            # No pin yet: claimed must equal ctx (cannot set pin from a claim
+            # that disagrees with the canonical transform).
+            if str(_claimed_version or "").strip() != str(_ctx_version or "").strip():
+                raise ValueError(
+                    f"package transform mismatch: claimed {_claimed_version!r} != canonical {_ctx_version!r}"
+                )
+        # Alias cannot flip mid-package (including None vs "light").
+        if _pinned_alias is not None and hq_aliased_to != _pinned_alias:
+            raise ValueError("hq_aliased_to changed between slots in one package")
         if job.status == "ready":
             # Idempotent replay after completion: only the exact same bytes
             # for an already-finalized slot dedupe; anything else is stale.
-            state = get_finalized_state(job)
             prev = state.get("slots", {}).get(_slot)
             if prev is not None and str(prev.get("derivative_sha256", "")).lower() == derivative_sha.lower():
                 return
@@ -336,7 +559,6 @@ def make_slot_guard(
         if job.status not in LEASED_JOB_STATUSES and job.status != "verifying":
             raise PermissionError(f"media_job_invalid_state:{job.status}")
         # Lease state is enforced by _guarded_job above (owner/expiry/token).
-        state = get_finalized_state(job)
         prev = state.get("slots", {}).get(_slot)
         if prev is not None:
             if str(prev.get("derivative_sha256", "")).lower() != derivative_sha.lower():
@@ -352,20 +574,69 @@ def make_slot_guard(
                 "size_bytes": derivative_size,
             }
         # Pin the derivation identity on first slot; later slots must agree.
+        # The lease already persisted the pin (source + version); here we
+        # only fill a missing legacy pin (claimed == ctx already proven) and
+        # enforce agreement otherwise. A source change between lease and first
+        # slot REJECTS (not retags): the pinned source must equal ctx.
         if state.get("source_sha256") is None:
             state["source_sha256"] = ctx.source_blob_sha256
-            state["transform_version"] = transform_version or ctx.transform_version
+            state["transform_version"] = _claimed_version or ctx.transform_version
             state["hq_aliased_to"] = hq_aliased_to
+            try:
+                _ctx_rev_id = int(getattr(ctx, "source_revision_id", 0) or 0) or None
+            except (TypeError, ValueError):
+                _ctx_rev_id = None
+            state["source_revision_id"] = _ctx_rev_id
         else:
-            if str(state["source_sha256"]).lower() != ctx.source_blob_sha256.lower():
+            if str(state["source_sha256"]).lower() != _ctx_source.lower():
                 from app.services.derivative_publisher import StaleSourceError
 
                 raise StaleSourceError("package source changed between slots; refusing ready")
+            if str(state.get("transform_version") or "") != str(_effective_pinned_version or ""):
+                # Keep the lease pin authoritative; a drift here is stale.
+                from app.services.derivative_publisher import StaleSourceError
+
+                raise StaleSourceError("package transform changed between slots; refusing ready")
             if hq_aliased_to != state.get("hq_aliased_to"):
                 raise ValueError("hq_aliased_to changed between slots in one package")
         set_finalized_state(job, state)
-        finalized = {s for s in state["slots"]}
-        if all(s in finalized for s in _applicable):
+        # Ready ONLY when every applicable slot is VERIFIED DURABLE in the
+        # ledger (PROD replica). The current slot is proven by this TX's
+        # roundtrip (upload + full-byte verify already passed, ledger commit
+        # follows atomically below) — but only when publishing in PROD. DEV
+        # publishes never mark ready. Prior slots are re-read from the ledger:
+        # stale/removed/mismatched bytes never count.
+        _video_uuid = job.asset.video_uuid if getattr(job, "asset", None) is not None else ctx.video_uuid
+        _pin_source = str(state.get("source_sha256") or _ctx_source)
+        _pin_version = str(state.get("transform_version") or _ctx_version)
+        _all_durable = True
+        for _role in _applicable:
+            _entry = state.get("slots", {}).get(_role)
+            if _entry is None:
+                _all_durable = False
+                break
+            if _role == _slot:
+                if str(environment or "").lower() != "prod":
+                    _all_durable = False
+                    break
+                continue
+            if not _is_ledger_slot_durable(
+                db,
+                video_uuid=_video_uuid,
+                source_sha256=_pin_source,
+                role=_role,
+                transform_version=_pin_version,
+                derivative_sha256=str(_entry.get("derivative_sha256") or ""),
+            ):
+                _all_durable = False
+                break
+        # The current slot's own ledger row commits atomically below; the
+        # durable proof for it is this TX (roundtrip verified + PROD env).
+        # Prior slots must already be durable per the loop above.
+        if _all_durable and str(environment or "").lower() == "prod":
+            # Final gate: the current slot's env must be PROD (checked above
+            # via the loop's _role == _slot branch) and every prior slot must
+            # be ledger-durable. Mark ready.
             job.status = "ready"
             job.progress = 100
             job.completed_at = datetime.utcnow()

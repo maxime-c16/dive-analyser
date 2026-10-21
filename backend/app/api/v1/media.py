@@ -1469,6 +1469,7 @@ async def publish_package_slot(
     hq_aliased_to: str | None = Form(None),
     source_width: int | None = Form(None),
     source_height: int | None = Form(None),
+    transform_version: str | None = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -1561,6 +1562,7 @@ async def publish_package_slot(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         try:
             applicable = check_small_source_alias(
+                db=db,
                 job=job,
                 slot=slot,
                 hq_aliased_to=hq_aliased_to,
@@ -1568,6 +1570,7 @@ async def publish_package_slot(
                 claimed_h=source_height,
                 probed_w=probed.get("width"),
                 probed_h=probed.get("height"),
+                source_sha256=source_sha256,
             )
         except ValueError as exc:
             db.rollback()
@@ -1605,7 +1608,8 @@ async def publish_package_slot(
             slot=slot,
             applicable=applicable,
             hq_aliased_to=hq_aliased_to,
-            transform_version=get_derivative_transform_version(),
+            transform_version=transform_version or get_derivative_transform_version(),
+            claimed_transform_version=transform_version or get_derivative_transform_version(),
         )
         try:
             result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)

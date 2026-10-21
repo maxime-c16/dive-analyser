@@ -249,10 +249,14 @@ class MediaSourceVault:
         """Record durable Debian output completion and start temporary grace.
 
         Lot B: a source is finalised by poster + any proxy (720p preferred,
-        legacy 360p accepted for old rows). A mere job request or a failed
-        transcode never calls this (callers only mark after a verified
-        upload + finalize); without both sides this stays unverified and
-        cleanup keeps skipping it. Retention guards are unchanged.
+        legacy 360p accepted for old rows). D3b2: ``web_package`` is the
+        fenced single-pass triple (hq/light/poster) — it sets BOTH sides at
+        once (poster + proxy_720p), but ONLY after the server confirms
+        ``job_ready`` (every applicable slot VERIFIED DURABLE in the ledger,
+        PROD replica). A mere job request, a partial slot, or a failed
+        transcode never calls this (callers only mark after ``job_ready``);
+        without both sides this stays unverified and cleanup keeps skipping
+        it. Retention guards are unchanged. Never deletes originals.
         """
         validate_uuid(video_uuid)
         uuid_dir = self._safe_uuid_dir(video_uuid)
@@ -265,6 +269,11 @@ class MediaSourceVault:
         elif rendition in ("proxy_720p", "proxy_360p"):
             data["proxy_ready"] = True
             data["proxy_rendition"] = rendition
+        elif rendition == "web_package":
+            # Fenced triple: poster + light (+hq when applicable) durable.
+            data["poster_ready"] = True
+            data["proxy_ready"] = True
+            data["proxy_rendition"] = "proxy_720p"
         data["last_accessed_at"] = datetime.now(timezone.utc).isoformat()
         if data.get("poster_ready") and data.get("proxy_ready"):
             data["durable_outputs_verified"] = True

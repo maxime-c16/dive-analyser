@@ -54,6 +54,7 @@ def _package_job(**extra):
         "source_sha256": "a" * 64,
         "source_size_bytes": 12,
         "lease_token": "tok",
+        "transform_version": "ffmpeg-h264-web-v1",
         **extra,
     }
     return job
@@ -113,13 +114,19 @@ def test_package_single_pass_threads_one_and_slots_published(tmp_path, monkeypat
     assert out == {"job_ready": True}
     # Single pass, threads bounded to 1 per variant.
     assert len(build_calls) == 1 and build_calls[0].get("threads_per_variant") == 1
-    # Three sequential fenced slot publishes.
+    # Three sequential fenced slot publishes with the lease transform pin.
     calls = [c for c in sync_client.publish_package_slot.mock_calls if c and c[0] == ""]
     assert len(calls) == 3
     slots = [c[1][3] for c in calls]
     assert slots == ["hq", "light", "poster"]
-    # Vault marked ready only after verified durable completion.
-    vault.mark_media_ready.assert_called_once()
+    for c in calls:
+        assert c[2].get("transform_version") == "ffmpeg-h264-web-v1" or (
+            len(c[1]) > 12 and c[1][12] == "ffmpeg-h264-web-v1"
+        ) or "ffmpeg-h264-web-v1" in str(c)
+    # Vault marked ready only after verified durable completion (web_package
+    # sets both poster + proxy sides, never before job_ready).
+    vault.mark_media_ready.assert_called_once_with(
+        "11111111-1111-1111-1111-111111111111", "web_package")
     assert cleaned == [True]
 
 

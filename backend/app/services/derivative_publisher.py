@@ -894,19 +894,55 @@ def publish_derivative(
             db.rollback()
         except Exception:
             pass
-        # Concurrent same-identity winner: re-read the rival AND recheck
-        # the source (a drifted source never resolves to ready, even for
-        # an idempotent replay).
-        rival = _read_existing_ledger_row(db, ctx, for_update=False)
+        # Concurrent same-identity winner: re-read the rival UNDER the ledger
+        # row lock (FOR UPDATE on PG) AND recheck the source, then run the
+        # fenced hook in the SAME TX before any ready decision (a drifted
+        # source never resolves to ready, even for an idempotent replay).
+        # Lock ordering stays ledger -> job (never job -> ledger) so two
+        # concurrent slots for one job (different ledger rows, one job row)
+        # serialize without deadlock. No ready (including dedup) returns
+        # without the D2 current-claim + source authoritative check.
+        rival = _read_existing_ledger_row(db, ctx, for_update=True)
         rival_sha, rival_drifted = _resolve_current_source_sha(db, ctx.video_uuid)
-        try:
-            db.rollback()
-        except Exception:
-            pass
         if rival_drifted or rival_sha != ctx.source_blob_sha256:
+            try:
+                db.rollback()
+            except Exception:
+                pass
             raise StaleSourceError(
                 "canonical source changed during commit; recorded nothing, not ready"
             ) from None
+        if pre_commit_hook is not None:
+            try:
+                pre_commit_hook(
+                    db,
+                    ctx,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    object_key=key,
+                    bucket=bucket,
+                    environment=environment,
+                )
+            except _CommittedStale:
+                raise
+            except (DerivativePublishError, StaleSourceError, DerivativeIdentityConflict):
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise
+            except PermissionError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
+            except ValueError as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise DerivativePublishError(str(exc) or "fenced claim rejected") from exc
         if (
             rival is not None
             and rival.derivative_blob_sha256 == derivative_sha

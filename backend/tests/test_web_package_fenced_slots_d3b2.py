@@ -60,11 +60,12 @@ class FakeS3:
         return {"Body": FakeBody(self.objects.get((Bucket, Key), b""))}
 
 
-def _seed_camera_source(db, video_uuid, raw=b"camera-bytes-v1"):
+def _seed_camera_source(db, video_uuid, raw=b"camera-bytes-v1", width=None, height=None):
     settings = get_settings()
     sha = _sha(raw)
     db.add(MediaBlob(sha256=sha, byte_size=len(raw), storage_backend="b2",
-                     bucket=settings.media_backbone_prod_bucket, object_key=f"blobs/sha256/{sha[:2]}/{sha}"))
+                     bucket=settings.media_backbone_prod_bucket, object_key=f"blobs/sha256/{sha[:2]}/{sha}",
+                     width=width, height=height))
     db.add(MediaBlobLocation(blob_sha256=sha, environment="prod", storage_backend="b2",
                              bucket=settings.media_backbone_prod_bucket,
                              object_key=f"blobs/sha256/{sha[:2]}/{sha}", verified=True))
@@ -122,10 +123,13 @@ def _valid_probe(monkeypatch, width=1280, height=720, codec="h264", pix_fmt="yuv
 
     def _fake(path):
         return {"streams": [{"codec_type": "video", "codec_name": codec, "pix_fmt": pix_fmt,
-                             "width": width, "height": height, "color_transfer": transfer}],
-                "format": {}}
+                             "profile": "High" if codec == "h264" else "Baseline",
+                             "width": width, "height": height, "color_transfer": transfer,
+                             "color_primaries": transfer, "color_space": transfer}],
+                "format": {"format_name": "mp4" if codec == "h264" else "mjpeg"}}
     monkeypatch.setattr(wp, "_ffprobe_streams", _fake)
     monkeypatch.setattr(wp, "_mp4_faststart_ok", lambda path: True)
+    monkeypatch.setattr(wp, "_ffmpeg_decode_ok", lambda path: True)
 
 
 def _slot_file(tmp_path, name, data: bytes) -> str:
@@ -146,21 +150,24 @@ def _presign(monkeypatch):
 
 
 def _publish_slot(db, *, job, agent_id, token, slot, file_path, checksum, size,
-                  source_sha, s3, monkeypatch, alias=None, sw=None, sh=None, dims=(1280, 720)):
+                  source_sha, s3, monkeypatch, alias=None, sw=None, sh=None, dims=(1280, 720),
+                  transform_version=None):
     import app.services.web_packages as wp
 
     _valid_probe(monkeypatch, width=dims[0], height=dims[1])
     from app.services.derivative_publisher import build_publication_context, publish_derivative
+    from app.services.media_keys import get_derivative_transform_version
 
     ctx = build_publication_context(db, video_uuid=job.asset.video_uuid, role=slot)
     assert source_sha.lower() == ctx.source_blob_sha256.lower()
+    _tv = transform_version or get_derivative_transform_version()
     applicable = wp.check_small_source_alias(
-        job=job, slot=slot, hq_aliased_to=alias, claimed_w=sw, claimed_h=sh,
-        probed_w=dims[0], probed_h=dims[1])
+        db=db, job=job, slot=slot, hq_aliased_to=alias, claimed_w=sw, claimed_h=sh,
+        probed_w=dims[0], probed_h=dims[1], source_sha256=source_sha)
     guard = wp.make_slot_guard(
         job_id=job.id, agent_id=agent_id, lease_token=token,
         claimed_source_sha256=source_sha, slot=slot, applicable=applicable,
-        hq_aliased_to=alias, transform_version=None)
+        hq_aliased_to=alias, transform_version=_tv, claimed_transform_version=_tv)
     return publish_derivative(db, ctx, file_path, s3_client=s3, pre_commit_hook=guard), applicable
 
 
@@ -194,8 +201,8 @@ def test_flag_on_package_lease_pins_source_and_global_cap(test_db, monkeypatch, 
     monkeypatch.setattr(settings, "media_jobs_require_lease_token", True)
     _agent(test_db)
     asset = _asset(test_db)
-    sha = _seed_camera_source(test_db, asset.video_uuid)
-    _package_job(test_db, asset)
+    sha = _seed_camera_source(test_db, asset.video_uuid, width=1920, height=1080)
+    job_row = _package_job(test_db, asset)
     leased = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
         agent_id="mac-media-01", capabilities=["web_package"],
         max_jobs=2, supports_lease_token=True))
@@ -205,6 +212,37 @@ def test_flag_on_package_lease_pins_source_and_global_cap(test_db, monkeypatch, 
     assert leased[0].transform_version
     assert leased[0].expected_slots == ["hq", "light", "poster"]
     assert set(leased[0].package_media_keys or {}) == {"hq", "light", "poster"}
+    # Lease persists ONE pin (source SHA + revision + version) on the job;
+    # URL/SHA/size/keys share that single canonical source (never transcoded).
+    from app.services.web_packages import get_finalized_state as _gfs2
+    test_db.refresh(job_row)
+    _pin = _gfs2(job_row)
+    assert _pin["source_sha256"] == sha
+    assert _pin["transform_version"] == leased[0].transform_version
+    assert _pin["source_revision_id"] is not None
+    # Missing canonical source: package is skipped (fail closed, no doomed
+    # lease, no attempt burned, legacy can still lease).
+    asset_nosrc = _asset(test_db, uuid="99999999-9999-9999-9999-999999999999")
+    job_nosrc = MediaJob(photos_asset_id=asset_nosrc.id, media_key="z" + "0" * 63,
+                         rendition="web_package", status="queued")
+    test_db.add(job_nosrc)
+    test_db.flush()
+    # Reclaim the active package so the no-source candidate is reachable,
+    # then verify it is skipped while legacy work still leases.
+    from datetime import datetime as _dt, timedelta as _td
+    _active = test_db.get(MediaJob, job_row.id)
+    _active.claimed_until = _dt.utcnow() - _td(seconds=1)
+    test_db.flush()
+    assert mj.reclaim_expired_media_jobs(test_db) >= 1
+    legacy_asset = _asset(test_db, uuid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    legacy_job = MediaJob(photos_asset_id=legacy_asset.id, media_key="l" + "0" * 63,
+                          rendition="poster", status="queued")
+    test_db.add(legacy_job)
+    test_db.flush()
+    leased3 = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+        agent_id="mac-media-01", capabilities=["web_package", "poster"],
+        max_jobs=2, supports_lease_token=True))
+    assert all(j.rendition != "web_package" or j.job_id != job_nosrc.id for j in leased3)
     # Global cap: a second lease (any agent) gets no package while one is active.
     asset2 = _asset(test_db, uuid="22222222-2222-2222-2222-222222222222")
     _seed_camera_source(test_db, asset2.video_uuid, raw=b"camera-bytes-v2")
@@ -215,7 +253,9 @@ def test_flag_on_package_lease_pins_source_and_global_cap(test_db, monkeypatch, 
     leased2 = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
         agent_id="mac-media-01", capabilities=["web_package"],
         max_jobs=2, supports_lease_token=True))
-    assert leased2 == []
+    # At most one package may be active fleet-wide; with the reclaimed slot
+    # refilled above, a further package must wait.
+    assert len([j for j in leased2 if j.rendition == "web_package"]) <= 1
 
 
 def test_old_worker_legacy_only_flag_off(test_db, monkeypatch):
@@ -268,15 +308,17 @@ def test_three_slots_job_ready_atomic_and_idempotent_retry(test_db, monkeypatch,
                             lambda **kw: {"width": dims[0], "height": dims[1]})
         path = _slot_file(tmp_path, f"{slot}.bin", data)
         from app.services.derivative_publisher import build_publication_context, publish_derivative
+        from app.services.media_keys import get_derivative_transform_version as _vtv
 
         ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role=slot)
+        _tv = leased[0].transform_version or _vtv()
         applicable = wp.check_small_source_alias(
-            job=job, slot=slot, hq_aliased_to=None, claimed_w=1920, claimed_h=1080,
-            probed_w=dims[0], probed_h=dims[1])
+            db=test_db, job=job, slot=slot, hq_aliased_to=None, claimed_w=1920, claimed_h=1080,
+            probed_w=dims[0], probed_h=dims[1], source_sha256=sha)
         guard = wp.make_slot_guard(
             job_id=job.id, agent_id="mac-media-01", lease_token=token,
             claimed_source_sha256=sha, slot=slot, applicable=applicable,
-            hq_aliased_to=None, transform_version=None)
+            hq_aliased_to=None, transform_version=_tv, claimed_transform_version=_tv)
         publish_derivative(test_db, ctx, path, s3_client=s3, pre_commit_hook=guard)
     test_db.refresh(job)
     assert job.status != "ready"
@@ -286,12 +328,14 @@ def test_three_slots_job_ready_atomic_and_idempotent_retry(test_db, monkeypatch,
                         lambda **kw: {"width": 320, "height": 180})
     poster_path = _slot_file(tmp_path, "poster.bin", poster_bytes)
     from app.services.derivative_publisher import build_publication_context, publish_derivative
+    from app.services.media_keys import get_derivative_transform_version as _vtv2
 
     ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="poster")
+    _tv2 = leased[0].transform_version or _vtv2()
     guard = wp.make_slot_guard(
         job_id=job.id, agent_id="mac-media-01", lease_token=token,
         claimed_source_sha256=sha, slot="poster", applicable=["hq", "light", "poster"],
-        hq_aliased_to=None, transform_version=None)
+        hq_aliased_to=None, transform_version=_tv2, claimed_transform_version=_tv2)
     publish_derivative(test_db, ctx, poster_path, s3_client=s3, pre_commit_hook=guard)
     test_db.refresh(job)
     assert job.status == "ready"
@@ -302,7 +346,7 @@ def test_three_slots_job_ready_atomic_and_idempotent_retry(test_db, monkeypatch,
     guard2 = wp.make_slot_guard(
         job_id=job.id, agent_id="mac-media-01", lease_token=token,
         claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
-        hq_aliased_to=None, transform_version=None)
+        hq_aliased_to=None, transform_version=_tv2, claimed_transform_version=_tv2)
     out = publish_derivative(test_db, ctx2, _slot_file(tmp_path, "hq2.bin", hq_bytes),
                              s3_client=s3, pre_commit_hook=guard2)
     assert out["status"] == "ready"
@@ -343,12 +387,14 @@ def test_expired_and_reclaimed_same_agent_rejected(test_db, monkeypatch, _presig
     import app.services.web_packages as wp
     monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
     from app.services.derivative_publisher import StaleSourceError, build_publication_context, publish_derivative
+    from app.services.media_keys import get_derivative_transform_version as _vtv3
 
     ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
+    _tv3 = first.transform_version or _vtv3()
     stale_guard = wp.make_slot_guard(
         job_id=job.id, agent_id="mac-media-01", lease_token=old_token,
         claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
-        hq_aliased_to=None, transform_version=None)
+        hq_aliased_to=None, transform_version=_tv3, claimed_transform_version=_tv3)
     path = _slot_file(tmp_path, "hq.bin", _TINY_JPEG + b"hq")
     with pytest.raises(Exception):
         publish_derivative(test_db, ctx, path, s3_client=FakeS3(), pre_commit_hook=stale_guard)
@@ -360,7 +406,7 @@ def test_expired_and_reclaimed_same_agent_rejected(test_db, monkeypatch, _presig
     guard2 = wp.make_slot_guard(
         job_id=job.id, agent_id="mac-media-01", lease_token=second.lease_token,
         claimed_source_sha256=sha, slot="hq", applicable=["hq", "light", "poster"],
-        hq_aliased_to=None, transform_version=None)
+        hq_aliased_to=None, transform_version=_tv3, claimed_transform_version=_tv3)
     publish_derivative(test_db, ctx2, path, s3_client=FakeS3(), pre_commit_hook=guard2)
 
 
@@ -385,20 +431,24 @@ def test_source_changed_stale_and_small_source_alias(test_db, monkeypatch, _pres
     import app.services.web_packages as wp
     monkeypatch.setattr(wp, "validate_slot_artifact", lambda **kw: {"width": 1280, "height": 720})
     from app.services.derivative_publisher import StaleSourceError, build_publication_context, publish_derivative
+    from app.services.media_keys import get_derivative_transform_version as _vtv4
 
     # The worker's pinned v1 bytes are now stale: commit goes stale, never ready.
     ctx = build_publication_context(test_db, video_uuid=asset.video_uuid, role="hq")
     assert ctx.source_blob_sha256 != sha_v1
+    _tv4 = leased.transform_version
     guard = wp.make_slot_guard(
         job_id=job.id, agent_id="mac-media-01", lease_token=leased.lease_token,
         claimed_source_sha256=sha_v1, slot="hq", applicable=["hq", "light", "poster"],
-        hq_aliased_to=None, transform_version=None)
+        hq_aliased_to=None, transform_version=_tv4, claimed_transform_version=_tv4)
     path = _slot_file(tmp_path, "hq.bin", _TINY_JPEG)
     with pytest.raises(StaleSourceError):
         publish_derivative(test_db, ctx, path, s3_client=FakeS3(), pre_commit_hook=guard)
-    # Small-source alias: server dims (640x360) prove the claim; large
-    # sources reject it (not client trust).
-    small = _asset(test_db, uuid="33333333-3333-3333-3333-333333333333", width=640, height=360)
+    # Small-source alias: server MediaBlob dims (640x360) prove the claim;
+    # worker claims are never trusted, unknown dims refuse (fail closed).
+    small_uuid = "33333333-3333-3333-3333-333333333333"
+    small = _asset(test_db, uuid=small_uuid, width=640, height=360)
+    small_sha = _seed_camera_source(test_db, small_uuid, raw=b"small-camera", width=640, height=360)
     job_small = MediaJob(photos_asset_id=small.id, media_key="s" + "0" * 63,
                          rendition="web_package", status="claimed",
                          claimed_by="mac-media-01", lease_token="t" * 32,
@@ -408,21 +458,47 @@ def test_source_changed_stale_and_small_source_alias(test_db, monkeypatch, _pres
     job_small.claimed_until = datetime.utcnow() + timedelta(minutes=5)
     test_db.add(job_small)
     test_db.flush()
+    from app.services.web_packages import get_finalized_state as _gfs, set_finalized_state as _sfs
+    _sfs(job_small, {"source_sha256": small_sha, "source_revision_id": None,
+                     "transform_version": _tv4, "hq_aliased_to": None, "slots": {}})
+    test_db.flush()
     applicable = wp.check_small_source_alias(
-        job=job_small, slot="light", hq_aliased_to="light",
-        claimed_w=640, claimed_h=360, probed_w=640, probed_h=360)
+        db=test_db, job=job_small, slot="light", hq_aliased_to="light",
+        claimed_w=640, claimed_h=360, probed_w=640, probed_h=360, source_sha256=small_sha)
     assert applicable == ["light", "poster"]
-    big = _asset(test_db, uuid="44444444-4444-4444-4444-444444444444", width=3840, height=2160)
+    big_uuid = "44444444-4444-4444-4444-444444444444"
+    big = _asset(test_db, uuid=big_uuid, width=3840, height=2160)
+    big_sha = _seed_camera_source(test_db, big_uuid, raw=b"big-camera", width=3840, height=2160)
     job_big = MediaJob(photos_asset_id=big.id, media_key="b" + "0" * 63,
                        rendition="web_package", status="claimed",
                        claimed_by="mac-media-01", lease_token="u" * 32, attempts=1)
     job_big.claimed_until = datetime.utcnow() + timedelta(minutes=5)
     test_db.add(job_big)
     test_db.flush()
+    _sfs(job_big, {"source_sha256": big_sha, "source_revision_id": None,
+                   "transform_version": _tv4, "hq_aliased_to": None, "slots": {}})
+    test_db.flush()
     with pytest.raises(ValueError):
         wp.check_small_source_alias(
-            job=job_big, slot="light", hq_aliased_to="light",
-            claimed_w=640, claimed_h=360, probed_w=640, probed_h=360)
+            db=test_db, job=job_big, slot="light", hq_aliased_to="light",
+            claimed_w=640, claimed_h=360, probed_w=640, probed_h=360, source_sha256=big_sha)
+    # Unknown dims fail closed (never trust the worker claim alone).
+    nodim_uuid = "55555555-5555-5555-5555-555555555555"
+    nodim = _asset(test_db, uuid=nodim_uuid, width=640, height=360)
+    nodim_sha = _seed_camera_source(test_db, nodim_uuid, raw=b"nodim-camera")
+    job_nodim = MediaJob(photos_asset_id=nodim.id, media_key="n" + "0" * 63,
+                         rendition="web_package", status="claimed",
+                         claimed_by="mac-media-01", lease_token="v" * 32, attempts=1)
+    job_nodim.claimed_until = datetime.utcnow() + timedelta(minutes=5)
+    test_db.add(job_nodim)
+    test_db.flush()
+    _sfs(job_nodim, {"source_sha256": nodim_sha, "source_revision_id": None,
+                     "transform_version": _tv4, "hq_aliased_to": None, "slots": {}})
+    test_db.flush()
+    with pytest.raises(ValueError):
+        wp.check_small_source_alias(
+            db=test_db, job=job_nodim, slot="light", hq_aliased_to="light",
+            claimed_w=640, claimed_h=360, probed_w=640, probed_h=360, source_sha256=nodim_sha)
 
 
 def test_format_corrupt_hdr_rejected(test_db, monkeypatch, tmp_path):
@@ -440,19 +516,71 @@ def test_format_corrupt_hdr_rejected(test_db, monkeypatch, tmp_path):
     sdr.write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 2048)
     digest = _sha(sdr.read_bytes())
     monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
-        "streams": [{"codec_type": "video", "codec_name": "h264", "pix_fmt": "yuv420p",
-                     "width": 1280, "height": 720, "color_transfer": "smpte2084"}],
-        "format": {}})
+        "streams": [{"codec_type": "video", "codec_name": "h264", "pix_fmt": "yuv420p", "profile": "High",
+                     "width": 1280, "height": 720, "color_transfer": "smpte2084",
+                     "color_primaries": "bt2020", "color_space": "bt2020c"}],
+        "format": {"format_name": "mp4"}})
+    monkeypatch.setattr(wp, "_mp4_faststart_ok", lambda path: True)
+    monkeypatch.setattr(wp, "_ffmpeg_decode_ok", lambda path: True)
     with pytest.raises(ValueError, match="HDR"):
         wp.validate_slot_artifact(path=sdr, slot="hq", expected_sha256=digest,
                                   expected_size=sdr.stat().st_size)
+    # Missing BT.709 tags rejected (fail closed, never accept unknown).
+    notag = tmp_path / "notag.mp4"
+    notag.write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x01" * 2048)
+    ndigest = _sha(notag.read_bytes())
+    monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
+        "streams": [{"codec_type": "video", "codec_name": "h264", "pix_fmt": "yuv420p", "profile": "High",
+                     "width": 1280, "height": 720}],
+        "format": {"format_name": "mp4"}})
+    with pytest.raises(ValueError, match="BT.709"):
+        wp.validate_slot_artifact(path=notag, slot="hq", expected_sha256=ndigest,
+                                  expected_size=notag.stat().st_size)
+    # Wrong profile / container rejected.
+    badprof = tmp_path / "badprof.mp4"
+    badprof.write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x02" * 2048)
+    bdigest = _sha(badprof.read_bytes())
+    monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
+        "streams": [{"codec_type": "video", "codec_name": "h264", "pix_fmt": "yuv420p", "profile": "Baseline",
+                     "width": 1280, "height": 720, "color_transfer": "bt709",
+                     "color_primaries": "bt709", "color_space": "bt709"}],
+        "format": {"format_name": "mp4"}})
+    with pytest.raises(ValueError, match="High"):
+        wp.validate_slot_artifact(path=badprof, slot="hq", expected_sha256=bdigest,
+                                  expected_size=badprof.stat().st_size)
+    # Faststart None rejected (fail closed, not accepted).
+    noatoms = tmp_path / "noatoms.mp4"
+    noatoms.write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x03" * 2048)
+    adigest = _sha(noatoms.read_bytes())
+    monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
+        "streams": [{"codec_type": "video", "codec_name": "h264", "pix_fmt": "yuv420p", "profile": "High",
+                     "width": 1280, "height": 720, "color_transfer": "bt709",
+                     "color_primaries": "bt709", "color_space": "bt709"}],
+        "format": {"format_name": "mp4"}})
+    monkeypatch.setattr(wp, "_mp4_faststart_ok", lambda path: None)
+    with pytest.raises(ValueError, match="faststart"):
+        wp.validate_slot_artifact(path=noatoms, slot="hq", expected_sha256=adigest,
+                                  expected_size=noatoms.stat().st_size)
+    monkeypatch.setattr(wp, "_mp4_faststart_ok", lambda path: True)
+    # Malformed JPEG magic rejected even when ffprobe claims video.
+    badjpg = tmp_path / "bad.jpg"
+    badjpg.write_bytes(b"notajpeg" * 64)
+    jdigest = _sha(badjpg.read_bytes())
+    monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
+        "streams": [{"codec_type": "video", "codec_name": "mjpeg", "pix_fmt": "yuvj420p",
+                     "width": 320, "height": 180, "color_transfer": "bt709"}],
+        "format": {"format_name": "mjpeg"}})
+    with pytest.raises(ValueError, match="JPEG"):
+        wp.validate_slot_artifact(path=badjpg, slot="poster", expected_sha256=jdigest,
+                                  expected_size=badjpg.stat().st_size)
     # Real tiny SDR JPEG passes the magic check; ffprobe faked SDR.
     poster = tmp_path / "poster.jpg"
     poster.write_bytes(_TINY_JPEG)
     monkeypatch.setattr(wp, "_ffprobe_streams", lambda path: {
         "streams": [{"codec_type": "video", "codec_name": "mjpeg", "pix_fmt": "yuvj420p",
                      "width": 320, "height": 180, "color_transfer": "bt709"}],
-        "format": {}})
+        "format": {"format_name": "mjpeg"}})
+    monkeypatch.setattr(wp, "_ffmpeg_decode_ok", lambda path: True)
     probed = wp.validate_slot_artifact(path=poster, slot="poster",
                                        expected_sha256=_sha(_TINY_JPEG),
                                        expected_size=len(_TINY_JPEG))

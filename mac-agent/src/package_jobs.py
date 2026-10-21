@@ -155,6 +155,7 @@ async def process_package_job(processor, job: dict) -> dict:
                 hq_aliased_to=result.hq_aliased_to,
                 source_width=int(result.source_w),
                 source_height=int(result.source_h),
+                transform_version=transform_version,
             )
             processor._raise_if_lease_lost(lease_lost, job_id)
             await processor._heartbeat_checked(job_id, "verifying", 95, lease_token, lease_lost, phase)
