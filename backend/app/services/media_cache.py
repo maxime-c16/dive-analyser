@@ -152,11 +152,19 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
 
 
 def cache_tmp_path(job: MediaJob) -> Path:
-    """Return temp upload path for a job, creating parent dirs."""
+    """Return temp upload path for a job claim, creating parent dirs.
+
+    D2: the path is per claim attempt (fencing token), not per job. A stale
+    attempt's bytes land on — or are rejected before touching — a different
+    path than the live attempt's, so an old upload can never overwrite the
+    current tmp bytes. Legacy tokenless claims share the `legacy` path
+    (pre-D2 behaviour) and disappear with the drain.
+    """
     settings = get_settings()
     tmp_dir = Path(settings.media_cache_root).resolve() / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    return tmp_dir / f"job-{job.id}-{job.media_key}.partial"
+    attempt = job.lease_token or "legacy"
+    return tmp_dir / f"job-{job.id}-{attempt}.partial"
 
 
 def cache_final_path(job: MediaJob, content_type: str) -> Path:

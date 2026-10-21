@@ -11,6 +11,8 @@ it. Measured by queue selection order in tests, not by wall-clock latency
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
+import uuid
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -157,6 +159,12 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
     if db.bind.dialect.name == "postgresql":
         db.execute(text("SELECT pg_advisory_xact_lock(73125, 1)"))
     reclaim_expired_media_jobs(db)
+    # D2 transition: once the Mac fleet is fenced, tokenless leases are
+    # refused outright (bounded drain is over; see media-d2-rollout.md).
+    if request.supports_lease_token is False:
+        from app.config import get_settings
+        if get_settings().media_jobs_require_lease_token:
+            raise PermissionError("media_job_lease_upgrade_required")
     busy_assets = select(MediaJob.photos_asset_id).where(MediaJob.status.in_(LEASED_JOB_STATUSES))
     stmt = (
         select(MediaJob)
@@ -194,6 +202,12 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             )
         ).scalar_one_or_none()
         local_uuid = identity.local_uuid if identity else job.asset.video_uuid
+        # D2 fencing: a fresh token per claim (and per reclaim, including the
+        # SAME agent). The previous attempt's token dies with this write, so
+        # its late heartbeat/upload/finalize/fail is rejected instead of
+        # resurrecting the job. Old workers get a tokenless legacy lease
+        # (NULL) only during the bounded drain window.
+        job.lease_token = uuid.uuid4().hex if request.supports_lease_token else None
         job.status = "claimed"
         job.claimed_by = request.agent_id
         job.claimed_at = now
@@ -211,6 +225,7 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             status=job.status,
             request_reason=job.request_reason,
             export_options=_export_options(job.rendition),
+            lease_token=job.lease_token,
             **_b2_source(db, job),
         ))
 
@@ -270,11 +285,22 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
     )
     jobs = list(db.execute(stmt).scalars().all())
     reclaimed = 0
+    orphan_tmps: list[str] = []
 
     for job in jobs:
+        # D2 fencing: the claim dies here — token included — so a late
+        # mutation from the dead attempt is rejected even when it carries the
+        # same agent id. The orphaned per-attempt tmp file (if any) is
+        # removed best-effort below; the next claim uploads to its own path.
+        if job.upload_tmp_path:
+            orphan_tmps.append(job.upload_tmp_path)
         job.claimed_by = None
         job.claimed_at = None
         job.claimed_until = None
+        job.lease_token = None
+        job.upload_tmp_path = None
+        job.output_checksum_sha256 = None
+        job.output_size_bytes = None
         job.progress = 0
         job.last_error = "lease_expired"
         job.updated_at = now
@@ -289,21 +315,98 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
 
     if reclaimed:
         db.flush()
+    # Best-effort orphan cleanup AFTER flush so a failed unlink never blocks
+    # the reclaim. Tmp paths are per-attempt (D2), so this never touches a
+    # live attempt's bytes: a reclaimed job has no live attempt.
+    for orphan in orphan_tmps:
+        try:
+            Path(orphan).unlink(missing_ok=True)
+        except OSError:
+            continue
     return reclaimed
 
 
-def _owned_job(db: Session, job_id: int, agent_id: str) -> MediaJob:
-    job = db.get(MediaJob, job_id)
-    if not job:
-        raise ValueError("Media job not found")
+def _check_lease(job: MediaJob, agent_id: str, lease_token: str | None) -> None:
+    """Validate ownership, expiry and fencing token for a loaded job.
+
+    Order matters: owner first (auth), then expiry (an expired attempt can
+    never renew or write, even with the right token), then token, then state
+    (checked by callers via ``allowed_statuses``).
+
+    Token rule (no 'same agent may omit' loophole): when the stored claim
+    carries a token, the request must echo it exactly — a missing token is a
+    mismatch. When the stored claim is tokenless (pre-D2 row or old-worker
+    lease during the drain), a missing token is accepted ONLY while
+    ``media_jobs_require_lease_token`` is false, and a presented token is a
+    mismatch. After the drain the require flag makes tokenless claims
+    impossible (new leases) and tokenless mutations rejected (old rows).
+    """
     if job.claimed_by != agent_id:
         raise PermissionError("media_job_lease_owner_mismatch")
+    now = datetime.utcnow()
+    if job.claimed_until is None or job.claimed_until < now:
+        raise PermissionError("media_job_lease_expired")
+    from app.config import get_settings
+    stored = job.lease_token
+    if stored is None:
+        if lease_token is not None:
+            raise PermissionError("media_job_lease_token_mismatch")
+        if get_settings().media_jobs_require_lease_token:
+            raise PermissionError("media_job_lease_token_required")
+    elif lease_token != stored:
+        raise PermissionError("media_job_lease_token_mismatch")
+
+
+def _guarded_job(
+    db: Session,
+    job_id: int,
+    agent_id: str,
+    lease_token: str | None = None,
+    allowed_statuses: set[str] | None = None,
+    *,
+    lock: bool = True,
+) -> MediaJob:
+    """Load a job and enforce the D2 lease guard (+ optional state gate).
+
+    ``lock=True`` takes SELECT ... FOR UPDATE on Postgres so the guard and
+    the caller's mutation commit atomically (no check-then-act race between
+    concurrent workers). Route pre-checks that stream bytes for minutes
+    afterwards use ``lock=False`` (peek); the authoritative check re-runs
+    with the lock inside the committing mutation.
+    """
+    if lock:
+        job = db.get(MediaJob, job_id, with_for_update=True)
+    else:
+        job = db.get(MediaJob, job_id)
+    if not job:
+        raise ValueError("Media job not found")
+    _check_lease(job, agent_id, lease_token)
+    if allowed_statuses is not None and job.status not in allowed_statuses:
+        raise PermissionError(f"media_job_invalid_state:{job.status}")
     return job
 
 
-def heartbeat_media_job(db: Session, job_id: int, agent_id: str, status: str, progress: int) -> MediaJob:
-    """Update media job lease heartbeat/progress."""
-    job = _owned_job(db, job_id, agent_id)
+def _owned_job(db: Session, job_id: int, agent_id: str) -> MediaJob:
+    # Backward-compatible shim for historical callers/tests: a missing token
+    # is accepted only for genuinely tokenless (legacy) claims — the guard
+    # itself enforces that, never a blanket same-agent allowance.
+    return _guarded_job(db, job_id, agent_id, None, None, lock=True)
+
+
+def heartbeat_media_job(
+    db: Session,
+    job_id: int,
+    agent_id: str,
+    status: str,
+    progress: int,
+    lease_token: str | None = None,
+) -> MediaJob:
+    """Update media job lease heartbeat/progress.
+
+    Requires the current unexpired lease + fencing token: an expired attempt
+    cannot renew, and a stale (re-leased) attempt cannot resurrect the job.
+    """
+    job = _guarded_job(db, job_id, agent_id, lease_token, LEASED_JOB_STATUSES, lock=True)
 
     job.status = status
     job.progress = progress
@@ -314,9 +417,20 @@ def heartbeat_media_job(db: Session, job_id: int, agent_id: str, status: str, pr
     return job
 
 
-def fail_media_job(db: Session, job_id: int, agent_id: str, error: str, status: str = "failed") -> MediaJob:
-    """Mark a media job failed or unavailable."""
-    job = _owned_job(db, job_id, agent_id)
+def fail_media_job(
+    db: Session,
+    job_id: int,
+    agent_id: str,
+    error: str,
+    status: str = "failed",
+    lease_token: str | None = None,
+) -> MediaJob:
+    """Mark a media job failed or unavailable.
+
+    Fenced like heartbeat: a stale worker must not fail a job that has
+    since been re-leased to a new attempt (reclaim owns expired jobs).
+    """
+    job = _guarded_job(db, job_id, agent_id, lease_token, LEASED_JOB_STATUSES, lock=True)
 
     job.status = status
     job.last_error = error
@@ -328,9 +442,26 @@ def fail_media_job(db: Session, job_id: int, agent_id: str, error: str, status: 
     return job
 
 
-def mark_job_uploaded(db: Session, job_id: int, agent_id: str, tmp_path: str, checksum_sha256: str, size_bytes: int) -> MediaJob:
-    """Record successful artifact upload for a media job."""
-    job = _owned_job(db, job_id, agent_id)
+UPLOADABLE_JOB_STATUSES = {"claimed", "exporting", "transcoding", "uploading", "verifying"}
+
+
+def mark_job_uploaded(
+    db: Session,
+    job_id: int,
+    agent_id: str,
+    tmp_path: str,
+    checksum_sha256: str,
+    size_bytes: int,
+    lease_token: str | None = None,
+) -> MediaJob:
+    """Record successful artifact upload for a media job.
+
+    Authoritative post-write guard (row-locked): the upload route peeks
+    before streaming bytes, but only this check — re-run after the hash,
+    in the committing transaction — decides. A mid-upload re-lease is
+    rejected here and the orphaned bytes are removed by the caller.
+    """
+    job = _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=True)
 
     job.status = "verifying"
     job.progress = 95

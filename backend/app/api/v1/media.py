@@ -67,6 +67,8 @@ from app.services.media_cache import (
     to_cache_summary,
 )
 from app.services.media_jobs import (
+    UPLOADABLE_JOB_STATUSES,
+    _guarded_job,
     create_or_reuse_media_job,
     fail_media_job,
     heartbeat_media_job,
@@ -1220,7 +1222,12 @@ async def lease_jobs(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="media_max_jobs_must_not_exceed_two")
     if not set(request.capabilities).issubset(set(agent.capabilities or [])):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="media_agent_capability_mismatch")
-    jobs = lease_media_jobs(db, request)
+    try:
+        jobs = lease_media_jobs(db, request)
+    except PermissionError as exc:
+        # D2 transition: tokenless lease refused after the drain
+        # (MEDIA_JOBS_REQUIRE_LEASE_TOKEN=true) — old worker must upgrade.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     db.commit()
     return MediaJobLeaseResponse(jobs=jobs)
 
@@ -1235,7 +1242,7 @@ async def heartbeat_job(
     """Update progress for a leased media job."""
     try:
         _agent_auth(db, request.agent_id, api_key)
-        job = heartbeat_media_job(db, job_id, request.agent_id, request.status, request.progress)
+        job = heartbeat_media_job(db, job_id, request.agent_id, request.status, request.progress, request.lease_token)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
     except PermissionError as exc:
@@ -1255,7 +1262,7 @@ async def fail_job(
     """Mark a leased media job failed or unavailable."""
     try:
         _agent_auth(db, request.agent_id, api_key)
-        job = fail_media_job(db, job_id, request.agent_id, request.error, request.status)
+        job = fail_media_job(db, job_id, request.agent_id, request.error, request.status, request.lease_token)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
     except PermissionError as exc:
@@ -1272,6 +1279,7 @@ async def upload_job_artifact(
     checksum_sha256: str = Form(...),
     size_bytes: int = Form(...),
     file: UploadFile = File(...),
+    lease_token: str | None = Form(None),
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
 ) -> MediaJobUploadResponse:
@@ -1280,12 +1288,23 @@ async def upload_job_artifact(
     job = db.get(MediaJob, job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
-    if job.status not in {"claimed", "exporting", "transcoding", "uploading", "verifying"}:
+    if job.status not in UPLOADABLE_JOB_STATUSES:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot upload from status {job.status}")
-    if job.claimed_by != agent_id:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+    # Peek (unlocked) pre-check: reject stale/expired/foreign attempts
+    # BEFORE their bytes touch the disk. The authoritative check re-runs
+    # row-locked after the hash, inside the committing transaction — a
+    # mid-upload re-lease is rejected there (check-then-act race closed).
+    try:
+        peeked = _guarded_job(db, job_id, agent_id, lease_token, UPLOADABLE_JOB_STATUSES, lock=False)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    tmp_path = cache_tmp_path(job)
+    # D2: per-attempt tmp path. Only this attempt's path is ever unlinked
+    # or written here — a stale attempt can no longer overwrite (or delete)
+    # the live attempt's bytes.
+    tmp_path = cache_tmp_path(peeked)
     tmp_path.unlink(missing_ok=True)
     actual_size = 0
     try:
@@ -1304,8 +1323,8 @@ async def upload_job_artifact(
 
     # Full-artifact reads belong on a worker thread: hashing gigabyte-scale
     # proxies on the loop stalls every concurrent request. Verify + accept
-    # (hash, mark uploaded, commit) is one cancellation-safe unit so a
-    # cancelled upload never leaves an unverified-accepted artifact or a
+    # (hash, guarded mark uploaded, commit) is one cancellation-safe unit so
+    # a cancelled upload never leaves an unverified-accepted artifact or a
     # half transaction behind the session teardown.
     def _verify_and_accept():
         actual_checksum = sha256_file(tmp_path)
@@ -1315,7 +1334,16 @@ async def upload_job_artifact(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Uploaded checksum mismatch",
             )
-        accepted = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes)
+        try:
+            accepted = mark_job_uploaded(db, job_id, agent_id, str(tmp_path), checksum_sha256, size_bytes, lease_token)
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            # The claim moved mid-upload (re-lease/reclaim): these bytes
+            # belong to a dead attempt and must not linger.
+            tmp_path.unlink(missing_ok=True)
+            if isinstance(exc, ValueError):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
         db.commit()
         return accepted
 
@@ -1345,22 +1373,39 @@ async def finalize_job_artifact(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
     if job.claimed_by != request.agent_id:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+    # Peek pre-check for expiry + fencing token (authoritative re-check with
+    # the row lock runs inside the committing worker below).
+    try:
+        _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=False)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     # Verify + promote touches the filesystem (full-file hash, move, chmod).
-    # The whole semantic unit - verify, promote, mark ready, commit - runs
-    # to completion on a worker even when this handler is cancelled mid-
+    # The whole semantic unit - guard, verify, promote, mark ready, commit -
+    # runs to completion on a worker even when this handler is cancelled mid-
     # way: an abandoned finalize must never leave the job in `verifying`
     # with its temp file already moved, nor half a transaction behind the
-    # session teardown.
+    # session teardown. The guard re-runs row-locked here so a re-lease
+    # between the peek above and this commit is rejected (no resurrection
+    # of a dead attempt, no promotion of a stranger's bytes).
     def _finalize_and_commit():
+        try:
+            guarded = _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=True)
+        except (ValueError, PermissionError) as exc:
+            db.rollback()
+            if isinstance(exc, ValueError):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
         entry = finalize_cache_entry(
             db=db,
-            job=job,
+            job=guarded,
             checksum_sha256=request.checksum_sha256,
             size_bytes=request.size_bytes,
             content_type=request.content_type,
         )
-        mark_job_ready(db, job)
+        mark_job_ready(db, guarded)
         db.commit()
         return entry
 
