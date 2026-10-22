@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityList } from './ActivityFeed'
 import { getMyActivity, type ActivityItem, type ActivityPage } from '../../services/activityApi'
+import PageLoading from '../PageLoading'
 
 export type ActivityTab = 'all' | 'received' | 'sent'
 
@@ -98,7 +99,7 @@ export default function ActivitySection() {
 
       <div aria-live="polite" className="mt-3">
         {!loaded && !error ? (
-          <p role="status" className="text-sm text-app-muted">{t('account.activity.loading')}</p>
+          <PageLoading message={t('account.activity.loading')} />
         ) : (
           <ActivityList
             items={items}

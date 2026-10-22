@@ -7,6 +7,7 @@ import AdminUsers from '../components/AdminUsers'
 import AdminDiverInvites from '../components/AdminDiverInvites'
 import HeldBatchEmails from '../components/HeldBatchEmails'
 import AdminClubs from '../components/AdminClubs'
+import PageLoading from '../components/PageLoading'
 
 function bytes(value?: number | null) {
   if (value == null) return 'Unknown'
@@ -163,7 +164,7 @@ export default function Admin() {
     </div>
 
     {error && <div role="alert" className="flex gap-3 border border-amber-700/60 bg-amber-950/20 p-4 text-sm text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-    {loading && !status && <div className="border border-app bg-app-panel p-10 text-center text-sm text-app-muted">Loading…</div>}
+    {loading && !status && <PageLoading message="Loading…" />}
 
     {status && <>
       <section aria-label="Application health" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

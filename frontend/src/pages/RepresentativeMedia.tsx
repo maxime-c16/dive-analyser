@@ -19,6 +19,7 @@ import {
 } from '../services/representativeMediaApi'
 import { usePreservedSearchParams } from '../hooks/usePreservedSearchParams'
 import { useAuth } from '../contexts/AuthContext'
+import PageLoading from '../components/PageLoading'
 import { mediaStatusLabel, photosAccessLabel } from '../utils/mediaStatus'
 
 const ROLE_ORDER: RepresentativeRole[] = ['low', 'median', 'high']
@@ -149,7 +150,7 @@ function CandidatePanel({
           <button type="button" onClick={onClose} className="border border-app px-3 py-1.5 text-sm text-app-muted">{t('common.close')}</button>
         </div>
         <div className="mt-5 space-y-3">
-          {loading && <p className="text-sm text-app-muted">{t('common.loading')}</p>}
+          {loading && <PageLoading />}
           {!loading && !candidates.length && <p className="text-sm text-app-muted">{t('repMedia.noCandidates')}</p>}
           {candidates.map((candidate) => (
             <div key={candidate.candidate.id} className="border border-app p-4">
@@ -310,7 +311,7 @@ export default function RepresentativeMedia() {
         </div>
       </section>
 
-      {loading && !data && <div className="border-y border-app py-16 text-center text-sm text-app-muted">{t('common.loading')}</div>}
+      {loading && !data && <PageLoading />}
       {refreshing && data && <div className="sticky top-0 z-30 border border-app-accent/40 bg-app-panel/95 px-4 py-2 text-center text-xs text-app-muted backdrop-blur" role="status">{t('repMedia.refreshing')}</div>}
       {error && <div className="border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-300">{error}</div>}
 

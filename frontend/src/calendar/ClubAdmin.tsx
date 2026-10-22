@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CalendarError, calendarApi, type Resource, type Roster, type RosterEntry } from "./api";
 import { parisToday } from "./model";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
+import PageLoading from "../components/PageLoading";
 
 /** Club page: app-account roster (never a complete club roster), group
  * assignment for managers/authorized coaches, coach grants for managers,
@@ -25,7 +26,7 @@ export default function ClubAdmin({ ctx, clubId }: { ctx: CalendarContext; clubI
       .catch(() => setState("missing"));
   }, [clubId, revision]);
 
-  if (state === "loading") return <p role="status">{t.loading}</p>;
+  if (state === "loading") return <PageLoading message={t.loading} />;
   if (state === "missing" || !roster) return <p role="alert">{t.unavailable}</p>;
   const run = async (fn: () => Promise<unknown>, after?: () => void) => {
     setMessage(null);

@@ -8,6 +8,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { appLocale } from '../utils/dateLocale'
 import { useTranslation } from 'react-i18next'
+import PageLoading from '../components/PageLoading'
 
 interface MonthlyStats {
   month: string
@@ -95,11 +96,7 @@ function Analytics() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
+    return <PageLoading center />
   }
 
   // Prepare chart data

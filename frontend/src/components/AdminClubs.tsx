@@ -19,6 +19,7 @@ import {
 type ClubCandidate = { user_id: number; display_name: string; email: string };
 import type { Role } from "../calendar/api";
 import { keepFocusOnPress } from "../calendar/useStrings";
+import PageLoading from "./PageLoading";
 import "./AdminClubs.css";
 
 const copy = {
@@ -389,7 +390,7 @@ export default function AdminClubs() {
           {notice}
         </p>
       )}
-      {loading && <p role="status">{t.loading}</p>}
+      {loading && <PageLoading message={t.loading} />}
       <fieldset disabled={busy || loading} className="clubs-fieldset">
         {selected === null && !loading && (
           <>

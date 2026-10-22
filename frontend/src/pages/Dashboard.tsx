@@ -38,6 +38,7 @@ import {
   getRecentPersonalDiveValues,
   type PersonalDiveValue,
 } from "../services/personalDiveValueApi";
+import PageLoading from "../components/PageLoading";
 
 interface OverallStats {
   total_dives: number;
@@ -164,14 +165,7 @@ function Dashboard() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-app-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-app-muted">{t("common.loading")}</p>
-        </div>
-      </div>
-    );
+    return <PageLoading center message={t("common.loading")} />;
   }
 
   if (error) {

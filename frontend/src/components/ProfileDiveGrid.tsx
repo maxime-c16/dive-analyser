@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Film, Lock, Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getProfileDives, type ProfileDive } from '../services/communityApi'
+import PageLoading from './PageLoading'
 import { appLanguage } from '../utils/dateLocale'
 import MediaThumbnail from './MediaThumbnail'
 
@@ -49,7 +50,8 @@ export default function ProfileDiveGrid({ userId }: { userId: number }) {
   return <section aria-label={t('community.dives')}>
     <p className="mb-3 text-xs text-app-muted">{t('community.latest')}</p>
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{dives.map(dive => <Tile key={dive.id} dive={dive} />)}</div>
-    {loading && <p role="status" className="py-6 text-sm text-app-muted">{t('common.loading')}</p>}
+    {loading && dives.length === 0 && <PageLoading />}
+    {loading && dives.length > 0 && <p role="status" className="py-6 text-sm text-app-muted">{t('common.loading')}</p>}
     {error && <p role="alert" className="py-6 text-sm text-red-400">{t('community.divesError')} <button className="underline" onClick={() => { if (cursor) void more(); else setRetry(previous => previous + 1) }}>{t('common.retry')}</button></p>}
     {!loading && !error && dives.length === 0 && <p className="border border-app bg-app-panel p-8 text-center text-app-muted">{t('community.noDives')}</p>}
     {cursor && <button onClick={() => void more()} disabled={loading} className="touch-target mt-5 border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong disabled:opacity-50">{t('community.moreDives')}</button>}

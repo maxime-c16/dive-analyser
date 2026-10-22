@@ -19,9 +19,28 @@
     <meta name="apple-mobile-web-app-title" content="Dive Analyser" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Dive Analyser</title>
+    <style>
+      /* Boot splash: same bouncing-cards warm-up as the in-app PageLoading
+         state, so the first paint already shows it before the JS bundle
+         loads. React clears #root on first render. */
+      html, body { margin: 0; padding: 0; background: #0d1113; }
+      #root { min-height: 100vh; min-height: 100dvh; display: grid; background: #0d1113; }
+      #boot { place-self: stretch; display: grid; place-content: center; justify-items: center; gap: 6px; padding: 48px 16px; color: #98a2aa; background: #0d1113; }
+      #boot .boot-cards { display: flex; gap: 8px; height: 64px; align-items: flex-end; }
+      #boot .boot-cards i { display: block; width: 22px; height: 44px; border-radius: 3px;
+        background: repeating-linear-gradient(45deg, #54beab 0 4px, #2e6a60 4px 8px); box-shadow: 0 2px 0 #0006;
+        animation: boot-hop 900ms cubic-bezier(.3,0,.3,1) infinite; }
+      #boot .boot-cards i:nth-child(2) { animation-delay: 150ms; }
+      #boot .boot-cards i:nth-child(3) { animation-delay: 300ms; }
+      #boot .boot-board { width: 110px; height: 5px; border-radius: 3px; background: rgba(82, 96, 105, 0.45);
+        transform-origin: left; animation: boot-board-flex 900ms ease-in-out infinite; }
+      @keyframes boot-hop { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-22px) rotate(-8deg); } 60% { transform: translateY(-24px) rotate(8deg); } }
+      @keyframes boot-board-flex { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(2deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot .boot-cards i, #boot .boot-board { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="boot" role="status" aria-label="Loading"><span class="boot-cards" aria-hidden="true"><i></i><i></i><i></i></span><span class="boot-board" aria-hidden="true"></span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -14,6 +14,7 @@ import SessionDetail from "../components/SessionDetail";
 import RecentProgress from "../components/RecentProgress";
 import SessionDirectionIndicator from "../components/SessionDirectionIndicator";
 import { useTranslation } from "react-i18next";
+import PageLoading from "../components/PageLoading";
 import { appLocale } from "../utils/dateLocale";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -212,11 +213,7 @@ function Sessions() {
       )}
 
       {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-app-accent border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
+      {loading && <PageLoading />}
 
       {/* Error */}
       {error && (

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { searchMembers, type MemberSummary } from '../services/communityApi'
 import { appLanguage } from '../utils/dateLocale'
 import MemberAvatar from '../components/MemberAvatar'
+import PageLoading from '../components/PageLoading'
 
 export default function Community() {
   const { t } = useTranslation()
@@ -64,7 +65,7 @@ export default function Community() {
         </p>}{member.bio && <p className="mt-0.5 line-clamp-1 break-words text-sm text-app-muted">{member.bio}</p>}</div>
       </Link></li>)}
     </ul>
-    {loading && <p role="status" className="py-6 text-sm text-app-muted">{t('common.loading')}</p>}
+    {loading && members.length === 0 && <PageLoading />}
     {!loading && !error && members.length === 0 && <p className="py-6 text-app-muted">{t('community.empty')}</p>}
     {after && <button disabled={loading} onClick={() => void more()} className="touch-target mt-4 border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong disabled:opacity-50">{t('community.more')}</button>}
   </div>

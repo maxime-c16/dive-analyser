@@ -15,6 +15,7 @@ import {
   type PendingBatch,
   type ReviewDive,
 } from '../services/depositsApi'
+import PageLoading from '../components/PageLoading'
 
 function DiveRow({
   dive,
@@ -185,7 +186,7 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
     }
   }
 
-  if (loading) return <p className="py-8 text-sm text-app-muted">{t('common.loading')}</p>
+  if (loading) return <PageLoading />
   if (error || !batch) return <p className="py-8 text-sm text-red-500">{t('deposits.errorLoad')}</p>
   if (batch.dives.length === 0) {
     return (
@@ -284,7 +285,7 @@ function BatchList() {
     }
   }, [user])
 
-  if (batches === null) return <p className="py-8 text-sm text-app-muted">{t('common.loading')}</p>
+  if (batches === null) return <PageLoading />
   const hasOthers = batches.some((batch) => !canAcceptDeposits(user, batch.diver_id))
   return (
     <div>

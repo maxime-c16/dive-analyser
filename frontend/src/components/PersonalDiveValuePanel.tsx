@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 import { confidenceLevelLabel, signalLabel } from '../utils/personalValue'
+import PageLoading from './PageLoading'
 import {
   getPersonalDiveValue,
   getPersonalDiveValuePatterns,
@@ -51,7 +52,7 @@ export default function PersonalDiveValuePanel({ attemptId, onOpenAttempt }: { a
   }, [attemptId])
 
   if (state === 'disabled') return null
-  if (state === 'loading') return <section className="mt-6 border border-app bg-app-panel-elevated p-4" role="status"><p className="text-sm text-app-muted">{i18n.t('common.loading')}</p></section>
+  if (state === 'loading') return <PageLoading />
   if (state === 'excluded') return <section className="mt-6 border border-app bg-app-panel-elevated p-4"><h3 className="font-semibold text-app-text">{i18n.t('pdv.titleUnavailable')}</h3><p className="mt-1 text-sm leading-6 text-app-muted">{i18n.t('pdv.excluded')}</p></section>
   if (state === 'error' || !value) return <section className="mt-6 border border-app bg-app-panel-elevated p-4"><h3 className="font-semibold text-app-text">{i18n.t('pdv.titleError')}</h3></section>
   if (value.value == null) return <section className="mt-6 border border-app bg-app-panel-elevated p-4"><h3 className="font-semibold text-app-text">{i18n.t('pdv.titleUnavailable')}</h3><p className="mt-1 text-sm leading-6 text-app-muted">{i18n.t('pdv.noOfficialDD')}</p><p className="mt-2 text-xs text-app-muted">{i18n.t('pdv.version', { version: value.version })} · {confidenceText(value.confidence)}</p></section>

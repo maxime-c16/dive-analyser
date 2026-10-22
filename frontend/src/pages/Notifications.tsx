@@ -8,6 +8,7 @@ import {
   type AppNotification,
   type CalendarNotificationView,
 } from '../services/notificationsApi'
+import PageLoading from '../components/PageLoading'
 
 function typeLabel(t: (key: string, options?: Record<string, unknown>) => string, type: string): string {
   return t(`notifications.types.${type}`, { defaultValue: type })
@@ -264,9 +265,7 @@ export default function Notifications() {
       )}
 
       {loading && items.length === 0 ? (
-        <p role="status" className="py-8 text-center text-sm text-app-muted">
-          {t('notifications.loading')}
-        </p>
+        <PageLoading message={t('notifications.loading')} />
       ) : error === 'load' && items.length === 0 ? (
         <div className="border border-app bg-app-panel p-8 text-center" role="alert">
           <p className="text-sm text-app-muted">{t('notifications.errorLoad')}</p>

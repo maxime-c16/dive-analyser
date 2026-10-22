@@ -7,6 +7,7 @@ import JourneyWithSync from "../components/JourneyWithSync";
 import MentalBlockIndicator from "../components/MentalBlockIndicator";
 import { useSyncStatus } from "../hooks/useSyncStatus";
 import DDWorkspace from "../components/DDWorkspace";
+import PageLoading from "../components/PageLoading";
 import { AlertTriangle, Brain } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { appLanguage } from "../utils/dateLocale";
@@ -117,21 +118,7 @@ function Journey() {
   }, [minSignificance]);
 
   if (loading) {
-    return (
-      <div className="app-page">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-app-panel-elevated rounded w-1/3"></div>
-            <div className="h-4 bg-app-panel-elevated rounded w-2/3"></div>
-            <div className="space-y-4 mt-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-24 bg-app-panel-elevated rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error) {

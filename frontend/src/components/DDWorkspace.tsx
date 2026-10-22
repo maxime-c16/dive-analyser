@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { AlertTriangle, ArrowUpRight, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { DDOverview, getDDOverview } from '../services/ddApi'
 import { divePositionName } from '../utils/divePosition'
+import PageLoading from './PageLoading'
 import { appLanguage } from '../utils/dateLocale'
 
 type Props = { compact?: boolean }
@@ -35,7 +36,7 @@ function DDWorkspace({ compact = false }: Props) {
   }, [scope])
 
   if (!data && !error) {
-    return <section className="border border-app bg-app-panel p-5" aria-label={t('ddWorkspace.loadingAria')}><div className="flex items-center gap-2 text-app-muted"><Loader2 className="h-4 w-4 animate-spin" /> {t('common.loading')}</div></section>
+    return <PageLoading />
   }
   if (error || !data) {
     return <section className="border border-app bg-app-panel p-5 text-app-muted">{error ? t('ddWorkspace.loadError') : null}</section>

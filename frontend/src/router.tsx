@@ -2,6 +2,7 @@ import { primaryTabFor, type PrimaryTab } from './navigation/mobileNavigation'
 import { useMobileNavPolicy, useTabMemory } from './navigation/useMobileNavigation'
 import './navigation/mobileNavigation.css'
 import { useModalOverlay } from './utils/overlays'
+import PageLoading from './components/PageLoading'
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Routes,
@@ -539,13 +540,9 @@ function NotFound() {
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, checking } = useAuth();
   const location = useLocation();
-  const { t } = useTranslation();
   if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
-        {t("common.loading")}
-      </div>
-    );
+    // App boot (session check) — same bouncing-cards state as every page.
+    return <PageLoading fullscreen />;
   }
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
@@ -565,13 +562,8 @@ function OwnerGuard({ children }: { children: React.ReactNode }) {
 /** Logged-in visitors never need the auth pages. */
 function AnonymousOnly({ children }: { children: React.ReactNode }) {
   const { user, checking } = useAuth();
-  const { t } = useTranslation();
   if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-app-muted">
-        {t("common.loading")}
-      </div>
-    );
+    return <PageLoading fullscreen />;
   }
   if (user) {
     return <Navigate to="/" replace />;
@@ -587,17 +579,16 @@ function CalendarGate() {
 }
 
 function Router() {
-  const { t } = useTranslation();
   return (
     <Routes>
-      <Route path="/share/:shareId" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><SharedDive /></Suspense>} />
+      <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
       )}
-      <Route path="/claim" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Claim /></Suspense>} />
+      <Route path="/claim" element={<Suspense fallback={<PageLoading fullscreen />}><Claim /></Suspense>} />
       {/* Invitation landing: public like /claim — the friend has no account yet. */}
-      <Route path="/invite" element={<Suspense fallback={<p role="status">{t("common.loadingPage")}</p>}><Invite /></Suspense>} />
+      <Route path="/invite" element={<Suspense fallback={<PageLoading fullscreen />}><Invite /></Suspense>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -622,7 +613,7 @@ function Router() {
         element={
           <AuthGuard>
             <WhatsNewProvider><NotificationsProvider><MessagesUnreadProvider><Layout>
-              <Suspense fallback={<p role="status" className="py-8 text-sm text-app-muted">{t("common.loadingPage")}</p>}>
+              <Suspense fallback={<PageLoading />}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/dashboard" element={<OwnerGuard><Dashboard /></OwnerGuard>} />
