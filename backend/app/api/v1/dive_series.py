@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, ValidationError, field_validator
-from sqlalchemy import func, select, union_all
+from sqlalchemy import case, func, select, union_all
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import _origin_allowed, get_current_user
@@ -140,26 +140,6 @@ def clip_payload(dive, mean, count, performance_score):
             "rating_count": int(count or 0), "url": f"/dives?clip={dive.id}&scope=all"}
 
 
-def _ranked_clip_payloads(candidates, policy):
-    """Rank fetched clip rows exactly like clips(): best uses the rating
-    mean (falling back to the recorded score, nulls last), recent uses
-    recency; ties break by dive date then id, newest first."""
-    ordered = sorted(candidates, key=lambda row: row[0].id, reverse=True)
-    ordered = sorted(ordered, key=lambda row: (row[0].dive_datetime is not None, row[0].dive_datetime),
-                     reverse=True)
-    if policy == "best":
-        def score(row):
-            _, mean, _, performance_score = row
-            if mean is not None:
-                return float(mean) / 2
-            if performance_score is not None:
-                return float(performance_score)
-            return None
-        ordered = sorted(ordered, key=lambda row: (score(row) is None, -(score(row) or 0)))
-    return [clip_payload(dive, mean, count, performance_score)
-            for dive, mean, count, performance_score in ordered]
-
-
 def validate_clips(db, user, payload):
     wanted = [(choice.code, choice.clip_id) for slot in payload.slots
               for choice in [slot, *slot.alternatives] if choice.clip_id is not None]
@@ -217,14 +197,27 @@ def project(db, user, row, detail=True):
                         base.filter(Dive.id.in_(selected_ids)).all()):
                     selected_map[dive.id] = (dive, clip_payload(dive, mean, count, performance_score))
             if needed_codes:
-                groups = {}
-                for dive, mean, count, performance_score in (
-                        base.filter(Dive.dive_code.in_(needed_codes), Dive.height == row.height).all()):
-                    groups.setdefault(dive.dive_code, []).append((dive, mean, count, performance_score))
-                for code, candidates in groups.items():
-                    top = _ranked_clip_payloads(candidates, row.clip_policy)
-                    if top:
-                        auto_map[code] = top[0]
+                # Top automatic default per code, ranked in SQL with the same
+                # ordering as clips() so the candidate pool stays bounded no
+                # matter how large the dive history is.
+                score_expr = func.coalesce(totals.c.mean / 2.0, recorded)
+                ordering = (Dive.dive_datetime.desc(), Dive.id.desc())
+                if row.clip_policy == "best":
+                    ordering = (case((score_expr.is_(None), 1), else_=0), score_expr.desc(),
+                                Dive.dive_datetime.desc(), Dive.id.desc())
+                ranked = (db.query(Dive.id.label("dive_id"),
+                                   func.row_number().over(partition_by=Dive.dive_code,
+                                                          order_by=ordering).label("rn"))
+                          .outerjoin(totals, totals.c.dive_id == Dive.id)
+                          .filter(Dive.diver_id.in_(owner_ids), Dive.video_uuid.is_not(None),
+                                  Dive.dive_code.in_(needed_codes), Dive.height == row.height)
+                          .subquery())
+                top_ids = [row_id for (row_id,) in
+                           db.query(ranked.c.dive_id).filter(ranked.c.rn == 1).all()]
+                if top_ids:
+                    for dive, mean, count, performance_score in (
+                            base.filter(Dive.id.in_(top_ids)).all()):
+                        auto_map[dive.dive_code] = clip_payload(dive, mean, count, performance_score)
     def choice_out(choice):
         code = choice["code"]
         try:
