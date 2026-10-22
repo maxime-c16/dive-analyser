@@ -308,6 +308,55 @@ async def test_valid_upload_accepted_and_sibling_untouched(test_db, tmp_path, mo
 
 
 @pytest.mark.asyncio
+async def test_oversized_stream_rejected_before_write_sibling_intact(test_db, tmp_path, monkeypatch):
+    """Regression: oversized stream rejected AS SOON AS cumulative bytes
+    exceed the CLAIMED size -- the oversize chunk is never written, the
+    request staging is cleaned, and old pointer + sibling survive."""
+    from fastapi import HTTPException as _HTTPException
+
+    settings = get_settings()
+    saved = settings.media_cache_root
+    settings.media_cache_root = str(tmp_path)
+    try:
+        _agent(test_db)
+        asset = _asset(test_db, uuid="22222222-8888-8888-8888-888888888888")
+        _queued_job(test_db, asset)
+        leased = _lease(test_db)
+        job_id, token = leased.job_id, leased.lease_token
+        old_path, sibling_path = _seed_old_and_sibling(test_db, tmp_path, job_id, token)
+        before = _staging_files(tmp_path)
+
+        monkeypatch.setattr(media_api, "_agent_auth", lambda *a, **k: None)
+        writes: list[int] = []
+
+        def _counting_write(path, chunk):
+            writes.append(len(chunk))
+            return media_cache.write_upload_chunk(path, chunk)
+
+        monkeypatch.setattr(media_api, "write_upload_chunk", _counting_write)
+        # Claim 16 bytes; stream 16 OK + 16 over (2nd chunk must not be written).
+        fake = _FakeUpload([b"x" * 16, b"y" * 16, b"z" * 16])
+        with pytest.raises(_HTTPException) as exc:
+            await media_api.upload_job_artifact(
+                job_id, AGENT, "d" * 64, 16, fake, token, test_db, {"key": "test"}
+            )
+        assert exc.value.status_code == 400
+        assert "mismatch" in str(exc.value.detail).lower()
+        # Only the first in-claim chunk reached the disk.
+        assert writes == [16], f"oversize chunk must not be written, got {writes}"
+        assert fake.close_calls >= 1
+        after = _staging_files(tmp_path)
+        assert after == before
+        assert old_path.read_bytes() == b"old-accepted-bytes"
+        assert sibling_path.read_bytes() == b"sibling-bytes"
+        job = test_db.get(MediaJob, job_id)
+        assert job.status != "verifying"
+        assert job.upload_tmp_path == str(old_path)
+    finally:
+        settings.media_cache_root = saved
+
+
+@pytest.mark.asyncio
 async def test_hash_open_failure_cleans_only_this_staging(test_db, tmp_path, monkeypatch):
     """sha256 open failure: staging was streamed, then unreadable. Clean
     only this request file; old pointer + sibling survive, job not verifying."""

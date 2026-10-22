@@ -1368,14 +1368,25 @@ async def upload_job_artifact(
     # worker takes over. Clean only this file on pre-accept failure. Never
     # unlink after commit or via a DB re-read: TOCTOU could match the live
     # pointer, and run_to_completion re-raises cancel AFTER commit.
+    # Fail-closed streaming cap: reject + clean up AS SOON AS cumulative
+    # bytes exceed the claimed size (never buffer oversize to disk first).
     try:
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
+            if actual_size + len(chunk) > int(size_bytes):
+                try:
+                    await file.close()
+                except BaseException:
+                    pass
+                staging_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
             actual_size += len(chunk)
             write_upload_chunk(staging_path, chunk)
         await file.close()
+    except HTTPException:
+        raise
     except BaseException:
         try:
             await file.close()
@@ -1511,12 +1522,16 @@ async def finalize_job_artifact(
 def _slot_publish_http_error(exc: Exception) -> HTTPException:
     """Map a slot-publish failure to an explicit HTTP status (testable).
 
-    409 = client-stale (re-lease/refresh); 502 = B2 provider failure;
-    503 = storage unconfigured; 500 = retryable internal error. Provider and
+    400 = slot/shape refusal is handled prestream; 409 = client-stale
+    (re-lease/refresh) AND true canary-budget refusal (cap exceeded or
+    reservation ledger unavailable -- explicit typed classifier, never
+    a wrapped generic); 502 = B2 provider failure; 503 = storage
+    unconfigured; 500 = retryable internal error. Provider and
     internal details are sanitized (never raw tracebacks/paths/secrets);
     the ``from exc`` chain at the call site preserves logs server-side.
     """
     from app.services.derivative_publisher import (
+        CanaryBudgetPublishError,
         DerivativeIdentityConflict,
         DirtySessionError,
         FencedSlotConflict,
@@ -1533,6 +1548,19 @@ def _slot_publish_http_error(exc: Exception) -> HTTPException:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="package publish unavailable; please retry",
         )
+    if isinstance(exc, CanaryBudgetPublishError):
+        # True canary-budget refusal (cap spent or ledger unavailable):
+        # the PUT never streamed, re-lease will not help, but the job
+        # must surface as a 409 conflict (budget), never a 500. Must be
+        # checked BEFORE the generic DerivativePublishError fallthrough.
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    try:
+        from app.services.canary_budget import CanaryBudgetExceeded as _CBExceeded
+
+        if isinstance(exc, _CBExceeded):
+            return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except Exception:
+        pass
     if isinstance(exc, VerificationFailed):
         # B2 provider roundtrip failed: sanitized publisher detail only.
         return HTTPException(
@@ -1631,18 +1659,97 @@ async def publish_package_slot(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
+    # Canary hard budget (CANARY ONLY, server-derived scope): the 2 GiB cap
+    # applies ONLY to jobs whose DB-persisted reason is canary_web_package
+    # (admitted by the canary ops tool). Scope is re-read from the current
+    # DB row -- never from any client field -- so non-canary packages are
+    # unaffected. Prestream here is a size/shape/fence gate ONLY (per-slot
+    # cap + SHA shape + fenced lease peek, no budget row, no lock): there
+    # is deliberately NO prestream budget decision, because the publisher
+    # must first verify exact B2 object reuse via a full GET (same key
+    # already proving the same bytes skips both the PUT and any new
+    # charge -- NO PUT, no charge). The AUTHORITATIVE durable per-PUT
+    # charge happens inside the publisher AFTER the pre-PUT full-GET reuse
+    # check misses (definite-absent only) and BEFORE the PUT streams
+    # (charged per attempt; a claim/actual mismatch fails closed without
+    # spending budget on a corrupt claim; provider errors and corrupt
+    # reuse fail closed with no PUT and no new charge).
+    from app.services.canary_budget import canary_scope_for_job_id as _scope_for_job
+
+    try:
+        _is_canary = _scope_for_job(db, int(job_id))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Fail closed without a staged PUT: unverifiable scope (missing
+        # tables, misconfigured DB) must not stream bytes.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        from app.services.canary_budget import CanaryBudgetExceeded as _CBExceeded
+
+        if isinstance(exc, _CBExceeded):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="package publish unavailable; please retry",
+        ) from exc
+    if _is_canary:
+        try:
+            from app.services.canary_budget import (
+                normalize_object_sha,
+                validate_canary_slot_size,
+            )
+
+            validate_canary_slot_size(slot, size_bytes)
+            normalize_object_sha(checksum_sha256)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="package publish unavailable; please retry",
+            ) from exc
+
     from app.services.media_cache import cache_upload_staging_path
 
     staging_path = cache_upload_staging_path(job_id, lease_token)
     actual_size = 0
+    # Fail-closed streaming cap: reject + clean up AS SOON AS cumulative
+    # bytes exceed the claimed size or the slot cap -- never buffer an
+    # oversized body to MEDIA_CACHE_ROOT first. Undersize still fails
+    # after the stream (actual != claimed).
     try:
+        slot_cap = int(size_bytes)
+        if _is_canary:
+            try:
+                from app.services.canary_budget import CANARY_SLOT_MAX_BYTES
+                slot_cap = min(slot_cap, int(CANARY_SLOT_MAX_BYTES.get(slot, slot_cap)))
+            except Exception:
+                pass
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
+            if actual_size + len(chunk) > int(size_bytes) or actual_size + len(chunk) > slot_cap:
+                try:
+                    await file.close()
+                except BaseException:
+                    pass
+                staging_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
             actual_size += len(chunk)
             write_upload_chunk(staging_path, chunk)
         await file.close()
+    except HTTPException:
+        raise
     except BaseException:
         try:
             await file.close()
@@ -1748,7 +1855,8 @@ async def publish_package_slot(
             claimed_transform_version=transform_version,
         )
         try:
-            result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)
+            result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard,
+                                            canary_scope=_is_canary)
         except HTTPException:
             raise
         except Exception as exc:

@@ -189,6 +189,18 @@ class FencedSlotConflict(DerivativePublishError):
     """
 
 
+class CanaryBudgetPublishError(DerivativePublishError):
+    """True canary-budget refusal (typed 409, never 500).
+
+    Raised ONLY when the authoritative per-PUT reserve refuses the PUT
+    (cap exceeded or reservation ledger unavailable/misconfigured). Routes
+    map this subclass to 409. The generic ``DerivativePublishError`` base
+    stays 500 (retryable internal), so the classifier must check this
+    subclass BEFORE the base. Never raised for provider/reuse/commit
+    failures.
+    """
+
+
 class _CommittedStale(StaleSourceError):
     """Internal: stale record was COMMITTED before this was raised.
 
@@ -488,6 +500,7 @@ def _upload_and_roundtrip_verify(
     content_type: str,
     derivative_sha: str,
     derivative_size: int,
+    attempt_reuse: bool = False,
 ) -> None:
     """Upload bytes then stream-read the object back and compare ALL bytes.
 
@@ -496,7 +509,26 @@ def _upload_and_roundtrip_verify(
     artifact hashed just before upload. Any mismatch, truncation, wrong
     size, missing body or provider error raises ``VerificationFailed`` and
     commits nothing. Secrets never appear in messages.
+
+    Versioning bound (hard, canary only): the canary caller runs
+    ``_try_verified_reuse`` (full GET proving same bytes under the same
+    key) BEFORE charging or PUTting -- a hit skips both (verified reuse,
+    no new B2 version, no new charge). On a miss the caller charges this
+    PUT attempt first, then PUTs with ``attempt_reuse=False``. A
+    same-key retry after a successful PUT therefore takes the no-charge
+    reuse path; concurrent same-key races that both miss each charge
+    and each PUT (bounded to in-flight parallelism: fleet one-package
+    + serial admit -> at most one extra version). Non-canary publishes
+    pass attempt_reuse=False (no extra GET).
     """
+    if attempt_reuse and _try_verified_reuse(
+        client=client,
+        bucket=bucket,
+        key=key,
+        derivative_sha=derivative_sha,
+        derivative_size=derivative_size,
+    ):
+        return
     try:
         client.upload_file(
             str(local_path),
@@ -537,6 +569,103 @@ def _upload_and_roundtrip_verify(
         raise VerificationFailed("derivative storage verification failed; please retry") from None
     if digest.hexdigest() != derivative_sha or size != derivative_size:
         raise VerificationFailed("derivative storage verification failed; please retry")
+
+
+def _is_definite_not_found(exc: Exception) -> bool:
+    """True only when the provider proves the object is absent (no overwrite risk).
+
+    Definite-absent signals (fail-open to charge+PUT path):
+    - test fakes: ``KeyError`` / ``FileNotFoundError`` (miss fallback);
+    - typed provider not-found: ``NoSuchKey`` / ``NotFound`` / HTTP 404
+      (botocore ``ClientError`` ``response`` shape or exception class name).
+    Every other provider failure (500, timeout, auth, throttling,
+    corrupt stream, truncated body) is AMBIGUOUS: the object may exist,
+    so overwriting it cannot be authorized -- the caller must FAIL
+    CLOSED. Never inspects secrets; checks codes/status only.
+    """
+    if isinstance(exc, (KeyError, FileNotFoundError)):
+        return True
+    try:
+        resp = getattr(exc, "response", None)
+        if isinstance(resp, dict):
+            err = resp.get("Error") or {}
+            code = str(err.get("Code") or "").strip()
+            meta = resp.get("ResponseMetadata") or {}
+            try:
+                status = int(meta.get("HTTPStatusCode") or 0)
+            except (TypeError, ValueError):
+                status = 0
+            if code in ("NoSuchKey", "NotFound", "404") or status == 404:
+                return True
+            # S3-style 404 wrapped without response metadata.
+            if "NoSuchKey" in code or "NotFound" in code:
+                return True
+    except Exception:
+        pass
+    try:
+        name = type(exc).__name__ or ""
+        if name in ("NoSuchKey", "NotFound", "NotFoundException", "NoSuchBucket"):
+            # NoSuchBucket also proves no object exists at the key.
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _try_verified_reuse(*, client: Any, bucket: str, key: str,
+                          derivative_sha: str, derivative_size: int) -> bool:
+    """Full-GET reuse check: True when the same key already proves same bytes.
+
+    Streams the existing object and compares SHA-256 + size (never HEAD
+    metadata). Returns True on verified match (skip PUT + charge) and
+    False ONLY on definite-absent proof (``_is_definite_not_found``:
+    typed NoSuchKey/404 or fake KeyError/FileNotFound -- safe to
+    charge + PUT). Any other provider failure (500/timeout/auth),
+    truncated/corrupt stream, body-read error, or a successful GET whose
+    bytes do NOT match the expected SHA/size raises
+    ``VerificationFailed`` (sanitized, ``from None``): an unverifiable
+    reuse or a present-but-different object cannot authorize overwriting,
+    so the caller fails closed with no PUT and no new charge, preserving
+    monotonic accounting. Only a definite not-found response permits PUT.
+    Secrets never appear in messages.
+    """
+    import hashlib as _hashlib
+
+    try:
+        response = client.get_object(Bucket=bucket, Key=key)
+        body = response["Body"]
+        digest = _hashlib.sha256()
+        size = 0
+        try:
+            chunks = body.iter_chunks(chunk_size=1024 * 1024) if hasattr(body, "iter_chunks") else None
+            if chunks is None:
+                while True:
+                    piece = body.read(1024 * 1024)
+                    if not piece:
+                        break
+                    digest.update(piece)
+                    size += len(piece)
+            else:
+                for piece in chunks:
+                    if piece:
+                        digest.update(piece)
+                        size += len(piece)
+        finally:
+            try:
+                body.close()
+            except Exception:
+                pass
+    except Exception as exc:
+        if _is_definite_not_found(exc):
+            return False
+        raise VerificationFailed(
+            "derivative reuse check failed; refusing overwrite"
+        ) from None
+    if digest.hexdigest() != derivative_sha or size != derivative_size:
+        raise VerificationFailed(
+            "derivative reuse check found different bytes; refusing overwrite"
+        ) from None
+    return True
 
 
 def _is_postgres(db) -> bool:
@@ -632,6 +761,7 @@ def publish_derivative(
     *,
     s3_client: Any | None = None,
     pre_commit_hook: Any | None = None,
+    canary_scope: bool = False,
 ) -> dict[str, Any]:
     """Publish one derivative artifact (upload → verify → commit).
 
@@ -688,6 +818,11 @@ def publish_derivative(
         raise DerivativePublishError("derivative artifact could not be read") from exc
     if derivative_size <= 0:
         raise DerivativePublishError("derivative artifact is empty")
+    # Resolve the exact B2 namespace FIRST (pure, no DB txn, no network):
+    # the reservation identity is (bucket, object_key), computed from the
+    # trusted ctx pin + the ACTUAL bytes just hashed -- never from an
+    # untrusted client claim. Identical bytes under different keys are
+    # distinct stored objects (no SHA-only dedupe).
     key = derivative_object_key(
         source_sha256=ctx.source_blob_sha256,
         role=ctx.role,
@@ -696,6 +831,28 @@ def publish_derivative(
         prefix=prefix,
     )
     content_type = DERIVATIVE_CONTENT_TYPES[ctx.role]
+    # Canary-only hard budget (scoped: canary_scope=True, derived by the
+    # route from the SERVER-PERSISTED job reason -- never a client bool;
+    # generic callers never pay the canary cap). Per-slot size is
+    # validated here (fail before network); the durable per-PUT charge
+    # happens AFTER the pre-PUT full-GET reuse check misses and BEFORE
+    # the PUT streams (see network phase below): a verified reuse skips
+    # both the charge and the PUT, but every actual PUT attempt charges
+    # its own row -- even a same-key retry/racer that also missed the
+    # GET. The charge commits before the PUT so orphans/failed PUTs stay
+    # counted (monotonic, never refunded).
+    _is_canary_slot = bool(canary_scope and ctx.role in ("hq", "light", "poster"))
+    if _is_canary_slot:
+        try:
+            from app.services.canary_budget import validate_canary_slot_size
+
+            validate_canary_slot_size(ctx.role, int(derivative_size))
+        except ValueError as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise DerivativePublishError(str(exc) or "canary slot refused") from exc
 
     # Close the revalidation read snapshot before the network phase so no
     # read transaction spans the upload. The session is still clean here
@@ -741,15 +898,84 @@ def publish_derivative(
 
     client = s3_client if s3_client is not None else _b2_upload_client()
     try:
-        _upload_and_roundtrip_verify(
-            client=client,
-            bucket=bucket,
-            key=key,
-            local_path=path,
-            content_type=content_type,
-            derivative_sha=derivative_sha,
-            derivative_size=derivative_size,
-        )
+        if _is_canary_slot:
+            # Reuse check FIRST (full-GET proof, no charge): the same key
+            # already proving the same bytes skips both charge and PUT.
+            # Only a DEFINITE-absent GET (NoSuchKey/404) is a miss that
+            # authorizes charge+PUT; any other GET failure raises fail-closed
+            # (no PUT, no charge, monotonic preserved).
+            # On a definite miss, charge this PUT attempt NOW (cap-checked under
+            # the PG advisory lock, committed before the PUT -- never
+            # held across the network), then stream the PUT. Two racers
+            # that both miss each charge; each PUT may store its own
+            # version, so per-attempt charging is the bound (the
+            # one-package lease does NOT serialize duplicate HTTP).
+            if _try_verified_reuse(
+                client=client,
+                bucket=bucket,
+                key=key,
+                derivative_sha=derivative_sha,
+                derivative_size=derivative_size,
+            ):
+                pass
+            else:
+                try:
+                    from app.services.canary_budget import (
+                        CanaryBudgetExceeded,
+                        reserve_canary_upload,
+                    )
+
+                    reserve_canary_upload(
+                        db,
+                        derivative_sha,
+                        int(derivative_size),
+                        job_id=None,
+                        slot=ctx.role,
+                        bucket=bucket,
+                        object_key=key,
+                        environment=environment,
+                    )
+                except CanaryBudgetExceeded as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise CanaryBudgetPublishError(str(exc) or "canary budget exceeded") from exc
+                except ValueError as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise DerivativePublishError(str(exc) or "canary slot refused") from exc
+                except DerivativePublishError:
+                    raise
+                except Exception as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
+                _upload_and_roundtrip_verify(
+                    client=client,
+                    bucket=bucket,
+                    key=key,
+                    local_path=path,
+                    content_type=content_type,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    attempt_reuse=False,
+                )
+        else:
+            _upload_and_roundtrip_verify(
+                client=client,
+                bucket=bucket,
+                key=key,
+                local_path=path,
+                content_type=content_type,
+                derivative_sha=derivative_sha,
+                derivative_size=derivative_size,
+                attempt_reuse=False,
+            )
     except DerivativePublishError:
         try:
             db.rollback()
