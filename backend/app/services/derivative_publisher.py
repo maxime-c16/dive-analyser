@@ -609,14 +609,12 @@ def _try_verified_reuse(*, client: Any, bucket: str, key: str,
     False ONLY on definite-absent proof (``_is_definite_not_found``:
     typed NoSuchKey/404 or fake KeyError/FileNotFound -- safe to
     charge + PUT). Any other provider failure (500/timeout/auth),
-    truncated/corrupt stream, or body-read error raises
+    truncated/corrupt stream, body-read error, or a successful GET whose
+    bytes do NOT match the expected SHA/size raises
     ``VerificationFailed`` (sanitized, ``from None``): an unverifiable
-    reuse cannot authorize overwriting a possibly-existing object, so
-    the caller fails closed with no PUT and no new charge, preserving
-    monotonic accounting. Mismatched bytes on a successful GET return
-    False (object proves present but different; the charge path's
-    same-key clash check fails closed on corrupt claims, and the
-    monotonic baseline+charge sum preserves the old bytes).
+    reuse or a present-but-different object cannot authorize overwriting,
+    so the caller fails closed with no PUT and no new charge, preserving
+    monotonic accounting. Only a definite not-found response permits PUT.
     Secrets never appear in messages.
     """
     import hashlib as _hashlib
@@ -651,7 +649,11 @@ def _try_verified_reuse(*, client: Any, bucket: str, key: str,
         raise VerificationFailed(
             "derivative reuse check failed; refusing overwrite"
         ) from None
-    return digest.hexdigest() == derivative_sha and size == derivative_size
+    if digest.hexdigest() != derivative_sha or size != derivative_size:
+        raise VerificationFailed(
+            "derivative reuse check found different bytes; refusing overwrite"
+        ) from None
+    return True
 
 
 def _is_postgres(db) -> bool:

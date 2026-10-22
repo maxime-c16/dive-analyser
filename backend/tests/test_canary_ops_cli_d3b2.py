@@ -559,8 +559,12 @@ def test_publisher_skips_put_when_verified_existing():
                                derivative_sha=sha, derivative_size=len(data)) is True
     assert _try_verified_reuse(client=_Miss(), bucket="b", key="k",
                                derivative_sha=sha, derivative_size=len(data)) is False
-    assert _try_verified_reuse(client=_Hit(), bucket="b", key="k",
-                               derivative_sha=_sha(b"other"), derivative_size=len(data)) is False
+    # Present-but-different bytes must NOT authorize charge+PUT: fail closed.
+    import pytest as _pt
+    from app.services.derivative_publisher import VerificationFailed as _VF
+    with _pt.raises(_VF):
+        _try_verified_reuse(client=_Hit(), bucket="b", key="k",
+                            derivative_sha=_sha(b"other"), derivative_size=len(data))
 
 
 # ---------------------------------------------------------------------------

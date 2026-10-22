@@ -93,16 +93,29 @@ def _refuse_inside_git(path: Path, what: str) -> None:
             )
 
 
+def _safe_bare_origin(u: urllib.parse.SplitResult) -> str:
+    """Query-free, path-free origin for diagnostics (never a credential)."""
+    scheme = u.scheme.lower()
+    host = (u.hostname or "").lower()
+    try:
+        port = u.port
+    except ValueError:
+        port = None
+    default = 443 if scheme == "https" else 80
+    if port and port != default:
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
 def _check_mode_0600(path: Path, what: str) -> None:
     try:
         mode = stat.S_IMODE(path.stat().st_mode)
     except FileNotFoundError:
         return
     if mode & 0o077:
-        print(
-            f"WARNING: {what} {path} has mode {oct(mode)} (expected 0600); "
-            "fix with: chmod 600 " + str(path),
-            file=sys.stderr,
+        raise SystemExit(
+            f"REFUSED: {what} {path} has mode {oct(mode)} (expected 0600); "
+            "fix with: chmod 600 " + str(path)
         )
 
 
@@ -614,7 +627,16 @@ def main(argv=None) -> int:
     elif st2 in REDIRECT_STATUSES:
         loc2 = (hdrs2.get("location") or "").strip()
         loc_class = "untrusted-redirect"
+        # NEVER persist the raw Location: presigned storage redirects carry
+        # bearer query credentials (X-Amz-Signature/Credential, tokens).
+        # Record only the redirect class + a query-free bare origin.
+        loc_origin = ""
         try:
+            if loc2:
+                try:
+                    loc_origin = _safe_bare_origin(_checked_split(loc2, "logged-out redirect"))
+                except _Refused:
+                    loc_origin = ""
             if loc2 and _origin_tuple(_checked_split(loc2, "logged-out redirect")) == library_origin:
                 # STRICT: same-Library-origin redirect (login, playback, or
                 # any other path) is NOT a denial -- fail closed.
@@ -633,14 +655,12 @@ def main(argv=None) -> int:
                 except _Refused:
                     loc_class = "untrusted-redirect"
             details["logged_out_location_class"] = loc_class
-            if loc2:
-                details["logged_out_location"] = loc2[:200]
+            if loc_origin:
+                details["logged_out_origin"] = loc_origin
         except _Refused:
             # Unparseable / userinfo / private-scheme redirect target:
             # NOT a denial either.
             details["logged_out_location_class"] = "untrusted-redirect"
-            if loc2:
-                details["logged_out_location"] = loc2[:200]
     elif st2 == 200 and body2:
         details["logged_out_location_class"] = "served-bytes"
     else:

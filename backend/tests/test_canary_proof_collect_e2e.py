@@ -206,6 +206,7 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
             mod, "_ffprobe", lambda *a, **k: (clean, cadence, {"format": "mp4"}))
     cookie = tmp_path / "cookies.txt"
     cookie.write_text("session=operator-private-value")
+    cookie.chmod(0o600)
     out = tmp_path / "proof-frag.json"
     argv = [
         "--play-url", play_url,
@@ -226,6 +227,158 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
     rc = mod.main(argv)
     payload = json.loads(out.read_text()) if out.exists() else None
     return rc, payload, opener
+
+
+def _signed_grant_urls(base="https://b2.example.test/file/bucket/key"):
+    """Planted bearer-query URLs: must NEVER appear in proof output/logs."""
+    return [
+        base + "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE"
+               "%2F20300101%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20300101T000000Z"
+               "&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=abc123def456",
+        base + "?Expires=1000000000&Signature=planted-sig&X-Amz-Security-Token=planted-token",
+        base + "?x-amz-credential=lower-case-plant&session-secret=planted-session-secret",
+    ]
+
+
+def _assert_no_bearer_leak(capsys, payload):
+    blob = json.dumps(payload, sort_keys=True) if payload else ""
+    out = capsys.readouterr()
+    hay = blob + out.out + out.err
+    for needle in ("X-Amz-Signature", "X-Amz-Credential", "X-Amz-Security-Token",
+                   "x-amz-credential", "planted-sig", "planted-token",
+                   "planted-session-secret", "operator-private-value"):
+        assert needle.lower() not in hay.lower(), f"leaked {needle} into output/log/report"
+
+
+def test_signed_query_never_persisted_success_and_failure(capsys, tmp_path, monkeypatch):
+    """Planted bearer query params must not leak via JSON/stdout/stderr."""
+    import urllib.request as _urllib_request
+
+    mod = _load_mod()
+    data = b"leak-bytes-" * 4096
+    for grant in _signed_grant_urls():
+        opener = _FakeOpener(data, ctype="video/mp4", mode="ok")
+        # Override the authorized 302 Location with the planted grant.
+        orig_library = opener._library
+
+        def _planted_library(cookie, rng, _orig=orig_library, _grant=grant):
+            if not cookie:
+                return _FakeResp(403, {"Content-Type": "text/plain"}, b"denied")
+            return _FakeResp(302, {"Location": _grant}, b"")
+
+        opener._library = _planted_library
+        monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener)
+        monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+        cookie = tmp_path / "cookies.txt"
+        cookie.write_text("session=operator-private-value")
+        cookie.chmod(0o600)
+        out = tmp_path / "proof-frag.json"
+        expired = "https://b2.example.test/file/bucket/key?Expires=1000000000"
+        rc = mod.main([
+            "--play-url", PLAY_URL, "--library-origin", LIB_ORIGIN,
+            "--storage-origin", STO_ORIGIN, "--expected-sha", _sha(data),
+            "--expected-size", str(len(data)), "--cookies", str(cookie),
+            "--slot", "light", "--video-uuid", "clip-leak-1", "--operator", "op",
+            "--out", str(out), "--expired-url", expired,
+        ])
+        payload = json.loads(out.read_text()) if out.exists() else None
+        # Success path still proves bytes without persisting bearer query.
+        assert rc == 0, payload
+        _assert_no_bearer_leak(capsys, payload)
+        # No raw query-bearing field survives in details.
+        for key, value in (payload.get("details") or {}).items():
+            assert "X-Amz-" not in str(value) and "Signature" not in str(value), key
+            assert "planted" not in str(value).lower(), key
+        # Failure path: corrupt full GET, still no leak.
+        opener2 = _FakeOpener(data, ctype="video/mp4", mode="corrupt_full")
+        opener2._library = _planted_library
+        monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener2)
+        monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+        out2 = tmp_path / "proof-frag-fail.json"
+        rc2 = mod.main([
+            "--play-url", PLAY_URL, "--library-origin", LIB_ORIGIN,
+            "--storage-origin", STO_ORIGIN, "--expected-sha", _sha(data),
+            "--expected-size", str(len(data)), "--cookies", str(cookie),
+            "--slot", "light", "--video-uuid", "clip-leak-1", "--operator", "op",
+            "--out", str(out2), "--expired-url", expired,
+        ])
+        assert rc2 == 2
+        payload2 = json.loads(out2.read_text()) if out2.exists() else None
+        _assert_no_bearer_leak(capsys, payload2)
+
+
+def test_logged_out_storage_grant_has_no_query_or_url_field(capsys, tmp_path, monkeypatch):
+    """Logged-out 302 to a signed storage grant: fail closed, status+class
+    only, bare origin at most -- no raw Location/query/URL field."""
+    mod = _load_mod()
+    data = b"leak-bytes-" * 4096
+    grant = _signed_grant_urls()[0]
+
+    class _LoggedOutSigned(_FakeOpener):
+        def _library(self, cookie, rng):
+            if not cookie:
+                return _FakeResp(302, {"Location": grant}, b"")
+            return super()._library(cookie, rng)
+
+    import urllib.request as _urllib_request
+
+    opener = _LoggedOutSigned(data, ctype="video/mp4", mode="ok")
+    monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener)
+    monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+    cookie = tmp_path / "cookies.txt"
+    cookie.write_text("session=operator-private-value")
+    cookie.chmod(0o600)
+    out = tmp_path / "proof-frag.json"
+    rc = mod.main([
+        "--play-url", PLAY_URL, "--library-origin", LIB_ORIGIN,
+        "--storage-origin", STO_ORIGIN, "--expected-sha", _sha(data),
+        "--expected-size", str(len(data)), "--cookies", str(cookie),
+        "--slot", "light", "--video-uuid", "clip-leak-2", "--operator", "op",
+        "--out", str(out), "--expired-url", EXPIRED_URL,
+    ])
+    assert rc == 2
+    payload = json.loads(out.read_text())
+    assert payload["checks"]["logged_out_denied"] is False
+    assert payload["details"]["logged_out_location_class"] == "storage-grant"
+    assert payload["details"]["logged_out_status"] == 302
+    assert "logged_out_location" not in payload["details"], "raw Location must not persist"
+    for key, value in payload["details"].items():
+        assert "?" not in str(value) or key in ("grant_expiry",), f"query in {key}"
+        assert "X-Amz-" not in str(value), key
+    origin = payload["details"].get("logged_out_origin", "")
+    assert origin in ("", "https://b2.example.test"), origin
+    _assert_no_bearer_leak(capsys, payload)
+
+
+def test_group_readable_cookie_file_refused_before_read(tmp_path, monkeypatch):
+    """Group/world-readable cookie files are refused BEFORE reading/sending."""
+    import urllib.request as _urllib_request
+
+    mod = _load_mod()
+    data = b"cookie-mode-" * 1024
+    opener = _FakeOpener(data, mode="ok")
+    monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener)
+    monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+    cookie = tmp_path / "cookies.txt"
+    cookie.write_text("session=operator-private-value")
+    cookie.chmod(0o640)
+    out = tmp_path / "proof-frag.json"
+    with __import__("pytest").raises(SystemExit):
+        mod._load_cookies(cookie)
+    assert opener.requests == [], "no request may precede the mode refusal"
+    rc = None
+    try:
+        rc = mod.main([
+            "--play-url", PLAY_URL, "--library-origin", LIB_ORIGIN,
+            "--storage-origin", STO_ORIGIN, "--expected-sha", _sha(data),
+            "--expected-size", str(len(data)), "--cookies", str(cookie),
+            "--slot", "light", "--video-uuid", "clip-cookie-mode", "--operator", "op",
+            "--out", str(out),
+        ])
+    except SystemExit as exc:
+        rc = exc.code
+    assert rc != 0
+    assert opener.requests == []
 
 
 def test_happy_path_all_checks_true(tmp_path, monkeypatch):
@@ -718,6 +871,7 @@ def _run_real(mod, tmp_path, data, urls, extra_argv=()):
     try:
         cookie = tmp_path / "cookies.txt"
         cookie.write_text("session=operator-private-value")
+        cookie.chmod(0o600)
         out = tmp_path / "proof-frag.json"
         argv = [
             "--play-url", urls["play"],
@@ -795,6 +949,7 @@ def test_evil_redirect_refused_before_any_storage_fetch(tmp_path, monkeypatch):
         try:
             cookie = tmp_path / "cookies.txt"
             cookie.write_text("session=operator-private-value")
+            cookie.chmod(0o600)
             out = tmp_path / "proof-frag.json"
             rc = mod.main([
                 "--play-url", urls["play"],
@@ -832,6 +987,7 @@ def test_userinfo_redirect_refused_without_storage_contact(tmp_path, monkeypatch
         try:
             cookie = tmp_path / "cookies.txt"
             cookie.write_text("session=operator-private-value")
+            cookie.chmod(0o600)
             out = tmp_path / "proof-frag.json"
             rc = mod.main([
                 "--play-url", urls["play"],
