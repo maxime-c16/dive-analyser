@@ -48,7 +48,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
@@ -970,23 +970,33 @@ def _bulk_package_complete(db, sources: dict[str, Any], version: str) -> dict[st
     if not sources:
         return {}
     uuids = list(sources)
+    pairs = [(uuid, sha) for uuid, (sha, _blob) in sources.items()]
+    # Only the CURRENT (clip, source) identities: historical source or
+    # transform rows never enter the result (at most 3 rows per clip).
     rows: dict[tuple[str, str], Any] = {}
     for row in db.execute(select(MediaDerivative).where(
-            MediaDerivative.video_uuid.in_(uuids), MediaDerivative.transform_version == version,
+            tuple_(MediaDerivative.video_uuid, MediaDerivative.source_blob_sha256).in_(pairs),
+            MediaDerivative.transform_version == version,
     ).order_by(MediaDerivative.id.desc())).scalars().all():
-        if row.source_blob_sha256 == sources[row.video_uuid][0]:
-            rows.setdefault((row.video_uuid, row.role), row)
-    revisions = set(db.execute(select(
-        MediaRevision.video_uuid, MediaRevision.blob_sha256, MediaRevision.rendition_semantics,
-    ).where(MediaRevision.video_uuid.in_(uuids),
-            MediaRevision.rendition_semantics.in_(tuple(DERIVATIVE_ROLE_TO_SEMANTICS.values())))).all())
+        rows.setdefault((row.video_uuid, row.role), row)
     shas = sorted({r.derivative_blob_sha256 for r in rows.values()})
-    locations: dict[str, list] = {}
+    revisions: set = set()
+    locations: dict[str, tuple] = {}
     if shas:
-        for loc in db.execute(select(MediaBlobLocation).where(
-                MediaBlobLocation.blob_sha256.in_(shas), MediaBlobLocation.environment == "prod",
-                MediaBlobLocation.verified.is_(True))).scalars().all():
-            locations.setdefault(loc.blob_sha256, []).append(loc)
+        revisions = set(db.execute(select(
+            MediaRevision.video_uuid, MediaRevision.blob_sha256, MediaRevision.rendition_semantics,
+        ).where(MediaRevision.blob_sha256.in_(shas), MediaRevision.video_uuid.in_(uuids),
+                MediaRevision.rendition_semantics.in_(tuple(DERIVATIVE_ROLE_TO_SEMANTICS.values())))
+        ).all())
+        # One aggregated row per hash: the replica count, and (when exactly
+        # one) that replica's backend/bucket/key via min() of a single row.
+        for sha, count, backend, bkt, key in db.execute(select(
+                MediaBlobLocation.blob_sha256, func.count(MediaBlobLocation.id),
+                func.min(MediaBlobLocation.storage_backend), func.min(MediaBlobLocation.bucket),
+                func.min(MediaBlobLocation.object_key),
+        ).where(MediaBlobLocation.blob_sha256.in_(shas), MediaBlobLocation.environment == "prod",
+                MediaBlobLocation.verified.is_(True)).group_by(MediaBlobLocation.blob_sha256)).all():
+            locations[sha] = (int(count), backend, bkt, key)
     bucket = (get_settings().media_backbone_prod_bucket or "").strip().lower()
     pins = _bulk_producer_alias(db, uuids, version)
 
@@ -996,12 +1006,11 @@ def _bulk_package_complete(db, sources: dict[str, Any], version: str) -> dict[st
             return False
         if (uuid, row.derivative_blob_sha256, DERIVATIVE_ROLE_TO_SEMANTICS[role]) not in revisions:
             return False
-        locs = locations.get(row.derivative_blob_sha256, [])
-        if len(locs) != 1:
+        count, backend, bkt, key = locations.get(row.derivative_blob_sha256, (0, None, None, None))
+        if count != 1:
             return False
-        loc = locs[0]
-        return ((loc.storage_backend or "").lower() == "b2"
-                and (loc.bucket or "").strip().lower() == bucket and bool(loc.object_key or ""))
+        return ((backend or "").lower() == "b2"
+                and (bkt or "").strip().lower() == bucket and bool(key or ""))
 
     out: dict[str, dict] = {}
     for uuid, (sha, blob) in sources.items():

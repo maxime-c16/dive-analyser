@@ -655,6 +655,10 @@ def test_batched_inventory_equals_per_clip_read_contract(env):
         env.add(newer_job)
         env.flush()
         _finish(env, newer_job, _sha(f"other-source-{k}".encode()), ledger=False)
+    a16, s16 = _clip(env, 16)                            # complete, plus history of an older source/transform
+    _ledger(env, a16.video_uuid, _sha(b"old-source-16"))
+    env.query(MediaDerivative).filter_by(video_uuid=a16.video_uuid).update({"transform_version": "ffmpeg-h264-web-v0"})
+    _ledger(env, a16.video_uuid, s16)
     a15, s15 = _clip(env, 15)                            # failed package within the window
     recent = MediaJob(photos_asset_id=a15.id, media_key="r" + "0" * 63, rendition="web_package", status="queued")
     env.add(recent)
@@ -664,18 +668,18 @@ def test_batched_inventory_equals_per_clip_read_contract(env):
     version = get_derivative_transform_version()
     reference = {}
     out = {"estimated_worst_case_bytes": 0, "source_bytes_to_convert": 0}
-    for asset in (a1, a2, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15):
+    for asset in (a1, a2, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16):
         cls = mm._classify_clip(env, asset.video_uuid, asset.id, version, out)
         reference[cls] = reference.get(cls, 0) + 1
     reference["blocked:no_canonical_source"] = reference.get("blocked:no_canonical_source", 0) + 1  # clip 3
     batched = mm.inventory(env, batch=3)
     assert batched["classes"] == dict(sorted(reference.items()))
     assert batched["estimated_worst_case_bytes"] == out["estimated_worst_case_bytes"]
-    assert batched["classes"]["already_complete"] == 2 and batched["classes"]["prior_failed"] == 2
+    assert batched["classes"]["already_complete"] == 3 and batched["classes"]["prior_failed"] == 2
     assert mm.package_state(env, a9.video_uuid, version)["hq_aliased_to"] == "light"
-    sources = mm._bulk_canonical_sources(env, [a.video_uuid for a in (a1, a9, a10, a11, a12, a13)])
+    sources = mm._bulk_canonical_sources(env, [a.video_uuid for a in (a1, a4, a9, a10, a11, a12, a13, a16)])
     bulk = mm._bulk_package_complete(env, sources, version)
-    for asset in (a1, a9, a10, a11, a12, a13):
+    for asset in (a1, a9, a10, a11, a12, a13, a16):
         assert bulk[asset.video_uuid]["complete"] == (
             mm.package_state(env, asset.video_uuid, version)["state"] == "complete"), asset.video_uuid
 
