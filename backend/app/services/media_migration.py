@@ -49,6 +49,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select, text
+from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models.dive import Dive
@@ -922,6 +923,7 @@ def _recent_package_jobs(db, *, asset_ids=None, uuids=None, statuses):
     return db.execute(
         select(MediaJob).join(inner, inner.c.job_id == MediaJob.id)
         .where(inner.c.rn <= JOB_HISTORY_WINDOW).order_by(MediaJob.id.desc())
+        .options(selectinload(MediaJob.asset))  # one query per batch, no N+1
     ).scalars().all()
 
 

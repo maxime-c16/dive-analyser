@@ -678,3 +678,31 @@ def test_batched_inventory_equals_per_clip_read_contract(env):
     for asset in (a1, a9, a10, a11, a12, a13):
         assert bulk[asset.video_uuid]["complete"] == (
             mm.package_state(env, asset.video_uuid, version)["state"] == "complete"), asset.video_uuid
+
+
+def test_inventory_batch_query_count_is_constant(env):
+    """Statements per batch must not grow with the number of clips (no N+1)."""
+    from sqlalchemy import event
+
+    def count_for(n_clips, start):
+        for n in range(start, start + n_clips):
+            asset, sha = _clip(env, n)
+            job = MediaJob(photos_asset_id=asset.id, media_key=f"q{n:04d}" + "0" * 59,
+                           rendition="web_package", status="queued")
+            env.add(job)
+            env.flush()
+            _finish(env, job, sha, alias="light" if n % 2 else None, ledger=bool(n % 3))
+        env.commit()
+        statements = []
+        listener = lambda *args: statements.append(1)  # noqa: E731
+        event.listen(env.bind, "before_cursor_execute", listener)
+        try:
+            report = mm.inventory(env, batch=500)
+        finally:
+            event.remove(env.bind, "before_cursor_execute", listener)
+        return len(statements), report["clips"]
+
+    small, clips_small = count_for(3, 100)
+    large, clips_large = count_for(12, 200)
+    assert clips_large == clips_small + 12
+    assert large == small, (small, large)
