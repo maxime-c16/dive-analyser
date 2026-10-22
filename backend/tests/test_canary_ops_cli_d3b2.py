@@ -477,6 +477,7 @@ def test_orphan_reservation_persists_across_publisher_rollback(test_db):
 def test_source_changed_proof_invalid(test_db, tmp_path, monkeypatch):
     ops = _load_ops()
     src = _seed_source(test_db, "clip-stale-1")
+    _seed_ready_derivative(test_db, "clip-stale-1", src, "hq", 2000)
     _seed_ready_derivative(test_db, "clip-stale-1", src, "light", 1000)
     _seed_ready_derivative(test_db, "clip-stale-1", src, "poster", 500)
     manifest = tmp_path / "m.json"
@@ -488,7 +489,8 @@ def test_source_changed_proof_invalid(test_db, tmp_path, monkeypatch):
         MediaDerivative.video_uuid == "clip-stale-1").all()
     from app.services.derivative_publisher import resolve_canonical_source_revision
     rev, _blob, _loc = resolve_canonical_source_revision(test_db, "clip-stale-1")
-    slots = {r.role: {"derivative_sha256": r.derivative_blob_sha256, "byte_size": 1000 if r.role == "light" else 500}
+    _sizes = {"hq": 2000, "light": 1000, "poster": 500}
+    slots = {r.role: {"derivative_sha256": r.derivative_blob_sha256, "byte_size": _sizes[r.role]}
              for r in rows}
     proof = {"video_uuid": "clip-stale-1", "source_sha256": src,
              "source_revision_id": int(rev.id), "transform_version": "ffmpeg-h264-web-v1",

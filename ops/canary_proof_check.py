@@ -22,6 +22,14 @@ Proof schema (required)::
                 "logged_out_denied": true},
      "recorded_at": "<ISO-8601>", "operator": "<name>"}
 
+    Slots must be ``hq+light+poster``. ``light+poster`` (no HQ) is
+    accepted ONLY with a server-trusted DB producer alias proof: the
+    clip's ``web_package`` job ``finalized_slots`` pin matches the proof
+    source/revision/version with ``hq_aliased_to == "light"`` (durable
+    complete) AND the durable resolver still validates the alias.
+    Anything else requires HQ (fail closed). The proof JSON claim alone
+    never proves the alias.
+
 Usage::
 
     python3 ops/canary_proof_check.py --proof ~/.config/.../proof-<uuid>.json

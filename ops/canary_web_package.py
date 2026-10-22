@@ -387,7 +387,15 @@ PROOF_REQUIRED_CHECKS = (
 
 
 def validate_proof_record(proof: dict) -> dict:
-    """Validate a structured proof record (no DB). Fail closed."""
+    """Validate a structured proof record (no DB). Fail closed.
+
+    Schema allows ``hq+light+poster`` (full proof) or ``light+poster``
+    (claimed small-source alias). The alias shape is NOT trusted here:
+    ``crosscheck_proof_db`` requires a SERVER-TRUSTED DB producer alias
+    proof (``web_package`` job ``finalized_slots`` pin matching the proof
+    source/revision/version with ``hq_aliased_to == "light"``, durable
+    complete, plus resolver validation) and otherwise requires HQ.
+    """
     if not isinstance(proof, dict):
         raise ValueError("proof must be a JSON object")
     uuid = proof.get("video_uuid")
@@ -447,11 +455,141 @@ def validate_proof_record(proof: dict) -> dict:
     }
 
 
-def crosscheck_proof_db(db, proof_norm: dict) -> None:
-    """Cross-check a proof record against the durable DB ledger. Fail closed."""
-    from app.models.media_backbone import MediaDerivative
+def _require_server_alias_for_light_poster(db, proof_norm: dict) -> None:
+    """Require a SERVER-TRUSTED DB producer alias proof for light+poster.
+
+    A ``light+poster`` proof (no HQ) is accepted ONLY when the durable DB
+    proves the producer aliased HQ to light for THIS exact source pin:
+
+    - a ``web_package`` ``MediaJob`` for the clip whose ``finalized_slots``
+      pin (``source_sha256`` + ``source_revision_id`` + ``transform_version``)
+      matches the proof, with ``hq_aliased_to == "light"``, ``light`` + ``poster``
+      slots present (same artifact SHAs as the proof, no ``hq`` slot), and
+      job ``status == "ready"`` (durable complete -- a verifying/partial job
+      never proves the alias); AND
+    - the durable resolver still validates the alias for the proof transform
+      (``resolve_clip_derivatives`` reports ``hq`` ``state == "ready"`` with
+      ``aliased_to == "light"`` -- i.e. no distinct HQ ledger row exists for
+      the current canonical source + transform and light is servable).
+
+    The proof JSON claim and coded-dims inference alone NEVER suffice: an
+    unknown alias (no matching job pin, forged ``hq_aliased_to``, stale
+    pin, or resolver disagreement) requires HQ and is refused fail-closed.
+    """
+    from app.models.media import MediaJob
+    from app.models.photos_asset import PhotosAsset
 
     uuid = proof_norm["video_uuid"]
+    asset = (
+        db.query(PhotosAsset)
+        .filter(PhotosAsset.video_uuid == uuid)
+        .limit(1)
+        .first()
+    )
+    if asset is None:
+        raise ValueError(
+            f"proof DB mismatch: HQ proof required for {uuid[:8]}... "
+            "(no server alias proof for light+poster)"
+        )
+    try:
+        from app.services.web_packages import get_finalized_state
+    except Exception as exc:
+        raise ValueError(f"proof DB check failed: {type(exc).__name__}")
+    jobs = (
+        db.query(MediaJob)
+        .filter(
+            MediaJob.photos_asset_id == asset.id,
+            MediaJob.rendition == "web_package",
+        )
+        .order_by(MediaJob.id.desc())
+        .limit(10)
+        .all()
+    )
+    matched = False
+    for job in jobs:
+        try:
+            state = get_finalized_state(job)
+        except Exception:
+            continue
+        if str(state.get("source_sha256") or "").lower() != str(proof_norm["source_sha256"]).lower():
+            continue
+        try:
+            if int(state.get("source_revision_id")) != int(proof_norm["source_revision_id"]):
+                continue
+        except (TypeError, ValueError):
+            continue
+        if str(state.get("transform_version") or "").strip() != str(proof_norm["transform_version"]).strip():
+            continue
+        if state.get("hq_aliased_to") != "light":
+            continue
+        slots_state = state.get("slots") or {}
+        if "light" not in slots_state or "poster" not in slots_state:
+            continue
+        if "hq" in slots_state:
+            continue
+        try:
+            if str(slots_state["light"].get("derivative_sha256") or "").lower() != str(
+                proof_norm["slots"]["light"]["derivative_sha256"]
+            ).lower():
+                continue
+            if str(slots_state["poster"].get("derivative_sha256") or "").lower() != str(
+                proof_norm["slots"]["poster"]["derivative_sha256"]
+            ).lower():
+                continue
+        except (AttributeError, KeyError, TypeError):
+            continue
+        if getattr(job, "status", None) != "ready":
+            continue
+        matched = True
+        break
+    if not matched:
+        raise ValueError(
+            f"proof DB mismatch: HQ proof required for {uuid[:8]}... "
+            "(no server alias proof for light+poster)"
+        )
+    try:
+        from app.services.derivative_read import resolve_clip_derivatives
+
+        clip = resolve_clip_derivatives(
+            db, uuid, transform_version=str(proof_norm["transform_version"]).strip()
+        )
+        hq = clip.roles.get("hq") if getattr(clip, "roles", None) else None
+        if (
+            hq is None
+            or getattr(hq, "aliased_to", None) != "light"
+            or getattr(hq, "state", None) != "ready"
+        ):
+            raise ValueError(
+                f"proof DB mismatch: server alias not validated for {uuid[:8]}... "
+                "(resolver requires HQ)"
+            )
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"proof DB check failed: {type(exc).__name__}")
+
+
+def crosscheck_proof_db(db, proof_norm: dict) -> None:
+    """Cross-check a proof record against the durable DB ledger. Fail closed.
+
+    Requires ``hq+light+poster`` unless a SERVER-TRUSTED DB producer alias
+    proof shows ``hq`` aliased to ``light`` (see
+    ``_require_server_alias_for_light_poster``). Every provided slot must
+    match a READY ledger row (source SHA + artifact SHA) and its durable
+    blob size; the canonical source/revision must still match the proof.
+    Unknown alias state requires HQ (refused fail-closed).
+    """
+    from app.models.media_backbone import MediaBlob, MediaDerivative
+
+    uuid = proof_norm["video_uuid"]
+    roles = set(proof_norm.get("slots", {}))
+    if roles == {"light", "poster"}:
+        _require_server_alias_for_light_poster(db, proof_norm)
+    elif roles != {"hq", "light", "poster"}:
+        raise ValueError(
+            f"proof DB mismatch: HQ proof required for {uuid[:8]}... "
+            f"(unexpected slots {sorted(roles)})"
+        )
     for role, entry in proof_norm["slots"].items():
         row = (
             db.query(MediaDerivative)
@@ -468,13 +606,21 @@ def crosscheck_proof_db(db, proof_norm: dict) -> None:
             raise ValueError(f"proof DB mismatch: no READY ledger row for {uuid[:8]}.../{role}")
         if str(row.source_blob_sha256 or "").lower() != proof_norm["source_sha256"]:
             raise ValueError(f"proof DB mismatch: source SHA drift for {uuid[:8]}.../{role}")
-        try:
-            if int(row.source_blob_sha256 is not None and getattr(row, "id", 0) or 0) < 0:
-                pass
-        except Exception:
-            pass
         if str(row.derivative_blob_sha256 or "").lower() != entry["derivative_sha256"]:
             raise ValueError(f"proof DB mismatch: artifact SHA mismatch for {uuid[:8]}.../{role}")
+        try:
+            blob = db.get(MediaBlob, str(entry["derivative_sha256"]).lower())
+        except Exception as exc:
+            raise ValueError(f"proof DB check failed: {type(exc).__name__}")
+        if blob is None:
+            raise ValueError(f"proof DB mismatch: no durable blob for {uuid[:8]}.../{role}")
+        try:
+            if int(blob.byte_size) != int(entry["byte_size"]):
+                raise ValueError(f"proof DB mismatch: artifact size mismatch for {uuid[:8]}.../{role}")
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError(f"proof DB check failed: {type(exc).__name__}")
     # Source revision still canonical (no silent source swap since proof).
     try:
         from app.services.derivative_publisher import resolve_canonical_source_revision

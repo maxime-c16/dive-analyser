@@ -267,8 +267,15 @@ evidence -- source/version, per-slot artifact SHA+bytes
      "recorded_at": "<ISO-8601>", "operator": "<name>"}
 
 All `checks` must be boolean true (evidence required); the tool
-cross-checks every slot SHA against the READY ledger rows for the
-CURRENT source + transform and rejects on source/revision drift. No
+cross-checks every slot SHA+size against the READY ledger rows for the
+CURRENT source + transform and rejects on source/revision drift. Slots
+must be `hq+light+poster`; `light+poster` (no HQ) is accepted ONLY with
+a server-trusted DB producer alias proof (the clip's `web_package` job
+`finalized_slots` pin matches the proof source/revision/version with
+`hq_aliased_to == "light"`, durable complete, AND the durable resolver
+still validates the alias) -- the proof JSON claim or coded-dims
+inference alone never suffices, and unknown alias state requires HQ.
+No
 fake or minted bypass exists: B2 and Library checks run with the
 operator's own existing user session (see `canary_proof_check.py`
 checklist -- cookie to the Library origin only, storage fetched without
