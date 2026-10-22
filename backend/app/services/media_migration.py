@@ -67,6 +67,7 @@ MAC_FACTS_MAX_AGE = timedelta(minutes=15)
 MIN_MAC_SCRATCH_FREE_BYTES = 8 * 1024**3
 SWEEP_BATCH = 100
 SYNC_BATCH = 500
+REFRESH_BATCH = 50
 CANDIDATE_SCAN = 20
 OPEN_RUN_STATUSES = ("active", "paused")
 ACTIVE_STATUSES = (
@@ -325,6 +326,13 @@ def _unsynced_dives(run: MediaMigrationRun):
     )
 
 
+def _current_asset_id(db, video_uuid: str):
+    """The clip's CURRENT Photos asset binding (never a stale item copy)."""
+    return db.execute(
+        select(func.min(Dive.photos_asset_id)).where(Dive.video_uuid == video_uuid)
+    ).scalar_one_or_none()
+
+
 def sync_items(db, run: MediaMigrationRun, batch: int | None = None) -> int:
     """Add at most ``batch`` pending items (newest dives first).
 
@@ -544,10 +552,13 @@ def _mark_complete(item: MediaMigrationItem, st: dict, job, now: datetime, *, sk
 
 def refresh_queued(db, run: MediaMigrationRun, now: datetime) -> dict[str, int]:
     counts = {"completed": 0, "failed": 0, "requeued": 0, "blocked": 0}
+    # Bounded, round-robin: least recently checked first; every checked item
+    # is touched so the next tick continues with the others (durable).
     items = db.execute(select(MediaMigrationItem).where(
         MediaMigrationItem.run_id == run.id, MediaMigrationItem.status == "queued",
-    )).scalars().all()
+    ).order_by(MediaMigrationItem.updated_at.asc(), MediaMigrationItem.id.asc()).limit(REFRESH_BATCH)).scalars().all()
     for item in items:
+        item.updated_at = now
         job = db.get(MediaJob, item.media_job_id) if item.media_job_id else None
         if job is None:
             _to_pending(item, "job_missing")
@@ -639,7 +650,10 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
                 _to_pending(item, "source_or_version_drift", drift=True)
                 counts["drift"] += 1
         elif item.status == "blocked":
-            if item.reason in ("no_canonical_source", "no_photos_asset") and st["state"] != "no_source":
+            asset_id = _current_asset_id(db, item.video_uuid)
+            if item.reason in ("no_canonical_source", "no_photos_asset") and st["state"] != "no_source" \
+                    and asset_id is not None and db.get(PhotosAsset, asset_id) is not None:
+                item.photos_asset_id = asset_id
                 _to_pending(item, "source_now_available")
                 counts["unblocked"] += 1
         elif item.status == "failed":
@@ -689,7 +703,12 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
         db.execute(text("SELECT pg_advisory_xact_lock(:a, :b)"), {"a": LEASE_LOCK[0], "b": LEASE_LOCK[1]})
     result: dict[str, Any] = {"admitted": 0, "adopted": 0, "skipped_complete": 0, "blocked": 0,
                               "failed": 0, "stopped": None}
-    slots = int(run.queue_depth) - _owned_active_jobs(db)
+    adopted = int(db.execute(select(func.count(MediaMigrationItem.id)).where(
+        MediaMigrationItem.run_id == run.id, MediaMigrationItem.status == "queued",
+        MediaMigrationItem.job_owned.is_(False),
+    )).scalar_one())
+    # Adopted jobs occupy queue slots too, so queued items stay bounded.
+    slots = int(run.queue_depth) - _owned_active_jobs(db) - adopted
     if slots <= 0:
         result["stopped"] = "queue_full"
         return result
@@ -706,6 +725,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
         if run.admission_cap is not None and int(run.admitted_jobs) >= int(run.admission_cap):
             result["stopped"] = "admission_cap"
             break
+        item.photos_asset_id = _current_asset_id(db, item.video_uuid)
         asset = db.get(PhotosAsset, item.photos_asset_id) if item.photos_asset_id else None
         if asset is None:
             item.status, item.reason = "blocked", "no_photos_asset"
@@ -747,6 +767,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             item.estimated_bytes = None
             item.admitted_at = now
             result["adopted"] += 1
+            slots -= 1
             continue
         if item.reason != "operator_retry":
             prior = _prior_package_outcome(db, asset.id, st["source_sha256"], run.transform_version)
@@ -772,6 +793,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             result["admitted"] += 1
         else:
             result["adopted"] += 1
+            slots -= 1
         item.status = "queued"
         item.reason = None
         item.media_job_id = job.id
@@ -891,7 +913,7 @@ def status_report(db, now: datetime | None = None) -> dict[str, Any]:
         for j in db.execute(
             select(MediaJob).join(MediaMigrationItem, MediaMigrationItem.media_job_id == MediaJob.id)
             .where(MediaMigrationItem.run_id == run.id, MediaMigrationItem.status == "queued")
-            .order_by(MediaJob.id.asc())
+            .order_by(MediaJob.id.asc()).limit(REFRESH_BATCH)
         ).scalars().all()
     ]
     published_bytes, published_objects = db.execute(

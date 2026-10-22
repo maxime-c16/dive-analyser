@@ -541,3 +541,45 @@ def test_cli_roundtrip_exit_codes(tmp_path, monkeypatch):
     assert cli.main(["--database-url", url, "inventory"]) == 0
     with sessionmaker(bind=engine)() as db:
         assert db.query(MediaMigrationRun).one().status == "active"
+
+
+def test_repaired_asset_binding_is_refreshed_on_unblock(env):
+    asset, _ = _clip(env, 1)
+    dive = env.query(Dive).filter_by(video_uuid=asset.video_uuid).one()
+    dive.photos_asset_id = None
+    env.flush()
+    _start(env)
+    mm.tick(env)
+    env.commit()
+    item = _items(env)["00000001"]
+    assert item.status == "blocked" and item.reason == "no_photos_asset" and item.photos_asset_id is None
+    dive.photos_asset_id = asset.id  # binding repaired
+    env.flush()
+    mm.tick(env)  # sweep unblocks with the CURRENT binding, admission queues it
+    env.commit()
+    item = _items(env)["00000001"]
+    assert item.photos_asset_id == asset.id and item.status == "queued" and len(_jobs(env)) == 1
+
+
+def test_adopted_jobs_consume_queue_slots_and_refresh_is_bounded(env, monkeypatch):
+    from app.services.media_jobs import create_or_reuse_media_job
+
+    for n in range(1, 7):
+        asset, _ = _clip(env, n)
+        _, job, _ = create_or_reuse_media_job(env, asset, "web_package", "new_captioned_ingestion")
+        job.priority = 60
+    env.flush()
+    _start(env, queue_depth=2)
+    mm.tick(env)
+    env.commit()
+    items = env.query(MediaMigrationItem).all()
+    assert sum(i.status == "queued" for i in items) == 2  # adoption bounded by queue_depth
+    assert len(_jobs(env)) == 6  # no migration job created while adopted slots are full
+    monkeypatch.setattr(mm, "REFRESH_BATCH", 1)
+    for job in _jobs(env):
+        job.status = "failed"
+    env.flush()
+    first = mm.refresh_queued(env, env.query(MediaMigrationRun).one(), datetime.utcnow() + timedelta(seconds=1))
+    assert first["failed"] == 1
+    second = mm.refresh_queued(env, env.query(MediaMigrationRun).one(), datetime.utcnow() + timedelta(seconds=2))
+    assert second["failed"] == 1
