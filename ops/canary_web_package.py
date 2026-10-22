@@ -361,10 +361,9 @@ def save_state(state_dir: Path, state: dict) -> None:
 
 
 def _db_admitted_uuids(db) -> set[str]:
-    try:
-        return set(_cb.db_admitted_uuids(db))
-    except Exception:
-        return set()
+    # Fail closed: a DB/cohort error must refuse admission, never look
+    # like an empty cohort that bypasses the total-30 cap.
+    return set(_cb.db_admitted_uuids(db))
 
 
 def _load_phase1_cohort(path_arg) -> list[str]:
@@ -532,11 +531,33 @@ def cmd_inventory(args) -> int:
     eng = _engine()
     db = _session(eng)
     try:
-        committed = canary_ledger_bytes(db)
+        try:
+            committed = canary_ledger_bytes(db)
+            committed_txt = str(committed)
+            remaining_txt = str(CANARY_BUDGET_BYTES - committed)
+        except Exception as exc:
+            # Read-only path: report unavailable, never a false 0.
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            print(f"phase={phase} manifest_clips={len(clips)} "
+                  f"accounted_bytes=unavailable ({type(exc).__name__}) "
+                  f"remaining_budget_bytes=unavailable "
+                  f"fleet_package_active=unknown")
+            shown = 0
+            for uuid in clips[:30]:
+                r = clip_readiness(db, uuid)
+                ok = "OK " if r.get("ok") else "SKIP"
+                extra = r.get("reason", r.get("status", ""))
+                print(f"  [{ok}] {uuid[:8]}... status={r.get('status')} {extra}")
+                shown += 1
+            print(f"inventory done: {shown} clip(s) checked (bounded, LIMIT per clip). DRY-RUN: no writes.")
+            return 0
         fleet = fleet_package_blocked(db)
         print(f"phase={phase} manifest_clips={len(clips)} "
-              f"accounted_bytes={committed} (reservations+ready, orphans included) "
-              f"remaining_budget_bytes={CANARY_BUDGET_BYTES - committed} "
+              f"accounted_bytes={committed_txt} (reservations+ready, orphans included) "
+              f"remaining_budget_bytes={remaining_txt} "
               f"fleet_package_active={int(fleet['blocked'])}")
         shown = 0
         for uuid in clips[:30]:
@@ -567,7 +588,16 @@ def cmd_admit(args) -> int:
     eng = _engine()
     db = _session(eng)
     try:
-        db_known = _db_admitted_uuids(db)
+        try:
+            db_known = _db_admitted_uuids(db)
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            print(f"REFUSED: web_package cohort unverifiable ({type(exc).__name__}); "
+                  "no admission without a provable total.")
+            return 2
         file_known = set(state.get("admitted", []) or [])
         known = set(db_known) | set(file_known)
         total_admitted = len(known)
@@ -628,7 +658,16 @@ def cmd_admit(args) -> int:
             if srv_free is not None and int(srv_free) < MIN_SERVER_CACHE_FREE_BYTES:
                 print(f"REFUSED: server cache volume free {int(srv_free)} < {MIN_SERVER_CACHE_FREE_BYTES} (25 GiB).")
                 return 2
-        committed = canary_ledger_bytes(db)
+        try:
+            committed = canary_ledger_bytes(db)
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            print(f"REFUSED: canary budget unverifiable ({type(exc).__name__}); "
+                  "no admission without a provable budget.")
+            return 2
         remaining = CANARY_BUDGET_BYTES - committed
         fleet = fleet_package_blocked(db)
         if fleet["blocked"]:
@@ -715,9 +754,17 @@ def cmd_verify(args) -> int:
     eng = _engine()
     db = _session(eng)
     try:
-        committed = canary_ledger_bytes(db)
-        print(f"accounted_bytes={committed} (reservations+ready, orphans included) "
-              f"remaining_budget_bytes={CANARY_BUDGET_BYTES - committed}")
+        try:
+            committed = canary_ledger_bytes(db)
+            print(f"accounted_bytes={committed} (reservations+ready, orphans included) "
+                  f"remaining_budget_bytes={CANARY_BUDGET_BYTES - committed}")
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            print(f"accounted_bytes=unavailable ({type(exc).__name__}) "
+                  f"remaining_budget_bytes=unavailable")
         ready_seen: set[str] = set(state.get("ready_seen", []) or [])
         for uuid in clips[:30]:
             r = clip_readiness(db, uuid)

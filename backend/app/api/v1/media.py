@@ -1645,7 +1645,25 @@ async def publish_package_slot(
     # spending budget on a corrupt claim).
     from app.services.canary_budget import canary_scope_for_job_id as _scope_for_job
 
-    _is_canary = _scope_for_job(db, int(job_id))
+    try:
+        _is_canary = _scope_for_job(db, int(job_id))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Fail closed without a staged PUT: unverifiable scope (missing
+        # tables, misconfigured DB) must not stream bytes.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        from app.services.canary_budget import CanaryBudgetExceeded as _CBExceeded
+
+        if isinstance(exc, _CBExceeded):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="package publish unavailable; please retry",
+        ) from exc
     if _is_canary:
         try:
             from app.services.canary_budget import (
@@ -1664,6 +1682,15 @@ async def publish_package_slot(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="package publish unavailable; please retry",
+            ) from exc
 
     from app.services.media_cache import cache_upload_staging_path
 

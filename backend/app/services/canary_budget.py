@@ -146,13 +146,23 @@ def canary_scope_for_job_id(db, job_id: int) -> bool:
     Used by the slot route AFTER the lease peek: the scope comes from the
     current DB row, so a client cannot flip a job into (or out of) the
     canary budget. Unknown/missing job -> False (no budget consumed).
+    Any DB/schema error raises (never a false False that would let a
+    canary PUT stream without charge on a misconfigured DB).
     """
-    try:
-        from app.models.media import MediaJob
+    from app.models.media import MediaJob
 
+    try:
         job = db.get(MediaJob, int(job_id))
-    except Exception:
-        return False
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise CanaryBudgetExceeded(
+                "canary scope unavailable (media_jobs table missing); refusing"
+            ) from exc
+        raise
     if job is None:
         return False
     return is_canary_job(job)
@@ -348,6 +358,42 @@ def _is_postgres(db) -> bool:
         return False
 
 
+#: Bounded proof rails (consistent everywhere): no ledger/baseline scan
+#: may silently aggregate an unbounded table. 5000 rows is far above the
+#: canary fleet (<= 30) and keeps SUM/COUNT bounded on every backend.
+_CANARY_LEDGER_CAP_ROWS = 5000
+_CANARY_READY_CAP_ROWS = 5000
+
+
+def _is_missing_schema_error(exc: Exception) -> bool:
+    """True when the DB reports a missing table/column (migration not applied)."""
+    msg = str(exc).lower()
+    return (
+        "no such table" in msg
+        or "no such column" in msg
+        or "does not exist" in msg
+        or "undefinedtable" in msg
+        or "undefinedcolumn" in msg
+    )
+
+
+def _missing_ledger_error() -> CanaryBudgetExceeded:
+    return CanaryBudgetExceeded(
+        "canary reservation ledger unavailable "
+        "(apply backend/migrations/add_canary_slot_reservations.sql + "
+        "add_canary_slot_reservation_exact_key.sql + "
+        "add_canary_put_attempt_charges.sql BEFORE any canary); refusing"
+    )
+
+
+def _missing_baseline_error() -> CanaryBudgetExceeded:
+    return CanaryBudgetExceeded(
+        "canary READY baseline unavailable (media_derivatives/media_blobs "
+        "tables or columns missing -- apply pending migrations BEFORE any "
+        "canary); refusing budget proof"
+    )
+
+
 def _advisory_xact_lock(db, key: tuple[int, int]) -> None:
     """Best-effort PG advisory xact lock (no-op on SQLite).
 
@@ -363,29 +409,85 @@ def _advisory_xact_lock(db, key: tuple[int, int]) -> None:
 
 
 def canary_reserved_bytes(db) -> int:
-    """Sum of the durable reservation ledger (orphans included)."""
+    """Sum of the durable reservation ledger (orphans included). FAIL CLOSED.
+
+    Bounded SQL aggregate: COUNT first (rail at 5000 rows), then a
+    NULL/negative guard, then COALESCE(SUM). Never loads all rows.
+    Missing ledger table/columns, any DB error, or any NULL/non-positive
+    size raises (no silent 0): an unverifiable ledger must refuse the
+    PUT, never authorize beyond the cap. Returns 0 ONLY when the table
+    exists and is verified empty (COUNT == 0).
+    """
+    from sqlalchemy import func as _func
+
+    from app.models.canary_ledger import CanarySlotReservation
+
     try:
-        from app.models.canary_ledger import CanarySlotReservation
-    except Exception:
-        return 0
-    try:
-        rows = db.query(CanarySlotReservation.size_bytes).all()
-    except Exception:
-        # Table missing (migration not yet applied): fail closed at the
-        # callers that enforce the budget, but keep this sum helper
-        # total-safe for read-only paths.
-        return 0
-    total = 0
-    for r in rows:
+        count = db.query(_func.count(CanarySlotReservation.id)).scalar()
+    except Exception as exc:
         try:
-            total += int(r[0] or 0)
-        except (TypeError, ValueError):
-            continue
-    return total
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    try:
+        count_n = int(count or 0)
+    except (TypeError, ValueError):
+        raise CanaryBudgetExceeded("canary ledger count unreadable; refusing")
+    if count_n > _CANARY_LEDGER_CAP_ROWS:
+        raise CanaryBudgetExceeded(
+            f"reservation ledger exceeds bounded scan ({_CANARY_LEDGER_CAP_ROWS} rows); "
+            "refusing budget proof -- investigate before any canary"
+        )
+    if count_n == 0:
+        return 0
+    try:
+        bad = (
+            db.query(_func.count(CanarySlotReservation.id))
+            .filter(
+                (CanarySlotReservation.size_bytes.is_(None))
+                | (CanarySlotReservation.size_bytes <= 0)
+            )
+            .scalar()
+        )
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    if int(bad or 0) > 0:
+        raise CanaryBudgetExceeded(
+            "canary ledger holds NULL/non-positive size_bytes; "
+            "refusing budget proof -- investigate before any canary"
+        )
+    try:
+        total = (
+            db.query(_func.coalesce(_func.sum(CanarySlotReservation.size_bytes), 0)).scalar()
+        )
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    try:
+        total_n = int(total or 0)
+    except (TypeError, ValueError):
+        raise CanaryBudgetExceeded("canary ledger sum unreadable; refusing")
+    if total_n < 0:
+        raise CanaryBudgetExceeded("canary ledger sum negative; refusing")
+    return total_n
 
 
 def canary_legacy_ready_bytes(db) -> int:
-    """Pre-charge READY baseline, counted per exact object (no SHA dedupe).
+    """Pre-charge READY baseline, counted per exact object (no SHA dedupe). FAIL CLOSED.
 
     Sums ``MediaBlob.byte_size`` once per READY ``media_derivatives``
     row (each row is an exact stored object: its B2 key embeds
@@ -396,33 +498,59 @@ def canary_legacy_ready_bytes(db) -> int:
     promotes -- counting both would double-charge every success).
     Unreserved rows (pre-charge history, other envs, recomputed-key
     mismatches) stay counted: exclusion misses over-count (safe),
-    never under-count. A READY row with no blob size fails closed
-    (refuses the proof rather than silently under-counting).
-    Bounded scan (canary fleet <= 30 rows expected; the cap is a rail).
+    never under-count. A READY row with no/invalid blob size fails
+    closed (refuses the proof rather than silently under-counting).
+    Bounded scan (cap 5000 ready rows, consistent with the ledger rail).
+
+    Returns 0 ONLY when the derivatives table exists and holds zero
+    READY rows (verified empty history). Missing tables/columns, any
+    DB error, or any NULL/non-positive blob size raises: an
+    unverifiable baseline must refuse the PUT, never authorize it.
+    The SAVEPOINT isolates the probe so a baseline failure never
+    poisons the caller's transaction -- it re-raises fail-closed
+    instead of returning a false 0.
     """
+    from sqlalchemy import func as _func
+
     from app.models.media_backbone import MediaDerivative
 
-    cap_rows = 5000
-    # SAVEPOINT-isolated probe: a probe failure (e.g. a table the caller
-    # did not create) must return 0 WITHOUT poisoning the caller's
-    # transaction (on PG any failed statement aborts the whole TX --
-    # without this, a later reserve in the same unit would die with
-    # InFailedSqlTransaction instead of failing closed on its own terms).
+    cap_rows = _CANARY_READY_CAP_ROWS
     try:
         with db.begin_nested():
-            rows = (
-                db.query(
-                    MediaDerivative.source_blob_sha256,
-                    MediaDerivative.role,
-                    MediaDerivative.transform_version,
-                    MediaDerivative.derivative_blob_sha256,
-                )
+            ready_count = (
+                db.query(_func.count(MediaDerivative.id))
                 .filter(MediaDerivative.status == "ready")
-                .limit(cap_rows + 1)
-                .all()
+                .scalar()
             )
-    except Exception:
-        return 0
+            try:
+                ready_n = int(ready_count or 0)
+            except (TypeError, ValueError):
+                raise CanaryBudgetExceeded("canary baseline count unreadable; refusing")
+            if ready_n > cap_rows:
+                raise CanaryBudgetExceeded(
+                    f"derivative ledger exceeds bounded scan ({cap_rows} ready rows); "
+                    "refusing budget proof -- investigate before any canary"
+                )
+            if ready_n == 0:
+                rows: list = []
+            else:
+                rows = (
+                    db.query(
+                        MediaDerivative.source_blob_sha256,
+                        MediaDerivative.role,
+                        MediaDerivative.transform_version,
+                        MediaDerivative.derivative_blob_sha256,
+                    )
+                    .filter(MediaDerivative.status == "ready")
+                    .limit(cap_rows + 1)
+                    .all()
+                )
+    except CanaryBudgetExceeded:
+        raise
+    except Exception as exc:
+        if _is_missing_schema_error(exc):
+            raise _missing_baseline_error() from exc
+        raise
     if len(rows) > cap_rows:
         raise CanaryBudgetExceeded(
             f"derivative ledger exceeds bounded scan ({cap_rows} ready rows); "
@@ -430,10 +558,9 @@ def canary_legacy_ready_bytes(db) -> int:
         )
     if not rows:
         return 0
-    try:
-        charged_keys = canary_reserved_keys(db)
-    except Exception:
-        charged_keys = set()
+    # Ledger exclusion must itself be verifiable: an unavailable ledger
+    # cannot prove "unreserved", so it fails closed (never an empty set).
+    charged_keys = canary_reserved_keys(db)
     from app.config import get_settings as _get_settings
     from app.services.media_backbone import environment_bucket as _env_bucket
 
@@ -480,16 +607,35 @@ def canary_legacy_ready_bytes(db) -> int:
         return 0
     need_shas = sorted({d for _, d in pending if d})
     sizes: dict[str, int] = {}
-    for i in range(0, len(need_shas), 500):
-        chunk = need_shas[i : i + 500]
-        blob_rows = db.query(MediaBlob.sha256, MediaBlob.byte_size).filter(
-            MediaBlob.sha256.in_(chunk)
-        ).all()
-        for sha, size in blob_rows:
-            try:
-                sizes[str(sha).lower()] = int(size or 0)
-            except (TypeError, ValueError):
-                continue
+    try:
+        for i in range(0, len(need_shas), 500):
+            chunk = need_shas[i : i + 500]
+            blob_rows = db.query(MediaBlob.sha256, MediaBlob.byte_size).filter(
+                MediaBlob.sha256.in_(chunk)
+            ).all()
+            for sha, size in blob_rows:
+                try:
+                    size_n = int(size) if size is not None else None
+                except (TypeError, ValueError):
+                    raise CanaryBudgetExceeded(
+                        "canary baseline blob size unreadable; refusing budget proof"
+                    )
+                if size_n is None or size_n <= 0:
+                    raise CanaryBudgetExceeded(
+                        "canary baseline blob holds NULL/non-positive byte_size; "
+                        "refusing budget proof -- investigate before any canary"
+                    )
+                sizes[str(sha).lower()] = size_n
+    except CanaryBudgetExceeded:
+        raise
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_baseline_error() from exc
+        raise
     total = 0
     for _, d in pending:
         if not d:
@@ -502,33 +648,76 @@ def canary_legacy_ready_bytes(db) -> int:
                 f"READY derivative {d[:12]}... has no blob size; "
                 "refusing budget proof -- investigate before any canary"
             )
-        total += sizes[d]
+        size_n = sizes[d]
+        if size_n is None or int(size_n) <= 0:
+            raise CanaryBudgetExceeded(
+                "canary baseline blob holds NULL/non-positive byte_size; refusing"
+            )
+        total += int(size_n)
     return total
 
 
 def canary_reserved_shas(db) -> set[str]:
-    """Distinct reserved object SHAs (bounded)."""
+    """Distinct reserved object SHAs (bounded). FAIL CLOSED.
+
+    Raises on any DB/schema error or when any row carries a NULL/empty
+    SHA: an unverifiable set must refuse, never look empty.
+    """
+    from sqlalchemy import func as _func
+
+    from app.models.canary_ledger import CanarySlotReservation
+
     try:
-        from app.models.canary_ledger import CanarySlotReservation
-    except Exception:
-        return set()
-    try:
-        rows = db.query(CanarySlotReservation.object_sha256).limit(5001).all()
-    except Exception:
-        return set()
-    if len(rows) > 5000:
+        count = db.query(_func.count(CanarySlotReservation.id)).scalar()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    if int(count or 0) > _CANARY_LEDGER_CAP_ROWS:
         raise CanaryBudgetExceeded("reservation ledger exceeds bounded scan; refusing")
-    return {str(r[0]).lower() for r in rows if r and r[0]}
+    if int(count or 0) == 0:
+        return set()
+    try:
+        rows = db.query(CanarySlotReservation.object_sha256).limit(_CANARY_LEDGER_CAP_ROWS + 1).all()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    if len(rows) > _CANARY_LEDGER_CAP_ROWS:
+        raise CanaryBudgetExceeded("reservation ledger exceeds bounded scan; refusing")
+    out: set[str] = set()
+    for r in rows:
+        sha = r[0] if r else None
+        if not sha or not str(sha).strip():
+            raise CanaryBudgetExceeded(
+                "canary ledger holds NULL/empty object_sha256; refusing"
+            )
+        out.add(str(sha).lower())
+    return out
 
 
 def canary_accounted_bytes(db) -> int:
-    """Authoritative canary bytes: per-PUT charges + READY baseline.
+    """Authoritative canary bytes: per-PUT charges + READY baseline. FAIL CLOSED.
 
     Counts EVERY attempted PUT (orphans included), once per attempt row
     -- the same key retried counts again (each PUT may store a new
     version). Plus the pre-charge READY baseline, counted per exact
     derivative object (not per SHA). Monotonic (never decreases);
     replay/double-record over-counts (safe) rather than under-counts.
+
+    Raises on any unverifiable proof (missing tables, unavailable
+    baseline/reservation, invalid sizes, unbounded scan). Returns 0
+    ONLY when both the ledger and the READY baseline are verified
+    empty. Callers must treat any exception as "budget unknown --
+    refuse the PUT".
     """
     reserved = canary_reserved_bytes(db)
     legacy = canary_legacy_ready_bytes(db)
@@ -716,7 +905,21 @@ def reserve_canary_upload(
             f"existing sha/size != claimed; refusing"
         )
 
-    accounted = canary_accounted_bytes(db)
+    accounted = None
+    try:
+        accounted = canary_accounted_bytes(db)
+    except (CanaryBudgetExceeded, ValueError):
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
     if accounted + int(size) > CANARY_BUDGET_BYTES:
         try:
             db.rollback()
@@ -751,18 +954,45 @@ def reserve_canary_upload(
 
 
 def canary_reserved_keys(db) -> set[tuple[str, str]]:
-    """Distinct reserved (bucket, object_key) pairs (bounded)."""
+    """Distinct reserved (bucket, object_key) pairs (bounded). FAIL CLOSED.
+
+    Legacy rows carry NULL bucket/object_key and are skipped (they still
+    count in bytes via :func:`canary_reserved_bytes`). Any DB/schema
+    error raises: an unverifiable exclusion set must refuse, never look
+    empty (empty would over-count baseline -- safe direction -- but the
+    authoritative path treats unknown as refusal for explicitness).
+    """
+    from sqlalchemy import func as _func
+
+    from app.models.canary_ledger import CanarySlotReservation
+
     try:
-        from app.models.canary_ledger import CanarySlotReservation
-    except Exception:
+        count = db.query(_func.count(CanarySlotReservation.id)).scalar()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    if int(count or 0) > _CANARY_LEDGER_CAP_ROWS:
+        raise CanaryBudgetExceeded("reservation ledger exceeds bounded scan; refusing")
+    if int(count or 0) == 0:
         return set()
     try:
         rows = db.query(
             CanarySlotReservation.bucket, CanarySlotReservation.object_key
-        ).limit(5001).all()
-    except Exception:
-        return set()
-    if len(rows) > 5000:
+        ).limit(_CANARY_LEDGER_CAP_ROWS + 1).all()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise _missing_ledger_error() from exc
+        raise
+    if len(rows) > _CANARY_LEDGER_CAP_ROWS:
         raise CanaryBudgetExceeded("reservation ledger exceeds bounded scan; refusing")
     out: set[tuple[str, str]] = set()
     for bkt, key in rows:
@@ -772,11 +1002,12 @@ def canary_reserved_keys(db) -> set[tuple[str, str]]:
 
 
 def db_admitted_uuids(db, limit: int = 100) -> set[str]:
-    """Distinct video_uuids with ANY web_package job (durable DB cohort).
+    """Distinct video_uuids with ANY web_package job (durable DB cohort). FAIL CLOSED.
 
     Bounded scan (canary fleet <= 30; cap is a safety rail -- exceeding
     it fails closed). Uses the DB, never the private state dir, so a
-    reset state dir cannot bypass the total-30 cap.
+    reset state dir cannot bypass the total-30 cap. Any DB/schema error
+    raises (never a false empty set that would bypass the total cap).
     """
     from app.models.media import MediaJob
     from app.models.photos_asset import PhotosAsset
@@ -790,8 +1021,16 @@ def db_admitted_uuids(db, limit: int = 100) -> set[str]:
             .limit(cap + 1)
             .all()
         )
-    except Exception:
-        return set()
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if _is_missing_schema_error(exc):
+            raise CanaryBudgetExceeded(
+                "web_package cohort unavailable (migrations missing); refusing"
+            ) from exc
+        raise
     if len(rows) > cap:
         raise CanaryBudgetExceeded(
             f"web_package cohort exceeds bounded scan ({cap}); refusing -- investigate"
