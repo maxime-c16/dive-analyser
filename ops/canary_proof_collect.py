@@ -826,10 +826,12 @@ def _compare_cadence_video(source: dict, output: dict) -> tuple[bool, dict]:
 
     Requires output decoded frames EXACTLY equal source frames (a
     nominal 60->30 transcode MUST fail even though the output count is
-    positive). fps/duration must match within container-rounding
+    positive). The decoded rate (count / presented duration) and duration
+    must match within container-rounding
     tolerance (VFR preserved by count+duration, NOT by per-frame PTS:
     ``pts_exact_claimed`` is always False -- per-frame PTS exactness is
-    NOT claimed without dedicated proof).
+    NOT claimed without dedicated proof). Container avg_frame_rate is
+    diagnostic: MOV edit lists can retain a different sample population.
     """
     if "error" in source:
         return False, {"reason": f"source census failed: {source['error']}"}
@@ -837,8 +839,15 @@ def _compare_cadence_video(source: dict, output: dict) -> tuple[bool, dict]:
         return False, {"reason": f"output census failed: {output['error']}"}
     try:
         sf, of = int(source["frames"]), int(output["frames"])
-        sfps, ofps = float(source["avg_fps"]), float(output["avg_fps"])
         sdur, odur = float(source["duration"]), float(output["duration"])
+        if sf <= 0 or of <= 0 or not (0 < sdur < float("inf")) or not (0 < odur < float("inf")):
+            raise ValueError("invalid decoded census")
+        # MOV edit lists can leave avg_frame_rate based on samples that
+        # are outside the presented timeline. Compare the rate of the
+        # actually decoded census over that timeline, on BOTH sides.
+        # Exact frame equality and the independent duration rail below
+        # remain mandatory; reported container rates stay diagnostic.
+        sfps, ofps = sf / sdur, of / odur
     except (KeyError, TypeError, ValueError):
         return False, {"reason": "unmeasurable census fields"}
     evidence: dict = {
@@ -848,6 +857,9 @@ def _compare_cadence_video(source: dict, output: dict) -> tuple[bool, dict]:
         "output_frames": of,
         "output_fps": ofps,
         "output_duration": odur,
+        "rate_basis": "decoded_frames_per_second",
+        "source_reported_avg_fps": source.get("avg_fps"),
+        "output_reported_avg_fps": output.get("avg_fps"),
         "vfr": bool(source.get("vfr") or output.get("vfr")),
         # Honest scope: count+timing verified; per-frame PTS exactness
         # is NOT proven by this census (would need bounded PTS series).
