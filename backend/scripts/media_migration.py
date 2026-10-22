@@ -78,6 +78,7 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     inv = sub.add_parser("inventory")
     inv.add_argument("--json", action="store_true")
+    inv.add_argument("--limit", type=int, default=None, help="classify only the first N clips (sample)")
     start = sub.add_parser("start")
     start.add_argument("--budget-gib", type=float, required=True)
     start.add_argument("--queue-depth", type=int, default=mm.DEFAULT_QUEUE_DEPTH)
@@ -107,7 +108,7 @@ def main(argv=None) -> int:
     with factory() as db:
         try:
             if args.cmd == "inventory":
-                report = mm.inventory(db)
+                report = mm.inventory(db, limit=args.limit)
                 db.rollback()
                 if args.json:
                     print(json.dumps(report, indent=2, sort_keys=True))

@@ -583,3 +583,18 @@ def test_adopted_jobs_consume_queue_slots_and_refresh_is_bounded(env, monkeypatc
     assert first["failed"] == 1
     second = mm.refresh_queued(env, env.query(MediaMigrationRun).one(), datetime.utcnow() + timedelta(seconds=2))
     assert second["failed"] == 1
+
+
+def test_inventory_is_batched_exact_and_read_only(env):
+    a1, s1 = _clip(env, 1)
+    _ledger(env, a1.video_uuid, s1)
+    _clip(env, 2, source=False)
+    for n in range(3, 6):
+        _clip(env, n)
+    env.commit()
+    full = mm.inventory(env, batch=2)
+    assert full["clips"] == 5
+    assert full["classes"] == {"already_complete": 1, "blocked:no_canonical_source": 1, "to_convert": 3}
+    assert mm.inventory(env, batch=500) == full
+    assert mm.inventory(env, batch=2, limit=3)["clips"] == 3
+    assert env.query(MediaMigrationRun).count() == 0 and _jobs(env) == []

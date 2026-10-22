@@ -248,7 +248,7 @@ def mac_package_facts(db, now: datetime | None = None) -> dict[str, Any]:
             MediaAgent.leasing_enabled.is_(True),
             MediaAgent.last_seen_at.is_not(None),
             MediaAgent.last_seen_at >= now - MAC_FACTS_MAX_AGE,
-        )
+        ).order_by(MediaAgent.last_seen_at.desc()).limit(20)
     ).scalars().all()
     best: dict[str, Any] = {"ok": False, "reason": "mac_resources_unknown"}
     for agent in agents:
@@ -408,6 +408,8 @@ def _cancel_unleased_owned_jobs(db, run: MediaMigrationRun, reason: str) -> int:
     """
     if _is_postgres(db):
         db.execute(text("SELECT pg_advisory_xact_lock(:a, :b)"), {"a": LEASE_LOCK[0], "b": LEASE_LOCK[1]})
+    # Owned queued items are bounded by queue_depth (<= 5): admission never
+    # holds more owned active jobs than that.
     items = db.execute(
         select(MediaMigrationItem).where(
             MediaMigrationItem.run_id == run.id,
@@ -838,41 +840,62 @@ def tick(db, now: datetime | None = None) -> dict[str, Any]:
 # Inventory + status (read-only)
 # --------------------------------------------------------------------------
 
-def inventory(db, version: str | None = None) -> dict[str, Any]:
-    """Read-only exact classification of every clip (no writes)."""
+INVENTORY_BATCH = 500
+
+
+def inventory(db, version: str | None = None, *, batch: int | None = None,
+              limit: int | None = None) -> dict[str, Any]:
+    """Read-only exact classification, in bounded keyset batches (no writes).
+
+    Each batch reads at most ``batch`` clips and the session is rolled back
+    after it, so memory and snapshot age stay bounded however large the
+    library grows. Clips are judged one by one with the SAME read contract
+    the controller uses (``package_state``), deliberately not a re-implemented
+    bulk query. ``limit`` stops early for a sample.
+    """
     from app.services.media_keys import get_derivative_transform_version
 
     version = version or get_derivative_transform_version()
-    rows = db.execute(
-        select(Dive.video_uuid, func.min(Dive.photos_asset_id))
-        .where(Dive.video_uuid.is_not(None), Dive.video_uuid != "")
-        .group_by(Dive.video_uuid)
-    ).all()
-    out: dict[str, Any] = {"transform_version": version, "clips": len(rows), "classes": {},
+    batch = batch or INVENTORY_BATCH
+    out: dict[str, Any] = {"transform_version": version, "clips": 0, "classes": {},
                            "source_bytes_to_convert": 0, "estimated_worst_case_bytes": 0}
     classes: dict[str, int] = {}
-    for video_uuid, asset_id in rows:
-        if asset_id is None:
-            cls = "blocked:no_photos_asset"
-        else:
-            st = package_state(db, video_uuid, version)
-            if st["state"] == "no_source":
-                cls = "blocked:no_canonical_source"
-            elif st["state"] == "complete":
-                cls = "already_complete"
+    after = ""
+    while limit is None or out["clips"] < limit:
+        size = batch if limit is None else min(batch, limit - out["clips"])
+        rows = db.execute(
+            select(Dive.video_uuid, func.min(Dive.photos_asset_id))
+            .where(Dive.video_uuid.is_not(None), Dive.video_uuid != "", Dive.video_uuid > after)
+            .group_by(Dive.video_uuid).order_by(Dive.video_uuid).limit(size)
+        ).all()
+        if not rows:
+            break
+        for video_uuid, asset_id in rows:
+            if asset_id is None:
+                cls = "blocked:no_photos_asset"
             else:
-                blob = st["blob"]
-                if not blob.width or not blob.height:
-                    cls = "blocked:source_dims_unknown"
+                st = package_state(db, video_uuid, version)
+                if st["state"] == "no_source":
+                    cls = "blocked:no_canonical_source"
+                elif st["state"] == "complete":
+                    cls = "already_complete"
                 else:
-                    try:
-                        out["estimated_worst_case_bytes"] += _estimate(blob)
-                        out["source_bytes_to_convert"] += int(blob.byte_size or 0)
-                        prior = _prior_package_outcome(db, asset_id, st["source_sha256"], version)
-                        cls = "to_convert" if prior is None else f"prior_{prior.status}"
-                    except ValueError:
-                        cls = "blocked:source_size_or_duration_unknown"
-        classes[cls] = classes.get(cls, 0) + 1
+                    blob = st["blob"]
+                    if not blob.width or not blob.height:
+                        cls = "blocked:source_dims_unknown"
+                    else:
+                        try:
+                            estimate = _estimate(blob)
+                            prior = _prior_package_outcome(db, asset_id, st["source_sha256"], version)
+                            cls = "to_convert" if prior is None else f"prior_{prior.status}"
+                            out["estimated_worst_case_bytes"] += estimate
+                            out["source_bytes_to_convert"] += int(blob.byte_size or 0)
+                        except ValueError:
+                            cls = "blocked:source_size_or_duration_unknown"
+            classes[cls] = classes.get(cls, 0) + 1
+        out["clips"] += len(rows)
+        after = rows[-1][0]
+        db.rollback()  # read-only: release the snapshot and identity map per batch
     out["classes"] = dict(sorted(classes.items()))
     return out
 

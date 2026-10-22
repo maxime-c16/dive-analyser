@@ -147,7 +147,7 @@ All commands run in the backend container from `~/dive-analyser`:
 M='docker compose exec -T backend python scripts/media_migration.py'
 $M status            # run, items, gates, budget, throughput, active jobs, failures
 $M status --json
-$M inventory         # read-only exact classification (about 1 min)
+$M inventory [--limit N]  # read-only exact classification, batched (about 1 min)
 $M pause --reason "..."   # stop admitting, withdraw not-yet-leased jobs
 $M resume
 $M set --budget-gib 80 | --queue-depth 2 | --admission-cap 5 | --no-admission-cap
