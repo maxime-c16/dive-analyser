@@ -19,10 +19,20 @@ Proof schema (required)::
      "checks": {"b2_full_get_sha_match": true, "ffprobe_clean": true,
                 "frame_cadence_match": true, "library_auth_302": true,
                 "range_206": true, "grant_expiry_checked": true,
-                "logged_out_denied": true},
+                "logged_out_denied": true, "source_bytes_sha_match": true},
+     "cadence_evidence": {"source_sha256": "<64hex>", "source_frames": 600,
+                          "source_fps": 60.0, "source_duration": 10.0,
+                          "outputs": {"light": {"frames": 600, ...}}, ...,
+                          "vfr": false, "pts_exact_claimed": false},
      "recorded_at": "<ISO-8601>", "operator": "<name>"}
 
-    Slots must be ``hq+light+poster``. ``light+poster`` (no HQ) is
+    ``cadence_evidence`` is REQUIRED when video slots (hq/light) are
+    present: exact decoded frame count per video slot plus fps/duration
+    tolerance (a 60->30 transcode fails); ``outputs`` covers exactly the
+    video slots (poster is explicitly N/A, never listed);
+    ``pts_exact_claimed`` is always false (per-frame PTS exactness is
+    NOT proven by the bounded count census). Slots must be
+    ``hq+light+poster``. ``light+poster`` (no HQ) is
     accepted ONLY with a server-trusted DB producer alias proof: the
     clip's ``web_package`` job ``finalized_slots`` pin matches the proof
     source/revision/version with ``hq_aliased_to == "light"`` (durable

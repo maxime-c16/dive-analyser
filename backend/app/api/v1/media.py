@@ -1368,14 +1368,25 @@ async def upload_job_artifact(
     # worker takes over. Clean only this file on pre-accept failure. Never
     # unlink after commit or via a DB re-read: TOCTOU could match the live
     # pointer, and run_to_completion re-raises cancel AFTER commit.
+    # Fail-closed streaming cap: reject + clean up AS SOON AS cumulative
+    # bytes exceed the claimed size (never buffer oversize to disk first).
     try:
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
+            if actual_size + len(chunk) > int(size_bytes):
+                try:
+                    await file.close()
+                except BaseException:
+                    pass
+                staging_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
             actual_size += len(chunk)
             write_upload_chunk(staging_path, chunk)
         await file.close()
+    except HTTPException:
+        raise
     except BaseException:
         try:
             await file.close()
@@ -1696,14 +1707,34 @@ async def publish_package_slot(
 
     staging_path = cache_upload_staging_path(job_id, lease_token)
     actual_size = 0
+    # Fail-closed streaming cap: reject + clean up AS SOON AS cumulative
+    # bytes exceed the claimed size or the slot cap -- never buffer an
+    # oversized body to MEDIA_CACHE_ROOT first. Undersize still fails
+    # after the stream (actual != claimed).
     try:
+        slot_cap = int(size_bytes)
+        if _is_canary:
+            try:
+                from app.services.canary_budget import CANARY_SLOT_MAX_BYTES
+                slot_cap = min(slot_cap, int(CANARY_SLOT_MAX_BYTES.get(slot, slot_cap)))
+            except Exception:
+                pass
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
+            if actual_size + len(chunk) > int(size_bytes) or actual_size + len(chunk) > slot_cap:
+                try:
+                    await file.close()
+                except BaseException:
+                    pass
+                staging_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded size mismatch")
             actual_size += len(chunk)
             write_upload_chunk(staging_path, chunk)
         await file.close()
+    except HTTPException:
+        raise
     except BaseException:
         try:
             await file.close()

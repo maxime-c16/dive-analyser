@@ -85,7 +85,7 @@ def _proof_for(db, video_uuid, source_sha, rev_id, roles_sizes):
     for role, (dsha, nbytes) in roles_sizes.items():
         slots[role] = {"derivative_sha256": dsha, "byte_size": nbytes}
     ops = _load_ops()
-    return ops, {
+    proof = {
         "video_uuid": video_uuid, "source_sha256": source_sha,
         "source_revision_id": int(rev.id), "transform_version": TV,
         "slots": slots,
@@ -93,6 +93,19 @@ def _proof_for(db, video_uuid, source_sha, rev_id, roles_sizes):
         "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "operator": "op",
     }
+    video_roles = [r for r in slots if r in ("hq", "light")]
+    if video_roles:
+        proof["cadence_evidence"] = {
+            "source_sha256": source_sha,
+            "source_frames": 600,
+            "source_fps": 60.0,
+            "source_duration": 10.0,
+            "outputs": {r: {"frames": 600, "fps": 60.0, "duration": 10.0}
+                        for r in video_roles},
+            "vfr": False,
+            "pts_exact_claimed": False,
+        }
+    return ops, proof
 
 
 def _seed_alias_job(db, video_uuid, source_sha, rev_id, light_sha, poster_sha,

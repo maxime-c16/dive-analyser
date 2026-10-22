@@ -190,7 +190,8 @@ class _FakeOpener:
 
 def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
          ffprobe=(True, True), slot="light", play_url=PLAY_URL,
-         expired_url=EXPIRED_URL, expired_at=None):
+         expired_url=EXPIRED_URL, expired_at=None, source_mode="match",
+         source_bytes=None):
     opener = _FakeOpener(data, ctype=ctype, mode=mode)
     monkeypatch.setattr(urllib.request, "build_opener", lambda *a, **k: opener)
     if ffprobe == "missing_binary":
@@ -204,6 +205,54 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
         clean, cadence = ffprobe
         monkeypatch.setattr(
             mod, "_ffprobe", lambda *a, **k: (clean, cadence, {"format": "mp4"}))
+    # Source-bound cadence census stub (bounded count semantics, no frame
+    # list): video slots verify against a SHA-pinned source reference.
+    src_file = tmp_path / "source-ref.bin"
+    src_content = source_bytes if source_bytes is not None else b"source-original-" * 1024
+    src_file.write_bytes(src_content)
+    src_file.chmod(0o600)
+    src_sha = _sha(src_content)
+    base_census = {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0,
+                   "duration": 10.0, "codec": "h264", "vfr": False}
+    ffprobe_positive = True
+    if isinstance(ffprobe, tuple):
+        try:
+            ffprobe_positive = bool(ffprobe[1])
+        except IndexError:
+            ffprobe_positive = True
+
+    def _fake_video_info(path, timeout=60):
+        if source_mode == "census_error":
+            return {"error": "unmeasurable video census (frames=0 fps=0.0 dur=0.0)"}
+        # A stubbed positive-count miss still fails closed at the
+        # source-bound gate (output-only counts never pass video).
+        effective = source_mode
+        if not ffprobe_positive and effective == "match":
+            effective = "output_30fps"
+        info = dict(base_census)
+        # Distinguish source vs output by path: source ref vs downloaded tmp.
+        is_source = str(path) == str(src_file)
+        if effective == "match":
+            return dict(info)
+        if effective == "output_30fps":
+            if is_source:
+                return dict(info)
+            bad = dict(info)
+            bad.update({"frames": 300, "avg_fps": 30.0})
+            return bad
+        if effective == "output_drop":
+            if is_source:
+                return dict(info)
+            bad = dict(info)
+            bad.update({"frames": 590})
+            return bad
+        if effective == "vfr_match":
+            v = dict(info)
+            v.update({"r_fps": 90.0, "vfr": True})
+            return v
+        return dict(info)
+
+    monkeypatch.setattr(mod, "_ffprobe_video_info", _fake_video_info)
     cookie = tmp_path / "cookies.txt"
     cookie.write_text("session=operator-private-value")
     cookie.chmod(0o600)
@@ -220,6 +269,12 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
         "--operator", "op",
         "--out", str(out),
     ]
+    if slot in ("hq", "light") and source_mode != "missing":
+        argv += ["--source-reference", str(src_file)]
+        if source_mode == "wrong_sha":
+            argv += ["--expected-source-sha", "b" * 64]
+        else:
+            argv += ["--expected-source-sha", src_sha]
     if expired_url is not None:
         argv += ["--expired-url", expired_url]
     if expired_at is not None:
@@ -227,6 +282,17 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
     rc = mod.main(argv)
     payload = json.loads(out.read_text()) if out.exists() else None
     return rc, payload, opener
+
+
+def _stub_video_match(mod, monkeypatch, tmp_path, name="source-ref.bin"):
+    """Stub a SHA-pinned source reference + matching census (test-only)."""
+    src = tmp_path / name
+    src.write_bytes(b"source-original-" * 1024)
+    src.chmod(0o600)
+    census = {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0,
+              "duration": 10.0, "codec": "h264", "vfr": False}
+    monkeypatch.setattr(mod, "_ffprobe_video_info", lambda *a, **k: dict(census))
+    return ["--source-reference", str(src), "--expected-source-sha", _sha(b"source-original-" * 1024)]
 
 
 def _signed_grant_urls(base="https://b2.example.test/file/bucket/key"):
@@ -269,6 +335,7 @@ def test_signed_query_never_persisted_success_and_failure(capsys, tmp_path, monk
         opener._library = _planted_library
         monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener)
         monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+        src_argv = _stub_video_match(mod, monkeypatch, tmp_path)
         cookie = tmp_path / "cookies.txt"
         cookie.write_text("session=operator-private-value")
         cookie.chmod(0o600)
@@ -280,6 +347,7 @@ def test_signed_query_never_persisted_success_and_failure(capsys, tmp_path, monk
             "--expected-size", str(len(data)), "--cookies", str(cookie),
             "--slot", "light", "--video-uuid", "clip-leak-1", "--operator", "op",
             "--out", str(out), "--expired-url", expired,
+            *src_argv,
         ])
         payload = json.loads(out.read_text()) if out.exists() else None
         # Success path still proves bytes without persisting bearer query.
@@ -294,6 +362,9 @@ def test_signed_query_never_persisted_success_and_failure(capsys, tmp_path, monk
         opener2._library = _planted_library
         monkeypatch.setattr(_urllib_request, "build_opener", lambda *a, **k: opener2)
         monkeypatch.setattr(mod, "_ffprobe", lambda *a, **k: (True, True, {"format": "mp4"}))
+        monkeypatch.setattr(mod, "_ffprobe_video_info",
+                            lambda *a, **k: {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0,
+                                             "duration": 10.0, "codec": "h264", "vfr": False})
         out2 = tmp_path / "proof-frag-fail.json"
         rc2 = mod.main([
             "--play-url", PLAY_URL, "--library-origin", LIB_ORIGIN,
@@ -301,6 +372,7 @@ def test_signed_query_never_persisted_success_and_failure(capsys, tmp_path, monk
             "--expected-size", str(len(data)), "--cookies", str(cookie),
             "--slot", "light", "--video-uuid", "clip-leak-1", "--operator", "op",
             "--out", str(out2), "--expired-url", expired,
+            *src_argv,
         ])
         assert rc2 == 2
         payload2 = json.loads(out2.read_text()) if out2.exists() else None
@@ -390,7 +462,10 @@ def test_happy_path_all_checks_true(tmp_path, monkeypatch):
     assert all(payload["checks"][k] is True for k in (
         "b2_full_get_sha_match", "ffprobe_clean", "frame_cadence_match",
         "library_auth_302", "range_206", "grant_expiry_checked",
-        "logged_out_denied")), payload["checks"]
+        "logged_out_denied", "source_bytes_sha_match")), payload["checks"]
+    assert payload["details"]["cadence_evidence"]["source_frames"] == 600
+    assert payload["details"]["cadence_evidence"]["outputs"]["light"]["frames"] == 600
+    assert payload["details"]["cadence_evidence"]["pts_exact_claimed"] is False
     assert payload["details"]["byte_size"] == len(data)
     assert payload["details"]["sha256"] == _sha(data)
     assert payload["details"].get("presigned_expiry") == "3600"
@@ -519,6 +594,12 @@ def test_unexpired_param_does_not_pass_final_proof(tmp_path, monkeypatch):
         "slots": {"light": {"derivative_sha256": "b" * 64, "byte_size": 10},
                   "poster": {"derivative_sha256": "c" * 64, "byte_size": 10}},
         "checks": {n: True for n in ops.PROOF_REQUIRED_CHECKS},
+        "cadence_evidence": {
+            "source_sha256": "a" * 64,
+            "source_frames": 600, "source_fps": 60.0, "source_duration": 10.0,
+            "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
+            "vfr": False, "pts_exact_claimed": False,
+        },
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "operator": "op",
     }
@@ -659,7 +740,8 @@ def test_no_auth_minting_flags_and_no_secret_logs(tmp_path):
     # origin and the allowlisted storage origins are required inputs, and
     # the measured-expiry inputs exist without ever minting auth.
     for required in ("--play-url", "--library-origin", "--storage-origin",
-                     "--expired-url", "--expired-at"):
+                     "--expired-url", "--expired-at",
+                     "--source-reference", "--expected-source-sha"):
         assert required in flags, f"expected flag {required}"
     src = OPS_MOD.read_text()
     assert "Authorization" not in src or "add_header" not in src.split("Authorization")[0][-100:]
@@ -701,6 +783,12 @@ def test_expired_replay_manual_step_not_auto_checked(test_db):
         "slots": {"light": {"derivative_sha256": "b" * 64, "byte_size": 10},
                   "poster": {"derivative_sha256": "c" * 64, "byte_size": 10}},
         "checks": {n: True for n in ops.PROOF_REQUIRED_CHECKS},
+        "cadence_evidence": {
+            "source_sha256": "a" * 64,
+            "source_frames": 600, "source_fps": 60.0, "source_duration": 10.0,
+            "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
+            "vfr": False, "pts_exact_claimed": False,
+        },
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "operator": "op",
     }
@@ -866,12 +954,19 @@ def _start_servers(monkeypatch, data, *, app_mode="ok", b2_chain=False,
 
 def _run_real(mod, tmp_path, data, urls, extra_argv=()):
     monkeypatch_ffprobe = getattr(mod, "_ffprobe")
+    monkeypatch_video = getattr(mod, "_ffprobe_video_info")
     _ = monkeypatch_ffprobe
     mod._ffprobe = lambda *a, **k: (True, True, {"format": "mp4"})
+    mod._ffprobe_video_info = lambda *a, **k: {"frames": 600, "avg_fps": 60.0,
+                                               "r_fps": 60.0, "duration": 10.0,
+                                               "codec": "h264", "vfr": False}
     try:
         cookie = tmp_path / "cookies.txt"
         cookie.write_text("session=operator-private-value")
         cookie.chmod(0o600)
+        src = tmp_path / "source-ref.bin"
+        src.write_bytes(b"source-original-" * 1024)
+        src.chmod(0o600)
         out = tmp_path / "proof-frag.json"
         argv = [
             "--play-url", urls["play"],
@@ -886,6 +981,8 @@ def _run_real(mod, tmp_path, data, urls, extra_argv=()):
             "--operator", "op",
             "--timeout", "10",
             "--out", str(out),
+            "--source-reference", str(src),
+            "--expected-source-sha", _sha(b"source-original-" * 1024),
             *extra_argv,
         ]
         rc = mod.main(argv)
@@ -893,6 +990,7 @@ def _run_real(mod, tmp_path, data, urls, extra_argv=()):
         return rc, payload
     finally:
         mod._ffprobe = monkeypatch_ffprobe
+        mod._ffprobe_video_info = monkeypatch_video
 
 
 def test_cookie_never_leaves_library_origin_real_servers(tmp_path, monkeypatch):
@@ -1011,3 +1109,218 @@ def test_userinfo_redirect_refused_without_storage_contact(tmp_path, monkeypatch
     assert payload is not None
     assert payload["checks"]["library_auth_302"] is False
     assert hits["b2"] == [], "storage must never see a userinfo redirect"
+
+
+# --- Source-bound cadence (PR145 6330236485): exact frames + timing,
+# fail closed without a SHA-pinned reference; poster N/A; strict types.
+
+def test_cadence_60_preserved_pass_30_reject(tmp_path, monkeypatch):
+    """Synthetic 60fps source: identical 60fps output passes, nominal
+    60->30 output FAILS even though its frame count is positive."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="match")
+    assert rc == 0, payload
+    assert payload["checks"]["frame_cadence_match"] is True
+    assert payload["checks"]["source_bytes_sha_match"] is True
+    rc2, payload2, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="output_30fps")
+    assert rc2 == 2
+    assert payload2 is not None
+    assert payload2["checks"]["frame_cadence_match"] is False
+    assert payload2["checks"]["source_bytes_sha_match"] is False
+
+
+def test_cadence_missing_reference_fails_closed(tmp_path, monkeypatch):
+    """No --source-reference/--expected-source-sha: unknown reference
+    fails closed (output-only metadata is never inferred as a match)."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="missing")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["frame_cadence_match"] is False
+
+
+def test_cadence_source_sha_mismatch_fails(tmp_path, monkeypatch):
+    """Source bytes not matching the DB-canonical SHA: claims never
+    trusted, fail closed."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="wrong_sha")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["frame_cadence_match"] is False
+    assert "mismatch" in str(payload["details"].get("cadence", {}).get("reason", "")).lower()
+
+
+def test_cadence_vfr_preserved_pass_drop_reject(tmp_path, monkeypatch):
+    """VFR census preserved (count+duration) passes with pts_exact
+    explicitly NOT claimed; a dropped frame fails."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="vfr_match")
+    assert rc == 0, payload
+    assert payload["checks"]["frame_cadence_match"] is True
+    assert payload["details"]["cadence"]["vfr"] is True
+    assert payload["details"]["cadence_evidence"]["pts_exact_claimed"] is False
+    rc2, payload2, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="output_drop")
+    assert rc2 == 2
+    assert payload2["checks"]["frame_cadence_match"] is False
+
+
+def test_compare_cadence_units_no_frame_list():
+    """Unit-level: exact frames required; 60->30 and drops fail; VFR
+    passes only with pts_exact false."""
+    mod = _load_mod()
+    src = {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0, "duration": 10.0}
+    ok, ev = mod._compare_cadence_video(dict(src), dict(src))
+    assert ok is True
+    assert ev["pts_exact_claimed"] is False
+    bad30 = {"frames": 300, "avg_fps": 30.0, "r_fps": 30.0, "duration": 10.0}
+    ok2, _ = mod._compare_cadence_video(dict(src), bad30)
+    assert ok2 is False
+    drop = {"frames": 599, "avg_fps": 60.0, "r_fps": 60.0, "duration": 10.0}
+    ok3, _ = mod._compare_cadence_video(dict(src), drop)
+    assert ok3 is False
+
+
+def test_poster_cadence_na_explicit(tmp_path, monkeypatch):
+    """Poster never fakes a video cadence boolean: still passes with an
+    explicit N/A scope, and no source reference is required."""
+    mod = _load_mod()
+    data = b"poster-bytes-" * 1024
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data,
+                           ctype="image/jpeg", slot="poster")
+    assert rc == 0, payload
+    assert payload["checks"]["frame_cadence_match"] is True
+    assert payload["details"].get("video_cadence_applicable") is False
+    assert "N/A" in str(payload["details"].get("frame_cadence_scope", ""))
+    assert "source_bytes_sha_match" not in payload["checks"]
+
+
+def test_range_content_type_strict(tmp_path, monkeypatch):
+    """Range 206 with text/html (error page) is NOT proof: hq/light
+    require video/mp4, poster requires image/jpeg."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, ctype="text/html")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["range_206"] is False
+    rc2, payload2, _ = _run(mod, monkeypatch, tmp_path, data,
+                             ctype="image/jpeg", slot="poster")
+    assert rc2 == 0, payload2
+    assert payload2["checks"]["range_206"] is True
+
+
+def test_ffprobe_bounded_no_unbounded_frame_list():
+    """Bounded census uses -count_frames; never -show_frames/-show_packets
+    (unbounded per-frame memory)."""
+    import re as _re
+    src = OPS_MOD.read_text()
+    assert "-count_frames" in src
+    # No actual ffprobe invocation may list per-frame entries (docstring
+    # mentions are fine -- check only subprocess arg lists).
+    for m in _re.finditer(r"subprocess\.run\(\[(.*?)\]", src, _re.S):
+        assert "-show_frames" not in m.group(1)
+        assert "-show_packets" not in m.group(1)
+
+
+def test_source_integrity_proof_gate():
+    """Proof gate: source_bytes_sha_match required; cadence_evidence
+    required for video (exact frames, bound SHA, no PTS fabrication,
+    poster never listed)."""
+    import datetime as _dt
+    import importlib.util as _ilu
+    from pathlib import Path as _P
+
+    ops_path = _P(__file__).resolve().parents[2] / "ops" / "canary_web_package.py"
+    spec = _ilu.spec_from_file_location("canary_web_package_srcgate", ops_path)
+    ops = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(ops)
+
+    def _base():
+        return {
+            "video_uuid": "clip-src-1", "source_sha256": "a" * 64,
+            "source_revision_id": 1, "transform_version": "ffmpeg-h264-web-v1",
+            "slots": {"light": {"derivative_sha256": "b" * 64, "byte_size": 10},
+                      "poster": {"derivative_sha256": "c" * 64, "byte_size": 10}},
+            "checks": {n: True for n in ops.PROOF_REQUIRED_CHECKS},
+            "cadence_evidence": {
+                "source_sha256": "a" * 64,
+                "source_frames": 600, "source_fps": 60.0, "source_duration": 10.0,
+                "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
+                "vfr": False, "pts_exact_claimed": False,
+            },
+            "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "operator": "op",
+        }
+
+    ops.validate_proof_record(_base())
+    no_src = _base()
+    no_src["checks"]["source_bytes_sha_match"] = False
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(no_src)
+    no_ev = _base()
+    del no_ev["cadence_evidence"]
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(no_ev)
+    downgrade = _base()
+    downgrade["cadence_evidence"]["outputs"]["light"]["frames"] = 300
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(downgrade)
+    fab_pts = _base()
+    fab_pts["cadence_evidence"]["pts_exact_claimed"] = True
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(fab_pts)
+    poster_listed = _base()
+    poster_listed["cadence_evidence"]["outputs"]["poster"] = {
+        "frames": 1, "fps": 1.0, "duration": 1.0}
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(poster_listed)
+    unbound = _base()
+    unbound["cadence_evidence"]["source_sha256"] = "c" * 64
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(unbound)
+
+
+def test_real_ffmpeg_synthetic_60_preserved_and_30_reject(tmp_path):
+    """Actual ffmpeg synthetic bytes: 60fps source vs identical 60fps
+    output passes the bounded census; a 30fps transcode fails."""
+    import shutil
+    import subprocess
+
+    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+        pytest.skip("ffmpeg/ffprobe not installed")
+    mod = _load_mod()
+    src = tmp_path / "src60.mp4"
+    out60 = tmp_path / "out60.mp4"
+    out30 = tmp_path / "out30.mp4"
+    try:
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                        "-f", "lavfi", "-i", "testsrc=size=64x64:rate=60:duration=1",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-movflags", "+faststart", str(src)],
+                       check=True, timeout=120)
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                        "-i", str(src),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "60",
+                        "-movflags", "+faststart", str(out60)],
+                       check=True, timeout=120)
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                        "-i", str(src),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+                        "-movflags", "+faststart", str(out30)],
+                       check=True, timeout=120)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        pytest.skip(f"synthetic encode unavailable: {exc}")
+    s_info = mod._ffprobe_video_info(src, 60)
+    o60 = mod._ffprobe_video_info(out60, 60)
+    o30 = mod._ffprobe_video_info(out30, 60)
+    assert "error" not in s_info, s_info
+    assert "error" not in o60, o60
+    assert "error" not in o30, o30
+    ok, _ = mod._compare_cadence_video(s_info, o60)
+    assert ok is True
+    ok2, ev2 = mod._compare_cadence_video(s_info, o30)
+    assert ok2 is False, ev2

@@ -496,6 +496,13 @@ def test_source_changed_proof_invalid(test_db, tmp_path, monkeypatch):
              "source_revision_id": int(rev.id), "transform_version": "ffmpeg-h264-web-v1",
              "slots": slots,
              "checks": {n: True for n in ops.PROOF_REQUIRED_CHECKS},
+             "cadence_evidence": {
+                 "source_sha256": src,
+                 "source_frames": 600, "source_fps": 60.0, "source_duration": 10.0,
+                 "outputs": {"hq": {"frames": 600, "fps": 60.0, "duration": 10.0},
+                             "light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
+                 "vfr": False, "pts_exact_claimed": False,
+             },
              "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
              "operator": "op"}
     proof_path = tmp_path / "proof.json"

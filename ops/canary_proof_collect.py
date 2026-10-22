@@ -9,8 +9,15 @@ OPERATOR's own private session cookies and proves them fail-closed:
 - Range 206 with content-type;
 - logged-out (no-cookie) request denied (401/403/404 only);
 - measured expired-grant replay denial for the EXACT object;
-- ffprobe clean (container/codec/faststart) + frame cadence > 0 (video) /
-  single still (poster).
+- ffprobe clean (container/codec/faststart) + SOURCE-BOUND frame
+  cadence for video (hq/light: operator-supplied private
+  ``--source-reference`` whose streamed SHA must equal the
+  DB-canonical ``--expected-source-sha``; bounded ``-count_frames``
+  census on both files -- exact decoded frame count plus fps/duration
+  tolerance, VFR preserved by count+duration with per-frame PTS exact
+  explicitly NOT claimed; unknown reference fails closed and
+  output-only counts never pass) / single still for poster (video
+  cadence explicitly N/A, recorded as still scope).
 
 Credential separation (fail closed): the session cookie is sent ONLY to
 the explicit, validated ``--library-origin`` (https; http is allowed
@@ -75,6 +82,20 @@ DENIED_STATUSES = (401, 403, 404)
 REDIRECT_STATUSES = (301, 302, 303, 307, 308)
 MAX_STORAGE_HOPS = 4
 SMALL_BODY_LIMIT = 4 * 1024 * 1024
+
+# Strict per-slot content types for the Range probe (and full-GET).
+# Any other non-empty type (including text/html error pages) fails closed.
+EXPECTED_CONTENT_TYPES = {
+    "hq": {"video/mp4"},
+    "light": {"video/mp4"},
+    "poster": {"image/jpeg"},
+}
+
+# Cadence tolerances for output-vs-source timing (frame count itself is
+# EXACT; fps/duration may differ only within container rounding).
+CADENCE_DURATION_TOL_S = 0.15
+CADENCE_FPS_REL_TOL = 0.02
+CADENCE_FPS_ABS_TOL = 0.15
 
 _CREDENTIAL_HEADERS = ("cookie", "authorization", "proxy-authorization")
 
@@ -421,7 +442,15 @@ def _parse_expiry_moment(
 
 
 def _ffprobe(path: Path, slot: str, timeout: int) -> tuple[bool, bool, dict]:
-    """Returns (clean, cadence_ok, summary). False-closed when ffprobe missing/fails."""
+    """Returns (clean, cadence_ok, summary). False-closed when ffprobe missing/fails.
+
+    For hq/light the returned cadence flag is a POSITIVE-COUNT signal
+    ONLY (frames > 0) and MUST NOT be treated as a source match: the
+    caller verifies it against a SHA-pinned ``--source-reference`` via
+    ``_verify_video_cadence`` and leaves ``frame_cadence_match`` false
+    until that comparison passes. For poster the flag means "single
+    still present" (video cadence N/A -- see details scope).
+    """
     try:
         proc = subprocess.run(
             ["ffprobe", "-v", "error", "-show_format", "-show_streams",
@@ -483,6 +512,198 @@ def _ffprobe(path: Path, slot: str, timeout: int) -> tuple[bool, bool, dict]:
     return clean, cadence, summary
 
 
+def _parse_fps(raw: str) -> float:
+    try:
+        s = str(raw or "").strip()
+        if "/" in s:
+            num, den = s.split("/", 1)
+            den_f = float(den)
+            if not den_f:
+                return 0.0
+            return float(num) / den_f
+        return float(s) if s else 0.0
+    except (TypeError, ValueError, ZeroDivisionError):
+        return 0.0
+
+
+def _sha256_file(path: Path, max_bytes: int) -> tuple[str, int]:
+    """Streamed SHA-256 of a local file (bounded; no full read into RAM)."""
+    digest = hashlib.sha256()
+    size = 0
+    with open(path, "rb") as fh:
+        while True:
+            chunk = fh.read(1024 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > int(max_bytes):
+                raise _Refused(f"source reference exceeds max-bytes {max_bytes}")
+            digest.update(chunk)
+    return digest.hexdigest(), size
+
+
+def _ffprobe_video_info(path: Path, timeout: int) -> dict:
+    """Bounded decoded-frame census for one video file (no frame list).
+
+    Uses ``ffprobe -count_frames`` (decode + count, single summary JSON)
+    -- NEVER ``-show_frames``/``-show_packets`` (unbounded per-frame
+    lists that can exhaust memory on long clips). Returns
+    ``{frames, avg_fps, r_fps, duration, codec, vfr}`` or
+    ``{error}`` fail-closed.
+    """
+    try:
+        proc = subprocess.run(
+            ["ffprobe", "-v", "error", "-count_frames",
+             "-select_streams", "v:0",
+             "-show_entries", "stream=nb_read_frames,avg_frame_rate,r_frame_rate,duration,codec_name,width,height",
+             "-show_entries", "format=duration,size",
+             "-print_format", "json", str(path)],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except FileNotFoundError:
+        return {"error": "ffprobe not installed"}
+    except subprocess.TimeoutExpired:
+        return {"error": "ffprobe timed out"}
+    if proc.returncode != 0:
+        return {"error": f"ffprobe refused input: {(proc.stderr or '')[:300]}"}
+    try:
+        info = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return {"error": "ffprobe output not JSON"}
+    try:
+        streams = info.get("streams", []) or []
+        fmt = info.get("format", {}) or {}
+        s0 = streams[0] if streams else {}
+        frames = int(s0.get("nb_read_frames") or 0)
+        avg_fps = _parse_fps(s0.get("avg_frame_rate", ""))
+        r_fps = _parse_fps(s0.get("r_frame_rate", ""))
+        dur = s0.get("duration") or fmt.get("duration") or 0
+        duration = float(dur or 0)
+        if frames <= 0 or avg_fps <= 0 or duration <= 0:
+            return {"error": f"unmeasurable video census (frames={frames} fps={avg_fps} dur={duration})"}
+        vfr = abs(r_fps - avg_fps) > max(CADENCE_FPS_ABS_TOL, CADENCE_FPS_REL_TOL * max(avg_fps, 1e-6)) if r_fps > 0 else False
+        return {
+            "frames": frames,
+            "avg_fps": avg_fps,
+            "r_fps": r_fps,
+            "duration": duration,
+            "codec": str(s0.get("codec_name", ""))[:32],
+            "vfr": bool(vfr),
+        }
+    except (TypeError, ValueError):
+        return {"error": "unparseable ffprobe census"}
+
+
+def _compare_cadence_video(source: dict, output: dict) -> tuple[bool, dict]:
+    """Exact frame-count + timing-tolerance comparison (fail closed).
+
+    Requires output decoded frames EXACTLY equal source frames (a
+    nominal 60->30 transcode MUST fail even though the output count is
+    positive). fps/duration must match within container-rounding
+    tolerance (VFR preserved by count+duration, NOT by per-frame PTS:
+    ``pts_exact_claimed`` is always False -- per-frame PTS exactness is
+    NOT claimed without dedicated proof).
+    """
+    if "error" in source:
+        return False, {"reason": f"source census failed: {source['error']}"}
+    if "error" in output:
+        return False, {"reason": f"output census failed: {output['error']}"}
+    try:
+        sf, of = int(source["frames"]), int(output["frames"])
+        sfps, ofps = float(source["avg_fps"]), float(output["avg_fps"])
+        sdur, odur = float(source["duration"]), float(output["duration"])
+    except (KeyError, TypeError, ValueError):
+        return False, {"reason": "unmeasurable census fields"}
+    evidence: dict = {
+        "source_frames": sf,
+        "source_fps": sfps,
+        "source_duration": sdur,
+        "output_frames": of,
+        "output_fps": ofps,
+        "output_duration": odur,
+        "vfr": bool(source.get("vfr") or output.get("vfr")),
+        # Honest scope: count+timing verified; per-frame PTS exactness
+        # is NOT proven by this census (would need bounded PTS series).
+        "pts_exact_claimed": False,
+    }
+    if of != sf:
+        evidence["reason"] = f"frame count mismatch (source={sf} output={of}); 60->30 must fail"
+        return False, evidence
+    if abs(odur - sdur) > max(CADENCE_DURATION_TOL_S, 0.01 * max(sdur, 1e-6)):
+        evidence["reason"] = f"duration drift (source={sdur:.3f}s output={odur:.3f}s)"
+        return False, evidence
+    if abs(ofps - sfps) > max(CADENCE_FPS_ABS_TOL, CADENCE_FPS_REL_TOL * max(sfps, 1e-6)):
+        evidence["reason"] = f"fps drift (source={sfps:.3f} output={ofps:.3f})"
+        return False, evidence
+    evidence["reason"] = "exact frame count + timing tolerance hold; per-frame PTS exact NOT claimed"
+    return True, evidence
+
+
+def _verify_video_cadence(
+    output_path: Path,
+    source_ref: str | None,
+    expected_source_sha: str | None,
+    timeout: int,
+    max_bytes: int,
+) -> tuple[bool, dict]:
+    """Source-bound video cadence verification (fail closed).
+
+    - Missing ``--source-reference``/``--expected-source-sha`` -> False
+      (unknown reference never passes; output-only metadata is NEVER
+      inferred as a match).
+    - Source file must sit OUTSIDE any git checkout (private operator
+      file, like cookies) and its streamed SHA-256 must equal the
+      DB-canonical ``--expected-source-sha`` (claims never trusted).
+    - Bounded ``_ffprobe_video_info`` census on BOTH files, then
+      ``_compare_cadence_video`` (exact frames + timing tolerance).
+    """
+    details: dict = {"video_cadence_applicable": True}
+    if not source_ref or not str(source_ref).strip():
+        details["reason"] = "no --source-reference supplied; unknown reference fails closed"
+        return False, details
+    if not expected_source_sha or not str(expected_source_sha).strip():
+        details["reason"] = "no --expected-source-sha supplied; unknown reference fails closed"
+        return False, details
+    exp = str(expected_source_sha).strip().lower()
+    if len(exp) != 64 or any(c not in "0123456789abcdef" for c in exp):
+        details["reason"] = "--expected-source-sha must be 64 lower-hex"
+        return False, details
+    src_path = Path(str(source_ref))
+    try:
+        _refuse_inside_git(src_path, "source reference")
+    except SystemExit as exc:
+        details["reason"] = str(exc)
+        return False, details
+    try:
+        _check_mode_0600(src_path, "source reference")
+    except SystemExit as exc:
+        details["reason"] = str(exc)
+        return False, details
+    try:
+        got_sha, src_size = _sha256_file(src_path, max_bytes)
+    except _Refused as exc:
+        details["reason"] = str(exc)
+        return False, details
+    except FileNotFoundError:
+        details["reason"] = f"source reference not found: {src_path}"
+        return False, details
+    except OSError as exc:
+        details["reason"] = f"source reference unreadable: {type(exc).__name__}"
+        return False, details
+    details["source_sha256"] = got_sha
+    details["source_bytes"] = src_size
+    if got_sha != exp:
+        details["reason"] = f"source reference SHA mismatch (got {got_sha[:12]}...)"
+        return False, details
+    src_info = _ffprobe_video_info(src_path, timeout)
+    out_info = _ffprobe_video_info(output_path, timeout)
+    ok, cmp_ev = _compare_cadence_video(src_info, out_info)
+    details.update(cmp_ev)
+    details["source_census_error"] = src_info.get("error", "")
+    details["output_census_error"] = out_info.get("error", "")
+    return ok, details
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Collect read-only canary proof evidence (no auth minting).")
     ap.add_argument("--play-url", required=True, help="authorized Library play URL (302 to presigned storage)")
@@ -509,6 +730,16 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--max-bytes", type=int, default=1_200_000_000)
     ap.add_argument("--ffprobe-timeout", type=int, default=60)
+    ap.add_argument("--source-reference", default=None,
+                    help="private source-original file OUTSIDE repo (0600) for hq/light "
+                         "cadence proof; REQUIRED for video slots (fail closed when "
+                         "missing). Poster never uses it (video cadence N/A).")
+    ap.add_argument("--expected-source-sha", default=None,
+                    help="DB-canonical source blob SHA-256 (64 hex); the source-reference "
+                         "bytes are hashed and MUST match (claims never trusted). "
+                         "REQUIRED for hq/light.")
+    ap.add_argument("--source-max-bytes", type=int, default=1_200_000_000,
+                    help="max source-reference bytes hashed (bounded, default %(default)s)")
     return ap
 
 
@@ -558,6 +789,12 @@ def main(argv=None) -> int:
         "grant_expiry_checked": False,
         "logged_out_denied": False,
     }
+    # Video slots additionally prove clip-level source integrity via the
+    # SHA-pinned source reference (poster stills never fake this: the
+    # key stays absent for poster and the proof-level check is satisfied
+    # by the video slots + DB cross-check instead).
+    if args.slot in ("hq", "light"):
+        checks["source_bytes_sha_match"] = False
     details: dict = {
         "slot": args.slot,
         "video_uuid": args.video_uuid,
@@ -743,11 +980,15 @@ def main(argv=None) -> int:
         return 2
     cr = (hdrs3.get("content-range") or "")
     ct3 = (hdrs3.get("content-type") or "").split(";")[0].strip().lower()
-    if st3 == 206 and cr.startswith("bytes 0-1023/") and ct3:
+    want_ct = EXPECTED_CONTENT_TYPES.get(args.slot, set())
+    if st3 == 206 and cr.startswith("bytes 0-1023/") and ct3 in want_ct:
         checks["range_206"] = True
         details["range_content_type"] = ct3
     else:
-        print(f"REFUSED: range request returned HTTP {st3} (expected 206 with Content-Range)")
+        if st3 == 206 and cr.startswith("bytes 0-1023/") and ct3 and ct3 not in want_ct:
+            print(f"REFUSED: range content-type {ct3!r} is not {sorted(want_ct)} for slot {args.slot}")
+        else:
+            print(f"REFUSED: range request returned HTTP {st3} (expected 206 with Content-Range)")
         _write_out(out_path, args, checks, details)
         return 2
 
@@ -763,20 +1004,72 @@ def main(argv=None) -> int:
             max_bytes=int(args.max_bytes),
         )
         details.update({"byte_size": size, "sha256": got_sha, "content_type": ctype})
+        if ctype not in want_ct:
+            print(f"REFUSED: full-GET content-type {ctype!r} is not {sorted(want_ct)} for slot {args.slot}")
+            _write_out(out_path, args, checks, details)
+            return 2
         checks["b2_full_get_sha_match"] = (got_sha == sha and size == int(args.expected_size))
         if not checks["b2_full_get_sha_match"]:
             print(f"REFUSED: full-GET sha/size mismatch (got {got_sha[:12]}.../{size})")
             _write_out(out_path, args, checks, details)
             return 2
-        # 6. ffprobe clean + frame cadence on the downloaded bytes.
-        clean, cadence, summary = _ffprobe(tmp, args.slot, timeout=args.ffprobe_timeout)
+        # 6. ffprobe clean on the downloaded bytes; cadence is
+        #    SOURCE-BOUND below (output-only counts never pass video).
+        clean, positive, summary = _ffprobe(tmp, args.slot, timeout=args.ffprobe_timeout)
         details["ffprobe"] = summary
         checks["ffprobe_clean"] = clean
-        checks["frame_cadence_match"] = cadence
-        if not (clean and cadence):
-            print("REFUSED: ffprobe checks failed (see output ffprobe summary)")
+        if not clean:
+            checks["frame_cadence_match"] = False
+            print("REFUSED: ffprobe clean check failed (see output ffprobe summary)")
             _write_out(out_path, args, checks, details)
             return 2
+        if args.slot == "poster":
+            # Poster is a still: video cadence is explicitly NOT
+            # applicable (never faked true as a video match). The still
+            # check (positive) passes; scope is recorded honestly.
+            details["frame_cadence_scope"] = "poster-still (video cadence N/A)"
+            details["video_cadence_applicable"] = False
+            checks["frame_cadence_match"] = bool(positive)
+            if not checks["frame_cadence_match"]:
+                print("REFUSED: poster still check failed (see output ffprobe summary)")
+                _write_out(out_path, args, checks, details)
+                return 2
+        else:
+            ok, cad_details = _verify_video_cadence(
+                tmp,
+                getattr(args, "source_reference", None),
+                getattr(args, "expected_source_sha", None),
+                timeout=args.ffprobe_timeout,
+                max_bytes=int(getattr(args, "source_max_bytes", args.max_bytes)),
+            )
+            details["frame_cadence_scope"] = "video-exact (source-bound)"
+            details["video_cadence_applicable"] = True
+            details["cadence"] = cad_details
+            # Machine-readable cadence evidence for the proof record:
+            # the operator copies this block into the multi-slot proof's
+            # `cadence_evidence` (see canary_web_package validation).
+            if ok:
+                details["cadence_evidence"] = {
+                    "source_sha256": str(getattr(args, "expected_source_sha", "")).lower(),
+                    "source_frames": int(cad_details.get("source_frames", 0)),
+                    "source_fps": float(cad_details.get("source_fps", 0.0) or 0.0),
+                    "source_duration": float(cad_details.get("source_duration", 0.0) or 0.0),
+                    "outputs": {
+                        str(args.slot): {
+                            "frames": int(cad_details.get("output_frames", 0)),
+                            "fps": float(cad_details.get("output_fps", 0.0) or 0.0),
+                            "duration": float(cad_details.get("output_duration", 0.0) or 0.0),
+                        }
+                    },
+                    "vfr": bool(cad_details.get("vfr", False)),
+                    "pts_exact_claimed": False,
+                }
+            checks["frame_cadence_match"] = bool(ok)
+            checks["source_bytes_sha_match"] = bool(ok)
+            if not ok:
+                print(f"REFUSED: source-bound cadence failed: {cad_details.get('reason', 'mismatch')}")
+                _write_out(out_path, args, checks, details)
+                return 2
     except _Refused as exc:
         print(f"REFUSED: {exc}")
         _write_out(out_path, args, checks, details)
