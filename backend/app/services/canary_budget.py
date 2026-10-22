@@ -983,12 +983,14 @@ def canary_reserved_keys(db) -> set[tuple[str, str]]:
 
 
 def db_admitted_uuids(db, limit: int = 100) -> set[str]:
-    """Distinct video_uuids with ANY web_package job (durable DB cohort). FAIL CLOSED.
+    """Distinct video_uuids with ANY canary web_package job (durable DB cohort). FAIL CLOSED.
 
     Bounded scan (canary fleet <= 30; cap is a safety rail -- exceeding
     it fails closed). Uses the DB, never the private state dir, so a
-    reset state dir cannot bypass the total-30 cap. Any DB/schema error
-    raises (never a false empty set that would bypass the total cap).
+    reset state dir cannot bypass the total-30 cap. Only jobs with
+    ``request_reason == "canary_web_package"`` count; unrelated global
+    web_package jobs never count toward the canary cohort. Any DB/schema
+    error raises (never a false empty set that would bypass the total cap).
     """
     from app.models.media import MediaJob
     from app.models.photos_asset import PhotosAsset
@@ -998,7 +1000,10 @@ def db_admitted_uuids(db, limit: int = 100) -> set[str]:
         rows = (
             db.query(PhotosAsset.video_uuid)
             .join(MediaJob, MediaJob.photos_asset_id == PhotosAsset.id)
-            .filter(MediaJob.rendition == "web_package")
+            .filter(
+                MediaJob.rendition == "web_package",
+                MediaJob.request_reason == CANARY_JOB_REASON,
+            )
             .limit(cap + 1)
             .all()
         )

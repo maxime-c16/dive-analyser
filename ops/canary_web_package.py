@@ -1066,6 +1066,12 @@ def _decide_admission(
     ``_AdmitNothing`` (exit 0). Returns the chosen candidate on success.
     Caps count only candidate NEW unique IDs (``new_ids``); re-listing an
     already-admitted clip costs zero.
+
+    DB is the ONLY authority for admitted totals, NEW-unique counting and
+    idempotency. The local ``state["admitted"]`` list is an untrusted hint:
+    a state-only UUID NEVER discounts a candidate (it counts as NEW) unless
+    the DB confirms a job row for it. Orphan hints are ignored for the gate
+    and reconciled (dropped) on the successful queue commit.
     """
     # 1. Durable failure streak (DB authoritative; state is a hint).
     try:
@@ -1091,9 +1097,13 @@ def _decide_admission(
             streak=int(streak),
         )
     file_known = set(state.get("admitted", []) or [])
-    known = set(db_known) | set(file_known)
-    total_admitted = len(known)
-    new_ids = [u for u in clips if u not in known]
+    orphan_hints = set(file_known) - set(db_known)
+    # DB-authoritative ONLY: a state-only UUID is NEW (counts toward caps,
+    # never deduped). Unioning the local hint here let a state-only candidate
+    # pass phase caps as "already counted" then queue as new (phase-2 30+1).
+    known = set(db_known)
+    total_admitted = len(db_known)
+    new_ids = [u for u in clips if u not in db_known]
     # 3. Phase caps + exact-5 + fresh source-bound proof (phase 2).
     try:
         if phase == 1:
@@ -1223,7 +1233,9 @@ def _decide_admission(
         "committed": int(committed),
         "new_ids": list(new_ids),
         "db_known": set(db_known),
-        "known": set(known),
+        "known": set(db_known),
+        "file_known": set(file_known),
+        "orphan_hints": set(orphan_hints),
         "total_admitted": int(total_admitted),
         "streak": int(streak),
         "admitted_additions": set(admitted_additions),
@@ -1452,8 +1464,11 @@ def cmd_admit(args) -> int:
             db.commit()
             try:
                 base = state_lock if "state_lock" in locals() else state
-                admitted_set = set(base.get("admitted", []) or []) | set(admitted_additions) | {uuid}
-                base["admitted"] = sorted(admitted_set)
+                # Reconcile: DB cohort is authoritative. Drop orphan local hints
+                # (state-only UUIDs with no DB job); keep DB-confirmed cohort +
+                # DB-confirmed ready additions + the newly queued UUID.
+                authoritative = set(decision.get("db_known", set())) | set(admitted_additions) | {uuid}
+                base["admitted"] = sorted(authoritative)
                 base["consecutive_failures"] = int(db_fail_streak2)
                 save_state(state_dir, base)
             except Exception:
