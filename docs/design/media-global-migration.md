@@ -55,7 +55,9 @@ charge and source-change count are recorded per item.
 ### Tick (bounded, idempotent, one transaction)
 
 1. `pg_try_advisory_xact_lock(73125, 20)`: a concurrent tick returns `busy`.
-2. Sync: new dives get a `pending` item.
+2. Sync: up to 500 not-yet-tracked dives (newest first) get a `pending` item;
+   inserted items are excluded next time, so the library converges in a few
+   ticks and each tick stays bounded (`status` reports `unsynced_dives`).
 3. Refresh queued items from their job: `ready` + read contract complete
    -> `complete`; ready but not servable -> `failed ready_job_not_servable`
    (never a false "complete"); `failed`/`unavailable` -> `failed` with the

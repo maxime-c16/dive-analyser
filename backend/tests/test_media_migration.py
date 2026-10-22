@@ -451,6 +451,23 @@ def test_crash_before_commit_leaves_no_partial_state(env):
     assert len(_jobs(env)) == 2
 
 
+def test_sync_is_bounded_newest_first_and_converges(env, monkeypatch):
+    for n in range(1, 8):
+        _clip(env, n)
+    monkeypatch.setattr(mm, "SYNC_BATCH", 3)
+    run = mm.start_run(env, budget_bytes=GIB)
+    assert sync_ids(env) == ["00000005", "00000006", "00000007"]
+    assert mm.status_report(env)["unsynced_dives"] == 4 and mm.status_report(env)["done"] is False
+    assert mm.sync_items(env, run, batch=3) == 3
+    assert mm.sync_items(env, run, batch=3) == 1
+    assert mm.sync_items(env, run, batch=3) == 0
+    assert mm.status_report(env)["unsynced_dives"] == 0 and len(sync_ids(env)) == 7
+
+
+def sync_ids(db):
+    return sorted(i.video_uuid[:8] for i in db.query(MediaMigrationItem).all())
+
+
 def test_new_dives_are_synced_and_single_open_run(env):
     _clip(env, 1)
     _start(env)

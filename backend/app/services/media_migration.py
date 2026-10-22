@@ -66,6 +66,7 @@ LEASE_LOCK = (73125, 1)
 MAC_FACTS_MAX_AGE = timedelta(minutes=15)
 MIN_MAC_SCRATCH_FREE_BYTES = 8 * 1024**3
 SWEEP_BATCH = 100
+SYNC_BATCH = 500
 CANDIDATE_SCAN = 20
 OPEN_RUN_STATUSES = ("active", "paused")
 ACTIVE_STATUSES = (
@@ -314,13 +315,26 @@ def evaluate_gates(db, run: MediaMigrationRun, now: datetime | None = None) -> l
 # Run lifecycle
 # --------------------------------------------------------------------------
 
-def sync_items(db, run: MediaMigrationRun) -> int:
-    """Add one pending item per dives.video_uuid not yet in the run."""
+def _unsynced_dives(run: MediaMigrationRun):
     known = select(MediaMigrationItem.video_uuid).where(MediaMigrationItem.run_id == run.id)
-    rows = db.execute(
-        select(Dive.video_uuid, func.min(Dive.photos_asset_id), func.max(Dive.dive_datetime))
+    return (
+        select(Dive.video_uuid, func.min(Dive.photos_asset_id).label("asset_id"),
+               func.max(Dive.dive_datetime).label("sort_key"))
         .where(Dive.video_uuid.is_not(None), Dive.video_uuid != "", Dive.video_uuid.not_in(known))
         .group_by(Dive.video_uuid)
+    )
+
+
+def sync_items(db, run: MediaMigrationRun, batch: int | None = None) -> int:
+    """Add at most ``batch`` pending items (newest dives first).
+
+    Progress is durable by construction: inserted items are excluded from
+    the next query, so successive ticks converge on the full library while
+    each tick stays bounded.
+    """
+    rows = db.execute(
+        _unsynced_dives(run).order_by(func.max(Dive.dive_datetime).desc().nulls_last(), Dive.video_uuid)
+        .limit(batch or SYNC_BATCH)
     ).all()
     for video_uuid, asset_id, sort_key in rows:
         db.add(MediaMigrationItem(
@@ -330,6 +344,10 @@ def sync_items(db, run: MediaMigrationRun) -> int:
     if rows:
         db.flush()
     return len(rows)
+
+
+def unsynced_count(db, run: MediaMigrationRun) -> int:
+    return int(db.execute(select(func.count()).select_from(_unsynced_dives(run).subquery())).scalar_one())
 
 
 def start_run(
@@ -888,7 +906,8 @@ def status_report(db, now: datetime | None = None) -> dict[str, Any]:
             MediaMigrationItem.completed_at >= now - delta)).scalar_one())
 
     last_hour, last_day = completed_since(timedelta(hours=1)), completed_since(timedelta(days=1))
-    remaining = int(counts.get("pending", 0)) + int(counts.get("queued", 0))
+    unsynced = unsynced_count(db, run)
+    remaining = int(counts.get("pending", 0)) + int(counts.get("queued", 0)) + unsynced
     accounted = accounted_bytes(db, run)
     gates = evaluate_gates(db, run, now)
     return {
@@ -904,6 +923,7 @@ def status_report(db, now: datetime | None = None) -> dict[str, Any]:
         },
         "items": {k: int(v) for k, v in sorted(counts.items())},
         "items_total": int(sum(counts.values())),
+        "unsynced_dives": unsynced,
         "remaining": remaining,
         "done": remaining == 0,
         "blocked_or_failed_by_reason": reasons,
