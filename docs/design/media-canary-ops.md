@@ -10,8 +10,11 @@ most ONE job per run). Proof checker: `ops/canary_proof_check.py`
 (schema + optional DB cross-check, never mints auth, never fetches
 bytes). Proof collector: `ops/canary_proof_collect.py` (bounded
 read-only evidence fetch with the OPERATOR's own private session cookies:
+cookie ONLY to the explicit validated Library origin, NEVER auto-followed
+to storage; presigned storage Range/full-GET/expiry-replay fetched in
+separate credential-free requests with per-hop allowlist validation;
 full-GET SHA+size, ffprobe + frame cadence, authorized 302/Range
-206/unauth-denied/expiry -- never mints auth, fails closed). Budget
+206/401-404-denied/measured-expiry -- never mints auth, fails closed). Budget
 guard: `backend/app/services/canary_budget.py` (durable reservation
 ledger `canary_slot_reservations` keyed by EXACT B2 namespace
 bucket+object_key -- identical bytes under different keys are distinct
@@ -38,8 +41,11 @@ phase2-fresh-proof/host-facts, scope/orphan/stale-proof/reuse, SQLite fake DB) +
 distinct-key cap race, SAME-KEY racers each charge, same-key cap race
 one-wins, orphan persistence, PUT-skip) +
 `backend/tests/test_canary_proof_collect_e2e.py` (collector fakes: 302,
-full-GET SHA corruption, Range 206, logged-out denial, expiry fields,
-frame cadence, missing ffprobe).
+credential-free full-GET SHA corruption, Range 206, logged-out denial
+(401/403/404 only; grant-redirect is NOT denial; same-origin login
+redirect is), measured exact-object expiry denial, cookie isolation on
+two distinct local origins + redirect chains, malicious/userinfo
+redirect refusal, frame cadence, missing ffprobe).
 Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
 `backend/tests/test_canary_ops_cli_d3b2.py` (CLI: admit/verify/resume/
 phase2/parallel-dedup/budget-failure/host-facts, SQLite fake DB).
@@ -220,6 +226,18 @@ it NEVER marks proven. Phase 2 requires explicit proof records.
 DATABASE_URL='<runtime>' python3 ops/canary_web_package.py \
   --manifest ~/.config/diveanalyzer/canary-manifest.json \
   --state-dir ~/.config/diveanalyzer/canary verify
+# Collect read-only evidence with YOUR session (cookie ONLY to the
+# explicit Library origin; storage fetched credential-free; expiry ONLY
+# via a measured denial -- see ops/canary_proof_collect.py --help):
+python3 ops/canary_proof_collect.py \
+  --play-url '<library-play-url>' \
+  --library-origin '<https://library-host>' \
+  --storage-origin '<https://b2-host>' \
+  --expired-url '<expired-grant-same-object>' \
+  --expected-sha '<ledger-sha>' --expected-size <ledger-bytes> \
+  --cookies ~/.config/diveanalyzer/canary-cookies.txt \
+  --slot light --video-uuid '<uuid>' --operator '<name>' \
+  --out ~/.config/diveanalyzer/proof-<uuid>-light.json
 # Schema-check a proof record without writing (stdlib only; --db adds
 # the DB cross-check with the runtime DATABASE_URL):
 python3 ops/canary_proof_check.py --proof ~/.config/.../proof-<uuid>.json
@@ -251,8 +269,13 @@ cross-checks every slot SHA against the READY ledger rows for the
 CURRENT source + transform and rejects on source/revision drift. No
 fake or minted bypass exists: B2 and Library checks run with the
 operator's own existing user session (see `canary_proof_check.py`
-curl checklist); logged-out and expired-grant denials are required
-evidence, never assumed.
+checklist -- cookie to the Library origin only, storage fetched without
+credentials); logged-out denial means 401/403/404 (an unauthenticated
+302 to a presigned grant is access, NOT denial; only a same-Library-origin
+login redirect counts) and expired-grant denial means a MEASURED
+credential-free replay of an expired grant for the EXACT object with a
+provably-past timestamp (a live grant's expiry parameter alone never
+counts; there is no wait loop for a live TTL) -- never assumed.
 
 Required per clip (all must hold before the NEXT admission; phase 2
 only after 5/5 PROVEN):
@@ -265,9 +288,12 @@ only after 5/5 PROVEN):
    (encoder-proven; server decode probe is corruption-only).
 3. Original intact: canonical source revision bytes + SHA re-read
    unchanged after publication.
-4. Library authorized route: 302 to presigned B2 with a live user
-   session; `Range` returns 206 with correct content-type; expired-grant
-   replay denied; logged-out request denied (no auth bypass for probes).
+4. Library authorized route: 302 to allowlisted presigned storage with a
+   live user session (cookie to the Library origin ONLY, redirects never
+   auto-followed); storage `Range` returns 206 with correct content-type
+   (credential-free); expired-grant replay denied (exact object, past
+   timestamp, credential-free -- measured, never parameter presence);
+   logged-out request denied with 401/403/404 (no auth bypass for probes).
 5. Ledger: 3 (or 2 + `hq_aliased_to=light`) `ready` rows + verified PROD
    replicas for the CURRENT source + transform; no non-allowlisted
    `web_package` job queued (leases + queue audit).
@@ -318,8 +344,11 @@ only after 5/5 PROVEN):
 5. **Not yet proven in this slice (candid):** end-to-end B2 full-GET
    SHA + ffprobe + frame-cadence + Library 302/Range/expiry checks have
    NOT been executed here (no prod queries, no B2, no deploys in this
-   task). The `prove` gate enforces the evidence shape and DB
-   cross-check, but the per-clip device/Safari pass stays explicitly
+   task). The collector's credential separation (cookie to the Library
+   origin only; credential-free storage fetches; measured expiry denial)
+   IS covered by stubbed + two-local-origin tests, but those are fakes,
+   not prod evidence. The `prove` gate enforces the evidence shape and DB
+   cross-check, but the per-clip device/browser pass stays explicitly
    unproven until a later device pass covers it (checklist item 6).
 
 `Release notes: none — internal, flag-off, no user impact.`

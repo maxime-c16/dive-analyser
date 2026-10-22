@@ -7,28 +7,57 @@ OPERATOR's own private session cookies and proves them fail-closed:
 - full GET (streamed SHA-256 + size vs expected ledger values);
 - authorized route behavior (302 to presigned B2 with explicit expiry);
 - Range 206 with content-type;
-- logged-out (no-cookie) request denied;
+- logged-out (no-cookie) request denied (401/403/404 only);
+- measured expired-grant replay denial for the EXACT object;
 - ffprobe clean (container/codec/faststart) + frame cadence > 0 (video) /
   single still (poster).
 
-The operator performs the browser login themselves (device Safari, normal
-session) and exports their session cookie to a PRIVATE file OUTSIDE the repo
-(0600, e.g. ``~/.config/diveanalyzer/canary-cookies.txt`` in curl ``-b``
-``name=value`` form). This script NEVER mints auth (no login/token/API-key
-flags, no credential endpoints) and NEVER prints cookie material. All
-network calls are bounded read-only GETs (no POST/PUT/DELETE); any check
-that cannot be performed fails CLOSED (false + exit 2).
+Credential separation (fail closed): the session cookie is sent ONLY to
+the explicit, validated ``--library-origin`` (https; http is allowed
+solely for loopback test origins). The authorized request NEVER follows
+redirects: the 302 ``Location`` is validated as an explicitly
+allowlisted ``--storage-origin`` (https, no userinfo, no private /
+untrusted host, origin distinct from the Library) and the storage bytes
+(Range probe, full GET, expired-grant replay) are fetched in SEPARATE
+requests that carry NO Cookie/Authorization headers at all. Storage
+redirects are followed manually, hop by hop, with every hop
+re-validated and still credential-free; anything else is refused before
+any further fetch. Proof URLs from user args are never trusted for
+cookie targeting: a play URL whose origin differs from the explicit
+``--library-origin`` is refused without sending cookies anywhere.
 
-Output: a structured JSON fragment (checks + details) written OUTSIDE the
-repo, suitable for embedding in the manual proof record validated by
-``ops/canary_proof_check.py`` / ``prove``. Fakes only in tests; never run
-this against prod B2 in CI.
+The operator performs the browser login themselves (their own browser
+session) and exports their session cookie to a PRIVATE file OUTSIDE the
+repo (0600, e.g. ``~/.config/diveanalyzer/canary-cookies.txt`` in curl
+``-b`` ``name=value`` form). This script NEVER mints auth (no
+login/token/API-key flags, no credential endpoints) and NEVER prints
+cookie material. All network calls are bounded read-only GETs (no
+POST/PUT/DELETE); any check that cannot be performed fails CLOSED
+(false + exit 2).
+
+``grant_expiry_checked`` is NEVER derived from the mere presence of an
+expiry parameter on the live grant. It is true ONLY when an
+operator-supplied expired grant URL for the EXACT same object
+(``--expired-url``, same storage origin + path, expiry timestamp
+provably in the past via ``--expired-at`` or the URL's own
+Expires/X-Amz-Date+X-Amz-Expires fields) is replayed WITHOUT
+credentials and the storage host denies it (401/403/404). There is no
+wait loop: a live grant's TTL (default 120 s) is never waited out. Omit
+``--expired-url`` and the check stays false -- an unexpired grant's
+expiry parameter alone never passes the final proof gate.
+
+Output: a structured JSON fragment (checks + details) written OUTSIDE
+the repo, suitable for embedding in the manual proof record validated
+by ``ops/canary_proof_check.py`` / ``prove``. Fakes only in tests;
+never run this against prod B2 in CI. Device/browser playback (e.g. a
+physical-device pass) is NOT claimed by this tool.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 import stat
@@ -37,12 +66,21 @@ import sys
 import tempfile
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-EXPECTED_302_HOSTS = ("b2", "backblaze", "s3")
+DENIED_STATUSES = (401, 403, 404)
+REDIRECT_STATUSES = (301, 302, 303, 307, 308)
+MAX_STORAGE_HOPS = 4
+SMALL_BODY_LIMIT = 4 * 1024 * 1024
+
+_CREDENTIAL_HEADERS = ("cookie", "authorization", "proxy-authorization")
+
+
+class _Refused(Exception):
+    """Fail-closed validation refusal (message is safe to print: no secrets)."""
 
 
 def _refuse_inside_git(path: Path, what: str) -> None:
@@ -102,54 +140,271 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _get(url: str, cookie: str | None, timeout: int, range_hdr: str | None = None,
-         follow_redirects: bool = True) -> tuple[int, dict, bytes]:
-    req = urllib.request.Request(url)
-    if cookie:
-        req.add_header("Cookie", cookie)
-    if range_hdr:
-        req.add_header("Range", range_hdr)
-    if follow_redirects:
-        opener = urllib.request.build_opener()
+def _is_loopback_host(host: str) -> bool:
+    h = host.strip().lower().rstrip(".")
+    if h == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(h.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_non_loopback_private_ip(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return False
+    return bool(
+        (ip.is_private or ip.is_link_local or ip.is_reserved or ip.is_multicast)
+        and not ip.is_loopback
+    )
+
+
+def _checked_split(url: str, what: str) -> urllib.parse.SplitResult:
+    try:
+        u = urllib.parse.urlsplit((url or "").strip())
+    except ValueError as exc:
+        raise _Refused(f"{what}: unparseable URL ({exc})")
+    if u.username or u.password:
+        raise _Refused(f"{what}: URL embeds userinfo; refusing (credential leak risk)")
+    scheme = u.scheme.lower()
+    host = (u.hostname or "").lower()
+    if not host:
+        raise _Refused(f"{what}: URL has no host; refusing")
+    if scheme == "https":
+        pass
+    elif scheme == "http" and _is_loopback_host(host):
+        pass  # explicit local-test allowance only
     else:
-        opener = urllib.request.build_opener(_NoRedirect())
+        raise _Refused(
+            f"{what}: scheme must be https (http is allowed only for loopback test origins)"
+        )
+    if _is_non_loopback_private_ip(host):
+        raise _Refused(f"{what}: private/link-local host; refusing")
+    return u
+
+
+def _origin_tuple(u: urllib.parse.SplitResult) -> tuple[str, str, int]:
+    scheme = u.scheme.lower()
+    host = (u.hostname or "").lower()
+    try:
+        port = u.port
+    except ValueError:
+        raise _Refused("URL has an invalid port; refusing")
+    return (scheme, host, port or (443 if scheme == "https" else 80))
+
+
+def _parse_origin_flag(value: str, what: str) -> tuple[str, str, int]:
+    raw = (value or "").strip()
+    u = _checked_split(raw, what)
+    if u.path not in ("", "/") or u.query or u.fragment:
+        raise _Refused(f"{what}: must be a bare origin (scheme://host[:port]); refusing")
+    return _origin_tuple(u)
+
+
+def _validate_library_url(url: str, library_origin: tuple[str, str, int]):
+    """Validate the play URL: only an exact match of the explicit Library
+    origin may receive the session cookie."""
+    u = _checked_split(url, "play URL")
+    if _origin_tuple(u) != library_origin:
+        raise _Refused(
+            "play URL origin does not match the explicit --library-origin; "
+            "refusing to attach cookies to an untrusted origin"
+        )
+    return u
+
+
+def _validate_storage_url(
+    url: str,
+    *,
+    library_origin: tuple[str, str, int],
+    storage_origins: set[tuple[str, str, int]],
+    what: str = "presigned URL",
+):
+    """Validate a storage URL: allowlisted origin, distinct from the
+    Library, no userinfo/private/untrusted host."""
+    u = _checked_split(url, what)
+    origin = _origin_tuple(u)
+    if origin == library_origin:
+        raise _Refused(f"{what}: points back at the Library origin (expected storage); refusing")
+    if origin not in storage_origins:
+        raise _Refused(f"{what}: host is not in the explicit --storage-origin allowlist; refusing")
+    return u
+
+
+def _get_once(
+    url: str, *, headers: dict[str, str], timeout: int
+) -> tuple[int, dict, bytes]:
+    """One HTTP GET with NO redirect following. Sends ONLY the headers
+    given. Library probes pass the session Cookie here (after origin
+    validation); storage callers must use _storage_get /
+    _storage_stream_to_file, which forbid credential headers."""
+    req = urllib.request.Request(url)
+    for k, v in headers.items():
+        req.add_header(k, v)
+    opener = urllib.request.build_opener(_NoRedirect())
     try:
         with opener.open(req, timeout=timeout) as resp:
             status = int(getattr(resp, "status", 200))
-            headers = {k.lower(): v for k, v in resp.getheaders()}
-            body = resp.read()
-            return status, headers, body
+            hdrs = {k.lower(): v for k, v in resp.getheaders()}
+            return status, hdrs, resp.read()
     except urllib.error.HTTPError as exc:
         try:
             body = exc.read()
         except Exception:
             body = b""
-        headers = {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
-        return int(exc.code), headers, body
+        try:
+            hdrs = {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
+        except Exception:
+            hdrs = {}
+        return int(exc.code), hdrs, body
 
 
-def _stream_hash(url: str, cookie: str, timeout: int, max_bytes: int) -> tuple[str, int, str]:
-    """Streamed full GET: returns (sha256, size, content_type). Bounded."""
-    req = urllib.request.Request(url)
-    req.add_header("Cookie", cookie)
-    opener = urllib.request.build_opener()
-    digest = hashlib.sha256()
-    size = 0
-    ctype = ""
-    with opener.open(req, timeout=timeout) as resp:
-        status = int(getattr(resp, "status", 200))
-        if status not in (200, 206):
-            raise ValueError(f"full GET returned HTTP {status} (expected 200)")
-        ctype = (resp.getheader("Content-Type") or "").split(";")[0].strip().lower()
-        while True:
-            chunk = resp.read(1024 * 1024)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > max_bytes:
-                raise ValueError(f"GET exceeded max-bytes {max_bytes}; refusing")
-            digest.update(chunk)
-    return digest.hexdigest(), size, ctype
+def _storage_get(
+    url: str,
+    *,
+    library_origin: tuple[str, str, int],
+    storage_origins: set[tuple[str, str, int]],
+    timeout: int,
+    extra_headers: dict[str, str] | None = None,
+) -> tuple[int, dict, bytes, str]:
+    """Credential-free GET of a validated storage URL. Follows redirects
+    manually, re-validating EVERY hop as allowlisted storage; never sends
+    Cookie/Authorization. Returns (status, headers, body, final_url)."""
+    current = url
+    for _ in range(MAX_STORAGE_HOPS):
+        _validate_storage_url(
+            current,
+            library_origin=library_origin,
+            storage_origins=storage_origins,
+            what="storage URL",
+        )
+        status, hdrs, body = _get_once(current, headers=dict(extra_headers or {}), timeout=timeout)
+        if status in REDIRECT_STATUSES:
+            loc = (hdrs.get("location") or "").strip()
+            if not loc:
+                raise _Refused("storage redirect without Location; refusing")
+            current = urllib.parse.urljoin(current, loc)
+            continue
+        if len(body) > SMALL_BODY_LIMIT:
+            raise _Refused("storage probe body exceeds bound; refusing")
+        return status, hdrs, body, current
+    raise _Refused("too many storage redirects; refusing")
+
+
+class _StorageStatus(Exception):
+    def __init__(self, status: int):
+        super().__init__(f"storage returned HTTP {status}")
+        self.status = status
+
+
+def _storage_stream_to_file(
+    url: str,
+    path: Path,
+    *,
+    library_origin: tuple[str, str, int],
+    storage_origins: set[tuple[str, str, int]],
+    timeout: int,
+    max_bytes: int,
+    extra_headers: dict[str, str] | None = None,
+) -> tuple[str, int, str, str]:
+    """Credential-free streamed GET of validated storage bytes to `path`
+    while hashing. Returns (sha256, size, content_type, final_url)."""
+    headers = dict(extra_headers or {})
+    for k in headers:
+        if k.lower() in _CREDENTIAL_HEADERS:
+            raise _Refused(f"refusing to send credential header {k!r} on a storage fetch")
+    current = url
+    for _ in range(MAX_STORAGE_HOPS):
+        _validate_storage_url(
+            current,
+            library_origin=library_origin,
+            storage_origins=storage_origins,
+            what="storage URL",
+        )
+        req = urllib.request.Request(current)
+        for k, v in headers.items():
+            req.add_header(k, v)
+        opener = urllib.request.build_opener(_NoRedirect())
+        try:
+            resp = opener.open(req, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            code = int(exc.code)
+            if code in REDIRECT_STATUSES:
+                try:
+                    loc = (exc.headers.get("Location") or "").strip() if exc.headers else ""
+                except Exception:
+                    loc = ""
+                try:
+                    exc.close()
+                except Exception:
+                    pass
+                if not loc:
+                    raise _Refused("storage redirect without Location; refusing")
+                current = urllib.parse.urljoin(current, loc)
+                continue
+            raise _StorageStatus(code)
+        try:
+            status = int(getattr(resp, "status", 200))
+            if status in REDIRECT_STATUSES:
+                loc = (resp.getheader("Location") or "").strip()
+                if not loc:
+                    raise _Refused("storage redirect without Location; refusing")
+                current = urllib.parse.urljoin(current, loc)
+                continue
+            if status not in (200, 206):
+                raise _StorageStatus(status)
+            ctype = (resp.getheader("Content-Type") or "").split(";")[0].strip().lower()
+            digest = hashlib.sha256()
+            size = 0
+            with open(path, "wb") as fh:
+                while True:
+                    chunk = resp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise _Refused(f"download exceeded max-bytes {max_bytes}")
+                    digest.update(chunk)
+                    fh.write(chunk)
+            return digest.hexdigest(), size, ctype, current
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
+    raise _Refused("too many storage redirects; refusing")
+
+
+def _parse_expiry_moment(
+    explicit: str | None, query: dict[str, str]
+) -> datetime | None:
+    """Return the grant's expiry moment, or None when no PROVABLE past
+    timestamp exists. Mere parameter presence never counts."""
+    if explicit and explicit.strip():
+        try:
+            dt = datetime.fromisoformat(explicit.strip().replace("Z", "+00:00"))
+        except ValueError:
+            raise _Refused("--expired-at must be ISO-8601")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    exp = (query.get("Expires") or "").strip()
+    if exp.isdigit():
+        return datetime.fromtimestamp(int(exp), tz=timezone.utc)
+    amz_date = (query.get("X-Amz-Date") or "").strip()
+    amz_exp = (query.get("X-Amz-Expires") or "").strip()
+    if amz_date and amz_exp.isdigit():
+        try:
+            base = datetime.strptime(amz_date, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+        try:
+            return base + timedelta(seconds=int(amz_exp))
+        except (OverflowError, ValueError):
+            return None
+    return None
 
 
 def _ffprobe(path: Path, slot: str, timeout: int) -> tuple[bool, bool, dict]:
@@ -217,7 +472,20 @@ def _ffprobe(path: Path, slot: str, timeout: int) -> tuple[bool, bool, dict]:
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Collect read-only canary proof evidence (no auth minting).")
-    ap.add_argument("--play-url", required=True, help="authorized Library play URL (302 to presigned B2)")
+    ap.add_argument("--play-url", required=True, help="authorized Library play URL (302 to presigned storage)")
+    ap.add_argument("--library-origin", required=True,
+                    help="explicit trusted Library origin (scheme://host[:port]); "
+                         "the ONLY origin that ever receives the session cookie")
+    ap.add_argument("--storage-origin", required=True, action="append",
+                    help="explicit allowlisted storage origin (repeat or comma-separate); "
+                         "presigned URLs and every redirect hop must match one")
+    ap.add_argument("--expired-url", default=None,
+                    help="operator-supplied EXPIRED grant URL for the EXACT same object "
+                         "(same storage origin + path); replayed WITHOUT credentials to "
+                         "measure denial. Omit and grant_expiry_checked stays false.")
+    ap.add_argument("--expired-at", default=None,
+                    help="ISO-8601 expiry moment of --expired-url (proves it is past); "
+                         "optional when the URL itself carries Expires/X-Amz-Date+X-Amz-Expires")
     ap.add_argument("--expected-sha", required=True, help="ledger derivative_blob_sha256 (64 hex)")
     ap.add_argument("--expected-size", required=True, type=int, help="ledger byte_size")
     ap.add_argument("--cookies", required=True, help="private cookie file OUTSIDE repo (0600, your session)")
@@ -243,6 +511,26 @@ def main(argv=None) -> int:
     cookie_path = Path(args.cookies)
     out_path = Path(args.out)
     _refuse_inside_git(out_path, "output file")
+    try:
+        library_origin = _parse_origin_flag(args.library_origin, "--library-origin")
+        storage_origins: set[tuple[str, str, int]] = set()
+        for raw in (args.storage_origin or []):
+            for piece in str(raw).split(","):
+                if piece.strip():
+                    storage_origins.add(_parse_origin_flag(piece, "--storage-origin"))
+        if not storage_origins:
+            raise _Refused("--storage-origin: at least one allowlisted storage origin is required")
+        if library_origin in storage_origins:
+            raise _Refused("--storage-origin must not include the Library origin")
+    except _Refused as exc:
+        print(f"REFUSED: {exc}")
+        return 2
+    try:
+        _validate_library_url(args.play_url, library_origin)
+    except _Refused as exc:
+        # Never attach cookies to an untrusted origin: refuse BEFORE loading them.
+        print(f"REFUSED: {exc}")
+        return 2
     cookie = _load_cookies(cookie_path)
     if not args.operator.strip():
         print("REFUSED: --operator is required")
@@ -257,49 +545,177 @@ def main(argv=None) -> int:
         "grant_expiry_checked": False,
         "logged_out_denied": False,
     }
-    details: dict = {"slot": args.slot, "video_uuid": args.video_uuid}
+    details: dict = {
+        "slot": args.slot,
+        "video_uuid": args.video_uuid,
+        "cookie_scope": "library-origin-only (storage fetches carry no Cookie/Authorization)",
+        "library_origin": args.library_origin.strip(),
+    }
 
-    # 1. Authorized route must 302 to a presigned B2 URL (no redirects followed).
+    # 1. Authorized route must 302 to an allowlisted presigned storage URL.
+    #    Cookie goes ONLY to the validated Library origin; redirects are
+    #    NEVER followed automatically (urllib would forward the Cookie).
     try:
-        st, hdrs, _ = _get(args.play_url, cookie, timeout=15, follow_redirects=False)
+        st, hdrs, _ = _get_once(args.play_url, headers={"Cookie": cookie}, timeout=15)
+    except _Refused as exc:
+        print(f"REFUSED: {exc}")
+        return 2
     except Exception as exc:
         print(f"REFUSED: play URL unreachable: {type(exc).__name__}")
         return 2
     location = (hdrs.get("location") or "").strip()
-    if st == 302 and location.lower().startswith("https://"):
+    live_grant = ""
+    if st == 302 and location:
+        try:
+            grant_u = _validate_storage_url(
+                location, library_origin=library_origin,
+                storage_origins=storage_origins, what="presigned URL",
+            )
+            live_grant = urllib.parse.urlunsplit(grant_u)
+        except _Refused as exc:
+            print(f"REFUSED: {exc}")
+            _write_out(out_path, args, checks, details)
+            return 2
         checks["library_auth_302"] = True
-        details["presigned_host"] = urllib.parse.urlparse(location).hostname or ""
-        q = urllib.parse.parse_qs(urllib.parse.urlparse(location).query)
+        details["presigned_host"] = grant_u.hostname or ""
+        q = urllib.parse.parse_qs(grant_u.query)
         flat = {k: (v[0] if v else "") for k, v in q.items()}
         expiry = (
             flat.get("X-Amz-Expires") or flat.get("Expires") or flat.get("expires") or ""
         )
+        # Informational only: parameter presence NEVER marks expiry checked.
         details["presigned_expiry"] = str(expiry)[:64]
-        # Hard gate: the presigned URL must carry an explicit expiry; an
-        # everlasting grant URL fails closed (expired-replay denial stays a
-        # manual operator step recorded in the final proof record).
-        checks["grant_expiry_checked"] = bool(str(expiry).strip())
+        details["grant_expiry"] = {
+            "measured": False,
+            "reason": "no expired-grant denial measured yet "
+                      "(replay an expired grant for the exact object via --expired-url)",
+        }
     else:
-        print(f"REFUSED: play URL returned HTTP {st} (expected 302 to presigned B2)")
+        print(f"REFUSED: play URL returned HTTP {st} (expected 302 to presigned storage)")
         _write_out(out_path, args, checks, details)
         return 2
 
-    # 2. Logged-out request (no cookies) must be denied (never 200 with bytes).
+    # 2. Logged-out request (no cookies) must be denied with 401/403/404.
+    #    A 302/307 is NOT a denial when it grants storage access; only a
+    #    same-Library-origin login redirect is accepted as a denial.
     try:
-        st2, _, body2 = _get(args.play_url, None, timeout=15, follow_redirects=False)
+        st2, hdrs2, body2 = _get_once(args.play_url, headers={}, timeout=15)
+    except _Refused as exc:
+        print(f"REFUSED: {exc}")
+        _write_out(out_path, args, checks, details)
+        return 2
     except Exception:
-        st2, body2 = 0, b""
-    checks["logged_out_denied"] = st2 in (401, 403, 404) or (st2 in (302, 307) and True) and st2 != 200
-    if st2 == 200 and body2:
-        checks["logged_out_denied"] = False
+        st2, hdrs2, body2 = 0, {}, b""
+    details["logged_out_status"] = st2
+    if st2 in DENIED_STATUSES:
+        checks["logged_out_denied"] = True
+        details["logged_out_location_class"] = "denial"
+    elif st2 in (302, 307):
+        loc2 = (hdrs2.get("location") or "").strip()
+        loc_class = "untrusted-redirect"
+        try:
+            if loc2 and _origin_tuple(_checked_split(loc2, "logged-out redirect")) == library_origin:
+                # Same-origin login redirect on the Library: accepted denial.
+                _validate_library_url(loc2, library_origin)
+                checks["logged_out_denied"] = True
+                loc_class = "login-redirect"
+            elif loc2:
+                try:
+                    _validate_storage_url(
+                        loc2, library_origin=library_origin,
+                        storage_origins=storage_origins,
+                        what="logged-out redirect",
+                    )
+                    # Redirect hands an unauthenticated caller a storage
+                    # grant: NOT a denial.
+                    loc_class = "storage-grant"
+                except _Refused:
+                    loc_class = "untrusted-redirect"
+            details["logged_out_location_class"] = loc_class
+            if loc2:
+                details["logged_out_location"] = loc2[:200]
+        except _Refused:
+            # Unparseable / userinfo / private-scheme redirect target:
+            # NOT a denial either.
+            details["logged_out_location_class"] = "untrusted-redirect"
+            if loc2:
+                details["logged_out_location"] = loc2[:200]
+    elif st2 == 200 and body2:
+        details["logged_out_location_class"] = "served-bytes"
+    else:
+        details["logged_out_location_class"] = "other"
     if not checks["logged_out_denied"]:
-        print(f"REFUSED: logged-out play URL returned HTTP {st2} (expected denial)")
+        print(f"REFUSED: logged-out play URL returned HTTP {st2} (expected 401/403/404 denial)")
         _write_out(out_path, args, checks, details)
         return 2
 
-    # 3. Range 206 with content-type (authorized).
+    # 3. Expired-grant replay denial, measured -- never assumed.
+    if args.expired_url:
+        try:
+            exp_u = _validate_storage_url(
+                args.expired_url, library_origin=library_origin,
+                storage_origins=storage_origins, what="--expired-url",
+            )
+            live_u = urllib.parse.urlsplit(live_grant)
+            if _origin_tuple(exp_u) != _origin_tuple(live_u) or exp_u.path != live_u.path:
+                raise _Refused(
+                    "--expired-url is not the exact object of the live grant "
+                    "(same storage origin + path required)"
+                )
+            exp_q = urllib.parse.parse_qs(exp_u.query)
+            exp_flat = {k: (v[0] if v else "") for k, v in exp_q.items()}
+            moment = _parse_expiry_moment(args.expired_at, exp_flat)
+            if moment is None:
+                raise _Refused(
+                    "--expired-url carries no provable expiry timestamp "
+                    "(supply --expired-at ISO-8601 or a URL with Expires / "
+                    "X-Amz-Date+X-Amz-Expires); refusing to mark expiry checked"
+                )
+            if moment >= datetime.now(timezone.utc):
+                raise _Refused("--expired-url is not yet expired; refusing to mark expiry checked")
+            exp_url = urllib.parse.urlunsplit(exp_u)
+            dst, _, _, _ = _storage_get(
+                exp_url, library_origin=library_origin,
+                storage_origins=storage_origins, timeout=15,
+            )
+            if dst in DENIED_STATUSES:
+                checks["grant_expiry_checked"] = True
+                details["grant_expiry"] = {
+                    "measured": True,
+                    "reason": "expired grant for the exact object replayed "
+                              "without credentials and denied",
+                    "expired_at": moment.isoformat(),
+                    "denial_status": dst,
+                    "credentials_sent": False,
+                }
+            else:
+                print(f"REFUSED: expired-grant replay returned HTTP {dst} (expected denial)")
+                details["grant_expiry"] = {
+                    "measured": False,
+                    "reason": f"expired-grant replay returned HTTP {dst}, not a denial",
+                }
+                _write_out(out_path, args, checks, details)
+                return 2
+        except _Refused as exc:
+            print(f"REFUSED: {exc}")
+            _write_out(out_path, args, checks, details)
+            return 2
+        except Exception as exc:
+            print(f"REFUSED: expired-grant replay failed: {type(exc).__name__}")
+            _write_out(out_path, args, checks, details)
+            return 2
+
+    # 4. Range 206 with content-type -- from STORAGE, credential-free.
     try:
-        st3, hdrs3, body3 = _get(args.play_url, cookie, timeout=15, range_hdr="bytes=0-1023")
+        st3, hdrs3, _body3, _final3 = _storage_get(
+            live_grant, library_origin=library_origin,
+            storage_origins=storage_origins, timeout=15,
+            extra_headers={"Range": "bytes=0-1023"},
+        )
+    except _Refused as exc:
+        print(f"REFUSED: {exc}")
+        _write_out(out_path, args, checks, details)
+        return 2
     except Exception as exc:
         print(f"REFUSED: range request failed: {type(exc).__name__}")
         _write_out(out_path, args, checks, details)
@@ -314,46 +730,24 @@ def main(argv=None) -> int:
         _write_out(out_path, args, checks, details)
         return 2
 
-    # 4. Full GET + SHA + size (authorized, streamed, bounded).
+    # 5. Full GET + SHA + size -- from STORAGE, credential-free, streamed, bounded.
     tmp = None
     try:
         fd, tmppath = tempfile.mkstemp(prefix="canary-proof-", suffix=".bin")
         os.close(fd)
         tmp = Path(tmppath)
-        # Stream to file while hashing (bounded): reuse _stream_hash logic inline.
-        req = urllib.request.Request(args.play_url)
-        req.add_header("Cookie", cookie)
-        digest = hashlib.sha256()
-        size = 0
-        ctype = ""
-        opener = urllib.request.build_opener()
-        with opener.open(req, timeout=args.timeout) as resp:
-            status = int(getattr(resp, "status", 200))
-            if status not in (200, 206):
-                print(f"REFUSED: full GET returned HTTP {status} (expected 200)")
-                _write_out(out_path, args, checks, details)
-                return 2
-            ctype = (resp.getheader("Content-Type") or "").split(";")[0].strip().lower()
-            with open(tmp, "wb") as fh:
-                while True:
-                    chunk = resp.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    size += len(chunk)
-                    if size > int(args.max_bytes):
-                        print(f"REFUSED: download exceeded --max-bytes {args.max_bytes}")
-                        _write_out(out_path, args, checks, details)
-                        return 2
-                    digest.update(chunk)
-                    fh.write(chunk)
-        got_sha = digest.hexdigest()
+        got_sha, size, ctype, _final = _storage_stream_to_file(
+            live_grant, tmp, library_origin=library_origin,
+            storage_origins=storage_origins, timeout=args.timeout,
+            max_bytes=int(args.max_bytes),
+        )
         details.update({"byte_size": size, "sha256": got_sha, "content_type": ctype})
         checks["b2_full_get_sha_match"] = (got_sha == sha and size == int(args.expected_size))
         if not checks["b2_full_get_sha_match"]:
             print(f"REFUSED: full-GET sha/size mismatch (got {got_sha[:12]}.../{size})")
             _write_out(out_path, args, checks, details)
             return 2
-        # 5. ffprobe clean + frame cadence on the downloaded bytes.
+        # 6. ffprobe clean + frame cadence on the downloaded bytes.
         clean, cadence, summary = _ffprobe(tmp, args.slot, timeout=args.ffprobe_timeout)
         details["ffprobe"] = summary
         checks["ffprobe_clean"] = clean
@@ -362,8 +756,12 @@ def main(argv=None) -> int:
             print("REFUSED: ffprobe checks failed (see output ffprobe summary)")
             _write_out(out_path, args, checks, details)
             return 2
-    except urllib.error.HTTPError as exc:
-        print(f"REFUSED: full GET returned HTTP {exc.code}")
+    except _Refused as exc:
+        print(f"REFUSED: {exc}")
+        _write_out(out_path, args, checks, details)
+        return 2
+    except _StorageStatus as exc:
+        print(f"REFUSED: full GET returned HTTP {exc.status}")
         _write_out(out_path, args, checks, details)
         return 2
     except Exception as exc:

@@ -95,12 +95,24 @@ def main(argv=None) -> int:
                 pass
         print("DB cross-check OK: READY ledger rows + canonical source match proof.")
     print("--- operator B2/Library evidence (run with YOUR user session; no minting) ---")
-    print("  B2 full-GET: Library play URL (302) -> curl with session cookie -> sha256sum")
-    print("    curl -sL -b 'session=<your-cookie>' -c /dev/null -D - -o /tmp/slot.bin '<play-url>'")
+    print("  Preferred: python3 ops/canary_proof_collect.py --play-url <library-play-url>")
+    print("    --library-origin <https://library-host> --storage-origin <https://b2-host>")
+    print("    --cookies <private-cookie-file> --expired-url <expired-grant-same-object>")
+    print("    (cookie ONLY to the Library origin, never auto-followed to storage;")
+    print("     storage Range/full-GET/expiry-replay fetched WITHOUT credentials;")
+    print("     grant_expiry_checked is true ONLY after a measured denial.)")
+    print("  Manual equivalent (cookie discipline is mandatory, not optional):")
+    print("    loc=$(curl -s -D - -o /dev/null -b 'session=<your-cookie>' '<play-url>' | grep -i '^location:')")
+    print("    # 302 to a presigned storage URL expected; NEVER -L with -b (that leaks the cookie to storage).")
+    print("    curl -s -D - -o /tmp/slot.bin \"$loc\"  # NO -b here: storage fetch carries no cookies")
     print("    sha256sum /tmp/slot.bin  # must equal ledger derivative_blob_sha256 (full bytes, never HEAD)")
     print("    ffprobe -v error -show_format -show_streams /tmp/slot.bin  # codec/tags/faststart clean")
-    print("  Library auth: Range 206 with content-type; expired-grant replay denied; logged-out denied.")
+    print("  Library auth: Range 206 with content-type; expired-grant replay denied (exact object,")
+    print("  past timestamp, credential-free); logged-out denied with 401/403/404 (a grant redirect")
+    print("  is NOT a denial; only a same-origin login redirect counts).")
     print("  Record all outcomes as true in proof.checks; any false keeps phase 2 blocked.")
+    print("  NOT claimed: playback on a physical device browser stays unproven until a later")
+    print("  device pass explicitly covers it.")
     return 0
 
 
