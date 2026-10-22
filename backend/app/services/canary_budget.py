@@ -7,17 +7,25 @@ publish guard, and the tests share one contract:
 - FIRST wave <= 5 clips; only on 100% proof may <= 25 more follow
   (fleet total <= 30).
 - New B2 bytes HARD cumulative <= 2 GiB, counting EVERY attempted
-  unique stored object including safe orphans (durable reservation
-  ledger keyed by EXACT B2 namespace bucket+object_key -- identical
-  bytes under different keys are distinct objects and count separately;
-  same bucket+key retries dedupe -- monotonic, never deleted). Estimates are
+  PUT including safe orphans (durable per-PUT charge ledger keyed by
+  EXACT B2 namespace bucket+object_key -- identical bytes under
+  different keys are distinct objects and count separately; the SAME
+  key retried charges PER ATTEMPT -- monotonic, never deleted, never
+  refunded). A verified full-GET reuse (same key already proves the
+  same bytes) skips the PUT and charges nothing new; but once the GET
+  misses, the attempt MUST charge before the PUT, so two concurrent
+  racers that both miss each charge. Estimates are
   preflight ONLY and never promise the bound -- the bound is enforced
   server-side at publish time by ``check_publish_budget`` (fast
   fail-closed pre-check on CLAIMED size, no row, no lock) AND
-  ``reserve_canary_upload`` (authoritative atomic reservation of the
-  ACTUAL object identity BEFORE B2 bytes stream). Same bucket+key retry
-  dedupes (no double charge); same key with a different SHA/size fails
-  closed (corrupt claim).
+  ``reserve_canary_upload`` (authoritative per-PUT charge of the
+  ACTUAL bytes with the exact B2 key AFTER the reuse GET misses and
+  BEFORE the PUT streams, inside a short PG transaction under an
+  advisory lock -- never held across network, committed before the
+  PUT so orphans/failed PUTs stay counted). Same bucket+key with a
+  different SHA/size fails closed (corrupt claim); same key, same
+  SHA/size retried charges again (each PUT may store a new version --
+  over-counting replays is the safe direction).
 - ONE package job active fleet-wide (lease already enforces this; the
   tool additionally admits serially: at most one new queue per run,
   and never while an active package exists; concurrent admits serialize
@@ -48,6 +56,11 @@ Non-goals / residuals (fail closed, documented -- not hidden):
   proves container/codec/tags/faststart/decode-ability + exact dims;
   cadence proof is a post-publish verification step (runbook), not an
   admission claim.
+- The single package lease does NOT serialize duplicate HTTP or stale
+  in-flight B2 attempts: concurrent same-key publishers may each stream
+  a PUT. The cap holds because EVERY PUT attempt charges separately
+  before streaming (PG advisory lock + cumulative check), never because
+  the lease prevents the second PUT.
 """
 
 from __future__ import annotations
@@ -371,44 +384,125 @@ def canary_reserved_bytes(db) -> int:
     return total
 
 
-def canary_legacy_ready_bytes(db, exclude_shas: set[str] | None = None) -> int:
-    """Committed READY derivative bytes not already reserved (upgrade path).
+def canary_legacy_ready_bytes(db) -> int:
+    """Pre-charge READY baseline, counted per exact object (no SHA dedupe).
 
-    Sums ``MediaBlob.byte_size`` for DISTINCT derivative blobs with a
-    ``ready`` row, skipping SHAs already counted in the reservation
-    ledger so the same object is never double-charged.
+    Sums ``MediaBlob.byte_size`` once per READY ``media_derivatives``
+    row (each row is an exact stored object: its B2 key embeds
+    source+role+version+SHA, so the same content SHA under two
+    identities is two objects and counts twice). Rows whose exact
+    ``(bucket, object_key)`` already carries a per-PUT charge in the
+    ledger are EXCLUDED (a successful canary PUT charges first, then
+    promotes -- counting both would double-charge every success).
+    Unreserved rows (pre-charge history, other envs, recomputed-key
+    mismatches) stay counted: exclusion misses over-count (safe),
+    never under-count. A READY row with no blob size fails closed
+    (refuses the proof rather than silently under-counting).
+    Bounded scan (canary fleet <= 30 rows expected; the cap is a rail).
     """
-    from app.models.media_backbone import MediaBlob, MediaDerivative
+    from app.models.media_backbone import MediaDerivative
 
-    exclude = {s.lower() for s in (exclude_shas or set()) if s}
     cap_rows = 5000
+    # SAVEPOINT-isolated probe: a probe failure (e.g. a table the caller
+    # did not create) must return 0 WITHOUT poisoning the caller's
+    # transaction (on PG any failed statement aborts the whole TX --
+    # without this, a later reserve in the same unit would die with
+    # InFailedSqlTransaction instead of failing closed on its own terms).
     try:
-        sha_rows = (
-            db.query(MediaDerivative.derivative_blob_sha256)
-            .filter(MediaDerivative.status == "ready")
-            .limit(cap_rows + 1)
-            .all()
-        )
+        with db.begin_nested():
+            rows = (
+                db.query(
+                    MediaDerivative.source_blob_sha256,
+                    MediaDerivative.role,
+                    MediaDerivative.transform_version,
+                    MediaDerivative.derivative_blob_sha256,
+                )
+                .filter(MediaDerivative.status == "ready")
+                .limit(cap_rows + 1)
+                .all()
+            )
     except Exception:
         return 0
-    if len(sha_rows) > cap_rows:
+    if len(rows) > cap_rows:
         raise CanaryBudgetExceeded(
             f"derivative ledger exceeds bounded scan ({cap_rows} ready rows); "
             "refusing budget proof -- investigate before any canary"
         )
-    shas = {str(r[0]).lower() for r in sha_rows if r and r[0]} - exclude
-    if not shas:
+    if not rows:
         return 0
-    total = 0
-    shas_list = sorted(shas)
-    for i in range(0, len(shas_list), 500):
-        chunk = shas_list[i : i + 500]
-        rows = db.query(MediaBlob.byte_size).filter(MediaBlob.sha256.in_(chunk)).all()
-        for r in rows:
+    try:
+        charged_keys = canary_reserved_keys(db)
+    except Exception:
+        charged_keys = set()
+    from app.config import get_settings as _get_settings
+    from app.services.media_backbone import environment_bucket as _env_bucket
+
+    _settings = _get_settings()
+    _env = str(_settings.b2_upload_environment or "").strip().lower()
+    _bucket = ""
+    _prefix = str(_settings.media_backbone_object_prefix or "blobs/sha256").strip().strip("/")
+    if _env in ("dev", "prod"):
+        try:
+            _bucket = _env_bucket(_env)
+        except Exception:
+            _bucket = ""
+    from app.services.derivative_publisher import (
+        derivative_object_key as _object_key,
+    )
+
+    from app.models.media_backbone import MediaBlob
+
+    # Per exact object: same SHA in N rows is N objects (count each),
+    # minus rows whose exact (bucket, key) already carries a charge.
+    pending: list[tuple[str, str]] = []
+    for src_sha, role, version, dsha in rows:
+        try:
+            s = str(src_sha or "").strip().lower()
+            d = str(dsha or "").strip().lower()
+            if not s or not d:
+                raise ValueError("empty sha")
+            key = _object_key(
+                source_sha256=s,
+                role=str(role),
+                transform_version=str(version or ""),
+                derivative_sha256=d,
+                prefix=_prefix or None,
+            )
+        except Exception:
+            # Key not recomputable (unknown role/version, settings drift):
+            # count by SHA below as an unreserved object (over-count safe).
+            pending.append(("", str(dsha or "").strip().lower()))
+            continue
+        if _bucket and (_bucket, key) in charged_keys:
+            continue  # already charged per-PUT: not baseline
+        pending.append((key, d))
+    if not pending:
+        return 0
+    need_shas = sorted({d for _, d in pending if d})
+    sizes: dict[str, int] = {}
+    for i in range(0, len(need_shas), 500):
+        chunk = need_shas[i : i + 500]
+        blob_rows = db.query(MediaBlob.sha256, MediaBlob.byte_size).filter(
+            MediaBlob.sha256.in_(chunk)
+        ).all()
+        for sha, size in blob_rows:
             try:
-                total += int(r[0] or 0)
+                sizes[str(sha).lower()] = int(size or 0)
             except (TypeError, ValueError):
                 continue
+    total = 0
+    for _, d in pending:
+        if not d:
+            raise CanaryBudgetExceeded(
+                "READY derivative row has no artifact SHA; "
+                "refusing budget proof -- investigate before any canary"
+            )
+        if d not in sizes:
+            raise CanaryBudgetExceeded(
+                f"READY derivative {d[:12]}... has no blob size; "
+                "refusing budget proof -- investigate before any canary"
+            )
+        total += sizes[d]
     return total
 
 
@@ -428,14 +522,16 @@ def canary_reserved_shas(db) -> set[str]:
 
 
 def canary_accounted_bytes(db) -> int:
-    """Authoritative canary bytes: reservations + legacy ready not reserved.
+    """Authoritative canary bytes: per-PUT charges + READY baseline.
 
-    Counts EVERY attempted unique upload (orphans included) exactly once
-    per content SHA. Monotonic (never decreases).
+    Counts EVERY attempted PUT (orphans included), once per attempt row
+    -- the same key retried counts again (each PUT may store a new
+    version). Plus the pre-charge READY baseline, counted per exact
+    derivative object (not per SHA). Monotonic (never decreases);
+    replay/double-record over-counts (safe) rather than under-counts.
     """
     reserved = canary_reserved_bytes(db)
-    shas = canary_reserved_shas(db)
-    legacy = canary_legacy_ready_bytes(db, exclude_shas=shas)
+    legacy = canary_legacy_ready_bytes(db)
     return reserved + legacy
 
 
@@ -459,13 +555,15 @@ def check_publish_budget(db, incoming_bytes: int) -> int:
 
     Fast fail-closed gate on CLAIMED size (read-only: no row, no lock, no
     reservation). The route calls this prestream as a size-cap only; the
-    AUTHORITATIVE reservation happens in :func:`reserve_canary_upload`
-    on the ACTUAL bytes with the exact B2 key, immediately before upload
+    AUTHORITATIVE per-PUT charge happens in :func:`reserve_canary_upload`
+    on the ACTUAL bytes with the exact B2 key, after the pre-PUT
+    full-GET reuse check misses and immediately before the PUT streams
     inside the publisher (short TX on PG under an advisory lock, never
-    held across network). Untrusted route claims therefore never consume
+    held across network, committed before the PUT so orphans stay
+    counted). Untrusted route claims therefore never consume
     committed budget for another job. In-flight concurrency is bounded by
     the global one-package lease cap + serial admission + the atomic
-    reservation, so overshoot is limited to at most one refused slot.
+    per-attempt charge, so overshoot fails one racer before its PUT.
     """
     try:
         incoming = int(incoming_bytes)
@@ -493,43 +591,52 @@ def reserve_canary_upload(
     object_key=None,
     environment=None,
 ) -> int:
-    """Atomically reserve budget for one DISTINCT stored object BEFORE B2 bytes stream.
+    """Charge one PUT attempt BEFORE its bytes stream (durable, monotonic).
 
     Identity is the EXACT B2 namespace ``(bucket, object_key)`` -- never
     content SHA alone. Identical bytes under different keys (different
-    clip/source/role/version) are distinct objects and count separately;
-    the same bucket+key retried dedupes only when SHA AND size match
-    (mismatch fails closed -- corrupt claim). The key must embed the
-    content SHA (``...-<sha>``); compute it with
+    clip/source/role/version) are distinct objects and count separately.
+    The key must embed the content SHA (``...-<sha>``); compute it with
     :func:`canonical_canary_key` (pure, no DB txn, no network) from the
     trusted ctx pin -- never from an untrusted client claim.
 
     - Validates SHA (64 hex) + size (>0, per-slot cap when slot known).
-    - Same-key retry dedupes: costs nothing new.
-    - New key: checks accounted + incoming <= 2 GiB under a PG advisory
-      xact lock, then inserts the reservation row in the SAME short
-      transaction (no network held). SQLite serializes on the UNIQUE
-      index (IntegrityError -> re-read winner, dedupe or budget error).
-    - Commits the reservation transaction before returning so the row
-      is durable even if the later upload/publish fails (orphan stays
-      counted -- monotonic, never released; stale in-flight attempts
-      count once committed, and uncommitted in-flight attempts serialize
-      on the advisory lock so combined overshoot fails one of them).
-    - Returns remaining budget after this object.
+    - EVERY call inserts its own charge row: the same bucket+key retried
+      (same SHA/size) charges AGAIN -- each PUT may store a new B2
+      version, and a concurrent same-key race that both missed the
+      pre-PUT full-GET reuse check PUTs twice, so both attempts must
+      count. Idempotent replay over-counts (safe); the exact same
+      attempt is never silently free while another PUT could happen.
+    - Same key with a DIFFERENT SHA/size fails closed (corrupt claim):
+      no new charge, no PUT.
+    - New charge: checks accounted + incoming <= 2 GiB under a PG
+      advisory xact lock, then inserts + commits the charge row in the
+      SAME short transaction (no network held). SQLite has no advisory
+      lock; the short commit still keeps the charge durable.
+    - Commits before returning so the row is durable even if the later
+      PUT/publish fails (orphan stays counted -- monotonic, never
+      released or refunded; stale in-flight attempts count once
+      committed, and uncommitted in-flight attempts serialize on the
+      advisory lock so combined overshoot fails one of them).
+    - Returns remaining budget after this charge.
+
+    Call AFTER the pre-PUT full-GET reuse check misses and BEFORE the
+    PUT streams: a verified reuse (same key already proves the same
+    bytes) skips both the charge and the PUT. Do NOT hold the DB lock
+    across the network.
 
     B2 versioning bound (hard, documented): the publisher skips the PUT
-    when a full GET already proves the same bytes under the same key
-    (verified reuse, no new version), so a same-key retry creates no new
-    B2 version. A concurrent same-key race may still PUT twice (bounded
-    to in-flight parallelism: fleet one-package + serial admit -> at
-    most one extra version), charged once; all other attempts are exact.
-    Charging every PUT as a new version would over-count retries, so the
-    skip-PUT rule above is the enforced bound.
+    when a full GET of the same key already proves the same bytes
+    (verified reuse, no new version). A same-key retry after a
+    successful PUT therefore creates no new stored version and takes
+    this no-charge path; concurrent same-key races that both miss the
+    GET each charge and each PUT (bounded to in-flight parallelism:
+    fleet one-package + serial admit -> at most one extra version).
 
     CANARY ONLY. Raises ``CanaryBudgetExceeded`` on overshoot,
     ``ValueError`` on malformed identity/size/key.
     """
-    from sqlalchemy.exc import IntegrityError, OperationalError
+    from sqlalchemy.exc import OperationalError
 
     from app.models.canary_ledger import CanarySlotReservation
 
@@ -561,8 +668,8 @@ def reserve_canary_upload(
             job_id = int(job_id)
         except (TypeError, ValueError):
             raise ValueError("job_id must be an int")
-    # Exact-key identity is REQUIRED for new reservations (no SHA-only
-    # fallback: SHA-only dedupe under-counts distinct B2 objects).
+    # Exact-key identity is REQUIRED (no SHA-only fallback: SHA-only
+    # dedupe under-counts distinct B2 objects).
     bkt = str(bucket or "").strip()
     key = str(object_key or "").strip()
     env = str(environment or "").strip().lower() if environment is not None else None
@@ -580,11 +687,13 @@ def reserve_canary_upload(
     _advisory_xact_lock(db, _CANARY_BUDGET_LOCK)
 
     try:
-        existing = (
+        clashing = (
             db.query(CanarySlotReservation)
             .filter(
                 CanarySlotReservation.bucket == bkt,
                 CanarySlotReservation.object_key == key,
+                (CanarySlotReservation.object_sha256 != sha)
+                | (CanarySlotReservation.size_bytes != int(size)),
             )
             .limit(1)
             .first()
@@ -597,18 +706,15 @@ def reserve_canary_upload(
         if _missing_table(exc) or _missing_column(exc):
             raise _fail_missing_schema(exc) from exc
         raise
-    if existing is not None:
+    if clashing is not None:
         try:
-            prev_size = int(existing.size_bytes or 0)
-        except (TypeError, ValueError):
-            prev_size = -1
-        prev_sha = str(getattr(existing, "object_sha256", "") or "").lower()
-        if prev_size != int(size) or prev_sha != sha:
-            raise ValueError(
-                f"canary reservation conflict for {bkt}/{key[-24:]}: "
-                f"existing sha/size != claimed; refusing"
-            )
-        return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
+            db.rollback()
+        except Exception:
+            pass
+        raise ValueError(
+            f"canary reservation conflict for {bkt}/{key[-24:]}: "
+            f"existing sha/size != claimed; refusing"
+        )
 
     accounted = canary_accounted_bytes(db)
     if accounted + int(size) > CANARY_BUDGET_BYTES:
@@ -632,44 +738,6 @@ def reserve_canary_upload(
     )
     db.add(row)
     try:
-        db.flush()
-    except OperationalError as exc:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        if _missing_table(exc) or _missing_column(exc):
-            raise _fail_missing_schema(exc) from exc
-        raise
-    except IntegrityError:
-        # Lost a same-key race (SQLite or PG): re-read the winner.
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        winner = (
-            db.query(CanarySlotReservation)
-            .filter(
-                CanarySlotReservation.bucket == bkt,
-                CanarySlotReservation.object_key == key,
-            )
-            .limit(1)
-            .first()
-        )
-        if winner is None:
-            raise CanaryBudgetExceeded("canary reservation race lost; please retry")
-        try:
-            prev_size = int(winner.size_bytes or 0)
-        except (TypeError, ValueError):
-            prev_size = -1
-        prev_sha = str(getattr(winner, "object_sha256", "") or "").lower()
-        if prev_size != int(size) or prev_sha != sha:
-            raise ValueError(
-                f"canary reservation conflict for {bkt}/{key[-24:]}: "
-                f"existing sha/size != claimed; refusing"
-            )
-        return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
-    try:
         db.commit()
     except OperationalError as exc:
         try:
@@ -679,23 +747,6 @@ def reserve_canary_upload(
         if _missing_table(exc) or _missing_column(exc):
             raise _fail_missing_schema(exc) from exc
         raise
-    except IntegrityError:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        winner = (
-            db.query(CanarySlotReservation)
-            .filter(
-                CanarySlotReservation.bucket == bkt,
-                CanarySlotReservation.object_key == key,
-            )
-            .limit(1)
-            .first()
-        )
-        if winner is None:
-            raise CanaryBudgetExceeded("canary reservation race lost; please retry")
-        return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
     return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
 
 

@@ -118,27 +118,30 @@ def _reserve(db, sha: str, size: int, *, job_id=1, slot="light", key=None, bucke
     )
 
 
-def test_reservation_counts_orphans_and_dedupes_same_sha(test_db):
+def test_reservation_counts_orphans_and_charges_each_put_attempt(test_db):
     sha1 = _sha(b"orphan-1")
     assert canary_accounted_bytes(test_db) == 0
     # Reserve an object that never becomes a READY row (crashed attempt orphan).
     _reserve(test_db, sha1, 1000, job_id=1, slot="light")
     assert canary_accounted_bytes(test_db) == 1000
     assert canary_ledger_bytes(test_db) == 1000
-    # Same-key retry dedupes: no double charge.
+    # Same-key retry is a NEW PUT attempt: it charges AGAIN (each PUT may
+    # store a new version; the lease does not serialize duplicate HTTP).
+    # Only a verified full-GET reuse (no PUT) avoids a new charge.
     remaining = _reserve(test_db, sha1, 1000, job_id=1, slot="light")
-    assert canary_accounted_bytes(test_db) == 1000
-    assert remaining == CANARY_BUDGET_BYTES - 1000
-    # Same key with different size fails closed (corrupt claim).
+    assert canary_accounted_bytes(test_db) == 2000
+    assert remaining == CANARY_BUDGET_BYTES - 2000
+    # Same key with different size fails closed (corrupt claim): no new charge.
     bkt, k, e = "test-bucket", f"blobs/sha256/{sha1[:2]}/light-ffmpeg-h264-web-v1-{sha1}", "dev"
     with pytest.raises(ValueError):
         reserve_canary_upload(test_db, sha1, 1001, job_id=2, slot="light",
                               bucket=bkt, object_key=k, environment=e)
-    # Legacy READY rows for other SHAs add once (no double count with reservations).
+    assert canary_accounted_bytes(test_db) == 2000
+    # Legacy READY rows for other SHAs add once per exact object.
     src = _seed_source(test_db, "clip-orphan-2")
     dsha = _seed_ready_derivative(test_db, "clip-orphan-2", src, "light", 500)
     assert dsha != sha1
-    assert canary_accounted_bytes(test_db) == 1500
+    assert canary_accounted_bytes(test_db) == 2500
 
 
 def test_reservation_exact_key_counts_distinct_objects(test_db):
@@ -158,10 +161,11 @@ def test_reservation_exact_key_counts_distinct_objects(test_db):
     reserve_canary_upload(test_db, sha, 800, job_id=2, slot="light",
                           bucket="bkt", object_key=k2, environment="dev")
     assert canary_accounted_bytes(test_db) == 1600
-    # Same-key retry dedupes (no third charge).
+    # Same-key retry is a NEW PUT attempt: charges again (each PUT may
+    # store a new version). Only verified full-GET reuse avoids a charge.
     reserve_canary_upload(test_db, sha, 800, job_id=2, slot="light",
                           bucket="bkt", object_key=k2, environment="dev")
-    assert canary_accounted_bytes(test_db) == 1600
+    assert canary_accounted_bytes(test_db) == 2400
     # Key must embed the SHA: mismatched key fails closed.
     with pytest.raises(ValueError):
         reserve_canary_upload(test_db, sha, 800, job_id=3, slot="light",
@@ -520,3 +524,203 @@ def test_publisher_skips_put_when_verified_existing():
                                derivative_sha=sha, derivative_size=len(data)) is False
     assert _try_verified_reuse(client=_Hit(), bucket="b", key="k",
                                derivative_sha=_sha(b"other"), derivative_size=len(data)) is False
+
+
+# ---------------------------------------------------------------------------
+# Per-PUT attempt charging: two ACTUAL publisher calls, same key, both GET
+# miss -> each charges; cap lets exactly one win before its PUT; orphan
+# charge survives a failed PUT's rollback.
+# ---------------------------------------------------------------------------
+
+class _CanaryFakeBody:
+    def __init__(self, data: bytes):
+        import io as _io
+
+        self._buf = _io.BytesIO(data)
+
+    def iter_chunks(self, chunk_size=1024 * 1024):
+        while True:
+            piece = self._buf.read(chunk_size)
+            if not piece:
+                break
+            yield piece
+
+    def close(self):
+        pass
+
+
+class _CanaryFakeS3:
+    """Separate in-memory stores: two fakes = two racers that both miss GET."""
+
+    def __init__(self, mode="ok"):
+        self.objects: dict = {}
+        self.mode = mode
+        self.uploads = 0
+        self.gets = 0
+
+    def upload_file(self, path, bucket, key, ExtraArgs=None):
+        from pathlib import Path as _P
+
+        self.uploads += 1
+        if self.mode == "upload_error":
+            raise RuntimeError("boom")
+        self.objects[(bucket, key)] = _P(path).read_bytes()
+
+    def get_object(self, Bucket, Key):
+        self.gets += 1
+        if self.mode == "get_error":
+            raise RuntimeError("boom")
+        data = self.objects.get((Bucket, Key))
+        if data is None:
+            raise KeyError(Key)
+        if self.mode == "corrupt":
+            data = b"corrupt:" + data
+        return {"Body": _CanaryFakeBody(data)}
+
+
+def _canary_publish_artifact(test_db, tmp_path, tag, role="light", raw=b"race-bytes-"):
+    from app.services.derivative_publisher import build_publication_context
+
+    data = (raw * 64)[:4096]
+    assert len(data) > 0
+    artifact = tmp_path / f"slot-{tag}.bin"
+    artifact.write_bytes(data)
+    _seed_source(test_db, f"clip-race-{tag}")
+    ctx = build_publication_context(test_db, video_uuid=f"clip-race-{tag}", role=role)
+    return ctx, artifact, data
+
+
+def test_two_actual_publisher_calls_same_key_both_miss_charge_each(test_db, tmp_path):
+    from app.services.canary_budget import canary_accounted_bytes
+    from app.services.derivative_publisher import (
+        build_publication_context,
+        publish_derivative,
+    )
+
+    # One clip, one slot: the same artifact published twice through two
+    # SEPARATE fake stores (each GET misses, each PUT streams) -- the
+    # same-key concurrent race. Each actual PUT attempt must charge.
+    data = (b"race-bytes-same-key-" * 64)[:2048]
+    artifact = tmp_path / "slot-race.bin"
+    artifact.write_bytes(data)
+    _seed_source(test_db, "clip-race-samekey")
+    ctx1 = build_publication_context(test_db, video_uuid="clip-race-samekey", role="light")
+    fake1, fake2 = _CanaryFakeS3(), _CanaryFakeS3()
+    before = canary_accounted_bytes(test_db)
+    r1 = publish_derivative(test_db, ctx1, artifact, s3_client=fake1, canary_scope=True)
+    assert r1["status"] == "ready"
+    assert fake1.uploads == 1
+    # Second ACTUAL publisher call: fresh context, same key, its own store
+    # still misses the reuse GET, so it charges + PUTs again.
+    ctx2 = build_publication_context(test_db, video_uuid="clip-race-samekey", role="light")
+    assert ctx2.source_blob_sha256 == ctx1.source_blob_sha256
+    r2 = publish_derivative(test_db, ctx2, artifact, s3_client=fake2, canary_scope=True)
+    assert r2["status"] == "ready"
+    assert fake2.uploads == 1
+    # Two PUT attempts -> two charges (same key, same bytes).
+    assert canary_accounted_bytes(test_db) == before + 2 * len(data)
+    from app.models.canary_ledger import CanarySlotReservation
+
+    rows = test_db.query(CanarySlotReservation).filter(
+        CanarySlotReservation.object_key == r1["object_key"]).all()
+    assert len(rows) == 2
+    assert r2["object_key"] == r1["object_key"]
+
+
+def test_verified_reuse_skips_put_and_charge(test_db, tmp_path):
+    from app.services.canary_budget import canary_accounted_bytes
+    from app.services.derivative_publisher import (
+        build_publication_context,
+        publish_derivative,
+    )
+
+    # Same store: the second publish's reuse GET HITS, so no new PUT and
+    # no new charge (verified reuse, not a retry that could double-store).
+    data = (b"reuse-bytes-" * 64)[:1024]
+    artifact = tmp_path / "slot-reuse.bin"
+    artifact.write_bytes(data)
+    _seed_source(test_db, "clip-race-reuse")
+    fake = _CanaryFakeS3()
+    ctx1 = build_publication_context(test_db, video_uuid="clip-race-reuse", role="light")
+    before = canary_accounted_bytes(test_db)
+    r1 = publish_derivative(test_db, ctx1, artifact, s3_client=fake, canary_scope=True)
+    assert r1["status"] == "ready"
+    assert fake.uploads == 1
+    assert canary_accounted_bytes(test_db) == before + len(data)
+    ctx2 = build_publication_context(test_db, video_uuid="clip-race-reuse", role="light")
+    r2 = publish_derivative(test_db, ctx2, artifact, s3_client=fake, canary_scope=True)
+    assert r2["status"] == "ready"
+    assert fake.uploads == 1  # no second PUT
+    assert canary_accounted_bytes(test_db) == before + len(data)  # no second charge
+
+
+def test_canary_cap_one_racer_wins_before_put(test_db, tmp_path):
+    from app.services.canary_budget import (
+        CANARY_BUDGET_BYTES,
+        canary_accounted_bytes,
+    )
+    from app.services.derivative_publisher import (
+        DerivativePublishError,
+        build_publication_context,
+        publish_derivative,
+    )
+
+    # Leave room for exactly ONE more PUT of this size: the first racer
+    # charges + PUTs; the second fails BEFORE its PUT (no bytes spent).
+    data = (b"cap-bytes-" * 64)[:2048]
+    artifact = tmp_path / "slot-cap.bin"
+    artifact.write_bytes(data)
+    _seed_source(test_db, "clip-race-cap")
+    # Fill to cap - len(data) with exact-key charges (distinct keys).
+    import hashlib as _hl
+
+    fill_total = CANARY_BUDGET_BYTES - len(data)
+    # Two per-slot-cap-compliant fills (hq 1.2G + light remainder).
+    _reserve(test_db, _sha(b"cap-fill-hq"), 1_200_000_000, slot="hq")
+    rest = fill_total - 1_200_000_000
+    assert rest > 0
+    # rest may exceed the light per-slot cap (700M): split into light-size chunks.
+    idx = 0
+    while rest > 0:
+        chunk = min(rest, 700_000_000)
+        _reserve(test_db, _sha(f"cap-fill-l-{idx}".encode()), chunk, slot="light")
+        rest -= chunk
+        idx += 1
+    assert canary_accounted_bytes(test_db) == fill_total
+    ctx = build_publication_context(test_db, video_uuid="clip-race-cap", role="light")
+    fake_win = _CanaryFakeS3()
+    r = publish_derivative(test_db, ctx, artifact, s3_client=fake_win, canary_scope=True)
+    assert r["status"] == "ready"
+    assert fake_win.uploads == 1
+    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES
+    # Second racer, same key, own miss: cap refuses BEFORE its PUT.
+    ctx2 = build_publication_context(test_db, video_uuid="clip-race-cap", role="light")
+    fake_lose = _CanaryFakeS3()
+    with pytest.raises(DerivativePublishError, match="canary budget exceeded"):
+        publish_derivative(test_db, ctx2, artifact, s3_client=fake_lose, canary_scope=True)
+    assert fake_lose.uploads == 0
+    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES
+
+
+def test_orphan_charge_survives_failed_put_rollback(test_db, tmp_path):
+    from app.services.canary_budget import canary_accounted_bytes
+    from app.services.derivative_publisher import (
+        DerivativePublishError,
+        build_publication_context,
+        publish_derivative,
+    )
+
+    # The PUT fails AFTER the charge commits: the charge row survives the
+    # publish-unit rollback (monotonic, never refunded).
+    data = (b"orphan-bytes-" * 64)[:1024]
+    artifact = tmp_path / "slot-orphan.bin"
+    artifact.write_bytes(data)
+    _seed_source(test_db, "clip-race-orphan")
+    ctx = build_publication_context(test_db, video_uuid="clip-race-orphan", role="light")
+    before = canary_accounted_bytes(test_db)
+    with pytest.raises(DerivativePublishError):
+        publish_derivative(test_db, ctx, artifact,
+                           s3_client=_CanaryFakeS3(mode="upload_error"),
+                           canary_scope=True)
+    test_db.rollback()
+    assert canary_accounted_bytes(test_db) == before + len(data)

@@ -15,22 +15,31 @@ full-GET SHA+size, ffprobe + frame cadence, authorized 302/Range
 guard: `backend/app/services/canary_budget.py` (durable reservation
 ledger `canary_slot_reservations` keyed by EXACT B2 namespace
 bucket+object_key -- identical bytes under different keys are distinct
-objects and count separately; same-key retry dedupes; orphan rows persist
-across publisher rollbacks) + publish-time enforcement in
+objects and count separately; the SAME key retried charges AGAIN per
+PUT attempt (verified full-GET reuse skips both PUT and charge);
+orphan/failed-PUT rows persist across publisher rollbacks, never refunded) + publish-time enforcement in
 `POST /jobs/{job_id}/package/slots` (CANARY ONLY: scope derived from the
 server-persisted job reason `canary_web_package`, never a client bool;
 prestream is a size-cap-only advisory gate -- the route holds NO durable
 row before fencing) and `derivative_publisher.publish_derivative(...,
-canary_scope=<server-derived>)` (pre-upload reserve of the ACTUAL bytes
-with the exact B2 key + verified-reuse PUT skip, canary-scoped only --
+canary_scope=<server-derived>)` (per-slot-cap check, then pre-PUT
+full-GET reuse probe, then per-PUT charge committed BEFORE the PUT
+streams + verified roundtrip, canary-scoped only --
 never a global cap on future packages). Migrations (additive, manual,
 BEFORE deploy, idempotent): `backend/migrations/add_canary_slot_reservations.sql`
-then `backend/migrations/add_canary_slot_reservation_exact_key.sql`.
+then `backend/migrations/add_canary_slot_reservation_exact_key.sql`
+then `backend/migrations/add_canary_put_attempt_charges.sql` (drops the
+UNIQUE bucket+key constraint: same-key duplicates are concurrent/retry
+attempts, each counted).
 Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
 `backend/tests/test_canary_ops_cli_d3b2.py` (CLI: admit/verify/resume/
 phase2-fresh-proof/host-facts, scope/orphan/stale-proof/reuse, SQLite fake DB) +
 `backend/tests/test_postgres_canary_budget_d3b2.py` (real-PG concurrency:
-two-attempt cap race, orphan persistence, replay dedupe, PUT-skip).
+distinct-key cap race, SAME-KEY racers each charge, same-key cap race
+one-wins, orphan persistence, PUT-skip) +
+`backend/tests/test_canary_proof_collect_e2e.py` (collector fakes: 302,
+full-GET SHA corruption, Range 206, logged-out denial, expiry fields,
+frame cadence, missing ffprobe).
 Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
 `backend/tests/test_canary_ops_cli_d3b2.py` (CLI: admit/verify/resume/
 phase2/parallel-dedup/budget-failure/host-facts, SQLite fake DB).
@@ -42,20 +51,30 @@ Bounds (hard, shared by tool + guard + tests):
   (fleet total <= 30, DB-authoritative: a reset state dir can never
   bypass the total).
 - New B2 bytes HARD cumulative <= 2 GiB, counting EVERY attempted
-  unique stored object including safe orphans (durable
-  `canary_slot_reservations` ledger keyed by EXACT B2 namespace
+  PUT including safe orphans and failed PUTs (durable per-PUT charge
+  ledger `canary_slot_reservations` keyed by EXACT B2 namespace
   bucket+object_key: identical bytes under different clips/roles/versions
-  are distinct objects and count separately; same bucket+key retry
-  dedupes; same-key/different-bytes fails closed). Estimates are
+  are distinct objects and count separately; the SAME bucket+key retried
+  charges AGAIN per attempt -- each PUT may store a new B2 version, and
+  a concurrent same-key race that both misses the pre-PUT full-GET
+  reuse check PUTs twice, so both attempts must count; the one-package
+  lease does NOT serialize duplicate HTTP/stale in-flight B2 attempts.
+  Same-key/different-bytes fails closed (corrupt claim, no charge).
+  Verified full-GET reuse (same key already proves the same bytes)
+  skips the PUT and charges nothing new). Estimates are
   PREFLIGHT ONLY; the slot route refuses overshoot authoritatively with
   409 BEFORE bytes stream for CANARY jobs only (claimed-size pre-check +
   per-slot cap, NO durable row -- untrusted route claims never consume
   committed budget for another job; the D2 fenced guard still runs
-  row-locked in the publisher), and the publisher reserves the ACTUAL
-  bytes pre-upload with the exact B2 key (deduped; verified-reuse skips
-  the PUT when the same key already proves the same bytes, so retries
-  create no new B2 version). Per-slot caps (canary
+  row-locked in the publisher), and the publisher charges the ACTUAL
+  bytes per PUT with the exact B2 key AFTER the reuse GET misses and
+  BEFORE the PUT streams (cap-checked under a PG advisory lock,
+  committed before the PUT so orphans stay counted, never refunded;
+  replay over-counts rather than under-counts). Per-slot caps (canary
   only): hq <= 1.2 GB, light <= 700 MB, poster <= 8 MB.
+  The pre-charge READY baseline counts per exact derivative object (not
+  per SHA), and a READY row with no blob size fails the proof closed
+  (no silent under-count).
 - ONE package active fleet-wide (lease cap + tool serial gate: the tool
   never queues while ANY package job is active, queues at most one
   per run, and concurrent admits serialize on a PG advisory lock + a
@@ -96,9 +115,11 @@ Bounds (hard, shared by tool + guard + tests):
 
 1. Review this branch (tool + guard + tests + this runbook). Merge to
    `master` ONLY on explicit APPROVE.
-2. Apply the additive migration on the server DB BEFORE deploy (parent,
+2. Apply the additive migrations on the server DB BEFORE deploy (parent,
    manual): `psql $DATABASE_URL -f backend/migrations/add_canary_slot_reservations.sql`
-   (idempotent; creates `canary_slot_reservations` only). Without it
+   then `add_canary_slot_reservation_exact_key.sql`
+   then `add_canary_put_attempt_charges.sql`
+   (idempotent; create the `canary_slot_reservations` per-PUT charge ledger). Without them
    the slot route fails closed with 409 (ledger missing) -- no canary
    bytes can publish.
 3. `ci/ship.sh status` → `ci/ship.sh server --dry-run` → `ci/ship.sh server`
@@ -271,8 +292,9 @@ only after 5/5 PROVEN):
 1. **Orphan accounting is reservation-based, not B2-reconciled.**
    Retained B2 orphans (crashed attempts, SAR!=1 refusals, stale-token
    uploads, claim/actual mismatches) ARE counted via the durable
-   `canary_slot_reservations` ledger (same-SHA retry dedupes; corrupt
-   claims fail closed and over-count). What is NOT built: a B2
+   `canary_slot_reservations` ledger (same-key retries charge per PUT
+   attempt -- over-counts replays by design; corrupt
+   claims fail closed with no new charge). What is NOT built: a B2
    prefix-listing vs ledger reconciler (would catch bytes written
    outside the reservation path, e.g. a future non-canary bug). The
    bound is therefore hard for all canary-path bytes and conservative

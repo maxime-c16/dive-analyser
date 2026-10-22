@@ -498,15 +498,16 @@ def _upload_and_roundtrip_verify(
     size, missing body or provider error raises ``VerificationFailed`` and
     commits nothing. Secrets never appear in messages.
 
-    Versioning bound (hard, canary only): when ``attempt_reuse`` is set
-    (canary slot publishes), a full GET of the same key is attempted
-    first -- when it already proves the same bytes (same SHA+size), the
-    PUT is SKIPPED (verified reuse, no new B2 version). A same-key retry
-    therefore creates no new stored version; concurrent same-key races
-    may still PUT twice (bounded to in-flight parallelism: fleet
-    one-package + serial admit -> at most one extra version), charged
-    once in the ledger (documented residual, fail closed elsewhere).
-    Non-canary publishes pass attempt_reuse=False (no extra GET).
+    Versioning bound (hard, canary only): the canary caller runs
+    ``_try_verified_reuse`` (full GET proving same bytes under the same
+    key) BEFORE charging or PUTting -- a hit skips both (verified reuse,
+    no new B2 version, no new charge). On a miss the caller charges this
+    PUT attempt first, then PUTs with ``attempt_reuse=False``. A
+    same-key retry after a successful PUT therefore takes the no-charge
+    reuse path; concurrent same-key races that both miss each charge
+    and each PUT (bounded to in-flight parallelism: fleet one-package
+    + serial admit -> at most one extra version). Non-canary publishes
+    pass attempt_reuse=False (no extra GET).
     """
     if attempt_reuse and _try_verified_reuse(
         client=client,
@@ -760,56 +761,28 @@ def publish_derivative(
         prefix=prefix,
     )
     content_type = DERIVATIVE_CONTENT_TYPES[ctx.role]
-    # Canary-only hard budget: atomically reserve the ACTUAL object
-    # (exact bucket+key+SHA+size) BEFORE any B2 byte streams. Same-key
-    # retry dedupes; overshoot or per-slot-cap breach fails here (no
-    # upload spent). Short reservation transaction (PG advisory xact lock,
-    # never held across network); the row stays counted even if the later
-    # publish becomes a safe orphan (monotonic, fail closed, never
-    # released; stale in-flight attempts count once committed).
-    # Scoped: only canary slot publishes opt in (canary_scope=True, which
-    # the route derives from the SERVER-PERSISTED job reason -- never a
-    # client bool). Generic publisher callers never pay the canary cap, so
-    # this is not a global cap on future packages.
-    if canary_scope and ctx.role in ("hq", "light", "poster"):
+    # Canary-only hard budget (scoped: canary_scope=True, derived by the
+    # route from the SERVER-PERSISTED job reason -- never a client bool;
+    # generic callers never pay the canary cap). Per-slot size is
+    # validated here (fail before network); the durable per-PUT charge
+    # happens AFTER the pre-PUT full-GET reuse check misses and BEFORE
+    # the PUT streams (see network phase below): a verified reuse skips
+    # both the charge and the PUT, but every actual PUT attempt charges
+    # its own row -- even a same-key retry/racer that also missed the
+    # GET. The charge commits before the PUT so orphans/failed PUTs stay
+    # counted (monotonic, never refunded).
+    _is_canary_slot = bool(canary_scope and ctx.role in ("hq", "light", "poster"))
+    if _is_canary_slot:
         try:
-            from app.services.canary_budget import (
-                CanaryBudgetExceeded,
-                reserve_canary_upload,
-                validate_canary_slot_size,
-            )
+            from app.services.canary_budget import validate_canary_slot_size
 
             validate_canary_slot_size(ctx.role, int(derivative_size))
-            reserve_canary_upload(
-                db,
-                derivative_sha,
-                int(derivative_size),
-                job_id=None,
-                slot=ctx.role,
-                bucket=bucket,
-                object_key=key,
-                environment=environment,
-            )
-        except CanaryBudgetExceeded as exc:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            raise DerivativePublishError(str(exc) or "canary budget exceeded") from exc
         except ValueError as exc:
             try:
                 db.rollback()
             except Exception:
                 pass
             raise DerivativePublishError(str(exc) or "canary slot refused") from exc
-        except DerivativePublishError:
-            raise
-        except Exception as exc:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
 
     # Close the revalidation read snapshot before the network phase so no
     # read transaction spans the upload. The session is still clean here
@@ -855,16 +828,81 @@ def publish_derivative(
 
     client = s3_client if s3_client is not None else _b2_upload_client()
     try:
-        _upload_and_roundtrip_verify(
-            client=client,
-            bucket=bucket,
-            key=key,
-            local_path=path,
-            content_type=content_type,
-            derivative_sha=derivative_sha,
-            derivative_size=derivative_size,
-            attempt_reuse=bool(canary_scope and ctx.role in ("hq", "light", "poster")),
-        )
+        if _is_canary_slot:
+            # Reuse check FIRST (full-GET proof, no charge): the same key
+            # already proving the same bytes skips both charge and PUT.
+            # On a miss, charge this PUT attempt NOW (cap-checked under
+            # the PG advisory lock, committed before the PUT -- never
+            # held across the network), then stream the PUT. Two racers
+            # that both miss each charge; each PUT may store its own
+            # version, so per-attempt charging is the bound (the
+            # one-package lease does NOT serialize duplicate HTTP).
+            if _try_verified_reuse(
+                client=client,
+                bucket=bucket,
+                key=key,
+                derivative_sha=derivative_sha,
+                derivative_size=derivative_size,
+            ):
+                pass
+            else:
+                try:
+                    from app.services.canary_budget import (
+                        CanaryBudgetExceeded,
+                        reserve_canary_upload,
+                    )
+
+                    reserve_canary_upload(
+                        db,
+                        derivative_sha,
+                        int(derivative_size),
+                        job_id=None,
+                        slot=ctx.role,
+                        bucket=bucket,
+                        object_key=key,
+                        environment=environment,
+                    )
+                except CanaryBudgetExceeded as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise DerivativePublishError(str(exc) or "canary budget exceeded") from exc
+                except ValueError as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise DerivativePublishError(str(exc) or "canary slot refused") from exc
+                except DerivativePublishError:
+                    raise
+                except Exception as exc:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
+                _upload_and_roundtrip_verify(
+                    client=client,
+                    bucket=bucket,
+                    key=key,
+                    local_path=path,
+                    content_type=content_type,
+                    derivative_sha=derivative_sha,
+                    derivative_size=derivative_size,
+                    attempt_reuse=False,
+                )
+        else:
+            _upload_and_roundtrip_verify(
+                client=client,
+                bucket=bucket,
+                key=key,
+                local_path=path,
+                content_type=content_type,
+                derivative_sha=derivative_sha,
+                derivative_size=derivative_size,
+                attempt_reuse=False,
+            )
     except DerivativePublishError:
         try:
             db.rollback()

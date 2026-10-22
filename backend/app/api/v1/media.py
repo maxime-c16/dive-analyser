@@ -1639,9 +1639,10 @@ async def publish_package_slot(
     # consume committed budget for another job. Prestream here is a
     # size-cap-only advisory gate (per-slot cap + SHA shape + read-only
     # budget pre-check, no row, no lock): the AUTHORITATIVE durable
-    # reservation of the ACTUAL bytes with the exact B2 key happens inside
-    # the publisher immediately before upload (deduped; a claim/actual
-    # mismatch fails closed without a prestream orphan row).
+    # per-PUT charge happens inside the publisher after the pre-PUT
+    # full-GET reuse check misses and before the PUT streams
+    # (charged per attempt; a claim/actual mismatch fails closed without
+    # spending budget on a corrupt claim).
     from app.services.canary_budget import canary_scope_for_job_id as _scope_for_job
 
     _is_canary = _scope_for_job(db, int(job_id))
