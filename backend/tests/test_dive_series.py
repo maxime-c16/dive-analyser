@@ -191,3 +191,18 @@ def test_recent_clip_policy_is_saved_and_manual_choice_remains_pinned(workspace)
     changed = client.put(f'/api/v1/series/{sheet["id"]}', json=update_payload(sheet, clip_policy="best")).json()
     assert changed["clip_policy"] == "best"
     assert changed["slots"][0]["clip"]["id"] == dives["alice-public"]
+
+
+def test_stale_manual_clip_resolves_to_null_and_saves_cleanly(workspace):
+    db, login, dives, _, _ = workspace
+    client = login("alice")
+    sheet = create(client, slots=[{"code": "101B", "clip_id": dives["alice-private"]}]).json()
+    assert sheet["slots"][0]["clip"]["id"] == dives["alice-private"]
+    dive = db.get(Dive, dives["alice-private"])
+    dive.dive_code = "103B"
+    db.commit()
+    reloaded = client.get(f'/api/v1/series/{sheet["id"]}').json()
+    assert reloaded["slots"][0]["clip"] is None
+    assert reloaded["slots"][0]["clip_id"] is None
+    saved = client.put(f'/api/v1/series/{reloaded["id"]}', json=update_payload(reloaded))
+    assert saved.status_code == 200, saved.text

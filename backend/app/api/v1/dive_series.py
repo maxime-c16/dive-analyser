@@ -167,6 +167,26 @@ def project(db, user, row, detail=True):
         result["shared_with"] = [{"id": u.id, "name": u.display_name} for u in
                                 db.query(AppUser).filter(AppUser.id.in_(row.shared_with)).all()]
     cache = {}
+    # Batch-fetch manually selected clips in one query instead of one per
+    # choice. Stale selections (deleted, transferred, or code/height
+    # mismatch) resolve to clip_id None so a reloaded sheet saves cleanly.
+    selected_ids = set()
+    for slot in row.slots:
+        for choice in [slot, *slot.get("alternatives", [])]:
+            if own and choice.get("code") and choice.get("clip_id"):
+                selected_ids.add(choice["clip_id"])
+    selected_map = {}
+    if selected_ids:
+        owner_ids = owned_diver_ids(db, row.owner_user_id)
+        if owner_ids:
+            totals = rating_totals()
+            recorded = recorded_score_10_expression()
+            for dive, mean, count, performance_score in (
+                    db.query(Dive, totals.c.mean, totals.c.count, recorded.label("performance_score"))
+                    .outerjoin(totals, totals.c.dive_id == Dive.id)
+                    .filter(Dive.id.in_(selected_ids), Dive.diver_id.in_(owner_ids),
+                            Dive.video_uuid.is_not(None)).all()):
+                selected_map[dive.id] = (dive, clip_payload(dive, mean, count, performance_score))
     def choice_out(choice):
         code = choice["code"]
         try:
@@ -174,18 +194,23 @@ def project(db, user, row, detail=True):
         except OfficialDDUndefined:
             dd = None
         clip = None
+        effective_clip_id = choice.get("clip_id") if own else None
         # Sheet sharing intentionally grants no new media rights. The owner
         # retains normal playback; collaborators see the technical sheet only.
         if own and code:
             if code not in cache:
                 cache[code] = clips(db, row.owner_user_id, code, row.height, limit=1, policy=row.clip_policy)
-            if choice.get("clip_id"):
-                selected = clips(db, row.owner_user_id, code, row.height, limit=1, clip_id=choice["clip_id"])
-                if selected:
-                    clip = selected[0]
+            if effective_clip_id:
+                entry = selected_map.get(effective_clip_id)
+                if entry and entry[0].dive_code == code and entry[0].height == row.height:
+                    clip = entry[1]
+                else:
+                    effective_clip_id = None
             elif cache[code]:
                 clip = cache[code][0]
-        return {**choice, "clip_id": choice.get("clip_id") if own else None, "dd": dd, "clip": clip}
+        elif own:
+            effective_clip_id = None
+        return {**choice, "clip_id": effective_clip_id, "dd": dd, "clip": clip}
     result["slots"] = [{**choice_out(slot), "alternatives": [choice_out(c) for c in slot.get("alternatives", [])]}
                        for slot in row.slots]
     return result
