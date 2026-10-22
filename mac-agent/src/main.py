@@ -14,7 +14,7 @@ from .config import Config, setup_logging, get_default_config_path, create_examp
 from .extractor import MetadataExtractor
 from .sync_client import SyncClient
 from .network import wait_for_network
-from .media_jobs import run_media_job_loop
+from .media_jobs import package_resource_facts, run_media_job_loop
 from .source_vault import MediaSourceVault, SourceVaultError
 from .media_catalog import run_catalog_loop
 
@@ -82,6 +82,19 @@ async def run_agent_heartbeat_loop(config: Config, sync_client: SyncClient, stop
                 storage_status = None
         else:
             storage_status = None
+
+        if "web_package" in (config.media.capabilities or []):
+            # Same measurement as the pre-lease package gate, reported so the
+            # server's migration status can name a Mac-side pause.
+            try:
+                facts = await asyncio.wait_for(
+                    asyncio.to_thread(package_resource_facts, config.media.temp_dir), timeout=5
+                )
+            except Exception:
+                facts = {"available": False, "scratch_free_bytes": None, "memory_pressure": None,
+                         "measured_at": now.isoformat()}
+            storage_status = dict(storage_status or {})
+            storage_status["package_resources"] = facts
 
         try:
             await sync_client.heartbeat_media_agent({

@@ -37,6 +37,45 @@ MAX_KEEPALIVE_FAILURES = 3
 MATERIALIZATION_LEASE_HEARTBEAT_SECONDS = LEASE_KEEPALIVE_SECONDS
 
 
+PACKAGE_MIN_SCRATCH_FREE_BYTES = 8 * 1024**3
+
+
+def package_resource_facts(temp_dir: str) -> dict:
+    """Measured package gate: scratch free bytes + vm.memory_pressure.
+
+    Used before every lease and reported in the heartbeat so the server's
+    migration status can name the Mac-side pause. Unknown facts are
+    unavailable (fail closed).
+    """
+    facts = {
+        "available": False,
+        "scratch_free_bytes": None,
+        "memory_pressure": None,
+        "measured_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        scratch = Path(temp_dir).resolve()
+        while not scratch.exists() and scratch != scratch.parent:
+            scratch = scratch.parent
+        facts["scratch_free_bytes"] = int(shutil.disk_usage(scratch).free)
+    except OSError:
+        pass
+    try:
+        pressure = subprocess.run(
+            ["/usr/sbin/sysctl", "-n", "vm.memory_pressure"],
+            capture_output=True, text=True, timeout=2, check=True,
+        )
+        facts["memory_pressure"] = pressure.stdout.strip()[:16]
+    except (OSError, subprocess.SubprocessError):
+        pass
+    facts["available"] = (
+        facts["scratch_free_bytes"] is not None
+        and facts["scratch_free_bytes"] >= PACKAGE_MIN_SCRATCH_FREE_BYTES
+        and facts["memory_pressure"] == "0"
+    )
+    return facts
+
+
 class _LeaseLost(RuntimeError):
     """The job's lease is gone (expired, re-leased, or token-rejected).
 
@@ -101,19 +140,7 @@ class MediaJobProcessor:
             )
 
     def _package_resources_available(self) -> bool:
-        try:
-            scratch = Path(self.config.media.temp_dir).resolve()
-            while not scratch.exists() and scratch != scratch.parent:
-                scratch = scratch.parent
-            if shutil.disk_usage(scratch).free < 8 * 1024**3:
-                return False
-            pressure = subprocess.run(
-                ["/usr/sbin/sysctl", "-n", "vm.memory_pressure"],
-                capture_output=True, text=True, timeout=2, check=True,
-            )
-            return pressure.stdout.strip() == "0"
-        except (OSError, subprocess.SubprocessError):
-            return False
+        return package_resource_facts(self.config.media.temp_dir)["available"]
 
     async def process_once(self) -> int:
         """Lease at most configured jobs and mark them not implemented."""

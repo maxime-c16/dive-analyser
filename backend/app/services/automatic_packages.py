@@ -9,22 +9,34 @@ BACKGROUND_PACKAGE_PRIORITY = 60
 MIN_SERVER_FREE_BYTES = 25 * 1024**3
 
 
-def package_resources_available(db) -> bool:
-    settings = get_settings()
+def server_cache_free_bytes():
+    """Free bytes on the media cache filesystem, or None when unknown."""
     try:
-        if shutil.disk_usage(settings.media_cache_root).free < MIN_SERVER_FREE_BYTES:
-            return False
+        return shutil.disk_usage(get_settings().media_cache_root).free
     except OSError:
-        return False
-    # Bounded authoritative history; two consecutive terminal failures stop
-    # new packages. A ready package resets the streak; active jobs don't.
-    states = db.execute(select(MediaJob.status).where(
+        return None
+
+
+def package_breaker_job_ids(db) -> list[int]:
+    """The two latest terminal packages when BOTH failed (breaker open), else [].
+
+    Bounded authoritative history; two consecutive terminal failures stop
+    new packages. A ready package resets the streak; active jobs don't.
+    """
+    rows = db.execute(select(MediaJob.id, MediaJob.status).where(
         MediaJob.rendition == 'web_package',
         MediaJob.status.in_(['ready', 'failed', 'unavailable']),
-    ).order_by(MediaJob.id.desc()).limit(2)).scalars().all()
-    return not (
-        len(states) == 2 and all(x in ('failed', 'unavailable') for x in states)
-    )
+    ).order_by(MediaJob.id.desc()).limit(2)).all()
+    if len(rows) == 2 and all(status in ('failed', 'unavailable') for _, status in rows):
+        return [int(job_id) for job_id, _ in rows]
+    return []
+
+
+def package_resources_available(db) -> bool:
+    free = server_cache_free_bytes()
+    if free is None or free < MIN_SERVER_FREE_BYTES:
+        return False
+    return not package_breaker_job_ids(db)
 
 
 def queue_package(db, asset):
