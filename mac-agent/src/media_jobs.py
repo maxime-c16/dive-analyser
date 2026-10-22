@@ -8,6 +8,7 @@ import asyncio
 import logging
 import socket
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -99,6 +100,21 @@ class MediaJobProcessor:
                 policy=self.config.media.source_vault,
             )
 
+    def _package_resources_available(self) -> bool:
+        try:
+            scratch = Path(self.config.media.temp_dir).resolve()
+            while not scratch.exists() and scratch != scratch.parent:
+                scratch = scratch.parent
+            if shutil.disk_usage(scratch).free < 8 * 1024**3:
+                return False
+            pressure = subprocess.run(
+                ["/usr/sbin/sysctl", "-n", "vm.memory_pressure"],
+                capture_output=True, text=True, timeout=2, check=True,
+            )
+            return pressure.stdout.strip() == "0"
+        except (OSError, subprocess.SubprocessError):
+            return False
+
     async def process_once(self) -> int:
         """Lease at most configured jobs and mark them not implemented."""
         if not self.config.media.enabled:
@@ -119,9 +135,19 @@ class MediaJobProcessor:
                 logger.error("Media processing stopped: %s", exc)
                 return 0
 
+        capabilities = list(self.config.media.capabilities)
+        if "web_package" in capabilities:
+            # Measure the actual scratch volume, not HOME / another mount.
+            healthy = await asyncio.to_thread(self._package_resources_available)
+            if not healthy:
+                capabilities.remove("web_package")
+                logger.warning("Package admissions paused: disk/memory unavailable; legacy capabilities retained")
+        if not capabilities:
+            return 0
+
         response = await self.sync_client.lease_media_jobs(
             agent_id=self.agent_id,
-            capabilities=self.config.media.capabilities,
+            capabilities=capabilities,
             max_jobs=self.config.media.max_jobs,
             lease_seconds=max(60, self.config.media.interval_seconds),
         )

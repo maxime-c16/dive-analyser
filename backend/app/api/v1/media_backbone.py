@@ -184,7 +184,11 @@ async def commit_backbone_ingest(
             parsed_json=extra.get("parsed_json"),
             ingest_impl_version=payload.ingest_impl_version,
             environment=environment,
+            commit=False,
         )
+        from app.services.automatic_packages import queue_after_verified_original
+        queue_after_verified_original(db, payload.video_uuid, result["media_revision_id"], environment)
+        db.commit()
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
