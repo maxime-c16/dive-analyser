@@ -20,7 +20,8 @@ Safety contract (enforced, not documented-only):
 - Serial admission: at most ONE new queue per run, never while ANY
   package job is active fleet-wide (queued/active counts as blocking
   except terminal ready/failed/unavailable), never beyond the
-  phase caps (phase1 <= 5, phase2 <= 25 additional, total <= 30).
+  phase caps (first admission <= 5, phase2 <= 25 additional only after
+  EXACTLY 5 distinct phase-1 proven, total <= 30).
   Concurrent admits serialize on a PG advisory lock + a local
   state-dir file lock (held only for the short DB decision, never
   across network).
@@ -39,8 +40,9 @@ Safety contract (enforced, not documented-only):
   another job). Same-key retry dedupes; overshoot is refused with 409.
 - ``ready`` != ``proven``: ``verify`` records ledger-readiness only
   (``ready_seen``) and prints the manual proof checklist. Phase 2
-  requires EXPLICIT proof records (``prove --proof P.json``) for the
-  EXACT phase-1 cohort (<= 5, all admitted + proven) plus a durable DB
+  requires EXPLICIT proof records (``prove --proof P.json``) for
+  EXACTLY 5 distinct phase-1 clips (all admitted + proven; a smaller
+  first wave never unlocks phase 2) plus a durable DB
   cohort check (a reset state dir can never bypass total-30).
 - Stop conditions (fail closed): ``--apply`` requires ``--host-facts``
   (private JSON with free bytes, memory pressure, fresh ``checked_at``
@@ -783,7 +785,7 @@ def cmd_verify(args) -> int:
         print("---")
         print("READY means ledger-durable (all applicable slots ready).")
         print("PROVEN requires an explicit proof record (prove --proof P.json):")
-        print(f"  ready_seen={len(ready_seen)} proven={len(proven)} (phase 2 needs 5/5 proven, never ready-only)")
+        print(f"  ready_seen={len(ready_seen)} proven={len(proven)} (phase 2 needs EXACTLY 5/5 distinct phase-1 proven, never ready-only; smaller wave never unlocks)")
         print("Manual proof checklist (operator runs; device Safari NOT claimed):")
         print("  1. B2 full-GET SHA: for each ready slot, authorized Library play URL")
         print("     (302) -> follow with user session cookie -> sha256sum full bytes ==")
@@ -875,7 +877,7 @@ def build_parser() -> argparse.ArgumentParser:
     ad.add_argument("--apply", action="store_true", help="explicit apply; without it, dry-run only")
     ad.add_argument("--phase", type=int, choices=[1, 2], default=None)
     ad.add_argument("--phase1-manifest", default=None,
-                    help="phase 2 only: exact phase-1 cohort manifest (private, OUTSIDE repo)")
+                    help="phase 2 only: EXACTLY 5 distinct phase-1 clips manifest (private, OUTSIDE repo)")
     ad.add_argument("--host-facts", default=None,
                     help="private host-facts JSON OUTSIDE the repo (required for --apply)")
     ad.add_argument("--mac-free-bytes", type=int, default=None,

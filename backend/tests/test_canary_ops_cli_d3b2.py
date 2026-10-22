@@ -218,6 +218,21 @@ def test_phase2_requires_exact_proven_cohort_and_db_authority():
     with pytest.raises(ValueError):
         check_phase2_eligible(phase1_cohort=cohort, proven_uuids=set(cohort),
                               db_total_admitted=set(), new_count=1)
+    # Smaller cohorts (0..4) never unlock phase 2, even fully proven + DB-admitted.
+    for n in range(0, 5):
+        small = [f"s{i}" for i in range(n)]
+        with pytest.raises(ValueError, match="EXACTLY 5"):
+            check_phase2_eligible(phase1_cohort=small, proven_uuids=set(small),
+                                  db_total_admitted=set(small), new_count=1)
+    # Duplicated 5-length cohort (4 distinct) refused, even fully proven.
+    dup = ["p1", "p2", "p3", "p4", "p4"]
+    with pytest.raises(ValueError, match="DISTINCT"):
+        check_phase2_eligible(phase1_cohort=dup, proven_uuids=set(dup),
+                              db_total_admitted=set(dup), new_count=1)
+    # 5 distinct, one unproven: refused.
+    with pytest.raises(ValueError, match="lack PROOF"):
+        check_phase2_eligible(phase1_cohort=cohort, proven_uuids=set(cohort[:4]),
+                              db_total_admitted=set(cohort), new_count=1)
     # Exact cohort proven + DB admitted: eligible.
     check_phase2_eligible(phase1_cohort=cohort, proven_uuids=set(cohort),
                           db_total_admitted=set(cohort), new_count=25)
@@ -328,6 +343,26 @@ def test_cli_admit_verify_prove_phase2_flow(test_db, tmp_path, monkeypatch):
     a2.mac_free_bytes = None
     a2.server_cache_free_bytes = None
     a2.max_consecutive_failures = 2
+    assert ops.cmd_admit(a2) == 2
+
+
+def test_cli_phase2_small_cohort_never_unlocks(test_db, tmp_path, monkeypatch):
+    ops = _load_ops()
+    _seed_source(test_db, "clip-small-1")
+    small_p1 = tmp_path / "small-p1.json"
+    small_p1.write_text(json.dumps({"phase": 1, "clips": ["clip-small-1"]}))
+    m2 = tmp_path / "m2.json"
+    m2.write_text(json.dumps({"phase": 2, "clips": ["clip-p2-1"]}))
+    monkeypatch.setattr(ops, "_engine", lambda: None)
+    monkeypatch.setattr(ops, "_session", lambda eng: test_db)
+    state_dir = tmp_path / "state"
+    facts = _facts_file(tmp_path)
+    a2 = type("A", (), {"manifest": str(m2), "state_dir": str(state_dir),
+                        "phase": 2, "phase1_manifest": str(small_p1),
+                        "host_facts": facts, "apply": False,
+                        "mac_free_bytes": None, "server_cache_free_bytes": None,
+                        "max_consecutive_failures": 2})()
+    # 1-clip first wave, even fully proven/DB-admitted, never unlocks phase 2.
     assert ops.cmd_admit(a2) == 2
 
 

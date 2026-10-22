@@ -4,7 +4,9 @@ Local-only, reviewable, no network/prod/B2. This module is the single
 place that names the night-canary bounds so the ops tool, the slot
 publish guard, and the tests share one contract:
 
-- FIRST wave <= 5 clips; only on 100% proof may <= 25 more follow
+- FIRST wave <= 5 clips (a smaller first wave may run but NEVER unlocks
+  phase 2); only on 100% proof of EXACTLY 5 distinct phase-1 clips
+  (5/5 proven) may <= 25 more follow
   (fleet total <= 30).
 - New B2 bytes HARD cumulative <= 2 GiB, counting EVERY attempted
   PUT including safe orphans (durable per-PUT charge ledger keyed by
@@ -1045,20 +1047,26 @@ def check_phase2_eligible(
     db_total_admitted: set[str],
     new_count: int,
 ) -> None:
-    """Phase-2 gate: exact phase-1 cohort fully proven + durable totals.
+    """Phase-2 gate: EXACTLY 5 distinct phase-1 clips fully proven + durable totals.
 
-    - ``phase1_cohort``: the EXACT expected phase-1 UUIDs (<= 5,
-      from ``--phase1-manifest``).
+    - ``phase1_cohort``: the EXACT 5 distinct expected phase-1 UUIDs
+      (from ``--phase1-manifest``). A smaller first wave (<= 5) may run,
+      but NEVER unlocks phase 2 -- phase 2 requires all 5 completed/proven.
     - Every phase-1 UUID must be in ``proven_uuids`` (explicit proof
-      records, never auto-ready) AND durably admitted in the DB.
+      records, never auto-ready) AND durably admitted in the DB, plus a
+      fresh stored-proof cross-check at the call site.
     - ``len(db_total_admitted) + new_count`` must stay <= 30 (DB is
       authoritative for the total; a reset state dir cannot bypass it).
     """
-    if not phase1_cohort:
-        raise ValueError("phase 2 requires --phase1-manifest (exact phase-1 cohort, <= 5)")
-    if len(phase1_cohort) > CANARY_PHASE1_MAX_CLIPS:
+    if len(phase1_cohort) != CANARY_PHASE1_MAX_CLIPS:
         raise ValueError(
-            f"phase-1 cohort has {len(phase1_cohort)} clips; max is {CANARY_PHASE1_MAX_CLIPS}"
+            f"phase 2 requires EXACTLY {CANARY_PHASE1_MAX_CLIPS} distinct phase-1 clips "
+            f"(got {len(phase1_cohort)}); a smaller first wave never unlocks phase 2"
+        )
+    if len(set(phase1_cohort)) != CANARY_PHASE1_MAX_CLIPS:
+        raise ValueError(
+            f"phase 2 requires {CANARY_PHASE1_MAX_CLIPS} DISTINCT phase-1 clips "
+            "(duplicate UUIDs refused)"
         )
     missing_proof = [u for u in phase1_cohort if u not in set(proven_uuids or set())]
     if missing_proof:

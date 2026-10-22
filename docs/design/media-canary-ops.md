@@ -52,7 +52,9 @@ phase2/parallel-dedup/budget-failure/host-facts, SQLite fake DB).
 
 Bounds (hard, shared by tool + guard + tests):
 
-- Phase 1: <= 5 clips. Only on 100% PROOF (5/5 proven -- explicit
+- Phase 1: <= 5 clips (first wave may stop early, but a smaller wave
+  NEVER unlocks phase 2). Only on 100% PROOF of EXACTLY 5 distinct
+  phase-1 clips (5/5 proven -- explicit
   proof records, never ready-only) may phase 2 admit <= 25 additional
   (fleet total <= 30, DB-authoritative: a reset state dir can never
   bypass the total).
@@ -208,9 +210,9 @@ DATABASE_URL='<runtime>' python3 ops/canary_web_package.py \
   admit --phase 1 --apply --host-facts ~/.config/diveanalyzer/canary-host-facts.json
 # Re-run admit (plan or apply) ONLY after the queued job reaches a
 # terminal state AND the clip is PROVEN: serial, one at a time.
-# Phase 2 additionally requires --phase1-manifest (exact phase-1 cohort):
+# Phase 2 additionally requires --phase1-manifest (EXACTLY 5 distinct phase-1 clips):
 #   admit --phase 2 --phase1-manifest ~/.config/.../phase1-manifest.json \
-#     --apply --host-facts ... (refused unless 5/5 phase-1 proven + DB cohort)
+#     --apply --host-facts ... (refused unless EXACTLY 5/5 distinct phase-1 proven + DB cohort + fresh proofs)
 ```
 
 `DATABASE_URL` comes from the existing runtime config (same value the
