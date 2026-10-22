@@ -596,8 +596,9 @@ def main(argv=None) -> int:
         return 2
 
     # 2. Logged-out request (no cookies) must be denied with 401/403/404.
-    #    A 302/307 is NOT a denial when it grants storage access; only a
-    #    same-Library-origin login redirect is accepted as a denial.
+    #    STRICT: NO redirect counts as a denial -- not a storage grant,
+    #    not a same-Library-origin login/playback redirect, not anything
+    #    else. Only 401/403/404 pass.
     try:
         st2, hdrs2, body2 = _get_once(args.play_url, headers={}, timeout=15)
     except _Refused as exc:
@@ -610,14 +611,14 @@ def main(argv=None) -> int:
     if st2 in DENIED_STATUSES:
         checks["logged_out_denied"] = True
         details["logged_out_location_class"] = "denial"
-    elif st2 in (302, 307):
+    elif st2 in REDIRECT_STATUSES:
         loc2 = (hdrs2.get("location") or "").strip()
         loc_class = "untrusted-redirect"
         try:
             if loc2 and _origin_tuple(_checked_split(loc2, "logged-out redirect")) == library_origin:
-                # Same-origin login redirect on the Library: accepted denial.
+                # STRICT: same-Library-origin redirect (login, playback, or
+                # any other path) is NOT a denial -- fail closed.
                 _validate_library_url(loc2, library_origin)
-                checks["logged_out_denied"] = True
                 loc_class = "login-redirect"
             elif loc2:
                 try:

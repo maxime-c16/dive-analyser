@@ -16,7 +16,9 @@ measured expired-grant denial) and a stubbed ``_ffprobe``:
 - missing Range 206: exit 2;
 - logged-out request served bytes (200): exit 2 (denial required);
 - logged-out 302 to a presigned grant: exit 2 (a grant is NOT a denial);
-- logged-out 302 to a same-origin login route: accepted denial;
+- logged-out 302 to same-origin login AND same-origin playback routes:
+  exit 2 (STRICT: NO redirect counts, only 401/403/404);
+- logged-out 401/403/404: pass (denial);
 - 302 grant WITHOUT expiry fields: exit 2 with ``grant_expiry_checked``
   false;
 - unexpired-grant expiry parameter alone NEVER yields
@@ -64,6 +66,7 @@ PLAY_URL = "https://library.example.test/play/slot-1"
 LIB_ORIGIN = "https://library.example.test"
 STO_ORIGIN = "https://b2.example.test"
 LOGIN_URL = "https://library.example.test/login"
+PLAYBACK_OTHER_URL = "https://library.example.test/play/other-slot"
 PRESIGNED = "https://b2.example.test/file/bucket/key?X-Amz-Expires=3600&X-Amz-Date=20300101T000000Z"
 PRESIGNED_NOEXP = "https://b2.example.test/file/bucket/key"
 EXPIRED_URL = "https://b2.example.test/file/bucket/key?Expires=1000000000"
@@ -147,6 +150,12 @@ class _FakeOpener:
                 return _FakeResp(302, {"Location": PRESIGNED}, b"")
             if self.mode == "logged_out_login":
                 return _FakeResp(302, {"Location": LOGIN_URL}, b"")
+            if self.mode == "logged_out_playback":
+                return _FakeResp(302, {"Location": PLAYBACK_OTHER_URL}, b"")
+            if self.mode == "logged_out_401":
+                return _FakeResp(401, {"Content-Type": "text/plain"}, b"denied")
+            if self.mode == "logged_out_404":
+                return _FakeResp(404, {"Content-Type": "text/plain"}, b"denied")
             return _FakeResp(403, {"Content-Type": "text/plain"}, b"denied")
         if self.mode == "no_expiry":
             return _FakeResp(302, {"Location": PRESIGNED_NOEXP}, b"")
@@ -283,16 +292,40 @@ def test_logged_out_grant_redirect_is_not_denial(tmp_path, monkeypatch):
     assert payload["details"]["logged_out_location_class"] == "storage-grant"
 
 
-def test_logged_out_login_redirect_same_origin_is_denial(tmp_path, monkeypatch):
-    """An unauthenticated 302 back to the SAME Library origin (login
-    route, never storage) is accepted as a denial."""
+def test_logged_out_login_redirect_same_origin_is_not_denial_strict(tmp_path, monkeypatch):
+    """STRICT: even an unauthenticated 302 back to the SAME Library
+    origin (login route) is NOT a denial -- only 401/403/404 pass."""
     mod = _load_mod()
     data = b"e2e-bytes-" * 4096
     rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, mode="logged_out_login")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["logged_out_denied"] is False
+    assert payload["details"]["logged_out_location_class"] == "login-redirect"
+
+
+def test_logged_out_playback_redirect_same_origin_is_not_denial(tmp_path, monkeypatch):
+    """STRICT: a same-origin redirect to another playback route must NOT
+    pass -- it could still grant storage access on follow."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, mode="logged_out_playback")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["logged_out_denied"] is False
+    assert payload["details"]["logged_out_location_class"] == "login-redirect"
+
+
+@pytest.mark.parametrize("mode", ["logged_out_401", "ok", "logged_out_404"])
+def test_logged_out_denial_statuses_pass(tmp_path, monkeypatch, mode):
+    """Logged-out 401/403/404 all count as denial (strict allowlist)."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, mode=mode)
     assert rc == 0
     assert payload is not None
     assert payload["checks"]["logged_out_denied"] is True
-    assert payload["details"]["logged_out_location_class"] == "login-redirect"
+    assert payload["details"]["logged_out_location_class"] == "denial"
 
 
 def test_grant_expiry_fields_required_not_automatic(tmp_path, monkeypatch):

@@ -42,8 +42,8 @@ distinct-key cap race, SAME-KEY racers each charge, same-key cap race
 one-wins, orphan persistence, PUT-skip) +
 `backend/tests/test_canary_proof_collect_e2e.py` (collector fakes: 302,
 credential-free full-GET SHA corruption, Range 206, logged-out denial
-(401/403/404 only; grant-redirect is NOT denial; same-origin login
-redirect is), measured exact-object expiry denial, cookie isolation on
+(401/403/404 only; NO redirect counts -- not a grant redirect, not a
+same-origin login/playback redirect), measured exact-object expiry denial, cookie isolation on
 two distinct local origins + redirect chains, malicious/userinfo
 redirect refusal, frame cadence, missing ffprobe).
 Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
@@ -271,8 +271,8 @@ fake or minted bypass exists: B2 and Library checks run with the
 operator's own existing user session (see `canary_proof_check.py`
 checklist -- cookie to the Library origin only, storage fetched without
 credentials); logged-out denial means 401/403/404 (an unauthenticated
-302 to a presigned grant is access, NOT denial; only a same-Library-origin
-login redirect counts) and expired-grant denial means a MEASURED
+302 to a presigned grant is access, NOT denial; NO redirect counts
+(including same-Library-origin login/playback redirects)) and expired-grant denial means a MEASURED
 credential-free replay of an expired grant for the EXACT object with a
 provably-past timestamp (a live grant's expiry parameter alone never
 counts; there is no wait loop for a live TTL) -- never assumed.
