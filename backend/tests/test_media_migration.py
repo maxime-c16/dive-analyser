@@ -598,3 +598,43 @@ def test_inventory_is_batched_exact_and_read_only(env):
     assert mm.inventory(env, batch=500) == full
     assert mm.inventory(env, batch=2, limit=3)["clips"] == 3
     assert env.query(MediaMigrationRun).count() == 0 and _jobs(env) == []
+
+
+def test_batched_inventory_equals_per_clip_read_contract(env):
+    """Bulk lookups must agree with the authoritative per-clip path."""
+    settings = get_settings()
+    a1, s1 = _clip(env, 1)
+    _ledger(env, a1.video_uuid, s1)                      # complete
+    a2, s2 = _clip(env, 2)
+    _ledger(env, a2.video_uuid, s2, roles=("light",))    # ledger but incomplete
+    _clip(env, 3, source=False)                          # no source
+    a4, s4 = _clip(env, 4)                               # ambiguous: two verified PROD replicas
+    env.add(MediaBlobLocation(blob_sha256=s4, environment="prod", storage_backend="b2",
+                              bucket=settings.media_backbone_prod_bucket, object_key="dup/" + s4, verified=True))
+    a5, s5 = _clip(env, 5)                               # newest revision unverified, older verified
+    newer = _sha(b"unverified-newer")
+    env.add(MediaBlob(sha256=newer, byte_size=10, storage_backend="b2", width=1920, height=1080,
+                      duration_seconds=5))
+    env.add(MediaBlobLocation(blob_sha256=newer, environment="prod", storage_backend="b2",
+                              bucket=settings.media_backbone_prod_bucket, object_key="n/" + newer, verified=False))
+    env.add(MediaRevision(video_uuid=a5.video_uuid, blob_sha256=newer, rendition_semantics="photos_edited_rendition"))
+    a6, s6 = _clip(env, 6)                               # only a browser_playback revision
+    env.query(MediaRevision).filter_by(video_uuid=a6.video_uuid).update({"rendition_semantics": "browser_playback"})
+    a7, s7 = _clip(env, 7)                               # prior failed package for this source
+    failed = MediaJob(photos_asset_id=a7.id, media_key="f" + "0" * 63, rendition="web_package", status="queued")
+    env.add(failed)
+    env.flush()
+    _finish(env, failed, s7, ready=False)
+    a8, s8 = _clip(env, 8, duration=None)                # unknown duration
+    env.commit()
+    version = get_derivative_transform_version()
+    reference = {}
+    out = {"estimated_worst_case_bytes": 0, "source_bytes_to_convert": 0}
+    for asset in (a1, a2, a4, a5, a6, a7, a8):
+        cls = mm._classify_clip(env, asset.video_uuid, asset.id, version, out)
+        reference[cls] = reference.get(cls, 0) + 1
+    reference["blocked:no_canonical_source"] = reference.get("blocked:no_canonical_source", 0) + 1  # clip 3
+    batched = mm.inventory(env, batch=3)
+    assert batched["classes"] == dict(sorted(reference.items()))
+    assert batched["estimated_worst_case_bytes"] == out["estimated_worst_case_bytes"]
+    assert batched["classes"]["already_complete"] == 1 and batched["classes"]["prior_failed"] == 1

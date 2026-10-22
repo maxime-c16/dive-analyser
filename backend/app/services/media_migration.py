@@ -843,15 +843,109 @@ def tick(db, now: datetime | None = None) -> dict[str, Any]:
 INVENTORY_BATCH = 500
 
 
+def _classify_clip(db, video_uuid, asset_id, version, out) -> str:
+    """Per-clip authoritative classification (reference for the batch path)."""
+    if asset_id is None:
+        return "blocked:no_photos_asset"
+    st = package_state(db, video_uuid, version)
+    if st["state"] == "no_source":
+        return "blocked:no_canonical_source"
+    if st["state"] == "complete":
+        return "already_complete"
+    prior = _prior_package_outcome(db, asset_id, st["source_sha256"], version)
+    return _classify_convert(st["blob"], prior, out)
+
+
+def _classify_convert(blob, prior, out) -> str:
+    if not blob.width or not blob.height:
+        return "blocked:source_dims_unknown"
+    try:
+        estimate = _estimate(blob)
+    except ValueError:
+        return "blocked:source_size_or_duration_unknown"
+    if prior is not None:
+        return f"prior_{prior.status}"
+    out["estimated_worst_case_bytes"] += estimate
+    out["source_bytes_to_convert"] += int(blob.byte_size or 0)
+    return "to_convert"
+
+
+def _bulk_canonical_sources(db, uuids: list[str]) -> dict[str, Any]:
+    """Batch equivalent of ``resolve_canonical_source_revision``: uuid -> blob.
+
+    Same filters (derived_* and browser_playback excluded, shared
+    ``verified_original_clause``), newest qualifying revision per clip, blob
+    required. Equivalence with the per-clip resolver is tested.
+    """
+    from app.models.media_backbone import MediaBlob, MediaRevision
+    from app.services.derivative_publisher import TRANSCODED_SOURCE_SEMANTICS
+    from app.services.matchmaking import verified_original_clause
+    from app.services.media_backbone import derived_semantics_exclusion_clause
+
+    if not uuids:
+        return {}
+    newest = (
+        select(MediaRevision.video_uuid, func.max(MediaRevision.id).label("rev_id"))
+        .where(
+            MediaRevision.video_uuid.in_(uuids),
+            derived_semantics_exclusion_clause(MediaRevision.rendition_semantics),
+            MediaRevision.rendition_semantics.notin_(tuple(TRANSCODED_SOURCE_SEMANTICS)),
+            verified_original_clause(),
+        )
+        .group_by(MediaRevision.video_uuid)
+        .subquery()
+    )
+    rows = db.execute(
+        select(MediaRevision.video_uuid, MediaRevision.blob_sha256, MediaBlob)
+        .join(newest, newest.c.rev_id == MediaRevision.id)
+        .join(MediaBlob, MediaBlob.sha256 == MediaRevision.blob_sha256)
+    ).all()
+    return {uuid: (sha, blob) for uuid, sha, blob in rows}
+
+
+def _bulk_prior_outcomes(db, asset_ids: list[int], version: str) -> dict[tuple[int, str], Any]:
+    """Latest terminal package per (asset, pinned source) for this transform."""
+    if not asset_ids:
+        return {}
+    jobs = db.execute(
+        select(MediaJob).where(
+            MediaJob.photos_asset_id.in_(asset_ids),
+            MediaJob.rendition == "web_package",
+            MediaJob.status.in_(("ready",) + TERMINAL_FAILED),
+        ).order_by(MediaJob.id.desc())
+    ).scalars().all()
+    out: dict[tuple[int, str], Any] = {}
+    for job in jobs:
+        pin = _job_pin(job)
+        sha = str(pin.get("source_sha256") or "").lower()
+        if sha and pin.get("transform_version") == version:
+            out.setdefault((int(job.photos_asset_id), sha), job)
+    return out
+
+
+def _bulk_ready_ledger(db, uuids: list[str], version: str) -> set[str]:
+    from app.models.media_backbone import MediaDerivative
+
+    if not uuids:
+        return set()
+    return set(db.execute(
+        select(MediaDerivative.video_uuid).where(
+            MediaDerivative.video_uuid.in_(uuids),
+            MediaDerivative.transform_version == version,
+            MediaDerivative.status == "ready",
+        ).distinct()
+    ).scalars().all())
+
+
 def inventory(db, version: str | None = None, *, batch: int | None = None,
               limit: int | None = None) -> dict[str, Any]:
     """Read-only exact classification, in bounded keyset batches (no writes).
 
-    Each batch reads at most ``batch`` clips and the session is rolled back
-    after it, so memory and snapshot age stay bounded however large the
-    library grows. Clips are judged one by one with the SAME read contract
-    the controller uses (``package_state``), deliberately not a re-implemented
-    bulk query. ``limit`` stops early for a sample.
+    Per batch: one query for clips, one for canonical sources, one for prior
+    package jobs, one for ready ledger rows. Only clips that HAVE ready ledger
+    rows (the only ones that can be complete) go through the full D5 read
+    contract (``package_state``). The session is rolled back after each
+    batch (bounded memory and snapshot age). ``limit`` stops early.
     """
     from app.services.media_keys import get_derivative_transform_version
 
@@ -870,28 +964,20 @@ def inventory(db, version: str | None = None, *, batch: int | None = None,
         ).all()
         if not rows:
             break
+        uuids = [u for u, _ in rows]
+        sources = _bulk_canonical_sources(db, uuids)
+        ledger = _bulk_ready_ledger(db, uuids, version)
+        priors = _bulk_prior_outcomes(db, [a for _, a in rows if a is not None], version)
         for video_uuid, asset_id in rows:
             if asset_id is None:
                 cls = "blocked:no_photos_asset"
+            elif video_uuid not in sources:
+                cls = "blocked:no_canonical_source"
+            elif video_uuid in ledger:
+                cls = _classify_clip(db, video_uuid, asset_id, version, out)
             else:
-                st = package_state(db, video_uuid, version)
-                if st["state"] == "no_source":
-                    cls = "blocked:no_canonical_source"
-                elif st["state"] == "complete":
-                    cls = "already_complete"
-                else:
-                    blob = st["blob"]
-                    if not blob.width or not blob.height:
-                        cls = "blocked:source_dims_unknown"
-                    else:
-                        try:
-                            estimate = _estimate(blob)
-                            prior = _prior_package_outcome(db, asset_id, st["source_sha256"], version)
-                            cls = "to_convert" if prior is None else f"prior_{prior.status}"
-                            out["estimated_worst_case_bytes"] += estimate
-                            out["source_bytes_to_convert"] += int(blob.byte_size or 0)
-                        except ValueError:
-                            cls = "blocked:source_size_or_duration_unknown"
+                sha, blob = sources[video_uuid]
+                cls = _classify_convert(blob, priors.get((int(asset_id), sha.lower())), out)
             classes[cls] = classes.get(cls, 0) + 1
         out["clips"] += len(rows)
         after = rows[-1][0]
