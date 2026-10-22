@@ -1,0 +1,8 @@
+{
+  "id": "playback-provider-wait",
+  "date": "2026-10-22",
+  "title": "More reliable playback when storage responds slowly",
+  "body": "A slow storage check no longer leaves a database transaction open and causes a playback error. Access rights and the current video version are checked again before the playback link is issued.",
+  "audience": "all",
+  "components": ["backend"]
+}

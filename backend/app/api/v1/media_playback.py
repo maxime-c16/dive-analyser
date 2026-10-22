@@ -305,6 +305,37 @@ async def _serve_legacy_fallback(
     return response
 
 
+def _storage_identity(revision, location):
+    return (
+        revision.blob_sha256, revision.rendition_semantics,
+        location.id, location.blob_sha256, location.bucket, location.object_key,
+    )
+
+
+def _refresh_after_provider(db, request, revision_id, expected_identity):
+    """Fresh authority after network I/O, before signing or legacy fallback.
+
+    The preflight read transaction has been rolled back. Re-resolve the
+    actual session cookie, ownership, current derivative proof and exact
+    storage identity so a revoked session/source/storage change during
+    HEAD cannot inherit the old authorization decision.
+    """
+    if not _flags_enabled():
+        raise HTTPException(404, "Not found")
+    user = get_current_user(request, db)
+    revision = db.get(MediaRevision, revision_id)
+    decision = can_user_access_media(db, user, revision)
+    if not decision.allowed:
+        _deny(db, user.id, revision_id, decision.reason)
+    derived_only = _is_derivative_revision(revision)
+    if derived_only and not _has_current_derivative_proof(db, revision):
+        _deny(db, user.id, revision_id, "derivative_not_current")
+    location, _ = _resolve_verified_prod_location(db, revision)
+    if location is None or _storage_identity(revision, location) != expected_identity:
+        _deny(db, user.id, revision_id, "storage_changed")
+    return user, revision, location, derived_only
+
+
 @router.get("/revisions/{revision_id}/play")
 async def play_media_revision(
     revision_id: int,
@@ -351,6 +382,14 @@ async def play_media_revision(
             db, request, revision, user.id, reason=storage_deny
         )
 
+    # Never hold a read transaction/connection over provider I/O. Production
+    # kills idle transactions after 30s; a slow HEAD otherwise turns a valid
+    # playback request into OperationalError when recording its grant.
+    expected_identity = _storage_identity(revision, location)
+    bucket, object_key = location.bucket, location.object_key
+    db.rollback()
+    head_failed = False
+    head_started = playback_metrics.now_ms()
     try:
         # P6 §13/§29: verify the playback credential is actually usable at
         # grant time. boto3 presigning is a LOCAL operation and would happily
@@ -360,13 +399,22 @@ async def play_media_revision(
         # The HEAD is a real network round-trip to the provider; run it off
         # the event loop so a provider hiccup cannot stall every other
         # request handled by this worker.
-        head_started = playback_metrics.now_ms()
         await run_to_completion(asyncio.to_thread(
             b2_presign.head_object,
-            bucket=location.bucket,
-            object_key=location.object_key,
+            bucket=bucket,
+            object_key=object_key,
         ))
+    except b2_presign.PresignUnavailable:
+        head_failed = True
+    finally:
         metrics.presign_latency.observe(playback_metrics.now_ms() - head_started)
+
+    user, revision, location, derived_only = _refresh_after_provider(
+        db, request, revision_id, expected_identity
+    )
+    try:
+        if head_failed:
+            raise b2_presign.PresignUnavailable("provider HEAD unavailable")
         presign_started = playback_metrics.now_ms()
         presign = b2_presign.presign_get(
             bucket=location.bucket,
