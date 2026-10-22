@@ -153,6 +153,8 @@ def test_publish_guard_hard_cap(test_db):
 
 
 def test_serial_gate_and_admit_apply_one_job(test_db, tmp_path, monkeypatch):
+    import datetime
+
     ops = _load_ops()
     _seed_source(test_db, "clip-admit-1")
     _seed_source(test_db, "clip-admit-2")
@@ -161,11 +163,22 @@ def test_serial_gate_and_admit_apply_one_job(test_db, tmp_path, monkeypatch):
     state_path = tmp_path / "canary-state"
     free_mac = 9 * 1024**3
     free_srv = 30 * 1024**3
+    facts_path = tmp_path / "host-facts.json"
+    facts_path.write_text(json.dumps({
+        "mac_free_bytes": free_mac,
+        "server_cache_free_bytes": free_srv,
+        "mac_memory_pressure": "normal",
+        "checked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "mac_data_path": "/Users/Shared/services/data/diveanalyzer",
+        "server_cache_path": "/var/lib/diveanalyzer/cache",
+    }))
 
     class Args:
         manifest = str(manifest_path)
         state_dir = str(state_path)
         phase = 1
+        phase1_manifest = None
+        host_facts = str(facts_path)
         apply = False
         mac_free_bytes = free_mac
         server_cache_free_bytes = free_srv
@@ -176,7 +189,8 @@ def test_serial_gate_and_admit_apply_one_job(test_db, tmp_path, monkeypatch):
     monkeypatch.setattr(ops, "_session", lambda eng: test_db)
     monkeypatch.setattr(ops, "save_state", lambda d, s: None)
     monkeypatch.setattr(ops, "load_state",
-                        lambda d: {"admitted": [], "verified": [], "consecutive_failures": 0})
+                        lambda d: {"admitted": [], "ready_seen": [], "proven": [],
+                                   "consecutive_failures": 0})
 
     # DRY-RUN: plans one job, writes nothing.
     assert ops.cmd_admit(Args()) == 0

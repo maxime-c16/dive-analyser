@@ -632,6 +632,7 @@ def publish_derivative(
     *,
     s3_client: Any | None = None,
     pre_commit_hook: Any | None = None,
+    canary_scope: bool = False,
 ) -> dict[str, Any]:
     """Publish one derivative artifact (upload → verify → commit).
 
@@ -688,6 +689,47 @@ def publish_derivative(
         raise DerivativePublishError("derivative artifact could not be read") from exc
     if derivative_size <= 0:
         raise DerivativePublishError("derivative artifact is empty")
+    # Canary-only hard budget: atomically reserve the ACTUAL object
+    # (SHA+size) BEFORE any B2 byte streams. Same-SHA retry dedupes;
+    # overshoot or per-slot-cap breach fails here (no upload spent).
+    # Short reservation transaction (PG advisory xact lock, never held
+    # across network); the row stays counted even if the later publish
+    # becomes a safe orphan (monotonic, fail closed, never released).
+    # Scoped: only canary slot publishes opt in (canary_scope=True from
+    # the web_package slot route). Generic publisher callers never pay
+    # the canary cap, so this is not a global cap on future packages.
+    if canary_scope and ctx.role in ("hq", "light", "poster"):
+        try:
+            from app.services.canary_budget import (
+                CanaryBudgetExceeded,
+                reserve_canary_upload,
+                validate_canary_slot_size,
+            )
+
+            validate_canary_slot_size(ctx.role, int(derivative_size))
+            reserve_canary_upload(
+                db, derivative_sha, int(derivative_size), job_id=None, slot=ctx.role
+            )
+        except CanaryBudgetExceeded as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise DerivativePublishError(str(exc) or "canary budget exceeded") from exc
+        except ValueError as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise DerivativePublishError(str(exc) or "canary slot refused") from exc
+        except DerivativePublishError:
+            raise
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
     key = derivative_object_key(
         source_sha256=ctx.source_blob_sha256,
         role=ctx.role,

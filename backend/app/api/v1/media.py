@@ -1631,16 +1631,31 @@ async def publish_package_slot(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    # Canary hard budget (authoritative, not an estimate): committed
-    # durable derivative bytes + this slot's CLAIMED size must fit the
-    # 2 GiB cap BEFORE a byte streams to disk. Estimates never promise
-    # this bound; this check does (serial one-package fleet + this
-    # gate = overshoot bounded to the single in-flight slot, which is
-    # refused here when it does not fit).
+    # Canary hard budget (authoritative, not an estimate): EVERY
+    # attempted unique upload (orphans included) counts against the 2 GiB
+    # cap. Two gates: (1) fast fail-closed pre-check on the CLAIMED size
+    # + strict per-slot cap BEFORE a byte streams to disk; (2) durable
+    # atomic reservation of the CLAIMED object identity (SHA+size) in
+    # the same short DB transaction (PG advisory xact lock, never held
+    # across network). A same-SHA retry dedupes; overshoot is refused
+    # here with 409. The publisher re-reserves the ACTUAL bytes
+    # pre-upload (deduped); a claim/actual mismatch over-counts
+    # conservatively (fail closed, never under-counts).
     try:
-        from app.services.canary_budget import CanaryBudgetExceeded, check_publish_budget
+        from app.services.canary_budget import (
+            CanaryBudgetExceeded,
+            check_publish_budget,
+            normalize_object_sha,
+            reserve_canary_upload,
+            validate_canary_slot_size,
+        )
 
+        validate_canary_slot_size(slot, size_bytes)
+        normalize_object_sha(checksum_sha256)
         check_publish_budget(db, size_bytes)
+        reserve_canary_upload(
+            db, checksum_sha256, int(size_bytes), job_id=int(job_id), slot=slot
+        )
     except HTTPException:
         raise
     except CanaryBudgetExceeded as exc:
@@ -1765,7 +1780,8 @@ async def publish_package_slot(
             claimed_transform_version=transform_version,
         )
         try:
-            result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard)
+            result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard,
+                                            canary_scope=True)
         except HTTPException:
             raise
         except Exception as exc:

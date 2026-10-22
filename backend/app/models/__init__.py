@@ -51,6 +51,7 @@ from app.models.media_backbone import (
     CaptionRevision,
     IngestObjectState,
 )
+from app.models.canary_ledger import CanarySlotReservation
 from app.models.user_auth import (
     AppUser,
     UserCredential,
@@ -109,6 +110,7 @@ __all__ = [
     "MediaRevision",
     "CaptionRevision",
     "IngestObjectState",
+    "CanarySlotReservation",
     "AppUser",
     "UserCredential",
     "UserSession",
