@@ -380,6 +380,19 @@ only after 5/5 PROVEN):
    beyond proxied-desktop verification, stays unproven until a later
    device pass explicitly covers it.
 
+## Decoded cadence versus MOV rate metadata
+
+Cadence evidence uses decoded frame count divided by the presented video
+duration for both source and output. The collector also retains each
+reported `avg_frame_rate` as diagnostic evidence. These can differ on MOV
+files whose sample tables include frames outside an edit list: the first
+live canary decoded 302 source frames over 5.036667 s, while its container
+reported 318 samples and `31800/559` fps. Both outputs decoded 302 frames
+over 5.038367 s. Comparing those container rates would reject preserved
+frames and timing. Exact decoded-count equality, the duration bound, and
+the existing rate tolerance remain mandatory; no per-frame PTS claim is
+made. Zero/non-finite durations and dropped frames still fail closed.
+
 ## Rollback / stop
 
 - Stop queueing: `admit` already serial — just stop running it. If any

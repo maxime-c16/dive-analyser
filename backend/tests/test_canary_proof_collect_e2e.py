@@ -281,6 +281,11 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
             v = dict(info)
             v.update({"r_fps": 90.0, "vfr": True})
             return v
+        if effective == "edited_mov_rate":
+            info.update(frames=302, duration=5.036667 if is_source else 5.038367,
+                        avg_fps=31800 / 559 if is_source else 60000 / 1001,
+                        r_fps=60000 / 1001, vfr=is_source)
+            return info
         return dict(info)
 
     monkeypatch.setattr(mod, "_ffprobe_video_info", _fake_video_info)
@@ -1282,6 +1287,27 @@ def test_compare_cadence_units_no_frame_list():
     drop = {"frames": 599, "avg_fps": 60.0, "r_fps": 60.0, "duration": 10.0}
     ok3, _ = mod._compare_cadence_video(dict(src), drop)
     assert ok3 is False
+
+
+def test_edited_mov_rate_uses_decoded_timeline(tmp_path, monkeypatch):
+    """Canary MOV rate metadata counts a different sample population.
+    Source/output decode 302 frames over the same presented timeline."""
+    mod = _load_mod()
+    rc, payload, _ = _run(mod, monkeypatch, tmp_path, b"e2e-bytes-" * 4096,
+                          source_mode="edited_mov_rate")
+    assert rc == 0, payload
+    ev = payload["details"]["cadence"]
+    assert ev["source_reported_avg_fps"] == 31800 / 559
+    assert ev["rate_basis"] == "decoded_frames_per_second"
+    assert ev["source_fps"] == 302 / 5.036667
+    assert ev["pts_exact_claimed"] is False
+    source = {"frames": 302, "duration": 5.036667, "avg_fps": 31800 / 559}
+    for bad in ({"frames": 301, "duration": 5.038367},
+                {"frames": 151, "duration": 5.038367},
+                {"frames": 302, "duration": 6.0},
+                {"frames": 302, "duration": float("nan")},
+                {"frames": 302, "duration": 0}):
+        assert mod._compare_cadence_video(source, bad)[0] is False
 
 
 def test_poster_cadence_na_explicit(tmp_path, monkeypatch):
