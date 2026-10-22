@@ -81,6 +81,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -104,6 +105,13 @@ EXPECTED_CONTENT_TYPES = {
     "light": {"video/mp4"},
     "poster": {"image/jpeg"},
 }
+
+# Strict Range probe: first bytes of the object (bounded, no extra fetch).
+# The request is always bytes=0-1023; the EXPECTED response end is
+# min(1023, verified_size - 1) so tiny files (< probe) are handled
+# gracefully with an exact shorter prefix.
+RANGE_PROBE_FIRST = 0
+RANGE_PROBE_LAST = 1023
 
 # Cadence tolerances for output-vs-source timing (frame count itself is
 # EXACT; fps/duration may differ only within container rounding).
@@ -516,6 +524,26 @@ def _storage_stream_to_file(
             except Exception:
                 pass
     raise _Refused("too many storage redirects; refusing")
+
+
+def _parse_content_range(raw: str) -> tuple[int, int, int] | None:
+    """Strictly parse ``Content-Range: bytes <start>-<end>/<total>``.
+
+    Returns ``(start, end, total)`` or ``None`` on ANY deviation
+    (wrong unit, missing parts, non-numeric, negative, end < start).
+    Callers additionally require start == 0 and end/total to match
+    the verified object size. No URL/secret material is involved.
+    """
+    m = re.match(r"^bytes (\d+)-(\d+)/(\d+)$", (raw or "").strip())
+    if not m:
+        return None
+    try:
+        start, end, total = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    except ValueError:
+        return None
+    if end < start:
+        return None
+    return (start, end, total)
 
 
 # Strict same-instant tolerance when BOTH a URL expiry and an explicit
@@ -1176,12 +1204,19 @@ def main(argv=None) -> int:
             _write_out(out_path, args, checks, details)
             return 2
 
-    # 4. Range 206 with content-type -- from STORAGE, credential-free.
+    # 4. Strict Range 206 probe -- from STORAGE, credential-free.
+    #    The request is always bytes=0-1023; the EXPECTED response is
+    #    bytes 0-<min(1023, verified_size-1)>/<verified_size> with a body
+    #    of EXACTLY end+1 bytes equal to the prefix of the SHA-verified
+    #    full GET (compared in section 5 AFTER verification -- range_206
+    #    is NEVER marked true here). No extra network read: the bounded
+    #    probe body (<=1024 B) is compared against the local verified
+    #    temp file. A 200 (ignored Range) never passes.
     try:
-        st3, hdrs3, _body3, _final3 = _storage_get(
+        st3, hdrs3, body3, _final3 = _storage_get(
             live_grant, library_origin=library_origin,
             storage_origins=storage_origins, timeout=15,
-            extra_headers={"Range": "bytes=0-1023"},
+            extra_headers={"Range": f"bytes={RANGE_PROBE_FIRST}-{RANGE_PROBE_LAST}"},
         )
     except _Refused as exc:
         print(f"REFUSED: {exc}")
@@ -1191,19 +1226,43 @@ def main(argv=None) -> int:
         print(f"REFUSED: range request failed: {type(exc).__name__}")
         _write_out(out_path, args, checks, details)
         return 2
+    want_ct = EXPECTED_CONTENT_TYPES.get(args.slot, set())
+    expected_total = int(args.expected_size)
+    expected_end = min(RANGE_PROBE_LAST, expected_total - 1)
+    expected_len = expected_end + 1
     cr = (hdrs3.get("content-range") or "")
     ct3 = (hdrs3.get("content-type") or "").split(";")[0].strip().lower()
-    want_ct = EXPECTED_CONTENT_TYPES.get(args.slot, set())
-    if st3 == 206 and cr.startswith("bytes 0-1023/") and ct3 in want_ct:
-        checks["range_206"] = True
-        details["range_content_type"] = ct3
-    else:
-        if st3 == 206 and cr.startswith("bytes 0-1023/") and ct3 and ct3 not in want_ct:
-            print(f"REFUSED: range content-type {ct3!r} is not {sorted(want_ct)} for slot {args.slot}")
-        else:
-            print(f"REFUSED: range request returned HTTP {st3} (expected 206 with Content-Range)")
+    parsed = _parse_content_range(cr)
+    range_fail: str | None = None
+    if st3 != 206:
+        range_fail = f"range request returned HTTP {st3} (expected 206 with Content-Range)"
+    elif parsed is None:
+        range_fail = "range Content-Range is not an exact byte range (expected 'bytes 0-<end>/<total>')"
+    elif parsed[0] != RANGE_PROBE_FIRST or parsed[1] != expected_end or parsed[2] != expected_total:
+        range_fail = (
+            f"range Content-Range mismatch (expected 'bytes "
+            f"{RANGE_PROBE_FIRST}-{expected_end}/{expected_total}')"
+        )
+    elif len(body3) != expected_len:
+        range_fail = (
+            f"range body length mismatch (got {len(body3)} bytes, expected {expected_len})"
+        )
+    elif "content-length" in hdrs3:
+        try:
+            if int(str(hdrs3["content-length"]).strip()) != len(body3):
+                range_fail = "range Content-Length does not match body length"
+        except (TypeError, ValueError):
+            range_fail = "range Content-Length is not a number"
+    if range_fail is None and ct3 not in want_ct:
+        range_fail = f"range content-type {ct3!r} is not {sorted(want_ct)} for slot {args.slot}"
+    if range_fail is not None:
+        print(f"REFUSED: {range_fail}")
         _write_out(out_path, args, checks, details)
         return 2
+    # Header/shape checks passed; the byte-prefix proof below (after the
+    # full GET is SHA-verified) finally marks range_206 true.
+    details["range_content_type"] = ct3
+    details["range_content_range"] = f"bytes {RANGE_PROBE_FIRST}-{expected_end}/{expected_total}"
 
     # 5. Full GET + SHA + size -- from STORAGE, credential-free, streamed, bounded.
     tmp = None
@@ -1231,6 +1290,24 @@ def main(argv=None) -> int:
             print(f"REFUSED: full-GET sha/size mismatch (got {got_sha[:12]}.../{size})")
             _write_out(out_path, args, checks, details)
             return 2
+        # 5b. Strict Range byte proof: the bounded probe body MUST equal
+        #     the prefix of the SHA-verified owned file. Local bounded
+        #     read only (no extra network fetch, no unbounded buffering).
+        try:
+            with open(tmp, "rb") as _pfh:
+                _prefix = _pfh.read(expected_len)
+        except OSError:
+            print("REFUSED: verified bytes unreadable for range comparison")
+            _write_out(out_path, args, checks, details)
+            return 2
+        if len(_prefix) != expected_len or _prefix != body3:
+            print(
+                "REFUSED: range bytes do not match the verified full-GET prefix "
+                f"(expected {expected_len} prefix bytes)"
+            )
+            _write_out(out_path, args, checks, details)
+            return 2
+        checks["range_206"] = True
         # 6. ffprobe clean on the downloaded bytes; cadence is
         #    SOURCE-BOUND below (output-only counts never pass video).
         clean, positive, summary = _ffprobe(tmp, args.slot, timeout=args.ffprobe_timeout)
