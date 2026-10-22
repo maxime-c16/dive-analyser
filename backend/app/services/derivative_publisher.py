@@ -189,6 +189,18 @@ class FencedSlotConflict(DerivativePublishError):
     """
 
 
+class CanaryBudgetPublishError(DerivativePublishError):
+    """True canary-budget refusal (typed 409, never 500).
+
+    Raised ONLY when the authoritative per-PUT reserve refuses the PUT
+    (cap exceeded or reservation ledger unavailable/misconfigured). Routes
+    map this subclass to 409. The generic ``DerivativePublishError`` base
+    stays 500 (retryable internal), so the classifier must check this
+    subclass BEFORE the base. Never raised for provider/reuse/commit
+    failures.
+    """
+
+
 class _CommittedStale(StaleSourceError):
     """Internal: stale record was COMMITTED before this was raised.
 
@@ -928,7 +940,7 @@ def publish_derivative(
                         db.rollback()
                     except Exception:
                         pass
-                    raise DerivativePublishError(str(exc) or "canary budget exceeded") from exc
+                    raise CanaryBudgetPublishError(str(exc) or "canary budget exceeded") from exc
                 except ValueError as exc:
                     try:
                         db.rollback()

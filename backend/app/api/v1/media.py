@@ -1522,12 +1522,16 @@ async def finalize_job_artifact(
 def _slot_publish_http_error(exc: Exception) -> HTTPException:
     """Map a slot-publish failure to an explicit HTTP status (testable).
 
-    409 = client-stale (re-lease/refresh); 502 = B2 provider failure;
-    503 = storage unconfigured; 500 = retryable internal error. Provider and
+    400 = slot/shape refusal is handled prestream; 409 = client-stale
+    (re-lease/refresh) AND true canary-budget refusal (cap exceeded or
+    reservation ledger unavailable -- explicit typed classifier, never
+    a wrapped generic); 502 = B2 provider failure; 503 = storage
+    unconfigured; 500 = retryable internal error. Provider and
     internal details are sanitized (never raw tracebacks/paths/secrets);
     the ``from exc`` chain at the call site preserves logs server-side.
     """
     from app.services.derivative_publisher import (
+        CanaryBudgetPublishError,
         DerivativeIdentityConflict,
         DirtySessionError,
         FencedSlotConflict,
@@ -1544,6 +1548,19 @@ def _slot_publish_http_error(exc: Exception) -> HTTPException:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="package publish unavailable; please retry",
         )
+    if isinstance(exc, CanaryBudgetPublishError):
+        # True canary-budget refusal (cap spent or ledger unavailable):
+        # the PUT never streamed, re-lease will not help, but the job
+        # must surface as a 409 conflict (budget), never a 500. Must be
+        # checked BEFORE the generic DerivativePublishError fallthrough.
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    try:
+        from app.services.canary_budget import CanaryBudgetExceeded as _CBExceeded
+
+        if isinstance(exc, _CBExceeded):
+            return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except Exception:
+        pass
     if isinstance(exc, VerificationFailed):
         # B2 provider roundtrip failed: sanitized publisher detail only.
         return HTTPException(
@@ -1646,14 +1663,17 @@ async def publish_package_slot(
     # applies ONLY to jobs whose DB-persisted reason is canary_web_package
     # (admitted by the canary ops tool). Scope is re-read from the current
     # DB row -- never from any client field -- so non-canary packages are
-    # unaffected and an untrusted route claim before fencing can never
-    # consume committed budget for another job. Prestream here is a
-    # size-cap-only advisory gate (per-slot cap + SHA shape + read-only
-    # budget pre-check, no row, no lock): the AUTHORITATIVE durable
-    # per-PUT charge happens inside the publisher after the pre-PUT
-    # full-GET reuse check misses and before the PUT streams
+    # unaffected. Prestream here is a size/shape/fence gate ONLY (per-slot
+    # cap + SHA shape + fenced lease peek, no budget row, no lock): there
+    # is deliberately NO prestream budget decision, because the publisher
+    # must first verify exact B2 object reuse via a full GET (same key
+    # already proving the same bytes skips both the PUT and any new
+    # charge -- NO PUT, no charge). The AUTHORITATIVE durable per-PUT
+    # charge happens inside the publisher AFTER the pre-PUT full-GET reuse
+    # check misses (definite-absent only) and BEFORE the PUT streams
     # (charged per attempt; a claim/actual mismatch fails closed without
-    # spending budget on a corrupt claim).
+    # spending budget on a corrupt claim; provider errors and corrupt
+    # reuse fail closed with no PUT and no new charge).
     from app.services.canary_budget import canary_scope_for_job_id as _scope_for_job
 
     try:
@@ -1678,19 +1698,14 @@ async def publish_package_slot(
     if _is_canary:
         try:
             from app.services.canary_budget import (
-                CanaryBudgetExceeded,
-                check_publish_budget,
                 normalize_object_sha,
                 validate_canary_slot_size,
             )
 
             validate_canary_slot_size(slot, size_bytes)
             normalize_object_sha(checksum_sha256)
-            check_publish_budget(db, size_bytes)
         except HTTPException:
             raise
-        except CanaryBudgetExceeded as exc:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         except Exception as exc:
