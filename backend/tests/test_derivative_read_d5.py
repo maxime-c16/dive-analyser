@@ -688,6 +688,61 @@ def test_owner_derivative_play_redirects_with_grant(client, db):
     assert grants[0].ttl_seconds == 120
 
 
+@pytest.mark.parametrize("role", ["light", "original"])
+def test_provider_head_has_no_open_transaction(client, db, monkeypatch, role):
+    import app.api.v1.media_playback as playback_module
+
+    body = _status(client, UUID_FULL)
+    url = body["derivatives"]["light"]["playback_url"] if role == "light" else body["full_quality_url"]
+    seen = []
+
+    def head(bucket, object_key):
+        seen.append(True)
+        assert not db.in_transaction(), "provider I/O must not hold a DB transaction"
+
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", head)
+    response = client.get(url, follow_redirects=False)
+    assert response.status_code == 302, response.text
+    assert seen == [True]
+
+
+@pytest.mark.parametrize("change", ["owner", "session", "source", "ledger", "location", "failed_head_owner"])
+def test_provider_wait_rechecks_authority(client, db, fake_presign, monkeypatch, change):
+    import app.api.v1.media_playback as playback_module
+
+    url = _status(client, UUID_FULL)["derivatives"]["light"]["playback_url"]
+    revision_id = int(url.split("/")[-2])
+    other_session = sessionmaker(bind=db.get_bind())
+
+    def head(bucket, object_key):
+        assert not db.in_transaction()
+        with other_session() as writer:
+            if change in ("owner", "failed_head_owner"):
+                user = writer.query(AppUser).filter_by(email="user-a@example.test").one()
+                writer.query(UserDiverAccess).filter_by(user_id=user.id).delete()
+            elif change == "session":
+                writer.query(UserSession).update({UserSession.revoked_at: datetime.utcnow()})
+            elif change == "source":
+                sha = _sha("source-changed-during-head")
+                writer.add(MediaBlob(sha256=sha, byte_size=123, width=1920, height=1080))
+                writer.add(MediaRevision(video_uuid=UUID_FULL, blob_sha256=sha))
+                _loc(writer, sha, "prod", PROD_BUCKET, f"blobs/{sha}.mov")
+            elif change == "ledger":
+                writer.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light").update({MediaDerivative.status: "stale"})
+            elif change == "location":
+                revision = writer.get(MediaRevision, revision_id)
+                writer.query(MediaBlobLocation).filter_by(blob_sha256=revision.blob_sha256).update({MediaBlobLocation.object_key: "changed-after-head"})
+            writer.commit()
+        if change == "failed_head_owner":
+            raise playback_module.b2_presign.PresignUnavailable("fake provider outage")
+
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", head)
+    response = client.get(url, follow_redirects=False)
+    assert response.status_code == (401 if change == "session" else 404), response.text
+    assert fake_presign[1] == []
+    assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count() == 0
+
+
 def test_grant_renewal_mints_fresh_grant_per_play(client, db):
     body = _status(client, UUID_FULL)
     light_url = body["derivatives"]["light"]["playback_url"]

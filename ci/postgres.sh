@@ -18,6 +18,7 @@ ci_run postgres-pytest "$CI_BACKEND_PYTHON" -m pytest \
     tests/test_postgres_media_derivatives_d1.py \
     tests/test_postgres_derivative_publisher_d3b1.py \
     tests/test_postgres_derivative_read_d5.py \
+    tests/test_postgres_playback_network_transaction.py \
     tests/test_postgres_media_job_fencing_d2.py \
     tests/test_postgres_web_package_fenced_slots_d3b2.py \
     tests/test_postgres_canary_budget_d3b2.py \
