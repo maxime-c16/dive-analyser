@@ -7,14 +7,17 @@ publish guard, and the tests share one contract:
 - FIRST wave <= 5 clips; only on 100% proof may <= 25 more follow
   (fleet total <= 30).
 - New B2 bytes HARD cumulative <= 2 GiB, counting EVERY attempted
-  unique upload including safe orphans (durable reservation ledger,
-  content-addressed by SHA-256, monotonic, never deleted). Estimates are
+  unique stored object including safe orphans (durable reservation
+  ledger keyed by EXACT B2 namespace bucket+object_key -- identical
+  bytes under different keys are distinct objects and count separately;
+  same bucket+key retries dedupe -- monotonic, never deleted). Estimates are
   preflight ONLY and never promise the bound -- the bound is enforced
   server-side at publish time by ``check_publish_budget`` (fast
-  fail-closed pre-check) AND ``reserve_canary_upload`` (authoritative
-  atomic reservation BEFORE B2 bytes stream). Retry of the SAME bytes
-  dedupes on the unique SHA (no double charge); same SHA with a
-  different size fails closed (corrupt claim).
+  fail-closed pre-check on CLAIMED size, no row, no lock) AND
+  ``reserve_canary_upload`` (authoritative atomic reservation of the
+  ACTUAL object identity BEFORE B2 bytes stream). Same bucket+key retry
+  dedupes (no double charge); same key with a different SHA/size fails
+  closed (corrupt claim).
 - ONE package job active fleet-wide (lease already enforces this; the
   tool additionally admits serially: at most one new queue per run,
   and never while an active package exists; concurrent admits serialize
@@ -64,6 +67,13 @@ CANARY_BUDGET_BYTES = 2 * 1024 * 1024 * 1024
 CANARY_JOB_PRIORITY = 60
 CANARY_JOB_MAX_ATTEMPTS = 2
 
+#: Server-persisted job reason marking a canary package. The slot route and
+#: the publisher derive the canary budget scope from this DB-persisted value
+#: ONLY -- never from any client-supplied bool, form field, or query param.
+#: Any other reason (including NULL) is a NON-canary package and never pays
+#: the canary cap.
+CANARY_JOB_REASON = "canary_web_package"
+
 MIN_MAC_DATA_FREE_BYTES = 8 * 1024 * 1024 * 1024
 MIN_SERVER_CACHE_FREE_BYTES = 25 * 1024 * 1024 * 1024
 
@@ -101,6 +111,85 @@ _CANARY_ADMIT_LOCK = (73125, 8)
 
 class CanaryBudgetExceeded(ValueError):
     """Raised when a publish/admission would exceed the hard 2 GiB cap."""
+
+
+def is_canary_job(job) -> bool:
+    """Server-trusted canary scope: DB-persisted job reason ONLY.
+
+    Returns True only when ``job.request_reason == "canary_web_package"``.
+    Never consults client input: the slot route passes the lease/agent
+    fields from the request, but the scope decision reads the persisted
+    job row. Non-canary web_package jobs are unaffected by the canary cap.
+    """
+    try:
+        return str(getattr(job, "request_reason", "") or "") == CANARY_JOB_REASON
+    except Exception:
+        return False
+
+
+def canary_scope_for_job_id(db, job_id: int) -> bool:
+    """Re-read the persisted job reason for a scope decision (fail closed).
+
+    Used by the slot route AFTER the lease peek: the scope comes from the
+    current DB row, so a client cannot flip a job into (or out of) the
+    canary budget. Unknown/missing job -> False (no budget consumed).
+    """
+    try:
+        from app.models.media import MediaJob
+
+        job = db.get(MediaJob, int(job_id))
+    except Exception:
+        return False
+    if job is None:
+        return False
+    return is_canary_job(job)
+
+
+def canonical_canary_key(
+    *,
+    source_sha256: str,
+    role: str,
+    transform_version: str,
+    derivative_sha256: str,
+    bucket: str,
+    environment: str,
+    prefix: str | None = None,
+) -> tuple[str, str, str]:
+    """Trusted exact-B2-key computation (pure, no DB txn, no network).
+
+    Returns ``(bucket, object_key, environment)`` where ``object_key`` is
+    the content-addressed derivative key
+    ``<prefix>/derived/<source[:2]>/<role>-<version>-<derivative_sha>``.
+    All inputs are validated fail-closed; the key embeds the source, role,
+    version AND output SHA so identical bytes under different
+    clips/roles/versions are distinct keys (distinct stored objects).
+    Callers reserve on this exact namespace, never on content SHA alone.
+    """
+    from app.services.derivative_publisher import derivative_object_key
+
+    sha = normalize_object_sha(derivative_sha256)
+    src = normalize_object_sha(source_sha256)
+    if role not in CANARY_SLOT_MAX_BYTES:
+        raise ValueError(f"unknown canary slot {role!r}")
+    tv = str(transform_version or "").strip()
+    if not tv or len(tv) > 40 or "|" in tv:
+        raise ValueError("transform version must be non-empty (<=40, no '|')")
+    bkt = str(bucket or "").strip()
+    if not bkt:
+        raise ValueError("canary reservation requires a bucket")
+    env = str(environment or "").strip().lower()
+    if env not in ("dev", "prod"):
+        raise ValueError("canary reservation requires environment dev|prod")
+    key = derivative_object_key(
+        source_sha256=src,
+        role=role,
+        transform_version=tv,
+        derivative_sha256=sha,
+        prefix=prefix,
+    )
+    if not key.endswith(sha):
+        raise ValueError("canary key does not embed the content SHA; refusing")
+    return bkt, key, env
 
 
 def validate_manifest_uuids(clips: list[str]) -> list[str]:
@@ -366,12 +455,15 @@ def remaining_budget_bytes(db) -> int:
 
 
 def check_publish_budget(db, incoming_bytes: int) -> int:
-    """Authoritative publish-time pre-check: refuse overshoot BEFORE bytes stream.
+    """Publish-time pre-check: refuse overshoot BEFORE bytes stream.
 
-    Fast fail-closed gate on CLAIMED size (no reservation, no lock).
-    The authoritative reservation happens in
-    :func:`reserve_canary_upload` immediately after (same short TX on
-    PG under an advisory lock). In-flight concurrency is bounded by
+    Fast fail-closed gate on CLAIMED size (read-only: no row, no lock, no
+    reservation). The route calls this prestream as a size-cap only; the
+    AUTHORITATIVE reservation happens in :func:`reserve_canary_upload`
+    on the ACTUAL bytes with the exact B2 key, immediately before upload
+    inside the publisher (short TX on PG under an advisory lock, never
+    held across network). Untrusted route claims therefore never consume
+    committed budget for another job. In-flight concurrency is bounded by
     the global one-package lease cap + serial admission + the atomic
     reservation, so overshoot is limited to at most one refused slot.
     """
@@ -390,23 +482,52 @@ def check_publish_budget(db, incoming_bytes: int) -> int:
     return CANARY_BUDGET_BYTES - (committed + incoming)
 
 
-def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot=None) -> int:
-    """Atomically reserve budget for one unique object BEFORE B2 bytes stream.
+def reserve_canary_upload(
+    db,
+    sha256: str,
+    size_bytes: int,
+    *,
+    job_id=None,
+    slot=None,
+    bucket=None,
+    object_key=None,
+    environment=None,
+) -> int:
+    """Atomically reserve budget for one DISTINCT stored object BEFORE B2 bytes stream.
+
+    Identity is the EXACT B2 namespace ``(bucket, object_key)`` -- never
+    content SHA alone. Identical bytes under different keys (different
+    clip/source/role/version) are distinct objects and count separately;
+    the same bucket+key retried dedupes only when SHA AND size match
+    (mismatch fails closed -- corrupt claim). The key must embed the
+    content SHA (``...-<sha>``); compute it with
+    :func:`canonical_canary_key` (pure, no DB txn, no network) from the
+    trusted ctx pin -- never from an untrusted client claim.
 
     - Validates SHA (64 hex) + size (>0, per-slot cap when slot known).
-    - Same-SHA retry dedupes: an existing row must carry the SAME size
-      (mismatch fails closed -- corrupt claim) and costs nothing new.
-    - New SHA: checks accounted + incoming <= 2 GiB under a PG advisory
+    - Same-key retry dedupes: costs nothing new.
+    - New key: checks accounted + incoming <= 2 GiB under a PG advisory
       xact lock, then inserts the reservation row in the SAME short
       transaction (no network held). SQLite serializes on the UNIQUE
       index (IntegrityError -> re-read winner, dedupe or budget error).
     - Commits the reservation transaction before returning so the row
       is durable even if the later upload/publish fails (orphan stays
-      counted -- monotonic, never released).
+      counted -- monotonic, never released; stale in-flight attempts
+      count once committed, and uncommitted in-flight attempts serialize
+      on the advisory lock so combined overshoot fails one of them).
     - Returns remaining budget after this object.
 
+    B2 versioning bound (hard, documented): the publisher skips the PUT
+    when a full GET already proves the same bytes under the same key
+    (verified reuse, no new version), so a same-key retry creates no new
+    B2 version. A concurrent same-key race may still PUT twice (bounded
+    to in-flight parallelism: fleet one-package + serial admit -> at
+    most one extra version), charged once; all other attempts are exact.
+    Charging every PUT as a new version would over-count retries, so the
+    skip-PUT rule above is the enforced bound.
+
     CANARY ONLY. Raises ``CanaryBudgetExceeded`` on overshoot,
-    ``ValueError`` on malformed identity/size.
+    ``ValueError`` on malformed identity/size/key.
     """
     from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -415,6 +536,16 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
     def _missing_table(exc: Exception) -> bool:
         msg = str(exc).lower()
         return "no such table" in msg or "does not exist" in msg or "undefinedtable" in msg
+
+    def _missing_column(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return "no such column" in msg or "does not exist" in msg or "undefinedcolumn" in msg
+
+    def _fail_missing_schema(exc: Exception) -> CanaryBudgetExceeded:
+        return CanaryBudgetExceeded(
+            "canary reservation ledger missing exact-key columns "
+            "(apply add_canary_slot_reservation_exact_key.sql BEFORE any canary); refusing"
+        )
 
     sha = normalize_object_sha(sha256)
     size = validate_canary_slot_size(slot, size_bytes) if slot else int(size_bytes or 0)
@@ -430,13 +561,31 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             job_id = int(job_id)
         except (TypeError, ValueError):
             raise ValueError("job_id must be an int")
+    # Exact-key identity is REQUIRED for new reservations (no SHA-only
+    # fallback: SHA-only dedupe under-counts distinct B2 objects).
+    bkt = str(bucket or "").strip()
+    key = str(object_key or "").strip()
+    env = str(environment or "").strip().lower() if environment is not None else None
+    if not bkt or not key:
+        raise ValueError("canary reservation requires exact B2 bucket + object_key")
+    if len(key) > 1024:
+        raise ValueError("canary object_key too long (>1024)")
+    if env is not None and env not in ("dev", "prod"):
+        raise ValueError("canary environment must be dev|prod")
+    if not key.endswith(sha):
+        raise ValueError(
+            "canary reservation key does not embed the content SHA; refusing"
+        )
 
     _advisory_xact_lock(db, _CANARY_BUDGET_LOCK)
 
     try:
         existing = (
             db.query(CanarySlotReservation)
-            .filter(CanarySlotReservation.object_sha256 == sha)
+            .filter(
+                CanarySlotReservation.bucket == bkt,
+                CanarySlotReservation.object_key == key,
+            )
             .limit(1)
             .first()
         )
@@ -445,21 +594,19 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             db.rollback()
         except Exception:
             pass
-        if _missing_table(exc):
-            raise CanaryBudgetExceeded(
-                "canary reservation ledger missing (apply add_canary_slot_reservations.sql "
-                "BEFORE any canary); refusing"
-            ) from exc
+        if _missing_table(exc) or _missing_column(exc):
+            raise _fail_missing_schema(exc) from exc
         raise
     if existing is not None:
         try:
             prev_size = int(existing.size_bytes or 0)
         except (TypeError, ValueError):
             prev_size = -1
-        if prev_size != int(size):
+        prev_sha = str(getattr(existing, "object_sha256", "") or "").lower()
+        if prev_size != int(size) or prev_sha != sha:
             raise ValueError(
-                f"canary reservation conflict for {sha[:12]}...: "
-                f"existing size {prev_size} != claimed {int(size)}; refusing"
+                f"canary reservation conflict for {bkt}/{key[-24:]}: "
+                f"existing sha/size != claimed; refusing"
             )
         return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
 
@@ -474,7 +621,14 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             f"> {CANARY_BUDGET_BYTES} (2 GiB hard cap, orphans included)"
         )
     row = CanarySlotReservation(
-        object_sha256=sha, size_bytes=int(size), job_id=job_id, slot=slot, status="reserved"
+        object_sha256=sha,
+        size_bytes=int(size),
+        bucket=bkt,
+        object_key=key,
+        environment=env,
+        job_id=job_id,
+        slot=slot,
+        status="reserved",
     )
     db.add(row)
     try:
@@ -484,21 +638,21 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             db.rollback()
         except Exception:
             pass
-        if _missing_table(exc):
-            raise CanaryBudgetExceeded(
-                "canary reservation ledger missing (apply add_canary_slot_reservations.sql "
-                "BEFORE any canary); refusing"
-            ) from exc
+        if _missing_table(exc) or _missing_column(exc):
+            raise _fail_missing_schema(exc) from exc
         raise
     except IntegrityError:
-        # Lost a same-SHA race (SQLite or PG): re-read the winner.
+        # Lost a same-key race (SQLite or PG): re-read the winner.
         try:
             db.rollback()
         except Exception:
             pass
         winner = (
             db.query(CanarySlotReservation)
-            .filter(CanarySlotReservation.object_sha256 == sha)
+            .filter(
+                CanarySlotReservation.bucket == bkt,
+                CanarySlotReservation.object_key == key,
+            )
             .limit(1)
             .first()
         )
@@ -508,10 +662,11 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             prev_size = int(winner.size_bytes or 0)
         except (TypeError, ValueError):
             prev_size = -1
-        if prev_size != int(size):
+        prev_sha = str(getattr(winner, "object_sha256", "") or "").lower()
+        if prev_size != int(size) or prev_sha != sha:
             raise ValueError(
-                f"canary reservation conflict for {sha[:12]}...: "
-                f"existing size {prev_size} != claimed {int(size)}; refusing"
+                f"canary reservation conflict for {bkt}/{key[-24:]}: "
+                f"existing sha/size != claimed; refusing"
             )
         return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
     try:
@@ -521,11 +676,8 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             db.rollback()
         except Exception:
             pass
-        if _missing_table(exc):
-            raise CanaryBudgetExceeded(
-                "canary reservation ledger missing (apply add_canary_slot_reservations.sql "
-                "BEFORE any canary); refusing"
-            ) from exc
+        if _missing_table(exc) or _missing_column(exc):
+            raise _fail_missing_schema(exc) from exc
         raise
     except IntegrityError:
         try:
@@ -534,7 +686,10 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             pass
         winner = (
             db.query(CanarySlotReservation)
-            .filter(CanarySlotReservation.object_sha256 == sha)
+            .filter(
+                CanarySlotReservation.bucket == bkt,
+                CanarySlotReservation.object_key == key,
+            )
             .limit(1)
             .first()
         )
@@ -542,6 +697,27 @@ def reserve_canary_upload(db, sha256: str, size_bytes: int, *, job_id=None, slot
             raise CanaryBudgetExceeded("canary reservation race lost; please retry")
         return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
     return CANARY_BUDGET_BYTES - canary_accounted_bytes(db)
+
+
+def canary_reserved_keys(db) -> set[tuple[str, str]]:
+    """Distinct reserved (bucket, object_key) pairs (bounded)."""
+    try:
+        from app.models.canary_ledger import CanarySlotReservation
+    except Exception:
+        return set()
+    try:
+        rows = db.query(
+            CanarySlotReservation.bucket, CanarySlotReservation.object_key
+        ).limit(5001).all()
+    except Exception:
+        return set()
+    if len(rows) > 5000:
+        raise CanaryBudgetExceeded("reservation ledger exceeds bounded scan; refusing")
+    out: set[tuple[str, str]] = set()
+    for bkt, key in rows:
+        if bkt and key:
+            out.add((str(bkt), str(key)))
+    return out
 
 
 def db_admitted_uuids(db, limit: int = 100) -> set[str]:

@@ -1631,37 +1631,38 @@ async def publish_package_slot(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    # Canary hard budget (authoritative, not an estimate): EVERY
-    # attempted unique upload (orphans included) counts against the 2 GiB
-    # cap. Two gates: (1) fast fail-closed pre-check on the CLAIMED size
-    # + strict per-slot cap BEFORE a byte streams to disk; (2) durable
-    # atomic reservation of the CLAIMED object identity (SHA+size) in
-    # the same short DB transaction (PG advisory xact lock, never held
-    # across network). A same-SHA retry dedupes; overshoot is refused
-    # here with 409. The publisher re-reserves the ACTUAL bytes
-    # pre-upload (deduped); a claim/actual mismatch over-counts
-    # conservatively (fail closed, never under-counts).
-    try:
-        from app.services.canary_budget import (
-            CanaryBudgetExceeded,
-            check_publish_budget,
-            normalize_object_sha,
-            reserve_canary_upload,
-            validate_canary_slot_size,
-        )
+    # Canary hard budget (CANARY ONLY, server-derived scope): the 2 GiB cap
+    # applies ONLY to jobs whose DB-persisted reason is canary_web_package
+    # (admitted by the canary ops tool). Scope is re-read from the current
+    # DB row -- never from any client field -- so non-canary packages are
+    # unaffected and an untrusted route claim before fencing can never
+    # consume committed budget for another job. Prestream here is a
+    # size-cap-only advisory gate (per-slot cap + SHA shape + read-only
+    # budget pre-check, no row, no lock): the AUTHORITATIVE durable
+    # reservation of the ACTUAL bytes with the exact B2 key happens inside
+    # the publisher immediately before upload (deduped; a claim/actual
+    # mismatch fails closed without a prestream orphan row).
+    from app.services.canary_budget import canary_scope_for_job_id as _scope_for_job
 
-        validate_canary_slot_size(slot, size_bytes)
-        normalize_object_sha(checksum_sha256)
-        check_publish_budget(db, size_bytes)
-        reserve_canary_upload(
-            db, checksum_sha256, int(size_bytes), job_id=int(job_id), slot=slot
-        )
-    except HTTPException:
-        raise
-    except CanaryBudgetExceeded as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    _is_canary = _scope_for_job(db, int(job_id))
+    if _is_canary:
+        try:
+            from app.services.canary_budget import (
+                CanaryBudgetExceeded,
+                check_publish_budget,
+                normalize_object_sha,
+                validate_canary_slot_size,
+            )
+
+            validate_canary_slot_size(slot, size_bytes)
+            normalize_object_sha(checksum_sha256)
+            check_publish_budget(db, size_bytes)
+        except HTTPException:
+            raise
+        except CanaryBudgetExceeded as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     from app.services.media_cache import cache_upload_staging_path
 
@@ -1781,7 +1782,7 @@ async def publish_package_slot(
         )
         try:
             result = publish_derivative(db, ctx, staging_path, pre_commit_hook=guard,
-                                            canary_scope=True)
+                                            canary_scope=_is_canary)
         except HTTPException:
             raise
         except Exception as exc:

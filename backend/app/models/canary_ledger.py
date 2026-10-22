@@ -23,9 +23,17 @@ class CanarySlotReservation(Base):
     __tablename__ = "canary_slot_reservations"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Content-addressed object identity: derivative SHA-256 (lower hex).
-    object_sha256 = Column(String(64), nullable=False, unique=True, index=True)
+    # Exact B2 object identity: one row per DISTINCT stored object
+    # (bucket + object_key). Identical bytes stored under different keys
+    # (different clip/source/role/version) are distinct B2 objects and
+    # count separately -- never deduped on content SHA alone.
+    # Legacy rows (pre-exact-key) carry NULL bucket/object_key and keep
+    # counting as orphans (monotonic, never deleted).
+    object_sha256 = Column(String(64), nullable=False, index=True)
     size_bytes = Column(BigInteger, nullable=False)
+    bucket = Column(String(255), nullable=True)
+    object_key = Column(String(1024), nullable=True)
+    environment = Column(String(20), nullable=True)
     job_id = Column(Integer, nullable=True)
     slot = Column(String(20), nullable=True)
     status = Column(String(20), nullable=False, default="reserved")
@@ -33,4 +41,11 @@ class CanarySlotReservation(Base):
 
     __table_args__ = (
         Index("ix_canary_slot_reservations_created", "created_at"),
+        Index("ix_canary_slot_reservations_sha", "object_sha256"),
+        Index(
+            "uq_canary_slot_reservation_bucket_key",
+            "bucket",
+            "object_key",
+            unique=True,
+        ),
     )

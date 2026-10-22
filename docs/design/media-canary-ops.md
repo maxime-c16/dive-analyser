@@ -8,14 +8,29 @@ B2 write, job queue/config change, or deploy (local commit only).
 Tool: `ops/canary_web_package.py` (DRY-RUN default; `--apply` admits at
 most ONE job per run). Proof checker: `ops/canary_proof_check.py`
 (schema + optional DB cross-check, never mints auth, never fetches
-bytes). Budget guard: `backend/app/services/canary_budget.py` (durable
-content-addressed reservation ledger `canary_slot_reservations`, orphans
-included, same-SHA retry dedupes) + publish-time enforcement in
-`POST /jobs/{job_id}/package/slots` (pre-stream reserve of the CLAIMED
-identity) and `derivative_publisher.publish_derivative(..., canary_scope=True)`
-(pre-upload reserve of the ACTUAL bytes, canary-scoped only -- never a
-global cap on future packages). Migration (additive, manual, BEFORE
-deploy): `backend/migrations/add_canary_slot_reservations.sql`.
+bytes). Proof collector: `ops/canary_proof_collect.py` (bounded
+read-only evidence fetch with the OPERATOR's own private session cookies:
+full-GET SHA+size, ffprobe + frame cadence, authorized 302/Range
+206/unauth-denied/expiry -- never mints auth, fails closed). Budget
+guard: `backend/app/services/canary_budget.py` (durable reservation
+ledger `canary_slot_reservations` keyed by EXACT B2 namespace
+bucket+object_key -- identical bytes under different keys are distinct
+objects and count separately; same-key retry dedupes; orphan rows persist
+across publisher rollbacks) + publish-time enforcement in
+`POST /jobs/{job_id}/package/slots` (CANARY ONLY: scope derived from the
+server-persisted job reason `canary_web_package`, never a client bool;
+prestream is a size-cap-only advisory gate -- the route holds NO durable
+row before fencing) and `derivative_publisher.publish_derivative(...,
+canary_scope=<server-derived>)` (pre-upload reserve of the ACTUAL bytes
+with the exact B2 key + verified-reuse PUT skip, canary-scoped only --
+never a global cap on future packages). Migrations (additive, manual,
+BEFORE deploy, idempotent): `backend/migrations/add_canary_slot_reservations.sql`
+then `backend/migrations/add_canary_slot_reservation_exact_key.sql`.
+Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
+`backend/tests/test_canary_ops_cli_d3b2.py` (CLI: admit/verify/resume/
+phase2-fresh-proof/host-facts, scope/orphan/stale-proof/reuse, SQLite fake DB) +
+`backend/tests/test_postgres_canary_budget_d3b2.py` (real-PG concurrency:
+two-attempt cap race, orphan persistence, replay dedupe, PUT-skip).
 Tests: `backend/tests/test_canary_budget_d3b2.py` (helpers) +
 `backend/tests/test_canary_ops_cli_d3b2.py` (CLI: admit/verify/resume/
 phase2/parallel-dedup/budget-failure/host-facts, SQLite fake DB).
@@ -27,14 +42,19 @@ Bounds (hard, shared by tool + guard + tests):
   (fleet total <= 30, DB-authoritative: a reset state dir can never
   bypass the total).
 - New B2 bytes HARD cumulative <= 2 GiB, counting EVERY attempted
-  unique upload including safe orphans (durable
-  `canary_slot_reservations` ledger keyed by derivative SHA-256;
-  same-bytes retry dedupes; same-SHA/different-size fails closed).
-  Estimates are PREFLIGHT ONLY; the slot route refuses overshoot
-  authoritatively with 409 BEFORE bytes stream (claimed-size pre-check
-  + atomic claimed reservation), and the publisher re-reserves the
-  ACTUAL bytes pre-upload (deduped; claim/actual mismatch over-counts
-  conservatively, never under-counts). Per-slot claimed caps (canary
+  unique stored object including safe orphans (durable
+  `canary_slot_reservations` ledger keyed by EXACT B2 namespace
+  bucket+object_key: identical bytes under different clips/roles/versions
+  are distinct objects and count separately; same bucket+key retry
+  dedupes; same-key/different-bytes fails closed). Estimates are
+  PREFLIGHT ONLY; the slot route refuses overshoot authoritatively with
+  409 BEFORE bytes stream for CANARY jobs only (claimed-size pre-check +
+  per-slot cap, NO durable row -- untrusted route claims never consume
+  committed budget for another job; the D2 fenced guard still runs
+  row-locked in the publisher), and the publisher reserves the ACTUAL
+  bytes pre-upload with the exact B2 key (deduped; verified-reuse skips
+  the PUT when the same key already proves the same bytes, so retries
+  create no new B2 version). Per-slot caps (canary
   only): hq <= 1.2 GB, light <= 700 MB, poster <= 8 MB.
 - ONE package active fleet-wide (lease cap + tool serial gate: the tool
   never queues while ANY package job is active, queues at most one

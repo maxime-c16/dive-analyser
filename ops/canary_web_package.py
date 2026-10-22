@@ -31,10 +31,12 @@ Safety contract (enforced, not documented-only):
   IDs so re-listing an admitted clip costs zero.
 - Budget (hard, orphans included): the tool refuses when the
   worst-case package estimate does not fit the remaining 2 GiB; the
-  slot route + publisher enforce the cap authoritatively with an
-  atomic content-addressed reservation ledger
-  (``canary_budget.reserve_canary_upload``) BEFORE B2 bytes stream.
-  Same-SHA retry dedupes; overshoot is refused with 409.
+  publisher enforces the cap authoritatively with an atomic exact-key
+  reservation ledger (``canary_budget.reserve_canary_upload`` on the
+  ACTUAL bytes with bucket+object_key) BEFORE B2 bytes stream, and the
+  canary slot route adds a prestream size-cap-only advisory gate (no
+  durable row: untrusted claims never consume committed budget for
+  another job). Same-key retry dedupes; overshoot is refused with 409.
 - ``ready`` != ``proven``: ``verify`` records ledger-readiness only
   (``ready_seen``) and prints the manual proof checklist. Phase 2
   requires EXPLICIT proof records (``prove --proof P.json``) for the
@@ -487,6 +489,44 @@ def crosscheck_proof_db(db, proof_norm: dict) -> None:
         raise ValueError(f"proof DB check failed: {type(exc).__name__}")
 
 
+def _require_fresh_phase1_proofs(db, state_dir: Path, phase1_cohort: list[str]) -> None:
+    """Fail closed unless every phase-1 clip has a fresh stored proof.
+
+    Loads ``state_dir/proofs/proof-<uuid>.json`` for each cohort UUID,
+    validates the schema, and cross-checks it against the CURRENT DB
+    (canonical source SHA + revision, READY ledger rows per slot). The
+    operator is trusted to record honest evidence, but a STALE proof
+    (source moved, revision bumped, artifact missing, ledger not ready)
+    never passes -- the mutable ``proven`` list alone never suffices.
+    """
+    proofs_dir = Path(state_dir).expanduser() / "proofs"
+    for uuid in phase1_cohort:
+        p = proofs_dir / f"proof-{uuid}.json"
+        if not p.is_file():
+            raise ValueError(
+                f"phase 2 blocked: no stored proof artifact for {uuid[:8]}... "
+                f"(expected {p}); re-prove against current DB"
+            )
+        try:
+            raw = json.loads(p.read_text())
+        except Exception:
+            raise ValueError(
+                f"phase 2 blocked: stored proof for {uuid[:8]}... is unreadable; re-prove"
+            )
+        try:
+            norm = validate_proof_record(raw)
+        except ValueError as exc:
+            raise ValueError(f"phase 2 blocked: stored proof invalid for {uuid[:8]}...: {exc}")
+        if norm["video_uuid"] != uuid:
+            raise ValueError(
+                f"phase 2 blocked: stored proof identity mismatch for {uuid[:8]}..."
+            )
+        try:
+            crosscheck_proof_db(db, norm)
+        except ValueError as exc:
+            raise ValueError(f"phase 2 blocked: stale proof for {uuid[:8]}...: {exc}")
+
+
 def cmd_inventory(args) -> int:
     phase, clips = load_manifest(Path(args.manifest))
     eng = _engine()
@@ -551,6 +591,14 @@ def cmd_admit(args) -> int:
                     new_count=len(new_ids),
                 )
                 _cb.check_phase_count_new_only(2, len(new_ids), len(db_known))
+                # Fresh-proof authority: the mutable `proven` list is only a
+                # hint. Each phase-1 clip must have a STORED proof artifact
+                # (state_dir/proofs/proof-<uuid>.json) that validates against
+                # the CURRENT DB (source SHA + revision + READY rows). A
+                # stale proof (source changed since the proof, artifact
+                # replaced/missing, ledger not ready) blocks phase 2 even
+                # when the proven list claims 5/5.
+                _require_fresh_phase1_proofs(db, state_dir, phase1_cohort)
             except ValueError as exc:
                 print(f"REFUSED: {exc}")
                 return 2

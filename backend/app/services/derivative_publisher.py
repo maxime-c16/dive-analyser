@@ -488,6 +488,7 @@ def _upload_and_roundtrip_verify(
     content_type: str,
     derivative_sha: str,
     derivative_size: int,
+    attempt_reuse: bool = False,
 ) -> None:
     """Upload bytes then stream-read the object back and compare ALL bytes.
 
@@ -496,7 +497,25 @@ def _upload_and_roundtrip_verify(
     artifact hashed just before upload. Any mismatch, truncation, wrong
     size, missing body or provider error raises ``VerificationFailed`` and
     commits nothing. Secrets never appear in messages.
+
+    Versioning bound (hard, canary only): when ``attempt_reuse`` is set
+    (canary slot publishes), a full GET of the same key is attempted
+    first -- when it already proves the same bytes (same SHA+size), the
+    PUT is SKIPPED (verified reuse, no new B2 version). A same-key retry
+    therefore creates no new stored version; concurrent same-key races
+    may still PUT twice (bounded to in-flight parallelism: fleet
+    one-package + serial admit -> at most one extra version), charged
+    once in the ledger (documented residual, fail closed elsewhere).
+    Non-canary publishes pass attempt_reuse=False (no extra GET).
     """
+    if attempt_reuse and _try_verified_reuse(
+        client=client,
+        bucket=bucket,
+        key=key,
+        derivative_sha=derivative_sha,
+        derivative_size=derivative_size,
+    ):
+        return
     try:
         client.upload_file(
             str(local_path),
@@ -537,6 +556,45 @@ def _upload_and_roundtrip_verify(
         raise VerificationFailed("derivative storage verification failed; please retry") from None
     if digest.hexdigest() != derivative_sha or size != derivative_size:
         raise VerificationFailed("derivative storage verification failed; please retry")
+
+
+def _try_verified_reuse(*, client: Any, bucket: str, key: str,
+                          derivative_sha: str, derivative_size: int) -> bool:
+    """Full-GET reuse check: True when the same key already proves same bytes.
+
+    Streams the existing object and compares SHA-256 + size (never HEAD
+    metadata). Any miss, mismatch, or provider error returns False (caller
+    proceeds to PUT + verify). Never raises, never logs secrets.
+    """
+    import hashlib as _hashlib
+
+    try:
+        response = client.get_object(Bucket=bucket, Key=key)
+        body = response["Body"]
+        digest = _hashlib.sha256()
+        size = 0
+        try:
+            chunks = body.iter_chunks(chunk_size=1024 * 1024) if hasattr(body, "iter_chunks") else None
+            if chunks is None:
+                while True:
+                    piece = body.read(1024 * 1024)
+                    if not piece:
+                        break
+                    digest.update(piece)
+                    size += len(piece)
+            else:
+                for piece in chunks:
+                    if piece:
+                        digest.update(piece)
+                        size += len(piece)
+        finally:
+            try:
+                body.close()
+            except Exception:
+                pass
+    except Exception:
+        return False
+    return digest.hexdigest() == derivative_sha and size == derivative_size
 
 
 def _is_postgres(db) -> bool:
@@ -689,15 +747,30 @@ def publish_derivative(
         raise DerivativePublishError("derivative artifact could not be read") from exc
     if derivative_size <= 0:
         raise DerivativePublishError("derivative artifact is empty")
+    # Resolve the exact B2 namespace FIRST (pure, no DB txn, no network):
+    # the reservation identity is (bucket, object_key), computed from the
+    # trusted ctx pin + the ACTUAL bytes just hashed -- never from an
+    # untrusted client claim. Identical bytes under different keys are
+    # distinct stored objects (no SHA-only dedupe).
+    key = derivative_object_key(
+        source_sha256=ctx.source_blob_sha256,
+        role=ctx.role,
+        transform_version=ctx.transform_version,
+        derivative_sha256=derivative_sha,
+        prefix=prefix,
+    )
+    content_type = DERIVATIVE_CONTENT_TYPES[ctx.role]
     # Canary-only hard budget: atomically reserve the ACTUAL object
-    # (SHA+size) BEFORE any B2 byte streams. Same-SHA retry dedupes;
-    # overshoot or per-slot-cap breach fails here (no upload spent).
-    # Short reservation transaction (PG advisory xact lock, never held
-    # across network); the row stays counted even if the later publish
-    # becomes a safe orphan (monotonic, fail closed, never released).
-    # Scoped: only canary slot publishes opt in (canary_scope=True from
-    # the web_package slot route). Generic publisher callers never pay
-    # the canary cap, so this is not a global cap on future packages.
+    # (exact bucket+key+SHA+size) BEFORE any B2 byte streams. Same-key
+    # retry dedupes; overshoot or per-slot-cap breach fails here (no
+    # upload spent). Short reservation transaction (PG advisory xact lock,
+    # never held across network); the row stays counted even if the later
+    # publish becomes a safe orphan (monotonic, fail closed, never
+    # released; stale in-flight attempts count once committed).
+    # Scoped: only canary slot publishes opt in (canary_scope=True, which
+    # the route derives from the SERVER-PERSISTED job reason -- never a
+    # client bool). Generic publisher callers never pay the canary cap, so
+    # this is not a global cap on future packages.
     if canary_scope and ctx.role in ("hq", "light", "poster"):
         try:
             from app.services.canary_budget import (
@@ -708,7 +781,14 @@ def publish_derivative(
 
             validate_canary_slot_size(ctx.role, int(derivative_size))
             reserve_canary_upload(
-                db, derivative_sha, int(derivative_size), job_id=None, slot=ctx.role
+                db,
+                derivative_sha,
+                int(derivative_size),
+                job_id=None,
+                slot=ctx.role,
+                bucket=bucket,
+                object_key=key,
+                environment=environment,
             )
         except CanaryBudgetExceeded as exc:
             try:
@@ -730,14 +810,6 @@ def publish_derivative(
             except Exception:
                 pass
             raise DerivativePublishError("derivative publish failed; ledger unchanged") from exc
-    key = derivative_object_key(
-        source_sha256=ctx.source_blob_sha256,
-        role=ctx.role,
-        transform_version=ctx.transform_version,
-        derivative_sha256=derivative_sha,
-        prefix=prefix,
-    )
-    content_type = DERIVATIVE_CONTENT_TYPES[ctx.role]
 
     # Close the revalidation read snapshot before the network phase so no
     # read transaction spans the upload. The session is still clean here
@@ -791,6 +863,7 @@ def publish_derivative(
             content_type=content_type,
             derivative_sha=derivative_sha,
             derivative_size=derivative_size,
+            attempt_reuse=bool(canary_scope and ctx.role in ("hq", "light", "poster")),
         )
     except DerivativePublishError:
         try:
