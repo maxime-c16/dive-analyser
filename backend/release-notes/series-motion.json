@@ -1,0 +1,8 @@
+{
+  "id": "series-motion",
+  "date": "2026-10-22",
+  "title": "Des séries plus fluides à composer",
+  "body": "Les cartes se déplacent quand vous réordonnez vos plongeons et les aperçus se retournent quand le clip change. Sur mobile, les options s’ouvrent depuis le bas. Les transitions respectent votre préférence de réduction des animations.",
+  "audience": "all",
+  "components": ["frontend"]
+}

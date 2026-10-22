@@ -1,0 +1,8 @@
+{
+  "id": "compare-series-alternatives",
+  "date": "2026-10-22",
+  "title": "Comparez vos alternatives de série",
+  "body": "Comparez deux plongeons avec leurs clips, leurs difficultés, leurs notes et les écarts de points estimés. Sur téléphone, passez d’une grande vidéo à l’autre. Changez les clips, utilisez une alternative et annulez l’échange si besoin, avec des transitions adaptées.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

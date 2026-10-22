@@ -1,0 +1,8 @@
+{
+  "id": "mobile-series",
+  "date": "2026-10-22",
+  "title": "Préparez votre série sur mobile",
+  "body": "Parcourez vos plongeons dans une liste verticale avec le code, la difficulté et le clip réunis. Retrouvez les options dans un panneau inférieur et les actions de lecture et d’enregistrement en bas de l’écran.",
+  "audience": "all",
+  "components": ["frontend"]
+}

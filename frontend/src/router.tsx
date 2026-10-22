@@ -42,6 +42,7 @@ import {
   Waves,
   X,
 } from "lucide-react";
+const SeriesPage = lazy(() => import("./pages/Series"));
 const loadCalendar = () => import("./pages/Calendar");
 const CalendarPage = lazy(loadCalendar);
 const loadSharedDive = () => import("./pages/SharedDive");
@@ -248,6 +249,7 @@ export function breadcrumbTrail(
 ): Crumb[] {
   if (/^\/calendar(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.calendar", href: pathname === "/calendar" ? undefined : "/calendar" }];
   if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
+  if (/^\/series(?:\/|$)/.test(pathname)) return [{ labelKey: "series.mySeries", href: pathname === "/series" ? undefined : "/series" }];
   const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
   if (analysisMatch) {
     return [
@@ -326,7 +328,7 @@ function MobileNavigation() {
   const { t } = useTranslation();
   const friend = !user?.is_admin;
   const tab = primaryTabFor(location.pathname);
-  const currentLabel = routeLabelKeys[location.pathname]
+  const currentLabel = /^\/series(?:\/|$)/.test(location.pathname) ? t("series.mySeries") : routeLabelKeys[location.pathname]
     ? t(routeLabelKeys[location.pathname])
     : tab ? t(`nav.${tab}`) : t("nav.workspace");
 
@@ -628,6 +630,8 @@ function Router() {
                   <Route path="/analytics" element={<OwnerGuard><Analytics /></OwnerGuard>} />
                 <Route path="/dives" element={<Dives />} />
                 <Route path="/evaluations" element={<Evaluations />} />
+                <Route path="/series" element={<SeriesPage />} />
+                <Route path="/series/:seriesId" element={<SeriesPage />} />
                 <Route path="/calendar/*" element={<CalendarGate />} />
                 <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
                   <Route

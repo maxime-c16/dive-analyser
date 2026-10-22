@@ -268,3 +268,10 @@ and feature first. No Mac service is required.
 
 See [the media playback runbook](MEDIA_PLAYBACK.md) for measurements, worker
 concurrency, DNS validation, staged rollout, and rollback.
+
+### Personal dive series
+
+Apply `backend/migrations/add_dive_series.sql` **before** deploying the
+backend and frontend for this feature. Startup does not create this table.
+The calendar schema is optional for standalone sheets. No Mac service or
+worker is required. Details: [series implementation](design/series/IMPLEMENTATION.md).

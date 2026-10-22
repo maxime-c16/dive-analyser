@@ -5,6 +5,7 @@
  * screenshots stay byte-stable.
  */
 const en = {
+  series: { mySeries: "My series" },
   messages: {"title": "Messages", "message": "Message", "new": "New message", "recipient": "Choose a member", "inbox": "Inbox", "empty": "No conversations yet.", "choose": "Choose a conversation or start a new one.", "conversation": "Conversation", "begin": "Start the conversation.", "older": "Older messages", "more": "More conversations", "compose": "Your message", "placeholder": "Write a message… Use @ to mention a member.", "send": "Send", "sent": "Sent", "delivered": "Delivered", "readAt": "Read at {{time}}", "react": "React with a heart", "reactionHint": "Double tap a message to react. Use the heart button with a keyboard.", "yourMessage": "Your message", "receivedMessage": "Received message", "watch": "Watch dive", "diveCard": "Dive", "diveUnavailable": "This dive is no longer available to you.", "sendDive": "Send dive in a message", "diveSent": "Dive sent.", "open": "Open conversation", "sendDiveError": "Could not send. The dive must be available to both members. Try again.", "error": "Messages unavailable. Try again.", "notificationDesc": "Private message alerts"},
     mentions: { choose: 'Mention a member', loading: 'Finding members…', empty: 'No members found', error: 'Could not find members.' },
   common: {

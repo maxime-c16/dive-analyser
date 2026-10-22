@@ -67,3 +67,15 @@ describe('diveCodeName French (FINA/FFN jargon)', () => {
     expect(diveCodeName('113B', 'fr')).toBe('Saut périlleux et demi avant carpé pris au vol')
   })
 })
+
+describe('preparation-sheet naming', () => {
+  it('names advanced rotations and twisting armstands in both languages', () => {
+    const extended = { extended: true }
+    expect(diveCodeName('1011C', 'fr', extended)).toBe('Quintuple saut périlleux et demi avant groupé')
+    expect(diveCodeName('1011C', 'en', extended)).toBe('Forward 5½ somersaults tuck')
+    expect(diveCodeName('109C', 'fr', extended)).toBe('Quadruple saut périlleux et demi avant groupé')
+    expect(diveCodeName('6243D', 'fr', extended)).toBe('Plongeon en équilibre double saut périlleux arrière avec une vrille et demie en position libre')
+    expect(diveCodeName('6243D', 'en', extended)).toBe('Armstand back double somersault 1½ twists free')
+    expect(diveCodeName('999X', 'en', extended)).toBe('999X')
+  })
+})

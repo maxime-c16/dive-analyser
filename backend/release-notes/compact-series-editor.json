@@ -1,0 +1,8 @@
+{
+  "id": "compact-series-editor",
+  "date": "2026-10-22",
+  "title": "Composez votre série sur une seule ligne",
+  "body": "Retrouvez six cartes côte à côte, passez à cinq si besoin et saisissez vos codes à la suite. La difficulté apparaît automatiquement. Collez toute votre série, naviguez au clavier et conservez les positions encore vides dans votre brouillon.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

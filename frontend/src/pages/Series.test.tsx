@@ -1,0 +1,305 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import i18n from '../i18n'
+import Series from './Series'
+import { api } from '../services/api'
+import { seriesApi, type SeriesSheet } from '../services/seriesApi'
+
+vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
+vi.mock('../services/seriesApi', async importOriginal => ({ ...await importOriginal<typeof import('../services/seriesApi')>(), seriesApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), save: vi.fn(), share: vi.fn(), clips: vi.fn() } }))
+vi.mock('../services/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+vi.mock('../services/communityApi', () => ({ searchMembers: vi.fn().mockResolvedValue({ items: [] }) }))
+const initial: SeriesSheet = { id: 1, title: 'Printemps', height: '3m', event_id: null, version: 1, can_edit: true,
+  updated_at: '2026-10-22', slot_count: 2, shared_with: [], dd_reference: 'Test reference',
+  slots: [{ code: '101B', clip_id: null, dd: 1.6, alternatives: [{ code: '103B', clip_id: null, dd: 1.7 }] },
+    { code: '201B', clip_id: null, dd: 1.8, alternatives: [] }] }
+function mount(path = '/series/1') {
+  return render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/series" element={<Series />} /><Route path="/series/:seriesId" element={<Series />} /></Routes></MemoryRouter>)
+}
+beforeEach(async () => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+  await i18n.changeLanguage('fr')
+  vi.mocked(seriesApi.get).mockResolvedValue(structuredClone(initial))
+  vi.mocked(seriesApi.list).mockResolvedValue([])
+  vi.mocked(seriesApi.clips).mockResolvedValue([])
+  vi.mocked(api.get).mockResolvedValue({ data: { dd_value: 1.6 } })
+  vi.mocked(api.post).mockResolvedValue({ data: {} })
+  vi.mocked(seriesApi.save).mockImplementation(async s => ({ ...s, version: s.version + 1 }))
+})
+describe('series workspace', () => {
+  it('creates a standalone series with a single preset height', async () => {
+    vi.mocked(seriesApi.create).mockResolvedValue(initial)
+    mount('/series')
+    await screen.findByRole('heading', { name: 'Nouvelle série' })
+    await userEvent.type(screen.getByLabelText('Nom de la série'), 'Printemps')
+    await userEvent.selectOptions(screen.getByLabelText('Épreuve / hauteur'), '3m')
+    await userEvent.click(screen.getByRole('button', { name: 'Créer ma série' }))
+    await waitFor(() => expect(seriesApi.create).toHaveBeenCalledWith({ title: 'Printemps', height: '3m', event_id: null, slots: Array.from({ length: 6 }, () => ({ code: '', clip_id: null, alternatives: [] })) }))
+    await screen.findByDisplayValue('101B')
+    expect(screen.queryByLabelText('Épreuve / hauteur')).not.toBeInTheDocument()
+  })
+  it('promotes an alternative without losing the main dive and saves reordered slots', async () => {
+    mount()
+    await screen.findByDisplayValue('101B')
+    await userEvent.click(screen.getByRole('button', { name: '1 alternative' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Choisir ce plongeon' }))
+    expect(screen.getByLabelText('Code du passage 1')).toHaveValue('103B')
+    expect(screen.getByLabelText('Alternative 1 du passage 1')).toHaveValue('101B')
+    await userEvent.click(screen.getByRole('button', { name: 'Descendre le passage 1' }))
+    expect(screen.getByLabelText('Code du passage 1')).toHaveValue('201B')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(seriesApi.save).toHaveBeenCalledWith(expect.objectContaining({
+      height: '3m', slots: [expect.objectContaining({ code: '201B' }), expect.objectContaining({ code: '103B', alternatives: [expect.objectContaining({ code: '101B' })] }), ...Array.from({ length: 4 }, () => expect.objectContaining({ code: '' }))],
+    })))
+    await screen.findByText('Série enregistrée.')
+  })
+  it('keeps the edited draft on a stale save and warns before reload', async () => {
+    vi.mocked(seriesApi.save).mockRejectedValue({ response: { status: 409 } })
+    mount()
+    const title = await screen.findByLabelText('Nom de la série')
+    await userEvent.clear(title)
+    await userEvent.type(title, 'Ma nouvelle série')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await screen.findByRole('alert')
+    expect(title).toHaveValue('Ma nouvelle série')
+    expect(screen.getByRole('alert')).toHaveTextContent('autre onglet')
+  })
+  it('shared readers cannot edit, choose clips or grant access', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, can_edit: false })
+    mount()
+    expect(await screen.findByLabelText('Nom de la série')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Enregistrer' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Choisir le clip' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Rechercher un membre')).not.toBeInTheDocument()
+  })
+  it('starts with six compact slots and restores the removed sixth with its content', async () => {
+    const slots = Array.from({ length: 6 }, (_, i) => ({ code: i === 5 ? '403B' : '', clip_id: null, alternatives: [] }))
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots })
+    mount()
+    expect(await screen.findByLabelText('Code du passage 6')).toHaveValue('403B')
+    await userEvent.click(screen.getByRole('button', { name: 'Retirer le sixième plongeon' }))
+    expect(screen.queryByLabelText('Code du passage 6')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '+ Rétablir le sixième plongeon' }))
+    expect(screen.getByLabelText('Code du passage 6')).toHaveValue('403B')
+  })
+  it('uppercases a completed code, advances immediately, and loads DD and clips without blur', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const input = await screen.findByLabelText('Code du passage 1')
+    await userEvent.type(input, '103b')
+    expect(input).toHaveValue('103B')
+    expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dd/lookup/103B/3m'))
+    await waitFor(() => expect(seriesApi.clips).toHaveBeenCalledWith('103B', '3m', 'best'))
+    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 1.6'))
+  })
+  it('keeps focus on partial codes and supports Enter and Backspace navigation', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const input = await screen.findByLabelText('Code du passage 1')
+    await userEvent.type(input, '103')
+    expect(input).toHaveFocus()
+    expect(api.get).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
+    await userEvent.keyboard('{Backspace}')
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('103')
+  })
+  it('pastes a whole series into consecutive cards and keeps empty slots saveable', async () => {
+    const user = userEvent.setup()
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const input = await screen.findByLabelText('Code du passage 1')
+    await user.click(input)
+    await user.paste('101b, 201B; 301B\n401B')
+    for (const [i, code] of ['101B', '201B', '301B', '401B', '', ''].entries()) {
+      expect(screen.getByLabelText(`Code du passage ${i + 1}`)).toHaveValue(code)
+    }
+    expect(screen.getByLabelText('Code du passage 5')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await screen.findByText('Série enregistrée.')
+    expect(vi.mocked(seriesApi.save).mock.calls[0][0].slots).toHaveLength(6)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+  it('does not overwrite a new code or move focus when an old lookup finishes late', async () => {
+    let finish!: (value: { data: { dd_value: number } }) => void
+    const oldReply = new Promise<{ data: { dd_value: number } }>(resolve => { finish = resolve })
+    vi.mocked(api.get).mockImplementation(url => url.includes('101B') ? oldReply : Promise.resolve({ data: { dd_value: 2.1 } }))
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const input = await screen.findByLabelText('Code du passage 1')
+    await userEvent.type(input, '101B')
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dd/lookup/101B/3m'))
+    await userEvent.clear(input)
+    await userEvent.type(input, '201B')
+    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 2.1'))
+    await act(async () => finish({ data: { dd_value: 9.9 } }))
+    expect(input).toHaveValue('201B')
+    expect(input.closest('li')).toHaveTextContent('DD 2.1')
+    expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
+  })
+  it('opens options for one dive at a time and closes them with Escape', async () => {
+    mount()
+    await screen.findByLabelText('Code du passage 1')
+    expect(screen.queryByLabelText('Alternative 1 du passage 1')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '1 alternative' }))
+    expect(screen.getByLabelText('Alternative 1 du passage 1')).toBeVisible()
+    const region = screen.getByRole('region', { name: 'Options du passage 1' })
+    expect(within(region).getByRole('button', { name: 'Choisir le clip' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByLabelText('Alternative 1 du passage 1')).not.toBeInTheDocument()
+  })
+  it('saves with Ctrl+S and rejects overflow paste without replacing existing codes', async () => {
+    const user = userEvent.setup()
+    mount()
+    const last = await screen.findByLabelText('Code du passage 6')
+    await user.click(last)
+    await user.paste('101B 201B')
+    expect(last).toHaveValue('')
+    expect(screen.getByLabelText('Code du passage 1')).toHaveValue('101B')
+    expect(screen.getByRole('alert')).toHaveTextContent('places disponibles')
+    await user.type(last, '403B')
+    await user.keyboard('{Control>}s{/Control}')
+    await screen.findByText('Série enregistrée.')
+    expect(seriesApi.save).toHaveBeenCalledTimes(1)
+  })
+  it('shows dive and alternative names in the app language without changing codes', async () => {
+    mount()
+    const code = await screen.findByLabelText('Code du passage 1')
+    expect(code.closest('li')).toHaveTextContent('Plongeon en avant carpé')
+    await userEvent.click(screen.getByRole('button', { name: '1 alternative' }))
+    expect(screen.getByLabelText('Alternative 1 du passage 1').closest('.series-alternative'))
+      .toHaveTextContent('Saut périlleux et demi avant carpé')
+    await act(async () => { await i18n.changeLanguage('en') })
+    expect(screen.getByLabelText('Dive 1 code')).toHaveValue('101B')
+    expect(code.closest('li')).toHaveTextContent('Forward dive pike')
+    expect(screen.getByLabelText('Alternative 1 for dive 1').closest('.series-alternative'))
+      .toHaveTextContent('Forward 1½ somersaults pike')
+    expect(seriesApi.get).toHaveBeenCalledTimes(1)
+  })
+  it('keeps focus while deleting and replacing a middle digit of twisting and armstand codes', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [
+      { code: '5132D', clip_id: null, dd: 2.1, alternatives: [] },
+      { code: '6243D', clip_id: null, dd: 2.7, alternatives: [] },
+    ] })
+    mount()
+    const first = await screen.findByLabelText('Code du passage 1')
+    for (const [index, fullCode, shortened] of [[1, '5132D', '513D'], [2, '6243D', '624D']] as const) {
+      const input = screen.getByLabelText(`Code du passage ${index}`) as HTMLInputElement
+      await userEvent.click(input)
+      input.setSelectionRange(4, 4)
+      await userEvent.keyboard('{Backspace}')
+      expect(input).toHaveValue(shortened)
+      expect(input).toHaveFocus()
+      await userEvent.keyboard(fullCode[3])
+      expect(input).toHaveValue(fullCode)
+      expect(input).toHaveFocus()
+    }
+    expect(first).toHaveValue('5132D')
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url.includes('/513D/'))).toBe(false)
+  })
+  it('advances on the final position letter of a newly entered four-digit code', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const input = await screen.findByLabelText('Code du passage 1')
+    await userEvent.type(input, '5132')
+    expect(input).toHaveFocus()
+    await userEvent.keyboard('d')
+    expect(input).toHaveValue('5132D')
+    expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
+  })
+  it('waits for four digits plus the position letter for both 5 and 6 groups', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    mount()
+    const first = await screen.findByLabelText('Code du passage 1')
+    await userEvent.type(first, '513D')
+    expect(first).toHaveFocus()
+    await userEvent.clear(first)
+    await userEvent.type(first, '5132D')
+    const second = screen.getByLabelText('Code du passage 2')
+    expect(second).toHaveFocus()
+    await userEvent.type(second, '624C')
+    expect(second).toHaveFocus()
+    await userEvent.clear(second)
+    await userEvent.type(second, '6243D')
+    expect(screen.getByLabelText('Code du passage 3')).toHaveFocus()
+  })
+  it('still selects and displays a clip if the independent DD lookup fails', async () => {
+    vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+    vi.mocked(api.get).mockRejectedValue({ response: { status: 503 } })
+    vi.mocked(seriesApi.clips).mockResolvedValue([{ id: 42, video_uuid: 'my-best-103B', date: '2026-10-22T10:00:00Z',
+      mean_score: 8, rating_count: 3, url: '/dives?clip=42' }])
+    mount()
+    await userEvent.type(await screen.findByLabelText('Code du passage 1'), '103B')
+    const card = screen.getByLabelText('Code du passage 1').closest('li')!
+    await within(card).findByRole('button', { name: 'Voir le clip du passage 1' })
+    expect(card).toHaveTextContent('Meilleur clip')
+    expect(screen.getByRole('button', { name: 'Voir la série (1)' })).toBeEnabled()
+  })
+})
+
+
+describe('mobile series workspace', () => {
+  it('uses one action bar and closes only the top sheet before returning focus', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    mount()
+    await screen.findByDisplayValue('101B')
+    expect(screen.getAllByRole('button', { name: 'Enregistrer' })).toHaveLength(1)
+    const options = screen.getByRole('button', { name: '1 alternative' })
+    await userEvent.click(options)
+    const panel = screen.getByRole('dialog', { name: 'Options du passage 1' })
+    await userEvent.click(within(panel).getAllByRole('button', { name: 'Choisir le clip' })[0])
+    expect(screen.getByRole('dialog', { name: 'Choisir un clip' })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Choisir un clip' })).not.toBeInTheDocument()
+    expect(panel).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(options).toHaveFocus())
+  })
+})
+
+
+it('shows recorded library scores when a clip has no evaluation votes', async () => {
+  vi.mocked(seriesApi.clips).mockResolvedValue([{ id: 42, video_uuid: 'recorded-clip', date: '2026-10-22', mean_score: null, performance_score: 7, rating_count: 0, url: '/dives?clip=42' }])
+  vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
+  mount()
+  await userEvent.type(await screen.findByLabelText('Code du passage 1'), '103B')
+  const card = screen.getByLabelText('Code du passage 1').closest('li')!
+  await within(card).findByRole('button', { name: 'Voir le clip du passage 1' })
+  expect(card).toHaveTextContent('Meilleur clip · 7/10')
+  await userEvent.click(within(card).getByRole('button', { name: 'Options' }))
+  expect(screen.getByRole('region', { name: 'Options du passage 1' })).toHaveTextContent('7/10')
+  expect(screen.queryByText(/0 avis/)).not.toBeInTheDocument()
+})
+
+
+it('switches automatic clips to most recent and saves the preference', async () => {
+  mount()
+  await screen.findByDisplayValue('101B')
+  await userEvent.click(screen.getByRole('button', { name: /^Plus récents$/ }))
+  expect(screen.getByRole('button', { name: /^Plus récents$/ })).toHaveAttribute('aria-pressed', 'true')
+  await waitFor(() => expect(seriesApi.clips).toHaveBeenCalledWith('101B', '3m', 'recent'))
+  await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+  await waitFor(() => expect(seriesApi.save).toHaveBeenCalledWith(expect.objectContaining({ clip_policy: 'recent' })))
+})
+
+
+it('compares an alternative, promotes it without saving, and can undo the exchange', async () => {
+  mount()
+  await screen.findByDisplayValue('101B')
+  await userEvent.click(screen.getByRole('button', { name: '1 alternative' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Comparer' }))
+  const comparison = screen.getByRole('dialog', { name: '101B / 103B · 3m' })
+  expect(within(comparison).getByText('Points estimés')).toBeInTheDocument()
+  await userEvent.click(within(comparison).getByRole('button', { name: 'Utiliser 103B' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Code du passage 1')).toHaveValue('103B')
+  expect(seriesApi.save).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+  expect(screen.getByLabelText('Code du passage 1')).toHaveValue('101B')
+})
