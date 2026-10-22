@@ -206,3 +206,17 @@ def test_stale_manual_clip_resolves_to_null_and_saves_cleanly(workspace):
     assert reloaded["slots"][0]["clip_id"] is None
     saved = client.put(f'/api/v1/series/{reloaded["id"]}', json=update_payload(reloaded))
     assert saved.status_code == 200, saved.text
+
+
+def test_invalid_twisting_direction_has_no_dd_and_still_saves(workspace):
+    _, login, _, _, _ = workspace
+    client = login("alice")
+    response = create(client, slots=[{"code": "5011A"}])
+    assert response.status_code == 201, response.text
+    sheet = response.json()
+    assert sheet["slots"][0]["dd"] is None
+    assert sheet["slots"][0]["clip"] is None
+    reloaded = client.get(f'/api/v1/series/{sheet["id"]}').json()
+    assert reloaded["slots"][0]["dd"] is None
+    saved = client.put(f'/api/v1/series/{reloaded["id"]}', json=update_payload(reloaded))
+    assert saved.status_code == 200, saved.text

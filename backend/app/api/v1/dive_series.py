@@ -140,15 +140,40 @@ def clip_payload(dive, mean, count, performance_score):
             "rating_count": int(count or 0), "url": f"/dives?clip={dive.id}&scope=all"}
 
 
+def _ranked_clip_payloads(candidates, policy):
+    """Rank fetched clip rows exactly like clips(): best uses the rating
+    mean (falling back to the recorded score, nulls last), recent uses
+    recency; ties break by dive date then id, newest first."""
+    ordered = sorted(candidates, key=lambda row: row[0].id, reverse=True)
+    ordered = sorted(ordered, key=lambda row: (row[0].dive_datetime is not None, row[0].dive_datetime),
+                     reverse=True)
+    if policy == "best":
+        def score(row):
+            _, mean, _, performance_score = row
+            if mean is not None:
+                return float(mean) / 2
+            if performance_score is not None:
+                return float(performance_score)
+            return None
+        ordered = sorted(ordered, key=lambda row: (score(row) is None, -(score(row) or 0)))
+    return [clip_payload(dive, mean, count, performance_score)
+            for dive, mean, count, performance_score in ordered]
+
+
 def validate_clips(db, user, payload):
+    wanted = [(choice.code, choice.clip_id) for slot in payload.slots
+              for choice in [slot, *slot.alternatives] if choice.clip_id is not None]
+    if not wanted:
+        return
     ids = owned_diver_ids(db, user.id)
-    for slot in payload.slots:
-        for choice in [slot, *slot.alternatives]:
-            if choice.clip_id is not None:
-                dive = db.query(Dive).filter(Dive.id == choice.clip_id, Dive.diver_id.in_(ids)).first()
-                if (dive is None or dive.dive_code != choice.code or dive.height != payload.height
-                        or not dive.video_uuid):
-                    raise HTTPException(422, "Clip must belong to you and match the code and height")
+    by_id = {dive.id: dive for dive in
+             db.query(Dive).filter(Dive.id.in_({clip_id for _, clip_id in wanted}),
+                                   Dive.diver_id.in_(ids)).all()} if ids else {}
+    for code, clip_id in wanted:
+        dive = by_id.get(clip_id)
+        if (dive is None or dive.dive_code != code or dive.height != payload.height
+                or not dive.video_uuid):
+            raise HTTPException(422, "Clip must belong to you and match the code and height")
 
 
 def project(db, user, row, detail=True):
@@ -166,27 +191,40 @@ def project(db, user, row, detail=True):
     else:
         result["shared_with"] = [{"id": u.id, "name": u.display_name} for u in
                                 db.query(AppUser).filter(AppUser.id.in_(row.shared_with)).all()]
-    cache = {}
-    # Batch-fetch manually selected clips in one query instead of one per
-    # choice. Stale selections (deleted, transferred, or code/height
+    # One projection query per clip set: manual selections by id plus the
+    # automatic default per code/policy, instead of one query per choice or
+    # code. Stale manual selections (deleted, transferred, or code/height
     # mismatch) resolve to clip_id None so a reloaded sheet saves cleanly.
-    selected_ids = set()
-    for slot in row.slots:
-        for choice in [slot, *slot.get("alternatives", [])]:
-            if own and choice.get("code") and choice.get("clip_id"):
-                selected_ids.add(choice["clip_id"])
-    selected_map = {}
-    if selected_ids:
+    needed_codes, selected_ids = set(), set()
+    if own:
+        for slot in row.slots:
+            for choice in [slot, *slot.get("alternatives", [])]:
+                if choice.get("code"):
+                    needed_codes.add(choice["code"])
+                    if choice.get("clip_id"):
+                        selected_ids.add(choice["clip_id"])
+    selected_map, auto_map = {}, {}
+    if needed_codes or selected_ids:
         owner_ids = owned_diver_ids(db, row.owner_user_id)
         if owner_ids:
             totals = rating_totals()
             recorded = recorded_score_10_expression()
-            for dive, mean, count, performance_score in (
-                    db.query(Dive, totals.c.mean, totals.c.count, recorded.label("performance_score"))
+            base = (db.query(Dive, totals.c.mean, totals.c.count, recorded.label("performance_score"))
                     .outerjoin(totals, totals.c.dive_id == Dive.id)
-                    .filter(Dive.id.in_(selected_ids), Dive.diver_id.in_(owner_ids),
-                            Dive.video_uuid.is_not(None)).all()):
-                selected_map[dive.id] = (dive, clip_payload(dive, mean, count, performance_score))
+                    .filter(Dive.diver_id.in_(owner_ids), Dive.video_uuid.is_not(None)))
+            if selected_ids:
+                for dive, mean, count, performance_score in (
+                        base.filter(Dive.id.in_(selected_ids)).all()):
+                    selected_map[dive.id] = (dive, clip_payload(dive, mean, count, performance_score))
+            if needed_codes:
+                groups = {}
+                for dive, mean, count, performance_score in (
+                        base.filter(Dive.dive_code.in_(needed_codes), Dive.height == row.height).all()):
+                    groups.setdefault(dive.dive_code, []).append((dive, mean, count, performance_score))
+                for code, candidates in groups.items():
+                    top = _ranked_clip_payloads(candidates, row.clip_policy)
+                    if top:
+                        auto_map[code] = top[0]
     def choice_out(choice):
         code = choice["code"]
         try:
@@ -198,16 +236,14 @@ def project(db, user, row, detail=True):
         # Sheet sharing intentionally grants no new media rights. The owner
         # retains normal playback; collaborators see the technical sheet only.
         if own and code:
-            if code not in cache:
-                cache[code] = clips(db, row.owner_user_id, code, row.height, limit=1, policy=row.clip_policy)
             if effective_clip_id:
                 entry = selected_map.get(effective_clip_id)
                 if entry and entry[0].dive_code == code and entry[0].height == row.height:
                     clip = entry[1]
                 else:
                     effective_clip_id = None
-            elif cache[code]:
-                clip = cache[code][0]
+            else:
+                clip = auto_map.get(code)
         elif own:
             effective_clip_id = None
         return {**choice, "clip_id": effective_clip_id, "dd": dd, "clip": clip}

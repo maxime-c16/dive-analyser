@@ -309,6 +309,8 @@ def calculate_official_dd(dive_code: str, height: str) -> DDResult:
         if len(numeric) != 4:
             raise OfficialDDUndefined("Twisting dive codes require four digits")
         direction, units, twists, flying, armstand = int(numeric[1]), int(numeric[2]), int(numeric[3]), False, False
+        if direction not in (1, 2, 3, 4):
+            raise OfficialDDUndefined("Twisting dive direction must be 1-4")
     else:
         if not platform:
             raise OfficialDDUndefined("Armstand dives are only defined on platform")
