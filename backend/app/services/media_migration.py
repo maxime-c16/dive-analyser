@@ -68,6 +68,7 @@ MIN_MAC_SCRATCH_FREE_BYTES = 8 * 1024**3
 SWEEP_BATCH = 100
 SYNC_BATCH = 500
 REFRESH_BATCH = 50
+JOB_HISTORY_WINDOW = 10
 CANDIDATE_SCAN = 20
 OPEN_RUN_STATUSES = ("active", "paused")
 ACTIVE_STATUSES = (
@@ -128,7 +129,7 @@ def _producer_alias(db, video_uuid: str, source_sha: str, version: str) -> str |
             MediaJob.status == "ready",
         )
         .order_by(MediaJob.id.desc())
-        .limit(10)
+        .limit(JOB_HISTORY_WINDOW)
     ).scalars().all()
     for job in jobs:
         pin = _job_pin(job)
@@ -677,7 +678,7 @@ def _prior_package_outcome(db, asset_id: int, source_sha: str, version: str):
             MediaJob.photos_asset_id == asset_id,
             MediaJob.rendition == "web_package",
             MediaJob.status.in_(("ready",) + TERMINAL_FAILED),
-        ).order_by(MediaJob.id.desc()).limit(10)
+        ).order_by(MediaJob.id.desc()).limit(JOB_HISTORY_WINDOW)
     ).scalars().all()
     for job in jobs:
         pin = _job_pin(job)
@@ -903,19 +904,33 @@ def _bulk_canonical_sources(db, uuids: list[str]) -> dict[str, Any]:
     return {uuid: (sha, blob) for uuid, sha, blob in rows}
 
 
+def _recent_package_jobs(db, *, asset_ids=None, uuids=None, statuses):
+    """Latest ``JOB_HISTORY_WINDOW`` package jobs per asset (bounded batch).
+
+    Same window as the per-clip lookups (``_prior_package_outcome``,
+    ``_producer_alias``) so inventory and admission always agree.
+    """
+    rn = func.row_number().over(partition_by=MediaJob.photos_asset_id, order_by=MediaJob.id.desc()).label("rn")
+    inner = select(MediaJob.id.label("job_id"), rn).where(
+        MediaJob.rendition == "web_package", MediaJob.status.in_(statuses))
+    if asset_ids is not None:
+        inner = inner.where(MediaJob.photos_asset_id.in_(asset_ids))
+    else:
+        inner = inner.join(PhotosAsset, PhotosAsset.id == MediaJob.photos_asset_id).where(
+            PhotosAsset.video_uuid.in_(uuids))
+    inner = inner.subquery()
+    return db.execute(
+        select(MediaJob).join(inner, inner.c.job_id == MediaJob.id)
+        .where(inner.c.rn <= JOB_HISTORY_WINDOW).order_by(MediaJob.id.desc())
+    ).scalars().all()
+
+
 def _bulk_prior_outcomes(db, asset_ids: list[int], version: str) -> dict[tuple[int, str], Any]:
-    """Latest terminal package per (asset, pinned source) for this transform."""
+    """Batch ``_prior_package_outcome``: (asset, pinned source) -> latest terminal job."""
     if not asset_ids:
         return {}
-    jobs = db.execute(
-        select(MediaJob).where(
-            MediaJob.photos_asset_id.in_(asset_ids),
-            MediaJob.rendition == "web_package",
-            MediaJob.status.in_(("ready",) + TERMINAL_FAILED),
-        ).order_by(MediaJob.id.desc())
-    ).scalars().all()
     out: dict[tuple[int, str], Any] = {}
-    for job in jobs:
+    for job in _recent_package_jobs(db, asset_ids=asset_ids, statuses=("ready",) + TERMINAL_FAILED):
         pin = _job_pin(job)
         sha = str(pin.get("source_sha256") or "").lower()
         if sha and pin.get("transform_version") == version:
@@ -923,29 +938,95 @@ def _bulk_prior_outcomes(db, asset_ids: list[int], version: str) -> dict[tuple[i
     return out
 
 
-def _bulk_ready_ledger(db, uuids: list[str], version: str) -> set[str]:
-    from app.models.media_backbone import MediaDerivative
-
+def _bulk_producer_alias(db, uuids: list[str], version: str) -> dict[tuple[str, str], str]:
+    """Batch ``_producer_alias``: (video_uuid, source sha) -> alias or 'none'."""
     if not uuids:
-        return set()
-    return set(db.execute(
-        select(MediaDerivative.video_uuid).where(
-            MediaDerivative.video_uuid.in_(uuids),
-            MediaDerivative.transform_version == version,
-            MediaDerivative.status == "ready",
-        ).distinct()
-    ).scalars().all())
+        return {}
+    out: dict[tuple[str, str], str] = {}
+    for job in _recent_package_jobs(db, uuids=uuids, statuses=("ready",)):
+        pin = _job_pin(job)
+        sha = str(pin.get("source_sha256") or "").lower()
+        if sha and pin.get("transform_version") == version:
+            out.setdefault((job.asset.video_uuid, sha), pin.get("hq_aliased_to") or "none")
+    return out
+
+
+def _bulk_package_complete(db, sources: dict[str, Any], version: str) -> dict[str, dict]:
+    """Batch D5 decision mirroring ``resolve_clip_derivatives`` + alias pin.
+
+    For each clip: the ledger row of each role for (current source,
+    transform) must be ready, carry a ``derived_<role>`` backbone revision
+    and exactly one verified PROD replica (B2, allowlisted bucket, non-empty
+    key). hq may alias light only without any hq row, a coded short side
+    below the floor, and a ready producer pin confirming the alias.
+    Equivalence with ``package_state`` is tested.
+    """
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative, MediaRevision
+    from app.services.derivative_read import HQ_SHORT_SIDE_FLOOR
+    from app.services.media_backbone import DERIVATIVE_ROLE_TO_SEMANTICS
+
+    if not sources:
+        return {}
+    uuids = list(sources)
+    rows: dict[tuple[str, str], Any] = {}
+    for row in db.execute(select(MediaDerivative).where(
+            MediaDerivative.video_uuid.in_(uuids), MediaDerivative.transform_version == version,
+    ).order_by(MediaDerivative.id.desc())).scalars().all():
+        if row.source_blob_sha256 == sources[row.video_uuid][0]:
+            rows.setdefault((row.video_uuid, row.role), row)
+    revisions = set(db.execute(select(
+        MediaRevision.video_uuid, MediaRevision.blob_sha256, MediaRevision.rendition_semantics,
+    ).where(MediaRevision.video_uuid.in_(uuids),
+            MediaRevision.rendition_semantics.in_(tuple(DERIVATIVE_ROLE_TO_SEMANTICS.values())))).all())
+    shas = sorted({r.derivative_blob_sha256 for r in rows.values()})
+    locations: dict[str, list] = {}
+    if shas:
+        for loc in db.execute(select(MediaBlobLocation).where(
+                MediaBlobLocation.blob_sha256.in_(shas), MediaBlobLocation.environment == "prod",
+                MediaBlobLocation.verified.is_(True))).scalars().all():
+            locations.setdefault(loc.blob_sha256, []).append(loc)
+    bucket = (get_settings().media_backbone_prod_bucket or "").strip().lower()
+    pins = _bulk_producer_alias(db, uuids, version)
+
+    def servable(uuid, role):
+        row = rows.get((uuid, role))
+        if row is None or row.status != "ready":
+            return False
+        if (uuid, row.derivative_blob_sha256, DERIVATIVE_ROLE_TO_SEMANTICS[role]) not in revisions:
+            return False
+        locs = locations.get(row.derivative_blob_sha256, [])
+        if len(locs) != 1:
+            return False
+        loc = locs[0]
+        return ((loc.storage_backend or "").lower() == "b2"
+                and (loc.bucket or "").strip().lower() == bucket and bool(loc.object_key or ""))
+
+    out: dict[str, dict] = {}
+    for uuid, (sha, blob) in sources.items():
+        light, poster = servable(uuid, "light"), servable(uuid, "poster")
+        alias = None
+        hq = servable(uuid, "hq")
+        if not hq and (uuid, "hq") not in rows and light:
+            try:
+                short = min(int(blob.width), int(blob.height)) if blob.width and blob.height else None
+            except (TypeError, ValueError):
+                short = None
+            if short is not None and 0 < short < HQ_SHORT_SIDE_FLOOR:
+                if pins.get((uuid, sha.lower())) == "light":
+                    hq, alias = True, "light"
+        out[uuid] = {"complete": bool(hq and light and poster), "hq_aliased_to": alias}
+    return out
 
 
 def inventory(db, version: str | None = None, *, batch: int | None = None,
               limit: int | None = None) -> dict[str, Any]:
     """Read-only exact classification, in bounded keyset batches (no writes).
 
-    Per batch: one query for clips, one for canonical sources, one for prior
-    package jobs, one for ready ledger rows. Only clips that HAVE ready ledger
-    rows (the only ones that can be complete) go through the full D5 read
-    contract (``package_state``). The session is rolled back after each
-    batch (bounded memory and snapshot age). ``limit`` stops early.
+    Per batch a fixed number of queries: clips, canonical sources, the D5
+    decision (ledger rows, derived revisions, verified replicas, producer
+    pins) and a bounded window of prior package jobs. Each mirrors the
+    per-clip path used by admission (equivalence tested). The session is
+    rolled back after each batch (bounded memory and snapshot age).
     """
     from app.services.media_keys import get_derivative_transform_version
 
@@ -966,15 +1047,15 @@ def inventory(db, version: str | None = None, *, batch: int | None = None,
             break
         uuids = [u for u, _ in rows]
         sources = _bulk_canonical_sources(db, uuids)
-        ledger = _bulk_ready_ledger(db, uuids, version)
+        complete = _bulk_package_complete(db, sources, version)
         priors = _bulk_prior_outcomes(db, [a for _, a in rows if a is not None], version)
         for video_uuid, asset_id in rows:
             if asset_id is None:
                 cls = "blocked:no_photos_asset"
             elif video_uuid not in sources:
                 cls = "blocked:no_canonical_source"
-            elif video_uuid in ledger:
-                cls = _classify_clip(db, video_uuid, asset_id, version, out)
+            elif complete[video_uuid]["complete"]:
+                cls = "already_complete"
             else:
                 sha, blob = sources[video_uuid]
                 cls = _classify_convert(blob, priors.get((int(asset_id), sha.lower())), out)

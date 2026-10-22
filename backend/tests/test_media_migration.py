@@ -626,15 +626,55 @@ def test_batched_inventory_equals_per_clip_read_contract(env):
     env.flush()
     _finish(env, failed, s7, ready=False)
     a8, s8 = _clip(env, 8, duration=None)                # unknown duration
+    a9, s9 = _clip(env, 9, width=1280, height=720)       # small source, alias confirmed by pin
+    _ledger(env, a9.video_uuid, s9, roles=("light", "poster"))
+    pin9 = MediaJob(photos_asset_id=a9.id, media_key="a" + "0" * 63, rendition="web_package", status="queued")
+    env.add(pin9)
+    env.flush()
+    _finish(env, pin9, s9, alias="light", ledger=False)
+    a10, s10 = _clip(env, 10, width=1280, height=720)    # small source, alias NOT confirmed
+    _ledger(env, a10.video_uuid, s10, roles=("light", "poster"))
+    a11, s11 = _clip(env, 11)                            # ledger ready but light revision missing
+    _ledger(env, a11.video_uuid, s11)
+    env.query(MediaRevision).filter_by(video_uuid=a11.video_uuid, rendition_semantics="derived_light").delete()
+    a12, s12 = _clip(env, 12)                            # hq replica in a wrong bucket
+    _ledger(env, a12.video_uuid, s12)
+    hq12 = env.query(MediaDerivative).filter_by(video_uuid=a12.video_uuid, role="hq").one()
+    env.query(MediaBlobLocation).filter_by(blob_sha256=hq12.derivative_blob_sha256).update({"bucket": "other-bucket"})
+    a13, s13 = _clip(env, 13)                            # stale poster row
+    _ledger(env, a13.video_uuid, s13)
+    env.query(MediaDerivative).filter_by(video_uuid=a13.video_uuid, role="poster").update({"status": "stale"})
+    a14, s14 = _clip(env, 14)                            # failed package hidden behind > 10 newer jobs
+    old = MediaJob(photos_asset_id=a14.id, media_key="o" + "0" * 63, rendition="web_package", status="queued")
+    env.add(old)
+    env.flush()
+    _finish(env, old, s14, ready=False)
+    for k in range(11):
+        newer_job = MediaJob(photos_asset_id=a14.id, media_key=f"h{k:02d}" + "0" * 61, rendition="web_package",
+                             status="queued")
+        env.add(newer_job)
+        env.flush()
+        _finish(env, newer_job, _sha(f"other-source-{k}".encode()), ledger=False)
+    a15, s15 = _clip(env, 15)                            # failed package within the window
+    recent = MediaJob(photos_asset_id=a15.id, media_key="r" + "0" * 63, rendition="web_package", status="queued")
+    env.add(recent)
+    env.flush()
+    _finish(env, recent, s15, ready=False)
     env.commit()
     version = get_derivative_transform_version()
     reference = {}
     out = {"estimated_worst_case_bytes": 0, "source_bytes_to_convert": 0}
-    for asset in (a1, a2, a4, a5, a6, a7, a8):
+    for asset in (a1, a2, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15):
         cls = mm._classify_clip(env, asset.video_uuid, asset.id, version, out)
         reference[cls] = reference.get(cls, 0) + 1
     reference["blocked:no_canonical_source"] = reference.get("blocked:no_canonical_source", 0) + 1  # clip 3
     batched = mm.inventory(env, batch=3)
     assert batched["classes"] == dict(sorted(reference.items()))
     assert batched["estimated_worst_case_bytes"] == out["estimated_worst_case_bytes"]
-    assert batched["classes"]["already_complete"] == 1 and batched["classes"]["prior_failed"] == 1
+    assert batched["classes"]["already_complete"] == 2 and batched["classes"]["prior_failed"] == 2
+    assert mm.package_state(env, a9.video_uuid, version)["hq_aliased_to"] == "light"
+    sources = mm._bulk_canonical_sources(env, [a.video_uuid for a in (a1, a9, a10, a11, a12, a13)])
+    bulk = mm._bulk_package_complete(env, sources, version)
+    for asset in (a1, a9, a10, a11, a12, a13):
+        assert bulk[asset.video_uuid]["complete"] == (
+            mm.package_state(env, asset.video_uuid, version)["state"] == "complete"), asset.video_uuid
