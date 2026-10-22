@@ -85,12 +85,19 @@ def _proof_for(db, video_uuid, source_sha, rev_id, roles_sizes):
     for role, (dsha, nbytes) in roles_sizes.items():
         slots[role] = {"derivative_sha256": dsha, "byte_size": nbytes}
     ops = _load_ops()
+    from app.models.media_backbone import MediaBlob as _MB
+    try:
+        _blob = db.get(_MB, str(source_sha).lower())
+        _src_size = int(_blob.byte_size) if _blob is not None else 15
+    except Exception:
+        _src_size = 15
+    import datetime as _dt
     proof = {
         "video_uuid": video_uuid, "source_sha256": source_sha,
         "source_revision_id": int(rev.id), "transform_version": TV,
         "slots": slots,
         "checks": {n: True for n in ops.PROOF_REQUIRED_CHECKS},
-        "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "operator": "op",
     }
     video_roles = [r for r in slots if r in ("hq", "light")]
@@ -104,6 +111,12 @@ def _proof_for(db, video_uuid, source_sha, rev_id, roles_sizes):
                         for r in video_roles},
             "vfr": False,
             "pts_exact_claimed": False,
+        }
+        proof["source_integrity_evidence"] = {
+            "sha": source_sha,
+            "size": _src_size,
+            "measured_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "method": "full_get_after_publication",
         }
     return ops, proof
 

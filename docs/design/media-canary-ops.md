@@ -252,14 +252,18 @@ python3 ops/canary_proof_collect.py \
   --expected-sha '<ledger-sha>' --expected-size <ledger-bytes> \
   --cookies ~/.config/diveanalyzer/canary-cookies.txt \
   --slot light --video-uuid '<uuid>' --operator '<name>' \
-  --source-reference ~/.config/diveanalyzer/source-<uuid>.bin \
+  --source-storage-url-file ~/.config/diveanalyzer/source-url-<uuid>.txt \
   --expected-source-sha '<db-canonical-source-sha>' \
+  --expected-source-size <db-canonical-source-bytes> \
   --out ~/.config/diveanalyzer/proof-<uuid>-light.json
-# --source-reference: private source-original bytes OUTSIDE the repo (0600);
-#   hashed (streamed, bounded) and MUST equal --expected-source-sha (the
-#   DB-canonical source SHA from the proof record). REQUIRED for hq/light
-#   (missing/mismatch fails closed; output-only counts never pass).
-#   Poster runs omit it (video cadence explicitly N/A -- still scope).
+# --source-storage-url-file: private file OUTSIDE the repo (0600) holding
+#   exactly the operator-supplied current canonical-original presigned URL
+#   (existing authorized access; the tool never mints presigns). Same
+#   validated --storage-origin, credential-free bounded full GET AFTER the
+#   derivative GET; hashed MUST equal --expected-source-sha/size.
+#   REQUIRED for hq/light (missing/mismatch fails closed; local
+#   --source-reference alone never proves B2). Poster runs omit it
+#   (video cadence explicitly N/A -- still scope).
 # Schema-check a proof record without writing (stdlib only; --db adds
 # the DB cross-check with the runtime DATABASE_URL):
 python3 ops/canary_proof_check.py --proof ~/.config/.../proof-<uuid>.json
@@ -283,11 +287,15 @@ cadence evidence, and auth/range/expiry outcomes::
      "checks": {"b2_full_get_sha_match": true, "ffprobe_clean": true,
                 "frame_cadence_match": true, "library_auth_302": true,
                 "range_206": true, "grant_expiry_checked": true,
-                "logged_out_denied": true, "source_bytes_sha_match": true},
+                "logged_out_denied": true, "source_bytes_sha_match": true,
+                "original_storage_integrity_checked": true},
      "cadence_evidence": {"source_sha256": "<64hex>", "source_frames": 600,
                           "source_fps": 60.0, "source_duration": 10.0,
                           "outputs": {"light": {"frames": 600, ...}}, ...,
                           "vfr": false, "pts_exact_claimed": false},
+     "source_integrity_evidence": {"sha": "<64hex>", "size": 123,
+                          "measured_at": "<ISO-8601>",
+                          "method": "full_get_after_publication"},
      "recorded_at": "<ISO-8601>", "operator": "<name>"}
 
 All `checks` must be boolean true (evidence required); the tool
@@ -302,11 +310,14 @@ positive); fps/duration within tolerance (VFR preserved by
 count+duration); `pts_exact_claimed` is always false -- per-frame PTS
 exactness is NOT proven by the bounded `-count_frames` census (which
 never loads an unbounded frame/packet list) and claiming true is
-refused. The DB cross-check additionally requires the canonical source
-blob row to still exist plus a verified PROD replica (revision metadata
-alone never suffices); it does NOT re-hash B2 source bytes (the
-byte-level source proof is the collector's SHA-pinned census; a full B2
-source re-read via Mac scratch is future work, NOT claimed). Slots
+refused. `source_integrity_evidence` is REQUIRED for video slots:
+`sha`/`size` must equal the proof source/canonical blob size,
+`method` must be `full_get_after_publication` (actual B2 re-read, never
+local scratch/metadata), `measured_at` ISO-8601, no URLs/secrets. The DB
+cross-check additionally requires the canonical source blob row to still
+exist plus a verified PROD replica AND the evidence SHA/size to match
+the canonical bytes (revision metadata or local scratch alone never
+suffices). Slots
 must be `hq+light+poster`; `light+poster` (no HQ) is accepted ONLY with
 a server-trusted DB producer alias proof (the clip's `web_package` job
 `finalized_slots` pin matches the proof source/revision/version with
@@ -331,16 +342,21 @@ only after 5/5 PROVEN):
    slot guard, and ledger agree; no Photos bytes unless exact SHA proof).
 2. Outputs SHA: FULL B2 GET of each slot == ledger
    `derivative_blob_sha256` (streamed bytes, never HEAD-only); ffprobe
-   format/tags/faststart clean; video frame cadence SOURCE-BOUND
-   (operator `--source-reference` hashed == canonical source SHA; bounded
-   `-count_frames` census on both files; exact decoded frame count plus
-   fps/duration tolerance; 60->30 fails; VFR by count+duration with
-   per-frame PTS exact NOT claimed; poster still = video cadence N/A).
-   Upload staging rejects oversize DURING the stream (claimed size and
-   slot cap enforced per chunk with cleanup, never buffered first).
-3. Original intact: canonical source revision bytes + SHA re-read
-   unchanged after publication (`source_bytes_sha_match` + blob row +
-   verified replica; B2 object re-hash is future work, NOT claimed).
+   format/tags/faststart clean; video frame cadence SOURCE-BOUND B2
+   re-read (operator `--source-storage-url-file` presigned original,
+   credential-free full GET after derivative GET, hashed == canonical
+   source SHA/size; bounded `-count_frames` census on both files; exact
+   decoded frame count plus fps/duration tolerance; 60->30 fails; VFR by
+   count+duration with per-frame PTS exact NOT claimed; local
+   --source-reference alone never proves B2; poster still = video
+   cadence N/A). Upload staging rejects oversize DURING the stream
+   (claimed size and slot cap enforced per chunk with cleanup, never
+   buffered first).
+3. Original intact: canonical source revision bytes re-read from B2 AFTER
+   publication unchanged (`source_bytes_sha_match` +
+   `original_storage_integrity_checked` + `source_integrity_evidence`
+   sha/size/method full_get_after_publication + blob row + verified
+   replica; local scratch/metadata alone never suffices).
 4. Library authorized route: 302 to allowlisted presigned storage with a
    live user session (cookie to the Library origin ONLY, redirects never
    auto-followed); storage `Range` returns 206 with STRICT content-type

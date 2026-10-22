@@ -503,6 +503,11 @@ def test_source_changed_proof_invalid(test_db, tmp_path, monkeypatch):
                              "light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
                  "vfr": False, "pts_exact_claimed": False,
              },
+             "source_integrity_evidence": {
+                 "sha": src, "size": 15,
+                 "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                 "method": "full_get_after_publication",
+             },
              "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
              "operator": "op"}
     proof_path = tmp_path / "proof.json"

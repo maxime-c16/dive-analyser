@@ -10,14 +10,28 @@ OPERATOR's own private session cookies and proves them fail-closed:
 - logged-out (no-cookie) request denied (401/403/404 only);
 - measured expired-grant replay denial for the EXACT object;
 - ffprobe clean (container/codec/faststart) + SOURCE-BOUND frame
-  cadence for video (hq/light: operator-supplied private
-  ``--source-reference`` whose streamed SHA must equal the
-  DB-canonical ``--expected-source-sha``; bounded ``-count_frames``
-  census on both files -- exact decoded frame count plus fps/duration
-  tolerance, VFR preserved by count+duration with per-frame PTS exact
-  explicitly NOT claimed; unknown reference fails closed and
-  output-only counts never pass) / single still for poster (video
-  cadence explicitly N/A, recorded as still scope).
+  cadence for video (hq/light: operator-supplied current canonical
+  original presigned URL via private ``--source-storage-url-file``
+  (0600, OUTSIDE repo, same validated ``--storage-origin``) fetched
+  credential-free with a bounded full GET AFTER the derivative GET;
+  actual B2 original bytes hashed and MUST equal the DB-canonical
+  ``--expected-source-sha``/``--expected-source-size``; the downloaded
+  B2 source temp is reused for the bounded ``-count_frames`` census on
+  both files -- exact decoded frame count plus fps/duration tolerance,
+  VFR preserved by count+duration with per-frame PTS exact explicitly
+  NOT claimed; local ``--source-reference`` alone never proves B2
+  bytes and unknown/missing reference fails closed, output-only counts
+  never pass) / single still for poster (video cadence explicitly N/A,
+  recorded as still scope).
+
+  Source integrity (fail closed): ``source_bytes_sha_match`` and
+  ``original_storage_integrity_checked`` are true ONLY after an actual
+  B2 re-read of the canonical original (this tool never mints presigns:
+  the operator supplies the existing authorized presigned URL; the tool
+  only GETs it). DB verified-replica rows are metadata and never suffice
+  alone. Success emits ``source_integrity_evidence`` as
+  ``{sha, size, measured_at, method: 'full_get_after_publication'}``
+  with NO URL/secrets.
 
 Credential separation (fail closed): the session cookie is sent ONLY to
 the explicit, validated ``--library-origin`` (https; http is allowed
@@ -138,6 +152,44 @@ def _check_mode_0600(path: Path, what: str) -> None:
             f"REFUSED: {what} {path} has mode {oct(mode)} (expected 0600); "
             "fix with: chmod 600 " + str(path)
         )
+
+
+def _load_source_storage_url(
+    path: Path,
+    *,
+    library_origin: tuple[str, str, int],
+    storage_origins: set[tuple[str, str, int]],
+) -> str:
+    """Load the operator-supplied canonical-original presigned URL (no minting).
+
+    Private 0600 file OUTSIDE the repo containing exactly the existing
+    authorized presigned URL (single line). The URL is validated like any
+    storage URL (allowlisted origin, distinct from the Library, no
+    userinfo/private host) but NEVER printed/logged/persisted: callers
+    must not include it in stdout, details, or evidence.
+    """
+    _refuse_inside_git(path, "source storage URL file")
+    _check_mode_0600(path, "source storage URL file")
+    try:
+        raw = path.read_text().strip()
+    except FileNotFoundError:
+        raise _Refused("source storage URL file not found (export the current original grant first)")
+    if not raw:
+        raise _Refused("source storage URL file is empty")
+    # First non-empty non-comment line only; extra lines refused (ambiguous).
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    if len(lines) != 1:
+        raise _Refused("source storage URL file must hold exactly one URL line")
+    url = lines[0]
+    if len(url) > 8192:
+        raise _Refused("source storage URL implausibly long; refusing")
+    _validate_storage_url(
+        url,
+        library_origin=library_origin,
+        storage_origins=storage_origins,
+        what="source storage URL",
+    )
+    return url
 
 
 def _load_cookies(path: Path) -> str:
@@ -731,13 +783,24 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--max-bytes", type=int, default=1_200_000_000)
     ap.add_argument("--ffprobe-timeout", type=int, default=60)
     ap.add_argument("--source-reference", default=None,
-                    help="private source-original file OUTSIDE repo (0600) for hq/light "
-                         "cadence proof; REQUIRED for video slots (fail closed when "
-                         "missing). Poster never uses it (video cadence N/A).")
+                    help="legacy local source-original file OUTSIDE repo (0600); "
+                         "proves the LOCAL copy only, never B2 bytes -- "
+                         "insufficient alone for source_bytes_sha_match (fail closed). "
+                         "Poster never uses it (video cadence N/A).")
     ap.add_argument("--expected-source-sha", default=None,
-                    help="DB-canonical source blob SHA-256 (64 hex); the source-reference "
-                         "bytes are hashed and MUST match (claims never trusted). "
+                    help="DB-canonical source blob SHA-256 (64 hex); the B2-re-read "
+                         "original bytes are hashed and MUST match (claims never trusted). "
                          "REQUIRED for hq/light.")
+    ap.add_argument("--expected-source-size", default=None, type=int,
+                    help="DB-canonical source blob byte_size; the B2-re-read "
+                         "original size MUST match. REQUIRED with --source-storage-url-file.")
+    ap.add_argument("--source-storage-url-file", default=None,
+                    help="private file OUTSIDE repo (0600) holding exactly the "
+                         "operator-supplied current canonical-original presigned URL "
+                         "(existing authorized access; this tool never mints presigns). "
+                         "Same validated --storage-origin, credential-free bounded "
+                         "full GET after the derivative GET. REQUIRED for hq/light "
+                         "source proof (fail closed when missing). Never printed.")
     ap.add_argument("--source-max-bytes", type=int, default=1_200_000_000,
                     help="max source-reference bytes hashed (bounded, default %(default)s)")
     return ap
@@ -789,12 +852,15 @@ def main(argv=None) -> int:
         "grant_expiry_checked": False,
         "logged_out_denied": False,
     }
-    # Video slots additionally prove clip-level source integrity via the
-    # SHA-pinned source reference (poster stills never fake this: the
-    # key stays absent for poster and the proof-level check is satisfied
-    # by the video slots + DB cross-check instead).
+    # Video slots additionally prove clip-level source integrity via an
+    # actual B2 re-read of the canonical original (poster stills never
+    # fake this: the keys stay absent for poster and the proof-level
+    # check is satisfied by the video slots + DB cross-check instead).
+    # Local --source-reference alone NEVER sets these: it proves the
+    # local copy only, not B2 current bytes.
     if args.slot in ("hq", "light"):
         checks["source_bytes_sha_match"] = False
+        checks["original_storage_integrity_checked"] = False
     details: dict = {
         "slot": args.slot,
         "video_uuid": args.video_uuid,
@@ -994,10 +1060,15 @@ def main(argv=None) -> int:
 
     # 5. Full GET + SHA + size -- from STORAGE, credential-free, streamed, bounded.
     tmp = None
+    src_tmp = None
     try:
         fd, tmppath = tempfile.mkstemp(prefix="canary-proof-", suffix=".bin")
         os.close(fd)
         tmp = Path(tmppath)
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
         got_sha, size, ctype, _final = _storage_stream_to_file(
             live_grant, tmp, library_origin=library_origin,
             storage_origins=storage_origins, timeout=args.timeout,
@@ -1035,39 +1106,130 @@ def main(argv=None) -> int:
                 _write_out(out_path, args, checks, details)
                 return 2
         else:
-            ok, cad_details = _verify_video_cadence(
-                tmp,
-                getattr(args, "source_reference", None),
-                getattr(args, "expected_source_sha", None),
-                timeout=args.ffprobe_timeout,
-                max_bytes=int(getattr(args, "source_max_bytes", args.max_bytes)),
-            )
-            details["frame_cadence_scope"] = "video-exact (source-bound)"
+            # 6b. B2 source re-read AFTER the derivative GET (credential-free,
+            # bounded, same validated storage origin). The operator supplies
+            # the current canonical-original presigned URL via a private
+            # 0600 file; this tool never mints presigns (existing authorized
+            # access only). Local --source-reference alone NEVER passes:
+            # it proves the local copy, not B2 current bytes.
+            exp_src_sha = str(getattr(args, "expected_source_sha", "") or "").strip().lower()
+            exp_src_size_raw = getattr(args, "expected_source_size", None)
+            src_url_file = str(getattr(args, "source_storage_url_file", "") or "").strip()
+            src_max = int(getattr(args, "source_max_bytes", args.max_bytes))
+            if not exp_src_sha or len(exp_src_sha) != 64 or any(
+                c not in "0123456789abcdef" for c in exp_src_sha
+            ):
+                print("REFUSED: --expected-source-sha (64 hex, DB-canonical) is required for hq/light")
+                _write_out(out_path, args, checks, details)
+                return 2
+            if exp_src_size_raw is None:
+                print("REFUSED: --expected-source-size (DB-canonical) is required with B2 source re-read")
+                _write_out(out_path, args, checks, details)
+                return 2
+            try:
+                exp_src_size = int(exp_src_size_raw)
+            except (TypeError, ValueError):
+                print("REFUSED: --expected-source-size must be a positive int")
+                _write_out(out_path, args, checks, details)
+                return 2
+            if exp_src_size <= 0:
+                print("REFUSED: --expected-source-size must be > 0")
+                _write_out(out_path, args, checks, details)
+                return 2
+            if exp_src_size > src_max:
+                print(f"REFUSED: expected source size {exp_src_size} > source max-bytes {src_max}")
+                _write_out(out_path, args, checks, details)
+                return 2
+            if not src_url_file:
+                print("REFUSED: --source-storage-url-file is required for hq/light "
+                      "(B2 source re-read; local --source-reference alone is insufficient)")
+                _write_out(out_path, args, checks, details)
+                return 2
+            try:
+                src_url = _load_source_storage_url(
+                    Path(src_url_file),
+                    library_origin=library_origin,
+                    storage_origins=storage_origins,
+                )
+            except SystemExit as exc:
+                # Mode/inside-git refusals: fail closed without persisting secrets.
+                print(f"REFUSED: {exc}")
+                _write_out(out_path, args, checks, details)
+                return 2
+            # Credential-free bounded full GET of the ACTUAL B2 original,
+            # hashed while streaming. Reuses the downloaded bytes as the
+            # cadence source temp (no second original transfer).
+            fd2, src_tmppath = tempfile.mkstemp(prefix="canary-source-", suffix=".bin")
+            os.close(fd2)
+            src_tmp = Path(src_tmppath)
+            try:
+                os.chmod(src_tmp, 0o600)
+            except OSError:
+                pass
+            try:
+                src_sha, src_size, _src_ctype, _src_final = _storage_stream_to_file(
+                    src_url, src_tmp, library_origin=library_origin,
+                    storage_origins=storage_origins, timeout=args.timeout,
+                    max_bytes=src_max,
+                )
+            except _Refused as exc:
+                print(f"REFUSED: {exc}")
+                _write_out(out_path, args, checks, details)
+                return 2
+            except _StorageStatus as exc:
+                print("REFUSED: source full GET denied/unavailable "
+                      f"(HTTP {exc.status}; B2 re-read required)")
+                _write_out(out_path, args, checks, details)
+                return 2
+            # Never persist the URL/query: evidence is sha/size/method only.
+            if src_sha != exp_src_sha or int(src_size) != int(exp_src_size):
+                print(f"REFUSED: B2 source sha/size mismatch (got {src_sha[:12]}.../{src_size})")
+                _write_out(out_path, args, checks, details)
+                return 2
+            measured_at = datetime.now(timezone.utc).isoformat()
+            details["source_integrity_evidence"] = {
+                "sha": src_sha,
+                "size": int(src_size),
+                "measured_at": measured_at,
+                "method": "full_get_after_publication",
+            }
+            details["expected_source_sha256"] = exp_src_sha
+            details["expected_source_size"] = int(exp_src_size)
+            checks["source_bytes_sha_match"] = True
+            checks["original_storage_integrity_checked"] = True
+            # Source-bound cadence on the RE-READ B2 bytes (not the local
+            # scratch copy): bounded census on both files, exact frames +
+            # timing tolerance, VFR by count+duration, PTS exact NOT claimed.
+            src_info = _ffprobe_video_info(src_tmp, args.ffprobe_timeout)
+            out_info = _ffprobe_video_info(tmp, args.ffprobe_timeout)
+            ok, cmp_ev = _compare_cadence_video(src_info, out_info)
+            details["frame_cadence_scope"] = "video-exact (source-bound, B2 re-read)"
             details["video_cadence_applicable"] = True
-            details["cadence"] = cad_details
+            details["cadence"] = cmp_ev
+            details["cadence"]["source_sha256"] = exp_src_sha
+            details["cadence"]["source_bytes"] = int(src_size)
             # Machine-readable cadence evidence for the proof record:
             # the operator copies this block into the multi-slot proof's
             # `cadence_evidence` (see canary_web_package validation).
             if ok:
                 details["cadence_evidence"] = {
-                    "source_sha256": str(getattr(args, "expected_source_sha", "")).lower(),
-                    "source_frames": int(cad_details.get("source_frames", 0)),
-                    "source_fps": float(cad_details.get("source_fps", 0.0) or 0.0),
-                    "source_duration": float(cad_details.get("source_duration", 0.0) or 0.0),
+                    "source_sha256": exp_src_sha,
+                    "source_frames": int(cmp_ev.get("source_frames", 0)),
+                    "source_fps": float(cmp_ev.get("source_fps", 0.0) or 0.0),
+                    "source_duration": float(cmp_ev.get("source_duration", 0.0) or 0.0),
                     "outputs": {
                         str(args.slot): {
-                            "frames": int(cad_details.get("output_frames", 0)),
-                            "fps": float(cad_details.get("output_fps", 0.0) or 0.0),
-                            "duration": float(cad_details.get("output_duration", 0.0) or 0.0),
+                            "frames": int(cmp_ev.get("output_frames", 0)),
+                            "fps": float(cmp_ev.get("output_fps", 0.0) or 0.0),
+                            "duration": float(cmp_ev.get("output_duration", 0.0) or 0.0),
                         }
                     },
-                    "vfr": bool(cad_details.get("vfr", False)),
+                    "vfr": bool(cmp_ev.get("vfr", False)),
                     "pts_exact_claimed": False,
                 }
             checks["frame_cadence_match"] = bool(ok)
-            checks["source_bytes_sha_match"] = bool(ok)
             if not ok:
-                print(f"REFUSED: source-bound cadence failed: {cad_details.get('reason', 'mismatch')}")
+                print(f"REFUSED: source-bound cadence failed: {cmp_ev.get('reason', 'mismatch')}")
                 _write_out(out_path, args, checks, details)
                 return 2
     except _Refused as exc:
@@ -1083,11 +1245,12 @@ def main(argv=None) -> int:
         _write_out(out_path, args, checks, details)
         return 2
     finally:
-        try:
-            if tmp is not None and tmp.exists():
-                tmp.unlink()
-        except Exception:
-            pass
+        for _p in (tmp, src_tmp):
+            try:
+                if _p is not None and _p.exists():
+                    _p.unlink()
+            except Exception:
+                pass
 
     _write_out(out_path, args, checks, details)
     missing = [k for k, v in checks.items() if v is not True]

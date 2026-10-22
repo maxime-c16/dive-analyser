@@ -73,6 +73,8 @@ EXPIRED_URL = "https://b2.example.test/file/bucket/key?Expires=1000000000"
 EXPIRED_NOPARAM_URL = "https://b2.example.test/file/bucket/key?grant=old"
 EXPIRED_FUTURE_URL = "https://b2.example.test/file/bucket/key?Expires=4102444800"
 EXPIRED_OTHER_URL = "https://b2.example.test/file/other/key?Expires=1000000000"
+SOURCE_PRESIGNED = "https://b2.example.test/file/source/key?X-Amz-Expires=3600&X-Amz-Date=20300101T000000Z"
+SOURCE_PRESIGNED_CORRUPT = "https://b2.example.test/file/source/key?X-Amz-Expires=3600&X-Amz-Date=20300101T000000Z"
 
 
 class _FakeResp:
@@ -115,8 +117,9 @@ class _FakeOpener:
     """Routes by URL. Library asserts cookie discipline; storage asserts
     credential-free access. Cookie material never logged."""
 
-    def __init__(self, data: bytes, ctype="video/mp4", mode="ok"):
+    def __init__(self, data: bytes, ctype="video/mp4", mode="ok", source_data: bytes | None = None):
         self.data = data
+        self.source_data = source_data if source_data is not None else b"source-original-" * 1024
         self.ctype = ctype
         self.mode = mode
         self.requests: list = []
@@ -173,6 +176,21 @@ class _FakeOpener:
             if self.mode == "expired_live":
                 return _FakeResp(200, {"Content-Type": self.ctype}, self.data)
             return _FakeResp(403, {"Content-Type": "text/plain"}, b"expired")
+        # Canonical-original re-read path: distinct source object.
+        if "/file/source/key" in urllib.parse.urlsplit(url).path:
+            body = self.source_data
+            if self.mode == "corrupt_source":
+                body = b"tampered-source:" + body
+            if rng:
+                if self.mode == "range_200":
+                    return _FakeResp(200, {"Content-Type": self.ctype}, body[:1024])
+                return _FakeResp(
+                    206,
+                    {"Content-Range": f"bytes 0-1023/{len(body)}",
+                     "Content-Type": self.ctype},
+                    body[:1024],
+                )
+            return _FakeResp(200, {"Content-Type": "video/mp4"}, body)
         if rng:
             if self.mode == "range_200":
                 return _FakeResp(200, {"Content-Type": self.ctype}, self.data[:1024])
@@ -191,8 +209,10 @@ class _FakeOpener:
 def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
          ffprobe=(True, True), slot="light", play_url=PLAY_URL,
          expired_url=EXPIRED_URL, expired_at=None, source_mode="match",
-         source_bytes=None):
-    opener = _FakeOpener(data, ctype=ctype, mode=mode)
+         source_bytes=None, source_url=SOURCE_PRESIGNED,
+         expected_source_size=None, source_max_bytes=None):
+    src_content = source_bytes if source_bytes is not None else b"source-original-" * 1024
+    opener = _FakeOpener(data, ctype=ctype, mode=mode, source_data=src_content)
     monkeypatch.setattr(urllib.request, "build_opener", lambda *a, **k: opener)
     if ffprobe == "missing_binary":
         import subprocess as _sp
@@ -206,12 +226,17 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
         monkeypatch.setattr(
             mod, "_ffprobe", lambda *a, **k: (clean, cadence, {"format": "mp4"}))
     # Source-bound cadence census stub (bounded count semantics, no frame
-    # list): video slots verify against a SHA-pinned source reference.
+    # list): video slots verify against the B2-re-read source temp.
     src_file = tmp_path / "source-ref.bin"
     src_content = source_bytes if source_bytes is not None else b"source-original-" * 1024
     src_file.write_bytes(src_content)
     src_file.chmod(0o600)
     src_sha = _sha(src_content)
+    # Operator-supplied B2 original URL file (0600, outside repo, never logged).
+    src_url_file = tmp_path / "source-url.txt"
+    if source_mode != "missing":
+        src_url_file.write_text((source_url or SOURCE_PRESIGNED) + "\n")
+        src_url_file.chmod(0o600)
     base_census = {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0,
                    "duration": 10.0, "codec": "h264", "vfr": False}
     ffprobe_positive = True
@@ -230,8 +255,14 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
         if not ffprobe_positive and effective == "match":
             effective = "output_30fps"
         info = dict(base_census)
-        # Distinguish source vs output by path: source ref vs downloaded tmp.
-        is_source = str(path) == str(src_file)
+        # Distinguish B2 source temp vs derivative output tmp: the B2
+        # source temp carries "canary-source-" (or the legacy local
+        # reference file); everything else is the derivative output.
+        pstr = str(path)
+        is_source = ("canary-source-" in pstr) or (pstr == str(src_file)) or ("source" in pstr.lower())
+        # The derivative output tmp (canary-proof-) must NOT count as source.
+        if "canary-proof-" in pstr:
+            is_source = False
         if effective == "match":
             return dict(info)
         if effective == "output_30fps":
@@ -275,6 +306,11 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
             argv += ["--expected-source-sha", "b" * 64]
         else:
             argv += ["--expected-source-sha", src_sha]
+        argv += ["--source-storage-url-file", str(src_url_file)]
+        argv += ["--expected-source-size",
+                 str(expected_source_size if expected_source_size is not None else len(src_content))]
+        if source_max_bytes is not None:
+            argv += ["--source-max-bytes", str(int(source_max_bytes))]
     if expired_url is not None:
         argv += ["--expired-url", expired_url]
     if expired_at is not None:
@@ -285,14 +321,19 @@ def _run(mod, monkeypatch, tmp_path, data, ctype="video/mp4", mode="ok",
 
 
 def _stub_video_match(mod, monkeypatch, tmp_path, name="source-ref.bin"):
-    """Stub a SHA-pinned source reference + matching census (test-only)."""
+    """Stub a B2 source re-read + matching census (test-only)."""
     src = tmp_path / name
     src.write_bytes(b"source-original-" * 1024)
     src.chmod(0o600)
     census = {"frames": 600, "avg_fps": 60.0, "r_fps": 60.0,
               "duration": 10.0, "codec": "h264", "vfr": False}
     monkeypatch.setattr(mod, "_ffprobe_video_info", lambda *a, **k: dict(census))
-    return ["--source-reference", str(src), "--expected-source-sha", _sha(b"source-original-" * 1024)]
+    url_file = tmp_path / "source-url.txt"
+    url_file.write_text(SOURCE_PRESIGNED + "\n")
+    url_file.chmod(0o600)
+    return ["--source-reference", str(src), "--expected-source-sha", _sha(b"source-original-" * 1024),
+            "--source-storage-url-file", str(url_file),
+            "--expected-source-size", str(len(b"source-original-" * 1024))]
 
 
 def _signed_grant_urls(base="https://b2.example.test/file/bucket/key"):
@@ -462,7 +503,8 @@ def test_happy_path_all_checks_true(tmp_path, monkeypatch):
     assert all(payload["checks"][k] is True for k in (
         "b2_full_get_sha_match", "ffprobe_clean", "frame_cadence_match",
         "library_auth_302", "range_206", "grant_expiry_checked",
-        "logged_out_denied", "source_bytes_sha_match")), payload["checks"]
+        "logged_out_denied", "source_bytes_sha_match",
+        "original_storage_integrity_checked")), payload["checks"]
     assert payload["details"]["cadence_evidence"]["source_frames"] == 600
     assert payload["details"]["cadence_evidence"]["outputs"]["light"]["frames"] == 600
     assert payload["details"]["cadence_evidence"]["pts_exact_claimed"] is False
@@ -470,6 +512,13 @@ def test_happy_path_all_checks_true(tmp_path, monkeypatch):
     assert payload["details"]["sha256"] == _sha(data)
     assert payload["details"].get("presigned_expiry") == "3600"
     assert payload["details"]["grant_expiry"]["measured"] is True
+    # B2 source re-read evidence: sha/size/method only, no URL/secrets.
+    ev = payload["details"].get("source_integrity_evidence") or {}
+    assert ev.get("sha") == _sha(b"source-original-" * 1024)
+    assert ev.get("size") == len(b"source-original-" * 1024)
+    assert ev.get("method") == "full_get_after_publication"
+    assert ev.get("measured_at"), "measured_at required"
+    assert "url" not in {k.lower() for k in ev}, ev
     # Storage never saw credentials, even though the Library did.
     assert opener.cookie_to_storage == 0
     assert any(u == PLAY_URL and had_cookie for u, had_cookie, _ in opener.requests)
@@ -599,6 +648,11 @@ def test_unexpired_param_does_not_pass_final_proof(tmp_path, monkeypatch):
             "source_frames": 600, "source_fps": 60.0, "source_duration": 10.0,
             "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
             "vfr": False, "pts_exact_claimed": False,
+        },
+        "source_integrity_evidence": {
+            "sha": "a" * 64, "size": 18,
+            "measured_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "method": "full_get_after_publication",
         },
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "operator": "op",
@@ -738,11 +792,16 @@ def test_no_auth_minting_flags_and_no_secret_logs(tmp_path):
         assert banned not in flags, f"auth-minting flag {banned} must not exist"
     # Credential separation is explicit CLI surface: the trusted Library
     # origin and the allowlisted storage origins are required inputs, and
-    # the measured-expiry inputs exist without ever minting auth.
+    # the measured-expiry inputs exist without ever minting auth. The B2
+    # source re-read is operator-supplied via a private file (never minted).
     for required in ("--play-url", "--library-origin", "--storage-origin",
                      "--expired-url", "--expired-at",
-                     "--source-reference", "--expected-source-sha"):
+                     "--source-reference", "--expected-source-sha",
+                     "--source-storage-url-file", "--expected-source-size"):
         assert required in flags, f"expected flag {required}"
+    # No presign-minting: the tool only GETs operator-supplied URLs.
+    for banned in ("--mint", "--presign", "--sign-url"):
+        assert banned not in flags, f"presign-minting flag {banned} must not exist"
     src = OPS_MOD.read_text()
     assert "Authorization" not in src or "add_header" not in src.split("Authorization")[0][-100:]
     # No device/browser playback is claimed by this tool.
@@ -789,6 +848,11 @@ def test_expired_replay_manual_step_not_auto_checked(test_db):
             "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
             "vfr": False, "pts_exact_claimed": False,
         },
+        "source_integrity_evidence": {
+            "sha": "a" * 64, "size": 18,
+            "measured_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "method": "full_get_after_publication",
+        },
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "operator": "op",
     }
@@ -815,12 +879,13 @@ def _drop_proxies(monkeypatch):
 
 def _start_servers(monkeypatch, data, *, app_mode="ok", b2_chain=False,
                    expired_status=403, future_expires=4102444800,
-                   past_expires=1000000000):
+                   past_expires=1000000000, source_data: bytes | None = None):
     """Launch fake app (Library) + B2 (storage) [+ evil] origins on
     127.0.0.1 with distinct ports. Returns (urls, hits, shutdown)."""
     _drop_proxies(monkeypatch)
     hits = {"app": [], "b2": [], "evil": []}
     refs: dict = {}
+    src_bytes = source_data if source_data is not None else b"source-original-" * 1024
 
     class _App(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
@@ -863,6 +928,26 @@ def _start_servers(monkeypatch, data, *, app_mode="ok", b2_chain=False,
                 (self.path, cookie, auth, self.headers.get("Range")))
             parts = urllib.parse.urlsplit(self.path)
             q = urllib.parse.parse_qs(parts.query)
+            if parts.path == "/file/source/key":
+                if self.headers.get("Range"):
+                    self.send_response(206)
+                    self.send_header("Content-Range", f"bytes 0-1023/{len(src_bytes)}")
+                    self.send_header("Content-Type", "video/mp4")
+                    self.end_headers()
+                    try:
+                        self.wfile.write(src_bytes[:1024])
+                    except BrokenPipeError:
+                        pass
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "video/mp4")
+                self.send_header("Content-Length", str(len(src_bytes)))
+                self.end_headers()
+                try:
+                    self.wfile.write(src_bytes)
+                except BrokenPipeError:
+                    pass
+                return
             if parts.path not in ("/file/key", "/file/key2"):
                 self.send_response(404)
                 self.end_headers()
@@ -929,6 +1014,8 @@ def _start_servers(monkeypatch, data, *, app_mode="ok", b2_chain=False,
         f"http://127.0.0.1:{b2_port}/file/key?live=1&Expires={future_expires}")
     refs["expired_url"] = (
         f"http://127.0.0.1:{b2_port}/file/key?expired=1&Expires={past_expires}")
+    refs["source_url"] = (
+        f"http://127.0.0.1:{b2_port}/file/source/key?live=1&Expires={future_expires}")
     refs["evil_url"] = f"http://127.0.0.1:{evil_port}/evil"
     refs["userinfo_url"] = f"http://user:pass@127.0.0.1:{b2_port}/file/key?live=1"
     urls = {
@@ -936,6 +1023,7 @@ def _start_servers(monkeypatch, data, *, app_mode="ok", b2_chain=False,
         "library_origin": f"http://127.0.0.1:{app_port}",
         "storage_origin": f"http://127.0.0.1:{b2_port}",
         "expired": refs["expired_url"],
+        "source_url": refs["source_url"],
     }
 
     def _shutdown():
@@ -967,6 +1055,9 @@ def _run_real(mod, tmp_path, data, urls, extra_argv=()):
         src = tmp_path / "source-ref.bin"
         src.write_bytes(b"source-original-" * 1024)
         src.chmod(0o600)
+        src_url_file = tmp_path / "source-url.txt"
+        src_url_file.write_text(urls["source_url"] + "\n")
+        src_url_file.chmod(0o600)
         out = tmp_path / "proof-frag.json"
         argv = [
             "--play-url", urls["play"],
@@ -983,6 +1074,8 @@ def _run_real(mod, tmp_path, data, urls, extra_argv=()):
             "--out", str(out),
             "--source-reference", str(src),
             "--expected-source-sha", _sha(b"source-original-" * 1024),
+            "--expected-source-size", str(len(b"source-original-" * 1024)),
+            "--source-storage-url-file", str(src_url_file),
             *extra_argv,
         ]
         rc = mod.main(argv)
@@ -1123,34 +1216,41 @@ def test_cadence_60_preserved_pass_30_reject(tmp_path, monkeypatch):
     assert rc == 0, payload
     assert payload["checks"]["frame_cadence_match"] is True
     assert payload["checks"]["source_bytes_sha_match"] is True
+    assert payload["checks"]["original_storage_integrity_checked"] is True
     rc2, payload2, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="output_30fps")
     assert rc2 == 2
     assert payload2 is not None
     assert payload2["checks"]["frame_cadence_match"] is False
-    assert payload2["checks"]["source_bytes_sha_match"] is False
+    # B2 bytes themselves still matched; only the cadence failed.
+    assert payload2["checks"]["source_bytes_sha_match"] is True
+    assert payload2["checks"]["original_storage_integrity_checked"] is True
 
 
 def test_cadence_missing_reference_fails_closed(tmp_path, monkeypatch):
-    """No --source-reference/--expected-source-sha: unknown reference
-    fails closed (output-only metadata is never inferred as a match)."""
+    """No B2 source URL: unknown reference fails closed (local scratch
+    alone never proves B2; output-only metadata is never inferred)."""
     mod = _load_mod()
     data = b"e2e-bytes-" * 4096
     rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="missing")
     assert rc == 2
     assert payload is not None
     assert payload["checks"]["frame_cadence_match"] is False
+    assert payload["checks"]["source_bytes_sha_match"] is False
+    assert payload["checks"]["original_storage_integrity_checked"] is False
 
 
 def test_cadence_source_sha_mismatch_fails(tmp_path, monkeypatch):
-    """Source bytes not matching the DB-canonical SHA: claims never
-    trusted, fail closed."""
+    """B2 source bytes not matching the DB-canonical SHA: claims never
+    trusted, fail closed (no evidence emitted)."""
     mod = _load_mod()
     data = b"e2e-bytes-" * 4096
     rc, payload, _ = _run(mod, monkeypatch, tmp_path, data, source_mode="wrong_sha")
     assert rc == 2
     assert payload is not None
+    assert payload["checks"]["source_bytes_sha_match"] is False
+    assert payload["checks"]["original_storage_integrity_checked"] is False
     assert payload["checks"]["frame_cadence_match"] is False
-    assert "mismatch" in str(payload["details"].get("cadence", {}).get("reason", "")).lower()
+    assert "source_integrity_evidence" not in payload["details"]
 
 
 def test_cadence_vfr_preserved_pass_drop_reject(tmp_path, monkeypatch):
@@ -1227,9 +1327,10 @@ def test_ffprobe_bounded_no_unbounded_frame_list():
 
 
 def test_source_integrity_proof_gate():
-    """Proof gate: source_bytes_sha_match required; cadence_evidence
-    required for video (exact frames, bound SHA, no PTS fabrication,
-    poster never listed)."""
+    """Proof gate: source_bytes_sha_match + original_storage_integrity_checked
+    required; cadence_evidence + source_integrity_evidence required for
+    video (exact frames, bound SHA, no PTS fabrication, poster never
+    listed, B2 re-read method exact)."""
     import datetime as _dt
     import importlib.util as _ilu
     from pathlib import Path as _P
@@ -1252,6 +1353,11 @@ def test_source_integrity_proof_gate():
                 "outputs": {"light": {"frames": 600, "fps": 60.0, "duration": 10.0}},
                 "vfr": False, "pts_exact_claimed": False,
             },
+            "source_integrity_evidence": {
+                "sha": "a" * 64, "size": 18,
+                "measured_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                "method": "full_get_after_publication",
+            },
             "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
             "operator": "op",
         }
@@ -1261,6 +1367,29 @@ def test_source_integrity_proof_gate():
     no_src["checks"]["source_bytes_sha_match"] = False
     with pytest.raises(ValueError):
         ops.validate_proof_record(no_src)
+    no_storage = _base()
+    no_storage["checks"]["original_storage_integrity_checked"] = False
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(no_storage)
+    no_integrity = _base()
+    del no_integrity["source_integrity_evidence"]
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(no_integrity)
+    bad_method = _base()
+    bad_method["source_integrity_evidence"] = dict(
+        bad_method["source_integrity_evidence"], method="local_hash")
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(bad_method)
+    bad_sha = _base()
+    bad_sha["source_integrity_evidence"] = dict(
+        bad_sha["source_integrity_evidence"], sha="b" * 64)
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(bad_sha)
+    leak = _base()
+    leak["source_integrity_evidence"] = dict(
+        leak["source_integrity_evidence"], presigned_url="https://b2.example.test/x")
+    with pytest.raises(ValueError):
+        ops.validate_proof_record(leak)
     no_ev = _base()
     del no_ev["cadence_evidence"]
     with pytest.raises(ValueError):
@@ -1324,3 +1453,91 @@ def test_real_ffmpeg_synthetic_60_preserved_and_30_reject(tmp_path):
     assert ok is True
     ok2, ev2 = mod._compare_cadence_video(s_info, o30)
     assert ok2 is False, ev2
+
+
+# --- B2 source re-read (actual stored original, not local scratch) ---
+
+def test_b2_source_sha_wrong_refused(tmp_path, monkeypatch, capsys):
+    """Fake-HTTP source bytes not matching the canonical SHA: B2 re-read
+    fails closed, no evidence emitted, no secrets leaked."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, opener = _run(mod, monkeypatch, tmp_path, data, mode="corrupt_source")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["source_bytes_sha_match"] is False
+    assert payload["checks"]["original_storage_integrity_checked"] is False
+    assert "source_integrity_evidence" not in payload["details"]
+    assert opener.cookie_to_storage == 0
+    blob = json.dumps(payload, sort_keys=True)
+    out = capsys.readouterr()
+    hay = blob + out.out + out.err
+    assert "X-Amz-" not in hay
+    assert SOURCE_PRESIGNED not in hay
+    assert "operator-private-value" not in hay
+
+
+def test_b2_source_url_missing_refuses(tmp_path, monkeypatch):
+    """Missing --source-storage-url-file: local reference alone never
+    proves B2; both source checks stay false (fail closed)."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, opener = _run(mod, monkeypatch, tmp_path, data, source_mode="missing")
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["source_bytes_sha_match"] is False
+    assert payload["checks"]["original_storage_integrity_checked"] is False
+    assert payload["checks"]["frame_cadence_match"] is False
+    assert "source_integrity_evidence" not in payload["details"]
+    assert opener.cookie_to_storage == 0
+
+
+def test_b2_expected_source_size_over_limit_fails(tmp_path, monkeypatch):
+    """Expected canonical size above the bounded fetch cap: refuse before
+    any second original transfer (fail closed)."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    src_len = len(b"source-original-" * 1024)
+    rc, payload, opener = _run(
+        mod, monkeypatch, tmp_path, data,
+        expected_source_size=src_len + 1, source_max_bytes=src_len,
+    )
+    assert rc == 2
+    assert payload is not None
+    assert payload["checks"]["source_bytes_sha_match"] is False
+    assert payload["checks"]["original_storage_integrity_checked"] is False
+    # Bounded: the oversized expectation is refused without fetching source bytes.
+    assert not any("/file/source/key" in u for u, _, _ in opener.requests)
+
+
+def test_b2_source_good_after_output_download_passes(tmp_path, monkeypatch, capsys):
+    """Actual good B2 source AFTER the derivative GET (hashed + reference
+    cross-checked): evidence emitted, temp reused, no secrets serialized,
+    storage stays credential-free."""
+    mod = _load_mod()
+    data = b"e2e-bytes-" * 4096
+    rc, payload, opener = _run(mod, monkeypatch, tmp_path, data, source_mode="match")
+    assert rc == 0, payload
+    assert payload["checks"]["source_bytes_sha_match"] is True
+    assert payload["checks"]["original_storage_integrity_checked"] is True
+    ev = payload["details"]["source_integrity_evidence"]
+    assert ev["sha"] == _sha(b"source-original-" * 1024)
+    assert ev["size"] == len(b"source-original-" * 1024)
+    assert ev["method"] == "full_get_after_publication"
+    assert ev["measured_at"]
+    # No URL/secrets serialized.
+    blob = json.dumps(payload, sort_keys=True)
+    assert SOURCE_PRESIGNED not in blob
+    assert "X-Amz-" not in blob
+    assert "operator-private-value" not in blob
+    out = capsys.readouterr()
+    assert SOURCE_PRESIGNED not in (out.out + out.err)
+    # Derivative GET happened before the source re-read (order preserved).
+    urls = [u for u, _, _ in opener.requests]
+    assert any("/file/bucket/key" in u for u in urls)
+    assert any("/file/source/key" in u for u in urls)
+    first_deriv = next(i for i, u in enumerate(urls) if "/file/bucket/key" in u)
+    first_source = next(i for i, u in enumerate(urls) if "/file/source/key" in u)
+    assert first_deriv < first_source, "B2 source re-read must follow the derivative GET"
+    # Credential-free storage (derivative + source + expiry replay).
+    assert opener.cookie_to_storage == 0

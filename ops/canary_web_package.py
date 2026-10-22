@@ -384,13 +384,86 @@ PROOF_REQUIRED_CHECKS = (
     "grant_expiry_checked",
     "logged_out_denied",
     "source_bytes_sha_match",
+    "original_storage_integrity_checked",
 )
+
+#: Exact method string emitted by the B2 source re-read collector.
+SOURCE_INTEGRITY_METHOD = "full_get_after_publication"
 
 # Cadence timing tolerances (mirror the collector: exact frames, timing
 # within container rounding; per-frame PTS exact never claimed).
 _CADENCE_DURATION_TOL_S = 0.15
 _CADENCE_FPS_REL_TOL = 0.02
 _CADENCE_FPS_ABS_TOL = 0.15
+
+
+def _validate_source_integrity_evidence(proof: dict, slots: dict) -> dict:
+    """Validate B2 source re-read evidence (fail closed, no DB).
+
+    Proofs containing video slots (hq/light) MUST carry
+    ``source_integrity_evidence`` from an actual credential-free B2
+    full GET of the canonical original AFTER publication::
+
+        {"sha": "<64hex>", "size": 123,
+         "measured_at": "<ISO-8601>", "method": "full_get_after_publication"}
+
+    - ``sha`` must equal the proof ``source_sha256`` (bound canonical
+      bytes; local scratch/claims never trusted).
+    - ``size`` must be a positive int (cross-checked against the DB blob
+      in ``crosscheck_proof_db``).
+    - ``method`` must be exactly ``full_get_after_publication`` (local
+      hash/metadata methods refused).
+    - Secret-bearing keys (url, presigned, location, query, signature,
+      credential, token, cookie, authorization) are refused as leaks.
+    """
+    video_roles = {r for r in slots if r in ("hq", "light")}
+    ev = proof.get("source_integrity_evidence")
+    if not video_roles:
+        if ev is not None:
+            raise ValueError("proof: source_integrity_evidence is video-only; omit it")
+        return {}
+    if not isinstance(ev, dict):
+        raise ValueError("proof: source_integrity_evidence is required for video slots "
+                         "(actual B2 source re-read, not local scratch)")
+    for banned in ("url", "presigned", "location", "query", "signature",
+                   "credential", "token", "cookie", "authorization", "secret"):
+        for key in ev:
+            if banned in str(key).lower():
+                raise ValueError(f"proof: source_integrity_evidence.{key} must not carry secrets/URLs")
+        for key, value in ev.items():
+            if isinstance(value, str) and banned in value.lower() and "://" in value:
+                raise ValueError("proof: source_integrity_evidence must not embed URLs/secrets")
+    sha = ev.get("sha")
+    if not isinstance(sha, str):
+        raise ValueError("proof: source_integrity_evidence.sha is required")
+    _cb.normalize_object_sha(sha)
+    if sha.strip().lower() != str(proof.get("source_sha256", "")).strip().lower():
+        raise ValueError("proof: source_integrity_evidence.sha must equal proof source_sha256 "
+                         "(bound canonical bytes)")
+    try:
+        size = int(ev.get("size"))
+    except (TypeError, ValueError):
+        raise ValueError("proof: source_integrity_evidence.size must be a positive int")
+    if size <= 0:
+        raise ValueError("proof: source_integrity_evidence.size must be a positive int")
+    measured = str(ev.get("measured_at") or "").strip()
+    if not measured:
+        raise ValueError("proof: source_integrity_evidence.measured_at (ISO-8601) is required")
+    try:
+        from datetime import datetime as _dt
+
+        _dt.fromisoformat(measured.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("proof: source_integrity_evidence.measured_at must be ISO-8601")
+    if ev.get("method") != SOURCE_INTEGRITY_METHOD:
+        raise ValueError(f"proof: source_integrity_evidence.method must be {SOURCE_INTEGRITY_METHOD!r} "
+                         "(actual B2 re-read only)")
+    return {
+        "sha": sha.strip().lower(),
+        "size": size,
+        "measured_at": measured,
+        "method": SOURCE_INTEGRITY_METHOD,
+    }
 
 
 def _validate_cadence_evidence(proof: dict, slots: dict) -> dict:
@@ -491,10 +564,14 @@ def validate_proof_record(proof: dict) -> dict:
     complete, plus resolver validation) and otherwise requires HQ.
 
     All ``PROOF_REQUIRED_CHECKS`` (incl. ``source_bytes_sha_match`` for
-    the canonical source bytes) must be true. Proofs containing video
+    the canonical source bytes AND ``original_storage_integrity_checked``
+    for the actual B2 source re-read) must be true. Proofs containing video
     slots must additionally carry ``cadence_evidence`` (source-bound
     exact frame count + timing tolerance; poster is explicitly N/A and
-    never listed there; per-frame PTS exact must stay false).
+    never listed there; per-frame PTS exact must stay false) AND
+    ``source_integrity_evidence`` (B2 full-GET-after-publication sha/size
+    cross-checked against the canonical SHA/size; local scratch/metadata
+    alone never suffices).
     """
     if not isinstance(proof, dict):
         raise ValueError("proof must be a JSON object")
@@ -546,6 +623,7 @@ def validate_proof_record(proof: dict) -> dict:
     if not op:
         raise ValueError("proof: operator is required")
     cadence = _validate_cadence_evidence(proof, slots)
+    integrity = _validate_source_integrity_evidence(proof, slots)
     return {
         "video_uuid": uuid.strip(),
         "source_sha256": src.strip().lower(),
@@ -554,6 +632,7 @@ def validate_proof_record(proof: dict) -> dict:
         "slots": {k: {"derivative_sha256": v["derivative_sha256"].strip().lower(),
                       "byte_size": int(v["byte_size"])} for k, v in slots.items()},
         "cadence_evidence": cadence,
+        "source_integrity_evidence": integrity,
     }
 
 
@@ -682,17 +761,11 @@ def crosscheck_proof_db(db, proof_norm: dict) -> None:
     Explicit source-integrity evidence: the canonical source blob row
     must still exist (a deleted source fails closed -- revision metadata
     alone never suffices) and the resolver must still return a verified
-    PROD replica for the pinned SHA. Unknown alias state requires HQ
-    (refused fail-closed).
-
-    NOTE (honest scope): this cross-check proves the DB still pins the
-    same canonical source bytes (SHA + revision + blob row + verified
-    replica); it does NOT re-hash the B2 source object itself. The
-    operator's byte-level source proof is the SHA-pinned
-    ``--source-reference`` census recorded in ``cadence_evidence``
-    (collector hashes the file and compares censuses). A full B2
-    source-object re-read (Mac scratch reuse) is future work, NOT
-    claimed here.
+    PROD replica for the pinned SHA. The collector's B2 source re-read
+    evidence (``source_integrity_evidence``: sha/size/method
+    ``full_get_after_publication``) MUST match the canonical SHA/size;
+    local scratch hashes/metadata alone never suffice. Unknown alias
+    state requires HQ (refused fail-closed).
     """
     from app.models.media_backbone import MediaBlob, MediaDerivative
 
@@ -738,7 +811,7 @@ def crosscheck_proof_db(db, proof_norm: dict) -> None:
             raise ValueError(f"proof DB check failed: {type(exc).__name__}")
     # Source revision still canonical (no silent source swap since proof).
     # Explicit source-integrity evidence: blob row + verified replica,
-    # not revision metadata alone.
+    # not revision metadata alone, PLUS B2 re-read evidence cross-check.
     try:
         from app.services.derivative_publisher import resolve_canonical_source_revision
 
@@ -753,6 +826,28 @@ def crosscheck_proof_db(db, proof_norm: dict) -> None:
             raise ValueError(f"proof DB check failed: {type(exc).__name__}")
         if src_blob is None:
             raise ValueError(f"proof DB mismatch: canonical source bytes missing for {uuid[:8]}...")
+        try:
+            blob_size = int(src_blob.byte_size)
+        except (TypeError, ValueError):
+            raise ValueError(f"proof DB mismatch: canonical source size unreadable for {uuid[:8]}...")
+        if blob_size <= 0:
+            raise ValueError(f"proof DB mismatch: canonical source size invalid for {uuid[:8]}...")
+        # B2 re-read evidence MUST match the canonical bytes (fail closed:
+        # metadata/local scratch alone never suffices).
+        ev = proof_norm.get("source_integrity_evidence") or {}
+        if not isinstance(ev, dict) or not ev:
+            raise ValueError(f"proof DB mismatch: missing B2 source re-read evidence for {uuid[:8]}...")
+        if str(ev.get("sha", "")).lower() != proof_norm["source_sha256"]:
+            raise ValueError(f"proof DB mismatch: source evidence SHA drift for {uuid[:8]}...")
+        try:
+            ev_size = int(ev.get("size"))
+        except (TypeError, ValueError):
+            raise ValueError(f"proof DB mismatch: source evidence size unreadable for {uuid[:8]}...")
+        if ev_size != blob_size:
+            raise ValueError(f"proof DB mismatch: source evidence size mismatch for {uuid[:8]}... "
+                             f"(evidence {ev_size} != canonical {blob_size})")
+        if ev.get("method") != SOURCE_INTEGRITY_METHOD:
+            raise ValueError(f"proof DB mismatch: source evidence method invalid for {uuid[:8]}...")
     except ValueError:
         raise
     except Exception as exc:
@@ -1059,12 +1154,15 @@ def cmd_verify(args) -> int:
         print("  1. B2 full-GET SHA: for each ready slot, authorized Library play URL")
         print("     (302) -> follow with user session cookie -> sha256sum full bytes ==")
         print("     ledger derivative_blob_sha256; ffprobe format/tags/faststart clean;")
-        print("     video cadence SOURCE-BOUND (hq/light: --source-reference bytes hashed ==")
-        print("     DB-canonical source SHA, exact decoded frame count + fps/duration")
-        print("     tolerance via bounded -count_frames census; 60->30 fails; VFR by")
-        print("     count+duration with per-frame PTS exact NOT claimed; poster is a")
-        print("     still, video cadence explicitly N/A); original revision bytes")
-        print("     untouched (source SHA re-read + DB blob row + verified replica).")
+        print("     video cadence SOURCE-BOUND B2 re-read (hq/light: operator-supplied")
+        print("     --source-storage-url-file presigned original, credential-free full")
+        print("     GET after derivative GET, bytes hashed == DB-canonical source SHA/size;")
+        print("     exact decoded frame count + fps/duration tolerance via bounded")
+        print("     -count_frames census; 60->30 fails; VFR by count+duration with")
+        print("     per-frame PTS exact NOT claimed; local --source-reference alone")
+        print("     never proves B2; poster is a still, video cadence explicitly N/A);")
+        print("     original revision bytes intact (B2 re-read evidence + DB blob row")
+        print("     + verified replica).")
         print("  2. Library authorized route: 302 to presigned B2 with auth; Range")
         print("     206 with STRICT content-type (video/mp4 hq/light, image/jpeg poster);")
         print("     expired-grant replay denied; logged-out denied (401/403/404 only).")
