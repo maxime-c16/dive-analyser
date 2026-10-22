@@ -241,6 +241,7 @@ export default function MemberProfile() {
     <div className="mx-auto max-w-4xl">
       <Link to="/community" className="touch-target mb-1 inline-flex items-center gap-1 text-sm text-app-accent hover:underline"><ChevronLeft className="h-4 w-4" aria-hidden />{t('community.back')}</Link>
       <ProfileHead profile={profile} editing={editing} onEdit={() => setEditing(value => !value)} />
+      {profile.is_self && <Link to="/series" className="touch-target mb-4 inline-flex items-center border border-app px-4 text-sm text-app-accent">{t('series.mySeries')}</Link>}
       {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
       <div className="mb-5 flex border-b border-app" role="tablist" aria-label={t('community.profileSections')}>
         {PROFILE_TABS.map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {

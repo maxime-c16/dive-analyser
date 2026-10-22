@@ -151,3 +151,5 @@ from app.models.calendar import (
     CalendarEventFollow, CalendarIdempotencyKey, OccurrenceDiveLink, CalendarAlertOutbox, CalendarAlertDelivery,
     CalendarWorkerState,
 )
+
+from app.models.dive_series import DiveSeries

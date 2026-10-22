@@ -1,0 +1,8 @@
+{
+  "id": "series-playback-loading",
+  "date": "2026-10-22",
+  "title": "Une lecture de série plus réactive",
+  "body": "Les vidéos déjà disponibles démarrent depuis les aperçus de vos cartes. Les autres gardent leur affiche pendant le chargement, avec un état précis et une possibilité de réessayer si l’attente se prolonge. Une préparation lente ne bloque plus les autres clips.",
+  "audience": "all",
+  "components": ["frontend"]
+}

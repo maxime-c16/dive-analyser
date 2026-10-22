@@ -1,0 +1,8 @@
+{
+  "id": "personal-dive-series",
+  "date": "2026-10-22",
+  "title": "Préparez vos séries de plongeons",
+  "body": "Composez une série à hauteur fixe, gardez des alternatives et retrouvez vos meilleurs clips. Vos brouillons restent privés ; vous pouvez partager la fiche en lecture seule avec les membres de votre choix.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

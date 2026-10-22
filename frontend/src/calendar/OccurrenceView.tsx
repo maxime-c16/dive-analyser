@@ -88,6 +88,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       {event.status === "draft" && <p role="status" className="calendar-notice">{t.draft}</p>}
       {cancelled && <p role="status" className="calendar-notice">{t.cancelledNotice}</p>}
       {!cancelled && occ.changes.some((c) => c.kind !== "cancelled") && <p role="status" className="calendar-notice">{t.changed}</p>}
+      {event.event_type === "competition" && <div className="calendar-group"><Link to={`/series?event=${event.id}`}>{lang.startsWith('fr') ? 'Préparer mes séries' : 'Prepare my series'}</Link></div>}
       {event.description && <p className="calendar-description">{event.description}</p>}
       {(event.itinerary ?? []).length > 0 && (
         <div className="calendar-group">

@@ -5,6 +5,7 @@
  * vrille, tremplin, plateforme.
  */
 const fr = {
+  series: { mySeries: "Mes séries" },
   messages: {"title": "Messages", "message": "Message", "new": "Nouveau message", "recipient": "Choisir un membre", "inbox": "Boîte de réception", "empty": "Aucune conversation.", "choose": "Choisissez une conversation ou commencez-en une.", "conversation": "Conversation", "begin": "Commencez la conversation.", "older": "Messages précédents", "more": "Autres conversations", "compose": "Votre message", "placeholder": "Écrivez un message… Utilisez @ pour mentionner un membre.", "send": "Envoyer", "sent": "Envoyé", "delivered": "Distribué", "readAt": "Lu le {{time}}", "react": "Réagir avec un cœur", "reactionHint": "Touchez deux fois un message pour réagir. Au clavier, utilisez le bouton cœur.", "yourMessage": "Votre message", "receivedMessage": "Message reçu", "watch": "Voir le plongeon", "diveCard": "Plongeon", "diveUnavailable": "Ce plongeon n’est plus disponible pour vous.", "sendDive": "Envoyer le plongeon en message", "diveSent": "Plongeon envoyé.", "open": "Ouvrir la conversation", "sendDiveError": "Envoi impossible. Le plongeon doit être accessible aux deux membres. Réessayez.", "error": "Messages indisponibles. Réessayez.", "notificationDesc": "Alertes de messages privés"},
     mentions: { choose: 'Mentionner un membre', loading: 'Recherche de membres…', empty: 'Aucun membre trouvé', error: 'Impossible de rechercher les membres.' },
   common: {

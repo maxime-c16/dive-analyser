@@ -79,3 +79,15 @@ def is_success(performance: str | None) -> bool:
 
 def is_excellent(performance: str | None) -> bool:
     return performance in {"G", "P"}
+
+
+def recorded_score_10_expression():
+    """Nullable SQL equivalent of dive_score_10 for ranking recorded notes."""
+    from sqlalchemy import case, func
+    def score(column):
+        return case(ATHLETE_SCORE_10, value=func.upper(column), else_=None)
+    first, second = score(Dive.phase1_performance), score(Dive.phase2_performance)
+    return case(
+        (first.is_not(None) & second.is_not(None), first * PHASE1_WEIGHT + second * PHASE2_WEIGHT),
+        else_=score(Dive.performance),
+    )

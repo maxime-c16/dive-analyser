@@ -105,6 +105,8 @@ const ENGLISH_ROTATIONS: Record<number, string> = {
   6: 'triple somersault',
   7: '3½ somersaults',
   8: 'quadruple somersault',
+  9: '4½ somersaults',
+  11: '5½ somersaults',
 }
 
 const FRENCH_ROTATIONS: Record<number, string> = {
@@ -116,6 +118,8 @@ const FRENCH_ROTATIONS: Record<number, string> = {
   6: 'triple saut périlleux',
   7: 'triple saut périlleux et demi',
   8: 'quadruple saut périlleux',
+  9: 'quadruple saut périlleux et demi',
+  11: 'quintuple saut périlleux et demi',
 }
 
 const ENGLISH_TWISTS: Record<number, string> = {
@@ -127,6 +131,7 @@ const ENGLISH_TWISTS: Record<number, string> = {
   6: '3 twists',
   7: '3½ twists',
   8: '4 twists',
+  9: '4½ twists',
 }
 
 const FRENCH_TWISTS: Record<number, string> = {
@@ -138,6 +143,7 @@ const FRENCH_TWISTS: Record<number, string> = {
   6: 'trois vrilles',
   7: 'trois vrilles et demie',
   8: 'quatre vrilles',
+  9: 'quatre vrilles et demie',
 }
 
 const FRENCH_TWISTING_DIRECTIONS: Record<number, string> = {
@@ -241,8 +247,35 @@ function frenchName(parts: DiveParts): string {
  * Localized, human dive name from a FINA code. Returns the raw code itself
  * when the structure isn't recognized, keeping unknown codes visible.
  */
-export function diveCodeName(code: string, lang: DiveLanguage): string {
-  const parts = parseDiveCode(code)
+export function diveCodeName(code: string, lang: DiveLanguage, options: { extended?: boolean } = {}): string {
+  // Preparation sheets use the broader World Aquatics DD-engine syntax:
+  // 4½/5½ somersaults and twisting armstands. Keep legacy parsing callers'
+  // narrower input contract intact. Naming never certifies DD or eligibility.
+  const parts = parseDiveCode(code) ?? (options.extended ? parseExtendedCode(code) : null)
   if (!parts) return code
   return lang === 'fr' ? frenchName(parts) : englishName(parts)
+}
+
+function parseExtendedCode(code: string): DiveParts | null {
+  const normalized = code.trim().toUpperCase()
+  const standard = /^([1-4])([01])(9|11)([ABCD])$/.exec(normalized)
+  if (standard) return {
+    group: Number(standard[1]) as 1 | 2 | 3 | 4,
+    direction: Number(standard[1]) as 1 | 2 | 3 | 4,
+    flying: standard[2] === '1', rotations: Number(standard[3]),
+    twists: 0, position: standard[4] as DivePosition,
+  }
+  const twisting = /^5([1-4])([1-9])([1-9])([ABCD])$/.exec(normalized)
+  if (twisting) return {
+    group: 5, direction: Number(twisting[1]) as 1 | 2 | 3 | 4,
+    flying: false, rotations: Number(twisting[2]), twists: Number(twisting[3]),
+    position: twisting[4] as DivePosition,
+  }
+  const armstand = /^6([1-3])([1-9])([1-9])?([ABCD])$/.exec(normalized)
+  if (armstand) return {
+    group: 6, direction: Number(armstand[1]) as 1 | 2 | 3,
+    flying: false, rotations: Number(armstand[2]), twists: Number(armstand[3] ?? 0),
+    position: armstand[4] as DivePosition,
+  }
+  return null
 }

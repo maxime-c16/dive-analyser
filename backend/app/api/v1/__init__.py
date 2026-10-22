@@ -88,3 +88,6 @@ v1_router.include_router(calendar.router, tags=['calendar'])
 
 from app.api.v1 import calendar_admin
 v1_router.include_router(calendar_admin.router, tags=["admin"])
+
+from app.api.v1 import dive_series
+v1_router.include_router(dive_series.router, tags=["dive-series"])

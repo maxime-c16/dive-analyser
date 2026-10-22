@@ -1,0 +1,8 @@
+{
+  "id": "portrait-series-player",
+  "date": "2026-10-22",
+  "title": "Vos plongeons en portrait, en plus grand",
+  "body": "Le lecteur donne plus de hauteur aux vidéos verticales. Sur ordinateur, les passages sont placés à côté du clip ; sur téléphone, la vidéo occupe l’espace disponible avec une navigation compacte en bas. Le plongeon reste visible en entier.",
+  "audience": "all",
+  "components": ["frontend"]
+}

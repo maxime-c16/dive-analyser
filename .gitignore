@@ -143,3 +143,5 @@ runs/full_action_fax_v2/
 
 # Local review footage (never commit source media)
 frontend/public/player-review.mp4
+frontend/public/series-review-demo.mp4
+frontend/public/series-review-demo.jpg

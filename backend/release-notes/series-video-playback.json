@@ -1,0 +1,11 @@
+{
+  "id": "series-video-playback",
+  "date": "2026-10-22",
+  "title": "Regardez votre série de plongeons",
+  "body": "Choisissez les meilleurs clips ou les plus récents pour toute votre série, en conservant vos choix manuels. Les notes de la bibliothèque et les évaluations apparaissent sur les clips. Regardez les vidéos dans l’ordre, avec préchargement du clip suivant.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}
