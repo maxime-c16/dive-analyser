@@ -106,6 +106,7 @@ class Settings(BaseSettings):
     # allowlisted admin queue, reviewed tool, user auth) can never trigger
     # library-wide package queueing. The parent enables broad ingestion only
     # after canary proof. Never flip in code.
+    media_web_packages_auto_ingest_since: str = os.getenv("MEDIA_WEB_PACKAGES_AUTO_INGEST_SINCE", "")
     media_web_packages_auto_ingest_enabled: bool = os.getenv("MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED", "false").lower() == "true"
 
     # Session/cookie authority. The cookie is HttpOnly + SameSite=Strict +

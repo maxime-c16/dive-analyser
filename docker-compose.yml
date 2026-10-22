@@ -108,6 +108,7 @@ services:
       # queueing needs both flags. Runtime values come from
       # ~/.config/diveanalyzer/media-jobs.env on deb-serv (sourced by
       # ci/ship.sh), never from Git. Same-SHA activation needs --force.
+      MEDIA_WEB_PACKAGES_AUTO_INGEST_SINCE: "${MEDIA_WEB_PACKAGES_AUTO_INGEST_SINCE:-}"
       MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED: "${MEDIA_WEB_PACKAGES_AUTO_INGEST_ENABLED:-false}"
       B2_UPLOAD_KEY_ID: ${B2_UPLOAD_KEY_ID:-}
       B2_UPLOAD_KEY_SECRET: ${B2_UPLOAD_KEY_SECRET:-}

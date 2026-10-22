@@ -81,10 +81,9 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> str | None:
         from app.config import get_settings as _pkg_settings
 
         from app.services.web_packages import package_worker_available
+        from app.services.automatic_packages import package_resources_available, queue_package
 
-        if _pkg_settings().media_web_packages_auto_ingest_enabled and package_worker_available(db):
-            from app.services.media_jobs import WEB_PACKAGE_RENDITION
-
+        if _pkg_settings().media_web_packages_auto_ingest_enabled and package_worker_available(db) and package_resources_available(db):
             # Fail closed per clip: a package without a verified canonical
             # source has nothing to pin the encoder to (B2 preferred, Photos
             # only with exact SHA proof). Queue legacy instead of a doomed
@@ -95,10 +94,7 @@ def _queue_new_captioned_media(db: Session, dive: Dive) -> str | None:
                 resolve_canonical_source_revision(db, asset.video_uuid)
             except Exception:
                 raise _NoPackageSource()
-            _, job, _ = create_or_reuse_media_job(db, asset, WEB_PACKAGE_RENDITION, "new_captioned_ingestion")
-            job.priority = 10
-            job.max_attempts = min(job.max_attempts or 2, 2)
-            db.add(job)
+            queue_package(db, asset)
             logger.info("Queued web_package for dive %s (gated package path)", dive.id)
             return "package"
     except _NoPackageSource:

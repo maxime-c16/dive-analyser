@@ -976,6 +976,8 @@ def test_auto_ingest_off_queues_legacy_despite_master_on(test_db, monkeypatch, _
 def test_auto_ingest_on_queues_package(test_db, monkeypatch, _presign):
     """Master flag on + auto-ingest on: new clips queue ONE package."""
     from types import SimpleNamespace
+    import app.services.automatic_packages as ap
+    monkeypatch.setattr(ap.shutil, "disk_usage", lambda _: SimpleNamespace(free=30 * 1024**3))
 
     from app.api.v1.videos import _queue_new_captioned_media
 

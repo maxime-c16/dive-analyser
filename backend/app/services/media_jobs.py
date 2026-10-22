@@ -177,6 +177,10 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
     from app.config import get_settings as _lease_settings
     _packages_enabled = _lease_settings().media_web_packages_enabled
     _requested = set(request.capabilities or [])
+    if _packages_enabled and _lease_settings().media_web_packages_auto_ingest_enabled:
+        from app.services.automatic_packages import package_resources_available
+        if not package_resources_available(db):
+            _requested.discard(WEB_PACKAGE_RENDITION)
     if not _packages_enabled and WEB_PACKAGE_RENDITION in _requested:
         # Flag off: behave as if the capability was never requested (old
         # flows stay byte-identical; no package job is leased).

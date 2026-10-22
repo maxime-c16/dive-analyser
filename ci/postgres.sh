@@ -21,6 +21,7 @@ ci_run postgres-pytest "$CI_BACKEND_PYTHON" -m pytest \
     tests/test_postgres_playback_network_transaction.py \
     tests/test_postgres_media_job_fencing_d2.py \
     tests/test_postgres_web_package_fenced_slots_d3b2.py \
+    tests/test_postgres_automatic_packages.py \
     tests/test_postgres_canary_budget_d3b2.py \
     tests/test_postgres_canary_admit_lock_d3b2.py \
     tests/test_calendar_domain.py::test_postgres_migration_matches_models \
