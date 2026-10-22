@@ -116,6 +116,13 @@ validate_manifest_uuids = _cb.validate_manifest_uuids
 worst_case_package_bytes = _cb.worst_case_package_bytes
 
 TERMINAL_JOB_STATUSES = {"ready", "failed", "unavailable"}
+#: Hard cap for --max-consecutive-failures: the stop is 2 by design
+#: (mirrors CANARY_JOB_MAX_ATTEMPTS). Larger values would let
+#: --max999 bypass the user-2 stop, so they are refused fail-closed.
+MAX_CONSECUTIVE_FAILURES_HARD_CAP = 2
+#: Bounded scan for the durable failure streak (fleet <= 30; 10 is ample
+#: to prove a trailing streak of 2 without an unbounded table scan).
+CANARY_FAILURE_SCAN_LIMIT = 10
 ACTIVE_JOB_STATUSES = {
     "queued",
     "waiting_for_mac",
@@ -319,6 +326,70 @@ def fleet_package_blocked(db) -> dict:
         .all()
     )
     return {"blocked": len(active) > 0, "active_packages": len(active)}
+
+
+def validate_max_consecutive_failures(raw) -> int:
+    """Require a positive bounded limit (1..2). Fail closed.
+
+    The stop is 2 by design; --max999 (or 0/negative) would bypass the
+    user-2 stop or disable it, so anything outside 1..2 is refused.
+    """
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"--max-consecutive-failures must be 1..{MAX_CONSECUTIVE_FAILURES_HARD_CAP}"
+        )
+    if v < 1 or v > MAX_CONSECUTIVE_FAILURES_HARD_CAP:
+        raise ValueError(
+            f"--max-consecutive-failures must be 1..{MAX_CONSECUTIVE_FAILURES_HARD_CAP} "
+            f"(got {v}); larger values would bypass the 2-failure stop"
+        )
+    return v
+
+
+def db_consecutive_canary_failures(db, limit: int = CANARY_FAILURE_SCAN_LIMIT) -> int:
+    """Trailing consecutive canary failures from DURABLE job outcomes.
+
+    Bounded scan of the latest canary web_package jobs (newest first,
+    one row per job so retries/idempotent re-runs never double-count
+    the same job). Terminal ``failed``/``unavailable`` extend the
+    streak; terminal ``ready`` resets it (a durable success breaks the
+    streak); active (non-terminal) rows are skipped. Only
+    ``job.status == "failed"`` (or unavailable) counts -- lease attempt
+    counters alone never count. A reset state dir cannot bypass this:
+    the DB is authoritative. Any DB error raises (callers fail closed).
+    """
+    from app.models.media import MediaJob
+
+    cap = max(int(limit), 1)
+    try:
+        rows = (
+            db.query(MediaJob.status)
+            .filter(
+                MediaJob.rendition == "web_package",
+                MediaJob.request_reason == _cb.CANARY_JOB_REASON,
+            )
+            .order_by(MediaJob.id.desc())
+            .limit(cap + 1)
+            .all()
+        )
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    streak = 0
+    for (status,) in rows[:cap]:
+        s = str(status or "")
+        if s in ("failed", "unavailable"):
+            streak += 1
+            continue
+        if s == "ready":
+            break
+        continue
+    return streak
 
 
 def load_state(state_dir: Path) -> dict:
@@ -945,15 +1016,38 @@ def cmd_admit(args) -> int:
     state_dir = Path(args.state_dir).expanduser()
     phase_manifest, clips = load_manifest(manifest_path)
     phase = int(phase_arg) if phase_arg is not None else phase_manifest
-    state = load_state(state_dir)
-    if state.get("consecutive_failures", 0) >= int(args.max_consecutive_failures):
-        print(f"REFUSED: consecutive_failures={state['consecutive_failures']} >= "
-              f"max {args.max_consecutive_failures}; investigate before new admissions.")
+    try:
+        fail_limit = validate_max_consecutive_failures(
+            getattr(args, "max_consecutive_failures", 2)
+        )
+    except ValueError as exc:
+        print(f"REFUSED: {exc}")
         return 2
+    state = load_state(state_dir)
 
     eng = _engine()
     db = _session(eng)
     try:
+        try:
+            db_fail_streak = db_consecutive_canary_failures(db)
+        except Exception as exc:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            print(f"REFUSED: consecutive-failure cohort unverifiable ({type(exc).__name__}); "
+                  "no admission without a provable streak.")
+            return 2
+        if int(state.get("consecutive_failures", 0) or 0) != int(db_fail_streak):
+            state["consecutive_failures"] = int(db_fail_streak)
+            try:
+                save_state(state_dir, state)
+            except Exception:
+                pass
+        if int(db_fail_streak) >= int(fail_limit):
+            print(f"REFUSED: consecutive_failures={int(db_fail_streak)} >= "
+                  f"max {int(fail_limit)}; investigate before new admissions.")
+            return 2
         try:
             db_known = _db_admitted_uuids(db)
         except Exception as exc:

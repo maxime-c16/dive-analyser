@@ -113,8 +113,17 @@ Bounds (hard, shared by tool + guard + tests):
   free < 25 GiB (`df` on the `MEDIA_CACHE_ROOT` mount, default
   `/app/media-cache`, on deb-serv), Mac memory pressure != normal
   (`memory_pressure` warn/critical stops admission), host facts older
-  than 15 min, consecutive failures >= 2, or source unknown
-  (no canonical revision / dims / size / duration — fail closed).
+  than 15 min, consecutive durable canary failures >= 2 (DB trailing
+  failed/unavailable vs ready, newest-first bounded 10, one row per
+  job so retries never double-count; --max-consecutive-failures must
+  be 1..2, a reset state dir cannot bypass, ready resets, DB errors
+  fail closed), Library/storage GETs bounded to 4 MiB with early close
+  (success + HTTPError bodies, no full-memory buffering), expired-grant
+  expiry from the URL only (authoritative; --expired-at solely when
+  the URL has no parseable expiry, conflicts and duplicate/mixed
+  Expires+X-Amz-* params refused; signed URLs never persisted), or
+  source unknown (no canonical revision / dims / size / duration —
+  fail closed).
   Host facts are an operator-provided private JSON file
   (`--host-facts F.json`, 0600, OUTSIDE the repo; the tool never
   probes hosts itself):

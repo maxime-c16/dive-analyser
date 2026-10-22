@@ -319,32 +319,87 @@ def _validate_storage_url(
     return u
 
 
+def _read_bounded(fp, limit: int = SMALL_BODY_LIMIT) -> bytes:
+    """Bounded read: NEVER buffers an unbounded body.
+
+    Reads in 64 KiB chunks and refuses (fail closed) as soon as the
+    cumulative total exceeds ``limit``. Callers close the response on
+    refusal. Exact-cap bodies (total == limit) are allowed; limit+1
+    refuses. Works for success responses and HTTPError bodies alike
+    (a logged-out GET may return huge video bytes, or a Range-ignored
+    200 may return the full object).
+    """
+    total = 0
+    parts: list[bytes] = []
+    while True:
+        chunk = fp.read(64 * 1024)
+        if not chunk:
+            break
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8", "replace")
+        total += len(chunk)
+        if total > limit:
+            raise _Refused(f"response body exceeds {limit} bytes bound; refusing")
+        parts.append(chunk)
+    return b"".join(parts)
+
+
 def _get_once(
     url: str, *, headers: dict[str, str], timeout: int
 ) -> tuple[int, dict, bytes]:
     """One HTTP GET with NO redirect following. Sends ONLY the headers
     given. Library probes pass the session Cookie here (after origin
     validation); storage callers must use _storage_get /
-    _storage_stream_to_file, which forbid credential headers."""
+    _storage_stream_to_file, which forbid credential headers.
+
+    Bodies are bounded via _read_bounded (SMALL_BODY_LIMIT) with early
+    close on BOTH success and HTTPError paths: a logged-out GET may
+    return huge video bytes and a Range-ignored 200 may return the full
+    object, so no response is ever fully buffered into memory.
+    """
     req = urllib.request.Request(url)
     for k, v in headers.items():
         req.add_header(k, v)
     opener = urllib.request.build_opener(_NoRedirect())
     try:
-        with opener.open(req, timeout=timeout) as resp:
-            status = int(getattr(resp, "status", 200))
-            hdrs = {k.lower(): v for k, v in resp.getheaders()}
-            return status, hdrs, resp.read()
+        resp = opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as exc:
         try:
-            body = exc.read()
-        except Exception:
-            body = b""
+            try:
+                body = _read_bounded(exc, SMALL_BODY_LIMIT)
+            except _Refused:
+                try:
+                    exc.close()
+                except Exception:
+                    pass
+                raise
+            try:
+                hdrs = {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
+            except Exception:
+                hdrs = {}
+            return int(exc.code), hdrs, body
+        finally:
+            try:
+                exc.close()
+            except Exception:
+                pass
+    try:
+        status = int(getattr(resp, "status", 200))
+        hdrs = {k.lower(): v for k, v in resp.getheaders()}
         try:
-            hdrs = {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
+            body = _read_bounded(resp, SMALL_BODY_LIMIT)
+        except _Refused:
+            try:
+                resp.close()
+            except Exception:
+                pass
+            raise
+        return status, hdrs, body
+    finally:
+        try:
+            resp.close()
         except Exception:
-            hdrs = {}
-        return int(exc.code), hdrs, body
+            pass
 
 
 def _storage_get(
@@ -463,25 +518,51 @@ def _storage_stream_to_file(
     raise _Refused("too many storage redirects; refusing")
 
 
-def _parse_expiry_moment(
-    explicit: str | None, query: dict[str, str]
-) -> datetime | None:
-    """Return the grant's expiry moment, or None when no PROVABLE past
-    timestamp exists. Mere parameter presence never counts."""
-    if explicit and explicit.strip():
-        try:
-            dt = datetime.fromisoformat(explicit.strip().replace("Z", "+00:00"))
-        except ValueError:
-            raise _Refused("--expired-at must be ISO-8601")
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    exp = (query.get("Expires") or "").strip()
-    if exp.isdigit():
-        return datetime.fromtimestamp(int(exp), tz=timezone.utc)
-    amz_date = (query.get("X-Amz-Date") or "").strip()
-    amz_exp = (query.get("X-Amz-Expires") or "").strip()
-    if amz_date and amz_exp.isdigit():
+# Strict same-instant tolerance when BOTH a URL expiry and an explicit
+# --expired-at are supplied: the URL is authoritative, and a conflicting
+# manual timestamp is refused. Up to 5 s covers second-rounding between
+# ISO-8601 and epoch/S3 formats; anything larger is a conflict.
+_EXPIRY_CONFLICT_TOL_S = 5.0
+
+
+def _parse_url_expiry(raw_query: str) -> datetime | None:
+    """Parse the authoritative expiry from a raw URL query string.
+
+    Fail closed on ambiguity: duplicate params with differing values, or
+    a mix of SigV2 (Expires) + SigV4 (X-Amz-Date/X-Amz-Expires), are
+    refused. Returns None when the URL carries NO parseable expiry.
+    Never logs/returns the URL itself -- only the moment.
+    """
+    pairs = urllib.parse.parse_qsl(raw_query or "", keep_blank_values=True)
+    grouped: dict[str, list[str]] = {}
+    for k, v in pairs:
+        lk = (k or "").strip().lower()
+        if not lk:
+            continue
+        grouped.setdefault(lk, []).append((v or "").strip())
+    for lk, vals in grouped.items():
+        if len(vals) > 1 and len(set(vals)) > 1:
+            raise _Refused(
+                f"expired URL has duplicate '{lk}' params with differing values; refusing"
+            )
+    has_expires = "expires" in grouped and any(v != "" for v in grouped["expires"])
+    has_amz_exp = "x-amz-expires" in grouped and any(v != "" for v in grouped["x-amz-expires"])
+    has_amz_date = "x-amz-date" in grouped and any(v != "" for v in grouped["x-amz-date"])
+    if has_expires and (has_amz_exp or has_amz_date):
+        raise _Refused(
+            "expired URL mixes Expires + X-Amz-Date/X-Amz-Expires; refusing (ambiguous)"
+        )
+    if has_expires:
+        vals = [v for v in grouped["expires"] if v != ""]
+        exp = vals[0]
+        if exp.isdigit():
+            return datetime.fromtimestamp(int(exp), tz=timezone.utc)
+        return None
+    if has_amz_exp and has_amz_date:
+        amz_date = [v for v in grouped["x-amz-date"] if v != ""][0]
+        amz_exp = [v for v in grouped["x-amz-expires"] if v != ""][0]
+        if not amz_exp.isdigit():
+            return None
         try:
             base = datetime.strptime(amz_date, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
         except ValueError:
@@ -491,6 +572,72 @@ def _parse_expiry_moment(
         except (OverflowError, ValueError):
             return None
     return None
+
+
+def _parse_expiry_moment(
+    explicit: str | None,
+    query: dict[str, str],
+    raw_query: str | None = None,
+) -> datetime | None:
+    """Return the grant's expiry moment, or None when no PROVABLE past
+    timestamp exists. Mere parameter presence never counts.
+
+    Authority rule (fail closed): the URL's own parseable expiry is
+    AUTHORITATIVE. An explicit --expired-at is used ONLY when the URL
+    carries NO parseable expiry. When both exist they must agree
+    (within a small rounding tolerance); a conflict is refused. A
+    future-dated URL paired with a past manual timestamp (even with a
+    401/403/404 replay) therefore FAILS -- it never marks expiry
+    checked. Never persists signed URLs -- only the moment.
+    """
+    url_moment: datetime | None = None
+    if raw_query is not None:
+        url_moment = _parse_url_expiry(raw_query)
+    else:
+        # Dict fallback (no duplicate visibility): still fail closed on
+        # mixed SigV2+SigV4 styles.
+        lowered = {(k or "").strip().lower(): (v or "").strip() for k, v in (query or {}).items()}
+        has_exp = bool(lowered.get("expires", "").strip())
+        has_ax = bool(lowered.get("x-amz-expires", "").strip())
+        has_ad = bool(lowered.get("x-amz-date", "").strip())
+        if has_exp and (has_ax or has_ad):
+            raise _Refused(
+                "expired URL mixes Expires + X-Amz-Date/X-Amz-Expires; refusing (ambiguous)"
+            )
+        exp = (query.get("Expires") or query.get("expires") or "").strip() if query else ""
+        if exp.isdigit():
+            url_moment = datetime.fromtimestamp(int(exp), tz=timezone.utc)
+        else:
+            amz_date = (query.get("X-Amz-Date") or query.get("x-amz-date") or "").strip() if query else ""
+            amz_exp = (query.get("X-Amz-Expires") or query.get("x-amz-expires") or "").strip() if query else ""
+            if amz_date and amz_exp.isdigit():
+                try:
+                    base = datetime.strptime(amz_date, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    base = None
+                if base is not None:
+                    try:
+                        url_moment = base + timedelta(seconds=int(amz_exp))
+                    except (OverflowError, ValueError):
+                        url_moment = None
+    explicit_moment: datetime | None = None
+    if explicit and explicit.strip():
+        try:
+            dt = datetime.fromisoformat(explicit.strip().replace("Z", "+00:00"))
+        except ValueError:
+            raise _Refused("--expired-at must be ISO-8601")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        explicit_moment = dt
+    if url_moment is not None:
+        if explicit_moment is not None:
+            if abs((explicit_moment - url_moment).total_seconds()) > _EXPIRY_CONFLICT_TOL_S:
+                raise _Refused(
+                    "conflicting expiry: URL expiry is authoritative; "
+                    "--expired-at disagrees with the URL; refusing"
+                )
+        return url_moment
+    return explicit_moment
 
 
 def _ffprobe(path: Path, slot: str, timeout: int) -> tuple[bool, bool, dict]:
@@ -988,7 +1135,7 @@ def main(argv=None) -> int:
                 )
             exp_q = urllib.parse.parse_qs(exp_u.query)
             exp_flat = {k: (v[0] if v else "") for k, v in exp_q.items()}
-            moment = _parse_expiry_moment(args.expired_at, exp_flat)
+            moment = _parse_expiry_moment(args.expired_at, exp_flat, raw_query=exp_u.query)
             if moment is None:
                 raise _Refused(
                     "--expired-url carries no provable expiry timestamp "
