@@ -14,8 +14,12 @@ publish guard, and the tests share one contract:
   different keys are distinct objects and count separately; the SAME
   key retried charges PER ATTEMPT -- monotonic, never deleted, never
   refunded). A verified full-GET reuse (same key already proves the
-  same bytes) skips the PUT and charges nothing new; but once the GET
-  misses, the attempt MUST charge before the PUT, so two concurrent
+  same bytes) skips the PUT and charges nothing new; a DEFINITE-absent
+  reuse GET (typed NoSuchKey/404, or fake KeyError/FileNotFound) is the
+  only miss that authorizes charge+PUT -- any other GET failure
+  (500/timeout/auth/corrupt read) fails closed with no PUT and no new
+  charge, preserving monotonic accounting; but once the GET
+  definitely misses, the attempt MUST charge before the PUT, so two concurrent
   racers that both miss each charge. Estimates are
   preflight ONLY and never promise the bound -- the bound is enforced
   server-side at publish time by ``check_publish_budget`` (fast
@@ -494,15 +498,19 @@ def canary_legacy_ready_bytes(db) -> int:
     Sums ``MediaBlob.byte_size`` once per READY ``media_derivatives``
     row (each row is an exact stored object: its B2 key embeds
     source+role+version+SHA, so the same content SHA under two
-    identities is two objects and counts twice). Rows whose exact
-    ``(bucket, object_key)`` already carries a per-PUT charge in the
-    ledger are EXCLUDED (a successful canary PUT charges first, then
-    promotes -- counting both would double-charge every success).
-    Unreserved rows (pre-charge history, other envs, recomputed-key
-    mismatches) stay counted: exclusion misses over-count (safe),
-    never under-count. A READY row with no/invalid blob size fails
-    closed (refuses the proof rather than silently under-counting).
-    Bounded scan (cap 5000 ready rows, consistent with the ledger rail).
+    identities is two objects and counts twice). The baseline ALWAYS
+    counts every READY row, PLUS the durable per-PUT charge ledger
+    (``canary_reserved_bytes``) counts every attempted PUT -- a
+    successful canary PUT therefore counts TWICE by design (once as a
+    charge, once as READY baseline). This intentional conservative
+    over-count keeps the 2 GiB bound STRICTER than actual stored bytes:
+    accounted bytes never under-count, so actual stored bytes never
+    exceed the budget when the proof passes (monotonic, never UNCOUNTs
+    a pre-existing baseline row, even when a later charge reuses the
+    same bucket/key after an unverifiable reuse GET). A READY row with
+    no/invalid blob size fails closed (refuses the proof rather than
+    silently under-counting). Bounded scan (cap 5000 ready rows,
+    consistent with the ledger rail).
 
     Returns 0 ONLY when the derivatives table exists and holds zero
     READY rows (verified empty history). Missing tables/columns, any
@@ -560,54 +568,25 @@ def canary_legacy_ready_bytes(db) -> int:
         )
     if not rows:
         return 0
-    # Ledger exclusion must itself be verifiable: an unavailable ledger
-    # cannot prove "unreserved", so it fails closed (never an empty set).
-    charged_keys = canary_reserved_keys(db)
-    from app.config import get_settings as _get_settings
-    from app.services.media_backbone import environment_bucket as _env_bucket
-
-    _settings = _get_settings()
-    _env = str(_settings.b2_upload_environment or "").strip().lower()
-    _bucket = ""
-    _prefix = str(_settings.media_backbone_object_prefix or "blobs/sha256").strip().strip("/")
-    if _env in ("dev", "prod"):
-        try:
-            _bucket = _env_bucket(_env)
-        except Exception:
-            _bucket = ""
-    from app.services.derivative_publisher import (
-        derivative_object_key as _object_key,
-    )
-
+    # Monotonic baseline: ALWAYS count every READY row (no ledger
+    # exclusion). A successful canary PUT charges first, then promotes,
+    # so it counts twice by design (charge + baseline) -- intentional
+    # conservative over-count, never under-count. A pre-existing READY
+    # row whose later reuse GET fails unverifiably therefore never
+    # disappears from accounting even when the retry charges again.
     from app.models.media_backbone import MediaBlob
 
-    # Per exact object: same SHA in N rows is N objects (count each),
-    # minus rows whose exact (bucket, key) already carries a charge.
-    pending: list[tuple[str, str]] = []
-    for src_sha, role, version, dsha in rows:
-        try:
-            s = str(src_sha or "").strip().lower()
-            d = str(dsha or "").strip().lower()
-            if not s or not d:
-                raise ValueError("empty sha")
-            key = _object_key(
-                source_sha256=s,
-                role=str(role),
-                transform_version=str(version or ""),
-                derivative_sha256=d,
-                prefix=_prefix or None,
+    # Per exact object: same SHA in N rows is N objects (count each).
+    pending: list[str] = []
+    for _src_sha, _role, _version, dsha in rows:
+        d = str(dsha or "").strip().lower()
+        if not d:
+            raise CanaryBudgetExceeded(
+                "READY derivative row has no artifact SHA; "
+                "refusing budget proof -- investigate before any canary"
             )
-        except Exception:
-            # Key not recomputable (unknown role/version, settings drift):
-            # count by SHA below as an unreserved object (over-count safe).
-            pending.append(("", str(dsha or "").strip().lower()))
-            continue
-        if _bucket and (_bucket, key) in charged_keys:
-            continue  # already charged per-PUT: not baseline
-        pending.append((key, d))
-    if not pending:
-        return 0
-    need_shas = sorted({d for _, d in pending if d})
+        pending.append(d)
+    need_shas = sorted(set(pending))
     sizes: dict[str, int] = {}
     try:
         for i in range(0, len(need_shas), 500):
@@ -639,12 +618,7 @@ def canary_legacy_ready_bytes(db) -> int:
             raise _missing_baseline_error() from exc
         raise
     total = 0
-    for _, d in pending:
-        if not d:
-            raise CanaryBudgetExceeded(
-                "READY derivative row has no artifact SHA; "
-                "refusing budget proof -- investigate before any canary"
-            )
+    for d in pending:
         if d not in sizes:
             raise CanaryBudgetExceeded(
                 f"READY derivative {d[:12]}... has no blob size; "
@@ -712,7 +686,12 @@ def canary_accounted_bytes(db) -> int:
     Counts EVERY attempted PUT (orphans included), once per attempt row
     -- the same key retried counts again (each PUT may store a new
     version). Plus the pre-charge READY baseline, counted per exact
-    derivative object (not per SHA). Monotonic (never decreases);
+    derivative object (not per SHA), ALWAYS (no ledger exclusion).
+    A successful canary PUT therefore counts TWICE by design (charge +
+    baseline): intentional conservative over-count, never under-count.
+    Actual stored bytes never exceed accounted bytes, so passing the
+    2 GiB proof guarantees stored bytes stay under the cap (stricter,
+    monotonic, never UNCOUNTs). Monotonic (never decreases);
     replay/double-record over-counts (safe) rather than under-counts.
 
     Raises on any unverifiable proof (missing tables, unavailable

@@ -559,13 +559,65 @@ def _upload_and_roundtrip_verify(
         raise VerificationFailed("derivative storage verification failed; please retry")
 
 
+def _is_definite_not_found(exc: Exception) -> bool:
+    """True only when the provider proves the object is absent (no overwrite risk).
+
+    Definite-absent signals (fail-open to charge+PUT path):
+    - test fakes: ``KeyError`` / ``FileNotFoundError`` (miss fallback);
+    - typed provider not-found: ``NoSuchKey`` / ``NotFound`` / HTTP 404
+      (botocore ``ClientError`` ``response`` shape or exception class name).
+    Every other provider failure (500, timeout, auth, throttling,
+    corrupt stream, truncated body) is AMBIGUOUS: the object may exist,
+    so overwriting it cannot be authorized -- the caller must FAIL
+    CLOSED. Never inspects secrets; checks codes/status only.
+    """
+    if isinstance(exc, (KeyError, FileNotFoundError)):
+        return True
+    try:
+        resp = getattr(exc, "response", None)
+        if isinstance(resp, dict):
+            err = resp.get("Error") or {}
+            code = str(err.get("Code") or "").strip()
+            meta = resp.get("ResponseMetadata") or {}
+            try:
+                status = int(meta.get("HTTPStatusCode") or 0)
+            except (TypeError, ValueError):
+                status = 0
+            if code in ("NoSuchKey", "NotFound", "404") or status == 404:
+                return True
+            # S3-style 404 wrapped without response metadata.
+            if "NoSuchKey" in code or "NotFound" in code:
+                return True
+    except Exception:
+        pass
+    try:
+        name = type(exc).__name__ or ""
+        if name in ("NoSuchKey", "NotFound", "NotFoundException", "NoSuchBucket"):
+            # NoSuchBucket also proves no object exists at the key.
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _try_verified_reuse(*, client: Any, bucket: str, key: str,
                           derivative_sha: str, derivative_size: int) -> bool:
     """Full-GET reuse check: True when the same key already proves same bytes.
 
     Streams the existing object and compares SHA-256 + size (never HEAD
-    metadata). Any miss, mismatch, or provider error returns False (caller
-    proceeds to PUT + verify). Never raises, never logs secrets.
+    metadata). Returns True on verified match (skip PUT + charge) and
+    False ONLY on definite-absent proof (``_is_definite_not_found``:
+    typed NoSuchKey/404 or fake KeyError/FileNotFound -- safe to
+    charge + PUT). Any other provider failure (500/timeout/auth),
+    truncated/corrupt stream, or body-read error raises
+    ``VerificationFailed`` (sanitized, ``from None``): an unverifiable
+    reuse cannot authorize overwriting a possibly-existing object, so
+    the caller fails closed with no PUT and no new charge, preserving
+    monotonic accounting. Mismatched bytes on a successful GET return
+    False (object proves present but different; the charge path's
+    same-key clash check fails closed on corrupt claims, and the
+    monotonic baseline+charge sum preserves the old bytes).
+    Secrets never appear in messages.
     """
     import hashlib as _hashlib
 
@@ -593,8 +645,12 @@ def _try_verified_reuse(*, client: Any, bucket: str, key: str,
                 body.close()
             except Exception:
                 pass
-    except Exception:
-        return False
+    except Exception as exc:
+        if _is_definite_not_found(exc):
+            return False
+        raise VerificationFailed(
+            "derivative reuse check failed; refusing overwrite"
+        ) from None
     return digest.hexdigest() == derivative_sha and size == derivative_size
 
 
@@ -831,7 +887,10 @@ def publish_derivative(
         if _is_canary_slot:
             # Reuse check FIRST (full-GET proof, no charge): the same key
             # already proving the same bytes skips both charge and PUT.
-            # On a miss, charge this PUT attempt NOW (cap-checked under
+            # Only a DEFINITE-absent GET (NoSuchKey/404) is a miss that
+            # authorizes charge+PUT; any other GET failure raises fail-closed
+            # (no PUT, no charge, monotonic preserved).
+            # On a definite miss, charge this PUT attempt NOW (cap-checked under
             # the PG advisory lock, committed before the PUT -- never
             # held across the network), then stream the PUT. Two racers
             # that both miss each charge; each PUT may store its own

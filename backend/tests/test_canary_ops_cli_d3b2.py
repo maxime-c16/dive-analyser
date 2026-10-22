@@ -654,8 +654,12 @@ def test_two_actual_publisher_calls_same_key_both_miss_charge_each(test_db, tmp_
     r2 = publish_derivative(test_db, ctx2, artifact, s3_client=fake2, canary_scope=True)
     assert r2["status"] == "ready"
     assert fake2.uploads == 1
-    # Two PUT attempts -> two charges (same key, same bytes).
-    assert canary_accounted_bytes(test_db) == before + 2 * len(data)
+    # Two PUT attempts -> two charges (same key, same bytes) PLUS the
+    # READY baseline (always counted, no ledger exclusion): first publish
+    # charges once + promotes one READY row (2x), second publish charges
+    # again with no new READY row (dedup) -> 3x total. Intentional
+    # conservative over-count (monotonic, actual stored <= accounted).
+    assert canary_accounted_bytes(test_db) == before + 3 * len(data)
     from app.models.canary_ledger import CanarySlotReservation
 
     rows = test_db.query(CanarySlotReservation).filter(
@@ -683,12 +687,13 @@ def test_verified_reuse_skips_put_and_charge(test_db, tmp_path):
     r1 = publish_derivative(test_db, ctx1, artifact, s3_client=fake, canary_scope=True)
     assert r1["status"] == "ready"
     assert fake.uploads == 1
-    assert canary_accounted_bytes(test_db) == before + len(data)
+    # Charge + READY baseline always counted (intentional double-count).
+    assert canary_accounted_bytes(test_db) == before + 2 * len(data)
     ctx2 = build_publication_context(test_db, video_uuid="clip-race-reuse", role="light")
     r2 = publish_derivative(test_db, ctx2, artifact, s3_client=fake, canary_scope=True)
     assert r2["status"] == "ready"
     assert fake.uploads == 1  # no second PUT
-    assert canary_accounted_bytes(test_db) == before + len(data)  # no second charge
+    assert canary_accounted_bytes(test_db) == before + 2 * len(data)  # no second charge
 
 
 def test_canary_cap_one_racer_wins_before_put(test_db, tmp_path):
@@ -729,14 +734,18 @@ def test_canary_cap_one_racer_wins_before_put(test_db, tmp_path):
     r = publish_derivative(test_db, ctx, artifact, s3_client=fake_win, canary_scope=True)
     assert r["status"] == "ready"
     assert fake_win.uploads == 1
-    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES
+    # Charge + READY baseline both counted (intentional over-count):
+    # accounted exceeds the cap by one object while actual stored stays
+    # under it (fill_total + 2*len). The second racer still fails closed
+    # BEFORE its PUT, so the gate is stricter, never weaker.
+    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES + len(data)
     # Second racer, same key, own miss: cap refuses BEFORE its PUT.
     ctx2 = build_publication_context(test_db, video_uuid="clip-race-cap", role="light")
     fake_lose = _CanaryFakeS3()
     with pytest.raises(DerivativePublishError, match="canary budget exceeded"):
         publish_derivative(test_db, ctx2, artifact, s3_client=fake_lose, canary_scope=True)
     assert fake_lose.uploads == 0
-    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES
+    assert canary_accounted_bytes(test_db) == CANARY_BUDGET_BYTES + len(data)
 
 
 def test_orphan_charge_survives_failed_put_rollback(test_db, tmp_path):

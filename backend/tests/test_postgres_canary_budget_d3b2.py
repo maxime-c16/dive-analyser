@@ -67,7 +67,7 @@ def _make_tables(engine):
     )
 
     # The ledger table plus the backbone tables the READY-baseline probe
-    # reads (per-exact-object, excluding already-charged keys). Never the
+    # reads (per-exact-object, ALWAYS counted plus all charges). Never the
     # full metadata (some legacy tables carry non-portable defaults).
     # Idempotent (checkfirst).
     tables = [

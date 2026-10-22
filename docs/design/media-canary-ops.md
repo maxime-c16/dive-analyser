@@ -80,9 +80,14 @@ Bounds (hard, shared by tool + guard + tests):
   committed before the PUT so orphans stay counted, never refunded;
   replay over-counts rather than under-counts). Per-slot caps (canary
   only): hq <= 1.2 GB, light <= 700 MB, poster <= 8 MB.
-  The pre-charge READY baseline counts per exact derivative object (not
-  per SHA), and a READY row with no blob size fails the proof closed
-  (no silent under-count).
+  The pre-charge READY baseline ALWAYS counts per exact derivative object (not
+  per SHA), PLUS every attempt charge -- a successful canary PUT counts twice
+  by design (charge + baseline). This intentional conservative over-count keeps
+  the 2 GiB bound STRICTER than actual stored bytes (monotonic, never UNCOUNTs a
+  baseline row, never lets actual stored exceed the budget when the proof passes),
+  and a READY row with no blob size fails the proof closed
+  (no silent under-count). Only a DEFINITE-absent reuse GET (typed NoSuchKey/404)
+  authorizes charge+PUT; any other reuse GET failure fails closed with no PUT.
 - ONE package active fleet-wide (lease cap + tool serial gate: the tool
   never queues while ANY package job is active, queues at most one
   per run, and concurrent admits serialize on a PG advisory lock + a
