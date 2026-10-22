@@ -1165,17 +1165,77 @@ def cmd_admit(args) -> int:
             return 0
         with _admit_file_lock(state_dir):
             _pg_admit_lock(db)
-            # Re-check serial gate + budget inside the lock (TOCTOU-safe).
-            fleet2 = fleet_package_blocked(db)
+            # TOCTOU-safe re-checks under the admission lock. Linearization:
+            # worker completion (queued/active -> failed/ready) does NOT take
+            # this admit advisory lock; the gate decision linearizes at the
+            # fresh reads below. Any failure committed before lock acquisition
+            # is visible here (identity map expired, no stale ORM cache); a
+            # failure committing after this point serializes after and blocks
+            # the NEXT admit via the same gate. No extra row lock: the
+            # decision + queue commit are atomic under the advisory xact lock.
+            try:
+                try:
+                    db.expire_all()
+                except Exception:
+                    pass
+                fleet2 = fleet_package_blocked(db)
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"REFUSED: fleet gate unverifiable under lock ({type(exc).__name__}); "
+                      "no admission without a provable gate.")
+                return 2
             if fleet2["blocked"]:
                 print("BLOCKED: a web_package job became active before the queue commit; no write.")
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
                 return 3
+            # Authoritative streak re-check: an active job may have failed
+            # AFTER the pre-lock read, turning the fleet gate terminal while
+            # raising the streak to the stop. Gate on the in-lock value.
+            try:
+                try:
+                    db.expire_all()
+                except Exception:
+                    pass
+                db_fail_streak2 = db_consecutive_canary_failures(db)
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"REFUSED: consecutive-failure cohort unverifiable under lock "
+                      f"({type(exc).__name__}); no admission without a provable streak.")
+                return 2
+            if int(state.get("consecutive_failures", 0) or 0) != int(db_fail_streak2):
+                state["consecutive_failures"] = int(db_fail_streak2)
+                # Persist only after the consistent in-lock decision below.
+            if int(db_fail_streak2) >= int(fail_limit):
+                try:
+                    save_state(state_dir, state)
+                except Exception:
+                    pass
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"REFUSED: consecutive_failures={int(db_fail_streak2)} >= "
+                      f"max {int(fail_limit)}; investigate before new admissions.")
+                return 2
             from app.models.photos_asset import PhotosAsset
             from app.services.media_jobs import WEB_PACKAGE_RENDITION, create_or_reuse_media_job
 
             asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == uuid).limit(1).first()
             if asset is None:
                 print(f"REFUSED: asset vanished for {uuid[:8]}...")
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
                 return 2
             media_key, job, created = create_or_reuse_media_job(
                 db, asset, WEB_PACKAGE_RENDITION, "canary_web_package"
@@ -1186,6 +1246,7 @@ def cmd_admit(args) -> int:
             db.commit()
             admitted_set.add(uuid)
             state["admitted"] = sorted(admitted_set)
+            state["consecutive_failures"] = int(db_fail_streak2)
             save_state(state_dir, state)
             print(f"ADMITTED job_id={job.id} created={int(created)} priority={job.priority} "
                   f"for {uuid[:8]}... (1 job this run; serial gate holds until terminal).")
