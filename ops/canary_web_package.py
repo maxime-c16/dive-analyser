@@ -1010,6 +1010,240 @@ def cmd_inventory(args) -> int:
     return 0
 
 
+class _AdmitRefused(Exception):
+    """Authoritative REFUSE (exit 2). Fail closed, no queue change."""
+
+    def __init__(self, msg: str, *, streak=None, admitted_additions=None):
+        super().__init__(msg)
+        self.streak = streak
+        self.admitted_additions = set(admitted_additions or [])
+
+
+class _AdmitBlocked(Exception):
+    """Fleet serial gate (exit 3). No queue change."""
+
+    def __init__(self, msg: str, *, streak=None, admitted_additions=None):
+        super().__init__(msg)
+        self.streak = streak
+        self.admitted_additions = set(admitted_additions or [])
+
+
+class _AdmitNothing(Exception):
+    """Nothing admittable (exit 0). Resume hint only, no queue change."""
+
+    def __init__(self, msg: str = "nothing_admittable", *, streak=None, admitted_additions=None):
+        super().__init__(msg)
+        self.streak = streak
+        self.admitted_additions = set(admitted_additions or [])
+
+
+def _decide_admission(
+    db,
+    *,
+    phase: int,
+    clips: list[str],
+    phase1_cohort: list[str] | None,
+    state: dict,
+    state_dir: Path,
+    fail_limit: int,
+    host_facts_path,
+    is_apply: bool,
+    mac_free_bytes=None,
+    server_cache_free_bytes=None,
+) -> dict:
+    """ONE authoritative admission decision (DB-fresh, no network, no commit).
+
+    Planning (outer, fail-fast) and committing (inside the short PG advisory
+    + local file locks) MUST call this same helper. The in-lock call runs
+    after ``db.expire_all()`` with a freshly reloaded state file, so a
+    concurrent admit (or a job turning terminal while we waited) cannot slip
+    a stale cohort, phase count, proof, streak, fleet, budget, host-facts or
+    source pin past the gate.
+
+    Reads only: SQL aggregates/lookups, local proof/host-facts JSON files,
+    ``clip_readiness`` DB probes. No network, no B2, no PUT, no commit.
+    Raises ``_AdmitRefused`` (exit 2), ``_AdmitBlocked`` (exit 3) or
+    ``_AdmitNothing`` (exit 0). Returns the chosen candidate on success.
+    Caps count only candidate NEW unique IDs (``new_ids``); re-listing an
+    already-admitted clip costs zero.
+    """
+    # 1. Durable failure streak (DB authoritative; state is a hint).
+    try:
+        streak = db_consecutive_canary_failures(db)
+    except Exception as exc:
+        raise _AdmitRefused(
+            f"consecutive-failure cohort unverifiable ({type(exc).__name__}); "
+            "no admission without a provable streak."
+        )
+    if int(streak) >= int(fail_limit):
+        raise _AdmitRefused(
+            f"consecutive_failures={int(streak)} >= max {int(fail_limit)}; "
+            "investigate before new admissions.",
+            streak=int(streak),
+        )
+    # 2. Fresh DB cohort + NEW-unique counting (resume-safe).
+    try:
+        db_known = _db_admitted_uuids(db)
+    except Exception as exc:
+        raise _AdmitRefused(
+            f"web_package cohort unverifiable ({type(exc).__name__}); "
+            "no admission without a provable total.",
+            streak=int(streak),
+        )
+    file_known = set(state.get("admitted", []) or [])
+    known = set(db_known) | set(file_known)
+    total_admitted = len(known)
+    new_ids = [u for u in clips if u not in known]
+    # 3. Phase caps + exact-5 + fresh source-bound proof (phase 2).
+    try:
+        if phase == 1:
+            _cb.check_phase_count_new_only(1, len(new_ids), total_admitted)
+            if len(clips) > CANARY_PHASE1_MAX_CLIPS:
+                raise ValueError(
+                    f"phase 1 manifest lists {len(clips)} > {CANARY_PHASE1_MAX_CLIPS}"
+                )
+        elif phase == 2:
+            cohort = list(phase1_cohort or [])
+            _cb.check_phase2_eligible(
+                phase1_cohort=cohort,
+                proven_uuids=set(state.get("proven", []) or []),
+                db_total_admitted=db_known,
+                new_count=len(new_ids),
+            )
+            _cb.check_phase_count_new_only(2, len(new_ids), len(db_known))
+            # Fresh-proof authority: stored artifacts re-validated against
+            # the CURRENT DB (source SHA + revision + READY rows). A source
+            # move / revision bump / missing artifact while waiting refuses.
+            _require_fresh_phase1_proofs(db, state_dir, cohort)
+        else:
+            raise ValueError(f"unknown phase {phase!r}")
+    except _AdmitRefused:
+        raise
+    except ValueError as exc:
+        raise _AdmitRefused(str(exc), streak=int(streak))
+    # 4. Host facts (apply) or legacy dry-run hints.
+    if is_apply:
+        if not host_facts_path:
+            raise _AdmitRefused(
+                "--apply requires --host-facts F.json (fresh, with memory pressure); "
+                "legacy --mac-free-bytes/--server-cache-free-bytes alone are stale-prone and refused.",
+                streak=int(streak),
+            )
+        _refuse_inside_git(Path(str(host_facts_path)))
+        try:
+            facts = _cb.load_host_facts(host_facts_path)
+            _cb.validate_host_facts(facts)
+        except ValueError as exc:
+            raise _AdmitRefused(str(exc), streak=int(streak))
+    else:
+        if mac_free_bytes is not None and int(mac_free_bytes) < MIN_MAC_DATA_FREE_BYTES:
+            raise _AdmitRefused(
+                f"Mac Data free {int(mac_free_bytes)} < {MIN_MAC_DATA_FREE_BYTES} (8 GiB); "
+                "stop new admissions.",
+                streak=int(streak),
+            )
+        if server_cache_free_bytes is not None and int(server_cache_free_bytes) < MIN_SERVER_CACHE_FREE_BYTES:
+            raise _AdmitRefused(
+                f"server cache volume free {int(server_cache_free_bytes)} < "
+                f"{MIN_SERVER_CACHE_FREE_BYTES} (25 GiB).",
+                streak=int(streak),
+            )
+    # 5. Global budget (authoritative per-PUT ledger is separate; this is
+    # the admission preflight on the same bounded aggregate).
+    try:
+        committed = canary_ledger_bytes(db)
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise _AdmitRefused(
+            f"canary budget unverifiable ({type(exc).__name__}); "
+            "no admission without a provable budget.",
+            streak=int(streak),
+        )
+    remaining = CANARY_BUDGET_BYTES - committed
+    # 6. Fleet serial gate (fresh SQL; terminal transitions linearize here).
+    try:
+        fleet = fleet_package_blocked(db)
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise _AdmitRefused(
+            f"fleet gate unverifiable under lock ({type(exc).__name__}); "
+            "no admission without a provable gate.",
+            streak=int(streak),
+        )
+    if fleet["blocked"]:
+        raise _AdmitBlocked(
+            "a web_package job is already active fleet-wide; "
+            "serial admission -- wait for its terminal state, then re-run.",
+            streak=int(streak),
+        )
+    # 7. Source-pin readiness for the chosen candidate (fresh DB pin;
+    # idempotent: already-ready / newly-active candidates cost no queue).
+    admitted_additions: set[str] = set()
+    plan = None
+    for uuid in clips:
+        r = clip_readiness(db, uuid)
+        if r.get("status") in ("already_ready",):
+            admitted_additions.add(uuid)
+            continue
+        if not r.get("ok"):
+            continue
+        try:
+            est = int(r["worst_case_bytes"])
+        except (TypeError, ValueError):
+            raise _AdmitRefused(
+                f"clip {uuid[:8]}... worst-case estimate unreadable; refusing (fail closed).",
+                streak=int(streak),
+                admitted_additions=set(admitted_additions),
+            )
+        if est > remaining:
+            raise _AdmitRefused(
+                f"clip {uuid[:8]}... worst-case {est} > remaining {remaining}; "
+                "budget preflight fails (estimate only; hard cap is server-enforced).",
+                streak=int(streak),
+                admitted_additions=set(admitted_additions),
+            )
+        plan = (uuid, r, est)
+        break
+    if plan is None:
+        raise _AdmitNothing(
+            streak=int(streak), admitted_additions=set(admitted_additions)
+        )
+    uuid, r, est = plan
+    return {
+        "uuid": uuid,
+        "readiness": r,
+        "est": int(est),
+        "remaining": int(remaining),
+        "committed": int(committed),
+        "new_ids": list(new_ids),
+        "db_known": set(db_known),
+        "known": set(known),
+        "total_admitted": int(total_admitted),
+        "streak": int(streak),
+        "admitted_additions": set(admitted_additions),
+    }
+
+
+def _sync_state_best_effort(state_dir: Path, state: dict, *, streak=None, additions=None) -> dict:
+    """Merge authoritative streak + already-ready hints (never clears)."""
+    try:
+        if streak is not None:
+            state["consecutive_failures"] = int(streak)
+        if additions:
+            merged = set(state.get("admitted", []) or []) | set(additions or [])
+            state["admitted"] = sorted(merged)
+        save_state(state_dir, state)
+    except Exception:
+        pass
+    return state
+
+
 def cmd_admit(args) -> int:
     phase_arg = getattr(args, "phase", None)
     manifest_path = Path(args.manifest)
@@ -1024,213 +1258,185 @@ def cmd_admit(args) -> int:
         print(f"REFUSED: {exc}")
         return 2
     state = load_state(state_dir)
+    # Phase-1 cohort is operator intent (static manifest); the DB cohort,
+    # proofs, streak, fleet, budget and source pin are re-derived fresh
+    # inside the helper -- including authoritatively under the lock.
+    phase1_cohort_outer: list[str] | None = None
+    if phase == 2:
+        phase1_cohort_outer = _load_phase1_cohort(getattr(args, "phase1_manifest", None))
 
     eng = _engine()
     db = _session(eng)
+    # Outer planning (fail-fast UX only): same helper, pre-lock reads.
+    # The authoritative decision is recomputed inside the short advisory
+    # lock below; the outer result never authorizes a queue.
     try:
+        plan_outer = _decide_admission(
+            db,
+            phase=phase,
+            clips=clips,
+            phase1_cohort=phase1_cohort_outer,
+            state=state,
+            state_dir=state_dir,
+            fail_limit=fail_limit,
+            host_facts_path=getattr(args, "host_facts", None),
+            is_apply=bool(args.apply),
+            mac_free_bytes=getattr(args, "mac_free_bytes", None),
+            server_cache_free_bytes=getattr(args, "server_cache_free_bytes", None),
+        )
+    except _AdmitRefused as exc:
+        _sync_state_best_effort(
+            state_dir, state, streak=exc.streak, additions=exc.admitted_additions
+        )
         try:
-            db_fail_streak = db_consecutive_canary_failures(db)
-        except Exception as exc:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            print(f"REFUSED: consecutive-failure cohort unverifiable ({type(exc).__name__}); "
-                  "no admission without a provable streak.")
-            return 2
-        if int(state.get("consecutive_failures", 0) or 0) != int(db_fail_streak):
-            state["consecutive_failures"] = int(db_fail_streak)
-            try:
-                save_state(state_dir, state)
-            except Exception:
-                pass
-        if int(db_fail_streak) >= int(fail_limit):
-            print(f"REFUSED: consecutive_failures={int(db_fail_streak)} >= "
-                  f"max {int(fail_limit)}; investigate before new admissions.")
-            return 2
+            db.rollback()
+        except Exception:
+            pass
+        print(f"REFUSED: {exc}")
+        return 2
+    except _AdmitBlocked as exc:
+        _sync_state_best_effort(
+            state_dir, state, streak=exc.streak, additions=exc.admitted_additions
+        )
         try:
-            db_known = _db_admitted_uuids(db)
-        except Exception as exc:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            print(f"REFUSED: web_package cohort unverifiable ({type(exc).__name__}); "
-                  "no admission without a provable total.")
-            return 2
-        file_known = set(state.get("admitted", []) or [])
-        known = set(db_known) | set(file_known)
-        total_admitted = len(known)
-        new_ids = [u for u in clips if u not in known]
-        if phase == 1:
-            try:
-                _cb.check_phase_count_new_only(1, len(new_ids), total_admitted)
-            except ValueError as exc:
-                print(f"REFUSED: {exc}")
-                return 2
-            if len(clips) > CANARY_PHASE1_MAX_CLIPS:
-                print(f"REFUSED: phase 1 manifest lists {len(clips)} > {CANARY_PHASE1_MAX_CLIPS}")
-                return 2
-        elif phase == 2:
-            phase1_cohort = _load_phase1_cohort(getattr(args, "phase1_manifest", None))
-            try:
-                _cb.check_phase2_eligible(
-                    phase1_cohort=phase1_cohort,
-                    proven_uuids=set(state.get("proven", []) or []),
-                    db_total_admitted=db_known,
-                    new_count=len(new_ids),
-                )
-                _cb.check_phase_count_new_only(2, len(new_ids), len(db_known))
-                # Fresh-proof authority: the mutable `proven` list is only a
-                # hint. Each phase-1 clip must have a STORED proof artifact
-                # (state_dir/proofs/proof-<uuid>.json) that validates against
-                # the CURRENT DB (source SHA + revision + READY rows). A
-                # stale proof (source changed since the proof, artifact
-                # replaced/missing, ledger not ready) blocks phase 2 even
-                # when the proven list claims 5/5.
-                _require_fresh_phase1_proofs(db, state_dir, phase1_cohort)
-            except ValueError as exc:
-                print(f"REFUSED: {exc}")
-                return 2
-        else:
-            print(f"REFUSED: unknown phase {phase!r}")
-            return 2
-
-        if args.apply:
-            facts_arg = getattr(args, "host_facts", None)
-            if not facts_arg:
-                print("REFUSED: --apply requires --host-facts F.json (fresh, with memory pressure); "
-                      "legacy --mac-free-bytes/--server-cache-free-bytes alone are stale-prone and refused.")
-                return 2
-            _refuse_inside_git(Path(facts_arg))
-            try:
-                facts = _cb.load_host_facts(facts_arg)
-                _cb.validate_host_facts(facts)
-            except ValueError as exc:
-                print(f"REFUSED: {exc}")
-                return 2
-        else:
-            mac_free = getattr(args, "mac_free_bytes", None)
-            srv_free = getattr(args, "server_cache_free_bytes", None)
-            if mac_free is not None and int(mac_free) < MIN_MAC_DATA_FREE_BYTES:
-                print(f"REFUSED: Mac Data free {int(mac_free)} < {MIN_MAC_DATA_FREE_BYTES} (8 GiB); stop new admissions.")
-                return 2
-            if srv_free is not None and int(srv_free) < MIN_SERVER_CACHE_FREE_BYTES:
-                print(f"REFUSED: server cache volume free {int(srv_free)} < {MIN_SERVER_CACHE_FREE_BYTES} (25 GiB).")
-                return 2
+            db.rollback()
+        except Exception:
+            pass
+        print(
+            "BLOCKED: a web_package job is already active fleet-wide; "
+            "serial admission -- wait for its terminal state, then re-run."
+        )
+        return 3
+    except _AdmitNothing as exc:
+        _sync_state_best_effort(
+            state_dir, state, streak=exc.streak, additions=exc.admitted_additions
+        )
         try:
-            committed = canary_ledger_bytes(db)
-        except Exception as exc:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            print(f"REFUSED: canary budget unverifiable ({type(exc).__name__}); "
-                  "no admission without a provable budget.")
-            return 2
-        remaining = CANARY_BUDGET_BYTES - committed
-        fleet = fleet_package_blocked(db)
-        if fleet["blocked"]:
-            print("BLOCKED: a web_package job is already active fleet-wide; "
-                  "serial admission -- wait for its terminal state, then re-run.")
-            return 3
-        admitted_set = set(state.get("admitted", []) or [])
-        plan = None
-        for uuid in clips:
-            r = clip_readiness(db, uuid)
-            if r.get("status") in ("already_ready",):
-                admitted_set.add(uuid)
-                continue
-            if not r.get("ok"):
-                continue
-            est = int(r["worst_case_bytes"])
-            if est > remaining:
-                print(f"REFUSED: clip {uuid[:8]}... worst-case {est} > remaining {remaining}; "
-                      "budget preflight fails (estimate only; hard cap is server-enforced).")
-                return 2
-            plan = (uuid, r, est)
-            break
-        if plan is None:
-            if admitted_set != set(state.get("admitted", []) or []):
-                state["admitted"] = sorted(admitted_set)
-                save_state(state_dir, state)
-            print("nothing_admittable: every manifest clip is ready/active/unknown; no queue change.")
-            return 0
-        uuid, r, est = plan
-        if not args.apply:
-            print(f"DRY-RUN plan: would queue ONE web_package job for {uuid[:8]}... "
-                  f"(asset_id={r.get('asset_id')} priority={CANARY_JOB_PRIORITY} "
-                  f"max_attempts={CANARY_JOB_MAX_ATTEMPTS} worst_case_bytes={est} "
-                  f"remaining_budget_bytes={remaining} new_ids={len(new_ids)}). Re-run with --apply to admit.")
-            return 0
+            db.rollback()
+        except Exception:
+            pass
+        print("nothing_admittable: every manifest clip is ready/active/unknown; no queue change.")
+        return 0
+    # DRY-RUN planning succeeds: sync the streak hint, queue nothing.
+    _sync_state_best_effort(state_dir, state, streak=plan_outer["streak"])
+    try:
+        db.rollback()
+    except Exception:
+        pass
+    uuid, r, est = plan_outer["uuid"], plan_outer["readiness"], plan_outer["est"]
+    remaining, new_ids = plan_outer["remaining"], plan_outer["new_ids"]
+    if not args.apply:
+        print(f"DRY-RUN plan: would queue ONE web_package job for {uuid[:8]}... "
+              f"(asset_id={r.get('asset_id')} priority={CANARY_JOB_PRIORITY} "
+              f"max_attempts={CANARY_JOB_MAX_ATTEMPTS} worst_case_bytes={est} "
+              f"remaining_budget_bytes={remaining} new_ids={len(new_ids)}). Re-run with --apply to admit.")
+        return 0
+    try:
         with _admit_file_lock(state_dir):
             _pg_admit_lock(db)
-            # TOCTOU-safe re-checks under the admission lock. Linearization:
-            # worker completion (queued/active -> failed/ready) does NOT take
-            # this admit advisory lock; the gate decision linearizes at the
-            # fresh reads below. Any failure committed before lock acquisition
-            # is visible here (identity map expired, no stale ORM cache); a
-            # failure committing after this point serializes after and blocks
-            # the NEXT admit via the same gate. No extra row lock: the
-            # decision + queue commit are atomic under the advisory xact lock.
+            # ONE authoritative decision INSIDE the short advisory xact lock:
+            # expire cached rows, reload the local state hint, then recompute
+            # EVERYTHING fresh from SQL/DB + local proof/host-facts files
+            # (no network): DB cohort, NEW-unique counting, candidate
+            # idempotency, phase caps, exact-5, fresh source-bound phase-2
+            # proofs, durable failure streak, fleet blocking, budget and
+            # host-facts freshness, and the source-pin readiness for the
+            # queued candidate. Linearization: worker completion does NOT
+            # take this admit lock; the gate linearizes at these fresh reads.
+            # Anything committed before acquisition is visible here; anything
+            # committing after serializes after and blocks the NEXT admit.
+            # The decision + queue commit are atomic under the lock; the
+            # global per-PUT budget charge stays a separate short TX in the
+            # publisher (never held across network here).
             try:
                 try:
                     db.expire_all()
                 except Exception:
                     pass
-                fleet2 = fleet_package_blocked(db)
-            except Exception as exc:
+                try:
+                    state_lock = load_state(state_dir)
+                except SystemExit:
+                    raise
+                except Exception:
+                    state_lock = state
+                decision = _decide_admission(
+                    db,
+                    phase=phase,
+                    clips=clips,
+                    phase1_cohort=phase1_cohort_outer,
+                    state=state_lock,
+                    state_dir=state_dir,
+                    fail_limit=fail_limit,
+                    host_facts_path=getattr(args, "host_facts", None),
+                    is_apply=True,
+                    mac_free_bytes=None,
+                    server_cache_free_bytes=None,
+                )
+            except _AdmitRefused as exc:
+                try:
+                    base = state_lock if "state_lock" in locals() else state
+                    _sync_state_best_effort(
+                        state_dir, base, streak=exc.streak,
+                        additions=exc.admitted_additions,
+                    )
+                except Exception:
+                    pass
                 try:
                     db.rollback()
                 except Exception:
                     pass
-                print(f"REFUSED: fleet gate unverifiable under lock ({type(exc).__name__}); "
-                      "no admission without a provable gate.")
+                print(f"REFUSED: {exc}")
                 return 2
-            if fleet2["blocked"]:
+            except _AdmitBlocked as exc:
+                try:
+                    base = state_lock if "state_lock" in locals() else state
+                    _sync_state_best_effort(
+                        state_dir, base, streak=exc.streak,
+                        additions=exc.admitted_additions,
+                    )
+                except Exception:
+                    pass
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
                 print("BLOCKED: a web_package job became active before the queue commit; no write.")
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
                 return 3
-            # Authoritative streak re-check: an active job may have failed
-            # AFTER the pre-lock read, turning the fleet gate terminal while
-            # raising the streak to the stop. Gate on the in-lock value.
-            try:
+            except _AdmitNothing as exc:
                 try:
-                    db.expire_all()
-                except Exception:
-                    pass
-                db_fail_streak2 = db_consecutive_canary_failures(db)
-            except Exception as exc:
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
-                print(f"REFUSED: consecutive-failure cohort unverifiable under lock "
-                      f"({type(exc).__name__}); no admission without a provable streak.")
-                return 2
-            if int(state.get("consecutive_failures", 0) or 0) != int(db_fail_streak2):
-                state["consecutive_failures"] = int(db_fail_streak2)
-                # Persist only after the consistent in-lock decision below.
-            if int(db_fail_streak2) >= int(fail_limit):
-                try:
-                    save_state(state_dir, state)
+                    base = state_lock if "state_lock" in locals() else state
+                    _sync_state_best_effort(
+                        state_dir, base, streak=exc.streak,
+                        additions=exc.admitted_additions,
+                    )
                 except Exception:
                     pass
                 try:
                     db.rollback()
                 except Exception:
                     pass
-                print(f"REFUSED: consecutive_failures={int(db_fail_streak2)} >= "
-                      f"max {int(fail_limit)}; investigate before new admissions.")
-                return 2
+                # Idempotent replay: the candidate became ready/active (or
+                # was already admitted) while we waited -- no extra queue.
+                print("nothing_admittable: every manifest clip is ready/active/unknown; no queue change.")
+                return 0
+            # Commit the authorized candidate (idempotent reuse: an already-
+            # admitted job row is reused, never duplicated).
+            uuid = decision["uuid"]
+            db_fail_streak2 = int(decision["streak"])
+            admitted_additions = set(decision.get("admitted_additions", set()))
             from app.models.photos_asset import PhotosAsset
             from app.services.media_jobs import WEB_PACKAGE_RENDITION, create_or_reuse_media_job
 
             asset = db.query(PhotosAsset).filter(PhotosAsset.video_uuid == uuid).limit(1).first()
             if asset is None:
+                try:
+                    base = state_lock if "state_lock" in locals() else state
+                    _sync_state_best_effort(
+                        state_dir, base, streak=db_fail_streak2,
+                        additions=admitted_additions,
+                    )
+                except Exception:
+                    pass
                 print(f"REFUSED: asset vanished for {uuid[:8]}...")
                 try:
                     db.rollback()
@@ -1244,10 +1450,14 @@ def cmd_admit(args) -> int:
             job.max_attempts = min(int(job.max_attempts or CANARY_JOB_MAX_ATTEMPTS), CANARY_JOB_MAX_ATTEMPTS)
             db.add(job)
             db.commit()
-            admitted_set.add(uuid)
-            state["admitted"] = sorted(admitted_set)
-            state["consecutive_failures"] = int(db_fail_streak2)
-            save_state(state_dir, state)
+            try:
+                base = state_lock if "state_lock" in locals() else state
+                admitted_set = set(base.get("admitted", []) or []) | set(admitted_additions) | {uuid}
+                base["admitted"] = sorted(admitted_set)
+                base["consecutive_failures"] = int(db_fail_streak2)
+                save_state(state_dir, base)
+            except Exception:
+                pass
             print(f"ADMITTED job_id={job.id} created={int(created)} priority={job.priority} "
                   f"for {uuid[:8]}... (1 job this run; serial gate holds until terminal).")
             return 0
