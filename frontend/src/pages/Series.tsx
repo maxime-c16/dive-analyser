@@ -13,6 +13,7 @@ import SeriesPanel, { useSeriesMobileLayout } from '../components/series/SeriesP
 import SeriesPlayer, { type SeriesPlaybackEntry } from '../components/series/SeriesPlayer'
 import { diveCodeName } from '../i18n/diveNames'
 import { api } from '../services/api'
+import PageLoading from '../components/PageLoading'
 import './series.css'
 
 const heights = ['1m', '3m', '5m', '7.5m', '10m']
@@ -280,7 +281,7 @@ function SeriesWorkspace() {
     {error && <p role="alert" className="series-error">{error} <button onClick={() => {
       if (!dirty || window.confirm(text('Recharger et abandonner tes modifications ?', 'Reload and discard your changes?'))) setRevision(r => r + 1)
     }}>{text('Recharger', 'Reload')}</button></p>}
-    {loading ? <p role="status">{text('Chargement…', 'Loading…')}</p> : !seriesId ? <>
+    {loading ? <PageLoading message={text('Chargement…', 'Loading…')} /> : !seriesId ? <>
       {eventTitle && <p className="series-notice">{eventTitle}</p>}
       <form className="series-create" onSubmit={async e => {
         e.preventDefault(); setBusy(true); setError('')

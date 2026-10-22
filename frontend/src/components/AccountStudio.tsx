@@ -3,6 +3,7 @@ import { ArrowRight, GitBranch, Link2, ShieldCheck, UserPlus, UserRound } from '
 import { bindDiver, unbindDiver, createDiverInvite, getAccountStudio, listAllDivers, previewBinding, type AccountStudio as StudioData, type AdminUser, type AdminDiver, type AdminDiverInvite, type BindingPreview } from '../services/adminUsersApi'
 import AccountInvestigation from './AccountInvestigation'
 import { AccountActionDialog } from './AccountSecurity'
+import PageLoading from './PageLoading'
 
 export default function AccountStudio({ user, onRefresh }: { user: AdminUser; onRefresh: () => Promise<void> }) {
   const [data, setData] = useState<StudioData | null>(null)
@@ -70,7 +71,7 @@ export default function AccountStudio({ user, onRefresh }: { user: AdminUser; on
   }
   const filtered = [...divers].sort((a,b) => Number(linked.has(b.diver_id)) - Number(linked.has(a.diver_id))).filter(d => `${d.display_name} ${d.canonical_name} ${d.diver_id}`.toLowerCase().includes(query.toLowerCase()))
   return <>
-    {!data && !error && <p role="status" className="account-muted">Loading ownership and effective access…</p>}
+    {!data && !error && <PageLoading message="Loading ownership and effective access…" />}
     {busy && !staged && <p role="status" className="account-muted">Loading change preview…</p>}
     {error && <div role="alert" className="account-alert">{error}<button className="account-button" disabled={busy} onClick={() => setReload(v => v + 1)}>Reload access</button></div>}
     {notice && <p role="status" className="account-success">{notice}</p>}

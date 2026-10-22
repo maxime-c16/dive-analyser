@@ -15,6 +15,7 @@ import ProfileDiveGrid from '../components/ProfileDiveGrid'
 import ProfileMessageButton from '../components/messages/ProfileMessageButton'
 import ProfileEditor from '../components/ProfileEditor'
 import AchievementsPanel from '../components/achievements/AchievementsPanel'
+import PageLoading from '../components/PageLoading'
 import { appLanguage } from '../utils/dateLocale'
 
 const PAGE_SIZE = 30
@@ -234,7 +235,7 @@ export default function MemberProfile() {
   }
   if (!profile) {
     if (error) return <p role="alert" className="py-8 text-sm text-red-400">{error} <button onClick={() => setRetry(value => value + 1)} className="underline">{t('common.retry')}</button></p>
-    return <p role="status" className="py-8 text-sm text-app-muted">{t('common.loadingPage')}</p>
+    return <PageLoading />
   }
 
   return (
@@ -266,7 +267,7 @@ export default function MemberProfile() {
         {error && items.length === 0 ? (
           <p role="alert" className="text-sm text-red-400">{error}</p>
         ) : !loaded && items.length === 0 ? (
-          <p role="status" className="text-sm text-app-muted">{t('account.activity.loading')}</p>
+          <PageLoading message={t('account.activity.loading')} />
         ) : items.length === 0 ? (
           <p className="text-sm text-app-muted">{t('profile.emptyActivity')}</p>
         ) : (

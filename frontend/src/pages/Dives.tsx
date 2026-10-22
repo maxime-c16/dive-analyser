@@ -26,6 +26,7 @@ import { LibraryCardGrid } from "../components/LibraryCards";
 import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
 import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
+import PageLoading from "../components/PageLoading";
 
 const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
 
@@ -708,14 +709,7 @@ function DiveLibrary() {
           </button>
         </div>
       </section>
-      {loading && (
-        <div
-          className="border-y border-app py-20 text-center text-sm text-app-muted"
-          role="status"
-        >
-          {t("common.loading")}
-        </div>
-      )}
+      {loading && <PageLoading />}
       {error && (
         <div
           className="mt-6 border border-red-300/40 bg-red-300/10 p-4 text-sm text-red-100"
@@ -793,7 +787,7 @@ function DiveLibrary() {
         </div>
       )}
       {selected && (
-        <Suspense fallback={<p role="status" className="py-4 text-app-muted">{t("dives.openingVideo")}</p>}>
+        <Suspense fallback={<PageLoading message={t("dives.openingVideo")} />}>
           <ClipViewer
           attempt={selected}
           attempts={filtered}

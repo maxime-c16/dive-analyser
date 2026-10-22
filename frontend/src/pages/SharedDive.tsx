@@ -4,6 +4,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { Heart, MessageCircle } from 'lucide-react';
 import { api } from '../services/api';
 import ClipComments from '../components/clip-viewer/ClipComments';
+import PageLoading from '../components/PageLoading';
 import { useDiveSocial } from '../components/clip-viewer/useDiveSocial';
 import '../components/clip-viewer/clipViewer.css';
 
@@ -82,6 +83,6 @@ export default function SharedDive() {
     return () => { meta.remove(); };
   }, []);
   if (error) return <main className="shared-dive"><p role="alert">{t(error === 'invalid' ? 'sharedDive.errorInvalid' : 'sharedDive.errorUnavailable')}</p><button onClick={() => setEpoch(value => value + 1)}>{t("common.retry")}</button></main>;
-  if (!video) return <main className="shared-dive"><p role="status">{t("sharedDive.loadingShared")}</p></main>;
+  if (!video) return <main className="shared-dive"><PageLoading message={t("sharedDive.loadingShared")} /></main>;
   return <SharedVideoPlayer key={`${basePath}-${video.guest_id}`} video={video} basePath={basePath} />;
 }

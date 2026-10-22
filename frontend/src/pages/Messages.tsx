@@ -9,6 +9,7 @@ import MemberPicker from '../components/messages/MemberPicker'
 import MessageBubble from '../components/messages/MessageBubble'
 import MentionComposer from '../components/mentions/MentionComposer'
 import { readMessageDraft, saveMessageDraft, readPendingSend, savePendingSend, completePendingSend, discardPendingSend } from '../navigation/messageDraft'
+import PageLoading from '../components/PageLoading'
 import { useMobileViewport, useBottomAction } from '../navigation/useMobileNavigation'
 import { useMessagesUnread } from '../components/MessagesUnread'
 import '../navigation/messagesMobile.css'
@@ -114,7 +115,7 @@ function Thread({ id }: { id: number }) {
     <header className="border-b border-app p-4"><Link to="/messages" className="mr-3 text-sm text-app-accent">← {t('messages.title')}</Link>{peers.map(m => <Link key={m.user_id} to={`/users/${m.user_id}`} className="font-semibold">{m.display_name} </Link>)}</header>
     {error && <p role="alert" className="p-3">{t('messages.error')} <button onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
     <div className="message-history max-h-[60vh] min-h-[30vh] space-y-3 overflow-y-auto p-4" aria-label={t('messages.conversation')}>
-      {loading && <p role="status">{t('common.loading')}</p>}
+      {loading && messages.length === 0 && <div className="grid min-h-[30vh] place-items-center"><PageLoading /></div>}
       {before && <button disabled={loading || busy} className="w-full p-2 text-sm text-app-accent" onClick={() => void load(before)}>{t('messages.older')}</button>}
       {!loading && !messages.length && <p className="text-app-muted">{t('messages.begin')}</p>}
       {messages.map(message => <MessageBubble key={message.id} message={message} userId={user?.user_id ?? 0} busy={busy} onVisible={onVisible} onReact={() => {
@@ -188,7 +189,7 @@ export default function Messages() {
     {error && <p role="alert">{t('messages.error')} <button onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
     <div className="messages-grid grid gap-5 md:grid-cols-[280px_1fr]">
       <aside className={id ? 'hidden md:block' : ''} aria-label={t('messages.inbox')}>
-        {loading && <p role="status">{t('common.loading')}</p>}
+        {loading && items.length === 0 && <div className="grid min-h-[30vh] place-items-center"><PageLoading /></div>}
         {!loading && !items.length && <p className="p-4 text-app-muted">{t('messages.empty')}</p>}
         {items.map(c => <Link key={c.id} to={`/messages/${c.id}`} className={`mb-2 block rounded-xl border border-app p-3 ${c.id === id ? 'bg-app-panel-elevated' : 'bg-app-panel'}`}><strong>{c.members.filter(m => m.user_id !== user?.user_id).map(m => m.display_name).join(', ')}</strong>{!!c.unread_count && <span className="ml-2 rounded-full bg-app-accent px-2 text-app-bg">{c.unread_count}</span>}<p className="mt-1 truncate text-sm text-app-muted">{c.latest?.body || (c.latest?.dive ? t('messages.diveCard') : t('messages.begin'))}</p></Link>)}
         {before && <button onClick={async () => { try { const page = await api.listConversations(before); setItems(rows => [...new Map([...rows, ...page.items].map(c => [c.id,c])).values()]); setBefore(page.next_before) } catch { setError(true) } }}>{t('messages.more')}</button>}

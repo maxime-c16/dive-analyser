@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Gift } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { batchReviewPath, claimTokenFromHash, peekClaim, redeemClaim } from '../services/depositsApi'
+import PageLoading from '../components/PageLoading'
 
 /**
  * Public magic-link landing ("Récupérer mes plongeons").
@@ -86,7 +87,7 @@ export default function Claim() {
       <div className="app-panel w-full max-w-md p-8 text-center">
         <Gift className="mx-auto h-10 w-10 text-app-accent" aria-hidden />
         <h1 className="mt-4 text-2xl font-semibold text-app-text">{t('claim.title')}</h1>
-        {state === 'loading' && <p className="mt-2 text-sm text-app-muted">{t('common.loading')}</p>}
+        {state === 'loading' && <PageLoading message={t('common.loading')} />}
         {state === 'invalid' && (
           <>
             <p className="mt-2 text-sm leading-6 text-app-muted">{t('claim.invalid')}</p>

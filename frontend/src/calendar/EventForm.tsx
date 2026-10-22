@@ -7,6 +7,7 @@ import {
 import { addDays, isoWeekday, validDate, weeklyDates } from "./model";
 import { ExcludedDates } from "./ScheduleEditor";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
+import PageLoading from "../components/PageLoading";
 
 type Form = {
   calendar: string; // calendar id, or "personal"
@@ -113,7 +114,7 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
   useLeaveGuard(dirty && !busy);
-  if (loading) return <p role="status">{t.loading}</p>;
+  if (loading) return <PageLoading message={t.loading} />;
   if (missing) return <p role="alert">{t.unavailable}</p>;
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -296,7 +297,7 @@ export function OccurrenceForm({ ctx, occurrenceId }: { ctx: CalendarContext; oc
     }).catch(() => setMissing(true));
   }, [occurrenceId, revision]);
   if (missing) return <p role="alert">{t.unavailable}</p>;
-  if (!occ) return <p role="status">{t.loading}</p>;
+  if (!occ) return <PageLoading message={t.loading} />;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = validDate(form.date) && (form.all_day || (TIME.test(form.start) && TIME.test(form.end) && form.end > form.start));

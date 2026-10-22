@@ -8,6 +8,7 @@ import OccurrenceView from "../calendar/OccurrenceView";
 import EventForm, { OccurrenceForm } from "../calendar/EventForm";
 import ScheduleEditor from "../calendar/ScheduleEditor";
 import ClubAdmin from "../calendar/ClubAdmin";
+import PageLoading from "../components/PageLoading";
 import "./calendar.css";
 
 type Load = "loading" | "ready" | "failed";
@@ -230,7 +231,7 @@ export default function Calendar() {
           <input type="search" placeholder={t.search} value={q} onChange={(e) => update("q", e.target.value)} />
         </label>
       </div>
-      {load === "loading" && <p role="status">{t.loading}</p>}
+      {load === "loading" && <PageLoading message={t.loading} />}
       {load === "failed" && (
         <p role="alert">{incomplete ? t.incompleteMonth : t.failed} <button onClick={refresh}>{t.retry}</button></p>
       )}

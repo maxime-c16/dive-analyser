@@ -6,6 +6,7 @@
 import { scoreNumber } from './scoreFormatting'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { OwnedPanelLink } from './EvaluationSpaces'
+import WarmUp from './EvaluationWarmUp'
 import { useTranslation } from 'react-i18next'
 import { getAutomaticScores, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
 
@@ -53,7 +54,7 @@ export default function AutomaticScores() {
       <p className="eval-note">{t('evaluations.communityNote')}</p>
     </details>
     {error && <div role="alert"><p>{t('evaluations.loadError')}</p><button className="eval-pass" onClick={() => setRetry(n => n + 1)}>{t('evaluations.retry')}</button></div>}
-    {loading ? <p role="status">{t('common.loading')}</p> : <>
+    {loading ? <WarmUp /> : <>
       {!items.length && <p>{t('evaluations.noPublicDives')}</p>}
       <ul className="eval-board-list">{sorted.map((item, index) => <li key={item.dive_id} className="eval-board-row" data-excluded={item.excluded ? 'true' : undefined} style={{ '--i': index } as CSSProperties}>
         <SplitFlap value={item.mean_score} />

@@ -8,6 +8,7 @@ import {
   type AchievementCategory,
 } from '../../services/achievementsApi'
 import { appLanguage } from '../../utils/dateLocale'
+import PageLoading from '../PageLoading'
 import { ACHIEVEMENT_CATEGORIES, achievementIcon, isKnownAchievement } from './achievementCatalog'
 
 type Card = {
@@ -80,7 +81,7 @@ export default function AchievementsPanel({ userId, isSelf }: { userId: number; 
       </p>
     )
   }
-  if (!cards) return <p role="status" className="text-sm text-app-muted">{t('achievements.loading')}</p>
+  if (!cards) return <PageLoading message={t('achievements.loading')} />
 
   const unlockedCount = cards.filter(card => card.unlocked).length
   if (!isSelf && unlockedCount === 0) return <p className="text-sm text-app-muted">{t('achievements.emptyOther')}</p>

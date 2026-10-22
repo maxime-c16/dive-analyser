@@ -11,6 +11,7 @@ import {
 import { ScoreCard } from '../evaluation/ScoreCards'
 import { scoreNumber } from '../evaluation/scoreFormatting'
 import EvaluationRequestControl from './EvaluationRequestControl'
+import PageLoading from '../PageLoading'
 import '../evaluation/evaluationA.css'
 
 /** The player's evaluation state for one dive, reloaded when the dive changes. */
@@ -107,7 +108,7 @@ export default function ClipEvaluation({
       </div>
     )
   }
-  if (!evaluation) return <p className="clip-eval-fine" role="status">{t('common.loading')}</p>
+  if (!evaluation) return <PageLoading />
 
   const circuitLabel = evaluation.circuit === 'request'
     ? t('clipEvaluation.circuitRequest')

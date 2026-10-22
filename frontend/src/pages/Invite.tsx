@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Gift, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import SignupClubSelect from '../components/SignupClubSelect'
+import PageLoading from '../components/PageLoading'
 import {
   inviteTokenFromHash,
   peekInvite,
@@ -112,11 +113,7 @@ export default function Invite() {
           <span className="text-lg font-semibold text-app-text">Dive Analyser</span>
         </div>
 
-        {state === 'loading' && (
-          <p role="status" className="mb-6 text-sm text-app-muted">
-            {t('common.loadingPage')}
-          </p>
-        )}
+        {state === 'loading' && <PageLoading />}
 
         {state === 'invalid' && (
           <>

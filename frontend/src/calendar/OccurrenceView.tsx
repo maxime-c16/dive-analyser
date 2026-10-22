@@ -8,6 +8,7 @@ import {
 import { lastDay, sourceOf, spanDays } from "./model";
 import { searchMembers } from "../services/communityApi";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
+import PageLoading from "../components/PageLoading";
 
 type State = { status: "loading" } | { status: "missing" } | { status: "failed" } |
   { status: "ready"; occ: OccurrenceDetail; event: EventDetail };
@@ -33,7 +34,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
     return () => { live = false; };
   }, [occurrenceId, revision]);
 
-  if (state.status === "loading") return <p role="status">{t.loading}</p>;
+  if (state.status === "loading") return <PageLoading message={t.loading} />;
   if (state.status === "missing") return <p role="alert">{t.unavailable}</p>;
   if (state.status === "failed") return <p role="alert">{t.failed} <button onClick={() => setRevision((r) => r + 1)}>{t.retry}</button></p>;
   const { occ, event } = state;

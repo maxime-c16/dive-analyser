@@ -4,6 +4,7 @@ import i18n from '../i18n'
 import { appLanguage } from '../utils/dateLocale'
 import { photosAccessLabel } from '../utils/mediaStatus'
 import { AlertTriangle, Database, HardDrive, Image, RefreshCw } from 'lucide-react'
+import PageLoading from '../components/PageLoading'
 import { getCatalogSummary, getLatestCatalogRun, getMediaAgents, getRecallManifest, planCatalogPopulation, planRecallBatch, recallOne, startCatalog, type CatalogPopulationPlan, type CatalogRun, type CatalogSummary, type MediaAgentStatus, type RecallBatchPlan, type RecallItem } from '../services/mediaRecallApi'
 
 function bytes(value?: number | null) {
@@ -155,7 +156,7 @@ export default function MediaRecall() {
           </table>
         </div>
         {!loading && items.length === 0 && <div className="border border-app p-8 text-center text-sm text-app-muted">{t('recall.noItems')}</div>}
-        {loading && <div className="border border-app p-8 text-center text-sm text-app-muted">{t('common.loading')}</div>}
+        {loading && items.length === 0 && <PageLoading />}
       </section>
     </div>
   )

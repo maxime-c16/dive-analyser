@@ -11,6 +11,7 @@
 import { scoreNumber } from './scoreFormatting'
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { ScoreCard } from './ScoreCards'
+import WarmUp from './EvaluationWarmUp'
 import { points } from './JudgeTable'
 import { useTranslation } from 'react-i18next'
 import {
@@ -83,7 +84,7 @@ export function OwnedRequests() {
   const loader = useCallback((limit: number, offset: number) => getOwnedRequests(limit, offset), [])
   const { state, busy, load } = usePagedLoader<OwnerRequestSummary>(loader)
 
-  if (state.kind === 'loading') return <p className="eval-status" role="status">{t('common.loading')}</p>
+  if (state.kind === 'loading') return <WarmUp />
   if (state.kind === 'error')
     return (
       <div className="eval-state" role="alert">
@@ -221,7 +222,7 @@ export function MyJudgements() {
   const loader = useCallback((limit: number, offset: number) => getMyRatings(limit, offset), [])
   const { state, busy, load } = usePagedLoader<MyRatingItem>(loader)
 
-  if (state.kind === 'loading') return <p className="eval-status" role="status">{t('common.loading')}</p>
+  if (state.kind === 'loading') return <WarmUp />
   if (state.kind === 'error')
     return (
       <div className="eval-state" role="alert">
@@ -307,7 +308,7 @@ function MyPanel({ requestId, automatic = false }: { requestId: number; automati
   }, [requestId, automatic])
   useEffect(() => { void fetchPage(0) }, [fetchPage])
 
-  if (state.kind === 'loading') return <p className="eval-status" role="status">{t('common.loading')}</p>
+  if (state.kind === 'loading') return <WarmUp />
   if (state.kind === 'error')
     return (
       <p role="alert" className="eval-error">

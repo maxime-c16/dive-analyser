@@ -5,6 +5,7 @@ import {
 } from "./api";
 import { validDate } from "./model";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
+import PageLoading from "../components/PageLoading";
 
 const TIME = /^\d{2}:\d{2}$/;
 
@@ -51,7 +52,7 @@ export default function ScheduleEditor({ ctx, occurrenceId }: { ctx: CalendarCon
   }, [occurrenceId, revision]);
 
   if (missing) return <p role="alert">{t.unavailable}</p>;
-  if (!occ || !event || !form) return <p role="status">{t.loading}</p>;
+  if (!occ || !event || !form) return <PageLoading message={t.loading} />;
   const series = !!event.recurrence && !event.imported;
   const set = <K extends keyof Form>(k: K, v: Form[K]) => { setForm({ ...form, [k]: v }); setPreview(null); };
   const dayLabel = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
