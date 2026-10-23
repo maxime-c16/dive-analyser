@@ -1,0 +1,10 @@
+{
+  "id": "consistent-carnet-score-cards",
+  "date": "2026-10-23",
+  "title": "Restore carnet score cards consistently",
+  "body": "Judging cards keep their large numerals and spiral binding across the judges’ table, results and Library, including after navigating between pages.",
+  "audience": "all",
+  "components": [
+    "frontend"
+  ]
+}

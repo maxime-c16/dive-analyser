@@ -1,0 +1,9 @@
+/* Shared carnet face: owned by ScoreCard, independent of lazy route CSS order. */
+.eval-card { --eval-card-w: 64px; position: relative; display: inline-flex; flex: none; width: var(--eval-card-w); height: calc(var(--eval-card-w) * 2.2); min-width: var(--eval-card-w); padding: 0; aspect-ratio: auto; border: 0; border-radius: 3px; background: #f7f6f1; color: #111; box-shadow: 0 3px 0 #0006, 0 8px 20px #0003; transform: none; overflow: hidden; }
+.eval-card-number { position: absolute; inset: 0 0 auto; height: 68%; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; font-weight: 900; font-size: calc(var(--eval-card-w) * 1.5); line-height: .8; transform: scaleX(.62); }
+.eval-card-spiral { position: absolute; inset: 68% 0 auto; height: 8%; width: 100%; margin: 0; border: 0; background: repeating-linear-gradient(90deg, transparent 0 3px, #666 3px 4px, transparent 4px 6px); }
+.eval-card-half { position: absolute; inset: 76% 0 0; display: grid; place-items: center; font-family: system-ui, sans-serif; font-size: calc(var(--eval-card-w) * .46); font-weight: 900; background: #fbfbf8; transform: none; }
+.eval-card-number.is-two { transform: scaleX(.46); }
+.eval-card-spiral { background: none; border-radius: 0; padding: 0; }
+.eval-card-spiral line { stroke: #3c3c3a; stroke-width: 3.2; vector-effect: non-scaling-stroke; }
+.eval-card-spiral ellipse { fill: none; stroke: #6d6d69; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
