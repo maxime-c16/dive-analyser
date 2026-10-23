@@ -1,7 +1,7 @@
 """Automatic packages: new-ingest events only, background priority, fail-closed gates."""
 from datetime import datetime, timedelta, timezone
 import shutil
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from app.config import get_settings
 from app.models.media import MediaJob
 
@@ -31,6 +31,11 @@ def is_infra_failure(last_error) -> bool:
     return any(marker in error for marker in INFRA_ERROR_MARKERS)
 
 
+def infra_failure_clause():
+    """SQL twin of ``is_infra_failure`` (for bounded aggregates)."""
+    return or_(*(MediaJob.last_error.contains(marker, autoescape=True) for marker in INFRA_ERROR_MARKERS))
+
+
 def package_breaker_job_ids(db, now=None) -> list[int]:
     """Job ids holding the breaker open, else [].
 
@@ -40,20 +45,21 @@ def package_breaker_job_ids(db, now=None) -> list[int]:
     platform has been quiet for the window: no operator reset needed.
     """
     now = now or datetime.utcnow()
-    rows = db.execute(select(MediaJob.id, MediaJob.status, MediaJob.last_error, MediaJob.updated_at).where(
+    # Storm: its own query over the window, so newer successes can't hide it.
+    storm = [int(job_id) for job_id in db.execute(select(MediaJob.id).where(
+        MediaJob.rendition == 'web_package',
+        MediaJob.status.in_(['failed', 'unavailable']),
+        MediaJob.updated_at >= now - INFRA_STORM_WINDOW,
+        infra_failure_clause(),
+    ).order_by(MediaJob.id.desc()).limit(INFRA_STORM_COUNT)).scalars()]
+    if len(storm) >= INFRA_STORM_COUNT:
+        return storm
+    rows = db.execute(select(MediaJob.id, MediaJob.status, MediaJob.last_error).where(
         MediaJob.rendition == 'web_package',
         MediaJob.status.in_(['ready', 'failed', 'unavailable']),
     ).order_by(MediaJob.id.desc()).limit(BREAKER_WINDOW)).all()
-    real, storm = [], []
-    for job_id, status, error, updated in rows:
-        if status != 'ready' and is_infra_failure(error):
-            if updated is not None and updated >= now - INFRA_STORM_WINDOW:
-                storm.append(int(job_id))
-            continue
-        real.append((int(job_id), status))
-    if len(storm) >= INFRA_STORM_COUNT:
-        return storm
-    real = real[:2]
+    real = [(int(job_id), status) for job_id, status, error in rows
+            if status == 'ready' or not is_infra_failure(error)][:2]
     if len(real) == 2 and all(status in ('failed', 'unavailable') for _, status in real):
         return [job_id for job_id, _ in real]
     return []

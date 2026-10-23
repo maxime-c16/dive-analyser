@@ -773,3 +773,28 @@ def test_real_failures_still_open_breaker_through_infra_noise(env):
     _infra_fail(env, b)
     _finish(env, c, sha(c), ready=False)
     assert ap.package_breaker_job_ids(env) == [c.id, a.id]
+
+
+def test_infra_storm_not_hidden_by_newer_successes(env):
+    _clip(env, 1)
+    a, _ = _clip(env, 2)
+    for _ in range(3):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"k{_}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow()))
+    for n in range(ap.BREAKER_WINDOW + 1):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"r{n}", rendition="web_package", status="ready",
+                         updated_at=datetime.utcnow()))
+    env.flush()
+    assert len(ap.package_breaker_job_ids(env)) == 3
+
+
+def test_infra_retry_count_survives_history_aging(env):
+    a, _ = _clip(env, 1)
+    for n in range(mm.INFRA_RETRY_LIMIT):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"i{n}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    for n in range(mm.JOB_HISTORY_WINDOW + 1):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"o{n}", rendition="web_package", status="failed",
+                         last_error="ffmpeg_timeout", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    env.flush()
+    assert mm._infra_failures(env, a.id) == mm.INFRA_RETRY_LIMIT

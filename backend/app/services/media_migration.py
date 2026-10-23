@@ -682,15 +682,15 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
 
 
 def _infra_failures(db, asset_id: int) -> int:
-    """Infra-failed package jobs of this asset (bounded history)."""
-    from app.services.automatic_packages import is_infra_failure
+    """Every infra-failed package job of this asset (one indexed aggregate)."""
+    from app.services.automatic_packages import infra_failure_clause
 
-    errors = db.execute(select(MediaJob.last_error).where(
+    return int(db.execute(select(func.count(MediaJob.id)).where(
         MediaJob.photos_asset_id == asset_id,
         MediaJob.rendition == "web_package",
         MediaJob.status.in_(TERMINAL_FAILED),
-    ).order_by(MediaJob.id.desc()).limit(JOB_HISTORY_WINDOW)).scalars().all()
-    return sum(1 for error in errors if is_infra_failure(error))
+        infra_failure_clause(),
+    )).scalar_one())
 
 
 def _infra_retryable(db, job) -> bool:
