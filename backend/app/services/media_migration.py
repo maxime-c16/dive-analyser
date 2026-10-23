@@ -78,6 +78,8 @@ ACTIVE_STATUSES = (
 )
 UNLEASED_STATUSES = ("queued", "waiting_for_mac")
 TERMINAL_FAILED = ("failed", "unavailable")
+# Automatic re-admissions of a clip whose packages died of infra failures.
+INFRA_RETRY_LIMIT = 3
 
 
 class MigrationError(RuntimeError):
@@ -621,6 +623,10 @@ def refresh_queued(db, run: MediaMigrationRun, now: datetime) -> dict[str, int]:
         elif st["state"] != "no_source" and pin_sha and pin_sha != st["source_sha256"].lower():
             _to_pending(item, "source_changed", drift=True)
             counts["requeued"] += 1
+        elif _infra_retryable(db, job):
+            # The platform killed it (restart/network): heal automatically.
+            _to_pending(item, "infra_retry")
+            counts["requeued"] += 1
         else:
             item.status, item.reason = "failed", f"job_{job.status}"[:80]
             item.last_error = (job.last_error or job.status)[:500]
@@ -667,9 +673,31 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
                     and st["source_sha256"].lower() != item.source_sha256.lower()):
                 _to_pending(item, "source_changed", drift=True)
                 counts["drift"] += 1
+            elif item.media_job_id and _infra_retryable(db, db.get(MediaJob, item.media_job_id)):
+                _to_pending(item, "infra_retry")
+                counts["unblocked"] += 1
     run.sweep_cursor = items[-1].id if len(items) == batch else 0
     db.flush()
     return counts
+
+
+def _infra_failures(db, asset_id: int) -> int:
+    """Infra-failed package jobs of this asset (bounded history)."""
+    from app.services.automatic_packages import is_infra_failure
+
+    errors = db.execute(select(MediaJob.last_error).where(
+        MediaJob.photos_asset_id == asset_id,
+        MediaJob.rendition == "web_package",
+        MediaJob.status.in_(TERMINAL_FAILED),
+    ).order_by(MediaJob.id.desc()).limit(JOB_HISTORY_WINDOW)).scalars().all()
+    return sum(1 for error in errors if is_infra_failure(error))
+
+
+def _infra_retryable(db, job) -> bool:
+    from app.services.automatic_packages import is_infra_failure
+
+    return (job is not None and job.status in TERMINAL_FAILED and is_infra_failure(job.last_error)
+            and _infra_failures(db, job.photos_asset_id) < INFRA_RETRY_LIMIT)
 
 
 def _prior_package_outcome(db, asset_id: int, source_sha: str, version: str):
@@ -775,7 +803,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             continue
         if item.reason != "operator_retry":
             prior = _prior_package_outcome(db, asset.id, st["source_sha256"], run.transform_version)
-            if prior is not None:
+            if prior is not None and not _infra_retryable(db, prior):
                 item.status = "failed"
                 item.reason = ("prior_package_failed" if prior.status in TERMINAL_FAILED
                                else "ready_job_not_servable")

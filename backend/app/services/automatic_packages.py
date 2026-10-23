@@ -1,5 +1,5 @@
 """Automatic packages: new-ingest events only, background priority, fail-closed gates."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import shutil
 from sqlalchemy import select
 from app.config import get_settings
@@ -17,18 +17,45 @@ def server_cache_free_bytes():
         return None
 
 
-def package_breaker_job_ids(db) -> list[int]:
-    """The two latest terminal packages when BOTH failed (breaker open), else [].
+# Failures caused by the platform, not by the clip: a server restart or
+# network blip kills the in-flight package (lease expiry, transport status 0,
+# gateway 5xx). They never count as a "real" failure for the breaker.
+INFRA_ERROR_MARKERS = ("lease_expired", "failed: 0 ", "failed: 502 ", "failed: 503 ", "failed: 504 ")
+BREAKER_WINDOW = 20
+INFRA_STORM_COUNT = 3
+INFRA_STORM_WINDOW = timedelta(minutes=30)
 
-    Bounded authoritative history; two consecutive terminal failures stop
-    new packages. A ready package resets the streak; active jobs don't.
+
+def is_infra_failure(last_error) -> bool:
+    error = str(last_error or "")
+    return any(marker in error for marker in INFRA_ERROR_MARKERS)
+
+
+def package_breaker_job_ids(db, now=None) -> list[int]:
+    """Job ids holding the breaker open, else [].
+
+    Two consecutive REAL terminal failures (infra failures skipped) stop new
+    packages until a ready package resets the streak. A storm of infra
+    failures (>= 3 in 30 min) also stops them, but self-clears once the
+    platform has been quiet for the window: no operator reset needed.
     """
-    rows = db.execute(select(MediaJob.id, MediaJob.status).where(
+    now = now or datetime.utcnow()
+    rows = db.execute(select(MediaJob.id, MediaJob.status, MediaJob.last_error, MediaJob.updated_at).where(
         MediaJob.rendition == 'web_package',
         MediaJob.status.in_(['ready', 'failed', 'unavailable']),
-    ).order_by(MediaJob.id.desc()).limit(2)).all()
-    if len(rows) == 2 and all(status in ('failed', 'unavailable') for _, status in rows):
-        return [int(job_id) for job_id, _ in rows]
+    ).order_by(MediaJob.id.desc()).limit(BREAKER_WINDOW)).all()
+    real, storm = [], []
+    for job_id, status, error, updated in rows:
+        if status != 'ready' and is_infra_failure(error):
+            if updated is not None and updated >= now - INFRA_STORM_WINDOW:
+                storm.append(int(job_id))
+            continue
+        real.append((int(job_id), status))
+    if len(storm) >= INFRA_STORM_COUNT:
+        return storm
+    real = real[:2]
+    if len(real) == 2 and all(status in ('failed', 'unavailable') for _, status in real):
+        return [job_id for job_id, _ in real]
     return []
 
 
