@@ -765,15 +765,19 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
         ).order_by(MediaMigrationItem.sort_key.desc().nulls_last(), MediaMigrationItem.id.desc())
         .limit(CANDIDATE_SCAN)
     ).scalars().all()
-    prefetched = {int(i.photos_asset_id) for i in candidates if i.photos_asset_id is not None}
-    infra = _infra_counts(db, prefetched)  # missing row = zero failures
+    # Current asset bindings and infra counts for the whole batch: two
+    # grouped queries, missing count row = zero failures.
+    current = dict(db.execute(select(Dive.video_uuid, func.min(Dive.photos_asset_id)).where(
+        Dive.video_uuid.in_([i.video_uuid for i in candidates])
+    ).group_by(Dive.video_uuid)).all()) if candidates else {}
+    infra = _infra_counts(db, current.values())
     for item in candidates:
         if slots <= 0:
             break
         if run.admission_cap is not None and int(run.admitted_jobs) >= int(run.admission_cap):
             result["stopped"] = "admission_cap"
             break
-        item.photos_asset_id = _current_asset_id(db, item.video_uuid)
+        item.photos_asset_id = current.get(item.video_uuid)
         asset = db.get(PhotosAsset, item.photos_asset_id) if item.photos_asset_id else None
         if asset is None:
             item.status, item.reason = "blocked", "no_photos_asset"
@@ -818,9 +822,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             slots -= 1
             continue
         if item.reason != "operator_retry":
-            # Only an asset re-resolved since the prefetch needs its own count.
-            count = infra.get(asset.id, 0) if asset.id in prefetched else _infra_failures(db, asset.id)
-            if count >= INFRA_RETRY_LIMIT:
+            if infra.get(asset.id, 0) >= INFRA_RETRY_LIMIT:
                 # Automatic infra retries exhausted: only an operator retry
                 # can admit this clip again.
                 item.status, item.reason = "failed", "infra_retry_exhausted"
