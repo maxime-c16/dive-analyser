@@ -1,0 +1,8 @@
+{
+  "id": "evaluation-sequence-identity",
+  "date": "2026-10-23",
+  "title": "Clearer names during evaluation playback",
+  "body": "A compact name panel keeps the diver, dive details and sequence position easy to read during playback.",
+  "audience": "all",
+  "components": ["frontend"]
+}
