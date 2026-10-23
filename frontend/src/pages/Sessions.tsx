@@ -21,6 +21,7 @@ import {
   performanceBorder,
   performanceColor,
 } from "../utils/performanceScoring";
+import { MobileShellActions } from "../navigation/mobileShellActions";
 
 interface Session {
   id: number;
@@ -158,7 +159,10 @@ function Sessions() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-app-text">{t("sessions.title")}</h1>
+        <div className="flex items-start gap-2">
+          <h1 className="min-w-0 flex-1 text-3xl font-bold text-app-text">{t("sessions.title")}</h1>
+          <MobileShellActions />
+        </div>
 
         {/* Quick Stats */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-4">

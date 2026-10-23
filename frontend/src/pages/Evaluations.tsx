@@ -19,6 +19,7 @@ import AutomaticScores from '../components/evaluation/AutomaticScores'
 import JudgeTable from '../components/evaluation/JudgeTable'
 import WarmUp from '../components/evaluation/EvaluationWarmUp'
 import { getEvaluationOverview, type EvaluationOverview } from '../services/evaluationApi'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 
 const loadJurySession = () => import('../components/evaluation/JurySession')
 const JurySession = lazy(loadJurySession)
@@ -57,7 +58,7 @@ export default function Evaluations() {
 
   return (
     <div className="evaluations-page" data-judging={judging ? 'true' : undefined}>
-      <h1 className="evaluations-title">{t('evaluations.title')}</h1>
+      <div className="evaluations-heading"><h1 className="evaluations-title">{t('evaluations.title')}</h1><MobileShellActions /></div>
       <Tabs tab={tab} onTab={setTab} />
       <div key={tab} className="evaluations-body" role="tabpanel" id={`evaluations-panel-${tab}`} aria-labelledby={`evaluations-tab-${tab}`}>
         {tab === 'judge' && <JudgeHub key={user?.user_id ?? 'guest'} paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}

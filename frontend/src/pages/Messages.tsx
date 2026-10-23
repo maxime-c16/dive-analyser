@@ -14,6 +14,7 @@ import { useMobileViewport, useBottomAction } from '../navigation/useMobileNavig
 import { useMessagesUnread } from '../components/MessagesUnread'
 import '../navigation/messagesMobile.css'
 import { emptyMentionValue, mentionPayload } from '../components/mentions/mentionValue'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 
 function Thread({ id }: { id: number }) {
   const { user } = useAuth()
@@ -43,12 +44,7 @@ function Thread({ id }: { id: number }) {
   useLayoutEffect(() => {
     if (viewport.width >= 768 || !thread.current) return
     window.scrollTo({ top: 0, behavior: 'instant' })
-    const measure = () => { if (thread.current) setTop(thread.current.getBoundingClientRect().top + window.scrollY) }
-    measure()
-    const observer = new ResizeObserver(measure)
-    const header = document.querySelector('.mobile-header')
-    if (header) observer.observe(header)
-    return () => observer.disconnect()
+    setTop(thread.current.getBoundingClientRect().top + window.scrollY)
   }, [viewport.width])
   useEffect(() => {
     const completed = (event: Event) => {
@@ -180,7 +176,7 @@ export default function Messages() {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') void load() }, 5000)
     return () => { alive = false; clearInterval(timer) }
   }, [retry, id])
-  return <div className={`messages-page mx-auto max-w-6xl p-4 text-app-text sm:p-6 ${id > 0 ? 'messages-page-thread' : ''}`}><div className="messages-heading mb-5 flex items-center justify-between"><h1 className="text-2xl font-semibold">{t('messages.title')}</h1><button className="flex items-center gap-2 border border-app px-3 py-2" onClick={() => setChoose(v => !v)} aria-expanded={choose}><Plus size={18} />{t('messages.new')}</button></div>
+  return <div className={`messages-page mx-auto max-w-6xl p-4 text-app-text sm:p-6 ${id > 0 ? 'messages-page-thread' : ''}`}><div className="messages-heading mb-5 flex items-center gap-2"><h1 className="min-w-0 flex-1 text-3xl font-semibold">{t('messages.title')}</h1><button className="touch-target flex items-center justify-center gap-2 border border-app px-3 py-2" onClick={() => setChoose(v => !v)} aria-expanded={choose} aria-label={t('messages.new')}><Plus size={18} /><span className="max-sm:hidden">{t('messages.new')}</span></button><MobileShellActions /></div>
     {choose && <div className="mb-4 max-w-lg rounded-xl border border-app bg-app-panel p-4"><MemberPicker disabled={starting} onSelect={async member => {
       setStarting(true)
       try { const c = await api.startConversation(member.user_id); setChoose(false); navigate(`/messages/${c.id}`); setRetry(n => n + 1) }

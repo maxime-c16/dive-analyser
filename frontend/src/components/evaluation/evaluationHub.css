@@ -2,11 +2,9 @@
    Every motion here is transform/opacity only and stops under reduced motion. */
 
 /* ---- Page chrome ------------------------------------------------------ */
-.evaluations-title { margin: 0; font-size: 22px; }
-@media (max-width: 1023px) {
-  /* The mobile top bar already names the page. */
-  .evaluations-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-}
+.evaluations-heading { display: flex; align-items: center; gap: 8px; }
+.evaluations-title { flex: 1; min-width: 0; margin: 0; font-size: 22px; }
+@media (max-width: 1023px) { .evaluations-title { font-size: 30px; font-weight: 600; } }
 .evaluations-tabs { position: relative; display: flex; flex-wrap: nowrap; border-bottom: 1px solid var(--app-border); }
 .evaluations-tabs button { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 0; background: none; color: var(--app-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 200ms; }
 .evaluations-tabs button[aria-selected=true] { color: var(--app-accent); }

@@ -7,6 +7,7 @@ import { searchMembers, type MemberSummary } from '../services/communityApi'
 import { appLanguage } from '../utils/dateLocale'
 import MemberAvatar from '../components/MemberAvatar'
 import PageLoading from '../components/PageLoading'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 
 export default function Community() {
   const { t } = useTranslation()
@@ -48,8 +49,9 @@ export default function Community() {
 
   return <div className="mx-auto max-w-4xl">
     <header className="mb-4 flex items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">{t('community.title')}</h1>
-      {user && <Link className="touch-target inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong" to={`/users/${user.user_id}`}><User className="h-4 w-4" aria-hidden />{t('community.myProfile')}</Link>}
+      <h1 className="min-w-0 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">{t('community.title')}</h1>
+      <MobileShellActions />
+      {user && <Link className="touch-target max-lg:hidden inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong" to={`/users/${user.user_id}`}><User className="h-4 w-4" aria-hidden />{t('community.myProfile')}</Link>}
     </header>
     <label className="relative mb-4 block">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" aria-hidden />

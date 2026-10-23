@@ -19,8 +19,13 @@
 @media (min-width: 1024px) { .mobile-tab-bar { display: none; } }
 @media (orientation: landscape) and (max-height: 500px) { .mobile-tab { min-height: 48px; flex-direction: row; flex-wrap: wrap; gap: 4px; } }
 
-.mobile-header [data-testid="notifications-button"] { min-width: 44px; justify-content: center; }
-.mobile-header [data-testid="notifications-button"] > span:not([data-testid]) { display: none; }
+/* iOS blurs the page under the status bar and ~40pt below it, like the empty
+   band above a large title in native apps. The shell starts below that band,
+   so nothing interactive sits in the blur. The band is proportional to the
+   inset, so browser tabs/Android (inset 0) keep no extra space. */
+@media (max-width: 1023px) { .shell-main, .mobile-header { padding-top: calc(env(safe-area-inset-top) * 1.7); } .mobile-header ~ .shell-main { padding-top: 0; } }
+.mobile-shell-actions [data-testid="notifications-button"] { min-width: 44px; justify-content: center; }
+.mobile-shell-actions [data-testid="notifications-button"] > span:not([data-testid]) { display: none; }
 @media (max-width: 340px) { .mobile-tab { font-size: .65625rem; } }
 
 @media (max-width: 1023px) {
