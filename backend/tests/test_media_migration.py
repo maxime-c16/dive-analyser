@@ -798,3 +798,21 @@ def test_infra_retry_count_survives_history_aging(env):
                          last_error="ffmpeg_timeout", updated_at=datetime.utcnow() - timedelta(hours=3)))
     env.flush()
     assert mm._infra_failures(env, a.id) == mm.INFRA_RETRY_LIMIT
+
+
+def test_admission_refuses_clip_with_exhausted_infra_retries(env):
+    a, _ = _clip(env, 1)
+    for n in range(mm.INFRA_RETRY_LIMIT):
+        # Pinned to another source: _prior_package_outcome would not see them.
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"x{n}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    env.flush()
+    _start(env, queue_depth=1)
+    mm.tick(env)
+    env.commit()
+    item = _items(env)["00000001"]
+    assert item.status == "failed" and item.reason == "infra_retry_exhausted"
+    assert not [j for j in _jobs(env) if j.status == "queued"]
+    mm.retry_item(env, item.video_uuid, "operator")
+    mm.tick(env)
+    assert [j for j in _jobs(env) if j.status == "queued"]

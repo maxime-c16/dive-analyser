@@ -563,9 +563,12 @@ def refresh_queued(db, run: MediaMigrationRun, now: datetime) -> dict[str, int]:
     items = db.execute(select(MediaMigrationItem).where(
         MediaMigrationItem.run_id == run.id, MediaMigrationItem.status == "queued",
     ).order_by(MediaMigrationItem.updated_at.asc(), MediaMigrationItem.id.asc()).limit(REFRESH_BATCH)).scalars().all()
+    jobs = {j.id: j for j in db.execute(select(MediaJob).where(
+        MediaJob.id.in_([i.media_job_id for i in items if i.media_job_id]))).scalars()} if items else {}
+    infra = _infra_counts(db, [j.photos_asset_id for j in jobs.values()])
     for item in items:
         item.updated_at = now
-        job = db.get(MediaJob, item.media_job_id) if item.media_job_id else None
+        job = jobs.get(item.media_job_id) if item.media_job_id else None
         if job is None:
             _to_pending(item, "job_missing")
             counts["requeued"] += 1
@@ -623,7 +626,7 @@ def refresh_queued(db, run: MediaMigrationRun, now: datetime) -> dict[str, int]:
         elif st["state"] != "no_source" and pin_sha and pin_sha != st["source_sha256"].lower():
             _to_pending(item, "source_changed", drift=True)
             counts["requeued"] += 1
-        elif _infra_retryable(db, job):
+        elif _infra_retryable(job, infra):
             # The platform killed it (restart/network): heal automatically.
             _to_pending(item, "infra_retry")
             counts["requeued"] += 1
@@ -645,6 +648,9 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
             MediaMigrationItem.status.in_(("complete", "skipped_complete", "blocked", "failed")),
         ).order_by(MediaMigrationItem.id.asc()).limit(batch)
     ).scalars().all()
+    failed_jobs = {j.id: j for j in db.execute(select(MediaJob).where(MediaJob.id.in_(
+        [i.media_job_id for i in items if i.status == "failed" and i.media_job_id]))).scalars()}
+    infra = _infra_counts(db, [j.photos_asset_id for j in failed_jobs.values()])
     for item in items:
         counts["checked"] += 1
         st = package_state(db, item.video_uuid, run.transform_version)
@@ -673,7 +679,7 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
                     and st["source_sha256"].lower() != item.source_sha256.lower()):
                 _to_pending(item, "source_changed", drift=True)
                 counts["drift"] += 1
-            elif item.media_job_id and _infra_retryable(db, db.get(MediaJob, item.media_job_id)):
+            elif _infra_retryable(failed_jobs.get(item.media_job_id), infra):
                 _to_pending(item, "infra_retry")
                 counts["unblocked"] += 1
     run.sweep_cursor = items[-1].id if len(items) == batch else 0
@@ -681,23 +687,31 @@ def sweep(db, run: MediaMigrationRun, now: datetime, batch: int = SWEEP_BATCH) -
     return counts
 
 
-def _infra_failures(db, asset_id: int) -> int:
-    """Every infra-failed package job of this asset (one indexed aggregate)."""
+def _infra_counts(db, asset_ids) -> dict[int, int]:
+    """Infra-failed package jobs per asset, all history (one grouped aggregate)."""
     from app.services.automatic_packages import infra_failure_clause
 
-    return int(db.execute(select(func.count(MediaJob.id)).where(
-        MediaJob.photos_asset_id == asset_id,
+    ids = {int(a) for a in asset_ids if a is not None}
+    if not ids:
+        return {}
+    rows = db.execute(select(MediaJob.photos_asset_id, func.count(MediaJob.id)).where(
+        MediaJob.photos_asset_id.in_(ids),
         MediaJob.rendition == "web_package",
         MediaJob.status.in_(TERMINAL_FAILED),
         infra_failure_clause(),
-    )).scalar_one())
+    ).group_by(MediaJob.photos_asset_id)).all()
+    return {int(a): int(n) for a, n in rows}
 
 
-def _infra_retryable(db, job) -> bool:
+def _infra_failures(db, asset_id: int) -> int:
+    return _infra_counts(db, [asset_id]).get(int(asset_id), 0)
+
+
+def _infra_retryable(job, counts: dict[int, int]) -> bool:
     from app.services.automatic_packages import is_infra_failure
 
     return (job is not None and job.status in TERMINAL_FAILED and is_infra_failure(job.last_error)
-            and _infra_failures(db, job.photos_asset_id) < INFRA_RETRY_LIMIT)
+            and counts.get(int(job.photos_asset_id), 0) < INFRA_RETRY_LIMIT)
 
 
 def _prior_package_outcome(db, asset_id: int, source_sha: str, version: str):
@@ -751,6 +765,7 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
         ).order_by(MediaMigrationItem.sort_key.desc().nulls_last(), MediaMigrationItem.id.desc())
         .limit(CANDIDATE_SCAN)
     ).scalars().all()
+    infra = _infra_counts(db, [i.photos_asset_id for i in candidates])
     for item in candidates:
         if slots <= 0:
             break
@@ -802,8 +817,15 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             slots -= 1
             continue
         if item.reason != "operator_retry":
+            count = infra[asset.id] if asset.id in infra else _infra_failures(db, asset.id)
+            if count >= INFRA_RETRY_LIMIT:
+                # Automatic infra retries exhausted: only an operator retry
+                # can admit this clip again.
+                item.status, item.reason = "failed", "infra_retry_exhausted"
+                result["failed"] += 1
+                continue
             prior = _prior_package_outcome(db, asset.id, st["source_sha256"], run.transform_version)
-            if prior is not None and not _infra_retryable(db, prior):
+            if prior is not None and not _infra_retryable(prior, {}):
                 item.status = "failed"
                 item.reason = ("prior_package_failed" if prior.status in TERMINAL_FAILED
                                else "ready_job_not_servable")
