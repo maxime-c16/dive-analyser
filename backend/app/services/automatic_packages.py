@@ -1,7 +1,7 @@
 """Automatic packages: new-ingest events only, background priority, fail-closed gates."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import shutil
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from app.config import get_settings
 from app.models.media import MediaJob
 
@@ -17,18 +17,51 @@ def server_cache_free_bytes():
         return None
 
 
-def package_breaker_job_ids(db) -> list[int]:
-    """The two latest terminal packages when BOTH failed (breaker open), else [].
+# Failures caused by the platform, not by the clip: a server restart or
+# network blip kills the in-flight package (lease expiry, transport status 0,
+# gateway 5xx). They never count as a "real" failure for the breaker.
+INFRA_ERROR_MARKERS = ("lease_expired", "failed: 0 ", "failed: 502 ", "failed: 503 ", "failed: 504 ")
+BREAKER_WINDOW = 20
+INFRA_STORM_COUNT = 3
+INFRA_STORM_WINDOW = timedelta(minutes=30)
 
-    Bounded authoritative history; two consecutive terminal failures stop
-    new packages. A ready package resets the streak; active jobs don't.
+
+def is_infra_failure(last_error) -> bool:
+    error = str(last_error or "")
+    return any(marker in error for marker in INFRA_ERROR_MARKERS)
+
+
+def infra_failure_clause():
+    """SQL twin of ``is_infra_failure`` (for bounded aggregates)."""
+    return or_(*(MediaJob.last_error.contains(marker, autoescape=True) for marker in INFRA_ERROR_MARKERS))
+
+
+def package_breaker_job_ids(db, now=None) -> list[int]:
+    """Job ids holding the breaker open, else [].
+
+    Two consecutive REAL terminal failures (infra failures skipped) stop new
+    packages until a ready package resets the streak. A storm of infra
+    failures (>= 3 in 30 min) also stops them, but self-clears once the
+    platform has been quiet for the window: no operator reset needed.
     """
-    rows = db.execute(select(MediaJob.id, MediaJob.status).where(
+    now = now or datetime.utcnow()
+    # Storm: its own query over the window, so newer successes can't hide it.
+    storm = [int(job_id) for job_id in db.execute(select(MediaJob.id).where(
+        MediaJob.rendition == 'web_package',
+        MediaJob.status.in_(['failed', 'unavailable']),
+        MediaJob.updated_at >= now - INFRA_STORM_WINDOW,
+        infra_failure_clause(),
+    ).order_by(MediaJob.id.desc()).limit(INFRA_STORM_COUNT)).scalars()]
+    if len(storm) >= INFRA_STORM_COUNT:
+        return storm
+    rows = db.execute(select(MediaJob.id, MediaJob.status, MediaJob.last_error).where(
         MediaJob.rendition == 'web_package',
         MediaJob.status.in_(['ready', 'failed', 'unavailable']),
-    ).order_by(MediaJob.id.desc()).limit(2)).all()
-    if len(rows) == 2 and all(status in ('failed', 'unavailable') for _, status in rows):
-        return [int(job_id) for job_id, _ in rows]
+    ).order_by(MediaJob.id.desc()).limit(BREAKER_WINDOW)).all()
+    real = [(int(job_id), status) for job_id, status, error in rows
+            if status == 'ready' or not is_infra_failure(error)][:2]
+    if len(real) == 2 and all(status in ('failed', 'unavailable') for _, status in real):
+        return [job_id for job_id, _ in real]
     return []
 
 

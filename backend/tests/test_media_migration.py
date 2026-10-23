@@ -710,3 +710,109 @@ def test_inventory_batch_query_count_is_constant(env):
     large, clips_large = count_for(12, 200)
     assert clips_large == clips_small + 12
     assert large == small, (small, large)
+
+
+def _infra_fail(db, job, error="lease_expired", when=None):
+    job.status, job.attempts, job.last_error = "failed", max(job.attempts or 0, 1), error
+    job.updated_at = when or datetime.utcnow()
+    db.flush()
+
+
+def test_infra_failures_never_open_the_breaker_and_self_heal(env):
+    for n in (1, 2, 3):
+        _clip(env, n)
+    _start(env, queue_depth=2)
+    mm.tick(env)
+    a, b = _jobs(env)
+    # A server restart kills both in-flight packages.
+    _infra_fail(env, a, "lease_expired")
+    _infra_fail(env, b, "heartbeat media job failed: 0 000")
+    assert ap.package_breaker_job_ids(env) == []
+    result = mm.tick(env)
+    env.commit()
+    assert "package_breaker" not in result["blocked_gates"]
+    # Both clips were re-admitted automatically with fresh jobs.
+    active = [j for j in _jobs(env) if j.status == "queued"]
+    assert {j.asset.video_uuid for j in active} == {a.asset.video_uuid, b.asset.video_uuid}
+
+
+def test_infra_retry_is_bounded_per_clip(env):
+    _clip(env, 1)
+    _start(env, queue_depth=1)
+    old = datetime.utcnow() - timedelta(hours=2)  # outside the storm window
+    for _ in range(mm.INFRA_RETRY_LIMIT):
+        mm.tick(env)
+        job = [j for j in _jobs(env) if j.status == "queued"][0]
+        _infra_fail(env, job, when=old)
+    mm.tick(env)
+    env.commit()
+    item = _items(env)["00000001"]
+    assert item.status == "failed" and len(_jobs(env)) == mm.INFRA_RETRY_LIMIT
+
+
+def test_infra_storm_opens_breaker_then_clears_by_itself(env):
+    for n in (1, 2, 3):
+        _clip(env, n)
+    _start(env, queue_depth=3)
+    mm.tick(env)
+    for job in _jobs(env):
+        _infra_fail(env, job)
+    assert len(ap.package_breaker_job_ids(env)) == 3
+    later = datetime.utcnow() + ap.INFRA_STORM_WINDOW + timedelta(minutes=1)
+    assert ap.package_breaker_job_ids(env, now=later) == []
+
+
+def test_real_failures_still_open_breaker_through_infra_noise(env):
+    for n in (1, 2, 3):
+        _clip(env, n)
+    _start(env, queue_depth=3)
+    mm.tick(env)
+    a, b, c = _jobs(env)
+    sha = lambda j: mm.package_state(env, j.asset.video_uuid, get_derivative_transform_version())["source_sha256"]
+    _finish(env, a, sha(a), ready=False)
+    _infra_fail(env, b)
+    _finish(env, c, sha(c), ready=False)
+    assert ap.package_breaker_job_ids(env) == [c.id, a.id]
+
+
+def test_infra_storm_not_hidden_by_newer_successes(env):
+    _clip(env, 1)
+    a, _ = _clip(env, 2)
+    for _ in range(3):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"k{_}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow()))
+    for n in range(ap.BREAKER_WINDOW + 1):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"r{n}", rendition="web_package", status="ready",
+                         updated_at=datetime.utcnow()))
+    env.flush()
+    assert len(ap.package_breaker_job_ids(env)) == 3
+
+
+def test_infra_retry_count_survives_history_aging(env):
+    a, _ = _clip(env, 1)
+    for n in range(mm.INFRA_RETRY_LIMIT):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"i{n}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    for n in range(mm.JOB_HISTORY_WINDOW + 1):
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"o{n}", rendition="web_package", status="failed",
+                         last_error="ffmpeg_timeout", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    env.flush()
+    assert mm._infra_failures(env, a.id) == mm.INFRA_RETRY_LIMIT
+
+
+def test_admission_refuses_clip_with_exhausted_infra_retries(env):
+    a, _ = _clip(env, 1)
+    for n in range(mm.INFRA_RETRY_LIMIT):
+        # Pinned to another source: _prior_package_outcome would not see them.
+        env.add(MediaJob(photos_asset_id=a.id, media_key=f"x{n}", rendition="web_package", status="failed",
+                         last_error="lease_expired", updated_at=datetime.utcnow() - timedelta(hours=3)))
+    env.flush()
+    _start(env, queue_depth=1)
+    mm.tick(env)
+    env.commit()
+    item = _items(env)["00000001"]
+    assert item.status == "failed" and item.reason == "infra_retry_exhausted"
+    assert not [j for j in _jobs(env) if j.status == "queued"]
+    mm.retry_item(env, item.video_uuid, "operator")
+    mm.tick(env)
+    assert [j for j in _jobs(env) if j.status == "queued"]

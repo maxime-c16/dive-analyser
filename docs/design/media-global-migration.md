@@ -126,9 +126,17 @@ plus an admission gate, not a replacement.
 Failures are visible in `status` (reason, job id, error). Nothing retries
 silently; `retry-item` is an explicit per-item operator action and every
 gate, including the breaker, still applies. When the breaker is open (two
-consecutive terminal package failures) all package leasing stops (PR148
+consecutive REAL terminal package failures) all package leasing stops (PR148
 contract) and the migration admits nothing; recovery needs an
 investigation and a reviewed decision, there is no reset command.
+
+Infra failures are different: a package killed by the platform (lease
+expiry, transport status 0, gateway 502/503/504, e.g. a backend restart
+during a deploy) says nothing about the clip. They are skipped by the
+breaker streak and the clip is re-admitted automatically with a fresh job,
+at most `INFRA_RETRY_LIMIT` (3) times per clip, after which it stays
+`failed`. A storm of infra failures (>= 3 within 30 min) opens the breaker
+too, and it closes by itself once the platform has been quiet for 30 min.
 
 ## Inventory before activation (PROD, read-only, 2026-10-22)
 
