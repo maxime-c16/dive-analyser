@@ -1,0 +1,8 @@
+{
+  "id": "ios-no-auto-zoom",
+  "date": "2026-10-23",
+  "title": "L'iPhone ne zoome plus tout seul",
+  "body": "L'app ne zoome plus toute seule sur iPhone quand on touche un champ ou tape deux fois. Le zoom par pincement reste disponible.",
+  "audience": "all",
+  "components": ["frontend"]
+}
