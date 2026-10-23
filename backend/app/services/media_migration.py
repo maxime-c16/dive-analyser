@@ -765,7 +765,8 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
         ).order_by(MediaMigrationItem.sort_key.desc().nulls_last(), MediaMigrationItem.id.desc())
         .limit(CANDIDATE_SCAN)
     ).scalars().all()
-    infra = _infra_counts(db, [i.photos_asset_id for i in candidates])
+    prefetched = {int(i.photos_asset_id) for i in candidates if i.photos_asset_id is not None}
+    infra = _infra_counts(db, prefetched)  # missing row = zero failures
     for item in candidates:
         if slots <= 0:
             break
@@ -817,7 +818,8 @@ def admit(db, run: MediaMigrationRun, now: datetime) -> dict[str, Any]:
             slots -= 1
             continue
         if item.reason != "operator_retry":
-            count = infra[asset.id] if asset.id in infra else _infra_failures(db, asset.id)
+            # Only an asset re-resolved since the prefetch needs its own count.
+            count = infra.get(asset.id, 0) if asset.id in prefetched else _infra_failures(db, asset.id)
             if count >= INFRA_RETRY_LIMIT:
                 # Automatic infra retries exhausted: only an operator retry
                 # can admit this clip again.
