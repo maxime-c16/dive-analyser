@@ -144,15 +144,25 @@ video {
   max-width: 100%;
 }
 
-button,
-select,
-input,
-textarea {
+/* Disables double-tap-to-zoom everywhere (fast taps on the player, cards,
+   links) while keeping pinch-zoom and scrolling. */
+html {
   touch-action: manipulation;
 }
 
 select {
   min-height: 2.75rem;
+}
+
+/* iOS Safari zooms the page when a focused field's text is under 16px.
+   Keep fields at 16px on touch screens instead of disabling pinch-zoom. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: max(16px, 1em);
+  }
 }
 
 @media (max-width: 639px) {
