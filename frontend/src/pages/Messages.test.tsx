@@ -5,11 +5,15 @@ import '../i18n'
 import Messages from './Messages'
 import * as api from '../services/messagesApi'
 import type { Message } from '../services/messagesApi'
+import { MobileShellContext } from '../navigation/mobileShellActions'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
 vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn() }))
 const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: 'x', body: 'Hello from Fouiny', mentions: [], created_at: '2026-10-08T12:00:00Z', dive: null, receipts: [], reactions: [] }
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
+function showWithShell(entry: string, claim: () => () => void) {
+  render(<MobileShellContext.Provider value={{ actions: <span data-testid="shell-actions" />, claim }}><MemoryRouter initialEntries={[entry]}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter></MobileShellContext.Provider>)
+}
 beforeEach(() => {
   sessionStorage.clear()
   vi.resetAllMocks()
@@ -154,4 +158,22 @@ it('abandoning and retyping identical text before an old send completes preserve
   fireEvent.change(input,{target:{value:''}});fireEvent.change(input,{target:{value:'Again'}})
   await act(async()=>resolve({...message,id:8,sender_id:1,body:'Again'}))
   expect(input).toHaveValue('Again');expect(JSON.parse(sessionStorage.getItem('message-draft:v1:1:3')!).body).toBe('Again')
+})
+it('claims the mobile shell in the inbox but not on a conversation page', async () => {
+  // The conversation heading is hidden on phones, so claiming there would
+  // remove the shell fallback bar while showing no actions (bell + avatar lost).
+  let claims = 0
+  const claim = () => { claims++; return () => { claims-- } }
+  showWithShell('/messages/3', claim)
+  await screen.findByText(message.body)
+  expect(claims).toBe(0)
+  expect(screen.queryByTestId('shell-actions')).toBeNull()
+})
+it('claims the mobile shell in the inbox', async () => {
+  let claims = 0
+  const claim = () => { claims++; return () => { claims-- } }
+  showWithShell('/messages', claim)
+  await screen.findByRole('heading', { level: 1 })
+  expect(claims).toBe(1)
+  expect(screen.getByTestId('shell-actions')).toBeInTheDocument()
 })
