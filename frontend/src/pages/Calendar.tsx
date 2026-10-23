@@ -10,6 +10,7 @@ import ScheduleEditor from "../calendar/ScheduleEditor";
 import ClubAdmin from "../calendar/ClubAdmin";
 import PageLoading from "../components/PageLoading";
 import "./calendar.css";
+import { MobileShellActions } from "../navigation/mobileShellActions";
 
 type Load = "loading" | "ready" | "failed";
 
@@ -176,6 +177,7 @@ export default function Calendar() {
           <p>{t.intro}</p>
         </div>
         <CalendarDays size={40} aria-hidden="true" />
+        <MobileShellActions />
       </header>
       {notices}
       {view === "agenda" && returnDate && validDate(returnDate) && (

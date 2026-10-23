@@ -15,7 +15,7 @@
   color: var(--app-muted);
   line-height: 1.6;
 }
-.calendar-page button,
+.calendar-page button:where(:not(.mobile-account-trigger)),
 .calendar-page input,
 .calendar-page select {
   min-height: 44px;
@@ -26,7 +26,7 @@
   padding: 8px 12px;
   max-width: 100%;
 }
-.calendar-page button {
+.calendar-page button:where(:not(.mobile-account-trigger)) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -58,7 +58,7 @@
   gap: 16px;
   margin-block: 24px 32px;
 }
-.calendar-heading svg {
+.calendar-heading > svg {
   color: var(--app-accent);
   flex-shrink: 0;
 }
@@ -230,7 +230,8 @@
   padding: 32px 0;
 }
 @media (max-width: 1023px) {
-  .calendar-page >     .calendar-heading { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .calendar-page > .calendar-heading { margin-block: 0 16px; }
+  .calendar-page > .calendar-heading p, .calendar-page > .calendar-heading > svg { display: none; }
   .calendar-toolbar { gap: 4px; flex-wrap: nowrap; margin: 0 0 8px; }
   .calendar-toolbar > button { min-width: 44px; padding-inline: 8px; }
   .calendar-page .calendar-today { display: none; }

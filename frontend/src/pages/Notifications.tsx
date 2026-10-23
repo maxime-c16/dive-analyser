@@ -9,6 +9,7 @@ import {
   type CalendarNotificationView,
 } from '../services/notificationsApi'
 import PageLoading from '../components/PageLoading'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 
 function typeLabel(t: (key: string, options?: Record<string, unknown>) => string, type: string): string {
   return t(`notifications.types.${type}`, { defaultValue: type })
@@ -213,10 +214,13 @@ export default function Notifications() {
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-5 border-b border-app pb-4">
-        <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight text-app-text">
-          <Bell className="h-6 w-6 text-app-accent" aria-hidden />
-          {t('notifications.heading')}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="flex min-w-0 flex-1 items-center gap-2 text-3xl font-semibold tracking-tight text-app-text">
+            <Bell className="h-6 w-6 text-app-accent max-lg:hidden" aria-hidden />
+            {t('notifications.heading')}
+          </h1>
+          <MobileShellActions />
+        </div>
         <p className="mt-1 text-sm text-app-muted">{t('notifications.headingDesc')}</p>
       </header>
 

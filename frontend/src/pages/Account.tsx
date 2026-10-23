@@ -15,6 +15,7 @@ import {
   setNotificationPref as putNotificationPref,
 } from '../services/notificationsApi'
 import { getBatchEmailPref, setBatchEmailPref } from '../services/depositsApi'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 
 /** Initials for the avatar. Trims and falls back to the email local part. */
 export function initials(name: string, fallbackEmail = ''): string {
@@ -669,7 +670,10 @@ export default function Account() {
   return (
     <div className="mx-auto max-w-4xl">
       <header className="mb-5 border-b border-app pb-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-app-text">{t('account.title')}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">{t('account.title')}</h1>
+          <MobileShellActions />
+        </div>
         <p className="mt-1 text-sm text-app-muted">
           {t('account.signedInAs')} {displayName}
         </p>

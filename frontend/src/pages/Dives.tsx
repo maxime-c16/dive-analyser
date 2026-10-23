@@ -20,6 +20,7 @@ import {
   type Attempt,
 } from "../utils/attemptPresentation";
 import AddVideos from "../components/AddVideos";
+import { MobileShellActions } from "../navigation/mobileShellActions";
 import DiveThumbnail from "../components/DiveThumbnail";
 import { CodesLayout } from "../components/LibraryLayouts";
 import { LibraryCardGrid } from "../components/LibraryCards";
@@ -509,23 +510,13 @@ function DiveLibrary() {
 
   return (
     <div className="mx-auto max-w-[1440px] pb-10">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-app pb-3 sm:flex-nowrap sm:pb-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-app-text sm:text-4xl">
-            {t("nav.dives")}
-          </h1>
-        </div>
-        <button
-          type="button"
-          aria-label={t("dives.refresh")}
-          title={t("dives.refresh")}
-          disabled={loading}
-          onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
-          className="touch-target ml-auto inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
-        <div className="flex h-9 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
+        <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
+          {t("nav.dives")}
+        </h1>
+        <MobileShellActions />
+        <div className="basis-full sm:hidden" aria-hidden />
+        <div className="flex h-11 flex-1 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
           {(
             [
               ["grid", t("dives.viewClips")],
@@ -537,12 +528,23 @@ function DiveLibrary() {
               type="button"
               onClick={() => update({ view: value === "grid" ? null : value })}
               aria-pressed={(view === "codes") === (value === "codes")}
-              className={`min-h-0 border px-3 text-xs ${(view === "codes") === (value === "codes") ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+              className={`min-h-0 flex-1 border px-3 text-sm ${(view === "codes") === (value === "codes") ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
             >
               {label}
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-label={t("dives.refresh")}
+          title={t("dives.refresh")}
+          disabled={loading}
+          onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
+          className="touch-target inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+        <div className="basis-full sm:hidden" aria-hidden />
         <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />

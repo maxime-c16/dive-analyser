@@ -39,6 +39,7 @@ import {
   type PersonalDiveValue,
 } from "../services/personalDiveValueApi";
 import PageLoading from "../components/PageLoading";
+import { MobileShellActions } from "../navigation/mobileShellActions";
 
 interface OverallStats {
   total_dives: number;
@@ -242,9 +243,12 @@ function Dashboard() {
     <div className="app-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-app-text">
-          {t("dashboard.title")}
-        </h1>
+        <div className="flex w-full items-start gap-2 md:w-auto">
+          <h1 className="min-w-0 flex-1 text-3xl font-bold text-app-text">
+            {t("dashboard.title")}
+          </h1>
+          <MobileShellActions />
+        </div>
         <div className="flex flex-col items-start md:items-end gap-2 text-xs md:text-sm text-app-muted">
           <div>{t("dashboard.lastUpdated")} : {format(new Date(), "PPp", { locale: appLocale() })}</div>
           {currentSync && (

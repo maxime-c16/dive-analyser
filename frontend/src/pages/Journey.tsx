@@ -11,6 +11,7 @@ import PageLoading from "../components/PageLoading";
 import { AlertTriangle, Brain } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { appLanguage } from "../utils/dateLocale";
+import { MobileShellActions } from "../navigation/mobileShellActions";
 
 interface JourneyData {
   overview: {
@@ -137,10 +138,11 @@ function Journey() {
     <div className="space-y-6">
       {/* Header */}
       <div className="border-b border-app bg-app-panel px-4 py-5 sm:px-6 sm:py-6">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-semibold sm:text-4xl">
+        <div className="mx-auto flex max-w-6xl items-start gap-2">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold sm:text-4xl">
             {t("journey.title")}
           </h1>
+          <MobileShellActions />
         </div>
       </div>
 

@@ -1,9 +1,10 @@
 import { primaryTabFor, type PrimaryTab } from './navigation/mobileNavigation'
+import { MobileShellContext } from './navigation/mobileShellActions'
 import { useMobileNavPolicy, useTabMemory } from './navigation/useMobileNavigation'
 import './navigation/mobileNavigation.css'
 import { useModalOverlay } from './utils/overlays'
 import PageLoading from './components/PageLoading'
-import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Routes,
   Route,
@@ -144,25 +145,6 @@ const operationsNav = [
   { to: "/media/recall", label: "nav.mediaRecall", icon: HardDriveDownload },
   { to: "/admin", label: "nav.system", icon: ShieldCheck },
 ];
-
-const routeLabelKeys: Record<string, string> = {
-  "/": "nav.dives",
-  "/calendar": "nav.calendar",
-  "/messages": "nav.messages",
-  "/dashboard": "nav.overview",
-  "/journey": "nav.journey",
-  "/analytics": "nav.analytics",
-  "/dives": "nav.dives",
-  "/evaluations": "nav.evaluations",
-  "/community": "nav.community",
-  "/media/representatives": "nav.representatives",
-  "/media/recall": "nav.mediaRecall",
-  "/media/p5-canary": "nav.playerCanary",
-  "/admin": "nav.system",
-  "/account": "nav.account",
-  "/sessions": "nav.sessions",
-  "/notifications": "nav.notifications",
-};
 
 type NavItem = {
   to: string;
@@ -322,16 +304,16 @@ function Breadcrumbs() {
   );
 }
 
-function MobileNavigation() {
+/** Mobile shell top: pages put the actions in their title row through
+ * MobileShellActions; pages that don't get them in a fallback bar. */
+function MobileShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [claims, setClaims] = useState(0);
+  const claim = useCallback(() => { setClaims(count => count + 1); return () => setClaims(count => count - 1); }, []);
   const location = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
   const friend = !user?.is_admin;
-  const tab = primaryTabFor(location.pathname);
-  const currentLabel = /^\/series(?:\/|$)/.test(location.pathname) ? t("series.mySeries") : routeLabelKeys[location.pathname]
-    ? t(routeLabelKeys[location.pathname])
-    : tab ? t(`nav.${tab}`) : t("nav.workspace");
 
   useEffect(() => {
     setOpen(false);
@@ -348,19 +330,23 @@ function MobileNavigation() {
     return () => media.removeEventListener('change', closeOnDesktop);
   }, []);
 
+  const shell = useMemo(() => ({
+    claim,
+    actions: <>
+      <NotificationsButton compact />
+      <button type="button" aria-expanded={open} ref={menuTriggerRef} aria-controls="mobile-navigation"
+        onClick={() => setOpen(true)} className="mobile-account-trigger touch-target inline-flex items-center justify-center rounded-full border border-app bg-app-panel text-app-text"
+        aria-label={t("nav.accountNavigationAria")}>
+        {user ? <MemberAvatar member={user} size={32} /> : <UserRound className="h-5 w-5" />}
+      </button>
+    </>,
+  }), [claim, open, t, user]);
+
   return (
-    <header className="mobile-header sticky top-0 z-40 border-b border-app bg-app pt-safe lg:hidden">
-      <div className="flex min-h-14 items-center justify-between gap-2 px-4">
-        <Link to={tab ? `/${tab}` : "/dives"} className="min-h-11 inline-flex min-w-0 items-center text-base font-semibold text-app-text">{currentLabel}</Link>
-        <div className="flex shrink-0 items-center gap-2">
-          <NotificationsButton compact />
-          <button type="button" aria-expanded={open} ref={menuTriggerRef} aria-controls="mobile-navigation"
-            onClick={() => setOpen(true)} className="mobile-account-trigger touch-target inline-flex items-center justify-center rounded-full border border-app bg-app-panel text-app-text"
-            aria-label={t("nav.accountNavigationAria")}>
-            {user ? <MemberAvatar member={user} size={32} /> : <UserRound className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
+    <MobileShellContext.Provider value={shell}>
+      {claims === 0 && <header className="mobile-header lg:hidden">
+        <div className="mobile-shell-actions flex min-h-14 items-center justify-end gap-2 px-4">{shell.actions}</div>
+      </header>}
       {open && <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setOpen(false)}>
         <div id="mobile-navigation" ref={menuRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("nav.accountNavigationAria")}
           className="mobile-account-sheet border border-app bg-app p-4 text-app-text" onClick={event => event.stopPropagation()}>
@@ -376,7 +362,8 @@ function MobileNavigation() {
           {!friend && <div className="mt-5"><NavigationDisclosure compact /></div>}
         </div>
       </div>}
-    </header>
+      {children}
+    </MobileShellContext.Provider>
   );
 }
 
@@ -486,14 +473,14 @@ function Layout({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <MobileNavigation />
-
-          <main id="main-content" tabIndex={-1} className="shell-main flex-1">
-            <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-              <Breadcrumbs />
-              {children}
-            </div>
-          </main>
+          <MobileShell>
+            <main id="main-content" tabIndex={-1} className="shell-main flex-1">
+              <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+                <Breadcrumbs />
+                {children}
+              </div>
+            </main>
+          </MobileShell>
           <MobileTabBar policy={policy} remembered={remembered} />
         </div>
       </div>
