@@ -1,8 +1,4 @@
 /* Approved A: native app surfaces, carnet scores, watch first. */
-.eval-card { --eval-card-w: 64px; position: relative; width: var(--eval-card-w); height: calc(var(--eval-card-w) * 2.2); min-width: var(--eval-card-w); padding: 0; aspect-ratio: auto; border: 0; border-radius: 3px; background: #f7f6f1; color: #111; box-shadow: 0 3px 0 #0006, 0 8px 20px #0003; transform: none; overflow: hidden; }
-.eval-card-number { position: absolute; inset: 0 0 auto; height: 68%; display: grid; place-items: center; font-family: system-ui, sans-serif; font-weight: 900; font-size: calc(var(--eval-card-w) * 1.5); line-height: .8; transform: scaleX(.62); }
-.eval-card-spiral { position: absolute; inset: 68% 0 auto; height: 8%; width: 100%; margin: 0; border: 0; background: repeating-linear-gradient(90deg, transparent 0 3px, #666 3px 4px, transparent 4px 6px); }
-.eval-card-half { position: absolute; inset: 76% 0 0; display: grid; place-items: center; font-family: system-ui, sans-serif; font-size: calc(var(--eval-card-w) * .46); font-weight: 900; background: #fbfbf8; transform: none; }
 .eval-card-raised { animation: eval-carnet-raise 780ms cubic-bezier(.2,.75,.25,1) var(--stagger,0ms) both; pointer-events: none; }
 @keyframes eval-carnet-raise { from { transform: translateY(80%) rotate(-3deg); opacity: 0; } 60% { transform: translateY(-5%); opacity: 1; } to { transform: none; opacity: 1; } }
 .eval-stage-root { position: fixed; inset: 0; width: 100%; height: 100dvh; padding: 0; overflow: hidden; background: #000; --eval-panel-width: min(384px, 34vw); }
@@ -107,16 +103,11 @@
 .eval-panel-note .eval-card { --eval-card-w: 32px; float: left; margin: 0 12px 8px 0; }
 .eval-panel-note { min-height: 80px; overflow-wrap: anywhere; }
 
-.eval-card-number.is-two { transform: scaleX(.46); }
-
 .eval-stage-root .eval-stage-dock > .eval-judging > .eval-score-input { flex: 1; }
 @media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
   .eval-judge-actions .eval-pass { padding: 6px 10px; }
 }
 
-.eval-card-spiral { background: none; border-radius: 0; padding: 0; }
-.eval-card-spiral line { stroke: #3c3c3a; stroke-width: 3.2; vector-effect: non-scaling-stroke; }
-.eval-card-spiral ellipse { fill: none; stroke: #6d6d69; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .eval-stage-root .eval-player-controls .eval-sound-on { background: #54beab26; }
 .eval-stage-root .eval-stage-dock > .eval-judging, .eval-stage-root .eval-stage-dock > .eval-reveal { position: relative; }
 

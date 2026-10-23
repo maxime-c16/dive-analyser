@@ -4,55 +4,6 @@
    provided references — but WITHOUT reproducing the pool background: the
    user's video is the stage. Teal app tokens throughout. */
 
-.eval-card {
-  --eval-card-w: 84px;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  width: var(--eval-card-w);
-  aspect-ratio: 2 / 3.2;
-  padding: 7px 4px 6px;
-  background: #fdfdfb;
-  color: #101010;
-  border-radius: 4px;
-  border: 1px solid #d8d4c8;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-  flex: none;
-}
-
-/* Big black numeral fits "10": two digits stay inside the card. */
-.eval-card-number {
-  flex: 1 1 auto;
-  display: grid;
-  place-content: center;
-  width: 100%;
-  font-size: calc(var(--eval-card-w) * 0.62);
-  line-height: 1;
-  font-weight: 800;
-  font-stretch: condensed;
-  font-family: system-ui, sans-serif;
-  letter-spacing: -0.04em;
-}
-
-/* Mid/lower separator + visible half-point, as on the reference cards. */
-.eval-card-spiral {
-  width: 74%;
-  height: 5px;
-  margin: 6px 0 4px;
-  background: repeating-linear-gradient(90deg, #b9b3a4 0 3px, transparent 3px 6px);
-  border-radius: 3px;
-  flex: none;
-}
-
-.eval-card-half {
-  font-size: calc(var(--eval-card-w) * 0.26);
-  font-weight: 800;
-  line-height: 1;
-  min-height: 1em;
-  padding-bottom: 2px;
-}
-
 .eval-card-mine {
   outline: 2px solid var(--app-accent, #54beab);
   outline-offset: 3px;

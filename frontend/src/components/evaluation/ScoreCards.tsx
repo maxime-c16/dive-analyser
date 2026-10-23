@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CSSProperties } from 'react'
+import './scoreCards.css'
 
 /** One judge card face. `scoreHalfSteps` 0–20 renders value/2; a `null`
  * score renders a blank card. Purely presentational. */
