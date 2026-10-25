@@ -699,11 +699,13 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     uses a fresh request session, and the upload-queue idle worker calls it
     after committing its own bookkeeping.
     """
+    from app.services.poster_visuals import cleanup_orphan_thumbnails
+    thumbnail_bytes = cleanup_orphan_thumbnails(db)
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(
         db, ttl_candidates, trim_candidates, max_bytes=max_bytes
     )
-    return removed_entries, removed_bytes, _cache_size(db)
+    return removed_entries, removed_bytes + thumbnail_bytes, _cache_size(db)
 
 
 def _release_upgrade_references(db: Session, entry_ids: list[int]) -> None:
@@ -832,4 +834,5 @@ def _cache_size(db: Session) -> int:
         select(func.coalesce(func.sum(MediaCacheEntry.size_bytes), 0))
         .where(MediaCacheEntry.status == "ready")
     ).scalar_one()
-    return int(total or 0)
+    from app.services.poster_visuals import thumbnail_disk_bytes
+    return int(total or 0) + thumbnail_disk_bytes()

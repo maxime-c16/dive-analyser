@@ -1,4 +1,8 @@
 """Derived grid visuals; no generation on GET. Files are content-addressed."""
+from contextlib import contextmanager
+import fcntl
+import time
+
 import base64
 import hashlib
 import io
@@ -17,6 +21,101 @@ logger = logging.getLogger(__name__)
 
 
 VISUAL_FIELDS = ("thumbhash", "thumb_storage_path", "thumb_checksum_sha256", "thumb_size_bytes")
+
+
+# Longer than the maximum signed capability lifetime (4500 s). Old URLs keep
+# their immutable bytes across refresh; cleanup only owns disposable WebPs.
+THUMB_GRACE_SECONDS = 7200
+
+
+@contextmanager
+def thumbnail_lock():
+    """Serialize reference publication and orphan unlink across app processes."""
+    root = Path(get_settings().media_cache_root)
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / ".thumbnail-cleanup.lock").open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def thumbnail_files():
+    """Only our sharded content-addressed files; never follow symlinks."""
+    root = Path(get_settings().media_cache_root) / "thumb"
+    if root.is_symlink() or not root.is_dir():
+        return
+    for shard in root.iterdir():
+        if shard.is_symlink() or not shard.is_dir():
+            continue
+        for path in shard.iterdir():
+            if (not path.is_symlink() and path.is_file()
+                    and len(path.stem) == 64 and path.suffix == ".webp"
+                    and all(c in "0123456789abcdef" for c in path.stem)):
+                yield path
+
+
+def thumbnail_disk_bytes():
+    # Count physical files once, including shared and abandoned generations.
+    total = 0
+    for path in thumbnail_files():
+        try:
+            total += path.stat().st_size
+        except FileNotFoundError:
+            pass
+    return total
+
+
+def cleanup_orphan_thumbnails(db, limit=100):
+    """Bounded unlink, reference-aware and serialized with CAS publication.
+
+    No media originals/posters are touched. Grace also covers newly generated
+    files before publication and outstanding immutable signed capabilities.
+    """
+    from sqlalchemy import select
+    from app.models.media import MediaCacheEntry
+    freed = 0
+    removed = 0
+    cutoff = time.time() - THUMB_GRACE_SECONDS
+    from itertools import islice
+    with thumbnail_lock():
+        files = iter(thumbnail_files())
+        while removed < limit:
+            batch = list(islice(files, 100))
+            if not batch:
+                break
+            old = []
+            for path in batch:
+                try:
+                    if path.stat().st_mtime < cutoff:
+                        old.append(path)
+                except FileNotFoundError:
+                    pass
+            if not old:
+                continue
+            paths = [str(path) for path in old]
+            # At most 100 distinct references per column; no per-file SQL.
+            refs = set(db.scalars(select(MediaCacheEntry.thumb_storage_path)
+                .where(MediaCacheEntry.thumb_storage_path.in_(paths))
+                .distinct().limit(100)))
+            refs.update(db.scalars(select(MediaCacheEntry.storage_path)
+                .where(MediaCacheEntry.storage_path.in_(paths))
+                .distinct().limit(100)))
+            db.rollback()  # release connection before filesystem work
+            for path in old:
+                if removed >= limit:
+                    break
+                if str(path) in refs:
+                    continue
+                try:
+                    size = path.stat().st_size
+                    path.unlink()
+                    freed += size
+                    removed += 1
+                except FileNotFoundError:
+                    pass
+    return freed
 
 
 def clear_visuals(entry):
@@ -103,7 +202,10 @@ def enrich_committed_poster(entry_id, *, bind=None):
             clear_visuals(snapshot)
             logger.warning("Poster enrichment failed for cache entry %s", entry_id)
         values = {name: getattr(snapshot, name) for name in VISUAL_FIELDS}
-        with Session(bind=bind if bind is not None else engine) as db:
+        with thumbnail_lock(), Session(bind=bind if bind is not None else engine) as db:
+            if snapshot.thumb_storage_path and not Path(snapshot.thumb_storage_path).is_file():
+                clear_visuals(snapshot)
+                values = {name: getattr(snapshot, name) for name in VISUAL_FIELDS}
             changed = db.execute(update(MediaCacheEntry).where(
                 MediaCacheEntry.id == entry_id,
                 MediaCacheEntry.rendition == "poster",

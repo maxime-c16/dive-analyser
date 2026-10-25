@@ -120,3 +120,37 @@ A 100 ms idle-timeout playback test flaked once in auth while the exploratory
 backend and PostgreSQL passes shared the CPU; both cases pass in 1.69 s when
 replayed alone. This is reported separately from the intentional slow-provider
 HEAD test, not hidden as a successful initial tier run.
+
+## Conflict and bot finding round — 25 October 2026
+
+Rebased onto `origin/master` `0de520e3` (#160). The sole conflict was the
+`member_access_context` docstring; retained master's expanded explanation and
+its synchronous dependency, together with all lot changes. Old head `b7c4495`
+had eight successful checks, but its bot comment explicitly requested changes
+(issuecomment-6397208849); there was no approval. Inline threads and reviews
+were empty after paginated inspection. Those old checks authorize no merge.
+
+The finding is valid: detached WebP thumbnail files previously escaped accounting
+and cleanup. Cache quota accounting now inventories physical content-addressed
+thumbnail files once, including shared references and abandoned generations.
+The existing maintenance cleanup can unlink at most 100 generated, unreferenced
+WebPs per pass, after a two-hour grace (greater than the maximum signed URL
+lifetime). It checks both thumbnail and primary-path references in bounded SQL
+batches, skips symlinks, and serializes reference publication/unlink across
+processes with a filesystem lock. A delayed publisher verifies the file still
+exists before committing its reference; otherwise the static poster survives.
+No new schema, original/poster eviction, manual production cleanup, media deletion,
+cron or Mac action was introduced. The filesystem inventory is maintenance-only;
+it is not called by media/library reads. Referenced thumbnail bytes count toward
+the quota even when their protected poster keeps them retained.
+
+Validation after rebase: **82 targeted backend tests pass**, including the real
+nginx+njs configurations and eleven lot PostgreSQL integrations, then **64 tests
+pass** in the separate complete PostgreSQL CI list (two new cases). New coverage
+checks physical-byte accounting, shared references, refresh grace, bounded unlink,
+symlink preservation, PostgreSQL reference safety and cleanup racing a delayed
+publisher. **777 frontend tests / 94 files and production build pass** again.
+Release catalog validation and diff whitespace checks pass. The earlier 1724-test
+backend result remains historical, not a full rerun after this correction.
+No production writes or cleanup were performed. Rollout ordering above is unchanged.
+The disposable PostgreSQL cluster is stopped after validation.

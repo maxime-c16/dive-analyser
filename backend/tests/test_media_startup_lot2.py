@@ -130,3 +130,54 @@ def test_thumbhash_matches_reference_javascript_vector():
     from thumbhash import rgba_to_thumb_hash
     # evanw/thumbhash 0.1.1 rgbaToThumbHash(1,1,[34,119,170,255]).
     assert base64.b64encode(bytes(rgba_to_thumb_hash(1,1,[34,119,170,255]))).decode() == 'G1U1vyoI9wiIh4hwj3CI+AiIcH/494cP'
+
+
+def test_thumbnail_accounting_and_reference_aware_cleanup(test_db, root):
+    import os
+    import time
+    from app.services.media_cache import _cache_size, cleanup_cache
+    entry = poster(test_db, root)
+    thumb = Path(entry.thumb_storage_path)
+    size = thumb.stat().st_size
+    # Multiple rows referencing identical bytes must not double count files.
+    assert _cache_size(test_db) == entry.size_bytes + size
+    shared = MediaCacheEntry(photos_asset_id=entry.photos_asset_id,
+        media_key='shared-thumb', rendition='poster', storage_path=entry.storage_path,
+        size_bytes=entry.size_bytes, status='ready', thumb_storage_path=str(thumb))
+    test_db.add(shared)
+    test_db.commit()
+    assert _cache_size(test_db) == 2 * entry.size_bytes + size
+    test_db.delete(shared)
+    test_db.commit()
+    old = time.time() - poster_visuals.THUMB_GRACE_SECONDS - 10
+    os.utime(thumb, (old, old))
+    test_db.rollback()
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
+    assert thumb.exists()
+    # Refresh detaches the old thumbnail; grace protects outstanding URLs.
+    entry = test_db.get(MediaCacheEntry, entry.id)
+    poster_visuals.clear_visuals(entry)
+    test_db.commit()
+    os.utime(thumb, None)
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
+    os.utime(thumb, (old, old))
+    _, freed, total = cleanup_cache(test_db, max_bytes=1)
+    assert freed == size and total == entry.size_bytes
+    assert not thumb.exists() and Path(entry.storage_path).exists()
+
+
+def test_thumbnail_cleanup_preserves_symlinks_and_bounds_unlinks(test_db, root):
+    import os
+    import time
+    directory = root / 'thumb' / 'ab'
+    directory.mkdir(parents=True)
+    outside = root / 'precious'
+    outside.write_bytes(b'original')
+    (directory / ('a' * 64 + '.webp')).symlink_to(outside)
+    for letter in ('b', 'c'):
+        path = directory / (letter * 64 + '.webp')
+        path.write_bytes(b'old')
+        os.utime(path, (0, 0))
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, limit=1) == 3
+    assert outside.read_bytes() == b'original'
+    assert len(list(poster_visuals.thumbnail_files())) == 1
