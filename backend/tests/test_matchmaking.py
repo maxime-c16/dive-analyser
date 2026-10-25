@@ -111,6 +111,61 @@ def test_fair_by_owner_and_partial_stack(workspace):
     assert len(small) == 1 and small[0]['dive_id'] == dives['bob-public']
 
 
+def test_warmup_stack_features_dives_the_panel_already_scored(workspace):
+    """A new judge draws panel-scored dives first, until the style meter reveals."""
+    from app.config import get_settings
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+    from app.models.user_auth import AppUser
+    from app.services.sessions import create_session
+    db, login, dives, _, session_id = workspace
+    source = db.get(Dive, dives['alice-public'])
+    # Anchor the extras to the fixture dive's clock so the expected draw order
+    # is TZ-independent: extras[4] > extras[3] > extras[2] > extras[1] > extras[0].
+    extras = []
+    for n in range(5):
+        dive = Dive(session_id=session_id, diver_id=source.diver_id, dive_code='103B', performance='G',
+            performance_numeric=3, height='3m', dive_datetime=source.dive_datetime + timedelta(seconds=n + 1),
+            visibility='public', video_uuid=f'warmup-{n}')
+        db.add(dive); db.flush()
+        asset = PhotosAsset(video_uuid=dive.video_uuid); db.add(asset); db.flush()
+        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'warmup-{n}', rendition='proxy_360p',
+            storage_path='/test', size_bytes=1))
+        extras.append(dive.id)
+    db.commit()
+    unscored = [extras[2], extras[1]]
+    # The panel scores five of the seven pool dives through the normal path.
+    judge = login('viewer')
+    _, items = stack(judge)
+    for item in items:
+        if item['dive_id'] not in unscored:
+            assert judge.post(f"/api/v1/evaluations/automatic/{item['dive_id']}/ratings", json={
+                'video_uuid': item['dive']['video_uuid'], 'score_half_steps': 10}).status_code == 200
+    _, remaining = stack(judge, daily=False, key=str(uuid.uuid4()))
+    assert [i['dive_id'] for i in remaining] == [extras[0], dives['alice-public']]
+    for item in remaining:
+        assert judge.post(f"/api/v1/evaluations/automatic/{item['dive_id']}/ratings", json={
+            'video_uuid': item['dive']['video_uuid'], 'score_half_steps': 10}).status_code == 200
+    # A fresh judge with no history yet: her first hand is the scored dives.
+    carol = AppUser(email='carol@example.test', display_name='carol', role='friend')
+    db.add(carol); db.commit()
+    client = login('viewer')
+    client.cookies.clear()
+    client.cookies.set(get_settings().auth_cookie_name, create_session(db, user_id=carol.id, ttl_seconds=3600)[0])
+    _, first = stack(client, key=str(uuid.uuid4()), size=3)
+    drawn = [i['dive_id'] for i in first]
+    assert set(drawn) == {extras[4], dives['bob-public'], extras[3]}
+    for item in first:
+        assert client.post(f"/api/v1/evaluations/automatic/{item['dive_id']}/ratings", json={
+            'video_uuid': item['dive']['video_uuid'], 'score_half_steps': 12}).status_code == 200
+    assert client.get('/api/v1/evaluations/overview').json()['judge'] == {'compared': 3, 'bias': 1.0, 'streak': 1}
+    # Style revealed: the fair least-scored-first spread resumes, so the two
+    # still-unscored dives lead and the panel-scored ones come last.
+    _, revealed = stack(client, daily=False, key=str(uuid.uuid4()))
+    assert [i['dive_id'] for i in revealed[:2]] == unscored
+    assert {i['dive_id'] for i in revealed[2:]} == {extras[0], dives['alice-public']}
+
+
 def test_video_replacement_invalidates_assignment(workspace):
     db, login, dives, _, _ = workspace
     sid, items = stack(login('bob'))
