@@ -147,7 +147,10 @@ No application code, auth policy, database setting or Mac service was changed.
 Existing media migration stayed active. Disk remained roughly 312 GiB free versus
 the 26 GiB floor. There was no manual cleanup or media deletion.
 
-Using the authorized e2e account, an actual production signed animation returned
+Final production verification finished at **18:57:10 UTC** (timestamp from the
+private result artifact written after logout, distinct from initial rollout
+measurements recorded at 13:42:01 UTC). Using the authorized e2e account, an actual
+production signed animation returned
 HTTP 200, image/webp, private immutable max-age 3600; decoded bytes were 21520,
 width 202, eight frames and an animated WebP. The existing browser-probe Playwright
 workflow was reused for the final UI check: two loaded animation images were

@@ -1,5 +1,5 @@
 {
-  "measured_at_utc": "2026-10-25T13:42:01.410879+00:00",
+  "initial_rollout_measurements_recorded_at_utc": "2026-10-25T13:42:01.410879+00:00",
   "deployed_sha": "0973fa5f364e94412c6e6748c68743936ca68086",
   "browser": [
     {
@@ -638,6 +638,8 @@
       "ready_animations": 2829
     },
     "production_verification": {
+      "finished_at_utc": "2026-10-25T18:57:10.790713+00:00",
+      "timestamp_source": "Private verification result artifact mtime; the script writes it after completing checks and logout.",
       "signed_animation_http": 200,
       "content_type": "image/webp",
       "cache_control": "private, max-age=3600, immutable",
