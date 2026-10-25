@@ -18,6 +18,15 @@ function attemptFacts(attempt: Attempt) {
     .join(" · ");
 }
 
+/** Library rating colours, shared with the code cards. */
+const RATING_BADGE: Record<string, string> = {
+  P: "bg-emerald-400",
+  G: "bg-app-accent",
+  M: "bg-amber-300",
+  B: "bg-orange-400",
+  F: "bg-red-400",
+};
+
 function groupByDay(attempts: Attempt[]) {
   const groups: Array<{ key: string; label: string; items: Attempt[] }> = [];
   for (const attempt of attempts) {
@@ -62,27 +71,28 @@ function LibraryCard({
         .filter(Boolean)
         .join(" · ")}
     >
-      <div className="aspect-[3/2] w-full overflow-hidden border border-app transition-colors group-hover:border-app-strong">
+      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
         <DiveThumbnail dive={attempt} compact />
+        <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`}>
+          {attemptScore(attempt).toFixed(1)}
+        </span>
       </div>
-      <div className="mt-2 flex w-full items-baseline justify-between gap-2 px-0.5">
-        <span className="font-mono text-base font-semibold tracking-tight text-app-text">{attempt.dive_code}</span>
-        <span className="text-base font-semibold tabular-nums text-app-text">{attemptScore(attempt).toFixed(1)}</span>
-      </div>
+      <span className="mt-1.5 px-0.5 font-mono text-sm font-semibold tracking-tight text-app-text">{attempt.dive_code}</span>
       {showDiver && attempt.person_name && (
-        <p className="truncate px-0.5 text-sm text-app-text" title={attempt.person_name}>
+        <p className="truncate px-0.5 text-xs text-app-text" title={attempt.person_name}>
           {attempt.person_name}
         </p>
       )}
-      {name && <p className="mt-0.5 px-0.5 text-xs leading-snug text-app-muted">{name}</p>}
-      <p className="mt-auto truncate px-0.5 pt-1 text-[11px] text-app-muted opacity-70">{attemptFacts(attempt)}</p>
+      {name && <p className="mt-0.5 px-0.5 text-[11px] leading-snug text-app-muted">{name}</p>}
+      <p className="mt-auto px-0.5 pt-1 text-[10px] leading-snug text-app-muted opacity-70">{attemptFacts(attempt)}</p>
     </button>
   );
 }
 
 /**
- * Library grid: one section per day, cards with the dive code, its full
- * localized name, the score and the facts that differ between attempts.
+ * Library grid: one section per day, portrait cards (the clips are filmed
+ * upright, so previews play uncropped) with the score on the thumbnail, the
+ * dive code, its full localized name and the facts that differ between attempts.
  * Rows stretch so every card in a row shares the same height.
  */
 export function LibraryCardGrid({
@@ -106,7 +116,7 @@ export function LibraryCardGrid({
             <span className="text-xs tabular-nums text-app-muted">{group.items.length}</span>
             <span className="h-px flex-1 self-center bg-app-border" aria-hidden="true" />
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
             {group.items.map((attempt) => {
               const name = diveCodeName(attempt.dive_code, lang);
               return (

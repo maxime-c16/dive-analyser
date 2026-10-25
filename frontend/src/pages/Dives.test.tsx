@@ -18,10 +18,22 @@ const dive = (id: number, code: string, diverId: number, options: Partial<Record
 
 function renderPage() { return render(<MemoryRouter initialEntries={['/dives']}><Dives /></MemoryRouter>) }
 
+const codeSummary = (code: string, ids: number[], attempts = ids.length) => ({
+  dive_code: code, analytics: true, attempt_count: attempts, scored_count: attempts, session_count: 1, average: 7, median: 7, best: 7, success_rate: 100,
+  first_attempt_at: '2026-07-01T10:00:00', last_attempt_at: `2026-07-${String(ids[0]).padStart(2, '0')}T10:00:00`, heights: ['1m'], ratings: { G: attempts },
+  trend: null, spark: [7, 7], months: {}, latest: { id: ids[0], dive_code: code, dive_datetime: '2026-07-01T10:00:00', video_uuid: `uuid-${ids[0]}` },
+  recent: ids.map(id => ({ id, performance: 'G', score: 7, dive_datetime: `2026-07-${String(id).padStart(2, '0')}T10:00:00`, height: '1m' })),
+})
+const codeSummaries = {
+  generated_at: '2026-07-10T10:00:00', codes: [codeSummary('103C', [2], 140), codeSummary('103B', [3, 1])],
+  activity: { current: { attempt_count: 3, session_count: 1, code_count: 2, median: 7 }, previous: { attempt_count: 0, session_count: 0, code_count: 0, median: null }, months: [], weeks: [] },
+}
+
 beforeEach(() => {
   vi.mocked(getMediaStatus).mockResolvedValue({ poster_url: null, playback_url: null } as any)
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/divers') return Promise.resolve({ data: [{ id: 1, display_name: 'Maxime', is_primary_user: true }, { id: 2, display_name: 'Paul', is_primary_user: false }] })
+    if (url === '/api/v1/dives/library/codes') return Promise.resolve({ data: codeSummaries })
     return Promise.resolve({ data: [
       dive(1, '103B', 1),
       dive(2, '103C', 1, { height: '3m', is_sync: true, raw_caption: '103C G/G DB SYNC' }),
@@ -101,27 +113,30 @@ it('Library loading, empty and error states are distinguishable and announced', 
 
 // ---- Library views: mobile clip wall + by-code summary ----
 
-it('groups attempts per dive code and opens an attempt from its history', async () => {
+it('code cards summarise the whole library, open the analysis, and chips open the viewer', async () => {
   renderPage()
   await userEvent.click(await screen.findByRole('button', { name: 'Community' }))
   await userEvent.click(screen.getByRole('button', { name: 'Code view' }))
-  expect(await screen.findByText(/2 attempts/)).toBeInTheDocument()
-  expect(screen.getByText(/1 attempts/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /^Open 103B attempt$/ })).toBeNull()
+  // Counts come from the server aggregate, not from the loaded page.
+  expect(await screen.findByText(/140 attempts · 1 sessions/)).toBeInTheDocument()
+  expect(api.get).toHaveBeenCalledWith('/api/v1/dives/library/codes', expect.objectContaining({ params: expect.objectContaining({ diver_scope: 'all' }) }))
+  expect(screen.getByRole('link', { name: 'Analyse 103C' })).toBeInTheDocument()
   await userEvent.click(screen.getAllByRole('button', { name: /Open 103C attempt from/ })[0])
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
   expect(screen.getByText('Native player uuid-2')).toBeInTheDocument()
 })
 
-it('the mobile switch toggles between the clip wall and the code summary', async () => {
+it('the mobile switch toggles between the clip wall, codes and progress', async () => {
   renderPage()
   const clips = await screen.findByRole('button', { name: 'Clips' })
   expect(clips).toHaveAttribute('aria-pressed', 'true')
   await userEvent.click(screen.getByRole('button', { name: 'By code' }))
   expect(screen.getByRole('button', { name: 'By code' })).toHaveAttribute('aria-pressed', 'true')
-  expect((await screen.findAllByText(/attempts · last/)).length).toBe(2)
+  expect((await screen.findAllByText(/attempts · 1 sessions/)).length).toBe(2)
+  await userEvent.click(screen.getAllByRole('button', { name: 'Progress' })[0])
+  expect(await screen.findByText('Attempts · 30 d')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Clips' }))
-  expect(screen.queryByText(/attempts · last/)).toBeNull()
+  expect(screen.queryByText(/attempts · 1 sessions/)).toBeNull()
 })
 
 it('clearing filters preserves the chosen library and view', async () => {

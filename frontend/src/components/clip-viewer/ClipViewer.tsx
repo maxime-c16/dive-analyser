@@ -10,6 +10,7 @@ import {
   MessageCircle,
   X,
   ChevronUp,
+  Lock,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import type { Attempt } from "../../utils/attemptPresentation";
@@ -17,6 +18,7 @@ import {
   attemptDate,
   attemptScore,
   modifiersFor,
+  performanceLabel,
   platformTypeName,
 } from "../../utils/attemptPresentation";
 import { diveCodeName } from "../../i18n/diveNames";
@@ -37,7 +39,7 @@ import ShareDiveButton from "./ShareDiveButton";
 import DownloadDiveButton from "./DownloadDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
 import { useNavigationIntent } from "../../hooks/useNavigationIntent";
-import { defaultAnalysisFilters, warmDiveAnalysis } from "../../services/diveAnalysisApi";
+import { getCodeAttempts } from "../../services/codeSummariesApi";
 import { useAuth } from "../../contexts/AuthContext";
 import "./clipViewer.css";
 
@@ -175,6 +177,7 @@ export default function ClipViewer({
   onPlaybackRateChange,
   onUpdate,
   onDelete,
+  onAnalyse,
 }: {
   attempt: Attempt;
   attempts: Attempt[];
@@ -184,6 +187,7 @@ export default function ClipViewer({
   onPlaybackRateChange: (rate: number) => void;
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
+  onAnalyse?: (attempt: Attempt) => void;
 }) {
   const { t, i18n } = useTranslation();
   const index = attempts.findIndex((item) => item.id === attempt.id);
@@ -294,7 +298,7 @@ export default function ClipViewer({
   const analysisIntent = useNavigationIntent(
     `/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`,
     () => {
-      warmDiveAnalysis(attempt.dive_code, defaultAnalysisFilters(user?.divers?.length ? 'self' : 'all'));
+      void getCodeAttempts(attempt.dive_code, user?.divers?.length ? 'self' : 'all').catch(() => undefined);
       return Promise.resolve();
     },
   );
@@ -790,10 +794,17 @@ export default function ClipViewer({
   const downloadButton = user && attempt.video_uuid && (
     <DownloadDiveButton key={`download-${attempt.id}`} id={attempt.id} />
   );
-  const analysisLink = (
+  // Inside the code's own analysis the same action returns to it on this dive.
+  const analysisLink = onAnalyse ? (
+    <button type="button" className="clip-action-analyse" onClick={() => onAnalyse(attempt)} aria-label={t("clipViewer.analysis")}>
+      <BarChart3 size={studio ? 18 : 25} />
+      <span>{t("clipViewer.analysis")}</span>
+    </button>
+  ) : (
     <Link
       to={`/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`}
       state={{ returnTo: `${location.pathname}${location.search}` }}
+      className="clip-action-analyse"
       aria-label={t("clipViewer.analysis")}
       {...analysisIntent}
     >
@@ -862,12 +873,6 @@ export default function ClipViewer({
             <ArrowLeft size={20} />
             <span>{t("nav.dives")}</span>
           </button>
-          {!studio && (
-            <div className="clip-header-label">
-              <span className="clip-live-dot" />
-              {t("clipViewer.diveReview")}
-            </div>
-          )}
           <div className="clip-header-end">
             {studio && speedSelect}
             <span className="clip-counter" aria-live="polite">
@@ -926,6 +931,7 @@ export default function ClipViewer({
                 height={attempt.height}
                 videoUuid={attempt.video_uuid}
                 playbackRate={playbackRate}
+                onPlaybackRateChange={studio ? undefined : onPlaybackRateChange}
                 immersive
                 onAspectRatioChange={setAspectRatio}
                 onLike={() => void like(true)}
@@ -973,18 +979,19 @@ export default function ClipViewer({
                 <span>{social?.comment_count ?? t("clipViewer.comments")}</span>
               </button>
               {shareButton}
-              {downloadButton}
               {analysisLink}
             </div>
             <div className="clip-caption">
-              <div className="clip-caption-eyebrow">
-                {attempt.height} <span>·</span> {platformTypeName(attempt.platform_type)}{" "}
-                <span>·</span>{" "}
-                {attempt.visibility === "private" ? t("clipViewer.private") : t("clipViewer.public")}
+              <div className="clip-caption-score">
+                <span className={`clip-score is-${attempt.performance}`}>{attemptScore(attempt).toFixed(1)}</span>
+                <span>{performanceLabel(attempt.performance)}</span>
+                {attempt.visibility === "private" && (
+                  <span className="clip-private" aria-label={t("clipViewer.private")} title={t("clipViewer.private")}><Lock size={12} aria-hidden="true" /></span>
+                )}
               </div>
               <h2 id="clip-viewer-title">
                 {attempt.dive_code}
-                <span>{attemptDate(attempt)}</span>
+                <span>{attemptDate(attempt, "d MMM · HH:mm")}</span>
               </h2>
               <button
                 ref={detailsButtonRef}
@@ -1014,12 +1021,18 @@ export default function ClipViewer({
                   else openSheet("details");
                 }}
               >
-                <span>
+                <span className="clip-description-name">
                   {diveName || description || t("clipViewer.defaultCaption")}
                 </span>
-                <strong>
-                  {t("clipViewer.details")} <ChevronUp size={14} />
-                </strong>
+                <span className="clip-description-facts">
+                  <span>{attempt.height}</span>
+                  {attempt.official_dd ? <span>DD {attempt.official_dd.toFixed(1)}</span> : null}
+                  {attempt.is_sync ? <span>SYNC</span> : null}
+                  {modifiersFor(attempt).map((modifier) => <span key={modifier}>{modifier}</span>)}
+                  <strong>
+                    {t("clipViewer.details")} <ChevronUp size={14} />
+                  </strong>
+                </span>
               </button>
               {socialError && (
                 <p className="clip-social-error" role="alert">
@@ -1157,6 +1170,7 @@ export default function ClipViewer({
                   )}
                   <ClipDetails attempt={attempt} open />
                   <div className="clip-management">
+                    {!studio && downloadButton}
                     {attempt.can_manage && onUpdate ? (
                       <>
                         <DiveVisibilityControl
@@ -1207,8 +1221,6 @@ export default function ClipViewer({
               total={total}
               onPrevious={() => navigate(-1)}
               onNext={() => navigate(1)}
-              playbackRate={playbackRate}
-              onPlaybackRateChange={onPlaybackRateChange}
             />
           </footer>
         )}

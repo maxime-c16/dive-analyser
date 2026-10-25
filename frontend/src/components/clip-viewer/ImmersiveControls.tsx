@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import React, { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Heart, Pause, Play, Volume2, VolumeX } from "lucide-react";
+
+import { PLAYBACK_RATES } from "./ClipViewerNavigation";
+
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
 /** One gesture owner keeps taps, double taps, holds and swipes mutually exclusive. */
 export interface FeedDragEnd {
@@ -17,6 +21,7 @@ export default function ImmersiveControls({
   videoRef,
   soundRef,
   playbackRate,
+  onPlaybackRateChange,
   mediaPresented = true,
   onLike,
   onNavigate,
@@ -32,6 +37,8 @@ export default function ImmersiveControls({
   videoRef: RefObject<HTMLVideoElement>;
   soundRef?: RefObject<HTMLVideoElement>;
   playbackRate: number;
+  /** When set, the transport row offers the playback speed. */
+  onPlaybackRateChange?: (rate: number) => void;
   /**
    * False until the video has presented its first real frame: the visible
    * play indicator, transport and scrub wait for that moment, while the
@@ -389,45 +396,64 @@ export default function ImmersiveControls({
         {holding && <span className="clip-speed-indicator">2× speed</span>}
       </button>
       {mediaPresented && (
-        <>
-          <div className="clip-transport">
-            <button
-              type="button"
-              aria-label={paused ? t('clipViewer.resume') : t('clipViewer.pause')}
-              onClick={toggle}
-            >
-              {paused ? <Play size={20} strokeWidth={3} fill="currentColor" /> : <Pause size={20} strokeWidth={3} />}
-            </button>
+        <div className="clip-transport">
+          <button
+            type="button"
+            className="clip-hud-button"
+            aria-label={paused ? t('clipViewer.resume') : t('clipViewer.pause')}
+            onClick={toggle}
+          >
+            {paused ? <Play size={18} strokeWidth={3} fill="currentColor" /> : <Pause size={18} strokeWidth={3} fill="currentColor" />}
+          </button>
+          <div className="clip-scrub">
             <span className="clip-time">
-              {Math.floor(progress)} / {Math.floor(duration)}s
+              {clock(progress)} / {clock(duration)}
             </span>
-            <button
-              type="button"
-              aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
-              data-sound-toggle
-              onClick={() => {
+            <input
+              className="clip-progress"
+              type="range"
+              aria-label={t('clipViewer.videoPosition')}
+              min={0}
+              max={duration || 1}
+              step={0.01}
+              value={progress}
+              disabled={!duration}
+              style={{ '--clip-progress': `${duration ? (progress / duration) * 100 : 0}%` } as React.CSSProperties}
+              onChange={(event) => {
                 if (videoRef.current)
-                  (soundRef?.current || videoRef.current).muted = !(soundRef?.current || videoRef.current).muted;
+                  videoRef.current.currentTime = Number(event.target.value);
               }}
-            >
-              {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
+            />
           </div>
-          <input
-            className="clip-progress"
-            type="range"
-            aria-label={t('clipViewer.videoPosition')}
-            min={0}
-            max={duration || 1}
-            step={0.01}
-            value={progress}
-            disabled={!duration}
-            onChange={(event) => {
+          {onPlaybackRateChange && (
+            <label className="clip-speed-pill">
+              <span aria-hidden="true">{playbackRate}×</span>
+              <select
+                aria-label={t('clipNav.playbackSpeed')}
+                value={playbackRate}
+                onChange={(event) => onPlaybackRateChange(Number(event.target.value))}
+              >
+                {PLAYBACK_RATES.map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate}×
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button
+            type="button"
+            className="clip-hud-button"
+            aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
+            data-sound-toggle
+            onClick={() => {
               if (videoRef.current)
-                videoRef.current.currentTime = Number(event.target.value);
+                (soundRef?.current || videoRef.current).muted = !(soundRef?.current || videoRef.current).muted;
             }}
-          />
-        </>
+          >
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+        </div>
       )}
     </>
   );

@@ -1,6 +1,6 @@
 import PreparedVideo from './PreparedVideo'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Clock, DownloadCloud, ImageOff, LogIn, RefreshCw, WifiOff } from 'lucide-react'
+import { ChevronsUpDown, Clock, DownloadCloud, LogIn, RefreshCw, Video, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveControls'
@@ -81,12 +81,20 @@ function playbackSeed(videoUuid: string) {
 }
 
 const PREPARATION_STATE_KEYS = ACTIVE_PREPARATION_STATES
+// Backend preparation states grouped into the three steps the viewer names.
+const PREPARATION_STEPS = [
+  ['queued', 'waiting_for_mac', 'claimed', 'materializing'],
+  ['exporting', 'transcoding'],
+  ['uploading', 'verifying'],
+]
 
 interface DiveVideoPlayerProps {
   diveCode: string
   height: string
   videoUuid: string
   playbackRate?: number
+  /** Immersive viewer only: lets the transport row offer the speed control. */
+  onPlaybackRateChange?: (rate: number) => void
   immersive?: boolean
   onAspectRatioChange?: (ratio: number) => void
   onLike?: () => void
@@ -103,7 +111,7 @@ interface DiveVideoPlayerProps {
   onHudPressChange?: (pressing: boolean) => void
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd, onHudPauseChange, onHudPressChange }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlaybackRateChange, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd, onHudPauseChange, onHudPressChange }: DiveVideoPlayerProps) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const soundRef = useRef<HTMLVideoElement>(null)
@@ -743,15 +751,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
               onError={() => setPosterFailed(true)}
             />
           ) : (
-            <div className="clip-cover-empty">
-              <ImageOff aria-hidden="true" size={28} />
-              <p>{t('videoPlayer.posterUnavailable')}</p>
-            </div>
+            <div className="clip-cover-empty" />
           )}
         </div>
       )}
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls key={videoEpoch} videoRef={videoRef} soundRef={soundRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} onHudPauseChange={onHudPauseChange} onHudPressChange={onHudPressChange} />}
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls key={videoEpoch} videoRef={videoRef} soundRef={soundRef} playbackRate={playbackRate} onPlaybackRateChange={onPlaybackRateChange} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} onHudPauseChange={onHudPauseChange} onHudPressChange={onHudPressChange} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}
@@ -779,8 +784,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </p>
       )}
 
+      {/* Immersive viewer: one calm loading layer, from the status lookup until
+          the first frame, shown only if loading is not instant. */}
+      {immersive && !decodeError && (phase.kind === 'checking' || (phase.kind === 'ready' && !framePresented)) && (
+        <div className="clip-loading" role="status">
+          <span className="clip-loading-ring" aria-hidden="true" />
+          <p>{t('videoPlayer.loadingVideo')}</p>
+        </div>
+      )}
+
       {/* Initial status lookup in progress. */}
-      {phase.kind === 'checking' && (
+      {!immersive && phase.kind === 'checking' && (
         <div
           className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60"
           role="status"
@@ -795,8 +809,26 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
+      {/* Active preparation, in user terms: three steps and one action. */}
+      {immersive && preparing && (() => {
+        const step = PREPARATION_STEPS.findIndex(states => states.includes(preparing.state))
+        const title = preparing.stopped ? t('videoPlayer.preparingPaused') : stale ? t('videoPlayer.connectionLost') : t('videoPlayer.preparingTitle')
+        const hint = preparing.stopped || stale ? t('videoPlayer.tryAgainHint') : preparing.longRunning ? t('videoPlayer.preparingSlow') : t('videoPlayer.preparingHint')
+        return <div className="clip-state" role={preparing.stopped ? 'alert' : 'status'}>
+          <div className="clip-state-card">
+            <Video aria-hidden="true" size={26} />
+            <p className="clip-state-title">{title}</p>
+            <p className="clip-state-hint">{hint}</p>
+            {!preparing.stopped && !stale && <ol className="clip-state-steps">
+              {(['retrieve', 'convert', 'send'] as const).map((key, index) => <li key={key} className={index < step ? 'is-done' : index === step ? 'is-now' : undefined}>{t(`videoPlayer.steps.${key}`)}</li>)}
+            </ol>}
+            {(preparing.stopped || stale || preparing.longRunning) && <button type="button" className="clip-state-action" onClick={retryStatusCheck}><RefreshCw size={16} aria-hidden="true" />{t('videoPlayer.retry')}</button>}
+          </div>
+        </div>
+      })()}
+
       {/* Active preparation: named backend states, honest connectivity. */}
-      {preparing && (
+      {!immersive && preparing && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60">
           {!preparing.stopped && (
             <div className="ops-running-icon h-10 w-10 rounded-full border-4 border-app-accent border-t-transparent"></div>
@@ -820,8 +852,30 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
+      {immersive && (phase.kind === 'transport-failed' || phase.kind === 'prepare-failed' || (phase.kind === 'ready' && decodeError)) && (
+        <div className="clip-state" role="alert">
+          <div className="clip-state-card">
+            {phase.kind === 'transport-failed' ? <WifiOff aria-hidden="true" size={26} /> : <Video aria-hidden="true" size={26} />}
+            <p className="clip-state-title">{phase.kind === 'transport-failed' ? t('videoPlayer.unreachableTitle') : t('videoPlayer.unavailableTitle')}</p>
+            <p className="clip-state-hint">{phase.kind === 'transport-failed' ? t('videoPlayer.unreachableHint') : phase.kind === 'prepare-failed' && canRequest ? t('videoPlayer.unavailablePrepareHint') : t('videoPlayer.unavailableHint')}</p>
+            {phase.kind === 'transport-failed' && <button type="button" className="clip-state-action" onClick={retryStatusCheck}><RefreshCw size={16} aria-hidden="true" />{t('videoPlayer.retry')}</button>}
+            {phase.kind === 'prepare-failed' && canRequest && <button type="button" className="clip-state-action" onClick={requestMedia} disabled={isRequesting}><DownloadCloud size={16} aria-hidden="true" />{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareAgain')}</button>}
+            {phase.kind === 'ready' && decodeError && <button type="button" className="clip-state-action" onClick={retryPlayback}><RefreshCw size={16} aria-hidden="true" />{t('videoPlayer.retry')}</button>}
+            {phase.kind === 'ready' && decodeError && previewSrc && previewSrc !== phase.src && <button type="button" className="clip-state-action is-quiet" onClick={() => {
+              setPreviewSelected(true)
+              lightSelectedRef.current = false
+              previewSelectedRef.current = true
+              originalSelectedRef.current = false
+              presentedSourceRef.current = null
+              setDecodeError(false)
+              setPhase({ ...phase, src: previewSrc })
+            }}>{t('videoPlayer.usePreview')}</button>}
+          </div>
+        </div>
+      )}
+
       {/* Terminal transport failure of the initial status lookup. */}
-      {phase.kind === 'transport-failed' && (
+      {!immersive && phase.kind === 'transport-failed' && (
         <div
           className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
           role="alert"
@@ -844,7 +898,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
       )}
 
       {/* Backend-reported preparation failure, or a failed prepare request. */}
-      {phase.kind === 'prepare-failed' && (
+      {!immersive && phase.kind === 'prepare-failed' && (
         <div
           className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
           role="alert"
@@ -867,8 +921,21 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
-      {(previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
-      {phase.kind === 'ready' && !decodeError && phase.originalSrc && (!previewSrc || previewSrc === phase.originalSrc) && (
+      {/* Immersive viewer: one quality pill (dot = reduced quality), cycling on tap. */}
+      {immersive && phase.kind === 'ready' && !decodeError && (() => {
+        const options = qualityOptions(phase.src)
+        const reduced = phase.src !== phase.originalSrc && phase.src !== hqSrc
+        const label = qualityLabel(phase.src)
+        if (options.length < 2 && !reduced && !(phase.originalSrc && canRequest && (!previewSrc || previewSrc === phase.originalSrc))) return null
+        return <div className="clip-player-chip clip-quality">
+          {phase.originalSrc && canRequest && (!previewSrc || previewSrc === phase.originalSrc) && <button type="button" className="clip-quality-pill" onClick={requestMedia} disabled={isRequesting}>{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}</button>}
+          {options.length > 1
+            ? <button type="button" className="clip-quality-pill" aria-label={t('videoPlayer.changeQuality')} title={label} onClick={cycleQuality}>{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}<ChevronsUpDown size={14} aria-hidden="true" /></button>
+            : <span className="clip-quality-pill" role="status">{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}</span>}
+        </div>
+      })()}
+      {!immersive && (previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
+      {!immersive && phase.kind === 'ready' && !decodeError && phase.originalSrc && (!previewSrc || previewSrc === phase.originalSrc) && (
         <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 flex items-center gap-2">
           <span className="rounded bg-black/70 px-2 py-1 text-xs text-white">{t('videoPlayer.originalQuality')}</span>
           {canRequest && (
@@ -883,11 +950,11 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
           )}
         </div>
       )}
-      {phase.kind === 'ready' && !decodeError && qualityOptions(phase.src).length > 1 && (
+      {!immersive && phase.kind === 'ready' && !decodeError && qualityOptions(phase.src).length > 1 && (
         <button type="button" className="clip-player-chip absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={cycleQuality}>{qualityLabel(phase.src)}</button>
       )}
       {/* Video decode/load failure of an otherwise ready clip. */}
-      {phase.kind === 'ready' && decodeError && (
+      {!immersive && phase.kind === 'ready' && decodeError && (
         <div
           className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80"
           role="alert"

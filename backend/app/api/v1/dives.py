@@ -115,31 +115,15 @@ def _public_dive(dive: Dive, db: Session, federate_map: set[int] | None = None, 
     return payload
 
 
-@router.get("")
-def list_dives(
-    request: Request,
-    db: Session = Depends(get_db),
-    session_id: Optional[int] = Query(None, description="Filter by session ID"),
-    dive_code: Optional[str] = Query(None, description="Filter by dive code"),
-    height: Optional[str] = Query(None, description="Filter by height"),
-    performance: Optional[str] = Query(None, description="Filter by performance"),
-    date_from: Optional[datetime] = Query(None, description="Filter dives from date"),
-    date_to: Optional[datetime] = Query(None, description="Filter dives until date"),
-    exclude_lineup: bool = Query(False, description="Exclude lineup dives"),
-    exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
-    diver_scope: str = Query("self", pattern="^(self|all)$", description="Default to the primary diver; use all only intentionally"),
-    limit: int = Query(100, ge=1, le=5000, description="Limit results"),
-    offset: int = Query(0, ge=0, description="Offset for pagination"),
-    code_prefix: str = "",
-    search_text: str = "",
-    position_filter: str = "",
-    sync_filter: Optional[bool] = None,
+def _filtered_dive_query(
+    request: Request, db: Session, *, diver_scope: str, session_id: Optional[int] = None,
+    dive_code: Optional[str] = None, height: Optional[str] = None, performance: Optional[str] = None,
+    date_from: Optional[datetime] = None, date_to: Optional[datetime] = None,
+    exclude_lineup: bool = False, exclude_personal: bool = False, code_prefix: str = "",
+    search_text: str = "", position_filter: str = "", sync_filter: Optional[bool] = None,
     modifier_filter: str = "",
-    cursor: Optional[str] = None,
 ):
-    """
-    List dives with optional filters
-    """
+    """Access-scoped dive query with every Library filter applied (no order, no paging)."""
     query = db.query(Dive)
 
     # My dives follows verified account ownership; Community follows visibility.
@@ -178,8 +162,43 @@ def list_dives(
     if exclude_personal:
         query = query.filter(Dive.is_lineup == True)
 
-    from app.services.library_query import apply_library_filters, decode_cursor
-    query = apply_library_filters(query, db, code_prefix, search_text, position_filter, sync_filter, modifier_filter)
+    from app.services.library_query import apply_library_filters
+    return apply_library_filters(query, db, code_prefix, search_text, position_filter, sync_filter, modifier_filter)
+
+
+@router.get("")
+def list_dives(
+    request: Request,
+    db: Session = Depends(get_db),
+    session_id: Optional[int] = Query(None, description="Filter by session ID"),
+    dive_code: Optional[str] = Query(None, description="Filter by dive code"),
+    height: Optional[str] = Query(None, description="Filter by height"),
+    performance: Optional[str] = Query(None, description="Filter by performance"),
+    date_from: Optional[datetime] = Query(None, description="Filter dives from date"),
+    date_to: Optional[datetime] = Query(None, description="Filter dives until date"),
+    exclude_lineup: bool = Query(False, description="Exclude lineup dives"),
+    exclude_personal: bool = Query(False, description="Exclude personal dives (show lineup only)"),
+    diver_scope: str = Query("self", pattern="^(self|all)$", description="Default to the primary diver; use all only intentionally"),
+    limit: int = Query(100, ge=1, le=5000, description="Limit results"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    code_prefix: str = "",
+    search_text: str = "",
+    position_filter: str = "",
+    sync_filter: Optional[bool] = None,
+    modifier_filter: str = "",
+    cursor: Optional[str] = None,
+):
+    """
+    List dives with optional filters
+    """
+    query = _filtered_dive_query(
+        request, db, diver_scope=diver_scope, session_id=session_id, dive_code=dive_code,
+        height=height, performance=performance, date_from=date_from, date_to=date_to,
+        exclude_lineup=exclude_lineup, exclude_personal=exclude_personal, code_prefix=code_prefix,
+        search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
+        modifier_filter=modifier_filter,
+    )
+    from app.services.library_query import decode_cursor
     if cursor:
         before_date, before_id = decode_cursor(cursor)
         query = query.filter(or_(Dive.dive_datetime < before_date,
@@ -196,6 +215,34 @@ def list_dives(
     context = db.info.get("member_access")
     owner_ids = frozenset(context["diver_ids"]) if context else None
     return [_public_dive(dive, db, federate_map, evaluation_map, owner_ids) for dive in dives]
+
+
+def _library_visuals(db: Session, uuids: list[str]) -> dict[str, dict]:
+    """Latest ready poster thumbnail/thumbhash and animated preview per video, in one bounded join."""
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+    from app.services.media_cache import thumb_url, playback_url
+    visuals: dict[str, dict] = {}
+    if not uuids:
+        return visuals
+    # Reduce historical generations in SQL before materializing ORM rows:
+    # at most one ready entry per asset/rendition (200 for a full page).
+    latest_visual_ids = db.query(func.max(MediaCacheEntry.id).label("id")).join(
+        PhotosAsset, MediaCacheEntry.photos_asset_id == PhotosAsset.id
+    ).filter(
+        PhotosAsset.video_uuid.in_(uuids),
+        MediaCacheEntry.rendition.in_(("poster", "animated")),
+        MediaCacheEntry.status == "ready",
+    ).group_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition).subquery()
+    for uuid, poster in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
+        MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id
+    ).join(latest_visual_ids, MediaCacheEntry.id == latest_visual_ids.c.id).all():
+        visual = visuals.setdefault(uuid, {})
+        if poster.rendition == "animated":
+            visual["animated_url"] = playback_url(poster)
+        else:
+            visual.update({"thumbhash": poster.thumbhash, "thumb_url": thumb_url(poster)})
+    return visuals
 
 
 @router.get("/library")
@@ -218,32 +265,28 @@ def library_page(
     more = len(rows) > limit
     rows = rows[:limit]
     # One bounded join after list_dives has applied the existing access scope.
-    from app.models.media import MediaCacheEntry
-    from app.models.photos_asset import PhotosAsset
-    from app.services.media_cache import thumb_url, playback_url
-    uuids = [row["video_uuid"] for row in rows if row.get("video_uuid")]
-    visuals = {}
-    if uuids:
-        # Reduce historical generations in SQL before materializing ORM rows:
-        # at most one ready entry per asset/rendition (200 for a full page).
-        latest_visual_ids = db.query(func.max(MediaCacheEntry.id).label("id")).join(
-            PhotosAsset, MediaCacheEntry.photos_asset_id == PhotosAsset.id
-        ).filter(
-            PhotosAsset.video_uuid.in_(uuids),
-            MediaCacheEntry.rendition.in_(("poster", "animated")),
-            MediaCacheEntry.status == "ready",
-        ).group_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition).subquery()
-        for uuid, poster in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
-            MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id
-        ).join(latest_visual_ids, MediaCacheEntry.id == latest_visual_ids.c.id).all():
-            visual = visuals.setdefault(uuid, {})
-            if poster.rendition == "animated":
-                visual["animated_url"] = playback_url(poster)
-            else:
-                visual.update({"thumbhash": poster.thumbhash, "thumb_url": thumb_url(poster)})
+    visuals = _library_visuals(db, [row["video_uuid"] for row in rows if row.get("video_uuid")])
     for row in rows:
         row.update(visuals.get(row.get("video_uuid"), {}))
     return {"items": rows, "next_cursor": encode_cursor(rows[-1]) if more else None}
+
+
+@router.get("/library/codes")
+def library_codes(
+    request: Request, db: Session = Depends(get_db),
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    height: str = "", performance: str = "", code_prefix: str = "",
+    search_text: str = Query("", max_length=200), position_filter: str = "",
+    sync_filter: Optional[bool] = None, modifier_filter: str = "",
+):
+    """Per-code summaries and recent activity over the whole filtered Library scope."""
+    from app.services.code_summaries import summarize_library_query
+    query = _filtered_dive_query(
+        request, db, diver_scope=diver_scope, height=height, performance=performance,
+        exclude_lineup=True, code_prefix=code_prefix, search_text=search_text,
+        position_filter=position_filter, sync_filter=sync_filter, modifier_filter=modifier_filter,
+    )
+    return summarize_library_query(db, query, datetime.now())
 
 
 @router.post("", status_code=201)

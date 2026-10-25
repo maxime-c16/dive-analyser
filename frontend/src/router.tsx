@@ -65,6 +65,8 @@ const loadJourney = () => import("./pages/Journey");
 const Journey = lazy(loadJourney);
 const loadDiveAnalysis = () => import("./pages/DiveAnalysis");
 const DiveAnalysis = lazy(loadDiveAnalysis);
+const loadCodeAnalysis = () => import("./pages/CodeAnalysis");
+const CodeAnalysis = lazy(loadCodeAnalysis);
 const loadRepresentativeMedia = () => import("./pages/RepresentativeMedia");
 const RepresentativeMedia = lazy(loadRepresentativeMedia);
 const loadMediaRecall = () => import("./pages/MediaRecall");
@@ -233,7 +235,7 @@ export function breadcrumbTrail(
   if (/^\/calendar(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.calendar", href: pathname === "/calendar" ? undefined : "/calendar" }];
   if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
   if (/^\/series(?:\/|$)/.test(pathname)) return [{ labelKey: "series.mySeries", href: pathname === "/series" ? undefined : "/series" }];
-  const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)\/?$/);
+  const analysisMatch = pathname.match(/^\/dives\/analysis\/([^/]+)(?:\/details)?\/?$/);
   if (analysisMatch) {
     return [
       { labelKey: "nav.dives", href: "/dives" },
@@ -611,7 +613,8 @@ function Router() {
                 <Route path="/series" element={<SeriesPage />} />
                 <Route path="/series/:seriesId" element={<SeriesPage />} />
                 <Route path="/calendar/*" element={<CalendarGate />} />
-                <Route path="/dives/analysis/:diveCode" element={<DiveAnalysis />} />
+                <Route path="/dives/analysis/:diveCode" element={<CodeAnalysis />} />
+                <Route path="/dives/analysis/:diveCode/details" element={<DiveAnalysis />} />
                   <Route
                     path="/media/representatives"
                     element={<OwnerGuard><RepresentativeMedia /></OwnerGuard>}

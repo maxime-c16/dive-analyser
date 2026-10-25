@@ -167,11 +167,9 @@ function dragOnGesture(dy: number) {
 }
 
 function findNavButton(label: 'Previous' | 'Next') {
-  const button = Array.from(document.querySelectorAll('button')).find((candidate) =>
-    Array.from(candidate.childNodes).some(
-      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === label,
-    ),
-  )
+  const button = Array.from(document.querySelectorAll('.clip-navigation button')).find(
+    (candidate) => candidate.getAttribute('aria-label') === label,
+  ) as HTMLButtonElement | undefined
   if (!button) throw new Error(`${label} button not found`)
   return button
 }

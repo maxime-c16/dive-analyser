@@ -552,7 +552,7 @@ it('a poster-only seed holds the cover through the initial status lookup', async
   vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="checking-cover" immersive />)
   expect(coverImg()).toHaveAttribute('src', '/seeded.jpg')
-  expect(screen.getByText('Checking…')).toBeInTheDocument()
+  expect(screen.getByText('Loading video')).toBeInTheDocument()
 })
 
 it('metadata and canplay never reveal the cover; a decodable first frame does', async () => {
@@ -894,7 +894,7 @@ it('a same-URL decode retry opens a new generation with a real element restart',
   // Entering the decode-error state restarts nothing behind the overlay.
   fireEvent.error(video)
   expect(loadSpy).toHaveBeenCalledTimes(loadsAfterPresent)
-  expect(screen.getByRole('alert')).toHaveTextContent('Video failed to load')
+  expect(screen.getByRole('alert')).toHaveTextContent('Video unavailable')
   // The deliberate retry re-opens the gate with a real load() restart, even
   // though the URL is unchanged, and the cover holds until re-presentation.
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -910,7 +910,7 @@ it('a failed poster image degrades to an honest non-black placeholder', async ()
   vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="poster-fail" immersive />)
   fireEvent.error(coverImg() as Element)
-  expect(cover()).toHaveTextContent('No preview image available')
+  expect(cover()?.querySelector('.clip-cover-empty')).not.toBeNull()
   expect(coverImg()).toBeNull()
 })
 
@@ -918,7 +918,7 @@ it('a ready clip without any poster shows the placeholder instead of black', asy
   await seedPreviewNow('poster-missing', '/seeded.mp4', null)
   vi.mocked(getMediaStatus).mockImplementation(() => new Promise(() => {}))
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="poster-missing" immersive />)
-  expect(cover()).toHaveTextContent('No preview image available')
+  expect(cover()?.querySelector('.clip-cover-empty')).not.toBeNull()
   expect(coverImg()).toBeNull()
 })
 
@@ -1107,7 +1107,7 @@ it('derivative posters ride the authenticated revision route with an honest fall
     expect(img).toHaveAttribute('src', '/api/v1/media/revisions/4/play')
     // A poster that fails to load degrades to an honest placeholder.
     fireEvent.error(img as Element)
-    expect(document.querySelector('[data-testid="clip-cover"]')).toHaveTextContent('No preview image available')
+    expect(document.querySelector('[data-testid="clip-cover"] .clip-cover-empty')).not.toBeNull()
   } finally {
     playSpy.mockRestore()
   }
