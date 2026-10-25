@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from shutil import move
@@ -85,9 +86,36 @@ SOLE_COPY_BROWSER_SAFE_RENDITIONS = ("proxy_720p", "poster")
 CLEANER_RETAINED_PROXY_RENDITIONS = ("proxy_720p", "poster", "proxy_360p")
 
 
-def playback_url(entry_id: int) -> str:
-    """Browser-facing playback URL for a verified cache entry."""
-    return f"/api/v1/media/cache/{entry_id}/play"
+def cache_content_version(entry: MediaCacheEntry | None) -> str | None:
+    """A content token only when the stored SHA-256 is known and valid."""
+    checksum = entry.checksum_sha256 if entry is not None else None
+    if checksum and re.fullmatch(r"[0-9a-fA-F]{64}", checksum):
+        return checksum.lower()[:12]
+    return None
+
+
+def versioned_cache_url(url: str, entry: MediaCacheEntry | None) -> str:
+    version = cache_content_version(entry)
+    return url + (f"{'&' if '?' in url else '?'}v={version}" if version else "")
+
+
+def cache_control_for_entry(entry: MediaCacheEntry, version: str | None) -> str:
+    current = cache_content_version(entry)
+    return ("private, max-age=31536000, immutable" if current and version == current
+            else "private, no-cache")
+
+
+def playback_url(entry: MediaCacheEntry) -> str:
+    """Content-versioned URL; unknown checksums stay revalidatable."""
+    from app.services.signed_media import signed_url
+    return signed_url(entry.storage_path, entry.checksum_sha256) or versioned_cache_url(f"/api/v1/media/cache/{entry.id}/play", entry)
+
+
+def thumb_url(entry):
+    if not entry or not entry.thumb_storage_path:
+        return None
+    from app.services.signed_media import signed_url
+    return signed_url(entry.thumb_storage_path, entry.thumb_checksum_sha256) or f"/api/v1/media/cache/{entry.id}/thumb?v={entry.thumb_checksum_sha256[:12]}"
 
 
 def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
@@ -98,21 +126,29 @@ def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
         status=entry.status,
         content_type=entry.content_type,
         size_bytes=entry.size_bytes,
-        playback_url=playback_url(entry.id),
+        playback_url=playback_url(entry),
         created_at=entry.created_at,
         expires_at=entry.expires_at,
     )
 
 
 def ready_entries_for_asset(db: Session, photos_asset_id: int) -> list[MediaCacheEntry]:
-    """Return ready cache entries for an asset."""
+    """Return one newest ready generation per rendition, reduced in SQL."""
+    ranked = select(
+        MediaCacheEntry.id,
+        func.row_number().over(
+            partition_by=MediaCacheEntry.rendition,
+            order_by=(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc()),
+        ).label("rank"),
+    ).where(
+        MediaCacheEntry.photos_asset_id == photos_asset_id,
+        MediaCacheEntry.status == "ready",
+    ).subquery()
     stmt = (
         select(MediaCacheEntry)
-        .where(
-            MediaCacheEntry.photos_asset_id == photos_asset_id,
-            MediaCacheEntry.status == "ready",
-        )
-        .order_by(MediaCacheEntry.created_at.desc())
+        .join(ranked, MediaCacheEntry.id == ranked.c.id)
+        .where(ranked.c.rank == 1)
+        .order_by(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc())
     )
     return list(db.execute(stmt).scalars().all())
 
@@ -143,12 +179,29 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
     if not storage_path.exists() or not storage_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cached media file missing")
 
-    entry.last_accessed_at = datetime.utcnow()
-    entry.updated_at = datetime.utcnow()
-    db.add(entry)
-    db.commit()
-    db.refresh(entry)
-    return entry
+    # Copy loaded scalar values before ending the session transaction. The
+    # returned unbound snapshot cannot lazily reopen SQL during file serving.
+    snapshot = MediaCacheEntry(**{
+        column.key: getattr(entry, column.key)
+        for column in MediaCacheEntry.__table__.columns
+    })
+    changed = 0
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=1)
+    if entry.last_accessed_at is None or entry.last_accessed_at <= cutoff:
+        # Atomic predicate also throttles concurrent viewers across workers.
+        changed = db.execute(update(MediaCacheEntry).where(
+            MediaCacheEntry.id == entry_id,
+            (MediaCacheEntry.last_accessed_at.is_(None)
+             | (MediaCacheEntry.last_accessed_at <= cutoff)),
+        ).values(last_accessed_at=now, updated_at=now)
+          .execution_options(synchronize_session=False)).rowcount
+    if changed:
+        snapshot.last_accessed_at = snapshot.updated_at = now
+        db.commit()
+    else:
+        db.rollback()
+    return snapshot
 
 
 def cache_tmp_path(job: MediaJob) -> Path:
@@ -274,14 +327,14 @@ def drain_reclaim_orphans(db) -> int:
     return removed
 
 
-def cache_final_path(job: MediaJob, content_type: str) -> Path:
+def cache_final_path(job: MediaJob, content_type: str, checksum: str | None = None) -> Path:
     """Return final sharded cache path for a job artifact."""
     settings = get_settings()
     suffix = _suffix_for(job.rendition, content_type)
     root = Path(settings.media_cache_root).resolve()
     final_dir = root / job.rendition / job.media_key[:2] / job.media_key[2:4]
     final_dir.mkdir(parents=True, exist_ok=True)
-    return final_dir / f"{job.media_key}{suffix}"
+    return final_dir / f"{job.media_key}{'-' + checksum if checksum else ''}{suffix}"
 
 
 def write_upload_chunk(path: Path, chunk: bytes) -> None:
@@ -334,7 +387,7 @@ def finalize_cache_entry(
         tmp_path.unlink(missing_ok=True)
         return existing
 
-    final_path = cache_final_path(job, content_type)
+    final_path = cache_final_path(job, content_type, checksum_sha256)
     move(str(tmp_path), str(final_path))
     # 0644: the nginx front doors re-serve this file via X-Accel-Redirect
     # from a separate container whose worker runs as a different uid. A
@@ -601,6 +654,7 @@ def evict_cleanup_candidates(
     Deletes commit before any file is unlinked — a crash can leak a file,
     never lose one. Returns ``(removed_entries, removed_bytes)``.
     """
+    from app.services.poster_visuals import managed_animation_path
     now = datetime.utcnow()
     deleted = []
     for row in ttl_candidates:
@@ -618,10 +672,29 @@ def evict_cleanup_candidates(
             if _delete_one_with_fk_release(db, row.id, expired_before=None):
                 deleted.append(row)
                 remaining_bytes -= row.size_bytes or 0
+                if managed_animation_path(row.storage_path):
+                    # Ready-row accounting disappears at DELETE, but its
+                    # physical bytes remain until the orphan grace expires.
+                    # Add them once when the final ready reference goes away;
+                    # shared ready rows already account for the same file.
+                    still_ready = db.scalar(select(MediaCacheEntry.id).where(
+                        MediaCacheEntry.storage_path == row.storage_path,
+                        MediaCacheEntry.status == "ready",
+                    ).limit(1))
+                    if still_ready is None:
+                        path = Path(row.storage_path)
+                        try:
+                            if not path.is_symlink() and path.is_file():
+                                remaining_bytes += path.stat().st_size
+                        except FileNotFoundError:
+                            pass
     db.commit()
     removed_bytes = 0
     for row in deleted:
-        removed_bytes += _remove_file_by_path(row.id, row.storage_path)
+        # Content-addressed animations can be shared. Only the locked,
+        # reference-aware cleaner may unlink them after their URL grace.
+        if not managed_animation_path(row.storage_path):
+            removed_bytes += _remove_file_by_path(row.id, row.storage_path)
     return len(deleted), removed_bytes
 
 
@@ -663,11 +736,13 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     uses a fresh request session, and the upload-queue idle worker calls it
     after committing its own bookkeeping.
     """
+    from app.services.poster_visuals import cleanup_orphan_thumbnails
+    thumbnail_bytes = cleanup_orphan_thumbnails(db, namespace=None)
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(
         db, ttl_candidates, trim_candidates, max_bytes=max_bytes
     )
-    return removed_entries, removed_bytes, _cache_size(db)
+    return removed_entries, removed_bytes + thumbnail_bytes, _cache_size(db)
 
 
 def _release_upgrade_references(db: Session, entry_ids: list[int]) -> None:
@@ -796,4 +871,5 @@ def _cache_size(db: Session) -> int:
         select(func.coalesce(func.sum(MediaCacheEntry.size_bytes), 0))
         .where(MediaCacheEntry.status == "ready")
     ).scalar_one()
-    return int(total or 0)
+    from app.services.poster_visuals import thumbnail_disk_bytes, orphan_animation_disk_bytes
+    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db)

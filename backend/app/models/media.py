@@ -36,6 +36,11 @@ class MediaCacheEntry(Base):
     size_bytes = Column(BigInteger, nullable=False)
     checksum_sha256 = Column(String(64), nullable=True)
 
+    thumbhash = Column(String(128), nullable=True)
+    thumb_storage_path = Column(Text, nullable=True)
+    thumb_checksum_sha256 = Column(String(64), nullable=True)
+    thumb_size_bytes = Column(BigInteger, nullable=True)
+
     width = Column(Integer, nullable=True)
     height = Column(Integer, nullable=True)
     duration_seconds = Column(Numeric, nullable=True)

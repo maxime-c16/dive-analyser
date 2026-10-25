@@ -787,7 +787,7 @@ def stream_video(
         if not video_path:
             cached_proxy = _ready_proxy_for_uuid(db, video_uuid)
             if cached_proxy:
-                return RedirectResponse(url=playback_url(cached_proxy.id), status_code=307)
+                return RedirectResponse(url=playback_url(cached_proxy), status_code=307)
 
             cached_poster = _ready_cached_media_for_uuid(db, video_uuid, "poster")
             if cached_poster:
@@ -796,7 +796,7 @@ def stream_video(
                     detail={
                         "message": "Video proxy not cached yet",
                         "source": "media_cache",
-                        "poster_url": playback_url(cached_poster.id),
+                        "poster_url": playback_url(cached_poster),
                         "can_request": True,
                     },
                 )
@@ -900,7 +900,7 @@ def check_video_availability(
                 "available": True,
                 "source": "media_cache",
                 "rendition": cached_proxy.rendition,
-                "playback_url": playback_url(cached_proxy.id),
+                "playback_url": playback_url(cached_proxy),
                 "size": cached_proxy.size_bytes,
                 "status": "ready",
             }
@@ -912,7 +912,7 @@ def check_video_availability(
                 "source": "media_cache",
                 "status": "poster_ready",
                 "can_request": True,
-                "poster_url": playback_url(cached_poster.id),
+                "poster_url": playback_url(cached_poster),
             }
 
         stmt = select(Dive).where(Dive.video_uuid == video_uuid)

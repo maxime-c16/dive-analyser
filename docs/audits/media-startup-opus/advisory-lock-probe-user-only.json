@@ -1,0 +1,21 @@
+{
+  "idle_in_transaction_session_timeout": "5s",
+  "results": [
+    {
+      "variant": "today",
+      "rounds": 6,
+      "requests_per_round": 3,
+      "worst_ms_per_round": [
+        10023,
+        10025,
+        10022,
+        10027,
+        10028,
+        10026
+      ],
+      "median_worst_ms": 10025.5,
+      "rounds_over_1s": 6,
+      "non_200": 0
+    }
+  ]
+}

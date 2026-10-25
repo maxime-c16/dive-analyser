@@ -179,3 +179,72 @@ def test_disk_floor_is_rechecked_before_each_download(cache, monkeypatch):
     monkeypatch.setattr(shutil, "disk_usage", lambda _: SimpleNamespace(free=next(free, dpc.MIN_FREE_BYTES)))
     out = dpc.materialize_durable_posters(cache.db)
     assert out["cached"] == 1 and len(_poster_rows(cache.db)) == 1
+
+
+def test_refresh_versions_status_batch_and_old_url_revalidates(cache, api_client, monkeypatch):
+    from app.api.v1.media import get_media_status_batch, get_media_status
+    from app.schemas.media import MediaStatusBatchRequest
+    from app.services.media_cache import playback_url
+    from backend.tests.test_media_migration import _source
+
+    # Exercise cache fallback on the full player status as well as grid batch.
+    monkeypatch.setattr(get_settings(), 'user_auth_enabled', False)
+    asset = _durable_clip(cache, 1)
+    dpc.materialize_durable_posters(cache.db)
+    (row,) = _poster_rows(cache.db)
+    old_id, old_url = row.id, playback_url(row)
+    request = MediaStatusBatchRequest(video_uuids=[asset.video_uuid])
+    before_status = get_media_status(asset.video_uuid, cache.db)
+    before_batch = get_media_status_batch(request, cache.db)
+    assert before_status.poster_url == old_url
+    assert old_url in str(before_batch)
+    assert old_url.endswith('?v=' + row.checksum_sha256[:12])
+    assert 'immutable' in api_client.get(old_url).headers['cache-control']
+
+    new_sha = _source(cache.db, asset.video_uuid, b'new-camera-original')
+    _ledger(cache.db, asset.video_uuid, new_sha)
+    cache.db.commit()
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+    poster = cache.db.query(MediaDerivative).filter_by(video_uuid=asset.video_uuid,
+        role='poster', source_blob_sha256=new_sha).one()
+    loc = cache.db.query(MediaBlobLocation).filter_by(blob_sha256=poster.derivative_blob_sha256).one()
+    cache.store[loc.object_key] = _poster_bytes(asset.video_uuid, new_sha)
+    assert dpc.materialize_durable_posters(cache.db)['refreshed'] == 1
+    cache.db.expire_all()
+    (row,) = _poster_rows(cache.db)
+    new_url = playback_url(row)
+    assert row.id == old_id and new_url != old_url
+    assert get_media_status(asset.video_uuid, cache.db).poster_url == new_url
+    after_batch = get_media_status_batch(request, cache.db)
+    assert new_url in str(after_batch) and old_url not in str(after_batch)
+    old_response = api_client.get(old_url)
+    assert old_response.status_code == 200
+    assert old_response.headers['cache-control'] == 'private, no-cache'
+    assert 'immutable' in api_client.get(new_url).headers['cache-control']
+
+
+def test_durable_writer_generates_thumbhash_and_refreshes_it(cache, monkeypatch):
+    from PIL import Image
+    from app.services import poster_visuals
+    from backend.tests.test_media_migration import _source
+
+    asset = _durable_clip(cache, 1)
+    color = ['#2277aa']
+    # Isolate transport verification (covered above); run real durable SQL/files
+    # and explicit post-commit enrichment with an actual decodable poster.
+    def download(item, dest):
+        Image.new('RGB', (1080, 1920), color[0]).save(dest, format='JPEG')
+        return dest.stat().st_size
+    monkeypatch.setattr(dpc, '_download', download)
+    assert dpc.materialize_durable_posters(cache.db)['cached'] == 1
+    (row,) = _poster_rows(cache.db)
+    first = row.thumbhash
+    first_thumb = row.thumb_storage_path
+    assert first and first_thumb
+    new_sha = _source(cache.db, asset.video_uuid, b'changed-camera')
+    _ledger(cache.db, asset.video_uuid, new_sha)
+    cache.db.commit()
+    color[0] = '#ee9922'
+    assert dpc.materialize_durable_posters(cache.db)['refreshed'] == 1
+    assert row.thumbhash and row.thumbhash != first
+    assert row.thumb_storage_path != first_thumb

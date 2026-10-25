@@ -298,7 +298,7 @@ def test_evaluation_media_scope_status_play_poster_prepare(workspace, monkeypatc
     db.commit()
     play = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play')
     assert play.status_code == 200, play.text
-    assert play.headers['Cache-Control'] == 'private, max-age=300'
+    assert play.headers['Cache-Control'] == 'private, no-cache'
     ranged = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play',
                      headers={'Range': 'bytes=0-3'})
     assert ranged.status_code == 206
@@ -365,7 +365,7 @@ def test_evaluation_media_rendition_selection(workspace, monkeypatch):
     bob = login('bob')
     response = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'original'})
     assert response.status_code == 200, response.text
-    assert response.headers['Cache-Control'] == 'private, max-age=300'
+    assert response.headers['Cache-Control'] == 'private, no-cache'
     four_twenty_two = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'poster'})
     assert four_twenty_two.status_code == 422  # posters never play
     unknown = bob.get(f'/api/v1/evaluations/requests/{request_id}/media/play', params={'rendition': 'proxy_4k'})
@@ -431,3 +431,42 @@ def test_evaluation_original_redirect_rechecks_active_scope(workspace, monkeypat
     db.commit()
     assert client.get(status['full_quality_url'], follow_redirects=False).status_code == 404
     assert len(grants) == 1
+
+
+def test_evaluation_urls_version_each_selected_entry_and_revalidate_old_versions(workspace, monkeypatch):
+    import hashlib
+    from pathlib import Path
+    from app.config import get_settings
+    from app.models.media import MediaCacheEntry
+    db, login, dives, _, _ = workspace
+    monkeypatch.setattr(get_settings(), 'media_xaccel_enabled', False)
+    asset_id = db.query(PhotosAsset.id).filter_by(video_uuid='alice-private-video').scalar()
+    entries = db.query(MediaCacheEntry).filter_by(photos_asset_id=asset_id).all()
+    for entry in entries:
+        entry.checksum_sha256 = hashlib.sha256(Path(entry.storage_path).read_bytes()).hexdigest()
+    path = Path(get_settings().media_cache_root) / 'versioned-poster.jpg'
+    path.write_bytes(b'poster-v1')
+    poster = MediaCacheEntry(photos_asset_id=asset_id, media_key='versioned-eval-poster', rendition='poster',
+        storage_path=str(path), size_bytes=path.stat().st_size, content_type='image/jpeg', status='ready',
+        checksum_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+    db.add(poster)
+    db.commit()
+    alice = login('alice')
+    alice.put(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request', json={'active': True})
+    request_id = alice.get(f'/api/v1/dives/{dives["alice-private"]}/evaluation-request').json()['id']
+    bob = login('bob')
+    base = f'/api/v1/evaluations/requests/{request_id}/media'
+    before = bob.get(base + '/status').json()
+    assert before['poster_url'].endswith('?v=' + poster.checksum_sha256[:12])
+    assert '?v=' in before['playback_url']
+    assert '&v=' in before['preview_url']
+    assert bob.get(before['poster_url']).headers['cache-control'] == 'private, max-age=300'
+    path.write_bytes(b'poster-v2')
+    # The workspace fixture detaches all ORM objects after each HTTP request.
+    poster = db.get(MediaCacheEntry, poster.id)
+    poster.checksum_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    db.commit()
+    after = bob.get(base + '/status').json()
+    assert before['poster_url'] != after['poster_url']
+    assert bob.get(before['poster_url']).headers['cache-control'] == 'private, no-cache'
+    assert bob.get(after['poster_url']).content == b'poster-v2'

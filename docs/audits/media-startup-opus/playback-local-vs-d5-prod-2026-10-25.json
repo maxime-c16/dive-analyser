@@ -1,0 +1,42 @@
+[
+ {
+  "local_proxy_total_s": 0.852646,
+  "local_proxy_bytes": 1048576,
+  "d5_grant_s": 0.538673,
+  "d5_b2_ttfb_s": 0.457403,
+  "d5_b2_total_s": 0.887802,
+  "d5_total_s": 1.426
+ },
+ {
+  "local_proxy_total_s": 0.694951,
+  "local_proxy_bytes": 614388,
+  "d5_grant_s": 0.620797,
+  "d5_b2_ttfb_s": 0.908447,
+  "d5_b2_total_s": 1.279044,
+  "d5_total_s": 1.9
+ },
+ {
+  "local_proxy_total_s": 0.612819,
+  "local_proxy_bytes": 1048576,
+  "d5_grant_s": 0.689154,
+  "d5_b2_ttfb_s": 0.27934,
+  "d5_b2_total_s": 0.594984,
+  "d5_total_s": 1.284
+ },
+ {
+  "local_proxy_total_s": 1.546506,
+  "local_proxy_bytes": 580648,
+  "d5_grant_s": 2.868875,
+  "d5_b2_ttfb_s": 0.712869,
+  "d5_b2_total_s": 1.174249,
+  "d5_total_s": 4.043
+ },
+ {
+  "local_proxy_total_s": 0.697994,
+  "local_proxy_bytes": 1048576,
+  "d5_grant_s": 1.344161,
+  "d5_b2_ttfb_s": 0.575909,
+  "d5_b2_total_s": 1.006639,
+  "d5_total_s": 2.351
+ }
+]

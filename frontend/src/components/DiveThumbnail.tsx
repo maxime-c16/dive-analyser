@@ -1,8 +1,10 @@
 import { prepareLibraryPlayback } from '../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cachedPreview, getPreview, type MediaPreview } from "../utils/mediaPreview";
 import type { Attempt } from "../utils/attemptPresentation";
+
+import { placeholderUrl } from "../utils/thumbhash";
 
 export default function DiveThumbnail({
   dive,
@@ -15,10 +17,34 @@ export default function DiveThumbnail({
   const [preview, setPreview] = useState<MediaPreview | null>(() =>
     dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
   );
+  const [visible, setVisible] = useState(false);
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  const [animatedError, setAnimatedError] = useState(false);
+  const animated = !animatedError && motionAllowed && visible && (dive.animated_url || preview?.animatedUrl);
   const [imgError, setImgError] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
+  const thumb = !thumbError && (dive.thumb_url || preview?.thumbUrl);
+  const placeholder = useMemo(() => placeholderUrl(dive.thumbhash || preview?.thumbhash), [dive.thumbhash, preview?.thumbhash]);
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const connection = (navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }).connection;
+    const update = () => setMotionAllowed(Boolean(motion && !motion.matches && !connection?.saveData));
+    update();
+    motion?.addEventListener('change', update);
+    connection?.addEventListener?.('change', update);
+    const observer = new IntersectionObserver(entries => setVisible(entries[0].isIntersecting));
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => {
+      observer.disconnect();
+      motion?.removeEventListener('change', update);
+      connection?.removeEventListener?.('change', update);
+    };
+  }, [dive.video_uuid]);
+  useEffect(() => {
+    setAnimatedError(false);
     setImgError(false);
+    setThumbError(false);
     if (!dive.video_uuid) return;
     // If already cached, apply immediately — no network request needed.
     const cached = cachedPreview(dive.video_uuid);
@@ -75,18 +101,20 @@ export default function DiveThumbnail({
   return (
     <div
       ref={containerRef}
+      data-thumbhash={placeholder ? "ready" : undefined}
+      style={placeholder ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
     >
-      {preview?.posterUrl && !imgError ? (
+      {(animated || thumb || (preview?.posterUrl && !imgError)) ? (
         // Poster image from local media cache — instant, lightweight
         <img
-          src={preview.posterUrl}
+          src={animated || thumb || preview!.posterUrl!}
           alt={t('thumbnail.posterFor', { code: dive.dive_code })}
           className="h-full w-full object-cover"
           loading="lazy"
-          onError={() => setImgError(true)}
+          onError={() => animated ? setAnimatedError(true) : thumb ? setThumbError(true) : setImgError(true)}
         />
-      ) : preview?.videoThumbUrl ? (
+      ) : preview?.videoThumbUrl && !(dive.thumb_url || preview?.thumbUrl || dive.animated_url || preview?.animatedUrl) ? (
         // Poster missing (or failed to load) but a ready local web preview
         // exists — render its first frame directly instead of a blank tile.
         // Only already-ready cache previews are eligible here: the camera
@@ -102,7 +130,7 @@ export default function DiveThumbnail({
           preload="metadata"
           aria-label={t('thumbnail.posterFor', { code: dive.dive_code })}
         />
-      ) : (
+      ) : placeholder ? null : (
         // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
           <span

@@ -1,0 +1,8 @@
+{
+  "id": "library-small-thumbnails",
+  "date": "2026-10-25",
+  "title": "Your library appears sooner",
+  "body": "Dive tiles show their colors immediately and load smaller previews while you browse.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

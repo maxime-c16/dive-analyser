@@ -1,0 +1,46 @@
+{
+  "cpu1x": {
+    "2034x3616": {
+      "decode15_ms_median_of3": 77,
+      "decoded_MiB_for15": 421,
+      "bytes_each": 296090
+    },
+    "1080x1920": {
+      "decode15_ms_median_of3": 0,
+      "decoded_MiB_for15": 119,
+      "bytes_each": 100786
+    },
+    "720x1280": {
+      "decode15_ms_median_of3": 17,
+      "decoded_MiB_for15": 53,
+      "bytes_each": 53033
+    },
+    "480x640": {
+      "decode15_ms_median_of3": 7,
+      "decoded_MiB_for15": 18,
+      "bytes_each": 22963
+    }
+  },
+  "cpu4x": {
+    "2034x3616": {
+      "decode15_ms_median_of3": 77,
+      "decoded_MiB_for15": 421,
+      "bytes_each": 296090
+    },
+    "1080x1920": {
+      "decode15_ms_median_of3": 1,
+      "decoded_MiB_for15": 119,
+      "bytes_each": 100786
+    },
+    "720x1280": {
+      "decode15_ms_median_of3": 19,
+      "decoded_MiB_for15": 53,
+      "bytes_each": 53033
+    },
+    "480x640": {
+      "decode15_ms_median_of3": 8,
+      "decoded_MiB_for15": 18,
+      "bytes_each": 22963
+    }
+  }
+}

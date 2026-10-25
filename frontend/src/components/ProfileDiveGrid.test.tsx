@@ -6,9 +6,10 @@ import { getProfileDives } from '../services/communityApi'
 
 vi.mock('../services/communityApi', () => ({ getProfileDives: vi.fn() }))
 
-let intersect: IntersectionObserverCallback
+let intersect: IntersectionObserverCallback | undefined
 const disconnect = vi.fn()
 beforeEach(() => {
+  intersect = undefined
   vi.stubGlobal('IntersectionObserver', class {
     constructor(callback: IntersectionObserverCallback) { intersect = callback }
     observe() {}
@@ -24,10 +25,11 @@ afterEach(() => { vi.unstubAllGlobals() })
 async function grid() {
   const result = render(<MemoryRouter><ProfileDiveGrid userId={20} /></MemoryRouter>)
   await screen.findByRole('link', { name: /102C/ })
+  await waitFor(() => expect(intersect).toBeTypeOf('function'))
   return result
 }
 function visible() {
-  act(() => intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver))
+  act(() => intersect!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver))
 }
 
 it('never loads a B2 original from a tile, even near the viewport', async () => {

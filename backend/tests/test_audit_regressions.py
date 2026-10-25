@@ -312,13 +312,13 @@ def test_sync_ws_requires_live_login_when_auth_enabled(api_client, test_db, monk
         revoke_session_by_raw_token(test_db, token)
 
 
-@pytest.mark.parametrize("rendition,has_backbone,expected", [
-    ("proxy_360p", True, "backbone"),
-    ("proxy_360p", False, "cache"),
-    ("proxy_720p", True, "backbone"),
-    ("original", True, "cache"),
+@pytest.mark.parametrize("rendition,has_backbone", [
+    ("proxy_360p", True),
+    ("proxy_360p", False),
+    ("proxy_720p", True),
+    ("original", True),
 ])
-def test_playback_prefers_original_over_preview(test_db, backbone_clock, rendition, has_backbone, expected):
+def test_playback_starts_local_and_preserves_original_quality(test_db, backbone_clock, rendition, has_backbone):
     from app.models.media import MediaCacheEntry
     from app.models.photos_asset import PhotosAsset
 
@@ -332,16 +332,19 @@ def test_playback_prefers_original_over_preview(test_db, backbone_clock, renditi
     test_db.add(entry)
     test_db.commit()
     revision = add_revision(test_db, "hq-clip", "e" * 64) if has_backbone else None
-    url = f"/api/v1/media/revisions/{revision}/play" if expected == "backbone" else media.playback_url(entry.id)
     result = media._status_for_asset(test_db, asset)
     assert result.status == "ready"
-    assert result.playback_url == url
-    assert result.preferred_rendition == ("original" if expected == "backbone" else rendition)
-    # Tiles stay bounded even where the player prefers the original: only a
+    assert result.playback_url == media.playback_url(entry)
+    assert result.preferred_rendition == ("original" if has_backbone else rendition)
+    assert result.full_quality_url == (
+        media.playback_url(entry) if rendition == "original"
+        else f"/api/v1/media/revisions/{revision}/play" if has_backbone else None
+    )
+    # Tiles stay bounded while original quality remains explicit: only a
     # ready local web preview is ever exposed, never a B2 revision URL.
     batch = media._thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
     if rendition in ("proxy_720p", "proxy_360p"):
-        assert batch["playback_url"] == media.playback_url(entry.id)
+        assert batch["playback_url"] == media.playback_url(entry)
         assert batch["status"] == "ready"
     else:
         assert batch["playback_url"] is None

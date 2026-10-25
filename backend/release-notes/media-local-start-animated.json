@@ -1,0 +1,1 @@
+{"id":"media-local-start-animated","date":"2026-10-25","title":"Faster video starts and animated previews","body":"Videos start from an available local preview. Light, HQ and Original remain available. Visible library tiles can show a short animation while respecting reduced motion and data saving.","audience":"all","components":["backend","frontend"]}

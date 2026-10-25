@@ -111,7 +111,7 @@ def _resolve_media(dive_id, kind, request, rendition, db):
         if revision_id is not None and not cached_hq:
             return revision_id, user
     entry = _select_ready_entry(db, asset, rendition if kind == 'play' else None, playable=kind == 'play')
-    return evaluation_access.serve_entry(entry.storage_path, entry.content_type, request, head_only=request.method == 'HEAD')
+    return evaluation_access.serve_entry(entry, request, head_only=request.method == 'HEAD')
 
 
 @router.api_route('/evaluations/automatic/{dive_id}/media/{kind}', methods=['GET', 'HEAD'])
@@ -122,8 +122,7 @@ def media(dive_id: int, kind: str, request: Request, rendition: str | None = Non
     if isinstance(resolved, tuple):
         from app.api.v1.media_playback import play_media_revision
         revision_id, user = resolved
-        import asyncio
-        return asyncio.run(play_media_revision(revision_id, request, Response(), db, user))
+        return play_media_revision(revision_id, request, Response(), db, user)
     return resolved
 
 

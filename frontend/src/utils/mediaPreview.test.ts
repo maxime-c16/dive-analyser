@@ -146,3 +146,19 @@ it('refreshes a missing result when media later becomes ready', async () => {
   expect((await next).playbackUrl).toBe('/api/v1/media/cache/9/play')
   expect((await next).videoThumbUrl).toBe('/api/v1/media/cache/9/play')
 })
+
+it('preserves ThumbHash, thumb and signed cache capabilities for grid and player', async () => {
+  const signed = '/media/cache/signed/checksum/proxy/test.mp4?expires=1800000000&sig=test'
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ clip: {
+    status: 'ready', thumb_url: '/media/cache/signed/checksum/thumb/test.webp',
+    thumbhash: 'G1U1vyoI9wiIh4hwj3CI+AiIcH/494cP', poster_url: '/poster', playback_url: signed,
+  } }) }))
+  const { getPreview } = await import('./mediaPreview')
+  const pending = getPreview('clip')
+  await vi.advanceTimersByTimeAsync(50)
+  const preview = await pending
+  expect(preview.thumbhash).toBe('G1U1vyoI9wiIh4hwj3CI+AiIcH/494cP')
+  expect(preview.thumbUrl).toContain('/thumb/')
+  expect(preview.videoThumbUrl).toBe(signed)
+  expect(preview.playbackUrl).toBe(signed)
+})

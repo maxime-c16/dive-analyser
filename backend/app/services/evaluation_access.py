@@ -219,6 +219,7 @@ def media_status(
     derivation runs without per-item database round trips. The derivation is
     the single source of truth for both paths.
     """
+    from app.services.media_cache import versioned_cache_url
     base = f"/api/v1/evaluations/requests/{request_row.id}/media"
     if prefetched is None:
         with evaluation_media_scope(db):
@@ -248,10 +249,10 @@ def media_status(
         # Rendition actually resolved for playback (original→720p
         # →360p; the member can select another ready one via ?rendition=).
         "rendition": "original" if full_quality else playable.rendition if playable else None,
-        "poster_url": f"{base}/poster" if poster else None,
-        "playback_url": f"{base}/play" if playable or full_quality else None,
-        "full_quality_url": f"{base}/play?rendition=original" if full_quality else None,
-        "preview_url": f"{base}/play?rendition={preview.rendition}" if preview else None,
+        "poster_url": versioned_cache_url(f"{base}/poster", poster) if poster else None,
+        "playback_url": versioned_cache_url(f"{base}/play", original if full_quality else playable) if playable or full_quality else None,
+        "full_quality_url": versioned_cache_url(f"{base}/play?rendition=original", original) if full_quality else None,
+        "preview_url": versioned_cache_url(f"{base}/play?rendition={preview.rendition}", preview) if preview else None,
         "available_renditions": sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
     }
 
@@ -337,19 +338,22 @@ def set_request(
     return row
 
 
-def serve_entry(path_value: str, content_type: Optional[str], request, head_only: bool):
+def serve_entry(entry: MediaCacheEntry, request, head_only: bool):
     """Stream a verified cache file with range support (backend-side only)."""
     from app.api.v1.media import _serve_media_file
 
     response = _serve_media_file(
-        Path(path_value),
-        content_type or "application/octet-stream",
+        Path(entry.storage_path),
+        entry.content_type or "application/octet-stream",
         request,
         head_only=head_only,
     )
     # Short, account-scoped browser caching; the server re-verifies eligibility
     # on every request (documented limit, see module docstring).
-    response.headers["Cache-Control"] = f"private, max-age={MEDIA_CACHE_SECONDS}"
+    from app.services.media_cache import cache_content_version
+    version = cache_content_version(entry)
+    response.headers["Cache-Control"] = (f"private, max-age={MEDIA_CACHE_SECONDS}"
+        if version and request.query_params.get("v") == version else "private, no-cache")
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response

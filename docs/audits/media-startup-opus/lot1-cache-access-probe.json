@@ -1,0 +1,7 @@
+{
+  "baseline_ref": "af90ba9",
+  "backend": "disposable SQLite",
+  "views_per_variant": 15,
+  "before_commits": 15,
+  "after_commits": 1
+}

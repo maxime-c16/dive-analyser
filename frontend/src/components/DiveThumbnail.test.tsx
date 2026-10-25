@@ -95,3 +95,60 @@ it('compact placeholder still shows the dive code when nothing is playable', () 
   render(<DiveThumbnail dive={dive} compact />)
   expect(screen.getByText('201C')).toBeInTheDocument()
 })
+
+it('renders library ThumbHash before any image request completes and falls through thumb and poster without creating a video', () => {
+  vi.mocked(cachedPreview).mockReturnValue({
+    posterUrl: '/api/v1/media/cache/1/play', thumbUrl: '/api/v1/media/cache/1/thumb',
+    videoThumbUrl: '/api/v1/media/cache/2/play', playbackUrl: null, ready: true,
+  })
+  const { container } = render(<DiveThumbnail dive={{ ...dive, thumbhash: '3QcSHQRnh493V4dIh4eXh1h4kJUI' }} />)
+  expect(container.querySelector('[data-thumbhash="ready"]')).toHaveStyle({ backgroundSize: 'cover' })
+  expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/media/cache/1/thumb')
+  fireEvent.error(screen.getByRole('img'))
+  expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/media/cache/1/play')
+  fireEvent.error(screen.getByRole('img'))
+  expect(container.querySelector('video')).toBeNull()
+})
+
+it('ignores malformed ThumbHash and preserves the normal placeholder', () => {
+  vi.mocked(cachedPreview).mockReturnValue({ posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false })
+  const { container } = render(<DiveThumbnail dive={{ ...dive, thumbhash: 'not base64!' }} />)
+  expect(container.querySelector('[data-thumbhash]')).toBeNull()
+  expect(screen.getByText('201C')).toBeInTheDocument()
+})
+
+it.each([
+  { reduced: false, saveData: false, visible: true, animated: true },
+  { reduced: true, saveData: false, visible: true, animated: false },
+  { reduced: false, saveData: true, visible: true, animated: false },
+  { reduced: false, saveData: false, visible: false, animated: false },
+])('gates animation for $reduced/$saveData/$visible', ({ reduced, saveData, visible, animated }) => {
+  const oldMatchMedia = window.matchMedia
+  const oldObserver = window.IntersectionObserver
+  const connectionDescriptor = Object.getOwnPropertyDescriptor(navigator, 'connection')
+  window.matchMedia = vi.fn().mockReturnValue({ matches: reduced, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+  Object.defineProperty(navigator, 'connection', { configurable: true, value: { saveData } })
+  window.IntersectionObserver = class {
+    constructor(private cb: IntersectionObserverCallback) {}
+    observe() { this.cb([{ isIntersecting: visible } as IntersectionObserverEntry], this as unknown as IntersectionObserver) }
+    disconnect() {}
+    unobserve() {}
+    takeRecords() { return [] }
+  } as unknown as typeof IntersectionObserver
+  vi.mocked(cachedPreview).mockReturnValue({ posterUrl: '/poster.webp', thumbUrl: '/thumb.webp', animatedUrl: '/animated.webp', videoThumbUrl: '/proxy.mp4', playbackUrl: null, ready: true })
+  try {
+    const { container, unmount } = render(<DiveThumbnail dive={dive} />)
+    expect(screen.getByRole('img')).toHaveAttribute('src', animated ? '/animated.webp' : '/thumb.webp')
+    expect(container.querySelector('video')).toBeNull()
+    if (animated) {
+      fireEvent.error(screen.getByRole('img'))
+      expect(screen.getByRole('img')).toHaveAttribute('src', '/thumb.webp')
+    }
+    unmount()
+  } finally {
+    window.matchMedia = oldMatchMedia
+    window.IntersectionObserver = oldObserver
+    if (connectionDescriptor) Object.defineProperty(navigator, 'connection', connectionDescriptor)
+    else Reflect.deleteProperty(navigator, 'connection')
+  }
+})

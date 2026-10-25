@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
 
 from tests.test_derivative_read_d5 import flags, _seed_world, UUID_FULL
 from tests.test_postgres_derivative_read_d5 import pg_schema, _schema_engine, _qualified_models
@@ -49,10 +50,35 @@ def test_slow_head_survives_real_pg_idle_timeout(pg_schema, flags, tmp_path, mon
         _seed_world(db, tmp_path)
         app.dependency_overrides[get_db] = lambda: db
 
+        # Arm the original 100ms timeout at the provider boundary, after
+        # authorization/derivative SQL. The hosted failure was before HEAD:
+        # runner scheduling exceeded 100ms between preflight SQL statements.
+        # SET LOCAL remains active if the handler forgets its rollback.
+        storage_identity = playback._storage_identity
+        armed = False
+        def identity_and_arm(revision, location):
+            nonlocal armed
+            identity = storage_identity(revision, location)
+            if not armed:
+                db.execute(text("SET LOCAL idle_in_transaction_session_timeout = '100ms'"))
+                armed = True
+            return identity
+        monkeypatch.setattr(playback, "_storage_identity", identity_and_arm)
+
         def slow_head(**kwargs):
-            # Exceeds the real PG timeout below. No database operation or
-            # mock exception manufactures the timeout outcome.
-            time.sleep(0.35)
+            # The provider call exceeds the real request-connection timeout.
+            # No mocked SQL error stands in for PostgreSQL enforcement.
+            assert not db.in_transaction(), "provider I/O retained the request transaction"
+            assert armed
+            # A real control transaction proves PostgreSQL enforces the same
+            # 100ms timeout during this HEAD; no retries or relaxed threshold.
+            with engine.connect() as control:
+                control.execute(text("SET LOCAL idle_in_transaction_session_timeout = '100ms'"))
+                control.execute(text("SELECT 1"))
+                time.sleep(0.35)
+                with pytest.raises(OperationalError):
+                    control.execute(text("SELECT 1"))
+                control.rollback()
 
         monkeypatch.setattr(playback.b2_presign, "head_object", slow_head)
         monkeypatch.setattr(playback.b2_presign, "presign_get", lambda **kwargs:
@@ -64,8 +90,7 @@ def test_slow_head_survives_real_pg_idle_timeout(pg_schema, flags, tmp_path, mon
             semantic = "derived_light" if derived else "photos_edited_rendition"
             revision = db.query(MediaRevision).filter_by(video_uuid=UUID_FULL, rendition_semantics=semantic).one()
             revision_id = revision.id
-            db.execute(text("SET idle_in_transaction_session_timeout = '100ms'"))
-            db.commit()
+            db.rollback()
             response = client.get(f"/api/v1/media/revisions/{revision_id}/play", follow_redirects=False)
             assert response.status_code == 302, response.text
             assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED", media_revision_id=revision_id).count() == 1

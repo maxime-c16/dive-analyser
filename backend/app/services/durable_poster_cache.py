@@ -192,6 +192,9 @@ def _refresh(db, item: dict[str, Any], tmp: Path, final: Path, size: int) -> str
         return "skipped"
     os.replace(tmp, final)
     os.chmod(final, 0o644)
+    from app.services.poster_visuals import clear_visuals, enrich_committed_poster
+    clear_visuals(entry)
+    entry_id = entry.id
     entry.storage_path = str(final)
     entry.size_bytes = size
     entry.checksum_sha256 = item["sha256"]
@@ -199,6 +202,8 @@ def _refresh(db, item: dict[str, Any], tmp: Path, final: Path, size: int) -> str
     entry.transform_version = item["transform_version"]
     entry.status = "ready"
     db.commit()  # the old file stays on disk (never deleted here)
+    enrich_committed_poster(entry_id, bind=db.get_bind())
+    db.expire(entry, ["thumbhash", "thumb_storage_path", "thumb_checksum_sha256", "thumb_size_bytes"])
     return "refreshed"
 
 
@@ -251,7 +256,7 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             continue
         os.replace(tmp, final)
         os.chmod(final, 0o644)  # nginx re-serves it via X-Accel (see finalize_cache_entry)
-        db.add(MediaCacheEntry(
+        entry = MediaCacheEntry(
             photos_asset_id=item["asset_id"],
             media_key=media_key,
             rendition="poster",
@@ -267,8 +272,11 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             expires_at=None,
             source_blob_sha256=item["source_sha256"],
             transform_version=item["transform_version"],
-        ))
+        )
+        db.add(entry)
         try:
+            db.flush()
+            entry_id = entry.id
             db.commit()
         except Exception:  # noqa: BLE001 - unique race lost: keep the winner
             db.rollback()
@@ -280,5 +288,8 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             db.rollback()
             counts["skipped"] += 1
             continue
+        from app.services.poster_visuals import enrich_committed_poster
+        enrich_committed_poster(entry_id, bind=db.get_bind())
+        db.expire(entry, ["thumbhash", "thumb_storage_path", "thumb_checksum_sha256", "thumb_size_bytes"])
         counts["cached"] += 1
     return counts

@@ -306,3 +306,80 @@ def test_library_search_does_not_probe_other_members_private_notes(workspace):
     _, login, dives, _, _ = workspace
     assert login('bob').get('/api/v1/dives/library?diver_scope=all&search_text=alice%20personal').json()['items'] == []
     assert len(login('alice').get('/api/v1/dives/library?search_text=alice%20personal').json()['items']) == 2
+
+
+def test_signed_status_urls_follow_request_visibility_before_signing(workspace, monkeypatch, tmp_path):
+    from app.services import signed_media
+    db, login, dives, users, _ = workspace
+    monkeypatch.setenv('MEDIA_SIGNED_URLS_ENABLED', 'true')
+    monkeypatch.setenv('MEDIA_SIGNING_SECRET', 'b' * 64)
+    for entry in db.query(MediaCacheEntry).all():
+        entry.checksum_sha256 = 'a' * 64
+    # Exercise signed video, poster, thumb and animation fields, not only
+    # the unsigned fallback covered by the earlier visibility regression.
+    for uuid in ('alice-private-video', 'alice-public-video'):
+        asset = db.query(PhotosAsset).filter_by(video_uuid=uuid).one()
+        for rendition in ('poster', 'animated'):
+            path = tmp_path / f'{uuid}-{rendition}.webp'
+            path.write_bytes(b'visual')
+            db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=f'{uuid}-{rendition}',
+                rendition=rendition, storage_path=str(path), size_bytes=6, status='ready',
+                checksum_sha256='c' * 64,
+                thumb_storage_path=str(path) if rendition == 'poster' else None,
+                thumb_checksum_sha256='c' * 64 if rendition == 'poster' else None))
+    db.commit()
+    signed_paths = []
+    sign = signed_media.signed_url
+    def record_sign(path, checksum):
+        signed_paths.append(str(path))
+        return sign(path, checksum)
+    monkeypatch.setattr(signed_media, 'signed_url', record_sign)
+
+    owner = login('alice')
+    status = owner.get('/api/v1/media/alice-private-video/status')
+    assert status.status_code == 200
+    assert status.json()['playback_url'].startswith('/media/cache/signed/')
+    assert status.json()['thumb_url'].startswith('/media/cache/signed/')
+    batch = owner.post('/api/v1/media/status/batch', json={'video_uuids': ['alice-private-video']})
+    assert batch.json()['alice-private-video']['animated_url'].startswith('/media/cache/signed/')
+
+    # Including administrators: admin capability never grants other private
+    # media, while public clips remain available to signed-in non-owners.
+    bob = db.get(AppUser, users['bob'].id)
+    bob.is_admin = True
+    db.commit()
+    for account in ('viewer', 'bob'):
+        signed_paths.clear()
+        client = login(account)
+        assert client.get('/api/v1/media/alice-private-video/status').status_code == 404
+        assert client.post('/api/v1/media/alice-private-video/request', json={'rendition': 'poster'}).status_code == 404
+        assert signed_paths == []
+        response = client.post('/api/v1/media/status/batch', json={
+            'video_uuids': ['alice-private-video', 'alice-public-video']})
+        assert response.status_code == 200
+        assert set(response.json()) == {'alice-public-video'}
+        assert response.json()['alice-public-video']['animated_url'].startswith('/media/cache/signed/')
+        assert signed_paths and all('alice-private' not in path for path in signed_paths)
+        library = client.get('/api/v1/dives/library', params={'diver_scope': 'all'})
+        assert library.status_code == 200
+        assert all(row['video_uuid'] != 'alice-private-video' for row in library.json()['items'])
+        assert all('alice-private' not in path for path in signed_paths)
+        public = client.get('/api/v1/media/alice-public-video/status')
+        assert public.status_code == 200
+        assert public.json()['playback_url'].startswith('/media/cache/signed/')
+
+    # Removing the OWNER binding is effective on the next request even
+    # after owner status/batch have primed the shared process caches.
+    db.query(UserDiverAccess).filter_by(user_id=users['alice'].id).delete()
+    db.commit()
+    signed_paths.clear()
+    former_owner = login('alice')
+    assert former_owner.get('/api/v1/media/alice-private-video/status').status_code == 404
+    assert former_owner.post('/api/v1/media/status/batch', json={
+        'video_uuids': ['alice-private-video']}).json() == {}
+    assert signed_paths == []
+    former_owner.cookies.clear()
+    assert former_owner.get('/api/v1/media/alice-private-video/status', headers={'X-API-Key': 'fake'}).status_code == 401
+    assert former_owner.post('/api/v1/media/status/batch', json={
+        'video_uuids': ['alice-private-video']}).status_code == 401
+    assert signed_paths == []

@@ -217,6 +217,32 @@ def library_page(
         modifier_filter=modifier_filter, cursor=cursor)
     more = len(rows) > limit
     rows = rows[:limit]
+    # One bounded join after list_dives has applied the existing access scope.
+    from app.models.media import MediaCacheEntry
+    from app.models.photos_asset import PhotosAsset
+    from app.services.media_cache import thumb_url, playback_url
+    uuids = [row["video_uuid"] for row in rows if row.get("video_uuid")]
+    visuals = {}
+    if uuids:
+        # Reduce historical generations in SQL before materializing ORM rows:
+        # at most one ready entry per asset/rendition (200 for a full page).
+        latest_visual_ids = db.query(func.max(MediaCacheEntry.id).label("id")).join(
+            PhotosAsset, MediaCacheEntry.photos_asset_id == PhotosAsset.id
+        ).filter(
+            PhotosAsset.video_uuid.in_(uuids),
+            MediaCacheEntry.rendition.in_(("poster", "animated")),
+            MediaCacheEntry.status == "ready",
+        ).group_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition).subquery()
+        for uuid, poster in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
+            MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id
+        ).join(latest_visual_ids, MediaCacheEntry.id == latest_visual_ids.c.id).all():
+            visual = visuals.setdefault(uuid, {})
+            if poster.rendition == "animated":
+                visual["animated_url"] = playback_url(poster)
+            else:
+                visual.update({"thumbhash": poster.thumbhash, "thumb_url": thumb_url(poster)})
+    for row in rows:
+        row.update(visuals.get(row.get("video_uuid"), {}))
     return {"items": rows, "next_cursor": encode_cursor(rows[-1]) if more else None}
 
 
@@ -485,8 +511,9 @@ def upload_dive(
                     exclude_user_id=user.id)
             except Exception:
                 logger.exception('batch email queue failed for upload %s', record.id)
-        cache_upload(db, asset, folder)
+        posters = cache_upload(db, asset, folder)
         db.flush()
+        poster_ids = [entry.id for entry in (posters or [])]
         if manifest is not None:
             from app.services.media_backbone import commit_verified_ingest
             commit_verified_ingest(db, **manifest, commit=False)
@@ -498,6 +525,10 @@ def upload_dive(
         db.rollback()
         cleanup_upload(folder)
         raise
+    # Called by the synchronous upload worker, after the publication commit.
+    from app.services.poster_visuals import enrich_committed_poster
+    for poster_id in poster_ids:
+        enrich_committed_poster(poster_id, bind=db.get_bind())
     # Once committed, a response failure must never remove durable media.
     db.refresh(record)
     try:

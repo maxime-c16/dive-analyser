@@ -62,9 +62,9 @@ def build_recall_manifest(
             ).order_by(RecalledMediaSource.validated_at.desc())
         ).scalars().first()
         ready = {
-            row.rendition
-            for row in db.execute(
-                select(MediaCacheEntry).where(
+            rendition
+            for rendition in db.execute(
+                select(MediaCacheEntry.rendition).distinct().where(
                     MediaCacheEntry.photos_asset_id == asset.id,
                     MediaCacheEntry.status == "ready",
                 )

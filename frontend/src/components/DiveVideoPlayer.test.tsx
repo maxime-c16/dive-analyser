@@ -1005,12 +1005,13 @@ it('keeps seeded quality choices and preview recovery when status revalidation f
   expect(video).toHaveAttribute('src', '/preview.mp4')
 })
 
-it('derivative clips start on light and cycle HQ then original explicitly', async () => {
+it('starts locally and cycles Light, HQ and Original explicitly', async () => {
   const derivativeReady = {
     ...missing,
     status: 'ready',
     playback_url: '/api/v1/media/revisions/9/play',
-    preview_url: '/api/v1/media/revisions/3/play',
+    preview_url: '/local.mp4',
+    cache_entries: [{ id: 7, rendition: 'proxy_720p', playback_url: '/local.mp4' }],
     full_quality_url: '/api/v1/media/revisions/9/play',
     poster_url: '/api/v1/media/revisions/4/play',
     derivatives: {
@@ -1026,10 +1027,11 @@ it('derivative clips start on light and cycle HQ then original explicitly', asyn
   vi.mocked(getMediaStatus).mockResolvedValue(derivativeReady)
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
   const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
-  // Default starter is the durable light revision (fast first frame),
-  // never the camera original.
-  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/local.mp4'))
   const toggle = screen.getByRole('button', { name: 'Change video quality' })
+  expect(toggle).toHaveTextContent('Preview')
+  fireEvent.click(toggle)
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
   expect(toggle).toHaveTextContent('Light')
   fireEvent.click(toggle)
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
@@ -1038,7 +1040,7 @@ it('derivative clips start on light and cycle HQ then original explicitly', asyn
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/9/play'))
   expect(toggle).toHaveTextContent('Original')
   fireEvent.click(toggle)
-  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/local.mp4'))
   // Quality switches never create preparation jobs.
   expect(requestMedia).not.toHaveBeenCalled()
 })
@@ -1111,7 +1113,7 @@ it('derivative posters ride the authenticated revision route with an honest fall
   }
 })
 
-it('switches a presented legacy seed to the durable light starter', async () => {
+it('keeps a presented local seed when durable Light becomes available', async () => {
   vi.useFakeTimers()
   await seedPreviewCache('legacy-durable', '/sdr-360.mp4')
   let resolve!: (status: MediaStatus) => void
@@ -1140,7 +1142,7 @@ it('switches a presented legacy seed to the durable light starter', async () => 
     },
   }
   await act(async () => { resolve(durable) })
-  expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play')
+  expect(video).toHaveAttribute('src', '/sdr-360.mp4')
 })
 
 it('keeps an explicit HQ choice and never auto-upgrades light to HQ', async () => {
@@ -1265,7 +1267,7 @@ it('hands a presented legacy seed to durable light with zero original/cache back
   expect(requestMedia).not.toHaveBeenCalled()
 })
 
-it('hands legacy cached proxies to durable light even when the mixed playback URL is the legacy proxy', async () => {
+it('keeps an advertised local proxy across durable status revalidation', async () => {
   vi.useFakeTimers()
   await seedPreviewCache('mixed-legacy-playback', '/sdr-360.mp4')
   vi.useRealTimers()
@@ -1300,12 +1302,12 @@ it('hands legacy cached proxies to durable light even when the mixed playback UR
     },
   }
   await act(async () => { resolve(mixedLegacy) })
-  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-360.mp4'))
   await presentFirstFrame(video)
   vi.mocked(getMediaStatus).mockResolvedValue({ ...mixedLegacy })
   rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="mixed-legacy-playback" />)
   const back = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
-  await waitFor(() => expect(back).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await waitFor(() => expect(back).toHaveAttribute('src', '/sdr-360.mp4'))
   expect(requestMedia).not.toHaveBeenCalled()
 })
 

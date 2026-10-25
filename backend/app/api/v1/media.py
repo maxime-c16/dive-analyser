@@ -127,6 +127,8 @@ from app.services.representative_population import (
     start_tier1_population,
 )
 
+from app.services.media_cache import thumb_url
+
 router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
 
 
@@ -158,7 +160,7 @@ def _asset_by_uuid(db: Session, video_uuid: str) -> PhotosAsset:
 def _preferred_entry(entries):
     # Never fall back to the poster: the Mac agent finishes it before the
     # proxy, and a JPEG playback_url makes the <video> element fail to decode.
-    playable = [entry for entry in entries if entry.rendition != "poster"]
+    playable = [entry for entry in entries if entry.rendition not in ("poster", "animated")]
     if not playable:
         return None
     return sorted(playable, key=lambda entry: RENDITION_PREFERENCE.get(entry.rendition, 99))[0]
@@ -245,7 +247,7 @@ def _iter_file_range(path: Path, start: int, end: int, chunk_size: int = 1024 * 
 def _media_headers(path: Path, content_type: str, content_length: int) -> dict[str, str]:
     return {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-cache",
         "Content-Disposition": f'inline; filename="{path.name}"',
         "Content-Length": str(content_length),
         "Content-Type": content_type,
@@ -272,9 +274,11 @@ def _x_accel_uri_for(path: Path) -> str | None:
     return settings.media_xaccel_prefix + quote(str(relative), safe="/")
 
 
-def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False):
+def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False,
+                      *, cache_control: str = "private, no-cache"):
     file_size = path.stat().st_size
     headers = _media_headers(path, content_type, file_size)
+    headers["Cache-Control"] = cache_control
     redirect_uri = None if head_only else _x_accel_uri_for(path)
 
     if redirect_uri is not None:
@@ -408,14 +412,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
 
-    # D5 durable-derivative read (additive, read-only): when a ready
-    # light/HQ derivative exists for the CURRENT canonical source +
-    # transform, the starter (preview/playback) and player poster resolve
-    # to the durable B2 bytes instead of legacy cache files. Legacy
-    # original discovery, preferred/available selection below is untouched
-    # and stays the fallback for clips without durable versions
-    # (available/preferred never pretend legacy proxy entries exist).
-    # No jobs, no conversions, no writes here.
+    # Read durable quality choices without generating media or grants.
     derivatives_payload = None
     derivative_light_url = None
     derivative_hq_url = None
@@ -439,7 +436,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
             poster_role = clip.roles.get("poster")
             if poster_role is not None and poster_role.state == "ready":
                 derivative_poster_url = poster_role.playback_url
-    # Authoritative durable starter: ready light first (fast first frame),
+    # Durable fallback when no local proxy exists: ready light first (fast first frame),
     # else ready HQ (HQ-only clips have no light proof). Poster-only is
     # NOT playable and never makes the clip ready. Non-ready ledger
     # states (stale/superseded/preparing/unavailable) and DEV-only or
@@ -449,29 +446,22 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     # Original discovery is independent of preview existence.
     backbone_url = _backbone_playback_url(db, asset.video_uuid)
     local_original = next((entry for entry in entries if entry.rendition == "original"), None)
-    full_quality = playback_url(local_original.id) if local_original else backbone_url
+    full_quality = playback_url(local_original) if local_original else backbone_url
     preview = next((entry for rendition in ("proxy_720p", "proxy_360p")
                     for entry in entries if entry.rendition == rendition), None)
     backbone_url = full_quality
     if not backbone_url and not preferred and not job:
         job = latest_playback_failure_for_asset(db, asset.id)
-    if durable_start_url:
-        # Authoritative starter: verified durable light (fast first frame),
-        # else ready HQ, for the CURRENT canonical source + transform wins
-        # over any legacy backbone original or cached proxy. The camera
-        # original stays the explicit full-quality choice (full_quality_url
-        # untouched); playback_url is the default starter, so it must be
-        # the durable bytes when ready. Checked before any legacy job so an
-        # active job never overrides verified durable readiness.
-        # Poster-only stays not-ready (no start URL).
+    if preview or durable_start_url:
+        # Local proxy starts immediately; durable light/HQ remains explicit quality.
         status_value = "ready"
-        final_playback_url = durable_start_url
+        final_playback_url = playback_url(preview) if preview else durable_start_url
     elif backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url
     elif preferred:
         status_value = "ready"
-        final_playback_url = playback_url(preferred.id)
+        final_playback_url = playback_url(preferred)
     elif job:
         status_value = job.status
         final_playback_url = None
@@ -486,9 +476,11 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
-        poster_url=derivative_poster_url or (playback_url(poster.id) if poster else None),
+        thumbhash=poster.thumbhash if poster else None,
+        thumb_url=thumb_url(poster),
+        poster_url=thumb_url(poster) or (playback_url(poster) if poster else None) or derivative_poster_url,
         full_quality_url=full_quality,
-        preview_url=durable_start_url or (playback_url(preview.id) if preview else None),
+        preview_url=(playback_url(preview) if preview else None) or durable_start_url,
         derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
@@ -1060,11 +1052,11 @@ def schedule_proxy_resolution_upgrade(
 
 
 @router.get("/resolution-upgrades/{run_id}")
-async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db)):
+def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db)):
     run = db.get(MediaResolutionUpgradeRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="resolution_upgrade_run_not_found")
-    await run_to_completion(asyncio.to_thread(_advance_background_media_work, db))
+    _advance_background_media_work(db)
     return resolution_upgrade_summary(db, run)
 
 
@@ -1108,13 +1100,17 @@ def _thumbnail_status_for_entries(
     """
     poster = _poster_entry(entries)
     preview = _web_preview_entry(entries)
-    playback = playback_url(preview.id) if preview else None
-    status_value = "ready" if (poster or preview) else "missing"
+    playback = playback_url(preview) if preview else None
+    animated = next((e for e in entries if e.rendition == "animated"), None)
+    status_value = "ready" if (poster or preview or animated) else "missing"
 
     return {
         "video_uuid": video_uuid,
         "status": status_value,
-        "poster_url": playback_url(poster.id) if poster else None,
+        "poster_url": playback_url(poster) if poster else None,
+        "thumbhash": poster.thumbhash if poster else None,
+        "thumb_url": thumb_url(poster),
+        "animated_url": playback_url(animated) if animated else None,
         "playback_url": playback,
     }
 
@@ -1155,11 +1151,22 @@ def get_media_status_batch(
         asset_ids = [asset.id for asset in assets]
         uuid_by_asset = {asset.id: asset.video_uuid for asset in assets}
         if asset_ids:
+            # Only four renditions can contribute to a tile. Rank generations
+            # in SQL so refresh history cannot grow the ORM result unbounded.
+            ranked = select(
+                MediaCacheEntry.id,
+                func.row_number().over(
+                    partition_by=(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition),
+                    order_by=(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc()),
+                ).label("rank"),
+            ).where(
+                MediaCacheEntry.photos_asset_id.in_(asset_ids),
+                MediaCacheEntry.status == "ready",
+                MediaCacheEntry.rendition.in_(("poster", "animated", "proxy_720p", "proxy_360p")),
+            ).subquery()
             rows = db.execute(
-                select(MediaCacheEntry).where(
-                    MediaCacheEntry.photos_asset_id.in_(asset_ids),
-                    MediaCacheEntry.status == "ready",
-                ).order_by(MediaCacheEntry.created_at.desc())
+                select(MediaCacheEntry).join(ranked, MediaCacheEntry.id == ranked.c.id)
+                .where(ranked.c.rank == 1)
             ).scalars().all()
             for row in rows:
                 entries_by_asset[row.photos_asset_id].append(row)
@@ -1234,13 +1241,37 @@ def play_cached_media(
         decision = can_user_access_cache_entry(db, user, entry)
         if not decision.allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    db.rollback()  # authorization reads must release SQL before streaming
+    from app.services.media_cache import cache_control_for_entry
     media_path = Path(entry.storage_path)
     return _serve_media_file(
         media_path,
         entry.content_type or "application/octet-stream",
         request,
         head_only=request.method == "HEAD",
+        cache_control=cache_control_for_entry(entry, request.query_params.get("v")),
     )
+
+
+@router.api_route("/cache/{entry_id}/thumb", methods=["GET", "HEAD"])
+def play_cached_thumb(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None and not can_user_access_cache_entry(db, user, entry).allowed:
+        raise HTTPException(404, "Not found")
+    db.rollback()  # authorization reads must release SQL before streaming
+    if not entry.thumb_storage_path:
+        raise HTTPException(404, "Not found")
+    path = Path(entry.thumb_storage_path).resolve()
+    try:
+        path.relative_to(Path(get_settings().media_cache_root).resolve())
+    except ValueError:
+        raise HTTPException(404, "Not found")
+    if not path.is_file():
+        raise HTTPException(404, "Not found")
+    current = entry.thumb_checksum_sha256
+    cache = "private, max-age=31536000, immutable" if current and request.query_params.get("v") == current[:12] else "private, no-cache"
+    return _serve_media_file(path, "image/webp", request, head_only=request.method == "HEAD", cache_control=cache)
 
 
 @router.post("/events/viewed")
@@ -1256,6 +1287,7 @@ def mark_media_viewed(
         decision = can_user_access_cache_entry(db, user, entry)
         if not decision.allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    db.rollback()
     return {
         "entry_id": entry.id,
         "last_accessed_at": entry.last_accessed_at,
@@ -1465,32 +1497,25 @@ async def finalize_job_artifact(
     api_key: dict = Depends(verify_api_key),
 ) -> MediaJobFinalizeResponse:
     """Verify and promote an uploaded job artifact into the media cache."""
-    _agent_auth(db, request.agent_id, api_key)
-    job = db.get(MediaJob, job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
-    if job.status != "verifying":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
-    if job.claimed_by != request.agent_id:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
-    # Peek pre-check for expiry + fencing token (authoritative re-check with
-    # the row lock runs inside the committing worker below).
-    try:
-        _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=False)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-    # Verify + promote touches the filesystem (full-file hash, move, chmod).
-    # The whole semantic unit - guard, verify, promote, mark ready, commit -
-    # runs to completion on a worker even when this handler is cancelled mid-
-    # way: an abandoned finalize must never leave the job in `verifying`
-    # with its temp file already moved, nor half a transaction behind the
-    # session teardown. The guard re-runs row-locked here so a re-lease
-    # between the peek above and this commit is rejected (no resurrection
-    # of a dead attempt, no promotion of a stranger's bytes).
+    # Keep the request session owned by one worker through guard, commit and
+    # response serialization; cancellation waits for that worker to finish.
     def _finalize_and_commit():
+        _agent_auth(db, request.agent_id, api_key)
+        job = db.get(MediaJob, job_id)
+        if not job:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+        if job.status != "verifying":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
+        if job.claimed_by != request.agent_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+        # Peek pre-check for expiry + fencing token; the authoritative
+        # row-locked guard immediately below still handles a racing re-lease.
+        try:
+            _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=False)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+        except PermissionError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         try:
             guarded = _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=True)
         except (ValueError, PermissionError) as exc:
@@ -1506,17 +1531,22 @@ async def finalize_job_artifact(
             content_type=request.content_type,
         )
         mark_job_ready(db, guarded)
+        entry_id = entry.id
+        rendition = entry.rendition
+        # Snapshot the response before commit expires ORM state. No subsequent
+        # request-session SQL/transaction is needed while visuals are computed.
+        response = MediaJobFinalizeResponse(
+            job_id=guarded.id, status=guarded.status, cache_entry_id=entry_id,
+            playback_url=playback_url(entry),
+        )
         db.commit()
-        return entry
+        if rendition == "poster":
+            from app.services.poster_visuals import enrich_committed_poster
+            enrich_committed_poster(entry_id, bind=db.get_bind())
+        return response
 
-    entry = await run_to_completion(asyncio.to_thread(_finalize_and_commit))
-    db.refresh(entry)
-    return MediaJobFinalizeResponse(
-        job_id=job.id,
-        status=job.status,
-        cache_entry_id=entry.id,
-        playback_url=playback_url(entry.id),
-    )
+
+    return await run_to_completion(asyncio.to_thread(_finalize_and_commit))
 
 
 def _slot_publish_http_error(exc: Exception) -> HTTPException:

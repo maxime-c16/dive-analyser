@@ -185,7 +185,7 @@ def get_evaluation_media_poster(
     user = _require_user(request, db)
     _, _, asset = _media_chain(db, user, request_id)
     poster = _select_ready_entry(db, asset, None, playable=False)
-    return evaluation_access.serve_entry(poster.storage_path, poster.content_type, request, head_only=False)
+    return evaluation_access.serve_entry(poster, request, head_only=False)
 
 
 @router.api_route("/evaluations/requests/{request_id}/media/play", methods=["GET", "HEAD"])
@@ -213,7 +213,7 @@ def get_evaluation_media_play(
             revision = db.get(MediaRevision, revision_id) if revision_id else None
             location, reason = _resolve_verified_prod_location(db, revision) if revision else (None, None)
         if local_original:
-            return evaluation_access.serve_entry(local_original.storage_path, local_original.content_type, request, head_only=request.method == 'HEAD')
+            return evaluation_access.serve_entry(local_original, request, head_only=request.method == 'HEAD')
         if reason == DENY_STORAGE_AMBIGUOUS:
             raise HTTPException(404, 'Not found')
         if location:
@@ -227,7 +227,7 @@ def get_evaluation_media_play(
                 raise HTTPException(503, 'Original video storage unavailable; choose a preview or retry') from None
     chosen = _select_ready_entry(db, asset, rendition, playable=True)
     return evaluation_access.serve_entry(
-        chosen.storage_path, chosen.content_type, request, head_only=request.method == "HEAD",
+        chosen, request, head_only=request.method == "HEAD",
     )
 
 

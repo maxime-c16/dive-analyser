@@ -173,7 +173,7 @@ def test_original_transport_stays_scoped_and_rechecks_binding(workspace, monkeyp
     did = dives['alice-public']
     monkeypatch.setattr(matchmaking, 'original_revision_id', lambda db, video: 42)
     calls = []
-    async def play(revision_id, request, response, db, user):
+    def play(revision_id, request, response, db, user):
         calls.append((revision_id, user.id))
         return Response(b'original video', media_type='video/mp4')
     monkeypatch.setattr(media_playback, 'play_media_revision', play)

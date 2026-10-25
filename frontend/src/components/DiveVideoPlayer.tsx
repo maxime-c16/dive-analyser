@@ -136,6 +136,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
   const [previewSelected, setPreviewSelected] = useState(false)
   const previewSelectedRef = useRef(false)
   const hqSelectedRef = useRef(false)
+  const lightSelectedRef = useRef(false)
   const originalSelectedRef = useRef(false)
   const presentedSourceRef = useRef<{ uuid: string; src: string } | null>(null)
   const previewChoicesRef = useRef<string[]>([])
@@ -164,7 +165,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
 
   useEffect(() => {
     const seed = playbackSeed(videoUuid)
-    setPreviewSelected(false); previewSelectedRef.current = false; hqSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
+    setPreviewSelected(false); previewSelectedRef.current = false; hqSelectedRef.current = false; lightSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
     setLightSrc(null)
     setHqSrc(null)
@@ -202,34 +203,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      let chosen = hqSelectedRef.current && hqUrl ? hqUrl : originalSelectedRef.current && originalUrl ? originalUrl : previewSelectedRef.current && previewUrl ? previewUrl : playbackUrl
+      let chosen = lightSelectedRef.current && lightUrl ? lightUrl : hqSelectedRef.current && hqUrl ? hqUrl : originalSelectedRef.current && originalUrl ? originalUrl : previewSelectedRef.current && previewUrl ? previewUrl : playbackUrl
       const presented = presentedSourceRef.current
       const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
       previewChoicesRef.current = previewChoices
-      // Durable-first handover rooted in actual role URLs, not the mixed
-      // starter: without a backbone original the backend playback_url (and
-      // the getOriginalPlaybackUrl fallback through it) can be the same
-      // legacy cached proxy the seed presented. Preserving that mixed URL
-      // would pin the legacy seed over the ready durable light rendition.
-      // When a durable role is ready only independently confirmed URLs are
-      // preservable — the ready light/HQ role URLs plus a true original
-      // (backbone/local-original, never the mixed fallback and never a
-      // legacy preview choice). Explicit HQ/original choices and an
-      // already-durable current source are still preserved; there is no
-      // automatic light→HQ upgrade and the HQ decode fallback stays on
-      // durable light across revalidation. Legacy-only queues keep the
-      // presented-preview pin.
-      const durableStarter = lightUrl ?? hqUrl
+      // Revalidation never replaces an already presented, still available source.
+      // D5 is an explicit quality option: no risky mid-playback automatic swap.
       if (presented?.uuid === videoUuid) {
-        if (durableStarter) {
-          const originalCacheUrl = data.cache_entries?.find(entry => entry.rendition === 'original' && entry.playback_url)?.playback_url ?? null
-          const confirmedOriginal = (data.full_quality_url ?? originalCacheUrl) || null
-          const preservable = [lightUrl, hqUrl, confirmedOriginal].filter((url): url is string => !!url)
-          if (preservable.includes(presented.src)) chosen = presented.src
-        } else {
-          const preservable = [originalUrl, hqUrl, playbackUrl, ...previewChoices]
-          if (preservable.includes(presented.src)) chosen = presented.src
-        }
+        const preservable = [originalUrl, lightUrl, hqUrl, playbackUrl, ...previewChoices]
+        if (preservable.includes(presented.src)) chosen = presented.src
       }
       setSourceIsPreview(previewChoices.includes(chosen))
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })
@@ -626,6 +608,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     setPreviewSelected(false)
     previewSelectedRef.current = false
     hqSelectedRef.current = false
+    lightSelectedRef.current = false
     originalSelectedRef.current = false
     presentedSourceRef.current = null
     setDecodeError(false)
@@ -636,21 +619,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     retryStatusCheck()
   }
 
-  // Explicit quality cycle: starter (light derivative, HQ when light is
-  // missing, else legacy preview) → HQ derivative when ready → camera
-  // original. One step per tap, no automatic upgrades: the starter stays
-  // until the viewer chooses. Aliased HQ (small source) shares the light
-  // URL and is deduplicated out of the cycle. With no light proof but a
-  // ready HQ, the legacy preview is not a current proof and stays out.
+  // Explicit local preview → Light → HQ → Original; aliases are deduplicated.
   const qualityOptions = (src: string | null | undefined): string[] => {
     if (phase.kind !== 'ready' || !src) return []
-    const starter = lightSrc ?? hqSrc ?? previewSrc
-    return [...new Set([starter, lightSrc ? hqSrc : null, phase.originalSrc].filter((url): url is string => !!url))]
+    const starter = previewSrc ?? lightSrc ?? hqSrc
+    return [...new Set([starter, lightSrc, hqSrc, phase.originalSrc].filter((url): url is string => !!url))]
   }
   const qualityLabel = (src: string): string => {
     if (src === hqSrc && hqSrc) return t('videoPlayer.hqLabel')
     if (phase.kind === 'ready' && src === phase.originalSrc) return t('videoPlayer.originalQuality')
-    return hqSrc ? t('videoPlayer.lightLabel') : t('videoPlayer.previewLabel')
+    return src === lightSrc ? t('videoPlayer.lightLabel') : t('videoPlayer.previewLabel')
   }
   const cycleQuality = () => {
     if (phase.kind !== 'ready') return
@@ -658,6 +636,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
     if (options.length < 2) return
     const next = options[(options.indexOf(phase.src) + 1) % options.length]
     previewSelectedRef.current = next === previewSrc
+    lightSelectedRef.current = next === lightSrc
     hqSelectedRef.current = next === hqSrc
     originalSelectedRef.current = next === phase.originalSrc
     setPreviewSelected(next === previewSrc)
@@ -927,6 +906,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
             </button>
             {previewSrc && previewSrc !== phase.src && <button type="button" className="touch-target mt-3 block w-full rounded-lg border border-app px-4 py-2 text-app-text" onClick={() => {
               setPreviewSelected(true)
+              lightSelectedRef.current = false
               previewSelectedRef.current = true
               originalSelectedRef.current = false
               presentedSourceRef.current = null

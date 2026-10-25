@@ -1,0 +1,11 @@
+{
+  "real_handlers_worst_ms_per_round": [
+    41.95,
+    18.04,
+    14.83,
+    8.55,
+    11.7,
+    11.02
+  ],
+  "idle_in_tx_kills": 0
+}
