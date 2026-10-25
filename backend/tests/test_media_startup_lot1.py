@@ -42,7 +42,10 @@ def test_cache_access_only_commits_hourly(test_db, tmp_path, monkeypatch):
     event.listen(test_db, 'after_commit', committed)
     try:
         for _ in range(15):
-            get_playable_entry(test_db, entry.id)
+            snapshot = get_playable_entry(test_db, entry.id)
+            assert not test_db.in_transaction()
+            assert snapshot.storage_path == str(path)
+            assert not test_db.in_transaction()
         assert len(commits) == 1
         entry.last_accessed_at = datetime.utcnow() - timedelta(hours=2)
         test_db.commit()
@@ -100,3 +103,37 @@ async def test_loop_lag_detects_a_blocking_event_loop():
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
+
+
+@pytest.mark.parametrize('route', ['play_cached_media', 'play_cached_thumb'])
+def test_file_serving_releases_authorization_transaction(test_db, tmp_path, monkeypatch, route):
+    from types import SimpleNamespace
+    from starlette.requests import Request
+    from sqlalchemy import text
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), 'media_cache_root', str(tmp_path))
+    path = tmp_path / 'poster.webp'
+    path.write_bytes(b'webp')
+    asset = PhotosAsset(video_uuid='stream-transaction')
+    test_db.add(asset)
+    test_db.flush()
+    entry = MediaCacheEntry(photos_asset_id=asset.id, media_key='stream-transaction',
+        rendition='poster', storage_path=str(path), thumb_storage_path=str(path),
+        thumb_checksum_sha256='a' * 64, size_bytes=4, status='ready',
+        last_accessed_at=datetime.utcnow())
+    test_db.add(entry)
+    test_db.commit()
+    entry_id = entry.id
+    def authorize(db, *_):
+        db.execute(text('SELECT 1'))
+        assert db.in_transaction()
+        return SimpleNamespace(allowed=True)
+    monkeypatch.setattr(media, 'require_legacy_media_user', lambda *_: object())
+    monkeypatch.setattr(media, 'can_user_access_cache_entry', authorize)
+    def serve(*args, **kwargs):
+        assert not test_db.in_transaction()
+        assert args[0] == path
+        return 'served'
+    monkeypatch.setattr(media, '_serve_media_file', serve)
+    request = Request({'type': 'http', 'method': 'GET', 'query_string': b''})
+    assert getattr(media, route)(entry_id, request, test_db) == 'served'

@@ -179,6 +179,13 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
     if not storage_path.exists() or not storage_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cached media file missing")
 
+    # Copy loaded scalar values before ending the session transaction. The
+    # returned unbound snapshot cannot lazily reopen SQL during file serving.
+    snapshot = MediaCacheEntry(**{
+        column.key: getattr(entry, column.key)
+        for column in MediaCacheEntry.__table__.columns
+    })
+    changed = 0
     now = datetime.utcnow()
     cutoff = now - timedelta(hours=1)
     if entry.last_accessed_at is None or entry.last_accessed_at <= cutoff:
@@ -189,10 +196,12 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
              | (MediaCacheEntry.last_accessed_at <= cutoff)),
         ).values(last_accessed_at=now, updated_at=now)
           .execution_options(synchronize_session=False)).rowcount
-        if changed:
-            db.commit()
-            db.refresh(entry)
-    return entry
+    if changed:
+        snapshot.last_accessed_at = snapshot.updated_at = now
+        db.commit()
+    else:
+        db.rollback()
+    return snapshot
 
 
 def cache_tmp_path(job: MediaJob) -> Path:

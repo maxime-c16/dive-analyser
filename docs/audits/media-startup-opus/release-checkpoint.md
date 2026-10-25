@@ -307,3 +307,27 @@ real WebP, republish/reset, reference sharing, bounds, symlinks and media node.
 Passes overlap. Release notes and diff checks passed. Disposable PG stopped.
 No production action, cleanup or deletion performed. Fresh CI/explicit clean bot
 verdict remain required before merge/deployment.
+
+## Seventh bot review — release cache-read transactions before serving
+
+Verified comment `6397693550`: the throttled warm read retained a transaction;
+the write branch also reopened one with refresh after commit. The helper now
+copies loaded scalar values into an unbound cache-entry snapshot before ending
+the transaction, commits only when the conditional hourly UPDATE wins, otherwise
+rolls back. It performs no post-commit refresh. Reading the returned snapshot
+cannot issue SQL. Play/thumb routes also roll back authorization reads before
+calling the file-serving function; viewed-event reads close theirs before reply.
+Authorization still precedes bytes, and the hourly cross-worker atomic predicate
+is unchanged.
+
+Regressions assert no transaction after helper return and after snapshot field
+access, retaining exactly one commit across 15 accesses. The real PostgreSQL
+15-viewer concurrent test adds the same session assertions while still requiring
+one total commit. Both file routes explicitly test an authorization function that
+opens a transaction and assert that it is closed when serving begins.
+
+Validation: 85 cache/status/node/playback tests passed; 26 PostgreSQL lot1 and
+auth/playback tests passed, including concurrent hourly writes and existing
+access/revocation tests. Release-note validation and diff checks passed. Disposable
+PG stopped. Frontend unchanged. No merge/production changes. Fresh hosted CI and
+explicit clean bot verdict are still required before merge/deployment.

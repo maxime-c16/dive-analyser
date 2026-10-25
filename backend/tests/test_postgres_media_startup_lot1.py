@@ -202,7 +202,10 @@ def test_concurrent_cache_viewers_write_once_per_hour(pg, tmp_path, monkeypatch)
     event.listen(Session, 'after_commit', committed)
     def view(_):
         with factory() as db:
-            assert get_playable_entry(db, entry_id).id == entry_id
+            snapshot = get_playable_entry(db, entry_id)
+            assert not db.in_transaction()
+            assert snapshot.id == entry_id and snapshot.storage_path == str(path)
+            assert not db.in_transaction()
     try:
         with ThreadPoolExecutor(max_workers=12) as pool:
             list(pool.map(view, range(15)))

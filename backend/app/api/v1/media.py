@@ -1241,6 +1241,7 @@ def play_cached_media(
         decision = can_user_access_cache_entry(db, user, entry)
         if not decision.allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    db.rollback()  # authorization reads must release SQL before streaming
     from app.services.media_cache import cache_control_for_entry
     media_path = Path(entry.storage_path)
     return _serve_media_file(
@@ -1258,6 +1259,7 @@ def play_cached_thumb(entry_id: int, request: Request, db: Session = Depends(get
     user = require_legacy_media_user(db, request)
     if user is not None and not can_user_access_cache_entry(db, user, entry).allowed:
         raise HTTPException(404, "Not found")
+    db.rollback()  # authorization reads must release SQL before streaming
     if not entry.thumb_storage_path:
         raise HTTPException(404, "Not found")
     path = Path(entry.thumb_storage_path).resolve()
@@ -1285,6 +1287,7 @@ def mark_media_viewed(
         decision = can_user_access_cache_entry(db, user, entry)
         if not decision.allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    db.rollback()
     return {
         "entry_id": entry.id,
         "last_accessed_at": entry.last_accessed_at,
