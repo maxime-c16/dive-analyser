@@ -222,6 +222,12 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
         final = _final_path(media_key, item["sha256"])
         tmp = final.with_name(f".{final.name}.{os.getpid()}.tmp")
         try:
+            # Per download, with room for this poster: never cross the floor.
+            if shutil.disk_usage(settings.media_cache_root).free < MIN_FREE_BYTES + MAX_POSTER_BYTES:
+                break
+        except OSError:
+            break
+        try:
             size = _download(item, tmp)
         except Exception:  # noqa: BLE001 - provider/IO/verify failure: retry next pass
             tmp.unlink(missing_ok=True)

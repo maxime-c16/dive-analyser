@@ -168,3 +168,14 @@ def test_mac_poster_rows_are_never_refreshed(cache):
     cache.db.commit()
     out = dpc.materialize_durable_posters(cache.db)
     assert out["refreshed"] == 0 and out["cached"] == 0
+
+
+def test_disk_floor_is_rechecked_before_each_download(cache, monkeypatch):
+    import shutil
+
+    for n in (1, 2, 3):
+        _durable_clip(cache, n)
+    free = iter([40 * GIB, 40 * GIB, dpc.MIN_FREE_BYTES])  # pass gate, 1st download, then floor
+    monkeypatch.setattr(shutil, "disk_usage", lambda _: SimpleNamespace(free=next(free, dpc.MIN_FREE_BYTES)))
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["cached"] == 1 and len(_poster_rows(cache.db)) == 1
