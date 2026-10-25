@@ -50,12 +50,30 @@ No local nginx/Docker executable was available for container syntax validation.
 Inspect log p50/p95 by normalized route and compare API app timing with nginx
 request/upstream timing. Do not export raw request logs containing private paths.
 
-`/internal-media-cache/` and backend cache responses use
-`Cache-Control: private, max-age=31536000, immutable`. Cache entry URLs are immutable;
-replacing bytes must create a new entry. Posters/proxies already cached privately
-can remain viewable after access revocation until browser eviction. This is the
-explicit cache tradeoff requested for this lot. Shared caches must never store them.
-Do not change signed grants: they retain private/no-store and their existing TTL.
+Backend cache URLs include `?v=<checksum_sha256[:12]>` when a valid stored SHA-256
+is known. Only a version matching the entry's current checksum receives
+`Cache-Control: private, max-age=31536000, immutable`. Missing/stale versions and
+entries without a valid checksum return the current bytes with `private, no-cache`;
+there is no redirect or additional SQL lookup. The common builder accepts the full
+entry so all producers can supply its checksum without a query per URL.
+
+Both `/internal-media-cache/` locations preserve the backend Cache-Control on the
+X-Accel response; they must not add a blanket immutable header. This also preserves
+evaluation/private grant policies. Evaluation transport URLs carry the selected
+entry's version too, while retaining their existing 300-second private cache limit
+on a matching version; missing/stale versions use no-cache. Signed grants retain
+private/no-store and their existing TTL.
+
+An entry id can survive a content replacement (durable poster refresh). Every byte
+replacement must also update its checksum: the next status/batch then yields a new
+URL. A metadata/path change with identical verified bytes keeps the version. Entries
+without checksums (including current browser-upload registrations) remain
+revalidatable; this change does not hash files on the read path or backfill SQL.
+
+Posters/proxies already cached privately can remain viewable after access revocation
+until browser eviction. Previously cached unversioned immutable responses cannot be
+retroactively expired by the server: newly returned versioned URLs bypass them.
+Shared caches must never store these private responses.
 
 ## Proposed Postgres 16 settings — DO NOT apply as part of this lot
 
