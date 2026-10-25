@@ -1,0 +1,77 @@
+{
+  "method": "Actual DiveVideoPlayer, localhost HTTP no-store synthetic MP4s, 3 alternating runs per policy; no B2 delay injected. Bytes counted by fixture server including ranges; source reset/stall counts after first rVFC. Baseline simulated by omitting local entry from new source policy.",
+  "runs": [
+    {
+      "baseline": true,
+      "firstFrameMs": 41.40000009536743,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.774364,
+      "source": "light",
+      "bytes": {
+        "light": 1817227,
+        "preview": 0
+      }
+    },
+    {
+      "baseline": false,
+      "firstFrameMs": 21.59999990463257,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.795252,
+      "source": "preview",
+      "bytes": {
+        "light": 0,
+        "preview": 300491
+      }
+    },
+    {
+      "baseline": true,
+      "firstFrameMs": 18.09999990463257,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.788291,
+      "source": "light",
+      "bytes": {
+        "light": 1817227,
+        "preview": 0
+      }
+    },
+    {
+      "baseline": false,
+      "firstFrameMs": 9.600000381469727,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.795384,
+      "source": "preview",
+      "bytes": {
+        "light": 0,
+        "preview": 300491
+      }
+    },
+    {
+      "baseline": true,
+      "firstFrameMs": 23.40000009536743,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.784817,
+      "source": "light",
+      "bytes": {
+        "light": 637579,
+        "preview": 0
+      }
+    },
+    {
+      "baseline": false,
+      "firstFrameMs": 21.100000381469727,
+      "stallsAfterFrame": 0,
+      "resetsAfterFrame": 0,
+      "currentTime": 1.795029,
+      "source": "preview",
+      "bytes": {
+        "light": 0,
+        "preview": 300491
+      }
+    }
+  ]
+}

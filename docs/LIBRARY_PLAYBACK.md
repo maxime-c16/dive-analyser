@@ -65,3 +65,15 @@ a separate measurement. No production after numbers are available before deploy.
 Frontend-only rollout through the repository's PR/merge and `ci/ship.sh server`
 procedure (dry-run first). No schema, Compose or Mac configuration change is
 required by this PR; backend preparation improvements remain in PR #128.
+
+## Local startup and animated tiles (lot 3)
+
+An existing local 720p/360p proxy now starts ahead of durable Light/HQ. Durable
+qualities remain explicit choices; status revalidation preserves a presented
+local source. No automatic playback swap is attempted. With no local proxy,
+durable playback remains the fallback. Covers prefer local thumbs/posters.
+
+Optional server-generated `animated` WebP tiles respect reduced motion, data
+saving and viewport visibility. Their explicit bounded backfill, disk floor,
+synthetic measurement fixture and deployment order are documented in
+[audit lot 3](audits/media-startup-opus/lot3-result.md).
