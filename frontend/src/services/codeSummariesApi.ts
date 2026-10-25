@@ -42,6 +42,14 @@ export function clearCodeSummaryCache() {
   codeAttempts = new Map()
 }
 
+/** Library reads are viewer-dependent (own private dives included), so every key
+ carries the account identity — pass `libraryKey(user)`. Login and logout go
+ through native fetch, bypassing api.ts invalidation, so a key without the
+ viewer would serve the previous account's private attempts after a switch. */
+function scopedKey(viewer: string | null, ...rest: unknown[]) {
+  return JSON.stringify([viewer, ...rest])
+}
+
 function cached<T>(store: Map<string, Entry<T>>, key: string, load: () => Promise<T>): Promise<T> {
   const hit = store.get(key)
   if (hit?.promise) return hit.promise
@@ -53,23 +61,23 @@ function cached<T>(store: Map<string, Entry<T>>, key: string, load: () => Promis
 }
 
 /** Last value even when stale, so a revisit paints immediately while it refreshes. */
-export function peekCodeSummaries(params: LibraryCodeParams): CodeSummaries | null {
-  return summaries.get(JSON.stringify(params))?.value ?? null
+export function peekCodeSummaries(params: LibraryCodeParams, viewer: string | null = null): CodeSummaries | null {
+  return summaries.get(scopedKey(viewer, params))?.value ?? null
 }
 
-export function getCodeSummaries(params: LibraryCodeParams): Promise<CodeSummaries> {
+export function getCodeSummaries(params: LibraryCodeParams, viewer: string | null = null): Promise<CodeSummaries> {
   const clean = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value !== undefined))
-  return cached(summaries, JSON.stringify(params), () => api.get('/api/v1/dives/library/codes', { params: clean }).then(response => response.data))
+  return cached(summaries, scopedKey(viewer, params), () => api.get('/api/v1/dives/library/codes', { params: clean }).then(response => response.data))
 }
 
-export function peekCodeAttempts(code: string, scope: string): Attempt[] | null {
-  return codeAttempts.get(JSON.stringify([code.toUpperCase(), scope]))?.value ?? null
+export function peekCodeAttempts(code: string, scope: string, viewer: string | null = null): Attempt[] | null {
+  return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope))?.value ?? null
 }
 
 /** Every Library attempt of one exact code (oldest first), with thumbnails, through the bounded Library pages. */
-export function getCodeAttempts(code: string, scope: string): Promise<Attempt[]> {
+export function getCodeAttempts(code: string, scope: string, viewer: string | null = null): Promise<Attempt[]> {
   const exact = code.toUpperCase()
-  return cached(codeAttempts, JSON.stringify([exact, scope]), async () => {
+  return cached(codeAttempts, scopedKey(viewer, exact, scope), async () => {
     const items: Attempt[] = []
     let cursor: string | null = null
     do {

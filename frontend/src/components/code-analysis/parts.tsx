@@ -59,7 +59,7 @@ export function Segmented<T extends string>({ label, options, value, onChange }:
     return () => observer?.disconnect()
   }, [value])
   return <div ref={ref} className="ca-seg" role="group" aria-label={label}>
-    {thumb && <span className="ca-seg-thumb" style={{ width: thumb.width, transform: `translateX(${thumb.left - 3}px)` }} aria-hidden="true" />}
+    {thumb && <span className="ca-seg-thumb" style={{ width: thumb.width, transform: `translateX(${thumb.left}px)` }} aria-hidden="true" />}
     {options.map(([option, text]) => <button key={option} type="button" aria-pressed={option === value} onClick={() => onChange(option)}>{text}</button>)}
   </div>
 }

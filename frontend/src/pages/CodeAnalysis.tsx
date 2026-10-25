@@ -1,18 +1,21 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
+import { format, formatDistanceToNowStrict, parseISO } from 'date-fns'
 import { ArrowLeft, Play } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import DiveThumbnail from '../components/DiveThumbnail'
 import PageLoading from '../components/PageLoading'
 import ScoreChart, { type ChartPoint } from '../components/code-analysis/ScoreChart'
+import CommunityPanel, { diverName, useMedia, type CommunityRow } from '../components/code-analysis/CommunityPanel'
+import MemberAvatar from '../components/MemberAvatar'
 import { CountUp, RatingBar, ratingCounts, ScoreChip, Segmented, Sparkline } from '../components/code-analysis/parts'
 import { diveCodeName } from '../i18n/diveNames'
-import { clearLibraryCache } from '../services/libraryCache'
+import { clearLibraryCache, libraryKey } from '../services/libraryCache'
+import { getCodeCommunity, type CodeCommunity } from '../services/codeCommunityApi'
 import { clearCodeSummaryCache, getCodeAttempts, getCodeSummaries, peekCodeAttempts, peekCodeSummaries, type CodeSummary } from '../services/codeSummariesApi'
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
-import { DAY_MS, mean, median, quantile, recentTrend, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
+import { DAY_MS, mean, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
 import { appLocale } from '../utils/dateLocale'
 import { ATHLETE_SCORE_10 } from '../utils/performanceScoring'
 
@@ -70,25 +73,41 @@ export default function CodeAnalysis() {
   const state = location.state as { returnTo?: unknown } | null
   const returnTo = typeof state?.returnTo === 'string' && state.returnTo.startsWith('/dives') ? state.returnTo : null
   const returnScope = returnTo ? new URLSearchParams(returnTo.split('?')[1] ?? '').get('scope') : null
-  const scope = params.get('scope') || returnScope || ((!user || user.is_admin) ? 'self' : 'all')
+  // ?diver= shows another diver's public attempts on this code, read-only.
+  const diverId = Number(params.get('diver')) || null
+  const scope = diverId ? 'all' : params.get('scope') || returnScope || ((!user || user.is_admin) ? 'self' : 'all')
   const fromClip = Boolean(returnTo && /[?&]clip=/.test(returnTo))
+  // Library reads carry the viewer's own private dives, and the community
+  // response omits the viewer's own divers: every cache entry belongs to one
+  // signed-in account (same viewer key as the Library snapshot cache).
+  const viewerKey = libraryKey(user)
 
-  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttempts(code, scope))
-  const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope })?.codes ?? null)
+  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttempts(code, scope, viewerKey))
+  const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope }, viewerKey)?.codes ?? null)
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [showAllSessions, setShowAllSessions] = useState(false)
   const [extreme, setExtreme] = useState<Extreme | null>(null)
+  const [community, setCommunity] = useState<CodeCommunity | null>(null)
+  // The community follows the height filter only: periods would empty sparse histories.
+  const communityHeight = params.get('h') || ''
+  const desktop = useMedia('(min-width: 1024px)')
 
   useEffect(() => {
     let live = true
-    setAttempts(peekCodeAttempts(code, scope))
+    setAttempts(peekCodeAttempts(code, scope, viewerKey))
     setError(null)
-    getCodeAttempts(code, scope).then(items => { if (live) setAttempts(items) }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
-    getCodeSummaries({ diver_scope: scope }).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
+    getCodeAttempts(code, scope, viewerKey).then(items => { if (live) setAttempts(items) }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
+    getCodeSummaries({ diver_scope: scope }, viewerKey).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
     return () => { live = false }
-  }, [code, scope, reload, t])
+  }, [code, scope, reload, t, viewerKey])
+  useEffect(() => {
+    let live = true
+    setCommunity(null)
+    if (isAnalyticsCode(code)) getCodeCommunity(code, communityHeight, viewerKey).then(data => { if (live) setCommunity(data) }).catch(() => undefined)
+    return () => { live = false }
+  }, [code, communityHeight, viewerKey])
 
   const period = (params.get('period') as Period) || 'all'
   const height = params.get('h') || ''
@@ -104,7 +123,7 @@ export default function CodeAnalysis() {
     setParams(next, { replace: !push, state: push ? { ...(location.state as object | null), codeClipOpened: true } : location.state, preventScrollReset: true })
   }
 
-  const all = attempts ?? []
+  const all = useMemo(() => diverId ? (attempts ?? []).filter(item => item.diver_id === diverId) : attempts ?? [], [attempts, diverId])
   const now = Date.now()
   const items = useMemo(() => {
     const days = PERIODS.find(([key]) => key === period)?.[1] ?? Infinity
@@ -141,7 +160,19 @@ export default function CodeAnalysis() {
   const showReview = items.length >= 8 && lowRecent && q1 != null && q3 != null && attemptScore(lowRecent) < q1 - 0.5 * (q3 - q1) + 0.01 && lowRecent !== best
   const reps = ([['best', best], ['latest', latestScored], ['typical', typical], ...(showReview ? [['review', lowRecent]] : [])] as Array<[string, Attempt | null]>).filter((entry): entry is [string, Attempt] => Boolean(entry[1]))
   const trend = recentTrend(all.filter(item => item.performance), attemptScore, ts, now)
-  const related = useMemo(() => summaries ? relatedCodes(code, summaries) : [], [code, summaries])
+  const related = useMemo(() => summaries && !diverId ? relatedCodes(code, summaries) : [], [code, summaries, diverId])
+  const diver = diverId ? community?.members.find(member => member.diver_id === diverId) ?? null : null
+  // You in the community ranking: every graded attempt on YOUR divers only. The
+  // page scope can be 'all', which also carries the other divers' public
+  // attempts, and the community endpoint already excludes your divers —
+  // counting them here too would rank the community aggregate as "you".
+  const ownIds = useMemo(() => new Set((user?.divers ?? []).filter(diver => diver.access_kind === 'OWNER').map(diver => diver.diver_id)), [user])
+  const meRow = useMemo<CommunityRow | null>(() => {
+    const graded = all.filter(item => item.diver_id != null && ownIds.has(item.diver_id) && item.performance && (!communityHeight || item.height === communityHeight)).map(attemptScore)
+    if (diverId || graded.length < 3 || !user) return null
+    return { key: 'me', name: user.display_name, avatar: user, count: graded.length, median: median(graded) as number,
+      q1: quantile(graded, 0.25) as number, q3: quantile(graded, 0.75) as number, series: rolling(graded.slice(-40), 5) }
+  }, [all, diverId, user, communityHeight, ownIds])
 
   // The attempt the preview describes: the tapped point, or the best/worst inside a tapped peak/valley.
   const preview = useMemo(() => {
@@ -172,7 +203,15 @@ export default function CodeAnalysis() {
   const viewerList = useMemo(() => [...items].reverse(), [items])
   const viewerAttempt = clipId ? all.find(item => item.id === clipId) ?? null : null
 
-  const back = () => returnTo ? navigate(returnTo) : navigate(`/dives?view=codes${scope !== 'self' ? `&scope=${scope}` : ''}`)
+  const back = () => diverId
+    ? ((location.state as { codeDiverOpened?: boolean } | null)?.codeDiverOpened ? navigate(-1) : update({ diver: null, clip: null, sel: null }))
+    : returnTo ? navigate(returnTo) : navigate(`/dives?view=codes${scope !== 'self' ? `&scope=${scope}` : ''}`)
+  const openDiver = (id: number, clip?: number) => navigate(`/dives/analysis/${encodeURIComponent(code)}?diver=${id}${clip ? `&clip=${clip}` : ''}`,
+    { state: { ...(location.state as object | null), codeDiverOpened: true } })
+  const communityPanel = !diverId && meRow && community && community.members.length > 0
+    ? <CommunityPanel me={meRow} members={community.members} hidden={community.hidden_count} height={communityHeight}
+        onWatch={(member, id) => openDiver(member.diver_id, id)} onAnalysis={member => openDiver(member.diver_id)} />
+    : null
 
   if (!attempts && !error) return <div className="ca ca-page"><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
   if (error && !attempts) return <div className="ca ca-page"><div className="ca-note" role="alert">{error} <button type="button" className="ca-btn" onClick={() => setReload(value => value + 1)}>{t('common.retry')}</button></div></div>
@@ -196,11 +235,12 @@ export default function CodeAnalysis() {
   return <>
   <div className="ca ca-page ca-arrive">
     <div className="ca-span">
-      <button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</button>
+      <div className="ca-topbar"><button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{diverId ? t('codeAnalysis.community.backToMine') : fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</button>
+      {diverId && <div className="ca-diver-chip">{diver && <MemberAvatar member={diver.account ?? { display_name: diverName(diver) }} size={32} />}<b>{diver ? diverName(diver) : '…'}</b></div>}</div>
       <div className="ca-hero">
         <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? ` · DD ${fmtScore(dd)}` : ''}</p></div>
         {analytics && <div className="ca-hero-trend">
-          {trend == null ? <span>{t('codeAnalysis.trendTooOld')}</span> : <>
+          {trend == null ? latest && <><strong className="ca-flat">{formatDistanceToNowStrict(parseISO(all[all.length - 1].dive_datetime), { locale: appLocale() })}</strong><span>{t('codeAnalysis.sinceLastAttempt')}</span></> : <>
             <strong className={trend >= 0.5 ? 'ca-up' : trend <= -0.5 ? 'ca-down' : undefined}>{Math.abs(trend) < 0.5 ? t('codeAnalysis.stable') : `${trend > 0 ? '▲ +' : '▼ '}${fmtScore(trend)}`}</strong>
             <span>{trend >= 0.5 ? t('codeAnalysis.rising') : trend <= -0.5 ? t('codeAnalysis.falling') : t('codeAnalysis.median')} · {t('codeAnalysis.sixWeeks')}</span>
           </>}
@@ -294,7 +334,8 @@ export default function CodeAnalysis() {
               {showAllSessions ? t('codeAnalysis.fewerSessions') : t('codeAnalysis.allSessions', { count: sessions.length })}</button>}
           </section>
         </div>
-        {analytics && <Link to={`/dives/analysis/${encodeURIComponent(code)}/details`} state={location.state} className="ca-flat" style={{ fontSize: 13 }}>{t('codeAnalysis.details')}</Link>}
+        {desktop && communityPanel}
+        {analytics && !diverId && <Link to={`/dives/analysis/${encodeURIComponent(code)}/details`} state={location.state} className="ca-flat" style={{ fontSize: 13 }}>{t('codeAnalysis.details')}</Link>}
       </div>
 
       <div className="ca-aside">
@@ -305,6 +346,7 @@ export default function CodeAnalysis() {
             <span className="ca-rep-cap"><b>{t(`codeAnalysis.rep.${role}`)}</b><span>{date(attempt.dive_datetime, 'd MMM')}</span></span>
           </button>)}</div>
         </section>
+        {!desktop && communityPanel}
         {related.length > 0 && <section className="ca-panel">
           <div className="ca-panel-h"><h2>{t('codeAnalysis.related')}</h2></div>
           <div className="ca-related">{related.map(({ summary, reason }) => <Link key={summary.dive_code} className="ca-rel" to={`/dives/analysis/${encodeURIComponent(summary.dive_code)}`} state={{ returnTo: returnTo ?? undefined }}>
