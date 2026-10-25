@@ -286,10 +286,10 @@ def library_codes(
         exclude_lineup=True, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter, modifier_filter=modifier_filter,
     )
-    dives = query.options(Load(Dive).load_only(
+    dives = query.order_by(Dive.dive_datetime, Dive.id).with_entities(
         Dive.id, Dive.dive_code, Dive.dive_datetime, Dive.performance, Dive.phase1_performance,
-        Dive.phase2_performance, Dive.height, Dive.session_id, Dive.video_uuid, raiseload=True,
-    )).all()
+        Dive.phase2_performance, Dive.height, Dive.session_id, Dive.video_uuid,
+    ).yield_per(500).all()
     latest: dict[str, Dive] = {}
     for dive in dives:
         current = latest.get(dive.dive_code)
