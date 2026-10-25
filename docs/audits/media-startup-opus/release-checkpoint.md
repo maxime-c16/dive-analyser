@@ -211,3 +211,20 @@ passed. A separate local fast-gate wrapper attempt could not start because this
 Mac has no flock executable; this is not reported as a passing gate. Its 53 CI
 unit tests and release validator were run directly. Hosted CI remains mandatory
 on the new head, including the unchanged required gate aggregator.
+
+## Third bot review — bounded library visuals
+
+Verified comment `6397441340`: the library join materialized all historical ready
+poster/animation generations for the page. It now groups by asset and rendition
+and selects MAX(id) among ready rows in SQL before the ORM join: at most two
+visual rows per unique page asset, 200 for a full 100-clip page. Existing access
+scope and newest-ready selection are preserved. A regression with 60 ready
+historical generations and newer failed rows failed before the fix (60 ORM loads)
+and passes after it (exactly the two newest ready rows, same payload).
+
+Validation: 22 focused backend tests pass (lots 2/3 and library payload/bounded
+player flow), including real FFmpeg WebP with the same local imageio FFmpeg 7.1
+used above. An initial invocation used the Mac's unsupported default FFmpeg;
+rerunning with the documented WebP-capable binary passes. Release-note validation
+and diff checks pass. Frontend is unchanged. New-head hosted CI and explicit clean
+bot verdict are still required; no merge or production change was made.

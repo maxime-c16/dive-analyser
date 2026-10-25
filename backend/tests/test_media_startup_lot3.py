@@ -166,3 +166,44 @@ def test_animation_cleanup_preserves_shared_references_and_bounds(test_db, root)
     assert poster_visuals.cleanup_orphan_thumbnails(test_db, limit=1, namespace='animated') in (3, 100)
     assert len(list(poster_visuals.thumbnail_files('animated'))) == 2
     assert protected.read_bytes() == b'precious'
+
+
+def test_library_materializes_only_latest_ready_visuals(api_client, test_db, root, monkeypatch):
+    from sqlalchemy import event
+    from tests.test_library_media_payloads import seed_dive_with_asset
+    seed_dive_with_asset(test_db, uuid='lot3-history')
+    asset = PhotosAsset(video_uuid='lot3-history')
+    test_db.add(asset)
+    test_db.flush()
+    asset_id = asset.id
+    latest = {}
+    for rendition in ('poster', 'animated'):
+        for generation in range(30):
+            entry = MediaCacheEntry(photos_asset_id=asset_id,
+                media_key=f'{rendition}-{generation}', rendition=rendition,
+                storage_path=str(root / f'{rendition}-{generation}.webp'),
+                size_bytes=100, checksum_sha256='e' * 64, status='ready',
+                thumbhash=f'hash-{generation}' if rendition == 'poster' else None)
+            test_db.add(entry)
+            test_db.flush()
+            latest[rendition] = entry.id
+        # A newer failed generation must not mask the usable ready one.
+        test_db.add(MediaCacheEntry(photos_asset_id=asset_id,
+            media_key=f'{rendition}-failed', rendition=rendition,
+            storage_path='failed.webp', size_bytes=0, status='failed'))
+    test_db.commit()
+    test_db.expunge_all()
+    monkeypatch.setenv('MEDIA_SIGNED_URLS_ENABLED', 'false')
+    loaded = []
+    def record_load(entry, _):
+        loaded.append(entry.id)
+    event.listen(MediaCacheEntry, 'load', record_load)
+    try:
+        response = api_client.get('/api/v1/dives/library', params={'diver_scope': 'all'})
+    finally:
+        event.remove(MediaCacheEntry, 'load', record_load)
+    assert response.status_code == 200
+    item = next(i for i in response.json()['items'] if i['video_uuid'] == 'lot3-history')
+    assert item['thumbhash'] == 'hash-29'
+    assert item['animated_url'].startswith(f"/api/v1/media/cache/{latest['animated']}/play")
+    assert sorted(loaded) == sorted(latest.values())

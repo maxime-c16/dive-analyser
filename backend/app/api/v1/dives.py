@@ -224,10 +224,18 @@ def library_page(
     uuids = [row["video_uuid"] for row in rows if row.get("video_uuid")]
     visuals = {}
     if uuids:
+        # Reduce historical generations in SQL before materializing ORM rows:
+        # at most one ready entry per asset/rendition (200 for a full page).
+        latest_visual_ids = db.query(func.max(MediaCacheEntry.id).label("id")).join(
+            PhotosAsset, MediaCacheEntry.photos_asset_id == PhotosAsset.id
+        ).filter(
+            PhotosAsset.video_uuid.in_(uuids),
+            MediaCacheEntry.rendition.in_(("poster", "animated")),
+            MediaCacheEntry.status == "ready",
+        ).group_by(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition).subquery()
         for uuid, poster in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
             MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id
-        ).filter(PhotosAsset.video_uuid.in_(uuids), MediaCacheEntry.rendition.in_(("poster", "animated")),
-                 MediaCacheEntry.status == "ready").order_by(MediaCacheEntry.id).all():
+        ).join(latest_visual_ids, MediaCacheEntry.id == latest_visual_ids.c.id).all():
             visual = visuals.setdefault(uuid, {})
             if poster.rendition == "animated":
                 visual["animated_url"] = playback_url(poster)
