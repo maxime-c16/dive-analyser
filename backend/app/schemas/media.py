@@ -66,6 +66,8 @@ class MediaStatusResponse(BaseModel):
     available_renditions: List[str] = Field(default_factory=list)
     playback_url: Optional[str] = None
     poster_url: Optional[str] = None
+    thumb_url: Optional[str] = None
+    thumbhash: Optional[str] = None
     full_quality_url: Optional[str] = None
     preview_url: Optional[str] = None
     derivatives: Optional[DerivativeStatusBlock] = None

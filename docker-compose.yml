@@ -58,6 +58,8 @@ services:
       MEDIA_CACHE_ROOT: /app/media-cache
       # Rollback knob for nginx byte-serving; default on. Requires the
       # matching /internal-media-cache/ location and cache-root mount below.
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-}
+      MEDIA_SIGNED_URLS_ENABLED: ${MEDIA_SIGNED_URLS_ENABLED:-false}
       MEDIA_XACCEL_ENABLED: ${MEDIA_XACCEL_ENABLED:-true}
       ANALYSIS_ARTIFACT_ROOT: /app/analysis-artifacts
       API_TITLE: Diving Analytics API
@@ -193,14 +195,20 @@ services:
 
   # Nginx reverse proxy
   nginx:
-    image: nginx:alpine
+    image: nginx:1.29.4-alpine
+    environment:
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-}
+      NGINX_ENVSUBST_FILTER: ^MEDIA_SIGNING_SECRET$
     restart: unless-stopped
     ports:
       - "6090:80"
       - "6443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/njs:/etc/nginx/njs:ro
+      - ./nginx/media-signing.conf.template:/etc/nginx/templates/media-signing.conf.template:ro
+      - ./nginx/signing-entrypoint.sh:/docker-entrypoint.d/19-media-signing.sh:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       # Byte-serving X-Accel-Redirect for cached media; the backend keeps
       # auth/path-verification, nginx streams the file itself.

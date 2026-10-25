@@ -1,0 +1,4 @@
+map $host $media_signing_secret { default "${MEDIA_SIGNING_SECRET}"; }
+js_import media from /etc/nginx/njs/media.js;
+js_set $media_signature_valid media.verify;
+js_set $media_cache_age media.cacheAge;

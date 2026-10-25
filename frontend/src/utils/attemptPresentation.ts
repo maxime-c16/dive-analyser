@@ -5,6 +5,8 @@ import { performanceScore10 } from "./performanceScoring";
 import { divePositionName } from "./divePosition";
 
 export type Attempt = {
+  thumbhash?: string | null;
+  thumb_url?: string | null;
   person_name?: string | null;
   visibility?: "public" | "private";
   federate_enabled?: boolean;

@@ -221,3 +221,30 @@ def test_refresh_versions_status_batch_and_old_url_revalidates(cache, api_client
     assert old_response.status_code == 200
     assert old_response.headers['cache-control'] == 'private, no-cache'
     assert 'immutable' in api_client.get(new_url).headers['cache-control']
+
+
+def test_durable_writer_generates_thumbhash_and_refreshes_it(cache, monkeypatch):
+    from PIL import Image
+    from app.services import poster_visuals
+    from backend.tests.test_media_migration import _source
+
+    asset = _durable_clip(cache, 1)
+    color = ['#2277aa']
+    # Isolate transport verification (covered above); run real durable SQL/files
+    # and the shared poster-write hook with an actual decodable poster.
+    def download(item, dest):
+        Image.new('RGB', (1080, 1920), color[0]).save(dest, format='JPEG')
+        return dest.stat().st_size
+    monkeypatch.setattr(dpc, '_download', download)
+    assert dpc.materialize_durable_posters(cache.db)['cached'] == 1
+    (row,) = _poster_rows(cache.db)
+    first = row.thumbhash
+    first_thumb = row.thumb_storage_path
+    assert first and first_thumb
+    new_sha = _source(cache.db, asset.video_uuid, b'changed-camera')
+    _ledger(cache.db, asset.video_uuid, new_sha)
+    cache.db.commit()
+    color[0] = '#ee9922'
+    assert dpc.materialize_durable_posters(cache.db)['refreshed'] == 1
+    assert row.thumbhash and row.thumbhash != first
+    assert row.thumb_storage_path != first_thumb

@@ -1,10 +1,17 @@
 services:
   funnel-proxy:
-    image: nginx:alpine
+    image: nginx:1.29.4-alpine
+    environment:
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-}
+      NGINX_ENVSUBST_FILTER: ^MEDIA_SIGNING_SECRET$
     restart: unless-stopped
     ports:
       - "127.0.0.1:6091:80"
     volumes:
+      - ./main.conf:/etc/nginx/nginx.conf:ro
+      - ../../nginx/njs:/etc/nginx/njs:ro
+      - ../../nginx/media-signing.conf.template:/etc/nginx/templates/media-signing.conf.template:ro
+      - ../../nginx/signing-entrypoint.sh:/docker-entrypoint.d/19-media-signing.sh:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # Byte-serving of media-cache files via backend X-Accel-Redirect
       # (location /internal-media-cache/ in nginx.conf). Relative to this

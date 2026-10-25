@@ -1,8 +1,10 @@
 import { prepareLibraryPlayback } from '../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cachedPreview, getPreview, type MediaPreview } from "../utils/mediaPreview";
 import type { Attempt } from "../utils/attemptPresentation";
+
+import { placeholderUrl } from "../utils/thumbhash";
 
 export default function DiveThumbnail({
   dive,
@@ -16,9 +18,13 @@ export default function DiveThumbnail({
     dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
   );
   const [imgError, setImgError] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
+  const thumb = !thumbError && (dive.thumb_url || preview?.thumbUrl);
+  const placeholder = useMemo(() => placeholderUrl(dive.thumbhash || preview?.thumbhash), [dive.thumbhash, preview?.thumbhash]);
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setImgError(false);
+    setThumbError(false);
     if (!dive.video_uuid) return;
     // If already cached, apply immediately — no network request needed.
     const cached = cachedPreview(dive.video_uuid);
@@ -75,16 +81,18 @@ export default function DiveThumbnail({
   return (
     <div
       ref={containerRef}
+      data-thumbhash={placeholder ? "ready" : undefined}
+      style={placeholder ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
     >
-      {preview?.posterUrl && !imgError ? (
+      {(thumb || (preview?.posterUrl && !imgError)) ? (
         // Poster image from local media cache — instant, lightweight
         <img
-          src={preview.posterUrl}
+          src={thumb || preview!.posterUrl!}
           alt={t('thumbnail.posterFor', { code: dive.dive_code })}
           className="h-full w-full object-cover"
           loading="lazy"
-          onError={() => setImgError(true)}
+          onError={() => thumb ? setThumbError(true) : setImgError(true)}
         />
       ) : preview?.videoThumbUrl ? (
         // Poster missing (or failed to load) but a ready local web preview
@@ -102,7 +110,7 @@ export default function DiveThumbnail({
           preload="metadata"
           aria-label={t('thumbnail.posterFor', { code: dive.dive_code })}
         />
-      ) : (
+      ) : placeholder ? null : (
         // No media at all — show the dive code as a visual placeholder
         <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
           <span

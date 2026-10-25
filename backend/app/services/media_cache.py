@@ -107,7 +107,15 @@ def cache_control_for_entry(entry: MediaCacheEntry, version: str | None) -> str:
 
 def playback_url(entry: MediaCacheEntry) -> str:
     """Content-versioned URL; unknown checksums stay revalidatable."""
-    return versioned_cache_url(f"/api/v1/media/cache/{entry.id}/play", entry)
+    from app.services.signed_media import signed_url
+    return signed_url(entry.storage_path, entry.checksum_sha256) or versioned_cache_url(f"/api/v1/media/cache/{entry.id}/play", entry)
+
+
+def thumb_url(entry):
+    if not entry or not entry.thumb_storage_path:
+        return None
+    from app.services.signed_media import signed_url
+    return signed_url(entry.thumb_storage_path, entry.thumb_checksum_sha256) or f"/api/v1/media/cache/{entry.id}/thumb?v={entry.thumb_checksum_sha256[:12]}"
 
 
 def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
@@ -302,14 +310,14 @@ def drain_reclaim_orphans(db) -> int:
     return removed
 
 
-def cache_final_path(job: MediaJob, content_type: str) -> Path:
+def cache_final_path(job: MediaJob, content_type: str, checksum: str | None = None) -> Path:
     """Return final sharded cache path for a job artifact."""
     settings = get_settings()
     suffix = _suffix_for(job.rendition, content_type)
     root = Path(settings.media_cache_root).resolve()
     final_dir = root / job.rendition / job.media_key[:2] / job.media_key[2:4]
     final_dir.mkdir(parents=True, exist_ok=True)
-    return final_dir / f"{job.media_key}{suffix}"
+    return final_dir / f"{job.media_key}{'-' + checksum if checksum else ''}{suffix}"
 
 
 def write_upload_chunk(path: Path, chunk: bytes) -> None:
@@ -362,7 +370,7 @@ def finalize_cache_entry(
         tmp_path.unlink(missing_ok=True)
         return existing
 
-    final_path = cache_final_path(job, content_type)
+    final_path = cache_final_path(job, content_type, checksum_sha256)
     move(str(tmp_path), str(final_path))
     # 0644: the nginx front doors re-serve this file via X-Accel-Redirect
     # from a separate container whose worker runs as a different uid. A

@@ -127,6 +127,8 @@ from app.services.representative_population import (
     start_tier1_population,
 )
 
+from app.services.media_cache import thumb_url
+
 router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
 
 
@@ -488,6 +490,8 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
+        thumbhash=poster.thumbhash if poster else None,
+        thumb_url=thumb_url(poster),
         poster_url=derivative_poster_url or (playback_url(poster) if poster else None),
         full_quality_url=full_quality,
         preview_url=durable_start_url or (playback_url(preview) if preview else None),
@@ -1117,6 +1121,8 @@ def _thumbnail_status_for_entries(
         "video_uuid": video_uuid,
         "status": status_value,
         "poster_url": playback_url(poster) if poster else None,
+        "thumbhash": poster.thumbhash if poster else None,
+        "thumb_url": thumb_url(poster),
         "playback_url": playback,
     }
 
@@ -1245,6 +1251,26 @@ def play_cached_media(
         head_only=request.method == "HEAD",
         cache_control=cache_control_for_entry(entry, request.query_params.get("v")),
     )
+
+
+@router.api_route("/cache/{entry_id}/thumb", methods=["GET", "HEAD"])
+def play_cached_thumb(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    entry = get_playable_entry(db, entry_id)
+    user = require_legacy_media_user(db, request)
+    if user is not None and not can_user_access_cache_entry(db, user, entry).allowed:
+        raise HTTPException(404, "Not found")
+    if not entry.thumb_storage_path:
+        raise HTTPException(404, "Not found")
+    path = Path(entry.thumb_storage_path).resolve()
+    try:
+        path.relative_to(Path(get_settings().media_cache_root).resolve())
+    except ValueError:
+        raise HTTPException(404, "Not found")
+    if not path.is_file():
+        raise HTTPException(404, "Not found")
+    current = entry.thumb_checksum_sha256
+    cache = "private, max-age=31536000, immutable" if current and request.query_params.get("v") == current[:12] else "private, no-cache"
+    return _serve_media_file(path, "image/webp", request, head_only=request.method == "HEAD", cache_control=cache)
 
 
 @router.post("/events/viewed")

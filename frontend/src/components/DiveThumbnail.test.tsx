@@ -95,3 +95,24 @@ it('compact placeholder still shows the dive code when nothing is playable', () 
   render(<DiveThumbnail dive={dive} compact />)
   expect(screen.getByText('201C')).toBeInTheDocument()
 })
+
+it('renders library ThumbHash before any image request completes and falls through thumb, poster, video', () => {
+  vi.mocked(cachedPreview).mockReturnValue({
+    posterUrl: '/api/v1/media/cache/1/play', thumbUrl: '/api/v1/media/cache/1/thumb',
+    videoThumbUrl: '/api/v1/media/cache/2/play', playbackUrl: null, ready: true,
+  })
+  const { container } = render(<DiveThumbnail dive={{ ...dive, thumbhash: '3QcSHQRnh493V4dIh4eXh1h4kJUI' }} />)
+  expect(container.querySelector('[data-thumbhash="ready"]')).toHaveStyle({ backgroundSize: 'cover' })
+  expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/media/cache/1/thumb')
+  fireEvent.error(screen.getByRole('img'))
+  expect(screen.getByRole('img')).toHaveAttribute('src', '/api/v1/media/cache/1/play')
+  fireEvent.error(screen.getByRole('img'))
+  expect(container.querySelector('video')).toHaveAttribute('src', '/api/v1/media/cache/2/play')
+})
+
+it('ignores malformed ThumbHash and preserves the normal placeholder', () => {
+  vi.mocked(cachedPreview).mockReturnValue({ posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false })
+  const { container } = render(<DiveThumbnail dive={{ ...dive, thumbhash: 'not base64!' }} />)
+  expect(container.querySelector('[data-thumbhash]')).toBeNull()
+  expect(screen.getByText('201C')).toBeInTheDocument()
+})
