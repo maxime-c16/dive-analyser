@@ -135,7 +135,7 @@ def _seed_world(db, tmp_path):
     db.add(MediaBlobLocation(blob_sha256=SHA_B, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_B[:2]}/{SHA_B}.mov", verified=True, verified_at=now))
     # Ambiguous: two verified PROD locations (fail-closed integrity case).
     db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r1.mov", verified=True, verified_at=now))
-    db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r2.mov", verified=True, verified_at=now))
+    db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket="foreign-bucket", object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r2.mov", verified=True, verified_at=now))
     # DEV-only verified location for the NO_B2 revision.
     db.add(MediaBlobLocation(blob_sha256=SHA_NO_B2, environment="dev", storage_backend="b2", bucket=DEV_BUCKET, object_key=f"blobs/sha256/{SHA_NO_B2[:2]}/{SHA_NO_B2}.mov", verified=True))
 
@@ -361,6 +361,7 @@ def test_no_prod_b2_replica_uses_legacy_fallback(client, db, fake_presign, pytho
 
 
 def test_ambiguous_prod_location_fails_closed_no_fallback(client, db, fake_presign):
+    # One of the verified PROD replicas sits outside the allowlisted bucket.
     behavior, calls = fake_presign
     r = client.get(f"/api/v1/media/revisions/{_revision_id(db, UUID_AMBIGUOUS)}/play")
     assert r.status_code == 404

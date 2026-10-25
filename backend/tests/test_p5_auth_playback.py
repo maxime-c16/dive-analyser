@@ -179,7 +179,7 @@ def _seed_world(db):
     db.add(MediaBlobLocation(blob_sha256=SHA_B, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_B[:2]}/{SHA_B}.mov", verified=True, verified_at=now))
     db.add(MediaBlobLocation(blob_sha256=SHA_UNVERIFIED, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_UNVERIFIED[:2]}/{SHA_UNVERIFIED}.mov", verified=False))
     db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r1.mov", verified=True, verified_at=now))
-    db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket=PROD_BUCKET, object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r2.mov", verified=True, verified_at=now))
+    db.add(MediaBlobLocation(blob_sha256=SHA_AMBIGUOUS, environment="prod", storage_backend="b2", bucket="foreign-bucket", object_key=f"blobs/sha256/{SHA_AMBIGUOUS[:2]}/{SHA_AMBIGUOUS}-r2.mov", verified=True, verified_at=now))
     db.commit()
 
     users = {}
@@ -458,6 +458,7 @@ def test_unverified_prod_location_denied(client, db, fake_presign):
 
 
 def test_ambiguous_verified_prod_locations_denied(client, db, fake_presign):
+    # One of the verified PROD replicas sits outside the allowlisted bucket.
     revision_id = _revision_id(db, SHA_AMBIGUOUS)
     r = client.get(f"/api/v1/media/revisions/{revision_id}/play", follow_redirects=False)
     assert r.status_code == 404
