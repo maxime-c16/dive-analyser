@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { getProfileDives, type ProfileDive } from '../services/communityApi'
 import { LibraryCardGrid } from './LibraryCards'
 import PageLoading from './PageLoading'
+import MediaThumbnail from './MediaThumbnail'
 import type { Attempt } from '../utils/attemptPresentation'
 
 /** Profile grid rows as Library attempts: the same portrait cards, score badge and day sections. */
@@ -11,7 +12,7 @@ function asAttempt(dive: ProfileDive): Attempt {
   return {
     id: dive.id, dive_code: dive.dive_code, height: dive.height, dive_datetime: dive.dive_datetime,
     performance: dive.performance ?? '', phase1_performance: dive.phase1_performance ?? null, phase2_performance: dive.phase2_performance ?? null,
-    thumb_url: dive.poster_url, animated_url: dive.playback_url ?? null, video_uuid: null,
+    thumb_url: dive.poster_url, video_uuid: null,
   } as unknown as Attempt
 }
 
@@ -46,8 +47,11 @@ export default function ProfileDiveGrid({ userId }: { userId: number }) {
     finally { if (current === generation.current) setLoading(false) }
   }
   const attempts = useMemo(() => dives.map(asAttempt), [dives])
+  const byId = useMemo(() => new Map(dives.map(dive => [dive.id, dive])), [dives])
   return <section aria-label={t('community.dives')}>
-    <LibraryCardGrid attempts={attempts} onOpen={attempt => navigate(`/dives?clip=${attempt.id}&scope=all`)} />
+    <LibraryCardGrid attempts={attempts} onOpen={attempt => navigate(`/dives?clip=${attempt.id}&scope=all`)}
+      // Poster, else a ready local web preview: never a B2 original from a tile.
+      thumbnail={attempt => <MediaThumbnail posterUrl={byId.get(attempt.id)?.poster_url} playbackUrl={byId.get(attempt.id)?.playback_url} />} />
     {loading && dives.length === 0 && <PageLoading />}
     {loading && dives.length > 0 && <p role="status" className="cm-empty">{t('common.loading')}</p>}
     {error && <p role="alert" className="cm-alert">{t('community.divesError')} <button type="button" onClick={() => { if (cursor) void more(); else setRetry(previous => previous + 1) }}>{t('common.retry')}</button></p>}

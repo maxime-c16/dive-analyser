@@ -48,11 +48,13 @@ function LibraryCard({
   name,
   onOpen,
   showDiver,
+  thumbnail,
 }: {
   attempt: Attempt;
   name: string;
   onOpen: () => void;
   showDiver: boolean;
+  thumbnail?: (attempt: Attempt) => React.ReactNode;
 }) {
   const { t } = useTranslation();
   return (
@@ -72,7 +74,7 @@ function LibraryCard({
         .join(" · ")}
     >
       <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
-        <DiveThumbnail dive={attempt} compact />
+        {thumbnail ? thumbnail(attempt) : <DiveThumbnail dive={attempt} compact />}
         <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`}>
           {attemptScore(attempt).toFixed(1)}
         </span>
@@ -99,10 +101,13 @@ export function LibraryCardGrid({
   attempts,
   onOpen,
   showDiver = false,
+  thumbnail,
 }: {
   attempts: Attempt[];
   onOpen: (attempt: Attempt) => void;
   showDiver?: boolean;
+  /** Replaces the Library thumbnail, for rows that carry their own media URLs. */
+  thumbnail?: (attempt: Attempt) => React.ReactNode;
 }) {
   const { i18n } = useTranslation();
   const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
@@ -126,6 +131,7 @@ export function LibraryCardGrid({
                   name={name === attempt.dive_code ? "" : name}
                   onOpen={() => onOpen(attempt)}
                   showDiver={showDiver}
+                  thumbnail={thumbnail}
                 />
               );
             })}
