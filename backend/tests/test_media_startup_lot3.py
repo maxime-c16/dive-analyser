@@ -296,3 +296,34 @@ def test_animations_stay_out_of_video_only_consumers(test_db, root):
     assert not _ready_cache_for_assets(test_db, {asset.id})
     entries, _ = DiveAnalysisService(test_db).media_maps([SimpleNamespace(photos_asset_id=asset.id)])
     assert not entries
+
+
+@pytest.mark.parametrize('references', [1, 2])
+def test_trim_keeps_deferred_animation_bytes_in_quota(test_db, root, references):
+    from app.services.media_cache import cleanup_cache
+    from app.services import poster_visuals
+    import os
+    asset = PhotosAsset(video_uuid='deferred-quota')
+    test_db.add(asset)
+    test_db.flush()
+    animation = root / 'animated' / 'aa' / ('a' * 64 + '.webp')
+    animation.parent.mkdir(parents=True)
+    animation.write_bytes(b'a' * 100)
+    other = root / 'evictable-original.mp4'
+    other.write_bytes(b'o' * 100)
+    candidates = [(f'animation-{i}', 'animated', animation) for i in range(references)]
+    candidates.append(('original', 'original', other))
+    for key, rendition, path in candidates:
+        test_db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=key,
+            rendition=rendition, storage_path=str(path), size_bytes=100,
+            status='ready', pinned=False))
+    test_db.commit()
+    # Evicting animation metadata frees no disk. Trim must continue to the
+    # original rather than pretending it reached the 150-byte quota already.
+    assert cleanup_cache(test_db, max_bytes=150) == (references + 1, 100, 100)
+    assert animation.exists() and not other.exists()
+    assert cleanup_cache(test_db, max_bytes=150) == (0, 0, 100)
+    marker = poster_visuals.orphan_marker(animation)
+    assert marker.exists()
+    os.utime(marker, (0, 0))
+    assert cleanup_cache(test_db, max_bytes=150) == (0, 100, 0)

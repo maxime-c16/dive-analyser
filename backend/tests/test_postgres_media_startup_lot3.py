@@ -16,17 +16,7 @@ def test_animated_refresh_orphan_accounted_and_reclaimed(pg, root, monkeypatch):
 
 def test_animated_shared_reference_cleanup(pg, root):
     from tests.test_media_startup_lot3 import test_animation_cleanup_preserves_shared_references_and_bounds
-    # The generic eviction path clears real resolution-upgrade FK pointers.
-    from app.database import Base
-    from app.models.media_catalog import MediaResolutionUpgradeItem
-    tables = {MediaResolutionUpgradeItem.__table__}
-    pending = list(tables)
-    while pending:
-        for fk in pending.pop().foreign_keys:
-            if fk.column.table not in tables:
-                tables.add(fk.column.table)
-                pending.append(fk.column.table)
-    Base.metadata.create_all(pg[0], tables=list(tables))
+    create_upgrade_tables(pg[0])
     with pg[1]() as db:
         test_animation_cleanup_preserves_shared_references_and_bounds(db, root)
 
@@ -80,3 +70,24 @@ def test_animated_cleanup_racing_delayed_publisher(pg, root, monkeypatch):
         assert publishing.result(10)['generated'] == 0
     with pg[1]() as db:
         assert db.query(MediaCacheEntry).filter_by(rendition='animated').count() == 0
+
+
+def test_deferred_animation_quota_on_postgres(pg, root):
+    from tests.test_media_startup_lot3 import test_trim_keeps_deferred_animation_bytes_in_quota
+    create_upgrade_tables(pg[0])
+    with pg[1]() as db:
+        test_trim_keeps_deferred_animation_bytes_in_quota(db, root, references=2)
+
+
+def create_upgrade_tables(engine):
+    # The generic eviction path clears real resolution-upgrade FK pointers.
+    from app.database import Base
+    from app.models.media_catalog import MediaResolutionUpgradeItem
+    tables = {MediaResolutionUpgradeItem.__table__}
+    pending = list(tables)
+    while pending:
+        for fk in pending.pop().foreign_keys:
+            if fk.column.table not in tables:
+                tables.add(fk.column.table)
+                pending.append(fk.column.table)
+    Base.metadata.create_all(engine, tables=list(tables))

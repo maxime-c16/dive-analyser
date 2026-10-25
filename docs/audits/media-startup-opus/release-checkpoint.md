@@ -331,3 +331,26 @@ auth/playback tests passed, including concurrent hourly writes and existing
 access/revocation tests. Release-note validation and diff checks passed. Disposable
 PG stopped. Frontend unchanged. No merge/production changes. Fresh hosted CI and
 explicit clean bot verdict are still required before merge/deployment.
+
+## Eighth bot review — count deferred animations during trim
+
+Verified comment `6397744662`: the trim walk subtracted row sizes while generated
+animation bytes remained on disk during capability grace. When deletion removes
+the final ready reference, the walk now adds the physical animation bytes back to
+its running total, matching orphan accounting in `_cache_size`. Shared ready
+references already account for the file, so it is added only after the final
+ready reference disappears. Missing files add nothing; no global disk scan is
+repeated per eviction. The candidate/unlink bounds and capability grace remain.
+
+Regression reproduced a pass stopping with 200 actual bytes at a 150-byte cap.
+It now continues through another eligible candidate, reports actual bytes freed,
+and keeps the animation counted on subsequent passes until grace expires and
+orphan cleanup unlinks it. Both single and shared animation references are tested;
+the shared case also runs on PostgreSQL. The PG fixture now creates the same real
+resolution-upgrade FK tables as the existing shared-cleanup test; an initial test
+run exposed that fixture omission, resolved without changing application behavior.
+
+Validation: 41 tests passed across lots2/3 and sole-copy protection; 10 real local
+PostgreSQL lot2/3 tests passed, including both cleanup/publication races. Release
+notes and diff checks pass. Disposable PG stopped. No production cleanup/deletion
+or deployment. Fresh hosted CI and explicit bot approval remain mandatory.

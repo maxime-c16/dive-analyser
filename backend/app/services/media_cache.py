@@ -654,6 +654,7 @@ def evict_cleanup_candidates(
     Deletes commit before any file is unlinked — a crash can leak a file,
     never lose one. Returns ``(removed_entries, removed_bytes)``.
     """
+    from app.services.poster_visuals import managed_animation_path
     now = datetime.utcnow()
     deleted = []
     for row in ttl_candidates:
@@ -671,9 +672,24 @@ def evict_cleanup_candidates(
             if _delete_one_with_fk_release(db, row.id, expired_before=None):
                 deleted.append(row)
                 remaining_bytes -= row.size_bytes or 0
+                if managed_animation_path(row.storage_path):
+                    # Ready-row accounting disappears at DELETE, but its
+                    # physical bytes remain until the orphan grace expires.
+                    # Add them once when the final ready reference goes away;
+                    # shared ready rows already account for the same file.
+                    still_ready = db.scalar(select(MediaCacheEntry.id).where(
+                        MediaCacheEntry.storage_path == row.storage_path,
+                        MediaCacheEntry.status == "ready",
+                    ).limit(1))
+                    if still_ready is None:
+                        path = Path(row.storage_path)
+                        try:
+                            if not path.is_symlink() and path.is_file():
+                                remaining_bytes += path.stat().st_size
+                        except FileNotFoundError:
+                            pass
     db.commit()
     removed_bytes = 0
-    from app.services.poster_visuals import managed_animation_path
     for row in deleted:
         # Content-addressed animations can be shared. Only the locked,
         # reference-aware cleaner may unlink them after their URL grace.
