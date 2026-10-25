@@ -135,10 +135,11 @@ export default function CodeAnalysis() {
   const med = median(scores), q1 = quantile(scores, 0.25), q3 = quantile(scores, 0.75)
   const best = pick(scored, (a, b) => a > b)
   const latest = items[items.length - 1] ?? null
+  const latestScored = scored[scored.length - 1] ?? null
   const typical = med == null ? null : pick(scored, (a, b) => Math.abs(a - med) < Math.abs(b - med))
   const lowRecent = pick(scored.slice(-30), (a, b) => a < b)
   const showReview = items.length >= 8 && lowRecent && q1 != null && q3 != null && attemptScore(lowRecent) < q1 - 0.5 * (q3 - q1) + 0.01 && lowRecent !== best
-  const reps = ([['best', best], ['latest', latest], ['typical', typical], ...(showReview ? [['review', lowRecent]] : [])] as Array<[string, Attempt | null]>).filter((entry): entry is [string, Attempt] => Boolean(entry[1]))
+  const reps = ([['best', best], ['latest', latestScored], ['typical', typical], ...(showReview ? [['review', lowRecent]] : [])] as Array<[string, Attempt | null]>).filter((entry): entry is [string, Attempt] => Boolean(entry[1]))
   const trend = recentTrend(all.filter(item => item.performance), attemptScore, ts, now)
   const related = useMemo(() => summaries ? relatedCodes(code, summaries) : [], [code, summaries])
 
@@ -179,7 +180,7 @@ export default function CodeAnalysis() {
   const name = diveCodeName(code, lang)
   const dd = all.find(item => item.official_dd)?.official_dd
   const heightRows = heights.length > 1 ? heights.map(value => { const pool = all.filter(item => item.height === value); return { value, count: pool.length, median: median(pool.filter(item => item.performance).map(attemptScore)) as number } }).filter(row => row.count >= 3).sort((a, b) => b.count - a.count) : []
-  const phased = items.filter(item => item.phase1_performance && item.phase2_performance)
+  const phased = items.filter(item => item.performance && item.phase1_performance && item.phase2_performance)
   const phaseRows = phased.length >= 5 ? (['phase1_performance', 'phase2_performance'] as const).map((key, index) => ({ key, label: t('codeAnalysis.phase', { n: index + 1 }), count: phased.length, median: median(phased.map(item => ({ F: 0, B: 2, M: 4.5, G: 7, P: 10 } as Record<string, number>)[item[key]!] ?? 0)) as number })) : []
   const shownSessions = [...sessions].reverse().slice(0, showAllSessions ? undefined : 6)
 

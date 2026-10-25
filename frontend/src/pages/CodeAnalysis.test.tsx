@@ -78,4 +78,9 @@ it('keeps an ungraded dive in counts but out of every score view', async () => {
   expect(screen.getByText(/13 attempts · 7 sessions/)).toBeInTheDocument()
   expect(screen.getByText('5.2')).toBeInTheDocument()
   expect(screen.getByText('42%')).toBeInTheDocument()
+  // The newest dive is ungraded, so the Latest representative falls back to
+  // the newest graded dive (id 12, an M) instead of showing a 0.0 score.
+  const latestRep = screen.getByRole('button', { name: /Latest/ })
+  expect(within(latestRep).getByText('4.5')).toBeInTheDocument()
+  expect(within(latestRep).queryByText('0.0')).toBeNull()
 })
