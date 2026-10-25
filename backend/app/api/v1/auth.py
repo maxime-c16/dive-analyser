@@ -398,7 +398,7 @@ def signup_clubs(response: Response, db: Session = Depends(get_db)):
 
 
 @router.post("/register", status_code=201)
-async def register(
+def register(
     request_body: RegisterRequest,
     request: Request,
     response: Response,
@@ -531,7 +531,7 @@ def peek_invite(payload: InviteTokenInput, db: Session = Depends(get_db)):
 
 
 @router.post("/register-invite", status_code=201)
-async def register_invite(
+def register_invite(
     request_body: RegisterInviteRequest,
     request: Request,
     response: Response,
@@ -635,7 +635,7 @@ async def register_invite(
 
 
 @router.post("/change-password")
-async def change_password(
+def change_password(
     request_body: ChangePasswordRequest,
     request: Request,
     response: Response,
@@ -690,7 +690,7 @@ async def change_password(
 
 
 @router.post("/login")
-async def login(
+def login(
     request_body: LoginRequest,
     request: Request,
     response: Response,
@@ -769,7 +769,7 @@ async def login(
 
 
 @router.post("/logout")
-async def logout(
+def logout(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
@@ -796,7 +796,7 @@ async def logout(
 
 
 @router.get("/me")
-async def me(
+def me(
     response: Response,
     user: AppUser = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -826,7 +826,7 @@ async def me(
 
 
 @router.get("/metrics")
-async def auth_metrics_endpoint(
+def auth_metrics_endpoint(
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
 ):

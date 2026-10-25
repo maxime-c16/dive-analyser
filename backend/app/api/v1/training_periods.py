@@ -40,7 +40,7 @@ def _serialize(period: TrainingPeriod) -> dict:
 
 
 @router.get("")
-async def list_training_periods(active_only: bool = True, db: Session = Depends(get_db)):
+def list_training_periods(active_only: bool = True, db: Session = Depends(get_db)):
     stmt = select(TrainingPeriod).order_by(TrainingPeriod.start_date.desc(), TrainingPeriod.id.desc())
     if active_only:
         stmt = stmt.where(TrainingPeriod.active.is_(True))
@@ -48,7 +48,7 @@ async def list_training_periods(active_only: bool = True, db: Session = Depends(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_training_period(request: TrainingPeriodInput, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
+def create_training_period(request: TrainingPeriodInput, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
     period = TrainingPeriod(**request.model_dump())
     db.add(period)
     invalidate_analysis_cache(db)
@@ -58,7 +58,7 @@ async def create_training_period(request: TrainingPeriodInput, db: Session = Dep
 
 
 @router.put("/{period_id}")
-async def update_training_period(period_id: int, request: TrainingPeriodInput, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
+def update_training_period(period_id: int, request: TrainingPeriodInput, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
     period = db.get(TrainingPeriod, period_id)
     if not period:
         raise HTTPException(status_code=404, detail="Training period not found")
@@ -72,7 +72,7 @@ async def update_training_period(period_id: int, request: TrainingPeriodInput, d
 
 
 @router.delete("/{period_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_training_period(period_id: int, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
+def delete_training_period(period_id: int, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
     period = db.get(TrainingPeriod, period_id)
     if not period:
         raise HTTPException(status_code=404, detail="Training period not found")

@@ -59,7 +59,7 @@ def _apply_live_stats(session: SessionModel, dives: list[Dive]) -> dict[str, Any
 
 
 @router.get("")
-async def list_sessions(
+def list_sessions(
     request: Request,
     db: Session = Depends(get_db),
     date_from: Optional[date] = Query(None, description="Filter sessions from date"),
@@ -110,7 +110,7 @@ async def list_sessions(
 
 
 @router.post("", status_code=201)
-async def create_session(
+def create_session(
     session: SessionCreate,
     db: Session = Depends(get_db),
 ):
@@ -136,7 +136,7 @@ async def create_session(
 
 
 @router.get("/{session_id}")
-async def get_session(
+def get_session(
     session_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -157,7 +157,7 @@ async def get_session(
 
 
 @router.put("/{session_id}")
-async def update_session(
+def update_session(
     session_id: int,
     session_update: SessionUpdate,
     db: Session = Depends(get_db),
@@ -181,7 +181,7 @@ async def update_session(
 
 
 @router.delete("/{session_id}", status_code=204)
-async def delete_session(
+def delete_session(
     session_id: int,
     db: Session = Depends(get_db),
 ):

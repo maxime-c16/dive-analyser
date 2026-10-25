@@ -55,7 +55,7 @@ def _valid_machine_api_key(request: Request) -> bool:
     return False
 
 
-async def require_owner_for_mutation(
+def require_owner_for_mutation(
     request: Request, db: Session = Depends(get_db)
 ) -> Optional[AppUser]:
     """Require explicit ownership for dive writes and admin capability otherwise.

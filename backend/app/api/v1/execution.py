@@ -72,7 +72,7 @@ class SessionAnalysisResponse(BaseModel):
 
 
 @router.post("/analyze/{dive_id}")
-async def analyze_dive_execution(
+def analyze_dive_execution(
     dive_id: int,
     metrics: Optional[Dict] = None,
     db: Session = Depends(get_db),
@@ -163,7 +163,7 @@ async def analyze_dive_execution(
 
 
 @router.post("/analyze-session/{session_id}")
-async def analyze_session_execution(
+def analyze_session_execution(
     session_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -275,7 +275,7 @@ async def get_fault_categories() -> Dict:
 
 
 @router.get("/dive/{dive_id}/faults")
-async def get_dive_faults(
+def get_dive_faults(
     dive_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -304,7 +304,7 @@ async def get_dive_faults(
 
 
 @router.post("/pattern-analysis/{session_id}")
-async def analyze_session_patterns(
+def analyze_session_patterns(
     session_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -363,7 +363,7 @@ async def analyze_session_patterns(
 
 
 @router.get("/coaching/{dive_id}")
-async def get_coaching_recommendations(
+def get_coaching_recommendations(
     dive_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:

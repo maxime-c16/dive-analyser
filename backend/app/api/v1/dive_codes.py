@@ -59,7 +59,7 @@ async def parse_dive_code(request: DiveCodeInput) -> DiveCodeParsed:
 
 
 @router.post("/validate", response_model=DiveCodeValidation)
-async def validate_dive_code(
+def validate_dive_code(
     request: DiveCodeInput, db: Session = Depends(get_db)
 ) -> DiveCodeValidation:
     """
@@ -106,7 +106,7 @@ async def validate_dive_code(
 
 
 @router.get("/reference", response_model=List[DiveCodeReference])
-async def get_all_reference_dives(
+def get_all_reference_dives(
     db: Session = Depends(get_db),
     group: int = None,
     is_twisting: bool = None,
@@ -149,7 +149,7 @@ async def get_all_reference_dives(
 
 
 @router.get("/{dive_code}", response_model=DiveCodeReference)
-async def get_dive_code(dive_code: str, db: Session = Depends(get_db)) -> DiveCodeReference:
+def get_dive_code(dive_code: str, db: Session = Depends(get_db)) -> DiveCodeReference:
     """
     Get details for a specific FINA dive code.
 
@@ -182,7 +182,7 @@ async def get_dive_code(dive_code: str, db: Session = Depends(get_db)) -> DiveCo
 
 
 @router.get("/official-only/all", response_model=List[DiveCodeReference])
-async def get_official_dives_only(
+def get_official_dives_only(
     db: Session = Depends(get_db),
 ) -> List[DiveCodeReference]:
     """
