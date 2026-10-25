@@ -354,3 +354,30 @@ Validation: 41 tests passed across lots2/3 and sole-copy protection; 10 real loc
 PostgreSQL lot2/3 tests passed, including both cleanup/publication races. Release
 notes and diff checks pass. Disposable PG stopped. No production cleanup/deletion
 or deployment. Fresh hosted CI and explicit bot approval remain mandatory.
+
+## Ninth bot review — signed-status access claim disproved
+
+Comment `6397804445` was investigated against the full request path and is a
+false positive. `backend/app/api/v1/__init__.py` attaches member_access_context to
+the entire v1 router, including media. The context installs fresh OWNER ids and
+user identity. `scope_member_reads` in dive_access.py applies with_loader_criteria
+to Dive, PhotosAsset and MediaCacheEntry (including aliased/subquery ORM reads),
+using the existing public/OWNER/pending-depositor policy. Thus _asset_by_uuid
+returns no asset for someone else's private UUID before full status/signing, and
+the batch Dive/asset/cache queries all inherit the same visibility filters.
+Existing public sharing is intentional; requiring OWNER for public clips would
+break the established playback policy rather than fix a bypass.
+
+Added a real HTTP regression with signing enabled and a spy on the actual signer,
+covering signed video/poster/thumb/animation emission. Owner status/batch receive
+signed capabilities; viewer and another account with admin capability get private
+404s, mixed batches/library omit private clips, and the signer never sees their
+private paths. Public clips remain signed-in accessible. Removing the OWNER
+binding immediately blocks further private status/batch issuance even after
+priming the shared process caches. Anonymous/forged-key requests return 401 and
+never call the signer. No application access policy was changed.
+
+Validation: 76 tests passed across multi-account visibility, P5/P6 playback and
+lot2, with signatures active in the new regression. Release notes and diff checks
+pass. No production action. Evidence posted to the bot; fresh hosted checks and
+an explicit clean verdict on the test commit are still required.
