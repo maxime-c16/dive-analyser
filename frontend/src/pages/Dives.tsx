@@ -2,7 +2,7 @@ import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { appLocale } from "../utils/dateLocale";
-import { HelpCircle, ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { HelpCircle, ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api } from "../services/api";
 import { clearLibraryCache, libraryKey, loadLibraryCache, readLibraryCache } from "../services/libraryCache";
@@ -22,7 +22,9 @@ import {
 import AddVideos from "../components/AddVideos";
 import { MobileShellActions } from "../navigation/mobileShellActions";
 import DiveThumbnail from "../components/DiveThumbnail";
-import { CodesLayout } from "../components/LibraryLayouts";
+import CodeCards, { type CodeSort } from "../components/code-analysis/CodeCards";
+import ProgressHub from "../components/code-analysis/ProgressHub";
+import { getCodeSummaries, peekCodeSummaries, type CodeSummaries } from "../services/codeSummariesApi";
 import { LibraryCardGrid } from "../components/LibraryCards";
 import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
@@ -34,7 +36,7 @@ const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
 type Dive = Attempt;
 type Diver = { id: number; display_name: string; is_primary_user: boolean };
 type Scope = "self" | "all";
-type View = "grid" | "list" | "codes";
+type View = "grid" | "list" | "codes" | "progress";
 
 function normalizedHeight(value: string) {
   return value.replace(/\s/g, "").toLowerCase();
@@ -201,6 +203,13 @@ function DiveLibrary() {
     modifier_filter: [...new Set([...modifiers, ...parsed.modifiers])].join(','),
   };
   const pageParamsKey = JSON.stringify(pageParams);
+  // Code cards and progress aggregate the whole filtered Library, not the loaded pages.
+  const { limit: _limit, ...codeParams } = pageParams;
+  const codeParamsKey = JSON.stringify(codeParams);
+  const aggregated = view === "codes" || view === "progress";
+  const [codeSummaries, setCodeSummaries] = useState<CodeSummaries | null>(() => peekCodeSummaries(codeParams));
+  const [codeSummaryError, setCodeSummaryError] = useState(false);
+  const codeSort = (["recent", "volume", "progress"].includes(searchParams.get("sort") || "") ? searchParams.get("sort") : "recent") as CodeSort;
 
   const accessKey = libraryKey(user);
   const cacheKey = accessKey ? JSON.stringify([accessKey, "paged", pageParamsKey]) : null;
@@ -278,6 +287,18 @@ function DiveLibrary() {
       active = false;
     };
   }, [reloadKey, cacheKey, pageParamsKey]);
+
+  useEffect(() => {
+    if (!aggregated) return;
+    let live = true;
+    setCodeSummaries(peekCodeSummaries(codeParams));
+    setCodeSummaryError(false);
+    getCodeSummaries(codeParams)
+      .then((data) => { if (live) setCodeSummaries(data); })
+      .catch(() => { if (live) setCodeSummaryError(true); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregated, codeParamsKey, reloadKey]);
 
   const loadMore = async () => {
     if (loadingMore || !nextCursor) return;
@@ -473,6 +494,16 @@ function DiveLibrary() {
       libraryViewerOrigin: location.pathname + (searchParams.size ? `?${searchParams}` : ''),
     } });
   };
+  const openClipId = (id: number) => {
+    const known = dives.find((dive) => dive.id === id);
+    if (known) { openClip(known); return; }
+    if (scrollAnchorRef.current === null) scrollAnchorRef.current = window.scrollY;
+    viewerReturnAttemptRef.current = id;
+    update({ clip: String(id) }, { replace: false, state: {
+      ...location.state,
+      libraryViewerOrigin: location.pathname + (searchParams.size ? `?${searchParams}` : ''),
+    } });
+  };
   const moveToClip = (dive: Dive) => {
     update({ clip: String(dive.id) });
   };
@@ -521,14 +552,15 @@ function DiveLibrary() {
             [
               ["grid", t("dives.viewClips")],
               ["codes", t("dives.viewByCode")],
+              ["progress", t("codeAnalysis.progressTab")],
             ] as const
           ).map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => update({ view: value === "grid" ? null : value })}
-              aria-pressed={(view === "codes") === (value === "codes")}
-              className={`min-h-0 flex-1 border px-3 text-sm ${(view === "codes") === (value === "codes") ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+              aria-pressed={value === "grid" ? !aggregated : view === value}
+              className={`min-h-0 flex-1 border px-3 text-sm ${(value === "grid" ? !aggregated : view === value) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
             >
               {label}
             </button>
@@ -623,6 +655,16 @@ function DiveLibrary() {
               aria-pressed={view === "codes"}
             >
               <Hash className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => update({ view: "progress" })}
+              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "progress" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+              aria-label={t("codeAnalysis.progressTab")}
+              title={t("codeAnalysis.progressTab")}
+              aria-pressed={view === "progress"}
+            >
+              <TrendingUp className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -746,8 +788,18 @@ function DiveLibrary() {
               )}
             </div>
           ) : (
-            view === "codes" ? (
-              <CodesLayout attempts={filtered} onOpen={openClip} showDiver={scope === "all"} />
+            aggregated ? (
+              codeSummaries ? (
+                view === "codes" ? (
+                  <CodeCards codes={codeSummaries.codes} sort={codeSort} onSort={(sort) => update({ sort: sort === "recent" ? null : sort })} onOpenClip={openClipId} />
+                ) : (
+                  <ProgressHub data={codeSummaries} />
+                )
+              ) : codeSummaryError ? (
+                <div className="border border-red-300/40 bg-red-300/10 p-4 text-sm text-red-100" role="alert">{t("dives.errorLoad")}</div>
+              ) : (
+                <PageLoading />
+              )
             ) : (
               <>
                 {view === "grid" ? (
@@ -780,7 +832,7 @@ function DiveLibrary() {
           )}
         </section>
       )}
-      {!loading && nextCursor && (
+      {!loading && nextCursor && !aggregated && (
         <div className="mt-5 text-center">
           <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">

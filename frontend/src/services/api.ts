@@ -1,5 +1,6 @@
 import { clearLibraryCache } from './libraryCache'
 import { clearIntentData } from './intentCache'
+import { clearCodeSummaryCache } from './codeSummariesApi'
 import axios, { AxiosInstance } from 'axios'
 
 // Default to a relative API path so the browser uses the dev server proxy.
@@ -18,6 +19,7 @@ const api: AxiosInstance = axios.create({
 function invalidateReads() {
   clearIntentData()
   clearLibraryCache()
+  clearCodeSummaryCache()
 }
 
 // Invalidate before writes and after success: concurrent reads cannot refill

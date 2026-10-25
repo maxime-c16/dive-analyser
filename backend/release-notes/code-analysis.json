@@ -1,0 +1,8 @@
+{
+  "id": "code-analysis",
+  "date": "2026-10-25",
+  "title": "Analyse each dive code at a glance",
+  "body": "Tap a code card in the Library, or Analyse in the player, to see that code's scores over time, its peaks and dips, your best, latest and typical dives, and related codes. A new Progress view shows which codes are improving, dropping or waiting to be picked up again.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
