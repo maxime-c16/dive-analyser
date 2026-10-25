@@ -332,7 +332,7 @@ def test_playback_prefers_original_over_preview(test_db, backbone_clock, renditi
     test_db.add(entry)
     test_db.commit()
     revision = add_revision(test_db, "hq-clip", "e" * 64) if has_backbone else None
-    url = f"/api/v1/media/revisions/{revision}/play" if expected == "backbone" else media.playback_url(entry.id)
+    url = f"/api/v1/media/revisions/{revision}/play" if expected == "backbone" else media.playback_url(entry)
     result = media._status_for_asset(test_db, asset)
     assert result.status == "ready"
     assert result.playback_url == url
@@ -341,7 +341,7 @@ def test_playback_prefers_original_over_preview(test_db, backbone_clock, renditi
     # ready local web preview is ever exposed, never a B2 revision URL.
     batch = media._thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
     if rendition in ("proxy_720p", "proxy_360p"):
-        assert batch["playback_url"] == media.playback_url(entry.id)
+        assert batch["playback_url"] == media.playback_url(entry)
         assert batch["status"] == "ready"
     else:
         assert batch["playback_url"] is None

@@ -275,7 +275,7 @@ def _rendition_state(photos_asset_id: int, rendition: str, cache: dict[int, dict
         return {
             "status": "ready",
             "entry_id": entry.id,
-            "playback_url": playback_url(entry.id),
+            "playback_url": playback_url(entry),
             "size_bytes": entry.size_bytes,
             "failure": None,
         }
@@ -502,7 +502,7 @@ def build_representative_media_manifest(
                         rendition: {
                             "ready": rendition in cached,
                             "entry_id": cached[rendition].id if rendition in cached else None,
-                            "playback_url": playback_url(cached[rendition].id) if rendition in cached else None,
+                            "playback_url": playback_url(cached[rendition]) if rendition in cached else None,
                             "size_bytes": cached[rendition].size_bytes if rendition in cached else None,
                         }
                         for rendition in ("poster", "proxy_720p", "proxy_360p")

@@ -287,7 +287,7 @@ class DiveAnalysisService:
                 "official_dd": formula_dd(dive),
                 "dd_reference": "ffn_world_aquatics_diving_2022_2025_appendix_1_3",
                 "raw_caption": dive.raw_caption if not self.db.info.get("member_access") or dive.diver_id in self.db.info["member_access"]["diver_ids"] else None, "notes": dive.notes if not self.db.info.get("member_access") or dive.diver_id in self.db.info["member_access"]["diver_ids"] else None, "video_uuid": dive.video_uuid,
-                "media": {"status": "ready" if proxy else job.status if job else "missing", "poster_url": playback_url(poster.id) if poster else None, "playback_url": playback_url(proxy.id) if proxy else None, "can_request": bool(dive.video_uuid), "job_id": job.id if job else None, "job_error": job.last_error if job else None},
+                "media": {"status": "ready" if proxy else job.status if job else "missing", "poster_url": playback_url(poster) if poster else None, "playback_url": playback_url(proxy) if proxy else None, "can_request": bool(dive.video_uuid), "job_id": job.id if job else None, "job_error": job.last_error if job else None},
             })
         return result
 

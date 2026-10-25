@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from shutil import move
@@ -85,9 +86,28 @@ SOLE_COPY_BROWSER_SAFE_RENDITIONS = ("proxy_720p", "poster")
 CLEANER_RETAINED_PROXY_RENDITIONS = ("proxy_720p", "poster", "proxy_360p")
 
 
-def playback_url(entry_id: int) -> str:
-    """Browser-facing playback URL for a verified cache entry."""
-    return f"/api/v1/media/cache/{entry_id}/play"
+def cache_content_version(entry: MediaCacheEntry | None) -> str | None:
+    """A content token only when the stored SHA-256 is known and valid."""
+    checksum = entry.checksum_sha256 if entry is not None else None
+    if checksum and re.fullmatch(r"[0-9a-fA-F]{64}", checksum):
+        return checksum.lower()[:12]
+    return None
+
+
+def versioned_cache_url(url: str, entry: MediaCacheEntry | None) -> str:
+    version = cache_content_version(entry)
+    return url + (f"{'&' if '?' in url else '?'}v={version}" if version else "")
+
+
+def cache_control_for_entry(entry: MediaCacheEntry, version: str | None) -> str:
+    current = cache_content_version(entry)
+    return ("private, max-age=31536000, immutable" if current and version == current
+            else "private, no-cache")
+
+
+def playback_url(entry: MediaCacheEntry) -> str:
+    """Content-versioned URL; unknown checksums stay revalidatable."""
+    return versioned_cache_url(f"/api/v1/media/cache/{entry.id}/play", entry)
 
 
 def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
@@ -98,7 +118,7 @@ def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
         status=entry.status,
         content_type=entry.content_type,
         size_bytes=entry.size_bytes,
-        playback_url=playback_url(entry.id),
+        playback_url=playback_url(entry),
         created_at=entry.created_at,
         expires_at=entry.expires_at,
     )

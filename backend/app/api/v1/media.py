@@ -245,7 +245,7 @@ def _iter_file_range(path: Path, start: int, end: int, chunk_size: int = 1024 * 
 def _media_headers(path: Path, content_type: str, content_length: int) -> dict[str, str]:
     return {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "private, max-age=31536000, immutable",
+        "Cache-Control": "private, no-cache",
         "Content-Disposition": f'inline; filename="{path.name}"',
         "Content-Length": str(content_length),
         "Content-Type": content_type,
@@ -272,9 +272,11 @@ def _x_accel_uri_for(path: Path) -> str | None:
     return settings.media_xaccel_prefix + quote(str(relative), safe="/")
 
 
-def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False):
+def _serve_media_file(path: Path, content_type: str, request: Request, head_only: bool = False,
+                      *, cache_control: str = "private, no-cache"):
     file_size = path.stat().st_size
     headers = _media_headers(path, content_type, file_size)
+    headers["Cache-Control"] = cache_control
     redirect_uri = None if head_only else _x_accel_uri_for(path)
 
     if redirect_uri is not None:
@@ -449,7 +451,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     # Original discovery is independent of preview existence.
     backbone_url = _backbone_playback_url(db, asset.video_uuid)
     local_original = next((entry for entry in entries if entry.rendition == "original"), None)
-    full_quality = playback_url(local_original.id) if local_original else backbone_url
+    full_quality = playback_url(local_original) if local_original else backbone_url
     preview = next((entry for rendition in ("proxy_720p", "proxy_360p")
                     for entry in entries if entry.rendition == rendition), None)
     backbone_url = full_quality
@@ -471,7 +473,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         final_playback_url = backbone_url
     elif preferred:
         status_value = "ready"
-        final_playback_url = playback_url(preferred.id)
+        final_playback_url = playback_url(preferred)
     elif job:
         status_value = job.status
         final_playback_url = None
@@ -486,9 +488,9 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         preferred_rendition="original" if backbone_url else preferred.rendition if preferred else None,
         available_renditions=sorted({entry.rendition for entry in entries} | ({"original"} if full_quality else set())),
         playback_url=final_playback_url,
-        poster_url=derivative_poster_url or (playback_url(poster.id) if poster else None),
+        poster_url=derivative_poster_url or (playback_url(poster) if poster else None),
         full_quality_url=full_quality,
-        preview_url=durable_start_url or (playback_url(preview.id) if preview else None),
+        preview_url=durable_start_url or (playback_url(preview) if preview else None),
         derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
@@ -1108,13 +1110,13 @@ def _thumbnail_status_for_entries(
     """
     poster = _poster_entry(entries)
     preview = _web_preview_entry(entries)
-    playback = playback_url(preview.id) if preview else None
+    playback = playback_url(preview) if preview else None
     status_value = "ready" if (poster or preview) else "missing"
 
     return {
         "video_uuid": video_uuid,
         "status": status_value,
-        "poster_url": playback_url(poster.id) if poster else None,
+        "poster_url": playback_url(poster) if poster else None,
         "playback_url": playback,
     }
 
@@ -1234,12 +1236,14 @@ def play_cached_media(
         decision = can_user_access_cache_entry(db, user, entry)
         if not decision.allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    from app.services.media_cache import cache_control_for_entry
     media_path = Path(entry.storage_path)
     return _serve_media_file(
         media_path,
         entry.content_type or "application/octet-stream",
         request,
         head_only=request.method == "HEAD",
+        cache_control=cache_control_for_entry(entry, request.query_params.get("v")),
     )
 
 
@@ -1515,7 +1519,7 @@ async def finalize_job_artifact(
         job_id=job.id,
         status=job.status,
         cache_entry_id=entry.id,
-        playback_url=playback_url(entry.id),
+        playback_url=playback_url(entry),
     )
 
 

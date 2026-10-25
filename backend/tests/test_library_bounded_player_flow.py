@@ -132,7 +132,7 @@ def test_thumbnail_never_returns_original_or_backbone_url(test_db: Session, back
     # the tile payload is bounded.
     player = media._status_for_asset(test_db, original_only)
     assert player.status == "ready"
-    assert player.playback_url == media.playback_url(original_entry.id)
+    assert player.playback_url == media.playback_url(original_entry)
 
     # Ready web preview wins the tile; the original is never selected.
     ready = _asset(test_db, f"bounded-ready-{uuid4().hex}")
@@ -146,8 +146,8 @@ def test_thumbnail_never_returns_original_or_backbone_url(test_db: Session, back
         test_db.query(MediaCacheEntry).filter_by(photos_asset_id=ready.id).all(),
     )
     assert tile["status"] == "ready"
-    assert tile["playback_url"] == media.playback_url(preview.id)
-    assert tile["poster_url"] == media.playback_url(poster.id)
+    assert tile["playback_url"] == media.playback_url(preview)
+    assert tile["poster_url"] == media.playback_url(poster)
 
 
 def test_batch_status_never_returns_original_urls(api_client, test_db):

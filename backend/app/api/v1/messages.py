@@ -61,7 +61,7 @@ def message_payloads(db, user, rows):
     asset_ids = {d.photos_asset_id for d in dives.values() if d.photos_asset_id}
     if asset_ids:
         for p in db.query(MediaCacheEntry).filter(MediaCacheEntry.photos_asset_id.in_(asset_ids), MediaCacheEntry.rendition == 'poster', MediaCacheEntry.status == 'ready').all():
-            posters[p.photos_asset_id] = playback_url(p.id)
+            posters[p.photos_asset_id] = playback_url(p)
     result = []
     for m in rows:
         dive = dives.get(m.dive_id)
