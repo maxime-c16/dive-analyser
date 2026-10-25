@@ -97,6 +97,27 @@ describe('Community discovery', () => {
     expect(await screen.findByRole('link', { name: /Fanny/ })).toBeInTheDocument()
   })
 
+  it('re-enables paging when the query changes during a load-more', async () => {
+    let release!: (value: unknown) => void
+    const gate = new Promise(resolve => { release = resolve })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
+      const url = new URL(String(input), 'http://test')
+      if (url.pathname.includes('/leaderboard')) return response(board)
+      if (url.searchParams.get('after')) return gate.then(() => response({ items: [{ ...fanny, user_id: 3, display_name: 'Alex' }], next_after: null }))
+      const q = url.searchParams.get('q')
+      return response({ items: q ? [fanny] : [], next_after: q ? 2 : null })
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('searchbox'), 'a')
+    await screen.findByRole('link', { name: /Fanny/ })
+    await user.click(screen.getByRole('button', { name: 'Load more members' }))
+    // The query changes while the page is in flight; the stale page lands after.
+    await user.type(screen.getByRole('searchbox'), 'b')
+    release(undefined)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Load more members' })).toBeEnabled())
+  })
+
   it('reads every directory page before sorting it', async () => {
     api(url => url.includes('after=2')
       ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex', handle: 'alex' }], next_after: null }

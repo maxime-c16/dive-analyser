@@ -54,7 +54,7 @@ export default function Community() {
     if (!q) { setResults(null); setSearchAfter(null); return }
     const current = ++generation.current
     const controller = new AbortController()
-    setResults(null); setSearchAfter(null)
+    setResults(null); setSearchAfter(null); setSearchingMore(false)
     const timer = window.setTimeout(() => {
       searchMembers(q, undefined, controller.signal).then(page => { if (current === generation.current) { setResults(page.items); setSearchAfter(page.next_after) } })
         .catch(() => { if (!controller.signal.aborted) setError(true) })

@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 
 from app.models.dive import Dive
 from app.models.user_auth import AppUser, UserDiverAccess
@@ -72,8 +72,15 @@ def leaderboard(db, visible_clause, period: str, now: datetime, viewer_id: int |
     hist: dict[tuple[int, bool], dict[float, int]] = defaultdict(lambda: defaultdict(int))
     # One labelled expression, grouped by its alias: Postgres would reject two
     # separately bound copies of `dive_datetime >= :start` as different expressions.
+    # The previous half is materialized only for members with enough current
+    # attempts to clear the progress gate (their only use of previous dives).
     recent = case((Dive.dive_datetime >= start, 1), else_=0).label("recent")
-    for uid, is_recent, performance, phase1, phase2, n in base.filter(Dive.dive_datetime >= previous, Dive.performance.is_not(None), Dive.performance != "").with_entities(
+    contenders = [uid for uid, (n, _, _, _) in current.items() if n >= MIN_PROGRESS_ATTEMPTS]
+    for uid, is_recent, performance, phase1, phase2, n in base.filter(
+        Dive.dive_datetime >= previous,
+        or_(Dive.dive_datetime >= start, owner.in_(contenders)),
+        Dive.performance.is_not(None), Dive.performance != "",
+    ).with_entities(
         owner, recent, Dive.performance, Dive.phase1_performance, Dive.phase2_performance, func.count(Dive.id),
     ).group_by(owner, recent, Dive.performance, Dive.phase1_performance, Dive.phase2_performance).all():
         score = _score_value(performance, phase1, phase2)
