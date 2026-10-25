@@ -4,6 +4,9 @@ UTC daily boundary; skips cool down 7 days. One vote per account and dive
 across both circuits: a request-circuit vote blocks an automatic vote and
 vice versa (each circuit still stores its own rows). No reservation across
 reviewers.
+
+While a member's judging style is still hidden, their stacks lead with dives
+the panel already scored so early votes meet a comparison fast.
 """
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -24,6 +27,26 @@ def community_vote_clause():
     return ~exists(select(1).select_from(UserDiverAccess).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).where(
         Dive.id == AutomaticRating.dive_id, UserDiverAccess.access_kind == 'OWNER',
         UserDiverAccess.user_id == AutomaticRating.evaluator_user_id).correlate(AutomaticRating))
+
+
+# Community votes the style meter compares before revealing (frontend JudgeMeter).
+STYLE_REVEALED_AT = 3
+
+
+def compared_votes(db, user, sample=50):
+    """Votes in the member's recent window that other members also scored.
+
+    Mirrors judge_profile()'s sample so the warm-up ordering in stack() ends
+    exactly when the judging-style meter reveals.
+    """
+    mine = db.query(AutomaticRating.dive_id).filter(
+        AutomaticRating.evaluator_user_id == user.id).order_by(AutomaticRating.id.desc()).limit(sample).subquery()
+    others = db.query(AutomaticRating.dive_id).filter(
+        AutomaticRating.evaluator_user_id != user.id, community_vote_clause(),
+        AutomaticRating.dive_id.in_(select(mine.c.dive_id))).subquery()
+    return db.query(func.count()).select_from(AutomaticRating).filter(
+        AutomaticRating.evaluator_user_id == user.id,
+        AutomaticRating.dive_id.in_(select(others.c.dive_id))).scalar()
 
 
 def eligible(db, user):
@@ -127,16 +150,22 @@ def stack(db, user, key, size=5):
         ReviewStackItem.dive_id == Dive.id, ReviewStack.user_id == user.id,
         ReviewStack.created_at > datetime.utcnow() - timedelta(hours=24), ReviewStackItem.skipped_at.is_(None)))
     count = select(func.count(AutomaticRating.id)).where(AutomaticRating.dive_id == Dive.id, community_vote_clause()).correlate(Dive).scalar_subquery()
-    candidates = eligible(db, user).filter(~voted, ~cooling, ~outstanding).order_by(count, Dive.dive_datetime.desc(), Dive.id)
+    # Until the meter reveals the style, each owner's bucket leads with the
+    # dives the panel already scored so a new judge meets a comparison fast;
+    # afterwards the fair least-scored-first spread resumes.
+    warming = compared_votes(db, user) < STYLE_REVEALED_AT
+    vote_order = count.desc() if warming else count
+    candidates = eligible(db, user).filter(~voted, ~cooling, ~outstanding).order_by(vote_order, Dive.dive_datetime.desc(), Dive.id)
     # Ready cache is filtered in SQL, so unavailable videos cannot hide the
     # playable corpus. Round-robin owners before taking a second dive each.
     ready = _ready_clause()
     owner = select(func.min(UserDiverAccess.user_id)).select_from(UserDiverAccess).join(AppUser).where(
         UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == 'OWNER', AppUser.is_active.is_(True)
     ).correlate(Dive).scalar_subquery()
-    rank = func.row_number().over(partition_by=func.coalesce(owner, -Dive.diver_id), order_by=(count, Dive.dive_datetime.desc(), Dive.id))
+    rank = func.row_number().over(partition_by=func.coalesce(owner, -Dive.diver_id), order_by=(vote_order, Dive.dive_datetime.desc(), Dive.id))
     ranked = candidates.filter(ready).order_by(None).add_columns(rank.label('owner_rank'), count.label('votes')).subquery()
-    ids = db.query(ranked.c.id).order_by(ranked.c.owner_rank, ranked.c.votes, ranked.c.dive_datetime.desc(), ranked.c.id).limit(size).all()
+    ids = db.query(ranked.c.id).order_by(ranked.c.owner_rank, ranked.c.votes.desc() if warming else ranked.c.votes,
+        ranked.c.dive_datetime.desc(), ranked.c.id).limit(size).all()
     chosen = [dive_id for (dive_id,) in ids]
     row = ReviewStack(user_id=user.id, key=key)
     db.add(row)
@@ -313,8 +342,9 @@ def judge_profile(db, user, sample=50):
     """Judging tendency vs the rest of the panel, plus the daily streak."""
     rows = db.query(AutomaticRating).filter(AutomaticRating.evaluator_user_id == user.id).order_by(
         AutomaticRating.id.desc()).limit(sample).all()
-    compared = [v for v in _with_panels(db, rows, user.id) if v['panel_mean'] is not None]
-    bias = round(sum(v['score_half_steps'] / 2 - v['panel_mean'] for v in compared) / len(compared), 2) if compared else None
+    compared = compared_votes(db, user, sample)
+    bias = round(sum(v['score_half_steps'] / 2 - v['panel_mean']
+                     for v in _with_panels(db, rows, user.id) if v['panel_mean'] is not None) / compared, 2) if compared else None
     days = {d if isinstance(d, str) else d.isoformat() for (d,) in db.query(func.date(AutomaticRating.created_at)).filter(
         AutomaticRating.evaluator_user_id == user.id).distinct().order_by(func.date(AutomaticRating.created_at).desc()).limit(400)}
     day = datetime.utcnow().date()
@@ -324,4 +354,4 @@ def judge_profile(db, user, sample=50):
     while day.isoformat() in days:
         streak += 1
         day -= timedelta(days=1)
-    return {'compared': len(compared), 'bias': bias, 'streak': streak}
+    return {'compared': compared, 'bias': bias, 'streak': streak}
