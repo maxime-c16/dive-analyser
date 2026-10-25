@@ -19,6 +19,7 @@ from sqlalchemy import case, func
 from app.models.dive import Dive
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services.code_summaries import _median_from_hist, _round, _score_value
+from app.services.dive_access import owned_diver_ids
 from app.services.member_avatar import avatar_identity
 
 PERIOD_DAYS = {"week": 7, "month": 30}
@@ -106,6 +107,18 @@ def leaderboard(db, visible_clause, period: str, now: datetime, viewer_id: int |
             "last_attempt_at": last.isoformat() if last else None,
         })
     members.sort(key=lambda member: (-member["attempts"], member["user_id"]))
+    # Accounts bound to one of the viewer's own divers (a second login, a test
+    # account) never rank for them — except the viewer, who is always kept.
+    # Determined here, not from the client's paginated directory, so the
+    # directory page cap cannot leak them onto the board.
+    if viewer_id is not None:
+        own = owned_diver_ids(db, viewer_id)
+        if own:
+            bound = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
+                UserDiverAccess.access_kind == "OWNER",
+                UserDiverAccess.diver_id.in_(own),
+                UserDiverAccess.user_id.in_(list(uids))).all()} if uids else set()
+            members = [member for member in members if member["user_id"] == viewer_id or member["user_id"] not in bound]
     # The UI ranks the top 10 of one category plus the viewer: keep the top
     # BOARD_SIZE of every category (same order as the frontend sort) plus the
     # viewer instead of every member with dives in the window.

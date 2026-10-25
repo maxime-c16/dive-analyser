@@ -60,7 +60,7 @@ export default function Community() {
         .catch(() => { if (!controller.signal.aborted) setError(true) })
     }, 220)
     return () => { controller.abort(); window.clearTimeout(timer) }
-  }, [q])
+  }, [q, retry])
 
   async function moreResults() {
     if (!q || searchAfter == null || searchingMore) return

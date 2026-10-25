@@ -81,6 +81,22 @@ describe('Community discovery', () => {
     expect(await screen.findByRole('link', { name: /Alex/ })).toBeInTheDocument()
   })
 
+  it('retries a failed search instead of leaving it loading', async () => {
+    let fail = true
+    vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
+      const url = String(input)
+      if (url.includes('/leaderboard')) return response(board)
+      if (url.includes('q=fanny') && fail) { fail = false; return response({}, false) }
+      return response({ items: url.includes('q=fanny') ? [fanny] : [], next_after: null })
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('searchbox'), 'fanny')
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('link', { name: /Fanny/ })).toBeInTheDocument()
+  })
+
   it('reads every directory page before sorting it', async () => {
     api(url => url.includes('after=2')
       ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex', handle: 'alex' }], next_after: null }

@@ -252,6 +252,25 @@ def test_leaderboard_bounds_response_and_keeps_zero_viewer(workspace):
     assert (me['attempts'], me['sessions'], me['codes'], me['median'], me['delta'], me['streak_weeks'], me['last_attempt_at']) == (0, 0, 0, None, None, 0, None)
 
 
+def test_leaderboard_hides_accounts_bound_to_my_own_diver(workspace):
+    db, login, _, users, session_id = workspace
+    alice_diver = db.query(UserDiverAccess).filter_by(user_id=users['alice'].id).one().diver_id
+    twin = AppUser(email='twin@example.test', display_name='twin', role='friend')
+    db.add(twin)
+    db.flush()
+    twin_id = twin.id
+    db.add(UserDiverAccess(user_id=twin_id, diver_id=alice_diver, access_kind='OWNER'))
+    db.add(Dive(session_id=session_id, diver_id=alice_diver, dive_code='101B', performance='G', performance_numeric=0, height='1m',
+                dive_datetime=datetime.now(), visibility='public'))
+    db.commit()
+    # The dive counts for everyone bound to the diver, but alice never ranks her
+    # twin against herself — while bob still sees both of them.
+    own = {m['user_id'] for m in login('alice').get('/api/v1/users/leaderboard').json()['members']}
+    assert users['alice'].id in own and twin_id not in own
+    others = {m['user_id'] for m in login('bob').get('/api/v1/users/leaderboard').json()['members']}
+    assert users['alice'].id in others and twin_id in others
+
+
 def test_leaderboard_counts_visible_dives_streaks_and_progress(workspace):
     from datetime import timedelta
     db, login, _, users, session_id = workspace
