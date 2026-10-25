@@ -1,5 +1,8 @@
 # Media startup lots 1–3 — production rollout
 
+**Final backfill status: complete. 0 incomplete posters, 2829 ready animations.**
+
+
 25 October 2026. Main PR: https://github.com/maxime-c16/dive-analyser/pull/161.
 Merged commit: `0973fa5f364e94412c6e6748c68743936ca68086`.
 
@@ -83,17 +86,16 @@ after the backend restart and before readiness. Subsequent steady operation has
 no observed long freeze and no broken poster in the probes. No sustained runtime
 regression requiring rollback was observed; no rollback was performed.
 
-## Backfills and resource guardrails
+## Initial backfill deferral and resource guardrails
 
 Backfills were deferred before any batch because sustained server I/O pressure
 was already high, including full avg60 around 37–47% and some avg60 around 58–73%
 during the deployment gates. Available space remained about 313–314 GiB, well above
 the 26 GiB floor. Final post-build pressure was still some avg60 **33.95%**, full avg60 **22.93%**. No migration process was paused. No explicit backfill ran:
 poster/ThumbHash cursor 0; animation cursor 0. A final read counted 2343 ready
-posters, 2335 lacking complete visuals, and 0 ready animations. Consequently the
-production animation appearance has not yet been exercised; local/hosted automated
-coverage passes, and production verification remains for the first safe batch. Resume poster batches at limit2–4,
-then animations at limit1–2 only once pressure is sustainably low. Record each
+posters, 2335 lacking complete visuals, and 0 ready animations. At that initial checkpoint, production animation appearance had not yet been
+exercised. The completed production verification is recorded below. The initial resume plan was poster batches at limit2–4, then animations at
+limit1–2 with resource checks; the explicit follow-up request below activated it. Record each
 cursor, count, free-space reading and event-loop lag. Existing normal producers
 may enrich newly finalized posters independently; this is not a completed corpus
 backfill. No originals, media or database data were manually deleted.
@@ -113,7 +115,7 @@ At Maxime's subsequent request (“fait le backfill la”), the backfill started
 (`ionice -c3`), nice19, a single process, poster batches2 followed by animation
 batches1, and2–5 seconds between batches. The worker checkpoints cursors after
 each batch, waits automatically near I/O saturation or if the xray last-window
-loop maximum exceeds500ms, and stops below the26GiB disk floor. Migration remains
+loop maximum exceeds500ms, and stops below the 26 GiB disk floor. Migration remains
 active. No cleanup or deletion is part of this worker.
 
 Initial checkpoint:10 poster rows scanned, cursor28, no animation batch yet;
@@ -121,3 +123,49 @@ last-window loop p99 7.34ms / max46.04ms, about312GiB free. This is an in-progre
 checkpoint, not completion. A persistent T3 check runs every five minutes until
 completion, verifies application/resource state, and updates this report. The
 private monitoring account session is revoked in the worker's finalizer.
+
+
+## Backfill completion and final verification
+
+The one worker completed its cursor pass at **18:48:39 UTC, 25 October 2026**.
+All **2335** selected poster rows were processed; a final independent database
+read confirms **0 posters lacking complete visuals**. It examined **2914** proxy
+rows, generated **2828** animations and recorded one encode failure. A single
+bounded retry of that exact source (cursor 4563) subsequently succeeded. Final
+independent database count: **2829 ready animations**. The other 85 proxy rows were
+skipped or returned no optional animation under the existing generator policy;
+this pass does not claim every proxy must have an animation.
+
+The worker retained one process and persisted cursors across interruptions.
+Three interruptions were monitoring-session 401s: the application intentionally
+revokes earlier sessions on every login, so other use of the shared e2e account
+invalidated the monitor. The sessions were logged out/revoked and cookies emptied.
+The operator worker then used a continuous local asynchronous `/health` response
+probe (200 ms cadence, rolling 60 s maximum) for its 500 ms responsiveness guard. This
+is a conservative response-latency proxy, **not** the xray event-loop counter.
+No application code, auth policy, database setting or Mac service was changed.
+Existing media migration stayed active. Disk remained roughly 312 GiB free versus
+the 26 GiB floor. There was no manual cleanup or media deletion.
+
+Using the authorized e2e account, an actual production signed animation returned
+HTTP 200, image/webp, private immutable max-age 3600; decoded bytes were 21520,
+width 202, eight frames and an animated WebP. The existing browser-probe Playwright
+workflow was reused for the final UI check: two loaded animation images were
+visible with normal motion; switching the real browser reduced-motion setting
+removed all animated sources and retained 11 visible static images. The test
+session logged out with HTTP 200. Raw numeric evidence is appended in
+`deploy-measurements.json`; no capability or cookie is included.
+
+At final verification `/auth/xray` returned 200: last-window p99 **28.54ms**, max
+**581.24ms**, lifetime max **1801.28ms**. The earlier short-rollout zero-error
+observation is not a claim about the entire day: over the longer observation
+there were **four ingestion `package/slots` 500s**, correlated with four PostgreSQL
+idle-in-transaction kills at 14:02, 14:03, 14:29 and 14:54 UTC. Two preceded bulk
+backfill startup. Attribution to backfill is not established; this ingestion path
+is distinct from the media status/playback reads. The final **30-minute** window
+has **zero 5xx on either front door and zero idle-transaction kills**. The application
+remains healthy on the same deployed SHA; no code deployment or rollback occurred
+as part of backfill completion.
+
+The persistent backfill monitor is removed after publishing this completion
+record; no further encoding job or recurring backfill is installed.

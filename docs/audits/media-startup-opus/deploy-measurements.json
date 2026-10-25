@@ -582,5 +582,98 @@
     "posters_missing_visuals": 2335,
     "ready_animations": 0,
     "state": "deferred due to sustained I/O pressure; migration not paused"
+  },
+  "backfill_final": {
+    "worker_completion": {
+      "phase": "done",
+      "poster_cursor": 6729,
+      "animation_cursor": 6748,
+      "poster_scanned": 2335,
+      "animation_scanned": 2914,
+      "animations_generated": 2828,
+      "animation_failed": 1,
+      "batches": 4083,
+      "status": "complete",
+      "updated_at": "2026-10-25T18:48:39.581877+00:00",
+      "pid": 38559,
+      "io": {
+        "some": {
+          "avg10": 18.9,
+          "avg60": 18.48,
+          "avg300": 20.65,
+          "total": 1666364960771.0
+        },
+        "full": {
+          "avg10": 13.95,
+          "avg60": 9.93,
+          "avg300": 10.04,
+          "total": 1185159029417.0
+        }
+      },
+      "loop_lag": {
+        "source": "local async health response latency, not xray sampler",
+        "window_samples": 268,
+        "max_ms": 462.952783331275
+      },
+      "free_bytes": 335350018048,
+      "last_batch": {
+        "scanned": 0,
+        "generated": 0,
+        "failed": 0,
+        "after_id": 6748
+      },
+      "posters_remaining_incomplete": 0,
+      "ready_animations": 2828,
+      "monitor_session": "none; prior e2e session revoked"
+    },
+    "retry": {
+      "after_id": 4562,
+      "scanned": 1,
+      "generated": 1,
+      "failed": 0,
+      "cursor": 4563
+    },
+    "database_final": {
+      "posters_remaining_incomplete": 0,
+      "ready_animations": 2829
+    },
+    "production_verification": {
+      "signed_animation_http": 200,
+      "content_type": "image/webp",
+      "cache_control": "private, max-age=3600, immutable",
+      "bytes": 21520,
+      "width": 202,
+      "frames": 8,
+      "is_animated": true,
+      "ui": {
+        "production_visible_animated_images": 2,
+        "reduced_motion_animated_images": 0,
+        "reduced_motion_static_images": 11
+      },
+      "xray_status": 200,
+      "xray": {
+        "event_loop": {
+          "samples_total": 191664,
+          "over_100ms_total": 63,
+          "window_samples": 588,
+          "window_seconds": 60,
+          "p50_ms": 0.3,
+          "p99_ms": 28.54,
+          "max_ms": 581.24,
+          "lifetime_max_ms": 1801.28
+        }
+      },
+      "logout_http": 200
+    },
+    "last_30_minutes": {
+      "lan_5xx": 0,
+      "funnel_5xx": 0,
+      "postgres_idle_tx_kills": 0
+    },
+    "whole_period_after_restart": {
+      "lan_ingestion_package_slots_500": 4,
+      "postgres_idle_tx_kills": 4,
+      "last_correlated_error_utc": "2026-10-25T14:54:19Z"
+    }
   }
 }
