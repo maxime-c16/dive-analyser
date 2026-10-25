@@ -12,7 +12,7 @@ const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: '
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
 function showWithShell(entry: string, claim: () => () => void) {
-  render(<MobileShellContext.Provider value={{ actions: <span data-testid="shell-actions" />, claim }}><MemoryRouter initialEntries={[entry]}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter></MobileShellContext.Provider>)
+  return render(<MobileShellContext.Provider value={{ actions: <span data-testid="shell-actions" />, claim }}><MemoryRouter initialEntries={[entry]}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter></MobileShellContext.Provider>)
 }
 beforeEach(() => {
   sessionStorage.clear()
@@ -159,15 +159,25 @@ it('abandoning and retyping identical text before an old send completes preserve
   await act(async()=>resolve({...message,id:8,sender_id:1,body:'Again'}))
   expect(input).toHaveValue('Again');expect(JSON.parse(sessionStorage.getItem('message-draft:v1:1:3')!).body).toBe('Again')
 })
-it('claims the mobile shell in the inbox but not on a conversation page', async () => {
-  // The conversation heading is hidden on phones, so claiming there would
-  // remove the shell fallback bar while showing no actions (bell + avatar lost).
-  let claims = 0
-  const claim = () => { claims++; return () => { claims-- } }
-  showWithShell('/messages/3', claim)
-  await screen.findByText(message.body)
-  expect(claims).toBe(0)
-  expect(screen.queryByTestId('shell-actions')).toBeNull()
+it('claims the mobile shell exactly once on a conversation page, from its header on phones', async () => {
+  // Phones hide the page heading in a conversation; the conversation header
+  // takes the title row, so it carries the bell and avatar instead.
+  const width = window.innerWidth
+  try {
+    for (const viewport of [390, 1024]) {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewport })
+      let claims = 0
+      const claim = () => { claims++; return () => { claims-- } }
+      const { unmount } = showWithShell('/messages/3', claim)
+      await screen.findByText(message.body)
+      expect(claims).toBe(1)
+      const actions = screen.getByTestId('shell-actions')
+      expect(Boolean(actions.closest('.msg-thread-head'))).toBe(viewport < 768)
+      unmount()
+    }
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  }
 })
 it('claims the mobile shell in the inbox', async () => {
   let claims = 0

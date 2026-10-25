@@ -7,7 +7,7 @@ export type Message = {
   receipts: { user_id: number; delivered_at: string | null; read_at: string | null }[]
   reactions: { user_id: number; emoji: string }[]
 }
-export type Conversation = { id: number; kind: 'direct' | 'group'; members: MemberIdentity[]; updated_at?: string; unread_count?: number; latest?: Message | null }
+export type Conversation = { id: number; kind: 'direct' | 'group'; title?: string | null; members: MemberIdentity[]; updated_at?: string; unread_count?: number; latest?: Message | null }
 async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(`/api/v1/messages${path}`, { credentials: 'same-origin', cache: 'no-store', method,
     ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) })
@@ -22,3 +22,7 @@ export const getMessages = (id: number, before?: number) => request<{ items: Mes
 export const sendMessage = (id: number, value: { client_id: string; body?: string; mentions?: Mention[]; dive_id?: number }) => request<Message>(`/conversations/${id}/messages`, 'POST', value)
 export const acknowledgeMessages = (id: number, message_ids: number[], read: boolean) => request<void>(`/conversations/${id}/receipts`, 'POST', { message_ids, read })
 export const reactToMessage = (id: number, message: number, reacted: boolean) => request<Message>(`/conversations/${id}/messages/${message}/reaction`, 'PUT', { reacted })
+export const startGroup = (user_ids: number[], title = '') => request<{ id: number }>('/conversations/group', 'POST', { user_ids, title })
+/** Any group member may rename it; an empty title shows the members' names again. */
+export const renameGroup = (id: number, title: string) => request<{ title: string | null }>(`/conversations/${id}/title`, 'PUT', { title })
+export const leaveConversation = (id: number) => request<void>(`/conversations/${id}/leave`, 'POST')

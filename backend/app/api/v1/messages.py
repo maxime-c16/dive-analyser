@@ -17,7 +17,7 @@ from app.database import get_db
 from app.models.user_auth import AppUser
 from app.models.dive import Dive
 from app.models.media import MediaCacheEntry
-from app.models.direct_message import Conversation, ConversationParticipant, DirectMessage, MessageReceipt, MessageReaction
+from app.models.direct_message import Conversation, ConversationParticipant, ConversationTitle, DirectMessage, MessageReceipt, MessageReaction
 from app.services.mentions import MentionInput, validate_mentions
 from app.services.user_access import _dive_access
 from app.services.dive_access import owned_diver_ids
@@ -103,6 +103,82 @@ def start(payload: StartInput, user=Depends(writer), db: Session = Depends(get_d
     return dict(id=row.id)
 
 
+MAX_GROUP_MEMBERS = 16
+
+
+class GroupInput(BaseModel):
+    user_ids: list[int] = Field(min_length=2, max_length=MAX_GROUP_MEMBERS - 1)
+    title: str = Field('', max_length=60)
+
+
+class TitleInput(BaseModel):
+    title: str = Field('', max_length=60)
+
+
+def _clean_title(value: str) -> str:
+    return ' '.join(value.split())
+
+
+def _set_title(db, conversation_id: int, user_id: int, title: str):
+    row = db.get(ConversationTitle, conversation_id)
+    if not title:
+        if row is not None:
+            db.delete(row)
+        return
+    if row is None:
+        db.add(ConversationTitle(conversation_id=conversation_id, title=title, updated_by=user_id))
+    else:
+        row.title, row.updated_by, row.updated_at = title, user_id, datetime.utcnow()
+
+
+def _titles(db, ids) -> dict[int, str]:
+    return dict(db.query(ConversationTitle.conversation_id, ConversationTitle.title).filter(ConversationTitle.conversation_id.in_(ids)).all()) if ids else {}
+
+
+@router.post('/conversations/group', status_code=201)
+def start_group(payload: GroupInput, user=Depends(writer), db: Session = Depends(get_db)):
+    """A new group with you and at least two other active members.
+
+    Unlike direct conversations, groups are never deduplicated: the same
+    people may keep several groups (a training squad, a trip).
+    """
+    ids = sorted({i for i in payload.user_ids if i > 0} - {user.id})
+    if len(ids) < 2:
+        raise HTTPException(422, 'Choose at least two other members')
+    found = {row.id for row in db.query(AppUser.id).filter(AppUser.id.in_(ids), AppUser.is_active.is_(True)).all()}
+    if found != set(ids):
+        raise HTTPException(404, 'Member not found')
+    row = Conversation(kind='group')
+    db.add(row)
+    db.flush()
+    db.add_all([ConversationParticipant(conversation_id=row.id, user_id=i) for i in [user.id, *ids]])
+    _set_title(db, row.id, user.id, _clean_title(payload.title))
+    db.commit()
+    return dict(id=row.id)
+
+
+@router.put('/conversations/{id}/title')
+def rename_group(id: int, payload: TitleInput, user=Depends(writer), db: Session = Depends(get_db)):
+    """Any current member may name or rename a group; an empty title clears it."""
+    row = conversation(db, user, id, lock=True)
+    if row.kind != 'group':
+        raise HTTPException(409, 'Only groups have a name')
+    title = _clean_title(payload.title)
+    _set_title(db, id, user.id, title)
+    db.commit()
+    return dict(title=title or None)
+
+
+@router.post('/conversations/{id}/leave', status_code=204)
+def leave_group(id: int, user=Depends(writer), db: Session = Depends(get_db)):
+    """Leave a group: it disappears from your inbox and unread count; history stays for the others."""
+    row = conversation(db, user, id, lock=True)
+    if row.kind != 'group':
+        raise HTTPException(409, 'Only groups can be left')
+    db.query(ConversationParticipant).filter_by(conversation_id=id, user_id=user.id).update({'left_at': datetime.utcnow()})
+    db.commit()
+
+
 @router.get('/conversations')
 def inbox(before: str | None = None, limit: int = Query(30, ge=1, le=50), user=Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(Conversation).join(ConversationParticipant).filter(ConversationParticipant.user_id == user.id, ConversationParticipant.left_at.is_(None))
@@ -122,7 +198,8 @@ def inbox(before: str | None = None, limit: int = Query(30, ge=1, le=50), user=D
     latest_rows = db.query(DirectMessage).filter(DirectMessage.id.in_(latest_ids)).all()
     latest = {m['conversation_id']: m for m in message_payloads(db, user, latest_rows)}
     unread = dict(db.query(DirectMessage.conversation_id, func.count(MessageReceipt.message_id)).join(MessageReceipt, MessageReceipt.message_id == DirectMessage.id).filter(DirectMessage.conversation_id.in_(ids), MessageReceipt.user_id == user.id, MessageReceipt.read_at.is_(None)).group_by(DirectMessage.conversation_id).all())
-    items = [dict(id=row.id, kind=row.kind, members=members_by_conv.get(row.id, []), updated_at=iso(row.updated_at),
+    titles = _titles(db, ids)
+    items = [dict(id=row.id, kind=row.kind, title=titles.get(row.id), members=members_by_conv.get(row.id, []), updated_at=iso(row.updated_at),
                   unread_count=unread.get(row.id, 0), latest=latest.get(row.id)) for row in rows[:limit]]
     return dict(items=items, next_before=f'{rows[limit-1].updated_at.isoformat()},{rows[limit-1].id}' if len(rows) > limit else None)
 
@@ -152,7 +229,7 @@ def unread_count(user=Depends(get_current_user), db: Session = Depends(get_db)):
 def details(id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
     row = conversation(db, user, id)
     members = db.query(AppUser).join(ConversationParticipant, ConversationParticipant.user_id == AppUser.id).filter(ConversationParticipant.conversation_id == id, ConversationParticipant.left_at.is_(None)).all()
-    return dict(id=id, kind=row.kind, members=[_identity(u) for u in members])
+    return dict(id=id, kind=row.kind, title=_titles(db, [id]).get(id), members=[_identity(u) for u in members])
 
 
 @router.get('/conversations/{id}/messages')

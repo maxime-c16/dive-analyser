@@ -1,0 +1,8 @@
+{
+  "id": "messages-groups",
+  "date": "2026-10-25",
+  "title": "Messages, redesigned, with group chats",
+  "body": "Messages now look like the rest of the app: profile pictures, unread counts and times in the inbox, grouped bubbles and portrait dive cards in conversations, and a text box that stays above the keyboard. Start a group with two or more people, give it a name anyone can change, and leave it whenever you want.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

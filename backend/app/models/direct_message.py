@@ -1,4 +1,4 @@
-"""Participant-based conversations; direct creation today, groups later."""
+"""Participant-based conversations: direct (deduplicated per pair) and groups (named optionally)."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, UniqueConstraint, CheckConstraint, Index
 from app.database import Base
@@ -50,3 +50,16 @@ class MessageReaction(Base):
     message_id = Column(Integer, ForeignKey('direct_messages.id', ondelete='CASCADE'), primary_key=True)
     user_id = Column(Integer, ForeignKey('app_users.id', ondelete='CASCADE'), primary_key=True)
     emoji = Column(String(16), nullable=False, default='❤️')
+
+
+class ConversationTitle(Base):
+    """Optional group name, editable by any current member.
+
+    A separate table (not a column on conversations) so startup's create_all
+    adds it without a hand-applied migration; no row means "show the members".
+    """
+    __tablename__ = 'conversation_titles'
+    conversation_id = Column(Integer, ForeignKey('conversations.id', ondelete='CASCADE'), primary_key=True)
+    title = Column(String(60), nullable=False)
+    updated_by = Column(Integer, ForeignKey('app_users.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)

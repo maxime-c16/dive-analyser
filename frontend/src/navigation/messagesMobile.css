@@ -3,11 +3,6 @@
   .messages-page-thread > .messages-heading { display: none; }
   .messages-page-thread .messages-grid { display: flex; min-height: 0; }
   .message-thread { width: 100%; height: calc(100dvh - var(--message-top, 77px) - 20px); height: calc(var(--message-viewport-height, 100dvh) - var(--message-top, 77px) - 20px); }
-  .message-thread > header a { display: inline-flex; align-items: center; min-height: 44px; }
-  .message-thread > header { flex-shrink: 0; padding: 12px; }
   .message-history { flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain; }
   .message-composer { flex-shrink: 0; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-  .message-composer textarea { font-size: 16px; max-height: 120px; }
-  .message-composer button[type=submit] { min-width: 48px; min-height: 48px; }
-  .message-composer > p { display: none; }
 }
