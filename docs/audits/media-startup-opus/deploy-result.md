@@ -61,7 +61,7 @@ for this admin; `/auth/xray` returned 200. `/auth/me` carried
 | Poster latency | handler p50 1080 ms | authenticated legacy poster HTTP p50 **193 ms**, signed poster HTTP p50 **60 ms**, 15 samples each |
 | Event-loop freeze | 32 s | no such event observed; xray lifetime max **218.71 ms**, last-window p99 **13.01 ms** |
 | First MiB | D5 1.90 s | five matched, exactly-1-MiB Range responses: local median **0.482 s**, D5 grant+B2 median **1.133 s**, all 206 |
-| PostgreSQL idle-in-transaction kills | 2 in preceding 30 min | **0** since rollout preparation at 13:09:01 UTC, including after final restart |
+| PostgreSQL idle-in-transaction kills | 2 in preceding 30 min | **0 in the initial post-rollout observation**; **4 later kills** at 14:02–14:54 UTC; **0 in the final 30-minute window** (details below) |
 
 The browser script ran its six desktop/phone cold/warm phases with **zero aborted
 status calls**. `play_probe.py` and `play_compare.py` ran unchanged. The latter
