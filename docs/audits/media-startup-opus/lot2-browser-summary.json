@@ -1,0 +1,47 @@
+{
+  "baseline_commit": "58b6da76",
+  "implementation_commit": "a2b43d67",
+  "fixture_count": 11,
+  "fixture_poster_bytes": 1736326,
+  "fixture_thumb_bytes": 420934,
+  "injected_media_delay_ms_both_variants": 1080,
+  "http_cache_disabled_by_playwright_routing": true,
+  "results": {
+    "before": {
+      "1280x800": {
+        "visible_media_count": 3.0,
+        "visible_media_bytes": 475992.0,
+        "media_cache_bytes": 475992.0,
+        "media_cache_requests": 3.0,
+        "first_color": 1293.0,
+        "first_poster_loaded": 1293.0
+      },
+      "390x844": {
+        "visible_media_count": 3,
+        "visible_media_bytes": 475992,
+        "media_cache_bytes": 634110,
+        "media_cache_requests": 4,
+        "first_color": 1259,
+        "first_poster_loaded": 1259
+      }
+    },
+    "after": {
+      "1280x800": {
+        "visible_media_count": 3.0,
+        "visible_media_bytes": 116230.0,
+        "media_cache_bytes": 270302.0,
+        "media_cache_requests": 7.0,
+        "first_color": 168.0,
+        "first_poster_loaded": 1255.5
+      },
+      "390x844": {
+        "visible_media_count": 3,
+        "visible_media_bytes": 116230,
+        "media_cache_bytes": 309212,
+        "media_cache_requests": 8,
+        "first_color": 102,
+        "first_poster_loaded": 1192
+      }
+    }
+  }
+}

@@ -1,0 +1,380 @@
+[
+ {
+  "label": "desktop",
+  "phase": "cold",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 10,
+   "dcl": 118
+  },
+  "marks": {
+   "first_tile_media_in_dom": 178,
+   "first_poster_in_dom": 215,
+   "first_color": 225,
+   "lcp": 1336,
+   "first_poster_loaded": 1321
+  },
+  "key": {
+   "me": {
+    "start": 137,
+    "end": 147,
+    "dur": 10,
+    "bytes": 439
+   },
+   "library": {
+    "start": 181,
+    "end": 193,
+    "dur": 12,
+    "bytes": 4932
+   },
+   "divers": {
+    "start": 181,
+    "end": 194,
+    "dur": 13,
+    "bytes": 360
+   },
+   "batch": {
+    "start": 278,
+    "end": 284,
+    "dur": 6,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 23,
+    "end": 83,
+    "dur": 60,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 7,
+  "media_cache_bytes": 270302,
+  "media_cache_first_end": 1316,
+  "media_cache_last_end_before_8s": 1324,
+  "requests_first_5s": 20,
+  "bytes_first_5s": 492202,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/divers",
+   "/api/v1/dives/library",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ },
+ {
+  "label": "desktop",
+  "phase": "warm",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 5,
+   "dcl": 49
+  },
+  "marks": {
+   "first_poster_in_dom": 64,
+   "first_tile_media_in_dom": 64,
+   "first_color": 85,
+   "lcp": 1160,
+   "first_poster_loaded": 1155
+  },
+  "key": {
+   "me": {
+    "start": 50,
+    "end": 51,
+    "dur": 1,
+    "bytes": 439
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 121,
+    "end": 122,
+    "dur": 1,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 9,
+    "end": 43,
+    "dur": 34,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 7,
+  "media_cache_bytes": 270302,
+  "media_cache_first_end": 1154,
+  "media_cache_last_end_before_8s": 1157,
+  "requests_first_5s": 18,
+  "bytes_first_5s": 486910,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ },
+ {
+  "label": "desktop",
+  "phase": "cold",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 4,
+   "dcl": 44
+  },
+  "marks": {
+   "first_tile_media_in_dom": 74,
+   "first_poster_in_dom": 91,
+   "first_color": 111,
+   "lcp": 1200,
+   "first_poster_loaded": 1190
+  },
+  "key": {
+   "me": {
+    "start": 56,
+    "end": 58,
+    "dur": 2,
+    "bytes": 439
+   },
+   "library": {
+    "start": 75,
+    "end": 82,
+    "dur": 7,
+    "bytes": 4932
+   },
+   "divers": {
+    "start": 75,
+    "end": 82,
+    "dur": 7,
+    "bytes": 360
+   },
+   "batch": {
+    "start": 153,
+    "end": 154,
+    "dur": 1,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 6,
+    "end": 34,
+    "dur": 28,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 7,
+  "media_cache_bytes": 270302,
+  "media_cache_first_end": 1186,
+  "media_cache_last_end_before_8s": 1191,
+  "requests_first_5s": 20,
+  "bytes_first_5s": 492202,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/divers",
+   "/api/v1/dives/library",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ },
+ {
+  "label": "desktop",
+  "phase": "warm",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 4,
+   "dcl": 46
+  },
+  "marks": {
+   "first_poster_in_dom": 62,
+   "first_tile_media_in_dom": 62,
+   "first_color": 83,
+   "lcp": 1164,
+   "first_poster_loaded": 1156
+  },
+  "key": {
+   "me": {
+    "start": 48,
+    "end": 49,
+    "dur": 1,
+    "bytes": 439
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 119,
+    "end": 120,
+    "dur": 1,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 8,
+    "end": 40,
+    "dur": 32,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 7,
+  "media_cache_bytes": 270302,
+  "media_cache_first_end": 1154,
+  "media_cache_last_end_before_8s": 1159,
+  "requests_first_5s": 18,
+  "bytes_first_5s": 486910,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ },
+ {
+  "label": "phone",
+  "phase": "cold",
+  "viewport": "390x844",
+  "nav": {
+   "ttfb": 4,
+   "dcl": 46
+  },
+  "marks": {
+   "first_tile_media_in_dom": 75,
+   "first_poster_in_dom": 90,
+   "first_color": 102,
+   "lcp": 1204,
+   "first_poster_loaded": 1192
+  },
+  "key": {
+   "me": {
+    "start": 57,
+    "end": 59,
+    "dur": 2,
+    "bytes": 439
+   },
+   "library": {
+    "start": 76,
+    "end": 79,
+    "dur": 3,
+    "bytes": 4932
+   },
+   "divers": {
+    "start": 76,
+    "end": 79,
+    "dur": 3,
+    "bytes": 360
+   },
+   "batch": {
+    "start": 155,
+    "end": 156,
+    "dur": 1,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 6,
+    "end": 36,
+    "dur": 30,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 8,
+  "media_cache_bytes": 309212,
+  "media_cache_first_end": 1186,
+  "media_cache_last_end_before_8s": 1195,
+  "requests_first_5s": 21,
+  "bytes_first_5s": 531112,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/divers",
+   "/api/v1/dives/library",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ },
+ {
+  "label": "phone",
+  "phase": "warm",
+  "viewport": "390x844",
+  "nav": {
+   "ttfb": 6,
+   "dcl": 49
+  },
+  "marks": {
+   "first_poster_in_dom": 67,
+   "first_tile_media_in_dom": 67,
+   "first_color": 73,
+   "lcp": 1168,
+   "first_poster_loaded": 1158
+  },
+  "key": {
+   "me": {
+    "start": 51,
+    "end": 52,
+    "dur": 1,
+    "bytes": 439
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 122,
+    "end": 123,
+    "dur": 1,
+    "bytes": 2560
+   },
+   "js": {
+    "start": 10,
+    "end": 43,
+    "dur": 33,
+    "bytes": 197528
+   }
+  },
+  "visible_media_count": 3,
+  "visible_media_bytes": 116230,
+  "media_cache_requests": 8,
+  "media_cache_bytes": 309212,
+  "media_cache_first_end": 1156,
+  "media_cache_last_end_before_8s": 1161,
+  "requests_first_5s": 19,
+  "bytes_first_5s": 525820,
+  "aborted_status_calls": 0,
+  "api_paths": [
+   "/api/v1/auth/me",
+   "/api/v1/deposits/pending",
+   "/api/v1/media/cache/{id}/thumb",
+   "/api/v1/media/status/batch",
+   "/api/v1/messages/unread-count",
+   "/api/v1/notifications",
+   "/api/v1/updates",
+   "/api/v1/users/me/achievements/unseen"
+  ]
+ }
+]
