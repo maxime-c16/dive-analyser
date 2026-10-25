@@ -11,7 +11,8 @@ FastAPI runs it in the thread pool.
 import ast
 from pathlib import Path
 
-API = Path(__file__).resolve().parents[1] / "app" / "api"
+APP = Path(__file__).resolve().parents[1] / "app"
+API = APP / "api"
 ROUTE_METHODS = {"get", "post", "put", "patch", "delete", "api_route"}
 
 
@@ -32,3 +33,16 @@ def _offenders():
 
 def test_db_routes_without_await_are_sync():
     assert list(_offenders()) == []
+
+
+def test_no_async_db_function_without_await_anywhere():
+    """Dependencies too: the global member_access_context ran blocking SQL
+    on the loop for every request (async generator, no await)."""
+    offenders = []
+    for path in sorted(APP.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if (isinstance(node, ast.AsyncFunctionDef)
+                    and "db" in [a.arg for a in node.args.args + node.args.kwonlyargs]
+                    and not any(isinstance(x, (ast.Await, ast.AsyncFor, ast.AsyncWith)) for x in ast.walk(node))):
+                offenders.append(f"{path.relative_to(APP)}:{node.lineno} {node.name}")
+    assert offenders == []

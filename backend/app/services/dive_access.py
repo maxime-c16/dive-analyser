@@ -184,8 +184,15 @@ def protect_dive_ownership(db, flush_context, instances):
                 raise HTTPException(403, "Dive ownership cannot be transferred")
 
 
-async def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)):
-    """Install a fresh access context for one request, always removed on exit."""
+def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)):
+    """Install a fresh access context for one request, always removed on exit.
+
+    Synchronous on purpose: it runs on EVERY /api/v1 request and resolves
+    the session with blocking SQL. As an async generator it ran on the event
+    loop, so a pool wait during a burst froze the whole process (~30 s, until
+    PostgreSQL killed the idle transactions). FastAPI runs a sync generator
+    dependency in the thread pool and its exit without a capacity limit.
+    """
     from app.services.write_guard import _valid_machine_api_key
     path = request.url.path
     if (not get_settings().user_auth_enabled or path.startswith("/api/v1/auth/")
