@@ -1,0 +1,27 @@
+{
+  "select_ms": 1.0,
+  "commit_ms": 39.0,
+  "results": [
+    {
+      "variant": "async_blocking",
+      "posters": 15,
+      "last_poster_ms_median": 782.2,
+      "median_poster_ms_median": 420.9,
+      "me_during_burst_ms_median": 421.7
+    },
+    {
+      "variant": "threadpool",
+      "posters": 15,
+      "last_poster_ms_median": 65.8,
+      "median_poster_ms_median": 63.3,
+      "me_during_burst_ms_median": 17.1
+    },
+    {
+      "variant": "async_noview",
+      "posters": 15,
+      "last_poster_ms_median": 151.3,
+      "median_poster_ms_median": 86.1,
+      "me_during_burst_ms_median": 66.7
+    }
+  ]
+}
