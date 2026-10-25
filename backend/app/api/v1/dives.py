@@ -289,6 +289,34 @@ def library_codes(
     return summarize_library_query(db, query, datetime.now())
 
 
+@router.get("/library/codes/{dive_code}/community")
+def library_code_community(
+    dive_code: str, request: Request, db: Session = Depends(get_db),
+    height: str = Query("", max_length=20),
+):
+    """Other divers' public attempts on one code: ranking stats, recent series, best dive."""
+    from app.services.code_community import community_for_code
+    from app.services.dive_access import CONTEXT_KEY
+    code = dive_code.strip().upper()
+    if not code or len(code) > 12:
+        raise HTTPException(422, "Invalid dive code")
+    context = db.info.get(CONTEXT_KEY)
+    # Legacy single-diver deployments: "you" is the primary diver.
+    own = tuple(context["diver_ids"]) if context else (get_primary_diver(db).id,)
+    query = _filtered_dive_query(request, db, diver_scope="all", height=height, exclude_lineup=True)
+    payload = community_for_code(db, query, code, own)
+    best_ids = [member.pop("best_id") for member in payload["members"]]
+    best = {dive.id: dive for dive in db.query(Dive).options(Load(Dive).load_only(*LIST_COLUMNS, raiseload=True)).filter(Dive.id.in_(best_ids)).all()} if best_ids else {}
+    rows = {dive_id: _public_dive(dive, db) for dive_id, dive in best.items()}
+    visuals = _library_visuals(db, [row["video_uuid"] for row in rows.values() if row.get("video_uuid")])
+    for member, dive_id in zip(payload["members"], best_ids):
+        row = rows.get(dive_id)
+        if row:
+            row.update(visuals.get(row.get("video_uuid"), {}))
+        member["best"] = row
+    return payload
+
+
 @router.post("", status_code=201)
 def create_dive(
     dive: DiveCreate,

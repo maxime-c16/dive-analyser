@@ -1,0 +1,8 @@
+{
+  "id": "code-community",
+  "date": "2026-10-25",
+  "title": "See where you stand on each code",
+  "body": "A code's analysis now ranks you among the other divers with public attempts on that code. Tap someone to compare your progress curves, watch their best dive or open their full analysis. The ranking follows your height filter.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
