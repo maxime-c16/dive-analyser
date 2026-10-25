@@ -114,3 +114,22 @@ def test_unservable_candidates_do_not_wall_off_the_backlog(cache, monkeypatch):
                         lambda db, uuid, **kw: None if uuid != good.video_uuid else original(db, uuid, **kw))
     assert dpc.materialize_durable_posters(cache.db, limit=1)["cached"] == 1
     assert [r.photos_asset_id for r in _poster_rows(cache.db)] == [good.id]
+
+
+def test_source_change_during_download_discards_the_copy(cache, monkeypatch):
+    asset = _durable_clip(cache, 1)
+    real = dpc._download
+
+    def download_then_source_changes(item, dest):
+        size = real(item, dest)
+        from backend.tests.test_media_migration import _source
+
+        _source(cache.db, asset.video_uuid, b"new-camera-original")
+        cache.db.commit()
+        return size
+
+    monkeypatch.setattr(dpc, "_download", download_then_source_changes)
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["cached"] == 0 and out["skipped"] == 1
+    assert _poster_rows(cache.db) == []
+    assert not [p for p in cache.root.rglob("*") if p.is_file()]

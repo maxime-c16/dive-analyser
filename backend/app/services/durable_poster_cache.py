@@ -27,9 +27,10 @@ from app.models.photos_asset import PhotosAsset
 from app.services.media_keys import build_media_key
 
 BATCH = 40
-# Candidates examined per pass. Sampled in random order so clips that are
-# not (yet) servable can never wall off the rest of the backlog.
-SCAN = 400
+# Candidates resolved per pass (each D5 resolution is a handful of
+# queries). Sampled in random order so clips that are not (yet) servable
+# can never wall off the rest of the backlog.
+SCAN = 60
 MAX_POSTER_BYTES = 5 * 1024 * 1024
 # Keep the server cache above the package gate's floor.
 MIN_FREE_BYTES = 26 * 1024**3
@@ -58,6 +59,21 @@ def _candidates(db, limit: int) -> list[tuple[int, str]]:
         .limit(limit)
     ).all()
     return [(int(asset_id), uuid) for asset_id, uuid in rows]
+
+
+def _still_current(db, item: dict[str, Any]) -> bool:
+    """Re-resolve D5 in the inserting transaction: the poster must still be
+    the servable one for the clip's CURRENT source + transform."""
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+
+    clip = safe_resolve_clip_derivatives(db, item["video_uuid"])
+    decision = clip.roles.get("poster") if clip is not None else None
+    if decision is None or decision.state != "ready" or not decision.revision_id:
+        return False
+    revision = db.get(MediaRevision, decision.revision_id)
+    return (revision is not None and revision.blob_sha256.lower() == item["sha256"]
+            and clip.source_sha256 == item["source_sha256"]
+            and clip.transform_version == item["transform_version"])
 
 
 def _plan(db, limit: int) -> list[dict[str, Any]]:
@@ -157,7 +173,9 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             (MediaCacheEntry.media_key == media_key)
             | ((MediaCacheEntry.photos_asset_id == item["asset_id"]) & (MediaCacheEntry.rendition == "poster"))
         ).limit(1)).scalar_one_or_none()
-        if taken is not None:
+        if taken is not None or not _still_current(db, item):
+            # Already cached, or the source changed during the download:
+            # an old-source poster must never take the clip's cache key.
             db.rollback()
             tmp.unlink(missing_ok=True)
             counts["skipped"] += 1
