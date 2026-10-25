@@ -29,3 +29,9 @@ const ICONS: Record<string, LucideIcon> = {
 export const achievementIcon = (key: string): LucideIcon => ICONS[key] ?? Trophy
 
 export const isKnownAchievement = (key: string): boolean => key in ICONS
+
+/**
+ * Studio render of the achievement's trophy (tools/trophies/achievements.json,
+ * ~12 KB WebP in public/achievements). Never precached: only fetched when shown.
+ */
+export const achievementArt = (key: string): string | null => isKnownAchievement(key) ? `/achievements/${key}.webp` : null

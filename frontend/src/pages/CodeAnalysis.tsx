@@ -235,7 +235,7 @@ export default function CodeAnalysis() {
   return <>
   <div className="ca ca-page ca-arrive">
     <div className="ca-span">
-      <div className="ca-topbar"><button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{diverId ? t('codeAnalysis.community.backToMine') : fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</button>
+      <div className="ca-topbar"><button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{diverId ? ((location.state as { fromProfile?: boolean } | null)?.fromProfile ? t('common.back') : t('codeAnalysis.community.backToMine')) : fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</button>
       {diverId && <div className="ca-diver-chip">{diver && <MemberAvatar member={diver.account ?? { display_name: diverName(diver) }} size={32} />}<b>{diver ? diverName(diver) : '…'}</b></div>}</div>
       <div className="ca-hero">
         <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? ` · DD ${fmtScore(dd)}` : ''}</p></div>

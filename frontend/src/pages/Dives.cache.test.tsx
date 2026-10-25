@@ -72,3 +72,21 @@ it('keeps a matching card mounted and clickable while server filters refresh', a
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   finish({ data: { items: [attempt], next_cursor: null } });
 })
+
+it('keeps a direct-link clip open when the stale saved Library refreshes after resolving it', async () => {
+  data();
+  render(<MemoryRouter initialEntries={['/dives?scope=all']}><Dives /></MemoryRouter>).unmount();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const now = Date.now();
+  vi.spyOn(Date, 'now').mockReturnValue(now + 60_001);
+  const shared = { ...attempt, id: 99, dive_code: '305C', diver_id: 2, dive_datetime: '2025-01-05T10:00:00' };
+  let finish!: (result: unknown) => void;
+  const refresh = new Promise(resolve => { finish = resolve });
+  vi.mocked(api.get).mockImplementation((url: string) => url === '/api/v1/dives/library' ? refresh as any
+    : Promise.resolve({ data: url === '/api/v1/dives/99' ? shared : [] }));
+  render(<MemoryRouter initialEntries={['/dives?clip=99&scope=all']}><Dives /></MemoryRouter>);
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  finish({ data: { items: [attempt], next_cursor: null } });
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+});

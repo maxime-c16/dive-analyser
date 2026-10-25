@@ -41,7 +41,7 @@ def srgb(hex_):
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    opts = {"each": False, "lineup": None, "samples": 160, "dirs": []}
+    opts = {"each": False, "lineup": None, "samples": 160, "dirs": [], "res": (1600, 2000), "transparent": False}
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -53,6 +53,11 @@ def parse_args():
         elif a == "--samples":
             opts["samples"] = int(argv[i + 1])
             i += 1
+        elif a == "--res":
+            opts["res"] = (int(argv[i + 1]), int(argv[i + 2]))
+            i += 2
+        elif a == "--transparent":
+            opts["transparent"] = True
         else:
             opts["dirs"].append(Path(a))
         i += 1
@@ -278,7 +283,14 @@ def main():
             cam = add_camera(objs)
             lo, hi = bbox(objs)
             add_reflection_card(cam, (lo + hi) / 2, 1.0)
-            render(d / f"{d.name}.png", (1600, 2000))
+            if opts["transparent"]:
+                # App assets: alpha background, backdrop kept for light bounces but hidden from the camera.
+                bpy.context.scene.render.film_transparent = True
+                bpy.context.scene.render.image_settings.color_mode = "RGBA"
+                backdrop = bpy.data.objects.get("cyclorama")
+                if backdrop is not None:
+                    backdrop.visible_camera = False
+            render(d / f"{d.name}.png", opts["res"])
     if opts["lineup"]:
         reset_scene(opts["samples"])
         per_row = 5

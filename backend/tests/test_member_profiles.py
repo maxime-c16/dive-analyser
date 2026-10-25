@@ -190,3 +190,71 @@ def test_directory_dive_summary_matches_visible_grid(workspace):
         empty = next(row for row in rows if row['user_id'] == users['viewer'].id)
         assert empty['accessible_dive_count'] == 0
         assert empty['latest_dive_at'] is None
+
+
+def test_linked_accounts_are_flagged_for_the_viewer_only(workspace):
+    db, login, _, users, _ = workspace
+    alice_diver = db.query(UserDiverAccess).filter_by(user_id=users['alice'].id).one().diver_id
+    twin = AppUser(email='twin@example.test', display_name='twin', role='friend')
+    db.add(twin)
+    db.flush()
+    twin_id = twin.id
+    db.add(UserDiverAccess(user_id=twin_id, diver_id=alice_diver, access_kind='OWNER'))
+    db.commit()
+    flags = {item['user_id']: item['linked'] for item in login('alice').get('/api/v1/users').json()['items']}
+    assert flags[twin_id] is True and flags[users['bob'].id] is False
+    others = {item['user_id']: item['linked'] for item in login('bob').get('/api/v1/users').json()['items']}
+    assert others[twin_id] is False and others[users['alice'].id] is False
+    assert all(item['linked'] is False for item in login('viewer').get('/api/v1/users').json()['items'])
+
+
+def test_member_codes_follow_dive_visibility(workspace):
+    db, login, dives, users, session_id = workspace
+    diver = db.query(UserDiverAccess).filter_by(user_id=users['bob'].id).one().diver_id
+    db.add(Dive(session_id=session_id, diver_id=diver, dive_code='5122D', performance='P', performance_numeric=0, height='1m', dive_datetime=datetime(2026, 9, 1), visibility='public'))
+    db.add(Dive(session_id=session_id, diver_id=diver, dive_code='5122D', performance='G', performance_numeric=0, height='1m', dive_datetime=datetime(2026, 9, 2), visibility='public', is_lineup=True))
+    db.commit()
+    url = f"/api/v1/users/{users['bob'].id}/codes"
+    seen = login('viewer').get(url).json()
+    codes = {item['dive_code']: item for item in seen['codes']}
+    assert set(codes) == {'101B', '5122D'}
+    assert codes['101B']['attempt_count'] == 1  # the private 101B stays hidden
+    assert codes['5122D']['attempt_count'] == 1 and codes['5122D']['median'] == 10.0  # lineups excluded
+    assert seen['totals']['attempt_count'] == 2
+    own = login('bob').get(url).json()
+    assert {item['dive_code']: item['attempt_count'] for item in own['codes']}['101B'] == 2
+    assert own['totals']['attempt_count'] == 3
+    grid = login('viewer').get(f"/api/v1/users/{users['bob'].id}/dives").json()['items']
+    assert {'performance', 'phase1_performance', 'phase2_performance'} <= set(grid[0])
+    assert login('viewer').get('/api/v1/users/999999/codes').status_code == 404
+
+
+def test_leaderboard_counts_visible_dives_streaks_and_progress(workspace):
+    from datetime import timedelta
+    db, login, _, users, session_id = workspace
+    bob = db.query(UserDiverAccess).filter_by(user_id=users['bob'].id).one().diver_id
+    now = datetime.now()
+    def add(diver, days_ago, performance, visibility='public', lineup=False):
+        db.add(Dive(session_id=session_id, diver_id=diver, dive_code=f'10{days_ago % 3}C', performance=performance, performance_numeric=0, height='1m',
+                    dive_datetime=now - timedelta(days=days_ago, hours=1), visibility=visibility, is_lineup=lineup))
+    for day in range(1, 6):
+        add(bob, day, 'G')          # this week-ish: median 7
+    for day in range(8, 13):
+        add(bob, day, 'M')          # previous week: median 4.5
+    for weeks in (2, 3):
+        add(bob, weeks * 7 + 1, 'B')
+    add(bob, 1, 'P', visibility='private')
+    add(bob, 1, 'P', lineup=True)
+    db.commit()
+
+    board = login('viewer').get('/api/v1/users/leaderboard', params={'period': 'week'}).json()
+    entry = next(m for m in board['members'] if m['user_id'] == users['bob'].id)
+    # The fixture's public 101B (today) counts too; private and lineup dives never do.
+    assert entry['attempts'] == 6
+    assert entry['codes'] == 4 and entry['median'] == 7.0 and entry['delta'] == 2.5
+    assert entry['streak_weeks'] >= 3 and entry['avatar_hud']
+    month = login('viewer').get('/api/v1/users/leaderboard', params={'period': 'month'}).json()
+    assert next(m for m in month['members'] if m['user_id'] == users['bob'].id)['attempts'] == 13
+    own = login('bob').get('/api/v1/users/leaderboard').json()
+    assert next(m for m in own['members'] if m['user_id'] == users['bob'].id)['attempts'] == 8  # bob also sees his two private dives
+    assert login('viewer').get('/api/v1/users/leaderboard', params={'period': 'year'}).status_code == 422

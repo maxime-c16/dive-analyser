@@ -165,6 +165,35 @@ module star(r = 6, ri = 0.45, points = 5) {
              (i % 2 == 0 ? r : r * ri) * dir(90 + 180 * i / points)]);
 }
 
+// Heart: two discs and a point (app "like").
+module heart(s = 12) {
+    hull() { translate([-0.27 * s, 0.12 * s]) circle(r = 0.3 * s); translate([0, -0.52 * s]) circle(r = 0.02 * s); }
+    hull() { translate([0.27 * s, 0.12 * s]) circle(r = 0.3 * s); translate([0, -0.52 * s]) circle(r = 0.02 * s); }
+}
+
+// Speech bubble with a tail, optional three dots cut out (comments, messages).
+module bubble(w = 26, h = 18, r = 6, dots = true) {
+    difference() {
+        union() {
+            rrect([w, h], r);
+            polygon([[-w * 0.28, -h / 2 + 1], [-w * 0.36, -h / 2 - 6], [-w * 0.08, -h / 2 + 1]]);
+        }
+        if (dots) for (x = [-w * 0.24, 0, w * 0.24]) translate([x, 0]) circle(r = h * 0.11);
+    }
+}
+
+// Camera: body, viewfinder bump and a lens ring (profile photo).
+module camera(w = 30, h = 20) {
+    difference() {
+        union() {
+            rrect([w, h], 3.5);
+            translate([0, h / 2]) rrect([w * 0.36, 5], 1.5);
+        }
+        circle(r = h * 0.32);
+    }
+    circle(r = h * 0.18);
+}
+
 module sparkle(r = 4) {
     polygon([for (i = [0 : 7]) (i % 2 == 0 ? r : r * 0.22) * dir(90 + 45 * i)]);
 }

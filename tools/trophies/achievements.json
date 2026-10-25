@@ -1,0 +1,67 @@
+{
+  "_doc": "App achievements (frontend achievementCatalog.ts keys) as trophies. Rendered small for the profile; see README 'Succès de l'app'. Finish by category: profile teal, community silver, jury gold, dives bronze.",
+  "defaults": {"owner": "", "date": "", "brand": "DIVESENSEI"},
+  "trophies": [
+    {"id": "profile_photo", "title": "PHOTO", "finish": "teal", "layers": [
+      {"shape": "camera", "at": [0, 2], "args": {"w": 32, "h": 21}, "h": 2.2},
+      {"shape": "sparkle", "at": [16, 15], "args": {"r": 3.2}, "h": 1.6},
+      {"shape": "water", "at": [0, -20], "args": {"w": 44, "rows": 1, "t": 2.0}, "h": 1.0}]},
+    {"id": "profile_handle", "title": "PSEUDO", "finish": "teal", "layers": [
+      {"shape": "text", "text": "@", "at": [0, -1], "args": {"size": 30, "max_w": 40}, "h": 2.2},
+      {"shape": "sparkle", "at": [17, 14], "args": {"r": 3}, "h": 1.6}]},
+    {"id": "profile_bio", "title": "BIO", "finish": "teal", "layers": [
+      {"shape": "bubble", "at": [0, 3], "args": {"w": 34, "h": 22, "r": 6, "dots": false}, "h": 1.4},
+      {"shape": "text", "text": "Aa", "at": [0, 1], "args": {"size": 12, "max_w": 24}, "h": 2.4}]},
+    {"id": "profile_complete", "title": "PROFIL COMPLET", "finish": "teal", "layers": [
+      {"shape": "laurel", "at": [0, -2], "args": {"r": 24}, "h": 1.4},
+      {"shape": "laurel", "at": [0, -2], "mirror_x": true, "args": {"r": 24}, "h": 1.4},
+      {"shape": "check", "at": [0, 0], "args": {"s": 22, "t": 4.2}, "h": 2.4}]},
+    {"id": "first_like", "title": "PREMIER J'AIME", "finish": "silver", "layers": [
+      {"shape": "heart", "at": [0, 2], "args": {"s": 30}, "h": 2.4},
+      {"shape": "sparkle", "at": [16, 15], "args": {"r": 3.4}, "h": 1.6}]},
+    {"id": "likes_25", "title": "25 J'AIME", "finish": "silver", "layers": [
+      {"shape": "heart", "at": [-8, 7], "args": {"s": 18}, "h": 1.6},
+      {"shape": "heart", "at": [9, 9], "args": {"s": 13}, "h": 1.4},
+      {"shape": "text", "text": "25", "at": [0, -13], "args": {"size": 15, "max_w": 30}, "h": 2.4}]},
+    {"id": "first_comment", "title": "PREMIER COMMENTAIRE", "finish": "silver", "layers": [
+      {"shape": "bubble", "at": [0, 3], "args": {"w": 36, "h": 24, "r": 7}, "h": 2.2}]},
+    {"id": "first_reply", "title": "PREMIÈRE RÉPONSE", "finish": "silver", "layers": [
+      {"shape": "bubble", "at": [-6, 8], "args": {"w": 28, "h": 18, "r": 6}, "h": 1.5},
+      {"shape": "bubble", "at": [7, -7], "rot": 180, "args": {"w": 26, "h": 17, "r": 6, "dots": false}, "h": 2.3}]},
+    {"id": "comments_10", "title": "10 COMMENTAIRES", "finish": "silver", "layers": [
+      {"shape": "bubble", "at": [0, 7], "args": {"w": 32, "h": 20, "r": 6, "dots": false}, "h": 1.6},
+      {"shape": "text", "text": "10", "at": [0, 7], "args": {"size": 12, "max_w": 22}, "h": 2.4},
+      {"shape": "sparkle", "at": [-15, -13], "args": {"r": 3}, "h": 1.4},
+      {"shape": "sparkle", "at": [15, -13], "args": {"r": 2.4}, "h": 1.4}]},
+    {"id": "first_mention", "title": "PREMIÈRE MENTION", "finish": "silver", "layers": [
+      {"shape": "bubble", "at": [0, 3], "args": {"w": 34, "h": 23, "r": 7, "dots": false}, "h": 1.4},
+      {"shape": "text", "text": "@", "at": [0, 1], "args": {"size": 17, "max_w": 24}, "h": 2.4}]},
+    {"id": "first_message", "title": "PREMIER MESSAGE", "finish": "silver", "layers": [
+      {"shape": "arrow", "args": {"a": [-15, -10], "b": [13, 10], "t": 3.2, "head": 9}, "h": 2.3},
+      {"shape": "wave", "at": [-6, -16], "args": {"w": 26, "amp": 1.6, "periods": 1.5, "t": 2}, "h": 1.2},
+      {"shape": "sparkle", "at": [-14, 13], "args": {"r": 3}, "h": 1.6}]},
+    {"id": "first_like_received", "title": "J'AIME REÇU", "finish": "silver", "layers": [
+      {"shape": "heart", "at": [0, 0], "args": {"s": 26}, "h": 2.4},
+      {"shape": "sparkle", "at": [-16, 14], "args": {"r": 3.4}, "h": 1.6},
+      {"shape": "sparkle", "at": [17, 10], "args": {"r": 2.6}, "h": 1.6},
+      {"shape": "sparkle", "at": [12, -17], "args": {"r": 2.2}, "h": 1.4}]},
+    {"id": "first_comment_received", "title": "COMMENTAIRE REÇU", "finish": "silver", "layers": [
+      {"shape": "bubble", "at": [0, 2], "args": {"w": 32, "h": 21, "r": 6}, "h": 2.2},
+      {"shape": "sparkle", "at": [-16, 15], "args": {"r": 3.2}, "h": 1.6},
+      {"shape": "sparkle", "at": [16, 15], "args": {"r": 2.4}, "h": 1.6}]},
+    {"id": "first_rating", "title": "PREMIÈRE NOTE", "finish": "gold", "layers": [
+      {"shape": "star", "at": [0, 4], "args": {"r": 15}, "h": 2.4},
+      {"shape": "water", "at": [0, -18], "args": {"w": 44, "rows": 1, "t": 2.0}, "h": 1.0}]},
+    {"id": "ratings_10", "title": "10 NOTES", "finish": "gold", "layers": [
+      {"shape": "bars", "at": [-12, -16], "args": {"heights": [8, 13, 18, 24], "w": 5, "gap": 2.4}, "h": 1.6},
+      {"shape": "star", "at": [11, 9], "args": {"r": 9}, "h": 2.4},
+      {"shape": "text", "text": "10", "at": [11, -12], "args": {"size": 10, "max_w": 18}, "h": 2.0}]},
+    {"id": "first_evaluation_request", "title": "AVIS DEMANDÉ", "finish": "gold", "layers": [
+      {"shape": "diver", "pose": "pike", "at": [-4, 6], "s": 0.55, "h": 2.2},
+      {"shape": "check", "at": [12, -9], "args": {"s": 13, "t": 3.4}, "h": 2.2},
+      {"shape": "water", "at": [0, -21], "args": {"w": 44, "rows": 1, "t": 2.0}, "h": 1.0}]},
+    {"id": "first_share", "title": "PREMIER PARTAGE", "finish": "bronze", "layers": [
+      {"shape": "arc_arrow", "at": [0, 0], "args": {"r": 15, "t": 3.2, "a0": 30, "a1": 300, "head": 8}, "h": 2.3},
+      {"shape": "diver", "pose": "tuck", "at": [0, 1], "s": 0.32, "h": 1.8}]}
+  ]
+}

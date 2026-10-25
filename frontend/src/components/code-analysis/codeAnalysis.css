@@ -73,7 +73,9 @@
 .ca-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-border); }
 .ca-kpi { padding: 12px 12px 14px; background: var(--app-panel); }
 .ca-kpi dt { font-size: 12px; color: var(--app-muted); }
-.ca-kpi dd { margin: 4px 0 0; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--app-text); }
+/* Proportional figures: tabular ones pad a leading 1 ("171", "10") so it sits right of its label. */
+.ca-kpi dd { margin: 4px 0 0; font-size: 24px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: proportional-nums; color: var(--app-text); }
+.ca-kpi-unit { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--app-muted); }
 @media (max-width: 380px) { .ca-kpi { padding: 10px; } .ca-kpi dd { font-size: 20px; } }
 .ca-sample { margin-top: 6px; font-size: 12px; color: var(--app-muted); }
 .ca-focus { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; padding: 12px; border: 1px solid color-mix(in srgb, var(--app-accent) 60%, transparent); border-radius: var(--ca-r); background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--app-accent) 16%, transparent), transparent 70%), var(--app-panel); color: inherit; text-align: left; }

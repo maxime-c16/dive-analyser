@@ -34,7 +34,7 @@ RENDER_SCRIPT = HERE / "render_blender.py"
 MODULE_SHAPES = {
     "wave", "water", "splash", "ripples", "star", "sparkle", "check", "flame",
     "diamond", "arc_arrow", "arrow", "chart", "bars", "tower", "springboard",
-    "laurel", "peak", "circle",
+    "laurel", "peak", "circle", "heart", "bubble", "camera",
 }
 
 
@@ -164,6 +164,8 @@ def main() -> None:
     ap.add_argument("--lineup", action="store_true", help="render a group shot of the built trophies")
     ap.add_argument("--sheet", action="store_true", help="fast flat review sheet of the emblems")
     ap.add_argument("--samples", type=int, default=160)
+    ap.add_argument("--res", type=int, nargs=2, metavar=("W", "H"), help="render size (default 1600 2000)")
+    ap.add_argument("--transparent", action="store_true", help="alpha background for app assets")
     ap.add_argument("--jobs", type=int, default=4)
     args = ap.parse_args()
 
@@ -201,6 +203,10 @@ def main() -> None:
                "--samples", str(args.samples)]
         if args.render:
             cmd += ["--each"]
+        if args.res:
+            cmd += ["--res", str(args.res[0]), str(args.res[1])]
+        if args.transparent:
+            cmd += ["--transparent"]
         if args.lineup:
             cmd += ["--lineup", str(args.out / "lineup.png")]
         cmd += [str(d) for d in dirs]
