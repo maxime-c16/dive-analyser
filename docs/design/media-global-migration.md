@@ -196,3 +196,15 @@ ignores them. Nothing is purged; produced packages stay valid.
 
 Release notes: none — background operational migration; the user-visible
 playback contract already shipped (durable-library-playback).
+
+### Grid posters
+
+The Library grid serves posters from the local cache only (nginx X-Accel,
+browser-cacheable, no B2 grant/HEAD/302 per tile). Measured 2026-10-25: a
+B2 poster tile would cost a cold provider HEAD (~2.2 s), a ~0.4 s B2 GET and
+an uncacheable `no-store` redirect on every visit. Each `tick` therefore also
+copies up to 40 durable posters (D5-servable, trusted replica, SHA-256
+verified against the ledger) into the cache as pinned `poster` rows, once
+per clip, without ever replacing an existing poster row and only while the
+cache filesystem keeps more than 26 GiB free
+(`app/services/durable_poster_cache.py`).

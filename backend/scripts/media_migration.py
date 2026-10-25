@@ -5,7 +5,8 @@ Run inside the backend container (uses its DATABASE_URL):
 
     inventory [--json]                 read-only exact classification, no writes
     start --budget-gib N [--queue-depth 2] [--priority 70] [--admission-cap N]
-    tick                               one bounded controller pass (timer, every minute)
+    tick                               one bounded controller pass (timer, every minute),
+                                       then copy up to 40 durable posters into the grid cache
     status [--json]                    run, items, gates, budget, throughput, failures
     pause --reason TEXT                stop admitting; withdraw not-yet-leased jobs
     resume                             admit again (gates still apply)
@@ -27,6 +28,18 @@ import app.models  # noqa: E402,F401  (register every mapped table)
 from app.services import media_migration as mm  # noqa: E402
 
 GIB = 1024**3
+
+
+def _materialize_posters(factory):
+    """Durable posters -> local grid cache (bounded; never fails the tick)."""
+    from app.services.durable_poster_cache import materialize_durable_posters
+
+    with factory() as db:
+        try:
+            return materialize_durable_posters(db)
+        except Exception as exc:  # noqa: BLE001 - type only, never bound values
+            db.rollback()
+            return {"status": "failed", "error": type(exc).__name__}
 
 
 def _factory(url):
@@ -130,6 +143,7 @@ def main(argv=None) -> int:
             if args.cmd == "tick":
                 result = mm.tick(db)
                 db.commit()
+                result["posters"] = _materialize_posters(factory)
                 print(json.dumps(result, sort_keys=True, default=str))
                 return 0
             if args.cmd == "start":

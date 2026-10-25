@@ -278,3 +278,14 @@ def test_killed_tick_leaves_no_partial_state(pg):
         out = mm.tick(d)
         d.commit()
         assert out["status"] == "ok" and out["admission"]["admitted"] == 2
+
+
+def test_durable_poster_candidates_query_runs_on_postgres(pg):
+    """The grid-poster candidate query (EXISTS + random order) is valid SQL."""
+    from app.services import durable_poster_cache as dpc
+
+    engine, factory = pg
+    _seed(factory, 2)
+    with factory() as d:
+        assert dpc._candidates(d, 10) == []
+        assert dpc._drifted(d, 5) == []

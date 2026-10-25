@@ -1,0 +1,8 @@
+{
+  "id": "library-durable-posters",
+  "date": "2026-10-25",
+  "title": "Library thumbnails without video loading",
+  "body": "Library thumbnails now show a still image for almost every dive instead of loading a video to display the first frame, so the grid fills faster and uses less data.",
+  "audience": "all",
+  "components": ["backend"]
+}
