@@ -23,9 +23,18 @@ export type CodeCommunity = { dive_code: string; members: CommunityMember[]; hid
 const FRESH_MS = 60_000
 const cache = new Map<string, { at: number; promise: Promise<CodeCommunity> }>()
 
-/** `height` follows the page's height filter: 1m and 3m are not compared with each other. */
-export function getCodeCommunity(code: string, height = ''): Promise<CodeCommunity> {
-  const key = `${code}|${height}`
+/** Viewer-scoped entries must never leak across accounts (see libraryKey). */
+export function clearCodeCommunityCache() {
+  cache.clear()
+}
+
+/**
+ * `height` follows the page's height filter: 1m and 3m are not compared with
+ * each other. `viewer` scopes the cache to the signed-in account because the
+ * response omits that viewer's own divers — pass `libraryKey(user)`.
+ */
+export function getCodeCommunity(code: string, height = '', viewer: string | null = null): Promise<CodeCommunity> {
+  const key = `${viewer ?? 'anon'}|${code}|${height}`
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < FRESH_MS) return hit.promise
   const promise = api.get(`/api/v1/dives/library/codes/${encodeURIComponent(code)}/community`, { params: height ? { height } : {} }).then(response => response.data as CodeCommunity)

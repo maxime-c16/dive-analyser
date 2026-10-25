@@ -11,7 +11,7 @@ import CommunityPanel, { diverName, useMedia, type CommunityRow } from '../compo
 import MemberAvatar from '../components/MemberAvatar'
 import { CountUp, RatingBar, ratingCounts, ScoreChip, Segmented, Sparkline } from '../components/code-analysis/parts'
 import { diveCodeName } from '../i18n/diveNames'
-import { clearLibraryCache } from '../services/libraryCache'
+import { clearLibraryCache, libraryKey } from '../services/libraryCache'
 import { getCodeCommunity, type CodeCommunity } from '../services/codeCommunityApi'
 import { clearCodeSummaryCache, getCodeAttempts, getCodeSummaries, peekCodeAttempts, peekCodeSummaries, type CodeSummary } from '../services/codeSummariesApi'
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
@@ -88,6 +88,9 @@ export default function CodeAnalysis() {
   const [community, setCommunity] = useState<CodeCommunity | null>(null)
   // The community follows the height filter only: periods would empty sparse histories.
   const communityHeight = params.get('h') || ''
+  // The community response omits the viewer's own divers, so the cache entry
+  // belongs to one signed-in account (same viewer key as the Library cache).
+  const viewerKey = useMemo(() => libraryKey(user), [user])
   const desktop = useMedia('(min-width: 1024px)')
 
   useEffect(() => {
@@ -101,9 +104,9 @@ export default function CodeAnalysis() {
   useEffect(() => {
     let live = true
     setCommunity(null)
-    if (isAnalyticsCode(code)) getCodeCommunity(code, communityHeight).then(data => { if (live) setCommunity(data) }).catch(() => undefined)
+    if (isAnalyticsCode(code)) getCodeCommunity(code, communityHeight, viewerKey).then(data => { if (live) setCommunity(data) }).catch(() => undefined)
     return () => { live = false }
-  }, [code, communityHeight])
+  }, [code, communityHeight, viewerKey])
 
   const period = (params.get('period') as Period) || 'all'
   const height = params.get('h') || ''
@@ -158,13 +161,17 @@ export default function CodeAnalysis() {
   const trend = recentTrend(all.filter(item => item.performance), attemptScore, ts, now)
   const related = useMemo(() => summaries && !diverId ? relatedCodes(code, summaries) : [], [code, summaries, diverId])
   const diver = diverId ? community?.members.find(member => member.diver_id === diverId) ?? null : null
-  // You in the community ranking: every graded attempt, like the other divers.
+  // You in the community ranking: every graded attempt on YOUR divers only. The
+  // page scope can be 'all', which also carries the other divers' public
+  // attempts, and the community endpoint already excludes your divers —
+  // counting them here too would rank the community aggregate as "you".
+  const ownIds = useMemo(() => new Set((user?.divers ?? []).filter(diver => diver.access_kind === 'OWNER').map(diver => diver.diver_id)), [user])
   const meRow = useMemo<CommunityRow | null>(() => {
-    const graded = all.filter(item => item.performance && (!communityHeight || item.height === communityHeight)).map(attemptScore)
+    const graded = all.filter(item => item.diver_id != null && ownIds.has(item.diver_id) && item.performance && (!communityHeight || item.height === communityHeight)).map(attemptScore)
     if (diverId || graded.length < 3 || !user) return null
     return { key: 'me', name: user.display_name, avatar: user, count: graded.length, median: median(graded) as number,
       q1: quantile(graded, 0.25) as number, q3: quantile(graded, 0.75) as number, series: rolling(graded.slice(-40), 5) }
-  }, [all, diverId, user, communityHeight])
+  }, [all, diverId, user, communityHeight, ownIds])
 
   // The attempt the preview describes: the tapped point, or the best/worst inside a tapped peak/valley.
   const preview = useMemo(() => {
