@@ -229,6 +229,29 @@ def test_member_codes_follow_dive_visibility(workspace):
     assert login('viewer').get('/api/v1/users/999999/codes').status_code == 404
 
 
+def test_leaderboard_bounds_response_and_keeps_zero_viewer(workspace):
+    from datetime import timedelta
+    db, login, _, users, session_id = workspace
+    now = datetime.now()
+    for index in range(12):
+        user = AppUser(email=f'racer{index}@example.test', display_name=f'racer{index}', role='friend')
+        db.add(user)
+        db.flush()
+        diver = Diver(display_name=f'racer{index}', canonical_name=f'racer{index}')
+        db.add(diver)
+        db.flush()
+        db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind='OWNER'))
+        db.add(Dive(session_id=session_id, diver_id=diver.id, dive_code='101B', performance='G', performance_numeric=0, height='1m',
+                    dive_datetime=now - timedelta(days=1, hours=index), visibility='public'))
+    db.commit()
+    board = login('viewer').get('/api/v1/users/leaderboard', params={'period': 'week'}).json()
+    # 12 racers plus alice and bob would be 14 members: only the top 10 plus
+    # the viewer (who has no dives at all) stay in the response.
+    assert len(board['members']) == 11
+    me = next(m for m in board['members'] if m['user_id'] == users['viewer'].id)
+    assert (me['attempts'], me['sessions'], me['codes'], me['median'], me['delta'], me['streak_weeks'], me['last_attempt_at']) == (0, 0, 0, None, None, 0, None)
+
+
 def test_leaderboard_counts_visible_dives_streaks_and_progress(workspace):
     from datetime import timedelta
     db, login, _, users, session_id = workspace

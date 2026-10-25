@@ -42,8 +42,9 @@ export default function Leaderboard({ excluded, me }: { excluded: Set<number>; m
 
   const spec = CATEGORIES.find(item => item.key === category)!
   const ranked = useMemo(() => (board?.members ?? [])
-    .filter(member => !excluded.has(member.user_id) && spec.value(member) > 0)
-    .sort((a, b) => spec.value(b) - spec.value(a) || b.attempts - a.attempts), [board, excluded, spec])
+    // The viewer stays visible (highlighted below the top 10) even with a zero score.
+    .filter(member => !excluded.has(member.user_id) && (spec.value(member) > 0 || member.user_id === me))
+    .sort((a, b) => spec.value(b) - spec.value(a) || b.attempts - a.attempts), [board, excluded, me, spec])
   const top = ranked.slice(0, 3)
   const rest = ranked.slice(3, 10)
   const mine = me != null ? ranked.findIndex(member => member.user_id === me) : -1

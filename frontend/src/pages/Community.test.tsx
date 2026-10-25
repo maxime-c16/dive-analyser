@@ -66,6 +66,21 @@ describe('Community discovery', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 
+  it('keeps you on the board with a zero score and pages search results', async () => {
+    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
+    api(url => url.includes('after=2')
+      ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex' }], next_after: null }
+      : { items: [fanny], next_after: 2 },
+      { ...board, members: [member(2, 'Fanny', 12), member(1, 'Me', 0)] })
+    renderPage()
+    expect(await screen.findByRole('list', { name: 'Podium' })).toHaveTextContent('You')
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('searchbox'), 'a')
+    await screen.findByRole('link', { name: /Fanny/ })
+    await user.click(screen.getByRole('button', { name: 'Load more members' }))
+    expect(await screen.findByRole('link', { name: /Alex/ })).toBeInTheDocument()
+  })
+
   it('reads every directory page before sorting it', async () => {
     api(url => url.includes('after=2')
       ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex', handle: 'alex' }], next_after: null }

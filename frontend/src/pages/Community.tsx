@@ -36,6 +36,8 @@ export default function Community() {
   const q = params.get('q') ?? ''
   const [directory, setDirectory] = useState<MemberSummary[] | null>(null)
   const [results, setResults] = useState<MemberSummary[] | null>(null)
+  const [searchAfter, setSearchAfter] = useState<number | null>(null)
+  const [searchingMore, setSearchingMore] = useState(false)
   const [error, setError] = useState(false)
   const [retry, setRetry] = useState(0)
   const [showAll, setShowAll] = useState(false)
@@ -49,15 +51,29 @@ export default function Community() {
   }, [retry])
 
   useEffect(() => {
-    if (!q) { setResults(null); return }
+    if (!q) { setResults(null); setSearchAfter(null); return }
     const current = ++generation.current
     const controller = new AbortController()
+    setResults(null); setSearchAfter(null)
     const timer = window.setTimeout(() => {
-      searchMembers(q, undefined, controller.signal).then(page => { if (current === generation.current) setResults(page.items) })
+      searchMembers(q, undefined, controller.signal).then(page => { if (current === generation.current) { setResults(page.items); setSearchAfter(page.next_after) } })
         .catch(() => { if (!controller.signal.aborted) setError(true) })
     }, 220)
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [q])
+
+  async function moreResults() {
+    if (!q || searchAfter == null || searchingMore) return
+    const current = generation.current
+    setSearchingMore(true); setError(false)
+    try {
+      const page = await searchMembers(q, searchAfter)
+      if (current !== generation.current) return
+      setResults(previous => [...(previous ?? []), ...page.items])
+      setSearchAfter(page.next_after)
+    } catch { if (current === generation.current) setError(true) }
+    finally { if (current === generation.current) setSearchingMore(false) }
+  }
 
   const me = user?.user_id
   // Peers only: never you, never accounts bound to your own diver.
@@ -95,7 +111,9 @@ export default function Community() {
     {error && <p role="alert" className="cm-alert">{t('community.error')} <button type="button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></p>}
 
     {q ? <section className="cm-list" aria-label={t('community.results')}>
-      {results === null ? <PageLoading /> : results.length ? results.map(row) : <p className="cm-empty">{t('community.empty')}</p>}
+      {results === null ? <PageLoading /> : results.length ? <>{results.map(row)}
+        {searchAfter != null && <button type="button" onClick={() => void moreResults()} disabled={searchingMore} className="ca-pill cm-more">{searchingMore ? t('common.loading') : t('community.more')}</button>}</>
+        : <p className="cm-empty">{t('community.empty')}</p>}
     </section> : directory === null ? <PageLoading /> : <>
       {recent.length > 0 && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
         <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}</h2>

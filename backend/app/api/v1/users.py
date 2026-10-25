@@ -145,7 +145,7 @@ def community_leaderboard(period: Literal["week", "month"] = "week",
                           user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """Per-member activity, form and streaks for the Community rankings (dives visible to me)."""
     from app.services.community_leaderboard import leaderboard
-    return leaderboard(db, visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)), period, datetime.now())
+    return leaderboard(db, visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)), period, datetime.now(), viewer_id=user.id)
 
 
 @router.put("/me/profile")
