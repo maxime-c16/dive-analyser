@@ -1,5 +1,5 @@
-// Real prod frontend via Funnel, e2e session. Single /media/{uuid}/status GETs are
-// aborted (they can trigger the advisory-lock freeze); everything else is real.
+// Real prod frontend via Funnel, e2e session. Requests are unmodified by default.
+// PROBE_ABORT_STATUS=1 reproduces the historical audit workaround only.
 const { chromium } = require(process.env.PW_PATH);
 const fs = require('fs');
 const BASE = process.env.BASE, COOKIE = process.env.DA_COOKIE;
@@ -44,7 +44,7 @@ async function run(browser, label, viewport, warm) {
       else if (path.endsWith('/updates')) body = {notes:[]};
       return route.fulfill({json:body});
     });
-  } else await ctx.route(STATUS_RE, r => r.abort());
+  } else if (process.env.PROBE_ABORT_STATUS === '1') await ctx.route(STATUS_RE, r => r.abort());
   const page = await ctx.newPage();
   const results = [];
   for (const phase of warm ? ['cold', 'warm'] : ['cold']) {
