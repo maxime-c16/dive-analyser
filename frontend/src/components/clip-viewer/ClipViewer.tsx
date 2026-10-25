@@ -40,6 +40,7 @@ import DownloadDiveButton from "./DownloadDiveButton";
 import { useDiveSocial } from "./useDiveSocial";
 import { useNavigationIntent } from "../../hooks/useNavigationIntent";
 import { getCodeAttempts } from "../../services/codeSummariesApi";
+import { libraryKey } from "../../services/libraryCache";
 import { useAuth } from "../../contexts/AuthContext";
 import "./clipViewer.css";
 
@@ -298,7 +299,7 @@ export default function ClipViewer({
   const analysisIntent = useNavigationIntent(
     `/dives/analysis/${attempt.dive_code}?attempt=${attempt.id}`,
     () => {
-      void getCodeAttempts(attempt.dive_code, user?.divers?.length ? 'self' : 'all').catch(() => undefined);
+      void getCodeAttempts(attempt.dive_code, user?.divers?.length ? 'self' : 'all', libraryKey(user)).catch(() => undefined);
       return Promise.resolve();
     },
   );

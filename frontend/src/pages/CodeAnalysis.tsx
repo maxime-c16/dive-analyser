@@ -77,9 +77,13 @@ export default function CodeAnalysis() {
   const diverId = Number(params.get('diver')) || null
   const scope = diverId ? 'all' : params.get('scope') || returnScope || ((!user || user.is_admin) ? 'self' : 'all')
   const fromClip = Boolean(returnTo && /[?&]clip=/.test(returnTo))
+  // Library reads carry the viewer's own private dives, and the community
+  // response omits the viewer's own divers: every cache entry belongs to one
+  // signed-in account (same viewer key as the Library snapshot cache).
+  const viewerKey = libraryKey(user)
 
-  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttempts(code, scope))
-  const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope })?.codes ?? null)
+  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttempts(code, scope, viewerKey))
+  const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope }, viewerKey)?.codes ?? null)
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
@@ -88,19 +92,16 @@ export default function CodeAnalysis() {
   const [community, setCommunity] = useState<CodeCommunity | null>(null)
   // The community follows the height filter only: periods would empty sparse histories.
   const communityHeight = params.get('h') || ''
-  // The community response omits the viewer's own divers, so the cache entry
-  // belongs to one signed-in account (same viewer key as the Library cache).
-  const viewerKey = useMemo(() => libraryKey(user), [user])
   const desktop = useMedia('(min-width: 1024px)')
 
   useEffect(() => {
     let live = true
-    setAttempts(peekCodeAttempts(code, scope))
+    setAttempts(peekCodeAttempts(code, scope, viewerKey))
     setError(null)
-    getCodeAttempts(code, scope).then(items => { if (live) setAttempts(items) }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
-    getCodeSummaries({ diver_scope: scope }).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
+    getCodeAttempts(code, scope, viewerKey).then(items => { if (live) setAttempts(items) }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
+    getCodeSummaries({ diver_scope: scope }, viewerKey).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
     return () => { live = false }
-  }, [code, scope, reload, t])
+  }, [code, scope, reload, t, viewerKey])
   useEffect(() => {
     let live = true
     setCommunity(null)

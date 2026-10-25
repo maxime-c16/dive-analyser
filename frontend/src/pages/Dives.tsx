@@ -207,11 +207,11 @@ function DiveLibrary() {
   const { limit: _limit, ...codeParams } = pageParams;
   const codeParamsKey = JSON.stringify(codeParams);
   const aggregated = view === "codes" || view === "progress";
-  const [codeSummaries, setCodeSummaries] = useState<CodeSummaries | null>(() => peekCodeSummaries(codeParams));
+  const accessKey = libraryKey(user);
+  const [codeSummaries, setCodeSummaries] = useState<CodeSummaries | null>(() => peekCodeSummaries(codeParams, accessKey));
   const [codeSummaryError, setCodeSummaryError] = useState(false);
   const codeSort = (["recent", "volume", "progress"].includes(searchParams.get("sort") || "") ? searchParams.get("sort") : "recent") as CodeSort;
 
-  const accessKey = libraryKey(user);
   const cacheKey = accessKey ? JSON.stringify([accessKey, "paged", pageParamsKey]) : null;
   const cached = useMemo(() => readLibraryCache(cacheKey), [cacheKey]);
   const [dives, setDives] = useState<Dive[]>(cached?.dives ?? []);
@@ -291,14 +291,14 @@ function DiveLibrary() {
   useEffect(() => {
     if (!aggregated) return;
     let live = true;
-    setCodeSummaries(peekCodeSummaries(codeParams));
+    setCodeSummaries(peekCodeSummaries(codeParams, accessKey));
     setCodeSummaryError(false);
-    getCodeSummaries(codeParams)
+    getCodeSummaries(codeParams, accessKey)
       .then((data) => { if (live) setCodeSummaries(data); })
       .catch(() => { if (live) setCodeSummaryError(true); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aggregated, codeParamsKey, reloadKey]);
+  }, [aggregated, codeParamsKey, reloadKey, accessKey]);
 
   const loadMore = async () => {
     if (loadingMore || !nextCursor) return;
