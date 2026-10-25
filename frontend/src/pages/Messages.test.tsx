@@ -7,7 +7,7 @@ import * as api from '../services/messagesApi'
 import type { Message } from '../services/messagesApi'
 import { MobileShellContext } from '../navigation/mobileShellActions'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
-vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn() }))
+vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn(), leaveConversation: vi.fn() }))
 const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: 'x', body: 'Hello from Fouiny', mentions: [], created_at: '2026-10-08T12:00:00Z', dive: null, receipts: [], reactions: [] }
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
@@ -186,4 +186,30 @@ it('claims the mobile shell in the inbox', async () => {
   await screen.findByRole('heading', { level: 1 })
   expect(claims).toBe(1)
   expect(screen.getByTestId('shell-actions')).toBeInTheDocument()
+})
+it('leaving a group drops it from the inbox instead of keeping a clickable dead row', async () => {
+  const group = { id: 9, kind: 'group', title: 'Cliff crew', members: [
+    { user_id: 2, display_name: 'Fouiny', handle: null, bio: '', avatar_url: null },
+    { user_id: 3, display_name: 'Fanny', handle: null, bio: '', avatar_url: null },
+  ], updated_at: '2026-10-08T12:00:00Z', unread_count: 0, latest: null }
+  vi.mocked(api.getConversation).mockResolvedValue(group)
+  vi.mocked(api.listConversations).mockResolvedValue({ items: [group], next_before: null })
+  vi.mocked(api.getMessages).mockResolvedValue({ items: [], next_before: null })
+  vi.mocked(api.leaveConversation).mockResolvedValue(undefined)
+  const confirm = window.confirm
+  window.confirm = vi.fn(() => true)
+  try {
+    render(<MemoryRouter initialEntries={['/messages/9']}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+    // Header and inbox row both show the group name.
+    await waitFor(() => expect(screen.getAllByText('Cliff crew')).toHaveLength(2))
+    fireEvent.click(screen.getByRole('button', { name: /cliff crew/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Leave group' }))
+    // The server no longer lists the departed group; the refresh merge alone would keep it.
+    vi.mocked(api.listConversations).mockResolvedValue({ items: [], next_before: null })
+    await waitFor(() => expect(api.leaveConversation).toHaveBeenCalledWith(9))
+    await waitFor(() => expect(screen.queryByRole('link', { name: /cliff crew/i })).toBeNull())
+    expect(await screen.findByText('No conversations yet.')).toBeInTheDocument()
+  } finally {
+    window.confirm = confirm
+  }
 })

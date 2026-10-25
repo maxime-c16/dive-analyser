@@ -57,7 +57,7 @@ function inboxTime(iso: string | undefined, yesterday: string) {
   return format(date, 'd MMM', { locale: appLocale() }).replace('.', '')
 }
 
-function Thread({ id }: { id: number }) {
+function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) {
   const { user } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -215,7 +215,7 @@ function Thread({ id }: { id: number }) {
               <button type="button" className="msg-leave" disabled={busy} onClick={async () => {
                 if (!window.confirm(t('messages.leaveConfirm'))) return
                 setBusy(true)
-                try { await api.leaveConversation(id); navigate('/messages') } catch { if (alive.current) setError(true) } finally { if (alive.current) { setBusy(false); setMenu(false) } }
+                try { await api.leaveConversation(id); onLeave(id); navigate('/messages') } catch { if (alive.current) setError(true) } finally { if (alive.current) { setBusy(false); setMenu(false) } }
               }}><LogOut size={16} />{t('messages.leave')}</button>
             </div>}
           </div>
@@ -326,6 +326,9 @@ export default function Messages() {
   }
   const closeSheet = () => { setChoose(false); setGroupMode(false); setPicked([]); setGroupTitle('') }
   const toggle = (member: MemberIdentity) => setPicked(rows => rows.some(m => m.user_id === member.user_id) ? rows.filter(m => m.user_id !== member.user_id) : [...rows, member])
+  // Leaving a group removes it from the API inbox, so drop it from local state too:
+  // the refresh only merges returned rows and would otherwise keep the dead row clickable.
+  const removeConversation = useCallback((cid: number) => setItems(rows => rows.filter(c => c.id !== cid)), [])
   return <div className={`messages-page msg-page ${id > 0 ? 'messages-page-thread' : ''}`}>
     <div className="messages-heading msg-head">
       <h1>{t('messages.title')}</h1>
@@ -382,7 +385,7 @@ export default function Messages() {
         })}
         {before && <button type="button" className="msg-older" onClick={async () => { try { const page = await api.listConversations(before); setItems(rows => [...new Map([...rows, ...page.items].map(c => [c.id,c])).values()]); setBefore(page.next_before) } catch { setError(true) } }}>{t('messages.more')}</button>}
       </aside>
-      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} /> : <div className="msg-pane-empty"><p>{t('messages.choose')}</p></div>}
+      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} onLeave={removeConversation} /> : <div className="msg-pane-empty"><p>{t('messages.choose')}</p></div>}
     </div>
   </div>
 }
