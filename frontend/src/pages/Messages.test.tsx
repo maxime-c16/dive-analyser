@@ -4,10 +4,12 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import '../i18n'
 import Messages from './Messages'
 import * as api from '../services/messagesApi'
+import { searchMembers } from '../services/communityApi'
 import type { Message } from '../services/messagesApi'
 import { MobileShellContext } from '../navigation/mobileShellActions'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
-vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn(), leaveConversation: vi.fn() }))
+vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn(), startGroup: vi.fn(), leaveConversation: vi.fn() }))
+vi.mock('../services/communityApi', () => ({ searchMembers: vi.fn() }))
 const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: 'x', body: 'Hello from Fouiny', mentions: [], created_at: '2026-10-08T12:00:00Z', dive: null, receipts: [], reactions: [] }
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
@@ -188,7 +190,7 @@ it('claims the mobile shell in the inbox', async () => {
   expect(screen.getByTestId('shell-actions')).toBeInTheDocument()
 })
 it('leaving a group drops it from the inbox instead of keeping a clickable dead row', async () => {
-  const group = { id: 9, kind: 'group', title: 'Cliff crew', members: [
+  const group = { id: 9, kind: 'group' as const, title: 'Cliff crew', members: [
     { user_id: 2, display_name: 'Fouiny', handle: null, bio: '', avatar_url: null },
     { user_id: 3, display_name: 'Fanny', handle: null, bio: '', avatar_url: null },
   ], updated_at: '2026-10-08T12:00:00Z', unread_count: 0, latest: null }
@@ -212,4 +214,21 @@ it('leaving a group drops it from the inbox instead of keeping a clickable dead 
   } finally {
     window.confirm = confirm
   }
+})
+it('caps group selection at 15 others and explains the limit', async () => {
+  const members = Array.from({ length: 16 }, (_, i) => ({ user_id: 10 + i, display_name: `Diver${i}`, handle: null, bio: '', avatar_url: null }))
+  vi.mocked(api.listConversations).mockResolvedValue({ items: [], next_before: null })
+  vi.mocked(searchMembers).mockResolvedValue({ items: members, next_after: null })
+  vi.mocked(api.startGroup).mockResolvedValue({ id: 11 })
+  render(<MemoryRouter initialEntries={['/messages']}><Routes><Route path="/messages" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByRole('heading', { level: 1 })
+  fireEvent.click(screen.getAllByRole('button', { name: 'New' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'New group' }))
+  for (let i = 0; i < 16; i++) fireEvent.click(await screen.findByRole('button', { name: `Diver${i}` }))
+  // The 16th pick is ignored: 15 chips, the limit hint, create counting 16 people total.
+  await waitFor(() => expect(screen.getAllByRole('button', { name: /remove diver/i })).toHaveLength(15))
+  expect(screen.getByText('Groups hold up to 16 people')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Create group · 16 people' }))
+  await waitFor(() => expect(api.startGroup).toHaveBeenCalledTimes(1))
+  expect(vi.mocked(api.startGroup).mock.calls[0][0]).toHaveLength(15)
 })

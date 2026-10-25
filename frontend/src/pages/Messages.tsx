@@ -24,6 +24,8 @@ import { MobileShellActions } from '../navigation/mobileShellActions'
 
 const GROUP_GAP_MS = 5 * 60_000
 const TITLE_MAX = 60
+/** Other members besides yourself; mirrors backend MAX_GROUP_MEMBERS - 1. */
+const GROUP_MAX_OTHERS = 15
 /** A group's chosen name, else its members' names. */
 const nameOf = (c: Pick<Conversation, 'title'> | null | undefined, peers: MemberIdentity[]) => c?.title || peers.map(m => m.display_name).join(', ')
 
@@ -319,13 +321,13 @@ export default function Messages() {
     catch { setError(true) } finally { setStarting(false) }
   }
   const createGroup = async () => {
-    if (picked.length < 2 || starting) return
+    if (picked.length < 2 || picked.length > GROUP_MAX_OTHERS || starting) return
     setStarting(true)
     try { const c = await api.startGroup(picked.map(m => m.user_id), groupTitle.trim()); closeSheet(); navigate(`/messages/${c.id}`); setRetry(n => n + 1) }
     catch { setError(true) } finally { setStarting(false) }
   }
   const closeSheet = () => { setChoose(false); setGroupMode(false); setPicked([]); setGroupTitle('') }
-  const toggle = (member: MemberIdentity) => setPicked(rows => rows.some(m => m.user_id === member.user_id) ? rows.filter(m => m.user_id !== member.user_id) : [...rows, member])
+  const toggle = (member: MemberIdentity) => setPicked(rows => rows.some(m => m.user_id === member.user_id) ? rows.filter(m => m.user_id !== member.user_id) : rows.length >= GROUP_MAX_OTHERS ? rows : [...rows, member])
   // Leaving a group removes it from the API inbox, so drop it from local state too:
   // the refresh only merges returned rows and would otherwise keep the dead row clickable.
   const removeConversation = useCallback((cid: number) => setItems(rows => rows.filter(c => c.id !== cid)), [])
@@ -341,7 +343,7 @@ export default function Messages() {
             {groupMode && <button type="button" className="msg-icon-btn" aria-label={t('common.back')} onClick={() => { setGroupMode(false); setPicked([]) }}><ArrowLeft size={18} /></button>}
             <b>{t(groupMode ? 'messages.newGroup' : 'messages.new')}</b>
             {groupMode
-              ? <button type="button" className="msg-new-btn msg-create" disabled={picked.length < 2 || starting} onClick={() => void createGroup()}
+              ? <button type="button" className="msg-new-btn msg-create" disabled={picked.length < 2 || picked.length > GROUP_MAX_OTHERS || starting} onClick={() => void createGroup()}
                   aria-label={picked.length < 2 ? t('messages.pickTwo') : t('messages.createGroup', { count: picked.length + 1 })}>{t('messages.create')}{picked.length >= 2 && <span className="msg-create-count">{picked.length + 1}</span>}</button>
               : <button type="button" className="msg-icon-btn" aria-label={t('common.close')} onClick={closeSheet}><X size={18} /></button>}
           </div>
@@ -355,6 +357,7 @@ export default function Messages() {
           <MemberPicker key={groupMode ? 'group' : 'direct'} disabled={starting} autoFocus selected={groupMode ? picked.map(m => m.user_id) : undefined}
             onSelect={member => groupMode ? toggle(member) : void startWith(member)} />
           {groupMode && picked.length < 2 && <p className="msg-hint">{t('messages.pickTwo')}</p>}
+          {groupMode && picked.length >= GROUP_MAX_OTHERS && <p className="msg-hint">{t('messages.groupFull', { count: GROUP_MAX_OTHERS + 1 })}</p>}
         </div>
       </>}
     </div>
