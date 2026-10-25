@@ -59,6 +59,9 @@ def test_animated_cleanup_racing_delayed_publisher(pg, root, monkeypatch):
         path.parent.mkdir(parents=True)
         path.write_bytes(b'animation')
         os.utime(path, (0, 0))
+        marker = poster_visuals.orphan_marker(path)
+        marker.touch()
+        os.utime(marker, (0, 0))
         generated.set()
         return str(path), 'c' * 64, 9
     monkeypatch.setattr(poster_visuals, 'thumbnail_files', wait_for_generation)

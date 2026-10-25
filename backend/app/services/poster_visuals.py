@@ -102,6 +102,16 @@ def managed_animation_path(storage_path):
             and all(c in "0123456789abcdef" for c in path.stem))
 
 
+def orphan_marker(path):
+    """Persistent first-observed-unreferenced time, independent of byte age."""
+    return Path(path).with_suffix(".orphan")
+
+
+def mark_thumbnail_referenced(path):
+    """Reset orphan grace on publication; caller holds thumbnail_lock."""
+    orphan_marker(path).unlink(missing_ok=True)
+
+
 def cleanup_orphan_thumbnails(db, limit=100, *, namespace="thumb"):
     """Bounded unlink, reference-aware and serialized with CAS publication.
 
@@ -128,8 +138,8 @@ def cleanup_orphan_thumbnails(db, limit=100, *, namespace="thumb"):
             old = []
             for path in batch:
                 try:
-                    if path.stat().st_mtime < cutoff:
-                        old.append(path)
+                    path.stat()
+                    old.append(path)
                 except FileNotFoundError:
                     pass
             if not old:
@@ -147,10 +157,23 @@ def cleanup_orphan_thumbnails(db, limit=100, *, namespace="thumb"):
                 if removed >= limit:
                     break
                 if str(path) in refs:
+                    mark_thumbnail_referenced(path)
+                    continue
+                marker = orphan_marker(path)
+                # First observation is at or after the last detach, so the
+                # full grace protects capabilities minted just before it.
+                # Publication resets this state under the same process lock.
+                try:
+                    marker.touch(exist_ok=False)
+                    continue
+                except FileExistsError:
+                    pass
+                if marker.is_symlink() or not marker.is_file() or marker.stat().st_mtime >= cutoff:
                     continue
                 try:
                     size = path.stat().st_size
                     path.unlink()
+                    marker.unlink(missing_ok=True)
                     freed += size
                     removed += 1
                 except FileNotFoundError:
@@ -253,6 +276,8 @@ def enrich_committed_poster(entry_id, *, bind=None):
                 MediaCacheEntry.checksum_sha256 == snapshot.checksum_sha256,
                 MediaCacheEntry.storage_path == snapshot.storage_path,
             ).values(**values).execution_options(synchronize_session=False)).rowcount
+            if changed and snapshot.thumb_storage_path:
+                mark_thumbnail_referenced(snapshot.thumb_storage_path)
             db.commit()
         return bool(changed)
     except Exception:

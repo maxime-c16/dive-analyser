@@ -158,9 +158,9 @@ def test_thumbnail_accounting_and_reference_aware_cleanup(test_db, root):
     entry = test_db.get(MediaCacheEntry, entry.id)
     poster_visuals.clear_visuals(entry)
     test_db.commit()
-    os.utime(thumb, None)
     assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
-    os.utime(thumb, (old, old))
+    assert thumb.exists()  # old bytes were detached just now
+    os.utime(poster_visuals.orphan_marker(thumb), (old, old))
     _, freed, total = cleanup_cache(test_db, max_bytes=1)
     assert freed == size and total == entry.size_bytes
     assert not thumb.exists() and Path(entry.storage_path).exists()
@@ -178,6 +178,36 @@ def test_thumbnail_cleanup_preserves_symlinks_and_bounds_unlinks(test_db, root):
         path = directory / (letter * 64 + '.webp')
         path.write_bytes(b'old')
         os.utime(path, (0, 0))
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
+    for path in poster_visuals.thumbnail_files():
+        os.utime(poster_visuals.orphan_marker(path), (0, 0))
     assert poster_visuals.cleanup_orphan_thumbnails(test_db, limit=1) == 3
     assert outside.read_bytes() == b'original'
     assert len(list(poster_visuals.thumbnail_files())) == 1
+
+
+def test_republication_restarts_orphan_grace(test_db, root):
+    import os
+    entry = poster(test_db, root)
+    entry_id = entry.id
+    thumb = Path(entry.thumb_storage_path)
+    # Simulate a persisted orphan observation from a previous reference cycle.
+    marker = poster_visuals.orphan_marker(thumb)
+    marker.touch()
+    os.utime(marker, (0, 0))
+    assert poster_visuals.enrich_committed_poster(entry_id, bind=test_db.get_bind())
+    assert not marker.exists()
+    test_db.expire_all()
+    entry = test_db.get(MediaCacheEntry, entry_id)
+    assert entry.thumb_storage_path == str(thumb)
+    poster_visuals.clear_visuals(entry)
+    test_db.commit()
+    os.utime(thumb, (0, 0))
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
+    assert thumb.exists() and marker.exists()
+    # Grace starts at first observation of detachment, survives the next pass.
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == 0
+    os.utime(marker, (0, 0))
+    size = thumb.stat().st_size
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db) == size
+    assert not thumb.exists() and not marker.exists()

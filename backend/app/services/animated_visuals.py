@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
 from app.models.media import MediaCacheEntry
-from app.services.poster_visuals import MIN_FREE_BYTES, thumbnail_lock
+from app.services.poster_visuals import MIN_FREE_BYTES, thumbnail_lock, mark_thumbnail_referenced
 
 
 def generate(source):
@@ -79,6 +79,7 @@ def backfill(db, limit=4, after_id=0):
                     media_key=key, rendition='animated', storage_path=path,
                     content_type='image/webp', size_bytes=size, checksum_sha256=checksum,
                     status='ready', pinned=False))
+                mark_thumbnail_referenced(path)
                 session.commit()
                 generated += 1
         except (OSError, ValueError, subprocess.SubprocessError, IntegrityError):

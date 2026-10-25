@@ -281,3 +281,29 @@ be added. Final lot3 file passed including consumer exclusions. Release-note
 validation and diff checks pass. Frontend application/tests unchanged since the
 777-test pass in round four. No production changes; fresh hosted checks and an
 explicit clean bot verdict remain mandatory.
+
+## Sixth bot review — grace starts after detachment
+
+Verified comment `6397634579`: file mtime predates reference removal and therefore
+cannot guarantee signed-capability grace. Cleanup now persists a zero-byte
+`.orphan` sidecar on its first observation of an unreferenced generated WebP and
+waits two hours from that observation. This is conservatively at or after final
+detachment, independent of the file's age. Referenced files reset the observation;
+thumb and animation publishers also reset it under the same cross-process lock,
+so republish/detach between cleaner passes cannot reuse an old deadline. The
+sidecar survives restarts, never changes media bytes and is removed with the
+orphan. Symlink markers cannot authorize unlink. Existing reference checks,
+100-unlink combined limit and original/poster protections remain.
+
+The previous refresh test manually touched bytes after detachment, masking the
+bug; it now leaves the old byte timestamp intact and asserts protection. Added
+republication/re-detachment coverage and animation publication marker reset.
+Concurrent PostgreSQL cleanup/publication tests model an expired first-orphan
+observation explicitly and retain missing-file publication safety coverage.
+
+Validation: 33 tests passed with real local PostgreSQL, including both race
+regressions, lots2/3 and enrichment fencing. Final 35-test targeted pass includes
+real WebP, republish/reset, reference sharing, bounds, symlinks and media node.
+Passes overlap. Release notes and diff checks passed. Disposable PG stopped.
+No production action, cleanup or deletion performed. Fresh CI/explicit clean bot
+verdict remain required before merge/deployment.

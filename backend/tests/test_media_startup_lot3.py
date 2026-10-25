@@ -37,9 +37,21 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     test_db.commit()
     monkeypatch.setenv('MEDIA_SIGNED_URLS_ENABLED', 'true')
     monkeypatch.setenv('MEDIA_SIGNING_SECRET', 'b' * 64)
+    from app.services import poster_visuals
+    import os
+    generate = av.generate
+    def previously_orphaned(path):
+        result = generate(path)
+        if result:
+            marker = poster_visuals.orphan_marker(result[0])
+            marker.touch()
+            os.utime(marker, (0, 0))
+        return result
+    monkeypatch.setattr(av, 'generate', previously_orphaned)
     result = av.backfill(test_db, 1)
     assert result['generated'] == result['scanned'] == 1
     entry = test_db.query(MediaCacheEntry).filter_by(rendition='animated').one()
+    assert not poster_visuals.orphan_marker(entry.storage_path).exists()
     data = Path(entry.storage_path).read_bytes()
     assert len(data) <= 80_000
     assert hashlib.sha256(data).hexdigest() == entry.checksum_sha256
@@ -101,7 +113,7 @@ def test_backfill_releases_connection_and_fences_changed_proxy(test_db, root, mo
     assert _cache_size(test_db) == 110  # proxy + abandoned physical generation
     assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace="animated") == 0
     import os
-    os.utime(path, (0, 0))
+    os.utime(poster_visuals.orphan_marker(path), (0, 0))
     assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace="animated") == 100
     assert _cache_size(test_db) == 10
 
@@ -163,6 +175,9 @@ def test_animation_cleanup_preserves_shared_references_and_bounds(test_db, root)
     protected = root / 'original.mp4'
     protected.write_bytes(b'precious')
     (directory / ('d' * 64 + '.webp')).symlink_to(protected)
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace='animated') == 0
+    for path in poster_visuals.thumbnail_files('animated'):
+        os.utime(poster_visuals.orphan_marker(path), (0, 0))
     assert poster_visuals.cleanup_orphan_thumbnails(test_db, limit=1, namespace='animated') in (3, 100)
     assert len(list(poster_visuals.thumbnail_files('animated'))) == 2
     assert protected.read_bytes() == b'precious'

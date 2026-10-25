@@ -68,6 +68,9 @@ def test_cleanup_racing_publication_never_leaves_dangling_thumb(pg, root, monkey
         enrich(snapshot)
         # Model a long-delayed publisher whose generated file aged out.
         os.utime(snapshot.thumb_storage_path, (0, 0))
+        marker = poster_visuals.orphan_marker(snapshot.thumb_storage_path)
+        marker.touch()
+        os.utime(marker, (0, 0))
         generated.set()
 
     monkeypatch.setattr(poster_visuals, 'thumbnail_files', wait_for_generation)
