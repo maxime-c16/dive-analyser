@@ -1,10 +1,12 @@
 """Per-code Library summaries cover the whole filtered scope, not one page."""
 
+import json
 from datetime import datetime, timedelta
 
 from app.models.dive import Dive
 from app.models.session import Session as TrainingSession
-from app.services.code_summaries import accumulate_ordered, render_summaries, summarize_codes
+from app.services import code_summaries
+from app.services.code_summaries import summarize_codes
 from app.services.diver_identity import get_primary_diver
 
 
@@ -97,32 +99,44 @@ def test_trend_compares_recent_weeks_to_the_months_before():
     assert codes["301C"]["months"]["2026-10"]["count"] == 5
 
 
-def test_streaming_accumulators_match_batch_summaries():
-    from types import SimpleNamespace
+def _normalise(payload):
+    """JSON-round-trip datetimes/dates to ISO strings so HTTP and direct-call outputs compare."""
+    return json.loads(json.dumps(payload, default=lambda value: value.isoformat()))
 
-    now = datetime(2026, 10, 25, 12)
-    rows = [
-        (1, "301C", now - timedelta(days=100), "M", None, None, "1m", 7, "uuid-1"),
-        (2, "301C", now - timedelta(days=90), "G", None, None, "1m", 7, "uuid-2"),
-        (3, "301C", now - timedelta(days=3), "P", None, None, "3m", 8, "uuid-3"),
-        (4, "301C", now - timedelta(days=2), None, None, None, "3m", 8, None),
-        (5, "403B", now - timedelta(days=2), "G", "G", "P", "1m", 8, "uuid-5"),
-        (6, "100A", now - timedelta(days=1), "G", None, None, "1m", 8, "uuid-6"),
-        (7, "301C", now - timedelta(days=1), "B", None, None, "", 9, "uuid-7"),
-    ]
-    visuals = {"uuid-3": {"thumb_url": "/thumb"}}
-    attr_rows = [
-        SimpleNamespace(
-            id=ident, dive_code=code, dive_datetime=when, performance=perf,
-            phase1_performance=p1, phase2_performance=p2, height=height,
-            session_id=session, video_uuid=uuid,
-        )
-        for ident, code, when, perf, p1, p2, height, session, uuid in rows
-    ]
-    batch = summarize_codes(attr_rows, visuals, now)
-    ordered = sorted(rows, key=lambda row: (row[2], row[0]))
-    streamed = render_summaries(accumulate_ordered(iter(ordered), now), visuals)
-    assert streamed == batch
+
+def test_sql_path_matches_reference_implementation(api_client, test_db):
+    from statistics import median as stat_median
+
+    from app.services.performance_scoring import attempt_score_10
+
+    assert not hasattr(code_summaries, "accumulate_ordered")
+    start = datetime.now() - timedelta(days=150)
+    _seed(test_db, "5122D", ["M"] * 107, start=start, step_days=1)
+    _seed(test_db, "5122D", ["P"], start=start, lineup=True)
+    _seed(test_db, "201C", ["G", "P"], start=start)
+    _seed(test_db, "403B", ["G", "M", "B", "F"], start=start, step_days=7,
+          phases=[("G", "P"), ("M", "M"), (None, None), (None, "P")])
+    _seed(test_db, "100A", ["G"], start=start)
+    # No ungraded seed: the schema CHECK forbids it (performance IN F/B/M/G/P),
+    # so the falsy-performance guards are defensive only; the frontend suite
+    # covers that path with mocked attempts.
+    _seed(test_db, "205C", ["M", "M", "G", "G"], start=start, step_days=3)
+
+    fresh = api_client.get("/api/v1/dives/library/codes").json()
+    # The endpoint filters lineups; the reference input is pre-filtered the same way.
+    rows = [dive for dive in test_db.query(Dive).all() if not dive.is_lineup]
+    scores = [attempt_score_10(d.performance, d.phase1_performance, d.phase2_performance)
+              for d in rows if d.performance]
+    assert len(scores) == sum(item["scored_count"] for item in fresh["codes"])
+    reference = _normalise(summarize_codes(rows, {}, datetime.now()))
+    candidate = _normalise(fresh)
+    reference.pop("generated_at")
+    candidate.pop("generated_at")
+    assert candidate == reference
+    even = next(item for item in fresh["codes"] if item["dive_code"] == "205C")
+    assert even["median"] == stat_median([4.5, 4.5, 7.0, 7.0]) == 5.75
+    two_phase = next(item for item in fresh["codes"] if item["dive_code"] == "403B")
+    assert two_phase["best"] == 8.65
 
 
 def test_library_codes_height_and_performance_filters(api_client, test_db):
@@ -137,3 +151,42 @@ def test_library_codes_height_and_performance_filters(api_client, test_db):
     high = api_client.get("/api/v1/dives/library/codes", params={"height": "3m"}).json()
     assert [item["dive_code"] for item in high["codes"]] == ["101B"]
     assert high["codes"][0]["attempt_count"] == 2
+
+
+def test_median_from_hist_matches_statistics():
+    from statistics import median as stat_median
+
+    from app.services.code_summaries import _median_from_hist
+
+    cases = [
+        [(4.5, 107)],
+        [(0.0, 1), (2.0, 1), (4.5, 5), (7.0, 4), (10.0, 1)],
+        [(4.5, 2), (7.0, 2)],
+        [(8.65, 1), (7.0, 3), (4.5, 2)],
+        [(10.0, 1)],
+    ]
+    for pairs in cases:
+        expanded = [score for score, count in pairs for _ in range(count)]
+        assert _median_from_hist(pairs) == stat_median(expanded)
+    assert _median_from_hist([]) is None
+
+
+def test_large_history_keeps_bounded_rows_and_exact_medians(api_client, test_db):
+    from statistics import median as stat_median
+
+    from app.services.performance_scoring import attempt_score_10
+
+    start = datetime.now() - timedelta(days=600)
+    grades = ["F", "B", "M", "G", "P"]
+    _seed(test_db, "5122D", [grades[index % len(grades)] for index in range(500)], start=start, step_days=1)
+
+    payload = api_client.get("/api/v1/dives/library/codes").json()
+    code = next(item for item in payload["codes"] if item["dive_code"] == "5122D")
+    assert code["attempt_count"] == 500
+    assert len(code["recent"]) == 16
+    assert len(code["spark"]) == 40
+    expected = stat_median(
+        attempt_score_10(grade, None, None) for grade in (grades[index % len(grades)] for index in range(500))
+    )
+    assert code["median"] == expected
+    assert code["months"] and all(entry["count"] > 0 for entry in code["months"].values())

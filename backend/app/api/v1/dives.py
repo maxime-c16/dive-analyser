@@ -280,22 +280,13 @@ def library_codes(
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
 ):
     """Per-code summaries and recent activity over the whole filtered Library scope."""
-    from app.services.code_summaries import accumulate_ordered, latest_uuids, render_summaries
+    from app.services.code_summaries import summarize_library_query
     query = _filtered_dive_query(
         request, db, diver_scope=diver_scope, height=height, performance=performance,
         exclude_lineup=True, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter, modifier_filter=modifier_filter,
     )
-    now = datetime.now()
-    state = accumulate_ordered(
-        query.order_by(Dive.dive_datetime, Dive.id).with_entities(
-            Dive.id, Dive.dive_code, Dive.dive_datetime, Dive.performance, Dive.phase1_performance,
-            Dive.phase2_performance, Dive.height, Dive.session_id, Dive.video_uuid,
-        ).yield_per(500),
-        now,
-    )
-    visuals = _library_visuals(db, latest_uuids(state))
-    return render_summaries(state, visuals)
+    return summarize_library_query(db, query, datetime.now())
 
 
 @router.post("", status_code=201)
