@@ -1,0 +1,8 @@
+{
+  "id": "media-startup-responsiveness",
+  "date": "2026-10-25",
+  "title": "Une bibliothèque plus réactive",
+  "body": "Le chargement des médias ne bloque plus les autres requêtes. Les posters et aperçus déjà chargés restent en cache privé plus longtemps.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

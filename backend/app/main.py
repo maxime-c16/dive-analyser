@@ -1,5 +1,6 @@
 """FastAPI application entry point"""
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -84,10 +85,17 @@ async def lifespan(app: FastAPI):
 
     from app.services.upload_queue import start_worker
     upload_worker_stop = start_worker()
+    from app.services.xray import loop_lag
+    lag_task = asyncio.create_task(loop_lag.run())
     try:
         yield
     finally:
         upload_worker_stop.set()
+        lag_task.cancel()
+        try:
+            await lag_task
+        except asyncio.CancelledError:
+            pass
 
     # Shutdown
     logger.info("Shutting down Diving Analytics API")
@@ -133,15 +141,26 @@ class _SlowRequestLogger:
             await self.app(scope, receive, send)
             return
         started_at = perf_counter()
+        from app.services.xray import request_timing
+        timing = {"auth": 0.0, "db": 0.0}
+        token = request_timing.set(timing)
         status_code = 0
 
         async def send_with_capture(message):
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 0)
+                if scope.get("path", "").startswith("/api/"):
+                    # auth and db overlap; app is total time until response headers.
+                    total = (perf_counter() - started_at) * 1000
+                    value = f'auth;dur={timing["auth"]:.2f}, db;dur={timing["db"]:.2f}, app;dur={total:.2f}'
+                    message.setdefault("headers", []).append((b"server-timing", value.encode("ascii")))
             await send(message)
 
-        await self.app(scope, receive, send_with_capture)
+        try:
+            await self.app(scope, receive, send_with_capture)
+        finally:
+            request_timing.reset(token)
         elapsed_ms = (perf_counter() - started_at) * 1000
         if elapsed_ms >= settings.slow_request_log_ms:
             logger.warning(
@@ -180,5 +199,7 @@ async def root():
 
 # Include API routes
 app.include_router(v1_router)
+from app.api.v1.ws_sync import socket_router
+app.include_router(socket_router, prefix="/api/v1")
 
 logger.info("FastAPI application initialized")

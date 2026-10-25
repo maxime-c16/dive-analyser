@@ -1,4 +1,5 @@
 import React from 'react'
+import XrayOverlay from './components/XrayOverlay'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Router from './router'
 import { SyncStatusProvider } from './contexts/SyncStatusContext'
@@ -15,7 +16,7 @@ function MemberSyncBoundary({ children }: { children: React.ReactNode }) {
 }
 
 // The toaster links to the profile, so it must render inside the router.
-const appRouter = createBrowserRouter([{ path: '*', element: <><Router /><AchievementToaster /></> }])
+const appRouter = createBrowserRouter([{ path: '*', element: <><Router /><AchievementToaster /><XrayOverlay /></> }])
 
 function App() {
   return (

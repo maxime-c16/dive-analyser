@@ -143,11 +143,19 @@ def get_playable_entry(db: Session, entry_id: int) -> MediaCacheEntry:
     if not storage_path.exists() or not storage_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cached media file missing")
 
-    entry.last_accessed_at = datetime.utcnow()
-    entry.updated_at = datetime.utcnow()
-    db.add(entry)
-    db.commit()
-    db.refresh(entry)
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=1)
+    if entry.last_accessed_at is None or entry.last_accessed_at <= cutoff:
+        # Atomic predicate also throttles concurrent viewers across workers.
+        changed = db.execute(update(MediaCacheEntry).where(
+            MediaCacheEntry.id == entry_id,
+            (MediaCacheEntry.last_accessed_at.is_(None)
+             | (MediaCacheEntry.last_accessed_at <= cutoff)),
+        ).values(last_accessed_at=now, updated_at=now)
+          .execution_options(synchronize_session=False)).rowcount
+        if changed:
+            db.commit()
+            db.refresh(entry)
     return entry
 
 

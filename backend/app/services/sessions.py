@@ -70,6 +70,10 @@ def create_session(
     return raw_token, session
 
 
+from app.services.xray import timed_auth
+
+
+@timed_auth
 def resolve_session(
     db: Session, raw_token: Optional[str]
 ) -> Optional[Tuple[UserSession, AppUser]]:

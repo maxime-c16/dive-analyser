@@ -853,3 +853,12 @@ def auth_metrics_endpoint(
 
     snapshot["durable"] = durable_ops_snapshot(db)
     return snapshot
+
+
+@router.get("/xray")
+def xray_metrics(response: Response, user: AppUser = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(403, "Administrative access required")
+    from app.services.xray import loop_lag
+    _secure_headers(response)
+    return {"event_loop": loop_lag.snapshot()}

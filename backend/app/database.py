@@ -90,5 +90,33 @@ def log_slow_query(conn, cursor, statement, parameters, context, executemany):
     if started_at is None:
         return
     elapsed_ms = (perf_counter() - started_at) * 1000
+    from app.services.xray import request_timing
+    timing = request_timing.get()
+    if timing is not None:
+        timing["db"] += elapsed_ms
     if elapsed_ms >= settings.slow_query_log_ms:
         logger.warning("Slow database query: %.1fms: %s", elapsed_ms, " ".join(statement.split())[:300])
+
+
+@event.listens_for(Session, "before_commit")
+def start_commit_timer(db):
+    from app.services.xray import request_timing
+    timing = request_timing.get()
+    if timing is not None:
+        db.info['_xray_commit'] = (perf_counter(), timing, timing['db'])
+
+
+@event.listens_for(Session, "after_commit")
+def finish_commit_timer(db):
+    pending = db.info.pop('_xray_commit', None)
+    if pending:
+        started, timing, prior_db = pending
+        # Flush queries are already counted: add only transaction overhead,
+        # including the DBAPI COMMIT / WAL flush, without counting twice.
+        elapsed = (perf_counter() - started) * 1000
+        timing['db'] += max(0, elapsed - (timing['db'] - prior_db))
+
+
+@event.listens_for(Session, "after_rollback")
+def discard_commit_timer(db):
+    db.info.pop('_xray_commit', None)

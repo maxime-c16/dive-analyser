@@ -44,7 +44,6 @@ ids/outcomes/TTL only) plus the in-process playback metrics feed the P6
 cohort observation.
 """
 
-import asyncio
 import mimetypes
 from pathlib import Path
 
@@ -58,7 +57,6 @@ from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.models.user_auth import AppUser, MediaPlaybackGrant
 from app.api.v1.auth import get_current_user
 from app.services import b2_presign, legacy_media, playback_metrics
-from app.services.offload import run_to_completion
 from app.services.user_access import (
     DENY_NO_DIVER_CHAIN,
     DENY_NO_OWNER_ACCESS,
@@ -235,7 +233,7 @@ def _has_current_derivative_proof(db: Session, revision: MediaRevision) -> bool:
     )
 
 
-async def _serve_legacy_fallback(
+def _serve_legacy_fallback(
     db: Session,
     request: Request,
     revision: MediaRevision,
@@ -243,12 +241,9 @@ async def _serve_legacy_fallback(
     reason: str,
 ):
     """Authorized legacy playback, streamed server-side with Range."""
-    # Resolution probes the filesystem (os.path.exists/stat per candidate)
-    # against the request session; keep it off the loop and let it finish
-    # even when the awaiting handler is cancelled mid-way.
-    source = await run_to_completion(asyncio.to_thread(
-        legacy_media.resolve_legacy_media_source, db, revision
-    ))
+    # The entire grant handler runs in the threadpool, including SQL and
+    # filesystem probes. Its session remains alive until it finishes.
+    source = legacy_media.resolve_legacy_media_source(db, revision)
     if source is None:
         metrics.legacy_fallback_failures.inc()
         if reason == "presign_unavailable":
@@ -323,7 +318,7 @@ def _refresh_after_provider(db, request, revision_id, expected_identity):
 
 
 @router.get("/revisions/{revision_id}/play")
-async def play_media_revision(
+def play_media_revision(
     revision_id: int,
     request: Request,
     response: Response,
@@ -364,7 +359,7 @@ async def play_media_revision(
             # (they would be mislabeled renditions at a stable URL).
             _deny(db, user.id, revision.id, storage_deny)
         # NO_PROD_B2_REPLICA: authorized legacy fallback.
-        return await _serve_legacy_fallback(
+        return _serve_legacy_fallback(
             db, request, revision, user.id, reason=storage_deny
         )
 
@@ -382,14 +377,12 @@ async def play_media_revision(
         # sign with an invalid/revoked credential; the provider-side HEAD
         # turns that into B2_TEMPORARY_FAILURE (→ authorized legacy
         # fallback) instead of handing the browser a dead URL.
-        # The HEAD is a real network round-trip to the provider; run it off
-        # the event loop so a provider hiccup cannot stall every other
-        # request handled by this worker.
-        await run_to_completion(asyncio.to_thread(
-            b2_presign.head_object,
+        # This synchronous route runs provider I/O and SQL in the threadpool;
+        # a slow HEAD cannot stall the event loop.
+        b2_presign.head_object(
             bucket=bucket,
             object_key=object_key,
-        ))
+        )
     except b2_presign.PresignUnavailable:
         head_failed = True
     finally:
@@ -422,7 +415,7 @@ async def play_media_revision(
                 denial_reason="presign_unavailable",
             )
             raise HTTPException(503, "B2 provider unavailable")
-        return await _serve_legacy_fallback(
+        return _serve_legacy_fallback(
             db, request, revision, user.id, reason="presign_unavailable"
         )
 

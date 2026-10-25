@@ -16,6 +16,7 @@ from app.services.sync_status import (
 )
 
 logger = logging.getLogger(__name__)
+socket_router = APIRouter(prefix="/ws", tags=["websocket"])
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
@@ -35,10 +36,10 @@ def _ws_session_ok(websocket: WebSocket) -> bool:
         resolved = session_service.resolve_session(
             db, websocket.cookies.get(settings.auth_cookie_name)
         )
-    return resolved is not None
+        return resolved is not None and bool(resolved[1].is_admin)
 
 
-@router.websocket("/sync")
+@socket_router.websocket("/sync")
 async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(None)):
     """
     WebSocket endpoint for real-time sync status updates.
@@ -70,7 +71,8 @@ async def websocket_sync_endpoint(websocket: WebSocket, client_id: str = Query(N
     if not client_id:
         client_id = str(uuid.uuid4())[:8]
 
-    if not _ws_session_ok(websocket):
+    from starlette.concurrency import run_in_threadpool
+    if not await run_in_threadpool(_ws_session_ok, websocket):
         # No live session while auth is enabled: reject the upgrade before
         # accepting. 1008 (policy violation) tells the front end to stop
         # retrying the same unauthenticated state.

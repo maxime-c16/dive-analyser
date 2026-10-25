@@ -245,7 +245,7 @@ def _iter_file_range(path: Path, start: int, end: int, chunk_size: int = 1024 * 
 def _media_headers(path: Path, content_type: str, content_length: int) -> dict[str, str]:
     return {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, max-age=31536000, immutable",
         "Content-Disposition": f'inline; filename="{path.name}"',
         "Content-Length": str(content_length),
         "Content-Type": content_type,
@@ -1060,11 +1060,11 @@ def schedule_proxy_resolution_upgrade(
 
 
 @router.get("/resolution-upgrades/{run_id}")
-async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db)):
+def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db)):
     run = db.get(MediaResolutionUpgradeRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="resolution_upgrade_run_not_found")
-    await run_to_completion(asyncio.to_thread(_advance_background_media_work, db))
+    _advance_background_media_work(db)
     return resolution_upgrade_summary(db, run)
 
 

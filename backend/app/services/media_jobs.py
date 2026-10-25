@@ -14,7 +14,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import uuid
 
+from fastapi import HTTPException
 from sqlalchemy import select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.models.media import MediaJob
@@ -68,7 +70,6 @@ LEASED_JOB_STATUSES = {
 
 def active_job_for_key(db: Session, media_key: str) -> MediaJob | None:
     """Return active media job for key, if any."""
-    reclaim_expired_media_jobs(db)
     stmt = (
         select(MediaJob)
         .where(
@@ -82,7 +83,6 @@ def active_job_for_key(db: Session, media_key: str) -> MediaJob | None:
 
 def latest_active_job_for_asset(db: Session, photos_asset_id: int) -> MediaJob | None:
     """Return latest active job for any rendition of an asset."""
-    reclaim_expired_media_jobs(db)
     stmt = (
         select(MediaJob)
         .where(
@@ -130,7 +130,15 @@ def create_or_reuse_media_job(
     reason: str | None,
 ) -> tuple[str, MediaJob, bool]:
     """Create or reuse an active media job for an asset rendition."""
-    reclaim_expired_media_jobs(db)
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        db.execute(text("SET LOCAL lock_timeout = '500ms'"))
+    try:
+        reclaim_expired_media_jobs(db)
+    except OperationalError as exc:
+        if getattr(exc.orig, "pgcode", None) == "55P03":
+            db.rollback()
+            raise HTTPException(503, "Media queue busy; retry shortly", headers={"Retry-After": "1"}) from exc
+        raise
     media_key = build_media_key(asset.video_uuid, rendition)
     existing = active_job_for_key(db, media_key)
     target_priority = _interactive_priority(rendition, reason)
@@ -454,9 +462,8 @@ def reclaim_expired_media_jobs(db: Session, now: datetime | None = None) -> int:
     path's outer lock). Orphan tmp files are QUEUED on the session and
     unlinked only after the owner's commit via drain_reclaim_orphans: a
     rollback resurrects the row, and an already-unlinked file would leave a
-    pointer with no bytes. Callers that never drain (status peeks) leak the
-    file until the next draining caller (lease/request/upload) — a leak,
-    never a loss: the row already points nowhere.
+    pointer with no bytes. Read-only status paths never call this function;
+    reclaim belongs to lease, maintenance tick and job creation.
     """
     from app.services.media_cache import queue_reclaim_orphans
 
