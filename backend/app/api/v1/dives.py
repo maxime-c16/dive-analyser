@@ -499,8 +499,9 @@ def upload_dive(
                     exclude_user_id=user.id)
             except Exception:
                 logger.exception('batch email queue failed for upload %s', record.id)
-        cache_upload(db, asset, folder)
+        posters = cache_upload(db, asset, folder)
         db.flush()
+        poster_ids = [entry.id for entry in (posters or [])]
         if manifest is not None:
             from app.services.media_backbone import commit_verified_ingest
             commit_verified_ingest(db, **manifest, commit=False)
@@ -512,6 +513,10 @@ def upload_dive(
         db.rollback()
         cleanup_upload(folder)
         raise
+    # Called by the synchronous upload worker, after the publication commit.
+    from app.services.poster_visuals import enrich_committed_poster
+    for poster_id in poster_ids:
+        enrich_committed_poster(poster_id, bind=db.get_bind())
     # Once committed, a response failure must never remove durable media.
     db.refresh(record)
     try:

@@ -1495,32 +1495,25 @@ async def finalize_job_artifact(
     api_key: dict = Depends(verify_api_key),
 ) -> MediaJobFinalizeResponse:
     """Verify and promote an uploaded job artifact into the media cache."""
-    _agent_auth(db, request.agent_id, api_key)
-    job = db.get(MediaJob, job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
-    if job.status != "verifying":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
-    if job.claimed_by != request.agent_id:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
-    # Peek pre-check for expiry + fencing token (authoritative re-check with
-    # the row lock runs inside the committing worker below).
-    try:
-        _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=False)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-    # Verify + promote touches the filesystem (full-file hash, move, chmod).
-    # The whole semantic unit - guard, verify, promote, mark ready, commit -
-    # runs to completion on a worker even when this handler is cancelled mid-
-    # way: an abandoned finalize must never leave the job in `verifying`
-    # with its temp file already moved, nor half a transaction behind the
-    # session teardown. The guard re-runs row-locked here so a re-lease
-    # between the peek above and this commit is rejected (no resurrection
-    # of a dead attempt, no promotion of a stranger's bytes).
+    # Keep the request session owned by one worker through guard, commit and
+    # response serialization; cancellation waits for that worker to finish.
     def _finalize_and_commit():
+        _agent_auth(db, request.agent_id, api_key)
+        job = db.get(MediaJob, job_id)
+        if not job:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+        if job.status != "verifying":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Job cannot finalize from status {job.status}")
+        if job.claimed_by != request.agent_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="media_job_lease_owner_mismatch")
+        # Peek pre-check for expiry + fencing token; the authoritative
+        # row-locked guard immediately below still handles a racing re-lease.
+        try:
+            _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=False)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media job not found")
+        except PermissionError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         try:
             guarded = _guarded_job(db, job_id, request.agent_id, request.lease_token, {"verifying"}, lock=True)
         except (ValueError, PermissionError) as exc:
@@ -1536,17 +1529,22 @@ async def finalize_job_artifact(
             content_type=request.content_type,
         )
         mark_job_ready(db, guarded)
+        entry_id = entry.id
+        rendition = entry.rendition
+        # Snapshot the response before commit expires ORM state. No subsequent
+        # request-session SQL/transaction is needed while visuals are computed.
+        response = MediaJobFinalizeResponse(
+            job_id=guarded.id, status=guarded.status, cache_entry_id=entry_id,
+            playback_url=playback_url(entry),
+        )
         db.commit()
-        return entry
+        if rendition == "poster":
+            from app.services.poster_visuals import enrich_committed_poster
+            enrich_committed_poster(entry_id, bind=db.get_bind())
+        return response
 
-    entry = await run_to_completion(asyncio.to_thread(_finalize_and_commit))
-    db.refresh(entry)
-    return MediaJobFinalizeResponse(
-        job_id=job.id,
-        status=job.status,
-        cache_entry_id=entry.id,
-        playback_url=playback_url(entry),
-    )
+
+    return await run_to_completion(asyncio.to_thread(_finalize_and_commit))
 
 
 def _slot_publish_http_error(exc: Exception) -> HTTPException:

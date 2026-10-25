@@ -16,9 +16,18 @@ MIN_FREE_BYTES = 26 * 1024**3
 logger = logging.getLogger(__name__)
 
 
+VISUAL_FIELDS = ("thumbhash", "thumb_storage_path", "thumb_checksum_sha256", "thumb_size_bytes")
+
+
+def clear_visuals(entry):
+    for name in VISUAL_FIELDS:
+        setattr(entry, name, None)
+
+
 def enrich_poster(entry):
+    """Image work on a plain snapshot only; never call during ORM flush."""
     # Clear stale metadata before any attempt, including a disk-floor skip.
-    entry.thumbhash = entry.thumb_storage_path = entry.thumb_checksum_sha256 = entry.thumb_size_bytes = None
+    clear_visuals(entry)
     root = Path(get_settings().media_cache_root).resolve()
     try:
         source = Path(entry.storage_path).resolve()
@@ -59,27 +68,73 @@ def enrich_poster(entry):
         entry.thumb_storage_path = str(dest)
         entry.thumb_checksum_sha256 = checksum
         entry.thumb_size_bytes = len(data)
-    except (OSError, ValueError, Image.DecompressionBombError):
+    except Exception:  # Optional visuals must never invalidate committed media.
+        clear_visuals(entry)
         logger.warning("Poster visuals unavailable for cache entry %s", entry.id)
 
 
-def backfill(db, limit=8, after_id=0):
-    """Explicit low-priority batch, bounded scan; caller persists cursor.
+def enrich_committed_poster(entry_id, *, bind=None):
+    """Best effort, own short transactions; CPU/IO runs with no SQL session.
 
-    Locks serialize against durable refresh. No HTTP/startup trigger and no
-    original/B2 reads. Orphan content-addressed files are retained on rollback.
+    Call only after the poster commit, on a worker thread or a synchronous
+    maintenance tick. CAS protects newer refreshes (including NULL checksums
+    on legacy browser uploads, additionally fenced by immutable source path).
     """
-    from sqlalchemy import select
+    from types import SimpleNamespace
+    from sqlalchemy import select, update
+    from sqlalchemy.orm import Session
+    from app.database import engine
     from app.models.media import MediaCacheEntry
-    rows = db.execute(select(MediaCacheEntry).where(
+    try:
+        with Session(bind=bind if bind is not None else engine) as db:
+            row = db.execute(select(
+                MediaCacheEntry.id, MediaCacheEntry.storage_path,
+                MediaCacheEntry.checksum_sha256,
+            ).where(MediaCacheEntry.id == entry_id,
+                    MediaCacheEntry.rendition == "poster",
+                    MediaCacheEntry.status == "ready")).first()
+            if row is None:
+                return False
+            snapshot = SimpleNamespace(**row._mapping)
+        # The read session has closed and returned its connection to the pool.
+        try:
+            enrich_poster(snapshot)
+        except Exception:
+            clear_visuals(snapshot)
+            logger.warning("Poster enrichment failed for cache entry %s", entry_id)
+        values = {name: getattr(snapshot, name) for name in VISUAL_FIELDS}
+        with Session(bind=bind if bind is not None else engine) as db:
+            changed = db.execute(update(MediaCacheEntry).where(
+                MediaCacheEntry.id == entry_id,
+                MediaCacheEntry.rendition == "poster",
+                MediaCacheEntry.status == "ready",
+                MediaCacheEntry.checksum_sha256 == snapshot.checksum_sha256,
+                MediaCacheEntry.storage_path == snapshot.storage_path,
+            ).values(**values).execution_options(synchronize_session=False)).rowcount
+            db.commit()
+        return bool(changed)
+    except Exception:
+        # Neither decode/encode nor SQL errors may propagate into publication.
+        # New posters/refreshes already committed NULL fields; backfill retries.
+        logger.warning("Poster enrichment failed for cache entry %s", entry_id)
+        return False
+
+
+def backfill(db, limit=8, after_id=0):
+    """Bounded selection, then explicit enrichment outside the read transaction.
+
+    No locks during decoding. CAS, rather than a lock held across CPU work,
+    fences concurrent refreshes. Caller supplies a clean maintenance session.
+    """
+    from sqlalchemy import select, or_
+    from app.models.media import MediaCacheEntry
+    bind = db.get_bind()
+    rows = db.execute(select(MediaCacheEntry.id).where(
         MediaCacheEntry.id > after_id, MediaCacheEntry.rendition == "poster",
         MediaCacheEntry.status == "ready",
-    ).order_by(MediaCacheEntry.id).limit(max(1, min(limit, 32)))
-      .with_for_update()).scalars().all()
-    cursor = after_id
-    for entry in rows:
-        if not entry.thumbhash or not entry.thumb_storage_path:
-            enrich_poster(entry)
-        cursor = entry.id
-    db.commit()
-    return {"scanned": len(rows), "after_id": cursor}
+        or_(MediaCacheEntry.thumbhash.is_(None), MediaCacheEntry.thumb_storage_path.is_(None)),
+    ).order_by(MediaCacheEntry.id).limit(max(1, min(limit, 32)))).scalars().all()
+    db.rollback()
+    for entry_id in rows:
+        enrich_committed_poster(entry_id, bind=bind)
+    return {"scanned": len(rows), "after_id": rows[-1] if rows else after_id}

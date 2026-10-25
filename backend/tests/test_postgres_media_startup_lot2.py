@@ -28,3 +28,12 @@ def test_poster_roundtrip_and_bounded_backfill_on_postgres(pg, root):
         assert backfill(db, limit=1, after_id=entry.id-1)['after_id'] == entry.id
         db.expire_all()
         assert db.get(MediaCacheEntry, entry.id).thumbhash == old_hash
+
+
+def test_refresh_fences_enrichment_without_holding_connection(pg, root, monkeypatch):
+    from tests.test_poster_enrichment_offload import exercise_refresh_race
+    engine, factory, _ = pg
+    with factory() as db:
+        entry = poster(db, root)
+        entry_id = entry.id
+    exercise_refresh_race(engine, entry_id, root, monkeypatch)

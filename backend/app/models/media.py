@@ -245,19 +245,3 @@ class RecalledMediaSource(Base):
         Index("ix_recalled_source_uuid_agent_active", "video_uuid", "agent_id", "active"),
         Index("ix_recalled_source_retention_expiry", "retention_class", "expires_at"),
     )
-
-
-# All poster writers (including durable refresh and browser uploads) share this
-# hook. Reads and access timestamp updates never decode images.
-from sqlalchemy import event, inspect
-
-@event.listens_for(MediaCacheEntry, "before_insert")
-@event.listens_for(MediaCacheEntry, "before_update")
-def _poster_visuals(mapper, connection, entry):
-    if entry.rendition != "poster" or entry.status != "ready":
-        return
-    state = inspect(entry)
-    if state.pending or any(state.attrs[name].history.has_changes()
-                            for name in ("storage_path", "checksum_sha256")):
-        from app.services.poster_visuals import enrich_poster
-        enrich_poster(entry)

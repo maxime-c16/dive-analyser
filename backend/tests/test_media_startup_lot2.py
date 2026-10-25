@@ -31,7 +31,11 @@ def poster(db, root):
         storage_path=str(path), status='ready', size_bytes=path.stat().st_size,
         checksum_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
     db.add(entry)
+    db.flush()
+    entry_id = entry.id
     db.commit()
+    poster_visuals.enrich_committed_poster(entry_id, bind=db.get_bind())
+    db.refresh(entry)
     return entry
 
 
@@ -53,9 +57,15 @@ def test_all_poster_writes_refresh_visuals_and_reads_do_not(test_db, root, monke
     # Same row refresh, as durable_poster_cache._refresh does.
     path = root / 'updated.jpg'
     Image.new('RGB', (1080, 1920), '#ee9922').save(path)
+    poster_visuals.clear_visuals(entry)
     entry.storage_path = str(path)
     entry.checksum_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
     test_db.commit()
+    assert calls == []
+    entry_id = entry.id
+    test_db.rollback()
+    poster_visuals.enrich_committed_poster(entry_id, bind=test_db.get_bind())
+    test_db.refresh(entry)
     assert calls == [entry.id]
     assert entry.thumbhash != old_hash and entry.thumb_storage_path != old_thumb
     assert Path(old_thumb).is_file() # live old capabilities retain immutable bytes

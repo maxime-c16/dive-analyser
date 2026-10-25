@@ -231,7 +231,7 @@ def test_durable_writer_generates_thumbhash_and_refreshes_it(cache, monkeypatch)
     asset = _durable_clip(cache, 1)
     color = ['#2277aa']
     # Isolate transport verification (covered above); run real durable SQL/files
-    # and the shared poster-write hook with an actual decodable poster.
+    # and explicit post-commit enrichment with an actual decodable poster.
     def download(item, dest):
         Image.new('RGB', (1080, 1920), color[0]).save(dest, format='JPEG')
         return dest.stat().st_size

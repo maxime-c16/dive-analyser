@@ -93,6 +93,7 @@ def remote_playback_configured():
 
 
 def cache_upload(db, asset, folder):
+    posters = []
     for name, rendition, content_type in [('source', 'browser_source', 'application/octet-stream'), ('original.mp4', 'original', 'video/mp4'), ('poster.jpg', 'poster', 'image/jpeg')]:
         path = folder / name
         if rendition == 'poster':
@@ -113,7 +114,11 @@ def cache_upload(db, asset, folder):
             # copy.
             pinned = not remote_playback_configured()
             expires_at = datetime.utcnow() + timedelta(days=30)
-        db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=pinned, expires_at=expires_at))
+        entry = MediaCacheEntry(photos_asset_id=asset.id, media_key=build_media_key(asset.video_uuid, rendition), rendition=rendition, storage_path=str(path), content_type=content_type, size_bytes=path.stat().st_size, status='ready', pinned=pinned, expires_at=expires_at)
+        db.add(entry)
+        if rendition == 'poster':
+            posters.append(entry)
+    return posters
 
 
 def persist_original(db, video_uuid, folder, *, register=True, source_name='source'):
