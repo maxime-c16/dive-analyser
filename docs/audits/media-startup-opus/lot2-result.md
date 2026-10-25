@@ -38,9 +38,12 @@ les URLs de transport des évaluations ne sont pas modifiés.
   unies peuvent être bien plus petites, les cas extrêmes peuvent dépasser la
   cible au dernier palier. WebP est compatible avec les navigateurs iOS 16+.
 - ThumbHash opaque RGBA, calculé sur ≤100×100 pixels, stocké en base en base64.
-  Un hook ORM commun couvre finalisation Mac, import navigateur et création /
-  refresh `durable_poster_cache` de #158. Il ne s'exécute pas lors des lectures
-  ou mises à jour de `last_accessed_at`. Poster illisible : métadonnées nulles,
+  Une fonction explicite après commit couvre finalisation Mac, import navigateur
+  et création / refresh `durable_poster_cache` de #158. Aucun hook ORM ne calcule
+  d'image. Le calcul se fait hors boucle et sans transaction ouverte ; une courte
+  transaction distincte écrit les métadonnées par contrôle atomique du checksum
+  et du chemin. Elle ne s'exécute pas lors des lectures ou mises à jour de
+  `last_accessed_at`. Poster illisible : métadonnées nulles,
   poster existant conservé ; jamais de ThumbHash/thumb d'une ancienne version.
 - `/dives/library`, batch et statut individuel exposent `thumbhash` et
   `thumb_url`. La bibliothèque fait une seule requête supplémentaire bornée
@@ -125,8 +128,10 @@ Conserver le schéma lors d'un rollback.
 Le backfill n'est ni au démarrage ni dans un GET. Une invocation traite au plus
 8 posters par défaut, 32 maximum, en ordre d'id ; retourner et conserver
 `after_id`, arrêter à `scanned=0`. Le script abaisse lui-même sa priorité de 10.
-Il lit uniquement les posters locaux existants, verrouille ses lignes contre
-les refreshs et commit sa passe. À exécuter seulement lors d'une future fenêtre
+Il lit uniquement les posters locaux existants, termine sa transaction de
+sélection avant les calculs, puis enrichit chaque id dans ses propres courtes
+transactions. Un UPDATE conditionnel sur id + checksum + chemin + statut ready
+écarte un calcul devenu obsolète après un refresh, sans verrou pendant le calcul. À exécuter seulement lors d'une future fenêtre
 opérateur autorisée, par exemple depuis le conteneur backend :
 
 ```sh
@@ -193,7 +198,7 @@ les deux locations signées le temps de laisser expirer les liens en circulation
 ## Vérifications et reproduction
 
 - Commit d'implémentation : `a2b43d67`.
-- **145 tests backend ciblés passent**, dont **7 intégrations Postgres** (5 du
+- Validation initiale avant revue : **145 tests backend ciblés passent**, dont **7 intégrations Postgres** (5 du
   lot 1, migration idempotente et backfill du lot 2), **2 tests nginx+njs**
   (service HTTP réel et parsing des deux configurations), production/refresh
   durable #158 avec vraie image, contrôle d'accès du secours thumb, cache
@@ -234,3 +239,97 @@ Tests nginx optionnels : fournir `LOT2_NGINX_BINARY` et `LOT2_NGINX_MODULE` vers
 un nginx local avec le module njs ; les tests n'appellent aucun hôte de prod.
 Release note additive : `library-small-thumbnails`, backend + frontend. La
 signature reste désactivée par défaut et nécessite la configuration opérateur.
+
+
+## Correction après revue — calcul d'image hors flush
+
+Le hook `before_insert` / `before_update` a été supprimé. L'enrichissement
+pendant un flush retenait la transaction de publication pendant Pillow,
+ThumbHash et les essais d'encodage WebP. Dans la base effectivement relue,
+`finalize_job_artifact` déportait déjà son flush dans `asyncio.to_thread` ;
+la correction ne s'appuie plus sur ce détail implicite pour séparer les calculs
+et la transaction.
+
+`enrich_committed_poster` ouvre une session dédiée pour lire une copie simple
+(id, chemin, checksum), la ferme et rend sa connexion **avant** tout calcul ou
+écriture de fichier. Après calcul, une seconde session fait un UPDATE atomique
+par id, checksum et chemin inchangés, rendition poster et statut ready. Les
+checksums NULL des imports historiques sont comparés avec IS NULL ; le chemin
+immuable de l'import clôture aussi cette condition. Un refresh durable remet
+les quatre champs visuels à NULL dans sa propre transaction de publication.
+Un ancien calcul ne peut ainsi ni publier sa miniature ni effacer celle d'un
+nouveau poster. Les fichiers adressés par contenu produits par un calcul
+écarté restent des orphelins sûrs, sans suppression dans ce lot.
+
+Les points d'appel sont explicites :
+
+- Finalisation Mac : tout le contrôle SQL, la finalisation et le commit restent
+  dans le worker protégé par `run_to_completion(asyncio.to_thread(...))`.
+  La réponse est copiée avant expiration ORM au commit ; l'enrichissement suit
+  le commit dans ce worker, avec ses sessions distinctes. Aucun refresh ORM ni
+  SQL de sérialisation ne revient sur la boucle. Une déconnexion attend toujours
+  la fin du worker avant fermeture de la session de requête.
+- Import navigateur : `cache_upload` retourne les posters créés sans calcul ;
+  `upload_dive`, appelé par le worker synchrone de la queue, capture leurs ids
+  avant commit et lance ensuite l'enrichissement. Il est placé après le bloc
+  qui annule la publication et nettoie son dossier en cas d'échec.
+- Tick `durable_poster_cache` : appel direct synchrone après commit de chaque
+  création ou refresh, jamais dans le flush ni sous son verrou de ligne.
+- Backfill : sélection bornée des seuls posters incomplets, fin de transaction,
+  puis appel direct par id. Il garde la priorité basse et le plancher disque.
+
+Une exception de décodage/encodage est journalisée et écrit NULL sous la même
+condition de concurrence. Une erreur SQL d'enrichissement est journalisée et
+contenue ; elle ne remonte pas à la publication déjà committée. Un poster
+nouveau ou rafraîchi garde alors ses champs NULL, repris au prochain backfill.
+Sous le plancher disque, un ThumbHash valide peut toujours être stocké sans
+thumb, comme auparavant. La réponse de finalisation attend la tentative
+d'enrichissement, mais laisse la boucle servir les autres requêtes.
+
+Audit des autres chemins async du lot : `upload_job_artifact` ne crée aucune
+ligne cache et garde sa vérification/acceptation en worker ; `upload_queue.receive`
+ne manipule que `BrowserUploadJob`, sans calcul d'image. La publication navigateur
+se fait dans `upload_queue.process_one` sur son thread dédié. Le tick durable est
+appelé par le script synchrone `backend/scripts/media_migration.py`. Les nouvelles
+lectures SQL bibliothèque/statut/thumb sont des handlers `def` ; le signer HMAC
+n'effectue ni SQL ni traitement d'image. Aucun nouvel appel image ou SQL lourd
+du lot 2 ne reste dans un chemin async sur la boucle. Les autres écritures async
+préexistantes hors périmètre du lot 1 ne sont pas déclarées corrigées ici.
+
+### Preuves après correction
+
+Le test `test_finalizing_poster_keeps_light_request_under_100ms` utilise le vrai
+handler de finalisation via HTTP ASGI, avec une barrière qui retient le calcul
+dans un worker jusqu'à la réponse d'une requête légère concurrente. Il vérifie
+que le poster ready est déjà visible dans une session indépendante, que le
+writer n'a plus de transaction, que la finalisation n'exécute aucun SQL sur la
+boucle, et que la réponse reste 200 même si l'encodeur lève une exception.
+Ce test mesure le scheduling local, pas une latence réseau de production.
+
+`test_refresh_fences_old_enrichment` et sa version Postgres suspendent le calcul
+A, publient puis enrichissent B avant de libérer A : l'UPDATE de A touche zéro
+ligne et les métadonnées de B sont conservées. La version Postgres exige aussi
+zéro connexion empruntée pendant le calcul. Un autre test prouve qu'insert,
+flush, commit et refresh de la ligne seuls ne déclenchent aucun calcul ; un
+test d'exception inattendue vérifie journalisation et persistance des NULL.
+
+- Correction : commit local `adae8fa0`.
+- **214 tests backend passent**, dont **8 intégrations Postgres** et **2 tests
+  nginx+njs**, après correction. Cela inclut les contrôles de fencing D2,
+  annulation du worker, import navigateur, queue et protection des seules copies.
+- Requête légère pendant enrichissement retenu : **0.47 ms** en succès,
+  **0.35 ms** quand l'encodeur échoue ; seuil testé **100 ms**.
+- Les deux cas HDR locaux PQ/HLG sont explicitement deselected dans cette passe :
+  `zscale` manque au ffmpeg du Mac, limite déjà constatée avant cette revue.
+- `git diff --check` et validation du catalogue release notes passent.
+- Frontend inchangé : les **773 tests / build** indiqués dans la validation
+  initiale n'ont pas été rejoués pour cette correction exclusivement backend.
+- Valeurs et périmètre : [lot2-enrichment-review.json](lot2-enrichment-review.json).
+- Le Postgres local jetable a de nouveau été arrêté après validation.
+
+
+Le frontend et ses renditions n'ont pas changé dans cette correction : les
+mesures navigateur ci-dessus restent les mesures du lot 2 initial, pas une
+nouvelle mesure après cette revue. Aucune migration additionnelle ni modification
+de provisionnement/nginx. Aucun SSH, push, PR ou changement de production lors
+de cette correction.

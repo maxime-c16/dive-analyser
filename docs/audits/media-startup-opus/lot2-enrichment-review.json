@@ -1,0 +1,16 @@
+{
+  "implementation_commit": "adae8fa0",
+  "backend_passed": 214,
+  "deselected_local_ffmpeg_hdr_cases": 2,
+  "postgres_tests_passed": 8,
+  "nginx_tests_passed": 2,
+  "concurrent_light_request_ms": {
+    "enrichment_success": 0.47,
+    "enrichment_failure": 0.35
+  },
+  "light_request_limit_ms": 100,
+  "transport": "HTTP ASGI on one event loop; real finalize handler; blocked worker barrier",
+  "race": "older enrichment CAS loses to committed/refreshed/enriched poster, SQLite + Postgres",
+  "connection_check": "Postgres pool checkedout() == 0 during image computation",
+  "production_access": false
+}
