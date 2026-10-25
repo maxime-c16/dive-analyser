@@ -20,9 +20,10 @@ poster, attente de `/auth/me`, Funnel) est réel mais de second ordre tant que c
   redémarrage de 09:02, Postgres sur 7 jours), `pg_stat_*` et quelques SELECT,
   `/proc/diskstats`, `stat`/`ffprobe` sur quelques fichiers du cache, plus `curl` **non
   authentifié** (aucune écriture : un 401 ne touche pas `user_sessions`).
-- **Pas de requête authentifiée** : un login insère une session, chaque requête met à jour
-  `last_used_at` une fois par minute, et chaque GET de poster écrit en base (voir P1-3).
-  Je n'ai donc mesuré en production ni la durée de `/dives/library`, ni le premier poster.
+- **Deuxième passe authentifiée** (autorisée par Maxime, 09:48–10:00 UTC) : compte e2e
+  (user 13), une seule session, déconnectée ensuite (`/auth/me` → 401). Effets en base :
+  1 session, des `last_accessed_at` de posters, environ 12 grants de lecture. Voir
+  « Mesures authentifiées » ci-dessous.
 - Expériences locales contrôlées, scripts versionnés :
   - `advisory_lock_probe.py` : FastAPI 0.104.1, SQLAlchemy 2.0.23 et psycopg2, comme en
     production, avec un Postgres 16 local jetable.
@@ -31,6 +32,72 @@ poster, attente de `/auth/me`, Funnel) est réel mais de second ordre tant que c
     Aucune donnée utilisateur n'a été copiée.
 - Les logs nginx n'ont pas de `$request_time`. Les heures sont donc à la seconde, au moment
   où la réponse se termine. Les logs backend antérieurs à 09:02 ont été perdus au redéploiement.
+
+## Mesures authentifiées (25 oct., 09:48–10:00 UTC, compte e2e)
+
+**A. Temps serveur pur**, mesuré sur l'hôte en loopback vers le backend, 6 à 30 essais séquentiels :
+
+| Route | Temps serveur |
+|---|---|
+| `/auth/me` | 8–12 ms (un pic à 99 ms) |
+| `/divers` | 29–74 ms |
+| `/dives/library?limit=100` | p50 100 ms, p90 181 ms, max 319 ms (92 Ko de JSON, 8,7 Ko gzip) |
+| `limit=24` | 59–84 ms |
+
+Les autres routes du boot (`updates`, `notifications`, `unread-count`, `achievements`,
+`deposits`) prennent chacune 20 à 170 ms.
+
+**B. Le même appel vu du client** : `/dives/library` met 230–500 ms en LAN HTTPS et
+280–600 ms via Funnel, contre 100 ms côté serveur. Le gzip nginx n'explique pas l'écart
+(mêmes temps avec ou sans, une fois testé en alterné). Il vient de la concurrence sur la
+boucle et du trajet réseau (TLS neuf à chaque appel curl).
+
+**C. Vrai navigateur sur le frontend prod via Funnel** (`browser-prod-2026-10-25.json`).
+Pour ces runs, les `GET /media/{uuid}/status` étaient bloqués, afin de ne pas déclencher P0-1.
+
+| Run | HTML TTFB | `/me` fin | bibliothèque | batch status | 1er poster chargé | LCP | posters (octets) |
+|---|---|---|---|---|---|---|---|
+| desktop froid #1 | 327 ms | 523 | 555→1080 | 1160→1279 | 1677 | 1952 | 11 (1,73 Mo) |
+| desktop froid #2 | 356 | 604 | 628→985 | 1062→1195 | 1476 | 1692 | 11 (1,73 Mo) |
+| desktop chaud (snapshot) | 51–104 | 240–288 | — (snapshot) | 313→626 | 874–973 | 888–1220 | 11 |
+| mobile 390 px froid | 227 | 658 | 682→1574 | 1650→1822 | 2342 | 2364 | 8 (1,28 Mo) |
+| mobile chaud | 77 | 359 | — | 446→915 | 1453 | 2068 | 8 |
+
+La cascade est **strictement séquentielle** : HTML → JS → `/me` → bibliothèque et divers →
+batch status (+50 ms) → poster. Le batch ne démarre qu'après la bibliothèque. C'est
+exactement ce que le lot 1 du parent supprime ; dans ces runs, il y a 100 à 470 ms entre la
+fin de la bibliothèque et la fin du batch.
+
+**D. Côté serveur pendant ces runs « sans gel »** (log slow-request du backend) :
+- **60 des 61 GET de poster ont dépassé 500 ms dans le handler** : p50 1,08 s, p90 2,43 s,
+  max 2,46 s. Pourtant les octets sont servis par nginx (X-Accel) : c'est uniquement
+  auth + UPDATE/COMMIT + attente de la boucle.
+- Les `/auth/me` (sous-requêtes `auth_request` de Funnel) ont atteint p50 539 ms et max 2,24 s.
+
+C'est P0-2 et P1-3 **mesurés en production**.
+
+**E. Gel P0-1 déclenché par un seul chargement normal** (09:53:44, un run Playwright sans
+blocage des `status`) :
+- des posters ont mis **31,7 à 32,1 s** côté backend ;
+- Postgres a tué **7 transactions "idle in transaction"** à 09:54:14–15, puis tout s'est
+  débloqué d'un coup ;
+- 3 posters ont fini en **500** côté navigateur.
+
+Les 6 chargements juste avant, avec les `status` bloqués, n'ont provoqué aucun kill. Le
+lien de cause à effet est établi en production, en A/B.
+
+**F. Démarrage de lecture** (clic simulé, requêtes séquentielles, premier Mio,
+`playback-*.json`) :
+- pour les clips migrés, le statut du lecteur renvoie `preview_url` et `poster_url` vers
+  des **grants D5 (302 vers B2)**, alors qu'un proxy 720p **local** existe encore dans
+  `cache_entries` ;
+- `status` 0,36–0,60 s ; grant 302 0,50–2,87 s ; premier octet B2 0,16–1,44 s ; premier
+  Mio total ≈ 0,4 s après le premier octet ;
+- clic → premier Mio : **1,7 à 3,4 s** (4 clips) ;
+- sur les mêmes 5 clips, premier Mio : **proxy local médiane 0,70 s (0,61–1,55)**,
+  **D5 médiane 1,90 s (1,28–4,04)**.
+
+Le décodage et la première image ne sont pas inclus.
 
 ## Schéma 1 : chemin d'un premier chargement (accès public Funnel)
 
@@ -117,9 +184,10 @@ réponse**. La transaction de A reste donc ouverte, verrou compris, au-delà de 
   notifications restent figés 30 à 60 s. Sur Funnel, même `index.html` attend
   (auth_request), ce qui peut bloquer un rechargement. La migration média en souffre aussi :
   heartbeats perdus et jobs déclarés en échec.
-- **Certitude** : mécanisme **prouvé** (code et reproduction déterministe avec les versions
-  de production). Rôle dans l'incident de 08:34 **très probable** (même signature, même
-  minute, même nombre d'acteurs), sans trace backend pour le confirmer. Les kills en grappe
+- **Certitude** : **prouvé en production**. Un seul chargement normal de `/dives` à 09:53:44
+  a gelé le backend 32 s (7 kills, 3 posters en 500), alors que 6 chargements avec les
+  `status` bloqués n'ont rien déclenché (voir « Mesures authentifiées », E). L'incident de
+  08:34 a la même signature. Les kills en grappe
   du 18 octobre précèdent la PR #128 : au moins une autre cause a existé (voir P0-2).
 - **Correction candidate** :
   1. Ne plus faire de `reclaim` (écriture + verrou) sur les chemins de lecture `status` :
@@ -216,6 +284,9 @@ réponse**. La transaction de A reste donc ouverte, verrou compris, au-delà de 
 
 ### P1-5 · Poids média de la grille : posters pleine résolution et 61 % de tuiles `<video>`
 
+- **Nuance mesurée en seconde passe** : les 100 clips les plus récents (le premier écran)
+  ont **tous** un poster cache. Les tuiles `<video>` concernent les clips plus anciens,
+  donc le scroll et les filtres, pas le premier écran par défaut.
 - **Mesures** sur 2 998 clips :
   - 1 013 tuiles ont un poster cache : JPEG **1080×1920 à 2034×3616**, médiane
     156 Ko, p90 208 Ko, max 454 Ko.
@@ -251,6 +322,32 @@ réponse**. La transaction de A reste donc ouverte, verrou compris, au-delà de 
   pour une tuile. Je recommande au thread D5 un **miroir local** du poster ou de la vignette
   durable, servi par X-Accel et une URL stable immuable. B2 resterait la source durable,
   pas le chemin de grille.
+
+### P1-6 · Le démarrage de lecture est passé par B2 alors qu'un proxy local existe
+
+- **Constat mesuré** : pour un clip migré, `_status_for_asset` met en premier le light D5
+  (`preview_url` = `/media/revisions/{id}/play`). Il faut donc un grant (SQL ×2, INSERT +
+  COMMIT, HEAD B2 éventuel), un 302 `no-store`, une nouvelle connexion TLS vers B2, puis le
+  premier octet B2. Le poster de couverture du lecteur suit le même chemin.
+  - Le proxy 720p local du cache est toujours là, servi par X-Accel.
+  - Premier Mio sur les mêmes clips : **0,70 s en local contre 1,90 s en D5** (médianes,
+    5 clips, via Funnel).
+  - Le grant seul prend de 0,5 à 2,9 s, parce qu'il subit P0-2.
+  - Le fichier light pèse aussi environ 4,8 × le proxy local (médiane 4,6 Mo contre 0,96 Mo).
+- **Impact UX** : le clic tarde à lancer la vidéo. Chaque réouverture refait un grant (TTL
+  de 120 s, réponse `no-store`) et ne profite pas du cache navigateur.
+- **Certitude** : élevée sur les segments mesurés ; la première image (décodage) n'a pas
+  été mesurée.
+- **Correction (à trancher avec le thread D5, sans en prendre l'ownership)** :
+  - démarrer sur le proxy local quand il existe et garder D5 pour la qualité ou en
+    secours, ou mettre le light D5 en miroir local et le servir par X-Accel ;
+  - à défaut, rendre le grant léger : P0-2, COMMIT asynchrone, URL présignée réutilisée
+    pendant son TTL.
+- **Compromis** : le proxy legacy est de qualité moindre. Un miroir local consomme du
+  disque (light ≈ 9,8 Go pour 2 116 clips à la médiane, sur un disque déjà plein) : c'est
+  un vrai arbitrage.
+- **Test** : le clic jusqu'à la première image (`requestVideoFrameCallback`) sur les mêmes
+  clips, en local et en D5, à froid et à chaud.
 
 ### P2-6 · Funnel : `auth_request` double la charge backend et bloque `index.html`
 
@@ -384,6 +481,7 @@ réelles par segment : réseau, temps serveur, attente de verrou ou de disque, d
 | 4 | P1-3 : écriture d'accès limitée + `immutable` sur les posters | COMMIT par rafale ; ratio 304/200 | S |
 | 5 | P1-4 : WebSocket sans session de routeur | kills isolés ≈ 0 ; `pool.checkedout()` | S |
 | 6 | P1-5 : vignette de grille et miroir local (à coordonner avec D5) | octets du premier écran ; mémoire iPhone | M |
+| 6b | P1-6 : démarrer sur la source locale, ou rendre le grant D5 léger | clic → 1ʳᵉ image, local contre D5 | M |
 | 7 | P2-7 / P2-8 : boot optimiste, préparation différée | temps jusqu'au premier poster (télémétrie 5) | S |
 | 8 | P2-6 / P2-9 / P3-10 : Funnel, pollers, bundle | passages backend par page ; 401 par jour | S |
 | 9 | P3-11 : SSD pour Postgres et le cache | flush moyen ; PSI | infra |
@@ -400,6 +498,8 @@ l'avant/après du lot 1 sera dominé par les gels.
 - `event_loop_probe.py`, `event-loop-probe-commit39.json`,
   `event-loop-probe-commit150.json` : modèle de P0-2 et P1-3.
 - `decode_probe.cjs`, `decode-probe.json` : décodage sur images synthétiques.
+- `browser_probe.cjs`, `browser-prod-2026-10-25.json` : premier chargement réel (3 contextes, froid et chaud).
+- `play_probe.py`, `play_compare.py`, `playback-*.json` : segments du démarrage de lecture (sans URL présignée).
 - `docs/audits/media-startup-opus-brief.md` : brief.
 
 Pour rejouer : `initdb` et `pg_ctl` locaux avec `idle_in_transaction_session_timeout=5000`,

@@ -1,0 +1,296 @@
+[
+ {
+  "label": "desktop",
+  "phase": "cold",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 327,
+   "dcl": 481
+  },
+  "marks": {
+   "first_tile_media_in_dom": 554,
+   "lcp": 1952,
+   "first_poster_in_dom": 1286,
+   "first_poster_loaded": 1677
+  },
+  "key": {
+   "me": {
+    "start": 497,
+    "end": 523,
+    "dur": 26,
+    "bytes": 475
+   },
+   "library": {
+    "start": 555,
+    "end": 1080,
+    "dur": 525,
+    "bytes": 11401
+   },
+   "divers": {
+    "start": 555,
+    "end": 915,
+    "dur": 360,
+    "bytes": 721
+   },
+   "batch": {
+    "start": 1160,
+    "end": 1279,
+    "dur": 119,
+    "bytes": 830
+   },
+   "js": {
+    "start": 339,
+    "end": 463,
+    "dur": 124,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 11,
+  "media_cache_bytes": 1726175,
+  "media_cache_first_end": 1677,
+  "media_cache_last_end_before_8s": 3404,
+  "requests_first_5s": 26,
+  "bytes_first_5s": 2001941,
+  "aborted_status_calls": 2
+ },
+ {
+  "label": "desktop",
+  "phase": "warm",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 104,
+   "dcl": 259
+  },
+  "marks": {
+   "first_tile_media_in_dom": 307,
+   "lcp": 1220,
+   "first_poster_in_dom": 631,
+   "first_poster_loaded": 973
+  },
+  "key": {
+   "me": {
+    "start": 262,
+    "end": 288,
+    "dur": 26,
+    "bytes": 475
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 362,
+    "end": 626,
+    "dur": 264,
+    "bytes": 832
+   },
+   "js": {
+    "start": 115,
+    "end": 247,
+    "dur": 132,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 11,
+  "media_cache_bytes": 1726175,
+  "media_cache_first_end": 972,
+  "media_cache_last_end_before_8s": 1892,
+  "requests_first_5s": 24,
+  "bytes_first_5s": 1989830,
+  "aborted_status_calls": 2
+ },
+ {
+  "label": "desktop",
+  "phase": "cold",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 356,
+   "dcl": 494
+  },
+  "marks": {
+   "lcp": 1692,
+   "first_tile_media_in_dom": 627,
+   "first_poster_in_dom": 1200,
+   "first_poster_loaded": 1476
+  },
+  "key": {
+   "me": {
+    "start": 506,
+    "end": 604,
+    "dur": 98,
+    "bytes": 475
+   },
+   "library": {
+    "start": 628,
+    "end": 985,
+    "dur": 357,
+    "bytes": 11392
+   },
+   "divers": {
+    "start": 628,
+    "end": 860,
+    "dur": 232,
+    "bytes": 721
+   },
+   "batch": {
+    "start": 1062,
+    "end": 1195,
+    "dur": 133,
+    "bytes": 829
+   },
+   "js": {
+    "start": 363,
+    "end": 483,
+    "dur": 120,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 11,
+  "media_cache_bytes": 1726175,
+  "media_cache_first_end": 1475,
+  "media_cache_last_end_before_8s": 2432,
+  "requests_first_5s": 26,
+  "bytes_first_5s": 2001942,
+  "aborted_status_calls": 2
+ },
+ {
+  "label": "desktop",
+  "phase": "warm",
+  "viewport": "1280x800",
+  "nav": {
+   "ttfb": 51,
+   "dcl": 194
+  },
+  "marks": {
+   "lcp": 888,
+   "first_tile_media_in_dom": 258,
+   "first_poster_in_dom": 533,
+   "first_poster_loaded": 874
+  },
+  "key": {
+   "me": {
+    "start": 197,
+    "end": 240,
+    "dur": 43,
+    "bytes": 475
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 313,
+    "end": 530,
+    "dur": 217,
+    "bytes": 835
+   },
+   "js": {
+    "start": 57,
+    "end": 180,
+    "dur": 123,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 11,
+  "media_cache_bytes": 1726175,
+  "media_cache_first_end": 873,
+  "media_cache_last_end_before_8s": 1680,
+  "requests_first_5s": 24,
+  "bytes_first_5s": 1989833,
+  "aborted_status_calls": 2
+ },
+ {
+  "label": "phone",
+  "phase": "cold",
+  "viewport": "390x844",
+  "nav": {
+   "ttfb": 227,
+   "dcl": 563
+  },
+  "marks": {
+   "lcp": 2364,
+   "first_tile_media_in_dom": 681,
+   "first_poster_in_dom": 1825,
+   "first_poster_loaded": 2342
+  },
+  "key": {
+   "me": {
+    "start": 576,
+    "end": 658,
+    "dur": 82,
+    "bytes": 475
+   },
+   "library": {
+    "start": 682,
+    "end": 1574,
+    "dur": 892,
+    "bytes": 11401
+   },
+   "divers": {
+    "start": 682,
+    "end": 1007,
+    "dur": 325,
+    "bytes": 716
+   },
+   "batch": {
+    "start": 1650,
+    "end": 1822,
+    "dur": 172,
+    "bytes": 717
+   },
+   "js": {
+    "start": 231,
+    "end": 552,
+    "dur": 321,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 8,
+  "media_cache_bytes": 1275940,
+  "media_cache_first_end": 2341,
+  "media_cache_last_end_before_8s": 4335,
+  "requests_first_5s": 23,
+  "bytes_first_5s": 1551602,
+  "aborted_status_calls": 2
+ },
+ {
+  "label": "phone",
+  "phase": "warm",
+  "viewport": "390x844",
+  "nav": {
+   "ttfb": 77,
+   "dcl": 209
+  },
+  "marks": {
+   "lcp": 2068,
+   "first_tile_media_in_dom": 389,
+   "first_poster_in_dom": 920,
+   "first_poster_loaded": 1453
+  },
+  "key": {
+   "me": {
+    "start": 212,
+    "end": 359,
+    "dur": 147,
+    "bytes": 475
+   },
+   "library": null,
+   "divers": null,
+   "batch": {
+    "start": 446,
+    "end": 915,
+    "dur": 469,
+    "bytes": 724
+   },
+   "js": {
+    "start": 86,
+    "end": 195,
+    "dur": 109,
+    "bytes": 229034
+   }
+  },
+  "media_cache_requests": 8,
+  "media_cache_bytes": 1275940,
+  "media_cache_first_end": 1452,
+  "media_cache_last_end_before_8s": 3666,
+  "requests_first_5s": 21,
+  "bytes_first_5s": 1539492,
+  "aborted_status_calls": 2
+ }
+]

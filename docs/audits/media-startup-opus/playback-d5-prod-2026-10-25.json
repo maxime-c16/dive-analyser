@@ -1,0 +1,58 @@
+[
+ {
+  "kind": "d5_light",
+  "status_s": 0.410826,
+  "first_code": 302,
+  "first_ttfb_s": 0.700522,
+  "first_total_s": 0.700619,
+  "first_bytes": 0,
+  "b2_code": 206,
+  "b2_tls_s": 0.062548,
+  "b2_ttfb_s": 0.158971,
+  "b2_total_s": 0.564572,
+  "b2_bytes": 1048576,
+  "click_to_1MiB_s": 1.676
+ },
+ {
+  "kind": "d5_light",
+  "status_s": 0.53102,
+  "first_code": 302,
+  "first_ttfb_s": 0.499353,
+  "first_total_s": 0.499429,
+  "first_bytes": 0,
+  "b2_code": 206,
+  "b2_tls_s": 0.067714,
+  "b2_ttfb_s": 0.502069,
+  "b2_total_s": 0.877709,
+  "b2_bytes": 1048576,
+  "click_to_1MiB_s": 1.908
+ },
+ {
+  "kind": "d5_light",
+  "status_s": 0.361047,
+  "first_code": 302,
+  "first_ttfb_s": 0.7703,
+  "first_total_s": 0.770407,
+  "first_bytes": 0,
+  "b2_code": 206,
+  "b2_tls_s": 0.12301,
+  "b2_ttfb_s": 0.258183,
+  "b2_total_s": 0.717551,
+  "b2_bytes": 1048576,
+  "click_to_1MiB_s": 1.849
+ },
+ {
+  "kind": "d5_light",
+  "status_s": 0.598975,
+  "first_code": 302,
+  "first_ttfb_s": 1.037066,
+  "first_total_s": 1.037273,
+  "first_bytes": 0,
+  "b2_code": 206,
+  "b2_tls_s": 0.070213,
+  "b2_ttfb_s": 1.437253,
+  "b2_total_s": 1.77896,
+  "b2_bytes": 1048576,
+  "click_to_1MiB_s": 3.415
+ }
+]
