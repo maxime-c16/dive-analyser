@@ -1101,11 +1101,14 @@
     opacity 0.22s ease,
     visibility 0s linear 0.22s;
 }
-/* Phones: the top header and the footer navigation are overlays here and
-   carry their own gradient backgrounds, so they fade out with the HUD. */
-@media (max-width: 599px) {
-  .clip-viewer.is-hud-hidden:not(.is-pinching) .clip-header,
-  .clip-viewer.is-hud-hidden:not(.is-pinching) .clip-navigation {
+/* Immersive layouts: the top header and the footer navigation are overlays
+   on phones and normal flow rows on short landscape (600–1023px wide,
+   <600px tall, the STUDIO_QUERY exception), and both carry their own
+   gradient backgrounds, so they fade out with the HUD. */
+@media (max-width: 599px),
+  (min-width: 600px) and (max-width: 1023px) and (max-height: 599px) {
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-header,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-navigation {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
@@ -1124,9 +1127,10 @@
     transition: none;
   }
 }
-@media (max-width: 599px) and (prefers-reduced-motion: reduce) {
-  .clip-viewer.is-hud-hidden:not(.is-pinching) .clip-header,
-  .clip-viewer.is-hud-hidden:not(.is-pinching) .clip-navigation {
+@media (max-width: 599px),
+  (min-width: 600px) and (max-width: 1023px) and (max-height: 599px) {
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-header,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-navigation {
     transition: none;
   }
 }
