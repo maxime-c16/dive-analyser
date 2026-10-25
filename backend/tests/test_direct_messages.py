@@ -124,3 +124,60 @@ def test_unread_count_aggregates_beyond_inbox_pages(workspace):
     # Reading one conversation decrements the aggregate.
     assert client.post(f'/api/v1/messages/conversations/{cid}/receipts', json={'message_ids': visible, 'read': True}).status_code == 204
     assert client.get('/api/v1/messages/unread-count').json()['unread_count'] == 250
+
+
+def test_groups_are_created_shared_and_left(workspace):
+    db, login, _, users, _ = workspace
+    url = '/api/v1/messages/conversations/group'
+    alice = login('alice')
+    assert alice.post(url, json={'user_ids': [users['bob'].id]}).status_code == 422
+    assert alice.post(url, json={'user_ids': [users['bob'].id, users['alice'].id]}).status_code == 422
+    assert alice.post(url, json={'user_ids': [users['bob'].id, 999999]}).status_code == 404
+    response = alice.post(url, json={'user_ids': [users['bob'].id, users['viewer'].id, users['bob'].id]})
+    assert response.status_code == 201, response.text
+    gid = response.json()['id']
+    # Groups are never deduplicated, unlike direct conversations.
+    assert alice.post(url, json={'user_ids': [users['bob'].id, users['viewer'].id]}).json()['id'] != gid
+    assert db.query(ConversationParticipant).filter_by(conversation_id=gid).count() == 3
+
+    assert send(login('alice'), gid, body='Entraînement jeudi ?').status_code == 201
+    for name in ('bob', 'viewer'):
+        inbox = login(name).get('/api/v1/messages/conversations').json()['items']
+        group = next(item for item in inbox if item['id'] == gid)
+        assert group['kind'] == 'group' and len(group['members']) == 3 and group['unread_count'] == 1
+    assert login('bob').get('/api/v1/messages/unread-count').json()['unread_count'] == 1
+
+    assert login('bob').post(f'/api/v1/messages/conversations/{gid}/leave').status_code == 204
+    assert all(item['id'] != gid for item in login('bob').get('/api/v1/messages/conversations').json()['items'])
+    assert login('bob').get(f'/api/v1/messages/conversations/{gid}').status_code == 404
+    assert login('bob').get('/api/v1/messages/unread-count').json()['unread_count'] == 0
+    assert send(login('bob'), gid, body='Encore là ?').status_code == 404
+    assert len(login('alice').get(f'/api/v1/messages/conversations/{gid}').json()['members']) == 2
+    assert send(login('viewer'), gid, body='Oui !').status_code == 201
+
+    direct = start(login, users)
+    assert login('alice').post(f'/api/v1/messages/conversations/{direct}/leave').status_code == 409
+    assert login('alice').post(f'/api/v1/messages/conversations/{gid}/leave', headers={'Origin': 'https://evil.test'}).status_code == 403
+
+
+def test_any_group_member_names_the_group(workspace):
+    _, login, _, users, _ = workspace
+    created = login('alice').post('/api/v1/messages/conversations/group', json={'user_ids': [users['bob'].id, users['viewer'].id], 'title': '  Squad   3m  '})
+    assert created.status_code == 201, created.text
+    gid = created.json()['id']
+    url = f'/api/v1/messages/conversations/{gid}'
+    assert login('bob').get(url).json()['title'] == 'Squad 3m'
+    # Any member renames; everyone sees it in the inbox and the details.
+    assert login('viewer').put(url + '/title', json={'title': 'Jeudi 18h'}).json() == {'title': 'Jeudi 18h'}
+    inbox = login('alice').get('/api/v1/messages/conversations').json()['items']
+    assert next(item for item in inbox if item['id'] == gid)['title'] == 'Jeudi 18h'
+    assert login('bob').put(url + '/title', json={'title': '   '}).json() == {'title': None}
+    assert login('alice').get(url).json()['title'] is None
+    assert login('bob').put(url + '/title', json={'title': 'x' * 61}).status_code == 422
+    assert login('bob').put(url + '/title', json={'title': 'Hack'}, headers={'Origin': 'https://evil.test'}).status_code == 403
+    # Leaving revokes renaming; direct conversations have no name.
+    assert login('bob').post(url + '/leave').status_code == 204
+    assert login('bob').put(url + '/title', json={'title': 'Encore'}).status_code == 404
+    direct = start(login, users)
+    assert login('alice').put(f'/api/v1/messages/conversations/{direct}/title', json={'title': 'Nope'}).status_code == 409
+    assert login('alice').get(f'/api/v1/messages/conversations/{direct}').json()['title'] is None

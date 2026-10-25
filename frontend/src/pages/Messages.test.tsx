@@ -4,15 +4,17 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import '../i18n'
 import Messages from './Messages'
 import * as api from '../services/messagesApi'
+import { searchMembers } from '../services/communityApi'
 import type { Message } from '../services/messagesApi'
 import { MobileShellContext } from '../navigation/mobileShellActions'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
-vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn() }))
+vi.mock('../services/messagesApi', () => ({ getConversation: vi.fn(), listConversations: vi.fn(), getMessages: vi.fn(), acknowledgeMessages: vi.fn(), sendMessage: vi.fn(), reactToMessage: vi.fn(), startConversation: vi.fn(), startGroup: vi.fn(), leaveConversation: vi.fn() }))
+vi.mock('../services/communityApi', () => ({ searchMembers: vi.fn() }))
 const message: Message = { id: 7, conversation_id: 3, sender_id: 2, client_id: 'x', body: 'Hello from Fouiny', mentions: [], created_at: '2026-10-08T12:00:00Z', dive: null, receipts: [], reactions: [] }
 let visible: (entries: { intersectionRatio: number }[]) => void
 function show() { render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>) }
 function showWithShell(entry: string, claim: () => () => void) {
-  render(<MobileShellContext.Provider value={{ actions: <span data-testid="shell-actions" />, claim }}><MemoryRouter initialEntries={[entry]}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter></MobileShellContext.Provider>)
+  return render(<MobileShellContext.Provider value={{ actions: <span data-testid="shell-actions" />, claim }}><MemoryRouter initialEntries={[entry]}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter></MobileShellContext.Provider>)
 }
 beforeEach(() => {
   sessionStorage.clear()
@@ -159,15 +161,25 @@ it('abandoning and retyping identical text before an old send completes preserve
   await act(async()=>resolve({...message,id:8,sender_id:1,body:'Again'}))
   expect(input).toHaveValue('Again');expect(JSON.parse(sessionStorage.getItem('message-draft:v1:1:3')!).body).toBe('Again')
 })
-it('claims the mobile shell in the inbox but not on a conversation page', async () => {
-  // The conversation heading is hidden on phones, so claiming there would
-  // remove the shell fallback bar while showing no actions (bell + avatar lost).
-  let claims = 0
-  const claim = () => { claims++; return () => { claims-- } }
-  showWithShell('/messages/3', claim)
-  await screen.findByText(message.body)
-  expect(claims).toBe(0)
-  expect(screen.queryByTestId('shell-actions')).toBeNull()
+it('claims the mobile shell exactly once on a conversation page, from its header on phones', async () => {
+  // Phones hide the page heading in a conversation; the conversation header
+  // takes the title row, so it carries the bell and avatar instead.
+  const width = window.innerWidth
+  try {
+    for (const viewport of [390, 1024]) {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewport })
+      let claims = 0
+      const claim = () => { claims++; return () => { claims-- } }
+      const { unmount } = showWithShell('/messages/3', claim)
+      await screen.findByText(message.body)
+      expect(claims).toBe(1)
+      const actions = screen.getByTestId('shell-actions')
+      expect(Boolean(actions.closest('.msg-thread-head'))).toBe(viewport < 768)
+      unmount()
+    }
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  }
 })
 it('claims the mobile shell in the inbox', async () => {
   let claims = 0
@@ -176,4 +188,47 @@ it('claims the mobile shell in the inbox', async () => {
   await screen.findByRole('heading', { level: 1 })
   expect(claims).toBe(1)
   expect(screen.getByTestId('shell-actions')).toBeInTheDocument()
+})
+it('leaving a group drops it from the inbox instead of keeping a clickable dead row', async () => {
+  const group = { id: 9, kind: 'group' as const, title: 'Cliff crew', members: [
+    { user_id: 2, display_name: 'Fouiny', handle: null, bio: '', avatar_url: null },
+    { user_id: 3, display_name: 'Fanny', handle: null, bio: '', avatar_url: null },
+  ], updated_at: '2026-10-08T12:00:00Z', unread_count: 0, latest: null }
+  vi.mocked(api.getConversation).mockResolvedValue(group)
+  vi.mocked(api.listConversations).mockResolvedValue({ items: [group], next_before: null })
+  vi.mocked(api.getMessages).mockResolvedValue({ items: [], next_before: null })
+  vi.mocked(api.leaveConversation).mockResolvedValue(undefined)
+  const confirm = window.confirm
+  window.confirm = vi.fn(() => true)
+  try {
+    render(<MemoryRouter initialEntries={['/messages/9']}><Routes><Route path="/messages" element={<Messages />} /><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+    // Header and inbox row both show the group name.
+    await waitFor(() => expect(screen.getAllByText('Cliff crew')).toHaveLength(2))
+    fireEvent.click(screen.getByRole('button', { name: /cliff crew/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Leave group' }))
+    // The server no longer lists the departed group; the refresh merge alone would keep it.
+    vi.mocked(api.listConversations).mockResolvedValue({ items: [], next_before: null })
+    await waitFor(() => expect(api.leaveConversation).toHaveBeenCalledWith(9))
+    await waitFor(() => expect(screen.queryByRole('link', { name: /cliff crew/i })).toBeNull())
+    expect(await screen.findByText('No conversations yet.')).toBeInTheDocument()
+  } finally {
+    window.confirm = confirm
+  }
+})
+it('caps group selection at 15 others and explains the limit', async () => {
+  const members = Array.from({ length: 16 }, (_, i) => ({ user_id: 10 + i, display_name: `Diver${i}`, handle: null, bio: '', avatar_url: null }))
+  vi.mocked(api.listConversations).mockResolvedValue({ items: [], next_before: null })
+  vi.mocked(searchMembers).mockResolvedValue({ items: members, next_after: null })
+  vi.mocked(api.startGroup).mockResolvedValue({ id: 11 })
+  render(<MemoryRouter initialEntries={['/messages']}><Routes><Route path="/messages" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByRole('heading', { level: 1 })
+  fireEvent.click(screen.getAllByRole('button', { name: 'New' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'New group' }))
+  for (let i = 0; i < 16; i++) fireEvent.click(await screen.findByRole('button', { name: `Diver${i}` }))
+  // The 16th pick is ignored: 15 chips, the limit hint, create counting 16 people total.
+  await waitFor(() => expect(screen.getAllByRole('button', { name: /remove diver/i })).toHaveLength(15))
+  expect(screen.getByText('Groups hold up to 16 people')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Create group · 16 people' }))
+  await waitFor(() => expect(api.startGroup).toHaveBeenCalledTimes(1))
+  expect(vi.mocked(api.startGroup).mock.calls[0][0]).toHaveLength(15)
 })
