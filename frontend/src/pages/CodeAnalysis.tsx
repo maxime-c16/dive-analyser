@@ -14,6 +14,7 @@ import { clearCodeSummaryCache, getCodeAttempts, getCodeSummaries, peekCodeAttem
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
 import { DAY_MS, mean, median, quantile, recentTrend, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
 import { appLocale } from '../utils/dateLocale'
+import { ATHLETE_SCORE_10 } from '../utils/performanceScoring'
 
 const ClipViewer = lazy(() => import('../components/clip-viewer/ClipViewer'))
 
@@ -110,42 +111,45 @@ export default function CodeAnalysis() {
     return all.filter(item => now - ts(item) <= days * DAY_MS && (!height || item.height === height) && (!month || item.dive_datetime.startsWith(month)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [all, period, height, month])
-  const scores = useMemo(() => items.map(attemptScore), [items])
+  // Grades drive every score view; ungraded dives stay visible in counts and lists only.
+  const scored = useMemo(() => items.filter(item => item.performance), [items])
+  const scores = useMemo(() => scored.map(attemptScore), [scored])
   const analytics = isAnalyticsCode(code)
   const heights = useMemo(() => [...new Set(all.map(item => item.height))], [all])
   const sessions = useMemo(() => groupSessions(items), [items])
+  const scoredGroups = useMemo(() => groupSessions(scored), [scored])
 
   const points: ChartPoint[] = useMemo(() => {
     const monthLabel = (value: string) => format(parseISO(value), 'MMM yy', { locale: appLocale() }).replace('.', '')
-    if (mode === 'sessions') return sessions.map(group => {
+    if (mode === 'sessions') return scoredGroups.map(group => {
       const values = group.map(attemptScore), mid = median(values) as number
       return { key: group[0].id, month: group[0].dive_datetime.slice(0, 7), monthLabel: monthLabel(group[0].dive_datetime), value: mid, band: scoreBand(mid), lo: Math.min(...values), hi: Math.max(...values) }
     })
-    return items.map(item => ({ key: item.id, month: item.dive_datetime.slice(0, 7), monthLabel: monthLabel(item.dive_datetime), value: attemptScore(item), band: item.performance || 'F' }))
-  }, [items, sessions, mode])
+    return scored.map(item => ({ key: item.id, month: item.dive_datetime.slice(0, 7), monthLabel: monthLabel(item.dive_datetime), value: attemptScore(item), band: item.performance || 'F' }))
+  }, [scored, scoredGroups, mode])
   const smoothing = smoothingWindow(points.length, mode === 'sessions')
 
-  const pointOf = (id: number | null) => id == null ? -1 : mode === 'sessions' ? sessions.findIndex(group => group.some(item => item.id === id)) : items.findIndex(item => item.id === id)
+  const pointOf = (id: number | null) => id == null ? -1 : mode === 'sessions' ? scoredGroups.findIndex(group => group.some(item => item.id === id)) : scored.findIndex(item => item.id === id)
   const selectedIndex = points.length ? (() => { const index = pointOf(selId ?? focusId); return index >= 0 ? index : points.length - 1 })() : null
 
   const med = median(scores), q1 = quantile(scores, 0.25), q3 = quantile(scores, 0.75)
-  const best = pick(items, (a, b) => a > b)
+  const best = pick(scored, (a, b) => a > b)
   const latest = items[items.length - 1] ?? null
-  const typical = med == null ? null : pick(items, (a, b) => Math.abs(a - med) < Math.abs(b - med))
-  const lowRecent = pick(items.slice(-30), (a, b) => a < b)
+  const typical = med == null ? null : pick(scored, (a, b) => Math.abs(a - med) < Math.abs(b - med))
+  const lowRecent = pick(scored.slice(-30), (a, b) => a < b)
   const showReview = items.length >= 8 && lowRecent && q1 != null && q3 != null && attemptScore(lowRecent) < q1 - 0.5 * (q3 - q1) + 0.01 && lowRecent !== best
   const reps = ([['best', best], ['latest', latest], ['typical', typical], ...(showReview ? [['review', lowRecent]] : [])] as Array<[string, Attempt | null]>).filter((entry): entry is [string, Attempt] => Boolean(entry[1]))
-  const trend = recentTrend(all, attemptScore, ts, now)
+  const trend = recentTrend(all.filter(item => item.performance), attemptScore, ts, now)
   const related = useMemo(() => summaries ? relatedCodes(code, summaries) : [], [code, summaries])
 
   // The attempt the preview describes: the tapped point, or the best/worst inside a tapped peak/valley.
   const preview = useMemo(() => {
     if (selectedIndex == null) return null
     if (extreme && extreme.index === selectedIndex) {
-      const pool = mode === 'sessions' ? sessions.slice(Math.max(0, selectedIndex - smoothing + 1), selectedIndex + 1).flat() : items.slice(Math.max(0, selectedIndex - smoothing + 1), selectedIndex + 1)
+      const pool = mode === 'sessions' ? scoredGroups.slice(Math.max(0, selectedIndex - smoothing + 1), selectedIndex + 1).flat() : scored.slice(Math.max(0, selectedIndex - smoothing + 1), selectedIndex + 1)
       return { attempt: pick(pool, extreme.kind === 'peak' ? (a, b) => a > b : (a, b) => a < b)!, pool }
     }
-    const attempt = mode === 'sessions' ? pick(sessions[selectedIndex] ?? [], (a, b) => a > b) : items[selectedIndex]
+    const attempt = mode === 'sessions' ? pick(scoredGroups[selectedIndex] ?? [], (a, b) => a > b) : scored[selectedIndex]
     return attempt ? { attempt, pool: null as Attempt[] | null } : null
   }, [selectedIndex, extreme, items, sessions, mode, smoothing])
 
@@ -174,7 +178,7 @@ export default function CodeAnalysis() {
 
   const name = diveCodeName(code, lang)
   const dd = all.find(item => item.official_dd)?.official_dd
-  const heightRows = heights.length > 1 ? heights.map(value => { const pool = all.filter(item => item.height === value); return { value, count: pool.length, median: median(pool.map(attemptScore)) as number } }).filter(row => row.count >= 3).sort((a, b) => b.count - a.count) : []
+  const heightRows = heights.length > 1 ? heights.map(value => { const pool = all.filter(item => item.height === value); return { value, count: pool.length, median: median(pool.filter(item => item.performance).map(attemptScore)) as number } }).filter(row => row.count >= 3).sort((a, b) => b.count - a.count) : []
   const phased = items.filter(item => item.phase1_performance && item.phase2_performance)
   const phaseRows = phased.length >= 5 ? (['phase1_performance', 'phase2_performance'] as const).map((key, index) => ({ key, label: t('codeAnalysis.phase', { n: index + 1 }), count: phased.length, median: median(phased.map(item => ({ F: 0, B: 2, M: 4.5, G: 7, P: 10 } as Record<string, number>)[item[key]!] ?? 0)) as number })) : []
   const shownSessions = [...sessions].reverse().slice(0, showAllSessions ? undefined : 6)
@@ -217,8 +221,8 @@ export default function CodeAnalysis() {
           <dl className="ca-kpis" style={{ margin: 0 }} aria-label={t('codeAnalysis.summary')}>
             <div className="ca-kpi"><dt>{t('codeAnalysis.average')}</dt><dd><CountUp value={mean(scores)} /></dd></div>
             <div className="ca-kpi"><dt>{t('codeAnalysis.median')}</dt><dd><CountUp value={med} /></dd></div>
-            <div className="ca-kpi"><dt>{t('dives.best')}</dt><dd className="ca-t-P"><CountUp value={Math.max(...scores)} /></dd></div>
-            <div className="ca-kpi"><dt>{t('codeAnalysis.success')}</dt><dd><CountUp value={100 * items.filter(item => item.performance === 'G' || item.performance === 'P').length / items.length} digits={0} suffix="%" /></dd></div>
+            <div className="ca-kpi"><dt>{t('dives.best')}</dt><dd className="ca-t-P"><CountUp value={scores.length ? Math.max(...scores) : null} /></dd></div>
+            <div className="ca-kpi"><dt>{t('codeAnalysis.success')}</dt><dd><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= ATHLETE_SCORE_10.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
           </dl>
           <div style={{ marginTop: 10 }}><RatingBar ratings={ratingCounts(items.map(item => item.performance))} /></div>
           <p className="ca-sample">{t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
@@ -226,7 +230,7 @@ export default function CodeAnalysis() {
 
         {focus && analytics && (() => {
           const before = all.filter(item => ts(item) < ts(focus)), previous = before[before.length - 1]
-          const delta = attemptScore(focus) - (median(all.map(attemptScore)) as number)
+          const delta = attemptScore(focus) - (median(all.filter(item => item.performance).map(attemptScore)) as number)
           const beaten = [...before].reverse().find(item => attemptScore(item) >= attemptScore(focus))
           const weeks = beaten ? Math.round((ts(focus) - ts(beaten)) / (7 * DAY_MS)) : null
           return <button type="button" className="ca-focus" onClick={() => openClip(focus.id)}>
@@ -251,7 +255,7 @@ export default function CodeAnalysis() {
           <ScoreChart points={points} smoothing={smoothing} selected={selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
             onSelect={(index, mark) => {
               setExtreme(mark ?? null)
-              const id = mode === 'sessions' ? sessions[index]?.[0]?.id : items[index]?.id
+              const id = mode === 'sessions' ? scoredGroups[index]?.[0]?.id : scored[index]?.id
               if (id) update({ sel: String(id) })
             }} />
           <div className="ca-legend"><span><i />{t('codeAnalysis.legendMedian')}</span><span><i className="ca-legend-band" />{t('codeAnalysis.legendRange')}</span><span className="ca-t-P">▲ {t('codeAnalysis.peak')}</span><span className="ca-t-B">▼ {t('codeAnalysis.valley')}</span></div>
@@ -279,7 +283,7 @@ export default function CodeAnalysis() {
           </section>}
           <section className="ca-panel">
             <div className="ca-panel-h"><h2>{t('codeAnalysis.sessions')}</h2><span>{sessions.length}</span></div>
-            {shownSessions.map(group => { const mid = median(group.map(attemptScore)) as number; return <div key={group[0].session_id} className="ca-sess">
+            {shownSessions.map(group => { const mid = median(group.filter(item => item.performance).map(attemptScore)) as number; return <div key={group[0].session_id} className="ca-sess">
               <div className="ca-sess-date">{date(group[0].dive_datetime, 'd MMM')}<small>{t('codeAnalysis.attemptsShort', { count: group.length })} · {group[0].height}</small></div>
               <div className="ca-chips">{group.map(item => <ScoreChip key={item.id} id={item.id} performance={item.performance} score={attemptScore(item)} onOpen={openClip}
                 label={t('dives.openAttemptFrom', { code, date: date(item.dive_datetime, 'd MMM HH:mm') })} />)}</div>

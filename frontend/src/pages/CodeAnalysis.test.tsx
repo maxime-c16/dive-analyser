@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -50,10 +50,10 @@ it('summarises every attempt of the code and highlights the dive it came from', 
 it('opens the viewer over the page and its Analysis action returns to the chart on that dive', async () => {
   renderPage('/dives/analysis/5122D')
   await userEvent.click(await screen.findByRole('button', { name: /Latest/ }))
-  expect(screen.getByRole('dialog')).toHaveTextContent('Viewer 12')
+  expect(await screen.findByRole('dialog')).toHaveTextContent('Viewer 12')
   expect(screen.getByTestId('location')).toHaveTextContent('clip=12')
   await userEvent.click(screen.getByRole('button', { name: 'Analysis' }))
-  expect(screen.queryByRole('dialog')).toBeNull()
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   expect(screen.getByTestId('location')).toHaveTextContent('sel=12')
 })
 
@@ -65,4 +65,17 @@ it('height filters narrow the whole page and keep the scroll position', async ()
   expect(screen.getByTestId('location')).toHaveTextContent('h=1m')
   expect(screen.getByText(/11 attempts/)).toBeInTheDocument()
   expect(scrollTo).not.toHaveBeenCalled()
+})
+
+it('keeps an ungraded dive in counts but out of every score view', async () => {
+  vi.mocked(getCodeAttempts).mockResolvedValue([
+    ...attempts,
+    { id: 13, dive_code: '5122D', performance: '', performance_numeric: 0, height: '1m', dive_datetime: day(1), session_id: 7, is_lineup: false, is_sync: false, platform_type: 'springboard', position: 'D', official_dd: 1.9, video_uuid: 'uuid-13' },
+  ] as never)
+  renderPage('/dives/analysis/5122D')
+  expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
+  // Counts still cover every attempt; scores only the twelve graded ones.
+  expect(screen.getByText(/13 attempts · 7 sessions/)).toBeInTheDocument()
+  expect(screen.getByText('5.2')).toBeInTheDocument()
+  expect(screen.getByText('42%')).toBeInTheDocument()
 })
