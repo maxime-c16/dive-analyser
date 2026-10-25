@@ -88,7 +88,13 @@ def leaderboard(db, visible_clause, period: str, now: datetime, viewer_id: int |
             hist[(uid, bool(is_recent))][score] += n
 
     active_days: dict[int, set[date]] = defaultdict(set)
-    for uid, day in base.filter(Dive.dive_datetime >= streak_start).with_entities(owner, func.date(Dive.dive_datetime)).distinct().all():
+    # Streak candidates: a streak of at least one week needs a dive this week
+    # or last week, hence within the last 14 days. Everyone else scores exactly
+    # 0, so only candidates' dive days are read (an empty candidate set reads
+    # nothing: `IN ()` matches no row, and every streak is 0).
+    recent_uids = [uid for (uid,) in base.filter(
+        Dive.dive_datetime >= now - timedelta(days=14)).with_entities(owner).distinct().all()]
+    for uid, day in base.filter(Dive.dive_datetime >= streak_start, owner.in_(recent_uids)).with_entities(owner, func.date(Dive.dive_datetime)).distinct().all():
         active_days[uid].add(day if isinstance(day, date) else date.fromisoformat(str(day)[:10]))
 
     uids = set(current) | {uid for uid, days_ in active_days.items() if days_}

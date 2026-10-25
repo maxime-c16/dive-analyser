@@ -271,6 +271,29 @@ def test_leaderboard_hides_accounts_bound_to_my_own_diver(workspace):
     assert users['alice'].id in others and twin_id in others
 
 
+def test_leaderboard_streak_needs_a_dive_in_the_last_two_weeks(workspace):
+    from datetime import timedelta
+    db, login, _, users, session_id = workspace
+    diver = Diver(display_name='oldie', canonical_name='oldie')
+    db.add(diver)
+    db.flush()
+    oldie = AppUser(email='oldie@example.test', display_name='oldie', role='friend')
+    db.add(oldie)
+    db.flush()
+    oldie_id = oldie.id
+    db.add(UserDiverAccess(user_id=oldie.id, diver_id=diver.id, access_kind='OWNER'))
+    db.add(Dive(session_id=session_id, diver_id=diver.id, dive_code='101B', performance='G', performance_numeric=0, height='1m',
+                dive_datetime=datetime.now() - timedelta(days=20), visibility='public'))
+    db.commit()
+    # The 20-day-old dive counts for the month but no streak survives past last
+    # week, so only recently active members' dive days are ever read.
+    month = login('viewer').get('/api/v1/users/leaderboard', params={'period': 'month'}).json()
+    entry = next(m for m in month['members'] if m['user_id'] == oldie_id)
+    assert (entry['attempts'], entry['streak_weeks']) == (1, 0)
+    week = login('viewer').get('/api/v1/users/leaderboard', params={'period': 'week'}).json()
+    assert next(m for m in week['members'] if m['user_id'] == users['bob'].id)['streak_weeks'] >= 1
+
+
 def test_leaderboard_counts_visible_dives_streaks_and_progress(workspace):
     from datetime import timedelta
     db, login, _, users, session_id = workspace
