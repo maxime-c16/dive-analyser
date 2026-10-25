@@ -114,37 +114,21 @@ def _current_transform_version(explicit: Optional[str] = None) -> str:
 
 
 def _verified_prod_location(db: Session, derivative_sha: str, environment: str):
-    """Exactly-one verified replica in the allowlisted bucket, or a reason.
+    """The trusted verified replica to serve, or a reason (fail closed).
 
-    Mirrors the playback route's storage authority: zero verified
-    locations, several, or a non-B2 / wrong-bucket single are all
-    fail-closed (never served as ready).
+    Mirrors the playback route's storage authority
+    (``media_backbone.trusted_prod_location``).
     """
-    from app.models.media_backbone import MediaBlobLocation
+    from app.services.media_backbone import trusted_prod_location
 
     settings = get_settings()
     expected_bucket = (
         settings.media_backbone_prod_bucket if environment == "prod" else settings.media_backbone_dev_bucket
     )
-    locations = (
-        db.query(MediaBlobLocation)
-        .filter_by(blob_sha256=derivative_sha, environment=environment, verified=True)
-        # Bounded probe: 0 -> missing, 1 -> candidate, >= 2 -> ambiguous.
-        # We only need to distinguish 0/1/many, never the full replica set.
-        .limit(2)
-        .all()
-    )
-    if len(locations) == 0:
-        return None, "no_verified_location"
-    if len(locations) > 1:
-        return None, "ambiguous_location"
-    location = locations[0]
-    if (location.storage_backend or "").lower() != "b2" or (location.bucket or "").strip().lower() != (
-        expected_bucket or ""
-    ).strip().lower():
-        return None, "untrusted_location"
-    if not (location.object_key or ""):
-        return None, "empty_object_key"
+    location, deny = trusted_prod_location(db, derivative_sha, expected_bucket, environment)
+    if deny is not None:
+        return None, {"not_found": "no_verified_location", "ambiguous": "ambiguous_location",
+                      "untrusted": "untrusted_location"}.get(deny, deny)
     return location, None
 
 

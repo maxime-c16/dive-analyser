@@ -521,9 +521,25 @@ def test_dev_only_publish_never_ready_in_prod(client):
     assert deriv["light"]["playback_url"] is None
 
 
-def test_ambiguous_derivative_location_never_ready(client):
+def test_identical_bytes_under_two_trusted_keys_are_ready(client):
+    # Two clips with a byte-identical poster share one blob that the
+    # publisher stored under two per-source keys: both replicas are verified
+    # copies of the same SHA, so the oldest one serves.
     body = _status(client, UUID_AMBIG)
     deriv = body["derivatives"]
+    assert deriv["light"]["state"] == "ready"
+    assert deriv["light"]["playback_url"]
+
+
+def test_replica_outside_trusted_bucket_fails_closed(client, db):
+    light_sha = (
+        db.query(MediaDerivative.derivative_blob_sha256)
+        .filter_by(video_uuid=UUID_AMBIG, role="light")
+        .scalar()
+    )
+    _loc(db, light_sha, "prod", DEV_BUCKET, "blobs/sha256/derived/light-foreign.bin")
+    db.commit()
+    deriv = _status(client, UUID_AMBIG)["derivatives"]
     assert deriv["light"]["state"] == "unavailable"
     assert deriv["light"]["playback_url"] is None
 
@@ -802,10 +818,11 @@ def test_derivative_without_prod_storage_is_404_never_legacy(client, db, python_
     assert b"FAKELEGACYVIDEOBYTES" not in r.content
 
 
-def test_ambiguous_derivative_location_fails_closed(client, db, python_streamed_media):
+def test_identical_trusted_replicas_play_from_oldest(client, db, python_streamed_media):
     rev_id = _derived_revision_id(db, UUID_AMBIG, "derived_light")
     r = client.get(f"/api/v1/media/revisions/{rev_id}/play", follow_redirects=False)
-    assert r.status_code == 404, r.text
+    assert r.status_code == 302, r.text
+    assert "a.bin" in r.headers["location"]
 
 
 # ------------------------------------------------------- evaluation
@@ -981,15 +998,16 @@ def test_derivative_play_denied_after_ledger_status_and_version_change(client, d
         db.commit()
 
 
-def test_three_verified_locations_still_ambiguous(client, db, python_streamed_media):
+def test_replica_set_beyond_bounded_probe_fails_closed(client, db, python_streamed_media):
+    from app.services.media_backbone import TRUSTED_REPLICA_PROBE
+
     light_sha = (
         db.query(MediaDerivative.derivative_blob_sha256)
         .filter_by(video_uuid=UUID_AMBIG, role="light")
         .scalar()
     )
-    # The bounded probe reads at most 2 rows: 3 verified replicas must
-    # still report ambiguous and fail closed.
-    _loc(db, light_sha, "prod", PROD_BUCKET, "blobs/sha256/derived/light-extra.bin")
+    for n in range(TRUSTED_REPLICA_PROBE):
+        _loc(db, light_sha, "prod", PROD_BUCKET, f"blobs/sha256/derived/light-extra-{n}.bin")
     db.commit()
     body = _status(client, UUID_AMBIG)
     assert body["derivatives"]["light"]["state"] == "unavailable"

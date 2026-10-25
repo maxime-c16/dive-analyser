@@ -118,36 +118,22 @@ def _record_grant(
 def _resolve_verified_prod_location(
     db: Session, revision: MediaRevision
 ):
-    """P4.3 storage authority: exactly one verified PROD replica or deny.
+    """P4.3 storage authority: one trusted verified PROD replica or deny.
 
-    - zero verified PROD locations  → (None, storage_not_found)
-    - more than one verified PROD location → (None, storage_ambiguous)
-    - the single location must be backend=b2 and bucket=diveanalyzer-prod-media
-      (environment=prod by construction of the verified-PROD query)
+    - zero verified PROD locations → (None, storage_not_found)
+    - any verified PROD replica outside b2/diveanalyzer-prod-media, or one
+      without a key → (None, storage_not_found)
+    - more replicas than the bounded probe → (None, storage_ambiguous)
+    - several trusted replicas of the same verified bytes → the oldest
+      (deterministic; see ``media_backbone.trusted_prod_location``)
     """
+    from app.services.media_backbone import trusted_prod_location
+
     settings = get_settings()
-    locations = (
-        db.query(MediaBlobLocation)
-        .filter_by(
-            blob_sha256=revision.blob_sha256,
-            environment="prod",
-            verified=True,
-        )
-        # Bounded probe: 0 -> missing, 1 -> candidate, >= 2 -> ambiguous.
-        # We only need to distinguish 0/1/many, never the full replica set.
-        .limit(2)
-        .all()
-    )
-    if len(locations) == 0:
-        return None, DENY_STORAGE_NOT_FOUND
-    if len(locations) > 1:
+    location, deny = trusted_prod_location(db, revision.blob_sha256, settings.media_backbone_prod_bucket)
+    if deny == "ambiguous":
         return None, DENY_STORAGE_AMBIGUOUS
-    location = locations[0]
-    if (
-        (location.storage_backend or "").lower() != "b2"
-        or (location.bucket or "").strip().lower()
-        != (settings.media_backbone_prod_bucket or "").strip().lower()
-    ):
+    if deny is not None:
         return None, DENY_STORAGE_NOT_FOUND
     return location, None
 

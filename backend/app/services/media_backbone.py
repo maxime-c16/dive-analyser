@@ -462,3 +462,39 @@ def commit_verified_ingest(
         "ingest_state_id": state.id,
         "ledger_state": ledger_state,
     }
+
+
+TRUSTED_REPLICA_PROBE = 8
+
+
+def trusted_prod_location(db: Session, blob_sha256: str, bucket: str, environment: str = "prod"):
+    """The verified B2 replica (PROD by default) to serve for a blob, or (None, reason).
+
+    Identical bytes may live under several verified keys (the publisher
+    keys derivatives per source, so two clips with a byte-identical poster
+    own one blob with two replicas). Every replica was full-GET verified
+    against the same SHA, so they are interchangeable: serve the oldest
+    one deterministically. Fail closed when ANY verified PROD replica is
+    outside the allowlisted B2 bucket or has no key, or when the replica
+    set exceeds the bounded probe.
+    """
+    locations = (
+        db.query(MediaBlobLocation)
+        .filter_by(blob_sha256=blob_sha256, environment=environment, verified=True)
+        .order_by(MediaBlobLocation.id.asc())
+        .limit(TRUSTED_REPLICA_PROBE + 1)
+        .all()
+    )
+    if not locations:
+        return None, "not_found"
+    if len(locations) > TRUSTED_REPLICA_PROBE:
+        return None, "ambiguous"
+    expected = (bucket or "").strip().lower()
+    for location in locations:
+        # A lone bad replica is plain untrusted; one among several makes
+        # the set ambiguous (callers then refuse any fallback too).
+        if (location.storage_backend or "").lower() != "b2" or (location.bucket or "").strip().lower() != expected:
+            return None, "ambiguous" if len(locations) > 1 else "untrusted"
+        if not (location.object_key or ""):
+            return None, "ambiguous" if len(locations) > 1 else "empty_object_key"
+    return locations[0], None
