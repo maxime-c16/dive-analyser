@@ -1,0 +1,41 @@
+{
+  "idle_in_transaction_session_timeout": "5s",
+  "results": [
+    {
+      "variant": "today",
+      "rounds": 2,
+      "requests_per_round": 4,
+      "worst_ms_per_round": [
+        15020,
+        10040
+      ],
+      "median_worst_ms": 12530.0,
+      "rounds_over_1s": 2,
+      "non_200": 0
+    },
+    {
+      "variant": "threadpool",
+      "rounds": 2,
+      "requests_per_round": 4,
+      "worst_ms_per_round": [
+        27,
+        17
+      ],
+      "median_worst_ms": 22.0,
+      "rounds_over_1s": 0,
+      "non_200": 0
+    },
+    {
+      "variant": "no_reclaim",
+      "rounds": 2,
+      "requests_per_round": 4,
+      "worst_ms_per_round": [
+        18,
+        16
+      ],
+      "median_worst_ms": 17.0,
+      "rounds_over_1s": 0,
+      "non_200": 0
+    }
+  ]
+}

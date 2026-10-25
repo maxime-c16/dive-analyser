@@ -10,6 +10,9 @@ Mirrors production versions (fastapi 0.104.1, starlette 0.27, sqlalchemy
 A throwaway local Postgres is required (DSN argument). Its
 idle_in_transaction_session_timeout plays the role of production's 30 s.
 
+Integration regression: backend/tests/test_postgres_media_startup_lot1.py uses
+the real status and lease handlers, asserts <1s and checks the PG log.
+
 Variants:
   today       : as above
   threadpool  : /status and /lease as `def` (Starlette threadpool)
@@ -53,10 +56,15 @@ def build(variant):
         db.execute(text("SELECT 1"))  # session + diver lookups
         yield
 
+    if variant == "fixed":
+        def member_access_context(db=Depends(get_db)):
+            db.execute(text("SELECT 1"))
+            yield
+
     router = APIRouter(dependencies=[Depends(member_access_context)])
 
     def status_body(db, n):
-        if variant != "no_reclaim":
+        if variant not in {"no_reclaim", "fixed"}:
             db.execute(text("SELECT pg_advisory_xact_lock(73125, 1)"))
         db.execute(text("SELECT pg_sleep(0.002)"))
         return {"n": n}
@@ -66,7 +74,7 @@ def build(variant):
         db.commit()
         return {"jobs": []}
 
-    if variant == "threadpool":
+    if variant in {"threadpool", "fixed"}:
         @router.get("/status/{n}")
         def status(n: int, db=Depends(get_db)):
             return status_body(db, n)

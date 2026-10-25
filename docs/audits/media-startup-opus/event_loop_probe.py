@@ -31,14 +31,14 @@ S, C = args.select_ms / 1000, args.commit_ms / 1000
 
 
 def build(variant: str) -> FastAPI:
-    if variant == "threadpool":
+    if variant in {"threadpool", "threadpool_throttled"}:
         def auth():
             time.sleep(3 * S)
         app = FastAPI(dependencies=[Depends(auth)])
 
         @app.get("/poster/{i}")
         def poster(i: int):
-            time.sleep(4 * S + C)
+            time.sleep(4 * S + (C if variant == "threadpool" else 0))
             return {"i": i}
 
         @app.get("/me")
@@ -95,6 +95,6 @@ def run(variant: str, port: int):
 
 
 out = {"select_ms": args.select_ms, "commit_ms": args.commit_ms, "results": []}
-for k, v in enumerate(["async_blocking", "threadpool", "async_noview"]):
+for k, v in enumerate(["async_blocking", "threadpool", "async_noview", "threadpool_throttled"]):
     out["results"].append(run(v, args.port + k))
 print(json.dumps(out, indent=2))
