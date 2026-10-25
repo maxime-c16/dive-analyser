@@ -6,6 +6,7 @@ import { divePositionName } from "./divePosition";
 
 export type Attempt = {
   thumbhash?: string | null;
+  animated_url?: string | null;
   thumb_url?: string | null;
   person_name?: string | null;
   visibility?: "public" | "private";

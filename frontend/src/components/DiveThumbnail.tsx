@@ -17,12 +17,32 @@ export default function DiveThumbnail({
   const [preview, setPreview] = useState<MediaPreview | null>(() =>
     dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null,
   );
+  const [visible, setVisible] = useState(false);
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  const [animatedError, setAnimatedError] = useState(false);
+  const animated = !animatedError && motionAllowed && visible && (dive.animated_url || preview?.animatedUrl);
   const [imgError, setImgError] = useState(false);
   const [thumbError, setThumbError] = useState(false);
   const thumb = !thumbError && (dive.thumb_url || preview?.thumbUrl);
   const placeholder = useMemo(() => placeholderUrl(dive.thumbhash || preview?.thumbhash), [dive.thumbhash, preview?.thumbhash]);
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const connection = (navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }).connection;
+    const update = () => setMotionAllowed(Boolean(motion && !motion.matches && !connection?.saveData));
+    update();
+    motion?.addEventListener('change', update);
+    connection?.addEventListener?.('change', update);
+    const observer = new IntersectionObserver(entries => setVisible(entries[0].isIntersecting));
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => {
+      observer.disconnect();
+      motion?.removeEventListener('change', update);
+      connection?.removeEventListener?.('change', update);
+    };
+  }, [dive.video_uuid]);
+  useEffect(() => {
+    setAnimatedError(false);
     setImgError(false);
     setThumbError(false);
     if (!dive.video_uuid) return;
@@ -85,16 +105,16 @@ export default function DiveThumbnail({
       style={placeholder ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
     >
-      {(thumb || (preview?.posterUrl && !imgError)) ? (
+      {(animated || thumb || (preview?.posterUrl && !imgError)) ? (
         // Poster image from local media cache — instant, lightweight
         <img
-          src={thumb || preview!.posterUrl!}
+          src={animated || thumb || preview!.posterUrl!}
           alt={t('thumbnail.posterFor', { code: dive.dive_code })}
           className="h-full w-full object-cover"
           loading="lazy"
-          onError={() => thumb ? setThumbError(true) : setImgError(true)}
+          onError={() => animated ? setAnimatedError(true) : thumb ? setThumbError(true) : setImgError(true)}
         />
-      ) : preview?.videoThumbUrl ? (
+      ) : preview?.videoThumbUrl && !(dive.thumb_url || preview?.thumbUrl || dive.animated_url || preview?.animatedUrl) ? (
         // Poster missing (or failed to load) but a ready local web preview
         // exists — render its first frame directly instead of a blank tile.
         // Only already-ready cache previews are eligible here: the camera

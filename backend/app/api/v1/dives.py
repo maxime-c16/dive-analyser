@@ -220,15 +220,19 @@ def library_page(
     # One bounded join after list_dives has applied the existing access scope.
     from app.models.media import MediaCacheEntry
     from app.models.photos_asset import PhotosAsset
-    from app.services.media_cache import thumb_url
+    from app.services.media_cache import thumb_url, playback_url
     uuids = [row["video_uuid"] for row in rows if row.get("video_uuid")]
     visuals = {}
     if uuids:
         for uuid, poster in db.query(PhotosAsset.video_uuid, MediaCacheEntry).join(
             MediaCacheEntry, MediaCacheEntry.photos_asset_id == PhotosAsset.id
-        ).filter(PhotosAsset.video_uuid.in_(uuids), MediaCacheEntry.rendition == "poster",
+        ).filter(PhotosAsset.video_uuid.in_(uuids), MediaCacheEntry.rendition.in_(("poster", "animated")),
                  MediaCacheEntry.status == "ready").order_by(MediaCacheEntry.id).all():
-            visuals[uuid] = {"thumbhash": poster.thumbhash, "thumb_url": thumb_url(poster)}
+            visual = visuals.setdefault(uuid, {})
+            if poster.rendition == "animated":
+                visual["animated_url"] = playback_url(poster)
+            else:
+                visual.update({"thumbhash": poster.thumbhash, "thumb_url": thumb_url(poster)})
     for row in rows:
         row.update(visuals.get(row.get("video_uuid"), {}))
     return {"items": rows, "next_cursor": encode_cursor(rows[-1]) if more else None}

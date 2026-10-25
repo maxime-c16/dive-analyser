@@ -160,7 +160,7 @@ def _asset_by_uuid(db: Session, video_uuid: str) -> PhotosAsset:
 def _preferred_entry(entries):
     # Never fall back to the poster: the Mac agent finishes it before the
     # proxy, and a JPEG playback_url makes the <video> element fail to decode.
-    playable = [entry for entry in entries if entry.rendition != "poster"]
+    playable = [entry for entry in entries if entry.rendition not in ("poster", "animated")]
     if not playable:
         return None
     return sorted(playable, key=lambda entry: RENDITION_PREFERENCE.get(entry.rendition, 99))[0]
@@ -412,14 +412,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     poster = _poster_entry(entries)
     job = latest_active_job_for_asset(db, asset.id)
 
-    # D5 durable-derivative read (additive, read-only): when a ready
-    # light/HQ derivative exists for the CURRENT canonical source +
-    # transform, the starter (preview/playback) and player poster resolve
-    # to the durable B2 bytes instead of legacy cache files. Legacy
-    # original discovery, preferred/available selection below is untouched
-    # and stays the fallback for clips without durable versions
-    # (available/preferred never pretend legacy proxy entries exist).
-    # No jobs, no conversions, no writes here.
+    # Read durable quality choices without generating media or grants.
     derivatives_payload = None
     derivative_light_url = None
     derivative_hq_url = None
@@ -443,7 +436,7 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
             poster_role = clip.roles.get("poster")
             if poster_role is not None and poster_role.state == "ready":
                 derivative_poster_url = poster_role.playback_url
-    # Authoritative durable starter: ready light first (fast first frame),
+    # Durable fallback when no local proxy exists: ready light first (fast first frame),
     # else ready HQ (HQ-only clips have no light proof). Poster-only is
     # NOT playable and never makes the clip ready. Non-ready ledger
     # states (stale/superseded/preparing/unavailable) and DEV-only or
@@ -459,17 +452,10 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
     backbone_url = full_quality
     if not backbone_url and not preferred and not job:
         job = latest_playback_failure_for_asset(db, asset.id)
-    if durable_start_url:
-        # Authoritative starter: verified durable light (fast first frame),
-        # else ready HQ, for the CURRENT canonical source + transform wins
-        # over any legacy backbone original or cached proxy. The camera
-        # original stays the explicit full-quality choice (full_quality_url
-        # untouched); playback_url is the default starter, so it must be
-        # the durable bytes when ready. Checked before any legacy job so an
-        # active job never overrides verified durable readiness.
-        # Poster-only stays not-ready (no start URL).
+    if preview or durable_start_url:
+        # Local proxy starts immediately; durable light/HQ remains explicit quality.
         status_value = "ready"
-        final_playback_url = durable_start_url
+        final_playback_url = playback_url(preview) if preview else durable_start_url
     elif backbone_url:
         status_value = "ready"
         final_playback_url = backbone_url
@@ -492,9 +478,9 @@ def _status_for_asset(db: Session, asset: PhotosAsset) -> MediaStatusResponse:
         playback_url=final_playback_url,
         thumbhash=poster.thumbhash if poster else None,
         thumb_url=thumb_url(poster),
-        poster_url=derivative_poster_url or (playback_url(poster) if poster else None),
+        poster_url=thumb_url(poster) or (playback_url(poster) if poster else None) or derivative_poster_url,
         full_quality_url=full_quality,
-        preview_url=durable_start_url or (playback_url(preview) if preview else None),
+        preview_url=(playback_url(preview) if preview else None) or durable_start_url,
         derivatives=derivatives_payload,
         cache_entries=[to_cache_summary(entry) for entry in entries],
         job=to_job_summary(job),
@@ -1115,7 +1101,8 @@ def _thumbnail_status_for_entries(
     poster = _poster_entry(entries)
     preview = _web_preview_entry(entries)
     playback = playback_url(preview) if preview else None
-    status_value = "ready" if (poster or preview) else "missing"
+    animated = next((e for e in entries if e.rendition == "animated"), None)
+    status_value = "ready" if (poster or preview or animated) else "missing"
 
     return {
         "video_uuid": video_uuid,
@@ -1123,6 +1110,7 @@ def _thumbnail_status_for_entries(
         "poster_url": playback_url(poster) if poster else None,
         "thumbhash": poster.thumbhash if poster else None,
         "thumb_url": thumb_url(poster),
+        "animated_url": playback_url(animated) if animated else None,
         "playback_url": playback,
     }
 

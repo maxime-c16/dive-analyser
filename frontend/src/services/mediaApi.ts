@@ -26,6 +26,7 @@ export type MediaStatus = {
   preferred_rendition?: string | null
   available_renditions: string[]
   playback_url?: string | null
+  thumb_url?: string | null
   poster_url?: string | null
   full_quality_url?: string | null
   preview_url?: string | null
@@ -90,23 +91,20 @@ export function getDerivativePosterUrl(status: MediaStatus): string | null {
   return getDerivativePlaybackUrl(status, 'poster')
 }
 
-/** Ordered explicit quality choices: starter light, HQ, camera original.
-
-Only proven URLs are listed, so the player toggle never offers a choice
-it cannot play. With a ready light the starter is light; with no light
-but a ready HQ the starter is HQ and the legacy preview stays out (it is
-not a current proof). HQ may honestly alias light for small sources
-(same bytes, no upscale); the label stays HQ. */
+/** Local preview, Light, HQ, Original; only proven URLs, aliases deduplicated. */
 export function getQualityChoices(status: MediaStatus): Array<{ key: string; label: string; url: string }> {
   const choices: Array<{ key: string; label: string; url: string }> = []
   const light = getDerivativePlaybackUrl(status, 'light')
   const hq = getDerivativePlaybackUrl(status, 'hq')
   const preview = getPreviewPlaybackUrl(status)
+  if (preview && preview !== light && preview !== hq) {
+    choices.push({ key: 'preview', label: 'Preview', url: preview })
+  }
   if (light) {
     choices.push({ key: 'light', label: 'Light', url: light })
   } else if (hq) {
     choices.push({ key: 'hq', label: 'HQ', url: hq })
-  } else if (preview) {
+  } else if (preview && !choices.length) {
     choices.push({ key: 'preview', label: 'Preview', url: preview })
   }
   if (light && hq && hq !== light) {
@@ -124,9 +122,9 @@ export function getQualityChoices(status: MediaStatus): Array<{ key: string; lab
 }
 /** Ready browser previews avoid large/HDR camera originals on startup. */
 export function getPreviewPlaybackUrl(status: MediaStatus): string | null {
-  return status.preview_url
-    || status.cache_entries?.find(entry => entry.rendition === 'proxy_720p' && entry.playback_url)?.playback_url
+  return status.cache_entries?.find(entry => entry.rendition === 'proxy_720p' && entry.playback_url)?.playback_url
     || status.cache_entries?.find(entry => entry.rendition === 'proxy_360p' && entry.playback_url)?.playback_url
+    || status.preview_url
     || null
 }
 
@@ -139,14 +137,11 @@ export function getOriginalPlaybackUrl(status: MediaStatus): string | null {
 }
 
 export function getPlaybackUrlFromStatus(status: MediaStatus, _preferInstantHq = false): string | null {
-  // Durable-first starter: ready light (fast first frame), else ready HQ
-  // (HQ-only clips have no light proof), else the legacy preview chain,
-  // else the camera original. With no derivatives block this is exactly
-  // the legacy preview-first order.
+  // Local preview starts first; durable roles remain explicit quality choices.
   return (
-    getDerivativePlaybackUrl(status, 'light')
+    getPreviewPlaybackUrl(status)
+    || getDerivativePlaybackUrl(status, 'light')
     || getDerivativePlaybackUrl(status, 'hq')
-    || getPreviewPlaybackUrl(status)
     || getOriginalPlaybackUrl(status)
     || status.playback_url
     || null
@@ -154,5 +149,5 @@ export function getPlaybackUrlFromStatus(status: MediaStatus, _preferInstantHq =
 }
 
 export function getPosterUrlFromStatus(status: MediaStatus): string | null {
-  return status.poster_url || null
+  return status.thumb_url || status.poster_url || null
 }

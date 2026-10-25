@@ -109,7 +109,7 @@ describe('D5 derivative contract helpers', () => {
     expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/cache/7/play')
   })
 
-  it('starts HQ-only clips on the HQ derivative, never the legacy preview', () => {
+  it('starts locally with HQ kept as an explicit choice', () => {
     const status: MediaStatus = {
       ...base,
       preview_url: '/api/v1/media/cache/7/play',
@@ -124,10 +124,10 @@ describe('D5 derivative contract helpers', () => {
         poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
       },
     }
-    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/revisions/2/play')
+    expect(getPlaybackUrlFromStatus(status)).toBe('/api/v1/media/cache/7/play')
     const choices = getQualityChoices(status)
-    expect(choices.map(choice => choice.key)).toEqual(['hq', 'original'])
-    expect(choices[0].url).toBe('/api/v1/media/revisions/2/play')
+    expect(choices.map(choice => choice.key)).toEqual(['preview', 'hq', 'original'])
+    expect(choices[1].url).toBe('/api/v1/media/revisions/2/play')
   })
 
   it('starts light with no cache entries at all', () => {

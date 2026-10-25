@@ -2,6 +2,7 @@ import { getMediaStatus, getPlaybackUrlFromStatus, getOriginalPlaybackUrl, getPr
 
 export type MediaPreview = {
   posterUrl: string | null;
+  animatedUrl?: string | null;
   thumbUrl?: string | null;
   thumbhash?: string | null;
   videoThumbUrl: string | null;
@@ -52,6 +53,7 @@ export function getPreview(videoUuid: string): Promise<MediaPreview> {
 }
 
 type StatusShape = {
+  animated_url?: string | null
   thumb_url?: string | null
   thumbhash?: string | null
   poster_url?: string | null
@@ -74,6 +76,7 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
   const playback = status.playback_url || null;
   return {
     posterUrl: status.poster_url || null,
+    animatedUrl: status.animated_url || null,
     thumbUrl: status.thumb_url || null,
     thumbhash: status.thumbhash || null,
     // A ready local web preview doubles as the tile's motion fallback when
@@ -85,7 +88,7 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
     // player without waiting for its own status round-trip.
     videoThumbUrl: isGridSafeThumbUrl(playback) ? playback : null,
     playbackUrl: playback,
-    ready: Boolean(status.thumb_url || status.poster_url || (playback && isGridSafeThumbUrl(playback))),
+    ready: Boolean(status.animated_url || status.thumb_url || status.poster_url || (playback && isGridSafeThumbUrl(playback))),
   };
 }
 

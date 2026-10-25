@@ -471,10 +471,9 @@ def test_full_clip_all_roles_ready_with_starter_light(client, db):
         assert entry["aliased_to"] is None, role
         assert entry["revision_id"] == _derived_revision_id(db, UUID_FULL, semantics), role
         assert entry["playback_url"] == f"/api/v1/media/revisions/{entry['revision_id']}/play", role
-    # Starter + tile poster resolve to durable B2 bytes (no local cache
-    # files were seeded for this clip); the camera original stays the
-    # explicit full-quality choice, never the default.
-    assert body["preview_url"] == deriv["light"]["playback_url"]
+    # Local proxy starts first; this fixture has no local poster, so its
+    # cover retains the durable fallback. Original remains explicit.
+    assert body["preview_url"] == next(e["playback_url"] for e in body["cache_entries"] if e["rendition"] == "proxy_720p")
     assert body["poster_url"] == deriv["poster"]["playback_url"]
     assert body["full_quality_url"].endswith("/play")
     assert body["full_quality_url"] != body["preview_url"]
@@ -668,24 +667,21 @@ def test_old_schema_without_ledger_table_keeps_legacy_status(db, flags, fake_pre
         engine.dispose()
 
 
-def test_durable_starter_wins_playback_url_over_backbone_and_legacy(client, db):
-    # Authoritative starter semantics: the verified durable light starter is
-    # the default playback_url even when a backbone original exists (the
-    # camera original stays the explicit full-quality choice). Legacy-only
-    # clips without derivatives keep the backbone starter unchanged.
+def test_local_starter_wins_with_durable_quality_available(client, db):
+    # Local proxy starts first, with the durable Light option still proven.
     full = _status(client, UUID_FULL)
     light_url = full["derivatives"]["light"]["playback_url"]
     assert light_url is not None
     assert full["status"] == "ready"
-    assert full["playback_url"] == light_url
-    assert full["preview_url"] == light_url
+    assert full["playback_url"] == next(e["playback_url"] for e in full["cache_entries"] if e["rendition"] == "proxy_720p")
+    assert full["preview_url"] == full["playback_url"]
     assert full["full_quality_url"] is not None
     assert full["full_quality_url"] != light_url
 
     legacy = _status(client, UUID_LEGACY)
     assert legacy["derivatives"]["light"]["state"] == "missing"
     assert legacy["status"] == "ready"
-    assert legacy["playback_url"] == legacy["full_quality_url"]
+    assert legacy["playback_url"] == legacy["preview_url"]
 
 
 # ------------------------------------------------------- HTTP contract
@@ -1192,3 +1188,15 @@ def test_browser_original_active_job_does_not_override_durable_ready(client, db)
     # verified durable readiness.
     assert body["job"] is not None
     assert body["job"]["status"] == "queued"
+
+
+def test_local_player_cover_avoids_durable_poster_grant(client, db):
+    asset = db.query(PhotosAsset).filter_by(video_uuid=UUID_FULL).one()
+    poster = MediaCacheEntry(photos_asset_id=asset.id, media_key='lot3-cover',
+        rendition='poster', storage_path='/tmp/lot3-cover.jpg', size_bytes=100,
+        status='ready')
+    db.add(poster)
+    db.commit()
+    body = _status(client, UUID_FULL)
+    assert body['poster_url'] == f'/api/v1/media/cache/{poster.id}/play'
+    assert body['poster_url'] != body['derivatives']['poster']['playback_url']
