@@ -41,9 +41,10 @@ def thumbnail_lock():
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def thumbnail_files():
+def thumbnail_files(namespace="thumb"):
     """Only our sharded content-addressed files; never follow symlinks."""
-    root = Path(get_settings().media_cache_root) / "thumb"
+    assert namespace in ("thumb", "animated")
+    root = Path(get_settings().media_cache_root).resolve() / namespace
     if root.is_symlink() or not root.is_dir():
         return
     for shard in root.iterdir():
@@ -67,20 +68,59 @@ def thumbnail_disk_bytes():
     return total
 
 
-def cleanup_orphan_thumbnails(db, limit=100):
+def orphan_animation_disk_bytes(db):
+    """Add physical animations not already included by ready cache rows.
+
+    Shared ready references retain the existing conservative row accounting;
+    failed/abandoned publication must never bypass the cache quota.
+    """
+    from itertools import islice
+    from sqlalchemy import select
+    from app.models.media import MediaCacheEntry
+    files = iter(thumbnail_files("animated"))
+    total = 0
+    while batch := list(islice(files, 100)):
+        refs = set(db.scalars(select(MediaCacheEntry.storage_path).where(
+            MediaCacheEntry.status == "ready",
+            MediaCacheEntry.storage_path.in_([str(path) for path in batch]),
+        ).distinct().limit(100)))
+        for path in batch:
+            if str(path) not in refs:
+                try:
+                    total += path.stat().st_size
+                except FileNotFoundError:
+                    pass
+    return total
+
+
+def managed_animation_path(storage_path):
+    """Only generated animation paths are deferred to reference-aware unlink."""
+    path = Path(storage_path or "")
+    root = Path(get_settings().media_cache_root).resolve() / "animated"
+    return (path.parent.parent == root and len(path.stem) == 64
+            and path.suffix == ".webp"
+            and all(c in "0123456789abcdef" for c in path.stem))
+
+
+def cleanup_orphan_thumbnails(db, limit=100, *, namespace="thumb"):
     """Bounded unlink, reference-aware and serialized with CAS publication.
 
+    namespace=None covers thumbs and animations with one total unlink limit.
     No media originals/posters are touched. Grace also covers newly generated
     files before publication and outstanding immutable signed capabilities.
     """
     from sqlalchemy import select
     from app.models.media import MediaCacheEntry
+    limit = max(0, min(limit, 100))
     freed = 0
     removed = 0
     cutoff = time.time() - THUMB_GRACE_SECONDS
-    from itertools import islice
+    from itertools import chain, islice
     with thumbnail_lock():
-        files = iter(thumbnail_files())
+        if namespace is None:
+            files = iter(chain(thumbnail_files(), thumbnail_files("animated")))
+        else:
+            files = iter(thumbnail_files() if namespace == "thumb" else thumbnail_files(namespace))
         while removed < limit:
             batch = list(islice(files, 100))
             if not batch:

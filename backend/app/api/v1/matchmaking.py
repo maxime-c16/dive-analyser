@@ -122,8 +122,7 @@ def media(dive_id: int, kind: str, request: Request, rendition: str | None = Non
     if isinstance(resolved, tuple):
         from app.api.v1.media_playback import play_media_revision
         revision_id, user = resolved
-        import asyncio
-        return asyncio.run(play_media_revision(revision_id, request, Response(), db, user))
+        return play_media_revision(revision_id, request, Response(), db, user)
     return resolved
 
 

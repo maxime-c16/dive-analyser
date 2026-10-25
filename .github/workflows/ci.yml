@@ -112,6 +112,11 @@ jobs:
         with:
           path: ~/.cache/dive-ci/venv-*
           key: venv-${{ runner.os }}-${{ runner.arch }}-${{ steps.python.outputs.python-version }}-backend-${{ hashFiles('backend/requirements.txt', 'ci/requirements-agent.txt', 'ci/lib.sh') }}
+      - name: Install animation integration dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -encoders 2>/dev/null | grep libwebp_anim
       - name: PostgreSQL SQL, migration parity and concurrency checks
         run: bash ci/postgres.sh
       - uses: actions/upload-artifact@v4

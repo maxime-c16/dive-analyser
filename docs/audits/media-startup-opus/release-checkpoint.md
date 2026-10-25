@@ -154,3 +154,60 @@ Release catalog validation and diff whitespace checks pass. The earlier 1724-tes
 backend result remains historical, not a full rerun after this correction.
 No production writes or cleanup were performed. Rollout ordering above is unchanged.
 The disposable PostgreSQL cluster is stopped after validation.
+
+
+## Hosted PostgreSQL failure and second review round — 25 October 2026
+
+Head `41bc78c9` received an explicit REQUEST_CHANGES at
+issuecomment-6397289186, not approval. Paginated reviews, inline comments and
+review threads were empty; all issue comments and commit checks/statuses were
+inspected. Hosted postgres job `121160386730` failed in the derived slow-HEAD
+regression at a SAVEPOINT during authorization, **before the provider HEAD**.
+The globally armed 100 ms test timeout mixed runner scheduling during preflight
+with the intended network-transaction assertion. The test now arms the **same
+100 ms** using SET LOCAL at the verified-storage boundary immediately before the
+handler's rollback. HEAD still lasts 350 ms, explicitly asserts that the request
+has no transaction, and holds a separate real control transaction which PostgreSQL
+must terminate during that wait. No timeout threshold was raised, no assertion,
+test, check or gate was disabled, and no retry was used. Gate job `121161930973`
+had PLAN=success, CHECKS=success, POSTGRES=failure: its red result is only the
+expected propagation of postgres, with no independent aggregator defect.
+
+The high finding is reproduced by the scoped Original HTTP regression before the
+fix. Its stale async test double hid a caller passing a synchronous Response to
+asyncio.run. The route now calls play_media_revision directly in its worker.
+The regression uses a synchronous Response and still tests authorization and
+revocation. An AST/source audit of callers of all media/auth handlers converted
+since the initial audit found no other incompatible callers; both legacy fallback
+calls are already synchronous.
+
+The medium finding is also valid: a proxy refresh, duplicate or failed publication
+can leave a generated animated WebP without a ready cache row. Physical animated
+files absent from ready-row accounting now count toward the quota in SQL batches
+of 100. Existing conservative row accounting for shared ready animations remains.
+The reference-aware maintenance cleaner covers both generated namespaces, with
+**100 total unlinks per pass**, the existing two-hour URL grace and symlink
+protection. Shared animations deferred by ordinary row eviction are unlinked only
+by this cleaner after their final reference disappears. The same inter-process
+lock covers animated publication and cleanup; delayed publishers check that their
+file still exists. No original or protected poster is made eligible for eviction.
+SQLite and PostgreSQL regressions cover abandoned refreshes, shared/failed
+references, bounded cleanup and a cleanup/publication race. No cleanup, SQL change,
+secret provisioning, backfill or other production write was executed in this round.
+
+The hosted artifact also showed the actual animated PostgreSQL roundtrip skipped
+because ffmpeg was absent. The postgres job now installs FFmpeg and checks for
+libwebp_anim before running the unchanged PostgreSQL list, so that integration
+must execute rather than silently skip. Local final verification: **1733 backend
+tests passed, 64 optional skips, 28 performance deselections**, with the lots'
+PostgreSQL and real nginx+njs integrations enabled; separate complete PostgreSQL
+CI list **67 passed, zero skips**, including the final same-100ms slow-HEAD probe
+and the three new animated PostgreSQL regressions. CI tooling: **53 passed**.
+The disposable local PostgreSQL cluster was stopped cleanly afterward.
+
+Frontend was replayed again: **777 passed / 94 files**, required NODE_OPTIONS,
+and production build passed. Release-note validation and diff whitespace checks
+passed. A separate local fast-gate wrapper attempt could not start because this
+Mac has no flock executable; this is not reported as a passing gate. Its 53 CI
+unit tests and release validator were run directly. Hosted CI remains mandatory
+on the new head, including the unchanged required gate aggregator.

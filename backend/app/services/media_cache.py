@@ -656,8 +656,12 @@ def evict_cleanup_candidates(
                 remaining_bytes -= row.size_bytes or 0
     db.commit()
     removed_bytes = 0
+    from app.services.poster_visuals import managed_animation_path
     for row in deleted:
-        removed_bytes += _remove_file_by_path(row.id, row.storage_path)
+        # Content-addressed animations can be shared. Only the locked,
+        # reference-aware cleaner may unlink them after their URL grace.
+        if not managed_animation_path(row.storage_path):
+            removed_bytes += _remove_file_by_path(row.id, row.storage_path)
     return len(deleted), removed_bytes
 
 
@@ -700,7 +704,7 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     after committing its own bookkeeping.
     """
     from app.services.poster_visuals import cleanup_orphan_thumbnails
-    thumbnail_bytes = cleanup_orphan_thumbnails(db)
+    thumbnail_bytes = cleanup_orphan_thumbnails(db, namespace=None)
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(
         db, ttl_candidates, trim_candidates, max_bytes=max_bytes
@@ -834,5 +838,5 @@ def _cache_size(db: Session) -> int:
         select(func.coalesce(func.sum(MediaCacheEntry.size_bytes), 0))
         .where(MediaCacheEntry.status == "ready")
     ).scalar_one()
-    from app.services.poster_visuals import thumbnail_disk_bytes
-    return int(total or 0) + thumbnail_disk_bytes()
+    from app.services.poster_visuals import thumbnail_disk_bytes, orphan_animation_disk_bytes
+    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db)

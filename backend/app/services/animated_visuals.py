@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
 from app.models.media import MediaCacheEntry
-from app.services.poster_visuals import MIN_FREE_BYTES
+from app.services.poster_visuals import MIN_FREE_BYTES, thumbnail_lock
 
 
 def generate(source):
@@ -66,7 +66,10 @@ def backfill(db, limit=4, after_id=0):
             if result is None:
                 continue
             path, checksum, size = result
-            with Session(bind=bind) as session:
+            with thumbnail_lock(), Session(bind=bind) as session:
+                # Cleanup can win while a slow publisher waits for the lock.
+                if not Path(path).is_file():
+                    continue
                 source = session.get(MediaCacheEntry, row.id)
                 if not source or source.status != 'ready' or source.storage_path != row.storage_path or source.checksum_sha256 != row.checksum_sha256:
                     continue

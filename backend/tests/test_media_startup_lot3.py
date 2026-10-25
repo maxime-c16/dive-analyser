@@ -88,10 +88,22 @@ def test_backfill_releases_connection_and_fences_changed_proxy(test_db, root, mo
             source.storage_path = str(root / 'replacement.mp4')
             source.checksum_sha256 = 'b' * 64
             other.commit()
-        return str(root / 'animated.webp'), 'c' * 64, 100
+        path = root / 'animated' / 'cc' / ('c' * 64 + '.webp')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 100)
+        return str(path), 'c' * 64, 100
     monkeypatch.setattr(av, 'generate', generate)
     assert av.backfill(test_db, 1)['generated'] == 0
     assert test_db.query(MediaCacheEntry).filter_by(rendition='animated').count() == 0
+    from app.services import poster_visuals
+    from app.services.media_cache import _cache_size
+    path = next(poster_visuals.thumbnail_files("animated"))
+    assert _cache_size(test_db) == 110  # proxy + abandoned physical generation
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace="animated") == 0
+    import os
+    os.utime(path, (0, 0))
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace="animated") == 100
+    assert _cache_size(test_db) == 10
 
 
 def test_animated_reaches_authorized_library_and_batch(api_client, test_db, root, monkeypatch):
@@ -114,3 +126,43 @@ def test_animated_reaches_authorized_library_and_batch(api_client, test_db, root
     assert page.status_code == 200
     item = next(i for i in page.json()['items'] if i['video_uuid'] == 'lot3-library')
     assert item['animated_url'] == batch.json()['lot3-library']['animated_url']
+
+
+def test_animation_cleanup_preserves_shared_references_and_bounds(test_db, root):
+    import os
+    from app.services import poster_visuals
+    from app.services.media_cache import _cache_size, cleanup_cache
+    asset = PhotosAsset(video_uuid='lot3-shared')
+    test_db.add(asset)
+    test_db.flush()
+    directory = root / 'animated' / 'aa'
+    directory.mkdir(parents=True)
+    path = directory / ('a' * 64 + '.webp')
+    path.write_bytes(b'x' * 100)
+    os.utime(path, (0, 0))
+    # Pinned reference protects shared content even when another row expires.
+    for key, pinned in [('expired', False), ('retained', True)]:
+        test_db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key=key,
+            rendition='animated', storage_path=str(path), size_bytes=100,
+            status='ready', pinned=pinned))
+    test_db.commit()
+    assert _cache_size(test_db) == 200  # existing conservative row accounting
+    assert cleanup_cache(test_db, max_bytes=1) == (1, 0, 100)
+    assert path.exists()
+    remaining = test_db.query(MediaCacheEntry).filter_by(media_key='retained').one()
+    remaining.status = 'failed'
+    test_db.commit()
+    assert _cache_size(test_db) == 100  # failed rows no longer hide physical files
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, namespace='animated') == 0
+    test_db.delete(remaining)
+    test_db.commit()
+    for letter in ('b', 'c'):
+        orphan = directory / (letter * 64 + '.webp')
+        orphan.write_bytes(b'old')
+        os.utime(orphan, (0, 0))
+    protected = root / 'original.mp4'
+    protected.write_bytes(b'precious')
+    (directory / ('d' * 64 + '.webp')).symlink_to(protected)
+    assert poster_visuals.cleanup_orphan_thumbnails(test_db, limit=1, namespace='animated') in (3, 100)
+    assert len(list(poster_visuals.thumbnail_files('animated'))) == 2
+    assert protected.read_bytes() == b'precious'
