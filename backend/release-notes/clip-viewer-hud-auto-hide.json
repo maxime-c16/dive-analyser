@@ -1,0 +1,8 @@
+{
+  "id": "clip-viewer-hud-auto-hide",
+  "date": "2026-10-25",
+  "title": "The dive player now hides its controls while you watch",
+  "body": "When you watch a clip, the menus, captions and buttons fade away after a moment so the dive fills the whole screen. Tap or move to bring them back. A paused clip keeps them up, and holding the video for 2× speed clears them until you release.",
+  "audience": "all",
+  "components": ["frontend"]
+}

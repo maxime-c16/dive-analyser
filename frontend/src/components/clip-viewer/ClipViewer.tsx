@@ -1,6 +1,6 @@
 import { preparePlaybackWindow } from '../../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -44,6 +44,9 @@ import "./clipViewer.css";
 const TYPING_TARGET = 'input, textarea, select, [contenteditable="true"]';
 const INTERACTIVE_TARGET =
   'input, textarea, select, button, a, video, [contenteditable="true"], [role="slider"], [role="combobox"]';
+
+/** How long the overlay HUD stays up after the last activity before it fades. */
+export const HUD_HIDE_DELAY_MS = 1500;
 
 // Feed-pager navigation (TikTok/Reels-style drag-follow), mobile only.
 //
@@ -206,6 +209,70 @@ export default function ClipViewer({
   // Instagram. Per-dive: moving to another clip restores the overlays.
   const [cleanView, setCleanView] = useState(false);
   const [pinching, setPinching] = useState(false);
+
+  // Auto-hiding HUD (TikTok-style): the overlay cluster — header gradient,
+  // shade, action rail, caption, transport and footer navigation — shows,
+  // then fades after HUD_HIDE_DELAY_MS without pointer or keyboard activity.
+  // The hide removes the gradients WITH the elements, so nothing is left
+  // ghosting over the video. Three inputs drive it: any activity re-arms the
+  // hide timer (revealed by taps, mouse movement and keys anywhere in the
+  // viewer), a paused clip holds the HUD up without any timer, and a
+  // sustained press on the video (the 2× hold) dismisses it while the finger
+  // is down even on a paused clip, revealing again on release.
+  const [hudShown, setHudShown] = useState(true);
+  const [hudPressed, setHudPressed] = useState(false);
+  const hudVisible = hudShown && !hudPressed;
+  const hudPausedRef = useRef(false);
+  const hudPressedRef = useRef(false);
+  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHudTimer = () => {
+    if (hudTimerRef.current !== null) {
+      clearTimeout(hudTimerRef.current);
+      hudTimerRef.current = null;
+    }
+  };
+  // One activity handler for the whole viewer: any pointer inside it — video
+  // taps and swipes, transport scrubs, caption and rail taps, mouse movement
+  // — shows the overlays and restarts the countdown.
+  const revealHud = useCallback(() => {
+    if (hudPressedRef.current) return;
+    setHudShown(true);
+    if (hudPausedRef.current) {
+      clearHudTimer();
+      return;
+    }
+    clearHudTimer();
+    hudTimerRef.current = setTimeout(() => {
+      hudTimerRef.current = null;
+      setHudShown(false);
+    }, HUD_HIDE_DELAY_MS);
+  }, []);
+  // ImmersiveControls announces every real paused-state change (and the
+  // element's initial one): paused keeps the HUD up until playback resumes.
+  const onHudPausedChange = useCallback(
+    (paused: boolean) => {
+      hudPausedRef.current = paused;
+      if (paused) {
+        clearHudTimer();
+        setHudShown(true);
+      } else {
+        revealHud();
+      }
+    },
+    [revealHud],
+  );
+  // Presses arrive from the hold itself: while the finger holds, the HUD
+  // stays dismissed no matter what moves over the surface.
+  const onHudPressChange = useCallback(
+    (pressing: boolean) => {
+      hudPressedRef.current = pressing;
+      setHudPressed(pressing);
+      if (!pressing) revealHud();
+    },
+    [revealHud],
+  );
+  useEffect(() => () => clearHudTimer(), []);
+
   // The stage video as sized on mobile: its contain-fit picture box, and the
   // zoom that makes it fill the stage the way `cover` would.
   const [picture, setPicture] = useState({ width: 0, height: 0, cover: 1 });
@@ -259,6 +326,8 @@ export default function ClipViewer({
   const closePanel = () => {
     setSheetOpen(false);
     setManageOpen(false);
+    // Over the video again: show the HUD and arm its countdown.
+    revealHud();
   };
   const setFrameTransform = (el: HTMLDivElement | null, y: number | null) => {
     if (!el) return;
@@ -507,7 +576,9 @@ export default function ClipViewer({
     setSheetOpen(false);
     setCleanView(false);
     setAspectRatio(9 / 16);
-  }, [attempt.id]);
+    // A new clip opens with its HUD shown; the hide countdown starts fresh.
+    revealHud();
+  }, [attempt.id, revealHud]);
 
   useEffect(() => {
     const neighbors = [index, index + 1, index - 1, index + 2]
@@ -662,6 +733,9 @@ export default function ClipViewer({
       const element =
         target && typeof target.closest === "function" ? target : null;
       if (element?.closest(TYPING_TARGET)) return;
+      // Any non-typing key (arrows, space, tab) is audience activity: the
+      // HUD shows and its countdown restarts.
+      revealHud();
       if (event.shiftKey && event.key === "ArrowLeft") {
         if (index > 0) {
           event.preventDefault();
@@ -696,7 +770,7 @@ export default function ClipViewer({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, onMove, attempts, index, total, panelOpen]);
+  }, [onClose, onMove, attempts, index, total, panelOpen, revealHud]);
 
   const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
   const fullName = diveCodeName(attempt.dive_code, lang);
@@ -761,6 +835,13 @@ export default function ClipViewer({
     <div
       className="fixed inset-0 z-50 overscroll-none bg-app"
       role="presentation"
+      // The whole viewer is one activity surface for the auto-hiding HUD:
+      // taps, swipes and scrubs bubble here, and a moving mouse is audience
+      // activity even when it hovers without pressing.
+      onPointerDown={revealHud}
+      onPointerMove={revealHud}
+      // Focus counts too, so keyboard users never tab into invisible chrome.
+      onFocus={revealHud}
     >
       <section
         ref={dialogRef}
@@ -769,7 +850,7 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className={`clip-viewer${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}`}
+        className={`clip-viewer${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
       >
         <header className="clip-header">
           <button
@@ -855,6 +936,8 @@ export default function ClipViewer({
                 onPinchStart={onPinchStart}
                 onPinchUpdate={onPinchUpdate}
                 onPinchEnd={onPinchEnd}
+                onHudPauseChange={onHudPausedChange}
+                onHudPressChange={onHudPressChange}
               />
             ) : (
               <div className="clip-no-media">
