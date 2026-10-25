@@ -26,6 +26,8 @@ export default function ImmersiveControls({
   onPinchStart,
   onPinchUpdate,
   onPinchEnd,
+  onHudPauseChange,
+  onHudPressChange,
 }: {
   videoRef: RefObject<HTMLVideoElement>;
   soundRef?: RefObject<HTMLVideoElement>;
@@ -58,6 +60,20 @@ export default function ImmersiveControls({
   onPinchStart?: () => void;
   onPinchUpdate?: (ratio: number) => void;
   onPinchEnd?: (cancelled: boolean) => void;
+  /**
+   * Auto-hiding HUD: announced on every actual paused-state change (and once
+   * on mount with the element's current state). The parent holds the HUD up
+   * while `paused` is true and arms its hide timer the moment playback
+   * resumes.
+   */
+  onHudPauseChange?: (paused: boolean) => void;
+  /**
+   * Auto-hiding HUD: true from the moment the hold gesture engages (sustained
+   * press = 2× speed) until release or cancel — press or not, the parent
+   * clears the overlays while the finger holds, even on a paused clip, and
+   * shows them again on release.
+   */
+  onHudPressChange?: (pressing: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [paused, setPaused] = useState(false);
@@ -92,9 +108,18 @@ export default function ImmersiveControls({
   pinchUpdateRef.current = onPinchUpdate;
   const pinchEndRef = useRef(onPinchEnd);
   pinchEndRef.current = onPinchEnd;
+  // HUD signals are deferred the same way, so a remount (source change) never
+  // resubscribes the parent's effects to a stale closure.
+  const hudPauseRef = useRef(onHudPauseChange);
+  hudPauseRef.current = onHudPauseChange;
+  const hudPressRef = useRef(onHudPressChange);
+  hudPressRef.current = onHudPressChange;
   // Every finger currently on the surface, and the span of an active pinch.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ span: number } | null>(null);
+  // Mirrors `holding` for the HUD press signal: broadcast only on real
+  // transitions, and still releasable from the unmount cleanup below.
+  const hudPressed = useRef(false);
 
   const toggle = () => {
     const video = videoRef.current;
@@ -112,6 +137,12 @@ export default function ImmersiveControls({
     clearTimeout(holdTimer.current);
     if (videoRef.current) videoRef.current.playbackRate = rateRef.current;
     setHolding(false);
+    // A press in flight ends: the HUD comes back on release (the parent's
+    // onHudPressChange(false) handler re-arms it). Taps never broadcast.
+    if (hudPressed.current) {
+      hudPressed.current = false;
+      hudPressRef.current?.(false);
+    }
   };
   /** Release velocity over the trailing samples, signed like dy (px/ms). */
   const releaseVelocity = (samples: Array<{ y: number; t: number }>) => {
@@ -174,11 +205,19 @@ export default function ImmersiveControls({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    // The parent holds its HUD up while the clip is paused and arms the hide
+    // timer when playback resumes. Announce the state on mount as well, so a
+    // still-loading or autoplay-blocked element keeps the HUD up.
+    let announcedPaused: boolean | null = null;
     const sync = () => {
       setPaused(video.paused);
       setMuted((soundRef?.current || video).muted);
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
       setProgress(video.currentTime || 0);
+      if (announcedPaused !== video.paused) {
+        announcedPaused = video.paused;
+        hudPauseRef.current?.(video.paused);
+      }
     };
     const events = [
       "play",
@@ -197,6 +236,10 @@ export default function ImmersiveControls({
       clearTimeout(holdTimer.current);
       clearTimeout(tapTimer.current);
       clearTimeout(heartTimer.current);
+      if (hudPressed.current) {
+        hudPressed.current = false;
+        hudPressRef.current?.(false);
+      }
       video.playbackRate = rateRef.current;
     };
   }, [videoRef, soundRef]);
@@ -236,6 +279,9 @@ export default function ImmersiveControls({
             gesture.current.held = true;
             if (videoRef.current) videoRef.current.playbackRate = 2;
             setHolding(true);
+            // Sustained press: the HUD clears until the finger releases.
+            hudPressed.current = true;
+            hudPressRef.current?.(true);
           }, 350);
         }}
         onPointerMove={(event) => {

@@ -29,6 +29,10 @@ function setup(
     onPinchUpdate?: (ratio: number) => void;
     onPinchEnd?: (cancelled: boolean) => void;
   } = {},
+  hud: {
+    onHudPauseChange?: (paused: boolean) => void;
+    onHudPressChange?: (pressing: boolean) => void;
+  } = {},
 ) {
   const video = document.createElement("video");
   video.playbackRate = rate;
@@ -50,6 +54,8 @@ function setup(
       onPinchStart={drag.onPinchStart}
       onPinchUpdate={drag.onPinchUpdate}
       onPinchEnd={drag.onPinchEnd}
+      onHudPauseChange={hud.onHudPauseChange}
+      onHudPressChange={hud.onHudPressChange}
     />,
   );
   const surface = screen.getByRole("button", { name: "Play video" });
@@ -251,4 +257,72 @@ it("a normal one-finger tap still works after a pinch ended", () => {
   t.up();
   act(() => vi.advanceTimersByTime(270));
   expect(t.play).toHaveBeenCalledOnce();
+});
+
+// ---- Auto-hiding HUD signals ----
+
+it("announces the element's initial paused state once, then every real change", () => {
+  const onHudPauseChange = vi.fn();
+  const t = setup(0.5, {}, { onHudPauseChange });
+  // jsdom media elements start paused: the parent holds its HUD up right
+  // away, which also covers autoplay-blocked and still-loading elements.
+  expect(onHudPauseChange).toHaveBeenCalledTimes(1);
+  expect(onHudPauseChange).toHaveBeenCalledWith(true);
+  // Playback starts while the element is paused=false: announced once.
+  Object.defineProperty(t.video, "paused", {
+    configurable: true,
+    get: () => false,
+  });
+  fireEvent.play(t.video);
+  expect(onHudPauseChange).toHaveBeenLastCalledWith(false);
+  // Repeated events with an unchanged state stay silent.
+  fireEvent.play(t.video);
+  expect(onHudPauseChange).toHaveBeenCalledTimes(2);
+  // Pausing again flips the announcement back.
+  Object.defineProperty(t.video, "paused", {
+    configurable: true,
+    get: () => true,
+  });
+  fireEvent.pause(t.video);
+  expect(onHudPauseChange).toHaveBeenLastCalledWith(true);
+  expect(onHudPauseChange).toHaveBeenCalledTimes(3);
+});
+
+it("a sustained press announces itself once and releases on pointer up", () => {
+  const onHudPressChange = vi.fn();
+  const t = setup(0.5, {}, { onHudPressChange });
+  expect(onHudPressChange).not.toHaveBeenCalled();
+  t.down();
+  act(() => vi.advanceTimersByTime(350));
+  expect(onHudPressChange).toHaveBeenCalledTimes(1);
+  expect(onHudPressChange).toHaveBeenLastCalledWith(true);
+  t.up();
+  expect(onHudPressChange).toHaveBeenCalledTimes(2);
+  expect(onHudPressChange).toHaveBeenLastCalledWith(false);
+  // A subsequent tap that never reaches the hold threshold stays silent.
+  t.down();
+  t.up();
+  expect(onHudPressChange).toHaveBeenCalledTimes(2);
+});
+
+it("movement, cancellation and unmount during a hold release the press", () => {
+  const onHudPressChange = vi.fn();
+  const t = setup(0.5, {}, { onHudPressChange });
+  t.down();
+  act(() => vi.advanceTimersByTime(350));
+  // More than 12px of travel cancels the hold: the press ends too.
+  fireEvent.pointerMove(t.surface, { clientX: 100, clientY: 130 });
+  expect(onHudPressChange).toHaveBeenLastCalledWith(false);
+  // A cancelled finger releases the press as well.
+  t.down();
+  act(() => vi.advanceTimersByTime(350));
+  fireEvent.pointerCancel(t.surface);
+  expect(onHudPressChange).toHaveBeenLastCalledWith(false);
+  // Unmounting mid-press must not strand the parent in a dismissed HUD.
+  const calls = onHudPressChange.mock.calls.length;
+  t.down();
+  act(() => vi.advanceTimersByTime(350));
+  t.unmount();
+  expect(onHudPressChange).toHaveBeenCalledTimes(calls + 2);
+  expect(onHudPressChange).toHaveBeenLastCalledWith(false);
 });

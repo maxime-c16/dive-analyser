@@ -97,9 +97,13 @@ interface DiveVideoPlayerProps {
   onPinchStart?: () => void
   onPinchUpdate?: (ratio: number) => void
   onPinchEnd?: (cancelled: boolean) => void
+  /** Auto-hiding HUD: real paused-state changes from the immersive player. */
+  onHudPauseChange?: (paused: boolean) => void
+  /** Auto-hiding HUD: the immersive player's sustained press (2× hold). */
+  onHudPressChange?: (pressing: boolean) => void
 }
 
-function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd }: DiveVideoPlayerProps) {
+function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immersive = false, onAspectRatioChange, onLike = () => {}, onNavigate = () => {}, dragEnabled = false, onDragUpdate, onDragEnd, onPinchStart, onPinchUpdate, onPinchEnd, onHudPauseChange, onHudPressChange }: DiveVideoPlayerProps) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const soundRef = useRef<HTMLVideoElement>(null)
@@ -768,7 +772,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
-      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls key={videoEpoch} videoRef={videoRef} soundRef={soundRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} />}
+      {immersive && phase.kind === 'ready' && !decodeError && <ImmersiveControls key={videoEpoch} videoRef={videoRef} soundRef={soundRef} playbackRate={playbackRate} mediaPresented={framePresented} onLike={onLike} onNavigate={onNavigate} dragEnabled={dragEnabled} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd} onPinchStart={onPinchStart} onPinchUpdate={onPinchUpdate} onPinchEnd={onPinchEnd} onHudPauseChange={onHudPauseChange} onHudPressChange={onHudPressChange} />}
 
       {/* Failed initial status lookup that did NOT end playback (a seeded
           warm clip): a separate, non-covering status check affordance. */}
@@ -884,9 +888,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
 
-      {(previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
+      {(previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
       {phase.kind === 'ready' && !decodeError && phase.originalSrc && (!previewSrc || previewSrc === phase.originalSrc) && (
-        <div className="absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 flex items-center gap-2">
+        <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 flex items-center gap-2">
           <span className="rounded bg-black/70 px-2 py-1 text-xs text-white">{t('videoPlayer.originalQuality')}</span>
           {canRequest && (
             <button
@@ -901,7 +905,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, immers
         </div>
       )}
       {phase.kind === 'ready' && !decodeError && qualityOptions(phase.src).length > 1 && (
-        <button type="button" className="absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={cycleQuality}>{qualityLabel(phase.src)}</button>
+        <button type="button" className="clip-player-chip absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={cycleQuality}>{qualityLabel(phase.src)}</button>
       )}
       {/* Video decode/load failure of an otherwise ready clip. */}
       {phase.kind === 'ready' && decodeError && (

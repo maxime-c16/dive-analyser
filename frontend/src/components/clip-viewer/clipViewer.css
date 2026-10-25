@@ -1076,6 +1076,65 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Auto-hiding HUD (ClipViewer's is-hud-hidden): after HUD_HIDE_DELAY_MS
+   without taps, mouse movement or keys, the whole overlay cluster fades out
+   as one layer — gradients included — leaving the bare playing video; any
+   interaction reveals it again. A paused clip holds it up, and a sustained
+   press on the video (the 2× hold) dismisses it while the finger is down.
+   Like the clean view, visibility keeps hidden controls out of the tab
+   order and the pointer path without changing layout, so nothing jumps.
+   The shade carries the readability gradients; the phone header and footer
+   carry their own, so all three fade together with the chrome.
+   Studio layouts keep their permanent video panel instead of the phone HUD.
+   --------------------------------------------------------------------------- */
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-stage-shade,
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-actions,
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-caption,
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-transport,
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-progress,
+.clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-player-chip {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.22s ease,
+    visibility 0s linear 0.22s;
+}
+/* Immersive layouts: the top header and the footer navigation are overlays
+   on phones and normal flow rows on short landscape (600–1023px wide,
+   <600px tall, the STUDIO_QUERY exception), and both carry their own
+   gradient backgrounds, so they fade out with the HUD. */
+@media (max-width: 599px),
+  (min-width: 600px) and (max-width: 1023px) and (max-height: 599px) {
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-header,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-navigation {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      opacity 0.22s ease,
+      visibility 0s linear 0.22s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-stage-shade,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-actions,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-caption,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-transport,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-progress,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-player-chip {
+    transition: none;
+  }
+}
+@media (max-width: 599px),
+  (min-width: 600px) and (max-width: 1023px) and (max-height: 599px) {
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-header,
+  .clip-viewer:not(.is-studio).is-hud-hidden:not(.is-pinching) .clip-navigation {
+    transition: none;
+  }
+}
+
 .clip-comment .clip-comment-actions {
   display: flex;
   align-items: center;

@@ -31,6 +31,17 @@ async function presentFirstFrame(video: HTMLVideoElement) {
   })
 }
 
+// jsdom has no PointerEvent; the gesture layer reads isPrimary/pointerId.
+class Pointer extends MouseEvent {
+  isPrimary: boolean
+  pointerId: number
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init)
+    this.isPrimary = init.isPrimary ?? true
+    this.pointerId = init.pointerId ?? 1
+  }
+}
+
 it('immersive clips attempt autoplay with sound on metadata load', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
@@ -103,6 +114,49 @@ it('immersive canplay never overrides an intentional pause', async () => {
     fireEvent.canPlay(video)
     await act(async () => {})
     expect(playSpy).not.toHaveBeenCalled()
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+it('forwards the immersive HUD signals up to the viewer', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  const pausedSpy = vi.fn()
+  const pressSpy = vi.fn()
+  vi.stubGlobal('PointerEvent', Pointer)
+  try {
+    render(
+      <DiveVideoPlayer
+        diveCode="103B"
+        height="1m"
+        videoUuid="uuid"
+        immersive
+        onHudPauseChange={pausedSpy}
+        onHudPressChange={pressSpy}
+      />,
+    )
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    // Mounting the transport announces the controlling element's initial
+    // paused state, and every later real transition follows through.
+    await waitFor(() => expect(pausedSpy).toHaveBeenCalledWith(true))
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false })
+    fireEvent.play(video)
+    expect(pausedSpy).toHaveBeenLastCalledWith(false)
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => true })
+    fireEvent.pause(video)
+    expect(pausedSpy).toHaveBeenLastCalledWith(true)
+    // The 2× hold surfaces as a press on the HUD channel, and releases.
+    const surface = screen.getByRole('button', { name: 'Play video' })
+    fireEvent.pointerDown(surface, { button: 0 })
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 380))
+    })
+    expect(pressSpy).toHaveBeenLastCalledWith(true)
+    fireEvent.pointerUp(surface)
+    expect(pressSpy).toHaveBeenLastCalledWith(false)
+    // The press changed no playback state: the pause channel is untouched.
+    expect(pausedSpy).toHaveBeenLastCalledWith(true)
   } finally {
     playSpy.mockRestore()
   }

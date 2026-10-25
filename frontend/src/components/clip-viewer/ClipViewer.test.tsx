@@ -1,6 +1,6 @@
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { act as hudAct, render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import ClipViewer, { pinchState } from './ClipViewer'
@@ -18,6 +18,8 @@ vi.mock('../DiveVideoPlayer', () => ({
     onPinchStart?: () => void
     onPinchUpdate?: (ratio: number) => void
     onPinchEnd?: (cancelled: boolean) => void
+    onHudPauseChange?: (paused: boolean) => void
+    onHudPressChange?: (pressing: boolean) => void
   }) => (
     <div data-testid="player">
       {props.diveCode}:{props.videoUuid}:{props.playbackRate}
@@ -28,6 +30,13 @@ vi.mock('../DiveVideoPlayer', () => ({
       <button type="button" aria-label="Test pinch spread" onClick={() => props.onPinchUpdate?.(1.4)} />
       <button type="button" aria-label="Test pinch end" onClick={() => props.onPinchEnd?.(false)} />
       <button type="button" aria-label="Test pinch cancel" onClick={() => props.onPinchEnd?.(true)} />
+      {/* Stands in for the auto-hiding HUD signals from ImmersiveControls:
+          the real playback stays paused, so the held-HUD behavior is driven
+          directly through the same callbacks the transport would use. */}
+      <button type="button" aria-label="Test hud pause" onClick={() => props.onHudPauseChange?.(true)} />
+      <button type="button" aria-label="Test hud resume" onClick={() => props.onHudPauseChange?.(false)} />
+      <button type="button" aria-label="Test hud press" onClick={() => props.onHudPressChange?.(true)} />
+      <button type="button" aria-label="Test hud release" onClick={() => props.onHudPressChange?.(false)} />
       {/* Stands in for the ImmersiveControls gesture surface (arbitration is
           covered in ImmersiveControls.test.tsx): forwards raw pointer travel
           as drag callbacks so pager tests can drive finger gestures. */}
@@ -358,6 +367,7 @@ import { act } from 'react'
 import {
   FEED_PUSH_DURATION_MS,
   FEED_SPRING_DURATION_MS,
+  HUD_HIDE_DELAY_MS,
   shouldCommitDrag,
   shouldEnableFeedPager,
 } from './ClipViewer'
@@ -764,6 +774,92 @@ it('changing dive restores the overlays', () => {
     </MemoryRouter>,
   )
   expect(screen.getByTestId('clip-viewer')).not.toHaveClass('is-clean')
+})
+
+// ---- Auto-hiding HUD (phones): idle fade, tap/mouse/key reveal, paused
+// hold, and the sustained-press dismissal driving it from ImmersiveControls.
+
+it('the HUD fades out after its idle window and any tap reveals it again', () => {
+  onTestFinished(stubPhoneLayout())
+  vi.useFakeTimers()
+  try {
+    renderClipViewer(1)
+    const dialog = screen.getByTestId('clip-viewer')
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // Untouched for the window: the overlay layer (gradients included) fades.
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS))
+    expect(dialog).toHaveClass('is-hud-hidden')
+    // A pointer anywhere in the viewer shows it and re-arms the countdown.
+    fireEvent.pointerDown(dialog)
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS))
+    expect(dialog).toHaveClass('is-hud-hidden')
+    // Mouse movement is activity, so hovering reveals it.
+    fireEvent.pointerMove(dialog)
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // Keyboard traffic reveals it too, without navigating.
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS))
+    expect(dialog).toHaveClass('is-hud-hidden')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('a paused clip holds the HUD up until playback resumes', () => {
+  onTestFinished(stubPhoneLayout())
+  vi.useFakeTimers()
+  try {
+    renderClipViewer(1)
+    const dialog = screen.getByTestId('clip-viewer')
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud pause' }))
+    // The pauses the user pressed for never hide the controls.
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // Pointer activity while paused never arms the fade either.
+    fireEvent.pointerMove(dialog)
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // Resuming playback re-arms the countdown.
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud resume' }))
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS))
+    expect(dialog).toHaveClass('is-hud-hidden')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('a sustained press dismisses the HUD, even paused, until the finger releases', () => {
+  onTestFinished(stubPhoneLayout())
+  vi.useFakeTimers()
+  try {
+    renderClipViewer(1)
+    const dialog = screen.getByTestId('clip-viewer')
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud pause' }))
+    act(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // The 2× hold clears everything while the finger is down, paused or not.
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud press' }))
+    expect(dialog).toHaveClass('is-hud-hidden')
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).toHaveClass('is-hud-hidden')
+    // Movement over the surface during the hold does not reveal it, and the
+    // countdown does not run out invisibly either.
+    fireEvent.pointerMove(dialog)
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).toHaveClass('is-hud-hidden')
+    // Releasing the finger brings the HUD back; paused, it stays.
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud release' }))
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS * 5))
+    expect(dialog).not.toHaveClass('is-hud-hidden')
+    // Resuming after a released press re-arms the normal countdown.
+    fireEvent.click(screen.getByRole('button', { name: 'Test hud resume' }))
+    hudAct(() => vi.advanceTimersByTime(HUD_HIDE_DELAY_MS))
+    expect(dialog).toHaveClass('is-hud-hidden')
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 it('pinchState maps finger travel to clean progress with a rounded overshoot', () => {
