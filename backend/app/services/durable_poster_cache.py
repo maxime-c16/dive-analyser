@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 
 from app.config import get_settings
 from app.models.media import MediaCacheEntry
@@ -27,6 +27,9 @@ from app.models.photos_asset import PhotosAsset
 from app.services.media_keys import build_media_key
 
 BATCH = 40
+# Candidates examined per pass. Sampled in random order so clips that are
+# not (yet) servable can never wall off the rest of the backlog.
+SCAN = 400
 MAX_POSTER_BYTES = 5 * 1024 * 1024
 # Keep the server cache above the package gate's floor.
 MIN_FREE_BYTES = 26 * 1024**3
@@ -50,7 +53,7 @@ def _candidates(db, limit: int) -> list[tuple[int, str]]:
             ~has_cache_row,
         )
         .distinct()
-        .order_by(PhotosAsset.id.desc())
+        .order_by(func.random())
         .limit(limit)
     ).all()
     return [(int(asset_id), uuid) for asset_id, uuid in rows]
@@ -63,7 +66,9 @@ def _plan(db, limit: int) -> list[dict[str, Any]]:
 
     settings = get_settings()
     plan = []
-    for asset_id, video_uuid in _candidates(db, limit):
+    for asset_id, video_uuid in _candidates(db, SCAN):
+        if len(plan) >= limit:
+            break
         clip = safe_resolve_clip_derivatives(db, video_uuid)
         decision = clip.roles.get("poster") if clip is not None else None
         if decision is None or decision.state != "ready" or not decision.revision_id:
@@ -86,11 +91,14 @@ def _plan(db, limit: int) -> list[dict[str, Any]]:
     return plan
 
 
-def _final_path(media_key: str) -> Path:
+def _final_path(media_key: str, sha256: str) -> Path:
+    """Content-specific path: never the legacy ``<media_key>.jpg`` a Mac
+    poster job finalizes to, so a racing writer can't overwrite its bytes;
+    two durable passes racing write identical verified bytes."""
     root = Path(get_settings().media_cache_root).resolve()
     final_dir = root / "poster" / media_key[:2] / media_key[2:4]
     final_dir.mkdir(parents=True, exist_ok=True)
-    return final_dir / f"{media_key}.jpg"
+    return final_dir / f"{media_key}-d{sha256[:16]}.jpg"
 
 
 def _download(item: dict[str, Any], dest: Path) -> int:
@@ -134,7 +142,7 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
     counts["planned"] = len(plan)
     for item in plan:
         media_key = build_media_key(item["video_uuid"], "poster")
-        final = _final_path(media_key)
+        final = _final_path(media_key, item["sha256"])
         tmp = final.with_name(f".{final.name}.{os.getpid()}.tmp")
         try:
             size = _download(item, tmp)
@@ -174,8 +182,13 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
         ))
         try:
             db.commit()
-        except Exception:  # noqa: BLE001 - unique race lost: the winner's
-            # row points at the same path with the same verified bytes.
+        except Exception:  # noqa: BLE001 - unique race lost: keep the winner
+            db.rollback()
+            # Remove our file unless the winning row uses the same path.
+            if db.execute(select(MediaCacheEntry.id).where(
+                MediaCacheEntry.storage_path == str(final)
+            ).limit(1)).scalar_one_or_none() is None:
+                final.unlink(missing_ok=True)
             db.rollback()
             counts["skipped"] += 1
             continue

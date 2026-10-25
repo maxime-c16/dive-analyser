@@ -93,3 +93,24 @@ def test_low_disk_does_nothing(cache, monkeypatch):
     monkeypatch.setattr(shutil, "disk_usage", lambda _: SimpleNamespace(free=10 * GIB))
     assert dpc.materialize_durable_posters(cache.db)["cached"] == 0
     assert _poster_rows(cache.db) == []
+
+
+def test_copy_never_targets_the_legacy_poster_path(cache):
+    from app.services.media_keys import build_media_key
+
+    asset = _durable_clip(cache, 1)
+    dpc.materialize_durable_posters(cache.db)
+    (row,) = _poster_rows(cache.db)
+    assert not row.storage_path.endswith(f"{build_media_key(asset.video_uuid, 'poster')}.jpg")
+
+
+def test_unservable_candidates_do_not_wall_off_the_backlog(cache, monkeypatch):
+    good = _durable_clip(cache, 1)
+    bad = [_durable_clip(cache, n) for n in range(2, 6)]
+    from app.services import derivative_read
+
+    original = derivative_read.safe_resolve_clip_derivatives
+    monkeypatch.setattr(derivative_read, "safe_resolve_clip_derivatives",
+                        lambda db, uuid, **kw: None if uuid != good.video_uuid else original(db, uuid, **kw))
+    assert dpc.materialize_durable_posters(cache.db, limit=1)["cached"] == 1
+    assert [r.photos_asset_id for r in _poster_rows(cache.db)] == [good.id]
