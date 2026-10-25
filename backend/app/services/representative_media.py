@@ -142,6 +142,7 @@ def _ready_cache_for_assets(db: Session, asset_ids: set[int]) -> dict[int, dict[
             select(MediaCacheEntry).where(
                 MediaCacheEntry.photos_asset_id.in_(asset_ids),
                 MediaCacheEntry.status == "ready",
+                MediaCacheEntry.rendition != "animated",
             )
         ).scalars().all()
     ) if asset_ids else []

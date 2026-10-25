@@ -253,3 +253,31 @@ pass; all 777 frontend tests in 94 files pass with the required NODE_OPTIONS.
 Real WebP generation uses the documented local FFmpeg binary. Release-note
 validation and diff checks pass. Production unchanged. Hosted CI and explicit
 bot approval must run again on the new head before merge/deploy.
+
+## Fifth bot review — full status and video-only consumers
+
+Verified comment `6397569188`: full status serialized every ready generation.
+`ready_entries_for_asset` now ranks ready entries by created_at/id descending in
+SQL per rendition, selects rank 1, and preserves generation ordering across
+renditions. Its only application caller is full status. No history is deleted.
+The shared HTTP regression now covers library, batch and full status: full status
+reproduced 60 entries before correction and now returns exactly five latest-ready
+summaries, retaining local preview and explicit original URLs.
+
+Audited the other cache-entry reads for effects of adding animated generations.
+Analysis, representative manifests and legacy playback do not consume animations:
+they now exclude that rendition in SQL. Legacy video classification additionally
+rejects animated entries, preventing WebP from becoming a video fallback. Recall
+planning needs only rendition names and now selects DISTINCT names in SQL rather
+than loading entire generation objects. Other reads select a specific rendition,
+key or row, or are lifecycle maintenance and intentionally inspect history.
+The regression verifies animation-only assets cannot enter legacy video fallback
+or the analysis/representative cache maps.
+
+Validation: 98 status/library/playback/cache tests passed; 75 additional
+representative/legacy/download/sharing tests passed (3 optional PostgreSQL cases
+skipped in that pass); 17 analysis tests passed. These passes overlap and must not
+be added. Final lot3 file passed including consumer exclusions. Release-note
+validation and diff checks pass. Frontend application/tests unchanged since the
+777-test pass in round four. No production changes; fresh hosted checks and an
+explicit clean bot verdict remain mandatory.

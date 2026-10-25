@@ -244,7 +244,7 @@ class DiveAnalysisService:
         asset_ids = {d.photos_asset_id for d in dives if d.photos_asset_id}
         if not asset_ids:
             return {}, {}
-        entries = self.db.execute(select(MediaCacheEntry).where(MediaCacheEntry.photos_asset_id.in_(asset_ids), MediaCacheEntry.status == "ready")).scalars().all()
+        entries = self.db.execute(select(MediaCacheEntry).where(MediaCacheEntry.photos_asset_id.in_(asset_ids), MediaCacheEntry.status == "ready", MediaCacheEntry.rendition != "animated")).scalars().all()
         jobs = self.db.execute(select(MediaJob).where(MediaJob.photos_asset_id.in_(asset_ids)).order_by(MediaJob.updated_at.desc())).scalars().all()
         entry_map, job_map = defaultdict(list), {}
         for entry in entries:

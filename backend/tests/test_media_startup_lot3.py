@@ -209,8 +209,8 @@ def test_library_materializes_only_latest_ready_visuals(api_client, test_db, roo
     assert sorted(loaded) == sorted(latest.values())
 
 
-@pytest.mark.parametrize('endpoint', ['library', 'batch'])
-def test_tile_queries_bound_historical_visuals(api_client, test_db, root, endpoint, monkeypatch):
+@pytest.mark.parametrize('endpoint', ['library', 'batch', 'status'])
+def test_media_queries_bound_historical_generations(api_client, test_db, root, endpoint, monkeypatch):
     from sqlalchemy import event
     from tests.test_library_media_payloads import seed_dive_with_asset
     seed_dive_with_asset(test_db, uuid='bounded-batch')
@@ -240,7 +240,14 @@ def test_tile_queries_bound_historical_visuals(api_client, test_db, root, endpoi
         loaded.append(entry.id)
     event.listen(MediaCacheEntry, 'load', record_load)
     try:
-        if endpoint == 'batch':
+        if endpoint == 'status':
+            response = api_client.get('/api/v1/media/bounded-batch/status')
+            item = response.json()
+            renditions = tuple(expected)
+            assert sorted(e['id'] for e in item['cache_entries']) == sorted(expected.values())
+            assert item['playback_url'] == f"/api/v1/media/cache/{expected['proxy_720p']}/play"
+            assert item['full_quality_url'] == f"/api/v1/media/cache/{expected['original']}/play"
+        elif endpoint == 'batch':
             response = api_client.post('/api/v1/media/status/batch', json={'video_uuids': ['bounded-batch']})
             item = response.json()['bounded-batch']
             renditions = ('poster', 'animated', 'proxy_720p', 'proxy_360p')
@@ -253,5 +260,24 @@ def test_tile_queries_bound_historical_visuals(api_client, test_db, root, endpoi
         event.remove(MediaCacheEntry, 'load', record_load)
     assert response.status_code == 200
     assert item['thumbhash'] == '11'
-    assert item['animated_url'] == f"/api/v1/media/cache/{expected['animated']}/play"
+    if endpoint != 'status':
+        assert item['animated_url'] == f"/api/v1/media/cache/{expected['animated']}/play"
     assert sorted(loaded) == sorted(expected[r] for r in renditions)
+
+
+def test_animations_stay_out_of_video_only_consumers(test_db, root):
+    from app.services.legacy_media import _entry_is_playable_video, _ready_cache_entries_for_uuid
+    asset = PhotosAsset(video_uuid='animated-only-legacy')
+    test_db.add(asset)
+    test_db.flush()
+    entry = MediaCacheEntry(photos_asset_id=asset.id, media_key='animated-only-legacy',
+        rendition='animated', storage_path=str(root / 'animated.webp'), size_bytes=100, status='ready')
+    test_db.add(entry)
+    test_db.commit()
+    assert not _entry_is_playable_video(entry)
+    assert _ready_cache_entries_for_uuid(test_db, asset.video_uuid) == []
+    from app.services.representative_media import _ready_cache_for_assets
+    from app.services.dive_analysis_service import DiveAnalysisService
+    assert not _ready_cache_for_assets(test_db, {asset.id})
+    entries, _ = DiveAnalysisService(test_db).media_maps([SimpleNamespace(photos_asset_id=asset.id)])
+    assert not entries

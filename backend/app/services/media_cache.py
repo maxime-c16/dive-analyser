@@ -133,14 +133,22 @@ def to_cache_summary(entry: MediaCacheEntry) -> MediaCacheEntrySummary:
 
 
 def ready_entries_for_asset(db: Session, photos_asset_id: int) -> list[MediaCacheEntry]:
-    """Return ready cache entries for an asset."""
+    """Return one newest ready generation per rendition, reduced in SQL."""
+    ranked = select(
+        MediaCacheEntry.id,
+        func.row_number().over(
+            partition_by=MediaCacheEntry.rendition,
+            order_by=(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc()),
+        ).label("rank"),
+    ).where(
+        MediaCacheEntry.photos_asset_id == photos_asset_id,
+        MediaCacheEntry.status == "ready",
+    ).subquery()
     stmt = (
         select(MediaCacheEntry)
-        .where(
-            MediaCacheEntry.photos_asset_id == photos_asset_id,
-            MediaCacheEntry.status == "ready",
-        )
-        .order_by(MediaCacheEntry.created_at.desc())
+        .join(ranked, MediaCacheEntry.id == ranked.c.id)
+        .where(ranked.c.rank == 1)
+        .order_by(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc())
     )
     return list(db.execute(stmt).scalars().all())
 

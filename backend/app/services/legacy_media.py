@@ -55,6 +55,7 @@ def _ready_cache_entries_for_uuid(
         .where(
             PhotosAsset.video_uuid == video_uuid,
             MediaCacheEntry.status == "ready",
+            MediaCacheEntry.rendition != "animated",
         )
         .order_by(MediaCacheEntry.created_at.desc())
     )
@@ -62,7 +63,7 @@ def _ready_cache_entries_for_uuid(
 
 
 def _entry_is_playable_video(entry: MediaCacheEntry) -> bool:
-    return (entry.rendition or "") != "poster" and bool(entry.storage_path)
+    return (entry.rendition or "") not in ("poster", "animated") and bool(entry.storage_path)
 
 
 def _legacy_file_candidates(db: Session, revision: MediaRevision) -> list[str]:
