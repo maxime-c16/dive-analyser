@@ -280,23 +280,22 @@ def library_codes(
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
 ):
     """Per-code summaries and recent activity over the whole filtered Library scope."""
-    from app.services.code_summaries import summarize_codes
+    from app.services.code_summaries import accumulate_ordered, latest_uuids, render_summaries
     query = _filtered_dive_query(
         request, db, diver_scope=diver_scope, height=height, performance=performance,
         exclude_lineup=True, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter, modifier_filter=modifier_filter,
     )
-    dives = query.order_by(Dive.dive_datetime, Dive.id).with_entities(
-        Dive.id, Dive.dive_code, Dive.dive_datetime, Dive.performance, Dive.phase1_performance,
-        Dive.phase2_performance, Dive.height, Dive.session_id, Dive.video_uuid,
-    ).yield_per(500).all()
-    latest: dict[str, Dive] = {}
-    for dive in dives:
-        current = latest.get(dive.dive_code)
-        if current is None or (dive.dive_datetime, dive.id) > (current.dive_datetime, current.id):
-            latest[dive.dive_code] = dive
-    visuals = _library_visuals(db, [dive.video_uuid for dive in latest.values() if dive.video_uuid])
-    return summarize_codes(dives, visuals, datetime.now())
+    now = datetime.now()
+    state = accumulate_ordered(
+        query.order_by(Dive.dive_datetime, Dive.id).with_entities(
+            Dive.id, Dive.dive_code, Dive.dive_datetime, Dive.performance, Dive.phase1_performance,
+            Dive.phase2_performance, Dive.height, Dive.session_id, Dive.video_uuid,
+        ).yield_per(500),
+        now,
+    )
+    visuals = _library_visuals(db, latest_uuids(state))
+    return render_summaries(state, visuals)
 
 
 @router.post("", status_code=201)

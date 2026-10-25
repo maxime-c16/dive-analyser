@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from app.models.dive import Dive
 from app.models.session import Session as TrainingSession
-from app.services.code_summaries import summarize_codes
+from app.services.code_summaries import accumulate_ordered, render_summaries, summarize_codes
 from app.services.diver_identity import get_primary_diver
 
 
@@ -95,6 +95,34 @@ def test_trend_compares_recent_weeks_to_the_months_before():
     assert len(result["activity"]["weeks"]) == 26
     assert sum(week["attempt_count"] for week in result["activity"]["weeks"]) == 11
     assert codes["301C"]["months"]["2026-10"]["count"] == 5
+
+
+def test_streaming_accumulators_match_batch_summaries():
+    from types import SimpleNamespace
+
+    now = datetime(2026, 10, 25, 12)
+    rows = [
+        (1, "301C", now - timedelta(days=100), "M", None, None, "1m", 7, "uuid-1"),
+        (2, "301C", now - timedelta(days=90), "G", None, None, "1m", 7, "uuid-2"),
+        (3, "301C", now - timedelta(days=3), "P", None, None, "3m", 8, "uuid-3"),
+        (4, "301C", now - timedelta(days=2), None, None, None, "3m", 8, None),
+        (5, "403B", now - timedelta(days=2), "G", "G", "P", "1m", 8, "uuid-5"),
+        (6, "100A", now - timedelta(days=1), "G", None, None, "1m", 8, "uuid-6"),
+        (7, "301C", now - timedelta(days=1), "B", None, None, "", 9, "uuid-7"),
+    ]
+    visuals = {"uuid-3": {"thumb_url": "/thumb"}}
+    attr_rows = [
+        SimpleNamespace(
+            id=ident, dive_code=code, dive_datetime=when, performance=perf,
+            phase1_performance=p1, phase2_performance=p2, height=height,
+            session_id=session, video_uuid=uuid,
+        )
+        for ident, code, when, perf, p1, p2, height, session, uuid in rows
+    ]
+    batch = summarize_codes(attr_rows, visuals, now)
+    ordered = sorted(rows, key=lambda row: (row[2], row[0]))
+    streamed = render_summaries(accumulate_ordered(iter(ordered), now), visuals)
+    assert streamed == batch
 
 
 def test_library_codes_height_and_performance_filters(api_client, test_db):
