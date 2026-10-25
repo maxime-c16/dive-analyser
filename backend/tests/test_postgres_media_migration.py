@@ -288,3 +288,4 @@ def test_durable_poster_candidates_query_runs_on_postgres(pg):
     _seed(factory, 2)
     with factory() as d:
         assert dpc._candidates(d, 10) == []
+        assert dpc._drifted(d, 5) == []

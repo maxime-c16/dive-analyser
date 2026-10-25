@@ -133,3 +133,38 @@ def test_source_change_during_download_discards_the_copy(cache, monkeypatch):
     assert out["cached"] == 0 and out["skipped"] == 1
     assert _poster_rows(cache.db) == []
     assert not [p for p in cache.root.rglob("*") if p.is_file()]
+
+
+def test_drifted_copy_is_refreshed_in_place(cache):
+    from backend.tests.test_media_migration import _source
+
+    asset = _durable_clip(cache, 1)
+    dpc.materialize_durable_posters(cache.db)
+    (row,) = _poster_rows(cache.db)
+    old_path = row.storage_path
+    # A new source lands after the copy committed, and gets its own package.
+    new_sha = _source(cache.db, asset.video_uuid, b"new-camera-original")
+    _ledger(cache.db, asset.video_uuid, new_sha)
+    cache.db.commit()
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+
+    poster = cache.db.query(MediaDerivative).filter_by(video_uuid=asset.video_uuid, role="poster",
+                                                       source_blob_sha256=new_sha).one()
+    loc = cache.db.query(MediaBlobLocation).filter_by(blob_sha256=poster.derivative_blob_sha256).one()
+    cache.store[loc.object_key] = _poster_bytes(asset.video_uuid, new_sha)
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["refreshed"] == 1
+    cache.db.expire_all()
+    (row,) = _poster_rows(cache.db)
+    assert row.source_blob_sha256 == new_sha and row.storage_path != old_path
+    assert row.checksum_sha256 == poster.derivative_blob_sha256
+
+
+def test_mac_poster_rows_are_never_refreshed(cache):
+    asset = _durable_clip(cache, 1)
+    cache.db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key="legacy-poster-key", rendition="poster",
+                                 storage_path="/cache/poster/legacy-poster-key.jpg", size_bytes=1,
+                                 checksum_sha256="0" * 64, status="ready"))
+    cache.db.commit()
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["refreshed"] == 0 and out["cached"] == 0

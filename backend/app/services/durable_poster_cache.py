@@ -31,6 +31,7 @@ BATCH = 40
 # queries). Sampled in random order so clips that are not (yet) servable
 # can never wall off the rest of the backlog.
 SCAN = 60
+DRIFT_SAMPLE = 10
 MAX_POSTER_BYTES = 5 * 1024 * 1024
 # Keep the server cache above the package gate's floor.
 MIN_FREE_BYTES = 26 * 1024**3
@@ -76,36 +77,76 @@ def _still_current(db, item: dict[str, Any]) -> bool:
             and clip.transform_version == item["transform_version"])
 
 
-def _plan(db, limit: int) -> list[dict[str, Any]]:
-    """Resolve each candidate through the D5 read contract (fail closed)."""
+def _plan_item(db, asset_id: int, video_uuid: str, replace_id: int | None = None) -> dict[str, Any] | None:
+    """The D5-servable poster to copy for one clip, or None (fail closed)."""
     from app.services.derivative_read import safe_resolve_clip_derivatives
     from app.services.media_backbone import trusted_prod_location
 
-    settings = get_settings()
+    clip = safe_resolve_clip_derivatives(db, video_uuid)
+    decision = clip.roles.get("poster") if clip is not None else None
+    if decision is None or decision.state != "ready" or not decision.revision_id:
+        return None
+    revision = db.get(MediaRevision, decision.revision_id)
+    if revision is None:
+        return None
+    location, deny = trusted_prod_location(db, revision.blob_sha256, get_settings().media_backbone_prod_bucket)
+    if deny is not None:
+        return None
+    return {
+        "asset_id": asset_id,
+        "video_uuid": video_uuid,
+        "sha256": revision.blob_sha256.lower(),
+        "bucket": location.bucket,
+        "object_key": location.object_key,
+        "source_sha256": clip.source_sha256,
+        "transform_version": clip.transform_version,
+        "replace_id": replace_id,
+    }
+
+
+def _is_ours(entry: MediaCacheEntry | None) -> bool:
+    """A row this module wrote (content-specific path), never a Mac poster."""
+    return (entry is not None and entry.rendition == "poster" and bool(entry.checksum_sha256)
+            and Path(entry.storage_path or "").stem.endswith(f"-d{entry.checksum_sha256[:16]}"))
+
+
+def _drifted(db, sample: int) -> list[dict[str, Any]]:
+    """Recovery: copies whose clip moved to a newer source/transform.
+
+    Source changes are not serialized with this copy (the publisher's own
+    drift guard is best-effort too), so a copy can land just before a new
+    source commits. A random sample of our rows is re-resolved every pass;
+    a stale one is refreshed in place with the current poster.
+    """
+    rows = db.execute(
+        select(MediaCacheEntry, PhotosAsset.video_uuid)
+        .join(PhotosAsset, PhotosAsset.id == MediaCacheEntry.photos_asset_id)
+        .where(MediaCacheEntry.rendition == "poster", MediaCacheEntry.storage_path.like("%-d%.jpg"))
+        .order_by(func.random())
+        .limit(sample)
+    ).all()
+    plan = []
+    for entry, video_uuid in rows:
+        if not _is_ours(entry):
+            continue
+        item = _plan_item(db, entry.photos_asset_id, video_uuid, replace_id=entry.id)
+        if item is not None and (item["sha256"] != entry.checksum_sha256.lower()
+                                 or item["source_sha256"] != entry.source_blob_sha256
+                                 or item["transform_version"] != entry.transform_version):
+            plan.append(item)
+    return plan
+
+
+def _plan(db, limit: int) -> list[dict[str, Any]]:
+    """New copies (bounded) plus refreshes of drifted copies."""
     plan = []
     for asset_id, video_uuid in _candidates(db, SCAN):
         if len(plan) >= limit:
             break
-        clip = safe_resolve_clip_derivatives(db, video_uuid)
-        decision = clip.roles.get("poster") if clip is not None else None
-        if decision is None or decision.state != "ready" or not decision.revision_id:
-            continue
-        revision = db.get(MediaRevision, decision.revision_id)
-        if revision is None:
-            continue
-        location, deny = trusted_prod_location(db, revision.blob_sha256, settings.media_backbone_prod_bucket)
-        if deny is not None:
-            continue
-        plan.append({
-            "asset_id": asset_id,
-            "video_uuid": video_uuid,
-            "sha256": revision.blob_sha256.lower(),
-            "bucket": location.bucket,
-            "object_key": location.object_key,
-            "source_sha256": clip.source_sha256,
-            "transform_version": clip.transform_version,
-        })
-    return plan
+        item = _plan_item(db, asset_id, video_uuid)
+        if item is not None:
+            plan.append(item)
+    return plan + _drifted(db, DRIFT_SAMPLE)
 
 
 def _final_path(media_key: str, sha256: str) -> Path:
@@ -142,11 +183,30 @@ def _download(item: dict[str, Any], dest: Path) -> int:
     return size
 
 
+def _refresh(db, item: dict[str, Any], tmp: Path, final: Path, size: int) -> str:
+    """Point a drifted copy of ours at the current poster (row locked)."""
+    entry = db.get(MediaCacheEntry, item["replace_id"], with_for_update=True, populate_existing=True)
+    if not _is_ours(entry) or not _still_current(db, item):
+        db.rollback()
+        tmp.unlink(missing_ok=True)
+        return "skipped"
+    os.replace(tmp, final)
+    os.chmod(final, 0o644)
+    entry.storage_path = str(final)
+    entry.size_bytes = size
+    entry.checksum_sha256 = item["sha256"]
+    entry.source_blob_sha256 = item["source_sha256"]
+    entry.transform_version = item["transform_version"]
+    entry.status = "ready"
+    db.commit()  # the old file stays on disk (never deleted here)
+    return "refreshed"
+
+
 def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
     """One bounded pass. The caller's session must be clean; commits itself."""
     import shutil
 
-    counts = {"planned": 0, "cached": 0, "skipped": 0, "failed": 0}
+    counts = {"planned": 0, "cached": 0, "refreshed": 0, "skipped": 0, "failed": 0}
     settings = get_settings()
     try:
         if shutil.disk_usage(settings.media_cache_root).free < MIN_FREE_BYTES:
@@ -167,6 +227,9 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             tmp.unlink(missing_ok=True)
             counts["failed"] += 1
             continue
+        if item["replace_id"] is not None:
+            counts[_refresh(db, item, tmp, final, size)] += 1
+            continue
         # Re-check under a fresh transaction: another writer (a Mac poster
         # job, a parallel pass) may have produced the row meanwhile.
         taken = db.execute(select(MediaCacheEntry.id).where(
@@ -174,8 +237,8 @@ def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
             | ((MediaCacheEntry.photos_asset_id == item["asset_id"]) & (MediaCacheEntry.rendition == "poster"))
         ).limit(1)).scalar_one_or_none()
         if taken is not None or not _still_current(db, item):
-            # Already cached, or the source changed during the download:
-            # an old-source poster must never take the clip's cache key.
+            # Already cached, or the source changed during the download.
+            # (A change after this check is caught by the drift sample.)
             db.rollback()
             tmp.unlink(missing_ok=True)
             counts["skipped"] += 1
