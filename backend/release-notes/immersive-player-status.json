@@ -1,0 +1,8 @@
+{
+  "id": "immersive-player-status",
+  "date": "2026-10-25",
+  "title": "Clearer messages while your video gets ready",
+  "body": "The phone player has tidier controls and says plainly what is happening while a clip gets ready: fetching, converting, sending. When it stalls or the connection drops, it offers a retry instead of a bare loading line.",
+  "audience": "all",
+  "components": ["frontend"]
+}

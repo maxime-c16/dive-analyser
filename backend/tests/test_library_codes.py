@@ -95,3 +95,17 @@ def test_trend_compares_recent_weeks_to_the_months_before():
     assert len(result["activity"]["weeks"]) == 26
     assert sum(week["attempt_count"] for week in result["activity"]["weeks"]) == 11
     assert codes["301C"]["months"]["2026-10"]["count"] == 5
+
+
+def test_library_codes_height_and_performance_filters(api_client, test_db):
+    start = datetime.now() - timedelta(days=5)
+    _seed(test_db, "101B", ["G", "M"], start=start, height="3m")
+    _seed(test_db, "101B", ["P"], start=start + timedelta(days=10), height="1m")
+
+    good = api_client.get("/api/v1/dives/library/codes", params={"performance": "G"}).json()
+    assert [item["dive_code"] for item in good["codes"]] == ["101B"]
+    assert good["codes"][0]["attempt_count"] == 1
+
+    high = api_client.get("/api/v1/dives/library/codes", params={"height": "3m"}).json()
+    assert [item["dive_code"] for item in high["codes"]] == ["101B"]
+    assert high["codes"][0]["attempt_count"] == 2

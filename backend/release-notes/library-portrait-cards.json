@@ -1,0 +1,8 @@
+{
+  "id": "library-portrait-cards",
+  "date": "2026-10-25",
+  "title": "Library cards match your upright clips",
+  "body": "Library cards are now upright portraits, four across on a phone, so previews fill the card instead of being cropped. The score sits on the thumbnail, with the dive code and name below.",
+  "audience": "all",
+  "components": ["frontend"]
+}
