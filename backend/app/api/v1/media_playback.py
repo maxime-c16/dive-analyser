@@ -139,7 +139,7 @@ def _resolve_verified_prod_location(
 
 
 @router.get("/playback/canary/revisions")
-async def list_canary_revisions(
+def list_canary_revisions(
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
 ):
@@ -454,7 +454,7 @@ async def play_media_revision(
 
 
 @router.get("/playback/metrics")
-async def playback_metrics_endpoint(
+def playback_metrics_endpoint(
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
 ):

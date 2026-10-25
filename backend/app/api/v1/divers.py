@@ -35,7 +35,7 @@ def _serialize(diver: Diver) -> dict:
 
 
 @router.get("")
-async def list_divers(active_only: bool = True, db: Session = Depends(get_db)):
+def list_divers(active_only: bool = True, db: Session = Depends(get_db)):
     stmt = select(Diver).options(selectinload(Diver.aliases)).order_by(Diver.is_primary_user.desc(), Diver.display_name)
     if active_only:
         stmt = stmt.where(Diver.active.is_(True))
@@ -43,7 +43,7 @@ async def list_divers(active_only: bool = True, db: Session = Depends(get_db)):
 
 
 @router.put("/{diver_id}")
-async def update_diver(diver_id: int, request: DiverUpdate, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
+def update_diver(diver_id: int, request: DiverUpdate, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
     diver = db.get(Diver, diver_id)
     if not diver:
         raise HTTPException(status_code=404, detail="Diver not found")
@@ -69,7 +69,7 @@ async def update_diver(diver_id: int, request: DiverUpdate, db: Session = Depend
 
 
 @router.post("/{diver_id}/aliases", status_code=status.HTTP_201_CREATED)
-async def add_alias(diver_id: int, request: AliasCreate, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
+def add_alias(diver_id: int, request: AliasCreate, db: Session = Depends(get_db), _: dict = Depends(verify_api_key)):
     diver = db.get(Diver, diver_id)
     if not diver:
         raise HTTPException(status_code=404, detail="Diver not found")

@@ -352,7 +352,7 @@ def _upsert_synced_dive(db: Session, request: VideoSyncRequest) -> tuple[Dive, b
     return dive, created, updated
 
 @router.post("/label", status_code=status.HTTP_201_CREATED)
-async def sync_video_label(
+def sync_video_label(
     request: VideoLabelRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -421,7 +421,7 @@ async def sync_video_label(
 
 
 @router.post("/sync", status_code=status.HTTP_201_CREATED)
-async def sync_single_video(
+def sync_single_video(
     request: VideoSyncRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -567,7 +567,7 @@ async def sync_single_video(
 
 
 @router.post("/batch", status_code=status.HTTP_200_OK)
-async def sync_batch_videos(
+def sync_batch_videos(
     request: BatchSyncRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -746,7 +746,7 @@ async def sync_batch_videos(
 # ========== VIDEO STREAM ENDPOINTS (existing) ==========
 
 @router.get("/{video_uuid}")
-async def stream_video(
+def stream_video(
     video_uuid: str,
     request: Request,
     db: Session = Depends(get_db),
@@ -874,7 +874,7 @@ async def stream_video(
 
 
 @router.get("/check/{video_uuid}")
-async def check_video_availability(
+def check_video_availability(
     video_uuid: str,
     request: Request,
     db: Session = Depends(get_db),

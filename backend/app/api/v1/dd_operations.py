@@ -19,7 +19,7 @@ router = APIRouter(prefix="/dd", tags=["dd"], dependencies=[Depends(require_owne
 
 
 @router.get("/overview")
-async def get_dd_overview(
+def get_dd_overview(
     request: Request,
     diver_id: int | None = Query(None),
     scope: Literal["self", "all"] = Query("self"),
@@ -31,7 +31,7 @@ async def get_dd_overview(
 
 
 @router.get("/lookup/{dive_code}/{height}")
-async def lookup_dd_value(
+def lookup_dd_value(
     dive_code: str,
     height: str,
     db: Session = Depends(get_db),
@@ -55,7 +55,7 @@ async def lookup_dd_value(
 
 
 @router.get("/lookup-all/{dive_code}")
-async def lookup_all_heights(
+def lookup_all_heights(
     dive_code: str,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -82,7 +82,7 @@ async def lookup_all_heights(
 
 
 @router.get("/by-group/{group}/{height}")
-async def lookup_by_group(
+def lookup_by_group(
     group: int,
     height: str,
     db: Session = Depends(get_db),
@@ -114,7 +114,7 @@ async def lookup_by_group(
 
 
 @router.get("/statistics/{height}")
-async def get_dd_statistics(
+def get_dd_statistics(
     height: str,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -135,7 +135,7 @@ async def get_dd_statistics(
 
 
 @router.post("/add-entry")
-async def add_dd_entry(
+def add_dd_entry(
     entry: Dict,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -173,7 +173,7 @@ async def add_dd_entry(
 
 
 @router.post("/batch-add")
-async def batch_add_dd_entries(
+def batch_add_dd_entries(
     entries: List[Dict],
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -194,7 +194,7 @@ async def batch_add_dd_entries(
 
 
 @router.get("/coverage")
-async def get_dd_coverage(
+def get_dd_coverage(
     db: Session = Depends(get_db),
 ) -> Dict:
     """Get DD table completeness statistics"""
@@ -205,7 +205,7 @@ async def get_dd_coverage(
 
 
 @router.get("/all")
-async def get_all_dds(
+def get_all_dds(
     db: Session = Depends(get_db),
 ) -> Dict:
     """Get formula-defined DD values for the maintained dive-code catalogue."""
@@ -219,7 +219,7 @@ async def get_all_dds(
 
 
 @router.post("/auto-assign/{dive_id}")
-async def auto_assign_dd(
+def auto_assign_dd(
     dive_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -238,7 +238,7 @@ async def auto_assign_dd(
 
 
 @router.post("/auto-assign-batch")
-async def auto_assign_batch(
+def auto_assign_batch(
     dive_ids: List[int],
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -254,7 +254,7 @@ async def auto_assign_batch(
 
 
 @router.post("/auto-assign-session/{session_id}")
-async def auto_assign_session(
+def auto_assign_session(
     session_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:
@@ -273,7 +273,7 @@ async def auto_assign_session(
 
 
 @router.get("/statistics-session/{session_id}")
-async def get_session_statistics(
+def get_session_statistics(
     session_id: int,
     db: Session = Depends(get_db),
 ) -> Dict:

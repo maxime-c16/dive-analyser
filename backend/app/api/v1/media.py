@@ -548,7 +548,7 @@ def _photos_access_status_from_jobs(db: Session) -> dict:
 
 
 @router.get("/representative-manifest")
-async def representative_media_manifest(
+def representative_media_manifest(
     request: Request,
     limit_codes: int | None = Query(None, ge=1, le=500),
     include_sync_codes: bool = False,
@@ -568,7 +568,7 @@ async def representative_media_manifest(
 
 
 @router.get("/representatives")
-async def representatives_gallery(
+def representatives_gallery(
     request: Request,
     dive_code: str | None = None,
     readiness: str | None = None,
@@ -598,7 +598,7 @@ async def representatives_gallery(
 
 
 @router.get("/representatives/coverage")
-async def representatives_coverage(
+def representatives_coverage(
     request: Request,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     diver_id: int | None = None,
@@ -610,7 +610,7 @@ async def representatives_coverage(
 
 
 @router.get("/mac/status")
-async def mac_media_status(
+def mac_media_status(
     db: Session = Depends(get_db),
 ):
     """Return inferred Mac Photos/media operational status without creating jobs."""
@@ -618,7 +618,7 @@ async def mac_media_status(
 
 
 @router.get("/representatives/{dive_code}/{role}/replacement-candidates")
-async def get_representative_replacement_candidates(
+def get_representative_replacement_candidates(
     dive_code: str,
     role: str,
     request: Request,
@@ -636,7 +636,7 @@ async def get_representative_replacement_candidates(
 
 
 @router.post("/representatives/{dive_code}/{role}/replace")
-async def replace_representative_attempt(
+def replace_representative_attempt(
     dive_code: str,
     role: str,
     request: RepresentativeReplaceRequest,
@@ -661,7 +661,7 @@ async def replace_representative_attempt(
 
 
 @router.post("/representatives/remap-ready")
-async def remap_representatives_ready_media(
+def remap_representatives_ready_media(
     request: RepresentativeReadyRemapRequest,
     db: Session = Depends(get_db),
 ):
@@ -688,7 +688,7 @@ async def remap_representatives_ready_media(
 
 
 @router.post("/representative-manifest/prepare")
-async def prepare_representative_media(
+def prepare_representative_media(
     request: RepresentativePrepareRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -707,7 +707,7 @@ async def prepare_representative_media(
 
 
 @router.get("/representative-manifest/runs/{run_id}")
-async def get_representative_population_run(
+def get_representative_population_run(
     run_id: int,
     db: Session = Depends(get_db),
 ):
@@ -721,7 +721,7 @@ async def get_representative_population_run(
 
 
 @router.get("/agents")
-async def list_media_agents(db: Session = Depends(get_db)):
+def list_media_agents(db: Session = Depends(get_db)):
     """Return public operational state for allow-listed media agents."""
     agents = db.execute(select(MediaAgent).order_by(MediaAgent.id)).scalars().all()
     return {"agents": [public_agent_status(agent) for agent in agents], "read_only": True}
@@ -765,7 +765,7 @@ async def media_agent_heartbeat(
 
 
 @router.post("/agents/sources/report")
-async def report_media_source(
+def report_media_source(
     request: RecalledSourceReportRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -787,7 +787,7 @@ async def report_media_source(
 
 
 @router.get("/agents/sources/{video_uuid}")
-async def recalled_source_status(video_uuid: str, db: Session = Depends(get_db)):
+def recalled_source_status(video_uuid: str, db: Session = Depends(get_db)):
     """Return source readiness without disclosing Mac filesystem paths."""
     sources = db.execute(
         select(RecalledMediaSource).where(
@@ -816,7 +816,7 @@ async def recalled_source_status(video_uuid: str, db: Session = Depends(get_db))
 
 
 @router.get("/recall-manifest")
-async def recall_manifest(
+def recall_manifest(
     limit: int = Query(25, ge=1, le=100),
     priority_class: str | None = None,
     dive_code: str | None = None,
@@ -838,7 +838,7 @@ async def recall_manifest(
 
 
 @router.post("/recall-batches/plan")
-async def recall_batch_plan(request: RecallBatchPlanRequest, db: Session = Depends(get_db)):
+def recall_batch_plan(request: RecallBatchPlanRequest, db: Session = Depends(get_db)):
     """Calculate a bounded internal-storage plan without creating work."""
     if not request.dry_run:
         raise HTTPException(status_code=422, detail="recall_batch_execution_not_enabled")
@@ -869,7 +869,7 @@ def _catalog_run_public(run: MediaCatalogRun) -> dict:
 
 
 @router.post("/catalog/runs")
-async def create_catalog_run(request: CatalogRunStartRequest, db: Session = Depends(get_db)):
+def create_catalog_run(request: CatalogRunStartRequest, db: Session = Depends(get_db)):
     """Request one full read-only catalog pass; creates no media jobs."""
     try:
         run = start_catalog_run(db, request.agent_id)
@@ -881,13 +881,13 @@ async def create_catalog_run(request: CatalogRunStartRequest, db: Session = Depe
 
 
 @router.get("/catalog/runs/latest")
-async def latest_catalog_run(db: Session = Depends(get_db)):
+def latest_catalog_run(db: Session = Depends(get_db)):
     run = db.execute(select(MediaCatalogRun).order_by(MediaCatalogRun.id.desc())).scalars().first()
     return _catalog_run_public(run) if run else None
 
 
 @router.get("/catalog/runs/{run_id}")
-async def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
+def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
     run = db.get(MediaCatalogRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="catalog_run_not_found")
@@ -895,7 +895,7 @@ async def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/runs/lease")
-async def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = lease_catalog_run(db, request.agent_id)
     db.commit()
@@ -903,7 +903,7 @@ async def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Dep
 
 
 @router.post("/catalog/runs/{run_id}/chunks")
-async def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -917,7 +917,7 @@ async def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: 
 
 
 @router.post("/catalog/runs/{run_id}/complete")
-async def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -932,7 +932,7 @@ async def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api
 
 
 @router.post("/catalog/runs/{run_id}/fail")
-async def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -943,12 +943,12 @@ async def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: di
 
 
 @router.get("/catalog/summary")
-async def get_catalog_summary(revision: int | None = None, db: Session = Depends(get_db)):
+def get_catalog_summary(revision: int | None = None, db: Session = Depends(get_db)):
     return catalog_summary(db, revision)
 
 
 @router.get("/catalog/items")
-async def get_catalog_items(
+def get_catalog_items(
     eligibility: str | None = None,
     exclusion_code: str | None = None,
     limit: int = Query(100, ge=1, le=250),
@@ -972,7 +972,7 @@ async def get_catalog_items(
 
 
 @router.post("/catalog/population-plan")
-async def population_plan(request: CatalogPopulationPlanRequest, db: Session = Depends(get_db)):
+def population_plan(request: CatalogPopulationPlanRequest, db: Session = Depends(get_db)):
     if not request.dry_run:
         raise HTTPException(status_code=422, detail="catalog_population_execution_requires_staged_run")
     try:
@@ -982,7 +982,7 @@ async def population_plan(request: CatalogPopulationPlanRequest, db: Session = D
 
 
 @router.post("/catalog/population-runs")
-async def start_population_run(request: CatalogPopulationStartRequest, db: Session = Depends(get_db)):
+def start_population_run(request: CatalogPopulationStartRequest, db: Session = Depends(get_db)):
     try:
         run = start_catalog_population_run(
             db, limit=request.limit, stage=request.stage,
@@ -997,7 +997,7 @@ async def start_population_run(request: CatalogPopulationStartRequest, db: Sessi
 
 
 @router.get("/catalog/population-runs/{run_id}")
-async def get_population_run(run_id: int, db: Session = Depends(get_db)):
+def get_population_run(run_id: int, db: Session = Depends(get_db)):
     run = db.get(MediaCatalogPopulationRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="catalog_population_run_not_found")
@@ -1007,7 +1007,7 @@ async def get_population_run(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/population-runs/{run_id}/resume")
-async def resume_population_run(run_id: int, db: Session = Depends(get_db)):
+def resume_population_run(run_id: int, db: Session = Depends(get_db)):
     run = db.get(MediaCatalogPopulationRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="catalog_population_run_not_found")
@@ -1022,7 +1022,7 @@ async def resume_population_run(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/population-runs/{run_id}/arm-rolling-successor")
-async def arm_population_rolling_successor(
+def arm_population_rolling_successor(
     run_id: int,
     request: CatalogPopulationRolloverRequest,
     db: Session = Depends(get_db),
@@ -1041,7 +1041,7 @@ async def arm_population_rolling_successor(
 
 
 @router.post("/resolution-upgrades")
-async def schedule_proxy_resolution_upgrade(
+def schedule_proxy_resolution_upgrade(
     request: ResolutionUpgradeStartRequest,
     db: Session = Depends(get_db),
 ):
@@ -1069,7 +1069,7 @@ async def get_proxy_resolution_upgrade(run_id: int, db: Session = Depends(get_db
 
 
 @router.get("/{video_uuid}/status")
-async def get_media_status(
+def get_media_status(
     video_uuid: str,
     db: Session = Depends(get_db),
 ) -> MediaStatusResponse:
@@ -1120,7 +1120,7 @@ def _thumbnail_status_for_entries(
 
 
 @router.post("/status/batch")
-async def get_media_status_batch(
+def get_media_status_batch(
     request: MediaStatusBatchRequest,
     db: Session = Depends(get_db),
 ) -> dict:
@@ -1176,7 +1176,7 @@ async def get_media_status_batch(
 
 
 @router.post("/{video_uuid}/request")
-async def request_media(
+def request_media(
     video_uuid: str,
     request: MediaRequest,
     db: Session = Depends(get_db),
@@ -1216,7 +1216,7 @@ async def request_media(
 
 
 @router.api_route("/cache/{entry_id}/play", methods=["GET", "HEAD"])
-async def play_cached_media(
+def play_cached_media(
     entry_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -1244,7 +1244,7 @@ async def play_cached_media(
 
 
 @router.post("/events/viewed")
-async def mark_media_viewed(
+def mark_media_viewed(
     request: Request,
     entry_id: int,
     db: Session = Depends(get_db),
@@ -1263,7 +1263,7 @@ async def mark_media_viewed(
 
 
 @router.post("/jobs/lease")
-async def lease_jobs(
+def lease_jobs(
     request: MediaJobLeaseRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -1288,7 +1288,7 @@ async def lease_jobs(
 
 
 @router.post("/jobs/{job_id}/heartbeat")
-async def heartbeat_job(
+def heartbeat_job(
     job_id: int,
     request: MediaJobHeartbeatRequest,
     db: Session = Depends(get_db),
@@ -1308,7 +1308,7 @@ async def heartbeat_job(
 
 
 @router.post("/jobs/{job_id}/fail")
-async def fail_job(
+def fail_job(
     job_id: int,
     request: MediaJobFailRequest,
     db: Session = Depends(get_db),
@@ -1896,7 +1896,7 @@ async def publish_package_slot(
 
 
 @router.post("/cache/{entry_id}/pin")
-async def pin_cache_entry(
+def pin_cache_entry(
     entry_id: int,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -1908,7 +1908,7 @@ async def pin_cache_entry(
 
 
 @router.post("/cache/{entry_id}/unpin")
-async def unpin_cache_entry(
+def unpin_cache_entry(
     entry_id: int,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -1920,7 +1920,7 @@ async def unpin_cache_entry(
 
 
 @router.post("/cache/cleanup")
-async def cleanup_media_cache(
+def cleanup_media_cache(
     max_bytes: int | None = None,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),

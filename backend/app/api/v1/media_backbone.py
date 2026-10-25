@@ -143,7 +143,7 @@ def validate_commit_request(request: MediaBackboneCommitRequest) -> tuple[str, s
 
 
 @router.post("/commit", response_model=MediaBackboneCommitResponse)
-async def commit_backbone_ingest(
+def commit_backbone_ingest(
     request: MediaBackboneCommitRequest,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
@@ -203,7 +203,7 @@ async def commit_backbone_ingest(
     "/migration/inventory",
     response_model=list[MediaMigrationInventoryItem],
 )
-async def migration_inventory(
+def migration_inventory(
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
 ) -> list[MediaMigrationInventoryItem]:
@@ -280,7 +280,7 @@ async def migration_inventory(
     "/migration/domain_inventory",
     response_model=list[MediaDomainInventoryItem],
 )
-async def domain_migration_inventory(
+def domain_migration_inventory(
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),
 ) -> list[MediaDomainInventoryItem]:
@@ -368,7 +368,7 @@ async def domain_migration_inventory(
 @router.get(
     "/migration/dive_caption/{video_uuid}",
 )
-async def dive_raw_caption(
+def dive_raw_caption(
     video_uuid: str,
     db: Session = Depends(get_db),
     api_key: dict = Depends(verify_api_key),

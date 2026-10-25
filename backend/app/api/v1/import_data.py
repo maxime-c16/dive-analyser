@@ -40,7 +40,7 @@ def find_json_file() -> str:
 
 
 @router.post("/sync", tags=["import"])
-async def sync_data(
+def sync_data(
     db: Session = Depends(get_db),
     force_refresh: bool = False,
     _: dict = Depends(verify_api_key),
@@ -77,7 +77,7 @@ async def sync_data(
 
 
 @router.post("/clear", tags=["import"])
-async def clear_data(
+def clear_data(
     db: Session = Depends(get_db),
     _: dict = Depends(verify_api_key),
 ) -> Dict[str, Any]:
@@ -96,7 +96,7 @@ async def clear_data(
 
 
 @router.get("/status", tags=["import"])
-async def import_status(
+def import_status(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
