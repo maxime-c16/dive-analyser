@@ -207,3 +207,51 @@ def test_library_materializes_only_latest_ready_visuals(api_client, test_db, roo
     assert item['thumbhash'] == 'hash-29'
     assert item['animated_url'].startswith(f"/api/v1/media/cache/{latest['animated']}/play")
     assert sorted(loaded) == sorted(latest.values())
+
+
+@pytest.mark.parametrize('endpoint', ['library', 'batch'])
+def test_tile_queries_bound_historical_visuals(api_client, test_db, root, endpoint, monkeypatch):
+    from sqlalchemy import event
+    from tests.test_library_media_payloads import seed_dive_with_asset
+    seed_dive_with_asset(test_db, uuid='bounded-batch')
+    asset = PhotosAsset(video_uuid='bounded-batch')
+    test_db.add(asset)
+    test_db.flush()
+    expected = {}
+    from datetime import datetime, timedelta
+    for rendition in ('poster', 'animated', 'proxy_720p', 'proxy_360p', 'original'):
+        for generation in range(12):
+            entry = MediaCacheEntry(photos_asset_id=asset.id,
+                media_key=f'batch-{rendition}-{generation}', rendition=rendition,
+                storage_path=str(root / f'{rendition}-{generation}'), size_bytes=100,
+                status='ready', created_at=datetime(2026, 1, 1) + timedelta(seconds=generation),
+                thumbhash=str(generation) if rendition == 'poster' else None)
+            test_db.add(entry)
+            test_db.flush()
+            expected[rendition] = entry.id
+        test_db.add(MediaCacheEntry(photos_asset_id=asset.id,
+            media_key=f'batch-{rendition}-failed', rendition=rendition,
+            storage_path='failed', size_bytes=0, status='failed'))
+    test_db.commit()
+    test_db.expunge_all()
+    monkeypatch.setenv('MEDIA_SIGNED_URLS_ENABLED', 'false')
+    loaded = []
+    def record_load(entry, _):
+        loaded.append(entry.id)
+    event.listen(MediaCacheEntry, 'load', record_load)
+    try:
+        if endpoint == 'batch':
+            response = api_client.post('/api/v1/media/status/batch', json={'video_uuids': ['bounded-batch']})
+            item = response.json()['bounded-batch']
+            renditions = ('poster', 'animated', 'proxy_720p', 'proxy_360p')
+            assert item['playback_url'] == f"/api/v1/media/cache/{expected['proxy_720p']}/play"
+        else:
+            response = api_client.get('/api/v1/dives/library', params={'diver_scope': 'all'})
+            item = next(i for i in response.json()['items'] if i['video_uuid'] == 'bounded-batch')
+            renditions = ('poster', 'animated')
+    finally:
+        event.remove(MediaCacheEntry, 'load', record_load)
+    assert response.status_code == 200
+    assert item['thumbhash'] == '11'
+    assert item['animated_url'] == f"/api/v1/media/cache/{expected['animated']}/play"
+    assert sorted(loaded) == sorted(expected[r] for r in renditions)

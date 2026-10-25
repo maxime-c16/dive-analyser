@@ -228,3 +228,28 @@ used above. An initial invocation used the Mac's unsupported default FFmpeg;
 rerunning with the documented WebP-capable binary passes. Release-note validation
 and diff checks pass. Frontend is unchanged. New-head hosted CI and explicit clean
 bot verdict are still required; no merge or production change was made.
+
+## Fourth bot review — bounded batch and frontend effect timing
+
+Verified comment `6397502803`: status/batch also materialized historical ready
+entries. It now ranks by created_at descending with id as deterministic tie-break,
+partitioned by asset/rendition, in SQL before ORM loading. Only poster, animated,
+proxy_720p and proxy_360p contribute to tile payloads; originals and other unused
+renditions are excluded. At most four rows per asset (400 per 100-asset batch).
+The existing ordering by generation creation and proxy preference are preserved.
+The HTTP regression seeds 60 historical rows and failed newer generations;
+before correction batch loads 60 rows, after correction exactly four, with the
+same latest poster/animation and preferred 720p URL. The library counterpart
+continues to load exactly two visual rows.
+
+Hosted frontend job `121165162798` failed because ProfileDiveGrid.test invoked
+an uninitialized observer callback: the link could be present before the child
+passive effect installed its IntersectionObserver. The test resets the callback
+per case and explicitly waits for observer installation before firing visibility.
+No application behavior, timeout thresholds or CI gates changed.
+
+Validation: 24 focused lots/library tests and 41 media-node/status/cache tests
+pass; all 777 frontend tests in 94 files pass with the required NODE_OPTIONS.
+Real WebP generation uses the documented local FFmpeg binary. Release-note
+validation and diff checks pass. Production unchanged. Hosted CI and explicit
+bot approval must run again on the new head before merge/deploy.

@@ -1151,11 +1151,22 @@ def get_media_status_batch(
         asset_ids = [asset.id for asset in assets]
         uuid_by_asset = {asset.id: asset.video_uuid for asset in assets}
         if asset_ids:
+            # Only four renditions can contribute to a tile. Rank generations
+            # in SQL so refresh history cannot grow the ORM result unbounded.
+            ranked = select(
+                MediaCacheEntry.id,
+                func.row_number().over(
+                    partition_by=(MediaCacheEntry.photos_asset_id, MediaCacheEntry.rendition),
+                    order_by=(MediaCacheEntry.created_at.desc(), MediaCacheEntry.id.desc()),
+                ).label("rank"),
+            ).where(
+                MediaCacheEntry.photos_asset_id.in_(asset_ids),
+                MediaCacheEntry.status == "ready",
+                MediaCacheEntry.rendition.in_(("poster", "animated", "proxy_720p", "proxy_360p")),
+            ).subquery()
             rows = db.execute(
-                select(MediaCacheEntry).where(
-                    MediaCacheEntry.photos_asset_id.in_(asset_ids),
-                    MediaCacheEntry.status == "ready",
-                ).order_by(MediaCacheEntry.created_at.desc())
+                select(MediaCacheEntry).join(ranked, MediaCacheEntry.id == ranked.c.id)
+                .where(ranked.c.rank == 1)
             ).scalars().all()
             for row in rows:
                 entries_by_asset[row.photos_asset_id].append(row)
