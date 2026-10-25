@@ -105,3 +105,19 @@ restore the privately recorded old proxy image/config/mounts, and use
 `ci/ship.sh server --ref 0a6b94f06cb99be9fa29ec26c95c329f15d011ce` (dry-run first).
 Keep additive columns and generated files. Reconfirm running service SHAs and
 both doors after rollback. No Mac rollout, lot4 or database tuning performed.
+
+## Backfill started on explicit follow-up request
+
+At Maxime's subsequent request (“fait le backfill la”), the backfill started on
+25 October around14:05 UTC despite the existing I/O load, with idle I/O priority
+(`ionice -c3`), nice19, a single process, poster batches2 followed by animation
+batches1, and2–5 seconds between batches. The worker checkpoints cursors after
+each batch, waits automatically near I/O saturation or if the xray last-window
+loop maximum exceeds500ms, and stops below the26GiB disk floor. Migration remains
+active. No cleanup or deletion is part of this worker.
+
+Initial checkpoint:10 poster rows scanned, cursor28, no animation batch yet;
+last-window loop p99 7.34ms / max46.04ms, about312GiB free. This is an in-progress
+checkpoint, not completion. A persistent T3 check runs every five minutes until
+completion, verifies application/resource state, and updates this report. The
+private monitoring account session is revoked in the worker's finalizer.
