@@ -1,0 +1,95 @@
+"""Durable posters are copied once into the local grid cache (sha-verified)."""
+import io
+from types import SimpleNamespace
+
+import pytest
+
+from app.config import get_settings
+from app.models.media import MediaCacheEntry
+from app.services import b2_presign
+from app.services import durable_poster_cache as dpc
+from backend.tests.test_media_migration import _clip, _ledger, env  # noqa: F401  (fixture)
+
+GIB = 1024**3
+
+
+def _poster_bytes(uuid, source_sha):
+    # _ledger derives each role's SHA from these exact bytes.
+    return f"{uuid}{source_sha}poster".encode()
+
+
+@pytest.fixture
+def cache(env, tmp_path, monkeypatch):
+    monkeypatch.setattr(get_settings(), "media_cache_root", str(tmp_path))
+    monkeypatch.setattr(__import__("shutil"), "disk_usage",
+                        lambda _: SimpleNamespace(free=40 * GIB))
+    store = {}
+
+    def fake_stream(bucket, key):
+        raw = store[key]
+        return io.BytesIO(raw), len(raw)
+
+    monkeypatch.setattr(b2_presign, "open_get_stream", fake_stream)
+    return SimpleNamespace(db=env, root=tmp_path, store=store)
+
+
+def _durable_clip(c, n, *, bytes_override=None):
+    asset, sha = _clip(c.db, n)
+    _ledger(c.db, asset.video_uuid, sha)
+    c.db.commit()
+    from app.models.media_backbone import MediaBlobLocation, MediaDerivative
+
+    poster = c.db.query(MediaDerivative).filter_by(video_uuid=asset.video_uuid, role="poster").one()
+    loc = c.db.query(MediaBlobLocation).filter_by(blob_sha256=poster.derivative_blob_sha256).one()
+    c.store[loc.object_key] = bytes_override or _poster_bytes(asset.video_uuid, sha)
+    return asset
+
+
+def _poster_rows(db):
+    return db.query(MediaCacheEntry).filter_by(rendition="poster").all()
+
+
+def test_durable_poster_lands_in_grid_cache_once(cache):
+    asset = _durable_clip(cache, 1)
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["cached"] == 1
+    (row,) = _poster_rows(cache.db)
+    assert row.photos_asset_id == asset.id and row.status == "ready" and row.pinned
+    assert open(row.storage_path, "rb").read() == cache.store[next(iter(cache.store))]
+    # Idempotent: nothing left to plan.
+    assert dpc.materialize_durable_posters(cache.db)["planned"] == 0
+
+
+def test_grid_batch_serves_the_copied_poster_locally(cache):
+    from app.api.v1.media import _thumbnail_status_for_entries
+
+    asset = _durable_clip(cache, 1)
+    dpc.materialize_durable_posters(cache.db)
+    entries = cache.db.query(MediaCacheEntry).filter_by(photos_asset_id=asset.id).all()
+    payload = _thumbnail_status_for_entries(cache.db, asset.video_uuid, entries, None)
+    assert payload["poster_url"].startswith("/api/v1/media/cache/")
+
+
+def test_checksum_mismatch_records_nothing(cache):
+    _durable_clip(cache, 1, bytes_override=b"tampered")
+    out = dpc.materialize_durable_posters(cache.db)
+    assert out["failed"] == 1 and _poster_rows(cache.db) == []
+    assert not [p for p in cache.root.rglob("*") if p.is_file()]
+
+
+def test_existing_cache_poster_is_never_replaced(cache):
+    asset = _durable_clip(cache, 1)
+    cache.db.add(MediaCacheEntry(photos_asset_id=asset.id, media_key="legacy-poster-key", rendition="poster",
+                                 storage_path="/legacy.jpg", size_bytes=1, status="ready"))
+    cache.db.commit()
+    assert dpc.materialize_durable_posters(cache.db)["planned"] == 0
+    assert [r.media_key for r in _poster_rows(cache.db)] == ["legacy-poster-key"]
+
+
+def test_low_disk_does_nothing(cache, monkeypatch):
+    import shutil
+
+    _durable_clip(cache, 1)
+    monkeypatch.setattr(shutil, "disk_usage", lambda _: SimpleNamespace(free=10 * GIB))
+    assert dpc.materialize_durable_posters(cache.db)["cached"] == 0
+    assert _poster_rows(cache.db) == []

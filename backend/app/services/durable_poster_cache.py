@@ -1,0 +1,183 @@
+"""Copy durable posters into the local media cache for the Library grid.
+
+The grid (POST /media/status/batch) serves posters from the local cache
+only: nginx X-Accel bytes, browser-cacheable, no B2 grant/HEAD/302 per tile.
+Durable web packages (B2 + ``media_derivatives``) carry a poster for every
+migrated clip, but never wrote a cache row, so tiles fell back to loading a
+video. This step closes that gap: once per clip, the server streams the
+D5-servable poster (current source + transform, trusted PROD replica) from
+B2, verifies its SHA-256 against the ledger, and records a ready ``poster``
+cache entry. Bounded per call, idempotent, never overwrites an existing
+cache row, never deletes anything. Network I/O runs with no open
+transaction (production kills idle transactions after 30 s).
+"""
+from __future__ import annotations
+
+import hashlib
+import os
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import exists, select
+
+from app.config import get_settings
+from app.models.media import MediaCacheEntry
+from app.models.media_backbone import MediaDerivative, MediaRevision
+from app.models.photos_asset import PhotosAsset
+from app.services.media_keys import build_media_key
+
+BATCH = 40
+MAX_POSTER_BYTES = 5 * 1024 * 1024
+# Keep the server cache above the package gate's floor.
+MIN_FREE_BYTES = 26 * 1024**3
+
+
+def _candidates(db, limit: int) -> list[tuple[int, str]]:
+    """Assets with a ready durable poster but no poster cache row at all."""
+    from app.services.derivative_read import _current_transform_version
+
+    has_cache_row = exists().where(
+        MediaCacheEntry.photos_asset_id == PhotosAsset.id,
+        MediaCacheEntry.rendition == "poster",
+    )
+    rows = db.execute(
+        select(PhotosAsset.id, PhotosAsset.video_uuid)
+        .join(MediaDerivative, MediaDerivative.video_uuid == PhotosAsset.video_uuid)
+        .where(
+            MediaDerivative.role == "poster",
+            MediaDerivative.status == "ready",
+            MediaDerivative.transform_version == _current_transform_version(),
+            ~has_cache_row,
+        )
+        .distinct()
+        .order_by(PhotosAsset.id.desc())
+        .limit(limit)
+    ).all()
+    return [(int(asset_id), uuid) for asset_id, uuid in rows]
+
+
+def _plan(db, limit: int) -> list[dict[str, Any]]:
+    """Resolve each candidate through the D5 read contract (fail closed)."""
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+    from app.services.media_backbone import trusted_prod_location
+
+    settings = get_settings()
+    plan = []
+    for asset_id, video_uuid in _candidates(db, limit):
+        clip = safe_resolve_clip_derivatives(db, video_uuid)
+        decision = clip.roles.get("poster") if clip is not None else None
+        if decision is None or decision.state != "ready" or not decision.revision_id:
+            continue
+        revision = db.get(MediaRevision, decision.revision_id)
+        if revision is None:
+            continue
+        location, deny = trusted_prod_location(db, revision.blob_sha256, settings.media_backbone_prod_bucket)
+        if deny is not None:
+            continue
+        plan.append({
+            "asset_id": asset_id,
+            "video_uuid": video_uuid,
+            "sha256": revision.blob_sha256.lower(),
+            "bucket": location.bucket,
+            "object_key": location.object_key,
+            "source_sha256": clip.source_sha256,
+            "transform_version": clip.transform_version,
+        })
+    return plan
+
+
+def _final_path(media_key: str) -> Path:
+    root = Path(get_settings().media_cache_root).resolve()
+    final_dir = root / "poster" / media_key[:2] / media_key[2:4]
+    final_dir.mkdir(parents=True, exist_ok=True)
+    return final_dir / f"{media_key}.jpg"
+
+
+def _download(item: dict[str, Any], dest: Path) -> int:
+    """Stream the object to ``dest``; verify size bound and SHA-256."""
+    from app.services import b2_presign
+
+    body, length = b2_presign.open_get_stream(item["bucket"], item["object_key"])
+    try:
+        if length <= 0 or length > MAX_POSTER_BYTES:
+            raise ValueError("poster size out of bounds")
+        digest = hashlib.sha256()
+        size = 0
+        with open(dest, "wb") as handle:
+            for chunk in iter(lambda: body.read(256 * 1024), b""):
+                size += len(chunk)
+                if size > MAX_POSTER_BYTES:
+                    raise ValueError("poster size out of bounds")
+                digest.update(chunk)
+                handle.write(chunk)
+    finally:
+        body.close()
+    if size != length or digest.hexdigest() != item["sha256"]:
+        raise ValueError("poster checksum mismatch")
+    return size
+
+
+def materialize_durable_posters(db, limit: int = BATCH) -> dict[str, int]:
+    """One bounded pass. The caller's session must be clean; commits itself."""
+    import shutil
+
+    counts = {"planned": 0, "cached": 0, "skipped": 0, "failed": 0}
+    settings = get_settings()
+    try:
+        if shutil.disk_usage(settings.media_cache_root).free < MIN_FREE_BYTES:
+            counts["skipped"] = -1  # disk floor: do nothing this pass
+            return counts
+    except OSError:
+        return counts
+    plan = _plan(db, limit)
+    db.rollback()  # end the read transaction before any network I/O
+    counts["planned"] = len(plan)
+    for item in plan:
+        media_key = build_media_key(item["video_uuid"], "poster")
+        final = _final_path(media_key)
+        tmp = final.with_name(f".{final.name}.{os.getpid()}.tmp")
+        try:
+            size = _download(item, tmp)
+        except Exception:  # noqa: BLE001 - provider/IO/verify failure: retry next pass
+            tmp.unlink(missing_ok=True)
+            counts["failed"] += 1
+            continue
+        # Re-check under a fresh transaction: another writer (a Mac poster
+        # job, a parallel pass) may have produced the row meanwhile.
+        taken = db.execute(select(MediaCacheEntry.id).where(
+            (MediaCacheEntry.media_key == media_key)
+            | ((MediaCacheEntry.photos_asset_id == item["asset_id"]) & (MediaCacheEntry.rendition == "poster"))
+        ).limit(1)).scalar_one_or_none()
+        if taken is not None:
+            db.rollback()
+            tmp.unlink(missing_ok=True)
+            counts["skipped"] += 1
+            continue
+        os.replace(tmp, final)
+        os.chmod(final, 0o644)  # nginx re-serves it via X-Accel (see finalize_cache_entry)
+        db.add(MediaCacheEntry(
+            photos_asset_id=item["asset_id"],
+            media_key=media_key,
+            rendition="poster",
+            storage_backend="local_fs",
+            storage_path=str(final),
+            content_type="image/jpeg",
+            size_bytes=size,
+            checksum_sha256=item["sha256"],
+            status="ready",
+            # A durable B2 copy exists, but the grid depends on this row:
+            # keep it out of both cleaner paths like every poster.
+            pinned=True,
+            expires_at=None,
+            source_blob_sha256=item["source_sha256"],
+            transform_version=item["transform_version"],
+        ))
+        try:
+            db.commit()
+        except Exception:  # noqa: BLE001 - unique race lost: the winner's
+            # row points at the same path with the same verified bytes.
+            db.rollback()
+            counts["skipped"] += 1
+            continue
+        counts["cached"] += 1
+    return counts
