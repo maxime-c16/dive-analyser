@@ -43,16 +43,17 @@ def _candidates(db, limit: int) -> list[tuple[int, str]]:
         MediaCacheEntry.photos_asset_id == PhotosAsset.id,
         MediaCacheEntry.rendition == "poster",
     )
+    has_durable_poster = exists().where(
+        MediaDerivative.video_uuid == PhotosAsset.video_uuid,
+        MediaDerivative.role == "poster",
+        MediaDerivative.status == "ready",
+        MediaDerivative.transform_version == _current_transform_version(),
+    )
+    # EXISTS (not JOIN + DISTINCT): PostgreSQL refuses DISTINCT with an
+    # ORDER BY expression outside the select list.
     rows = db.execute(
         select(PhotosAsset.id, PhotosAsset.video_uuid)
-        .join(MediaDerivative, MediaDerivative.video_uuid == PhotosAsset.video_uuid)
-        .where(
-            MediaDerivative.role == "poster",
-            MediaDerivative.status == "ready",
-            MediaDerivative.transform_version == _current_transform_version(),
-            ~has_cache_row,
-        )
-        .distinct()
+        .where(has_durable_poster, ~has_cache_row)
         .order_by(func.random())
         .limit(limit)
     ).all()
