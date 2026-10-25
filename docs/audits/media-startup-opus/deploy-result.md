@@ -55,7 +55,10 @@ for this admin; `/auth/xray` returned 200. `/auth/me` carried
 `Server-Timing: auth;dur=50.70, db;dur=50.91, app;dur=81.21`. Both nginx logs contain
 `rt=`. All three release-note IDs are present in the authenticated catalog.
 
-| Measure | Audit reference | After rollout |
+The performance rows below describe the **initial rollout measurements recorded
+at 13:42:01 UTC**. Later backfill observations are reported separately below.
+
+| Measure | Audit reference | Initial rollout observation |
 |---|---:|---:|
 | First poster | 1677 ms | cold: 3425 / 3383 / 2779 ms, median **3383 ms**; warm: 692 / 512 / 774 ms, median **692 ms** |
 | Poster latency | handler p50 1080 ms | authenticated legacy poster HTTP p50 **193 ms**, signed poster HTTP p50 **60 ms**, 15 samples each |
@@ -81,10 +84,12 @@ was obtained through X-Accel. Warm display, API timing and transfer measurements
 are reported separately rather than hiding the cold result.
 
 There was **one transient LAN 502** on `/media/jobs/lease` at 13:34:23 UTC, one second
-after the backend restart and before readiness. Subsequent steady operation has
-**zero 5xx on either door** (window begins 30 seconds after restart), no idle-tx kill,
-no observed long freeze and no broken poster in the probes. No sustained runtime
-regression requiring rollback was observed; no rollback was performed.
+after the backend restart and before readiness. In the **initial observation
+window, 13:34:52–13:42:01 UTC**, there were **zero 5xx on either door**, no idle-tx
+kill, no observed long freeze and no broken poster in the probes. The four later
+ingestion 500s and idle-tx kills at 14:02–14:54 UTC occurred **outside this initial
+window** and are detailed in the final-verification section. No rollback was
+performed.
 
 ## Initial backfill deferral and resource guardrails
 
