@@ -28,12 +28,15 @@ from app.models.calendar import (
     OccurrenceInterest, TrainingGroup, TrainingGroupMembership,
 )
 from app.models.dive import Dive
+from app.models.media import MediaCacheEntry
 from app.models.user_auth import AppUser
 from app.schemas import calendar as s
 from app.services import calendar_access as access
 from app.services import calendar_events as events
 from app.services import calendar_recurrence as recurrence
 from app.services import calendar_membership as membership
+from app.services.media_cache import playback_url
+from app.services.member_avatar import avatar_identity
 
 MAX_WINDOW_DAYS = 100
 MAX_LIMIT = 200
@@ -157,6 +160,23 @@ def occurrence_payloads(db: Session, user: AppUser, rows) -> list:
             for o, e, c in rows]
 
 
+GOING_PEOPLE = 8
+
+
+def going_summary(db: Session, occurrence_id: int) -> s.GoingOut:
+    """Counts and the first faces of "interested"/"maybe" answers (active accounts only)."""
+    rows = (db.query(OccurrenceInterest.state, AppUser)
+            .join(AppUser, AppUser.id == OccurrenceInterest.user_id)
+            .filter(OccurrenceInterest.occurrence_id == occurrence_id, AppUser.is_active.is_(True),
+                    OccurrenceInterest.state.in_(("interested", "maybe")))
+            .order_by(OccurrenceInterest.updated_at.desc()).all())
+    ordered = [u for state, u in rows if state == "interested"] + [u for state, u in rows if state == "maybe"]
+    return s.GoingOut(
+        interested=sum(state == "interested" for state, _u in rows), maybe=sum(state == "maybe" for state, _u in rows),
+        people=[s.AttendeeOut(user_id=u.id, display_name=u.display_name, **avatar_identity(u))
+                for u in ordered[:GOING_PEOPLE]])
+
+
 # --- Authenticated reads -------------------------------------------------------
 
 @router.get("/me", response_model=s.MeOut)
@@ -243,7 +263,7 @@ def occurrence_detail(occurrence_id: int, user: AppUser = Depends(get_current_us
     resources = [resource_out(r) for r in access.visible_event_resources(db, user, [e.id])]
     organizer = db.get(AppUser, e.organizer_user_id) if e.organizer_user_id else None
     return s.OccurrenceDetail(
-        **payload, resources=resources, description=e.description, venue_address=e.venue_address,
+        **payload, going=going_summary(db, o.id), resources=resources, description=e.description, venue_address=e.venue_address,
         map_url=e.map_url, can_edit=events.can_edit(db, user, c),
         can_report_absence=events.absence_allowed(db, user, e, c),
         following=db.get(CalendarEventFollow, (e.id, user.id)) is not None,
@@ -586,9 +606,16 @@ def occurrence_dives(occurrence_id: int, user: AppUser = Depends(get_current_use
     linked = {did for (did,) in db.query(OccurrenceDiveLink.dive_id).filter(
         OccurrenceDiveLink.occurrence_id == o.id, OccurrenceDiveLink.user_id == user.id)}
     rows = events.linkable_dives_query(db, user, o, e).order_by(Dive.dive_datetime, Dive.id).limit(MAX_LIMIT).all()
-    return s.LinkedDivesOut(items=[s.LinkedDiveOut(id=d.id, dive_code=d.dive_code,
-                                                   dive_datetime=d.dive_datetime.isoformat(), linked=d.id in linked)
-                                   for d in rows])
+    posters = {}
+    asset_ids = {d.photos_asset_id for d in rows if d.photos_asset_id}
+    if asset_ids:
+        for p in db.query(MediaCacheEntry).filter(MediaCacheEntry.photos_asset_id.in_(asset_ids),
+                                                  MediaCacheEntry.rendition == "poster", MediaCacheEntry.status == "ready"):
+            posters[p.photos_asset_id] = playback_url(p)
+    return s.LinkedDivesOut(items=[s.LinkedDiveOut(
+        id=d.id, dive_code=d.dive_code, dive_datetime=d.dive_datetime.isoformat(), linked=d.id in linked,
+        height=d.height, performance=d.performance, phase1_performance=d.phase1_performance,
+        phase2_performance=d.phase2_performance, poster_url=posters.get(d.photos_asset_id)) for d in rows])
 
 
 @router.put("/occurrences/{occurrence_id}/dives/{dive_id}", response_model=s.LinkedDivesOut)

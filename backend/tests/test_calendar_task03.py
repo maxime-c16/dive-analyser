@@ -226,6 +226,19 @@ def test_interest_and_absence_are_independent_and_scoped(cal):
                                    json={"absent": True}).status_code == 404  # unassigned: not visible
 
 
+def test_going_summary_lists_interested_then_maybe(cal):
+    club = cal["occ"]["club"].id
+    assert cal["login"]("alice").put(f"{API}/occurrences/{club}/interest", json={"state": "interested"}).status_code == 200
+    assert cal["login"]("bob").put(f"{API}/occurrences/{club}/interest", json={"state": "maybe"}).status_code == 200
+    going = cal["login"]("coach").get(f"{API}/occurrences/{club}").json()["going"]
+    assert (going["interested"], going["maybe"]) == (1, 1)
+    assert [p["user_id"] for p in going["people"]] == [ids(cal, "alice"), ids(cal, "bob")]
+    assert set(going["people"][0]) == {"user_id", "display_name", "avatar_url", "avatar_hud"}
+    declined = cal["login"]("bob").put(f"{API}/occurrences/{club}/interest", json={"state": "declined"}).json()
+    assert (declined["going"]["interested"], declined["going"]["maybe"]) == (1, 0)
+    assert cal["login"]("outsider").get(f"{API}/occurrences/{club}").status_code == 404
+
+
 def test_following_is_preference_only(cal):
     bob = cal["login"]("bob")
     assert bob.put(f"{API}/calendars/{cal['cals']['a'].id}/follow").status_code == 404
@@ -699,8 +712,9 @@ def test_shared_owner_diver_does_not_expose_another_users_link(cal):
     assert alice.put(f"{url}/{dive_id}").json()["items"][0]["linked"] is True
     other = cal["login"]("coach").get(url)
     assert other.status_code == 200
-    assert other.json()["items"] == [{"id": dive_id, "dive_code": "101B",
-        "dive_datetime": dive_time, "linked": False}]
+    assert [{k: d[k] for k in ("id", "dive_code", "dive_datetime", "linked")} for d in other.json()["items"]] == [
+        {"id": dive_id, "dive_code": "101B", "dive_datetime": dive_time, "linked": False}]
+    assert other.json()["items"][0]["poster_url"] is None  # no cached poster: never an original
 
     coach = cal["login"]("coach")
     assert coach.put(f"{url}/{dive_id}").json()["items"][0]["linked"] is True

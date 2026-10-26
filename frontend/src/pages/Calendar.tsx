@@ -1,18 +1,45 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
-import { CalendarError, calendarApi, type CalendarInfo, type MyClub, type Occurrence } from "../calendar/api";
-import { coversDay, lastDay, matches, monthWindow, overlapsMonth, parisToday, sortOccurrences, sourceOf, spanDays, validDate } from "../calendar/model";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MapPin, Plus, Search, Users, X } from "lucide-react";
+import { CalendarError, calendarApi, type CalendarInfo, type Interest, type MyClub, type Occurrence } from "../calendar/api";
+import { addDays, coversDay, lastDay, matches, monthWindow, overlapsMonth, parisToday, sortOccurrences, sourceOf, spanDays, validDate } from "../calendar/model";
 import { useCalendarStrings, type CalendarContext } from "../calendar/useStrings";
+import EventRow from "../calendar/EventRow";
 import OccurrenceView from "../calendar/OccurrenceView";
 import EventForm, { OccurrenceForm } from "../calendar/EventForm";
 import ScheduleEditor from "../calendar/ScheduleEditor";
 import ClubAdmin from "../calendar/ClubAdmin";
 import PageLoading from "../components/PageLoading";
+import { Segmented } from "../components/code-analysis/parts";
+import "../components/code-analysis/codeAnalysis.css";
 import "./calendar.css";
 import { MobileShellActions } from "../navigation/mobileShellActions";
 
-type Load = "loading" | "ready" | "failed";
+type Window = Occurrence[] | "failed" | "incomplete";
+const HORIZON_DAYS = 92; // the API serves at most 100 days per window
+
+const utc = (d: string) => new Date(`${d}T12:00:00Z`);
+const iso = (d: string) => `${d}T00:00:00Z`;
+const daysBetween = (a: string, b: string) => Math.round((utc(b).getTime() - utc(a).getTime()) / 86_400_000);
+const parisTime = (d: Date) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" }).format(d);
+const weekStart = (d: string) => addDays(d, -((utc(d).getUTCDay() + 6) % 7));
+
+/** Occurrences of one UTC window, refetched on `revision` without blanking what is shown. */
+function useWindow(from: string | null, to: string | null, revision: number): Window | null {
+  const [state, setState] = useState<{ key: string; data: Window } | null>(null);
+  const key = from && to ? `${from}|${to}` : "";
+  useEffect(() => {
+    if (!from || !to) return;
+    const controller = new AbortController();
+    calendarApi.occurrences(from, to, controller.signal)
+      .then((items) => setState({ key, data: items }))
+      .catch((error) => {
+        if (!controller.signal.aborted) setState({ key, data: error instanceof CalendarError && error.code === "incomplete_occurrences" ? "incomplete" : "failed" });
+      });
+    return () => controller.abort();
+  }, [key, revision]);
+  return state && state.key === key ? state.data : null;
+}
 
 export default function Calendar() {
   const { t, lang } = useCalendarStrings();
@@ -21,12 +48,11 @@ export default function Calendar() {
   const path = useParams()["*"] || "";
   const [now, setNow] = useState(() => new Date());
   const [revision, setRevision] = useState(0);
-  const [me, setMe] = useState<MyClub[]>([]);
+  const [me, setMe] = useState<MyClub[] | null>(null);
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
-  const [items, setItems] = useState<Occurrence[]>([]);
-  const [load, setLoad] = useState<Load>("loading");
-  const [incomplete, setIncomplete] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, Interest | null>>({});
+  const [answerError, setAnswerError] = useState(false);
   const [monthDirection, setMonthDirection] = useState<"next" | "previous" | null>(null);
   const refresh = useCallback(() => setRevision((r) => r + 1), []);
 
@@ -39,248 +65,302 @@ export default function Calendar() {
     return () => { window.clearInterval(timer); window.removeEventListener("focus", focus); };
   }, [refresh]);
 
+  useEffect(() => {
+    Promise.all([calendarApi.me(), calendarApi.calendars()])
+      .then(([mine, cals]) => { setMe(mine.clubs); setCalendars(cals.items); })
+      .catch(() => setMe((current) => current ?? []));
+  }, [revision]);
+
   const today = parisToday(now);
   const date = validDate(query.get("date") || "") ? query.get("date")! : today;
   const month = date.slice(0, 7);
   const source = query.get("source") || "";
   const q = query.get("q") || "";
-  const view = query.get("view") === "month" ? "month" : "agenda";
+  const view = query.get("view") === "month" ? "month" : "upcoming";
+  const showPast = query.get("past") === "1";
 
+  const monthRange = monthWindow(month);
+  const monthData = useWindow(monthRange.from, monthRange.to, revision);
+  const upcomingData = useWindow(iso(addDays(today, -1)), iso(addDays(today, HORIZON_DAYS)), revision);
+  const pastData = useWindow(showPast ? iso(addDays(today, -HORIZON_DAYS)) : null, showPast ? iso(today) : null, revision);
+
+  // Rows pop in once, on the first paint; later changes never replay the entrance.
+  const [intro, setIntro] = useState(true);
+  const ready = me !== null && Array.isArray(view === "month" ? monthData : upcomingData);
   useEffect(() => {
-    const controller = new AbortController();
-    setIncomplete(false);
-    setLoad((current) => (current === "ready" ? current : "loading"));
-    const { from, to } = monthWindow(month);
-    Promise.all([calendarApi.me(), calendarApi.calendars(), calendarApi.occurrences(from, to, controller.signal)])
-      .then(([mine, cals, occurrences]) => {
-        if (controller.signal.aborted) return;
-        setMe(mine.clubs);
-        setCalendars(cals.items);
-        setItems(occurrences);
-        setLoad("ready");
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setIncomplete(error instanceof CalendarError && error.code === "incomplete_occurrences");
-          setLoad("failed");
-        }
-      });
-    return () => controller.abort();
-  }, [month, revision]);
+    if (!ready || !intro) return;
+    const timer = window.setTimeout(() => setIntro(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [ready, intro]);
 
-  const update = (key: string, value: string) => {
+  const update = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(query);
-    if (key === "date" || key === "view") next.delete("returnDate");
-    if (value) next.set(key, value); else next.delete(key);
-    setQuery(next);
+    for (const [key, value] of Object.entries(changes)) if (value) next.set(key, value); else next.delete(key);
+    setQuery(next, { replace: true });
   };
   const changeMonth = (offset: number) => {
     setMonthDirection(offset > 0 ? "next" : "previous");
-    const d = new Date(`${month}-01T12:00:00Z`);
+    const d = utc(`${month}-01`);
     d.setUTCMonth(d.getUTCMonth() + offset);
-    update("date", d.toISOString().slice(0, 10));
+    const first = d.toISOString().slice(0, 10);
+    update({ date: first.slice(0, 7) === today.slice(0, 7) ? today : first });
   };
-  const inThisMonth = useMemo(() => sortOccurrences(items.filter((o) => overlapsMonth(o, month))), [items, month]);
-  const matching = inThisMonth.filter((o) =>
-    (view === "month" || lastDay(o) >= date) && (!source || sourceOf(o) === source) && matches(o, q));
+
+  const withAnswers = (items: Occurrence[]) => items.map((o) => (o.id in answers ? { ...o, my_interest: answers[o.id] } : o));
+  const keep = (o: Occurrence) => (!source || sourceOf(o) === source) && matches(o, q);
+  const upcoming = useMemo(() => Array.isArray(upcomingData)
+    ? sortOccurrences(withAnswers(upcomingData).filter((o) => lastDay(o) >= today && keep(o))) : [],
+  [upcomingData, answers, today, source, q]);
+  const past = useMemo(() => Array.isArray(pastData)
+    ? sortOccurrences(withAnswers(pastData).filter((o) => lastDay(o) < today && keep(o))) : [],
+  [pastData, answers, today, source, q]);
+  const inMonth = useMemo(() => Array.isArray(monthData)
+    ? sortOccurrences(withAnswers(monthData).filter((o) => overlapsMonth(o, month) && keep(o))) : [],
+  [monthData, answers, month, source, q]);
   const filtered = !!source || !!q.trim();
-  const ctx: CalendarContext = { me, calendars, refresh };
+  const ctx: CalendarContext = { me: me ?? [], calendars, refresh };
   const search = location.search;
 
-  const dateLabel = (value: string) => new Intl.DateTimeFormat(lang, {
-    weekday: "short", day: "numeric", month: "long", timeZone: "UTC",
-  }).format(new Date(value + "T12:00:00Z"));
-  const shortDate = (value: string) => new Intl.DateTimeFormat(lang, {
-    weekday: "short", day: "numeric", month: "short", timeZone: "UTC",
-  }).format(new Date(value + "T12:00:00Z"));
-  const row = (o: Occurrence) => {
-    const cancelled = o.status === "cancelled" || o.event.status === "cancelled";
-    return (
-      <Link key={o.id}
-        className={`calendar-event ${cancelled ? "calendar-cancelled" : ""} ${o.local_date < today ? "calendar-event-past" : ""} ${o.local_date === today ? "calendar-event-today" : ""}`}
-        to={`/calendar/o/${o.id}${search}`}>
-        <time dateTime={o.local_date} aria-current={o.local_date === today ? "date" : undefined}>
-          <strong>{o.local_date.slice(8)}</strong>
-          <span>{new Intl.DateTimeFormat(lang, { weekday: "short", timeZone: "UTC" }).format(new Date(o.local_date + "T12:00:00Z"))}</span>
-        </time>
-        <div>
-          <span className="calendar-source">
-            {t[sourceOf(o)]}
-            {o.event.calendar_kind === "group" && o.event.calendar_name ? ` · ${o.event.calendar_name}` : ""}
-          </span>
-          <h2>{o.event.title}</h2>
-          <p>{spanDays(o) > 1
-            ? `${t.dateRange(shortDate(o.local_date), shortDate(lastDay(o)))}${o.is_all_day ? "" : ` · ${o.local_start}–${o.local_end}`}`
-            : o.is_all_day ? t.allDay : `${o.local_start}–${o.local_end}`}{o.venue_name ? ` · ${o.venue_name}` : ""}</p>
-          {o.local_date <= today && <span className="calendar-date-status">{o.local_date === today ? t.today : t.past}</span>}
-          {cancelled && <p className="calendar-badge">{t.cancelled}</p>}
-          {o.event.status === "draft" && <p className="calendar-badge">{t.draft}</p>}
-          {o.my_interest && <p className="calendar-badge calendar-badge-accent">{t[o.my_interest]}</p>}
-          {o.my_absence_reported && <p className="calendar-badge">{t.absence}</p>}
-        </div>
-        <ChevronRight aria-hidden="true" size={18} />
-      </Link>
-    );
+  const answer = (o: Occurrence, state: Interest) => {
+    const next = o.my_interest === state ? null : state;
+    setAnswers((a) => ({ ...a, [o.id]: next }));
+    setAnswerError(false);
+    calendarApi.setInterest(o.id, next).then(refresh).catch(() => {
+      setAnswers((a) => { const { [o.id]: _drop, ...rest } = a; return rest; });
+      setAnswerError(true);
+    });
   };
 
-  const unassigned = me.filter((c) => c.group === null && c.membership.role === "member");
-  const notices = (
-    <>
-      {unassigned.map((c) => (
-        <p key={c.club.id} role="status" className="calendar-notice">{t.noGroup(c.club.short_name || c.club.name)}</p>
-      ))}
-    </>
+  const head = (children?: React.ReactNode) => (
+    <div className="cal-head">{children}<span className="cal-head-fill" /><MobileShellActions /></div>
   );
 
+  // ---- Sub-pages -------------------------------------------------------------
   let content: React.ReactNode;
   const occMatch = path.match(/^o\/(\d+)(\/edit)?$/);
   const scheduleMatch = path.match(/^o\/(\d+)\/schedule$/);
   const editMatch = path.match(/^e\/(\d+)\/edit$/);
   const clubMatch = path.match(/^club\/(\d+)$/);
-  if (path === "new") content = <EventForm ctx={ctx} defaultDate={date} />;
-  else if (editMatch) content = <EventForm ctx={ctx} eventId={Number(editMatch[1])} defaultDate={date} />;
-  else if (scheduleMatch) content = <ScheduleEditor ctx={ctx} occurrenceId={Number(scheduleMatch[1])} />;
-  else if (occMatch && occMatch[2]) content = <OccurrenceForm ctx={ctx} occurrenceId={Number(occMatch[1])} />;
+  if (path === "new") content = <div className="calendar-legacy"><EventForm ctx={ctx} defaultDate={date} /></div>;
+  else if (editMatch) content = <div className="calendar-legacy"><EventForm ctx={ctx} eventId={Number(editMatch[1])} defaultDate={date} /></div>;
+  else if (scheduleMatch) content = <div className="calendar-legacy"><ScheduleEditor ctx={ctx} occurrenceId={Number(scheduleMatch[1])} /></div>;
+  else if (occMatch && occMatch[2]) content = <div className="calendar-legacy"><OccurrenceForm ctx={ctx} occurrenceId={Number(occMatch[1])} /></div>;
   else if (occMatch) {
+    const id = Number(occMatch[1]);
     content = (
-      <div className="calendar-detail-layout">
-        <aside className="calendar-detail-agenda" aria-label={t.agenda}>
-          <h2>{t.agenda}</h2>
-          {matching.map(row)}
+      <div className="cal-detail-layout">
+        <aside className="cal-detail-agenda" aria-label={t.upcoming}>
+          {upcoming.slice(0, 12).map((o) => <EventRow key={o.id} o={o} today={today} search={search} selected={o.id === id} />)}
         </aside>
-        <OccurrenceView ctx={ctx} occurrenceId={Number(occMatch[1])} />
+        <OccurrenceView ctx={ctx} occurrenceId={id} />
       </div>
     );
-  } else if (clubMatch) content = <ClubAdmin ctx={ctx} clubId={Number(clubMatch[1])} />;
+  } else if (clubMatch) content = <div className="calendar-legacy"><ClubAdmin ctx={ctx} clubId={Number(clubMatch[1])} /></div>;
   else if (path) content = <p role="alert">{t.unavailable}</p>;
 
   if (content) {
     return (
-      <section className="calendar-page">
-        <Link className="calendar-back" to={`/calendar${search}`}><ChevronLeft size={18} aria-hidden="true" />{t.back}</Link>
+      <section className="ca calendar-page cal-sub">
+        {head(<Link className="ca-back" to={`/calendar${search}`}><ChevronLeft size={18} aria-hidden="true" />{t.title}</Link>)}
         {content}
       </section>
     );
   }
 
-  const returnDate = query.get("returnDate");
-  const monthQuery = new URLSearchParams(query);
-  monthQuery.set("view", "month");
-  if (returnDate && validDate(returnDate)) monthQuery.set("date", returnDate);
-  monthQuery.delete("returnDate");
+  // ---- Main page -------------------------------------------------------------
+  const failed = (view === "month" ? monthData : upcomingData);
+  const fmtDay = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang, { ...o, timeZone: "UTC" }).format(utc(d));
+  const weekLabel = (w: string) => {
+    const current = weekStart(today);
+    if (w === current) return t.thisWeek;
+    if (w === addDays(current, 7)) return t.nextWeek;
+    const end = addDays(w, 6);
+    return t.dateRange(fmtDay(w, w.slice(5, 7) === end.slice(5, 7) ? { day: "numeric" } : { day: "numeric", month: "short" }), fmtDay(end, { day: "numeric", month: "short" }));
+  };
+  const agenda = (items: Occurrence[]) => {
+    const weeks = new Map<string, Map<string, Occurrence[]>>();
+    for (const o of items) {
+      const day = o.local_date < today && lastDay(o) >= today ? today : o.local_date;
+      const w = weekStart(day);
+      if (!weeks.has(w)) weeks.set(w, new Map());
+      const days = weeks.get(w)!;
+      days.set(day, [...(days.get(day) ?? []), o]);
+    }
+    let index = 0;
+    return [...weeks].map(([w, days]) => (
+      <section key={w} className="cal-week" aria-label={weekLabel(w)}>
+        <h2 className="cal-week-h">{weekLabel(w)}</h2>
+        {[...days].map(([day, list]) => (
+          <div key={day} className="cal-day">
+            <time className={`cal-day-tile${day === today ? " is-today" : ""}`} dateTime={day} aria-current={day === today ? "date" : undefined}>
+              <b>{Number(day.slice(8))}</b><span>{fmtDay(day, { weekday: "short" }).replace(".", "")}</span>
+            </time>
+            <div className="cal-day-events">
+              {list.map((o) => <EventRow key={o.id} o={o} today={today} search={search} pop={intro} index={index++} />)}
+            </div>
+          </div>
+        ))}
+      </section>
+    ));
+  };
 
-  return (
-    <section className="calendar-page">
-      <header className="calendar-heading">
-        <div>
-          <h1>{t.title}</h1>
-          <p>{t.intro}</p>
+  const next = upcoming.find((o) => o.status !== "cancelled" && o.event.status === "published" && !o.is_all_day
+    && (o.local_date > today || (o.local_end ?? "") > parisTime(now)));
+  const nextCard = next && (() => {
+    const n = daysBetween(today, next.local_date);
+    const group = next.event.calendar_kind === "group" ? next.event.calendar_name : null;
+    return (
+      <div className={`cal-next cal-src-${sourceOf(next)}${intro ? " ca-pop" : ""}`}>
+        <Link className="cal-next-link" to={`/calendar/o/${next.id}${search}`}>
+          <span className="cal-next-top">
+            <span className="cal-tag"><i className="cal-dot" />{t.nextUp}{group ? ` · ${group}` : ""}</span>
+            <span className="cal-count">{n === 0 ? t.today : n}{n > 0 && <small>{t.daysLeft(n)}</small>}</span>
+          </span>
+          <span className="cal-next-title">{next.event.title}</span>
+          <span className="cal-next-meta">
+            <b>{fmtDay(next.local_date, { weekday: "long", day: "numeric", month: "long" })}</b>
+            <span>{next.local_start}–{next.local_end}</span>
+            {next.venue_name && <span><MapPin size={14} aria-hidden="true" />{next.venue_name}</span>}
+          </span>
+        </Link>
+        <div className="cal-rsvp" role="group" aria-label={t.yourResponse}>
+          {([["interested", t.goingShort], ["maybe", t.maybe], ["declined", t.no]] as const).map(([state, label]) => (
+            <button key={state} type="button" className={`is-${state}`} aria-pressed={next.my_interest === state} onClick={() => answer(next, state)}>
+              {state === "interested" && <Check size={16} strokeWidth={3} aria-hidden="true" />}{label}
+            </button>
+          ))}
         </div>
-        <CalendarDays size={40} aria-hidden="true" />
-        <MobileShellActions />
-      </header>
-      {notices}
-      {view === "agenda" && returnDate && validDate(returnDate) && (
-        <Link className="calendar-back" to={`/calendar?${monthQuery}`}><ChevronLeft size={18} aria-hidden="true" />{t.back}</Link>
-      )}
-      <div className="calendar-toolbar">
-        <button onClick={() => changeMonth(-1)} aria-label={t.previous}><ChevronLeft /></button>
-        <details className="calendar-date-jump">
+      </div>
+    );
+  })();
+
+  const monthCells = (() => {
+    const pad = (utc(`${month}-01`).getUTCDay() + 6) % 7;
+    const count = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate();
+    const cells: React.ReactNode[] = Array.from({ length: pad }, (_, i) => <span key={`pad${i}`} aria-hidden="true" />);
+    for (let i = 1; i <= count; i++) {
+      const day = `${month}-${String(i).padStart(2, "0")}`;
+      const list = inMonth.filter((o) => coversDay(o, day));
+      const span = list.find((o) => spanDays(o) > 1);
+      const dots = list.filter((o) => spanDays(o) === 1).slice(0, 3);
+      const label = fmtDay(day, { weekday: "long", day: "numeric", month: "long" });
+      cells.push(
+        <button key={day} type="button" onClick={() => update({ date: day })}
+          className={`cal-cell${day < today ? " is-past" : ""}${day === today ? " is-today" : ""}${day === date ? " is-selected" : ""}`}
+          aria-pressed={day === date} aria-current={day === today ? "date" : undefined}
+          aria-label={`${label}${list.length ? ` · ${list.map((o) => o.event.title).join(", ")}` : ""}`}>
+          <span className="cal-cell-n">{i}</span>
+          <span className="cal-cell-dots">{dots.map((o) => <i key={o.id} className={`cal-dot cal-src-${sourceOf(o)}`} />)}</span>
+          {span && <span className={`cal-cell-span cal-src-${sourceOf(span)}${day === span.local_date ? " is-start" : ""}${day === lastDay(span) ? " is-end" : ""}`} />}
+        </button>,
+      );
+    }
+    return cells;
+  })();
+  const weekdays = Array.from({ length: 7 }, (_, i) => fmtDay(`2026-01-${String(5 + i).padStart(2, "0")}`, { weekday: "short" }).replace(".", ""));
+  const monthPanel = (
+    <div className="cal-month-wrap">
+      <div className="cal-month-bar">
+        <details className="cal-jump">
           <summary title={t.jumpDate}>
-            <h2>{new Intl.DateTimeFormat(lang, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(month + "-01T12:00:00Z"))}</h2>
+            <span className="cal-month-name">{fmtDay(`${month}-01`, { month: "long" })}</span> <span className="cal-month-year">{month.slice(0, 4)}</span>
             <ChevronDown size={16} aria-hidden="true" />
           </summary>
-          <div className="calendar-date-popover">
-            <label>{t.date}<input type="date" value={date} onChange={(e) => validDate(e.target.value) && update("date", e.target.value)} /></label>
-            <button className="calendar-mobile-today" onClick={() => update("date", today)}>{t.today}</button>
+          <div className="cal-jump-pop">
+            <input type="date" aria-label={t.date} value={date} onChange={(e) => validDate(e.target.value) && update({ date: e.target.value })} />
+            <button type="button" className="ca-pill" onClick={() => update({ date: today })}>{t.today}</button>
           </div>
         </details>
-        <button onClick={() => changeMonth(1)} aria-label={t.next}><ChevronRight /></button>
-        <button className="calendar-today" onClick={() => update("date", today)}>{t.today}</button>
-      </div>
-      <div className="calendar-switch">
-        <div>
-          {(["agenda", "month"] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} onClick={() => update("view", v)}>{t[v]}</button>
-          ))}
-        </div>
-        <div className="calendar-quick-actions">
-          {me.map((c) => (
-            <Link key={c.club.id} className="calendar-club-link" to={`/calendar/club/${c.club.id}${search}`}
-              aria-label={`${t.clubPage} ${c.club.short_name || c.club.name}`}>
-              <Users size={18} aria-hidden="true" /><span>{c.club.short_name || c.club.name}</span>
-            </Link>
-          ))}
-          <button className="calendar-filter-toggle" aria-label={t.filters} aria-expanded={filtersOpen}
-            aria-controls="calendar-filters" aria-pressed={filtered} onClick={() => setFiltersOpen(!filtersOpen)}>
-            <SlidersHorizontal size={19} aria-hidden="true" />
-            {filtered && <span className="calendar-filter-indicator" />}
-          </button>
-          <Link className="calendar-create" to={`/calendar/new${search}`} aria-label={t.create}>
-            <Plus size={18} aria-hidden="true" /><span>{t.create}</span>
-          </Link>
+        <span className="cal-head-fill" />
+        <div className="cal-nav2">
+          <button type="button" onClick={() => changeMonth(-1)} aria-label={t.previous}><ChevronLeft size={18} /></button>
+          <button type="button" onClick={() => changeMonth(1)} aria-label={t.next}><ChevronRight size={18} /></button>
         </div>
       </div>
-      <div id="calendar-filters" className={`calendar-filters ${filtersOpen ? "calendar-filters-open" : ""}`}>
-        <div className="calendar-source-options" role="group" aria-label={t.source}>
-          {(["", "club", "outing", "competition"] as const).map((s) => (
-            <button key={s} aria-pressed={source === s} onClick={() => update("source", s)}>{s ? t[s] : t.allShort}</button>
-          ))}
-        </div>
-        <label className="calendar-search">
-          <span className="sr-only">{t.search}</span>
-          <Search size={18} aria-hidden="true" />
-          <input type="search" placeholder={t.search} value={q} onChange={(e) => update("q", e.target.value)} />
+      <div className="ca-panel cal-month">
+        <div className="cal-weekdays" aria-hidden="true">{weekdays.map((d) => <span key={d}>{d}</span>)}</div>
+        {Array.isArray(monthData)
+          ? <div key={month} className={`cal-grid cal-grid-${monthDirection ?? "initial"}`}>{monthCells}</div>
+          : monthData ? <p role="alert" className="cal-empty">{monthData === "incomplete" ? t.incompleteMonth : t.failed}</p>
+          : <div className="cal-grid-skeleton" />}
+      </div>
+    </div>
+  );
+  const daySheet = (
+    <section className="cal-sheet" aria-label={fmtDay(date, { weekday: "long", day: "numeric", month: "long" })}>
+      <h2 className="cal-sheet-h">{date === today ? t.today : fmtDay(date, { weekday: "long", day: "numeric", month: "long" })}</h2>
+      <div className="cal-day-events">
+        {inMonth.filter((o) => coversDay(o, date)).map((o) => <EventRow key={o.id} o={o} today={today} search={search} />)}
+        {Array.isArray(monthData) && !inMonth.some((o) => coversDay(o, date)) && <p className="cal-none">{t.nothingThatDay}</p>}
+      </div>
+    </section>
+  );
+
+  const unassigned = (me ?? []).filter((c) => c.group === null && c.membership.role === "member");
+  return (
+    <section className="ca calendar-page cal-main">
+      {head(<h1>{t.title}</h1>)}
+      <div className="cal-tools">
+        <Segmented label={t.title} value={view} onChange={(v) => update({ view: v === "month" ? "month" : null })}
+          options={[["upcoming", t.upcoming], ["month", t.month]] as const} />
+        <span className="cal-head-fill" />
+        <button type="button" className={`cal-icon${searching || q ? " is-on" : ""}`} aria-label={t.searchToggle} aria-expanded={searching || !!q}
+          onClick={() => { if (searching || q) { setSearching(false); update({ q: null }); } else setSearching(true); }}>
+          {searching || q ? <X size={18} /> : <Search size={18} />}
+        </button>
+        <Link className="cal-icon cal-create" to={`/calendar/new${search}`} aria-label={t.create}><Plus size={20} strokeWidth={2.5} /></Link>
+      </div>
+      {(searching || q) && (
+        <label className="cal-search">
+          <Search size={17} aria-hidden="true" />
+          <input type="search" autoFocus placeholder={t.search} value={q} onChange={(e) => update({ q: e.target.value || null })} />
         </label>
+      )}
+      <div className="ca-scroll cal-filters" role="group" aria-label={t.source}>
+        {(["", "club", "outing", "competition"] as const).map((s) => (
+          <button key={s} type="button" className={`ca-pill${s ? ` cal-src-${s}` : ""}`} aria-pressed={source === s} onClick={() => update({ source: s || null })}>
+            {s && <i className="cal-dot" />}{s ? t[s] : t.allShort}
+          </button>
+        ))}
+        {(me ?? []).length > 0 && <span className="ca-divider" aria-hidden="true" />}
+        {(me ?? []).map((c) => (
+          <Link key={c.club.id} className="ca-pill cal-club" to={`/calendar/club/${c.club.id}${search}`} aria-label={`${t.clubPage} ${c.club.short_name || c.club.name}`}>
+            <Users size={15} aria-hidden="true" />{c.club.short_name || c.club.name}
+          </Link>
+        ))}
       </div>
-      {load === "loading" && <PageLoading message={t.loading} />}
-      {load === "failed" && (
-        <p role="alert">{incomplete ? t.incompleteMonth : t.failed} <button onClick={refresh}>{t.retry}</button></p>
-      )}
-      {load === "ready" && (
-        <div className="calendar-period-viewport">
-          <div key={month} className={`calendar-period calendar-period-${monthDirection || "initial"}`}>
-            {view === "month" ? (
-              <div className="calendar-month">
-                <div className="calendar-weekdays">
-                  {Array.from({ length: 7 }, (_, i) => (
-                    <span key={i}>{new Intl.DateTimeFormat(lang, { weekday: "short", timeZone: "UTC" }).format(new Date(`2026-01-${String(5 + i).padStart(2, "0")}T12:00:00Z`))}</span>
-                  ))}
-                </div>
-                {Array.from({ length: (new Date(month + "-01T12:00:00Z").getUTCDay() + 6) % 7 }, (_, i) => <div aria-hidden="true" key={"blank" + i} />)}
-                {Array.from({ length: new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate() }, (_, i) => {
-                  const day = `${month}-${String(i + 1).padStart(2, "0")}`;
-                  return (
-                    <div key={day} className={`${day < today ? "calendar-day-past" : ""} ${day === today ? "calendar-day-today" : ""} ${day === date ? "calendar-day-selected" : ""}`}>
-                      <button
-                        aria-label={`${dateLabel(day)}${day === today ? ` · ${t.today}` : day < today ? ` · ${t.past}` : ""}`}
-                        aria-current={day === today ? "date" : undefined}
-                        onClick={() => {
-                          const next = new URLSearchParams(query);
-                          next.set("returnDate", date);
-                          next.set("date", day);
-                          next.set("view", "agenda");
-                          setQuery(next);
-                        }}>{i + 1}</button>
-                      {matching.filter((o) => coversDay(o, day)).map((o) => (
-                        <Link key={o.id} to={`/calendar/o/${o.id}${search}`}
-                          className={spanDays(o) > 1 ? "calendar-month-span" : undefined}
-                          aria-label={`${dateLabel(day)} ${o.event.title} ${spanDays(o) > 1 ? t.dateRange(dateLabel(o.local_date), dateLabel(lastDay(o))) : o.local_start ?? t.allDay}`}>
-                          <span className={`calendar-dot calendar-dot-${sourceOf(o)}`} />
-                          <span className="calendar-month-title">{o.local_date === day ? (o.local_start ?? "") : "↳"} {o.event.title}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="calendar-agenda">{matching.map(row)}</div>
-            )}
-            {!matching.length && <p className="calendar-empty">{filtered && inThisMonth.length ? t.emptyFiltered : t.empty}</p>}
+      {unassigned.map((c) => <p key={c.club.id} role="status" className="cal-notice">{t.noGroup(c.club.short_name || c.club.name)}</p>)}
+      {answerError && <p role="alert" className="cal-notice is-bad">{t.retrySave}</p>}
+
+      {!ready && !(failed === "failed" || failed === "incomplete") && <PageLoading message={t.loading} />}
+      {ready || failed === "failed" || failed === "incomplete" ? (
+        view === "month" ? (
+          <div className="cal-cols">
+            {monthPanel}
+            {daySheet}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="cal-cols">
+            <div className="cal-stack">
+              {failed === "failed" || failed === "incomplete"
+                ? <p role="alert" className="cal-notice is-bad">{t.failed} <button type="button" className="ca-pill" onClick={refresh}>{t.retry}</button></p>
+                : <>
+                  {!filtered && nextCard}
+                  <button type="button" className="ca-pill cal-past-toggle" aria-expanded={showPast} onClick={() => update({ past: showPast ? null : "1" })}>
+                    {showPast ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronUp size={15} aria-hidden="true" />}{showPast ? t.hidePast : t.pastSessions}
+                  </button>
+                  {showPast && <div className="cal-agenda is-past">{Array.isArray(pastData) ? agenda(past) : <div className="cal-grid-skeleton" />}</div>}
+                  <div className="cal-agenda">{agenda(upcoming)}</div>
+                  {!upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
+                </>}
+            </div>
+            <aside className="cal-side">
+              {monthPanel}
+              {daySheet}
+            </aside>
+          </div>
+        )
+      ) : null}
     </section>
   );
 }

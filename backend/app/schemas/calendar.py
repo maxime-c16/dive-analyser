@@ -168,7 +168,7 @@ class OccurrenceOut(BaseModel):
     is_filmed_session: bool
     version: int
     event: EventSummary
-    # The caller's own state only; other members' responses are never listed.
+    # The caller's own state; the detail view adds a `going` summary.
     my_interest: Optional[str] = None
     my_absence_reported: bool = False
     # Local wall-clock view in the event timezone (display/filtering).
@@ -206,7 +206,22 @@ class EventDetail(EventSummary):
     imported: bool = False
 
 
+class AttendeeOut(BaseModel):
+    user_id: int
+    display_name: str
+    avatar_url: Optional[str] = None
+    avatar_hud: str = "reticle"
+
+
+class GoingOut(BaseModel):
+    """Who answered "interested"/"maybe" on one occurrence, for people who can see it."""
+    interested: int = 0
+    maybe: int = 0
+    people: List[AttendeeOut] = []  # interested first, newest answers first, capped
+
+
 class OccurrenceDetail(OccurrenceOut):
+    going: GoingOut = GoingOut()
     resources: List[ResourceOut]
     description: str
     venue_address: Optional[str]
@@ -402,6 +417,11 @@ class LinkedDiveOut(BaseModel):
     dive_code: str
     dive_datetime: str
     linked: bool
+    height: Optional[str] = None
+    performance: Optional[str] = None
+    phase1_performance: Optional[str] = None
+    phase2_performance: Optional[str] = None
+    poster_url: Optional[str] = None  # ready cached poster only, never an original
 
 
 class LinkedDivesOut(BaseModel):

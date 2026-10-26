@@ -55,8 +55,10 @@ export interface Change { kind: 'time_changed' | 'venue_changed' | 'cancelled'; 
 export interface OccurrenceDetail extends Occurrence {
   resources: Resource[]; description: string; venue_address: string | null; map_url: string | null
   can_edit: boolean; can_report_absence: boolean; following: boolean; my_invitation: string | null
-  organizer_name: string | null; changes: Change[]
+  organizer_name: string | null; changes: Change[]; going?: Going
 }
+export interface Attendee { user_id: number; display_name: string; avatar_url: string | null; avatar_hud: 'orbit' | 'reticle' | 'depth' }
+export interface Going { interested: number; maybe: number; people: Attendee[] }
 export interface EventDetail extends EventSummary {
   description: string; venue_name: string | null; venue_address: string | null; map_url: string | null
   organizer_user_id: number | null; organizer_name: string | null; my_invitation: string | null
@@ -83,7 +85,10 @@ export interface Roster {
   groups: Group[]; items: RosterEntry[]
 }
 export interface Invitation { user_id: number; display_name: string; status: string; responded_at: string | null }
-export interface LinkableDive { id: number; dive_code: string; dive_datetime: string; linked: boolean }
+export interface LinkableDive {
+  id: number; dive_code: string; dive_datetime: string; linked: boolean; height?: string | null
+  performance?: string | null; phase1_performance?: string | null; phase2_performance?: string | null; poster_url?: string | null
+}
 export interface When {
   all_day: boolean; start_local?: string; end_local?: string; start_date?: string; end_date?: string
 }

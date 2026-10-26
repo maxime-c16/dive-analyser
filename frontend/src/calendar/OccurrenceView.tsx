@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import {
+  CalendarClock, CalendarPlus, Check, ChevronRight, Clock, ExternalLink, Globe, MapPin, Pencil, Plus, Repeat, Send,
+  Star, Trophy, UserRound, Users, UserX, XCircle,
+} from "lucide-react";
 import {
   CalendarError, calendarApi, type EventDetail, type Interest, type Invitation, type LinkableDive,
   type OccurrenceDetail,
 } from "./api";
-import { lastDay, sourceOf, spanDays } from "./model";
+import { lastDay, parisToday, sourceOf, spanDays } from "./model";
 import { searchMembers } from "../services/communityApi";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
 import PageLoading from "../components/PageLoading";
+import MemberAvatar from "../components/MemberAvatar";
+import { attemptScore, type Attempt } from "../utils/attemptPresentation";
+import { fmtScore, scoreBand } from "../utils/codeStats";
 
 type State = { status: "loading" } | { status: "missing" } | { status: "failed" } |
   { status: "ready"; occ: OccurrenceDetail; event: EventDetail };
+
+const utc = (d: string) => new Date(`${d}T12:00:00Z`);
 
 export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarContext; occurrenceId: number }) {
   const { t, lang } = useCalendarStrings();
@@ -35,184 +43,222 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
   }, [occurrenceId, revision]);
 
   if (state.status === "loading") return <PageLoading message={t.loading} />;
-  if (state.status === "missing") return <p role="alert">{t.unavailable}</p>;
-  if (state.status === "failed") return <p role="alert">{t.failed} <button onClick={() => setRevision((r) => r + 1)}>{t.retry}</button></p>;
+  if (state.status === "missing") return <p role="alert" className="cal-notice">{t.unavailable}</p>;
+  if (state.status === "failed") return <p role="alert" className="cal-notice is-bad">{t.failed} <button className="ca-pill" onClick={() => setRevision((r) => r + 1)}>{t.retry}</button></p>;
   const { occ, event } = state;
 
-  const act = async (fn: () => Promise<unknown>) => {
+  const act = async (fn: () => Promise<unknown>, optimistic?: Partial<OccurrenceDetail>, eventPatch?: Partial<EventDetail>) => {
     setBusy(true);
     setError(null);
+    if (optimistic || eventPatch) setState({ status: "ready", occ: { ...occ, ...optimistic }, event: { ...event, ...eventPatch } });
     try {
       await fn();
       setConfirming(null);
       setRevision((r) => r + 1);
       ctx.refresh();
     } catch (e) {
+      if (optimistic || eventPatch) setState({ status: "ready", occ, event });
       setError(e instanceof CalendarError && e.code === "stale_version" ? t.stale
         : e instanceof CalendarError && e.status === 403 ? t.forbidden : t.retrySave);
     } finally { setBusy(false); }
   };
   const cancelled = occ.status === "cancelled" || event.status === "cancelled";
   const open = !cancelled && event.status === "published";
+  const today = parisToday();
   const viewerZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const longDate = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
-    .format(new Date(`${d}T12:00:00Z`));
-  const shortDate = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
-    .format(new Date(`${d}T12:00:00Z`));
+  const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang, { ...o, timeZone: "UTC" }).format(utc(d));
   const multiDay = spanDays(occ) > 1;
-  const dateText = multiDay ? `${t.dateRange(longDate(occ.local_date), longDate(lastDay(occ)))} · ${t.days(spanDays(occ))}` : longDate(occ.local_date);
+  const away = Math.round((utc(occ.local_date).getTime() - utc(today).getTime()) / 86_400_000);
   const rec = event.recurrence;
   const series = !!rec || event.imported;
   const multi = event.occurrences.length > 1;
   const search = location.search;
+  const src = sourceOf(occ);
+  const group = occ.event.calendar_kind === "group" ? occ.event.calendar_name : null;
+  const going = occ.going;
+  const mapHref = event.map_url || (occ.venue_name
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([occ.venue_name, event.venue_address].filter(Boolean).join(", "))}` : null);
+  const setInterest = (s: Interest) => {
+    const next = occ.my_interest === s ? null : s;
+    act(() => calendarApi.setInterest(occ.id, next), { my_interest: next });
+  };
 
   return (
-    <article className="calendar-detail" aria-busy={busy}>
-      <span className="calendar-source">
-        {t[sourceOf(occ)]}{occ.event.calendar_name ? ` · ${occ.event.calendar_name}` : ""}{occ.imported ? ` · ${t.imported}` : ""}
-      </span>
-      <h1>{event.title}</h1>
-      <p>
-        {dateText}{occ.is_all_day ? (multiDay ? "" : ` · ${t.allDay}`) : ` · ${occ.local_start}–${occ.local_end}`}
-      </p>
-      {rec && (
-        <p>{t.repeatsSummary(rec.weekdays.map((d) => t.weekdayShort[d - 1]).join(", "), rec.start_time, rec.end_time, longDate(rec.until_date))}
-          {occ.detached && <span className="calendar-badge"> {t.individuallyEdited}</span>}</p>
-      )}
-      {event.timezone !== viewerZone && <p>{t.timezone}: {event.timezone}</p>}
-      {occ.venue_name && (
-        <p className="calendar-venue"><MapPin size={18} aria-hidden="true" />{occ.venue_name}
-          {event.venue_address ? ` — ${event.venue_address}` : ""}</p>
-      )}
-      {event.map_url && <p><a href={event.map_url} target="_blank" rel="noopener noreferrer">{t.openMap}</a></p>}
-      {event.organizer_name && <p>{t.organizer}: {event.organizer_name}</p>}
-      {event.status === "draft" && <p role="status" className="calendar-notice">{t.draft}</p>}
-      {cancelled && <p role="status" className="calendar-notice">{t.cancelledNotice}</p>}
-      {!cancelled && occ.changes.some((c) => c.kind !== "cancelled") && <p role="status" className="calendar-notice">{t.changed}</p>}
-      {event.event_type === "competition" && <div className="calendar-group"><Link to={`/series?event=${event.id}`}>{lang.startsWith('fr') ? 'Préparer mes séries' : 'Prepare my series'}</Link></div>}
-      {event.description && <p className="calendar-description">{event.description}</p>}
-      {(event.itinerary ?? []).length > 0 && (
-        <div className="calendar-group">
-          <h2>{t.itinerary}</h2>
-          <ol className="calendar-itinerary">
-            {event.itinerary.map((b, i) => (
-              <li key={i}>
-                <strong>{shortDate(b.local_date)}{b.start_time ? ` · ${b.start_time}${b.end_time ? `–${b.end_time}` : ""}` : ""}</strong>
-                {b.venue_name && <span> · {b.venue_name}</span>}{b.label && <span> · {b.label}</span>}
-              </li>
-            ))}
-          </ol>
-          <p>{t.itineraryNote}</p>
+    <article className={`cal-detail cal-src-${src}`} aria-busy={busy}>
+      <header className="cal-hero ca-arrive">
+        <div className="cal-date-tile" aria-hidden="true">
+          <span>{fmt(occ.local_date, { month: "short" }).replace(".", "")}</span>
+          <b className={multiDay ? "is-range" : undefined}>{multiDay ? `${Number(occ.local_date.slice(8))}–${Number(lastDay(occ).slice(8))}` : Number(occ.local_date.slice(8))}</b>
+          <small>{fmt(occ.local_date, { weekday: "short" }).replace(".", "")}{multiDay ? `–${fmt(lastDay(occ), { weekday: "short" }).replace(".", "")}` : ""}</small>
         </div>
-      )}
-      {error && <p role="alert" className="calendar-error">{error} {error === t.stale && <button onClick={() => setRevision((r) => r + 1)}>{t.reload}</button>}</p>}
+        <div className="cal-hero-text">
+          <span className="cal-tag"><i className="cal-dot" />{group ? `${t.group} ${group}` : t[src]}</span>
+          <h1>{event.title}</h1>
+          <p>
+            <span className="sr-only">{fmt(occ.local_date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · </span>
+            {multiDay ? t.days(spanDays(occ)) : occ.is_all_day ? t.allDay : `${occ.local_start}–${occ.local_end}`}
+            {!cancelled && away >= 0 && ` · ${t.inDays(away)}`}
+          </p>
+        </div>
+      </header>
+
+      {event.status === "draft" && <p role="status" className="cal-notice">{t.draft}</p>}
+      {cancelled && <p role="status" className="cal-notice is-bad">{t.cancelled}</p>}
+      {!cancelled && occ.changes.some((c) => c.kind !== "cancelled") && <p role="status" className="cal-notice">{t.changedShort}</p>}
+      {error && <p role="alert" className="cal-notice is-bad">{error} {error === t.stale && <button className="ca-pill" onClick={() => setRevision((r) => r + 1)}>{t.reload}</button>}</p>}
 
       {event.my_invitation && event.my_invitation !== "revoked" && (
-        <div className="calendar-group">
-          <h2>{t.invitedYou}</h2>
-          <p role="status">{t.invitation}: {t[`invitation_${event.my_invitation}` as keyof typeof t] as string}</p>
-          <div className="calendar-actions">
-            <button aria-pressed={event.my_invitation === "accepted"} disabled={busy || cancelled}
+        <section className="ca-panel cal-invite">
+          <h2>{t.invitedShort}</h2>
+          <div className="cal-pills">
+            <button className="ca-pill" aria-pressed={event.my_invitation === "accepted"} disabled={busy || cancelled}
               onClick={() => act(() => calendarApi.respond(event.id, "accepted"))}>{t.accept}</button>
-            <button aria-pressed={event.my_invitation === "declined"} disabled={busy || cancelled}
+            <button className="ca-pill" aria-pressed={event.my_invitation === "declined"} disabled={busy || cancelled}
               onClick={() => act(() => calendarApi.respond(event.id, "declined"))}>{t.decline}</button>
           </div>
-        </div>
+        </section>
       )}
 
       {event.status !== "draft" && (
-        <div className="calendar-group" role="group" aria-labelledby="calendar-response">
-          <h2 id="calendar-response">{t.yourResponse}</h2>
-          <p>{t.interestNote}</p>
-          <div className="calendar-actions">
-            {(["interested", "maybe", "declined"] as Interest[]).map((state) => (
-              <button key={state} aria-pressed={occ.my_interest === state} disabled={busy || !open}
-                onClick={() => act(() => calendarApi.setInterest(occ.id, state))}>{t[state]}</button>
-            ))}
-            {occ.my_interest && open && (
-              <button disabled={busy} onClick={() => act(() => calendarApi.setInterest(occ.id, null))}>{t.clearInterest}</button>
+        <div className="cal-rsvp is-big" role="group" aria-label={t.yourResponse}>
+          {([["interested", t.going], ["maybe", t.maybe], ["declined", t.notGoing]] as const).map(([s, label]) => (
+            <button key={s} type="button" className={`is-${s}`} aria-pressed={occ.my_interest === s} disabled={busy || !open} onClick={() => setInterest(s)}>
+              {s === "interested" && <Check size={17} strokeWidth={3} aria-hidden="true" />}{label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {event.event_type === "competition" && (
+        <Link className="cal-series" to={`/series?event=${event.id}`}>
+          <Trophy size={20} aria-hidden="true" /><span>{t.seriesShort}</span><ChevronRight size={18} aria-hidden="true" />
+        </Link>
+      )}
+
+      <section className="ca-panel cal-facts">
+        {occ.venue_name && (
+          <div className="cal-fact">
+            <MapPin size={18} aria-hidden="true" />
+            <div><b>{occ.venue_name}</b>{event.venue_address && <small>{event.venue_address}</small>}</div>
+            {mapHref && <a className="cal-go" href={mapHref} target="_blank" rel="noopener noreferrer">{t.directions}<ExternalLink size={14} aria-hidden="true" /></a>}
+          </div>
+        )}
+        {multiDay && (
+          <div className="cal-fact">
+            <Clock size={18} aria-hidden="true" />
+            <div><b>{t.dateRange(fmt(occ.local_date, { weekday: "short", day: "numeric", month: "short" }), fmt(lastDay(occ), { weekday: "short", day: "numeric", month: "short" }))}</b>
+              {!occ.is_all_day && <small>{occ.local_start}–{occ.local_end}</small>}</div>
+          </div>
+        )}
+        {rec && (
+          <div className="cal-fact">
+            <Repeat size={18} aria-hidden="true" />
+            <div><b>{t.repeatsSummary(rec.weekdays.map((d) => t.weekdayShort[d - 1]).join(", "), rec.start_time, rec.end_time, fmt(rec.until_date, { day: "numeric", month: "long", year: "numeric" }))}</b>
+              {occ.detached && <small>{t.individuallyEdited}</small>}</div>
+          </div>
+        )}
+        {event.timezone !== viewerZone && (
+          <div className="cal-fact"><Globe size={18} aria-hidden="true" /><div><b>{event.timezone}</b><small>{t.timezone}</small></div></div>
+        )}
+        {event.organizer_name && (
+          <div className="cal-fact"><UserRound size={18} aria-hidden="true" /><div><b>{event.organizer_name}</b><small>{t.organizer}</small></div></div>
+        )}
+        {event.status !== "draft" && going && (
+          <div className="cal-fact">
+            <Users size={18} aria-hidden="true" />
+            <div>
+              <b>{going.interested || going.maybe ? t.goingCount(going.interested) : t.nobodyYet}</b>
+              {going.maybe > 0 && <small>{t.maybeCount(going.maybe)}</small>}
+            </div>
+            {going.people.length > 0 && (
+              <span className="cal-faces" aria-label={going.people.map((p) => p.display_name).join(", ")}>
+                {going.people.slice(0, 4).map((p) => <MemberAvatar key={p.user_id} member={p} size={30} />)}
+                {going.interested + going.maybe > 4 && <span className="cal-faces-more">+{going.interested + going.maybe - 4}</span>}
+              </span>
             )}
           </div>
-        </div>
-      )}
+        )}
+        {occ.can_report_absence && (
+          <div className="cal-fact">
+            <UserX size={18} aria-hidden="true" />
+            <div><b>{t.willBeAbsent}</b></div>
+            <button type="button" role="switch" className="cal-switch is-danger" aria-checked={occ.my_absence_reported} aria-label={t.willBeAbsent}
+              disabled={busy || !open} onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported), { my_absence_reported: !occ.my_absence_reported })} />
+          </div>
+        )}
+      </section>
 
-      {occ.event.calendar_kind === "group" && (
-        <div className="calendar-group">
-          <h2>{t.training}</h2>
-          <p>{t.assignment}</p>
-          {occ.can_report_absence && (
-            <>
-              <p role="status">{occ.my_absence_reported ? t.absence : t.noAbsence}</p>
-              <button aria-pressed={occ.my_absence_reported} disabled={busy || !open}
-                onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported))}>
-                {occ.my_absence_reported ? t.undoAbsence : t.absent}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-      {occ.event.calendar_kind !== "group" && occ.can_report_absence && (
-        <div className="calendar-group">
-          <p role="status">{occ.my_absence_reported ? t.absence : t.noAbsence}</p>
-          <button aria-pressed={occ.my_absence_reported} disabled={busy || !open}
-            onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported))}>
-            {occ.my_absence_reported ? t.undoAbsence : t.absent}
-          </button>
-        </div>
-      )}
+      {event.description && <section className="ca-panel"><p className="cal-description">{event.description}</p></section>}
 
-      <div className="calendar-group">
-        <button aria-pressed={event.following} disabled={busy}
-          onClick={() => act(() => calendarApi.followEvent(event.id, !event.following))}>
-          {event.following ? t.following : t.follow}
-        </button>
-        <p>{t.followNote}</p>
-      </div>
-
-      {event.resources.length > 0 && (
-        <div className="calendar-group">
-          <h2>{t.resources}</h2>
-          <ul className="calendar-resources">
-            {event.resources.map((r) => (
-              <li key={r.id}>
-                <span>{t[`resourceKind_${r.kind}` as keyof typeof t] as string || t.resourceKind_other}</span>{" "}
-                {r.url ? <a href={r.url} target="_blank" rel="noopener noreferrer">{r.label}</a> : r.label}
-                {r.edition_label && <span className="calendar-badge"> {r.edition_label}</span>}
-                {!r.source_verified_at && <span className="calendar-badge"> {t.unverified}</span>}
-                {r.kind === "club_chat" && <span className="calendar-badge"> {t.restricted}</span>}
+      {(event.itinerary ?? []).length > 0 && (
+        <section className="ca-panel">
+          <div className="ca-panel-h"><h2>{t.itinerary}</h2></div>
+          <ol className="cal-itinerary">
+            {event.itinerary.map((b, i) => (
+              <li key={i}>
+                <b>{fmt(b.local_date, { weekday: "short", day: "numeric", month: "short" })}{b.start_time ? ` · ${b.start_time}${b.end_time ? `–${b.end_time}` : ""}` : ""}</b>
+                <span>{[b.venue_name, b.label].filter(Boolean).join(" · ")}</span>
               </li>
             ))}
-          </ul>
-          {event.resources.some((r) => r.kind === "registration") && <p>{t.registrationNote}</p>}
-        </div>
+          </ol>
+        </section>
       )}
 
-      <div className="calendar-group">
-        <a className="calendar-button" href={`/api/v1/calendar/occurrences/${occ.id}/export.ics`} download>{t.downloadIcs}</a>
-        <p>{t.icsSnapshot}</p>
-      </div>
+      {occ.local_date <= today && <DiveLinks occurrenceId={occ.id} />}
 
-      <DiveLinks occurrenceId={occ.id} />
+      {event.resources.length > 0 && (
+        <section className="ca-panel cal-list">
+          <div className="ca-panel-h"><h2>{t.resources}</h2></div>
+          {event.resources.map((r) => {
+            const label = t[`resourceKind_${r.kind}` as keyof typeof t] as string || t.resourceKind_other;
+            const inner = <>
+              <span className="cal-list-main"><b>{label}</b>{(r.label !== label || r.edition_label) && <small>{[r.label !== label ? r.label : null, r.edition_label].filter(Boolean).join(" · ")}</small>}</span>
+              {!r.source_verified_at && <span className="cal-chip is-warn">{t.unverified.split(" · ")[0]}</span>}
+              {r.kind === "club_chat" && <span className="cal-chip">{t.restricted}</span>}
+              {r.url && <ExternalLink size={16} aria-hidden="true" />}
+            </>;
+            return r.url
+              ? <a key={r.id} className="cal-list-row" href={r.url} target="_blank" rel="noopener noreferrer">{inner}</a>
+              : <div key={r.id} className="cal-list-row">{inner}</div>;
+          })}
+        </section>
+      )}
+
+      <section className="ca-panel cal-list">
+        <div className="cal-list-row">
+          <Star size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.followChanges}</b></span>
+          <button type="button" role="switch" className="cal-switch" aria-checked={event.following} aria-label={t.followChanges} disabled={busy}
+            onClick={() => act(() => calendarApi.followEvent(event.id, !event.following), undefined, { following: !event.following })} />
+        </div>
+        <a className="cal-list-row" href={`/api/v1/calendar/occurrences/${occ.id}/export.ics`} download>
+          <CalendarPlus size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.addToCalendar}</b></span><ChevronRight size={16} aria-hidden="true" />
+        </a>
+      </section>
 
       {event.can_edit && (
-        <div className="calendar-actions calendar-group">
+        <section className="ca-panel cal-list">
+          <div className="ca-panel-h"><h2>{t.organize}</h2></div>
           {event.status === "draft" && (
-            <button disabled={busy} onClick={() => act(() => calendarApi.updateEvent(event.id, { expected_version: event.version, status: "published" }))}>{t.publish}</button>
+            <button type="button" className="cal-list-row" disabled={busy} onClick={() => act(() => calendarApi.updateEvent(event.id, { expected_version: event.version, status: "published" }))}>
+              <Send size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.publish}</b></span>
+            </button>
           )}
-          {!cancelled && series && <Link className="calendar-button" to={`/calendar/o/${occ.id}/schedule${search}`}>{t.editSchedule}</Link>}
-          {!cancelled && multi && !series && <Link className="calendar-button" to={`/calendar/o/${occ.id}/edit${search}`}>{t.editSession}</Link>}
-          {!cancelled && (!multi || rec) && <Link className="calendar-button" to={`/calendar/e/${event.id}/edit${search}`}>{t.editEvent}</Link>}
+          {!cancelled && series && <Link className="cal-list-row" to={`/calendar/o/${occ.id}/schedule${search}`}><CalendarClock size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.editSchedule}</b></span><ChevronRight size={16} aria-hidden="true" /></Link>}
+          {!cancelled && multi && !series && <Link className="cal-list-row" to={`/calendar/o/${occ.id}/edit${search}`}><Pencil size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.editSession}</b></span><ChevronRight size={16} aria-hidden="true" /></Link>}
+          {!cancelled && (!multi || rec) && <Link className="cal-list-row" to={`/calendar/e/${event.id}/edit${search}`}><Pencil size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.editEvent}</b></span><ChevronRight size={16} aria-hidden="true" /></Link>}
           {!cancelled && confirming === null && (
-            <button disabled={busy} onClick={() => setConfirming(multi ? "session" : "event")}>{multi ? t.cancelSession : t.cancelEvent}</button>
+            <button type="button" className="cal-list-row is-danger" disabled={busy} onClick={() => setConfirming(multi ? "session" : "event")}>
+              <XCircle size={18} aria-hidden="true" /><span className="cal-list-main"><b>{multi ? t.cancelSession : t.cancelEvent}</b></span>
+            </button>
           )}
           {confirming && (
-            <>
-              <button disabled={busy} className="calendar-danger" onClick={() => act(() => confirming === "session"
+            <div className="cal-list-row cal-confirm">
+              <button type="button" className="ca-pill is-danger" disabled={busy} onClick={() => act(() => confirming === "session"
                 ? calendarApi.cancelOccurrence(occ.id, occ.version) : calendarApi.cancelEvent(event.id, event.version))}>{t.confirmCancel}</button>
-              <button disabled={busy} onClick={() => setConfirming(null)}>{t.keepIt}</button>
-            </>
+              <button type="button" className="ca-pill" disabled={busy} onClick={() => setConfirming(null)}>{t.keepIt}</button>
+            </div>
           )}
-        </div>
+        </section>
       )}
       {event.can_edit && event.audience === "invited" && !cancelled && (
         <Invitations eventId={event.id} clubId={event.club_id} />
@@ -225,27 +271,41 @@ function DiveLinks({ occurrenceId }: { occurrenceId: number }) {
   const { t, lang } = useCalendarStrings();
   const [items, setItems] = useState<LinkableDive[] | null>(null);
   const [error, setError] = useState(false);
-  const load = () => calendarApi.dives(occurrenceId).then((d) => setItems(d.items)).catch(() => setError(true));
-  const toggle = (dive: LinkableDive) => calendarApi.linkDive(occurrenceId, dive.id, !dive.linked)
-    .then((d) => setItems(d.items)).catch(() => setError(true));
+  useEffect(() => {
+    let live = true;
+    calendarApi.dives(occurrenceId).then((d) => { if (live) setItems(d.items); }).catch(() => { if (live) setError(true); });
+    return () => { live = false; };
+  }, [occurrenceId]);
+  const toggle = (dive: LinkableDive) => {
+    setItems((list) => list && list.map((d) => (d.id === dive.id ? { ...d, linked: !d.linked } : d)));
+    calendarApi.linkDive(occurrenceId, dive.id, !dive.linked).then((d) => setItems(d.items)).catch(() => {
+      setItems((list) => list && list.map((d) => (d.id === dive.id ? { ...d, linked: dive.linked } : d)));
+      setError(true);
+    });
+  };
+  if (!items?.length && !error) return null;
+  const time = (d: LinkableDive) => new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(d.dive_datetime + "Z"));
   return (
-    <div className="calendar-group">
-      <h2>{t.dives}</h2>
-      <p>{t.divesNote}</p>
-      {items === null ? <button onClick={load}>{t.linkDives}</button> : items.length === 0 ? <p>{t.noDives}</p> : (
-        <ul className="calendar-dive-list">
-          {items.map((d) => (
-            <li key={d.id}>
-              <label className="calendar-check">
-                <input type="checkbox" checked={d.linked} onChange={() => toggle(d)} />
-                {d.dive_code} · {new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(d.dive_datetime + "Z"))}
-              </label>
-            </li>
-          ))}
-        </ul>
+    <section className="ca-panel">
+      <div className="ca-panel-h"><h2>{t.myDives}</h2>{items && <span>{t.linkedCount(items.filter((d) => d.linked).length, items.length)}</span>}</div>
+      {items && (
+        <div className="cal-dives">
+          {items.map((d) => {
+            const score = d.performance ? attemptScore(d as unknown as Attempt) : null;
+            return (
+              <button key={d.id} type="button" className="cal-dive" aria-pressed={d.linked} onClick={() => toggle(d)}
+                aria-label={`${d.dive_code} · ${time(d)}`}>
+                {d.poster_url && <img src={d.poster_url} alt="" loading="lazy" decoding="async" />}
+                {score != null && <span className={`cal-dive-score ca-r-${scoreBand(score)}`}>{fmtScore(score)}</span>}
+                <span className="cal-dive-mark" aria-hidden="true">{d.linked ? <Check size={14} strokeWidth={3} /> : <Plus size={14} />}</span>
+                <span className="cal-dive-cap"><b>{d.dive_code}</b><small>{time(d)}{d.height ? ` · ${d.height}` : ""}</small></span>
+              </button>
+            );
+          })}
+        </div>
       )}
-      {error && <p role="alert">{t.retrySave}</p>}
-    </div>
+      {error && <p role="alert" className="cal-notice is-bad">{t.retrySave}</p>}
+    </section>
   );
 }
 
@@ -274,28 +334,28 @@ function Invitations({ eventId, clubId }: { eventId: number; clubId: number | nu
     .catch((e) => setError(e instanceof CalendarError && e.code === "not_member" ? t.forbidden : t.retrySave));
   const invited = new Set(items.filter((i) => i.status !== "revoked").map((i) => i.user_id));
   return (
-    <div className="calendar-group">
-      <h2>{t.invitations}</h2>
-      <p>{t.invitationsNote}</p>
-      <ul className="calendar-invitations">
-        {items.map((i) => (
-          <li key={i.user_id}>
-            <span>{i.display_name} · {t[`invitation_${i.status}` as keyof typeof t] as string}</span>
-            {i.status !== "revoked" && <button onClick={() => run(calendarApi.revoke(eventId, i.user_id))}>{t.revoke}</button>}
-          </li>
-        ))}
-      </ul>
-      <label>{t.searchPeople}<input type="search" value={term} onChange={(e) => setTerm(e.target.value)} /></label>
-      {term.trim().length >= 2 && candidates.length === 0 && <p>{t.noMatches}</p>}
-      <ul className="calendar-invitations">
-        {candidates.filter((c) => !invited.has(c.user_id)).map((c) => (
-          <li key={c.user_id}>
-            <span>{c.display_name}</span>
-            <button {...keepFocusOnPress} onClick={() => run(calendarApi.invite(eventId, [c.user_id]))}>{t.invite}</button>
-          </li>
-        ))}
-      </ul>
-      {error && <p role="alert">{error}</p>}
-    </div>
+    <section className="ca-panel cal-list">
+      <div className="ca-panel-h"><h2>{t.invitations.split(" (")[0]}</h2><span>{invited.size}</span></div>
+      {items.map((i) => (
+        <div key={i.user_id} className="cal-list-row">
+          <MemberAvatar member={{ display_name: i.display_name }} size={30} />
+          <span className="cal-list-main"><b>{i.display_name}</b><small>{t[`invitation_${i.status}` as keyof typeof t] as string}</small></span>
+          {i.status !== "revoked" && <button className="ca-pill" onClick={() => run(calendarApi.revoke(eventId, i.user_id))}>{t.revoke}</button>}
+        </div>
+      ))}
+      <label className="cal-search is-inline">
+        <span className="sr-only">{t.searchPeople}</span>
+        <input type="search" placeholder={t.searchPeople} value={term} onChange={(e) => setTerm(e.target.value)} />
+      </label>
+      {term.trim().length >= 2 && candidates.length === 0 && <p className="cal-none">{t.noMatches}</p>}
+      {candidates.filter((c) => !invited.has(c.user_id)).map((c) => (
+        <div key={c.user_id} className="cal-list-row">
+          <MemberAvatar member={{ display_name: c.display_name }} size={30} />
+          <span className="cal-list-main"><b>{c.display_name}</b></span>
+          <button className="ca-pill" {...keepFocusOnPress} onClick={() => run(calendarApi.invite(eventId, [c.user_id]))}>{t.invite}</button>
+        </div>
+      ))}
+      {error && <p role="alert" className="cal-notice is-bad">{error}</p>}
+    </section>
   );
 }
