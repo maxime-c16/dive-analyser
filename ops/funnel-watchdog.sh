@@ -14,7 +14,9 @@
 #   2 consecutive failures -> re-announce Funnel
 #   still down 15 min later -> restart tailscaled, re-announce Funnel
 #   still down 15 min later -> stop repairing, notify once
-# Nothing is repaired while the server has no internet at all.
+# Nothing is repaired while the server has no internet at all. Telegram is
+# unreachable then too: the outage is recorded and reported, with any message
+# that failed to send, on the first run after the connection returns.
 set -euo pipefail
 
 PUBLIC_URL="${PUBLIC_URL:-https://dive-analyser.tail32dd14.ts.net/login}"
@@ -28,19 +30,41 @@ mkdir -p "$STATE_DIR"
 exec 9>"$STATE_DIR/lock"
 flock -n 9 || exit 0
 
-read_state() { cat "$STATE_DIR/$1" 2>/dev/null || echo "${2:-0}"; }
+read_state() { cat "$STATE_DIR/$1" 2>/dev/null || echo "${2-0}"; }
 write_state() { echo "$2" >"$STATE_DIR/$1"; }
 log() { echo "funnel-watchdog: $*"; }
 
-notify() {
-    log "$1"
-    if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
-        return 0
-    fi
-    curl -sS -o /dev/null --max-time 15 \
+send_telegram() {
+    [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]] || return 0
+    curl -fsS -o /dev/null --max-time 15 \
         "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-        --data-urlencode "text=$1" || log "telegram notification failed"
+        --data-urlencode "text=$1" 2>/dev/null
+}
+
+# Undelivered messages are queued and resent, oldest first, by the next run.
+notify() {
+    log "$1"
+    send_telegram "$1" && return 0
+    log "telegram unreachable; queued"
+    echo "[$(date +%H:%M)] $1" >>"$STATE_DIR/pending"
+}
+
+flush_pending() {
+    [[ -s "$STATE_DIR/pending" ]] || return 0
+    if send_telegram "Delayed:"$'\n'"$(cat "$STATE_DIR/pending")"; then
+        rm -f "$STATE_DIR/pending"
+    fi
+}
+
+internet_returned() {
+    local since
+    since=$(read_state net_down_since "")
+    if [[ -n "$since" ]]; then
+        rm -f "$STATE_DIR/net_down_since"
+        notify "Server internet was down ~$(((now - since) / 60)) min (since $(date -d "@$since" +%H:%M))."
+    fi
+    flush_pending
 }
 
 probe() {
@@ -66,6 +90,7 @@ last_repair=$(read_state last_repair)
 down_since=$(read_state down_since)
 
 if probe; then
+    internet_returned
     if ((repairs > 0)); then
         notify "Dive Analyzer is public again (down ~$(((now - down_since) / 60)) min, $repairs repair(s))."
     fi
@@ -74,9 +99,11 @@ if probe; then
 fi
 
 if ! internet_up; then
+    [[ -f "$STATE_DIR/net_down_since" ]] || write_state net_down_since "$now"
     log "public URL down but server has no internet; waiting"
     exit 0
 fi
+internet_returned
 
 ((fails == 0)) && write_state down_since "$now" && down_since=$now
 fails=$((fails + 1))

@@ -65,7 +65,11 @@ from `ops/systemd/dive-funnel-watchdog.timer`: one request to the static
 2 failures in a row it re-announces Funnel; 15 minutes later, if still down,
 it restarts tailscaled; 15 minutes after that it stops repairing. It never
 repairs while the server has no internet. Every repair, the give-up and the
-recovery are sent to Telegram through the server alerts bot.
+recovery are sent to Telegram through the server alerts bot. Telegram is
+unreachable while the internet is down, so the internet outage itself and
+any undelivered message are sent on the first run after the connection
+returns. An outage that never ends (server off) cannot be reported from the
+server; that would need an external monitor.
 
 Install once (as root on deb-serv). The token comes from the alertmanager
 swarm secret, so it is never typed or printed:
