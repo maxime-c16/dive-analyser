@@ -9,6 +9,7 @@ import PageLoading from '../components/PageLoading'
 import ScoreChart, { type ChartPoint } from '../components/code-analysis/ScoreChart'
 import CommunityPanel, { diverName, useMedia, type CommunityRow } from '../components/code-analysis/CommunityPanel'
 import MemberAvatar from '../components/MemberAvatar'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 import { CountUp, RatingBar, ratingCounts, ScoreChip, Segmented, Sparkline } from '../components/code-analysis/parts'
 import { diveCodeName } from '../i18n/diveNames'
 import { clearLibraryCache, libraryKey } from '../services/libraryCache'
@@ -213,8 +214,16 @@ export default function CodeAnalysis() {
         onWatch={(member, id) => openDiver(member.diver_id, id)} onAnalysis={member => openDiver(member.diver_id)} />
     : null
 
-  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
-  if (error && !attempts) return <div className="ca ca-page"><div className="ca-note" role="alert">{error} <button type="button" className="ca-btn" onClick={() => setReload(value => value + 1)}>{t('common.retry')}</button></div></div>
+  // Same title row as the other pages: back pill, then the shell's notifications + account on mobile.
+  const diverChip = diverId ? <div className="ca-diver-chip">{diver && <MemberAvatar member={diver.account ?? { display_name: diverName(diver) }} size={32} />}<b>{diver ? diverName(diver) : '…'}</b></div> : null
+  const topbar = <>
+    <div className="ca-topbar"><button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" /><span>{diverId ? ((location.state as { fromProfile?: boolean } | null)?.fromProfile ? t('common.back') : t('codeAnalysis.community.backToMine')) : fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</span></button>
+      {diverChip}<span className="ca-topbar-fill" /><MobileShellActions /></div>
+    {diverChip && <div className="ca-topbar-chip">{diverChip}</div>}
+  </>
+
+  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
+  if (error && !attempts) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-note" role="alert">{error} <button type="button" className="ca-btn" onClick={() => setReload(value => value + 1)}>{t('common.retry')}</button></div></div>
 
   const name = diveCodeName(code, lang)
   const dd = all.find(item => item.official_dd)?.official_dd
@@ -235,8 +244,7 @@ export default function CodeAnalysis() {
   return <>
   <div className="ca ca-page ca-arrive">
     <div className="ca-span">
-      <div className="ca-topbar"><button type="button" className="ca-back" onClick={back}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{diverId ? ((location.state as { fromProfile?: boolean } | null)?.fromProfile ? t('common.back') : t('codeAnalysis.community.backToMine')) : fromClip ? t('analysis.backToClip') : t('notFound.backToLibrary')}</button>
-      {diverId && <div className="ca-diver-chip">{diver && <MemberAvatar member={diver.account ?? { display_name: diverName(diver) }} size={32} />}<b>{diver ? diverName(diver) : '…'}</b></div>}</div>
+      {topbar}
       <div className="ca-hero">
         <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? ` · DD ${fmtScore(dd)}` : ''}</p></div>
         {analytics && <div className="ca-hero-trend">
