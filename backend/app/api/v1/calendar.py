@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
-from sqlalchemy import and_, inspect, or_
+from sqlalchemy import and_, func, inspect, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -165,16 +165,25 @@ GOING_PEOPLE = 8
 
 def going_summary(db: Session, occurrence_id: int) -> s.GoingOut:
     """Counts and the first faces of "interested"/"maybe" answers (active accounts only)."""
-    rows = (db.query(OccurrenceInterest.state, AppUser)
-            .join(AppUser, AppUser.id == OccurrenceInterest.user_id)
-            .filter(OccurrenceInterest.occurrence_id == occurrence_id, AppUser.is_active.is_(True),
-                    OccurrenceInterest.state.in_(("interested", "maybe")))
-            .order_by(OccurrenceInterest.updated_at.desc()).all())
-    ordered = [u for state, u in rows if state == "interested"] + [u for state, u in rows if state == "maybe"]
+    base = [OccurrenceInterest.occurrence_id == occurrence_id, AppUser.is_active.is_(True),
+            OccurrenceInterest.state.in_(("interested", "maybe"))]
+    counts = dict(db.query(OccurrenceInterest.state, func.count()).join(
+        AppUser, AppUser.id == OccurrenceInterest.user_id).filter(*base).group_by(OccurrenceInterest.state).all())
+
+    def faces(state: str, budget: int) -> list:
+        if budget <= 0:
+            return []
+        return db.query(AppUser).join(
+            OccurrenceInterest, OccurrenceInterest.user_id == AppUser.id).filter(
+            *base, OccurrenceInterest.state == state).order_by(
+            OccurrenceInterest.updated_at.desc()).limit(budget).all()
+
+    interested = faces("interested", GOING_PEOPLE)
+    maybe = faces("maybe", GOING_PEOPLE - len(interested))
     return s.GoingOut(
-        interested=sum(state == "interested" for state, _u in rows), maybe=sum(state == "maybe" for state, _u in rows),
+        interested=counts.get("interested", 0), maybe=counts.get("maybe", 0),
         people=[s.AttendeeOut(user_id=u.id, display_name=u.display_name, **avatar_identity(u))
-                for u in ordered[:GOING_PEOPLE]])
+                for u in interested + maybe])
 
 
 # --- Authenticated reads -------------------------------------------------------
