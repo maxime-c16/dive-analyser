@@ -2,6 +2,7 @@ import { useModalOverlay } from '../utils/overlays'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Copy, Film, RotateCcw, X } from 'lucide-react'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 import { differenceInCalendarDays, format, parseISO, subMonths } from 'date-fns'
 import SendDiveButton from '../components/messages/SendDiveButton'
 import DiveVideoPlayer from '../components/DiveVideoPlayer'
@@ -569,7 +570,7 @@ export default function DiveAnalysis() {
   const mixedContext = attempts.length > 0 && (heights.length > 1 || positions.length > 1 || syncStates.length > 1 || Object.keys(modifierCounts).length > 1)
 
   return <div className="mx-auto w-full max-w-[1480px] space-y-6">
-    <button type="button" onClick={goBack} data-testid="analysis-back" className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 py-1.5 text-sm text-app-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />{backLabel}</button>
+    <div className="flex items-center gap-2"><button type="button" onClick={goBack} data-testid="analysis-back" className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 py-1.5 text-sm text-app-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />{backLabel}</button><span className="flex-1" /><MobileShellActions /></div>
     <header className="flex flex-col gap-4 border-b border-app pb-5 md:flex-row md:items-end md:justify-between"><div><div className="flex items-center gap-3"><h1 className="text-3xl font-semibold tracking-tight text-app-text">{diveCode.toUpperCase()}</h1></div><p className="mt-2 text-sm text-app-muted" aria-live="polite" data-testid="analysis-scope">{data?.sample.attempt_count ?? 0} {i18n.t('analysis.attempts')} {i18n.t('analysis.in')} {data?.sample.session_count ?? 0} {i18n.t('analysis.sessionsLabel')} · {readyCount} {i18n.t('analysis.cachedClips')} · {dateRange}</p>{selectedAttempt && <p className="mt-2 text-sm text-app-text" data-testid="analysis-attempt-context">{i18n.t('analysis.thisAttempt')} · {format(parseISO(selectedAttempt.dive_datetime), 'd MMM yyyy, HH:mm', { locale: appLocale() })} · {selectedAttempt.height} · {divePositionName(selectedAttempt.position, selectedAttempt.dive_code)} · {i18n.t('analysis.execution')} {selectedAttempt.performance_numeric.toFixed(1)}</p>}{attemptMismatch && <p className="mt-2 text-sm text-app-muted" data-testid="analysis-attempt-mismatch">{i18n.t('analysis.attemptNotInScope', { code: diveCode.toUpperCase() })}</p>}</div><form className="flex gap-2" onSubmit={submitCode}><label className="sr-only" htmlFor="analysis-code">{i18n.t('analysis.diveCode')}</label><input id="analysis-code" value={codeInput} onChange={(event) => setCodeInput(event.target.value)} className="app-input w-32 uppercase" /><button className="border border-app-accent bg-transparent text-sm text-app-accent">{i18n.t('analysis.analyze')}</button></form></header>
 
     <AnalysisSection id="filters" title={i18n.t('analysis.filters')}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">

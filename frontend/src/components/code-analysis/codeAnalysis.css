@@ -250,8 +250,16 @@ button.ca-comm-row:active { transform: scale(.985); }
 .ca-comm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ca-comm-actions .ca-pill { color: var(--app-text); }
 @media (prefers-reduced-motion: reduce) { .ca-comm-line { stroke-dashoffset: 0; } }
-.ca-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ca-topbar { display: flex; align-items: center; gap: 8px; }
+.ca-topbar .ca-back { min-width: 0; }
+.ca-topbar .ca-back svg { flex-shrink: 0; }
+.ca-topbar .ca-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-topbar-fill { flex: 1; }
+/* Below lg the row also holds the shell actions, so the diver chip gets its own line. */
+.ca-topbar-chip { display: none; margin-top: 8px; }
+@media (max-width: 1023px) { .ca-topbar .ca-diver-chip { display: none; } .ca-topbar-chip { display: flex; } }
 /* Inside a pill the avatar is a plain circle concentric with the pill end; the HUD frame would poke out. */
 .ca-diver-chip .member-avatar-hud { display: none; }
 .ca-diver-chip .member-avatar-face { inset: 0; border-radius: 50%; }
-.ca-diver-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 3px; border: 1px solid var(--app-border); border-radius: 999px; font-size: 14px; color: var(--app-text); }
+.ca-diver-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 3px; border: 1px solid var(--app-border); border-radius: 999px; font-size: 14px; color: var(--app-text); min-width: 0; }
+.ca-diver-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
