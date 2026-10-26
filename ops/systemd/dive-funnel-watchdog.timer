@@ -1,0 +1,12 @@
+[Unit]
+Description=Check the public Dive Analyser URL every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30
+Persistent=false
+Unit=dive-funnel-watchdog.service
+
+[Install]
+WantedBy=timers.target

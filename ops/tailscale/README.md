@@ -54,6 +54,39 @@ docker exec dive-funnel-funnel-proxy-1 nginx -t
 docker exec dive-funnel-funnel-proxy-1 nginx -s reload
 ```
 
+## Funnel watchdog
+
+After an internet drop, tailscaled reconnects the tailnet by itself but the
+public Funnel ingress can stay dead until Funnel is re-announced
+(2026-10-26: ~35 min outage). `ops/funnel-watchdog.sh` runs every 5 minutes
+from `ops/systemd/dive-funnel-watchdog.timer`: one request to the static
+`/login` page, resolved through public DoH so it takes the real internet path
+(a MagicDNS lookup from the server itself is not a valid public test). After
+2 failures in a row it re-announces Funnel; 15 minutes later, if still down,
+it restarts tailscaled; 15 minutes after that it stops repairing. It never
+repairs while the server has no internet. Every repair, the give-up and the
+recovery are sent to Telegram through the server alerts bot. Telegram is
+unreachable while the internet is down, so the internet outage itself and
+any undelivered message are sent on the first run after the connection
+returns. An outage that never ends (server off) cannot be reported from the
+server; that would need an external monitor.
+
+Install once (as root on deb-serv). The token comes from the alertmanager
+swarm secret, so it is never typed or printed:
+
+```sh
+umask 077
+{ printf 'TELEGRAM_BOT_TOKEN='
+  docker exec "$(docker ps -q -f name=server-alertmanager)" cat /run/secrets/server_telegram_bot_token
+  printf '\nTELEGRAM_CHAT_ID=8543543707\n'; } >/etc/dive-funnel-watchdog.env
+cp ops/systemd/dive-funnel-watchdog.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now dive-funnel-watchdog.timer
+```
+
+Status: `journalctl -u dive-funnel-watchdog -n 20`. State (consecutive
+failures, repairs) lives in `/var/lib/dive-funnel-watchdog`.
+
 ## Account maintenance
 
 Key expiry for `dive-analyser` was disabled in the Tailscale Machines

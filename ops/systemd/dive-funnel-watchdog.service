@@ -1,0 +1,12 @@
+[Unit]
+Description=Dive Analyser Tailscale Funnel watchdog (public URL probe, bounded repair)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=-/etc/dive-funnel-watchdog.env
+ExecStart=/home/mcauchy/dive-analyser/ops/funnel-watchdog.sh
+TimeoutStartSec=120
+Nice=10
