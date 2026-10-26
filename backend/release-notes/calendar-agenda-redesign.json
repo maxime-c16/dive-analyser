@@ -1,0 +1,8 @@
+{
+  "id": "calendar-agenda-redesign",
+  "date": "2026-10-26",
+  "title": "A calendar you can answer from",
+  "body": "The calendar opens on your next session: answer going, maybe or no in one tap. Upcoming sessions are grouped by week, a tap on a day in the month view shows it in place, and each session shows who is going, a directions link, your absence switch and the dives you filmed there.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
