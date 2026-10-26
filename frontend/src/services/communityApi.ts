@@ -1,9 +1,10 @@
 import type { MemberProfile } from './activityApi'
 import type { AvatarHud } from '../components/MemberAvatar'
+import type { CodeSummaries } from './codeSummariesApi'
 
 export type MemberIdentity = Pick<MemberProfile, 'user_id' | 'display_name' | 'handle' | 'bio' | 'avatar_url' | 'avatar_hud'>
-export type MemberSummary = MemberIdentity & { accessible_dive_count?: number; latest_dive_at?: string | null }
-export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null; playback_url?: string | null }
+export type MemberSummary = MemberIdentity & { accessible_dive_count?: number; latest_dive_at?: string | null; /** Shares one of my own divers (a second login, a test account). */ linked?: boolean }
+export type ProfileDive = { id: number; dive_code: string; height: string; dive_datetime: string; visibility: 'public' | 'private'; poster_url: string | null; playback_url?: string | null; performance?: string | null; phase1_performance?: string | null; phase2_performance?: string | null }
 export type DivePage = { items: ProfileDive[]; next_before: string | null }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -36,4 +37,19 @@ export function removeAvatar(): Promise<void> {
 
 export function saveAvatarStyle(avatar_hud: AvatarHud): Promise<MemberIdentity> {
   return request('/me/avatar-style', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar_hud }) })
+}
+
+export type LeaderboardPeriod = 'week' | 'month'
+export type LeaderboardMember = MemberIdentity & {
+  attempts: number; sessions: number; codes: number
+  median: number | null; delta: number | null; streak_weeks: number; last_attempt_at: string | null
+}
+export type Leaderboard = { period: LeaderboardPeriod; start: string; end: string; members: LeaderboardMember[] }
+export function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderboard> {
+  return request(`/leaderboard?period=${period}`)
+}
+
+/** A member's per-code summaries over the dives visible to me (same shape as the Library's). */
+export function getMemberCodes(id: number): Promise<CodeSummaries & { totals: { attempt_count: number; session_count: number; first_attempt_at: string | null; last_attempt_at: string | null } }> {
+  return request(`/${id}/codes`)
 }

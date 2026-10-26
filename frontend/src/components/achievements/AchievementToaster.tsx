@@ -8,7 +8,8 @@ import {
   getUnseenAchievements,
   markAchievementsSeen,
 } from '../../services/achievementsApi'
-import { achievementIcon, isKnownAchievement } from './achievementCatalog'
+import { achievementArt, achievementIcon, isKnownAchievement } from './achievementCatalog'
+import './achievements.css'
 
 const VISIBLE_MS = 7000
 const GROUP_SIZE = 3
@@ -86,10 +87,10 @@ function AccountToaster({ userId }: { userId: number }) {
   const Icon = achievementIcon(current[0])
   return (
     <div className="pointer-events-none fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6">
-      <div role="status" aria-live="polite" className="pointer-events-auto flex w-[min(22rem,calc(100vw-2rem))] items-start gap-3 border border-app-accent bg-app-panel p-4 shadow-lg">
-        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center bg-app-accent-soft text-app-accent">
-          <Icon className="h-5 w-5" />
-        </span>
+      <div role="status" aria-live="polite" className="ach-toast pointer-events-auto flex w-[min(22rem,calc(100vw-2rem))] items-center gap-3 border border-app-accent bg-app-panel p-4 shadow-lg">
+        {achievementArt(current[0])
+          ? <span aria-hidden className="ach-toast-art"><img src={achievementArt(current[0])!} alt="" decoding="async" width={64} height={80} /></span>
+          : <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center bg-app-accent-soft text-app-accent"><Icon className="h-5 w-5" /></span>}
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-app-accent">
             {single ? t('achievements.unlocked') : t('achievements.unlockedMany', { count: current.length })}

@@ -1,25 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Film, Lock, Play } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getProfileDives, type ProfileDive } from '../services/communityApi'
+import { LibraryCardGrid } from './LibraryCards'
 import PageLoading from './PageLoading'
-import { appLanguage } from '../utils/dateLocale'
 import MediaThumbnail from './MediaThumbnail'
+import type { Attempt } from '../utils/attemptPresentation'
 
-function Tile({ dive }: { dive: ProfileDive }) {
-  const { t } = useTranslation()
-  const hasMedia = Boolean(dive.poster_url || dive.playback_url)
-  const text = hasMedia ? 'text-white' : 'text-app-text'
-  return <Link to={`/dives?clip=${dive.id}&scope=all`} aria-label={t('community.openDive', { code: dive.dive_code, height: dive.height })} className="group relative block aspect-video overflow-hidden border border-app bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent">
-    <MediaThumbnail posterUrl={dive.poster_url} playbackUrl={dive.playback_url} />
-    <span className="absolute right-2 top-2 flex gap-1 text-white">{hasMedia ? <Play className="h-4 w-4 fill-current drop-shadow" aria-hidden /> : <Film className="h-4 w-4 text-app-muted" aria-hidden />}{dive.visibility === 'private' && <Lock className={`h-4 w-4 ${hasMedia ? 'drop-shadow' : 'text-app-muted'}`} aria-label={t('community.privateDive')} />}</span>
-    <span className={`absolute inset-x-0 bottom-0 px-2 pb-2 pt-6 ${text} ${hasMedia ? 'bg-gradient-to-t from-black/90 to-transparent' : ''} sm:px-3 sm:pb-3`}><span className="block font-mono text-sm font-semibold sm:text-base">{dive.dive_code} · {dive.height}</span><time dateTime={dive.dive_datetime} className={`mt-0.5 block text-xs ${hasMedia ? 'text-white/80' : 'text-app-muted'}`}>{new Date(dive.dive_datetime).toLocaleDateString(appLanguage())}</time></span>
-  </Link>
+/** Profile grid rows as Library attempts: the same portrait cards, score badge and day sections. */
+function asAttempt(dive: ProfileDive): Attempt {
+  return {
+    id: dive.id, dive_code: dive.dive_code, height: dive.height, dive_datetime: dive.dive_datetime,
+    performance: dive.performance ?? '', phase1_performance: dive.phase1_performance ?? null, phase2_performance: dive.phase2_performance ?? null,
+    thumb_url: dive.poster_url, video_uuid: null,
+  } as unknown as Attempt
 }
 
 export default function ProfileDiveGrid({ userId }: { userId: number }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [dives, setDives] = useState<ProfileDive[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,13 +46,16 @@ export default function ProfileDiveGrid({ userId }: { userId: number }) {
     } catch { if (current === generation.current) setError(true) }
     finally { if (current === generation.current) setLoading(false) }
   }
+  const attempts = useMemo(() => dives.map(asAttempt), [dives])
+  const byId = useMemo(() => new Map(dives.map(dive => [dive.id, dive])), [dives])
   return <section aria-label={t('community.dives')}>
-    <p className="mb-3 text-xs text-app-muted">{t('community.latest')}</p>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{dives.map(dive => <Tile key={dive.id} dive={dive} />)}</div>
+    <LibraryCardGrid attempts={attempts} onOpen={attempt => navigate(`/dives?clip=${attempt.id}&scope=all`)}
+      // Poster, else a ready local web preview: never a B2 original from a tile.
+      thumbnail={attempt => <MediaThumbnail posterUrl={byId.get(attempt.id)?.poster_url} playbackUrl={byId.get(attempt.id)?.playback_url} />} />
     {loading && dives.length === 0 && <PageLoading />}
-    {loading && dives.length > 0 && <p role="status" className="py-6 text-sm text-app-muted">{t('common.loading')}</p>}
-    {error && <p role="alert" className="py-6 text-sm text-red-400">{t('community.divesError')} <button className="underline" onClick={() => { if (cursor) void more(); else setRetry(previous => previous + 1) }}>{t('common.retry')}</button></p>}
-    {!loading && !error && dives.length === 0 && <p className="border border-app bg-app-panel p-8 text-center text-app-muted">{t('community.noDives')}</p>}
-    {cursor && <button onClick={() => void more()} disabled={loading} className="touch-target mt-5 border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong disabled:opacity-50">{t('community.moreDives')}</button>}
+    {loading && dives.length > 0 && <p role="status" className="cm-empty">{t('common.loading')}</p>}
+    {error && <p role="alert" className="cm-alert">{t('community.divesError')} <button type="button" onClick={() => { if (cursor) void more(); else setRetry(previous => previous + 1) }}>{t('common.retry')}</button></p>}
+    {!loading && !error && dives.length === 0 && <p className="cm-empty">{t('community.noDives')}</p>}
+    {cursor && <div style={{ display: 'grid', marginTop: 16 }}><button type="button" onClick={() => void more()} disabled={loading} className="ca-pill cm-more">{t('community.moreDives')}</button></div>}
   </section>
 }

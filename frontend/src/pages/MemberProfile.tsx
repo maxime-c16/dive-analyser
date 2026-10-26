@@ -1,175 +1,97 @@
-import { useEffect, useState } from 'react'
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, ChevronLeft, Pencil } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ArrowLeft, Heart, Layers, MessageCircle, Pencil } from 'lucide-react'
 import {
   getUserProfile,
   getUserActivity,
   type MemberProfile as MemberProfileData,
   type ActivityItem,
 } from '../services/activityApi'
-import { activityIcon } from '../components/activity/ActivityFeed'
-import MemberLink from '../components/activity/MemberLink'
+import { getMemberCodes } from '../services/communityApi'
 import MemberAvatar from '../components/MemberAvatar'
+import MemberLink from '../components/activity/MemberLink'
 import ProfileDiveGrid from '../components/ProfileDiveGrid'
 import ProfileMessageButton from '../components/messages/ProfileMessageButton'
 import ProfileEditor from '../components/ProfileEditor'
 import AchievementsPanel from '../components/achievements/AchievementsPanel'
+import CodeCards, { type CodeSort } from '../components/code-analysis/CodeCards'
+import { CountUp, Segmented } from '../components/code-analysis/parts'
 import PageLoading from '../components/PageLoading'
-import { appLanguage } from '../utils/dateLocale'
+import { MobileShellActions } from '../navigation/mobileShellActions'
+import { appLocale } from '../utils/dateLocale'
+import type { CodeSummary } from '../services/codeSummariesApi'
+import '../components/code-analysis/codeAnalysis.css'
+import '../components/community/community.css'
 
 const PAGE_SIZE = 30
-const PROFILE_TABS = ['dives', 'activity', 'achievements'] as const
+/** Compact age for a stat tile: "3 h", "18 j", "2 mois", "1 an". */
+/** Time since `iso` as a number and a short unit, so the number lines up with the other KPIs. */
+function shortAgo(iso: string, t: (key: string, options?: Record<string, unknown>) => string) {
+  const hours = (Date.now() - Date.parse(iso)) / 3_600_000
+  const days = Math.round(hours / 24)
+  const [count, unit] = hours < 24 ? [Math.max(1, Math.round(hours)), 'hours'] : days < 45 ? [days, 'days'] : days < 365 ? [Math.round(days / 30), 'months'] : [Math.round(days / 365), 'years']
+  return { count, unit: t(`profile.ago.${unit}`, { count }) }
+}
+const PROFILE_TABS = ['dives', 'codes', 'activity', 'achievements'] as const
 type ProfileTab = (typeof PROFILE_TABS)[number]
+type MemberCodes = Awaited<ReturnType<typeof getMemberCodes>>
 
-// On another member's profile every row is their action: always show the
-// member's name with a third-person phrase.
-function ActorPhrase({ item }: { item: ActivityItem }) {
-  const { t } = useTranslation()
-  const nameNode = item.actor.user_id
-    ? <MemberLink userId={item.actor.user_id} className="font-semibold text-app-accent hover:underline">{item.actor.display_name}</MemberLink>
-    : <span className="font-semibold">{item.actor.display_name}</span>
-  return <>{nameNode} {t(`profile.trail.${item.kind}`)}</>
-}
+const ACTIVITY_ICONS = { dive_like: Heart, comment: MessageCircle, comment_like: Heart } as const
 
-function ClipLink({ item }: { item: ActivityItem }) {
-  return (
-    // scope=all: the library defaults admins to their own bindings, which
-    // would silently discard clips the interaction points at.
-    <Link to={`/dives?clip=${item.dive.id}&scope=all`} className="text-app-muted underline underline-offset-2 hover:text-app-accent">
-      {item.dive.dive_code}{item.dive.height ? ` · ${item.dive.height}` : ''}
-      {item.dive.diver_name ? ` · ${item.dive.diver_name}` : ''}
-    </Link>
-  )
-}
-
-function ProfileHead({ profile, editing, onEdit }: { profile: MemberProfileData; editing: boolean; onEdit: () => void }) {
-  const { t } = useTranslation()
-  // A diver binding that only repeats the member's own name adds nothing.
-  const own = new Set([profile.display_name, profile.handle ?? ''].map(value => value.trim().toLowerCase()))
-  const otherDivers = profile.divers.filter(diver => !own.has(diver.display_name.trim().toLowerCase()))
-  return (
-    <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-app pb-4">
-      <MemberAvatar member={profile} large />
-      <div className="min-w-0 flex-1 basis-56">
-        <h1 className="truncate text-2xl font-semibold tracking-tight text-app-text">{profile.display_name}</h1>
-        {profile.handle && <p className="mt-0.5 text-sm text-app-accent">@{profile.handle}</p>}
-        {profile.bio && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-sm text-app-text">{profile.bio}</p>}
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-app-muted">
-          {profile.joined_at && (
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-              <time dateTime={profile.joined_at}>{t('profile.memberSince', { date: new Date(profile.joined_at).toLocaleDateString(appLanguage(), { year: 'numeric', month: 'long' }) })}</time>
-            </span>
-          )}
-          {otherDivers.length > 0 && <span>{t('profile.diverOf')} {otherDivers.map(diver => diver.display_name).join(', ')}</span>}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-start">
-        {profile.is_self
-          ? <button type="button" className="touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong" onClick={onEdit} aria-expanded={editing}><Pencil className="h-4 w-4" aria-hidden />{t('community.edit')}</button>
-          : <ProfileMessageButton userId={profile.user_id} />}
-      </div>
-    </header>
-  )
-}
-
-/** Vertical timeline: one rail, day headings, per-event times. */
+/** Day-grouped feed of the member's likes and comments, with real avatars. */
 function ActivityTimeline({ items }: { items: ActivityItem[] }) {
   const { t } = useTranslation()
-  const language = appLanguage()
   const groups = new Map<string, ActivityItem[]>()
   for (const item of items) {
-    const stamp = item.created_at ? new Date(item.created_at) : null
-    const dayKey = stamp ? stamp.toDateString() : '—'
-    groups.set(dayKey, [...(groups.get(dayKey) ?? []), item])
+    const key = item.created_at ? new Date(item.created_at).toDateString() : '—'
+    groups.set(key, [...(groups.get(key) ?? []), item])
   }
-  const dayLabel = (dayKey: string) => {
-    if (dayKey === '—') return ''
-    const today = new Date().toDateString()
-    if (dayKey === today) return t('profile.today')
-    const yesterday = new Date(Date.now() - 86400000).toDateString()
-    if (dayKey === yesterday) return t('profile.yesterday')
-    return new Date(dayKey).toLocaleDateString(language, { weekday: 'long', day: 'numeric', month: 'long' })
+  const label = (key: string) => {
+    if (key === '—') return ''
+    if (key === new Date().toDateString()) return t('profile.today')
+    if (key === new Date(Date.now() - 86_400_000).toDateString()) return t('profile.yesterday')
+    return format(new Date(key), 'EEEE d MMMM', { locale: appLocale() })
   }
-  const clock = (item: ActivityItem) =>
-    item.created_at
-      ? new Date(item.created_at).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' })
-      : ''
-
-  return (
-    /* Rail geometry: every node (day dot, event icon) is centered on the
-       x=8px rail through the same translate-x-1/2 helper, so alignment
-       cannot drift between nodes. */
-    <ol className="relative">
-      {[...groups.entries()].map(([day, rows]) => (
-        <li key={day} className="relative pb-8 last:pb-0">
-          <span aria-hidden className="absolute left-[8px] top-3 bottom-0 w-px -translate-x-1/2 bg-[var(--app-border)]" />
-          <span
-            aria-hidden
-            className="absolute left-[8px] top-0 z-10 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-app-panel bg-app-accent"
-          />
-          <p className="pl-10 text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
-            {dayLabel(day)}
-          </p>
-          <ul className="mt-3 space-y-5 pl-10">
-            {rows.map(item => {
-              const Icon = activityIcon(item)
-              return (
-                <li key={item.key} className="relative flex items-start gap-3">
-                  <span
-                    aria-hidden
-                    className="absolute left-[-42px] top-[3px] z-10 flex h-5 w-5 items-center justify-center rounded-full border border-app bg-app-panel text-app-muted"
-                  >
-                    <Icon className="h-3 w-3" />
-                  </span>
-                  <span
-                    aria-hidden
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-app-panel-elevated text-sm font-bold text-app-accent ring-1 ring-app"
-                  >
-                    {item.actor.display_name.trim()[0]?.toUpperCase() ?? '?'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-6 text-app-text">
-                      <ActorPhrase item={item} />{' '}
-                      <ClipLink item={item} />
-                    </p>
-                    {item.comment?.body && (
-                      <p className="mt-1 border-l-2 border-app-accent/50 pl-3 text-sm leading-6 text-app-muted">
-                        {item.comment.body}
-                      </p>
-                    )}
-                  </div>
-                  <time dateTime={item.created_at ?? undefined} className="shrink-0 pt-1 text-xs text-app-muted">
-                    {clock(item)}
-                  </time>
-                </li>
-              )
-            })}
-          </ul>
-        </li>
-      ))}
-    </ol>
-  )
+  return <ol className="cm-timeline">
+    {[...groups.entries()].map(([day, rows], groupIndex) => <li key={day} className="cm-day ca-pop" style={{ '--i': groupIndex } as CSSProperties}>
+      <p>{label(day)}</p>
+      {rows.map(item => {
+        const Icon = ACTIVITY_ICONS[item.kind] ?? Heart
+        return <div key={item.key} className="cm-event">
+          <MemberAvatar member={item.actor} size={36} />
+          <div className="cm-event-body">
+            <span className="cm-event-icon" aria-hidden="true"><Icon size={11} /></span>
+            {item.actor.user_id ? <MemberLink userId={item.actor.user_id} className="font-semibold">{item.actor.display_name}</MemberLink> : <b>{item.actor.display_name}</b>}
+            {' '}{t(`profile.trail.${item.kind}`)}{' '}
+            <Link to={`/dives?clip=${item.dive.id}&scope=all`}>{item.dive.dive_code}{item.dive.height ? ` · ${item.dive.height}` : ''}{item.dive.diver_name ? ` · ${item.dive.diver_name}` : ''}</Link>
+            {item.comment?.body && <blockquote>{item.comment.body}</blockquote>}
+          </div>
+          <time dateTime={item.created_at ?? undefined}>{item.created_at ? format(new Date(item.created_at), 'HH:mm') : ''}</time>
+        </div>
+      })}
+    </li>)}
+  </ol>
 }
 
 export default function MemberProfile() {
   const { userId } = useParams()
   const { t } = useTranslation()
-  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
-  const requestedTab = PROFILE_TABS.find(value => value === searchParams.get('tab')) ?? 'dives'
-  const [tab, setTab] = useState<ProfileTab>(requestedTab)
-  // Following a ?tab= link while already on this profile (e.g. the unlock
-  // toast) must open that tab; location.key changes on every navigation.
-  const tabParam = searchParams.get('tab')
-  useEffect(() => {
-    const next = PROFILE_TABS.find(value => value === tabParam)
-    if (next) setTab(next)
-  }, [tabParam, location.key])
+  const tab: ProfileTab = PROFILE_TABS.find(value => value === searchParams.get('tab')) ?? 'dives'
+  const setTab = (next: ProfileTab) => setSearchParams(next === 'dives' ? {} : { tab: next }, { replace: true, preventScrollReset: true })
+  // Tabs only change the URL query: panels stay mounted once opened, so switching back is instant.
+  const [visited, setVisited] = useState<{ user?: string; tabs: Set<ProfileTab> }>(() => ({ user: userId, tabs: new Set([tab]) }))
+  useEffect(() => setVisited(previous => previous.user === userId ? (previous.tabs.has(tab) ? previous : { user: userId, tabs: new Set(previous.tabs).add(tab) }) : { user: userId, tabs: new Set([tab]) }), [userId, tab])
+  const opened = visited.user === userId ? visited.tabs : new Set([tab])
   const [editing, setEditing] = useState(false)
   const [retry, setRetry] = useState(0)
   const [profile, setProfile] = useState<MemberProfileData | null>(null)
+  const [codes, setCodes] = useState<MemberCodes | null>(null)
+  const [codeSort, setCodeSort] = useState<CodeSort>('recent')
   const [notFound, setNotFound] = useState(false)
   const [items, setItems] = useState<ActivityItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -180,25 +102,18 @@ export default function MemberProfile() {
   useEffect(() => {
     if (!userId) return
     let alive = true
-    setTab(requestedTab)
-    setEditing(false)
-    setProfile(null)
-    setNotFound(false)
-    setError('')
-    setItems([])
-    setCursor(null)
-    setLoaded(false)
+    setEditing(false); setProfile(null); setCodes(null); setNotFound(false); setError('')
+    setItems([]); setCursor(null); setLoaded(false)
     getUserProfile(Number(userId))
       .then(data => {
         if (!alive) return
         setProfile(data)
+        getMemberCodes(Number(userId)).then(result => { if (alive) setCodes(result) }).catch(() => undefined)
         return getUserActivity(Number(userId), { limit: PAGE_SIZE })
       })
       .then(page => {
         if (!alive || !page) return
-        setItems(page.items)
-        setCursor(page.next_before)
-        setLoaded(true)
+        setItems(page.items); setCursor(page.next_before); setLoaded(true)
       })
       .catch((err: Error & { status?: number }) => {
         if (!alive) return
@@ -206,87 +121,99 @@ export default function MemberProfile() {
         else setError(t('profile.errorLoad'))
         setLoaded(true)
       })
-    return () => {
-      alive = false
-    }
+    return () => { alive = false }
   }, [userId, t, retry])
 
   const loadOlder = () => {
     if (!cursor || loadingMore || !userId) return
     setLoadingMore(true)
     getUserActivity(Number(userId), { before: cursor, limit: PAGE_SIZE })
-      .then(page => {
-        setItems(previous => [...previous, ...page.items])
-        setCursor(page.next_before)
-      })
+      .then(page => { setItems(previous => [...previous, ...page.items]); setCursor(page.next_before) })
       .catch(() => setError(t('account.activity.errorLoad')))
       .finally(() => setLoadingMore(false))
   }
 
-  if (notFound) {
-    return (
-      <div className="mx-auto mt-10 max-w-lg py-10 text-center">
-        <h1 className="text-2xl font-semibold text-app-text">{t('profile.notFoundTitle')}</h1>
-        <Link to="/dives" className="touch-target mt-6 inline-flex items-center gap-2 border border-app-accent bg-app-panel px-4 text-sm text-app-accent">
-          {t('notFound.backToLibrary')}
-        </Link>
-      </div>
-    )
-  }
+  const analysable = useMemo<CodeSummary[]>(() => (codes?.codes ?? []).filter(code => code.analytics), [codes])
+  const weeks = codes?.activity?.weeks ?? []
+  const weekMax = Math.max(1, ...weeks.map(week => week.attempt_count))
+
+  if (notFound) return <div className="ca cm-profile"><div className="ca-note">{t('profile.notFoundTitle')} <Link className="ca-btn" to="/community">{t('community.back')}</Link></div></div>
   if (!profile) {
-    if (error) return <p role="alert" className="py-8 text-sm text-red-400">{error} <button onClick={() => setRetry(value => value + 1)} className="underline">{t('common.retry')}</button></p>
+    if (error) return <p role="alert" className="cm-alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></p>
     return <PageLoading />
   }
 
-  return (
-    <div className="mx-auto max-w-4xl">
-      <Link to="/community" className="touch-target mb-1 inline-flex items-center gap-1 text-sm text-app-accent hover:underline"><ChevronLeft className="h-4 w-4" aria-hidden />{t('community.back')}</Link>
-      <ProfileHead profile={profile} editing={editing} onEdit={() => setEditing(value => !value)} />
-      {profile.is_self && <Link to="/series" className="touch-target mb-4 inline-flex items-center border border-app px-4 text-sm text-app-accent">{t('series.mySeries')}</Link>}
-      {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
-      <div className="mb-5 flex border-b border-app" role="tablist" aria-label={t('community.profileSections')}>
-        {PROFILE_TABS.map(value => <button key={value} role="tab" id={`profile-tab-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onKeyDown={event => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-          event.preventDefault()
-          const index = PROFILE_TABS.indexOf(value)
-          const next = event.key === 'Home' ? PROFILE_TABS[0]
-            : event.key === 'End' ? PROFILE_TABS[PROFILE_TABS.length - 1]
-            : PROFILE_TABS[(index + (event.key === 'ArrowRight' ? 1 : -1) + PROFILE_TABS.length) % PROFILE_TABS.length]
-          setTab(next)
-          document.getElementById(`profile-tab-${next}`)?.focus()
-        }} aria-controls={`profile-panel-${value}`} className={`touch-target flex-1 border-b-2 px-4 ${tab === value ? 'border-app-accent text-app-accent' : 'border-transparent text-app-muted'}`} onClick={() => setTab(value)}>{t(`community.${value}`)}</button>)}
-      </div>
-      {tab === 'dives' && <div role="tabpanel" id="profile-panel-dives" aria-labelledby="profile-tab-dives"><ProfileDiveGrid key={profile.user_id} userId={profile.user_id} /></div>}
-      {tab === 'achievements' && (
-        <div role="tabpanel" id="profile-panel-achievements" aria-labelledby="profile-tab-achievements" className="border border-app bg-app-panel p-4 sm:p-6">
-          <AchievementsPanel key={profile.user_id} userId={profile.user_id} isSelf={profile.is_self} />
-        </div>
-      )}
-      <div hidden={tab !== 'activity'} role="tabpanel" id="profile-panel-activity" aria-labelledby="profile-tab-activity">
-      <div className="border border-app bg-app-panel p-4 sm:p-6">
-        {error && items.length === 0 ? (
-          <p role="alert" className="text-sm text-red-400">{error}</p>
-        ) : !loaded && items.length === 0 ? (
-          <PageLoading message={t('account.activity.loading')} />
-        ) : items.length === 0 ? (
-          <p className="text-sm text-app-muted">{t('profile.emptyActivity')}</p>
-        ) : (
-          <>
-            <ActivityTimeline items={items} />
-            {cursor && (
-              <button
-                type="button"
-                onClick={loadOlder}
-                disabled={loadingMore}
-                className="touch-target mt-5 border border-app bg-app-panel-elevated px-4 py-2 text-sm font-medium text-app-text disabled:opacity-60"
-              >
-                {loadingMore ? t('account.activity.loading') : t('account.activity.loadOlder')}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-      </div>
+  // A diver binding that only repeats the member's own name adds nothing.
+  const own = new Set([profile.display_name, profile.handle ?? ''].map(value => value.trim().toLowerCase()))
+  const otherDivers = profile.divers.filter(diver => !own.has(diver.display_name.trim().toLowerCase()))
+  const diverId = profile.is_self ? undefined : profile.divers[0]?.diver_id
+  const totals = codes?.totals
+  const last = totals?.last_attempt_at ? shortAgo(totals.last_attempt_at, t) : null
+
+  return <div className="ca cm-profile ca-arrive">
+    <div className="cm-head">
+      <button type="button" className="ca-back" onClick={() => location.key !== 'default' ? navigate(-1) : navigate('/community')}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t('community.back')}</button>
+      <span className="cm-head-fill" />
+      <MobileShellActions />
     </div>
-  )
+
+    <header className="cm-hero">
+      <MemberAvatar member={profile} size={96} />
+      <div style={{ minWidth: 0 }}>
+        <h1>{profile.display_name}</h1>
+        {profile.handle && <p className="cm-hero-handle">@{profile.handle}</p>}
+        <div className="cm-facts">
+          {profile.joined_at && <span className="ca-fact">{t('profile.memberSince', { date: format(parseISO(profile.joined_at), 'MMMM yyyy', { locale: appLocale() }) })}</span>}
+          {otherDivers.length > 0 && <span className="ca-fact">{t('profile.diverOf')} {otherDivers.map(diver => diver.display_name === diver.display_name.toUpperCase() ? diver.display_name.toLowerCase().replace(/(^|[\s'-])\p{L}/gu, letter => letter.toUpperCase()) : diver.display_name).join(', ')}</span>}
+        </div>
+      </div>
+      {profile.bio && <p className="cm-hero-bio">{profile.bio}</p>}
+      <div className="cm-actions">
+        {profile.is_self
+          ? <>
+              <button type="button" className="cm-btn" onClick={() => setEditing(value => !value)} aria-expanded={editing}><Pencil size={16} aria-hidden="true" />{t('community.edit')}</button>
+              <Link to="/series" className="cm-btn"><Layers size={16} aria-hidden="true" />{t('series.mySeries')}</Link>
+            </>
+          : <ProfileMessageButton userId={profile.user_id} className="cm-btn is-primary" />}
+      </div>
+    </header>
+    {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
+
+    {totals && totals.attempt_count > 0 && <section className="ca-panel" aria-label={t('profile.stats')}>
+      <dl className="ca-kpis" style={{ margin: 0 }}>
+        <div className="ca-kpi"><dt>{t('profile.kpi.dives')}</dt><dd><CountUp value={totals.attempt_count} digits={0} /></dd></div>
+        <div className="ca-kpi"><dt>{t('profile.kpi.codes')}</dt><dd><CountUp value={codes!.codes.length} digits={0} /></dd></div>
+        <div className="ca-kpi"><dt>{t('profile.kpi.sessions')}</dt><dd><CountUp value={totals.session_count} digits={0} /></dd></div>
+        <div className="ca-kpi"><dt>{t('profile.kpi.last')}</dt><dd>{last ? <><CountUp value={last.count} digits={0} /><small className="ca-kpi-unit">{last.unit}</small></> : '—'}</dd></div>
+      </dl>
+      {weeks.length > 0 && <>
+        <div className="cm-weeks" aria-label={t('profile.weeksAria', { count: weeks.length })}>
+          {weeks.map((week, index) => <i key={week.start} className={week.attempt_count ? '' : 'is-empty'} title={`${week.start} · ${week.attempt_count}`}
+            style={{ height: `${Math.max(4, (week.attempt_count / weekMax) * 100)}%`, '--i': index } as CSSProperties} />)}
+        </div>
+        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div>
+      </>}
+    </section>}
+
+    <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}
+      options={PROFILE_TABS.map(value => [value, t(`community.${value}`)] as const)} />
+
+    {PROFILE_TABS.filter(key => key === tab || opened.has(key)).map(key => <div key={key} className="cm-tabpanel" role="tabpanel" aria-label={t(`community.${key}`)} hidden={key !== tab}>
+      {key === 'dives' && <ProfileDiveGrid key={profile.user_id} userId={profile.user_id} />}
+      {key === 'codes' && (codes === null ? <div className="ca-skeleton" style={{ height: 240 }} />
+        : analysable.length ? <CodeCards codes={analysable} sort={codeSort} onSort={setCodeSort} diverId={diverId}
+            onOpenClip={id => navigate(`/dives?clip=${id}&scope=all`)} />
+        : <p className="cm-empty">{t('community.noDives')}</p>)}
+      {key === 'activity' && <section className="ca-panel">
+        {error && items.length === 0 ? <p role="alert" className="cm-alert">{error}</p>
+          : !loaded && items.length === 0 ? <PageLoading message={t('account.activity.loading')} />
+          : items.length === 0 ? <p className="cm-empty">{t('profile.emptyActivity')}</p>
+          : <>
+              <ActivityTimeline items={items} />
+              {cursor && <button type="button" className="ca-pill cm-more" onClick={loadOlder} disabled={loadingMore}>{loadingMore ? t('account.activity.loading') : t('account.activity.loadOlder')}</button>}
+            </>}
+      </section>}
+      {key === 'achievements' && <section className="ca-panel"><AchievementsPanel key={profile.user_id} userId={profile.user_id} isSelf={profile.is_self} /></section>}
+    </div>)}
+  </div>
 }

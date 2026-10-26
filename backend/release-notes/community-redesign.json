@@ -1,0 +1,8 @@
+{
+  "id": "community-redesign",
+  "date": "2026-10-25",
+  "title": "A livelier Community and new profiles",
+  "body": "Community now shows who dived recently, weekly and monthly rankings with a podium (most active, streaks, progress, explorers), and members sorted from those who share dives to everyone else. Profiles have stats, a 26-week activity chart, Library-style dive cards, per-code analysis and 3D trophies for achievements. Shared clips in Messages now always open the dive.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

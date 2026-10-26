@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import './achievements.css'
 import { useTranslation } from 'react-i18next'
 import { Lock } from 'lucide-react'
 import {
@@ -9,7 +10,7 @@ import {
 } from '../../services/achievementsApi'
 import { appLanguage } from '../../utils/dateLocale'
 import PageLoading from '../PageLoading'
-import { ACHIEVEMENT_CATEGORIES, achievementIcon, isKnownAchievement } from './achievementCatalog'
+import { ACHIEVEMENT_CATEGORIES, achievementArt, achievementIcon, isKnownAchievement } from './achievementCatalog'
 
 type Card = {
   key: string
@@ -87,51 +88,42 @@ export default function AchievementsPanel({ userId, isSelf }: { userId: number; 
   if (!isSelf && unlockedCount === 0) return <p className="text-sm text-app-muted">{t('achievements.emptyOther')}</p>
 
   const language = appLanguage()
+  const share = total ? unlockedCount / total : 0
   return (
-    <div>
-      <p className="mb-4 text-sm text-app-muted" data-testid="achievements-summary">
-        {t('achievements.summary', { unlocked: unlockedCount, total })}
-      </p>
-      <div className="space-y-6">
-        {grouped.map(group => (
-          <section key={group.category} aria-labelledby={`achievements-${group.category}`}>
-            <h3 id={`achievements-${group.category}`} className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
-              {t(`achievements.categories.${group.category}`)}
-            </h3>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {group.items.map(card => {
-                const Icon = card.unlocked ? achievementIcon(card.key) : Lock
-                const title = t(`achievements.items.${card.key}.title`)
-                return (
-                  <li key={card.key} data-unlocked={card.unlocked} className={`flex items-start gap-3 border p-3 ${card.unlocked ? 'border-app-accent bg-app-panel' : 'border-app bg-app-panel opacity-60'}`}>
-                    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center ${card.unlocked ? 'bg-app-accent-soft text-app-accent' : 'bg-app-panel-elevated text-app-muted'}`}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-app-text">
-                        {title}
-                        {!card.unlocked && <span className="sr-only"> — {t('achievements.locked')}</span>}
-                      </p>
-                      <p className="mt-0.5 text-sm text-app-muted">{t(`achievements.items.${card.key}.description`)}</p>
-                      {card.unlocked && card.unlockedAt && (
-                        <p className="mt-1 text-xs text-app-muted">
-                          {t('achievements.unlockedOn', { date: new Date(card.unlockedAt).toLocaleDateString(language) })}
-                        </p>
-                      )}
-                      {!card.unlocked && card.target > 1 && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <progress className="h-1.5 flex-1" max={card.target} value={card.progress} aria-label={title} />
-                          <span className="text-xs text-app-muted">{card.progress}/{card.target}</span>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        ))}
+    <div className="ach">
+      <div className="ach-summary" data-testid="achievements-summary">
+        <span className="ach-ring" style={{ '--p': share } as CSSProperties} aria-hidden="true"><b>{unlockedCount}</b></span>
+        <span>{t('achievements.summary', { unlocked: unlockedCount, total })}</span>
       </div>
+      {grouped.map((group, groupIndex) => (
+        <section key={group.category} aria-labelledby={`achievements-${group.category}`} className="ach-group">
+          <h3 id={`achievements-${group.category}`}>{t(`achievements.categories.${group.category}`)}</h3>
+          <ul className="ach-grid">
+            {group.items.map((card, index) => {
+              const title = t(`achievements.items.${card.key}.title`)
+              const art = achievementArt(card.key)
+              const Icon = achievementIcon(card.key)
+              return (
+                <li key={card.key} data-unlocked={card.unlocked} className={`ach-card${card.unlocked ? ' is-unlocked' : ''}`} style={{ '--i': groupIndex * 4 + index } as CSSProperties}>
+                  <span className="ach-art" aria-hidden="true">
+                    {art ? <>
+                      <img src={art} alt="" loading="lazy" decoding="async" width={160} height={200} />
+                      {card.unlocked && <span className="ach-sheen" style={{ WebkitMaskImage: `url(${art})`, maskImage: `url(${art})` }} />}
+                    </> : <Icon className="h-8 w-8" />}
+                    {!card.unlocked && <span className="ach-lock"><Lock size={14} /></span>}
+                  </span>
+                  <p className="ach-title">{title}{!card.unlocked && <span className="sr-only"> — {t('achievements.locked')}</span>}</p>
+                  <p className="ach-desc">{t(`achievements.items.${card.key}.description`)}</p>
+                  {card.unlocked && card.unlockedAt && <p className="ach-date">{new Date(card.unlockedAt).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
+                  {!card.unlocked && card.target > 1 && <span className="ach-progress" role="progressbar" aria-label={title} aria-valuemin={0} aria-valuemax={card.target} aria-valuenow={card.progress}>
+                    <i style={{ width: `${Math.min(100, (card.progress / card.target) * 100)}%` }} /><small>{card.progress}/{card.target}</small>
+                  </span>}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      ))}
     </div>
   )
 }

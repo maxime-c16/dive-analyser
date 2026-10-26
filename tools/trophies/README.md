@@ -120,3 +120,25 @@ plateau-franchi, face-a-la-peur.
 
 Compétition : podium-or, podium-argent, podium-bronze, meilleure-progression,
 plongeur-de-l-annee.
+
+## Trophées des succès de l'app
+
+`achievements.json` décrit un trophée par succès de l'app (`id` = clé du
+succès, cf. `frontend/src/components/achievements/achievementCatalog.ts`).
+Les images servies par l'app sont dans `frontend/public/achievements/<clé>.webp`
+(320 × 400, fond transparent, ~12 Ko) ; elles ne sont pas pré-cachées par le
+service worker et ne se chargent qu'à l'affichage.
+
+```bash
+python3 tools/trophies/build.py --catalog tools/trophies/achievements.json --out tools/trophies/out-ach \
+  --render --res 640 800 --samples 48 --transparent
+python3 - <<'PY'
+from pathlib import Path
+from PIL import Image
+for png in Path("tools/trophies/out-ach").glob("*/*.png"):
+    Image.open(png).resize((320, 400), Image.LANCZOS).save(f"frontend/public/achievements/{png.stem}.webp", quality=82, method=6)
+PY
+```
+
+Nouvelles formes d'emblème disponibles : `heart`, `bubble` (bulle de
+discussion), `camera`.

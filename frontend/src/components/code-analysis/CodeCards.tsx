@@ -24,18 +24,22 @@ function sortCodes(codes: CodeSummary[], sort: CodeSort) {
  * The card opens the code's analysis; its thumbnail and score chips open
  * the clip in the viewer, as before.
  */
-export default function CodeCards({ codes, sort, onSort, onOpenClip }: {
+export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: {
   codes: CodeSummary[]
   sort: CodeSort
   onSort: (sort: CodeSort) => void
   onOpenClip: (id: number) => void
+  /** Another member's diver: cards open that diver's read-only analysis, and back returns here. */
+  diverId?: number
 }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
   const navigate = useNavigate()
   const location = useLocation()
   const ordered = useMemo(() => sortCodes(codes, sort), [codes, sort])
-  const open = (code: string) => navigate(`/dives/analysis/${encodeURIComponent(code)}`, { state: { returnTo: `${location.pathname}${location.search}` } })
+  const open = (code: string) => diverId
+    ? navigate(`/dives/analysis/${encodeURIComponent(code)}?diver=${diverId}`, { state: { codeDiverOpened: true, fromProfile: true } })
+    : navigate(`/dives/analysis/${encodeURIComponent(code)}`, { state: { returnTo: `${location.pathname}${location.search}` } })
   const date = (value: string, pattern: string) => format(parseISO(value), pattern, { locale: appLocale() })
   return <div className="ca">
     <div className="ca-scroll" role="group" aria-label={t('codeAnalysis.sortAria')} style={{ marginBottom: 12 }}>

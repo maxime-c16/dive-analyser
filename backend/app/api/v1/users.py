@@ -123,13 +123,29 @@ def search_members(q: str = Query("", max_length=120), after: int = Query(0, ge=
         UserDiverAccess.access_kind == "OWNER",
         visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)),
     ).group_by(UserDiverAccess.user_id).all()}
+    # Accounts bound to one of my own divers (a second login, a test account)
+    # are "linked": Community sets them apart instead of listing them as peers.
+    own = owned_diver_ids(db, user.id)
+    linked = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
+        UserDiverAccess.user_id.in_([row.id for row in rows[:limit]]),
+        UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own),
+    ).all()} if own else set()
     items = []
     for row in rows[:limit]:
         count, latest = stats.get(row.id, (0, None))
         items.append(dict(**_identity(row), accessible_dive_count=count,
-                          latest_dive_at=latest.isoformat() + "Z" if latest else None))
+                          latest_dive_at=latest.isoformat() + "Z" if latest else None,
+                          linked=row.id in linked))
     return dict(items=items,
                 next_after=rows[limit - 1].id if len(rows) > limit else None)
+
+
+@router.get("/leaderboard")
+def community_leaderboard(period: Literal["week", "month"] = "week",
+                          user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Per-member activity, form and streaks for the Community rankings (dives visible to me)."""
+    from app.services.community_leaderboard import leaderboard
+    return leaderboard(db, visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)), period, datetime.now(), viewer_id=user.id)
 
 
 @router.put("/me/profile")
@@ -216,6 +232,26 @@ def get_avatar(user_id: int, user: AppUser = Depends(get_current_user), db: Sess
     return Response(avatar, media_type="image/jpeg", headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
+@router.get("/{user_id}/codes")
+def profile_codes(user_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Per-code summaries of a member's dives visible to me (same shape as /dives/library/codes) plus totals."""
+    from app.services.code_summaries import summarize_library_query
+    _active_user(db, user_id)
+    query = db.query(Dive).filter(
+        Dive.diver_id.in_(owned_diver_ids(db, user_id)), Dive.is_lineup.is_(False),
+        visible_dive_clause(owned_diver_ids(db, user.id), bool(user.is_admin)),
+    )
+    payload = summarize_library_query(db, query, datetime.now())
+    count, sessions, first, last = query.with_entities(
+        func.count(Dive.id), func.count(func.distinct(Dive.session_id)),
+        func.min(Dive.dive_datetime), func.max(Dive.dive_datetime),
+    ).one()
+    payload["totals"] = dict(attempt_count=count, session_count=sessions,
+                             first_attempt_at=first.isoformat() if first else None,
+                             last_attempt_at=last.isoformat() if last else None)
+    return payload
+
+
 @router.get("/{user_id}/dives")
 def profile_dives(user_id: int, before: str | None = None,
                   limit: int = Query(30, ge=1, le=60),
@@ -249,6 +285,8 @@ def profile_dives(user_id: int, before: str | None = None,
         db, uuid, entries.get(uuid, []), None,
     ) for uuid in uuids}
     return dict(items=[dict(id=row.id, dive_code=row.dive_code, height=row.height,
+                            performance=row.performance, phase1_performance=row.phase1_performance,
+                            phase2_performance=row.phase2_performance,
                             dive_datetime=(row.dive_datetime or row.created_at).isoformat() + "Z",
                             visibility=row.visibility,
                             poster_url=previews.get(row.video_uuid, {}).get("poster_url"),

@@ -145,7 +145,7 @@ describe("MemberProfile", () => {
     expect(screen.getByText(/Member since/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
     expect(screen.queryByText("diver")).not.toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole("tab", { name: "Activity" }));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Activity" }));
     expect(await screen.findByText("Great entry!")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /103B/ })[0]).toHaveAttribute("href", "/dives?clip=5&scope=all");
   });
@@ -158,8 +158,8 @@ describe("MemberProfile", () => {
       return fetchJson({ items: [], next_before: null });
     });
     renderAt("/users/9");
-    const tile = await screen.findByRole("link", { name: "Watch 301C · 1m" });
-    expect(tile).toHaveTextContent("301C · 1m");
+    const tile = await screen.findByRole("button", { name: /301C/ });
+    expect(tile).toHaveTextContent("301C");
     expect(screen.queryByText(/Diver:/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /SARA/ })).not.toBeInTheDocument();
   });
@@ -171,13 +171,15 @@ describe("MemberProfile", () => {
       if (url.includes("/users/9/dives")) return fetchJson({ items: [{ id: 42, dive_code: "105B", height: "3m", dive_datetime: "2026-10-08T12:00:00Z", visibility: "public", poster_url: "/poster.jpg" }], next_before: null });
       return fetchJson({ items: [], next_before: null });
     });
+    const user = userEvent.setup();
     renderAt("/users/9");
-    const tile = await screen.findByRole("link", { name: "Watch 105B · 3m" });
-    expect(tile).toHaveAttribute("href", "/dives?clip=42&scope=all");
-    expect(screen.getByRole("tab", { name: "Dives" })).toHaveAttribute("aria-selected", "true");
+    const tile = await screen.findByRole("button", { name: /105B/ });
+    expect(screen.getByRole("button", { name: "Dives" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("@bob_marlin")).toBeInTheDocument();
     expect(screen.getByText("Diving together")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument();
+    await user.click(tile);
+    expect(await screen.findByText("Library")).toBeInTheDocument();
   });
 
   it("opens the achievements tab from the toast link and lists what the member unlocked", async () => {
@@ -190,9 +192,9 @@ describe("MemberProfile", () => {
     const user = userEvent.setup();
     renderAt("/users/9?tab=achievements");
     expect(await screen.findByText("First comment")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
-    await user.click(screen.getByRole("tab", { name: "Dives" }));
-    expect(screen.queryByText("First comment")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Achievements" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Dives" }));
+    expect(screen.getByText("First comment")).not.toBeVisible();
   });
 
   it("switches to the achievements tab when a ?tab link is followed on the same profile", async () => {
@@ -211,10 +213,10 @@ describe("MemberProfile", () => {
       </I18nProvider>,
     );
     await screen.findByRole("heading", { name: "Bob Marlin" });
-    expect(screen.getByRole("tab", { name: "Dives" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Dives" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.setup().click(screen.getByRole("link", { name: "Go achievements" }));
     expect(await screen.findByText("First comment")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Achievements" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("lets the owner edit their bio and keeps the form after a handle conflict", async () => {

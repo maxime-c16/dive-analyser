@@ -1,74 +1,144 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, User } from 'lucide-react'
+import { formatDistanceToNowStrict, parseISO } from 'date-fns'
+import { ChevronRight, Search, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { searchMembers, type MemberSummary } from '../services/communityApi'
-import { appLanguage } from '../utils/dateLocale'
+import { appLocale } from '../utils/dateLocale'
 import MemberAvatar from '../components/MemberAvatar'
 import PageLoading from '../components/PageLoading'
+import Leaderboard from '../components/community/Leaderboard'
 import { MobileShellActions } from '../navigation/mobileShellActions'
+import '../components/code-analysis/codeAnalysis.css'
+import '../components/community/community.css'
+
+const RECENT_DAYS = 30
+const DAY_MS = 86_400_000
+
+/** All member pages, once: discovery needs the whole (small) directory to sort it into sections. */
+async function allMembers(signal: AbortSignal) {
+  const items: MemberSummary[] = []
+  let after: number | undefined
+  for (let page = 0; page < 20; page++) {
+    const result = await searchMembers('', after, signal)
+    items.push(...result.items)
+    if (!result.next_after) break
+    after = result.next_after
+  }
+  return items
+}
 
 export default function Community() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
-  const [members, setMembers] = useState<MemberSummary[]>([])
-  const [after, setAfter] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [directory, setDirectory] = useState<MemberSummary[] | null>(null)
+  const [results, setResults] = useState<MemberSummary[] | null>(null)
+  const [searchAfter, setSearchAfter] = useState<number | null>(null)
+  const [searchingMore, setSearchingMore] = useState(false)
   const [error, setError] = useState(false)
-  const generation = useRef(0)
   const [retry, setRetry] = useState(0)
+  const [showAll, setShowAll] = useState(false)
+  const generation = useRef(0)
 
   useEffect(() => {
+    const controller = new AbortController()
+    setError(false)
+    allMembers(controller.signal).then(setDirectory).catch(() => { if (!controller.signal.aborted) setError(true) })
+    return () => controller.abort()
+  }, [retry])
+
+  useEffect(() => {
+    if (!q) { setResults(null); setSearchAfter(null); return }
     const current = ++generation.current
     const controller = new AbortController()
-    setMembers([]); setAfter(null); setLoading(true); setError(false)
+    setResults(null); setSearchAfter(null); setSearchingMore(false)
     const timer = window.setTimeout(() => {
-      searchMembers(q, undefined, controller.signal).then(page => {
-        if (current !== generation.current) return
-        setMembers(page.items); setAfter(page.next_after)
-      }).catch(() => { if (!controller.signal.aborted) setError(true) })
-        .finally(() => { if (current === generation.current && !controller.signal.aborted) setLoading(false) })
-    }, 250)
-    return () => { controller.abort(); window.clearTimeout(timer); generation.current++ }
+      searchMembers(q, undefined, controller.signal).then(page => { if (current === generation.current) { setResults(page.items); setSearchAfter(page.next_after) } })
+        .catch(() => { if (!controller.signal.aborted) setError(true) })
+    }, 220)
+    return () => { controller.abort(); window.clearTimeout(timer) }
   }, [q, retry])
 
-  async function more() {
-    if (!after || loading) return
+  async function moreResults() {
+    if (!q || searchAfter == null || searchingMore) return
     const current = generation.current
-    setLoading(true); setError(false)
+    setSearchingMore(true); setError(false)
     try {
-      const page = await searchMembers(q, after)
+      const page = await searchMembers(q, searchAfter)
       if (current !== generation.current) return
-      setMembers(previous => [...previous, ...page.items]); setAfter(page.next_after)
+      setResults(previous => [...(previous ?? []), ...page.items])
+      setSearchAfter(page.next_after)
     } catch { if (current === generation.current) setError(true) }
-    finally { if (current === generation.current) setLoading(false) }
+    finally { if (current === generation.current) setSearchingMore(false) }
   }
 
-  return <div className="mx-auto max-w-4xl">
-    <header className="mb-4 flex items-center justify-between gap-3">
-      <h1 className="min-w-0 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">{t('community.title')}</h1>
+  const me = user?.user_id
+  // Peers only: never you, never accounts bound to your own diver.
+  const peers = useMemo(() => (directory ?? []).filter(member => member.user_id !== me && !member.linked), [directory, me])
+  const excluded = useMemo(() => new Set((directory ?? []).filter(member => member.linked && member.user_id !== me).map(member => member.user_id)), [directory, me])
+  const now = Date.now()
+  const lastAt = (member: MemberSummary) => member.latest_dive_at ? Date.parse(member.latest_dive_at) : 0
+  const divers = peers.filter(member => (member.accessible_dive_count ?? 0) > 0).sort((a, b) => lastAt(b) - lastAt(a))
+  const recent = divers.filter(member => now - lastAt(member) <= RECENT_DAYS * DAY_MS)
+  const others = peers.filter(member => !(member.accessible_dive_count ?? 0)).sort((a, b) => a.display_name.localeCompare(b.display_name))
+  const ago = (iso: string) => formatDistanceToNowStrict(parseISO(iso), { addSuffix: true, locale: appLocale() })
+
+  const row = (member: MemberSummary, index: number) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-row ca-pop" style={{ '--i': Math.min(index, 12) } as CSSProperties}>
+    <MemberAvatar member={member} size={48} />
+    <span className="cm-row-main">
+      <b>{member.display_name}{member.handle && <small> @{member.handle}</small>}</b>
+      <span>{(member.accessible_dive_count ?? 0) > 0
+        ? <>{t('community.sharedDives', { count: member.accessible_dive_count })}{member.latest_dive_at && <> · {ago(member.latest_dive_at)}</>}</>
+        : t('community.noSharedDives')}</span>
+    </span>
+    <ChevronRight size={18} className="cm-row-go" aria-hidden="true" />
+  </Link>
+
+  return <div className="ca cm-page">
+    <header className="cm-head">
+      <h1>{t('community.title')}</h1>
+      {user && <Link className="ca-pill cm-me-pill" to={`/users/${user.user_id}`}><User size={16} aria-hidden="true" />{t('community.myProfile')}</Link>}
       <MobileShellActions />
-      {user && <Link className="touch-target max-lg:hidden inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong" to={`/users/${user.user_id}`}><User className="h-4 w-4" aria-hidden />{t('community.myProfile')}</Link>}
     </header>
-    <label className="relative mb-4 block">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" aria-hidden />
+    <label className="cm-search">
+      <Search size={16} aria-hidden="true" />
       <span className="sr-only">{t('community.search')}</span>
-      <input type="search" maxLength={120} value={q} onChange={event => setParams(event.target.value ? { q: event.target.value } : {}, { replace: true })} placeholder={t('community.search')} className="app-input h-11 w-full !pl-10 pr-4 text-sm" />
+      <input type="search" maxLength={120} value={q} onChange={event => setParams(event.target.value ? { q: event.target.value } : {}, { replace: true })} placeholder={t('community.search')} />
     </label>
-    {error && <p role="alert" className="mb-4 text-red-400">{t('community.error')} <button className="underline" onClick={() => { if (after) void more(); else setRetry(value => value + 1) }}>{t('common.retry')}</button></p>}
-    <ul className="grid gap-2 sm:grid-cols-2">
-      {members.map(member => <li key={member.user_id}><Link to={`/users/${member.user_id}`} className="flex h-full items-center gap-3 border border-app bg-app-panel p-3 transition-colors hover:border-app-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent">
-        <MemberAvatar member={member} size={44} /><div className="min-w-0"><p className="truncate font-semibold text-app-text">{member.display_name}{member.handle && <span className="ml-2 text-sm font-normal text-app-accent">@{member.handle}</span>}</p>{member.accessible_dive_count !== undefined && <p className="mt-1 flex flex-wrap gap-x-2 text-sm text-app-muted">
-          <span>{member.accessible_dive_count > 0 ? t('community.sharedDives', { count: member.accessible_dive_count }) : t('community.noSharedDives')}</span>
-          {member.accessible_dive_count > 0 && member.latest_dive_at && <span>{t('community.latestDive')} <time dateTime={member.latest_dive_at}>{new Date(member.latest_dive_at).toLocaleDateString(appLanguage(), { day: 'numeric', month: 'short', year: 'numeric' })}</time></span>}
-        </p>}{member.bio && <p className="mt-0.5 line-clamp-1 break-words text-sm text-app-muted">{member.bio}</p>}</div>
-      </Link></li>)}
-    </ul>
-    {loading && members.length === 0 && <PageLoading />}
-    {!loading && !error && members.length === 0 && <p className="py-6 text-app-muted">{t('community.empty')}</p>}
-    {after && <button disabled={loading} onClick={() => void more()} className="touch-target mt-4 border border-app bg-app-panel px-4 text-sm font-medium text-app-text hover:border-app-strong disabled:opacity-50">{t('community.more')}</button>}
+    {error && <p role="alert" className="cm-alert">{t('community.error')} <button type="button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></p>}
+
+    {q ? <section className="cm-list" aria-label={t('community.results')}>
+      {results === null ? <PageLoading /> : results.length ? <>{results.map(row)}
+        {searchAfter != null && <button type="button" onClick={() => void moreResults()} disabled={searchingMore} className="ca-pill cm-more">{searchingMore ? t('common.loading') : t('community.more')}</button>}</>
+        : <p className="cm-empty">{t('community.empty')}</p>}
+    </section> : directory === null ? <PageLoading /> : <>
+      {recent.length > 0 && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
+        <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}</h2>
+        <div className="cm-stories">{recent.map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-story ca-pop" style={{ '--i': index } as CSSProperties}>
+          <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={60} /></span>
+          <b>{member.display_name}</b>
+          <small>{member.latest_dive_at && formatDistanceToNowStrict(parseISO(member.latest_dive_at), { locale: appLocale() })}</small>
+        </Link>)}</div>
+      </section>}
+
+      <Leaderboard excluded={excluded} me={me} />
+
+      {divers.length > 0 && <section className="cm-section" aria-labelledby="cm-divers">
+        <h2 id="cm-divers" className="cm-h2">{t('community.divers')}<span>{divers.length}</span></h2>
+        <div className="cm-list">{divers.map(row)}</div>
+      </section>}
+
+      {others.length > 0 && <section className="cm-section" aria-labelledby="cm-others">
+        <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}<span>{others.length}</span></h2>
+        <div className="cm-chips">{(showAll ? others : others.slice(0, 8)).map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-chip ca-pop" style={{ '--i': index } as CSSProperties}>
+          <MemberAvatar member={member} size={30} />{member.display_name}
+        </Link>)}
+          {others.length > 8 && !showAll && <button type="button" className="cm-chip cm-chip-more" onClick={() => setShowAll(true)}>+{others.length - 8}</button>}
+        </div>
+      </section>}
+    </>}
   </div>
 }

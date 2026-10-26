@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import ProfileDiveGrid from './ProfileDiveGrid'
 import { getProfileDives } from '../services/communityApi'
 
 vi.mock('../services/communityApi', () => ({ getProfileDives: vi.fn() }))
+
+function OpenedClip() { const location = useLocation(); return <p>{location.pathname + location.search}</p> }
 
 let intersect: IntersectionObserverCallback | undefined
 const disconnect = vi.fn()
@@ -23,8 +25,11 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals() })
 
 async function grid() {
-  const result = render(<MemoryRouter><ProfileDiveGrid userId={20} /></MemoryRouter>)
-  await screen.findByRole('link', { name: /102C/ })
+  const result = render(<MemoryRouter><Routes>
+    <Route path="/" element={<ProfileDiveGrid userId={20} />} />
+    <Route path="/dives" element={<OpenedClip />} />
+  </Routes></MemoryRouter>)
+  await screen.findByRole('button', { name: /102C/ })
   await waitFor(() => expect(intersect).toBeTypeOf('function'))
   return result
 }
@@ -39,7 +44,8 @@ it('never loads a B2 original from a tile, even near the viewport', async () => 
   // A B2 revision URL is not a renderable tile source: no grant, no
   // download, no black tile — the clip link stays usable.
   expect(container.querySelector('video')).toBeNull()
-  expect(screen.getByRole('link', { name: /102C/ })).toHaveAttribute('href', '/dives?clip=557&scope=all')
+  fireEvent.click(screen.getByRole('button', { name: /102C/ }))
+  expect(screen.getByText('/dives?clip=557&scope=all')).toBeInTheDocument()
 })
 
 it('renders the ready local web preview once the tile approaches the viewport', async () => {
@@ -55,7 +61,6 @@ it('renders the ready local web preview once the tile approaches the viewport', 
   expect(video.muted).toBe(true)
   expect(video.autoplay).toBe(false)
   expect(video).toHaveAttribute('playsinline')
-  expect(screen.getByRole('link', { name: /102C/ })).toHaveAttribute('href', '/dives?clip=557&scope=all')
 })
 
 it('uses the poster first and recovers with the ready web preview if its request fails', async () => {
@@ -78,5 +83,5 @@ it('keeps a usable clip link without submitting preparation work when no media e
   const { container } = await grid()
   visible()
   expect(container.querySelector('video, img')).toBeNull()
-  expect(screen.getByRole('link', { name: /102C/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /102C/ })).toBeInTheDocument()
 })

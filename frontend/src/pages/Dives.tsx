@@ -193,6 +193,8 @@ function DiveLibrary() {
     .filter(Boolean);
   const view = (searchParams.get("view") || "grid") as View;
   const clipParam = searchParams.get("clip") || "";
+  const clipRef = useRef(clipParam);
+  clipRef.current = clipParam;
   const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
   const pageParams = {
     limit: 100, diver_scope: scope,
@@ -271,7 +273,11 @@ function DiveLibrary() {
       .then(({ dives, divers, nextCursor }) => {
         if (active) {
           hasLoadedLibrary.current = true;
-          setDives(dives);
+          // A direct-link clip resolved while this refresh was in flight must survive it.
+          setDives(current => {
+            const pinned = current.find(dive => String(dive.id) === clipRef.current && !dives.some(item => item.id === dive.id));
+            return pinned ? [...dives, pinned] : dives;
+          });
           setDivers(divers);
           setNextCursor(nextCursor ?? null);
           setError(null);
