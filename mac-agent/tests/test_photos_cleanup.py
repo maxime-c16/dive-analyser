@@ -250,3 +250,32 @@ def test_corrupt_retry_timestamp_does_not_starve_valid_queue(cleanup):
                 {'attempts':0,'last_attempt':'corrupt'})
     worker.process_pending()
     assert library.removed==[LOCAL]
+
+
+@pytest.mark.parametrize('pending_count', [99, 100, 101])
+def test_queue_admission_respects_the_100_entry_boundary(cleanup, pending_count):
+    worker, library, *_ = cleanup
+    worker.queue.mkdir(parents=True)
+    for index in range(pending_count):
+        (worker.queue / f'fixture-{index}.json').write_text('{}')
+    if pending_count < 100:
+        worker.enqueue(VIDEO, LOCAL)
+        assert len(list(worker.queue.glob('*.json'))) == 100
+    else:
+        with pytest.raises(ValueError, match='cleanup_queue_full'):
+            worker.enqueue(VIDEO, LOCAL)
+        assert not (worker.queue / f'{VIDEO}.json').exists()
+    assert not library.removed
+
+
+def test_reenqueue_existing_clip_is_idempotent_at_capacity(cleanup):
+    worker, library, *_ = cleanup
+    worker.enqueue(VIDEO, LOCAL)
+    path = worker.queue / f'{VIDEO}.json'
+    original = path.read_bytes()
+    for index in range(99):
+        (worker.queue / f'fixture-{index}.json').write_text('{}')
+    worker.enqueue(VIDEO, LOCAL)
+    assert path.read_bytes() == original
+    assert len(list(worker.queue.glob('*.json'))) == 100
+    assert not library.removed

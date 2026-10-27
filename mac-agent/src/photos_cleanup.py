@@ -224,7 +224,7 @@ class PhotosCleanup:
         if not path.exists():
             if self.queue.exists():
                 pending = sum(1 for _ in zip(self.queue.glob("*.json"), range(MAX_PENDING + 1)))
-                if pending > MAX_PENDING:
+                if pending >= MAX_PENDING:
                     raise ValueError("cleanup_queue_full")
             atomic_json(path, {"request": request, "version": version,
                                "created_at": time.time(), "attempts": 0})
