@@ -142,8 +142,93 @@ def playlist(db, room, user, source, code=""):
             avg = peer_avg.get(dive_id)
             if avg is not None:
                 offsets.append(score - float(avg))
+    # Batch-fetch everything the loop below needs: room creation used to run
+    # media, asset, rating, shadow-rating and ownership lookups per candidate
+    # dive (up to 160 candidates). Ownership is loop-invariant; hoist it.
+    owned = owned_diver_ids(db, user.id)
+    candidates = query.order_by(Dive.id.desc()).limit(160).all()
+    uuids = [d.video_uuid for d in candidates]
+    dive_ids = [d.id for d in candidates]
+    by_uuid = {}
+    if uuids:
+        for video_uuid, entry in (
+            db.query(PhotosAsset.video_uuid, MediaCacheEntry)
+            .join(PhotosAsset, MediaCacheEntry.photos_asset_id == PhotosAsset.id)
+            .filter(
+                PhotosAsset.video_uuid.in_(uuids),
+                MediaCacheEntry.status == "ready",
+            )
+            .order_by(MediaCacheEntry.id.desc())
+            .all()
+        ):
+            by_uuid.setdefault(video_uuid, []).append(entry)
+    assets = {}
+    if uuids:
+        for a in (
+            db.query(PhotosAsset)
+            .filter(PhotosAsset.video_uuid.in_(uuids))
+            .order_by(PhotosAsset.id)
+            .all()
+        ):
+            assets.setdefault(a.video_uuid, a)
+    stored_auto: dict[int, list] = {}
+    if room.mode != "code" and dive_ids:
+        for r in (
+            db.query(AutomaticRating)
+            .filter(AutomaticRating.dive_id.in_(dive_ids))
+            .all()
+        ):
+            stored_auto.setdefault(r.dive_id, []).append((f"a{r.id}", r.score_half_steps))
+    stored_eval: dict[int, list] = {}
+    if room.mode != "code" and dive_ids:
+        for dive_id, r in (
+            db.query(EvaluationRequest.dive_id, EvaluationRating)
+            .join(EvaluationRequest, EvaluationRequest.id == EvaluationRating.request_id)
+            .filter(EvaluationRequest.dive_id.in_(dive_ids))
+            .all()
+        ):
+            stored_eval.setdefault(dive_id, []).append(
+                (f"e{r.id}", r.score_half_steps)
+            )
+    stored_room: dict[int, list] = {}
+    if room.mode != "code" and dive_ids:
+        for r in (
+            db.query(JudgeRoomRating)
+            .filter(JudgeRoomRating.dive_id.in_(dive_ids))
+            .all()
+        ):
+            stored_room.setdefault(r.dive_id, []).append((f"r{r.id}", r.score_half_steps))
+    shadow_auto: dict[int, object] = {}
+    shadow_eval: dict[int, object] = {}
+    if shadow_enabled and dive_ids:
+        for r in (
+            db.query(AutomaticRating)
+            .filter(
+                AutomaticRating.dive_id.in_(dive_ids),
+                AutomaticRating.evaluator_user_id == 1,
+            )
+            .all()
+        ):
+            shadow_auto.setdefault(r.dive_id, r)
+        for dive_id, r in (
+            db.query(EvaluationRequest.dive_id, EvaluationRating)
+            .join(EvaluationRequest, EvaluationRequest.id == EvaluationRating.request_id)
+            .filter(
+                EvaluationRequest.dive_id.in_(dive_ids),
+                EvaluationRating.evaluator_user_id == 1,
+            )
+            .all()
+        ):
+            shadow_eval.setdefault(dive_id, r)
+    divers = (
+        {d.id: d.display_name for d in db.query(Diver).filter(Diver.id.in_(
+            {d.diver_id for d in candidates}
+        )).all()}
+        if candidates
+        else {}
+    )
     result = []
-    for dive in query.order_by(Dive.id.desc()).limit(160):
+    for dive in candidates:
         choices = []
         if room.mode == "code":
             candidates = [
@@ -166,59 +251,32 @@ def playlist(db, room, user, source, code=""):
             rng = seeded(room.code, dive.id)
             choices = [dive.dive_code] + rng.sample(candidates, 3)
             rng.shuffle(choices)
-        entries = [e for e in media_entries(db, dive) if Path(e.storage_path).is_file()]
+        entries = [
+            e for e in by_uuid.get(dive.video_uuid, []) if Path(e.storage_path).is_file()
+        ]
         video = _web_preview_entry(entries)
         if video is None:
             continue
-        asset = db.query(PhotosAsset).filter_by(video_uuid=dive.video_uuid).first()
+        asset = assets.get(dive.video_uuid)
         stored = []
         if room.mode != "code":
-            stored = [
-                (f"a{r.id}", r.score_half_steps)
-                for r in db.query(AutomaticRating).filter_by(dive_id=dive.id)
-            ]
-            stored += [
-                (f"e{r.id}", r.score_half_steps)
-                for r in db.query(EvaluationRating)
-                .join(
-                    EvaluationRequest,
-                    EvaluationRequest.id == EvaluationRating.request_id,
-                )
-                .filter(EvaluationRequest.dive_id == dive.id)
-            ]
-            stored += [
-                (f"r{r.id}", r.score_half_steps)
-                for r in db.query(JudgeRoomRating).filter_by(dive_id=dive.id)
-            ]
-        shadow_rating = (
-            db.query(AutomaticRating)
-            .filter_by(dive_id=dive.id, evaluator_user_id=1)
-            .first()
-            if shadow_enabled
-            else None
-        )
-        if shadow_enabled and shadow_rating is None:
-            shadow_rating = (
-                db.query(EvaluationRating)
-                .join(
-                    EvaluationRequest,
-                    EvaluationRequest.id == EvaluationRating.request_id,
-                )
-                .filter(
-                    EvaluationRequest.dive_id == dive.id,
-                    EvaluationRating.evaluator_user_id == 1,
-                )
-                .first()
+            stored = (
+                stored_auto.get(dive.id, [])
+                + stored_eval.get(dive.id, [])
+                + stored_room.get(dive.id, [])
             )
+        shadow_rating = shadow_auto.get(dive.id) if shadow_enabled else None
+        if shadow_enabled and shadow_rating is None:
+            shadow_rating = shadow_eval.get(dive.id)
         result.append(
             dict(
                 choices=choices,
-                host_owned=dive.diver_id in owned_diver_ids(db, user.id),
+                host_owned=dive.diver_id in owned,
                 shadow_comment=shadow_rating.comment if shadow_rating else None,
                 shadow_score=shadow_rating.score_half_steps if shadow_rating else None,
                 shadow_offset=sum(offsets) / len(offsets) if offsets else 0,
                 id=dive.id,
-                diver_name=db.get(Diver, dive.diver_id).display_name,
+                diver_name=divers[dive.diver_id],
                 dive_code=dive.dive_code,
                 height=dive.height,
                 dd=float(dive.official_dd) if dive.official_dd else None,

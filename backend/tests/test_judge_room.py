@@ -580,3 +580,50 @@ def test_reveal_ends_when_every_connected_human_skips():
     r.advance(108)
     assert r.phase in ("loading", "results", "mole")
     assert r.skips == set() or r.phase != "loading"
+
+
+def test_shadow_playlist_offset_uses_grouped_peer_average(workspace):
+    from app.models.judge_room import JudgeShadowPreference
+    from app.models.matchmaking import AutomaticRating
+
+    db, login, dives, users, _ = workspace
+    db.add(JudgeShadowPreference(user_id=users["alice"].id, enabled=1))
+    rated = dives["alice-public"]
+    peers = {"bob": 10, "viewer": 12}
+    db.add(
+        AutomaticRating(
+            dive_id=rated,
+            evaluator_user_id=users["alice"].id,
+            score_half_steps=14,
+            dive_code="101B",
+            height="3m",
+            dive_name="n",
+            video_uuid="v",
+        )
+    )
+    for name, score in peers.items():
+        db.add(
+            AutomaticRating(
+                dive_id=rated,
+                evaluator_user_id=users[name].id,
+                score_half_steps=score,
+                dive_code="101B",
+                height="3m",
+                dive_name="n",
+                video_uuid="v",
+            )
+        )
+    db.commit()
+    # The shadow stands in for an absent user 1, so another member hosts.
+    state = login("bob").post("/api/v1/rooms", json={}).json()
+    assert state["code"] and "shadow" in [p["id"] for p in state["players"]]
+    # Shadow fields stay server-side (snapshots strip them); check the room.
+    from app.services.judge_room import rooms as live_rooms
+
+    room = live_rooms[state["code"]]
+    try:
+        entries = {d["id"]: d for d in room.playlist}
+        assert entries[rated]["shadow_score"] == 14
+        assert entries[rated]["shadow_offset"] == pytest.approx(14 - (10 + 12) / 2)
+    finally:
+        live_rooms.pop(state["code"], None)
