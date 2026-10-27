@@ -197,6 +197,7 @@ def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)
     path = request.url.path
     if (not get_settings().user_auth_enabled or path.startswith("/api/v1/auth/")
             or path.startswith("/api/v1/shared-dives/")
+            or path == "/api/v1/rooms" or path.startswith("/api/v1/rooms/")
             or path.startswith("/api/v1/deposits/claim/")
             or path.startswith("/api/v1/health") or _valid_machine_api_key(request)):
         yield

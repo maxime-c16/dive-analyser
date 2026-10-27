@@ -91,3 +91,6 @@ v1_router.include_router(calendar_admin.router, tags=["admin"])
 
 from app.api.v1 import dive_series
 v1_router.include_router(dive_series.router, tags=["dive-series"])
+
+from app.api.v1 import judge_rooms
+v1_router.include_router(judge_rooms.router, tags=["judge-rooms"])

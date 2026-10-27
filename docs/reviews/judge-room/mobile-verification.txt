@@ -1,0 +1,13 @@
+lobby-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+own shadow excluded true
+playlist via UI 201C 1
+ready gate loading 0 0
+playing from start { time: 0.02, duration: 10.928, fit: 'contain' }
+watching-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+scoring-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+reveal-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+mole-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+results-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+code-watching-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+code-scoring-fit [{"width":390,"height":844,"scroll":false,"outside":[],"rootBottom":844},{"width":320,"height":568,"scroll":false,"outside":[],"rootBottom":568}]
+PASS two browsers, ready gate, single full playback, post-video scoring, all screens fit

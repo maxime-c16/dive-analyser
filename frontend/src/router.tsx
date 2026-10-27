@@ -82,6 +82,7 @@ const loadMessages = () => import("./pages/Messages");
 const Messages = lazy(loadMessages);
 const loadCommunity = () => import("./pages/Community");
 const Community = lazy(loadCommunity);
+const JudgeRoom = lazy(() => import("./pages/JudgeRoom"));
 const loadMemberProfile = () => import("./pages/MemberProfile");
 const MemberProfile = lazy(loadMemberProfile);
 const loadEvaluations = () => import("./pages/Evaluations");
@@ -567,9 +568,17 @@ function CalendarGate() {
   return user?.features?.calendar === true ? <CalendarPage key={user.user_id} /> : <Navigate to="/dives" replace />;
 }
 
+function RoomEntry() {
+  const { checking } = useAuth();
+  if (checking) return <PageLoading fullscreen />;
+  const room = <Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense>;
+  return room;
+}
+
 function Router() {
   return (
     <Routes>
+      <Route path="/room/:code" element={<RoomEntry />} />
       <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
@@ -641,6 +650,7 @@ function Router() {
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:conversationId" element={<Messages />} />
                   <Route path="/community" element={<Community />} />
+                  <Route path="/room" element={<JudgeRoom />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/notifications" element={<Notifications />} />

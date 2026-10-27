@@ -1129,3 +1129,7 @@
 .eval-stage-root[data-watching='true'] .eval-stage-dock:empty { display: none; }
 .eval-stage-root[data-watching='true'][data-chrome-revealed='true'] .eval-player-controls { opacity: 1; pointer-events: auto; }
 .eval-player-controls button:disabled { opacity: 0.35; cursor: default; }
+
+/* Shared full-frame stage for synchronized Judge Room playback. */
+.eval-room-player, .eval-room-player video { width: 100%; height: 100%; background: #000; }
+.eval-room-player video { object-fit: contain; transform: none; }
