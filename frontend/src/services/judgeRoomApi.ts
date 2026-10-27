@@ -39,6 +39,7 @@ export type Room = {
   voted: string[];
   my_answer: string | null;
   has_ballot: boolean;
+  skipped: string[];
   my_score: number | null;
   is_mole: boolean;
   mole: string | null;

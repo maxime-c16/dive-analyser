@@ -578,7 +578,7 @@ function RoomEntry() {
 function Router() {
   return (
     <Routes>
-      <Route path="/room/:code?" element={<RoomEntry />} />
+      <Route path="/room/:code" element={<RoomEntry />} />
       <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
@@ -650,6 +650,7 @@ function Router() {
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:conversationId" element={<Messages />} />
                   <Route path="/community" element={<Community />} />
+                  <Route path="/room" element={<JudgeRoom />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/notifications" element={<Notifications />} />

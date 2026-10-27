@@ -1,6 +1,7 @@
 """Room-only capabilities. Public clips only; no workspace token is minted."""
 
 import json
+import logging
 import secrets
 import time
 from pathlib import Path
@@ -31,6 +32,7 @@ from app.api.v1.media import _serve_media_file, _web_preview_entry
 from app.services.signed_media import signed_url
 from fastapi.responses import RedirectResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/rooms")
 lock = RLock()
 
@@ -401,11 +403,7 @@ def act(
                 room.ballots = {}
                 room.mole = None
                 room.game_id = secrets.token_hex(16)
-                for p in room.players.values():
-                    p["points"] = 0
-                    p["streak"] = 0
-                    p["accurate"] = 0
-                    p["low"] = 0
+                room.reset_scores()
             elif room.phase != "lobby":
                 raise HTTPException(409, "Game already started")
             elif payload.action == "configure":
@@ -484,10 +482,57 @@ def act(
                 raise HTTPException(409, "Invalid ballot")
             room.ballots.setdefault(key, payload.suspect)
             tick(room, db)
+        elif payload.action == "next":
+            if room.phase != "reveal":
+                raise HTTPException(409, "Nothing to skip")
+            room.skips.add(key)
+            tick(room, db)
         else:
             raise HTTPException(422, "Unknown action")
         secure_headers(response)
         return room.snapshot(key, time.time())
+
+
+def light_redirect(db, dive):
+    """The Library's "Léger" derivative (720p short side) straight from B2.
+
+    Room membership was checked by the caller, so this signs the object
+    directly instead of going through the session-only revision route.
+    Any missing proof or provider error falls back to the cached preview.
+    """
+    from app.api.v1.media_playback import (
+        _flags_enabled,
+        _has_current_derivative_proof,
+        _resolve_verified_prod_location,
+    )
+    from app.models.media_backbone import MediaRevision
+    from app.services import b2_presign
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+
+    if not _flags_enabled() or not dive.video_uuid:
+        return None
+    try:
+        clip = safe_resolve_clip_derivatives(db, dive.video_uuid)
+        light = clip and clip.roles.get("light")
+        if light is None or light.state != "ready" or not light.playback_url:
+            return None
+        revision = db.get(MediaRevision, int(light.playback_url.split("/")[-2]))
+        if revision is None or not _has_current_derivative_proof(db, revision):
+            return None
+        location, _ = _resolve_verified_prod_location(db, revision)
+        if location is None:
+            return None
+        bucket, key, location_id = location.bucket, location.object_key, location.id
+        db.rollback()  # never hold a transaction over provider I/O
+        url = b2_presign.presign_get(
+            bucket=bucket, object_key=key, storage_location_id=location_id
+        ).url
+    except Exception:
+        logger.warning("Room light derivative unavailable", exc_info=True)
+        return None
+    response = RedirectResponse(url, status_code=302)
+    secure_headers(response)
+    return response
 
 
 def room_media_response(dive_id, kind, request, db):
@@ -496,6 +541,10 @@ def room_media_response(dive_id, kind, request, db):
     dive = db.get(Dive, dive_id)
     if dive is None or dive.visibility != "public":
         raise HTTPException(404, "Video no longer public")
+    if kind == "video" and request.query_params.get("q") != "preview":
+        light = light_redirect(db, dive)
+        if light is not None:
+            return light
     entries = [e for e in media_entries(db, dive) if Path(e.storage_path).is_file()]
     entry = (
         next((e for e in entries if e.rendition == "poster"), None)

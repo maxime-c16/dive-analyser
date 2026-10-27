@@ -512,3 +512,52 @@ def test_room_signatures_expire_soon_without_changing_library_ttl(
         )["expires"][0]
     )
     assert library - issued >= 3600
+
+
+def test_ghosts_earn_points_and_rank_with_humans():
+    r = room()
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.votes = {"u1": 12, "u2": 12}
+    r.advance(107)
+    assert r.phase == "reveal"
+    ghosts = r.ghost_seats()
+    assert ghosts and all(g["id"] in r.results[-1]["gains"] for g in ghosts)
+    assert any(g["points"] > 0 for g in ghosts)
+    assert {p["id"] for p in r.panel()} >= {g["id"] for g in ghosts}
+    r.reset_scores()
+    assert all(j["points"] == 0 for j in r.panel())
+
+
+def test_ghosts_answer_guess_the_code():
+    r = room("code")
+    r.connections = {"a": "u1"}
+    r.playlist[0].update(dive_code="101B", choices=["101B", "103B", "201B", "301B"])
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.votes = {"u1": "101B"}
+    r.answer_times = {"u1": 1}
+    r.advance(107)
+    answers = r.results[-1]["answers"]
+    assert {g["id"] for g in r.ghost_seats()} <= answers.keys()
+    assert all(a in r.playlist[0]["choices"] for a in answers.values())
+
+
+def test_reveal_ends_when_every_connected_human_skips():
+    r = room()
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.votes = {"u1": 12, "u2": 12}
+    r.advance(107)
+    r.skips = {"u1"}
+    r.advance(108)
+    assert r.phase == "reveal"
+    r.skips.add("u2")
+    r.advance(108)
+    assert r.phase in ("loading", "results", "mole")
+    assert r.skips == set() or r.phase != "loading"

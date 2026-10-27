@@ -69,6 +69,7 @@ export default function JudgeRoom() {
         .catch(() => {});
   }, [user]);
   const [nick, setNick] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [filter, setFilter] = useState("");
   const [score, setScore] = useState<number | null>(null);
   const [suspect, setSuspect] = useState<string | null>(null);
@@ -217,12 +218,79 @@ export default function JudgeRoom() {
   if (checking) return <div className="ca gm-page">{t("common.loading")}</div>;
   if (!code)
     return (
-      <div className="ca gm-page">
-        <h1>{t("room.title")}</h1>
+      <div className="ca gm-page gm-home">
+        <header className="cm-head">
+          <h1>{t("room.title")}</h1>
+          <MobileShellActions />
+        </header>
+        <section className="ca-panel gm-hero ca-arrive">
+          <ul className="gm-hero-seats" aria-hidden="true">
+            {user && (
+              <li className="is-me">
+                <MemberAvatar member={user} size={64} />
+              </li>
+            )}
+            {["🥰", "🧊", "👻", "🏅"].map((emoji, i) => (
+              <li key={emoji} className="ca-pop" style={{ "--i": i } as CSSProperties}>
+                <span className="gm-ghost">{emoji}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="gm-hero-modes" aria-hidden="true">
+            <span className="ca-fact">{t("room.classic")}</span>
+            <span className="ca-fact">{t("room.mole")}</span>
+            <span className="ca-fact">{t("room.guessCode")}</span>
+          </div>
+          <button
+            className="gm-cta"
+            disabled={busy || !user}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const r = await roomRequest("", {});
+                navigate("/room/" + r.code);
+              } catch {
+                setError(true);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Play size={18} />
+            {t("room.create")}
+          </button>
+        </section>
+        <form
+          className="gm-join-code"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const value = joinCode.trim().toUpperCase();
+            if (value) navigate("/room/" + value);
+          }}
+        >
+          <label className="cm-search">
+            <Link2 size={18} aria-hidden="true" />
+            <input
+              aria-label={t("room.joinCode")}
+              placeholder={t("room.joinCode")}
+              value={joinCode}
+              maxLength={8}
+              autoCapitalize="characters"
+              onChange={(e) => setJoinCode(e.target.value)}
+            />
+          </label>
+          <button className="ca-btn" disabled={!joinCode.trim()}>
+            {t("room.joinGo")}
+          </button>
+        </form>
         {user && (
-          <label>
+          <label className="ca-panel gm-switch-row">
+            <span className="gm-ghost">🌑</span>
+            <b>{t("room.shadow")}</b>
             <input
               type="checkbox"
+              role="switch"
+              className="gm-toggle"
               checked={shadow}
               onChange={async (e) => {
                 try {
@@ -236,27 +304,9 @@ export default function JudgeRoom() {
                 }
               }}
             />
-            {t("room.shadowOptIn")}
           </label>
         )}
-        {error && <p role="alert">{t("room.error")}</p>}
-        <button
-          className="gm-cta"
-          disabled={busy || !user}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const r = await roomRequest("", {});
-              navigate("/room/" + r.code);
-            } catch {
-              setError(true);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {t("room.create")}
-        </button>
+        {error && <p role="alert" className="cm-alert">{t("room.error")}</p>}
       </div>
     );
   return (
@@ -695,6 +745,17 @@ export default function JudgeRoom() {
                     <p className="gm-roast">{t("room.roast")}</p>
                   </>
                 )}
+                <button
+                  className="gm-cta gm-next"
+                  disabled={busy || room.skipped.includes(room.me)}
+                  onClick={() => void action({ action: "next" })}
+                >
+                  {room.skipped.includes(room.me)
+                    ? t("room.waiting")
+                    : room.index + 1 >= room.playlist.length
+                      ? t("room.toResults")
+                      : t("room.next")}
+                </button>
               </>
             )}
           </>
@@ -756,7 +817,6 @@ export default function JudgeRoom() {
           <section className="ca-panel">
             <ol className="cm-podium">
               {[...room.players]
-                .filter((p) => !p.emoji)
                 .sort((a, b) => b.points - a.points)
                 .slice(0, 3)
                 .map((p, i) => (
@@ -774,7 +834,6 @@ export default function JudgeRoom() {
           </section>
           <ol className="gm-ranking" start={4}>
             {[...room.players]
-              .filter((p) => !p.emoji)
               .sort((a, b) => b.points - a.points)
               .slice(3)
               .map((p) => (

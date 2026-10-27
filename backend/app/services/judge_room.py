@@ -11,6 +11,9 @@ from pathlib import Path
 import subprocess
 import math
 
+# Chance each ghost names the right code in Guess the Code.
+GHOST_CODE_SKILL = {"mum": 0.45, "coach": 0.6, "copy": 0.55, "olympian": 0.9, "shadow": 0.75}
+
 GHOSTS = [
     ("mum", "La Maman", "🥰", 3),
     ("coach", "Le Coach", "🧊", -2),
@@ -111,6 +114,7 @@ class Room:
     closes: float = 0
     votes: dict = field(default_factory=dict)
     ballots: dict = field(default_factory=dict)
+    skips: set = field(default_factory=set)
     answer_times: dict = field(default_factory=dict)
     results: list = field(default_factory=list)
     ghosts: list = field(default_factory=list)
@@ -120,12 +124,24 @@ class Room:
     game_id: str = field(default_factory=lambda: secrets.token_hex(16))
 
     def panel(self):
-        ghosts = self.ghosts or [
-            dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS
-        ]
+        if not self.ghosts:
+            self.ghosts = [dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS]
+        ghosts = self.ghosts
         # A shadow is a stand-in for an absent member, never their opponent.
         ghosts = [g for g in ghosts if g["id"] != "shadow" or "u1" not in self.players]
         return list(self.players.values()) + ghosts[: max(0, 5 - len(self.players))]
+
+    def ghost_seats(self):
+        return self.panel()[len(self.players) :]
+
+    def judge(self, key):
+        return self.players.get(key) or next(
+            g for g in self.ghost_seats() if g["id"] == key
+        )
+
+    def reset_scores(self):
+        for judge in list(self.players.values()) + self.ghosts:
+            judge.update(points=0, streak=0, accurate=0, low=0)
 
     def connected(self):
         return set(self.connections.values())
@@ -138,6 +154,7 @@ class Room:
         self.ended = set()
         self.votes = {}
         self.answer_times = {}
+        self.skips = set()
 
     def begin_video(self, now):
         self.phase = "watching"
@@ -185,34 +202,33 @@ class Room:
         dive = self.playlist[self.index]
         if self.mode == "code":
             correct = dive["dive_code"]
+            window = max(1, self.closes - self.scoring_starts)
+            answers, times = dict(self.votes), dict(self.answer_times)
+            rng = seeded(self.code, self.index)
+            for judge in self.ghost_seats():
+                # Ghosts answer like a player of their level would.
+                skill = GHOST_CODE_SKILL.get(judge["id"], 0.6)
+                wrong = [c for c in dive.get("choices", []) if c != correct]
+                answers[judge["id"]] = (
+                    correct if rng.random() < skill or not wrong else rng.choice(wrong)
+                )
+                times[judge["id"]] = window * rng.uniform(0.15, 0.8 - skill * 0.5)
             gains = {
                 key: (
-                    max(
-                        10,
-                        round(
-                            30
-                            - 20
-                            * min(
-                                1,
-                                self.answer_times[key]
-                                / max(1, self.closes - self.scoring_starts),
-                            )
-                        ),
-                    )
+                    max(10, round(30 - 20 * min(1, times[key] / window)))
                     if answer == correct
                     else 0
                 )
-                for key, answer in self.votes.items()
+                for key, answer in answers.items()
             }
             for key, gain in gains.items():
-                self.players[key]["points"] += gain
-                self.players[key]["accurate"] = self.players[key].get(
-                    "accurate", 0
-                ) + int(gain > 0)
+                judge = self.judge(key)
+                judge["points"] = judge.get("points", 0) + gain
+                judge["accurate"] = judge.get("accurate", 0) + int(gain > 0)
             self.results.append(
                 dict(
                     correct_code=correct,
-                    answers=dict(self.votes),
+                    answers=answers,
                     gains=gains,
                     scores={},
                     cuts={},
@@ -280,6 +296,18 @@ class Room:
             player["points"] += gain
             gains[key] = gain
         winner = max(self.votes, key=lambda k: gains[k], default=None)
+        # Ghosts are scored like everyone else, so players see where they rank.
+        for judge in self.ghost_seats():
+            score = scores.get(judge["id"])
+            if score is None:
+                continue
+            gain = points(score, target, judge.get("streak", 0))
+            close = target is not None and abs(score - target) <= 1
+            judge["streak"] = judge.get("streak", 0) + 1 if close else 0
+            judge["accurate"] = judge.get("accurate", 0) + int(close)
+            judge["low"] = judge.get("low", 0) + int(cuts.get(judge["id"]) == "low")
+            judge["points"] = judge.get("points", 0) + gain
+            gains[judge["id"]] = gain
         self.results.append(
             dict(
                 scores=scores,
@@ -306,7 +334,10 @@ class Room:
             or (self.connected() and self.connected() <= self.votes.keys())
         ):
             self.reveal(now)
-        elif self.phase == "reveal" and now >= self.closes:
+        elif self.phase == "reveal" and (
+            now >= self.closes
+            or (self.connected() and self.connected() <= self.skips)
+        ):
             self.index += 1
             if self.index < len(self.playlist):
                 self.start(now)
@@ -321,10 +352,10 @@ class Room:
                 player["points"] += (
                     30 if self.ballots.get(key, "missing") == self.mole else 0
                 )
-                if key == self.mole:
-                    player["points"] += 15 * sum(
-                        v != key for k, v in self.ballots.items() if k != key
-                    )
+            if self.mole is not None:
+                self.judge(self.mole)["points"] += 15 * sum(
+                    v != self.mole for k, v in self.ballots.items() if k != self.mole
+                )
             self.phase = "results"
 
     def snapshot(self, key, now):
@@ -376,6 +407,7 @@ class Room:
             my_score=self.votes.get(key) if self.mode != "code" else None,
             my_answer=self.votes.get(key) if self.mode == "code" else None,
             has_ballot=key in self.ballots,
+            skipped=sorted(self.skips),
             is_mole=key == self.mole
             and self.phase not in ("lobby", "results", "loading", "watching"),
             result=(
