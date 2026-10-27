@@ -7,11 +7,12 @@
  * it clears its draft and evaluation-scope media references.
  */
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvaluationDrawSize } from '../hooks/useEvaluationDrawSize'
 import { useAuth } from '../contexts/AuthContext'
 import { OwnedRequests, MyJudgements } from '../components/evaluation/EvaluationSpaces'
+import '../components/code-analysis/codeAnalysis.css'
 import '../components/evaluation/evaluations.css'
 import '../components/evaluation/evaluationA.css'
 import '../components/evaluation/evaluationHub.css'
@@ -59,6 +60,7 @@ export default function Evaluations() {
   return (
     <div className="evaluations-page" data-judging={judging ? 'true' : undefined}>
       <div className="evaluations-heading"><h1 className="evaluations-title">{t('evaluations.title')}</h1><MobileShellActions /></div>
+      <Link className="ca-btn" to="/room">{t("room.title")}</Link>
       <Tabs tab={tab} onTab={setTab} />
       <div key={tab} className="evaluations-body" role="tabpanel" id={`evaluations-panel-${tab}`} aria-labelledby={`evaluations-tab-${tab}`}>
         {tab === 'judge' && <JudgeHub key={user?.user_id ?? 'guest'} paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}

@@ -1,0 +1,11 @@
+{
+  "id": "judge-room",
+  "date": "2026-10-27",
+  "title": "Judge dives with friends",
+  "body": "Create a room, invite friends by link, and judge the same public dives together with ghost judges. Play Classic, uncover the mole, or guess the dive code.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

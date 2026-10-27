@@ -286,3 +286,19 @@ it('recovers a stalled preview download through the next ready rendition', async
     vi.unstubAllGlobals()
   }
 })
+
+it('keeps room playback on its scoped transport and starts at the server deadline', async () => {
+  vi.useFakeTimers()
+  const now = Date.now() / 1000
+  const { container, unmount } = render(<EvaluationPlayer roomMedia={{ src: '/api/v1/rooms/K7QX/media/1/video', poster: '/api/v1/rooms/K7QX/media/1/poster', startsAt: now + 3, serverOffset: 0 }} />)
+  const video = container.querySelector('video')!
+  expect(video.getAttribute('src')).toBe('/api/v1/rooms/K7QX/media/1/video')
+  expect(getEvaluationMediaStatus).not.toHaveBeenCalled()
+  expect(prepareEvaluationMedia).not.toHaveBeenCalled()
+  await act(async () => { vi.advanceTimersByTime(2999) })
+  expect(video.play).not.toHaveBeenCalled()
+  await act(async () => { vi.advanceTimersByTime(1) })
+  expect(video.play).toHaveBeenCalledTimes(1)
+  unmount()
+  vi.useRealTimers()
+})

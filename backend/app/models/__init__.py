@@ -153,3 +153,5 @@ from app.models.calendar import (
 )
 
 from app.models.dive_series import DiveSeries
+
+from app.models.judge_room import JudgeRoomResult, JudgeRoomRating, JudgeShadowPreference
