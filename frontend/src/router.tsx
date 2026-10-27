@@ -82,6 +82,7 @@ const loadMessages = () => import("./pages/Messages");
 const Messages = lazy(loadMessages);
 const loadCommunity = () => import("./pages/Community");
 const Community = lazy(loadCommunity);
+const GameMockup = lazy(() => import("./pages/GameMockup"));
 const loadMemberProfile = () => import("./pages/MemberProfile");
 const MemberProfile = lazy(loadMemberProfile);
 const loadEvaluations = () => import("./pages/Evaluations");
@@ -641,6 +642,7 @@ function Router() {
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:conversationId" element={<Messages />} />
                   <Route path="/community" element={<Community />} />
+                  <Route path="/game-mockup" element={<GameMockup />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/notifications" element={<Notifications />} />
