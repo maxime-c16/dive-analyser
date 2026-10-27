@@ -30,6 +30,9 @@ export type Room = {
   players: Player[];
   playlist: Dive[];
   index: number;
+  game_id: string;
+  ready: string[];
+  scoring_starts: number;
   starts: number;
   closes: number;
   server_time: number;

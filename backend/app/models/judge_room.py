@@ -36,7 +36,9 @@ class JudgeRoomRating(Base):
     dive_code = Column(String(10), nullable=False)
     height = Column(String(5), nullable=False)
     __table_args__ = (
-        CheckConstraint("score_half_steps BETWEEN 0 AND 20"),
+        CheckConstraint(
+            "score_half_steps BETWEEN 0 AND 20", name="ck_judge_room_rating_score"
+        ),
         UniqueConstraint("room_id", "dive_id", "player_id"),
         {"info": {"sql_migration_only": True}},
     )

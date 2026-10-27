@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS judge_room_ratings (
  id SERIAL PRIMARY KEY, room_id VARCHAR(32) NOT NULL REFERENCES judge_room_results(id),
  dive_id INTEGER NOT NULL REFERENCES dives(id) ON DELETE CASCADE,
  player_id VARCHAR(64) NOT NULL, user_id INTEGER REFERENCES app_users(id), nickname VARCHAR(40) NOT NULL,
- score_half_steps INTEGER NOT NULL CHECK(score_half_steps BETWEEN 0 AND 20),
+ score_half_steps INTEGER NOT NULL CONSTRAINT ck_judge_room_rating_score CHECK(score_half_steps BETWEEN 0 AND 20),
  dive_code VARCHAR(10) NOT NULL, height VARCHAR(5) NOT NULL,
  UNIQUE(room_id, dive_id, player_id)
 );

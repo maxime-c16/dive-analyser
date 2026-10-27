@@ -569,10 +569,10 @@ function CalendarGate() {
 }
 
 function RoomEntry() {
-  const { user, checking } = useAuth();
+  const { checking } = useAuth();
   if (checking) return <PageLoading fullscreen />;
   const room = <Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense>;
-  return user ? <WhatsNewProvider><NotificationsProvider><MessagesUnreadProvider><Layout>{room}</Layout></MessagesUnreadProvider></NotificationsProvider></WhatsNewProvider> : room;
+  return room;
 }
 
 function Router() {

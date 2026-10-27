@@ -6,6 +6,10 @@ import random
 import secrets
 import time
 from statistics import mean
+from functools import lru_cache
+from pathlib import Path
+import subprocess
+import math
 
 GHOSTS = [
     ("mum", "La Maman", "🥰", 3),
@@ -13,6 +17,42 @@ GHOSTS = [
     ("copy", "Le Copieur", "👻", 0),
     ("olympian", "L’Ex-Olympien", "🏅", 0),
 ]
+
+
+@lru_cache(maxsize=512)
+def _file_duration(path, modified_ns, size):
+    try:
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=True,
+        )
+        duration = float(probe.stdout.strip())
+        return duration if math.isfinite(duration) and duration > 0 else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def playback_duration(path, fallback):
+    """Use the served clip's duration; old asset/cache metadata can be stale."""
+    file = Path(path)
+    stat = file.stat()
+    return _file_duration(str(file), stat.st_mtime_ns, stat.st_size) or max(
+        1, float(fallback or 10)
+    )
 
 
 def truth(stored, humans, exclude=None):
@@ -61,6 +101,12 @@ class Room:
     source: str = "community"
     phase: str = "lobby"
     index: int = 0
+    connections: dict = field(default_factory=dict)
+    ready: set = field(default_factory=set)
+    ended: set = field(default_factory=set)
+    load_deadline: float = 0
+    video_ends: float = 0
+    scoring_starts: float = 0
     starts: float = 0
     closes: float = 0
     votes: dict = field(default_factory=dict)
@@ -74,20 +120,58 @@ class Room:
     game_id: str = field(default_factory=lambda: secrets.token_hex(16))
 
     def panel(self):
-        return (
-            list(self.players.values())
-            + (
-                self.ghosts
-                or [dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS]
-            )[: max(0, 5 - len(self.players))]
-        )
+        ghosts = self.ghosts or [
+            dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS
+        ]
+        # A shadow is a stand-in for an absent member, never their opponent.
+        ghosts = [g for g in ghosts if g["id"] != "shadow" or "u1" not in self.players]
+        return list(self.players.values()) + ghosts[: max(0, 5 - len(self.players))]
+
+    def connected(self):
+        return set(self.connections.values())
 
     def start(self, now):
-        self.phase = "judge"
-        self.starts = now + 3
-        self.closes = self.starts + self.playlist[self.index]["duration"] + 5
+        self.phase = "loading"
+        self.starts = self.closes = self.video_ends = self.scoring_starts = 0
+        self.load_deadline = now + 15
+        self.ready = set()
+        self.ended = set()
         self.votes = {}
         self.answer_times = {}
+
+    def begin_video(self, now):
+        self.phase = "watching"
+        self.starts = now + 1
+        self.video_ends = self.starts + self.playlist[self.index]["duration"]
+
+    def begin_scoring(self, ended_at):
+        self.phase = "judge"
+        self.scoring_starts = ended_at
+        self.closes = ended_at + 10
+
+    def signal(self, key, kind, index, game_id, now):
+        if index != self.index or game_id != self.game_id or key not in self.players:
+            return
+        if kind == "ready" and self.phase == "loading":
+            self.ready.add(key)
+        elif (
+            kind == "ended"
+            and self.phase in ("watching", "judge")
+            and key not in self.ended
+            and now >= self.starts + 1
+        ):
+            self.ended.add(key)
+            connected = self.connected()
+            if connected and connected <= self.ended:
+                # A native ended event corrects small buffering/metadata drift.
+                shift = (
+                    max(0, now - self.scoring_starts) if self.phase == "judge" else 0
+                )
+                self.answer_times = {
+                    k: max(0, v - shift) for k, v in self.answer_times.items()
+                }
+                self.begin_scoring(now)
+        self.advance(now)
 
     def assign_mole(self):
         rng = seeded(self.code)
@@ -111,7 +195,7 @@ class Room:
                             * min(
                                 1,
                                 self.answer_times[key]
-                                / max(1, self.closes - self.starts),
+                                / max(1, self.closes - self.scoring_starts),
                             )
                         ),
                     )
@@ -211,7 +295,13 @@ class Room:
         self.closes = now + 9
 
     def advance(self, now):
-        if self.phase == "judge" and now >= self.closes:
+        if self.phase == "loading":
+            connected = self.connected()
+            if (connected and connected <= self.ready) or now >= self.load_deadline:
+                self.begin_video(now)
+        elif self.phase == "watching" and now >= self.video_ends:
+            self.begin_scoring(self.video_ends)
+        elif self.phase == "judge" and now >= self.closes:
             self.reveal(now)
         elif self.phase == "reveal" and now >= self.closes:
             self.index += 1
@@ -264,6 +354,11 @@ class Room:
                 for d in self.playlist
             ],
             index=self.index,
+            game_id=self.game_id,
+            ready=list(self.ready),
+            load_deadline=self.load_deadline,
+            video_ends=self.video_ends,
+            scoring_starts=self.scoring_starts,
             starts=self.starts,
             closes=self.closes,
             server_time=now,
@@ -271,13 +366,19 @@ class Room:
             + [
                 p["id"]
                 for i, p in enumerate(self.panel()[len(self.players) :])
-                if now > self.starts + 2 + i
+                if self.phase in ("judge", "reveal")
+                and now > self.scoring_starts + 2 + i
             ],
             my_score=self.votes.get(key) if self.mode != "code" else None,
             my_answer=self.votes.get(key) if self.mode == "code" else None,
             has_ballot=key in self.ballots,
-            is_mole=key == self.mole and self.phase not in ("lobby", "results"),
-            result=self.results[-1] if self.results and self.phase != "judge" else None,
+            is_mole=key == self.mole
+            and self.phase not in ("lobby", "results", "loading", "watching"),
+            result=(
+                self.results[-1]
+                if self.results and self.phase not in ("loading", "watching", "judge")
+                else None
+            ),
             mole=self.mole if self.phase == "results" else None,
         )
 

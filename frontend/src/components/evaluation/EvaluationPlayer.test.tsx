@@ -302,3 +302,29 @@ it('keeps room playback on its scoped transport and starts at the server deadlin
   unmount()
   vi.useRealTimers()
 })
+
+it('reports room readiness without starting playback while the server is loading', async () => {
+  vi.useFakeTimers()
+  const onRoomReady = vi.fn(), onEnded = vi.fn()
+  const media = { src: '/api/v1/rooms/ABCD/media/1/video', poster: '', startsAt: 0, serverOffset: 0 }
+  const { container, rerender, unmount } = render(<EvaluationPlayer roomMedia={media} onRoomReady={onRoomReady} onEnded={onEnded} />)
+  const video = container.querySelector('video')!
+  fireEvent.canPlayThrough(video)
+  expect(onRoomReady).toHaveBeenCalledTimes(1)
+  await act(async () => { vi.advanceTimersByTime(15000) })
+  expect(video.play).not.toHaveBeenCalled()
+  Object.defineProperty(video, 'duration', { configurable: true, value: 60 })
+  rerender(<EvaluationPlayer roomMedia={{ ...media, startsAt: Date.now()/1000 - 30 }} onEnded={onEnded} />)
+  fireEvent.loadedMetadata(video)
+  await act(async () => { vi.advanceTimersByTime(1) })
+  expect(video.currentTime).toBe(0)
+  expect(video.play).toHaveBeenCalledTimes(1)
+  fireEvent.ended(video)
+  expect(onEnded).toHaveBeenCalledTimes(1)
+  // Clock snapshots do not replay or seek the same video.
+  rerender(<EvaluationPlayer roomMedia={{ ...media, startsAt: Date.now()/1000 - 30, serverOffset: 2 }} />)
+  await act(async () => { vi.advanceTimersByTime(1) })
+  expect(video.play).toHaveBeenCalledTimes(1)
+  unmount()
+  vi.useRealTimers()
+})

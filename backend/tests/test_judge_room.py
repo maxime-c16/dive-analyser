@@ -1,6 +1,6 @@
 import pytest
 from fastapi import HTTPException
-from app.services.judge_room import Room, ghost_scores, points, truth
+from app.services.judge_room import Room, GHOSTS, ghost_scores, points, truth
 from app.api.v1.judge_rooms import player_for
 from types import SimpleNamespace
 
@@ -17,18 +17,72 @@ def room(mode="classic"):
 
 def test_lifecycle_and_deadlines():
     r = room()
+    r.connections = {"a": "u1", "b": "u2"}
     r.start(100)
-    assert r.starts == 103 and r.closes == 112
+    assert r.phase == "loading" and r.starts == r.closes == 0
+    r.signal("u1", "ready", 0, r.game_id, 101)
+    assert r.phase == "loading"
+    r.signal("u2", "ready", 0, r.game_id, 102)
+    assert r.phase == "watching" and r.starts == 103 and r.closes == 0
+    r.advance(106)
+    assert r.phase == "watching"
+    r.advance(107)
+    assert r.phase == "judge" and r.closes == 117
     r.votes = {"u1": 12, "u2": 10}
-    r.advance(111)
+    r.advance(116)
     assert r.phase == "judge"
-    r.advance(112)
+    r.advance(117)
     assert r.phase == "reveal"
-    assert len(r.results[0]["scores"]) == 5
-    assert len(r.results[0]["cuts"]) == 2
-    r.advance(121)
+    assert len(r.results[0]["scores"]) == 5 and len(r.results[0]["cuts"]) == 2
+    r.advance(126)
     assert r.phase == "results"
     assert r.players["u1"]["points"] > 0
+
+
+def test_ready_timeout_disconnect_and_stale_signals():
+    r = room()
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    r.signal("u1", "ready", 1, r.game_id, 101)
+    r.signal("u1", "ready", 0, "old-game", 101)
+    assert not r.ready
+    r.signal("u1", "ready", 0, r.game_id, 102)
+    r.advance(114.9)
+    assert r.phase == "loading"
+    r.advance(115)
+    assert r.phase == "watching" and r.starts == 116
+    r = room()
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    r.signal("u1", "ready", 0, r.game_id, 101)
+    del r.connections["b"]
+    r.advance(102)
+    assert r.phase == "watching"
+
+
+def test_client_ended_opens_ten_seconds_only_after_every_connected_viewer():
+    r = room()
+    r.playlist[0]["duration"] = 30
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    for key in ("u1", "u2"):
+        r.signal(key, "ready", 0, r.game_id, 101)
+    r.signal("u1", "ended", 0, r.game_id, 102)
+    assert r.phase == "watching" and r.closes == 0
+    r.signal("u1", "ended", 0, r.game_id, 106)
+    assert r.phase == "watching"
+    r.signal("u2", "ended", 0, r.game_id, 107)
+    assert r.phase == "judge" and r.scoring_starts == 107 and r.closes == 117
+
+
+def test_no_players_own_shadow_on_panel():
+    r = room()
+    r.ghosts = [dict(id="shadow", name="Maxime", emoji="🌑", points=0)] + [
+        dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS
+    ]
+    assert "shadow" not in [p["id"] for p in r.panel()]
+    del r.players["u1"]
+    assert "shadow" in [p["id"] for p in r.panel()]
 
 
 def test_ghost_determinism():
@@ -141,7 +195,9 @@ def test_api_guest_scope_persistence_and_visibility(workspace, monkeypatch):
     client.cookies.update(host_cookies)
     assert client.post(prefix + "/actions", json={"action": "start"}).status_code == 200
     room = rooms[code]
-    monkeypatch.setattr("app.api.v1.judge_rooms.time.time", lambda: room.starts + 1)
+    room.begin_video(100)
+    room.begin_scoring(105)
+    monkeypatch.setattr("app.api.v1.judge_rooms.time.time", lambda: 106)
     assert (
         client.post(
             prefix + "/actions", json={"action": "score", "score": 13}
@@ -227,6 +283,8 @@ def test_guess_code_hides_identity_and_awards_speed_without_ratings():
         )
     ]
     r.start(100)
+    r.begin_video(100)
+    r.begin_scoring(105)
     state = r.snapshot("u1", 104)
     assert state["playlist"][0]["diver_name"] == "Alice"
     assert state["playlist"][0]["dive_code"] is None
@@ -279,7 +337,9 @@ def test_guess_api_rejects_rating_and_unknown_choices(workspace, monkeypatch):
         ).status_code
         == 200
     )
-    monkeypatch.setattr("app.api.v1.judge_rooms.time.time", lambda: r.starts + 1)
+    r.begin_video(100)
+    r.begin_scoring(105)
+    monkeypatch.setattr("app.api.v1.judge_rooms.time.time", lambda: 106)
     assert (
         client.post(
             f"/api/v1/rooms/{code}/actions", json={"action": "score", "score": 10}
@@ -328,3 +388,29 @@ def test_websocket_rejoins_with_room_capability(workspace, monkeypatch):
         with client.websocket_connect(f"/api/v1/rooms/{code}/live"):
             pass
     rooms.pop(code)
+
+
+def test_native_end_corrects_metadata_drift_without_resetting_answer_speed():
+    r = room("code")
+    r.connections = {"a": "u1", "b": "u2"}
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.answer_times = {"u1": 1}
+    r.signal("u1", "ended", 0, r.game_id, 107)
+    r.signal("u2", "ended", 0, r.game_id, 107.2)
+    assert r.scoring_starts == 107.2 and r.closes == 117.2
+    assert r.answer_times["u1"] == 0
+    r.signal("u2", "ended", 0, r.game_id, 109)
+    assert r.closes == 117.2
+
+
+def test_playback_duration_prefers_verified_file_duration(tmp_path, monkeypatch):
+    from app.services import judge_room
+
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake")
+    monkeypatch.setattr(
+        judge_room.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout="10.928")
+    )
+    assert judge_room.playback_duration(path, 3) == 10.928

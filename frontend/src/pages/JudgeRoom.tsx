@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, Crown, Link2, Play, Timer } from "lucide-react";
@@ -59,9 +65,33 @@ export default function JudgeRoom() {
   const [copied, setCopied] = useState(false);
   const [clock, setClock] = useState(Date.now() / 1000);
   const offset = useRef(0);
+  const channel = useRef<WebSocket | null>(null);
+  const sentReady = useRef("");
+  const current = useRef<Room | null>(null);
+  const readyDives = useRef(new Set<number>());
+  const [endedDive, setEndedDive] = useState<string | null>(null);
+  const signal = useCallback((type: "ready" | "ended") => {
+    const state = current.current;
+    if (!state || channel.current?.readyState !== WebSocket.OPEN) return;
+    if (type === "ready") {
+      const round = `${state.game_id}:${state.index}`;
+      if (state.phase !== "loading" || sentReady.current === round) return;
+      sentReady.current = round;
+    }
+    channel.current.send(
+      JSON.stringify({ type, index: state.index, game_id: state.game_id }),
+    );
+  }, []);
   const accept = (next: Room) => {
     offset.current = next.server_time - Date.now() / 1000;
+    if (current.current?.game_id !== next.game_id) readyDives.current.clear();
+    current.current = next;
     setRoom(next);
+    if (
+      next.phase === "loading" &&
+      readyDives.current.has(next.playlist[next.index]?.id)
+    )
+      signal("ready");
     setError(false);
   };
   useEffect(() => {
@@ -95,6 +125,8 @@ export default function JudgeRoom() {
       socket = new WebSocket(
         `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/v1/rooms/${code}/live`,
       );
+      sentReady.current = "";
+      channel.current = socket;
       socket.onmessage = (e) => {
         if (active) accept(JSON.parse(e.data));
       };
@@ -106,6 +138,7 @@ export default function JudgeRoom() {
     return () => {
       active = false;
       clearTimeout(retry);
+      channel.current = null;
       socket?.close();
     };
   }, [code, joined]);
@@ -121,6 +154,12 @@ export default function JudgeRoom() {
     setSuspect(null);
   }, [room?.index, room?.phase]);
   const dive = room?.playlist[Math.min(room.index, room.playlist.length - 1)];
+  const roundKey = room ? `${room.game_id}:${room.index}` : "";
+  const scoring = room?.phase === "judge" && endedDive === roundKey;
+  const watching =
+    room && ["loading", "watching", "judge"].includes(room.phase) && !scoring;
+  const mediaActive =
+    room && ["loading", "watching", "judge", "reveal"].includes(room.phase);
   const action = async (payload: unknown) => {
     if (busy) return;
     setBusy(true);
@@ -210,7 +249,9 @@ export default function JudgeRoom() {
       </div>
     );
   return (
-    <div className="ca gm-page">
+    <div
+      className={`ca gm-page gm-phase-${room?.phase ?? "join"}${watching ? " gm-watching" : ""}${scoring ? " gm-scoring" : ""}`}
+    >
       {error && (
         <p role="alert" className="eval-error">
           {t("room.error")}
@@ -235,13 +276,13 @@ export default function JudgeRoom() {
           <h1>{t("room.invite", { name: invite?.host ?? code })}</h1>
           <div className="gm-facts">
             <span className="ca-fact">
-              {invite?.dives} {t("room.dives")}
+              {t("room.diveCount", { count: invite?.dives ?? 0 })}
             </span>
             <span className="ca-fact">
               {t("room." + (invite?.mode ?? "classic"))}
             </span>
             <span className="ca-fact">
-              {invite?.count} {t("room.player")}
+              {t("room.playerCount", { count: invite?.count ?? 0 })}
             </span>
           </div>
           <label className="cm-search gm-nick">
@@ -260,7 +301,11 @@ export default function JudgeRoom() {
           >
             {t("room.join")}
           </button>
-          <Link className="gm-link" to="/login" state={{ from: "/room/" + code }}>
+          <Link
+            className="gm-link"
+            to="/login"
+            state={{ from: "/room/" + code }}
+          >
             {t("room.account")}
           </Link>
         </section>
@@ -285,8 +330,13 @@ export default function JudgeRoom() {
             <div className="ca-panel-h">
               <h2>{t("room.jury")}</h2>
               <span>
-                {room.players.filter((p) => !p.emoji).length} ·{" "}
-                {room.players.filter((p) => p.emoji).length} {t("room.ghost")}
+                {t("room.playerCount", {
+                  count: room.players.filter((p) => !p.emoji).length,
+                })}{" "}
+                ·{" "}
+                {t("room.ghostCount", {
+                  count: room.players.filter((p) => p.emoji).length,
+                })}
               </span>
             </div>
             <ul className="gm-seats">
@@ -378,205 +428,232 @@ export default function JudgeRoom() {
           )}
         </>
       )}
-      {room && ["judge", "reveal"].includes(room.phase) && dive && (
-        <>
-          <div className="gm-bar">
-            <span className="ca-fact">
-              {room.index + 1} / {room.playlist.length}
-            </span>
-            <span className="gm-dots">
-              {room.playlist.map((d, i) => (
-                <i
-                  key={d.id}
-                  className={
-                    i < room.index
-                      ? "is-done"
-                      : i === room.index
-                        ? "is-now"
-                        : ""
-                  }
-                />
-              ))}
-            </span>
-            <span className="gm-timer">
-              <Timer size={14} />
-              {Math.max(0, Math.ceil(room.closes - clock))}
-            </span>
-          </div>
-          {room.is_mole && <p className="gm-roast">{t("room.secret")}</p>}
-          {room.phase === "judge" && (
-            <>
-              <figure className="gm-video">
-                <EvaluationPlayer
-                  roomMedia={{
-                    src: dive.playback_url,
-                    poster: dive.poster_url,
-                    startsAt: room.starts,
-                    serverOffset: offset.current,
-                  }}
-                />
-                <span className="gm-diver">
-                  <MemberAvatar
-                    member={{ display_name: dive.diver_name }}
-                    size={26}
-                  />
-                  <b>{dive.diver_name}</b>
+      {room &&
+        ["loading", "watching", "judge", "reveal"].includes(room.phase) &&
+        dive && (
+          <>
+            {!watching && (
+              <div className="gm-bar">
+                <span className="ca-fact">
+                  {room.index + 1} / {room.playlist.length}
                 </span>
-                {room.mode !== "code" && (
-                  <figcaption>
-                    <b>{dive.dive_code}</b>
-                    <span>
-                      {dive.height} · DD {dive.dd ?? "—"}
-                    </span>
-                  </figcaption>
-                )}
-              </figure>
-              <ul className="gm-status">
-                {room.players.map((p) => (
-                  <li
-                    key={p.id}
-                    className={room.voted.includes(p.id) ? "is-in" : ""}
-                  >
-                    <Seat player={p} size={34} />
-                    {room.voted.includes(p.id) && <Check size={12} />}
-                  </li>
-                ))}
-              </ul>
-              {room.mode === "code" ? (
-                <div className="gm-choices">
-                  {dive.choices.map((c) => (
-                    <button
-                      key={c}
-                      disabled={
-                        busy ||
-                        room.my_answer !== null ||
-                        clock < room.starts ||
-                        clock >= room.closes
+                <span className="gm-dots">
+                  {room.playlist.map((d, i) => (
+                    <i
+                      key={d.id}
+                      className={
+                        i < room.index
+                          ? "is-done"
+                          : i === room.index
+                            ? "is-now"
+                            : ""
                       }
-                      aria-pressed={room.my_answer === c}
-                      onClick={() =>
-                        void action({ action: "answer", choice: c })
-                      }
-                    >
-                      {c}
-                    </button>
+                    />
                   ))}
-                </div>
-              ) : (
-                <>
-                  <ScoreInput
-                    score={room.my_score ?? score}
-                    disabled={
-                      busy ||
-                      room.my_score !== null ||
-                      clock < room.starts ||
-                      clock >= room.closes
-                    }
-                    onScore={setScore}
-                  />
-                  <button
-                    className="gm-cta"
-                    disabled={
-                      busy ||
-                      score === null ||
-                      room.my_score !== null ||
-                      clock < room.starts ||
-                      clock >= room.closes
-                    }
-                    onClick={() => void action({ action: "score", score })}
-                  >
-                    {t(
-                      room.my_score !== null ? "room.submitted" : "room.submit",
-                    )}
-                  </button>
-                </>
-              )}
-            </>
-          )}
-          {room.phase === "reveal" && room.result && (
-            <>
-              {room.mode === "code" ? (
-                <>
+                </span>
+                <span className="gm-timer">
+                  <Timer size={14} />
+                  {Math.max(0, Math.ceil(room.closes - clock))}
+                </span>
+              </div>
+            )}
+            {room.is_mole && <p className="gm-roast">{t("room.secret")}</p>}
+            {mediaActive && (
+              <div className="gm-video-deck">
+                {room.playlist
+                  .filter(
+                    (_, i) =>
+                      i === room.index ||
+                      (room.phase === "reveal" && i === room.index + 1),
+                  )
+                  .map((d) => {
+                    const active = d.id === dive.id;
+                    return (
+                      <figure
+                        key={`${room.game_id}:${d.id}`}
+                        className={`gm-video${active && watching ? " is-visible" : ""}`}
+                        aria-hidden={!(active && watching)}
+                      >
+                        <EvaluationPlayer
+                          roomMedia={{
+                            src: d.playback_url,
+                            poster: d.poster_url,
+                            startsAt: active ? room.starts : 0,
+                            serverOffset: offset.current,
+                          }}
+                          onRoomReady={() => {
+                            readyDives.current.add(d.id);
+                            if (active) signal("ready");
+                          }}
+                          onEnded={() => {
+                            if (active) {
+                              setEndedDive(roundKey);
+                              signal("ended");
+                            }
+                          }}
+                          onFailure={() => {
+                            if (active) setError(true);
+                          }}
+                        />
+                        <span className="gm-diver">
+                          <MemberAvatar
+                            member={{ display_name: d.diver_name }}
+                            size={26}
+                          />
+                          <b>{d.diver_name}</b>
+                        </span>
+                        {active && room.phase === "loading" && (
+                          <span className="gm-loading" role="status">
+                            {t("common.loading")}
+                          </span>
+                        )}
+                      </figure>
+                    );
+                  })}
+              </div>
+            )}
+            {scoring && (
+              <>
+                <ul className="gm-status">
+                  {room.players.map((p) => (
+                    <li
+                      key={p.id}
+                      className={room.voted.includes(p.id) ? "is-in" : ""}
+                    >
+                      <Seat player={p} size={34} />
+                      {room.voted.includes(p.id) && <Check size={12} />}
+                    </li>
+                  ))}
+                </ul>
+                {room.mode === "code" ? (
                   <div className="gm-choices">
                     {dive.choices.map((c) => (
                       <button
                         key={c}
-                        disabled
-                        className={
-                          room.result?.correct_code === c
-                            ? "is-right"
-                            : room.result?.answers?.[room.me] === c
-                              ? "is-wrong"
-                              : ""
+                        disabled={
+                          busy ||
+                          room.my_answer !== null ||
+                          clock < room.starts ||
+                          clock >= room.closes
+                        }
+                        aria-pressed={room.my_answer === c}
+                        onClick={() =>
+                          void action({ action: "answer", choice: c })
                         }
                       >
                         {c}
                       </button>
                     ))}
                   </div>
-                  <p className="gm-roast">
-                    +{room.result.gains[room.me] ?? 0} {t("room.points")}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <ul className="gm-reveal">
-                    {room.players.map((p, i) => (
-                      <li
-                        key={p.id}
-                        className={room.result!.cuts[p.id] ? "is-cut" : ""}
-                      >
-                        {room.result!.cuts[p.id] && (
-                          <span className="gm-cut">
-                            {t("room." + room.result!.cuts[p.id])}
-                          </span>
-                        )}
-                        <ScoreCard
-                          scoreHalfSteps={room.result!.scores[p.id] ?? null}
-                          rotation={(i - 2) * 3}
-                          staggerMs={i * 130}
-                        />
-                        <Seat player={p} size={30} />
-                        <b>{p.name}</b>
-                        {p.emoji && (
-                          <q>
-                            {p.id === "shadow" && room.result?.shadow_comment
-                              ? room.result.shadow_comment
-                              : t("room.line." + p.id)}
-                          </q>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <section className="gm-verdict ca-arrive">
-                    <div>
-                      <small>{t("room.juryScore")}</small>
-                      <b>{number(room.result.jury)}</b>
+                ) : (
+                  <>
+                    <ScoreInput
+                      score={room.my_score ?? score}
+                      disabled={
+                        busy ||
+                        room.my_score !== null ||
+                        clock < room.starts ||
+                        clock >= room.closes
+                      }
+                      onScore={setScore}
+                    />
+                    <button
+                      className="gm-cta"
+                      disabled={
+                        busy ||
+                        score === null ||
+                        room.my_score !== null ||
+                        clock < room.starts ||
+                        clock >= room.closes
+                      }
+                      onClick={() => void action({ action: "score", score })}
+                    >
+                      {t(
+                        room.my_score !== null
+                          ? "room.submitted"
+                          : "room.submit",
+                      )}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+            {room.phase === "reveal" && room.result && (
+              <>
+                {room.mode === "code" ? (
+                  <>
+                    <div className="gm-choices">
+                      {dive.choices.map((c) => (
+                        <button
+                          key={c}
+                          disabled
+                          className={
+                            room.result?.correct_code === c
+                              ? "is-right"
+                              : room.result?.answers?.[room.me] === c
+                                ? "is-wrong"
+                                : ""
+                          }
+                        >
+                          {c}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <small>{t("room.yourScore")}</small>
-                      <b>{number(room.result.scores[room.me])}</b>
-                    </div>
-                    <div className="is-gain">
-                      <small>{t("room.points")}</small>
-                      <b>+{room.result.gains[room.me] ?? 0}</b>
-                    </div>
-                  </section>
-                  <p className="gm-roast">{t("room.roast")}</p>
-                </>
-              )}
-              {room.playlist[room.index + 1] && (
-                <video
-                  className="gm-preload"
-                  src={room.playlist[room.index + 1].playback_url}
-                  preload="auto"
-                  muted
-                />
-              )}
-            </>
-          )}
-        </>
-      )}
+                    <p className="gm-roast">
+                      +{room.result.gains[room.me] ?? 0} {t("room.points")}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <ul className="gm-reveal">
+                      {room.players.map((p, i) => (
+                        <li
+                          key={p.id}
+                          className={room.result!.cuts[p.id] ? "is-cut" : ""}
+                        >
+                          {room.result!.cuts[p.id] && (
+                            <span className="gm-cut">
+                              {t("room." + room.result!.cuts[p.id])}
+                            </span>
+                          )}
+                          <ScoreCard
+                            scoreHalfSteps={room.result!.scores[p.id] ?? null}
+                            rotation={(i - 2) * 3}
+                            staggerMs={i * 130}
+                          />
+                          <Seat player={p} size={30} />
+                          <b>{p.name}</b>
+                          {p.emoji && (
+                            <q>
+                              {p.id === "shadow" && room.result?.shadow_comment
+                                ? room.result.shadow_comment
+                                : t("room.line." + p.id)}
+                            </q>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <section className="gm-verdict ca-arrive">
+                      <div>
+                        <small>{t("room.juryScore")}</small>
+                        <b>{number(room.result.jury)}</b>
+                      </div>
+                      <div>
+                        <small>{t("room.yourScore")}</small>
+                        <b>{number(room.result.scores[room.me])}</b>
+                      </div>
+                      <div className="is-gain">
+                        <small>{t("room.points")}</small>
+                        <b>+{room.result.gains[room.me] ?? 0}</b>
+                      </div>
+                    </section>
+                    <p className="gm-roast">{t("room.roast")}</p>
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )}
       {room?.phase === "mole" && (
         <>
           <header className="cm-head">

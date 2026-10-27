@@ -563,32 +563,44 @@ function EvaluationScopedPlayer({
 
 /** Room transport uses the same full-frame evaluation stage. The clock is
  * authoritative; controls never broadcast play/pause to other participants. */
-function SynchronizedEvaluationPlayer({ roomMedia, onFailure }: RoomPlayerProps) {
+function SynchronizedEvaluationPlayer({ roomMedia, onFailure, onRoomReady, onEnded }: RoomPlayerProps) {
   const video = useRef<HTMLVideoElement>(null)
-  const failure = useRef(onFailure)
-  failure.current = onFailure
+  const callbacks = useRef({ onFailure, onRoomReady, onEnded })
+  callbacks.current = { onFailure, onRoomReady, onEnded }
   const { src, poster, startsAt, serverOffset } = roomMedia
   const clockOffset = useRef(serverOffset)
   clockOffset.current = serverOffset
+  const started = useRef(false)
+  useEffect(() => { started.current = false }, [src])
   useEffect(() => {
     const element = video.current
     if (!element) return
+    const ready = () => callbacks.current.onRoomReady?.()
+    element.addEventListener('canplaythrough', ready)
+    if (element.readyState >= 4) ready()
+    return () => element.removeEventListener('canplaythrough', ready)
+  }, [src])
+  useEffect(() => {
+    const element = video.current
+    if (!element || startsAt <= 0) return
     const start = () => {
-      const elapsed = Date.now() / 1000 + clockOffset.current - startsAt
-      if (elapsed < 0) return
-      if (Number.isFinite(element.duration)) element.currentTime = Math.min(elapsed, element.duration)
-      void element.play().catch(() => failure.current?.())
+      if (started.current) return
+      started.current = true
+      // Every viewer sees the entire dive, including a late timeout joiner.
+      // Never seek by wall-clock elapsed time or skip the takeoff.
+      void element.play().catch(() => { started.current = false; callbacks.current.onFailure?.() })
     }
     const timer = setTimeout(start, Math.max(0, (startsAt - Date.now() / 1000 - clockOffset.current) * 1000))
-    element.addEventListener('loadedmetadata', start)
-    return () => { clearTimeout(timer); element.removeEventListener('loadedmetadata', start) }
+    return () => clearTimeout(timer)
   }, [src, startsAt])
-  return <div className="eval-player eval-room-player"><video key={src} ref={video} src={src} poster={poster} muted playsInline preload="auto" onError={onFailure} /></div>
+  return <div className="eval-player eval-room-player"><video ref={video} src={src} poster={poster} muted playsInline preload="auto" onEnded={() => callbacks.current.onEnded?.()} onError={onFailure} /></div>
 }
 
 type RoomPlayerProps = {
   roomMedia: { src: string; poster: string; startsAt: number; serverOffset: number }
   onFailure?: () => void
+  onRoomReady?: () => void
+  onEnded?: () => void
 }
 
 export default function EvaluationPlayer(props: React.ComponentProps<typeof EvaluationScopedPlayer> | RoomPlayerProps) {

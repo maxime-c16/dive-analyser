@@ -23,7 +23,7 @@ from app.models.judge_room import (
     JudgeRoomRating,
     JudgeShadowPreference,
 )
-from app.services.judge_room import Room, rooms
+from app.services.judge_room import Room, rooms, playback_duration
 from app.services.dive_access import owned_diver_ids
 from app.services.write_guard import optional_session_user
 from app.api.v1.dive_sharing import same_origin, secure_headers
@@ -213,13 +213,11 @@ def playlist(db, room, user, source, code=""):
                 dive_code=dive.dive_code,
                 height=dive.height,
                 dd=float(dive.official_dd) if dive.official_dd else None,
-                duration=max(
-                    1,
-                    float(
-                        video.duration_seconds
-                        or (asset.duration_seconds if asset else None)
-                        or 10
-                    ),
+                duration=playback_duration(
+                    video.storage_path,
+                    video.duration_seconds
+                    or (asset.duration_seconds if asset else None)
+                    or 10,
                 ),
                 poster_url=f"/api/v1/rooms/{room.code}/media/{dive.id}/poster",
                 playback_url=f"/api/v1/rooms/{room.code}/media/{dive.id}/video",
@@ -503,7 +501,7 @@ def act(
             ):
                 raise HTTPException(409, "Answer closed or invalid")
             room.votes[key] = payload.choice
-            room.answer_times[key] = now - room.starts
+            room.answer_times[key] = now - room.scoring_starts
         elif payload.action == "vote":
             if room.phase != "mole" or (
                 payload.suspect is not None
@@ -530,7 +528,12 @@ def media(
         dive = db.get(Dive, dive_id)
         if dive is None or dive.visibility != "public":
             raise HTTPException(404, "Video no longer public")
-        entries = media_entries(db, dive)
+        entries = sorted(
+            media_entries(db, dive),
+            key=lambda e: {"proxy_720p": 0, "proxy_360p": 1, "original": 2}.get(
+                e.rendition, 3
+            ),
+        )
         entry = (
             next(
                 (
@@ -581,6 +584,9 @@ async def live(websocket: WebSocket, code: str):
     except HTTPException:
         await websocket.close(code=1008)
         return
+    connection_id = secrets.token_hex(12)
+    with lock:
+        room.connections[connection_id] = key
     await websocket.accept()
 
     def snapshot():
@@ -593,8 +599,23 @@ async def live(websocket: WebSocket, code: str):
         while True:
             await websocket.send_json(await run_in_threadpool(snapshot))
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
+                message = await asyncio.wait_for(websocket.receive_json(), timeout=0.25)
+                if isinstance(message, dict) and message.get("type") in (
+                    "ready",
+                    "ended",
+                ):
+                    with lock:
+                        room_for(code).signal(
+                            key,
+                            message["type"],
+                            message.get("index"),
+                            message.get("game_id"),
+                            time.time(),
+                        )
             except asyncio.TimeoutError:
                 pass
-    except (WebSocketDisconnect, RuntimeError, HTTPException):
+    except (WebSocketDisconnect, RuntimeError, HTTPException, ValueError):
         return
+    finally:
+        with lock:
+            room.connections.pop(connection_id, None)
