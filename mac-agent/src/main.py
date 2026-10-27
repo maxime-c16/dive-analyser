@@ -189,6 +189,8 @@ async def run_sync_loop(config: Config) -> None:
     heartbeat_task = asyncio.create_task(run_agent_heartbeat_loop(config, sync_client, stop_event))
     catalog_task = asyncio.create_task(run_catalog_loop(config, sync_client, stop_event))
     cleanup_task = asyncio.create_task(run_source_cleanup_loop(config, stop_event))
+    from .photos_cleanup import run_photos_cleanup_loop
+    photos_cleanup_task = asyncio.create_task(run_photos_cleanup_loop(config, stop_event))
 
     try:
         if not config.sync.enabled:
@@ -278,6 +280,11 @@ async def run_sync_loop(config: Config) -> None:
         catalog_task.cancel()
         try:
             await catalog_task
+        except asyncio.CancelledError:
+            pass
+        photos_cleanup_task.cancel()
+        try:
+            await photos_cleanup_task
         except asyncio.CancelledError:
             pass
         heartbeat_task.cancel()

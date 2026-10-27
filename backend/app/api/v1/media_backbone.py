@@ -16,6 +16,8 @@ Security properties:
 """
 
 import re
+from pydantic import BaseModel, Field
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -45,6 +47,31 @@ SUPPORTED_ENVIRONMENTS = ("dev", "prod")
 EXPECTED_STORAGE_BACKEND = "b2"
 DEFAULT_OBJECT_PREFIX = "blobs/sha256"
 KEY_EXT_RE = re.compile(r"^[a-z0-9]{1,8}$")
+
+
+class PhotosCleanupCheck(BaseModel):
+    video_uuid: str = Field(pattern=r"^[0-9A-Fa-f-]{36}$")
+    photos_uuid: str = Field(pattern=r"^[0-9A-Fa-f-]{36}$")
+    agent_id: str = Field(min_length=1, max_length=100)
+    keeper_diver_id: int = Field(gt=0)
+    blob_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    caption_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    edit_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    byte_size: int = Field(gt=0)
+    object_key: str = Field(min_length=1, max_length=160)
+    bucket: str = Field(min_length=1, max_length=120)
+
+
+@router.post("/photos-cleanup/check")
+def photos_cleanup_check(request: PhotosCleanupCheck, db: Session = Depends(get_db),
+                         api_key: dict = Depends(verify_api_key)):
+    from app.services.photos_cleanup import check_cleanup
+    for value in (request.video_uuid, request.photos_uuid):
+        try:
+            UUID(value)
+        except ValueError:
+            raise HTTPException(422, "malformed Photos identity")
+    return check_cleanup(db, request, _environment_bucket("prod"))
 
 
 def _environment_bucket(environment: str) -> str:

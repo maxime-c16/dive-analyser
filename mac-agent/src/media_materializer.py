@@ -53,6 +53,7 @@ class MediaMaterializer:
         export_timeout_seconds: int = DEFAULT_EXPORT_TIMEOUT_SECONDS,
         use_photokit: bool = False,
         library_path: str | None = None,
+        require_edited: bool = False,
     ):
         self.root = Path(materialization_dir).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,7 @@ class MediaMaterializer:
         # block indefinitely in one-shot/launchd contexts. The production
         # daemon (launched at login) is unaffected when library_path is None.
         self.library_path = library_path
+        self.require_edited = require_edited
 
     async def materialize(self, video_uuid: str) -> Path:
         """Export exactly one movie UUID and return the local video file path."""
@@ -136,6 +138,8 @@ class MediaMaterializer:
             if not path.is_file():
                 continue
             if path.suffix.lower() not in VIDEO_EXTENSIONS:
+                continue
+            if self.require_edited and "_edited" not in path.stem:
                 continue
             size = path.stat().st_size
             if size <= 0:
