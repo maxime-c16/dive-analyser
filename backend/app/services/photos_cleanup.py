@@ -27,7 +27,7 @@ def check_cleanup(db, request, prod_bucket):
     if identity is None:
         return refuse("local_identity_unconfirmed")
     dives = db.query(Dive).filter(or_(Dive.photos_asset_id == asset.id,
-                                    Dive.video_uuid == request.video_uuid)).all()
+                                    Dive.video_uuid == request.video_uuid)).limit(2).all()
     if len(dives) != 1:
         return refuse("ambiguous_dive")
     dive = dives[0]
@@ -38,7 +38,7 @@ def check_cleanup(db, request, prod_bucket):
         return refuse("kept_or_unknown_diver")
     name = canonicalize_name(dive.person_name)
     matches = db.query(Diver).outerjoin(DiverAlias).filter(
-        or_(Diver.canonical_name == name, DiverAlias.canonical_alias == name)).all()
+        or_(Diver.canonical_name == name, DiverAlias.canonical_alias == name)).limit(2).all()
     if {d.id for d in matches} != {diver.id}:
         return refuse("ambiguous_person")
     if hashlib.sha256((dive.raw_caption or "").encode()).hexdigest() != request.caption_sha256:

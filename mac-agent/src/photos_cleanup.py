@@ -1,6 +1,7 @@
 """Bounded, opt-in post-ingest Photos cleanup. No library discovery or B2 deletion."""
 import fcntl
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -14,6 +15,8 @@ from pathlib import Path
 from .sync_client import _curl_post
 
 UUID_RE = re.compile(r"^[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$")
+# Bound per-request work and memory: the pending queue never grows past this.
+MAX_PENDING = 100
 
 
 def atomic_json(path, document):
@@ -219,6 +222,10 @@ class PhotosCleanup:
             raise ValueError("cleanup_asset_changed")
         path = self.queue / f"{video_uuid}.json"
         if not path.exists():
+            if self.queue.exists():
+                pending = sum(1 for _ in zip(self.queue.glob("*.json"), range(MAX_PENDING + 1)))
+                if pending > MAX_PENDING:
+                    raise ValueError("cleanup_queue_full")
             atomic_json(path, {"request": request, "version": version,
                                "created_at": time.time(), "attempts": 0})
 
@@ -231,7 +238,10 @@ class PhotosCleanup:
             except BlockingIOError:
                 return
             # Bounded work, no historical journal scanning. Retry with cooldown.
-            paths = sorted(self.queue.glob("*.json"))
+            # Never enumerate more than the cap plus one batch: enqueue refuses
+            # beyond MAX_PENDING, so this covers the whole queue in steady state
+            # while keeping memory bounded even for a legacy oversized backlog.
+            paths = sorted(itertools.islice(self.queue.glob("*.json"), MAX_PENDING + 5))
             count = 0
             prepared = []
             for path in paths:
