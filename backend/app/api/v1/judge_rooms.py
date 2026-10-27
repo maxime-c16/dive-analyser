@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import RLock
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, tuple_
 from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
@@ -227,29 +227,53 @@ def playlist(db, room, user, source, code=""):
         if candidates
         else {}
     )
+    # Guess-the-Code distractors: one query for every (height, platform,
+    # group) key on the candidate set instead of one per candidate dive.
+    distractor_map: dict[tuple, list[str]] = {}
+    if room.mode == "code":
+        keys = {
+            (d.height, d.platform_type, int(d.dive_code[0]))
+            for d in candidates
+            if d.dive_code
+        }
+        if keys:
+            for height, platform, group, distractor in (
+                db.query(
+                    DDLookup.height,
+                    DDLookup.platform_type,
+                    FINADiveCode.group,
+                    DDLookup.dive_code,
+                )
+                .join(FINADiveCode, FINADiveCode.dive_code == DDLookup.dive_code)
+                .filter(
+                    tuple_(
+                        DDLookup.height, DDLookup.platform_type, FINADiveCode.group
+                    ).in_(keys)
+                )
+                .distinct()
+                .order_by(DDLookup.dive_code)
+                .all()
+            ):
+                distractor_map.setdefault((height, platform, group), []).append(
+                    distractor
+                )
     result = []
     for dive in candidates:
         choices = []
         if room.mode == "code":
-            candidates = [
+            pool = [
                 c
-                for (c,) in db.query(DDLookup.dive_code)
-                .join(FINADiveCode, FINADiveCode.dive_code == DDLookup.dive_code)
-                .filter(
-                    DDLookup.height == dive.height,
-                    DDLookup.platform_type == dive.platform_type,
-                    FINADiveCode.group == int(dive.dive_code[0]),
-                    DDLookup.dive_code != dive.dive_code,
+                for c in distractor_map.get(
+                    (dive.height, dive.platform_type, int(dive.dive_code[0])), []
                 )
-                .distinct()
-                .order_by(DDLookup.dive_code)
+                if c != dive.dive_code
             ]
-            if len(candidates) < 3:
+            if len(pool) < 3:
                 continue
             from app.services.judge_room import seeded
 
             rng = seeded(room.code, dive.id)
-            choices = [dive.dive_code] + rng.sample(candidates, 3)
+            choices = [dive.dive_code] + rng.sample(pool, 3)
             rng.shuffle(choices)
         entries = [
             e for e in by_uuid.get(dive.video_uuid, []) if Path(e.storage_path).is_file()

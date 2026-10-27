@@ -627,3 +627,43 @@ def test_shadow_playlist_offset_uses_grouped_peer_average(workspace):
         assert entries[rated]["shadow_offset"] == pytest.approx(14 - (10 + 12) / 2)
     finally:
         live_rooms.pop(state["code"], None)
+
+
+def test_code_mode_distractors_share_group_height_platform(workspace):
+    from app.models.dd_lookup import DDLookup
+    from app.models.fina_dive_code import FINADiveCode
+    from app.services.judge_room import rooms as live_rooms
+
+    db, login, _, _, _ = workspace
+    codes = ["101B", "102B", "103B", "104B"]
+    for c in codes:
+        db.add(
+            FINADiveCode(
+                dive_code=c, group=1, direction=1, rotations=2, position="B"
+            )
+        )
+        db.add(
+            DDLookup(
+                dive_code=c,
+                height="3m",
+                platform_type="springboard",
+                dd_value=2.0,
+            )
+        )
+    db.commit()
+    client = login("alice")
+    room_code = client.post("/api/v1/rooms", json={}).json()["code"]
+    try:
+        state = client.post(
+            f"/api/v1/rooms/{room_code}/actions",
+            json={"action": "configure", "mode": "code", "source": "community"},
+        ).json()
+        assert state["playlist"], "expected playable code-mode dives"
+        for d in state["playlist"]:
+            assert len(d["choices"]) == 4 and len(set(d["choices"])) == 4
+            assert set(d["choices"]) <= set(codes)
+        server = {d["id"]: d for d in live_rooms[room_code].playlist}
+        for d in state["playlist"]:
+            assert server[d["id"]]["dive_code"] in d["choices"]
+    finally:
+        live_rooms.pop(room_code, None)
