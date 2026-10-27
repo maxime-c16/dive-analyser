@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.api.v1.media_backbone import PhotosCleanupCheck
-from app.models.diver import Diver
+from app.models.diver import Diver, DiverAlias
 from app.models.photos_asset import PhotosAsset, PhotosAssetAgentIdentity
 from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision, CaptionRevision, IngestObjectState
 from app.services.photos_cleanup import check_cleanup
@@ -103,3 +103,31 @@ def test_refuses_uncertain_or_kept_assets(eligible, case):
         e.db.add(Dive(session_id=e.dive.session_id, photos_asset_id=e.asset.id, dive_code="101B", performance="G", performance_numeric=3, height="1m", dive_datetime=e.dive.dive_datetime))
     e.db.flush()
     assert check_cleanup(e.db, e.request, "prod")["eligible"] is False
+
+
+def test_alias_rows_cannot_hide_a_second_matching_primary_diver(eligible):
+    e = eligible
+    # Friend sorts before this keeper; its canonical-name match joins both
+    # aliases and used to consume the two-row limit before ORM deduplication.
+    keeper = Diver(display_name="Another Keeper", canonical_name="another keeper", is_primary_user=True)
+    e.db.add(keeper)
+    e.db.flush()
+    e.request.keeper_diver_id = keeper.id
+    e.db.add_all([
+        DiverAlias(diver_id=e.friend.id, alias="Friend One", canonical_alias="friend one"),
+        DiverAlias(diver_id=e.friend.id, alias="Friend Two", canonical_alias="friend two"),
+        DiverAlias(diver_id=keeper.id, alias="Friend", canonical_alias="friend"),
+    ])
+    e.db.flush()
+    result = check_cleanup(e.db, e.request, "prod")
+    assert result == {"eligible": False, "reason": "ambiguous_person"}
+
+
+def test_multiple_aliases_for_one_resolved_diver_remain_eligible(eligible):
+    e = eligible
+    e.db.add_all([
+        DiverAlias(diver_id=e.friend.id, alias="Friend One", canonical_alias="friend one"),
+        DiverAlias(diver_id=e.friend.id, alias="Friend Two", canonical_alias="friend two"),
+    ])
+    e.db.flush()
+    assert check_cleanup(e.db, e.request, "prod")["eligible"] is True

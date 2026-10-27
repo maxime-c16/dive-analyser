@@ -37,9 +37,10 @@ def check_cleanup(db, request, prod_bucket):
     if diver is None or not diver.active or diver.is_primary_user or diver.id == keeper.id:
         return refuse("kept_or_unknown_diver")
     name = canonicalize_name(dive.person_name)
-    matches = db.query(Diver).outerjoin(DiverAlias).filter(
-        or_(Diver.canonical_name == name, DiverAlias.canonical_alias == name)).limit(2).all()
-    if {d.id for d in matches} != {diver.id}:
+    # Deduplicate identities in SQL before bounding joined alias rows.
+    matches = db.query(Diver.id).outerjoin(DiverAlias).filter(
+        or_(Diver.canonical_name == name, DiverAlias.canonical_alias == name)).distinct().limit(2).all()
+    if {diver_id for (diver_id,) in matches} != {diver.id}:
         return refuse("ambiguous_person")
     if hashlib.sha256((dive.raw_caption or "").encode()).hexdigest() != request.caption_sha256:
         return refuse("metadata_changed")
