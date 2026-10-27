@@ -191,10 +191,13 @@ class Room:
         self.advance(now)
 
     def assign_mole(self):
-        rng = seeded(self.code)
+        # Independent server-side randomness: the room code is public, so a
+        # seeded choice would let players compute the mole before voting.
+        # Deterministic seeds stay for ghost behavior only.
+        sys_rng = secrets.SystemRandom()
         self.mole = (
-            rng.choice([p["id"] for p in self.panel()])
-            if self.mode == "mole" and rng.random() < 0.5
+            sys_rng.choice([p["id"] for p in self.panel()])
+            if self.mode == "mole" and sys_rng.random() < 0.5
             else None
         )
 

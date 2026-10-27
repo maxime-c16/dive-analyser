@@ -8,7 +8,9 @@ from pathlib import Path
 from threading import RLock
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.config import get_settings
 from app.database import get_db
 from app.models.dive import Dive
 from app.models.diver import Diver
@@ -112,18 +114,34 @@ def playlist(db, room, user, source, code=""):
     ) + [dict(id=k, name=n, emoji=e, points=0) for k, n, e, _ in GHOSTS]
     offsets = []
     if shadow_enabled:
-        for rating in (
-            db.query(AutomaticRating).filter_by(evaluator_user_id=1).limit(1000)
-        ):
-            peers = [
-                r.score_half_steps
-                for r in db.query(AutomaticRating).filter(
-                    AutomaticRating.dive_id == rating.dive_id,
-                    AutomaticRating.evaluator_user_id != 1,
+        # One grouped query for peer averages: the previous per-rating query
+        # ran up to 1,000 extra queries per room configuration.
+        mine = {
+            r.dive_id: r.score_half_steps
+            for r in db.query(AutomaticRating)
+            .filter_by(evaluator_user_id=1)
+            .limit(1000)
+        }
+        peer_avg = (
+            dict(
+                db.query(
+                    AutomaticRating.dive_id,
+                    func.avg(AutomaticRating.score_half_steps),
                 )
-            ]
-            if peers:
-                offsets.append(rating.score_half_steps - sum(peers) / len(peers))
+                .filter(
+                    AutomaticRating.evaluator_user_id != 1,
+                    AutomaticRating.dive_id.in_(mine),
+                )
+                .group_by(AutomaticRating.dive_id)
+                .all()
+            )
+            if mine
+            else {}
+        )
+        for dive_id, score in mine.items():
+            avg = peer_avg.get(dive_id)
+            if avg is not None:
+                offsets.append(score - float(avg))
     result = []
     for dive in query.order_by(Dive.id.desc()).limit(160):
         choices = []
@@ -248,7 +266,9 @@ def join(room, payload, request, response, db):
         "jr_" + room.code,
         token,
         httponly=True,
-        secure=request.url.scheme == "https",
+        # Uvicorn sees http behind the HTTPS proxy, so derive Secure from
+        # configuration (AUTH_COOKIE_SECURE=false for plain-HTTP local tests).
+        secure=get_settings().auth_cookie_secure,
         samesite="strict",
         max_age=21600,
         path="/api/v1/rooms/" + room.code,

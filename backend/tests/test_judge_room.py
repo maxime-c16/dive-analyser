@@ -1,8 +1,28 @@
 import pytest
 from fastapi import HTTPException
+from app.config import get_settings
 from app.services.judge_room import Room, GHOSTS, ghost_scores, points, truth
 from app.api.v1.judge_rooms import player_for
 from types import SimpleNamespace
+
+
+@pytest.fixture(autouse=True)
+def _plain_http_room_cookies():
+    # The TestClient speaks plain HTTP and drops Secure cookies; mirror the
+    # AUTH_COOKIE_SECURE=false local-test override used elsewhere.
+    settings = get_settings()
+    prev = settings.auth_cookie_secure
+    settings.auth_cookie_secure = False
+    yield
+    settings.auth_cookie_secure = prev
+
+
+def test_room_cookie_secure_flag_follows_settings(workspace, monkeypatch):
+    _, login, _, _, _ = workspace
+    monkeypatch.setattr(get_settings(), "auth_cookie_secure", True)
+    response = login("alice").post("/api/v1/rooms", json={})
+    assert response.status_code == 200, response.text
+    assert "Secure" in response.headers.get("set-cookie", "")
 
 
 def room(mode="classic"):
@@ -109,17 +129,16 @@ def test_points():
 def test_mole_and_secrecy():
     r = room("mole")
     r.assign_mole()
-    other = room("mole")
-    other.assign_mole()
-    assert r.mole == other.mole
     assert r.mole is None or r.mole in [p["id"] for p in r.panel()]
     assert r.snapshot("u1", 100)["mole"] is None
-    outcomes = []
-    for i in range(100):
-        r.code = str(i)
+    # Independent server-side randomness: the public code alone cannot predict
+    # the mole, so repeated assignments vary while staying valid.
+    outcomes = set()
+    for _ in range(100):
         r.assign_mole()
-        outcomes.append(r.mole)
-    assert None in outcomes and any(v is not None for v in outcomes)
+        assert r.mole is None or r.mole in [p["id"] for p in r.panel()]
+        outcomes.add(r.mole)
+    assert None in outcomes and len(outcomes) > 1
 
 
 def test_guest_scope_and_rejoin():
