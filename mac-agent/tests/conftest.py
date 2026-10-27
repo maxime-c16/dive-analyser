@@ -10,9 +10,10 @@ import json
 # Portable tests must never open a real Photos library. Keep native integration
 # available on macOS; on Linux expose an import boundary that fails if used.
 import sys
+import os
 from types import ModuleType
 
-if sys.platform != "darwin":
+if sys.platform != "darwin" or os.environ.get("DIVE_AGENT_PORTABLE_TESTS") == "1":
     photos_boundary = ModuleType("osxphotos")
 
     def native_photos_unavailable(*args, **kwargs):

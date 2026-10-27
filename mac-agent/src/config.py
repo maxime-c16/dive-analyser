@@ -197,6 +197,22 @@ class DualWriteConfig:
     env_file: str = ""
     fail_put_once: bool = False
     fail_commit_once: bool = False
+    photos_cleanup_mode: str = "off"  # off | dry_run | delete
+    photos_cleanup_keeper_diver_id: int = 0
+    photos_cleanup_automated: bool = False
+
+    def __post_init__(self):
+        if type(self.photos_cleanup_automated) is not bool:
+            raise ValueError("photos_cleanup_automated must be boolean")
+        if self.photos_cleanup_automated and self.photos_cleanup_mode != "delete":
+            raise ValueError("automated Photos cleanup requires delete mode")
+        if self.photos_cleanup_mode not in ("off", "dry_run", "delete"):
+            raise ValueError("invalid photos_cleanup_mode")
+        if self.photos_cleanup_mode != "off":
+            if (not self.enabled or not self.continuous_new_ingest
+                    or type(self.photos_cleanup_keeper_diver_id) is not int
+                    or self.photos_cleanup_keeper_diver_id <= 0):
+                raise ValueError("Photos cleanup requires continuous ingestion and an explicit keeper diver id")
 
 
 @dataclass
@@ -409,6 +425,9 @@ class Config:
                 env_file=str(Path(env_file).expanduser()) if env_file else '',
                 fail_put_once=dual_write_data.get('fail_put_once', False),
                 fail_commit_once=dual_write_data.get('fail_commit_once', False),
+                photos_cleanup_automated=dual_write_data.get('photos_cleanup_automated', False),
+                photos_cleanup_mode=dual_write_data.get('photos_cleanup_mode', 'off'),
+                photos_cleanup_keeper_diver_id=dual_write_data.get('photos_cleanup_keeper_diver_id', 0),
             )
 
             migration_data = data.get('migration', {}) or {}

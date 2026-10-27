@@ -275,3 +275,11 @@ Apply `backend/migrations/add_dive_series.sql` **before** deploying the
 backend and frontend for this feature. Startup does not create this table.
 The calendar schema is optional for standalone sheets. No Mac service or
 worker is required. Details: [series implementation](design/series/IMPLEMENTATION.md).
+
+### Opt-in Photos cleanup
+
+Post-ingest cleanup needs both the backend eligibility endpoint and the Mac
+worker, plus explicit UI grants/Keychain setup for unattended operation. Keep
+cleanup off during deployment; use dry-run first. No SQL migration is needed.
+See [setup, activation and rollback](PHOTOS_CLEANUP_PERMISSIONS.md). Optional
+automation dependencies and permissions are not installed by `ship.sh`.

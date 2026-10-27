@@ -1,0 +1,5 @@
+# Optional, only on the Mac running unattended Photos cleanup.
+asyncvnc==1.3.0
+pyobjc-framework-Security==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Vision==12.2.2; sys_platform == 'darwin'
+Pillow==13.0.0

@@ -313,6 +313,22 @@ def test_stage_copy_and_materialize_reuses_legacy_bytes(env):
     assert snapshot["result"] == "verified_committed"
 
 
+def test_photos_cleanup_is_queued_only_after_verified_commit(env, monkeypatch):
+    from src.photos_cleanup import PhotosCleanup
+    calls = []
+    def enqueue(self, canonical, local):
+        journal = json.loads((env.state_dir / f"{canonical}.json").read_text())
+        assert journal["state"] == "CACHE_CLEANED"
+        assert journal["remote"]["verified"] and journal["db_commit"]["committed"]
+        calls.append((canonical, local))
+    monkeypatch.setattr(PhotosCleanup, "enqueue", enqueue)
+    pdw = build_pdw(env)
+    staged = pdw.stage_copy(UUID_A, make_media_file(env.temp_root))
+    pdw._drive(UUID_A, staged)
+    pdw._drive(UUID_A, staged)
+    assert calls == [(UUID_A, UUID_A)]
+
+
 def test_stage_copy_skips_when_not_allowlisted_or_terminal(env):
     pdw = build_pdw(env)
     source = make_media_file(env.temp_root)

@@ -327,6 +327,7 @@ class ProductionDualWrite:
         source_path: Path,
         request_reason: str | None = None,
         agent_local_uuid: str | None = None,
+        cleanup_export_guard: dict | None = None,
     ) -> Path | None:
         """Copy the already-materialized legacy bytes into the dual-write temp
         area while the legacy pipeline still owns them.
@@ -519,6 +520,9 @@ class ProductionDualWrite:
                 "copy_seconds": round(copy_seconds, 3),
             }
         )
+        # Bind authorization to the exact fresh exported bytes, never a
+        # later observation of an unrelated/stale vault source.
+        meta["cleanup_export_guard"] = cleanup_export_guard
         self._set_stage_meta(video_uuid, meta)
         return target
 
@@ -1202,6 +1206,12 @@ class ProductionDualWrite:
             str(IngestState.QUARANTINED): "quarantined",
         }.get(metrics["final_state"], "pending_retry")
         if final_state is IngestState.CACHE_CLEANED:
+            # Separate post-ingest queue; Photos cleanup never changes ingest success.
+            try:
+                from ..photos_cleanup import PhotosCleanup
+                PhotosCleanup(self.config).enqueue(video_uuid, photos_uuid)
+            except Exception:
+                logger.warning("Photos cleanup enqueue failed for %s", video_uuid[:8])
             # committed + verified: release the staging copy (local bytes only;
             # the remote B2 object and DB rows are durable)
             shutil.rmtree(

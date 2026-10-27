@@ -258,6 +258,7 @@ class MediaJobProcessor:
             self._keep_lease_alive(job_id, lease_token, phase, lease_lost)
         )
         b2_source: Path | None = None
+        cleanup_export_guard = None
         artifact = None
 
         try:
@@ -278,12 +279,28 @@ class MediaJobProcessor:
                 # Multiple B2 downloads/conversions may overlap, but the
                 # Photos/iCloud materializer must remain single-file.
                 async with self._photos_lock:
-                    source = await exporter.source_for_job(
-                        video_uuid,
-                        rendition,
-                        vault_video_uuid=canonical_video_uuid,
-                        retention_class=retention_class,
-                    )
+                    cleanup_options = getattr(self.config, "dual_write", None)
+                    guarded = (getattr(cleanup_options, "photos_cleanup_mode", "off") != "off"
+                               and job.get("request_reason") == "new_captioned_ingestion")
+                    if guarded:
+                        try:
+                            from .photos_cleanup import PhotosCleanup
+                            cleanup = PhotosCleanup(self.config)
+                            guard = await asyncio.to_thread(cleanup.capture_export_guard, video_uuid)
+                            source = await exporter.source_for_cleanup_job(video_uuid, guard["edited"])
+                            cleanup_export_guard = await asyncio.to_thread(cleanup.finish_export_guard, guard, source)
+                        except Exception:
+                            # Preserve ingest behavior; an unproven source can
+                            # never arm Photos cleanup.
+                            logger.warning("Fresh cleanup export unavailable; keeping Photos asset")
+                            guarded = False
+                    if not guarded:
+                        source = await exporter.source_for_job(
+                            video_uuid,
+                            rendition,
+                            vault_video_uuid=canonical_video_uuid,
+                            retention_class=retention_class,
+                        )
             self._raise_if_lease_lost(lease_lost, job_id)
 
             if self.source_vault:
@@ -326,11 +343,14 @@ class MediaJobProcessor:
                 # (exporter source_for_job above). Passing the local UUID as
                 # the durable identity would orphan the revision under an
                 # identity no dive references (dive 2991 precedent).
+                cleanup_kwargs = ({"cleanup_export_guard": cleanup_export_guard}
+                                  if cleanup_export_guard is not None else {})
                 await self._trigger_dual_write(
                     canonical_video_uuid,
                     source,
                     job.get("request_reason"),
                     agent_local_uuid=video_uuid,
+                    **cleanup_kwargs,
                 )
                 exporter.cleanup_source_after_success(source)
             logger.info(f"Media job {job_id} finalized cache entry {result.get('cache_entry_id')}")
@@ -423,6 +443,7 @@ class MediaJobProcessor:
         source: Path,
         request_reason: str | None = None,
         agent_local_uuid: str | None = None,
+        cleanup_export_guard: dict | None = None,
     ) -> None:
         """Stage + launch the additive object-store ingest after legacy success.
 
@@ -438,12 +459,15 @@ class MediaJobProcessor:
         if dual_write is None:
             return
         try:
+            cleanup_kwargs = ({"cleanup_export_guard": cleanup_export_guard}
+                              if cleanup_export_guard is not None else {})
             staged = await asyncio.to_thread(
                 dual_write.stage_copy,
                 video_uuid,
                 source,
                 request_reason,
                 agent_local_uuid,
+                **cleanup_kwargs,
             )
         except Exception as exc:
             logger.warning(

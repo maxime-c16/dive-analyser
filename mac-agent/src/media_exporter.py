@@ -1,6 +1,7 @@
 """Resolve Photos assets for media jobs without triggering iCloud downloads."""
 
 import logging
+import tempfile
 from pathlib import Path
 
 from .media_materializer import MediaMaterializer, MaterializationError
@@ -120,6 +121,25 @@ class MediaExporter:
         return await self.resolve_local_asset(video_uuid, vault_video_uuid=vault_video_uuid,
                                               retention_class=retention_class)
 
+    async def source_for_cleanup_job(self, video_uuid: str, edited: bool) -> Path:
+        """Fresh edited export: never arm cleanup from stale vault/original bytes."""
+        if not self.allow_single_asset_materialization or not self.materializer:
+            raise MediaUnavailableError("cleanup_fresh_export_unavailable")
+        original = self.materializer
+        root = tempfile.mkdtemp(prefix="cleanup-export-", dir=original.root)
+        fresh = MediaMaterializer(root, max_bytes=original.max_bytes,
+            osxphotos_path=original.osxphotos_path,
+            export_timeout_seconds=original.export_timeout_seconds,
+            use_photokit=original.use_photokit, library_path=original.library_path,
+            require_edited=edited)
+        try:
+            source = await fresh.materialize(video_uuid)
+        except Exception:
+            _remove_materialization_directory(Path(root), original.root)
+            raise
+        self._materialized_sources.add(source.resolve())
+        return source
+
     def cleanup_source_after_success(self, source: Path) -> None:
         """Remove a materialized source file after successful finalize if configured."""
         resolved = source.resolve()
@@ -132,7 +152,11 @@ class MediaExporter:
         self._materialized_sources.discard(resolved)
         logger.info("Removed materialized source after successful finalize: %s", resolved)
         if self.materializer and _is_relative_to(resolved.parent, self.materializer.root):
-            _remove_materialization_directory(resolved.parent, self.materializer.root)
+            parent = resolved.parent
+            _remove_materialization_directory(parent, self.materializer.root)
+            # Fresh guarded exports have one extra private directory level.
+            if parent.parent.name.startswith("cleanup-export-") and parent.parent != self.materializer.root:
+                _remove_materialization_directory(parent.parent, self.materializer.root)
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:
