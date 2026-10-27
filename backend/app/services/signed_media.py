@@ -9,7 +9,7 @@ from urllib.parse import quote
 from app.config import get_settings
 
 
-def signed_url(path, checksum, now=None):
+def signed_url(path, checksum, now=None, *, ttl_seconds=None):
     secret = os.environ.get("MEDIA_SIGNING_SECRET", "")
     if os.environ.get("MEDIA_SIGNED_URLS_ENABLED", "false").lower() != "true" or not re.fullmatch(r"[0-9a-f]{64}", secret):
         return None
@@ -24,6 +24,7 @@ def signed_url(path, checksum, now=None):
         return None
     uri = f"/media/cache/signed/{checksum.lower()}/{quote(relative, safe='/')}"
     # 60–75 min validity, identical URL for requests in one 15-minute bucket.
-    expires = (int(time.time() if now is None else now) // 900 + 5) * 900
+    issued = int(time.time() if now is None else now)
+    expires = (issued // 30 + 1) * 30 + ttl_seconds if ttl_seconds is not None else (issued // 900 + 5) * 900
     signature = hmac.new(secret.encode(), f"{expires}\n{uri}".encode(), hashlib.sha256).hexdigest()
     return f"{uri}?expires={expires}&sig={signature}"

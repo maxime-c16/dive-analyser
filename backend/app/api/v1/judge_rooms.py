@@ -27,7 +27,9 @@ from app.services.judge_room import Room, rooms, playback_duration
 from app.services.dive_access import owned_diver_ids
 from app.services.write_guard import optional_session_user
 from app.api.v1.dive_sharing import same_origin, secure_headers
-from app.api.v1.media import _serve_media_file
+from app.api.v1.media import _serve_media_file, _web_preview_entry
+from app.services.signed_media import signed_url
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="/rooms")
 lock = RLock()
@@ -144,21 +146,8 @@ def playlist(db, room, user, source, code=""):
             rng = seeded(room.code, dive.id)
             choices = [dive.dive_code] + rng.sample(candidates, 3)
             rng.shuffle(choices)
-        entries = sorted(
-            media_entries(db, dive),
-            key=lambda e: {"proxy_720p": 0, "proxy_360p": 1, "original": 2}.get(
-                e.rendition, 3
-            ),
-        )
-        video = next(
-            (
-                e
-                for e in entries
-                if e.rendition not in ("poster", "animated")
-                and Path(e.storage_path).is_file()
-            ),
-            None,
-        )
+        entries = [e for e in media_entries(db, dive) if Path(e.storage_path).is_file()]
+        video = _web_preview_entry(entries)
         if video is None:
             continue
         asset = db.query(PhotosAsset).filter_by(video_uuid=dive.video_uuid).first()
@@ -347,24 +336,7 @@ def invite_poster(
         room = room_for(code)
         if dive_id not in [d["id"] for d in room.playlist]:
             raise HTTPException(404, "Not in playlist")
-        dive = db.get(Dive, dive_id)
-        if dive is None or dive.visibility != "public":
-            raise HTTPException(404, "Unavailable")
-        entry = next(
-            (
-                e
-                for e in media_entries(db, dive)
-                if e.rendition == "poster" and Path(e.storage_path).is_file()
-            ),
-            None,
-        )
-        if entry is None:
-            raise HTTPException(404, "Unavailable")
-        response = _serve_media_file(
-            Path(entry.storage_path), entry.content_type or "image/jpeg", request
-        )
-        secure_headers(response)
-        return response
+    return room_media_response(dive_id, "poster", request, db)
 
 
 @router.post("/{code}/join", dependencies=[Depends(same_origin)])
@@ -489,6 +461,7 @@ def act(
             )
             db.commit()
             room.votes[key] = payload.score
+            tick(room, db)
         elif payload.action == "answer":
             now = time.time()
             if (
@@ -502,6 +475,7 @@ def act(
                 raise HTTPException(409, "Answer closed or invalid")
             room.votes[key] = payload.choice
             room.answer_times[key] = now - room.scoring_starts
+            tick(room, db)
         elif payload.action == "vote":
             if room.phase != "mole" or (
                 payload.suspect is not None
@@ -516,6 +490,37 @@ def act(
         return room.snapshot(key, time.time())
 
 
+def room_media_response(dive_id, kind, request, db):
+    # Deliberately outside the room lock: no SQL, stat, signing or byte I/O
+    # may serialize the room's sockets or other participants' media requests.
+    dive = db.get(Dive, dive_id)
+    if dive is None or dive.visibility != "public":
+        raise HTTPException(404, "Video no longer public")
+    entries = [e for e in media_entries(db, dive) if Path(e.storage_path).is_file()]
+    entry = (
+        next((e for e in entries if e.rendition == "poster"), None)
+        if kind == "poster"
+        else _web_preview_entry(entries) if kind == "video" else None
+    )
+    if entry is None:
+        raise HTTPException(404, "Media unavailable")
+    url = signed_url(entry.storage_path, entry.checksum_sha256, ttl_seconds=120)
+    if url:
+        response = RedirectResponse(url, status_code=302)
+        secure_headers(response)  # authorization redirect is never cached
+        return response
+    # Direct uvicorn development / unsigned installations retain the same
+    # scoped Range transport. nginx installations use signed URLs above.
+    response = _serve_media_file(
+        Path(entry.storage_path),
+        entry.content_type or ("image/jpeg" if kind == "poster" else "video/mp4"),
+        request,
+    )
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 @router.get("/{code}/media/{dive_id}/{kind}")
 def media(
     code: str, dive_id: int, kind: str, request: Request, db: Session = Depends(get_db)
@@ -525,41 +530,7 @@ def media(
         player_for(room, request)
         if dive_id not in [d["id"] for d in room.playlist]:
             raise HTTPException(404, "Not in this playlist")
-        dive = db.get(Dive, dive_id)
-        if dive is None or dive.visibility != "public":
-            raise HTTPException(404, "Video no longer public")
-        entries = sorted(
-            media_entries(db, dive),
-            key=lambda e: {"proxy_720p": 0, "proxy_360p": 1, "original": 2}.get(
-                e.rendition, 3
-            ),
-        )
-        entry = (
-            next(
-                (
-                    e
-                    for e in entries
-                    if (
-                        e.rendition == "poster"
-                        if kind == "poster"
-                        else e.rendition not in ("poster", "animated")
-                    )
-                    and Path(e.storage_path).is_file()
-                ),
-                None,
-            )
-            if kind in ("poster", "video")
-            else None
-        )
-        if entry is None:
-            raise HTTPException(404, "Media unavailable")
-        response = _serve_media_file(
-            Path(entry.storage_path),
-            "image/jpeg" if kind == "poster" else (entry.content_type or "video/mp4"),
-            request,
-        )
-        secure_headers(response)
-        return response
+    return room_media_response(dive_id, kind, request, db)
 
 
 # Same room cookie boundary as HTTP. A reconnect receives the current snapshot,

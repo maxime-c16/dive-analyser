@@ -28,10 +28,11 @@ def test_lifecycle_and_deadlines():
     assert r.phase == "watching"
     r.advance(107)
     assert r.phase == "judge" and r.closes == 117
-    r.votes = {"u1": 12, "u2": 10}
+    r.votes = {"u1": 12}
     r.advance(116)
     assert r.phase == "judge"
-    r.advance(117)
+    r.votes["u2"] = 10
+    r.advance(116)
     assert r.phase == "reveal"
     assert len(r.results[0]["scores"]) == 5 and len(r.results[0]["cuts"]) == 2
     r.advance(126)
@@ -145,6 +146,7 @@ def test_no_bot_in_truth_and_hidden_scores():
 def test_mole_ballot_bonus():
     r = room("mole")
     r.phase = "mole"
+    r.connections = {"a": "u1", "b": "u2"}
     r.mole = None
     r.closes = 200
     r.ballots = {"u1": None, "u2": "mum"}
@@ -414,3 +416,99 @@ def test_playback_duration_prefers_verified_file_duration(tmp_path, monkeypatch)
         judge_room.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout="10.928")
     )
     assert judge_room.playback_duration(path, 3) == 10.928
+
+
+@pytest.mark.parametrize("mode", ["classic", "code"])
+def test_last_connected_human_reveals_immediately_without_waiting_for_ghosts(mode):
+    r = room(mode)
+    r.connections = {"a": "u1", "b": "u2"}
+    if mode == "code":
+        r.playlist[0]["dive_code"] = "101B"
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.votes["u1"] = "101B" if mode == "code" else 12
+    r.answer_times["u1"] = 1
+    r.advance(107)
+    assert r.phase == "judge"
+    r.votes["u2"] = "101B" if mode == "code" else 13
+    r.answer_times["u2"] = 2
+    r.advance(108)
+    assert r.phase == "reveal" and r.closes == 117
+    if mode == "classic":
+        assert len(r.results[0]["scores"]) == 5
+
+
+def test_disconnected_players_do_not_hold_score_or_mole_countdown():
+    r = room()
+    r.connections = {"a": "u1", "other-tab": "u1"}
+    r.start(100)
+    r.begin_video(101)
+    r.begin_scoring(106)
+    r.votes = {"u1": 12}
+    r.advance(107)
+    assert r.phase == "reveal"
+    r.phase = "mole"
+    r.closes = 200
+    r.ballots = {"u1": None}
+    r.advance(110)
+    assert r.phase == "results"
+
+
+def test_room_media_unlocks_before_sql_files_or_signing(workspace, monkeypatch):
+    from app.api.v1 import judge_rooms
+
+    db, login, dives, _, _ = workspace
+    client = login("alice")
+    state = client.post("/api/v1/rooms", json={}).json()
+    code = state["code"]
+
+    def sign(path, checksum, *, ttl_seconds):
+        assert not judge_rooms.lock._is_owned()
+        assert ttl_seconds == 120
+        return "/media/cache/signed/" + "b" * 64 + "/test.mp4?expires=123&sig=test"
+
+    original_entries = judge_rooms.media_entries
+
+    def entries(*args):
+        assert not judge_rooms.lock._is_owned()
+        return original_entries(*args)
+
+    monkeypatch.setattr(judge_rooms, "signed_url", sign)
+    monkeypatch.setattr(judge_rooms, "media_entries", entries)
+    path = f'/api/v1/rooms/{code}/media/{dives["alice-public"]}/video'
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 302 and response.headers["location"].startswith(
+        "/media/cache/signed/"
+    )
+    client.cookies.clear()
+    assert client.get(path, follow_redirects=False).status_code == 403
+    rooms.pop(code)
+
+
+def test_room_signatures_expire_soon_without_changing_library_ttl(
+    tmp_path, monkeypatch
+):
+    from app.services.signed_media import signed_url
+    from app.config import get_settings
+
+    monkeypatch.setenv("MEDIA_SIGNED_URLS_ENABLED", "true")
+    monkeypatch.setenv("MEDIA_SIGNING_SECRET", "a" * 64)
+    monkeypatch.setattr(get_settings(), "media_cache_root", str(tmp_path))
+    from urllib.parse import urlparse, parse_qs
+
+    issued = 1000
+    expires = int(
+        parse_qs(
+            urlparse(
+                signed_url(tmp_path / "clip.mp4", "b" * 64, now=issued, ttl_seconds=120)
+            ).query
+        )["expires"][0]
+    )
+    assert 120 <= expires - issued <= 150
+    library = int(
+        parse_qs(
+            urlparse(signed_url(tmp_path / "clip.mp4", "b" * 64, now=issued)).query
+        )["expires"][0]
+    )
+    assert library - issued >= 3600

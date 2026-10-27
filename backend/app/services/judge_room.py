@@ -301,7 +301,10 @@ class Room:
                 self.begin_video(now)
         elif self.phase == "watching" and now >= self.video_ends:
             self.begin_scoring(self.video_ends)
-        elif self.phase == "judge" and now >= self.closes:
+        elif self.phase == "judge" and (
+            now >= self.closes
+            or (self.connected() and self.connected() <= self.votes.keys())
+        ):
             self.reveal(now)
         elif self.phase == "reveal" and now >= self.closes:
             self.index += 1
@@ -311,7 +314,8 @@ class Room:
                 self.phase = "mole" if self.mode == "mole" else "results"
                 self.closes = now + 20
         elif self.phase == "mole" and (
-            now >= self.closes or len(self.ballots) == len(self.players)
+            now >= self.closes
+            or (self.connected() and self.connected() <= self.ballots.keys())
         ):
             for key, player in self.players.items():
                 player["points"] += (

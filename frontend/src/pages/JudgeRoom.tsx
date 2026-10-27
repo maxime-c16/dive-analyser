@@ -7,11 +7,16 @@ import {
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Crown, Link2, Play, Timer } from "lucide-react";
+import { Check, Copy, Crown, Link2, Play, Timer, Volume2 } from "lucide-react";
 import MemberAvatar from "../components/MemberAvatar";
 import { ScoreCard } from "../components/evaluation/ScoreCards";
 import EvaluationPlayer from "../components/evaluation/EvaluationPlayer";
 import "../components/evaluation/evaluations.css";
+import useRoomPreload from "../components/judge-room/useRoomPreload";
+import {
+  AUDIO_PRIMER,
+  unlockRoomAudio,
+} from "../components/judge-room/audioUnlock";
 import ScoreInput from "../components/evaluation/ScoreInput";
 import { MobileShellActions } from "../navigation/mobileShellActions";
 import { useAuth } from "../contexts/AuthContext";
@@ -47,7 +52,14 @@ export default function JudgeRoom() {
   const { user, checking } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const videoA = useRef<HTMLVideoElement>(null);
+  const videoB = useRef<HTMLVideoElement>(null);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const unlock = () => {
+    void unlockRoomAudio([videoA.current, videoB.current]);
+  };
   const [room, setRoom] = useState<Room | null>(null);
+  const preloaded = useRoomPreload(code, room?.playlist ?? []);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [shadow, setShadow] = useState(false);
   useEffect(() => {
@@ -172,6 +184,7 @@ export default function JudgeRoom() {
     }
   };
   const join = async () => {
+    unlock();
     setBusy(true);
     try {
       accept(
@@ -185,9 +198,7 @@ export default function JudgeRoom() {
       setBusy(false);
     }
   };
-  useEffect(() => {
-    if (user && invite && !room && !busy) void join();
-  }, [user, invite]);
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(location.origin + "/room/" + code);
@@ -257,6 +268,89 @@ export default function JudgeRoom() {
           {t("room.error")}
         </p>
       )}
+      <div className="gm-video-deck">
+        {[0, 1].map((slot) => {
+          const index = room
+            ? Math.min(room.index, Math.max(0, room.playlist.length - 1))
+            : 0;
+          const assigned = slot === index % 2 ? index : index + 1;
+          const clip = room?.playlist[assigned];
+          const active = assigned === index;
+          const source = clip && preloaded[clip.id];
+          const visible = Boolean(active && watching);
+          return (
+            <figure
+              key={slot}
+              className={`gm-video${visible ? " is-visible" : ""}`}
+              aria-hidden={!visible}
+            >
+              <EvaluationPlayer
+                roomVideoRef={slot === 0 ? videoA : videoB}
+                roomMedia={{
+                  src: source || AUDIO_PRIMER,
+                  poster: clip?.poster_url ?? "",
+                  startsAt: source && active && mediaActive ? room!.starts : 0,
+                  serverOffset: offset.current,
+                  playToken: `${room?.game_id}:${assigned}`,
+                }}
+                onRoomReady={() => {
+                  if (clip && source) {
+                    readyDives.current.add(clip.id);
+                    if (active) signal("ready");
+                  }
+                }}
+                onEnded={() => {
+                  if (
+                    active &&
+                    source &&
+                    current.current &&
+                    ["watching", "judge"].includes(current.current.phase)
+                  ) {
+                    setEndedDive(roundKey);
+                    signal("ended");
+                  }
+                }}
+                onSoundBlocked={() => setSoundBlocked(true)}
+                onFailure={() => {
+                  if (active && source) setError(true);
+                }}
+              />
+              {clip && (
+                <span className="gm-diver">
+                  <MemberAvatar
+                    member={{ display_name: clip.diver_name }}
+                    size={26}
+                  />
+                  <b>{clip.diver_name}</b>
+                </span>
+              )}
+              {visible && room?.phase === "loading" && (
+                <span className="gm-loading" role="status">
+                  {t("common.loading")}
+                </span>
+              )}
+              {visible && soundBlocked && (
+                <button
+                  className="gm-sound"
+                  onClick={() => {
+                    const activeVideo =
+                      slot === 0 ? videoA.current : videoB.current;
+                    void unlockRoomAudio(
+                      [videoA.current, videoB.current],
+                      activeVideo ?? undefined,
+                    ).then((results) => {
+                      if (results[slot]) setSoundBlocked(false);
+                    });
+                  }}
+                >
+                  <Volume2 size={16} />
+                  {t("room.soundOn")}
+                </button>
+              )}
+            </figure>
+          );
+        })}
+      </div>
       {!room && (
         <section className="gm-join ca-arrive">
           <div className="gm-join-posters">
@@ -285,18 +379,20 @@ export default function JudgeRoom() {
               {t("room.playerCount", { count: invite?.count ?? 0 })}
             </span>
           </div>
-          <label className="cm-search gm-nick">
-            <input
-              aria-label={t("room.nickname")}
-              placeholder={t("room.nickname")}
-              value={nick}
-              maxLength={40}
-              onChange={(e) => setNick(e.target.value)}
-            />
-          </label>
+          {!user && (
+            <label className="cm-search gm-nick">
+              <input
+                aria-label={t("room.nickname")}
+                placeholder={t("room.nickname")}
+                value={nick}
+                maxLength={40}
+                onChange={(e) => setNick(e.target.value)}
+              />
+            </label>
+          )}
           <button
             className="gm-cta"
-            disabled={busy || !invite || !nick.trim()}
+            disabled={busy || !invite || (!user && !nick.trim())}
             onClick={() => void join()}
           >
             {t("room.join")}
@@ -420,7 +516,10 @@ export default function JudgeRoom() {
             <button
               className="gm-cta"
               disabled={busy || !room.playlist.length}
-              onClick={() => void action({ action: "start" })}
+              onClick={() => {
+                unlock();
+                void action({ action: "start" });
+              }}
             >
               <Play size={18} />
               {t("room.start")}
@@ -458,60 +557,6 @@ export default function JudgeRoom() {
               </div>
             )}
             {room.is_mole && <p className="gm-roast">{t("room.secret")}</p>}
-            {mediaActive && (
-              <div className="gm-video-deck">
-                {room.playlist
-                  .filter(
-                    (_, i) =>
-                      i === room.index ||
-                      (room.phase === "reveal" && i === room.index + 1),
-                  )
-                  .map((d) => {
-                    const active = d.id === dive.id;
-                    return (
-                      <figure
-                        key={`${room.game_id}:${d.id}`}
-                        className={`gm-video${active && watching ? " is-visible" : ""}`}
-                        aria-hidden={!(active && watching)}
-                      >
-                        <EvaluationPlayer
-                          roomMedia={{
-                            src: d.playback_url,
-                            poster: d.poster_url,
-                            startsAt: active ? room.starts : 0,
-                            serverOffset: offset.current,
-                          }}
-                          onRoomReady={() => {
-                            readyDives.current.add(d.id);
-                            if (active) signal("ready");
-                          }}
-                          onEnded={() => {
-                            if (active) {
-                              setEndedDive(roundKey);
-                              signal("ended");
-                            }
-                          }}
-                          onFailure={() => {
-                            if (active) setError(true);
-                          }}
-                        />
-                        <span className="gm-diver">
-                          <MemberAvatar
-                            member={{ display_name: d.diver_name }}
-                            size={26}
-                          />
-                          <b>{d.diver_name}</b>
-                        </span>
-                        {active && room.phase === "loading" && (
-                          <span className="gm-loading" role="status">
-                            {t("common.loading")}
-                          </span>
-                        )}
-                      </figure>
-                    );
-                  })}
-              </div>
-            )}
             {scoring && (
               <>
                 <ul className="gm-status">

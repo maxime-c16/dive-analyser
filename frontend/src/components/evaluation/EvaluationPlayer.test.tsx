@@ -328,3 +328,17 @@ it('reports room readiness without starting playback while the server is loading
   unmount()
   vi.useRealTimers()
 })
+
+it('falls back to muted playback only after an audible play is rejected', async () => {
+  vi.useFakeTimers()
+  const blocked = vi.fn()
+  vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(new Error('NotAllowedError')).mockResolvedValue()
+  const {container,unmount}=render(<EvaluationPlayer roomMedia={{src:'/room-video',poster:'',startsAt:Date.now()/1000,serverOffset:0}} onSoundBlocked={blocked}/>)
+  const video=container.querySelector('video')!
+  expect(video.muted).toBe(false)
+  await act(async()=>{vi.advanceTimersByTime(1)})
+  expect(blocked).toHaveBeenCalledOnce()
+  expect(video.muted).toBe(true)
+  expect(video.play).toHaveBeenCalledTimes(2)
+  unmount();vi.useRealTimers()
+})
