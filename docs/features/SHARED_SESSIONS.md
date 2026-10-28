@@ -136,3 +136,54 @@ their dives and export clips — steps 3–4, NOT in scope here).
 - One object key = one session video. Re-uploading under the same name does
   not create a second video.
 - No preference toggle for `session_video` (owner-only alert).
+
+## V2 — decisions from Maxime's review of the first test build (2026-10-28)
+
+### PR A v2 (this branch, PR #178)
+- **A link = a session, not a video.** 2–3 videos of the same session are
+  common; a video uploaded later shows up under the same link.
+- **Session page, mobile first, no scrolling needed**: header (date · N
+  videos · total duration), video thumbnails (one poster per video + start
+  time + duration), primary button **« Tout télécharger · <taille> »**. Tap a
+  thumbnail → the video plays in the existing library player look; the other
+  videos stay reachable as a strip. Reuse library cards/player components,
+  not a bespoke rudimentary page. No autoplay (guests on 4G).
+- **Download all**: members download each file in turn (no server-side zip,
+  deb-serv disk is full); also a per-video download in the player. Guests see
+  the button with a lock → tapping opens account creation.
+- **One link for everyone = invitation + login.** Existing account → log in
+  and land on the session. New person → short onboarding: credentials (name,
+  email, password) + club → training group (they pick the group; existing
+  `TrainingGroup`/`TrainingGroupMembership`) → creates a real **diver**
+  account (role diver + Diver profile), never "friend". Then a message says
+  they will get an email for their group's next sessions, with the toggle
+  shown and **on by default**, changeable later in the account. Revoking the
+  link also stops signups through it. Each signup through a link notifies
+  Maxime on Telegram (+ inbox) so he can deactivate strangers.
+- **No duplicate divers**: if the new name matches an existing account-less
+  Diver profile (e.g. deposited clips; MAT/Mat duplicates exist), queue a
+  link-to-existing-profile suggestion that Maxime validates (admin), instead
+  of silently creating a second profile or auto-merging.
+- **Library**: sessions are mixed with dives in the library feed, with a
+  distinct card (badge « Séance », video count, total duration) and an extra
+  « Séances » filter. The card uses the existing animated stop-motion
+  thumbnail look: ~10 frames per video extracted from B2 by range reads
+  (ffmpeg over a presigned URL, HDR tone-mapped to SDR JPEG/WebP), never a
+  full download or transcode. Posters use the same extraction.
+- **Owner settings** (owner/admin): hide/delete a wrong video, move a video to
+  another session, revoke/regenerate the link.
+- **Friends** (role) see sessions in the app (read only).
+
+### PR C (separate, after A) — calendar
+- Maxime (admin) assigns users to training groups; new accounts pick theirs
+  at onboarding (A). Group membership = attending by default. The only RSVP
+  action becomes **« Je ne viens pas »** (decline); remove the
+  interested/maybe confirmation flow (built in PR #170) — reuse the existing
+  absence/decline storage.
+- Tie each session video to the calendar occurrence whose time window
+  contains the recording time (Apple creationdate, Europe/Paris, with a
+  tolerance margin); fall back to day grouping. Session title then comes from
+  the event (« Entraînement jeu. 18h · <lieu> »).
+- When a session's first video arrives, notify every group member who did
+  not decline (in-app + push + email if their toggle is on) with the session
+  link.
