@@ -127,13 +127,13 @@ export function LibraryCardGrid({
         <section key={group.key} className="mt-7 first:mt-0" aria-label={group.label}>
           <div className="mb-2 flex items-baseline gap-3">
             <h2 className="text-sm font-semibold text-app-text first-letter:uppercase">{group.label}</h2>
-            <span className="text-xs tabular-nums text-app-muted">{group.items.length}</span>
+            <span className="text-xs tabular-nums text-app-muted">{group.items.length + sessions.filter(s=>s.date===group.key).length}</span>
             <span className="h-px flex-1 self-center bg-app-border" aria-hidden="true" />
           </div>
           <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
-            {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="group flex h-full min-w-0 flex-col text-left" aria-label={`Séance · ${session.video_count} vidéos`}>
+            {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="group flex h-full min-w-0 flex-col text-left" aria-label={`Séance · ${session.video_count} ${session.video_count === 1 ? 'vidéo' : 'vidéos'}`}>
               <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">Séance</span></div>
-              <span className="mt-1.5 text-sm font-semibold">{session.video_count} vidéos</span><span className="text-xs text-app-muted">{formatDuration(session.total_duration)}</span>
+              <span className="mt-1.5 text-sm font-semibold">{session.video_count} {session.video_count === 1 ? 'vidéo' : 'vidéos'}</span><span className="text-xs text-app-muted">{formatDuration(session.total_duration)}</span>
             </Link>)}
             {group.items.map((attempt) => {
               const name = diveCodeName(attempt.dive_code, lang);

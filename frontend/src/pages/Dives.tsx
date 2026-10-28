@@ -185,7 +185,6 @@ function DiveLibrary() {
   const { user } = useAuth();
   const [sharedSessions, setSharedSessions] = useState<SharedTrainingSession[]>([]);
   const [sessionsCursor, setSessionsCursor] = useState<number|null>(null);
-  const onlySessions = searchParams.get('kind') === 'sessions';
   useEffect(()=>{let live=true; if(user?.features?.shared_sessions) trainingSessions().then(d=>{if(live){setSharedSessions(d.items);setSessionsCursor(d.next_cursor)}}).catch(()=>{}); return()=>{live=false}},[user?.user_id,user?.features?.shared_sessions]);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
@@ -592,7 +591,6 @@ function DiveLibrary() {
       </header>
       <PendingBanner />
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
-        {user?.features?.shared_sessions && <button className="touch-target border border-app px-4 rounded-full" aria-pressed={onlySessions} onClick={()=>{const p=new URLSearchParams(searchParams);if(onlySessions)p.delete('kind');else p.set('kind','sessions');setSearchParams(p)}}>Séances</button>}
         <div className="flex flex-wrap items-center gap-2">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
             {(
@@ -800,7 +798,7 @@ function DiveLibrary() {
               )}
             </div>
           ) : (
-            onlySessions ? <LibraryCardGrid attempts={[]} sessions={sharedSessions} onOpen={openClip} showDiver={false}/> : aggregated ? (
+            aggregated ? (
               codeSummaries ? (
                 view === "codes" ? (
                   <CodeCards codes={codeSummaries.codes} sort={codeSort} onSort={(sort) => update({ sort: sort === "recent" ? null : sort })} onOpenClip={openClipId} />
@@ -845,7 +843,7 @@ function DiveLibrary() {
         </section>
       )}
       {sessionsCursor && <button className="touch-target" onClick={async()=>{const d=await trainingSessions(sessionsCursor);setSharedSessions(s=>[...s,...d.items]);setSessionsCursor(d.next_cursor)}}>Plus de séances</button>}
-      {!onlySessions && !loading && nextCursor && !aggregated && (
+      {!loading && nextCursor && !aggregated && (
         <div className="mt-5 text-center">
           <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">

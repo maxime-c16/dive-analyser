@@ -55,3 +55,11 @@ it('mixes session cards into the same day as dive cards', async () => {
   expect(screen.getByRole('link',{name:'Séance · 3 vidéos'})).toHaveAttribute('href','/sessions/shared/8')
   expect(screen.getByText('1 h 00')).toBeInTheDocument()
 })
+
+it('counts a session-only day and uses singular video wording', async () => {
+  const {MemoryRouter}=await import('react-router-dom')
+  render(<MemoryRouter><LibraryCardGrid attempts={[]} onOpen={vi.fn()} sessions={[{session_id:9,date:'2026-10-17',videos:[],video_count:1,total_duration:600,total_bytes:10,has_more:false}]}/></MemoryRouter>)
+  expect(screen.getByRole('link',{name:'Séance · 1 vidéo'})).toHaveTextContent('1 vidéo')
+  expect(within(screen.getByRole('region')).getByText('1',{exact:true})).toBeInTheDocument()
+  expect(screen.queryByText('0',{exact:true})).toBeNull()
+})

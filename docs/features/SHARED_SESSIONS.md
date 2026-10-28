@@ -165,8 +165,9 @@ their dives and export clips — steps 3–4, NOT in scope here).
   link-to-existing-profile suggestion that Maxime validates (admin), instead
   of silently creating a second profile or auto-merging.
 - **Library**: sessions are mixed with dives in the library feed, with a
-  distinct card (badge « Séance », video count, total duration) and an extra
-  « Séances » filter. The card uses the existing animated stop-motion
+  distinct card (badge « Séance », video count, total duration), without a
+  separate navigation entry or filter (iPhone review follow-up). The card uses
+  the existing animated stop-motion
   thumbnail look: ~10 frames per video extracted from B2 by range reads
   (ffmpeg over a presigned URL, HDR tone-mapped to SDR JPEG/WebP), never a
   full download or transcode. Posters use the same extraction.

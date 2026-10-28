@@ -1,54 +1,43 @@
-.session-video-frame { position: relative; width: 100%; min-height: 40dvh; background: #000; display: flex; align-items: center; justify-content: center; }
-/* Phones film portrait or landscape: fit either inside the visible height. */
-.session-video-frame video { width: 100%; max-height: calc(100dvh - 9rem); display: block; background: #000; object-fit: contain; }
-.session-video-unplayable { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: #fff; padding: 1rem; text-align: center; }
-.session-video-unplayable p { font-size: 1.05rem; font-weight: 600; }
-.session-video-download { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem 1rem; border: 1px solid rgba(255, 255, 255, .6); color: #fff; font-weight: 600; }
-.session-video-page { max-width: 72rem; margin: 0 auto; }
-.session-video-page header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.session-video-page h1 { font-size: 1.25rem; font-weight: 600; }
-.session-video-page h1::first-letter, .shared-session h1::first-letter, .session-video-date::first-letter { text-transform: uppercase; }
-.session-video-page header p { color: var(--app-muted, #888); font-size: .875rem; }
-.session-video-actions { display: flex; gap: .5rem; }
-.session-video-actions button { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; }
-.shared-session { min-height: 100dvh; background: #000; color: #fff; padding: max(1rem, env(safe-area-inset-top)) 0 1rem; }
-.shared-session header { padding: 0 1rem .75rem; }
-.shared-session h1 { font-size: 1.1rem; font-weight: 600; }
-.shared-session header p { opacity: .7; font-size: .875rem; }
-.shared-session [role="alert"] { padding: 1rem; }
-.session-gallery { height: calc(100dvh - 10rem); min-height: 390px; display:flex; flex-direction:column; gap:12px; max-width:72rem; margin:auto; }
+.session-gallery { height:var(--session-height,calc(100dvh - 11rem)); min-height:0; display:flex; flex-direction:column; gap:12px; max-width:72rem; margin:auto; }
 .session-gallery header { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; flex-shrink:0; }
-.session-gallery h1 { font-size:1.2rem; font-weight:600; width:100%; text-transform:capitalize; }
-.session-gallery header>span {font-size:.85rem;font-variant-numeric:tabular-nums;}
-.session-gallery .session-video-actions {margin-left:auto;}
-.session-strip {display:flex;gap:12px;flex:1;min-height:0;overflow-x:auto;align-items:center;}
-.session-tile {flex:0 0 min(70%,260px);min-width:0;}
-.session-tile>button {width:100%;text-align:left;}
-.session-poster {height: min(42dvh,380px);position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--app-border);background:#111;}
-.session-poster>div {height:100%;}
-.session-poster img {object-fit:cover;width:100%;height:100%;}
-.session-tile span {display:block;font-size:.8rem;padding-top:6px;font-variant-numeric:tabular-nums;}
-.session-strip-small {flex:0 0 110px;}
-.session-strip-small .session-tile {flex-basis:100px;}
-.session-strip-small .session-poster {height:75px;}
-.session-selected {flex:1;min-height:0;position:relative;display:flex;flex-direction:column;gap:4px;}
-.session-selected>button:first-child {position:absolute;right:6px;top:6px;z-index:2;background:#111a;padding:6px;color:white;}
-.session-selected .session-video-frame {min-height:0;flex:1;overflow:hidden;border-radius:12px;}
-.session-selected .session-video-frame video {height:100%;max-height:100%;}
-.session-selected .session-video-download {align-self:center;font-size:.8rem;min-height:36px;}
-.session-download-all {display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;flex-shrink:0;background:var(--app-accent,#b5f36d);color:#111;font-weight:600;border-radius:12px;}
-.shared-session {padding:20px 16px;background:var(--app-bg,#090d13);color:var(--app-text,#fff);height:100dvh;min-height:0;}
-.shared-session .session-gallery {height:calc(100dvh - 85px);min-height:0;}
-.session-login {display:block;text-align:center;padding:10px;font-size:.85rem;}
-.session-settings {display:flex;flex-wrap:wrap;gap:8px;}.session-settings button{min-height:36px;}
-.session-onboarding {max-width:420px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:16px;}
-.session-onboarding h1 {font-size:1.4rem;font-weight:600;}.session-onboarding form{display:flex;flex-direction:column;gap:12px;}
-.session-onboarding input:not([type=checkbox]),.session-onboarding select {min-height:44px;width:100%;background:var(--app-panel,#222);border:1px solid var(--app-border,#555);padding:8px;border-radius:8px;}
-.session-onboarding button{min-height:44px;border:1px solid var(--app-border,#555);border-radius:8px;}
-
-.session-gallery, .shared-session .session-gallery {height:var(--session-height,calc(100dvh - 11rem));min-height:0;}
-/* The Library transport also works in the compact session frame. */
-.session-video-frame .clip-transport {display:grid;grid-template-columns:40px minmax(0,1fr) auto 40px;left:12px;right:12px;bottom:12px;gap:8px;color:white;}
-.session-video-frame .clip-transport button:last-child {margin-left:0;}
-.session-video-frame .clip-time {position:absolute;right:0;top:-16px;font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 1px 3px #000;}
-.session-video-frame input.clip-progress {position:relative;left:auto;bottom:auto;display:block;width:100%;height:24px;min-height:24px;}
+.session-gallery h1 { font-size:1.2rem; font-weight:600; width:100%; }
+.session-gallery h1::first-letter { text-transform:uppercase; }
+.session-gallery header>span { font-size:.85rem; font-variant-numeric:tabular-nums; }
+.session-video-actions { display:flex; gap:.5rem; margin-left:auto; }
+.session-video-actions button { display:inline-flex; align-items:center; gap:.4rem; min-height:44px; }
+.session-strip { display:flex; gap:12px; flex:1; min-height:0; overflow-x:auto; align-items:center; }
+.session-tile { flex:0 0 min(70%,260px); min-width:0; }
+.session-tile>button { width:100%; text-align:left; }
+.session-poster { height:min(42dvh,380px); position:relative; overflow:hidden; border-radius:12px; border:1px solid var(--app-border); background:var(--app-panel); }
+.session-poster>div { height:100%; }
+.session-poster img { object-fit:cover; width:100%; height:100%; }
+.session-tile span { display:block; font-size:.8rem; padding-top:6px; font-variant-numeric:tabular-nums; }
+.session-strip-small { flex:0 0 96px; }
+.session-strip-small .session-tile { flex-basis:100px; }
+.session-strip-small .session-poster { height:64px; }
+.session-selected { flex:1; min-height:0; position:relative; display:flex; flex-direction:column; gap:8px; }
+.session-selected>button:first-child { position:absolute; right:0; top:0; z-index:6; min-width:44px; min-height:44px; display:grid; place-items:center; background:var(--app-panel); color:var(--app-text); border:1px solid var(--app-border); }
+.session-player-slot { flex:1; min-height:0; display:flex; justify-content:center; align-items:center; }
+.session-video-player { --session-controls-height:68px; position:relative; width:min(100%,calc((var(--session-player-max-height,60dvh) - var(--session-controls-height)) * var(--session-ratio, .5625))); padding-bottom:var(--session-controls-height); flex-shrink:0; }
+.session-video-frame { position:relative; width:100%; aspect-ratio:var(--session-ratio, .5625); background:#000; color:#fff; border-radius:12px; }
+.session-video-frame video { position:absolute; inset:0; width:100%; height:100%; display:block; object-fit:contain; border-radius:inherit; }
+.session-video-unplayable { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1rem; padding:1rem; text-align:center; }
+.session-video-unplayable p { font-size:1.05rem; font-weight:600; }
+.session-video-download { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; padding:.5rem 1rem; border:1px solid var(--app-border-strong); color:var(--app-text); font-weight:600; }
+.session-selected .session-video-download { align-self:center; font-size:.8rem; }
+.session-download-all { display:flex; align-items:center; justify-content:center; gap:8px; min-height:48px; flex-shrink:0; background:var(--app-accent); color:var(--app-bg); font-weight:600; border-radius:12px; }
+.shared-session { padding:20px 16px 0; background:var(--app-bg); color:var(--app-text); height:100dvh; }
+.shared-session header { padding:0; }
+.session-login { display:block; width:100%; text-align:center; min-height:44px; font-size:.875rem; }
+.session-settings { display:flex; flex-wrap:wrap; gap:8px; }
+.session-settings button { min-height:36px; }
+/* Library transport, below the picture. Its time label belongs to the scrub. */
+.session-video-frame .clip-transport { position:absolute; top:100%; bottom:auto; left:0; right:0; height:68px; padding-top:16px; display:grid; grid-template-columns:36px minmax(0,1fr) auto 36px; gap:4px; color:var(--app-text); }
+.session-video-frame .clip-transport button { min-width:36px; }
+.session-video-frame .clip-transport button:last-child { margin-left:0; }
+.session-video-frame .clip-time { position:absolute; right:0; top:-14px; font:10px system-ui,sans-serif; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--app-muted); }
+.session-video-frame input.clip-progress { position:relative; left:auto; bottom:auto; display:block; width:100%; height:24px; min-height:24px; }
+.session-video-frame .clip-speed-pill { min-width:36px; padding:0 6px; font-size:12px; }
+.session-auth { min-height:100dvh; }
+.session-auth input:not([type=checkbox]), .session-auth select { font-size:16px; min-height:44px; }
+@media (max-height:650px) { .session-auth-panel { padding:24px; } .session-auth-panel h1, .session-auth-panel>div:first-child { margin-bottom:16px; } }
