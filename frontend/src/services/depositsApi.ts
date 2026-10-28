@@ -1,4 +1,5 @@
 import type { AuthUser } from '../contexts/AuthContext'
+import { runSessionMutation } from '../contexts/sessionMutex'
 
 /**
  * Deposit-batch review client ("Récupérer mes plongeons").
@@ -135,12 +136,14 @@ export async function peekClaim(
 }
 
 export async function redeemClaim(token: string): Promise<{ batch_id: string; diver_id: number | null }> {
+  // Like login, redeeming signs the recipient in: serialize with logout so
+  // the fresh cookie survives whichever response the browser applies last.
   const data = (await readJson(
-    await fetch('/api/v1/deposits/claim/redeem', {
+    await runSessionMutation(() => fetch('/api/v1/deposits/claim/redeem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
-    }),
+    })),
   )) as { batch_id: string; diver_id: number | null }
   return data
 }

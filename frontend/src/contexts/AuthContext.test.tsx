@@ -59,21 +59,42 @@ it('ignores a superseded refresh even when its response body finishes last', asy
   expect(screen.getByLabelText('account')).toHaveTextContent('2')
 })
 
-it('cannot restore the account during a pending logout and permits a later login refresh', async () => {
-  const refresh = deferred<Response>()
+it('queues a refresh issued during a pending logout until the logout settles', async () => {
+  const staleRefresh = deferred<Response>()
   const logout = deferred<Response>()
-  vi.mocked(fetch).mockResolvedValueOnce(response(1)).mockReturnValueOnce(refresh.promise)
+  vi.mocked(fetch).mockResolvedValueOnce(response(1)).mockReturnValueOnce(staleRefresh.promise)
     .mockReturnValueOnce(logout.promise).mockResolvedValueOnce(response(2))
   render(<AuthProvider><Probe /></AuthProvider>)
   await act(async () => {})
   expect(screen.getByLabelText('account')).toHaveTextContent('1')
+  // A refresh started before logout becomes stale once logout begins.
   await act(async () => { fireEvent.click(screen.getByText('Refresh')) })
   await act(async () => { fireEvent.click(screen.getByText('Sign out')) })
-  await act(async () => { refresh.resolve(response(1)) })
+  await act(async () => { staleRefresh.resolve(response(1)) })
   expect(screen.getByLabelText('account')).toHaveTextContent('signed out')
+  // A login's refresh during the pending logout waits: no /me is issued
+  // while the logout response is still in flight, so Login.tsx cannot
+  // navigate while `user` is still null.
   await act(async () => { fireEvent.click(screen.getByText('Refresh')) })
   expect(fetch).toHaveBeenCalledTimes(3)
   await act(async () => { logout.resolve({ ok: true } as Response) })
-  await act(async () => { fireEvent.click(screen.getByText('Refresh')) })
+  expect(fetch).toHaveBeenCalledTimes(4)
+  expect(fetch).toHaveBeenLastCalledWith('/api/v1/auth/me', { credentials: 'same-origin' })
+  await act(async () => {})
   expect(screen.getByLabelText('account')).toHaveTextContent('2')
+})
+
+it('shares one logout request between concurrent sign-out calls', async () => {
+  const logout = deferred<Response>()
+  vi.mocked(fetch).mockResolvedValueOnce(response(1)).mockReturnValueOnce(logout.promise)
+  render(<AuthProvider><Probe /></AuthProvider>)
+  await act(async () => {})
+  expect(screen.getByLabelText('account')).toHaveTextContent('1')
+  await act(async () => {
+    fireEvent.click(screen.getByText('Sign out'))
+    fireEvent.click(screen.getByText('Sign out'))
+  })
+  expect(vi.mocked(fetch).mock.calls.filter(([url]) => url === '/api/v1/auth/logout')).toHaveLength(1)
+  await act(async () => { logout.resolve({ ok: true } as Response) })
+  expect(screen.getByLabelText('account')).toHaveTextContent('signed out')
 })

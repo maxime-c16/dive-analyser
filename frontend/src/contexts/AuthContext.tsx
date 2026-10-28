@@ -6,6 +6,7 @@ import { clearIntentData } from '../services/intentCache'
 import { resetPlaybackWarming } from '../utils/playbackWarming'
 import type { AvatarIdentity } from '../components/MemberAvatar'
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { runSessionMutation } from './sessionMutex'
 
 export interface AuthUser extends AvatarIdentity {
   user_id: number
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const generation = useRef(0)
   const signingOut = useRef(false)
+  const signOutPromise = useRef<Promise<void> | null>(null)
 
   const clearDerivedReads = () => {
     clearIntentData()
@@ -51,7 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refresh = async () => {
-    if (signingOut.current) return
+    // A login submitted while logout is pending must not read the session
+    // before the logout response has been applied: queue this refresh until
+    // the logout settles, then perform the single /me fetch below. Without
+    // the wait, Login.tsx would navigate while `user` is still null.
+    if (signingOut.current && signOutPromise.current) {
+      await signOutPromise.current
+      if (signingOut.current) return
+    }
     const started = ++generation.current
     clearDerivedReads()
     try {
@@ -96,9 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    if (signingOut.current) return
+    if (signOutPromise.current) return signOutPromise.current
     signingOut.current = true
-    ++generation.current
+    const started = ++generation.current
     clearNavigationSession(user?.user_id)
     clearDerivedReads()
     setUser(null)
@@ -106,19 +115,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sign-out begins here: tear warm transfers down before the network
     // round-trip, so a stalled logout cannot keep signed-URL pulls running.
     resetPlaybackWarming()
-    try {
-      await fetch('/api/v1/auth/logout', {
-        method: 'POST',
-        credentials: 'same-origin',
-      })
-    } catch {
-      // Cookie is HttpOnly; a network failure still means dropping local state.
-    } finally {
-      signingOut.current = false
-      clearDerivedReads()
-      resetPlaybackWarming()
-      setUser(null)
-    }
+    // Serialize with session-establishing requests (login, registration,
+    // ...): the logout response must never land after a newer login response
+    // and clear the fresh cookie, nor may a login response land first and be
+    // revoked by this logout. Callers route those requests through the same
+    // lock, so waiting here is sufficient; no extra /me is issued.
+    const done = runSessionMutation(async () => {
+      try {
+        await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin',
+        })
+      } catch {
+        // Cookie is HttpOnly; a network failure still means dropping local state.
+      } finally {
+        signingOut.current = false
+        // Never wipe a session established after this logout started. With
+        // serialized mutations that only happens via a path outside the lock,
+        // but the guard keeps a late logout settlement from clearing a newer
+        // login's local state.
+        if (started === generation.current) {
+          clearDerivedReads()
+          resetPlaybackWarming()
+          setUser(null)
+        }
+      }
+    })
+    signOutPromise.current = done
+    done.then(
+      () => { if (signOutPromise.current === done) signOutPromise.current = null },
+      () => { if (signOutPromise.current === done) signOutPromise.current = null },
+    )
+    return done
   }
 
   useEffect(() => {

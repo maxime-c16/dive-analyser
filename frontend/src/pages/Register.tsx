@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShieldCheck, UserPlus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { runSessionMutation } from '../contexts/sessionMutex'
 import SignupClubSelect from '../components/SignupClubSelect'
 
 export default function Register() {
@@ -39,7 +40,8 @@ export default function Register() {
     }
     setBusy(true)
     try {
-      const res = await fetch('/api/v1/auth/register', {
+      // Same ordering guarantee as login: never race a pending logout.
+      const res = await runSessionMutation(() => fetch('/api/v1/auth/register', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -50,7 +52,7 @@ export default function Register() {
           invite_code: inviteCode,
           ...(clubId !== null ? { club_id: clubId } : {}),
         }),
-      })
+      }))
       if (!res.ok) {
         if (res.status === 403) setError(t('register.errorInvite'))
         else if (res.status === 409) setError(t('register.errorExists'))

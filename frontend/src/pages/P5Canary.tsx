@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { runSessionMutation } from "../contexts/sessionMutex";
 
 /**
  * Authenticated media player (bounded feature surface).
@@ -28,12 +29,14 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/auth/login", {
+      // Standalone canary login: same no-overlap rule as the main login form,
+      // so a logout response cannot clear this fresh cookie afterwards.
+      const response = await runSessionMutation(() => fetch("/api/v1/auth/login", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      });
+      }));
       if (!response.ok) {
         setError("Login failed");
         return;
@@ -135,10 +138,10 @@ function P5Canary() {
         <button
           type="button"
           onClick={async () => {
-            await fetch("/api/v1/auth/logout", {
+            await runSessionMutation(() => fetch("/api/v1/auth/logout", {
               method: "POST",
               credentials: "same-origin",
-            });
+            }));
             setUser(null);
             setRevisions([]);
           }}
