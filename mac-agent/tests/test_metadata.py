@@ -163,3 +163,10 @@ def test_real_all_caps_person_labels_still_parse():
     assert label is not None
     assert label.label_type == "person"
     assert label.label_value == "FANNY"
+
+
+def test_sync_names_are_not_single_owner_metadata():
+    for caption in ['103B G 3m SYNC MAT', '103B G 3m MAT SYNC',
+                    '103B G 3m SYNC MAT+SARA', '103B G 3m SYNC']:
+        metadata = parse_dive_caption(caption)
+        assert metadata and metadata.is_sync and metadata.person_name is None

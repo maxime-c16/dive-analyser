@@ -1,0 +1,8 @@
+{
+  "id": "sync-participant-identity",
+  "date": "2026-10-28",
+  "title": "Des binômes fiables pour les plongeons synchro",
+  "body": "Les captions SYNC avec un nom désignent votre partenaire ; deux noms séparés par + désignent le binôme complet. Les binômes validés sont conservés lors des prochaines synchronisations Photos.",
+  "audience": "admin",
+  "components": ["backend"]
+}

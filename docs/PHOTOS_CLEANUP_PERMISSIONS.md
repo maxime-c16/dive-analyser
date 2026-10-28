@@ -18,11 +18,16 @@ byte verification and a confirmed server commit. Historical journals and library
 candidates. The authenticated read-only server endpoint rechecks:
 
 - the agent's local Photos UUID mapping;
-- an explicit active primary keeper and exactly one other active diver;
+- an explicit active primary keeper and either one other active diver or a
+  complete synchro pair of two other active divers;
 - unambiguous person/alias, caption and latest media/caption revisions;
 - the committed ledger and verified production B2 object, SHA, size and location.
 
-Unknown, own, synchronized, lineup and ambiguous clips stay in Photos. Edits or
+Unknown, own, lineup and ambiguous clips stay in Photos. Synchros stay too unless
+both effective participants are identified active other divers, no conflict exists,
+and a new worker pinned the pair revision at fresh-ingest enqueue time.
+Any later pair change invalidates that request. Old workers keep every synchro.
+Historical review never creates cleanup candidates. See [participants](SYNC_PARTICIPANTS.md). Edits or
 metadata changes invalidate old receipts. PhotoKit refetches and compares each
 version inside its change block. Completion is recorded only after the asset is
 absent. A lost response converges to `already_absent` on the next queue check.
