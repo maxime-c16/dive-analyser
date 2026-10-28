@@ -140,8 +140,17 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=str(HERE / "static"), **kw)
 
     def log_message(self, fmt, *args):
-        if "/api/log" not in str(args[0] if args else ""):
-            sys.stderr.write("%s %s\n" % (self.log_date_time_string(), fmt % args))
+        requestline = str(args[0]) if args else ""
+        if "/api/log" in requestline:
+            return
+        # The page URL carries ?t=<TOKEN> so a home-screen PWA keeps it;
+        # the default handler would log that token to stderr, where it
+        # authorizes API calls via X-Lab-Token. Log the path only.
+        parts = requestline.split()
+        if len(parts) >= 2:
+            parts[1] = urlparse(parts[1]).path
+            requestline = " ".join(parts)
+        sys.stderr.write("%s %s\n" % (self.log_date_time_string(), fmt % tuple([requestline, *args[1:]])))
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")

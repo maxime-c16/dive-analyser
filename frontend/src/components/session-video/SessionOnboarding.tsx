@@ -50,8 +50,18 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => {
     let live = true
-    api.get<Group[]>(`/api/v1/shared-dives/sessions/${shareId}/groups`)
-      .then(({ data }) => { if (live) setGroups(data) })
+    ;(async () => {
+      const all: Group[] = []
+      let params: Record<string, string | number> = {}
+      for (;;) {
+        const { data } = await api.get<{ items: Group[]; next_after: { club: string; group: string; id: number } | null }>(
+          `/api/v1/shared-dives/sessions/${shareId}/groups`, { params })
+        all.push(...data.items)
+        if (!data.next_after) break
+        params = { after_club: data.next_after.club, after_group: data.next_after.group, after_id: data.next_after.id }
+      }
+      if (live) setGroups(all)
+    })()
       .catch(() => { if (live) setError('Groupes indisponibles') })
       .finally(() => { if (live) setLoadingGroups(false) })
     return () => { live = false }

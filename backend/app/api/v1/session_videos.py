@@ -69,6 +69,22 @@ def can_manage(user: AppUser, video: SessionVideo) -> bool:
     return bool(user and user.is_active and (user.id == video.owner_user_id or user.is_admin))
 
 
+def club_today(club) -> 'date':
+    """Membership-effective date in the club's timezone.
+
+    Attendance compares membership periods against event-local days, so a
+    UTC date would shift signups around midnight boundaries. Unknown zones
+    fall back to Europe/Paris (the club default), never to server-local.
+    """
+    from datetime import date
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        zone = ZoneInfo(club.timezone or 'Europe/Paris')
+    except ZoneInfoNotFoundError:
+        zone = ZoneInfo('Europe/Paris')
+    return datetime.now(zone).date()
+
+
 def ready_video(db: Session, video_id: int, user: AppUser | None = None) -> SessionVideo:
     video = db.get(SessionVideo, video_id)
     if video is None or video.status != 'ready' or (video.hidden and not can_manage(user, video)) or video.deleted_at is not None:
@@ -324,13 +340,12 @@ def session_payload(db, session_id, *, user=None, guest_base=None, after=0):
     if not result:
         raise HTTPException(404, UNAVAILABLE)
     item = result[0]
-    if after == 0 and not item['videos'] and not item['can_manage']:
-        # No visible video for this viewer (all hidden/deleted/pending): the
-        # date and event title must not leak through a guessed session id.
-        # Owners/admins keep their management view; later recording pages
-        # (after > 0) still return an empty list instead of 404.
-        raise HTTPException(404, UNAVAILABLE)
-    return item
+    if item['videos'] or item['can_manage']:
+        return item
+    # No visible video for this viewer on any page: the date and event title
+    # must not leak through a guessed id, whatever the cursor. Managers keep
+    # their (possibly empty) paged view.
+    raise HTTPException(404, UNAVAILABLE)
 
 
 def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
@@ -463,13 +478,25 @@ def guest_image(share_id: int, video_id: int, kind: str, request: Request, db: S
 
 
 @router.get('/shared-dives/sessions/{share_id}/groups', dependencies=[Depends(require_enabled)])
-def signup_groups(share_id: int, request: Request, db: Session = Depends(get_db)):
+def signup_groups(share_id: int, request: Request, db: Session = Depends(get_db), after_club: str | None = None,
+                  after_group: str | None = None, after_id: int = 0):
     from app.models.calendar import Club, TrainingGroup
+    from sqlalchemy import and_, or_
     guest_access(share_id, request, db)
-    return [dict(id=g.id, name=g.name, club_id=c.id, club=c.name) for g,c in
-        db.query(TrainingGroup, Club).join(Club, Club.id == TrainingGroup.club_id).filter(
-            Club.archived_at.is_(None), Club.self_join_enabled.is_(True), TrainingGroup.archived_at.is_(None))
-        .order_by(Club.name, TrainingGroup.name).limit(200).all()]
+    query = db.query(TrainingGroup, Club).join(Club, Club.id == TrainingGroup.club_id).filter(
+        Club.archived_at.is_(None), Club.self_join_enabled.is_(True), TrainingGroup.archived_at.is_(None))
+    if after_id:
+        # Compound keyset matching the ordering below; names alone would skip
+        # same-named groups past a page boundary.
+        query = query.filter(or_(Club.name > after_club,
+            and_(Club.name == after_club, TrainingGroup.name > after_group),
+            and_(Club.name == after_club, TrainingGroup.name == after_group, TrainingGroup.id > after_id)))
+    rows = query.order_by(Club.name, TrainingGroup.name, TrainingGroup.id).limit(101).all()
+    items = [dict(id=g.id, name=g.name, club_id=c.id, club=c.name) for g, c in rows[:100]]
+    if len(rows) > 100:
+        last_g, last_c = rows[99]
+        return dict(items=items, next_after=dict(club=last_c.name, group=last_g.name, id=last_g.id))
+    return dict(items=items, next_after=None)
 
 
 class SessionSignup(BaseModel):
@@ -491,7 +518,6 @@ def signup(share_id: int, payload: SessionSignup, request: Request, response: Re
     from app.models.session_video import SessionSignupReview
     from app.services.passwords import hash_password
     from app.services import sessions, notification_service, telegram
-    from datetime import date
     from uuid import uuid4
     if not get_settings().user_auth_enabled:
         raise HTTPException(404, 'Not found')
@@ -532,7 +558,7 @@ def signup(share_id: int, payload: SessionSignup, request: Request, response: Re
     membership = ClubMembership(club_id=club.id, user_id=user.id, source='signup')
     db.add(membership); db.flush()
     db.add(TrainingGroupMembership(club_id=club.id, group_id=group.id, user_id=user.id,
-        club_membership_id=membership.id, effective_from=date.today()))
+        club_membership_id=membership.id, effective_from=club_today(club)))
     try:
         db.commit()
     except IntegrityError:

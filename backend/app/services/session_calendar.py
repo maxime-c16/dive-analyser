@@ -18,6 +18,10 @@ from app.models.user_auth import AppUser
 
 logger = logging.getLogger(__name__)
 MARGIN = timedelta(minutes=30)
+# Group fan-out bounds: members per batch and batches per invocation. The
+# persisted account cursor resumes the rest on a later pass.
+_NOTIFY_BATCH_SIZE = 100
+_NOTIFY_MAX_BATCHES = 5
 
 
 def matching_occurrence(db, recorded_at):
@@ -81,12 +85,15 @@ def notify_session(db, video):
 
     The cursor and inbox commit together under the session lock. Duplicate
     B2 events and later videos resume safely without re-notifying. External
-    push/email are best-effort, at-most-once attempts after commit.
+    push/email are best-effort, at-most-once attempts after commit. Work per
+    invocation is capped at _NOTIFY_MAX_BATCHES batches; the persisted
+    cursor lets a later pass (reconciliation resume or a new arrival)
+    continue where this one stopped.
     """
     from app.services import notification_service, push_service, email_service
     from app.config import get_settings
     session_id = video.session_id
-    while True:
+    for _ in range(_NOTIFY_MAX_BATCHES):
         training = db.query(TrainingSession).filter_by(id=session_id).with_for_update().populate_existing().one()
         if training.calendar_occurrence_id is None:
             return False
@@ -94,7 +101,7 @@ def notify_session(db, video):
             db.commit()
             return True
         users = occurrence_members(db, training.calendar_occurrence_id).filter(
-            AppUser.id > training.calendar_notify_cursor).order_by(AppUser.id).limit(100).all()
+            AppUser.id > training.calendar_notify_cursor).order_by(AppUser.id).limit(_NOTIFY_BATCH_SIZE).all()
         title = session_titles(db, [training.calendar_occurrence_id])[training.calendar_occurrence_id]
         path = f'/sessions/shared/{session_id}'
         pending = []
@@ -106,7 +113,7 @@ def notify_session(db, video):
                 user.email, user.session_email_enabled))
         if users:
             training.calendar_notify_cursor = users[-1].id
-        if len(users) < 100:
+        if len(users) < _NOTIFY_BATCH_SIZE:
             training.calendar_notified_at = datetime.utcnow()
         db.commit()
         for row, email, email_on in pending:
@@ -122,5 +129,8 @@ def notify_session(db, video):
                 msg['From'] = get_settings().email_from
                 msg.set_content(title + '\n' + get_settings().app_public_url.rstrip('/') + path)
                 email_service.send_message(msg, email)
-        if len(users) < 100:
+        if len(users) < _NOTIFY_BATCH_SIZE:
             return True
+    # Batch cap reached with members remaining: cursor is committed, a later
+    # pass resumes. Report the group path as active.
+    return True

@@ -457,7 +457,40 @@ def reconcile(db: Session) -> int:
     for key, size, modified in candidates[:RECONCILE_MAX_INGESTS]:
         row = ingest_object(db, key, size=size, event_time=modified)
         started += 1 if row is not None else 0
+    started += _resume_pending_session_notifications(db)
     return started
+
+
+def _resume_pending_session_notifications(db: Session, limit: int = 3) -> int:
+    """Resume group fan-out left incomplete by a capped notify pass.
+
+    Sessions with a ready video whose notification never completed still
+    hold a persisted account cursor; each pass advances a few of them.
+    Bounded: at most `limit` sessions, each through the capped notify path.
+    """
+    from app.models.session import Session as TrainingSession
+    from app.models.session_video import SessionVideo
+    ids = [row[0] for row in db.query(TrainingSession.id).join(
+        SessionVideo, SessionVideo.session_id == TrainingSession.id).filter(
+        SessionVideo.status == 'ready',
+        TrainingSession.calendar_occurrence_id.is_not(None),
+        TrainingSession.calendar_notified_at.is_(None)).distinct().order_by(
+        TrainingSession.id).limit(limit).all()]
+    db.rollback()
+    resumed = 0
+    for session_id in ids:
+        video = db.query(SessionVideo).filter_by(session_id=session_id, status='ready').order_by(
+            SessionVideo.id).first()
+        if video is None:
+            continue
+        try:
+            from app.services.session_calendar import notify_session
+            notify_session(db, video)
+            resumed += 1
+        except Exception as exc:
+            db.rollback()
+            logger.error("shared sessions: resume failed (%s)", type(exc).__name__)
+    return resumed
 
 
 _worker_stop: Optional[threading.Event] = None
@@ -513,12 +546,25 @@ def describe(video: SessionVideo) -> str:
 
 
 def _notify_once(db: Session, video_id: int) -> None:
-    """Notify the matched group once per session, otherwise the owner per video."""
+    """Group fan-out once per session plus the owner one-shot per video.
+
+    The two channels stay independent, without double-alerting: a calendar
+    session notifies its attending members through notify_session, and the
+    configured owner gets their own arrival alert (inbox + push + Telegram
+    guest link) for every video they are not already covered for as an
+    attending member — including owners who attend no group at all.
+    """
+    from app.models.notification import Notification
     video = db.get(SessionVideo, video_id)
+    covered = False
     if video and video.session_id:
         from app.services.session_calendar import notify_session
-        if notify_session(db, video):
-            return
+        notify_session(db, video)
+        covered = db.query(Notification).filter_by(
+            session_id=video.session_id, user_id=video.owner_user_id,
+            type='session_video').first() is not None
+    if covered:
+        return
     result = db.execute(
         update(SessionVideo)
         .where(SessionVideo.id == video_id, SessionVideo.status == "ready", SessionVideo.notified_at.is_(None))

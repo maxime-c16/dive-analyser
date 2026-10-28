@@ -52,7 +52,7 @@ def test_signup_group_profile_review_and_revoke(sessions_env):
     group_id=group.id
     with TestClient(app,base_url='https://testserver') as guest:
         guest.post(base+'/visit',headers={'X-Dive-Share':token})
-        assert guest.get(base+'/groups').json()[0]['id']==group_id
+        assert guest.get(base+'/groups').json()['items'][0]['id']==group_id
         payload=dict(display_name='Mat',email='mat@example.test',password='a-long-test-password',group_id=group_id)
         result=guest.post(base+'/signup',json=payload)
         assert result.status_code==201,result.text
@@ -153,9 +153,92 @@ def test_hidden_session_detail_is_private_but_manageable(sessions_env):
     owner=login('alice')
     assert owner.patch(f'/api/v1/session-videos/{video.id}',json={'hidden':True}).status_code==200
     assert login('viewer').get(f'/api/v1/shared-sessions/{sid}').status_code==404
+    # The cursor does not bypass the privacy check.
+    assert login('viewer').get(f'/api/v1/shared-sessions/{sid}',params={'after':video.id}).status_code==404
     owner = login('alice')  # login() shares one client: reset the cookie viewer replaced
     detail=owner.get(f'/api/v1/shared-sessions/{sid}')
     assert detail.status_code==200 and len(detail.json()['videos'])==1
+    assert owner.get(f'/api/v1/shared-sessions/{sid}',params={'after':video.id}).status_code==200
+
+
+def test_calendar_session_still_notifies_owner(sessions_env, monkeypatch):
+    from datetime import date, datetime
+    from app.config import get_settings
+    from app.models.calendar import Calendar, CalendarEvent, Club, EventOccurrence
+    from app.models.notification import Notification
+    from app.models.session import Session as TrainingSession
+    monkeypatch.setattr(get_settings(), 'calendar_enabled', True)
+    db, login, users, *_ = sessions_env
+    club = Club(slug='ownercal', name='OwnerCal'); db.add(club); db.flush()
+    cal = Calendar(kind='club', club_id=club.id, name='OwnerCal'); db.add(cal); db.flush()
+    event = CalendarEvent(calendar_id=cal.id, title='Training', event_type='training', audience='club',
+        status='published', timezone='Europe/Paris'); db.add(event); db.flush()
+    occ = EventOccurrence(event_id=event.id, occurrence_key='o1', starts_at=datetime(2026, 10, 17, 11),
+        ends_at=datetime(2026, 10, 17, 13), window_start=datetime(2026, 10, 17, 11),
+        window_end=datetime(2026, 10, 17, 13)); db.add(occ); db.flush()
+    training = TrainingSession(date=date(2026, 10, 17), calendar_occurrence_id=occ.id); db.add(training); db.flush()
+    video = SessionVideo(session_id=training.id, owner_user_id=users['alice'].id, bucket='test',
+        object_key='inbox/owner.MOV', status='ready'); db.add(video); db.flush(); db.commit()
+    service._notify_once(db, video.id)
+    owner_rows = db.query(Notification).filter_by(user_id=users['alice'].id, type='session_video').all()
+    assert len(owner_rows) == 1 and owner_rows[0].session_id is None
+    assert db.get(TrainingSession, training.id).calendar_notified_at is not None
+
+
+def test_signup_groups_paginate(sessions_env):
+    db,login,users,*_=sessions_env
+    video=service.ingest_object(db,KEY);video_id=video.id;owner=login('alice');base,token=link(owner,video_id)
+    club=Club(slug='manygroups',name='Many',self_join_enabled=True);db.add(club);db.flush()
+    for index in range(101):
+        db.add(TrainingGroup(club_id=club.id,slug=f'g{index}',name=f'G{index:03}'))
+    db.commit()
+    with TestClient(app,base_url='https://testserver') as guest:
+        guest.post(base+'/visit',headers={'X-Dive-Share':token})
+        first=guest.get(base+'/groups').json()
+        assert len(first['items'])==100 and first['next_after']
+        cursor=first['next_after']
+        second=guest.get(base+'/groups',params={'after_club':cursor['club'],'after_group':cursor['group'],'after_id':cursor['id']}).json()
+        assert len(second['items'])==1 and second['next_after'] is None
+        assert {g['id'] for g in first['items']} | {g['id'] for g in second['items']} == {g.id for g in db.query(TrainingGroup).all()}
+
+
+def test_signup_uses_club_timezone_for_effective_date(sessions_env, monkeypatch):
+    from app.api.v1 import session_videos as api
+    from app.models.calendar import TrainingGroupMembership
+    from datetime import date
+    db,login,users,*_=sessions_env
+    video=service.ingest_object(db,KEY);video_id=video.id;owner=login('alice');base,token=link(owner,video_id)
+    club=Club(slug='tzclub',name='Tz',self_join_enabled=True,timezone='Pacific/Kiritimati');db.add(club);db.flush()
+    group=TrainingGroup(club_id=club.id,slug='tzg',name='TzG');db.add(group);db.commit()
+    group_id=group.id
+    monkeypatch.setattr(api,'club_today',lambda club: date(2030,2,3))
+    with TestClient(app,base_url='https://testserver') as guest:
+        guest.post(base+'/visit',headers={'X-Dive-Share':token})
+        payload=dict(display_name='Tz Diver',email='tz@example.test',password='a-long-test-password',group_id=group_id)
+        assert guest.post(base+'/signup',json=payload).status_code==201
+    membership=db.query(TrainingGroupMembership).filter_by(group_id=group_id).one()
+    assert membership.effective_from==date(2030,2,3)
+
+
+def test_group_fanout_is_capped_and_resumes(sessions_env, monkeypatch):
+    from tests.test_session_calendar import setup_group
+    import app.services.session_calendar as calendar
+    from app.models.notification import Notification
+    from app.models.session import Session as TrainingSession
+    from datetime import date
+    monkeypatch.setattr(calendar,'_NOTIFY_BATCH_SIZE',2)
+    monkeypatch.setattr(calendar,'_NOTIFY_MAX_BATCHES',1)
+    db,login,users,*_=sessions_env
+    occ=setup_group(db,users)
+    training=TrainingSession(date=date(2026,10,17),calendar_occurrence_id=occ.id);db.add(training);db.flush()
+    video=SessionVideo(session_id=training.id,owner_user_id=users['alice'].id,bucket='test',object_key='inbox/cap.MOV',status='ready')
+    db.add(video);db.flush();db.commit()
+    assert calendar.notify_session(db,video) is True
+    assert db.query(Notification).filter_by(session_id=training.id).count()==2
+    assert db.get(TrainingSession,training.id).calendar_notified_at is None
+    service._resume_pending_session_notifications(db)
+    assert db.query(Notification).filter_by(session_id=training.id).count()==3
+    assert db.get(TrainingSession,training.id).calendar_notified_at is not None
 
 
 def test_owner_alert_has_no_preference_toggle(sessions_env):
@@ -207,9 +290,16 @@ def test_session_image_cleanup_rotates_scan(sessions_env,tmp_path,monkeypatch):
             for kind in ('poster','animated'):
                 path=image_path(video.id,kind);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'x'*100)
         db.commit()
+        import os as _os
+        from pathlib import Path as _Path
+        stale = _Path(get_settings().media_cache_root).resolve()/'session-images'/'424242'
+        stale.mkdir(parents=True,exist_ok=True)
+        _os.utime(stale,(0,0))
         assert cleanup_session_images(db,scan_budget=1)==200
         assert cleanup_session_images(db,scan_budget=1)==200
         assert cleanup_session_images(db,scan_budget=1)==200
+        assert cleanup_session_images(db,scan_budget=1)==0
+        assert not stale.exists()
         assert cleanup_session_images(db,scan_budget=1)==0
     finally:
         images._scan_cursor=None

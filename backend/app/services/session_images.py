@@ -75,6 +75,9 @@ from app.services.session_videos import presign_get
 _slots = threading.BoundedSemaphore(1)
 # Rotation cursor for cleanup scans (see cleanup_session_images).
 _scan_cursor = None
+# Empty video directories younger than this are left alone: an extraction
+# may be between mkdir and its first published file.
+_EMPTY_DIR_GRACE_SECONDS = 3600
 
 
 def image_path(video_id, kind):
@@ -135,34 +138,66 @@ def cleanup_session_images(db, limit=100, scan_budget=200):
     keep their files. Publication is an atomic os.replace of exactly these
     names, so in-flight staging (`*.tmp`) is never matched. Liveness is
     checked in batches of 100 ids so cleanup retains bounded rows no matter
-    how large the table grows. At most `scan_budget` video directories are
-    scanned per pass from a rotating cursor (wrap-around), so later orphans
-    still progress while one pass stays bounded. At most `limit` files
-    removed per pass. Returns freed bytes.
+    how large the table grows. The scan itself is bounded too: one streaming
+    directory pass keeps only the first `scan_budget` ids past a rotating
+    cursor (wrap-around), so later orphans still progress while one pass
+    holds O(scan_budget) names — never the full sorted listing. Fully
+    empty, settled video directories (failed extractions) are removed.
+    At most `limit` files removed per pass. Returns freed bytes.
     """
     global _scan_cursor
+    import heapq
     from itertools import islice
     from sqlalchemy import select
     from app.models.session_video import SessionVideo
+    from time import time
     limit = max(0, min(limit, 100))
     scan_budget = max(1, min(scan_budget, 2000))
     root = Path(get_settings().media_cache_root).resolve() / 'session-images'
     if root.is_symlink() or not root.is_dir():
         return 0
-    ordered = sorted(int(name) for name in os.listdir(root)
-                     if name.isdigit() and (root / name).is_dir() and not (root / name).is_symlink())
-    if not ordered:
+    head = []
+    try:
+        with os.scandir(root) as entries:
+            for entry in entries:
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    video_id = int(entry.name)
+                except ValueError:
+                    continue
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                if _scan_cursor is not None and video_id <= _scan_cursor:
+                    continue
+                if len(head) < scan_budget:
+                    heapq.heappush(head, -video_id)
+                elif video_id < -head[0]:
+                    heapq.heapreplace(head, -video_id)
+    except FileNotFoundError:
         return 0
-    if _scan_cursor is not None:
-        ordered = [i for i in ordered if i > _scan_cursor] + [i for i in ordered if i <= _scan_cursor]
-    window = ordered[:scan_budget]
+    window = sorted(-vid for vid in head)
+    if not window:
+        _scan_cursor = None
+        return 0
     _scan_cursor = window[-1]
+    now = time()
     files = []
     for video_id in window:
+        video_dir = root / str(video_id)
+        try:
+            names = [entry.name for entry in os.scandir(video_dir)
+                     if not entry.is_symlink() and entry.is_file(follow_symlinks=False)]
+        except FileNotFoundError:
+            continue
         for kind in ('poster', 'animated'):
-            path = root / str(video_id) / f'{kind}.webp'
-            if not path.is_symlink() and path.is_file():
-                files.append((video_id, path))
+            if f'{kind}.webp' in names:
+                files.append((video_id, video_dir / f'{kind}.webp'))
+        if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
+            try:
+                video_dir.rmdir()
+            except OSError:
+                pass
     freed, removed = 0, 0
     batches = iter(files)
     while removed < limit:
