@@ -320,6 +320,17 @@ const fr = {
     commentingAs: 'Vous commentez en tant que',
     loadingShared: 'Chargement de la vidéo partagée…',
   },
+  sessionVideo: {
+    title: 'Vidéos de séance',
+    empty: 'Aucune vidéo de séance pour l’instant.',
+    loading: 'Chargement de la séance…',
+    unavailable: 'Cette vidéo de séance est indisponible.',
+    invalidLink: 'Ce lien de partage est invalide ou n’est plus disponible.',
+    unplayable: 'Cette vidéo ne se lit pas ici',
+    download: 'Télécharger · {{size}}',
+    share: 'Partager la séance',
+    videoAria: 'Vidéo de la séance',
+  },
   repMedia: {
     viability: {
       ready: 'déjà prêt',
@@ -420,6 +431,7 @@ const fr = {
     markAllRead: 'Tout marquer comme lu',
     saving: 'Enregistrement…',
     openDive: 'Ouvrir le plongeon',
+    openSession: 'Ouvrir la séance',
     loading: 'Chargement des notifications…',
     emptyAll: 'Aucune notification pour le moment.',
     emptyUnread: 'Vous êtes à jour.',
@@ -1003,6 +1015,7 @@ const fr = {
     },
   },
   nav: {
+    sessionVideos: 'Vidéos de séance',
     calendar: 'Calendrier',
     messages: "Messages",
     messagesUnreadAria: "Messages, {{count}} non lus",

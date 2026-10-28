@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Session">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>Session</title>
+<style>
+  :root { color-scheme: dark; --fg:#f2f4f7; --dim:#8b93a1; --acc:#3aa0ff; --ok:#3ccf7a; --bad:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.4 -apple-system, system-ui, sans-serif; background:#0b0e13; color:var(--fg);
+         padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); }
+  h1 { font-size:28px; margin:0 0 20px; }
+  button { font:inherit; border:0; border-radius:14px; padding:16px; width:100%; background:#1c2330; color:var(--fg); }
+  button.primary { background:var(--acc); color:#fff; font-weight:600; font-size:18px; }
+  button:disabled { opacity:.4; }
+  .row { display:flex; gap:10px; margin-top:12px; }
+  .file { margin:18px 0 6px; color:var(--dim); word-break:break-all; }
+  .pct { font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; margin:8px 0 0; }
+  .bar { height:10px; background:#1c2330; border-radius:6px; overflow:hidden; margin:10px 0; }
+  .bar > i { display:block; height:100%; width:0; background:var(--acc); transition:width .4s; }
+  .stats { color:var(--dim); font-variant-numeric:tabular-nums; }
+  .status { margin-top:10px; min-height:1.4em; }
+  .status.ok { color:var(--ok); } .status.bad { color:var(--bad); }
+  video { width:100%; margin-top:16px; border-radius:12px; background:#000; }
+  .hist { margin-top:28px; color:var(--dim); font-size:14px; }
+  .hist button { padding:10px; margin-top:6px; text-align:left; font-size:14px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<h1>Session</h1>
+<input id="input" type="file" accept="video/*" hidden>
+<button id="pick" class="primary">Choisir la vidéo</button>
+
+<div id="panel" hidden>
+  <div class="file" id="file"></div>
+  <div class="pct" id="pct">0 %</div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="stats" id="stats"></div>
+  <div class="status" id="status"></div>
+  <div class="row">
+    <button id="pause">Pause</button>
+    <button id="abort">Annuler</button>
+  </div>
+</div>
+
+<video id="video" controls playsinline preload="metadata" hidden></video>
+<div class="hist" id="hist"></div>
+
+<script>
+const q = new URLSearchParams(location.search);
+const TOKEN = q.get('t');
+const PART = Math.max(5, Number(q.get('ps') || 32)) * 1024 * 1024;
+const CONC = Math.min(8, Math.max(1, Number(q.get('c') || 4)));
+const STALL_MS = 60000;
+const $ = id => document.getElementById(id);
+
+// ---------- telemetry ----------
+const sid = Math.random().toString(36).slice(2, 10);
+let logBuf = [];
+function log(event, data = {}) {
+  logBuf.push({ sid, event, t: Date.now(), standalone: !!navigator.standalone, ...data });
+}
+async function flushLog(keepalive = false) {
+  if (!logBuf.length) return;
+  const events = logBuf; logBuf = [];
+  try { await api('/api/log', { events }, keepalive); } catch { logBuf = events.concat(logBuf); }
+}
+setInterval(flushLog, 5000);
+document.addEventListener('visibilitychange', () => {
+  log('visibility', { state: document.visibilityState, done: S ? S.done.size : 0 });
+  if (document.visibilityState === 'hidden') flushLog(true);
+  else { wake(); kick(); }
+});
+addEventListener('online', () => { log('online'); kick(); });
+addEventListener('offline', () => log('offline'));
+log('page_load', { ua: navigator.userAgent, part: PART, conc: CONC });
+
+async function api(path, body, keepalive = false) {
+  const r = await fetch(path, { method: 'POST', keepalive, headers: { 'Content-Type': 'application/json', 'X-Lab-Token': TOKEN }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+// ---------- wake lock ----------
+let lock = null;
+async function wake(gesture = false) {
+  if (!(gesture || (S && !S.finished && !S.paused)) || !('wakeLock' in navigator) || lock) return;
+  try { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); log('wakelock', { ok: true }); }
+  catch (e) { log('wakelock', { ok: false, err: String(e) }); }
+}
+
+// ---------- upload state ----------
+let S = null; // { file, key, uploadId, parts, done:Set, inflight:Map, urls:Map, paused, finished, t0, bytesAtStart }
+const fmtB = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' Go' : (b / 1e6).toFixed(0) + ' Mo';
+const fmtT = s => !isFinite(s) ? '—' : s >= 3600 ? `${Math.floor(s / 3600)} h ${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const fileId = f => `lab.up:${f.name}|${f.size}|${f.lastModified}`;
+const partLen = n => n < S.parts ? PART : S.file.size - PART * (S.parts - 1);
+function status(text, cls = '') { $('status').textContent = text; $('status').className = 'status ' + cls; }
+
+let pickedAt = 0;
+$('pick').onclick = () => { pickedAt = Date.now(); wake(true); $('input').click(); };
+// iOS only grants the wake lock from a user gesture: retry on any tap.
+document.addEventListener('pointerup', () => wake());
+$('input').onchange = async () => {
+  const file = $('input').files[0];
+  if (!file) return;
+  log('file_ready', { name: file.name, size: file.size, type: file.type, lastModified: file.lastModified, pick_to_ready_ms: pickedAt ? Date.now() - pickedAt : null });
+  $('input').value = '';
+  start(file).catch(e => { status('Erreur : ' + e.message, 'bad'); log('fatal', { err: e.message }); });
+};
+
+async function start(file) {
+  if (S && !S.finished) return;
+  $('pick').hidden = true; $('panel').hidden = false; $('video').hidden = true;
+  $('pause').hidden = $('abort').hidden = false; $('pause').textContent = 'Pause';
+  $('file').textContent = `${file.name} · ${fmtB(file.size)}`;
+  const parts = Math.ceil(file.size / PART);
+  S = { file, parts, done: new Set(), inflight: new Map(), urls: new Map(), cooling: new Map(), redoRounds: 0, paused: false, finished: false, retries: 0 };
+  const saved = JSON.parse(localStorage.getItem(fileId(file)) || 'null');
+  if (saved && saved.part === PART) {
+    status('Reprise…');
+    try {
+      const { parts: up } = await api('/api/parts', saved);
+      Object.assign(S, { key: saved.key, uploadId: saved.uploadId });
+      for (const p of up) if (p.n <= parts && p.size === partLen(p.n)) S.done.add(p.n);
+      log('resume', { key: S.key, already: S.done.size, parts });
+    } catch (e) { log('resume_failed', { err: e.message }); }
+  }
+  if (!S.key) {
+    const r = await api('/api/init', { name: file.name, size: file.size, type: file.type, partSize: PART });
+    Object.assign(S, r);
+    localStorage.setItem(fileId(file), JSON.stringify({ key: r.key, uploadId: r.uploadId, part: PART }));
+    log('init', { key: r.key, parts, size: file.size });
+  }
+  S.t0 = performance.now(); S.bytesAtStart = doneBytes();
+  S.samples = [[performance.now(), doneBytes()]];
+  status(S.done.size ? `Reprise : ${S.done.size}/${parts} parts déjà en ligne` : '');
+  wake(); kick(); tick();
+}
+
+const doneBytes = () => { let b = 0; for (const n of S.done) b += partLen(n); return b; };
+const liveBytes = () => { let b = doneBytes(); for (const x of S.inflight.values()) b += x.loaded; return b; };
+function nextParts(k) {
+  const out = [];
+  for (let n = 1; n <= S.parts && out.length < k; n++) if (!S.done.has(n) && !S.inflight.has(n) && !(S.cooling.get(n) > Date.now())) out.push(n);
+  return out;
+}
+
+async function urlFor(n) {
+  const hit = S.urls.get(n);
+  if (hit && hit.exp > Date.now() + 120000) return hit.url;
+  const batch = [n, ...nextParts(30).filter(m => m !== n && !S.urls.has(m))].slice(0, 30);
+  const r = await api('/api/sign', { key: S.key, uploadId: S.uploadId, parts: batch });
+  const exp = Date.now() + r.ttl * 1000;
+  for (const [m, url] of Object.entries(r.urls)) S.urls.set(Number(m), { url, exp });
+  return S.urls.get(n).url;
+}
+
+function kick() {
+  if (!S || S.paused || S.finished || !S.key) return;
+  for (const n of nextParts(CONC - S.inflight.size)) sendPart(n);
+  if (S.done.size === S.parts && !S.inflight.size) finish();
+}
+
+async function sendPart(n, attempt = 0) {
+  const slot = { loaded: 0, xhr: null, last: Date.now() };
+  S.inflight.set(n, slot);
+  const t = performance.now();
+  try {
+    const url = await urlFor(n);
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest(); slot.xhr = xhr;
+      xhr.open('PUT', url);
+      xhr.upload.onprogress = e => { slot.loaded = e.loaded; slot.last = Date.now(); };
+      xhr.onload = () => xhr.status < 300 ? resolve() : reject(Object.assign(new Error(`HTTP ${xhr.status}`), { status: xhr.status, body: xhr.responseText.slice(0, 200) }));
+      xhr.onerror = () => reject(new Error('network'));
+      xhr.onabort = () => reject(new Error(slot.stalled ? 'stalled' : 'aborted'));
+      const start = (n - 1) * PART;
+      xhr.send(S.file.slice(start, start + partLen(n)));
+    });
+    S.inflight.delete(n); S.done.add(n);
+    if ($('status').classList.contains('bad')) status('');
+    log('part_ok', { n, bytes: partLen(n), ms: Math.round(performance.now() - t), attempt, vis: document.visibilityState });
+  } catch (e) {
+    S.inflight.delete(n);
+    if (S.finished) return;
+    S.retries++;
+    if (e.status === 403) S.urls.delete(n);
+    log('part_err', { n, attempt, err: e.message, status: e.status, body: e.body, loaded: slot.loaded, ms: Math.round(performance.now() - t), vis: document.visibilityState, online: navigator.onLine });
+    if (S.paused || e.message === 'aborted') return;
+    const delay = Math.min(30000, 1000 * 2 ** attempt);
+    status(navigator.onLine ? `Connexion instable, nouvel essai… (${S.retries})` : 'Hors ligne — reprise automatique', 'bad');
+    S.cooling.set(n, Date.now() + delay);
+    await new Promise(r => setTimeout(r, delay));
+    S.cooling.delete(n);
+    if (!S.paused && !S.finished && !S.inflight.has(n) && !S.done.has(n)) return sendPart(n, attempt + 1);
+  }
+  kick();
+}
+
+// Watchdog: a part with no progress for STALL_MS is aborted and retried.
+setInterval(() => {
+  if (!S || S.paused || S.finished) return;
+  for (const slot of S.inflight.values())
+    if (slot.xhr && Date.now() - slot.last > STALL_MS) { slot.stalled = true; slot.xhr.abort(); }
+}, 5000);
+
+function tick() {
+  if (!S) return;
+  const now = performance.now(), bytes = liveBytes();
+  S.samples.push([now, bytes]);
+  while (S.samples.length > 2 && now - S.samples[0][0] > 15000) S.samples.shift();
+  const [t0, b0] = S.samples[0];
+  const rate = (bytes - b0) / Math.max(1, (now - t0) / 1000);
+  const pct = bytes / S.file.size * 100;
+  $('pct').textContent = (S.finished ? 100 : Math.min(99.9, pct)).toFixed(pct < 10 ? 1 : 0) + ' %';
+  $('bar').style.width = pct + '%';
+  $('stats').textContent = S.finished ? '' :
+    `${fmtB(bytes)} / ${fmtB(S.file.size)} · ${(rate / 1e6 * 8).toFixed(0)} Mbit/s · reste ${fmtT((S.file.size - bytes) / rate)} · ${S.done.size}/${S.parts}`;
+  if (!S.finished) setTimeout(tick, 1000);
+}
+
+async function finish() {
+  if (S.finishing) return;
+  S.finishing = true;
+  status('Vérification sur B2…');
+  try {
+    const r = await api('/api/complete', { key: S.key, uploadId: S.uploadId, size: S.file.size, partSize: PART });
+    if (!r.ok) {
+      log('complete_redo', { redo: r.redo });
+      if (++S.redoRounds > 5) return status('Échec de vérification sur B2 — voir les logs', 'bad');
+      for (const n of r.redo) S.done.delete(n);
+      S.finishing = false;
+      return setTimeout(kick, 2000);
+    }
+    S.finished = true;
+    const secs = (performance.now() - S.t0) / 1000, sent = S.file.size - S.bytesAtStart;
+    log('upload_done', { key: S.key, size: S.file.size, secs: Math.round(secs), mbps: +(sent * 8 / secs / 1e6).toFixed(1), retries: S.retries });
+    flushLog();
+    localStorage.removeItem(fileId(S.file));
+    remember(S.key, S.file);
+    if (lock) lock.release();
+    status(`Vérifié sur B2 ✓ ${fmtB(r.size)} en ${fmtT(secs)} (${(sent * 8 / secs / 1e6).toFixed(0)} Mbit/s)`, 'ok');
+    tick(); $('pause').hidden = $('abort').hidden = true; $('pick').hidden = false;
+    play(r.playUrl);
+  } catch (e) { S.finishing = false; status('Finalisation : ' + e.message + ' — nouvel essai', 'bad'); setTimeout(finish, 5000); }
+}
+
+$('pause').onclick = () => {
+  S.paused = !S.paused;
+  $('pause').textContent = S.paused ? 'Reprendre' : 'Pause';
+  log(S.paused ? 'pause' : 'unpause');
+  if (S.paused) { for (const x of S.inflight.values()) x.xhr && x.xhr.abort(); if (lock) lock.release(); status('En pause'); }
+  else { status(''); wake(); kick(); }
+};
+$('abort').onclick = async () => {
+  if (!confirm('Annuler et supprimer les parts envoyées ?')) return;
+  S.finished = true;
+  for (const x of S.inflight.values()) x.xhr && x.xhr.abort();
+  try { await api('/api/abort', { key: S.key, uploadId: S.uploadId }); } catch {}
+  localStorage.removeItem(fileId(S.file));
+  log('abort_by_user'); flushLog();
+  location.reload();
+};
+
+// ---------- playback test ----------
+function play(url) {
+  const v = $('video'); v.hidden = false; v.src = url;
+  const t = performance.now();
+  v.onloadedmetadata = () => log('play_metadata', { ms: Math.round(performance.now() - t), duration: v.duration });
+  v.onseeked = () => log('play_seeked', { at: Math.round(v.currentTime) });
+  v.onerror = () => log('play_error', { code: v.error && v.error.code });
+}
+function remember(key, file) {
+  const h = JSON.parse(localStorage.getItem('lab.history') || '[]').filter(x => x.key !== key);
+  h.unshift({ key, name: file.name, size: file.size, at: Date.now() });
+  localStorage.setItem('lab.history', JSON.stringify(h.slice(0, 5)));
+  history_();
+}
+function history_() {
+  const h = JSON.parse(localStorage.getItem('lab.history') || '[]');
+  $('hist').innerHTML = '';
+  for (const x of h) {
+    const b = document.createElement('button');
+    b.textContent = `▶ ${x.name} · ${fmtB(x.size)}`;
+    b.onclick = async () => play((await api('/api/play', { key: x.key })).playUrl);
+    $('hist').append(b);
+  }
+}
+history_();
+</script>
+</body>
+</html>

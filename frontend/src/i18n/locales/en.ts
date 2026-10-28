@@ -320,6 +320,17 @@ const en = {
     commentingAs: "You’re commenting as",
     loadingShared: 'Loading shared video…',
   },
+  sessionVideo: {
+    title: 'Session videos',
+    empty: 'No session video yet.',
+    loading: 'Loading session…',
+    unavailable: 'This session video is unavailable.',
+    invalidLink: 'This shared link is invalid or no longer available.',
+    unplayable: 'This video doesn’t play here',
+    download: 'Download · {{size}}',
+    share: 'Share session',
+    videoAria: 'Session video',
+  },
   repMedia: {
     viability: {
       ready: 'already ready',
@@ -420,6 +431,7 @@ const en = {
     markAllRead: 'Mark all as read',
     saving: 'Saving…',
     openDive: 'Open dive',
+    openSession: 'Open session',
     loading: 'Loading notifications…',
     emptyAll: 'No notifications yet.',
     emptyUnread: 'You are all caught up.',
@@ -1002,6 +1014,7 @@ const en = {
     },
   },
   nav: {
+    sessionVideos: 'Session videos',
     calendar: 'Calendar',
     messages: "Messages",
     messagesUnreadAria: "Messages, {{count}} unread",

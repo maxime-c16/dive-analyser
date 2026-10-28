@@ -199,6 +199,8 @@ def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)
             or path.startswith("/api/v1/shared-dives/")
             or path == "/api/v1/rooms" or path.startswith("/api/v1/rooms/")
             or path.startswith("/api/v1/deposits/claim/")
+            # Backblaze event hook: no session, HMAC-signed body checked by the route.
+            or path == "/api/v1/session-videos/b2-events"
             or path.startswith("/api/v1/health") or _valid_machine_api_key(request)):
         yield
         return

@@ -47,6 +47,7 @@ export type AppNotification = {
   type: string
   title: string
   body: string | null
+  session_id?: number | null
   conversation_id?: number | null
   dive_id: number | null
   calendar?: CalendarNotificationView

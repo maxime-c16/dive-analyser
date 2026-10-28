@@ -142,7 +142,7 @@ def _compute_composite_score(request: VideoSyncRequest) -> tuple[str, int]:
 def _get_or_create_session(db: Session, dive_datetime: datetime) -> SessionModel:
     """Get or create the session for a synced dive date."""
     dive_date = dive_datetime.date() if isinstance(dive_datetime, datetime) else dive_datetime
-    stmt = select(SessionModel).where(SessionModel.date == dive_date)
+    stmt = select(SessionModel).where(SessionModel.date == dive_date, SessionModel.calendar_occurrence_id.is_(None))
     session_record = db.execute(stmt).scalar_one_or_none()
 
     if session_record:

@@ -1,3 +1,4 @@
+import {trainingSessions, formatDuration, type SharedTrainingSession} from "../services/sessionVideosApi";
 import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom'
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,8 +54,62 @@ function ScoreBadge({ dive }: { dive: Dive }) {
   );
 }
 
-function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {
-  const { t } = useTranslation();
+type LibraryListEntry = { kind: "session"; session: SharedTrainingSession } | { kind: "dive"; dive: Dive };
+
+function mergeSessionsAndDives(sessions: SharedTrainingSession[], dives: Dive[]): LibraryListEntry[] {
+  // Dive order is the backend/fetch order and must not change; sessions
+  // (date descending) slot in before the first dive of their day or earlier.
+  const sessionsDesc = [...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const entries: LibraryListEntry[] = [];
+  let s = 0;
+  let emittedDay = "";
+  for (const dive of dives) {
+    const day = dive.dive_datetime.slice(0, 10);
+    while (s < sessionsDesc.length && sessionsDesc[s].date > day) {
+      entries.push({ kind: "session", session: sessionsDesc[s] });
+      emittedDay = sessionsDesc[s].date;
+      s += 1;
+    }
+    if (s < sessionsDesc.length && sessionsDesc[s].date === day && sessionsDesc[s].date !== emittedDay) {
+      const current = sessionsDesc[s].date;
+      while (s < sessionsDesc.length && sessionsDesc[s].date === current) {
+        entries.push({ kind: "session", session: sessionsDesc[s] });
+        s += 1;
+      }
+      emittedDay = current;
+    }
+    entries.push({ kind: "dive", dive });
+  }
+  while (s < sessionsDesc.length) {
+    entries.push({ kind: "session", session: sessionsDesc[s] });
+    s += 1;
+  }
+  return entries;
+}
+
+function SessionRow({ session }: { session: SharedTrainingSession }) {
+  return (
+    <Link
+      to={`/sessions/shared/${session.session_id}`}
+      className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
+      aria-label={`Séance · ${session.video_count} ${session.video_count === 1 ? "vidéo" : "vidéos"}`}
+    >
+      <div className="flex aspect-video items-center justify-center overflow-hidden border border-app">
+        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">Séance</span>
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold text-app-text">
+          {session.video_count} {session.video_count === 1 ? "vidéo" : "vidéos"} · {formatDuration(session.total_duration)}
+        </p>
+        <p className="mt-1 text-xs text-app-muted">
+          {format(parseISO(session.date), "d MMM yyyy", { locale: appLocale() })}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {  const { t } = useTranslation();
   const score = attemptScore(dive);
   return (
     <button
@@ -182,6 +237,9 @@ function DiveLibrary() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [sharedSessions, setSharedSessions] = useState<SharedTrainingSession[]>([]);
+  const [sessionsCursor, setSessionsCursor] = useState<number|null>(null);
+  useEffect(()=>{let live=true; if(user?.features?.shared_sessions) trainingSessions().then(d=>{if(live){setSharedSessions(d.items);setSessionsCursor(d.next_cursor)}}).catch(()=>{}); return()=>{live=false}},[user?.user_id,user?.features?.shared_sessions]);
   const query = searchParams.get("q") || "";
   const deferredQuery = useDeferredValue(query);
   const scope = (searchParams.get("scope") || ((!user || user.is_admin) ? "self" : "all")) as Scope;
@@ -777,7 +835,7 @@ function DiveLibrary() {
       )}
       {!loading && (!error || dives.length > 0) && (
         <section className="mt-3 border-t border-app pt-3 sm:mt-5 sm:pt-5">
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && !sharedSessions.length ? (
             <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
                 {t("dives.noMatches")}
@@ -809,16 +867,20 @@ function DiveLibrary() {
             ) : (
               <>
                 {view === "grid" ? (
-                  <LibraryCardGrid attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
+                  <LibraryCardGrid sessions={sharedSessions} attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
                 ) : (
                   <div className="border border-app bg-app-panel">
-                    {visible.map((dive) => (
-                      <AttemptRow
-                        key={dive.id}
-                        dive={dive}
-                        showDiver={scope === "all"}
-                        onOpen={() => openClip(dive)}
-                      />
+                    {mergeSessionsAndDives(sharedSessions, visible).map((entry) => (
+                      entry.kind === "session" ? (
+                        <SessionRow key={`session-${entry.session.session_id}`} session={entry.session} />
+                      ) : (
+                        <AttemptRow
+                          key={entry.dive.id}
+                          dive={entry.dive}
+                          showDiver={scope === "all"}
+                          onOpen={() => openClip(entry.dive)}
+                        />
+                      )
                     ))}
                   </div>
                 )}
@@ -838,6 +900,7 @@ function DiveLibrary() {
           )}
         </section>
       )}
+      {sessionsCursor && <button className="touch-target" onClick={async()=>{const d=await trainingSessions(sessionsCursor);setSharedSessions(s=>[...s,...d.items]);setSessionsCursor(d.next_cursor)}}>Plus de séances</button>}
       {!loading && nextCursor && !aggregated && (
         <div className="mt-5 text-center">
           <button type="button" disabled={loadingMore} onClick={() => void loadMore()}

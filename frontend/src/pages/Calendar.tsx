@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MapPin, Plus, Search, Users, X } from "lucide-react";
-import { CalendarError, calendarApi, type CalendarInfo, type Interest, type MyClub, type Occurrence } from "../calendar/api";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MapPin, Plus, Search, Users, X } from "lucide-react";
+import { CalendarError, calendarApi, type CalendarInfo, type MyClub, type Occurrence } from "../calendar/api";
 import { addDays, coversDay, lastDay, matches, monthWindow, overlapsMonth, parisToday, sortOccurrences, sourceOf, spanDays, validDate } from "../calendar/model";
 import { useCalendarStrings, type CalendarContext } from "../calendar/useStrings";
 import EventRow from "../calendar/EventRow";
@@ -51,10 +51,11 @@ export default function Calendar() {
   const [me, setMe] = useState<MyClub[] | null>(null);
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
   const [searching, setSearching] = useState(false);
-  const [answers, setAnswers] = useState<Record<number, Interest | null>>({});
+  const [answers, setAnswers] = useState<Record<number, boolean>>({});
+  const [answerBusy, setAnswerBusy] = useState(false);
   const [answerError, setAnswerError] = useState(false);
   const [monthDirection, setMonthDirection] = useState<"next" | "previous" | null>(null);
-  const refresh = useCallback(() => setRevision((r) => r + 1), []);
+  const refresh = useCallback(() => { setAnswers({}); setRevision((r) => r + 1); }, []);
 
   useEffect(() => {
     const tick = () => setNow(new Date());
@@ -106,7 +107,7 @@ export default function Calendar() {
     update({ date: first.slice(0, 7) === today.slice(0, 7) ? today : first });
   };
 
-  const withAnswers = (items: Occurrence[]) => items.map((o) => (o.id in answers ? { ...o, my_interest: answers[o.id] } : o));
+  const withAnswers = (items: Occurrence[]) => items.map((o) => (o.id in answers ? { ...o, my_absence_reported: answers[o.id] } : o));
   const keep = (o: Occurrence) => (!source || sourceOf(o) === source) && matches(o, q);
   const upcoming = useMemo(() => Array.isArray(upcomingData)
     ? sortOccurrences(withAnswers(upcomingData).filter((o) => lastDay(o) >= today && keep(o))) : [],
@@ -121,14 +122,16 @@ export default function Calendar() {
   const ctx: CalendarContext = { me: me ?? [], calendars, refresh };
   const search = location.search;
 
-  const answer = (o: Occurrence, state: Interest) => {
-    const next = o.my_interest === state ? null : state;
+  const answer = (o: Occurrence) => {
+    if (answerBusy) return;
+    setAnswerBusy(true);
+    const next = !o.my_absence_reported;
     setAnswers((a) => ({ ...a, [o.id]: next }));
     setAnswerError(false);
-    calendarApi.setInterest(o.id, next).then(refresh).catch(() => {
+    calendarApi.setAbsence(o.id, next).then(refresh).catch(() => {
       setAnswers((a) => { const { [o.id]: _drop, ...rest } = a; return rest; });
       setAnswerError(true);
-    });
+    }).finally(() => setAnswerBusy(false));
   };
 
   const head = (children?: React.ReactNode) => (
@@ -224,11 +227,9 @@ export default function Calendar() {
           </span>
         </Link>
         <div className="cal-rsvp" role="group" aria-label={t.yourResponse}>
-          {([["interested", t.goingShort], ["maybe", t.maybe], ["declined", t.no]] as const).map(([state, label]) => (
-            <button key={state} type="button" className={`is-${state}`} aria-pressed={next.my_interest === state} onClick={() => answer(next, state)}>
-              {state === "interested" && <Check size={16} strokeWidth={3} aria-hidden="true" />}{label}
-            </button>
-          ))}
+          {next.event.event_type === 'training' && ctx.me.some(c => c.club.id === next.event.club_id && (next.event.audience === 'club' || c.group?.id === next.event.training_group_id)) && <button type="button" className="is-declined" disabled={answerBusy} aria-pressed={next.my_absence_reported} onClick={() => answer(next)}>
+            {next.my_absence_reported ? t.cancelAbsence : t.reportAbsence}
+          </button>}
         </div>
       </div>
     );

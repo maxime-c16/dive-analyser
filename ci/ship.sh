@@ -222,6 +222,14 @@ if [ -f "$CALENDAR_ENV" ]; then
     . "$CALENDAR_ENV"
     set +a
 fi
+# Shared sessions (flag, owner, sessions-bucket read key, B2 event HMAC secret,
+# Telegram bot). Same pattern: sourced for Compose, never echoed, never in Git.
+SESSIONS_ENV="$HOME/.config/diveanalyzer/sessions.env"
+if [ -f "$SESSIONS_ENV" ]; then
+    set -a
+    . "$SESSIONS_ENV"
+    set +a
+fi
 # D2 lease-fencing sunset switch (default off = bounded drain). Same pattern:
 # sourced for Compose on deploy and rollback, never echoed, never in Git.
 # Same-SHA activation requires --force (identical SHAs are skipped otherwise).

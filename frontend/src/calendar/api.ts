@@ -14,6 +14,7 @@ export interface EventSummary {
   calendar_name: string | null; training_group_id: number | null
 }
 export interface Occurrence {
+  shared_session_id?: number | null
   id: number; occurrence_key: string; status: 'scheduled' | 'cancelled'; is_all_day: boolean
   starts_at: string | null; ends_at: string | null; start_date: string | null; end_date: string | null
   venue_name: string | null; version: number; event: EventSummary; my_interest: Interest | null

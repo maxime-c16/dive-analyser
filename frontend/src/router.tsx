@@ -49,6 +49,10 @@ const loadCalendar = () => import("./pages/Calendar");
 const CalendarPage = lazy(loadCalendar);
 const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
+const loadSharedSession = () => import("./pages/SharedSession");
+const SharedSession = lazy(loadSharedSession);
+const loadSessionVideos = () => import("./pages/SessionVideos");
+const SessionVideoPage = lazy(loadSessionVideos);
 const loadClaim = () => import("./pages/Claim");
 const Claim = lazy(loadClaim);
 const loadInvite = () => import("./pages/Invite");
@@ -561,6 +565,12 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Feature off (SHARED_SESSIONS_ENABLED): session videos fall back to the Library. */
+function SessionVideosGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return user?.features?.shared_sessions === true ? <>{children}</> : <Navigate to="/dives" replace />;
+}
+
 /** Feature off: /calendar behaves like any unknown route (Library). */
 function CalendarGate() {
   const { user } = useAuth();
@@ -580,6 +590,7 @@ function Router() {
     <Routes>
       <Route path="/room/:code" element={<RoomEntry />} />
       <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
+      <Route path="/share/session/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
@@ -653,6 +664,9 @@ function Router() {
                   <Route path="/room" element={<JudgeRoom />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
+                  <Route path="/session-videos" element={<Navigate to="/dives" replace />} />
+                  <Route path="/sessions/shared/:sessionId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
+                  <Route path="/session-videos/:videoId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/deposits" element={<Deposits />} />
                   <Route path="/deposits/:batchId" element={<Deposits />} />

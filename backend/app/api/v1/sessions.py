@@ -118,7 +118,7 @@ def create_session(
     Create a new training session
     """
     # Check if session already exists for this date
-    existing = db.query(SessionModel).filter(SessionModel.date == session.date).first()
+    existing = db.query(SessionModel).filter(SessionModel.date == session.date, SessionModel.calendar_occurrence_id.is_(None)).first()
     if existing:
         raise HTTPException(status_code=409, detail=f"Session for {session.date} already exists")
 

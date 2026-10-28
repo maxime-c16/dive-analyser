@@ -1,3 +1,4 @@
+import SignupReviews from "../components/session-video/SignupReviews"
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, Building2, AlertTriangle, CheckCircle2, Database, Gift, HardDrive, Loader2, Mail, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
 import { getOperationsStatus, type OperationsStatus } from '../services/operationsApi'
@@ -148,6 +149,7 @@ export default function Admin() {
       </nav>
     </header>
 
+    {user?.features?.shared_sessions && <SignupReviews/>}
     {tab === 'users' ? (
       <AdminUsers currentUserId={user?.user_id} onManage={manage} initialQuery={search.get('q') ?? ''} initialStatus={search.get('status') === 'disabled' ? 'disabled' : search.get('status') === 'active' ? 'active' : 'all'} initialOffset={Math.max(0, Number(search.get('offset')) || 0)} onDirectoryChange={directoryChange} />
     ) : tab === 'invites' ? (

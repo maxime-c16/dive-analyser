@@ -61,7 +61,12 @@ CALENDAR_DEFAULTS: Dict[str, bool] = {
     "calendar_follow": True,
 }
 CALENDAR_TYPES = frozenset(CALENDAR_DEFAULTS)
-_ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS}
+# Shared sessions: owner-only "new session video" alert (no preference UI).
+SESSION_DEFAULTS: Dict[str, bool] = {"session_video": True}
+# Types the preferences API must never expose for editing: kept at their
+# default (enabled) for every account, stored override rows ignored.
+_NON_EDITABLE_TYPES = frozenset(SESSION_DEFAULTS)
+_ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS, **SESSION_DEFAULTS}
 
 _MAX_LIST_LIMIT = 100
 _TITLE_MAX = 200
@@ -75,22 +80,30 @@ _MAX_PUSH_IDS_PER_SCHEDULE = 50
 
 
 def _validate_type(notif_type: str) -> None:
-    if notif_type not in NOTIF_TYPES and notif_type not in CALENDAR_TYPES:
+    if notif_type not in _ALL_DEFAULTS:
         raise ValueError(f"Unknown notification type: {notif_type}")
 
 
 def _pref_defaults(db: Session) -> Dict[str, bool]:
-    """Types the preferences API exposes: calendar ones only when enabled."""
+    """Types the preferences API exposes: calendar ones only when enabled,
+    never the non-editable owner alerts."""
     from app.services.calendar_launch import enabled
 
+    exposed = {key: value for key, value in _ALL_DEFAULTS.items() if key not in _NON_EDITABLE_TYPES}
     if enabled(db):
-        return dict(_ALL_DEFAULTS)
-    return dict(DEFAULTS)
+        return exposed
+    return {key: value for key, value in DEFAULTS.items() if key not in _NON_EDITABLE_TYPES}
 
 
 def is_enabled(db: Session, user_id: int, notif_type: str) -> bool:
-    """Preference for one user/type; DEFAULTS when no override row exists."""
+    """Preference for one user/type; DEFAULTS when no override row exists.
+
+    Non-editable owner alerts stay enabled for everyone: any stored override
+    row (written before the type became non-editable) is ignored.
+    """
     _validate_type(notif_type)
+    if notif_type in _NON_EDITABLE_TYPES:
+        return True
     row = (
         db.query(NotificationPref)
         .filter_by(user_id=user_id, notif_type=notif_type)
@@ -111,6 +124,7 @@ def create(
     dive_id: Optional[int] = None,
     defer_push: bool = False,
     conversation_id: Optional[int] = None,
+    session_id: Optional[int] = None,
 ) -> Optional[Notification]:
     """Create one inbox row, or None when the type is disabled for the user.
 
@@ -130,6 +144,7 @@ def create(
             body=(body or "")[:_BODY_MAX] or None,
             dive_id=dive_id,
             conversation_id=conversation_id,
+            session_id=session_id,
         )
         db.add(row)
         db.commit()

@@ -86,8 +86,8 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
 export type EnablePushResult = { endpoint: string; alreadySubscribed: boolean }
 
 /**
- * Full opt-in flow. Must be called from a user gesture: it registers the
- * push service worker, requests notification permission, subscribes with
+ * Full opt-in flow. Must be called from a user gesture: it requests
+ * notification permission first, registers the push service worker, subscribes with
  * the VAPID public key and stores the endpoint server-side.
  *
  * Throws Error('push-unsupported') | Error('permission-denied') |
@@ -97,9 +97,12 @@ export async function enablePushDevice(publicKey: string): Promise<EnablePushRes
   if (!pushSupported() || !publicKey) throw new Error('push-unsupported')
   const nav = getNavigator()
   if (!nav?.serviceWorker) throw new Error('push-unsupported')
-  const registration = await nav.serviceWorker.register(PUSH_SW_URL)
+  // iOS Safari grants the prompt only while the click's transient user
+  // activation is alive: ask before any await (registering the worker first
+  // used to consume it, so iPhones were silently denied).
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('permission-denied')
+  const registration = await nav.serviceWorker.register(PUSH_SW_URL)
   let subscription = await registration.pushManager.getSubscription()
   let alreadySubscribed = false
   if (subscription) {

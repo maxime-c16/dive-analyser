@@ -85,12 +85,16 @@ async def lifespan(app: FastAPI):
 
     from app.services.upload_queue import start_worker
     upload_worker_stop = start_worker()
+    from app.services.session_videos import start_reconciler
+    session_reconciler_stop = start_reconciler()
     from app.services.xray import loop_lag
     lag_task = asyncio.create_task(loop_lag.run())
     try:
         yield
     finally:
         upload_worker_stop.set()
+        if session_reconciler_stop is not None:
+            session_reconciler_stop.set()
         lag_task.cancel()
         try:
             await lag_task

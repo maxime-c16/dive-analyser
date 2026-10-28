@@ -737,7 +737,9 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     after committing its own bookkeeping.
     """
     from app.services.poster_visuals import cleanup_orphan_thumbnails
+    from app.services.session_images import cleanup_session_images
     thumbnail_bytes = cleanup_orphan_thumbnails(db, namespace=None)
+    thumbnail_bytes += cleanup_session_images(db)
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(
         db, ttl_candidates, trim_candidates, max_bytes=max_bytes
@@ -872,4 +874,5 @@ def _cache_size(db: Session) -> int:
         .where(MediaCacheEntry.status == "ready")
     ).scalar_one()
     from app.services.poster_visuals import thumbnail_disk_bytes, orphan_animation_disk_bytes
-    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db)
+    from app.services.session_images import session_image_disk_bytes
+    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db) + session_image_disk_bytes()

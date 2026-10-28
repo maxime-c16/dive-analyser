@@ -111,19 +111,34 @@ def existing_guest(request: Request, db: Session):
     return db.query(DiveGuest).filter_by(token_hash=digest(token)).first() if token else None
 
 
+def guest_for_visit(request: Request, db: Session):
+    """Returning guest from the cookie, or a new film character (flushed).
+
+    Also used by shared session videos, so one browser keeps one identity.
+    Returns (guest, new_cookie_token_or_None)."""
+    guest = existing_guest(request, db)
+    if guest is not None:
+        return guest, None
+    token = secrets.token_urlsafe(32)
+    guest = DiveGuest(token_hash=digest(token), display_name=secrets.choice(CHARACTERS))
+    db.add(guest)
+    db.flush()
+    return guest, token
+
+
+def set_guest_cookie(response: Response, token: str | None):
+    if token:
+        response.set_cookie(COOKIE, token, max_age=COOKIE_TTL, httponly=True,
+                            secure=get_settings().auth_cookie_secure, samesite='lax', path='/api/v1/shared-dives')
+
+
 @router.post('/shared-dives/{share_id}/visit', dependencies=[Depends(same_origin)])
 def visit(share_id: int, request: Request, response: Response,
           x_dive_share: str = Header(min_length=43, max_length=43), db: Session = Depends(get_db)):
     share, dive = active_share(share_id, db)
     if not secrets.compare_digest(share.token_hash, digest(x_dive_share)):
         raise HTTPException(404, 'Shared video unavailable')
-    guest = existing_guest(request, db)
-    token = None
-    if guest is None:
-        token = secrets.token_urlsafe(32)
-        guest = DiveGuest(token_hash=digest(token), display_name=secrets.choice(CHARACTERS))
-        db.add(guest)
-        db.flush()
+    guest, token = guest_for_visit(request, db)
     if db.get(DiveGuestAccess, (share.id, guest.id)) is None:
         db.add(DiveGuestAccess(share_id=share.id, guest_id=guest.id))
     try:
@@ -132,9 +147,7 @@ def visit(share_id: int, request: Request, response: Response,
         db.rollback()
         if token or db.get(DiveGuestAccess, (share.id, guest.id)) is None:
             raise
-    if token:
-        response.set_cookie(COOKIE, token, max_age=COOKIE_TTL, httponly=True,
-                            secure=get_settings().auth_cookie_secure, samesite='lax', path='/api/v1/shared-dives')
+    set_guest_cookie(response, token)
     secure_headers(response)
     return dict(dive_id=dive.id, dive_code=dive.dive_code, height=dive.height,
                 guest_id=guest.id, guest_name=guest.display_name,

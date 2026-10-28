@@ -36,7 +36,9 @@ from app.services.sessions import create_session
 PG_URL = os.environ.get("CALENDAR_TEST_DATABASE_URL")
 MIGRATIONS = [Path(__file__).parents[1] / "migrations" / name
               for name in ("add_calendar_domain.sql", "add_calendar_task03.sql", "add_calendar_task04.sql",
-                           "add_calendar_task05.sql", "add_calendar_admin.sql", "add_dive_series.sql", "add_judge_rooms.sql")]
+                           "add_calendar_task05.sql", "add_calendar_admin.sql", "add_dive_series.sql", "add_judge_rooms.sql",
+                           "add_session_videos.sql", "add_shared_sessions_v2.sql", "add_session_calendar.sql",
+                           "add_session_calendar_drop_legacy.sql")]
 INVITE = "calendar-test-invite"
 PASSWORD = "correct horse battery staple"
 TODAY = datetime.utcnow().date()
@@ -48,7 +50,7 @@ def _calendar_tables():
 
 def _legacy_tables():
     seed = {"app_users", "user_credentials", "user_sessions", "login_attempts", "divers", "user_diver_access",
-            "sessions", "diver_invites", "security_audit_log", "dives",
+            "sessions", "diver_invites", "security_audit_log", "dives", "dive_guests",
             "notifications", "notification_prefs", "push_subscriptions"}
     tables = {Base.metadata.tables[name] for name in seed if name in Base.metadata.tables}
     while True:

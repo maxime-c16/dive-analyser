@@ -54,6 +54,8 @@ v1_router.include_router(dive_social.router, tags=["dive-discussion"])
 from app.api.v1 import fediverse
 v1_router.include_router(fediverse.router, tags=["fediverse"])
 
+from app.api.v1 import session_videos
+v1_router.include_router(session_videos.router, tags=['session-videos'])
 from app.api.v1 import dive_sharing
 v1_router.include_router(dive_sharing.router, tags=['dive-sharing'])
 

@@ -153,9 +153,9 @@ def occurrence_payloads(db: Session, user: AppUser, rows) -> list:
             CalendarSourceMapping.occurrence_id.in_(ids))}
     return [dict(id=o.id, occurrence_key=o.occurrence_key, status=o.status, is_all_day=bool(o.is_all_day),
                  starts_at=iso(o.starts_at), ends_at=iso(o.ends_at), start_date=o.start_date, end_date=o.end_date,
-                 venue_name=o.venue_name or e.venue_name, is_filmed_session=o.filmed_session_id is not None,
+                 venue_name=o.venue_name or e.venue_name, is_filmed_session=o.filmed_session_id is not None, shared_session_id=o.filmed_session_id,
                  version=o.version, event=event_summary(e, c), my_interest=interest.get(o.id),
-                 my_absence_reported=o.id in absent, imported=o.id in imported, series_date=o.series_date,
+                 my_absence_reported=o.id in absent or interest.get(o.id) == "declined", imported=o.id in imported, series_date=o.series_date,
                  detached=bool(o.detached), **local_view(o, e))
             for o, e, c in rows]
 
@@ -164,26 +164,12 @@ GOING_PEOPLE = 8
 
 
 def going_summary(db: Session, occurrence_id: int) -> s.GoingOut:
-    """Counts and the first faces of "interested"/"maybe" answers (active accounts only)."""
-    base = [OccurrenceInterest.occurrence_id == occurrence_id, AppUser.is_active.is_(True),
-            OccurrenceInterest.state.in_(("interested", "maybe"))]
-    counts = dict(db.query(OccurrenceInterest.state, func.count()).join(
-        AppUser, AppUser.id == OccurrenceInterest.user_id).filter(*base).group_by(OccurrenceInterest.state).all())
-
-    def faces(state: str, budget: int) -> list:
-        if budget <= 0:
-            return []
-        return db.query(AppUser).join(
-            OccurrenceInterest, OccurrenceInterest.user_id == AppUser.id).filter(
-            *base, OccurrenceInterest.state == state).order_by(
-            OccurrenceInterest.updated_at.desc()).limit(budget).all()
-
-    interested = faces("interested", GOING_PEOPLE)
-    maybe = faces("maybe", GOING_PEOPLE - len(interested))
-    return s.GoingOut(
-        interested=counts.get("interested", 0), maybe=counts.get("maybe", 0),
-        people=[s.AttendeeOut(user_id=u.id, display_name=u.display_name, **avatar_identity(u))
-                for u in interested + maybe])
+    from app.services.session_calendar import occurrence_members
+    q = occurrence_members(db, occurrence_id)
+    count = q.count()
+    people = q.order_by(AppUser.id).limit(GOING_PEOPLE).all()
+    return s.GoingOut(interested=count, maybe=0,
+        people=[s.AttendeeOut(user_id=u.id, display_name=u.display_name, **avatar_identity(u)) for u in people])
 
 
 # --- Authenticated reads -------------------------------------------------------
@@ -274,7 +260,7 @@ def occurrence_detail(occurrence_id: int, user: AppUser = Depends(get_current_us
     return s.OccurrenceDetail(
         **payload, going=going_summary(db, o.id), resources=resources, description=e.description, venue_address=e.venue_address,
         map_url=e.map_url, can_edit=events.can_edit(db, user, c),
-        can_report_absence=events.absence_allowed(db, user, e, c),
+        can_report_absence=events.absence_allowed(db, user, e, c, o.id),
         following=db.get(CalendarEventFollow, (e.id, user.id)) is not None,
         my_invitation=db.query(EventInvitation.status).filter_by(event_id=e.id, invitee_user_id=user.id).scalar(),
         organizer_name=organizer.display_name if organizer else None, changes=recent_changes(db, e.id, o.id))

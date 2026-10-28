@@ -1,0 +1,8 @@
+{
+  "id": "shared-session-calendar",
+  "date": "2026-10-28",
+  "title": "Les vidéos retrouvent leur entraînement",
+  "body": "Les séances filmées sont rattachées au calendrier. Les membres du groupe sont présents par défaut, peuvent signaler leur absence et reçoivent le lien de la séance à l’arrivée de la première vidéo.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}
