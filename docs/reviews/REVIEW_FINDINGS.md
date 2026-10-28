@@ -29,6 +29,11 @@ R05 et R06 sont des causes indépendantes : PR produit séparées, avec notes de
 version et validation adaptées. Leur état ici décrit une correction préparée,
 pas un déploiement. Les liens de PR permettent de suivre le SHA final et la CI.
 
+- R05 : [PR #175](https://github.com/maxime-c16/dive-analyser/pull/175),
+  head initial `7a7fbdef` (backend).
+- R06 : [PR #174](https://github.com/maxime-c16/dive-analyser/pull/174),
+  head initial `1913aff3` (frontend).
+
 ## Validation de cette passe
 
 - 45 liens de la cartographie retrouvés dans le corpus GitHub collecté.
@@ -38,6 +43,11 @@ pas un déploiement. Les liens de PR permettent de suivre le SHA final et la CI.
 - Frontend : 820 tests passent et build TypeScript/Vite/PWA réussi.
 - Audit backend ciblé : 64 tests passent, incluant les nouveaux cas SQLite et
   PostgreSQL. Le test de borne échoue sur l'ancienne implémentation du classement.
+- Suite backend complète sur les corrections combinées : 1 812 passés, 83
+  ignorés, 28 désélectionnés, 3 échecs. Ces trois échecs (conversion HDR et
+  WebP) se reproduisent sur la base master inchangée ci-dessus ; le FFmpeg
+  local ne fournit ni `zscale` ni encodeur WebP. Aucun baseline de tolérance
+  ajouté : la CI Linux reste nécessaire.
 - Le wrapper local `ci/gate.sh` ne peut pas démarrer sans `flock` sur ce Mac ;
   les vérifications ci-dessus ont été lancées directement. Cela ne vaut pas
   exécution complète du gate ni vérification des images/proxies Linux.
