@@ -1,0 +1,8 @@
+{
+  "id": "auth-refresh-session-order",
+  "date": "2026-10-28",
+  "title": "Keep account changes consistent",
+  "body": "Signing out takes effect immediately, and delayed account checks can no longer restore an old account or replace your current session.",
+  "audience": "all",
+  "components": ["frontend"]
+}

@@ -1,9 +1,11 @@
 import { clearNavigationSession } from '../navigation/sessionContext'
 import { clearLibraryCache } from '../services/libraryCache'
+import { clearCodeSummaryCache } from '../services/codeSummariesApi'
+import { clearCodeCommunityCache } from '../services/codeCommunityApi'
 import { clearIntentData } from '../services/intentCache'
 import { resetPlaybackWarming } from '../utils/playbackWarming'
 import type { AvatarIdentity } from '../components/MemberAvatar'
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 export interface AuthUser extends AvatarIdentity {
   user_id: number
@@ -38,13 +40,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [checking, setChecking] = useState(true)
 
-  const refresh = async () => {
+  const generation = useRef(0)
+  const signingOut = useRef(false)
+
+  const clearDerivedReads = () => {
     clearIntentData()
+    clearLibraryCache()
+    clearCodeSummaryCache()
+    clearCodeCommunityCache()
+  }
+
+  const refresh = async () => {
+    if (signingOut.current) return
+    const started = ++generation.current
+    clearDerivedReads()
     try {
       const res = await fetch('/api/v1/auth/me', { credentials: 'same-origin' })
+      if (started !== generation.current) return
       if (res.ok) {
         const data = await res.json()
-        clearIntentData()
+        if (started !== generation.current) return
+        clearDerivedReads()
         setUser({
           user_id: data.user_id,
           email: data.email,
@@ -65,20 +81,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
       }
     } catch {
+      if (started !== generation.current) return
       clearLibraryCache()
       // A transport error resolving /me leaves us signed out locally; warms
       // started while authenticated must still be torn down.
       resetPlaybackWarming()
       setUser(null)
     } finally {
-      clearIntentData()
-      setChecking(false)
+      if (started === generation.current) {
+        clearDerivedReads()
+        setChecking(false)
+      }
     }
   }
 
   const signOut = async () => {
-    clearIntentData()
-    clearLibraryCache()
+    if (signingOut.current) return
+    signingOut.current = true
+    ++generation.current
+    clearNavigationSession(user?.user_id)
+    clearDerivedReads()
+    setUser(null)
+    setChecking(false)
     // Sign-out begins here: tear warm transfers down before the network
     // round-trip, so a stalled logout cannot keep signed-URL pulls running.
     resetPlaybackWarming()
@@ -90,8 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Cookie is HttpOnly; a network failure still means dropping local state.
     } finally {
-      clearNavigationSession(user?.user_id)
-      clearLibraryCache()
+      signingOut.current = false
+      clearDerivedReads()
       resetPlaybackWarming()
       setUser(null)
     }
@@ -99,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh()
+    return () => { ++generation.current }
   }, [])
 
   return (
