@@ -1,26 +1,17 @@
-"""Community rankings over a week or a month, from dives visible to the viewer.
-
-Each member is credited with the non-lineup dives of the divers they OWN.
-Everything is a GROUP BY: per-member counts for the period, a score
-histogram per member for the current and previous period (exact medians,
-see code_summaries), and the distinct dive days of the last STREAK_WEEKS
-weeks for the weekly streak. The response stays small: the top BOARD_SIZE
-entries of each ranking plus the viewer, who is always present even with
-zeros (the UI shows the top 10 of the selected ranking plus the viewer).
+"""Rank the full visible community in SQL, materializing at most four top tens
+plus the viewer. Counts, exact score medians and weekly streaks remain full-scope.
 """
-
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import case, func, or_
+from sqlalchemy import Float, and_, case, cast, func, or_, select
 
 from app.models.dive import Dive
 from app.models.user_auth import AppUser, UserDiverAccess
-from app.services.code_summaries import _median_from_hist, _round, _score_value
-from app.services.dive_access import owned_diver_ids
+from app.services.code_summaries import _round
 from app.services.member_avatar import avatar_identity
+from app.services.performance_scoring import ATHLETE_SCORE_10, PHASE1_WEIGHT, PHASE2_WEIGHT
 
 PERIOD_DAYS = {"week": 7, "month": 30}
 STREAK_WEEKS = 26
@@ -28,118 +19,170 @@ MIN_PROGRESS_ATTEMPTS = 5
 BOARD_SIZE = 10
 
 
+def _round_half_even_sql(value):
+    """Round-half-to-even to two decimals, matching Python round(value, 2).
+
+    SQL round() rounds ties away from zero on both SQLite and PostgreSQL,
+    while the previous Python _round uses ties-to-even: a delta of 1.125 was
+    1.12 and became 1.13, which also feeds progress ranking. Scale by 100,
+    break exact ties by the parity of the floor, then scale back. Both signs
+    work through floor: floor(-112.5) is -113 (odd), so -112.5 becomes -112,
+    i.e. round(-1.125, 2) is -1.12, like Python.
+
+    Stays in binary float end to end: SQLite REAL and PostgreSQL float8 are
+    both IEEE doubles evaluated in the same order, so both dialects compute
+    bit-identical values. The floors are explicitly typed Float because
+    SQLAlchemy's generic floor() defaults to numeric, which would put
+    PostgreSQL on exact-decimal semantics and diverge from both SQLite and
+    Python on float-dust ties. Residual: deltas whose exact binary value
+    sits within half an ulp of a tie with the dust on the odd side round by
+    the tie rule instead of the dust side; no grade-achievable delta in the
+    test fixtures hits that window.
+
+    The ranked progress value and the displayed delta share this expression,
+    so ranking and display can never disagree.
+    """
+    scaled = value * 100
+    floored = cast(func.floor(scaled), Float)
+    frac = scaled - floored
+    odd_floor = floored - cast(func.floor(floored / 2.0), Float) * 2 != 0
+    stepped = case(
+        (frac < 0.5, floored),
+        (frac > 0.5, floored + 1),
+        (odd_floor, floored + 1),
+        else_=floored,
+    )
+    return stepped / 100.0
+
+
 def _monday(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def _streak(days: set[date], today: date) -> int:
-    """Consecutive weeks with a dive, ending this week (or last week if this one is still empty)."""
-    weeks = {_monday(day) for day in days}
-    week = _monday(today)
-    if week not in weeks:
-        week -= timedelta(days=7)
-    count = 0
-    while week in weeks:
-        count += 1
-        week -= timedelta(days=7)
-    return count
+def _ranking_statement(visible_clause, period, now, viewer_id):
+    """Keep cardinality-dependent aggregates and rank selection inside the DB."""
+    days = PERIOD_DAYS[period]
+    start, previous = now - timedelta(days=days), now - timedelta(days=2 * days)
+    monday = datetime.combine(_monday(now.date()), datetime.min.time())
+    streak_start = monday - timedelta(weeks=STREAK_WEEKS - 1)
+    owner = UserDiverAccess.user_id
 
+    def score(column):
+        # Match attempt_score_10: unknown nonempty grades map to zero.
+        return case(ATHLETE_SCORE_10, value=func.upper(column), else_=0.0)
 
-def _board_value(member: dict, category: str):
-    """Ranking value, mirroring the frontend Leaderboard categories."""
-    if category == "streak":
-        return member["streak_weeks"]
-    if category == "progress":
-        return member["delta"] if member["delta"] is not None else 0
-    if category == "explorer":
-        return member["codes"]
-    return member["attempts"]
+    grade = case(
+        (and_(Dive.performance.is_not(None), Dive.performance != ""), case(
+            (and_(Dive.phase1_performance.is_not(None), Dive.phase1_performance != "",
+                  Dive.phase2_performance.is_not(None), Dive.phase2_performance != ""),
+             score(Dive.phase1_performance) * PHASE1_WEIGHT + score(Dive.phase2_performance) * PHASE2_WEIGHT),
+            else_=score(Dive.performance))),
+        else_=None,
+    )
+    eligible = select(
+        owner.label("uid"), Dive.id, Dive.session_id, Dive.dive_code, Dive.dive_datetime,
+        grade.label("score"),
+    ).select_from(Dive).join(UserDiverAccess, and_(
+        UserDiverAccess.diver_id == Dive.diver_id, UserDiverAccess.access_kind == "OWNER",
+    )).join(AppUser, and_(AppUser.id == owner, AppUser.is_active.is_(True))).where(
+        Dive.is_lineup.is_(False), visible_clause,
+        Dive.dive_datetime >= min(previous, streak_start),
+    )
+    if viewer_id is not None:
+        own = select(UserDiverAccess.diver_id).where(
+            UserDiverAccess.user_id == viewer_id, UserDiverAccess.access_kind == "OWNER")
+        linked = select(UserDiverAccess.user_id).where(
+            UserDiverAccess.diver_id.in_(own), UserDiverAccess.access_kind == "OWNER")
+        eligible = eligible.where(or_(owner == viewer_id, owner.not_in(linked)))
+    dives = eligible.cte("board_dives")
+    d = dives.c
+    current = select(
+        d.uid, func.count().label("attempts"),
+        func.count(func.distinct(d.session_id)).label("sessions"),
+        func.count(func.distinct(d.dive_code)).label("codes"),
+        func.max(d.dive_datetime).label("last"),
+    ).where(d.dive_datetime >= start).group_by(d.uid).cte("board_current")
+
+    # Histograms retain exact medians without sorting or fetching full histories
+    # in Python. Window sums locate the two middle positions in each histogram.
+    recent = case((d.dive_datetime >= start, 1), else_=0).label("recent")
+    hist = select(d.uid, recent, d.score, func.count().label("n")).where(
+        d.dive_datetime >= previous, d.score.is_not(None),
+    ).group_by(d.uid, recent, d.score).cte("board_hist")
+    h = hist.c
+    cumulative = select(
+        h.uid, h.recent, h.score, h.n,
+        func.sum(h.n).over(partition_by=(h.uid, h.recent), order_by=h.score,
+                           rows=(None, 0)).label("seen"),
+        func.sum(h.n).over(partition_by=(h.uid, h.recent)).label("total"),
+    ).cte("board_cumulative")
+    c = cumulative.c
+    lower = func.min(case((c.seen >= func.floor((c.total + 1) / 2), c.score)))
+    upper = func.min(case((c.seen >= func.floor((c.total + 2) / 2), c.score)))
+    medians = select(
+        c.uid, c.recent, ((lower + upper) / 2.0).label("median"),
+        func.max(c.total).label("n"),
+    ).group_by(c.uid, c.recent).cte("board_medians")
+    recent_median = medians.alias("board_recent")
+    previous_median = medians.alias("board_previous")
+
+    # Use timestamp boundaries rather than dialect-specific week arithmetic.
+    # Distinct weeks, not dive days, feed the gaps-and-islands calculation.
+    week = case(*[
+        (and_(d.dive_datetime >= monday - timedelta(weeks=i),
+              d.dive_datetime < monday - timedelta(weeks=i - 1)), i)
+        for i in range(STREAK_WEEKS)
+    ]).label("week")
+    weeks = select(d.uid, week).where(d.dive_datetime >= streak_start).distinct().cte("board_weeks")
+    w = weeks.c
+    numbered = select(
+        w.uid, w.week,
+        func.min(w.week).over(partition_by=w.uid).label("first"),
+        func.row_number().over(partition_by=w.uid, order_by=w.week).label("rn"),
+    ).where(w.week.is_not(None)).cte("board_numbered_weeks")
+    n = numbered.c
+    streaks = select(n.uid, func.sum(case((and_(
+        n.first <= 1, n.week == n.rn - 1 + n.first,
+    ), 1), else_=0)).label("streak")).group_by(n.uid).cte("board_streaks")
+
+    cur, st = current.c, streaks.c
+    rm, pm = recent_median.c, previous_median.c
+    delta = case((and_(rm.n >= MIN_PROGRESS_ATTEMPTS, pm.n >= MIN_PROGRESS_ATTEMPTS),
+                  _round_half_even_sql(rm.median - pm.median)), else_=None)
+    metrics = select(
+        AppUser.id.label("uid"), func.coalesce(cur.attempts, 0).label("attempts"),
+        func.coalesce(cur.sessions, 0).label("sessions"),
+        func.coalesce(cur.codes, 0).label("codes"), cur.last,
+        rm.median, delta.label("delta"), func.coalesce(st.streak, 0).label("streak"),
+    ).outerjoin(current, cur.uid == AppUser.id).outerjoin(streaks, st.uid == AppUser.id).outerjoin(
+        recent_median, and_(rm.uid == AppUser.id, rm.recent == 1),
+    ).outerjoin(previous_median, and_(pm.uid == AppUser.id, pm.recent == 0)).where(
+        AppUser.is_active.is_(True),
+        or_(cur.uid.is_not(None), st.streak > 0, AppUser.id == viewer_id if viewer_id is not None else False),
+    ).cte("board_metrics")
+    m = metrics.c
+    ranked = select(*m, *[
+        func.row_number().over(order_by=(value.desc(), m.attempts.desc(), m.uid)).label(f"rank_{i}")
+        for i, value in enumerate((m.attempts, m.streak, func.coalesce(m.delta, 0), m.codes))
+    ]).cte("board_ranked")
+    r = ranked.c
+    return select(AppUser, r).join(ranked, r.uid == AppUser.id).where(or_(
+        *(r[f"rank_{i}"] <= BOARD_SIZE for i in range(4)),
+        r.uid == viewer_id if viewer_id is not None else False,
+    )).order_by(r.attempts.desc(), r.uid).limit(4 * BOARD_SIZE + 1)
 
 
 def leaderboard(db, visible_clause, period: str, now: datetime, viewer_id: int | None = None) -> dict:
-    days = PERIOD_DAYS[period]
-    start, previous = now - timedelta(days=days), now - timedelta(days=2 * days)
-    streak_start = datetime.combine(_monday(now.date()) - timedelta(weeks=STREAK_WEEKS - 1), datetime.min.time())
-    owner = UserDiverAccess.user_id
-    base = db.query(Dive).join(UserDiverAccess, (UserDiverAccess.diver_id == Dive.diver_id) & (UserDiverAccess.access_kind == "OWNER")).join(
-        AppUser, (AppUser.id == owner) & AppUser.is_active.is_(True),
-    ).filter(Dive.is_lineup.is_(False), visible_clause)
-
-    current = {uid: (n, sessions, codes, last) for uid, n, sessions, codes, last in base.filter(Dive.dive_datetime >= start).with_entities(
-        owner, func.count(Dive.id), func.count(func.distinct(Dive.session_id)), func.count(func.distinct(Dive.dive_code)), func.max(Dive.dive_datetime),
-    ).group_by(owner).all()}
-
-    hist: dict[tuple[int, bool], dict[float, int]] = defaultdict(lambda: defaultdict(int))
-    # One labelled expression, grouped by its alias: Postgres would reject two
-    # separately bound copies of `dive_datetime >= :start` as different expressions.
-    # The previous half is materialized only for members with enough current
-    # attempts to clear the progress gate (their only use of previous dives).
-    recent = case((Dive.dive_datetime >= start, 1), else_=0).label("recent")
-    contenders = [uid for uid, (n, _, _, _) in current.items() if n >= MIN_PROGRESS_ATTEMPTS]
-    for uid, is_recent, performance, phase1, phase2, n in base.filter(
-        Dive.dive_datetime >= previous,
-        or_(Dive.dive_datetime >= start, owner.in_(contenders)),
-        Dive.performance.is_not(None), Dive.performance != "",
-    ).with_entities(
-        owner, recent, Dive.performance, Dive.phase1_performance, Dive.phase2_performance, func.count(Dive.id),
-    ).group_by(owner, recent, Dive.performance, Dive.phase1_performance, Dive.phase2_performance).all():
-        score = _score_value(performance, phase1, phase2)
-        if score is not None:
-            hist[(uid, bool(is_recent))][score] += n
-
-    active_days: dict[int, set[date]] = defaultdict(set)
-    # Streak candidates: a streak of at least one week needs a dive this week
-    # or last week, hence within the last 14 days. Everyone else scores exactly
-    # 0, so only candidates' dive days are read (an empty candidate set reads
-    # nothing: `IN ()` matches no row, and every streak is 0).
-    recent_uids = [uid for (uid,) in base.filter(
-        Dive.dive_datetime >= now - timedelta(days=14)).with_entities(owner).distinct().all()]
-    for uid, day in base.filter(Dive.dive_datetime >= streak_start, owner.in_(recent_uids)).with_entities(owner, func.date(Dive.dive_datetime)).distinct().all():
-        active_days[uid].add(day if isinstance(day, date) else date.fromisoformat(str(day)[:10]))
-
-    uids = set(current) | {uid for uid, days_ in active_days.items() if days_}
-    if viewer_id is not None:
-        uids.add(viewer_id)
-    users = {row.id: row for row in db.query(AppUser).filter(AppUser.id.in_(uids)).all()} if uids else {}
+    rows = db.execute(_ranking_statement(visible_clause, period, now, viewer_id)).all()
     members = []
-    for uid in uids:
-        row = users.get(uid)
-        if row is None:
-            continue
-        attempts, sessions, codes, last = current.get(uid, (0, 0, 0, None))
-        now_hist, before_hist = hist.get((uid, True), {}), hist.get((uid, False), {})
-        median = _median_from_hist(now_hist.items()) if now_hist else None
-        delta = None
-        if sum(now_hist.values()) >= MIN_PROGRESS_ATTEMPTS and sum(before_hist.values()) >= MIN_PROGRESS_ATTEMPTS:
-            delta = _round(median - _median_from_hist(before_hist.items()))
+    for row in rows:
+        user, values = row[0], row._mapping
         members.append({
-            "user_id": uid, "display_name": row.display_name, "handle": row.handle, **avatar_identity(row),
-            "attempts": attempts, "sessions": sessions, "codes": codes,
-            "median": _round(median), "delta": delta,
-            "streak_weeks": _streak(active_days.get(uid, set()), now.date()),
-            "last_attempt_at": last.isoformat() if last else None,
+            "user_id": user.id, "display_name": user.display_name, "handle": user.handle, **avatar_identity(user),
+            "attempts": values["attempts"], "sessions": values["sessions"], "codes": values["codes"],
+            "median": _round(values["median"]), "delta": _round(float(values["delta"])) if values["delta"] is not None else None,
+            "streak_weeks": values["streak"],
+            "last_attempt_at": values["last"].isoformat() if values["last"] else None,
         })
-    members.sort(key=lambda member: (-member["attempts"], member["user_id"]))
-    # Accounts bound to one of the viewer's own divers (a second login, a test
-    # account) never rank for them — except the viewer, who is always kept.
-    # Determined here, not from the client's paginated directory, so the
-    # directory page cap cannot leak them onto the board.
-    if viewer_id is not None:
-        own = owned_diver_ids(db, viewer_id)
-        if own:
-            bound = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
-                UserDiverAccess.access_kind == "OWNER",
-                UserDiverAccess.diver_id.in_(own),
-                UserDiverAccess.user_id.in_(list(uids))).all()} if uids else set()
-            members = [member for member in members if member["user_id"] == viewer_id or member["user_id"] not in bound]
-    # The UI ranks the top 10 of one category plus the viewer: keep the top
-    # BOARD_SIZE of every category (same order as the frontend sort) plus the
-    # viewer instead of every member with dives in the window.
-    keep = set()
-    for category in ("active", "streak", "progress", "explorer"):
-        ranked = sorted(members, key=lambda member, wanted=category: (-_board_value(member, wanted), -member["attempts"], member["user_id"]))
-        keep.update(member["user_id"] for member in ranked[:BOARD_SIZE])
-    if viewer_id is not None:
-        keep.add(viewer_id)
-    members = [member for member in members if member["user_id"] in keep]
-    return {"period": period, "start": start.isoformat(), "end": now.isoformat(), "members": members}
+    return {"period": period, "start": (now - timedelta(days=PERIOD_DAYS[period])).isoformat(),
+            "end": now.isoformat(), "members": members}

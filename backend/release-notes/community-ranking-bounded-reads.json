@@ -1,0 +1,8 @@
+{
+  "id": "community-ranking-bounded-reads",
+  "date": "2026-10-28",
+  "title": "Keep community rankings light",
+  "body": "Community rankings fetch only the leading members and your entry while keeping scores and progress calculated across the full eligible community.",
+  "audience": "all",
+  "components": ["backend"]
+}

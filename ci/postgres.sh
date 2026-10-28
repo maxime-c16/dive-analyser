@@ -18,6 +18,7 @@ ci_run postgres-pytest "$CI_BACKEND_PYTHON" -m pytest \
     tests/test_postgres_media_startup_lot2.py \
     tests/test_postgres_media_startup_lot3.py \
     tests/test_postgres_activity.py \
+    tests/test_leaderboard_bounds.py \
     tests/test_postgres_media_cutover.py \
     tests/test_postgres_media_derivatives_d1.py \
     tests/test_postgres_derivative_publisher_d3b1.py \
