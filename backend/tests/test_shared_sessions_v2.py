@@ -203,8 +203,24 @@ def test_signup_groups_paginate(sessions_env):
     with TestClient(app,base_url='https://testserver') as guest:
         guest.post(base+'/visit',headers={'X-Dive-Share':token})
         clubs=guest.get(base+'/clubs').json()
-        assert [c['club'] for c in clubs]==['Many']
+        assert [c['club'] for c in clubs['items']]==['Many'] and clubs['next_after'] is None
         assert guest.get(base+'/groups',params={'club_id':123456}).json()=={'items':[],'next_after':None}
+
+
+def test_signup_clubs_paginate(sessions_env):
+    db,login,users,*_=sessions_env
+    video=service.ingest_object(db,KEY);video_id=video.id;owner=login('alice');base,token=link(owner,video_id)
+    for index in range(101):
+        db.add(Club(slug=f'club{index}',name=f'Club {index:03}',self_join_enabled=True))
+    db.commit()
+    with TestClient(app,base_url='https://testserver') as guest:
+        guest.post(base+'/visit',headers={'X-Dive-Share':token})
+        first=guest.get(base+'/clubs').json()
+        assert len(first['items'])==100 and first['next_after']
+        cursor=first['next_after']
+        second=guest.get(base+'/clubs',params={'after_club':cursor['club'],'after_id':cursor['id']}).json()
+        assert len(second['items'])==1 and second['next_after'] is None
+        assert {c['club_id'] for c in first['items']} | {c['club_id'] for c in second['items']} == {c.id for c in db.query(Club).all()}
 
 
 def test_signup_uses_club_timezone_for_effective_date(sessions_env, monkeypatch):

@@ -478,12 +478,21 @@ def guest_image(share_id: int, video_id: int, kind: str, request: Request, db: S
 
 
 @router.get('/shared-dives/sessions/{share_id}/clubs', dependencies=[Depends(require_enabled)])
-def signup_clubs(share_id: int, request: Request, db: Session = Depends(get_db)):
+def signup_clubs(share_id: int, request: Request, db: Session = Depends(get_db), after_club: str | None = None,
+                 after_id: int = 0):
     from app.models.calendar import Club
+    from sqlalchemy import and_, or_
     guest_access(share_id, request, db)
-    return [dict(club_id=c.id, club=c.name) for c in
-        db.query(Club).filter(Club.archived_at.is_(None), Club.self_join_enabled.is_(True))
-        .order_by(Club.name).all()]
+    query = db.query(Club).filter(Club.archived_at.is_(None), Club.self_join_enabled.is_(True))
+    if after_id:
+        query = query.filter(or_(Club.name > after_club,
+            and_(Club.name == after_club, Club.id > after_id)))
+    rows = query.order_by(Club.name, Club.id).limit(101).all()
+    items = [dict(club_id=c.id, club=c.name) for c in rows[:100]]
+    if len(rows) > 100:
+        last = rows[99]
+        return dict(items=items, next_after=dict(club=last.name, id=last.id))
+    return dict(items=items, next_after=None)
 
 
 @router.get('/shared-dives/sessions/{share_id}/groups', dependencies=[Depends(require_enabled)])
