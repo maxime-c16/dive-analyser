@@ -337,16 +337,21 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
     from app.models.session import Session as TrainingSession
     from sqlalchemy import or_
     from sqlalchemy.orm import aliased
-    visible = [SessionVideo.status == 'ready', SessionVideo.deleted_at.is_(None), SessionVideo.session_id.in_(ids)]
-    if not user or not user.is_admin:
-        visible.append(or_(SessionVideo.hidden.is_(False), SessionVideo.owner_user_id == user.id) if user else SessionVideo.hidden.is_(False))
+    if user and user.is_admin:
+        visibility = []
+    elif user:
+        visibility = [or_(SessionVideo.hidden.is_(False), SessionVideo.owner_user_id == user.id)]
+    else:
+        visibility = [SessionVideo.hidden.is_(False)]
+    visible = [SessionVideo.status == 'ready', SessionVideo.deleted_at.is_(None), SessionVideo.session_id.in_(ids)] + visibility
     ranked = db.query(SessionVideo.id, func.row_number().over(partition_by=SessionVideo.session_id,
         order_by=SessionVideo.id).label('rank')).filter(*visible, SessionVideo.id > after).subquery()
     rows = db.query(SessionVideo).join(ranked, ranked.c.id == SessionVideo.id).filter(ranked.c.rank <= 101).order_by(
         SessionVideo.id).all()
     totals = {r[0]: r[1:] for r in db.query(SessionVideo.session_id, func.count(SessionVideo.id),
-        func.sum(SessionVideo.duration_seconds), func.sum(SessionVideo.size_bytes)).filter(*visible,
-            SessionVideo.hidden.is_(False)).group_by(SessionVideo.session_id).all()}
+        func.sum(SessionVideo.duration_seconds), func.sum(SessionVideo.size_bytes)).filter(
+        SessionVideo.status == 'ready', SessionVideo.deleted_at.is_(None),
+        SessionVideo.session_id.in_(ids), *visibility).group_by(SessionVideo.session_id).all()}
     # Day identity is shared independently of dive visibility. Read only the
     # day columns through Core; ORM TrainingSession is intentionally dive-scoped.
     from sqlalchemy import select
@@ -563,15 +568,16 @@ def set_email_preference(payload: EmailPreference, user: AppUser = Depends(get_c
 
 
 @router.get('/session-signup-reviews', dependencies=[Depends(require_enabled)])
-def signup_reviews(user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def signup_reviews(user: AppUser = Depends(get_current_user), db: Session = Depends(get_db), after: int = 0):
     from app.models.session_video import SessionSignupReview
     if not user.is_admin:
         raise HTTPException(403)
     from app.models.diver import Diver
     rows = db.query(SessionSignupReview, AppUser.display_name, AppUser.email, Diver.__table__.c.display_name).join(
         AppUser, AppUser.id == SessionSignupReview.user_id).join(Diver.__table__, Diver.__table__.c.id == SessionSignupReview.candidate_diver_id).filter(
-        SessionSignupReview.resolved_at.is_(None)).order_by(SessionSignupReview.id).limit(100).all()
-    return [dict(id=r.id, user_id=r.user_id, candidate_diver_id=r.candidate_diver_id, name=name, email=email, candidate_name=candidate) for r,name,email,candidate in rows]
+        SessionSignupReview.resolved_at.is_(None), SessionSignupReview.id > after).order_by(SessionSignupReview.id).limit(101).all()
+    items = [dict(id=r.id, user_id=r.user_id, candidate_diver_id=r.candidate_diver_id, name=name, email=email, candidate_name=candidate) for r, name, email, candidate in rows[:100]]
+    return dict(items=items, next_after=rows[99][0].id if len(rows) > 100 else None)
 
 
 @router.post('/session-signup-reviews/{review_id}/accept', dependencies=[Depends(require_enabled), Depends(same_origin)])

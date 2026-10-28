@@ -23,6 +23,11 @@ import urllib.request
 from pathlib import Path
 
 ENV_FILE = Path.home() / ".config/dive-analyser/session-lab.env"
+# Source-safety boundary: the lab credential must never reach outside lab/.
+# The server key gate (server.py `_own_key`) only constrains paths passed to
+# the lab server itself; a leaked or reused bucket-wide key could overwrite
+# or delete session originals under inbox/.
+LAB_PREFIX = "lab/"
 
 
 def read_master(path: str) -> tuple:
@@ -44,6 +49,13 @@ def call(url, token, body):
         return json.load(urllib.request.urlopen(req, timeout=30))
     except urllib.error.HTTPError as exc:
         return {"_error": exc.code, **json.loads(exc.read() or b"{}")}
+
+
+def lab_prefix_ok(allowed: dict) -> bool:
+    """An existing bucket-restricted key is reusable only when its namePrefix
+    stays inside lab/ (None or empty means bucket-wide: reject)."""
+    prefix = (allowed or {}).get("namePrefix") or ""
+    return prefix == LAB_PREFIX or prefix.startswith(LAB_PREFIX)
 
 
 def main():
@@ -88,11 +100,16 @@ def main():
         raise SystemExit(f"bucket: {bucket}")
 
     if allowed.get("bucketId"):
+        if not lab_prefix_ok(allowed):
+            raise SystemExit(
+                "This key is not restricted to lab/: recreate a lab/-prefixed key with the master key "
+                "(bucket-wide lab keys can overwrite or delete session originals outside lab/).")
         new_key = {"applicationKeyId": key_id, "applicationKey": secret}
     else:
         new_key = call(api + "b2_create_key", token, {
             "accountId": account, "keyName": "session-upload-lab", "bucketId": bucket["bucketId"],
             "capabilities": ["listFiles", "readFiles", "writeFiles", "deleteFiles"],
+            "namePrefix": LAB_PREFIX,
         })
         if "_error" in new_key:
             raise SystemExit(f"key: {new_key}")

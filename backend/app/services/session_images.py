@@ -73,6 +73,8 @@ from app.config import get_settings
 from app.services.session_videos import presign_get
 
 _slots = threading.BoundedSemaphore(1)
+# Rotation cursor for cleanup scans (see cleanup_session_images).
+_scan_cursor = None
 
 
 def image_path(video_id, kind):
@@ -124,7 +126,7 @@ def publish_images(target, staged):
         os.replace(staging, image_path(int(target.name), kind))
 
 
-def cleanup_session_images(db, limit=100):
+def cleanup_session_images(db, limit=100, scan_budget=200):
     """Bounded unlink of derivatives no live video can serve.
 
     Posters/animations are regenerable derivatives (~0.5 MB per video), but
@@ -133,17 +135,38 @@ def cleanup_session_images(db, limit=100):
     keep their files. Publication is an atomic os.replace of exactly these
     names, so in-flight staging (`*.tmp`) is never matched. Liveness is
     checked in batches of 100 ids so cleanup retains bounded rows no matter
-    how large the table grows. At most `limit` files per pass. Returns freed
-    bytes.
+    how large the table grows. At most `scan_budget` video directories are
+    scanned per pass from a rotating cursor (wrap-around), so later orphans
+    still progress while one pass stays bounded. At most `limit` files
+    removed per pass. Returns freed bytes.
     """
+    global _scan_cursor
     from itertools import islice
     from sqlalchemy import select
     from app.models.session_video import SessionVideo
     limit = max(0, min(limit, 100))
+    scan_budget = max(1, min(scan_budget, 2000))
+    root = Path(get_settings().media_cache_root).resolve() / 'session-images'
+    if root.is_symlink() or not root.is_dir():
+        return 0
+    ordered = sorted(int(name) for name in os.listdir(root)
+                     if name.isdigit() and (root / name).is_dir() and not (root / name).is_symlink())
+    if not ordered:
+        return 0
+    if _scan_cursor is not None:
+        ordered = [i for i in ordered if i > _scan_cursor] + [i for i in ordered if i <= _scan_cursor]
+    window = ordered[:scan_budget]
+    _scan_cursor = window[-1]
+    files = []
+    for video_id in window:
+        for kind in ('poster', 'animated'):
+            path = root / str(video_id) / f'{kind}.webp'
+            if not path.is_symlink() and path.is_file():
+                files.append((video_id, path))
     freed, removed = 0, 0
-    files = session_image_files()
+    batches = iter(files)
     while removed < limit:
-        batch = list(islice(files, 100))
+        batch = list(islice(batches, 100))
         if not batch:
             break
         live = set(db.scalars(select(SessionVideo.id).where(

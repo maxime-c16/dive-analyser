@@ -63,6 +63,9 @@ CALENDAR_DEFAULTS: Dict[str, bool] = {
 CALENDAR_TYPES = frozenset(CALENDAR_DEFAULTS)
 # Shared sessions: owner-only "new session video" alert (no preference UI).
 SESSION_DEFAULTS: Dict[str, bool] = {"session_video": True}
+# Types the preferences API must never expose for editing: kept at their
+# default (enabled) for every account, stored override rows ignored.
+_NON_EDITABLE_TYPES = frozenset(SESSION_DEFAULTS)
 _ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS, **SESSION_DEFAULTS}
 
 _MAX_LIST_LIMIT = 100
@@ -82,17 +85,25 @@ def _validate_type(notif_type: str) -> None:
 
 
 def _pref_defaults(db: Session) -> Dict[str, bool]:
-    """Types the preferences API exposes: calendar ones only when enabled."""
+    """Types the preferences API exposes: calendar ones only when enabled,
+    never the non-editable owner alerts."""
     from app.services.calendar_launch import enabled
 
+    exposed = {key: value for key, value in _ALL_DEFAULTS.items() if key not in _NON_EDITABLE_TYPES}
     if enabled(db):
-        return dict(_ALL_DEFAULTS)
-    return dict(DEFAULTS)
+        return exposed
+    return {key: value for key, value in DEFAULTS.items() if key not in _NON_EDITABLE_TYPES}
 
 
 def is_enabled(db: Session, user_id: int, notif_type: str) -> bool:
-    """Preference for one user/type; DEFAULTS when no override row exists."""
+    """Preference for one user/type; DEFAULTS when no override row exists.
+
+    Non-editable owner alerts stay enabled for everyone: any stored override
+    row (written before the type became non-editable) is ignored.
+    """
     _validate_type(notif_type)
+    if notif_type in _NON_EDITABLE_TYPES:
+        return True
     row = (
         db.query(NotificationPref)
         .filter_by(user_id=user_id, notif_type=notif_type)

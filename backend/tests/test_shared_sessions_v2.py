@@ -131,6 +131,21 @@ def test_feed_has_fixed_query_budget_and_complete_totals(sessions_env):
     assert len(second['videos'])==8 and second['next_video_id'] is None
 
 
+def test_owner_totals_include_hidden_viewer_totals_exclude(sessions_env):
+    db,login,users,b2,*_=sessions_env
+    first=service.ingest_object(db,KEY)
+    b2.objects['inbox/second.MOV']=3338404955
+    second=service.ingest_object(db,'inbox/second.MOV')
+    sid=first.session_id
+    assert second.session_id==sid
+    owner=login('alice')
+    assert owner.patch(f'/api/v1/session-videos/{second.id}',json={'hidden':True}).status_code==200
+    detail=owner.get(f'/api/v1/shared-sessions/{sid}').json()
+    assert len(detail['videos'])==2 and detail['video_count']==2
+    seen=login('viewer').get(f'/api/v1/shared-sessions/{sid}').json()
+    assert len(seen['videos'])==1 and seen['video_count']==1
+
+
 def test_hidden_session_detail_is_private_but_manageable(sessions_env):
     db,login,users,*_=sessions_env
     video=service.ingest_object(db,KEY)
@@ -141,6 +156,63 @@ def test_hidden_session_detail_is_private_but_manageable(sessions_env):
     owner = login('alice')  # login() shares one client: reset the cookie viewer replaced
     detail=owner.get(f'/api/v1/shared-sessions/{sid}')
     assert detail.status_code==200 and len(detail.json()['videos'])==1
+
+
+def test_owner_alert_has_no_preference_toggle(sessions_env):
+    from app.models.notification import NotificationPref
+    from app.services import notification_service
+    db,login,users,*_=sessions_env
+    client=login('alice')
+    assert client.put('/api/v1/notification-prefs',json={'type':'session_video','enabled':False}).status_code==422
+    assert 'session_video' not in client.get('/api/v1/notification-prefs').json()['prefs']
+    db.add(NotificationPref(user_id=users['alice'].id,notif_type='session_video',enabled=False));db.commit()
+    assert notification_service.is_enabled(db,users['alice'].id,'session_video') is True
+
+
+def test_signup_review_queue_paginates(sessions_env):
+    from app.models.diver import Diver
+    from app.models.session_video import SessionSignupReview
+    db,login,users,*_=sessions_env
+    for index in range(101):
+        user=AppUser(email=f'review{index}@example.test',display_name=f'Review {index}',role='diver')
+        db.add(user);db.flush()
+        diver=Diver(display_name=f'Candidat {index}',canonical_name=f'review-candidate-{index}')
+        db.add(diver);db.flush()
+        db.add(SessionSignupReview(user_id=user.id,candidate_diver_id=diver.id))
+    db.get(AppUser,users['alice'].id).is_admin=True;db.commit()
+    admin=login('alice')
+    first=admin.get('/api/v1/session-signup-reviews').json()
+    assert len(first['items'])==100 and first['next_after']
+    second=admin.get('/api/v1/session-signup-reviews',params={'after':first['next_after']}).json()
+    assert len(second['items'])==1 and second['next_after'] is None
+    assert {r['id'] for r in first['items']} | {r['id'] for r in second['items']} == {r.id for r in db.query(SessionSignupReview).all()}
+
+
+def test_session_image_cleanup_rotates_scan(sessions_env,tmp_path,monkeypatch):
+    from app.config import get_settings
+    from app.models.session import Session as TrainingSession
+    from app.models.user_auth import AppUser
+    from app.services.session_images import cleanup_session_images, image_path
+    import app.services.session_images as images
+    from datetime import date, datetime
+    monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
+    images._scan_cursor=None
+    try:
+        db,login,users,*_=sessions_env
+        user=db.get(AppUser,users['alice'].id)
+        for index in range(3):
+            training=TrainingSession(date=date(2026,10,10+index));db.add(training);db.flush()
+            video=SessionVideo(session_id=training.id,owner_user_id=user.id,bucket='test',object_key=f'rot{index}.MOV',status='ready',deleted_at=datetime.utcnow())
+            db.add(video);db.flush()
+            for kind in ('poster','animated'):
+                path=image_path(video.id,kind);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'x'*100)
+        db.commit()
+        assert cleanup_session_images(db,scan_budget=1)==200
+        assert cleanup_session_images(db,scan_budget=1)==200
+        assert cleanup_session_images(db,scan_budget=1)==200
+        assert cleanup_session_images(db,scan_budget=1)==0
+    finally:
+        images._scan_cursor=None
 
 
 def test_session_image_publish_respects_disk_budget(tmp_path,monkeypatch):
