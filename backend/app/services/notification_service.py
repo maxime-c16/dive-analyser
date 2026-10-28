@@ -124,6 +124,7 @@ def create(
     dive_id: Optional[int] = None,
     defer_push: bool = False,
     conversation_id: Optional[int] = None,
+    session_id: Optional[int] = None,
 ) -> Optional[Notification]:
     """Create one inbox row, or None when the type is disabled for the user.
 
@@ -143,6 +144,7 @@ def create(
             body=(body or "")[:_BODY_MAX] or None,
             dive_id=dive_id,
             conversation_id=conversation_id,
+            session_id=session_id,
         )
         db.add(row)
         db.commit()

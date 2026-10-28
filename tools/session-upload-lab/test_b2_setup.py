@@ -1,9 +1,6 @@
 """Source-safety guards for the lab setup (pure helpers, no B2 I/O)."""
 from b2_setup import bucket_rules_known, existing_rules_intact, lab_prefix_ok
 
-LAB_CORS = [{"corsRuleName": "sessionLabBrowser"}]
-LAB_LIFE = [{"fileNamePrefix": "lab/"}]
-
 
 def test_lab_prefix_key_must_stay_inside_lab():
     assert lab_prefix_ok({"namePrefix": "lab/"})
@@ -16,11 +13,16 @@ def test_lab_prefix_key_must_stay_inside_lab():
 
 
 def test_bucket_update_refuses_foreign_or_unknown_rules():
-    assert existing_rules_intact({}, LAB_CORS, LAB_LIFE)
-    assert existing_rules_intact({"corsRules": LAB_CORS, "lifecycleRules": LAB_LIFE}, LAB_CORS, LAB_LIFE)
+    lab = {"corsRuleName": "sessionLabBrowser", "allowedOrigins": ["http://x"]}
+    life = {"fileNamePrefix": "lab/"}
+    assert existing_rules_intact({}, [lab], [life])
+    assert existing_rules_intact({"corsRules": [lab], "lifecycleRules": [life]}, [lab], [life])
+    prod = dict(lab, allowedOrigins=["https://prod.example"])
     assert not existing_rules_intact(
-        {"corsRules": [{"corsRuleName": "prodPlayback"}], "lifecycleRules": []}, LAB_CORS, LAB_LIFE)
+        {"corsRules": [prod], "lifecycleRules": []}, [lab], [life])
     assert not existing_rules_intact(
-        {"corsRules": [], "lifecycleRules": [{"fileNamePrefix": "inbox/"}]}, LAB_CORS, LAB_LIFE)
+        {"corsRules": [{"corsRuleName": "prodPlayback"}], "lifecycleRules": []}, [lab], [life])
+    assert not existing_rules_intact(
+        {"corsRules": [], "lifecycleRules": [{"fileNamePrefix": "inbox/"}]}, [lab], [life])
     assert bucket_rules_known({"corsRules": [], "lifecycleRules": []})
     assert not bucket_rules_known({})

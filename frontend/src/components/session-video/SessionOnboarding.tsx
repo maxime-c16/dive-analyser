@@ -39,6 +39,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
   const [groups, setGroups] = useState<Group[]>([])
+  const [clubs, setClubs] = useState<{ club_id: number; club: string }[]>([])
   const [club, setClub] = useState('')
   const [group, setGroup] = useState('')
   const [emailEnabled, setEmailEnabled] = useState(true)
@@ -50,22 +51,32 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => {
     let live = true
+    api.get<{ club_id: number; club: string }[]>(`/api/v1/shared-dives/sessions/${shareId}/clubs`)
+      .then(({ data }) => { if (live) setClubs(data) })
+      .catch(() => { if (live) setError('Groupes indisponibles') })
+      .finally(() => { if (live) setLoadingGroups(false) })
+    return () => { live = false }
+  }, [shareId])
+  useEffect(() => {
+    if (!club) { setGroups([]); return }
+    let live = true
+    setLoadingGroups(true)
     ;(async () => {
       const all: Group[] = []
-      let params: Record<string, string | number> = {}
+      let params: Record<string, string | number> = { club_id: club }
       for (;;) {
         const { data } = await api.get<{ items: Group[]; next_after: { club: string; group: string; id: number } | null }>(
           `/api/v1/shared-dives/sessions/${shareId}/groups`, { params })
         all.push(...data.items)
         if (!data.next_after) break
-        params = { after_club: data.next_after.club, after_group: data.next_after.group, after_id: data.next_after.id }
+        params = { club_id: club, after_club: data.next_after.club, after_group: data.next_after.group, after_id: data.next_after.id }
       }
       if (live) setGroups(all)
     })()
       .catch(() => { if (live) setError('Groupes indisponibles') })
       .finally(() => { if (live) setLoadingGroups(false) })
     return () => { live = false }
-  }, [shareId])
+  }, [shareId, club])
   const changeStep = (next: Step) => { setError(''); setStep(next) }
   const alert = error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>
 
@@ -119,7 +130,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
       <select aria-label="Club" className={`${fieldClass} mb-6`} required value={club} disabled={loadingGroups}
         onChange={event => { setClub(event.target.value); setGroup('') }}>
         <option value="">Choisir un club</option>
-        {[...new Map(groups.map(item => [item.club_id, item.club])).entries()].map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+        {clubs.map(c => <option key={c.club_id} value={c.club_id}>{c.club}</option>)}
       </select>
       {alert}
       <button className={buttonClass} disabled={!club || loadingGroups}>Continuer</button>

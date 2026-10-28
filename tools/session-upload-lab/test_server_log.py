@@ -1,4 +1,4 @@
-"""Lab server must never log the ?t=<TOKEN> page URL (stderr, no B2 I/O)."""
+"""Lab server token hygiene + idempotent complete (stderr/file only, no B2 I/O)."""
 import io
 import os
 import sys
@@ -42,3 +42,10 @@ def test_access_log_strips_page_token():
     output = buffer.getvalue()
     assert 'SUPERSECRET' not in output
     assert 'GET / ' in output and '/api/sign' in output
+
+
+def test_error_route_drops_query_string():
+    from server import _safe_route
+    assert _safe_route('/api/init?t=SUPERSECRET') == '/api/init'
+    assert _safe_route('/?t=SUPERSECRET') == '/'
+    assert _safe_route('/api/sign') == '/api/sign'

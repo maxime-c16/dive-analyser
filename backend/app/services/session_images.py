@@ -113,6 +113,37 @@ def session_image_files():
                     yield int(video_dir.name), path
 
 
+def save_staged_frames(frames, target):
+    """Save poster + animation staging files; the caller publishes them.
+
+    Staging paths are removed by publish_images on budget refusal; any other
+    failure (save error, replace error) must clean them in a finally block
+    at the call site — cleanup and accounting only recognize published
+    `.webp` files, so stranded staging would bypass the disk budget.
+    """
+    from PIL import Image
+    target.mkdir(parents=True, exist_ok=True)
+    staged = {}
+    try:
+        for kind in ('poster', 'animated'):
+            staging = target / f'{kind}.{os.getpid()}.tmp'
+            staged[kind] = staging
+            frames[0].save(staging, format='WEBP', quality=78,
+                **(dict(save_all=True, append_images=frames[1:], duration=220, loop=0) if kind == 'animated' else {}))
+    except Exception:
+        discard_staged(staged)
+        raise
+    return staged
+
+
+def discard_staged(staged):
+    for staging in staged.values():
+        try:
+            staging.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def publish_images(target, staged):
     """Atomically publish staged derivatives gated on the disk budget.
 
@@ -137,14 +168,13 @@ def publish_images(target, staged):
         except FileNotFoundError:
             pass
     if session_image_disk_bytes(SESSION_IMAGES_MAX_BYTES) - replacing + new_bytes > SESSION_IMAGES_MAX_BYTES:
-        for staging in staged.values():
-            staging.unlink(missing_ok=True)
+        discard_staged(staged)
         raise RuntimeError('Session image budget exceeded')
     for kind, staging in staged.items():
         os.replace(staging, image_path(int(target.name), kind))
 
 
-def cleanup_session_images(db, limit=100, shard_budget=32):
+def cleanup_session_images(db, limit=100, entry_budget=200):
     """Bounded unlink of derivatives no live video can serve.
 
     Posters/animations are regenerable derivatives (~0.5 MB per video), but
@@ -153,11 +183,12 @@ def cleanup_session_images(db, limit=100, shard_budget=32):
     keep their files. Publication is an atomic os.replace of exactly these
     names, so in-flight staging (`*.tmp`) is never matched. Liveness is
     checked in batches of 100 ids so cleanup retains bounded rows no matter
-    how large the table grows. The scan itself rotates over the 256 id
-    shards (`shard_budget` per pass, wrap-around), so one pass visits a
-    bounded slice of the collection while later orphans still progress.
-    Fully empty, settled video directories (failed extractions) are removed.
-    At most `limit` files removed per pass. Returns freed bytes.
+    how large the table grows. Entries visited per pass are bounded too: at
+    most `entry_budget` (shard, video) entries past a rotating tuple cursor
+    (wrap-around), so one pass holds O(entry_budget) names while later
+    orphans still progress. Fully empty, settled video directories (failed
+    extractions) are removed. At most `limit` files removed per pass.
+    Returns freed bytes.
     """
     global _scan_cursor
     from itertools import islice
@@ -165,7 +196,7 @@ def cleanup_session_images(db, limit=100, shard_budget=32):
     from app.models.session_video import SessionVideo
     from time import time
     limit = max(0, min(limit, 100))
-    shard_budget = max(1, min(shard_budget, 256))
+    entry_budget = max(1, min(entry_budget, 2000))
     root = _session_root()
     if root.is_symlink() or not root.is_dir():
         return 0
@@ -177,39 +208,53 @@ def cleanup_session_images(db, limit=100, shard_budget=32):
     if not shards:
         return 0
     if _scan_cursor is not None:
-        shards = [name for name in shards if name > _scan_cursor] + [name for name in shards if name <= _scan_cursor]
-    window = shards[:shard_budget]
-    _scan_cursor = window[-1]
-    now = time()
-    files = []
-    for shard in window:
+        shards = [name for name in shards if name >= _scan_cursor[0]] + \
+                 [name for name in shards if name < _scan_cursor[0]]
+    selected = []
+    for shard in shards:
         try:
-            entries = list(os.scandir(root / shard))
+            names = sorted(entry.name for entry in os.scandir(root / shard))
         except FileNotFoundError:
             continue
-        for entry in entries:
-            if not entry.name.isdigit():
+        for name in names:
+            if not name.isdigit():
                 continue
             try:
-                video_id = int(entry.name)
+                video_id = int(name)
             except ValueError:
                 continue
-            if not entry.is_dir(follow_symlinks=False):
+            if _scan_cursor is not None and (shard, video_id) <= _scan_cursor:
                 continue
-            video_dir = root / shard / entry.name
+            selected.append((shard, video_id))
+            if len(selected) >= entry_budget:
+                break
+        if len(selected) >= entry_budget:
+            break
+    if len(selected) < entry_budget:
+        _scan_cursor = None
+    else:
+        _scan_cursor = selected[-1]
+    if not selected:
+        return 0
+    now = time()
+    files = []
+    for shard, video_id in selected:
+        video_dir = root / shard / str(video_id)
+        if not video_dir.is_dir() or video_dir.is_symlink():
+            continue
+        try:
+            names = [item.name for item in os.scandir(video_dir)
+                     if not item.is_symlink() and item.is_file(follow_symlinks=False)]
+        except FileNotFoundError:
+            continue
+        for kind in ('poster', 'animated'):
+            if f'{kind}.webp' in names:
+                files.append((video_id, video_dir / f'{kind}.webp'))
+        if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
             try:
-                names = [item.name for item in os.scandir(video_dir)
-                         if not item.is_symlink() and item.is_file(follow_symlinks=False)]
-            except FileNotFoundError:
-                continue
-            for kind in ('poster', 'animated'):
-                if f'{kind}.webp' in names:
-                    files.append((video_id, video_dir / f'{kind}.webp'))
-            if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
-                try:
-                    video_dir.rmdir()
-                except OSError:
-                    pass
+                video_dir.rmdir()
+            except OSError:
+                pass
     freed, removed = 0, 0
     batches = iter(files)
     while removed < limit:
@@ -276,12 +321,17 @@ def extract_images(video):
                         frames.append(image.convert('RGB'))
                 except (subprocess.SubprocessError, OSError):
                     raise RuntimeError('Session image extraction failed') from None
-            staged = {}
-            for kind in ('poster', 'animated'):
-                staging = target / f'{kind}.{os.getpid()}.tmp'
-                frames[0].save(staging, format='WEBP', quality=78,
-                    **(dict(save_all=True, append_images=frames[1:], duration=220, loop=0) if kind == 'animated' else {}))
-                staged[kind] = staging
-            publish_images(target, staged)
+            publish_saved_frames(frames, target)
 
         return stats
+
+
+def publish_saved_frames(frames, target):
+    """Save staging files and publish them, cleaning staging on any failure."""
+    staged = {}
+    try:
+        staged = save_staged_frames(frames, target)
+        publish_images(target, staged)
+        staged = {}
+    finally:
+        discard_staged(staged)

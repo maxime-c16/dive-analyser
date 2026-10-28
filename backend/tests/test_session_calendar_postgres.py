@@ -19,7 +19,7 @@ from app.models.user_auth import AppUser
 from app.services import session_videos as service
 from tests.test_session_calendar import setup_group
 
-URL = os.environ.get('SESSION_CALENDAR_TEST_DATABASE_URL')
+URL = os.environ.get('CALENDAR_TEST_DATABASE_URL')
 pytestmark = pytest.mark.skipif(not URL, reason='Dedicated PostgreSQL database required')
 
 

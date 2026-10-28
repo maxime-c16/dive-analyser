@@ -181,7 +181,7 @@ def test_calendar_session_still_notifies_owner(sessions_env, monkeypatch):
         object_key='inbox/owner.MOV', status='ready'); db.add(video); db.flush(); db.commit()
     service._notify_once(db, video.id)
     owner_rows = db.query(Notification).filter_by(user_id=users['alice'].id, type='session_video').all()
-    assert len(owner_rows) == 1 and owner_rows[0].session_id is None
+    assert len(owner_rows) == 1 and owner_rows[0].session_id == training.id
     assert db.get(TrainingSession, training.id).calendar_notified_at is not None
 
 
@@ -200,6 +200,11 @@ def test_signup_groups_paginate(sessions_env):
         second=guest.get(base+'/groups',params={'after_club':cursor['club'],'after_group':cursor['group'],'after_id':cursor['id']}).json()
         assert len(second['items'])==1 and second['next_after'] is None
         assert {g['id'] for g in first['items']} | {g['id'] for g in second['items']} == {g.id for g in db.query(TrainingGroup).all()}
+    with TestClient(app,base_url='https://testserver') as guest:
+        guest.post(base+'/visit',headers={'X-Dive-Share':token})
+        clubs=guest.get(base+'/clubs').json()
+        assert [c['club'] for c in clubs]==['Many']
+        assert guest.get(base+'/groups',params={'club_id':123456}).json()=={'items':[],'next_after':None}
 
 
 def test_signup_uses_club_timezone_for_effective_date(sessions_env, monkeypatch):
@@ -239,6 +244,31 @@ def test_group_fanout_is_capped_and_resumes(sessions_env, monkeypatch):
     service._resume_pending_session_notifications(db)
     assert db.query(Notification).filter_by(session_id=training.id).count()==3
     assert db.get(TrainingSession,training.id).calendar_notified_at is not None
+
+
+def test_covered_owner_gets_telegram_without_duplicate_inbox(sessions_env, monkeypatch):
+    from tests.test_session_calendar import setup_group
+    from app.config import get_settings
+    from app.models.notification import Notification
+    from app.models.session import Session as TrainingSession
+    from app.services import telegram
+    from datetime import date
+    db, login, users, b2, _ = sessions_env
+    monkeypatch.setattr(get_settings(), 'sessions_telegram_bot_token', 'tok')
+    monkeypatch.setattr(get_settings(), 'sessions_telegram_chat_id', 'chat')
+    sent = []
+    monkeypatch.setattr(telegram, 'send', lambda text: sent.append(text) or True)
+    occ = setup_group(db, users)  # alice is an attending member here
+    training = TrainingSession(date=date(2026, 10, 17), calendar_occurrence_id=occ.id); db.add(training); db.flush()
+    first = SessionVideo(session_id=training.id, owner_user_id=users['alice'].id, bucket='test',
+        object_key='inbox/tg1.MOV', status='ready')
+    second = SessionVideo(session_id=training.id, owner_user_id=users['alice'].id, bucket='test',
+        object_key='inbox/tg2.MOV', status='ready')
+    db.add_all([first, second]); db.flush(); db.commit()
+    service._notify_once(db, first.id)
+    service._notify_once(db, second.id)
+    assert db.query(Notification).filter_by(user_id=users['alice'].id, type='session_video').count() == 1
+    assert len(sent) == 2 and all('Lien invité' in text for text in sent)
 
 
 def test_owner_alert_has_no_preference_toggle(sessions_env):
@@ -295,14 +325,39 @@ def test_session_image_cleanup_rotates_scan(sessions_env,tmp_path,monkeypatch):
         stale=image_path(424242,'poster').parent
         stale.mkdir(parents=True,exist_ok=True)
         _os.utime(stale,(0,0))
-        assert cleanup_session_images(db,shard_budget=1)==200
-        assert cleanup_session_images(db,shard_budget=1)==200
-        assert cleanup_session_images(db,shard_budget=1)==200
-        assert cleanup_session_images(db,shard_budget=1)==0
+        assert cleanup_session_images(db,entry_budget=1)==200
+        assert cleanup_session_images(db,entry_budget=1)==200
+        assert cleanup_session_images(db,entry_budget=1)==200
+        assert cleanup_session_images(db,entry_budget=1)==0
         assert not stale.exists()
-        assert cleanup_session_images(db,shard_budget=1)==0
+        assert cleanup_session_images(db,entry_budget=1)==0
     finally:
         images._scan_cursor=None
+
+
+def test_staging_cleaned_on_save_or_publish_failure(tmp_path,monkeypatch):
+    from PIL import Image
+    from app.config import get_settings
+    from app.services import session_images as images
+    monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
+    monkeypatch.setattr(images,'SESSION_IMAGES_MAX_BYTES',10**12)
+    target=images.image_path(11,'poster').parent
+    frames=[Image.new('RGB',(4,4))]
+    def boom(target,staged):
+        raise RuntimeError('replace failed')
+    monkeypatch.setattr(images,'publish_images',boom)
+    with pytest.raises(RuntimeError):
+        images.publish_saved_frames(frames,target)
+    assert list(target.glob('*.tmp'))==[]
+    from pathlib import Path as _Path
+    real_save = Image.Image.save
+    def flaky_save(self, fp, *args, **kwargs):
+        _Path(fp).write_bytes(b'x')
+        raise RuntimeError('save failed')
+    monkeypatch.setattr(Image.Image, 'save', flaky_save)
+    with pytest.raises(RuntimeError):
+        images.publish_saved_frames(frames,target)
+    assert list(target.glob('*.tmp'))==[]
 
 
 def test_session_image_publish_respects_disk_budget(tmp_path,monkeypatch):

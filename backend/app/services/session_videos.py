@@ -548,22 +548,23 @@ def describe(video: SessionVideo) -> str:
 def _notify_once(db: Session, video_id: int) -> None:
     """Group fan-out once per session plus the owner one-shot per video.
 
-    The two channels stay independent, without double-alerting: a calendar
-    session notifies its attending members through notify_session, and the
-    configured owner gets their own arrival alert (inbox + push + Telegram
-    guest link) for every video they are not already covered for as an
-    attending member — including owners who attend no group at all.
+    An attending member gets the session notification; the configured owner
+    additionally gets their own arrival alert for every video (inbox + push
+    unless already covered as a member, Telegram guest link always), even
+    when they attend no group at all.
     """
-    from app.models.notification import Notification
     video = db.get(SessionVideo, video_id)
     covered = False
     if video and video.session_id:
         from app.services.session_calendar import notify_session
         notify_session(db, video)
-        covered = db.query(Notification).filter_by(
-            session_id=video.session_id, user_id=video.owner_user_id,
-            type='session_video').first() is not None
+        covered = _owner_covered_as_member(db, video)
     if covered:
+        try:
+            notify_owner_telegram(db, video)
+        except Exception as exc:
+            logger.error("shared sessions: owner telegram failed (%s)", type(exc).__name__)
+            db.rollback()
         return
     result = db.execute(
         update(SessionVideo)
@@ -583,6 +584,23 @@ def _notify_once(db: Session, video_id: int) -> None:
         db.rollback()
 
 
+def _owner_covered_as_member(db: Session, video: SessionVideo) -> bool:
+    """Whether the owner already got this session's member notification.
+
+    Asked against live membership (not notification rows) so owner rows —
+    which now carry their session for deep-linking — can never masquerade
+    as member coverage.
+    """
+    from app.models.session import Session as TrainingSession
+    from app.models.user_auth import AppUser
+    from app.services.session_calendar import occurrence_members
+    training = db.get(TrainingSession, video.session_id)
+    if training is None or training.calendar_occurrence_id is None:
+        return False
+    return occurrence_members(db, training.calendar_occurrence_id).filter(
+        AppUser.id == video.owner_user_id).first() is not None
+
+
 def notify_owner(db: Session, video: SessionVideo) -> None:
     from app.services import notification_service, push_service, telegram
 
@@ -592,15 +610,29 @@ def notify_owner(db: Session, video: SessionVideo) -> None:
     summary = describe(video)
     row = notification_service.create(
         db, user_id=video.owner_user_id, type="session_video", title="Nouvelle séance en ligne",
-        body=summary, defer_push=True,
+        body=summary, defer_push=True, session_id=video.session_id,
     )
     if row is not None:
         row._push_payload = {"title": row.title, "body": row.body or "", "url": member_path}
         push_service.fanout_for_rows(db, [row])
-    if telegram.configured():
-        # The guest secret exists only in this message (only its hash is stored).
-        from app.api.v1.session_videos import issue_share
+    notify_owner_telegram(db, video)
 
-        path = issue_share(db, video, video.owner_user_id)
-        lines = [f"Nouvelle séance : {summary}", f"Lien invité : {base}{path}", f"Dans l'app : {base}{member_path}"]
-        telegram.send("\n".join(lines))
+
+def notify_owner_telegram(db: Session, video: SessionVideo) -> None:
+    """Telegram guest link on every ingest, independent of inbox coverage."""
+    from app.services import telegram
+
+    settings = get_settings()
+    base = settings.app_public_url.rstrip("/")
+    member_path = f"/sessions/shared/{video.session_id}"
+    if not telegram.configured():
+        return
+    # The guest secret exists only in this message (only its hash is stored).
+    from app.api.v1.session_videos import issue_share
+
+    path = issue_share(db, video, video.owner_user_id)
+    telegram.send("\n".join([
+        f'Nouvelle séance : {describe(video)}',
+        f'Lien invité : {base}{path}',
+        f"Dans l'app : {base}{member_path}",
+    ]))

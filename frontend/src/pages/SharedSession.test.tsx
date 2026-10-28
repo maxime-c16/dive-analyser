@@ -9,7 +9,7 @@ const token='s'.repeat(43)
 const video={id:3,filename:'IMG.MOV',can_share:false,video_url:'/guest/play'}
 const session={session_id:9,date:'2026-10-17',videos:[video],video_count:1,total_duration:1936,total_bytes:3338404955}
 const page=(path=`/share/session/7#${token}`)=><MemoryRouter initialEntries={[path]}><Routes><Route path="/share/session/:shareId" element={<SharedSession/>}/></Routes></MemoryRouter>
-beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal('IntersectionObserver',class{observe(){}disconnect(){}});vi.mocked(api.post).mockResolvedValue({data:session});vi.mocked(api.get).mockImplementation((url)=>Promise.resolve({data:String(url).includes('/groups')?{items:[{id:1,name:'Adultes',club_id:2,club:'Club test'}],next_after:null}:[{id:1,name:'Adultes',club_id:2,club:'Club test'}]}))})
+beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal('IntersectionObserver',class{observe(){}disconnect(){}});vi.mocked(api.post).mockResolvedValue({data:session});vi.mocked(api.get).mockImplementation((url)=>Promise.resolve({data:String(url).includes('/groups')?{items:[{id:1,name:'Adultes',club_id:2,club:'Club test'}],next_after:null}:String(url).includes('/clubs')?[{club_id:2,club:'Club test'}]:[{id:1,name:'Adultes',club_id:2,club:'Club test'}]}))})
 it('exchanges the fragment once without autoplay',async()=>{const {container}=render(<StrictMode>{page()}</StrictMode>);await screen.findByRole('button',{name:'Lire IMG.MOV'});expect(api.post).toHaveBeenCalledTimes(1);expect(container.querySelector('video')).toBeNull()})
 it('rejects missing secrets before making a request',async()=>{render(page('/share/session/7'));expect(await screen.findByRole('alert')).toHaveTextContent('invalide');expect(api.post).not.toHaveBeenCalled()})
 it('revoked links are unavailable',async()=>{vi.mocked(api.post).mockRejectedValue(new Error('404'));render(page());expect(await screen.findByRole('alert')).toHaveTextContent('indisponible')})
@@ -29,6 +29,7 @@ it('uses separate account, club, group and email screens with opt-in enabled',as
  fireEvent.submit(screen.getByRole('button',{name:'Continuer'}).closest('form')!)
  expect(screen.getByRole('heading',{name:'Mon groupe'})).toBeInTheDocument()
  expect(screen.queryByLabelText('Club')).toBeNull()
+ await screen.findByRole('option',{name:'Adultes'})
  fireEvent.change(screen.getByLabelText('Groupe'),{target:{value:'1'}})
  vi.mocked(api.post).mockResolvedValue({data:{path:'/sessions/shared/9'}})
  fireEvent.submit(screen.getByRole('button',{name:'Créer mon compte'}).closest('form')!)
@@ -39,6 +40,7 @@ it('uses separate account, club, group and email screens with opt-in enabled',as
 })
 it('follows paged group lists',async()=>{
   vi.mocked(api.get).mockImplementation((async (url:string,config?:{params?:Record<string,unknown>})=>{
+    if (url.includes('/clubs')) return { data: [{ club_id: 2, club: 'Club test' }, { club_id: 3, club: 'Club two' }] }
     if(!url.includes('/groups'))return {data:[]}
     if(!config?.params?.after_id)return {data:{items:[{id:1,name:'A',club_id:2,club:'Club test'}],next_after:{club:'Club test',group:'A',id:1}}}
     return {data:{items:[{id:2,name:'B',club_id:3,club:'Club two'}],next_after:null}}}) as typeof api.get)

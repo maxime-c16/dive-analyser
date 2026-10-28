@@ -48,6 +48,11 @@ def _log(event: dict) -> None:
         fh.write(json.dumps(event) + "\n")
 
 
+def _safe_route(path: str) -> str:
+    """Path without query string for logs: page URLs carry ?t=<TOKEN>."""
+    return urlparse(path).path
+
+
 def _own_key(key: str) -> str:
     if not isinstance(key, str) or not key.startswith(PREFIX + "/") or ".." in key:
         raise ValueError("bad key")
@@ -188,7 +193,7 @@ class Handler(SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
             return self._json(200, route(body))
         except Exception as exc:  # lab tool: surface the reason to the phone
-            _log({"event": "server_error", "route": self.path, "error": f"{type(exc).__name__}: {exc}"[:300]})
+            _log({"event": "server_error", "route": _safe_route(self.path), "error": f"{type(exc).__name__}: {exc}"[:300]})
             return self._json(500, {"error": f"{type(exc).__name__}: {exc}"[:300]})
 
     def _json(self, code, payload):

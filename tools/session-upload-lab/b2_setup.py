@@ -58,20 +58,27 @@ def lab_prefix_ok(allowed: dict) -> bool:
     return prefix == LAB_PREFIX or prefix.startswith(LAB_PREFIX)
 
 
+def _normalized(rule: dict) -> dict:
+    """Order-insensitive comparison for the list-valued rule settings."""
+    normalized = dict(rule or {})
+    for key in ("allowedOrigins", "allowedOperations", "allowedHeaders", "exposeHeaders"):
+        if isinstance(normalized.get(key), list):
+            normalized[key] = sorted(map(str, normalized[key]))
+    return normalized
+
+
 def existing_rules_intact(existing: dict, cors: list, lifecycle: list) -> bool:
     """Fail closed before overwriting bucket config: b2_update_bucket
     REPLACES every CORS/lifecycle rule, so an existing bucket carrying
     production playback origins (or other rules) must never be silently
-    reset to the lab-only set. Merge-compatible when every existing rule is
-    either the lab rule itself or explicitly re-supplied."""
+    reset to the lab-only set — even under a familiar rule name. Every
+    existing rule must match a wanted rule setting-for-setting."""
     current_cors = (existing or {}).get("corsRules") or []
     current_lifecycle = (existing or {}).get("lifecycleRules") or []
-    wanted_cors = {rule.get("corsRuleName") for rule in cors}
-    wanted_lifecycle = {rule.get("fileNamePrefix") for rule in lifecycle}
-    foreign_cors = [rule.get("corsRuleName") for rule in current_cors if rule.get("corsRuleName") not in wanted_cors]
-    foreign_lifecycle = [rule.get("fileNamePrefix") for rule in current_lifecycle
-                         if rule.get("fileNamePrefix") not in wanted_lifecycle]
-    return not foreign_cors and not foreign_lifecycle
+    wanted_cors = [_normalized(rule) for rule in cors]
+    wanted_lifecycle = [_normalized(rule) for rule in lifecycle]
+    return (all(_normalized(rule) in wanted_cors for rule in current_cors)
+            and all(_normalized(rule) in wanted_lifecycle for rule in current_lifecycle))
 
 
 def bucket_rules_known(existing: dict) -> bool:

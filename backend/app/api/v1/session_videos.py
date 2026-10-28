@@ -477,14 +477,25 @@ def guest_image(share_id: int, video_id: int, kind: str, request: Request, db: S
     return image_response(guest_selected(share_id, video_id, request, db), kind)
 
 
+@router.get('/shared-dives/sessions/{share_id}/clubs', dependencies=[Depends(require_enabled)])
+def signup_clubs(share_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.models.calendar import Club
+    guest_access(share_id, request, db)
+    return [dict(club_id=c.id, club=c.name) for c in
+        db.query(Club).filter(Club.archived_at.is_(None), Club.self_join_enabled.is_(True))
+        .order_by(Club.name).all()]
+
+
 @router.get('/shared-dives/sessions/{share_id}/groups', dependencies=[Depends(require_enabled)])
-def signup_groups(share_id: int, request: Request, db: Session = Depends(get_db), after_club: str | None = None,
-                  after_group: str | None = None, after_id: int = 0):
+def signup_groups(share_id: int, request: Request, db: Session = Depends(get_db), club_id: int | None = None,
+                  after_club: str | None = None, after_group: str | None = None, after_id: int = 0):
     from app.models.calendar import Club, TrainingGroup
     from sqlalchemy import and_, or_
     guest_access(share_id, request, db)
     query = db.query(TrainingGroup, Club).join(Club, Club.id == TrainingGroup.club_id).filter(
         Club.archived_at.is_(None), Club.self_join_enabled.is_(True), TrainingGroup.archived_at.is_(None))
+    if club_id is not None:
+        query = query.filter(TrainingGroup.club_id == club_id)
     if after_id:
         # Compound keyset matching the ordering below; names alone would skip
         # same-named groups past a page boundary.
