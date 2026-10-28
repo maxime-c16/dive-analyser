@@ -365,12 +365,16 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
 @router.get('/shared-sessions', dependencies=[Depends(require_enabled)])
 def session_feed(response: Response, before: int | None = None, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.models.session import Session as TrainingSession
-    from sqlalchemy import select
+    from sqlalchemy import and_, or_, select
     day_table = TrainingSession.__table__
     query = db.query(SessionVideo.session_id, day_table.c.date).join(day_table, day_table.c.id == SessionVideo.session_id).filter(SessionVideo.status == 'ready', SessionVideo.hidden.is_(False),
         SessionVideo.deleted_at.is_(None), SessionVideo.session_id.isnot(None))
     if before is not None:
-        query = query.filter(day_table.c.date < select(day_table.c.date).where(day_table.c.id == before).scalar_subquery())
+        # (date, session_id) keyset matching the ordering below: filtering on
+        # the date alone would skip same-day sessions past a page boundary.
+        before_date = select(day_table.c.date).where(day_table.c.id == before).scalar_subquery()
+        query = query.filter(or_(day_table.c.date < before_date,
+            and_(day_table.c.date == before_date, SessionVideo.session_id < before)))
     ids = query.distinct().order_by(day_table.c.date.desc(), SessionVideo.session_id.desc()).limit(21).all()
     secure_headers(response)
     return dict(items=session_payloads(db, [row[0] for row in ids[:20]], user=user),
@@ -481,19 +485,23 @@ def signup(share_id: int, payload: SessionSignup, request: Request, response: Re
         raise HTTPException(404, 'Not found')
     if auth._register_rate_limited(db, auth._client_ip(request)):
         raise HTTPException(429, 'Too many attempts')
-    auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=False, client_ip=auth._client_ip(request))
+    # Same failures-only ledger as friend registration: successes must not
+    # consume the per-IP failure budget shared with auth._register_rate_limited.
     # Same row lock as revocation: no signup can race past a committed revoke.
     db.query(SessionVideoShare).filter_by(id=share_id).populate_existing().with_for_update().first()
     video, _ = guest_access(share_id, request, db)
     group = db.get(TrainingGroup, payload.group_id)
     club = db.get(Club, group.club_id) if group else None
     if not group or group.archived_at or not club or club.archived_at or not club.self_join_enabled:
+        auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=False, client_ip=auth._client_ip(request))
         raise HTTPException(422, 'Invalid group')
     email = payload.email.strip().lower()
     if db.query(AppUser.id).filter_by(email=email).first():
+        auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=False, client_ip=auth._client_ip(request))
         raise HTTPException(409, 'An account with this email already exists')
     name = payload.display_name.strip()
     if not name:
+        auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=False, client_ip=auth._client_ip(request))
         raise HTTPException(422, 'Name required')
     if db.bind.dialect.name == 'postgresql':
         from sqlalchemy import text
@@ -517,7 +525,9 @@ def signup(share_id: int, payload: SessionSignup, request: Request, response: Re
         db.commit()
     except IntegrityError:
         db.rollback()
+        auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=False, client_ip=auth._client_ip(request))
         raise HTTPException(409, 'Account already exists') from None
+    auth._record_attempt(db, auth._REGISTER_IDENTIFIER, success=True, client_ip=auth._client_ip(request))
     notification_service.create(db, user_id=video.owner_user_id, type='session_video',
         title='Inscription par lien séance', body=f'{name} · {email}' + (' · Profil à rattacher' if candidate else ''), defer_push=True)
     if telegram.configured():

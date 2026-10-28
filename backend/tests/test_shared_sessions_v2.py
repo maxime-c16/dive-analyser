@@ -127,3 +127,79 @@ def test_feed_has_fixed_query_budget_and_complete_totals(sessions_env):
     assert len(first['videos'])==100 and first['video_count']==108 and first['total_duration']==1080
     second=session_payload(db,target,user=user,after=first['next_video_id'])
     assert len(second['videos'])==8 and second['next_video_id'] is None
+
+
+def test_successful_signup_consumes_no_failure_budget(sessions_env):
+    from app.api.v1 import auth
+    from app.models.user_auth import LoginAttempt
+    db,login,users,*_=sessions_env
+    video=service.ingest_object(db,KEY);video_id=video.id;owner=login('alice');base,token=link(owner,video_id)
+    club=Club(slug='ledger',name='Ledger',self_join_enabled=True);db.add(club);db.flush()
+    group=TrainingGroup(club_id=club.id,slug='g',name='G');db.add(group);db.commit()
+    payload=dict(display_name='Ledger Diver',email='ledger@example.test',password='a-long-test-password',group_id=group.id)
+    with TestClient(app,base_url='https://testserver') as guest:
+        guest.post(base+'/visit',headers={'X-Dive-Share':token})
+        assert guest.post(base+'/signup',json=payload).status_code==201
+        failures=db.query(LoginAttempt).filter_by(identifier=auth._REGISTER_IDENTIFIER,success=False).count()
+        assert failures==0
+        assert guest.post(base+'/signup',json={**payload,'display_name':'Other'}).status_code==409
+        failures=db.query(LoginAttempt).filter_by(identifier=auth._REGISTER_IDENTIFIER,success=False).count()
+        assert failures==1
+
+
+def test_feed_pagination_keeps_same_day_sessions(sessions_env):
+    # Two trainings on one date (PR C): same-day sessions past a page boundary
+    # must not be skipped by the cursor.
+    from fastapi import Response
+    from datetime import datetime
+    from app.api.v1.session_videos import session_feed
+    from app.models.session import Session as TrainingSession
+    from app.models.calendar import Calendar, CalendarEvent, EventOccurrence
+    from datetime import date
+    db,login,users,*_=sessions_env
+    user=db.get(AppUser,users['alice'].id)
+    club=Club(slug='pageday',name='Pageday');db.add(club);db.flush()
+    group=TrainingGroup(club_id=club.id,slug='g',name='G');db.add(group);db.flush()
+    cal=Calendar(kind='group',club_id=club.id,training_group_id=group.id,name='Pageday');db.add(cal);db.flush()
+    event=CalendarEvent(calendar_id=cal.id,title='Training',event_type='training',audience='group',
+        status='published',timezone='Europe/Paris');db.add(event);db.flush()
+    day=date(2026,10,17)
+    for index in range(22):
+        occ=EventOccurrence(event_id=event.id,occurrence_key=f'slot{index}',starts_at=datetime(2026,10,17,8,0),
+            ends_at=datetime(2026,10,17,9,0),window_start=datetime(2026,10,17,8,0),window_end=datetime(2026,10,17,9,0))
+        db.add(occ);db.flush()
+        training=TrainingSession(date=day,calendar_occurrence_id=occ.id);db.add(training);db.flush()
+        db.add(SessionVideo(session_id=training.id,owner_user_id=user.id,bucket='test',object_key=f'sameday/{index}',status='ready'))
+    db.commit()
+    first=session_feed(Response(),None,user,db)
+    assert len(first['items'])==20 and first['next_cursor']
+    second=session_feed(Response(),first['next_cursor'],user,db)
+    assert len(second['items'])==2 and not second['next_cursor']
+    seen=[s['session_id'] for s in first['items']]+[s['session_id'] for s in second['items']]
+    assert len(set(seen))==22
+
+
+def test_session_image_cleanup_removes_only_dead_videos(sessions_env,tmp_path,monkeypatch):
+    from datetime import datetime
+    from app.models.session import Session as TrainingSession
+    from app.models.user_auth import AppUser
+    from app.services.session_images import cleanup_session_images, image_path
+    from app.config import get_settings
+    from datetime import date
+    monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
+    db,login,users,*_=sessions_env
+    user=db.get(AppUser,users['alice'].id)
+    live_training=TrainingSession(date=date(2026,10,17));db.add(live_training);db.flush()
+    live=SessionVideo(session_id=live_training.id,owner_user_id=user.id,bucket='test',object_key='live.MOV',status='ready')
+    dead_training=TrainingSession(date=date(2026,10,16));db.add(dead_training);db.flush()
+    dead=SessionVideo(session_id=dead_training.id,owner_user_id=user.id,bucket='test',object_key='dead.MOV',status='ready',deleted_at=datetime.utcnow())
+    db.add_all([live,dead]);db.flush()
+    for video in (live,dead):
+        for kind in ('poster','animated'):
+            path=image_path(video.id,kind);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'x'*100)
+    ghost=image_path(999999,'poster');ghost.parent.mkdir(parents=True,exist_ok=True);ghost.write_bytes(b'y'*50)
+    freed=cleanup_session_images(db)
+    assert freed==250
+    assert image_path(live.id,'poster').is_file() and image_path(live.id,'animated').is_file()
+    assert not image_path(dead.id,'poster').exists() and not image_path(dead.id,'animated').exists()
+    assert not ghost.exists()

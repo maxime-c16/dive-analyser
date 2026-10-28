@@ -73,6 +73,51 @@ def image_path(video_id, kind):
     return Path(get_settings().media_cache_root) / 'session-images' / str(video_id) / f'{kind}.webp'
 
 
+def session_image_files():
+    """Only our per-video derivatives; never staging files or symlinks."""
+    root = Path(get_settings().media_cache_root).resolve() / 'session-images'
+    if root.is_symlink() or not root.is_dir():
+        return
+    for video_dir in root.iterdir():
+        if video_dir.is_symlink() or not video_dir.is_dir() or not video_dir.name.isdigit():
+            continue
+        for kind in ('poster', 'animated'):
+            path = video_dir / f'{kind}.webp'
+            if not path.is_symlink() and path.is_file():
+                yield int(video_dir.name), path
+
+
+def cleanup_session_images(db, limit=100):
+    """Bounded unlink of derivatives no live video can serve.
+
+    Posters/animations are regenerable derivatives (~0.5 MB per video), but
+    nothing regenerates them on demand, so only files for deleted videos or
+    video ids with no row are removed — hidden videos stay restorable and
+    keep their files. Publication is an atomic os.replace of exactly these
+    names, so in-flight staging (`*.tmp`) is never matched. Returns freed
+    bytes; at most `limit` files per pass.
+    """
+    from sqlalchemy import select
+    from app.models.session_video import SessionVideo
+    limit = max(0, min(limit, 100))
+    freed, removed = 0, 0
+    live = None
+    for video_id, path in session_image_files():
+        if removed >= limit:
+            break
+        if live is None:
+            live = set(db.scalars(select(SessionVideo.id).where(SessionVideo.deleted_at.is_(None))).all())
+            db.rollback()  # release connection before filesystem work
+        if video_id not in live:
+            try:
+                freed += path.stat().st_size
+                path.unlink()
+                removed += 1
+            except FileNotFoundError:
+                pass
+    return freed
+
+
 def extract_images(video):
     """Ten independent input seeks; decode just one frame per seek, tone-map HDR."""
     from PIL import Image

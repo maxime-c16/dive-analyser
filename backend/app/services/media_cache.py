@@ -737,7 +737,9 @@ def cleanup_cache(db: Session, max_bytes: int | None = None) -> tuple[int, int, 
     after committing its own bookkeeping.
     """
     from app.services.poster_visuals import cleanup_orphan_thumbnails
+    from app.services.session_images import cleanup_session_images
     thumbnail_bytes = cleanup_orphan_thumbnails(db, namespace=None)
+    thumbnail_bytes += cleanup_session_images(db)
     ttl_candidates, trim_candidates = select_cleanup_candidates(db)
     removed_entries, removed_bytes = evict_cleanup_candidates(
         db, ttl_candidates, trim_candidates, max_bytes=max_bytes
