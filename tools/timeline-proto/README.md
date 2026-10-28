@@ -30,23 +30,32 @@ sample precisely the same source frames. This comparison avoids confounding two
 B2 network runs and does not pretend the shared cost was measured twice.
 `comparison.json` records all timing/CPU/size results. No data is committed.
 
-## One player
+## Modes (iPhone feedback v3)
 
-The original B2 video starts with custom controls and a simple native scrolling
-ruler even while preparation is incomplete. Assets are discovered every 5 s.
-Images/Vidéo chooses only the drag-preview implementation. It never chooses a
-second player or a separate playback experience.
+Images is manual only: the existing instant atlas strip, marks and ◀/▶. No video
+is attached or played on initial entry. Video uses exactly the same strip and
+adds original playback with sound after release, plus ×30 / ×1. Marks are common.
+The page uses plain JavaScript state, not React; state revision, DOM aria state,
+requested mode, applied mode and trusted touch input are explicitly logged.
 
-During touch scrolling the original pauses and the selected preview appears;
-after 180 ms without scrolling, the original seeks and resumes with sound.
-Native touch scrolling retains inertia. Original and previews preserve the entire
-frame and follow device orientation; native iOS video full screen is never requested.
+Commands accept touchend directly in the user gesture, prevent the synthesized
+click, and retain click support for keyboard/mouse. Published mini assets enable
+controls immediately; they never wait for loadeddata before allowing a gesture.
+Safari had suppressed that preload event on the physical phone, leaving both
+Video and ×30 disabled in v2.
 
-×30 plays the accelerated local mini-video, muted; ×1 restores the original
-at the same source timestamp. Marks use the player's current time immediately
-(including the ×30 conversion), persist in localStorage, and are common to both
-speeds. ◀ / ▶ navigate only explicit marks. HEVC errors / missing frame callbacks
-trigger a silent mini-video fallback when available. No helper text in the UI.
+The original has preload=auto and is attached once. The LAN server caches its
+signed GET for 5h50 (signature lifetime 6h). A separate muted fast element keeps
+the original's source/buffers intact during ×30. During a Video drag only, the HD
+player runs muted at ×0.25 behind the atlas preview; keyframe fastSeek updates
+are limited to one in-flight seek and at most one start per 650 ms. Release uses
+fastSeek if needed, restores ×1/audio, and keeps the atlas visible until an actual
+requestVideoFrameCallback near the target. Images mode never does that warm work.
+The original remains paused on returning to Images, retaining its source.
+
+×30 uses the 64.6 s native-rate H.264 file. ×1 restores the source timestamp in
+the original. HEVC failures retain the H.264 fallback. The entire frame remains
+visible in both orientations, with custom controls and no native iOS full screen.
 
 ## Measurements
 
@@ -65,9 +74,11 @@ runs; `--json` returns machine-readable summaries. Metrics:
   A browser paint scheduling estimate, not physical touch-to-photon latency.
 - `mini_seek_ready`: input to mini decoder seek completion.
 - `resume_frame`, `release_to_frame`: actual video-frame callback after seek / release.
+  `scroll_end_to_frame` separately includes settling after the last scroll input.
   Inertia and 180 ms settling are included in the latter.
-- `paused_ready_estimate`: explicit paused readiness fallback; never presented as
-  an actual video-frame callback.
+- `control_input`, `mode_applied`, `control_state`, `speed_requested`,
+  `speed_applied`: trusted event type, requested/applied state and DOM confirmation.
+- `warm_seek`, `warm_hit`, `warm_play_*`: bounded warm work and decode readiness.
 - `fast_frame`: successive actual frame callbacks during ×30; p50/p95 show fluidity.
   `fast_frames` / `fast_dropped` record browser playback quality counters.
 - `hevc_fallback`, `media_error`, `play_rejected` record runtime limitations.

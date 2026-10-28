@@ -1,9 +1,15 @@
 """Disposable LAN-only lab. Read-only B2 signing, local derivatives and metrics."""
-import json,re,time
+import json,re,time,threading
 from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from prepare import url,OUT
+SIGN_LOCK=threading.Lock();SIGNED=None;SIGNED_AT=0
+def playback_url():
+    global SIGNED,SIGNED_AT
+    with SIGN_LOCK:
+        if not SIGNED or time.monotonic()-SIGNED_AT>21000:SIGNED=url();SIGNED_AT=time.monotonic()
+        return SIGNED
 ROOT=Path(__file__).resolve().parents[2];LOG=OUT.parent/'metrics.jsonl'
 class Handler(SimpleHTTPRequestHandler):
     def log_message(self,*args):pass
@@ -15,7 +21,7 @@ class Handler(SimpleHTTPRequestHandler):
         path=urlparse(self.path).path
         if path=='/api/timeline/config':return self.json({'imagesRoot':'images/' if (OUT/'images/preparation.json').exists() else '', 'videoReady':(OUT/'video/preparation.json').exists() and (OUT/'video/fast.mp4').exists(),'imagesReady':(OUT/'index.json').exists() or (OUT/'images/preparation.json').exists(),'duration':1936.801667})
         if path=='/api/timeline/play':
-            self.send_response(302);self.send_header('Location',url());self.send_header('Cache-Control','no-store');self.end_headers();return
+            self.send_response(302);self.send_header('Location',playback_url());self.send_header('Cache-Control','no-store');self.end_headers();return
         if path=='/api/timeline/metrics':
             self.send_response(200);self.send_header('Content-Type','application/x-ndjson');self.end_headers()
             if LOG.exists() and self.command!='HEAD':self.wfile.write(LOG.read_bytes())
@@ -33,7 +39,9 @@ class Handler(SimpleHTTPRequestHandler):
             if not match:self.send_error(416);return
             start=int(match[1]);end=min(int(match[2]) if match[2] else end,end);partial=True
             if start>end:self.send_response(416);self.send_header('Content-Range',f'bytes */{size}');self.end_headers();return
-        self.send_response(206 if partial else 200);self.send_header('Accept-Ranges','bytes');self.send_header('Content-Type',{'.json':'application/json','.jpg':'image/jpeg','.mp4':'video/mp4'}.get(file.suffix,'text/html'));self.send_header('Content-Length',str(end-start+1))
+        self.send_response(206 if partial else 200);self.send_header('Accept-Ranges','bytes');
+        if file.suffix=='.html':self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Type',{'.json':'application/json','.jpg':'image/jpeg','.mp4':'video/mp4'}.get(file.suffix,'text/html'));self.send_header('Content-Length',str(end-start+1))
         if partial:self.send_header('Content-Range',f'bytes {start}-{end}/{size}')
         self.end_headers()
         if self.command=='HEAD':return
@@ -52,7 +60,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not 0<size<=32768:self.send_error(413);return
         try:
             body=json.loads(self.rfile.read(size));events=body['events'][:100]
-            clean={'received':time.time(),'run':str(body.get('run',''))[:80],'ua':str(body.get('ua',''))[:240],'events':[{k:v for k,v in e.items() if k in ('event','variant','speed','elapsed','ms','time','target','count','generation','width','height') and isinstance(v,(str,int,float))} for e in events]}
+            clean={'received':time.time(),'run':str(body.get('run',''))[:80],'ua':str(body.get('ua',''))[:240],'events':[{k:v for k,v in e.items() if k in ('event','variant','speed','elapsed','ms','build','requested','applied','before','input','trusted','revision','status','method','error','mediaTime','delta','inertia_ms','ready','buffered','seekable','time','target','count','generation','width','height') and isinstance(v,(str,int,float))} for e in events]}
             with open(LOG,'a') as f:f.write(json.dumps(clean)+'\n')
         except (ValueError,KeyError,TypeError):self.send_error(400);return
         self.send_response(204);self.end_headers()

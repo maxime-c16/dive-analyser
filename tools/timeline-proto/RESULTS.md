@@ -1,3 +1,55 @@
+# Physical-iPhone feedback and modes v3 — 2026-10-28
+
+This section supersedes the original unified-player behavior recorded below.
+
+The real iPhone run `1793217107064-0.9622401716331185` recorded 1,151 image scrub
+samples, 4 Images-only variant events, one `mini_available`, **zero `mini_ready`**,
+and no speed events. Video and ×30 were disabled pending `loadeddata`, an event
+Safari did not produce during preload. It also had 3 rejected plays; old code
+only used click for controls. Image scrubbing around 16–17 ms is preserved.
+
+v3 uses direct trusted touchend handlers with synthesized-click suppression,
+plus click support. Published asset readiness enables Video/×30 independently of
+media preload events. Explicit JS state revisions, requested/applied mode,
+DOM aria/button confirmation and play rejection names are recorded. This
+standalone page has no React runtime; its actual state and DOM are measured.
+
+- Images: same atlas paint and strip, manual marks and ◀/▶ only. No original
+  attachment on initial entry; no video playback or warm-seek work in this mode.
+- Video: same image strip; persistent original with preload=auto and sound after
+  release. At most one warm seek is in flight, starts spaced at least 650 ms;
+  Safari fastSeek is used when available. During drag only, original playback
+  runs muted at ×0.25 behind the atlas to keep the decoder/network active.
+- ×30 uses a separate silent element, retaining the original source and buffers.
+  ×1 restores original playback/audio at the matching source timestamp.
+- The server caches its 6-hour signature for 5h50. Repeated endpoint HEAD checks
+  returned the same capability; the capability itself was never logged.
+- The image overlay is hidden only after a matching, generation-fenced video
+  frame callback. Actual release-to-frame includes settling/inertia, with media
+  timestamp and target delta. Seeked is retained separately, not called latency.
+
+WebKit iPhone profile, real B2, trusted `.tap()` control events: all mode/speed
+state proofs were `ok`; manual Images made zero original requests; the whole
+Images→Video→×30→×1→Images sequence attached the original exactly once. No page
+errors. Landscape and common marks were checked. Touch hold retained the preview;
+hidden warm playback was muted. These remain emulated checks, not a physical fix
+confirmation until Maxime repeats the test.
+
+Two final warm-release trials: **1,125 ms** and **3,159 ms** by actual frame
+callbacks. Target/frame deltas were −0.003 s / −0.020 s. **The <1.5 s target is
+not consistently achieved**. Cold mode entry was ~4.8–5.9 s; the ×1 return after
+skipping ahead was ~4.5–7.7 s. The implementation retains the atlas throughout.
+Final pure touch-scrub samples: Images p50 **15 ms**, p95 **74 ms** (52 samples);
+Video p50 **22 ms**, p95 **42 ms** (26 samples). This Mac scheduling tail does
+not replace the physical iPhone's excellent 16–17 ms baseline.
+
+Next physical run: reload the same URL and confirm `build=iphone-modes-v3` in
+metrics. Tap Video and ×30/×1, confirm applied states, scrub both modes, and compare
+`release_to_frame` (not seeked), `warm_seek`, `warm_hit`, `play_rejected` and
+`control_state`. `input=touchend`, `trusted=true` distinguishes real activation.
+
+---
+
 # Session timeline prototype — 2026-10-28
 
 Final behavior: one custom inline player. Drag previews use either Images or
