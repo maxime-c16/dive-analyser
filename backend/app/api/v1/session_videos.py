@@ -323,7 +323,14 @@ def session_payload(db, session_id, *, user=None, guest_base=None, after=0):
     result = session_payloads(db, [session_id], user=user, guest_base=guest_base, after=after)
     if not result:
         raise HTTPException(404, UNAVAILABLE)
-    return result[0]
+    item = result[0]
+    if after == 0 and not item['videos'] and not item['can_manage']:
+        # No visible video for this viewer (all hidden/deleted/pending): the
+        # date and event title must not leak through a guessed session id.
+        # Owners/admins keep their management view; later recording pages
+        # (after > 0) still return an empty list instead of 404.
+        raise HTTPException(404, UNAVAILABLE)
+    return item
 
 
 def session_payloads(db, ids, *, user=None, guest_base=None, after=0):

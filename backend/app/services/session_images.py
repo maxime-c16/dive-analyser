@@ -94,28 +94,47 @@ def cleanup_session_images(db, limit=100):
     nothing regenerates them on demand, so only files for deleted videos or
     video ids with no row are removed — hidden videos stay restorable and
     keep their files. Publication is an atomic os.replace of exactly these
-    names, so in-flight staging (`*.tmp`) is never matched. Returns freed
-    bytes; at most `limit` files per pass.
+    names, so in-flight staging (`*.tmp`) is never matched. Liveness is
+    checked in batches of 100 ids so cleanup retains bounded rows no matter
+    how large the table grows. At most `limit` files per pass. Returns freed
+    bytes.
     """
+    from itertools import islice
     from sqlalchemy import select
     from app.models.session_video import SessionVideo
     limit = max(0, min(limit, 100))
     freed, removed = 0, 0
-    live = None
-    for video_id, path in session_image_files():
-        if removed >= limit:
+    files = session_image_files()
+    while removed < limit:
+        batch = list(islice(files, 100))
+        if not batch:
             break
-        if live is None:
-            live = set(db.scalars(select(SessionVideo.id).where(SessionVideo.deleted_at.is_(None))).all())
-            db.rollback()  # release connection before filesystem work
-        if video_id not in live:
-            try:
-                freed += path.stat().st_size
-                path.unlink()
-                removed += 1
-            except FileNotFoundError:
-                pass
+        live = set(db.scalars(select(SessionVideo.id).where(
+            SessionVideo.id.in_([video_id for video_id, _ in batch]),
+            SessionVideo.deleted_at.is_(None))).all())
+        db.rollback()  # release connection before filesystem work
+        for video_id, path in batch:
+            if removed >= limit:
+                break
+            if video_id not in live:
+                try:
+                    freed += path.stat().st_size
+                    path.unlink()
+                    removed += 1
+                except FileNotFoundError:
+                    pass
     return freed
+
+
+def session_image_disk_bytes():
+    """Physical bytes of live and orphaned session derivatives (quota input)."""
+    total = 0
+    for _, path in session_image_files():
+        try:
+            total += path.stat().st_size
+        except FileNotFoundError:
+            pass
+    return total
 
 
 def extract_images(video):

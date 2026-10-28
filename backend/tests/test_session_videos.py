@@ -44,14 +44,20 @@ class FakeB2:
     def __init__(self):
         self.objects = {'inbox/': 0, KEY: 3338404955, 'inbox/notes.txt': 4}
         self.presigned = []
+        self.page_size = 1000
 
     def head_object(self, Bucket, Key):
         return {'ContentLength': self.objects[Key], 'ETag': '"abc-637"',
                 'LastModified': datetime(2026, 10, 28, 13, 50, tzinfo=timezone.utc)}
 
-    def list_objects_v2(self, Bucket, Prefix, MaxKeys, ContinuationToken=None):
-        return {'Contents': [{'Key': k, 'Size': s, 'LastModified': datetime(2026, 10, 28, tzinfo=timezone.utc)}
-                             for k, s in self.objects.items() if k.startswith(Prefix)], 'IsTruncated': False}
+    def list_objects_v2(self, Bucket, Prefix, MaxKeys, ContinuationToken=None, StartAfter=None):
+        ordered = sorted(k for k in self.objects if k.startswith(Prefix) and (StartAfter is None or k > StartAfter))
+        start = int(ContinuationToken) if ContinuationToken else 0
+        limit = min(MaxKeys, self.page_size)
+        page = ordered[start:start + limit]
+        return {'Contents': [{'Key': k, 'Size': self.objects[k], 'LastModified': datetime(2026, 10, 28, tzinfo=timezone.utc)}
+                             for k in page], 'IsTruncated': start + limit < len(ordered),
+                'NextContinuationToken': str(start + limit) if start + limit < len(ordered) else None}
 
     def generate_presigned_url(self, operation, Params, ExpiresIn):
         self.presigned.append((Params, ExpiresIn))
@@ -158,6 +164,22 @@ def test_events_outside_the_inbox_or_bucket_are_ignored(sessions_env):
     assert db.query(SessionVideo).count() == 0
     assert login('viewer').post('/api/v1/session-videos/b2-events', content=b'nope',
                                 headers=signed(b'nope')).status_code == 400
+
+
+def test_reconciliation_rotates_past_the_key_budget(sessions_env, monkeypatch):
+    service._reconcile_start_after = None
+    monkeypatch.setattr(service, 'RECONCILE_MAX_KEYS', 2)
+    monkeypatch.setattr(service, 'RECONCILE_MAX_INGESTS', 10)
+    db, login, users, b2, probes = sessions_env
+    b2.objects = {f'inbox/{name}.MOV': 100 for name in ('a', 'b', 'c')}
+    b2.page_size = 2
+    try:
+        assert service.reconcile(db) == 2
+        assert service.reconcile(db) == 1
+        assert service.reconcile(db) == 0
+        assert db.query(SessionVideo).count() == 3
+    finally:
+        service._reconcile_start_after = None
 
 
 def test_reconciliation_ingests_missed_objects_once_and_reuses_the_day(sessions_env):

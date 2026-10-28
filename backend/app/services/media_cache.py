@@ -874,4 +874,5 @@ def _cache_size(db: Session) -> int:
         .where(MediaCacheEntry.status == "ready")
     ).scalar_one()
     from app.services.poster_visuals import thumbnail_disk_bytes, orphan_animation_disk_bytes
-    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db)
+    from app.services.session_images import session_image_disk_bytes
+    return int(total or 0) + thumbnail_disk_bytes() + orphan_animation_disk_bytes(db) + session_image_disk_bytes()

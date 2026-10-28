@@ -33,7 +33,8 @@ def test_later_videos_and_owner_settings(sessions_env):
         assert owner.patch(f'/api/v1/session-videos/{second_id}',json={'hidden':False,'date':'2026-10-18'}).status_code==200
         assert guest.get(f'{base}/videos/{second_id}/play').status_code==404
         assert owner.patch(f'/api/v1/session-videos/{first_id}',json={'delete':True}).status_code==200
-        assert guest.post(base+'/visit',headers={'X-Dive-Share':token}).status_code==200
+        # The anchor recording is gone from the app: the link no longer opens.
+        assert guest.post(base+'/visit',headers={'X-Dive-Share':token}).status_code==404
     friend=login('viewer')
     assert friend.patch(f'/api/v1/session-videos/{second_id}',json={'hidden':True}).status_code==403
     feed=friend.get('/api/v1/shared-sessions').json()
@@ -129,6 +130,18 @@ def test_feed_has_fixed_query_budget_and_complete_totals(sessions_env):
     assert len(second['videos'])==8 and second['next_video_id'] is None
 
 
+def test_hidden_session_detail_is_private_but_manageable(sessions_env):
+    db,login,users,*_=sessions_env
+    video=service.ingest_object(db,KEY)
+    sid=video.session_id
+    owner=login('alice')
+    assert owner.patch(f'/api/v1/session-videos/{video.id}',json={'hidden':True}).status_code==200
+    assert login('viewer').get(f'/api/v1/shared-sessions/{sid}').status_code==404
+    owner = login('alice')  # login() shares one client: reset the cookie viewer replaced
+    detail=owner.get(f'/api/v1/shared-sessions/{sid}')
+    assert detail.status_code==200 and len(detail.json()['videos'])==1
+
+
 def test_successful_signup_consumes_no_failure_budget(sessions_env):
     from app.api.v1 import auth
     from app.models.user_auth import LoginAttempt
@@ -198,8 +211,15 @@ def test_session_image_cleanup_removes_only_dead_videos(sessions_env,tmp_path,mo
         for kind in ('poster','animated'):
             path=image_path(video.id,kind);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'x'*100)
     ghost=image_path(999999,'poster');ghost.parent.mkdir(parents=True,exist_ok=True);ghost.write_bytes(b'y'*50)
-    freed=cleanup_session_images(db)
+    from sqlalchemy import event
+    queries=[]
+    def count(conn,cursor,statement,*args):queries.append(statement)
+    event.listen(db.bind,'before_cursor_execute',count)
+    try:
+        freed=cleanup_session_images(db)
+    finally:event.remove(db.bind,'before_cursor_execute',count)
     assert freed==250
+    assert len(queries)<=1
     assert image_path(live.id,'poster').is_file() and image_path(live.id,'animated').is_file()
     assert not image_path(dead.id,'poster').exists() and not image_path(dead.id,'animated').exists()
     assert not ghost.exists()

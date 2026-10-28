@@ -42,6 +42,12 @@ PROBE_URL_TTL_SECONDS = 600
 # Bounds per reconciliation pass: listed keys and probes started.
 RECONCILE_MAX_KEYS = 2000
 RECONCILE_MAX_INGESTS = 20
+# Rotation cursor across passes: inbox objects are never removed, so a pass
+# that stops at the key budget resumes after the last listed key instead of
+# re-scanning the head forever. Reset (wrap to the head) once a pass reaches
+# the end of the listing. Process-local: overlapping processes converge
+# through the idempotent ingest claim.
+_reconcile_start_after: Optional[str] = None
 _probe_slots = threading.BoundedSemaphore(2)
 
 
@@ -411,18 +417,25 @@ def ingest_in_background(key: str, size: Optional[int] = None, event_time: Optio
 
 def reconcile(db: Session) -> int:
     """List the inbox and ingest objects that are not ready. Bounded."""
+    global _reconcile_start_after
     settings = get_settings()
     bucket, prefix = settings.sessions_b2_bucket, settings.sessions_b2_inbox_prefix
     client = storage_client()
     candidates: list[tuple[str, int, datetime]] = []
     token, listed = None, 0
+    last_key, reached_end = None, False
+    start_after = _reconcile_start_after
     while listed < RECONCILE_MAX_KEYS:
         kwargs = {"Bucket": bucket, "Prefix": prefix, "MaxKeys": 1000}
         if token:
             kwargs["ContinuationToken"] = token
+        elif start_after is not None:
+            kwargs["StartAfter"] = start_after
         page = client.list_objects_v2(**kwargs)
         objects = page.get("Contents") or []
         listed += len(objects)
+        if objects:
+            last_key = objects[-1]["Key"]
         keys = [o["Key"] for o in objects if is_session_video_key(o["Key"])]
         done = set()
         if keys:
@@ -435,7 +448,11 @@ def reconcile(db: Session) -> int:
                        if is_session_video_key(o["Key"]) and o["Key"] not in done]
         token = page.get("NextContinuationToken")
         if not page.get("IsTruncated") or not token:
+            reached_end = True
             break
+    # Rotate: resume after the last listed key while the keyspace continues,
+    # wrap back to the head once a pass reaches the end.
+    _reconcile_start_after = None if reached_end else last_key
     started = 0
     for key, size, modified in candidates[:RECONCILE_MAX_INGESTS]:
         row = ingest_object(db, key, size=size, event_time=modified)
