@@ -5,6 +5,12 @@ This document is the durable authority for the P5 V1 USER auth layer. It is
 additive to, and does not replace, `MEDIA_BACKBONE_SECURITY_V1.md` (storage
 authority) or the legacy application behavior.
 
+> Historical scope: this document describes P5 V1. Current signup also includes
+> invite-gated `/register` and `/register-invite` (see the header of
+> `backend/app/api/v1/auth.py`). Dive writes are ownership-scoped and role-independent;
+> friend/diver accounts can manage their own dives. For current authorization use
+> `write_guard.py`, `dive_access.py` and their executable access tests.
+
 ## 1. Architecture (P5 V1)
 
 | Layer | Authority |

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Traiter une review"
+  short_description: "Vérifier et corriger les findings avec leurs preuves"

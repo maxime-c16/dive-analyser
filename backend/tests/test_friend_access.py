@@ -1,11 +1,11 @@
-"""Friend access V1: invite-gated registration, read-only role, all-divers default.
+"""Member access: invite-gated registration, ownership-scoped writes, public reads.
 
 Covers:
 - registration fail-closed (flag off / no codes / bad invite / throttled)
-- registration success (friend role, auto-login, no diver bindings)
+- registration success (friend role, auto-login, OWNER-bound personal diver)
 - duplicate email rejection
 - friend reads: dives default scope=all, other's video check allowed
-- friend writes: POST dives/sessions/media-recall denied (403)
+- friend writes: own dive creation allowed (201); shared sessions/media-recall denied (403)
 - owner writes still allowed; anonymous writes denied when auth is on
 - self-service password change (success rotates session, wrong rejected)
 """
@@ -253,7 +253,7 @@ def test_owner_analytics_still_defaults_to_self(client, db):
     assert r.json()["total_dives"] == 1
 
 
-# ---------------------------------------------------------------- read-only guard
+# ----------------------------------------------------------- ownership write guard
 
 
 def _dive_payload(db):
