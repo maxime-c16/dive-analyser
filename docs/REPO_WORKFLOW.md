@@ -289,3 +289,38 @@ automation dependencies and permissions are not installed by `ship.sh`.
 Apply `backend/migrations/add_dive_sync_pairs.sql` before deploying the backend.
 The private review import is separate and defaults to dry-run. Deploy Mac after
 backend for the new cleanup revision checks. See [rollout](SYNC_PARTICIPANTS.md).
+
+### Shared sessions (default off)
+
+Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
+
+1. **Before** `ci/ship.sh server`, apply
+   `backend/migrations/add_session_videos.sql` (idempotent, additive; needs
+   `add_dive_sharing.sql`). The tables are migration-only: startup never
+   creates them.
+2. Create `~/.config/diveanalyzer/sessions.env` on deb-serv (mode `600`,
+   loaded by `ci/ship.sh` for deploy and rollback, wired in
+   `docker-compose.yml`):
+   `SHARED_SESSIONS_ENABLED=true`, `SHARED_SESSIONS_OWNER_EMAIL` (Maxime's
+   account), `SESSIONS_B2_KEY_ID` / `SESSIONS_B2_KEY_SECRET` (a **read-only**
+   key — `listFiles`, `readFiles` — scoped to `diveanalyzer-sessions`; never
+   the prefix-locked `B2_UPLOAD_*` media key), optional
+   `SESSIONS_B2_REGION` (default `eu-central-003`), `SESSIONS_B2_EVENT_SECRET`
+   (the rule's signing secret), `SESSIONS_TELEGRAM_BOT_TOKEN` /
+   `SESSIONS_TELEGRAM_CHAT_ID` (same values as `/etc/dive-funnel-watchdog.env`;
+   empty = no Telegram). `APP_PUBLIC_URL` (email.env) builds the links.
+   A same-SHA activation needs `--force`.
+3. Reload the Funnel proxy (new public route
+   `/api/v1/session-videos/b2-events`):
+   `docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate`,
+   then `python3 ops/tailscale/check_guest_routes.py https://dive-analyser.tail32dd14.ts.net`.
+4. In the B2 console, bucket `diveanalyzer-sessions` → Event Notifications →
+   new rule: event types `b2:ObjectCreated:*` (Upload, MultipartUpload, Copy),
+   prefix `inbox/`, target
+   `https://dive-analyser.tail32dd14.ts.net/api/v1/session-videos/b2-events`,
+   with an HMAC-SHA256 signing secret equal to `SESSIONS_B2_EVENT_SECRET`.
+   Use “Test rule” (expects 200). Without the rule, the 10-minute
+   reconciliation still ingests every upload.
+5. No Mac service, no timer: the reconciliation runs inside the backend.
+   Rollback: set `SHARED_SESSIONS_ENABLED=false` and redeploy with `--force`;
+   keep the tables.

@@ -218,6 +218,27 @@ class Settings(BaseSettings):
     # ownership, so keep this short and revoke links you do not recognise.
     diver_invite_ttl_seconds: int = int(os.getenv("DIVER_INVITE_TTL_SECONDS", "604800"))
 
+    # Shared sessions (docs/features/SHARED_SESSIONS.md). Default OFF: every
+    # route 404s and no reconciliation runs. Videos land in a dedicated B2
+    # bucket (read-only key, runtime env only, never the prod media key).
+    shared_sessions_enabled: bool = os.getenv("SHARED_SESSIONS_ENABLED", "false").lower() == "true"
+    shared_sessions_owner_email: str = os.getenv("SHARED_SESSIONS_OWNER_EMAIL", "")
+    sessions_b2_bucket: str = os.getenv("SESSIONS_B2_BUCKET", "diveanalyzer-sessions")
+    sessions_b2_inbox_prefix: str = os.getenv("SESSIONS_B2_INBOX_PREFIX", "inbox/")
+    sessions_b2_region: str = os.getenv("SESSIONS_B2_REGION", "eu-central-003")
+    sessions_b2_endpoint_url: str = os.getenv("SESSIONS_B2_ENDPOINT_URL", "")
+    sessions_b2_key_id: str = os.getenv("SESSIONS_B2_KEY_ID", "")
+    sessions_b2_key_secret: str = os.getenv("SESSIONS_B2_KEY_SECRET", "")
+    # HMAC secret of the B2 Event Notification rule (hmacSha256SigningSecret).
+    sessions_b2_event_secret: str = os.getenv("SESSIONS_B2_EVENT_SECRET", "")
+    sessions_reconcile_seconds: int = int(os.getenv("SESSIONS_RECONCILE_SECONDS", "600"))
+    # A 30-75 min session is watched with many Range requests on the same
+    # signed URL; the player re-requests a fresh one if it still expires.
+    sessions_playback_ttl_seconds: int = int(os.getenv("SESSIONS_PLAYBACK_TTL_SECONDS", "14400"))
+    # Same bot as ops/funnel-watchdog.sh; empty = Telegram disabled.
+    sessions_telegram_bot_token: str = os.getenv("SESSIONS_TELEGRAM_BOT_TOKEN", "")
+    sessions_telegram_chat_id: str = os.getenv("SESSIONS_TELEGRAM_CHAT_ID", "")
+
     # Cache settings
     cache_ttl_seconds: int = 3600  # 1 hour default
 

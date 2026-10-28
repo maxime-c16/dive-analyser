@@ -814,7 +814,8 @@ def me(
         "role": getattr(user, "role", "owner"),
         "is_admin": bool(user.is_admin),
         # Default-off feature switches the UI needs before routing.
-        "features": {"calendar": bool(calendar_enabled(db))},
+        "features": {"calendar": bool(calendar_enabled(db)),
+                     "shared_sessions": bool(get_settings().shared_sessions_enabled)},
         "divers": [
             {
                 "diver_id": row.diver_id,

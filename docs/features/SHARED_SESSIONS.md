@@ -78,3 +78,61 @@ their dives and export clips — steps 3–4, NOT in scope here).
   wired in `docker-compose.yml`.
 - Reference prototype of the direct-upload protocol (not needed for this PR,
   kept for later): `tools/session-upload-lab/`.
+
+## Implementation (steps 1 + 2)
+
+- **Ingestion** — `backend/app/services/session_videos.py`. Identity = unique
+  `(bucket, object_key)` row in `session_videos`. A conditional UPDATE claims
+  the probe (`pending`, stale `probing` > 15 min, or `failed` with < 5
+  attempts), so duplicate events, the reconciliation and several processes
+  converge on one row and one ffprobe. A second conditional UPDATE on
+  `notified_at` sends the owner notification exactly once. No SQL transaction
+  is open during B2/ffprobe work; at most 2 probes run at once.
+- **Arrival** — `POST /api/v1/session-videos/b2-events` verifies
+  `X-Bz-Event-Notification-Signature: v1=<hex HMAC-SHA256(raw body)>` in
+  constant time (401 otherwise), accepts `b2:ObjectCreated:*` events for the
+  configured bucket under `inbox/` with a `.mov/.mp4/.m4v` name, answers
+  immediately and ingests in the background. `b2:TestEvent` is acknowledged.
+  The reconciliation thread lists `inbox/` 15 s after startup then every
+  `SESSIONS_RECONCILE_SECONDS` (600), bounded to 2 000 listed keys and 20
+  ingestions per pass.
+- **Metadata** — ffprobe on a 10-minute presigned GET (range reads, ~7 s for
+  the 3.3 GB test file). Stored: duration, codec + RFC 6381 codec string
+  (`hvc1.2.4.L123.B0`), profile, pix_fmt, transfer (`arib-std-b67` = HLG),
+  size, resolution, fps, bitrate, recording time. The day is the Europe/Paris
+  date of `com.apple.quicktime.creationdate` (fallback `creation_time`, then
+  B2 upload time). Location tags are never read.
+- **Session** — the video is attached to the `sessions` row of that day,
+  created if missing.
+- **Playback** — `GET /api/v1/session-videos/{id}/play` (any signed-in
+  member) redirects to a presigned GET of the original with
+  `response-content-type=video/mp4` (lets Chrome try the QuickTime file); TTL
+  `SESSIONS_PLAYBACK_TTL_SECONDS` (4 h) because one URL serves all the Range
+  requests of a long session. On a network error the player requests a fresh
+  URL and resumes at the same time. `/download` adds
+  `Content-Disposition: attachment`.
+- **Unplayable devices** — the player checks MediaCapabilities (else
+  `canPlayType`) for the stored codec string, then after 1.5 s of playback
+  checks that frames were rendered (`videoWidth`, `getVideoPlaybackQuality`).
+  On failure it shows only « Cette vidéo ne se lit pas ici » + « Télécharger ·
+  <taille> » and posts the reason (`unsupported`, `no_frames`, `error`) to
+  `session_video_playback_issues` (one row per viewer/video/reason/hour). Query:
+  `SELECT reason, count(*) FROM session_video_playback_issues GROUP BY 1;`
+- **Guest links** — `session_video_shares` (hash only, revocable by owner or
+  admin). Guest API lives under `/api/v1/shared-dives/sessions/{share}/…` so
+  the existing guest cookie, film-character identity and Funnel rule apply
+  unchanged; the page is `/share/session/{id}#<secret>`.
+- **Notifications** — inbox row type `session_video` (push opens
+  `/session-videos/{id}`). When Telegram is configured, a guest link is issued
+  automatically and sent with the member link; its secret exists only in that
+  message.
+
+### Choices made where the spec was silent
+
+- Members = every active signed-in account (friends included); sharing is
+  reserved to the owner and admins.
+- The in-app inbox and push carry the member link, not the guest secret
+  (inbox rows are stored in clear); the guest link goes to Telegram only.
+- One object key = one session video. Re-uploading under the same name does
+  not create a second video.
+- No preference toggle for `session_video` (owner-only alert).

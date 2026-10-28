@@ -61,7 +61,9 @@ CALENDAR_DEFAULTS: Dict[str, bool] = {
     "calendar_follow": True,
 }
 CALENDAR_TYPES = frozenset(CALENDAR_DEFAULTS)
-_ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS}
+# Shared sessions: owner-only "new session video" alert (no preference UI).
+SESSION_DEFAULTS: Dict[str, bool] = {"session_video": True}
+_ALL_DEFAULTS: Dict[str, bool] = {**DEFAULTS, **CALENDAR_DEFAULTS, **SESSION_DEFAULTS}
 
 _MAX_LIST_LIMIT = 100
 _TITLE_MAX = 200
@@ -75,7 +77,7 @@ _MAX_PUSH_IDS_PER_SCHEDULE = 50
 
 
 def _validate_type(notif_type: str) -> None:
-    if notif_type not in NOTIF_TYPES and notif_type not in CALENDAR_TYPES:
+    if notif_type not in _ALL_DEFAULTS:
         raise ValueError(f"Unknown notification type: {notif_type}")
 
 

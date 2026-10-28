@@ -28,8 +28,10 @@ export function modeMessage(t: (key: string) => string, mode: ShareMode): string
   }
 }
 
-export default function ShareDiveButton({ id, allowLink = true, allowDm = false }: { id: number; allowLink?: boolean; allowDm?: boolean }) {
+/** `sharesPath` reuses the same link UI for other shareable media (session videos). */
+export default function ShareDiveButton({ id, allowLink = true, allowDm = false, sharesPath, label }: { id: number; allowLink?: boolean; allowDm?: boolean; sharesPath?: string; label?: string }) {
   const { t } = useTranslation()
+  const sharesUrl = sharesPath ?? `/api/v1/dives/${id}/shares`
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState('');
   const [mode, setMode] = useState<ShareMode>('idle');
@@ -50,11 +52,11 @@ export default function ShareDiveButton({ id, allowLink = true, allowDm = false 
     mounted.current = true;
     if (!allowLink) return () => { mounted.current = false; };
     const version = mutationVersion.current;
-    api.get<{ active_count: number }>(`/api/v1/dives/${id}/shares`)
+    api.get<{ active_count: number }>(sharesUrl)
       .then(({ data }) => { if (mounted.current && mutationVersion.current === version) setHasShares(data.active_count > 0); })
       .catch(() => { /* Sharing remains usable if the status lookup fails. */ });
     return () => { mounted.current = false; };
-  }, [id, allowLink]);
+  }, [id, allowLink, sharesUrl]);
   useEffect(() => {
     if (!AUTO_CLEAR_MODES.includes(mode)) return;
     const timer = setTimeout(() => setMode('idle'), 3000);
@@ -73,7 +75,7 @@ export default function ShareDiveButton({ id, allowLink = true, allowDm = false 
     setBusy(true);
     setMode('idle');
     const link = url ? Promise.resolve(url) : api
-      .post<{ path: string }>(`/api/v1/dives/${id}/shares`)
+      .post<{ path: string }>(sharesUrl)
       .then(({ data }) => {
         const value = new URL(data.path, window.location.origin).href;
         if (mounted.current) { setUrl(value); setHasShares(true); }
@@ -100,7 +102,7 @@ export default function ShareDiveButton({ id, allowLink = true, allowDm = false 
   };
   const message = modeMessage(t, mode);
   return <>
-    <button ref={shareButton} type="button" aria-label={t('clipViewer.shareDive')} aria-expanded={menuOpen} aria-haspopup="dialog" onClick={() => {
+    <button ref={shareButton} type="button" aria-label={label ?? t('clipViewer.shareDive')} aria-expanded={menuOpen} aria-haspopup="dialog" onClick={() => {
       setMenuOpen(true); setMode('idle'); setSendError(false); setSent(null);
     }}>
       <Share2 size={25} /><span>{t('clipViewer.share')}</span>
@@ -125,7 +127,7 @@ export default function ShareDiveButton({ id, allowLink = true, allowDm = false 
             mutationVersion.current += 1;
             setBusy(true);
             try {
-              await api.delete(`/api/v1/dives/${id}/shares`);
+              await api.delete(sharesUrl);
               if (mounted.current) { setUrl(''); setHasShares(false); setMode('revoked'); }
             } catch { if (mounted.current) setMode('revokeError'); }
             finally { pending.current = false; if (mounted.current) setBusy(false); }

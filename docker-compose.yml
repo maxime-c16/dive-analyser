@@ -140,6 +140,19 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
       BATCH_EMAIL_DELAY_MINUTES: ${BATCH_EMAIL_DELAY_MINUTES:-45}
       CLAIM_TOKEN_TTL_SECONDS: ${CLAIM_TOKEN_TTL_SECONDS:-604800}
+      # Shared sessions (docs/features/SHARED_SESSIONS.md), default off.
+      # Runtime values live in ~/.config/diveanalyzer/sessions.env on deb-serv
+      # (loaded by ci/ship.sh), never in Git.
+      SHARED_SESSIONS_ENABLED: "${SHARED_SESSIONS_ENABLED:-false}"
+      SHARED_SESSIONS_OWNER_EMAIL: ${SHARED_SESSIONS_OWNER_EMAIL:-}
+      SESSIONS_B2_BUCKET: ${SESSIONS_B2_BUCKET:-diveanalyzer-sessions}
+      SESSIONS_B2_REGION: ${SESSIONS_B2_REGION:-eu-central-003}
+      SESSIONS_B2_ENDPOINT_URL: ${SESSIONS_B2_ENDPOINT_URL:-}
+      SESSIONS_B2_KEY_ID: ${SESSIONS_B2_KEY_ID:-}
+      SESSIONS_B2_KEY_SECRET: ${SESSIONS_B2_KEY_SECRET:-}
+      SESSIONS_B2_EVENT_SECRET: ${SESSIONS_B2_EVENT_SECRET:-}
+      SESSIONS_TELEGRAM_BOT_TOKEN: ${SESSIONS_TELEGRAM_BOT_TOKEN:-}
+      SESSIONS_TELEGRAM_CHAT_ID: ${SESSIONS_TELEGRAM_CHAT_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,0 +1,8 @@
+{
+  "id": "shared-sessions-preview",
+  "date": "2026-10-28",
+  "title": "Session videos (preview, off by default)",
+  "body": "Whole training-session videos dropped in the sessions bucket get their own page, playable by members and shareable with a guest link. Turn on SHARED_SESSIONS_ENABLED after the setup in docs/REPO_WORKFLOW.md.",
+  "audience": "admin",
+  "components": ["frontend", "backend"]
+}

@@ -306,9 +306,9 @@ def test_dive_links_are_private_and_never_change_visibility(cal):
 
 def test_auth_me_exposes_feature_flag(cal, flags):
     alice = cal["login"]("alice")
-    assert alice.get("/api/v1/auth/me").json()["features"] == {"calendar": True}
+    assert alice.get("/api/v1/auth/me").json()["features"] == {"calendar": True, "shared_sessions": False}
     flags.calendar_enabled = False
-    assert alice.get("/api/v1/auth/me").json()["features"] == {"calendar": False}
+    assert alice.get("/api/v1/auth/me").json()["features"] == {"calendar": False, "shared_sessions": False}
     assert alice.post(f"{API}/events", json=outing()).status_code == 404
 
 

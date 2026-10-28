@@ -35,6 +35,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Clapperboard,
   Film,
   Gauge,
   HardDriveDownload,
@@ -49,6 +50,11 @@ const loadCalendar = () => import("./pages/Calendar");
 const CalendarPage = lazy(loadCalendar);
 const loadSharedDive = () => import("./pages/SharedDive");
 const SharedDive = lazy(loadSharedDive);
+const loadSharedSession = () => import("./pages/SharedSession");
+const SharedSession = lazy(loadSharedSession);
+const loadSessionVideos = () => import("./pages/SessionVideos");
+const SessionVideoPage = lazy(loadSessionVideos);
+const SessionVideoList = lazy(() => loadSessionVideos().then(module => ({ default: module.SessionVideoList })));
 const loadClaim = () => import("./pages/Claim");
 const Claim = lazy(loadClaim);
 const loadInvite = () => import("./pages/Invite");
@@ -122,6 +128,7 @@ const basePrimaryNav = [
   { to: "/evaluations", label: "nav.evaluations", icon: ClipboardCheck } as NavItem,
 ];
 const calendarNavItem = { to: '/calendar', label: 'nav.calendar', icon: CalendarDays } as NavItem;
+const sessionVideosNavItem = { to: '/session-videos', label: 'nav.sessionVideos', icon: Clapperboard } as NavItem;
 
 /** Calendar is a server-flagged destination (CALENDAR_ENABLED, default off):
  * off keeps the existing four labelled mobile targets; on gives five
@@ -359,6 +366,7 @@ function MobileShell({ children }: { children: React.ReactNode }) {
           <nav aria-label={t("nav.accountNavigationAria")} className="grid gap-2">
             <IntentNavLink to="/account" onClick={() => setOpen(false)} className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4"><UserRound className="h-5 w-5" />{t("nav.account")}</IntentNavLink>
             {user && <IntentNavLink to={`/users/${user.user_id}`} onClick={() => setOpen(false)} className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4"><Users className="h-5 w-5" />{t("nav.myProfile")}</IntentNavLink>}
+            {user?.features?.shared_sessions && <IntentNavLink to="/session-videos" onClick={() => setOpen(false)} className="touch-target flex items-center gap-3 border border-app bg-app-panel-elevated px-4"><Clapperboard className="h-5 w-5" />{t("nav.sessionVideos")}</IntentNavLink>}
             <WhatsNewButton />
           </nav>
           {!friend && <div className="mt-5"><NavigationDisclosure compact review /></div>}
@@ -446,6 +454,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               {primaryNavItems.map((item) => (
                 <AppNavLink key={item.to} {...item} emphasis />
               ))}
+              {user?.features?.shared_sessions && <AppNavLink {...sessionVideosNavItem} emphasis />}
             </nav>
 
             {!friend && (
@@ -561,6 +570,12 @@ function AnonymousOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Feature off (SHARED_SESSIONS_ENABLED): session videos fall back to the Library. */
+function SessionVideosGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return user?.features?.shared_sessions === true ? <>{children}</> : <Navigate to="/dives" replace />;
+}
+
 /** Feature off: /calendar behaves like any unknown route (Library). */
 function CalendarGate() {
   const { user } = useAuth();
@@ -580,6 +595,7 @@ function Router() {
     <Routes>
       <Route path="/room/:code" element={<RoomEntry />} />
       <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
+      <Route path="/share/session/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
         <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
@@ -653,6 +669,8 @@ function Router() {
                   <Route path="/room" element={<JudgeRoom />} />
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
+                  <Route path="/session-videos" element={<SessionVideosGate><SessionVideoList /></SessionVideosGate>} />
+                  <Route path="/session-videos/:videoId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/deposits" element={<Deposits />} />
                   <Route path="/deposits/:batchId" element={<Deposits />} />

@@ -16,7 +16,7 @@ export interface AuthUser extends AvatarIdentity {
   is_admin?: boolean
   divers: { diver_id: number; access_kind: string }[]
   /** Server-side default-off feature switches. */
-  features?: { calendar?: boolean }
+  features?: { calendar?: boolean; shared_sessions?: boolean }
 }
 
 export function isFriend(user: AuthUser | null): boolean {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           is_admin: data.is_admin === true,
           role: data.role === 'friend' ? 'friend' : 'owner',
           divers: Array.isArray(data.divers) ? data.divers : [],
-          features: { calendar: data.features?.calendar === true },
+          features: { calendar: data.features?.calendar === true, shared_sessions: data.features?.shared_sessions === true },
         })
       } else {
         // Signed-out responses tear down media authorization; any warm in

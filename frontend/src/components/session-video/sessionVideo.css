@@ -1,0 +1,18 @@
+.session-video-frame { position: relative; width: 100%; min-height: 40dvh; background: #000; display: flex; align-items: center; justify-content: center; }
+/* Phones film portrait or landscape: fit either inside the visible height. */
+.session-video-frame video { width: 100%; max-height: calc(100dvh - 9rem); display: block; background: #000; object-fit: contain; }
+.session-video-unplayable { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: #fff; padding: 1rem; text-align: center; }
+.session-video-unplayable p { font-size: 1.05rem; font-weight: 600; }
+.session-video-download { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem 1rem; border: 1px solid rgba(255, 255, 255, .6); color: #fff; font-weight: 600; }
+.session-video-page { max-width: 72rem; margin: 0 auto; }
+.session-video-page header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.session-video-page h1 { font-size: 1.25rem; font-weight: 600; }
+.session-video-page h1::first-letter, .shared-session h1::first-letter, .session-video-date::first-letter { text-transform: uppercase; }
+.session-video-page header p { color: var(--app-muted, #888); font-size: .875rem; }
+.session-video-actions { display: flex; gap: .5rem; }
+.session-video-actions button { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; }
+.shared-session { min-height: 100dvh; background: #000; color: #fff; padding: max(1rem, env(safe-area-inset-top)) 0 1rem; }
+.shared-session header { padding: 0 1rem .75rem; }
+.shared-session h1 { font-size: 1.1rem; font-weight: 600; }
+.shared-session header p { opacity: .7; font-size: .875rem; }
+.shared-session [role="alert"] { padding: 1rem; }

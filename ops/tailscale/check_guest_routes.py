@@ -21,6 +21,11 @@ def main():
         ('/api/v1/deposits/claim/redeem', 405),
         ('/api/v1/deposits/pending', 401),
         ('/api/v1/shared-dives/0/social', 404),
+        # Shared sessions: guest page/API reuse the /share/ and shared-dives
+        # rules; the B2 hook is public but signature-checked (GET = 405, or
+        # 404 while the feature is off).
+        ('/share/session/0', 200),
+        ('/api/v1/shared-dives/sessions/0/video', 404),
         ('/', 302),
         ('/share-not-public/0', 302),
         ('/api/v1/dives', 401),
