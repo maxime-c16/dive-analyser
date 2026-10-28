@@ -1,3 +1,4 @@
+import { api } from "../services/api"
 import MemberAvatar from '../components/MemberAvatar'
 import AvatarManager from '../components/AvatarManager'
 import React, { useEffect, useState } from 'react'
@@ -819,6 +820,7 @@ export default function Account() {
               )}
               <h3 className="mt-4 text-sm font-semibold text-app-text">{t('account.notifOnDevice')}</h3>
               <BatchEmailToggle />
+              {user?.features?.shared_sessions && <SessionEmailToggle />}
               <PushOptInSection />
               <div className="mt-1 divide-y divide-[var(--app-border)]">
                 {notifRows.map(row => (
@@ -983,4 +985,11 @@ export default function Account() {
       </div>
     </div>
   )
+}
+
+function SessionEmailToggle() {
+  const [enabled,setEnabled]=useState<boolean|null>(null)
+  useEffect(()=>{let alive=true;api.get('/api/v1/session-preferences').then(r=>{if(alive)setEnabled(r.data.enabled)}).catch(()=>{});return()=>{alive=false}},[])
+  if(enabled===null)return null
+  return <label className="flex items-center justify-between py-3">E-mails de mon groupe<input type="checkbox" checked={enabled} onChange={async e=>{const value=e.target.checked;await api.put('/api/v1/session-preferences',{enabled:value});setEnabled(value)}}/></label>
 }

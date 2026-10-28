@@ -16,3 +16,39 @@
 .shared-session h1 { font-size: 1.1rem; font-weight: 600; }
 .shared-session header p { opacity: .7; font-size: .875rem; }
 .shared-session [role="alert"] { padding: 1rem; }
+.session-gallery { height: calc(100dvh - 10rem); min-height: 390px; display:flex; flex-direction:column; gap:12px; max-width:72rem; margin:auto; }
+.session-gallery header { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; flex-shrink:0; }
+.session-gallery h1 { font-size:1.2rem; font-weight:600; width:100%; text-transform:capitalize; }
+.session-gallery header>span {font-size:.85rem;font-variant-numeric:tabular-nums;}
+.session-gallery .session-video-actions {margin-left:auto;}
+.session-strip {display:flex;gap:12px;flex:1;min-height:0;overflow-x:auto;align-items:center;}
+.session-tile {flex:0 0 min(70%,260px);min-width:0;}
+.session-tile>button {width:100%;text-align:left;}
+.session-poster {height: min(42dvh,380px);position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--app-border);background:#111;}
+.session-poster>div {height:100%;}
+.session-poster img {object-fit:cover;width:100%;height:100%;}
+.session-tile span {display:block;font-size:.8rem;padding-top:6px;font-variant-numeric:tabular-nums;}
+.session-strip-small {flex:0 0 110px;}
+.session-strip-small .session-tile {flex-basis:100px;}
+.session-strip-small .session-poster {height:75px;}
+.session-selected {flex:1;min-height:0;position:relative;display:flex;flex-direction:column;gap:4px;}
+.session-selected>button:first-child {position:absolute;right:6px;top:6px;z-index:2;background:#111a;padding:6px;color:white;}
+.session-selected .session-video-frame {min-height:0;flex:1;overflow:hidden;border-radius:12px;}
+.session-selected .session-video-frame video {height:100%;max-height:100%;}
+.session-selected .session-video-download {align-self:center;font-size:.8rem;min-height:36px;}
+.session-download-all {display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;flex-shrink:0;background:var(--app-accent,#b5f36d);color:#111;font-weight:600;border-radius:12px;}
+.shared-session {padding:20px 16px;background:var(--app-bg,#090d13);color:var(--app-text,#fff);height:100dvh;min-height:0;}
+.shared-session .session-gallery {height:calc(100dvh - 85px);min-height:0;}
+.session-login {display:block;text-align:center;padding:10px;font-size:.85rem;}
+.session-settings {display:flex;flex-wrap:wrap;gap:8px;}.session-settings button{min-height:36px;}
+.session-onboarding {max-width:420px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:16px;}
+.session-onboarding h1 {font-size:1.4rem;font-weight:600;}.session-onboarding form{display:flex;flex-direction:column;gap:12px;}
+.session-onboarding input:not([type=checkbox]),.session-onboarding select {min-height:44px;width:100%;background:var(--app-panel,#222);border:1px solid var(--app-border,#555);padding:8px;border-radius:8px;}
+.session-onboarding button{min-height:44px;border:1px solid var(--app-border,#555);border-radius:8px;}
+
+.session-gallery, .shared-session .session-gallery {height:var(--session-height,calc(100dvh - 11rem));min-height:0;}
+/* The Library transport also works in the compact session frame. */
+.session-video-frame .clip-transport {display:grid;grid-template-columns:40px minmax(0,1fr) auto 40px;left:12px;right:12px;bottom:12px;gap:8px;color:white;}
+.session-video-frame .clip-transport button:last-child {margin-left:0;}
+.session-video-frame .clip-time {position:absolute;right:0;top:-16px;font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 1px 3px #000;}
+.session-video-frame input.clip-progress {position:relative;left:auto;bottom:auto;display:block;width:100%;height:24px;min-height:24px;}

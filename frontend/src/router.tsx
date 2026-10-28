@@ -670,6 +670,7 @@ function Router() {
                   <Route path="/users/:userId" element={<MemberProfile />} />
                   <Route path="/sessions" element={<OwnerGuard><Sessions /></OwnerGuard>} />
                   <Route path="/session-videos" element={<SessionVideosGate><SessionVideoList /></SessionVideosGate>} />
+                  <Route path="/sessions/shared/:sessionId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
                   <Route path="/session-videos/:videoId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/deposits" element={<Deposits />} />

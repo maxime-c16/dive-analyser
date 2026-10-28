@@ -16,10 +16,13 @@ export type SessionVideoInfo = {
   height: number | null
   fps: number | null
   bit_rate: number | null
+  poster_url?: string
+  animated_url?: string
+  hidden?: boolean
   can_share: boolean
 }
 
-export type SharedSessionVideo = SessionVideoInfo & {
+export type SharedSessionVideo = SessionVideoInfo & SharedTrainingSession & {
   guest_id: number
   guest_name: string
   video_url: string
@@ -77,4 +80,15 @@ export function formatDuration(seconds: number | null): string {
 export function formatSessionDate(video: SessionVideoInfo, locale: string): string {
   const day = video.recorded_date ? new Date(`${video.recorded_date}T12:00:00`) : null
   return day ? new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(day) : video.filename
+}
+
+export type SharedTrainingSession = {
+  can_manage?: boolean; session_id: number; date: string; videos: SessionVideoInfo[]; video_count: number;
+  total_duration: number; total_bytes: number; has_more: boolean; next_video_id?: number | null
+}
+export async function getTrainingSession(id: number): Promise<SharedTrainingSession> {
+  return (await api.get(`/api/v1/shared-sessions/${id}`)).data
+}
+export async function trainingSessions(before?: number): Promise<{items: SharedTrainingSession[]; next_cursor: number | null}> {
+  return (await api.get('/api/v1/shared-sessions', {params: {before}})).data
 }

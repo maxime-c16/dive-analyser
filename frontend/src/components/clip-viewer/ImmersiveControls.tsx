@@ -46,8 +46,8 @@ export default function ImmersiveControls({
    * the pager handoff works over the incoming-clip cover.
    */
   mediaPresented?: boolean;
-  onLike: () => void;
-  onNavigate: (direction: -1 | 1) => void;
+  onLike?: () => void;
+  onNavigate?: (direction: -1 | 1) => void;
   /**
    * Feed-pager mode (mobile): a vertically-dominant drag is reported to the
    * parent frame-by-frame so the dive follows the finger, and the parent
@@ -135,6 +135,7 @@ export default function ImmersiveControls({
     else video.pause();
   };
   const like = () => {
+    if (!onLike) {toggle(); return;}
     onLike();
     setHeart(true);
     clearTimeout(heartTimer.current);
@@ -366,7 +367,7 @@ export default function ImmersiveControls({
           if (Math.abs(dy) > 65 && Math.abs(dy) > Math.abs(dx) * 1.3) {
             clearTimeout(tapTimer.current);
             tapTimer.current = undefined;
-            onNavigate(dy < 0 ? 1 : -1);
+            onNavigate?.(dy < 0 ? 1 : -1);
             return;
           }
           if (start.moved) return;

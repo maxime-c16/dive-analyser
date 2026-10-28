@@ -45,7 +45,7 @@ from app.database import Base
 # controls workspace operations; neither legacy role grants dive ownership.
 ROLE_OWNER = "owner"
 ROLE_FRIEND = "friend"
-USER_ROLES = (ROLE_OWNER, ROLE_FRIEND)
+USER_ROLES = (ROLE_OWNER, ROLE_FRIEND, "diver")
 
 
 class AppUser(Base):
@@ -59,6 +59,7 @@ class AppUser(Base):
     avatar = deferred(Column(LargeBinary, nullable=True))
     avatar_updated_at = Column(DateTime, nullable=True)
     avatar_hud = Column(String(16), nullable=False, default="reticle", server_default="reticle")
+    session_email_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     role = Column(String(20), nullable=False, default=ROLE_OWNER)
     is_admin = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)

@@ -6,7 +6,7 @@ Tables come from backend/migrations/add_session_videos.sql only.
 from datetime import datetime
 
 from sqlalchemy import (
-    BigInteger, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint,
+    Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint,
 )
 
 from app.database import Base
@@ -31,6 +31,8 @@ class SessionVideo(Base):
     etag = Column(String(80), nullable=True)
     # pending -> probing -> ready | failed (retried while attempts < limit)
     status = Column(String(16), nullable=False, default="pending")
+    hidden = Column(Boolean, nullable=False, default=False, server_default="false")
+    deleted_at = Column(DateTime, nullable=True)
     attempts = Column(Integer, nullable=False, default=0)
     claimed_at = Column(DateTime, nullable=True)
     last_error = Column(String(200), nullable=True)
@@ -58,6 +60,7 @@ class SessionVideoShare(Base):
 
     id = Column(Integer, primary_key=True)
     session_video_id = Column(Integer, ForeignKey("session_videos.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=True, index=True)
     created_by = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False)
     token_hash = Column(String(64), nullable=False, unique=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -88,3 +91,12 @@ class SessionVideoPlaybackIssue(Base):
     viewer_guest_id = Column(Integer, ForeignKey("dive_guests.id", ondelete="CASCADE"), nullable=True)
     user_agent = Column(String(200), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class SessionSignupReview(Base):
+    __tablename__ = "session_signup_reviews"
+    __table_args__ = ({"info": _MIGRATION_ONLY},)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    candidate_diver_id = Column(Integer, ForeignKey("divers.id"), nullable=False)
+    resolved_at = Column(DateTime)

@@ -187,3 +187,30 @@ their dives and export clips — steps 3–4, NOT in scope here).
 - When a session's first video arrives, notify every group member who did
   not decline (in-app + push + email if their toggle is on) with the session
   link.
+
+### PR A v2 — implementation choices and operations
+
+- Session routes use `/sessions/shared/:sessionId`; old member video URLs still
+  resolve to their session. Existing guest links are backfilled with a stable
+  `session_id`; moving/deleting their original recording does not move the link.
+- Hide is reversible. Delete removes the recording from the app (a tombstone);
+  neither action writes to B2. Owners can still inspect hidden recordings.
+- An ambiguous signup creates the account and group membership, but waits for
+  an admin to attach the existing Diver. The admin directory displays the
+  review queue; acceptance never steals a profile already linked to an account.
+- The email preference is stored now; delivery for calendar sessions remains
+  PR C. No RSVP or event-association logic changes in A.
+- Feeds page 20 sessions, with bulk metadata/aggregates (six SQL queries,
+  independent of page size). Recording pages contain 100 videos, with a cursor;
+  totals cover all visible recordings and download-all follows every page.
+- Images are local WebP derivatives: ten input seeks through a loopback range
+  relay, upstream ranges capped at 512 KiB and a 128 MiB aggregate reservation
+  budget per extraction. Non-206 upstream responses are rejected without
+  consuming their body. No original is stored locally; HDR needs ffmpeg
+  `zscale` + `tonemap`. The real 3.34 GB video used at most 72.4 MB of ranges.
+- Apply `add_session_videos.sql` then `add_shared_sessions_v2.sql` before the
+  backend update, even if the flag remains off (the latter adds an AppUser
+  preference column). Requires the calendar domain migrations for clubs/groups.
+  Existing sessions env remains sufficient; no additional secret/env variable.
+  Preserve the media-cache volume for `session-images/`. Rebuild backend and
+  frontend together; FFmpeg in the backend image must include libzimg.

@@ -66,6 +66,7 @@ def sessions_env(workspace, monkeypatch):  # noqa: F811
                             sessions_b2_event_secret=SECRET, app_public_url='https://dive.example.test',
                             sessions_telegram_bot_token='', sessions_telegram_chat_id='').items():
         monkeypatch.setattr(settings, name, value)
+    monkeypatch.setattr('app.services.session_images.extract_images', lambda video: None)
     b2 = FakeB2()
     probes = []
     monkeypatch.setattr(service, 'storage_client', lambda: b2)
@@ -236,7 +237,8 @@ def test_guest_link_capability_identity_and_revocation(sessions_env):
         assert cookie.path == '/api/v1/shared-dives'  # same identity as dive links
         response = guest.get(identity['video_url'], follow_redirects=False)
         assert response.status_code == 302 and response.headers['referrer-policy'] == 'no-referrer'
-        assert guest.get(identity['download_url'], follow_redirects=False).status_code == 302
+        assert identity['download_url'] == ''
+        assert guest.get(base + '/download', follow_redirects=False).status_code == 401
         for _ in range(2):
             assert guest.post(base + '/playback-issues', json={'reason': 'no_frames'}).status_code == 204
         assert guest.post(base + '/playback-issues', json={'reason': 'bogus'}).status_code == 422
@@ -278,7 +280,7 @@ def test_telegram_message_carries_a_working_guest_link_once(sessions_env, monkey
     with TestClient(app, base_url='https://testserver') as guest:
         visit = guest.post(f'/api/v1/shared-dives/sessions/{share_id}/visit', headers={'X-Dive-Share': token})
         assert visit.status_code == 200 and visit.json()['id'] == video_id
-    assert f'/session-videos/{video_id}' in sent[0]
+    assert f'/sessions/shared/{db.get(SessionVideo, video_id).session_id}' in sent[0]
 
 
 def test_telegram_never_leaks_the_token_in_logs(monkeypatch, caplog):

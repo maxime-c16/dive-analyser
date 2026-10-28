@@ -16,7 +16,8 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation()
-  const from = (location.state as { from?: string })?.from ?? '/'
+  const requested = new URLSearchParams(location.search).get('next')
+  const from = requested?.startsWith('/') && !requested.startsWith('//') ? requested : (location.state as { from?: string })?.from ?? '/'
 
   useEffect(() => {
     fetch('/api/v1/auth/registration-status', { credentials: 'same-origin' })

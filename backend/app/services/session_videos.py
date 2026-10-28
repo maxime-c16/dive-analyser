@@ -366,6 +366,15 @@ def ingest_object(db: Session, key: str, *, size: Optional[int] = None,
     db.commit()
     logger.info("shared sessions: video %s ready (session %s)", video_id, training.id)
     _notify_once(db, video_id)
+    try:
+        from app.services.session_images import extract_images
+        from types import SimpleNamespace
+        source = db.get(SessionVideo, video_id)
+        snapshot = SimpleNamespace(**{key:getattr(source,key) for key in ('id','bucket','object_key','duration_seconds','color_transfer')})
+        db.rollback()
+        extract_images(snapshot)
+    except Exception:
+        logger.warning("Session images unavailable for video %s", video_id)
     return db.get(SessionVideo, video_id)
 
 
@@ -494,7 +503,7 @@ def notify_owner(db: Session, video: SessionVideo) -> None:
 
     settings = get_settings()
     base = settings.app_public_url.rstrip("/")
-    member_path = f"/session-videos/{video.id}"
+    member_path = f"/sessions/shared/{video.session_id}"
     summary = describe(video)
     row = notification_service.create(
         db, user_id=video.owner_user_id, type="session_video", title="Nouvelle séance en ligne",

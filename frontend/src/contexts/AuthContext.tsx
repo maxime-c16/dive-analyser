@@ -12,7 +12,7 @@ export interface AuthUser extends AvatarIdentity {
   user_id: number
   email: string
   display_name: string
-  role: 'owner' | 'friend'
+  role: 'owner' | 'friend' | 'diver'
   is_admin?: boolean
   divers: { diver_id: number; access_kind: string }[]
   /** Server-side default-off feature switches. */
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatar_url: data.avatar_url ?? null,
           avatar_hud: data.avatar_hud ?? 'reticle',
           is_admin: data.is_admin === true,
-          role: data.role === 'friend' ? 'friend' : 'owner',
+          role: data.role === 'friend' ? 'friend' : data.role === 'diver' ? 'diver' : 'owner',
           divers: Array.isArray(data.divers) ? data.divers : [],
           features: { calendar: data.features?.calendar === true, shared_sessions: data.features?.shared_sessions === true },
         })

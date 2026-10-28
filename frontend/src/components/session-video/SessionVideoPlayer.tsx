@@ -1,3 +1,5 @@
+import ImmersiveControls from '../clip-viewer/ImmersiveControls'
+import '../clip-viewer/clipViewer.css'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download } from 'lucide-react'
@@ -7,13 +9,14 @@ import { canDecode, framesRendered } from './playability'
 const FRAME_CHECK_AFTER_SECONDS = 1.5
 const MAX_SOURCE_REFRESHES = 3
 
-type Props = { info: SessionVideoInfo; playUrl: string; downloadUrl: string; reportUrl: string }
+type Props = { info: SessionVideoInfo; playUrl: string; downloadUrl: string; reportUrl: string; onDownload?: () => void }
 
 /** Plays the untouched original; devices that cannot show it get a download. */
-export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportUrl }: Props) {
+export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportUrl, onDownload }: Props) {
   const { t, i18n } = useTranslation()
   const [state, setState] = useState<'checking' | 'playable' | 'unplayable'>('checking')
   const [source, setSource] = useState(playUrl)
+  const [rate,setRate] = useState(1)
   const video = useRef<HTMLVideoElement>(null)
   const verified = useRef(false)
   const reported = useRef(false)
@@ -42,7 +45,7 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
   if (state === 'unplayable') {
     return <div className="session-video-frame session-video-unplayable" role="status">
       <p>{t('sessionVideo.unplayable')}</p>
-      <a href={downloadUrl} download={info.filename} className="session-video-download">
+      <a href={downloadUrl || undefined} onClick={onDownload ? e => {e.preventDefault(); onDownload()} : undefined} download={info.filename} className="session-video-download">
         <Download size={18} aria-hidden />{t('sessionVideo.download', { size: formatBytes(info.size_bytes, i18n.language) })}
       </a>
     </div>
@@ -51,9 +54,10 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
     <video
       ref={video}
       src={source}
-      controls
+      controls={false}
       playsInline
-      preload="metadata"
+      poster={info.poster_url}
+      preload="none"
       aria-label={t('sessionVideo.videoAria')}
       onLoadedMetadata={event => { if (resumeAt.current) event.currentTarget.currentTime = resumeAt.current }}
       onTimeUpdate={event => {
@@ -76,5 +80,6 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
         if (code === 3 || code === 4) giveUp(code === 4 ? 'unsupported' : 'error')
       }}
     />
+    <ImmersiveControls videoRef={video} playbackRate={rate} onPlaybackRateChange={value=>{setRate(value);if(video.current)video.current.playbackRate=value}} />
   </div>
 }
