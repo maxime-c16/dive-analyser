@@ -18,6 +18,7 @@ it('keeps session cards in the normal feed without a dedicated filter, including
 it('renders sessions in list view too',async()=>{
  window.history.replaceState(null,'','/dives?scope=all&view=list')
  render(<BrowserRouter><Dives/></BrowserRouter>)
- expect(await screen.findByRole('link',{name:'Séance · 2 vidéos'})).toBeInTheDocument()
- expect(await screen.findByRole('button',{name:/Open 103B attempt/})).toBeInTheDocument()
+ const link=await screen.findByRole('link',{name:'Séance · 2 vidéos'})
+ const attempt=await screen.findByRole('button',{name:/Open 103B attempt/})
+ expect(link.compareDocumentPosition(attempt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })

@@ -57,11 +57,33 @@ function ScoreBadge({ dive }: { dive: Dive }) {
 type LibraryListEntry = { kind: "session"; session: SharedTrainingSession } | { kind: "dive"; dive: Dive };
 
 function mergeSessionsAndDives(sessions: SharedTrainingSession[], dives: Dive[]): LibraryListEntry[] {
-  const entries: LibraryListEntry[] = [
-    ...sessions.map((session) => ({ kind: "session" as const, session, day: session.date })),
-    ...dives.map((dive) => ({ kind: "dive" as const, dive, day: dive.dive_datetime.slice(0, 10) })),
-  ];
-  entries.sort((a, b) => b.day.localeCompare(a.day) || (a.kind === b.kind ? 0 : a.kind === "session" ? -1 : 1));
+  // Dive order is the backend/fetch order and must not change; sessions
+  // (date descending) slot in before the first dive of their day or earlier.
+  const sessionsDesc = [...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const entries: LibraryListEntry[] = [];
+  let s = 0;
+  let emittedDay = "";
+  for (const dive of dives) {
+    const day = dive.dive_datetime.slice(0, 10);
+    while (s < sessionsDesc.length && sessionsDesc[s].date > day) {
+      entries.push({ kind: "session", session: sessionsDesc[s] });
+      emittedDay = sessionsDesc[s].date;
+      s += 1;
+    }
+    if (s < sessionsDesc.length && sessionsDesc[s].date === day && sessionsDesc[s].date !== emittedDay) {
+      const current = sessionsDesc[s].date;
+      while (s < sessionsDesc.length && sessionsDesc[s].date === current) {
+        entries.push({ kind: "session", session: sessionsDesc[s] });
+        s += 1;
+      }
+      emittedDay = current;
+    }
+    entries.push({ kind: "dive", dive });
+  }
+  while (s < sessionsDesc.length) {
+    entries.push({ kind: "session", session: sessionsDesc[s] });
+    s += 1;
+  }
   return entries;
 }
 
