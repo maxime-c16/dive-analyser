@@ -11,6 +11,12 @@ import requests
 
 MAX_READ_BYTES = 128 * 1024 * 1024
 RANGE_BYTES = 512 * 1024
+# Persistent footprint budget for published derivatives (~0.5 MB per video:
+# ~41 KB poster + ~488 KB animation). Extraction already caps transient
+# upstream reads (MAX_READ_BYTES) and concurrency (one slot); this caps what
+# stays on the shared volume. Beyond it the video stays ready without
+# posters — the same tolerated state as an ffmpeg failure at ingest.
+SESSION_IMAGES_MAX_BYTES = 1024 * 1024 * 1024
 
 
 @contextmanager
@@ -85,6 +91,37 @@ def session_image_files():
             path = video_dir / f'{kind}.webp'
             if not path.is_symlink() and path.is_file():
                 yield int(video_dir.name), path
+
+
+def publish_images(target, staged):
+    """Atomically publish staged derivatives gated on the disk budget.
+
+    `staged` maps kind -> staging path in the target directory. When the
+    published total would exceed SESSION_IMAGES_MAX_BYTES, the staging files
+    are discarded and RuntimeError is raised (the ingest caller already
+    treats that as "video ready without posters"). Replaced files count
+    against their old size, so re-publication is never blocked by its own
+    bytes. Only exact kind names are ever replaced; staging `*.tmp` files
+    are never matched by cleanup walks.
+    """
+    new_bytes = 0
+    for staging in staged.values():
+        try:
+            new_bytes += staging.stat().st_size
+        except FileNotFoundError:
+            raise RuntimeError('Session image staging disappeared') from None
+    replacing = 0
+    for kind in staged:
+        try:
+            replacing += (target / f'{kind}.webp').stat().st_size
+        except FileNotFoundError:
+            pass
+    if session_image_disk_bytes() - replacing + new_bytes > SESSION_IMAGES_MAX_BYTES:
+        for staging in staged.values():
+            staging.unlink(missing_ok=True)
+        raise RuntimeError('Session image budget exceeded')
+    for kind, staging in staged.items():
+        os.replace(staging, image_path(int(target.name), kind))
 
 
 def cleanup_session_images(db, limit=100):
@@ -163,10 +200,12 @@ def extract_images(video):
                         frames.append(image.convert('RGB'))
                 except (subprocess.SubprocessError, OSError):
                     raise RuntimeError('Session image extraction failed') from None
+            staged = {}
             for kind in ('poster', 'animated'):
                 staging = target / f'{kind}.{os.getpid()}.tmp'
                 frames[0].save(staging, format='WEBP', quality=78,
                     **(dict(save_all=True, append_images=frames[1:], duration=220, loop=0) if kind == 'animated' else {}))
-                os.replace(staging, image_path(video.id, kind))
+                staged[kind] = staging
+            publish_images(target, staged)
 
         return stats

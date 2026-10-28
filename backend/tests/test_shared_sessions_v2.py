@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 from app.main import app
 from app.models.session_video import SessionVideo, SessionSignupReview
 from app.models.calendar import Club, TrainingGroup, TrainingGroupMembership
@@ -140,6 +141,28 @@ def test_hidden_session_detail_is_private_but_manageable(sessions_env):
     owner = login('alice')  # login() shares one client: reset the cookie viewer replaced
     detail=owner.get(f'/api/v1/shared-sessions/{sid}')
     assert detail.status_code==200 and len(detail.json()['videos'])==1
+
+
+def test_session_image_publish_respects_disk_budget(tmp_path,monkeypatch):
+    from app.config import get_settings
+    from app.services import session_images as images
+    monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
+    target=tmp_path/'session-images'/'7';target.mkdir(parents=True)
+    (target/'poster.webp').write_bytes(b'o'*100)
+    staged={}
+    for kind in ('poster','animated'):
+        p=target/f'{kind}.1.tmp';p.write_bytes(b'n'*100);staged[kind]=p
+    monkeypatch.setattr(images,'SESSION_IMAGES_MAX_BYTES',150)
+    with pytest.raises(RuntimeError):
+        images.publish_images(target,staged)
+    assert (target/'poster.webp').read_bytes()==b'o'*100
+    assert not (target/'poster.1.tmp').exists() and not (target/'animated.1.tmp').exists()
+    staged={}
+    for kind in ('poster','animated'):
+        p=target/f'{kind}.2.tmp';p.write_bytes(b'n'*100);staged[kind]=p
+    monkeypatch.setattr(images,'SESSION_IMAGES_MAX_BYTES',1000)
+    images.publish_images(target,staged)
+    assert (target/'poster.webp').read_bytes()==b'n'*100 and (target/'animated.webp').read_bytes()==b'n'*100
 
 
 def test_successful_signup_consumes_no_failure_budget(sessions_env):
