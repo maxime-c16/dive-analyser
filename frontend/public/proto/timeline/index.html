@@ -5,7 +5,7 @@
 <script type="module">
 const $=s=>document.querySelector(s),player=$('#primary'),search=$('#search'),canvas=$('canvas'),ctx=canvas.getContext('2d'),rail=$('#rail'),track=$('#track');
 const params=new URLSearchParams(location.search),run=(params.get('test')==='webkit'?'webkit-':'')+(crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`);
-let variant=params.get('variant')||localStorage.getItem('tl-variant')||'images',duration=1936.801667,index=null,images=[],imagesLoading=false,imagesReady=false,videoReady=false,miniLoading=false,miniLoadAt=0,config={},marks=[],current=0,scrubbing=false,fast=false,fallback=false,originalDecoded=false,kind='original',syncing=false,followToken=0,settleTimer,lastInput=0,releaseAt=0,searchRequest=null,searchPending=null,seekStarted=0,seekTarget=0,seekGeneration=0,pendingTime=null,waitingFrame=false,frameId=null,frameLast=0,watchdog=null,queue=[];
+let variant=params.get('variant')||localStorage.getItem('tl-variant')||'images',duration=1936.801667,index=null,images=[],imagesLoading=false,imagesReady=false,videoReady=false,miniLoading=false,miniLoadAt=0,config={},marks=[],current=0,touching=false,scrubbing=false,fast=false,fallback=false,originalDecoded=false,kind='original',syncing=false,followToken=0,settleTimer,lastInput=0,releaseAt=0,searchRequest=null,searchPending=null,seekStarted=0,seekTarget=0,seekGeneration=0,pendingTime=null,waitingFrame=false,frameId=null,frameLast=0,watchdog=null,queue=[];
 if(variant!=='video')variant='images';try{marks=JSON.parse(localStorage.getItem('tl-marks-1')||'[]').filter(Number.isFinite)}catch{}
 function log(event,values={}){queue.push({elapsed:performance.now(),event,variant,speed:fast?30:1,ms:performance.now(),...values});if(queue.length>1000)queue.splice(0,queue.length-1000);if(queue.length>=40)flush()}
 function flush(){if(!queue.length)return;const events=queue.splice(0,100);fetch('/api/timeline/metrics',{method:'POST',body:JSON.stringify({run,ua:navigator.userAgent,events}),keepalive:true}).catch(()=>{queue.unshift(...events);queue=queue.slice(-1000)})}
@@ -50,10 +50,14 @@ player.addEventListener('error',()=>{log('media_error',{count:player.error?.code
 player.addEventListener('timeupdate',()=>{if(fast&&!scrubbing)dots();if(!scrubbing&&!fast&&!player.seeking){current=sourceTime();clock();follow();dots()}});
 player.addEventListener('ended',()=>{if(fast)quality();buttons()});
 function startDrag(){if(scrubbing)return;current=sourceTime()||current;scrubbing=true;player.pause();cancelFrame();clearTimeout(watchdog);releaseAt=0;lastInput=performance.now();preview(current,lastInput);log('drag_start',{time:current})}
-function settle(){scrubbing=false;searchPending=null;normal(current,true);dots();log('drag_settled',{time:current})}
+function settle(){if(touching)return;scrubbing=false;searchPending=null;normal(current,true);dots();log('drag_settled',{time:current})}
 rail.addEventListener('pointerdown',()=>{++followToken;syncing=false;startDrag()});
 rail.addEventListener('scroll',()=>{if(syncing)return;startDrag();lastInput=performance.now();preview(rail.scrollLeft/28,lastInput);clearTimeout(settleTimer);settleTimer=setTimeout(settle,180)},{passive:true});
-for(const event of ['pointerup','pointercancel'])rail.addEventListener(event,()=>{releaseAt=performance.now();clearTimeout(settleTimer);settleTimer=setTimeout(settle,180)});
+rail.addEventListener('touchstart',()=>{touching=true},{passive:true});
+rail.addEventListener('touchend',()=>{touching=false;releaseAt=performance.now();clearTimeout(settleTimer);settleTimer=setTimeout(settle,180)},{passive:true});
+rail.addEventListener('touchcancel',()=>{touching=false;releaseAt=0;log('touch_cancel');clearTimeout(settleTimer);settleTimer=setTimeout(settle,180)},{passive:true});
+rail.addEventListener('pointerup',()=>{releaseAt=performance.now();clearTimeout(settleTimer);settleTimer=setTimeout(settle,180)});
+rail.addEventListener('pointercancel',()=>{log('pointer_cancel')});
 function jump(t){clearTimeout(settleTimer);scrubbing=true;player.pause();preview(t,performance.now());follow();releaseAt=performance.now();settle()}
 $('#mark').onclick=()=>{if(!scrubbing)current=sourceTime();marks.push(current);marks.sort((a,b)=>a-b);localStorage.setItem('tl-marks-1',JSON.stringify(marks));dots();log('mark',{time:current,count:marks.length})};
 $('#prev').onclick=()=>{const t=marks.filter(t=>t<current-.2).pop();if(t!==undefined)jump(t)};$('#next').onclick=()=>{const t=marks.find(t=>t>current+.2);if(t!==undefined)jump(t)};

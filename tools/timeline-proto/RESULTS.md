@@ -49,25 +49,28 @@ physical touch-to-photon latency.
 | Measurement | Images | Mini-video |
 | --- | ---: | ---: |
 | Scrub samples | 26 | 24 |
-| Scrub p50 | 19 ms | 33 ms |
-| Scrub p95 | 64 ms | 51 ms |
-| Scrub max | 84 ms | 133 ms |
-| Mini seek completion p50 / p95 | — | 5 / 30 ms |
-| Release to real original frame | 2.883 s | 4.382 s |
+| Scrub p50 | 23 ms | 34 ms |
+| Scrub p95 | 67 ms | 58 ms |
+| Scrub max | 82 ms | 126 ms |
+| Mini seek completion p50 / p95 | — | 4 / 29 ms |
+| Release to real original frame | 3.698 s | 5.616 s |
 
-Interactive page: 76 ms in this run; prepared-image download/decode: 277 ms;
-mini download/decode readiness: 170 ms. Local Mac timings do not predict phone
+Interactive page: 115 ms in this run; prepared-image download/decode: 314 ms;
+mini download/decode readiness: 131 ms. Local Mac timings do not predict phone
 Wi-Fi throughput. The original's loadeddata event separately measures its
 network/decoder startup. Assets activate automatically after preparation.
 
-×30: **300 actual frame callbacks** in 10 s; interval p50 **33 ms**, p95 **50 ms**,
-max **51 ms**. Browser quality counters: **309 frames / 0 dropped**. Counters and
+×30, final touch-hold recheck: **296 actual frame callbacks** in 10 s; interval
+p50 **33 ms**, p95 **50 ms**, max **68 ms**. Browser quality counters:
+**309 frames / 2 dropped**. The preceding full run had 300 callbacks and 0 dropped;
+release latencies were 2.883 / 4.382 s. Both runs are retained. Counters and
 callback counts have different browser semantics; both are retained.
 
 Validation passed: original + simple ruler before assets are available; automatic
 activation of prepared controls; both preview variants; release to original;
 only explicit marks in ◀/▶; marks during ×30; ×1 return at the same source time;
-landscape layout; four marks preserved on reload. Chromium Pixel 7 profile with
+landscape layout; four marks preserved on reload. A 250 ms stationary touch hold explicitly verifies
+that playback stays paused until real touchend, even after pointercancel. Chromium Pixel 7 profile with
 an explicitly failed original verified real H.264 fallback, scrubbing, marks,
 and ×30 through the actual local HTTP Range server. HEAD and 206 byte ranges
 were checked. The fallback does not classify an ordinary buffering seek as a

@@ -1,6 +1,6 @@
 const {webkit,chromium,devices}=require(process.env.TL_PLAYWRIGHT||'../../frontend/node_modules/playwright');
 const base=process.env.TL_BASE||'http://192.168.1.151:8796';
-async function swipe(page,target){await page.locator('#rail').evaluate(async(e,target)=>{e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(let i=1;i<=25;i++){e.scrollLeft=target*i/25*28;await new Promise(r=>setTimeout(r,40))}e.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}))},target)}
+async function swipe(page,target){await page.locator('#rail').evaluate(async(e,target)=>{e.dispatchEvent(new Event('touchstart',{bubbles:true}));e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(let i=1;i<=25;i++){e.scrollLeft=target*i/25*28;await new Promise(r=>setTimeout(r,40))}await new Promise(r=>setTimeout(r,250));if(!document.querySelector('#primary').paused||!window.timelineMetrics.debug().scrubbing)throw Error('resumed before finger release');e.dispatchEvent(new Event('touchend',{bubbles:true}));e.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}))},target)}
 (async()=>{
  const browser=await webkit.launch({headless:true});const ctx=await browser.newContext({...devices['iPhone 13'],locale:'fr-FR'});const page=await ctx.newPage();page.on('pageerror',e=>console.log('PAGE_ERROR',e.message));
  let preparing=true;await page.route('**/api/timeline/config',r=>preparing?r.fulfill({json:{imagesRoot:'',imagesReady:false,videoReady:false,duration:1936.801667}}):r.continue());
