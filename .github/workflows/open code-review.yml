@@ -49,9 +49,15 @@ jobs:
             if a gate run is unavoidable, run only
             DIVE_CI_CACHE=$GITHUB_WORKSPACE/.cache/dive-ci ci/gate.sh fast.
             Precedence: the PR diff first, then repo contracts (docs/REPO_WORKFLOW.md,
-            ci/README.md, backend/app/api/v1/auth.py header, backend/app/config.py defaults)
+            ci/README.md, docs/AGENT_ENGINEERING.md, backend/app/api/v1/auth.py header, backend/app/config.py defaults)
             over generic best practices. If a repo contract conflicts with a generic rule,
             cite the repo file and follow the repo contract.
+
+            Identify the exact current head with `git rev-parse HEAD`. If prior review comments
+            are available, group repeated findings by invariant and recheck them against this
+            head. Repetition is not evidence; do not restate a resolved finding without showing
+            the remaining failure. Do not infer historical resolution from a later APPROVE.
+            Distinguish current executable contracts from historical design documents.
 
             Review only what this PR changes plus its direct callers. Check the diff for:
             1. Auth/access: uniform login failures (no user-existence oracle), dummy Argon2
@@ -80,7 +86,11 @@ jobs:
                no BaseHTTPMiddleware reintroduced (use the pure-ASGI slow-request logger),
                get_db rollback-before-close kept, pool limits respected
                (DATABASE_POOL_SIZE=5, MAX_OVERFLOW=2), advisory lock kept for auto-import,
-               no unbounded queries (missing LIMIT, N+1, 500-video sync cap bypassed).
+               bound materialized rows, query count, retained memory and response size
+               separately. A response LIMIT, time window or yield_per does not prove bounded
+               work. Check lazy loads, downstream helpers and retry branches; deduplicate
+               logical entity IDs in SQL before limiting joined aliases. Preserve full-scope
+               aggregates and explicit pagination; do not prescribe silent truncation.
             3. Domain correctness: formula DD vs execution score kept separate, diver/session
                scoping and training-period/personal-value TTLs intact, competition lifecycle
                persisted (no in-memory standings), media content-addressing + queue/retry +
@@ -105,12 +115,15 @@ jobs:
             "Bottom Line", "delve", "leverage", "it's worth noting", no contrastive
             framing, no invented labels.
             Format: start with one line `Verdict: APPROVE | COMMENT | REQUEST_CHANGES`
+            Then output `Reviewed head: <full SHA>` from the command above.
             (REQUEST_CHANGES only for a finding that breaks 1-5 above with concrete
             evidence in this diff). Then list findings only, each as:
             `SEVERITY file:line — what breaks, with the offending code or behavior, and the
-            minimal fix for this repo.` Severity is Critical (auth bypass, data loss,
+            minimal fix for this repo.` Cite the applicable current contract when the finding
+            depends on product policy. If a repeated finding remains, name the alternate path
+            or failing behavior that still exists on this head. Severity is Critical (auth bypass, data loss,
             secret leak), High (IDOR, lockout, crash, migration without manual step),
             Medium (perf/N+1, missing boundary test, deploy-note omission), Low (nit
             worth fixing). Skip Low when the PR already has High or Critical findings.
             Quote file paths exactly as in the diff. If there are no actionable findings,
-            output `Verdict: APPROVE` followed by one sentence stating what was checked.
+            keep the verdict and reviewed-head lines, followed by one sentence stating what was checked.

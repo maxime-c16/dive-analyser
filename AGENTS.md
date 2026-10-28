@@ -206,6 +206,15 @@ Think of it like a human reviewing their journal and updating their mental model
 
 The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
 
+## Engineering checks for agents
+
+Before changing code, read **[docs/AGENT_ENGINEERING.md](docs/AGENT_ENGINEERING.md)**. It covers bounded SQL/resource work, identity and async state, atomicity, and evidence for review findings. Apply the checks relevant to the change. The sourced analysis is in [docs/reviews/REVIEW_BOT_PATTERNS.md](docs/reviews/REVIEW_BOT_PATTERNS.md).
+
+Project skills (versioned in this repository):
+
+- [review-findings-to-fix](.agents/skills/review-findings-to-fix/SKILL.md): use when asked to analyse, resolve or challenge PR review findings.
+- [bounded-db-change](.agents/skills/bounded-db-change/SKILL.md): use for N+1/unbounded-query fixes and database work with growing volumes.
+
 ## Product and implementation decisions
 
 "Cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout."
