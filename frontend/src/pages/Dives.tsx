@@ -1,4 +1,4 @@
-import {trainingSessions, type SharedTrainingSession} from "../services/sessionVideosApi";
+import {trainingSessions, formatDuration, type SharedTrainingSession} from "../services/sessionVideosApi";
 import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom'
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,8 +54,40 @@ function ScoreBadge({ dive }: { dive: Dive }) {
   );
 }
 
-function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {
-  const { t } = useTranslation();
+type LibraryListEntry = { kind: "session"; session: SharedTrainingSession } | { kind: "dive"; dive: Dive };
+
+function mergeSessionsAndDives(sessions: SharedTrainingSession[], dives: Dive[]): LibraryListEntry[] {
+  const entries: LibraryListEntry[] = [
+    ...sessions.map((session) => ({ kind: "session" as const, session, day: session.date })),
+    ...dives.map((dive) => ({ kind: "dive" as const, dive, day: dive.dive_datetime.slice(0, 10) })),
+  ];
+  entries.sort((a, b) => b.day.localeCompare(a.day) || (a.kind === b.kind ? 0 : a.kind === "session" ? -1 : 1));
+  return entries;
+}
+
+function SessionRow({ session }: { session: SharedTrainingSession }) {
+  return (
+    <Link
+      to={`/sessions/shared/${session.session_id}`}
+      className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
+      aria-label={`Séance · ${session.video_count} ${session.video_count === 1 ? "vidéo" : "vidéos"}`}
+    >
+      <div className="flex aspect-video items-center justify-center overflow-hidden border border-app">
+        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">Séance</span>
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold text-app-text">
+          {session.video_count} {session.video_count === 1 ? "vidéo" : "vidéos"} · {formatDuration(session.total_duration)}
+        </p>
+        <p className="mt-1 text-xs text-app-muted">
+          {format(parseISO(session.date), "d MMM yyyy", { locale: appLocale() })}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {  const { t } = useTranslation();
   const score = attemptScore(dive);
   return (
     <button
@@ -816,13 +848,17 @@ function DiveLibrary() {
                   <LibraryCardGrid sessions={sharedSessions} attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
                 ) : (
                   <div className="border border-app bg-app-panel">
-                    {visible.map((dive) => (
-                      <AttemptRow
-                        key={dive.id}
-                        dive={dive}
-                        showDiver={scope === "all"}
-                        onOpen={() => openClip(dive)}
-                      />
+                    {mergeSessionsAndDives(sharedSessions, visible).map((entry) => (
+                      entry.kind === "session" ? (
+                        <SessionRow key={`session-${entry.session.session_id}`} session={entry.session} />
+                      ) : (
+                        <AttemptRow
+                          key={entry.dive.id}
+                          dive={entry.dive}
+                          showDiver={scope === "all"}
+                          onOpen={() => openClip(entry.dive)}
+                        />
+                      )
                     ))}
                   </div>
                 )}

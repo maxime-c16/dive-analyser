@@ -55,7 +55,7 @@ export default function SessionGallery({session, guest=false, onSignup, reload, 
     try {
       let remaining=videos, cursor=next
       do {
-      for (const v of remaining.filter(v=>!v.hidden)) {
+      for (const v of remaining) {
         const a=document.createElement('a'); a.href=sessionVideoPaths(v.id).download; a.download=v.filename
         a.target='_blank'; a.rel='noopener'; document.body.append(a); a.click(); a.remove()
         await new Promise(resolve=>setTimeout(resolve, 1000))

@@ -90,6 +90,7 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
           return
         }
         if (code === 3 || code === 4) giveUp(code === 4 ? 'unsupported' : 'error')
+        else if (code === 2) giveUp('error') // Refreshes exhausted: report and fall back to download.
       }}
     />
     <ImmersiveControls videoRef={video} playbackRate={rate} onPlaybackRateChange={value=>{setRate(value);if(video.current)video.current.playbackRate=value}} />

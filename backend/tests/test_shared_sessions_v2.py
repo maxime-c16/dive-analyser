@@ -277,6 +277,8 @@ def test_session_image_cleanup_rotates_scan(sessions_env,tmp_path,monkeypatch):
     from app.models.user_auth import AppUser
     from app.services.session_images import cleanup_session_images, image_path
     import app.services.session_images as images
+    import os as _os
+    from pathlib import Path as _Path
     from datetime import date, datetime
     monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
     images._scan_cursor=None
@@ -290,17 +292,15 @@ def test_session_image_cleanup_rotates_scan(sessions_env,tmp_path,monkeypatch):
             for kind in ('poster','animated'):
                 path=image_path(video.id,kind);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'x'*100)
         db.commit()
-        import os as _os
-        from pathlib import Path as _Path
-        stale = _Path(get_settings().media_cache_root).resolve()/'session-images'/'424242'
+        stale=image_path(424242,'poster').parent
         stale.mkdir(parents=True,exist_ok=True)
         _os.utime(stale,(0,0))
-        assert cleanup_session_images(db,scan_budget=1)==200
-        assert cleanup_session_images(db,scan_budget=1)==200
-        assert cleanup_session_images(db,scan_budget=1)==200
-        assert cleanup_session_images(db,scan_budget=1)==0
+        assert cleanup_session_images(db,shard_budget=1)==200
+        assert cleanup_session_images(db,shard_budget=1)==200
+        assert cleanup_session_images(db,shard_budget=1)==200
+        assert cleanup_session_images(db,shard_budget=1)==0
         assert not stale.exists()
-        assert cleanup_session_images(db,scan_budget=1)==0
+        assert cleanup_session_images(db,shard_budget=1)==0
     finally:
         images._scan_cursor=None
 
@@ -309,7 +309,7 @@ def test_session_image_publish_respects_disk_budget(tmp_path,monkeypatch):
     from app.config import get_settings
     from app.services import session_images as images
     monkeypatch.setattr(get_settings(),'media_cache_root',str(tmp_path))
-    target=tmp_path/'session-images'/'7';target.mkdir(parents=True)
+    target=images.image_path(7,'poster').parent;target.mkdir(parents=True)
     (target/'poster.webp').write_bytes(b'o'*100)
     staged={}
     for kind in ('poster','animated'):

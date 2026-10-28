@@ -10,6 +10,25 @@ os.environ.setdefault("SESSION_LAB_KEY_ID", "test-id")
 os.environ.setdefault("SESSION_LAB_KEY_SECRET", "test-secret")
 
 
+def test_complete_retry_after_lost_response_reports_success(monkeypatch):
+    import server
+    calls = []
+
+    class FakeS3:
+        def head_object(self, Bucket, Key):
+            calls.append("head")
+            return {"ContentLength": 100}
+
+        def generate_presigned_url(self, op, Params, ExpiresIn):
+            return "https://play.test/x"
+
+    monkeypatch.setattr(server, "s3", FakeS3())
+    result = server.complete({"key": "lab/session-uploads/2026-10-28/abc-video.mov",
+                              "uploadId": "consumed-id", "size": 100, "partSize": 50})
+    assert result == {"ok": True, "size": 100, "playUrl": "https://play.test/x"}
+    assert calls == ["head"]
+
+
 def test_access_log_strips_page_token():
     from server import Handler
     handler = Handler.__new__(Handler)

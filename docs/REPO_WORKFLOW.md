@@ -294,11 +294,22 @@ backend for the new cleanup revision checks. See [rollout](SYNC_PARTICIPANTS.md)
 
 Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
 
-1. **Before** `ci/ship.sh server`, apply
+1. **Before** `ci/ship.sh server`, apply in order
    `backend/migrations/add_session_videos.sql` (idempotent, additive; needs
-   `add_dive_sharing.sql`). The tables are migration-only: startup never
-   creates them.
-2. Create `~/.config/diveanalyzer/sessions.env` on deb-serv (mode `600`,
+   `add_dive_sharing.sql`), then `backend/migrations/add_shared_sessions_v2.sql`
+   (adds the `AppUser` preference column the new backend selects even with the
+   flag off), then `backend/migrations/add_session_calendar.sql` (additive
+   only: new columns and partial identities; keeps legacy date uniqueness so
+   the running backend's uploads keep working). The tables are
+   migration-only: startup never creates them. Previous backends keep working
+   with this schema.
+2. **After** the new backend is verified, apply
+   `backend/migrations/add_session_calendar_drop_legacy.sql` (drops the legacy
+   global date uniqueness; same-date calendar sessions become possible). The
+   previous backend's plain `ON CONFLICT (date)` upsert has no matching
+   constraint past this point, so do not roll back to it afterwards — use a
+   forward fix. Never apply this file before the deploy.
+3. Create `~/.config/diveanalyzer/sessions.env` on deb-serv (mode `600`,
    loaded by `ci/ship.sh` for deploy and rollback, wired in
    `docker-compose.yml`):
    `SHARED_SESSIONS_ENABLED=true`, `SHARED_SESSIONS_OWNER_EMAIL` (Maxime's
@@ -310,18 +321,18 @@ Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
    `SESSIONS_TELEGRAM_CHAT_ID` (same values as `/etc/dive-funnel-watchdog.env`;
    empty = no Telegram). `APP_PUBLIC_URL` (email.env) builds the links.
    A same-SHA activation needs `--force`.
-3. Reload the Funnel proxy (new public route
+4. Reload the Funnel proxy (new public route
    `/api/v1/session-videos/b2-events`):
    `docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate`,
    then `python3 ops/tailscale/check_guest_routes.py https://dive-analyser.tail32dd14.ts.net`.
-4. In the B2 console, bucket `diveanalyzer-sessions` → Event Notifications →
+5. In the B2 console, bucket `diveanalyzer-sessions` → Event Notifications →
    new rule: event types `b2:ObjectCreated:*` (Upload, MultipartUpload, Copy),
    prefix `inbox/`, target
    `https://dive-analyser.tail32dd14.ts.net/api/v1/session-videos/b2-events`,
    with an HMAC-SHA256 signing secret equal to `SESSIONS_B2_EVENT_SECRET`.
    Use “Test rule” (expects 200). Without the rule, the 10-minute
    reconciliation still ingests every upload.
-5. No Mac service, no timer: the reconciliation runs inside the backend.
+6. No Mac service, no timer: the reconciliation runs inside the backend.
    Rollback: set `SHARED_SESSIONS_ENABLED=false` and redeploy with `--force`;
    keep the tables.
 
@@ -329,8 +340,13 @@ Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
 
 After the calendar and shared-session migrations, apply
 `backend/migrations/add_session_calendar.sql` before updating backend and
-frontend. It preserves RSVP history, replaces global session-date uniqueness
-with fallback-day uniqueness, and adds occurrence identity plus notification
-progress. No Mac service or new timer/secrets are needed. Keep the schema/data
-on backout; A's backend cannot safely handle multiple session rows per date.
+frontend (expand phase: additive only, previous backend keeps working).
+After the new backend is verified, apply
+`backend/migrations/add_session_calendar_drop_legacy.sql`, which replaces
+global session-date uniqueness with fallback-day uniqueness. It preserves
+RSVP history and adds occurrence identity plus notification progress. No Mac
+service or new timer/secrets are needed. Keep the schema/data
+on backout; A's backend cannot safely handle multiple session rows per date,
+and the pre-drop backend cannot run past the drop (plain `ON CONFLICT (date)`
+upsert). Roll back forward only.
 See [PR C operations](features/SHARED_SESSIONS.md#pr-c--implementation-and-operations).

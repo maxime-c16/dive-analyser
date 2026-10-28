@@ -239,8 +239,14 @@ their dives and export clips — steps 3–4, NOT in scope here).
   videos/reconciliation events resume without duplicates. Push and SMTP are
   best-effort attempts after commit, without automatic transport retries.
 - Apply `add_session_calendar.sql` after A's migrations and the calendar
-  migrations, before updating **backend and frontend**. It is idempotent,
-  preserves every RSVP row, and needs no new secret, timer or Mac service.
+  migrations, before updating **backend and frontend** (expand: additive
+  only, the running backend's plain `ON CONFLICT (date)` upsert keeps
+  working). After the new backend is verified, apply
+  `add_session_calendar_drop_legacy.sql`, which drops the legacy global date
+  uniqueness — past that point the old backend's upsert fails, so never apply
+  it before the deploy and never roll back to the old backend afterwards.
+  Both files are idempotent, preserve every RSVP row, and need no new secret,
+  timer or Mac service.
   Existing `CALENDAR_ENABLED`, shared-session and SMTP settings apply.
   The existing Administration > Clubs screen assigns accounts to groups.
 - Backout must keep the schema and data. Do not restore global date

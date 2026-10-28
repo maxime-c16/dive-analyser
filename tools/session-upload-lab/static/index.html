@@ -119,6 +119,7 @@ $('input').onchange = async () => {
 async function start(file) {
   if (S && !S.finished) return;
   $('pick').hidden = true; $('panel').hidden = false; $('video').hidden = true;
+  $('pause').hidden = $('abort').hidden = false; $('pause').textContent = 'Pause';
   $('file').textContent = `${file.name} · ${fmtB(file.size)}`;
   const parts = Math.ceil(file.size / PART);
   S = { file, parts, done: new Set(), inflight: new Map(), urls: new Map(), cooling: new Map(), redoRounds: 0, paused: false, finished: false, retries: 0 };

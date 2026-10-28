@@ -80,22 +80,37 @@ _scan_cursor = None
 _EMPTY_DIR_GRACE_SECONDS = 3600
 
 
+def _session_root():
+    return Path(get_settings().media_cache_root).resolve() / 'session-images'
+
+
+def _shard(video_id):
+    return f'{int(video_id) % 256:02x}'
+
+
 def image_path(video_id, kind):
-    return Path(get_settings().media_cache_root) / 'session-images' / str(video_id) / f'{kind}.webp'
+    return _session_root() / _shard(video_id) / str(video_id) / f'{kind}.webp'
 
 
 def session_image_files():
-    """Only our per-video derivatives; never staging files or symlinks."""
-    root = Path(get_settings().media_cache_root).resolve() / 'session-images'
+    """Only our per-video derivatives; never staging files or symlinks.
+
+    Sharded like the thumbnail namespaces so no directory grows with the
+    whole collection.
+    """
+    root = _session_root()
     if root.is_symlink() or not root.is_dir():
         return
-    for video_dir in root.iterdir():
-        if video_dir.is_symlink() or not video_dir.is_dir() or not video_dir.name.isdigit():
+    for shard in sorted(root.iterdir()):
+        if shard.is_symlink() or not shard.is_dir():
             continue
-        for kind in ('poster', 'animated'):
-            path = video_dir / f'{kind}.webp'
-            if not path.is_symlink() and path.is_file():
-                yield int(video_dir.name), path
+        for video_dir in shard.iterdir():
+            if video_dir.is_symlink() or not video_dir.is_dir() or not video_dir.name.isdigit():
+                continue
+            for kind in ('poster', 'animated'):
+                path = video_dir / f'{kind}.webp'
+                if not path.is_symlink() and path.is_file():
+                    yield int(video_dir.name), path
 
 
 def publish_images(target, staged):
@@ -121,7 +136,7 @@ def publish_images(target, staged):
             replacing += (target / f'{kind}.webp').stat().st_size
         except FileNotFoundError:
             pass
-    if session_image_disk_bytes() - replacing + new_bytes > SESSION_IMAGES_MAX_BYTES:
+    if session_image_disk_bytes(SESSION_IMAGES_MAX_BYTES) - replacing + new_bytes > SESSION_IMAGES_MAX_BYTES:
         for staging in staged.values():
             staging.unlink(missing_ok=True)
         raise RuntimeError('Session image budget exceeded')
@@ -129,7 +144,7 @@ def publish_images(target, staged):
         os.replace(staging, image_path(int(target.name), kind))
 
 
-def cleanup_session_images(db, limit=100, scan_budget=200):
+def cleanup_session_images(db, limit=100, shard_budget=32):
     """Bounded unlink of derivatives no live video can serve.
 
     Posters/animations are regenerable derivatives (~0.5 MB per video), but
@@ -138,66 +153,63 @@ def cleanup_session_images(db, limit=100, scan_budget=200):
     keep their files. Publication is an atomic os.replace of exactly these
     names, so in-flight staging (`*.tmp`) is never matched. Liveness is
     checked in batches of 100 ids so cleanup retains bounded rows no matter
-    how large the table grows. The scan itself is bounded too: one streaming
-    directory pass keeps only the first `scan_budget` ids past a rotating
-    cursor (wrap-around), so later orphans still progress while one pass
-    holds O(scan_budget) names — never the full sorted listing. Fully
-    empty, settled video directories (failed extractions) are removed.
+    how large the table grows. The scan itself rotates over the 256 id
+    shards (`shard_budget` per pass, wrap-around), so one pass visits a
+    bounded slice of the collection while later orphans still progress.
+    Fully empty, settled video directories (failed extractions) are removed.
     At most `limit` files removed per pass. Returns freed bytes.
     """
     global _scan_cursor
-    import heapq
     from itertools import islice
     from sqlalchemy import select
     from app.models.session_video import SessionVideo
     from time import time
     limit = max(0, min(limit, 100))
-    scan_budget = max(1, min(scan_budget, 2000))
-    root = Path(get_settings().media_cache_root).resolve() / 'session-images'
+    shard_budget = max(1, min(shard_budget, 256))
+    root = _session_root()
     if root.is_symlink() or not root.is_dir():
         return 0
-    head = []
     try:
-        with os.scandir(root) as entries:
-            for entry in entries:
-                if not entry.name.isdigit():
-                    continue
-                try:
-                    video_id = int(entry.name)
-                except ValueError:
-                    continue
-                if not entry.is_dir(follow_symlinks=False):
-                    continue
-                if _scan_cursor is not None and video_id <= _scan_cursor:
-                    continue
-                if len(head) < scan_budget:
-                    heapq.heappush(head, -video_id)
-                elif video_id < -head[0]:
-                    heapq.heapreplace(head, -video_id)
+        shards = sorted(entry.name for entry in os.scandir(root)
+                        if len(entry.name) == 2 and entry.is_dir(follow_symlinks=False))
     except FileNotFoundError:
         return 0
-    window = sorted(-vid for vid in head)
-    if not window:
-        _scan_cursor = None
+    if not shards:
         return 0
+    if _scan_cursor is not None:
+        shards = [name for name in shards if name > _scan_cursor] + [name for name in shards if name <= _scan_cursor]
+    window = shards[:shard_budget]
     _scan_cursor = window[-1]
     now = time()
     files = []
-    for video_id in window:
-        video_dir = root / str(video_id)
+    for shard in window:
         try:
-            names = [entry.name for entry in os.scandir(video_dir)
-                     if not entry.is_symlink() and entry.is_file(follow_symlinks=False)]
+            entries = list(os.scandir(root / shard))
         except FileNotFoundError:
             continue
-        for kind in ('poster', 'animated'):
-            if f'{kind}.webp' in names:
-                files.append((video_id, video_dir / f'{kind}.webp'))
-        if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
             try:
-                video_dir.rmdir()
-            except OSError:
-                pass
+                video_id = int(entry.name)
+            except ValueError:
+                continue
+            if not entry.is_dir(follow_symlinks=False):
+                continue
+            video_dir = root / shard / entry.name
+            try:
+                names = [item.name for item in os.scandir(video_dir)
+                         if not item.is_symlink() and item.is_file(follow_symlinks=False)]
+            except FileNotFoundError:
+                continue
+            for kind in ('poster', 'animated'):
+                if f'{kind}.webp' in names:
+                    files.append((video_id, video_dir / f'{kind}.webp'))
+            if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
+                try:
+                    video_dir.rmdir()
+                except OSError:
+                    pass
     freed, removed = 0, 0
     batches = iter(files)
     while removed < limit:
@@ -221,14 +233,20 @@ def cleanup_session_images(db, limit=100, scan_budget=200):
     return freed
 
 
-def session_image_disk_bytes():
-    """Physical bytes of live and orphaned session derivatives (quota input)."""
+def session_image_disk_bytes(cap=None):
+    """Physical bytes of live and orphaned session derivatives (quota input).
+
+    With `cap`, stops as soon as the total exceeds it: the publish gate only
+    needs the over/under verdict, not the exact overage.
+    """
     total = 0
     for _, path in session_image_files():
         try:
             total += path.stat().st_size
         except FileNotFoundError:
             pass
+        if cap is not None and total > cap:
+            return total
     return total
 
 

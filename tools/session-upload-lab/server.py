@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlparse
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 HERE = Path(__file__).resolve().parent
 BUCKET = os.environ["SESSION_LAB_BUCKET"]
@@ -94,6 +95,19 @@ def parts(body):
 def complete(body):
     key, size, part_size = _own_key(body["key"]), int(body["size"]), int(body["partSize"])
     expected = -(-size // part_size)
+    try:
+        head = s3.head_object(Bucket=BUCKET, Key=key)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") not in ("404", "NoSuchKey", "NotFound"):
+            raise
+        head = None
+    if head is not None and head.get("ContentLength") == size:
+        # A lost HTTP response (or transient HEAD failure) after a successful
+        # complete: the browser retries complete with a consumed upload ID,
+        # which would raise NoSuchUpload forever. The final object exists
+        # with the expected size, so report success directly (idempotent).
+        _log({"event": "server_complete_retry", "key": key, "size": size})
+        return {"ok": True, "size": size, "playUrl": play_url(key)}
     have = {p["n"]: p for p in _list_parts(key, body["uploadId"])}
     redo = [n for n in range(1, expected + 1)
             if have.get(n, {}).get("size") != (part_size if n < expected else size - part_size * (expected - 1))]

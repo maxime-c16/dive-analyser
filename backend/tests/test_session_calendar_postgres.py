@@ -57,9 +57,12 @@ def test_migration_preserves_answers_and_concurrent_first_arrival(monkeypatch):
         conn.exec_driver_sql('DROP INDEX ix_sessions_date')
         conn.exec_driver_sql('CREATE UNIQUE INDEX ix_sessions_date ON sessions(date)')
     migration = (Path(__file__).parents[1]/'migrations/add_session_calendar.sql').read_text()
+    drop_legacy = (Path(__file__).parents[1]/'migrations/add_session_calendar_drop_legacy.sql').read_text()
     with engine.connect() as conn:
         conn.exec_driver_sql(migration)
         conn.exec_driver_sql(migration)
+        conn.exec_driver_sql(drop_legacy)
+        conn.exec_driver_sql(drop_legacy)
         conn.commit()
     gate = Barrier(2)
     def arrive(_):

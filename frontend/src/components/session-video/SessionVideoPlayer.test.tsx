@@ -91,4 +91,18 @@ describe('SessionVideoPlayer', () => {
     await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', `${urls.playUrl}?r=1`))
     expect(api.post).not.toHaveBeenCalled()
   })
+
+  it('reports and falls back to download once URL refreshes are exhausted', async () => {
+    stubCapabilities(true)
+    render(<SessionVideoPlayer info={info} {...urls} />)
+    await waitFor(() => expect(document.querySelector('video')).not.toBeNull())
+    const video = document.querySelector('video')!
+    Object.defineProperty(video, 'error', { value: { code: 2 }, configurable: true })
+    Object.defineProperty(video, 'currentTime', { value: 600, writable: true })
+    video.pause = vi.fn()
+    for (let attempt = 0; attempt < 4; attempt += 1) fireEvent.error(video)
+    expect(await screen.findByText('This video doesn’t play here')).toBeInTheDocument()
+    expect(api.post).toHaveBeenCalledTimes(1)
+    expect(api.post).toHaveBeenCalledWith(urls.reportUrl, { reason: 'error' })
+  })
 })

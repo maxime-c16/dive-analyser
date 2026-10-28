@@ -58,6 +58,28 @@ def lab_prefix_ok(allowed: dict) -> bool:
     return prefix == LAB_PREFIX or prefix.startswith(LAB_PREFIX)
 
 
+def existing_rules_intact(existing: dict, cors: list, lifecycle: list) -> bool:
+    """Fail closed before overwriting bucket config: b2_update_bucket
+    REPLACES every CORS/lifecycle rule, so an existing bucket carrying
+    production playback origins (or other rules) must never be silently
+    reset to the lab-only set. Merge-compatible when every existing rule is
+    either the lab rule itself or explicitly re-supplied."""
+    current_cors = (existing or {}).get("corsRules") or []
+    current_lifecycle = (existing or {}).get("lifecycleRules") or []
+    wanted_cors = {rule.get("corsRuleName") for rule in cors}
+    wanted_lifecycle = {rule.get("fileNamePrefix") for rule in lifecycle}
+    foreign_cors = [rule.get("corsRuleName") for rule in current_cors if rule.get("corsRuleName") not in wanted_cors]
+    foreign_lifecycle = [rule.get("fileNamePrefix") for rule in current_lifecycle
+                         if rule.get("fileNamePrefix") not in wanted_lifecycle]
+    return not foreign_cors and not foreign_lifecycle
+
+
+def bucket_rules_known(existing: dict) -> bool:
+    """b2_list_buckets must expose the current rules for the guard above;
+    without them, overwriting is unverifiable and must not proceed."""
+    return isinstance((existing or {}).get("corsRules"), list) and isinstance((existing or {}).get("lifecycleRules"), list)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--master-key-file", required=True)
@@ -91,6 +113,10 @@ def main():
 
     found = call(api + "b2_list_buckets", token, {"accountId": account, "bucketName": args.bucket}).get("buckets") or []
     if found:
+        if not bucket_rules_known(found[0]) or not existing_rules_intact(found[0], cors, lifecycle):
+            raise SystemExit(
+                f"bucket {args.bucket} carries unverifiable or non-lab CORS/lifecycle rules; refusing to overwrite them "
+                "(rerunning setup would drop production playback origins). Merge them explicitly first.")
         bucket = call(api + "b2_update_bucket", token, {"accountId": account, "bucketId": found[0]["bucketId"], "bucketType": "allPrivate", "corsRules": cors, "lifecycleRules": lifecycle})
         print("bucket updated:", args.bucket)
     else:
