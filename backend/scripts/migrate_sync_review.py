@@ -11,10 +11,10 @@ import sys
 from sqlalchemy import select, text
 from app.database import SessionLocal
 from app.models.dive import Dive
-from app.models.diver import Diver, DiverAlias
+from app.models.diver import Diver
 from app.models.dive_sync_pair import DiveSyncPair
 from app.services.diver_identity import canonicalize_name, invalidate_analysis_cache
-from app.services.sync_participants import caption_hash, owner_id
+from app.services.sync_participants import caption_hash, owner_id, matching_diver_ids
 
 
 def canonical_json(value):
@@ -79,12 +79,13 @@ def migrate(db, document):
                 canonical = canonicalize_name(name)
                 if not 1 < len(name) <= 100:
                     raise ValueError('Invalid new name')
-                matches = db.execute(select(Diver).outerjoin(DiverAlias).where(
-                    (Diver.canonical_name == canonical) | (DiverAlias.canonical_alias == canonical))).scalars().unique().all()
-                if len(matches) > 1 or (matches and not matches[0].active):
+                matches = matching_diver_ids(db, name)
+                if len(matches) > 1:
                     raise ValueError(f'Ambiguous/retired new name: {name}')
                 if matches:
-                    diver = matches[0]
+                    diver = db.get(Diver, matches[0])
+                    if not diver.active:
+                        raise ValueError(f'Ambiguous/retired new name: {name}')
                 else:
                     diver = Diver(display_name=name, canonical_name=canonical)
                     db.add(diver)

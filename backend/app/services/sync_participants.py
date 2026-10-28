@@ -40,15 +40,24 @@ def caption_names(caption):
     return {'names': names, 'valid': not invalid}
 
 
+def matching_diver_ids(db, name, *, active_only=False, spelling=None):
+    """Bound at SQL level, after deduplicating aliases, including ambiguity."""
+    canonical = canonicalize_name(name)
+    statement = select(Diver.id).outerjoin(DiverAlias).where(or_(
+        Diver.canonical_name == canonical, DiverAlias.canonical_alias == canonical))
+    if active_only:
+        statement = statement.where(Diver.active.is_(True))
+    if spelling is not None:
+        statement = statement.where(Diver.display_name == spelling)
+    return db.execute(statement.distinct().limit(2)).scalars().all()
+
+
 def exact_diver(db, name):
     """Prefer unique exact spelling; case-folded duplicate identities stay ambiguous."""
-    rows = db.execute(select(Diver).outerjoin(DiverAlias).where(
-        Diver.active.is_(True), or_(Diver.canonical_name == canonicalize_name(name),
-                                   DiverAlias.canonical_alias == canonicalize_name(name)))).scalars().unique().all()
-    if len(rows) == 1:
-        return rows[0]
-    exact = [d for d in rows if d.display_name == name]
-    return exact[0] if len(exact) == 1 else None
+    ids = matching_diver_ids(db, name, active_only=True)
+    if len(ids) != 1:
+        ids = matching_diver_ids(db, name, active_only=True, spelling=name)
+    return db.get(Diver, ids[0]) if len(ids) == 1 else None
 
 
 def proposal(db, caption):

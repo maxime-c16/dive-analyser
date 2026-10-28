@@ -103,3 +103,28 @@ def test_machine_upsert_uses_pair_and_cannot_erase_review(api_client, test_db, a
     test_db.refresh(dive)
     assert dive.is_sync and dive.diver_id == me.id and dive.performance == 'P'
     assert pair.second_diver_id == sara.id and pair.conflict
+
+
+def test_identity_lookup_is_sql_bounded_after_alias_deduplication(test_db, people):
+    from sqlalchemy import event
+    from app.models.diver import DiverAlias
+    from app.services.sync_participants import exact_diver, matching_diver_ids
+    mat = people[1]
+    test_db.add_all(DiverAlias(diver_id=mat.id, alias=f'Alias {i}', canonical_alias=f'alias-{i}')
+                    for i in range(200))
+    # Canonical and alias can point to different identities: do not silently pick.
+    test_db.add(DiverAlias(diver_id=people[2].id, alias='Mat', canonical_alias='mat'))
+    test_db.flush()
+    statements = []
+    def record(connection, cursor, statement, parameters, context, executemany):
+        if 'JOIN diver_aliases' in statement:
+            statements.append(statement)
+    event.listen(test_db.bind, 'before_cursor_execute', record)
+    try:
+        assert set(matching_diver_ids(test_db, 'mat')) == {mat.id, people[2].id}
+        assert exact_diver(test_db, 'Mat').id == mat.id
+        assert exact_diver(test_db, 'MAT') is None
+        assert len(statements) >= 3
+        assert all('SELECT DISTINCT divers.id' in sql and 'LIMIT' in sql for sql in statements)
+    finally:
+        event.remove(test_db.bind, 'before_cursor_execute', record)
