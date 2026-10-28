@@ -67,7 +67,7 @@ export default function SessionGallery({session, guest=false, onSignup, reload, 
     } catch {setError('Téléchargement impossible')} finally {setBusy(false)}
   }
   return <main ref={root} className="session-gallery">
-    <header><h1>{date}</h1><span>{session.video_count} {session.video_count === 1 ? 'vidéo' : 'vidéos'} · {formatDuration(session.total_duration)}</span>
+    <header><h1>{session.title || date}</h1><span>{session.video_count} {session.video_count === 1 ? 'vidéo' : 'vidéos'} · {formatDuration(session.total_duration)}</span>
       {canManage && <div className="session-video-actions"><ShareDiveButton id={session.session_id} sharesPath={`/api/v1/shared-sessions/${session.session_id}/shares`} label="Partager" /><button aria-label="Réglages" onClick={()=>showSettings(!settings)}><Settings size={20}/></button></div>}
     </header>
     {video && <section className="session-selected"><button aria-label="Fermer le lecteur" onClick={()=>select(null)}><X size={20}/></button>

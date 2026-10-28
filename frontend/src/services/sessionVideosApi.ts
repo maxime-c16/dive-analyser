@@ -83,7 +83,7 @@ export function formatSessionDate(video: SessionVideoInfo, locale: string): stri
 }
 
 export type SharedTrainingSession = {
-  can_manage?: boolean; session_id: number; date: string; videos: SessionVideoInfo[]; video_count: number;
+  title?: string | null; can_manage?: boolean; session_id: number; date: string; videos: SessionVideoInfo[]; video_count: number;
   total_duration: number; total_bytes: number; has_more: boolean; next_video_id?: number | null
 }
 export async function getTrainingSession(id: number): Promise<SharedTrainingSession> {

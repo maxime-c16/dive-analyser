@@ -512,7 +512,7 @@ def upload_dive(
         # Sessions are shared calendar days. Use a Core lookup so a day with
         # only another member's private clips is reused without exposing them.
         day = dive_datetime.date()
-        session_id = db.execute(select(SessionModel.__table__.c.id).where(SessionModel.__table__.c.date == day)).scalar_one_or_none()
+        session_id = db.execute(select(SessionModel.__table__.c.id).where((SessionModel.__table__.c.date == day) & SessionModel.__table__.c.calendar_occurrence_id.is_(None))).scalar_one_or_none()
         if session_id is None:
             # Two members can upload on the same day concurrently.
             if db.get_bind().dialect.name in ("postgresql", "sqlite"):
@@ -520,8 +520,8 @@ def upload_dive(
                     from sqlalchemy.dialects.postgresql import insert
                 else:
                     from sqlalchemy.dialects.sqlite import insert
-                db.execute(insert(SessionModel.__table__).values(date=day).on_conflict_do_nothing(index_elements=["date"]))
-                session_id = db.execute(select(SessionModel.__table__.c.id).where(SessionModel.__table__.c.date == day)).scalar_one()
+                db.execute(insert(SessionModel.__table__).values(date=day).on_conflict_do_nothing(index_elements=["date"], index_where=SessionModel.__table__.c.calendar_occurrence_id.is_(None)))
+                session_id = db.execute(select(SessionModel.__table__.c.id).where((SessionModel.__table__.c.date == day) & SessionModel.__table__.c.calendar_occurrence_id.is_(None))).scalar_one()
             else:
                 session = SessionModel(date=day)
                 db.add(session)

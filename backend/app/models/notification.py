@@ -33,6 +33,7 @@ class Notification(Base):
         Integer, ForeignKey("dives.id", ondelete="CASCADE"), nullable=True, index=True
     )
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
+    session_id = Column(Integer, ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True)
     read_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 

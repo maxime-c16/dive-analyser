@@ -58,8 +58,8 @@
 .cal-next-meta span { display: inline-flex; align-items: center; gap: 4px; }
 
 /* Answer buttons: compact in the card, large on the session page. */
-.cal-rsvp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.cal-rsvp button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 42px; padding: 0 8px; border: 1px solid var(--app-border); border-radius: 12px; background: color-mix(in srgb, var(--app-text) 2%, transparent); color: var(--app-muted); font-size: 14px; font-weight: 600; white-space: nowrap; transition: transform .15s, background-color .2s, color .2s, border-color .2s; }
+.cal-rsvp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.cal-rsvp button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 12px; border: 1px solid var(--app-border); border-radius: 12px; background: color-mix(in srgb, var(--app-text) 2%, transparent); color: var(--app-muted); font-size: 14px; font-weight: 600; white-space: nowrap; transition: transform .15s, background-color .2s, color .2s, border-color .2s; }
 .cal-rsvp button:active { transform: scale(.96); }
 .cal-rsvp button:disabled { opacity: .45; }
 .cal-rsvp button.is-interested[aria-pressed=true] { border-color: var(--app-accent); background: var(--app-accent); color: #062420; }

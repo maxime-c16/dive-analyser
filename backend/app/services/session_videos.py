@@ -295,17 +295,34 @@ def _claim(db: Session, video_id: int) -> bool:
     return result.rowcount == 1
 
 
-def training_session_for(db: Session, day: date) -> TrainingSession:
-    existing = db.query(TrainingSession).filter_by(date=day).first()
-    if existing is not None:
-        return existing
-    try:
-        with db.begin_nested():
-            created = TrainingSession(date=day, total_dives=0, total_personal_dives=0)
-            db.add(created)
-        return created
-    except IntegrityError:
-        return db.query(TrainingSession).filter_by(date=day).one()
+def training_session_for(db: Session, day: date, recorded_at=None) -> TrainingSession:
+    # Day identity is shared; callers authorize writes before entering here.
+    from app.services.dive_access import unscoped_reads
+    with unscoped_reads(db):
+        return _training_session_for(db, day, recorded_at)
+
+
+def _training_session_for(db: Session, day: date, recorded_at=None) -> TrainingSession:
+    from app.services.session_calendar import matching_occurrence
+    occurrence = matching_occurrence(db, recorded_at) if recorded_at else None
+    # Lock the occurrence before creating its one shared session.
+    if occurrence is not None:
+        from app.models.calendar import EventOccurrence
+        occurrence = db.query(EventOccurrence).filter_by(id=occurrence.id).with_for_update().one()
+    criteria = dict(calendar_occurrence_id=occurrence.id) if occurrence else dict(date=day, calendar_occurrence_id=None)
+    existing = db.query(TrainingSession).filter_by(**criteria).first()
+    if existing is None:
+        try:
+            with db.begin_nested():
+                existing = TrainingSession(date=day, calendar_occurrence_id=occurrence.id if occurrence else None,
+                                           total_dives=0, total_personal_dives=0)
+                db.add(existing)
+                db.flush()
+        except IntegrityError:
+            existing = db.query(TrainingSession).filter_by(**criteria).one()
+    if occurrence is not None:
+        occurrence.filmed_session_id = existing.id
+    return existing
 
 
 def ingest_object(db: Session, key: str, *, size: Optional[int] = None,
@@ -353,7 +370,7 @@ def ingest_object(db: Session, key: str, *, size: Optional[int] = None,
     fallback = head.get("LastModified") or event_time or datetime.now(timezone.utc)
     recorded_at, day = local_day(probe.recorded_at, fallback)
     row = db.get(SessionVideo, video_id)
-    training = training_session_for(db, day)
+    training = training_session_for(db, day, recorded_at)
     db.flush()
     for field in ("duration_seconds", "video_codec", "video_profile", "codec_string", "audio_codec_string",
                   "pix_fmt", "color_transfer", "width", "height", "fps", "bit_rate"):
@@ -479,7 +496,12 @@ def describe(video: SessionVideo) -> str:
 
 
 def _notify_once(db: Session, video_id: int) -> None:
-    """Exactly one owner notification per video, whatever the event count."""
+    """Notify the matched group once per session, otherwise the owner per video."""
+    video = db.get(SessionVideo, video_id)
+    if video and video.session_id:
+        from app.services.session_calendar import notify_session
+        if notify_session(db, video):
+            return
     result = db.execute(
         update(SessionVideo)
         .where(SessionVideo.id == video_id, SessionVideo.status == "ready", SessionVideo.notified_at.is_(None))

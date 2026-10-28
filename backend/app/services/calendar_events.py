@@ -478,9 +478,12 @@ def set_interest(db: Session, user: AppUser, occurrence_id: int, state: Optional
     db.flush()
 
 
-def absence_allowed(db: Session, user: AppUser, event: CalendarEvent, calendar: Calendar) -> bool:
+def absence_allowed(db: Session, user: AppUser, event: CalendarEvent, calendar: Calendar, occurrence_id: Optional[int] = None) -> bool:
     """Absence applies to club/group training the member is expected at:
     assigned group sessions, or club-wide training for any active member."""
+    if occurrence_id is not None:
+        from app.services.session_calendar import occurrence_members
+        return occurrence_members(db, occurrence_id, include_absent=True).filter(AppUser.id == user.id).first() is not None
     if event.event_type != "training" or calendar.club_id is None or event.audience not in ("group", "club"):
         return False
     if access.active_membership(db, user, calendar.club_id) is None:
@@ -493,8 +496,12 @@ def absence_allowed(db: Session, user: AppUser, event: CalendarEvent, calendar: 
 
 def set_absence(db: Session, user: AppUser, occurrence_id: int, absent: bool):
     occurrence, event, calendar = _open_occurrence(db, user, occurrence_id)
-    if not absence_allowed(db, user, event, calendar):
+    if not absence_allowed(db, user, event, calendar, occurrence.id):
         fail(403, "absence_not_applicable", "Absence reporting is for members assigned to this session")
+    # Clearing absence also withdraws a legacy decline; positive answers stay intact.
+    legacy = db.get(OccurrenceInterest, (occurrence.id, user.id))
+    if not absent and legacy is not None and legacy.state == "declined":
+        db.delete(legacy)
     row = db.get(OccurrenceAbsenceReport, (occurrence.id, user.id))
     if absent:
         if row is None:

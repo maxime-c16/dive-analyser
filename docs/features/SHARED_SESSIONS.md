@@ -215,3 +215,35 @@ their dives and export clips — steps 3–4, NOT in scope here).
   Existing sessions env remains sufficient; no additional secret/env variable.
   Preserve the media-cache volume for `session-images/`. Rebuild backend and
   frontend together; FFmpeg in the backend image must include libzimg.
+
+### PR C — implementation and operations
+
+- Expected attendance is the effective group assignment on the occurrence's
+  local date, minus active absence reports and legacy `declined` answers.
+  Existing `interested` / `maybe` rows are preserved without counting as
+  confirmation. The old interest API remains compatible; the app offers only
+  absence and cancellation. Cancellation also clears a legacy decline.
+- With the calendar enabled, ingestion selects published, scheduled, timed
+  group training within 30 minutes of the recording time. An exact window
+  wins over the margin; then nearest start, then occurrence ID breaks ties.
+  Cancelled/draft/all-day events are excluded. Unmatched videos retain day
+  grouping. Historical ready videos and existing links are not rewritten.
+- `sessions.calendar_occurrence_id` identifies a training occurrence; the
+  existing `event_occurrences.filmed_session_id` links back to its session.
+  Date uniqueness now applies only to fallback days. All dive-day writers
+  explicitly select that fallback identity, so two trainings on a date do
+  not mix their recordings or change ordinary dive sync/import behavior.
+- Group notifications happen once for the first ready video, with a direct
+  session link in the inbox, push and optional email. A session lock and a
+  persisted account cursor commit inbox rows in batches of 100; subsequent
+  videos/reconciliation events resume without duplicates. Push and SMTP are
+  best-effort attempts after commit, without automatic transport retries.
+- Apply `add_session_calendar.sql` after A's migrations and the calendar
+  migrations, before updating **backend and frontend**. It is idempotent,
+  preserves every RSVP row, and needs no new secret, timer or Mac service.
+  Existing `CALENDAR_ENABLED`, shared-session and SMTP settings apply.
+  The existing Administration > Clubs screen assigns accounts to groups.
+- Backout must keep the schema and data. Do not restore global date
+  uniqueness or run A's backend against multiple same-date sessions; use a
+  forward fix or disable the feature while retaining this backend. There is
+  no destructive RSVP conversion to reverse.
