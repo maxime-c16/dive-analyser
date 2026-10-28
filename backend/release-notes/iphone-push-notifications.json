@@ -1,0 +1,8 @@
+{
+  "id": "iphone-push-notifications",
+  "date": "2026-10-28",
+  "title": "Notifications on iPhone",
+  "body": "Turning on notifications from the app installed on your iPhone home screen now works.",
+  "audience": "all",
+  "components": ["frontend"]
+}

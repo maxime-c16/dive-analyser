@@ -115,6 +115,26 @@ describe('pushSubscription helpers', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  it('asks permission synchronously in the click, before registering the worker', async () => {
+    stubBrowser({ permission: 'granted' })
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({}) }) as unknown as Response))
+    const nav = window.navigator as unknown as { serviceWorker: { register: ReturnType<typeof vi.fn> } }
+    const notification = (window as unknown as { Notification: { requestPermission: ReturnType<typeof vi.fn> } }).Notification
+    const pending = enablePushDevice('dGVzdA')
+    // iOS keeps user activation only until the first await.
+    expect(notification.requestPermission).toHaveBeenCalledOnce()
+    expect(nav.serviceWorker.register).not.toHaveBeenCalled()
+    await pending
+    expect(nav.serviceWorker.register).toHaveBeenCalledOnce()
+  })
+
+  it('does not register the worker when permission is denied', async () => {
+    stubBrowser({ permission: 'denied' })
+    const nav = window.navigator as unknown as { serviceWorker: { register: ReturnType<typeof vi.fn> } }
+    await expect(enablePushDevice('dGVzdA')).rejects.toThrow('permission-denied')
+    expect(nav.serviceWorker.register).not.toHaveBeenCalled()
+  })
+
   it('registers, subscribes and stores the endpoint on opt-in', async () => {
     stubBrowser({ permission: 'granted' })
     const fetchMock = vi.fn(
