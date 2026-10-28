@@ -5,6 +5,7 @@
  * deposit-batch claim link. The peek call is read-only (email prefetchers
  * must not burn the link); only the explicit submit redeems it.
  */
+import { runSessionMutation } from '../contexts/sessionMutex'
 
 async function readJson(response: Response): Promise<unknown> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -53,12 +54,14 @@ export async function registerWithInvite(
   token: string,
   body: { email: string; password: string; display_name?: string; club_id?: number },
 ): Promise<InviteRegistration> {
-  const response = await fetch('/api/v1/auth/register-invite', {
+  // Session-establishing like login: never race a pending logout, or the
+  // logout response clears the fresh cookie after the browser applies it.
+  const response = await runSessionMutation(() => fetch('/api/v1/auth/register-invite', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, ...body }),
-  })
+  }))
   if (!response.ok) {
     let detail = ''
     let code: string | undefined

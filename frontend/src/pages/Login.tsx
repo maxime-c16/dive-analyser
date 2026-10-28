@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { LogIn, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { runSessionMutation } from '../contexts/sessionMutex'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -29,12 +30,15 @@ export default function Login() {
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      // Wait for a pending logout before replacing the session cookie: a
+      // login response racing a logout response leaves the fresh cookie
+      // cleared by whichever response the browser applies last.
+      const res = await runSessionMutation(() => fetch('/api/v1/auth/login', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
-      })
+      }))
       if (!res.ok) {
         setError(t('login.invalidCredentials'))
         return

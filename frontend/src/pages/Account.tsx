@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Globe, Globe2, History, KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { runSessionMutation } from '../contexts/sessionMutex'
 import { LANGUAGES, useLang } from '../i18n/I18nProvider'
 import type { LanguageCode } from '../i18n/prefs'
 import ActivitySection from '../components/activity/ActivitySection'
@@ -612,12 +613,14 @@ export default function Account() {
     }
     setBusy(true)
     try {
-      const res = await fetch('/api/v1/auth/change-password', {
+      // Replaces the session cookie like login: serialize with logout so a
+      // concurrent logout response cannot wipe the fresh cookie.
+      const res = await runSessionMutation(() => fetch('/api/v1/auth/change-password', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
-      })
+      }))
       if (!res.ok) {
         setMessage({
           kind: 'error',
