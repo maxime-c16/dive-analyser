@@ -165,6 +165,7 @@ class OccurrenceOut(BaseModel):
     start_date: Optional[date]
     end_date: Optional[date]
     venue_name: Optional[str]
+    shared_session_id: Optional[int] = None
     is_filmed_session: bool
     version: int
     event: EventSummary
@@ -214,7 +215,7 @@ class AttendeeOut(BaseModel):
 
 
 class GoingOut(BaseModel):
-    """Who answered "interested"/"maybe" on one occurrence, for people who can see it."""
+    """Expected members who have not reported absence. Legacy field names are kept for API compatibility."""
     interested: int = 0
     maybe: int = 0
     people: List[AttendeeOut] = []  # interested first, newest answers first, capped

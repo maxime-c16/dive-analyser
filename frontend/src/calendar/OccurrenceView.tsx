@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   CalendarClock, CalendarPlus, Check, ChevronRight, Clock, ExternalLink, Globe, MapPin, Pencil, Plus, Repeat, Send,
-  Star, Trophy, UserRound, Users, UserX, XCircle,
+  Star, Trophy, UserRound, Users, XCircle,
 } from "lucide-react";
 import {
-  CalendarError, calendarApi, type EventDetail, type Interest, type Invitation, type LinkableDive,
+  CalendarError, calendarApi, type EventDetail, type Invitation, type LinkableDive,
   type OccurrenceDetail,
 } from "./api";
 import { lastDay, parisToday, sourceOf, spanDays } from "./model";
@@ -78,10 +78,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
   const going = occ.going;
   const mapHref = event.map_url || (occ.venue_name
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([occ.venue_name, event.venue_address].filter(Boolean).join(", "))}` : null);
-  const setInterest = (s: Interest) => {
-    const next = occ.my_interest === s ? null : s;
-    act(() => calendarApi.setInterest(occ.id, next), { my_interest: next });
-  };
+
 
   return (
     <article className={`cal-detail cal-src-${src}`} aria-busy={busy}>
@@ -119,15 +116,18 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
         </section>
       )}
 
-      {event.status !== "draft" && (
-        <div className="cal-rsvp is-big" role="group" aria-label={t.yourResponse}>
-          {([["interested", t.going], ["maybe", t.maybe], ["declined", t.notGoing]] as const).map(([s, label]) => (
-            <button key={s} type="button" className={`is-${s}`} aria-pressed={occ.my_interest === s} disabled={busy || !open} onClick={() => setInterest(s)}>
-              {s === "interested" && <Check size={17} strokeWidth={3} aria-hidden="true" />}{label}
-            </button>
-          ))}
+      {occ.can_report_absence && event.status !== "draft" && (
+        <div className="cal-rsvp is-big">
+          <button type="button" className="is-declined" aria-pressed={occ.my_absence_reported} disabled={busy || !open}
+            onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported), { my_absence_reported: !occ.my_absence_reported })}>
+            {occ.my_absence_reported ? t.cancelAbsence : t.reportAbsence}
+          </button>
         </div>
       )}
+
+      {occ.shared_session_id && <Link className="cal-series" to={`/sessions/shared/${occ.shared_session_id}`}>
+        {t.openSharedSession}<ChevronRight size={18} aria-hidden="true" />
+      </Link>}
 
       {event.event_type === "competition" && (
         <Link className="cal-series" to={`/series?event=${event.id}`}>
@@ -168,7 +168,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
             <Users size={18} aria-hidden="true" />
             <div>
               <b>{going.interested || going.maybe ? t.goingCount(going.interested) : t.nobodyYet}</b>
-              {going.maybe > 0 && <small>{t.maybeCount(going.maybe)}</small>}
+
             </div>
             {going.people.length > 0 && (
               <span className="cal-faces" aria-label={going.people.map((p) => p.display_name).join(", ")}>
@@ -178,14 +178,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
             )}
           </div>
         )}
-        {occ.can_report_absence && (
-          <div className="cal-fact">
-            <UserX size={18} aria-hidden="true" />
-            <div><b>{t.willBeAbsent}</b></div>
-            <button type="button" role="switch" className="cal-switch is-danger" aria-checked={occ.my_absence_reported} aria-label={t.willBeAbsent}
-              disabled={busy || !open} onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported), { my_absence_reported: !occ.my_absence_reported })} />
-          </div>
-        )}
+
       </section>
 
       {event.description && <section className="ca-panel"><p className="cal-description">{event.description}</p></section>}

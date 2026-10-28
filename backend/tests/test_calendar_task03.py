@@ -226,17 +226,17 @@ def test_interest_and_absence_are_independent_and_scoped(cal):
                                    json={"absent": True}).status_code == 404  # unassigned: not visible
 
 
-def test_going_summary_lists_interested_then_maybe(cal):
-    club = cal["occ"]["club"].id
-    assert cal["login"]("alice").put(f"{API}/occurrences/{club}/interest", json={"state": "interested"}).status_code == 200
-    assert cal["login"]("bob").put(f"{API}/occurrences/{club}/interest", json={"state": "maybe"}).status_code == 200
-    going = cal["login"]("coach").get(f"{API}/occurrences/{club}").json()["going"]
-    assert (going["interested"], going["maybe"]) == (1, 1)
-    assert [p["user_id"] for p in going["people"]] == [ids(cal, "alice"), ids(cal, "bob")]
+def test_going_summary_uses_group_members_not_positive_answers(cal):
+    oid = cal["occ"]["ga"].id
+    alice = cal["login"]("alice")
+    going = alice.get(f"{API}/occurrences/{oid}").json()["going"]
+    assert (going["interested"], going["maybe"]) == (1, 0)
+    assert [p["user_id"] for p in going["people"]] == [ids(cal, "alice")]
     assert set(going["people"][0]) == {"user_id", "display_name", "avatar_url", "avatar_hud"}
-    declined = cal["login"]("bob").put(f"{API}/occurrences/{club}/interest", json={"state": "declined"}).json()
-    assert (declined["going"]["interested"], declined["going"]["maybe"]) == (1, 0)
-    assert cal["login"]("outsider").get(f"{API}/occurrences/{club}").status_code == 404
+    assert alice.put(f"{API}/occurrences/{oid}/interest", json={"state": "maybe"}).json()["going"] == going
+    declined = alice.put(f"{API}/occurrences/{oid}/absence", json={"absent": True}).json()
+    assert declined["going"]["interested"] == 0
+    assert cal["login"]("outsider").get(f"{API}/occurrences/{oid}").status_code == 404
 
 
 def test_following_is_preference_only(cal):

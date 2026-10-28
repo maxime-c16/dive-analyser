@@ -120,7 +120,7 @@ function NotificationRow({
         {item.conversation_id != null && <Link to={`/messages/${item.conversation_id}`} className="touch-target border border-app px-3 py-2 text-sm text-app-text">{t('messages.open')}</Link>}
         {item.type === 'session_video' && (
           <Link
-            to="/session-videos"
+            to={item.session_id ? `/sessions/shared/${item.session_id}` : "/session-videos"}
             className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
           >
             <Film className="h-4 w-4" aria-hidden />

@@ -324,3 +324,13 @@ Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
 5. No Mac service, no timer: the reconciliation runs inside the backend.
    Rollback: set `SHARED_SESSIONS_ENABLED=false` and redeploy with `--force`;
    keep the tables.
+
+### Shared-session calendar
+
+After the calendar and shared-session migrations, apply
+`backend/migrations/add_session_calendar.sql` before updating backend and
+frontend. It preserves RSVP history, replaces global session-date uniqueness
+with fallback-day uniqueness, and adds occurrence identity plus notification
+progress. No Mac service or new timer/secrets are needed. Keep the schema/data
+on backout; A's backend cannot safely handle multiple session rows per date.
+See [PR C operations](features/SHARED_SESSIONS.md#pr-c--implementation-and-operations).

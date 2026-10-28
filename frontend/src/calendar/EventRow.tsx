@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Check, ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight, MapPin } from "lucide-react";
 import type { Occurrence } from "./api";
 import { lastDay, sourceOf, spanDays } from "./model";
 import { useCalendarStrings } from "./useStrings";
@@ -31,9 +31,7 @@ export default function EventRow({ o, today, search, selected = false, pop = fal
           {o.my_absence_reported && <span className="cal-chip">{t.absence}</span>}
         </span>
       </div>
-      {o.my_interest === "interested" && !cancelled ? <span className="cal-me is-yes" aria-label={t.interested}><Check size={15} strokeWidth={3} /></span>
-        : o.my_interest === "maybe" && !cancelled ? <span className="cal-me is-maybe" aria-label={t.maybe}>?</span>
-        : <ChevronRight className="cal-ev-go" size={18} aria-hidden="true" />}
+      <ChevronRight className="cal-ev-go" size={18} aria-hidden="true" />
     </Link>
   );
 }

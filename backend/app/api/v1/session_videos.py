@@ -344,7 +344,9 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
     # day columns through Core; ORM TrainingSession is intentionally dive-scoped.
     from sqlalchemy import select
     table = TrainingSession.__table__
-    days = {d.id: d for d in db.execute(select(table.c.id, table.c.date).where(table.c.id.in_(ids))).all()}
+    days = {d.id: d for d in db.execute(select(table.c.id, table.c.date, table.c.calendar_occurrence_id).where(table.c.id.in_(ids))).all()}
+    from app.services.session_calendar import session_titles
+    titles = session_titles(db, [d.calendar_occurrence_id for d in days.values() if d.calendar_occurrence_id])
     owned = set() if not user else {r[0] for r in db.query(SessionVideo.session_id).filter(SessionVideo.session_id.in_(ids), SessionVideo.owner_user_id == user.id).distinct()}
     grouped = {id: [] for id in ids}
     for v in rows:
@@ -354,7 +356,7 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
                         poster_url=f'{guest_base}/videos/{v.id}/images/poster',
                         animated_url=f'{guest_base}/videos/{v.id}/images/animated')
         grouped[v.session_id].append(item)
-    return [dict(session_id=id, date=days[id].date.isoformat(), videos=grouped[id][:100], can_manage=bool(user and (user.is_admin or id in owned)),
+    return [dict(session_id=id, date=days[id].date.isoformat(), title=titles.get(days[id].calendar_occurrence_id), videos=grouped[id][:100], can_manage=bool(user and (user.is_admin or id in owned)),
         video_count=totals.get(id,(0,0,0))[0], total_duration=totals.get(id,(0,0,0))[1] or 0,
         total_bytes=totals.get(id,(0,0,0))[2] or 0, has_more=len(grouped[id])>100,
         next_video_id=grouped[id][99]['id'] if len(grouped[id])>100 else None) for id in ids if id in days]
@@ -399,14 +401,8 @@ def edit_video(video_id: int, payload: VideoSettings, user: AppUser = Depends(ge
             day = date.fromisoformat(payload.date)
         except ValueError:
             raise HTTPException(422, 'Invalid date') from None
-        from sqlalchemy import select
-        if db.bind.dialect.name == 'postgresql':
-            from sqlalchemy.dialects.postgresql import insert
-        else:
-            from sqlalchemy.dialects.sqlite import insert
-        table = TrainingSession.__table__
-        db.execute(insert(table).values(date=day).on_conflict_do_nothing(index_elements=['date']))
-        video.session_id = db.execute(select(table.c.id).where(table.c.date == day)).scalar_one()
+        from app.services.session_videos import training_session_for
+        video.session_id = training_session_for(db, day).id
     if payload.hidden is not None:
         video.hidden = payload.hidden
     if payload.delete:

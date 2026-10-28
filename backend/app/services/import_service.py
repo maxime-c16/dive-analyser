@@ -133,7 +133,7 @@ class ImportService:
         """Process a single session (date) with its dives"""
         # Find or create session
         session = self.db.query(SessionModel).filter(
-            SessionModel.date == session_date
+            SessionModel.date == session_date, SessionModel.calendar_occurrence_id.is_(None)
         ).first()
 
         if not session:
