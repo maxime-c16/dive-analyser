@@ -6,7 +6,7 @@ from statistics import median
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, event
+from sqlalchemy import Float, create_engine, event, literal, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateSchema
@@ -16,7 +16,12 @@ from app.models.dive import Dive
 from app.models.diver import Diver
 from app.models.session import Session as TrainingSession
 from app.models.user_auth import AppUser, UserDiverAccess
-from app.services.community_leaderboard import BOARD_SIZE, leaderboard
+from app.services.community_leaderboard import (
+    BOARD_SIZE,
+    _ranking_statement,
+    _round_half_even_sql,
+    leaderboard,
+)
 from app.services.dive_access import visible_dive_clause
 from app.services.performance_scoring import attempt_score_10
 
@@ -144,3 +149,112 @@ def test_ranks_complete_scope_before_materializing_members(board_db, period, day
     assert len(loaded) <= 4 * BOARD_SIZE + 1
     assert len(queries) == 1
     assert [row['user_id'] for row in board['members']] == sorted(keep, key=lambda uid: (-expected[uid]['attempts'], uid))
+
+
+@pytest.mark.parametrize('raw,expected', [
+    # Positive and negative ties, even and odd: SQL must use ties-to-even
+    # like the previous Python _round, not round-half-away-from-zero.
+    (1.125, 1.12), (-1.125, -1.12), (2.125, 2.12), (-2.125, -2.12),
+    (1.375, 1.38), (-1.375, -1.38), (0.125, 0.12), (-0.125, -0.12),
+    (0.625, 0.62), (-0.625, -0.62), (3.625, 3.62), (-3.625, -3.62),
+    # Ordinary values behave like round() on both dialects.
+    (1.135, 1.14), (1.005, 1.0), (1.12, 1.12), (-1.12, -1.12),
+    (2.5, 2.5), (-2.5, -2.5), (0.0, 0.0),
+    (10.0, 10.0), (2.75, 2.75), (7.0, 7.0), (4.5, 4.5), (5.625, 5.62),
+    (-1.13, -1.13), (1.13, 1.13),
+])
+def test_round_half_even_sql_matches_python(board_db, raw, expected):
+    assert round(raw, 2) == expected
+    value = board_db.execute(select(_round_half_even_sql(literal(raw, Float)))).scalar()
+    assert float(value) == expected
+
+
+@pytest.mark.parametrize('period,previous_days,expected_streak', [('week', 9, 2), ('month', 40, 1)])
+def test_progress_delta_ties_use_previous_rounding(board_db, period, previous_days, expected_streak):
+    """A delta of 1.125 displays 1.12 (not 1.13), positive and negative.
+
+    Regression test for the review finding: SQL round(..., 2) rounds ties
+    away from zero while the previous Python _round uses ties-to-even. All
+    fixtures use exact-binary scores, so SQLite and PostgreSQL must both
+    match Python round(). Progress ranking reads the same SQL expression as
+    the display (m.delta), so the two can never disagree; the tie member
+    below sits exactly on the top-10 boundary (progress rank 10), which
+    locks that ranking behavior in place.
+    """
+    db = board_db
+    now = datetime(2026, 10, 28, 12)
+    training = TrainingSession(date=now.date())
+    db.add(training)
+    db.flush()
+
+    def dives(diver_id, stamp, grades):
+        for grade, phase1, phase2 in grades:
+            db.add(Dive(session_id=training.id, diver_id=diver_id, dive_datetime=stamp,
+                        dive_code='101B', height='3m', performance=grade or '', performance_numeric=0,
+                        phase1_performance=phase1, phase2_performance=phase2,
+                        visibility='public', is_lineup=False))
+
+    recent_stamp, previous_stamp = now - timedelta(days=2), now - timedelta(days=previous_days)
+    # (recent grades, previous grades, expected delta): 5.625/4.5-style mixes.
+    two_phase_gm = ('G', 'G', 'M')  # 7*0.45 + 4.5*0.55 = 5.625
+    two_phase_gb = ('G', 'G', 'B')  # 7*0.45 + 2*0.55 = 4.25
+    plans = {
+        # Six high-progress fillers occupying progress ranks 1-6.
+        **{f'fill{i}': ([('P', None, None)] * 5, [('F', None, None)] * 5, 10.0) for i in range(6)},
+        'high': ([('G', None, None)] * 5, [two_phase_gb] * 5, 2.75),
+        'high2': ([('G', None, None)] * 5, [two_phase_gb] * 5, 2.75),
+        'odd_tie': ([('G', None, None)] * 5, [two_phase_gm] * 5, 1.38),
+        'tie': ([two_phase_gm] * 5, [('M', None, None)] * 5, 1.12),
+        'neg_tie': ([('M', None, None)] * 8, [two_phase_gm] * 5, -1.12),
+    }
+    ids = {}
+    # fix creation order so the tie member is last in uid order: it must not
+    # leak into the top 10 through the attempts/codes/streak boards, only
+    # through progress rank 10.
+    for index, name in enumerate(['neg_tie'] + [f'fill{i}' for i in range(6)] + ['high', 'high2', 'odd_tie', 'tie']):
+        recent, previous, _expected = plans[name]
+        user = AppUser(email=f'tie-{name}@example.test', display_name=f'Tie {name}', role='friend')
+        diver = Diver(display_name=f'Tie {name}', canonical_name=f'tie-{name}')
+        db.add_all([user, diver])
+        db.flush()
+        db.add(UserDiverAccess(user_id=user.id, diver_id=diver.id, access_kind='OWNER'))
+        dives(diver.id, recent_stamp, recent)
+        dives(diver.id, previous_stamp, previous)
+        ids[name] = user.id
+    db.flush()
+    db.expunge_all()
+
+    loaded, queries = [], []
+    def on_load(_session, row):
+        if isinstance(row, AppUser):
+            loaded.append(row.id)
+    def on_query(_conn, _cursor, statement, _params, _context, _many):
+        if statement.lstrip().upper().startswith(('SELECT', 'WITH')):
+            queries.append(statement)
+    event.listen(db, 'loaded_as_persistent', on_load)
+    event.listen(db.bind, 'before_cursor_execute', on_query)
+    try:
+        board = leaderboard(db, visible_dive_clause(()), period, now, None)
+    finally:
+        event.remove(db, 'loaded_as_persistent', on_load)
+        event.remove(db.bind, 'before_cursor_execute', on_query)
+
+    by_id = {row['user_id']: row for row in board['members']}
+    assert set(by_id) == set(ids.values()), 'every tie-board member stays selected in SQL'
+    for name, (_recent, _previous, expected) in plans.items():
+        assert by_id[ids[name]]['delta'] == expected, (name, by_id[ids[name]]['delta'])
+    assert by_id[ids['tie']]['median'] == round(5.625, 2)
+    assert by_id[ids['tie']]['attempts'] == 5
+    assert by_id[ids['neg_tie']]['attempts'] == 8
+    assert by_id[ids['neg_tie']]['streak_weeks'] == expected_streak
+    # Ranking still happens in SQL before profiles are materialized.
+    assert len(loaded) <= 4 * BOARD_SIZE + 1
+    assert len(queries) == 1
+
+    # The ranked progress value is the displayed value: the tie member sits
+    # exactly on the top-10 boundary. Rank assertions use the same statement
+    # the leaderboard executes (white-box: ranking is the fixed behavior).
+    ranks = {row._mapping['uid']: row._mapping['rank_2']
+             for row in db.execute(_ranking_statement(visible_dive_clause(()), period, now, None)).all()}
+    assert ranks[ids['tie']] == 10
+    assert ranks[ids['neg_tie']] == 11

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import Numeric, and_, case, cast, func, or_, select
+from sqlalchemy import Float, and_, case, cast, func, or_, select
 
 from app.models.dive import Dive
 from app.models.user_auth import AppUser, UserDiverAccess
@@ -17,6 +17,42 @@ PERIOD_DAYS = {"week": 7, "month": 30}
 STREAK_WEEKS = 26
 MIN_PROGRESS_ATTEMPTS = 5
 BOARD_SIZE = 10
+
+
+def _round_half_even_sql(value):
+    """Round-half-to-even to two decimals, matching Python round(value, 2).
+
+    SQL round() rounds ties away from zero on both SQLite and PostgreSQL,
+    while the previous Python _round uses ties-to-even: a delta of 1.125 was
+    1.12 and became 1.13, which also feeds progress ranking. Scale by 100,
+    break exact ties by the parity of the floor, then scale back. Both signs
+    work through floor: floor(-112.5) is -113 (odd), so -112.5 becomes -112,
+    i.e. round(-1.125, 2) is -1.12, like Python.
+
+    Stays in binary float end to end: SQLite REAL and PostgreSQL float8 are
+    both IEEE doubles evaluated in the same order, so both dialects compute
+    bit-identical values. The floors are explicitly typed Float because
+    SQLAlchemy's generic floor() defaults to numeric, which would put
+    PostgreSQL on exact-decimal semantics and diverge from both SQLite and
+    Python on float-dust ties. Residual: deltas whose exact binary value
+    sits within half an ulp of a tie with the dust on the odd side round by
+    the tie rule instead of the dust side; no grade-achievable delta in the
+    test fixtures hits that window.
+
+    The ranked progress value and the displayed delta share this expression,
+    so ranking and display can never disagree.
+    """
+    scaled = value * 100
+    floored = cast(func.floor(scaled), Float)
+    frac = scaled - floored
+    odd_floor = floored - cast(func.floor(floored / 2.0), Float) * 2 != 0
+    stepped = case(
+        (frac < 0.5, floored),
+        (frac > 0.5, floored + 1),
+        (odd_floor, floored + 1),
+        else_=floored,
+    )
+    return stepped / 100.0
 
 
 def _monday(day: date) -> date:
@@ -84,7 +120,7 @@ def _ranking_statement(visible_clause, period, now, viewer_id):
     lower = func.min(case((c.seen >= func.floor((c.total + 1) / 2), c.score)))
     upper = func.min(case((c.seen >= func.floor((c.total + 2) / 2), c.score)))
     medians = select(
-        c.uid, c.recent, ((lower + upper) / 2).label("median"),
+        c.uid, c.recent, ((lower + upper) / 2.0).label("median"),
         func.max(c.total).label("n"),
     ).group_by(c.uid, c.recent).cte("board_medians")
     recent_median = medians.alias("board_recent")
@@ -112,7 +148,7 @@ def _ranking_statement(visible_clause, period, now, viewer_id):
     cur, st = current.c, streaks.c
     rm, pm = recent_median.c, previous_median.c
     delta = case((and_(rm.n >= MIN_PROGRESS_ATTEMPTS, pm.n >= MIN_PROGRESS_ATTEMPTS),
-                  func.round(cast(rm.median - pm.median, Numeric), 2)), else_=None)
+                  _round_half_even_sql(rm.median - pm.median)), else_=None)
     metrics = select(
         AppUser.id.label("uid"), func.coalesce(cur.attempts, 0).label("attempts"),
         func.coalesce(cur.sessions, 0).label("sessions"),
