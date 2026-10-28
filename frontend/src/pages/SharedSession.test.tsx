@@ -53,6 +53,34 @@ it('follows paged group lists',async()=>{
   expect(await screen.findByRole('option',{name:'Club test'})).toBeInTheDocument()
   expect(screen.getByRole('option',{name:'Club two'})).toBeInTheDocument()
 })
+it('loads more clubs on demand instead of the whole catalog',async()=>{
+  vi.mocked(api.get).mockImplementation(((url:string,config?:{params?:Record<string,unknown>})=>{
+    if(url.includes('/clubs'))return Promise.resolve(!config?.params?.after_id?{data:{items:[{club_id:2,club:'Club test'}],next_after:{club:'Club test',id:2}}}:{data:{items:[{club_id:3,club:'Club two'}],next_after:null}})
+    if(url.includes('/groups'))return Promise.resolve({data:{items:[],next_after:null}})
+    return Promise.resolve({data:[]})}) as typeof api.get)
+  render(page())
+  fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+  fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Alex'}})
+  fireEvent.change(screen.getByLabelText('E-mail'),{target:{value:'alex@example.test'}})
+  fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'long-test-password'}})
+  fireEvent.submit(screen.getByRole('button',{name:'Continuer'}).closest('form')!)
+  expect(await screen.findByRole('option',{name:'Club test'})).toBeInTheDocument()
+  expect(screen.queryByRole('option',{name:'Club two'})).toBeNull()
+  fireEvent.click(screen.getByRole('button',{name:'Afficher plus de clubs'}))
+  expect(await screen.findByRole('option',{name:'Club two'})).toBeInTheDocument()
+  expect(screen.queryByRole('button',{name:'Afficher plus de clubs'})).toBeNull()
+})
+it('cancels pending club requests on unmount',async()=>{
+  const signals:AbortSignal[]=[]
+  vi.mocked(api.get).mockImplementation(((_url:string,config?:{signal?:AbortSignal})=>{
+    if(config?.signal)signals.push(config.signal)
+    return new Promise(()=>{})}) as typeof api.get)
+  const {unmount}=render(page())
+  fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+  await waitFor(()=>expect(signals.length).toBeGreaterThan(0))
+  unmount()
+  expect(signals.every(signal=>signal.aborted)).toBe(true)
+})
 it('offers the existing-account login with the same panel and no signup fields',async()=>{
  render(page());fireEvent.click(await screen.findByRole('button',{name:'Se connecter'}))
  expect(screen.getByRole('heading',{name:'Se connecter'})).toBeInTheDocument()

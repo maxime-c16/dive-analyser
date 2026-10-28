@@ -40,6 +40,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
   const [remember, setRemember] = useState(true)
   const [groups, setGroups] = useState<Group[]>([])
   const [clubs, setClubs] = useState<{ club_id: number; club: string }[]>([])
+  const [clubsNext, setClubsNext] = useState<{ club: string; id: number } | null>(null)
   const [club, setClub] = useState('')
   const [group, setGroup] = useState('')
   const [emailEnabled, setEmailEnabled] = useState(true)
@@ -49,43 +50,50 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
   const [error, setError] = useState('')
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  useEffect(() => {
-    let live = true
-    ;(async () => {
-      const all: { club_id: number; club: string }[] = []
-      let params: Record<string, string | number> = {}
-      for (;;) {
-        const { data } = await api.get<{ items: { club_id: number; club: string }[]; next_after: { club: string; id: number } | null }>(
-          `/api/v1/shared-dives/sessions/${shareId}/clubs`, { params })
-        all.push(...data.items)
-        if (!data.next_after) break
-        params = { after_club: data.next_after.club, after_id: data.next_after.id }
-      }
-      if (live) setClubs(all)
-    })()
-      .catch(() => { if (live) setError('Groupes indisponibles') })
-      .finally(() => { if (live) setLoadingGroups(false) })
-    return () => { live = false }
-  }, [shareId])
+  type ClubPage = { items: { club_id: number; club: string }[]; next_after: { club: string; id: number } | null }
+  type GroupPage = { items: Group[]; next_after: { club: string; group: string; id: number } | null }
+  const clubsAbort = useRef<AbortController | null>(null)
+  const groupsAbort = useRef<AbortController | null>(null)
+  useEffect(() => () => { clubsAbort.current?.abort(); groupsAbort.current?.abort() }, [])
+  const loadClubs = async (after: { club: string; id: number } | null, append: boolean) => {
+    clubsAbort.current?.abort()
+    const ctrl = new AbortController()
+    clubsAbort.current = ctrl
+    setLoadingGroups(true)
+    try {
+      const params: Record<string, string | number> = after ? { after_club: after.club, after_id: after.id } : {}
+      const { data } = await api.get<ClubPage>(`/api/v1/shared-dives/sessions/${shareId}/clubs`, { params, signal: ctrl.signal })
+      if (!alive.current || ctrl.signal.aborted) return
+      setClubs(current => (append ? [...current, ...data.items] : data.items))
+      setClubsNext(data.next_after)
+    } catch {
+      if (alive.current && !ctrl.signal.aborted) setError('Groupes indisponibles')
+    } finally {
+      if (alive.current && clubsAbort.current === ctrl) { clubsAbort.current = null; setLoadingGroups(false) }
+    }
+  }
+  useEffect(() => { void loadClubs(null, false) }, [shareId])
   useEffect(() => {
     if (!club) { setGroups([]); return }
-    let live = true
+    groupsAbort.current?.abort()
+    const ctrl = new AbortController()
+    groupsAbort.current = ctrl
     setLoadingGroups(true)
     ;(async () => {
       const all: Group[] = []
       let params: Record<string, string | number> = { club_id: club }
       for (;;) {
-        const { data } = await api.get<{ items: Group[]; next_after: { club: string; group: string; id: number } | null }>(
-          `/api/v1/shared-dives/sessions/${shareId}/groups`, { params })
+        const { data } = await api.get<GroupPage>(
+          `/api/v1/shared-dives/sessions/${shareId}/groups`, { params, signal: ctrl.signal })
         all.push(...data.items)
         if (!data.next_after) break
         params = { club_id: club, after_club: data.next_after.club, after_group: data.next_after.group, after_id: data.next_after.id }
       }
-      if (live) setGroups(all)
+      if (alive.current && !ctrl.signal.aborted) setGroups(all)
     })()
-      .catch(() => { if (live) setError('Groupes indisponibles') })
-      .finally(() => { if (live) setLoadingGroups(false) })
-    return () => { live = false }
+      .catch(() => { if (alive.current && !ctrl.signal.aborted) setError('Groupes indisponibles') })
+      .finally(() => { if (alive.current && groupsAbort.current === ctrl) { groupsAbort.current = null; setLoadingGroups(false) } })
+    return () => { ctrl.abort() }
   }, [shareId, club])
   const changeStep = (next: Step) => { setError(''); setStep(next) }
   const alert = error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>
@@ -142,6 +150,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
         <option value="">Choisir un club</option>
         {clubs.map(c => <option key={c.club_id} value={c.club_id}>{c.club}</option>)}
       </select>
+      {clubsNext !== null && <button type="button" className="touch-target mb-6 border border-app px-3 text-sm" disabled={loadingGroups} onClick={() => void loadClubs(clubsNext, true)}>Afficher plus de clubs</button>}
       {alert}
       <button className={buttonClass} disabled={!club || loadingGroups}>Continuer</button>
     </form>
