@@ -131,3 +131,32 @@ def test_multiple_aliases_for_one_resolved_diver_remain_eligible(eligible):
     ])
     e.db.flush()
     assert check_cleanup(e.db, e.request, "prod")["eligible"] is True
+
+
+def test_sync_pair_keeps_primary_and_pins_foreign_pair_revision(eligible):
+    from app.models.dive_sync_pair import DiveSyncPair
+    from app.services.sync_participants import pair_fingerprint
+    e = eligible
+    other = Diver(display_name='Other', canonical_name='other')
+    e.db.add(other)
+    e.db.flush()
+    e.dive.is_sync = True
+    pair = DiveSyncPair(dive_id=e.dive.id, first_diver_id=e.keeper.id, second_diver_id=e.friend.id,
+                        source='reviewed', complete=True, conflict=False,
+                        caption_sha256=e.request.caption_sha256, latest_caption_sha256=e.request.caption_sha256)
+    e.db.add(pair)
+    e.db.flush()
+    assert not check_cleanup(e.db, e.request, 'prod')['eligible']
+    pair.first_diver_id = other.id
+    # Old Mac cannot remove synchros even with a complete foreign pair.
+    assert not check_cleanup(e.db, e.request, 'prod')['eligible']
+    e.request.sync_pair_check = True
+    result = check_cleanup(e.db, e.request, 'prod')
+    assert not result['eligible'] and result['pair_revision'] == pair_fingerprint(pair)
+    e.request.pair_revision = result['pair_revision']
+    assert check_cleanup(e.db, e.request, 'prod')['eligible']
+    pair.conflict = True
+    assert not check_cleanup(e.db, e.request, 'prod')['eligible']
+    pair.conflict = False
+    pair.first_diver_id = e.keeper.id
+    assert not check_cleanup(e.db, e.request, 'prod')['eligible']

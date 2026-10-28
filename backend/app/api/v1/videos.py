@@ -251,7 +251,8 @@ def _upsert_synced_dive(db: Session, request: VideoSyncRequest) -> tuple[Dive, b
 
     asset = _upsert_photos_asset(db, request)
     session_record = _get_or_create_session(db, request.date)
-    diver_record = resolve_diver(db, request.person_name)
+    # Sync identity comes from the effective pair, never a single legacy name.
+    diver_record = resolve_diver(db, None if request.is_sync else request.person_name)
 
     stmt = select(Dive).where(Dive.photos_asset_id == asset.id)
     dive = db.execute(stmt).scalar_one_or_none()
@@ -307,6 +308,9 @@ def _upsert_synced_dive(db: Session, request: VideoSyncRequest) -> tuple[Dive, b
     dive.person_name = request.person_name
     dive.diver_id = diver_record.id if diver_record else None
     dive.raw_caption = request.raw_caption
+    from app.services.sync_participants import update_from_caption
+    db.flush()
+    update_from_caption(db, dive, request.raw_caption)
     dive.video_filename = request.filename
     # Keep Mac-local Photos paths on photos_assets. Do not make legacy
     # dive.video_path the source of truth for the new media architecture.

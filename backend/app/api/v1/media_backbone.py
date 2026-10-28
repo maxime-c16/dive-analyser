@@ -50,6 +50,8 @@ KEY_EXT_RE = re.compile(r"^[a-z0-9]{1,8}$")
 
 
 class PhotosCleanupCheck(BaseModel):
+    sync_pair_check: bool = False
+    pair_revision: str | None = Field(None, pattern=r"^[0-9a-f]{64}$")
     video_uuid: str = Field(pattern=r"^[0-9A-Fa-f-]{36}$")
     photos_uuid: str = Field(pattern=r"^[0-9A-Fa-f-]{36}$")
     agent_id: str = Field(min_length=1, max_length=100)

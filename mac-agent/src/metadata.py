@@ -152,6 +152,9 @@ def parse_dive_caption(caption: Optional[str]) -> Optional[DiveMetadata]:
                         return None
                 else:
                     performance = _normalize_performance(part_upper)
+            elif "+" in part:
+                # Explicit synchro pair is interpreted from raw_caption server-side.
+                pass
             elif _is_person_name(part):
                 person_name = part
 
@@ -169,7 +172,7 @@ def parse_dive_caption(caption: Optional[str]) -> Optional[DiveMetadata]:
             phase2_performance=phase2_performance,
             is_sync=is_sync,
             is_smack=is_smack,
-            person_name=person_name,
+            person_name=None if is_sync else person_name,
             modifiers=modifiers,
         )
 

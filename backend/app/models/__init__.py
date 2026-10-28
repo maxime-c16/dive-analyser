@@ -2,6 +2,7 @@
 
 from app.models.session import Session
 from app.models.dive import Dive
+from app.models.dive_sync_pair import DiveSyncPair
 from app.models.dive_code import DiveCode
 from app.models.cache import AnalyticsCache
 from app.models.job import Job

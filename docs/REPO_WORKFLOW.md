@@ -283,3 +283,9 @@ worker, plus explicit UI grants/Keychain setup for unattended operation. Keep
 cleanup off during deployment; use dry-run first. No SQL migration is needed.
 See [setup, activation and rollback](PHOTOS_CLEANUP_PERMISSIONS.md). Optional
 automation dependencies and permissions are not installed by `ship.sh`.
+
+### Synchro participants
+
+Apply `backend/migrations/add_dive_sync_pairs.sql` before deploying the backend.
+The private review import is separate and defaults to dry-run. Deploy Mac after
+backend for the new cleanup revision checks. See [rollout](SYNC_PARTICIPANTS.md).

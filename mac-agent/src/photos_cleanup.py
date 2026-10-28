@@ -204,13 +204,18 @@ class PhotosCleanup:
                 or payload["caption"]["sha256"] != journal["caption"]["sha256"]
                 or extra.get("source_provenance", {}).get("photos_asset_uuid", "").upper() != photos_uuid.upper()):
             raise ValueError("cleanup_ingest_proof_mismatch")
-        request = {"video_uuid": video_uuid, "photos_uuid": photos_uuid,
+        request = {"sync_pair_check": True, "video_uuid": video_uuid, "photos_uuid": photos_uuid,
                    "agent_id": self.config.agent.id,
                    "keeper_diver_id": self.options.photos_cleanup_keeper_diver_id,
                    "blob_sha256": media["sha256"], "byte_size": media["byte_size"],
                    "object_key": media["object_key"], "bucket": payload["blob"]["bucket"],
                    "caption_sha256": payload["caption"]["sha256"],
                    "edit_fingerprint": extra["photos_edit_fingerprint"]}
+        # Bind a synchro decision at fresh-ingest enqueue time. Missing sync
+        # metadata stays unpinned and cannot become deletable later by inference.
+        probe = self.check(request)
+        if probe.get("pair_revision"):
+            request["pair_revision"] = probe["pair_revision"]
         # Pin the PhotoKit version now, so a later edit (even reverted) blocks cleanup.
         library = self.library_factory()
         version = library.version(photos_uuid)
@@ -320,7 +325,7 @@ class PhotosCleanup:
                 result = self.check(request)
                 if result.get("eligible") is not True:
                     if result.get("reason") in {"person_not_exclusive", "kept_or_unknown_diver", "ambiguous_person", "ambiguous_dive",
-                                                "metadata_changed", "revision_changed_or_missing"}:
+                                                "metadata_changed", "revision_changed_or_missing", "pair_revision_changed"}:
                         item["outcome"] = "kept"
                         item["reason"] = result["reason"]
                         atomic_json(self.queue.parent / "completed" / path.name, item)
