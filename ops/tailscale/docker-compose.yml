@@ -2,7 +2,7 @@ services:
   funnel-proxy:
     image: nginx:1.29.4-alpine
     environment:
-      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-}
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:?Use ci/ship.sh proxy to load protected signing configuration}
       NGINX_ENVSUBST_FILTER: ^MEDIA_SIGNING_SECRET$
     restart: unless-stopped
     ports:

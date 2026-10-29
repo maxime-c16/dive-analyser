@@ -51,8 +51,14 @@ export type BatchDetail = {
   dives: ReviewDive[]
 }
 
+export class DepositApiError extends Error {
+  constructor(public readonly status: number) {
+    super(`HTTP ${status}`)
+  }
+}
+
 async function readJson(response: Response): Promise<unknown> {
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  if (!response.ok) throw new DepositApiError(response.status)
   return response.json()
 }
 

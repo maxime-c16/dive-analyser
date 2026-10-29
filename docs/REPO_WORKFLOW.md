@@ -67,6 +67,8 @@ syncing: no mirrors, no copying.
 ci/ship.sh status                   # what runs where vs origin/master
 ci/ship.sh server --dry-run         # plan + warnings, changes nothing
 ci/ship.sh server                   # app stack on deb-serv
+ci/ship.sh proxy --dry-run          # validate public proxy signing configuration
+ci/ship.sh proxy                    # recreate public proxy with protected signing key
 ci/ship.sh mac                      # media agent on mac-media-01
 ci/ship.sh all                      # server, then mac (mac skipped if server fails)
 ```
@@ -134,7 +136,7 @@ Full setup and rationale: `docs/CD.md`.
 |---|---|
 | `backend/migrations/*.sql` | Apply by hand against Postgres. There's no migration runner. |
 | `docker-compose.yml`, `nginx/` | `docker-compose up -d nginx` (or `docker-compose exec nginx nginx -s reload`) |
-| `ops/tailscale/` | `docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate` |
+| `ops/tailscale/` | Server deploy recreates the public proxy with protected signing configuration. For a separate recreation: `ci/ship.sh proxy --dry-run`, then `ci/ship.sh proxy`. |
 | `mac-agent/` | `ci/ship.sh mac` |
 | `ops/*.sh` | Nothing to do. Cron runs them from `~/dive-analyser`, so the server deploy updates them. |
 
@@ -323,7 +325,7 @@ Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
    A same-SHA activation needs `--force`.
 4. Reload the Funnel proxy (new public route
    `/api/v1/session-videos/b2-events`):
-   `docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate`,
+   `ci/ship.sh proxy --dry-run`, then `ci/ship.sh proxy`,
    then `python3 ops/tailscale/check_guest_routes.py https://dive-analyser.tail32dd14.ts.net`.
 5. In the B2 console, bucket `diveanalyzer-sessions` → Event Notifications →
    new rule: event types `b2:ObjectCreated:*` (Upload, MultipartUpload, Copy),
@@ -350,3 +352,31 @@ on backout; A's backend cannot safely handle multiple session rows per date,
 and the pre-drop backend cannot run past the drop (plain `ON CONFLICT (date)`
 upsert). Roll back forward only.
 See [PR C operations](features/SHARED_SESSIONS.md#pr-c--implementation-and-operations).
+
+### Signed media configuration and verification
+
+The backend and both front doors must share `MEDIA_SIGNING_SECRET` (64 lowercase
+hex characters). The production key and `MEDIA_SIGNED_URLS_ENABLED=true` live in
+`~/.config/diveanalyzer/browser-upload.env` (0600), already sourced by server
+deployment. Never generate a replacement key for a proxy recreation. The public
+proxy has its own Compose project; a direct Compose invocation does not load this
+protected file and now refuses a missing key instead of starting broken playback.
+
+Use `ci/ship.sh proxy --dry-run`, then `ci/ship.sh proxy` for runtime-only public
+proxy recreation. This uses the server deployment lock, loads the protected key
+and leaves the deployed source/images unchanged. Server deployments perform this
+recreation automatically before swapping app containers. No SQL migration, Mac
+worker change or new credential is required for these safeguards.
+
+After deployment, `ci/check-media-delivery.py` mints a tiny disposable artifact
+using the running backend and verifies byte ranges through LAN HTTPS, local
+Funnel and public HTTPS, plus 403 for a modified signature. It removes the artifact
+and never logs the signed URL. API health alone is insufficient. Signed media
+being disabled explicitly skips this probe. A failed probe fails deployment and
+triggers app rollback; proxy configuration remains on the protected shared key.
+Runtime-only verification on the server:
+
+```sh
+python3 ci/check-media-delivery.py --base https://127.0.0.1:6443 \
+  --base http://127.0.0.1:6091 --base https://dive-analyser.tail32dd14.ts.net
+```
