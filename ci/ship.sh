@@ -6,6 +6,7 @@
 #
 #   ci/ship.sh status                     what is running where, vs GitHub master
 #   ci/ship.sh server [options]           deploy the app stack on deb-serv
+#   ci/ship.sh proxy  [--dry-run]          recreate the public media proxy
 #   ci/ship.sh mac    [options]           deploy the media agent on mac-media-01
 #   ci/ship.sh all    [options]           server, then mac
 #
@@ -45,7 +46,7 @@ usage() { sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift
 case "$cmd" in
-    status|server|mac|all) ;;
+    status|server|mac|all|proxy) ;;
     -h|--help|help|"") usage; exit 0 ;;
     *) ci_die "unknown command: $cmd (try: ci/ship.sh --help)" ;;
 esac
@@ -338,7 +339,7 @@ echo "$changed" | grep -q "^backend/migrations/" && \
 echo "$changed" | grep -qE "^(docker-compose\.yml|nginx/)" && \
     echo "! docker-compose.yml or nginx/ changed — recreate the proxy after deploy: docker-compose up -d --force-recreate nginx (a reload cannot apply new mounts)"
 echo "$changed" | grep -q "^ops/tailscale/" && \
-    echo "! ops/tailscale/ changed — recreate the public proxy: docker-compose -f ops/tailscale/docker-compose.yml -p dive-funnel up -d --force-recreate"
+    echo "! ops/tailscale/ changed — public proxy will be recreated with protected signing configuration during deployment"
 echo "$changed" | grep -q "^mac-agent/" && \
     echo "! mac-agent/ changed — the worker needs its own deploy: ci/ship.sh mac"
 
@@ -531,6 +532,11 @@ SHIP_FROM="$(whoami)@$(hostname -s)"
 export SHIP_FROM
 
 case "$cmd" in
+    proxy)
+        proxy_args=()
+        [ "$DRY_RUN" = 1 ] && proxy_args+=(--dry-run)
+        run_on server "$(cat "$SCRIPT_DIR/recreate-public-proxy.sh")" "${proxy_args[@]+"${proxy_args[@]}"}"
+        ;;
     status) do_status ;;
     server) resolve_ref; do_server ;;
     mac)    resolve_ref; do_mac ;;

@@ -1,0 +1,8 @@
+{
+  "id": "reliable-clip-acceptance-and-playback",
+  "date": "2026-10-29",
+  "title": "Reliable clip playback and acceptance",
+  "body": "Accepting your last pending clip now shows confirmation. Public video playback is protected by stronger deployment checks.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

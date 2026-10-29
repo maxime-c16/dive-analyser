@@ -246,6 +246,13 @@ fi
 
 # ------------------------------------------------------------ 5. swap
 
+# Load the same protected signing configuration as the backend before any
+# public-proxy recreation; missing credentials must stop deployment visibly.
+if funnel_running; then
+    bash "$ROOT/ci/recreate-public-proxy.sh" --locked \
+        || rollback "public proxy configuration/recreation failed"
+fi
+
 ci_step "deploy: recreate containers"
 svc_list=""
 [ "$ONLY" != "backend" ]  && svc_list="$svc_list frontend"
@@ -286,6 +293,15 @@ if funnel_running; then
             || rollback "frontend not reachable through the public proxy"
     fi
 fi
+
+# Verify bytes, not just an API 200. Only LAN loopback permits its
+# self-signed certificate; the public probe validates external TLS/routing.
+media_bases=(--base "https://127.0.0.1:6443")
+if funnel_running; then
+    media_bases+=(--base "http://127.0.0.1:6091" --base "https://dive-analyser.tail32dd14.ts.net")
+fi
+python3 "$ROOT/ci/check-media-delivery.py" "${media_bases[@]}" \
+    || rollback "signed media delivery failed"
 
 compose ps 2>/dev/null | sed 's/^/    /' || true
 

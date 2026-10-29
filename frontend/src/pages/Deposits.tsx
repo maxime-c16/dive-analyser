@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Check, CheckCheck, Film, Pencil } from 'lucide-react'
 import {
   acceptBatch,
+  DepositApiError,
   canAcceptDeposits,
   batchReviewPath,
   editPendingDive,
@@ -158,15 +159,24 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
   const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const load = useCallback(() => {
+  const load = useCallback((afterAcceptance = false) => {
     setLoading(true)
     setError(false)
-    getBatch(batchId, diverId)
+    return getBatch(batchId, diverId)
       .then((data) => {
         setBatch(data)
         setSelected(new Set())
       })
-      .catch(() => setError(true))
+      .catch((cause: unknown) => {
+        // The review API deliberately hides batches with no pending dives.
+        // Only interpret that 404 as completion after a successful mutation.
+        if (afterAcceptance && cause instanceof DepositApiError && cause.status === 404) {
+          setBatch(previous => previous ? { ...previous, dives: [] } : previous)
+          setSelected(new Set())
+        } else {
+          setError(true)
+        }
+      })
       .finally(() => setLoading(false))
   }, [batchId, diverId])
 
@@ -178,7 +188,7 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
     setBusy(true)
     try {
       await acceptBatch(batchId, ids, diverId)
-      load()
+      await load(true)
     } catch {
       setError(true)
     } finally {
@@ -323,11 +333,12 @@ function BatchList() {
 }
 
 export default function Deposits() {
+  const { user } = useAuth()
   const { batchId } = useParams()
   const [params] = useSearchParams()
   const diverParam = Number(params.get('diver'))
   const diverId = params.get('diver') !== null && Number.isInteger(diverParam) ? diverParam : null
   if (batchId && params.get('download') === '1') return <BatchDownload key={`${batchId}:${diverId}`} batchId={batchId} diverId={diverId} />
-  if (batchId) return <BatchReview batchId={batchId} diverId={diverId} />
+  if (batchId) return <BatchReview key={`${user?.user_id}:${batchId}:${diverId}`} batchId={batchId} diverId={diverId} />
   return <BatchList />
 }

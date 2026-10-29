@@ -19,9 +19,16 @@ under `/home/mcauchy/dive-analyser/ops/tailscale`. It joins the existing
 The separate LAN proxy and WireGuard configuration remain in use.
 
 ```sh
-docker-compose -p dive-funnel -f ops/tailscale/docker-compose.yml up -d
+ci/ship.sh proxy --dry-run
+ci/ship.sh proxy
 sudo tailscale funnel --bg --yes http://127.0.0.1:6091
 ```
+
+The wrapper loads the backend's existing signing key from
+`~/.config/diveanalyzer/browser-upload.env`, takes the server deployment lock,
+and refuses a missing or malformed key. Direct Compose recreation without this
+configuration is rejected. Normal server deployments recreate this proxy and
+verify signed media bytes through the public URL.
 
 `tailscaled` is enabled at boot, Funnel's `--bg` configuration persists,
 and the proxy has Docker's `unless-stopped` restart policy. Tailscale
