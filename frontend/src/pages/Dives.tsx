@@ -361,7 +361,8 @@ function DiveLibrary() {
     if (!workspaceConsumed.current) {
       workspaceConsumed.current = true;
       const stored = readLibraryWorkspace(user);
-      if (stored && isBareLibraryUrl(searchParams)) {
+      // A clip deep link is an explicit entry: keep its semantics intact.
+      if (stored && isBareLibraryUrl(searchParams) && !searchParams.has("clip")) {
         const merged = mergeLibraryParams(searchParams, stored);
         if (merged.toString() !== searchParams.toString()) {
           workspaceRestorePending.current = stored.scrollY;
@@ -772,7 +773,8 @@ function DiveLibrary() {
             aria-label={t("dives.filters")}
           >
             <SlidersHorizontal className="h-4 w-4" />
-            {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-accent px-1 text-[10px] font-semibold text-black">
+            {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-accent px-1 text-[10px] font-semibold text-black">
                 {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0)}
               </span>
             )}

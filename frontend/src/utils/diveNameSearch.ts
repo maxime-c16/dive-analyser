@@ -122,7 +122,7 @@ export function nameSearchCodes(text: string): NameSearch {
       running = [...hits];
       if (running.length > NAME_CODE_LIMIT) return { status: "unsupported", codes: [] };
     } else {
-      const picks = running.filter((code) => hits.includes(code));
+      const picks: string[] = running.filter((code) => hits.includes(code));
       running = picks;
       if (picks.length === 0) return { status: "match", codes: [] };
     }

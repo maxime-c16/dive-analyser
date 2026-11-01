@@ -1,0 +1,8 @@
+{
+  "id": "library-remember-search-find",
+  "date": "2026-11-01",
+  "title": "Your Library keeps its place, and figure names are searchable",
+  "body": "Leaving the Library and coming back no longer resets your filters, search, view or scroll (same tab and account). The search now finds dives by figure name such as \"back dive\" or \"arrière\" across your whole library instead of codes and captions only, and a new Period filter shows the last month, 3 months, 6 months or year. Paging controls show one button at a time with the true remaining count.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

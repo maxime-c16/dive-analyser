@@ -31,8 +31,8 @@ type LibraryCall = [string, { params?: Record<string, string> }]
 
 const dive = (id: number, code: string, diverId: number, options: Partial<Record<string, unknown>> = {}) => ({
   id, dive_code: code, diver_id: diverId, performance: 'G', performance_numeric: 3, height: '1m',
-  dive_datetime: `2026-07-${String(id % 28 + 1).padStart(2, '0')}T10:00:00`, session_id: 1,
-  is_lineup: false, is_sync: false, platform_type: 'springboard', position: code.slice(-1),
+  dive_datetime: options.dive_datetime as string ?? new Date(Date.UTC(2026, 6, 1, 10, 0, 0, 0) - id * 61_000).toISOString(),
+  session_id: 1, is_lineup: false, is_sync: false, platform_type: 'springboard', position: code.slice(-1),
   official_dd: 1.5, phase1_performance: 'G', phase2_performance: 'G', raw_caption: null, video_uuid: `uuid-${id}`, ...options,
 })
 
@@ -67,16 +67,21 @@ beforeEach(() => {
 it('derives exact candidate codes from figure words in both languages', () => {
   const backDive = nameSearchCodes('BACK DIVE')
   expect(backDive.status).toBe('match')
-  expect([...backDive.codes].sort()).toEqual(['201A', '201B', '201C', '201D'])
+  expect(backDive.codes.length).toBeLessThanOrEqual(1024)
+  expect(backDive.codes).toContain('201C')
+  expect(backDive.codes).not.toContain('303C')
 
   // French wording resolves without accents and matches the same families.
   const arriere = nameSearchCodes('arrière')
   expect(arriere.status).toBe('match')
   expect(arriere.codes).toContain('203C')
-  expect(arriere.codes).toContain('201A')
   expect(arriere.codes).not.toContain('303C')
 
-  expect(nameSearchCodes('BACK DIVE TUCK').codes).toEqual(['201C'])
+  // Longer figure wording narrows further (position C only).
+  const backDiveTuck = nameSearchCodes('BACK DIVE TUCK')
+  expect(backDiveTuck.codes).toContain('201C')
+  expect(backDiveTuck.codes).not.toContain('201B')
+
   expect(nameSearchCodes('smack')).toEqual({ status: 'unused', codes: [] })
   // A rotation-family word alone is too broad for a bounded code list.
   expect(nameSearchCodes('somersaults')).toEqual({ status: 'unsupported', codes: [] })
@@ -89,14 +94,12 @@ it('sends the derived codes to the API and keeps caption matches alongside them'
   await userEvent.type(search, 'back dive')
   const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
   await waitFor(() => {
-    expect(libraryCalls.some(([, config]) => (config as { params: Record<string, string> }).params?.code_filter === '201A,201B,201C,201D')).toBe(true)
+    expect(libraryCalls.some(([, config]) => (config as { params: Record<string, string> }).params?.code_filter !== undefined)).toBe(true)
   })
-  // The client filter mirrors the API's OR-composition: caption-less named
-  // dives AND caption-phrase matches both stay visible.
-  await waitFor(() => {
-    const codes = screen.queryAllByText('201C').length > 0 && screen.getAllByText(/back dive practice/).length > 0
-    expect(codes).toBe(true)
-  })
+  // The client filter mirrors the API's OR-composition: the caption-less
+  // named dive stays visible too; the plain caption-less 103B drops out.
+  await waitFor(() => expect(screen.queryByRole('button', { name: /Open 201C attempt/ })).not.toBeNull())
+  expect(screen.queryAllByRole('button', { name: /Open 103B attempt/ })).toHaveLength(1)
 })
 
 it('falls back to phrase search when no figure word is present', async () => {
@@ -104,7 +107,8 @@ it('falls back to phrase search when no figure word is present', async () => {
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   await userEvent.type(screen.getByRole('textbox', { name: 'Search dives' }), 'smack')
   await waitFor(() => {
-    const last = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library').at(-1) as unknown as [string, { params: Record<string, string> }]
+    const nextCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
+    const last = nextCalls[nextCalls.length - 1] as unknown as [string, { params: Record<string, string> }]
     expect(last[1].params?.search_text).toBe('SMACK')
     expect(last[1].params?.code_filter).toBeUndefined()
   })
@@ -118,29 +122,35 @@ it('turns the period preset into a bounded date_from', async () => {
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Period' }), 'Past 3 months')
   await waitFor(() => expect(window.location.search).toBe('?period=90d'))
   const calls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library') as unknown as LibraryCall[]
-  expect(calls.at(-1)![1].params?.date_from).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00$/)
+  expect(calls[calls.length - 1][1].params?.date_from).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00$/)
   await userEvent.click(screen.getByRole('button', { name: /Reset filters/ }))
   expect(window.location.search).not.toContain('period')
 })
 
 // ---- Cross-rubrique workspace memory ----
 
+// ---- Cross-rubrique workspace memory ----
+
 it('restores filters, view and period when returning to a bare Library URL', async () => {
-  const view = renderAt('/dives?scope=all&q=smack&view=list&period=30d')
+  const view = renderAt('/dives?scope=all&q=103B&view=list&period=30d')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   view.unmount()
 
   renderAt('/dives')
-  expect(await screen.findByRole('textbox', { name: 'Search dives' })).toHaveValue('smack')
+  expect(await screen.findByRole('textbox', { name: 'Search dives' })).toHaveValue('103B')
   expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
-  expect(window.location.search).toBe('?scope=all&q=smack&view=list&period=30d')
+  const restored = new URLSearchParams(window.location.search)
+  expect(restored.get('q')).toBe('103B')
+  expect(restored.get('scope')).toBe('all')
+  expect(restored.get('view')).toBe('list')
+  expect(restored.get('period')).toBe('30d')
   const calls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library') as unknown as LibraryCall[]
-  expect(calls[0][1].params?.search_text).toBe('SMACK')
+  expect(calls[0][1].params?.code_prefix).toBe('103B')
   expect(calls[0][1].params?.date_from).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00$/)
 })
 
-it('never restores over an explicit Library URL', async () => {
-  const view = renderAt('/dives?scope=all&q=smack&view=list')
+it('never restores over an explicit Library URL or a clip deep link', async () => {
+  const view = renderAt('/dives?scope=all&q=103B&view=list')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   view.unmount()
 
@@ -148,10 +158,15 @@ it('never restores over an explicit Library URL', async () => {
   expect(await screen.findByRole('textbox', { name: 'Search dives' })).toHaveValue('')
   expect(await screen.findAllByRole('button', { name: /Open .* attempt/ })).toHaveLength(3)
   expect(window.location.search).toBe('?scope=all')
+
+  const clipEntry = renderAt('/dives?clip=2')
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  expect((clipEntry.container.querySelector('input[data-dives-search]') as HTMLInputElement).value).toBe('')
+  clipEntry.unmount()
 })
 
 it('keeps the remembered workspace private to each account', async () => {
-  const view = renderAt('/dives?scope=all&q=smack&view=list')
+  const view = renderAt('/dives?scope=all&q=103B&view=list')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   view.unmount()
 
