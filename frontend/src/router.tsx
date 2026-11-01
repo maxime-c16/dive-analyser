@@ -21,7 +21,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
 import { useNavigationIntent } from "./hooks/useNavigationIntent";
-import { loadChunk } from "./utils/chunkLoad";
+import { loadChunk, loadChunkPrefetch } from "./utils/chunkLoad";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 
 import { useAuth } from "./contexts/AuthContext";
@@ -114,7 +114,11 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
   const targetPath = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
   const path = targetPath.split(/[?#]/)[0];
-  const intent = useNavigationIntent(path, routeLoaders[path]);
+  // Prefetch, not the route loader: a failed speculative import must never
+  // auto-reload the page the user is looking at (lead reads, wip fields…).
+  const loader = routeLoaders[path];
+  const prefetch = loader ? () => loadChunkPrefetch(loader) : undefined;
+  const intent = useNavigationIntent(path, prefetch);
   if (primaryActive !== undefined) return <Link {...intent} {...props} className={typeof props.className === 'string' ? props.className : undefined} style={typeof props.style === 'object' ? props.style : undefined} aria-current={primaryActive ? 'page' : undefined}>{typeof props.children === 'function' ? null : props.children}</Link>;
   return <NavLink {...intent} {...props} />;
 }

@@ -3,6 +3,7 @@ import {
   clearReloadGuard,
   chunkRecovery,
   loadChunk,
+  loadChunkPrefetch,
   RELOAD_COOLDOWN_MS,
 } from "./chunkLoad";
 
@@ -80,6 +81,54 @@ describe("loadChunk", () => {
     const load = vi.fn().mockRejectedValue(new Error("Stale again"));
 
     await expect(loadChunk(load)).rejects.toThrow("Stale again");
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("loadChunkPrefetch (speculative imports)", () => {
+  it("resolves on the first attempt without a reload or a guard write", async () => {
+    const reload = vi
+      .spyOn(chunkRecovery, "reload")
+      .mockImplementation(() => undefined);
+    const chunk = { default: () => null };
+    const load = vi.fn().mockResolvedValue(chunk);
+
+    await expect(loadChunkPrefetch(load)).resolves.toBe(chunk);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("dive:chunk-reload-at")).toBeNull();
+  });
+
+  it("retries once in place but never reloads the healthy page behind a warm-up", async () => {
+    const reload = vi
+      .spyOn(chunkRecovery, "reload")
+      .mockImplementation(() => undefined);
+    const chunk = { default: () => null };
+    const load = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed to fetch dynamically imported module"))
+      .mockResolvedValueOnce(chunk);
+
+    await expect(loadChunkPrefetch(load)).resolves.toBe(chunk);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(reload).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("dive:chunk-reload-at")).toBeNull();
+  });
+
+  it("rethrows after the retry and burns no cooldown for a later route load", async () => {
+    const reload = vi
+      .spyOn(chunkRecovery, "reload")
+      .mockImplementation(() => undefined);
+    sessionStorage.removeItem("dive:chunk-reload-at");
+    const load = vi.fn().mockRejectedValue(new Error("chunk missing"));
+
+    await expect(loadChunkPrefetch(load)).rejects.toThrow("chunk missing");
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(reload).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("dive:chunk-reload-at")).toBeNull();
+    // A real navigation attempt right after is still allowed its guarded reload.
+    sessionStorage.removeItem("dive:chunk-reload-at");
+    await expect(loadChunk(load)).rejects.toThrow("chunk missing");
     expect(reload).toHaveBeenCalledTimes(1);
   });
 });

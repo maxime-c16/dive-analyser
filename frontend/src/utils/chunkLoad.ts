@@ -4,12 +4,19 @@
  * A lazy route chunk can fail for reasons outside the code itself: a deploy
  * swaps the built file set between the browser's cached index.html and a
  * later navigation (stale chunk hash → 404), or the fetch is simply
- * dropped. `loadChunk` retries once in place (network blips), then falls
- * back to ONE guarded full page reload — a fresh index.html names the
- * current chunk hashes. The guard (sessionStorage timestamp) blocks any
- * reload inside the cooldown, so the worst case is a visible error, never
- * an infinite loop and never a silently swallowed failure: when reloading
- * is not allowed the error is rethrown to the route error boundary.
+ * dropped. `loadChunk` (route loads) retries once in place (network
+ * blips), then falls back to ONE guarded full page reload — a fresh
+ * index.html names the current chunk hashes. The guard (sessionStorage
+ * timestamp) blocks any reload inside the cooldown, so the worst case is a
+ * visible error, never an infinite loop and never a silently swallowed
+ * failure: when reloading is not allowed the error is rethrown to the
+ * route error boundary.
+ *
+ * Speculative imports (`useNavigationIntent` hover/focus, component warm-up
+ * on mount) never belong to a failing route: reloading the current, healthy
+ * page would discard unsaved work for a chunk the user did not open. Those
+ * callers use `loadChunkPrefetch` (one in-place retry, no reload, no guard
+ * write); the real navigation keeps the guarded reload.
  */
 
 const RELOAD_STORAGE_KEY = "dive:chunk-reload-at";
@@ -75,5 +82,20 @@ export async function loadChunk<T>(load: () => Promise<T>): Promise<T> {
       chunkRecovery.reload();
       throw error;
     }
+  }
+}
+
+/**
+ * One guarded-off import for speculative loads (hover/focus warm-up,
+ * mount-time warm-up): retry once in place, never reload, never write the
+ * reload guard. The real navigation runs `loadChunk`, so an unrecovered
+ * chunk simply fails there with the visible route error + manual reload.
+ */
+export async function loadChunkPrefetch<T>(load: () => Promise<T>): Promise<T> {
+  try {
+    return await load();
+  } catch {
+    await delay(RETRY_DELAY_MS);
+    return await load();
   }
 }

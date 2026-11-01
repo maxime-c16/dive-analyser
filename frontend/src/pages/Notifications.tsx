@@ -223,6 +223,30 @@ function AccountNotificationsPage() {
     return () => { pageGeneration.current += 1 }
   }, [unreadOnly])
 
+  // A refresh can displace rows out of the first page while the user has
+  // paged past it: the head grows (61–12 replaces 60–11) and the rows between
+  // the two heads (11) become unreachable from both lists — the dedup only
+  // merges rows, it cannot reach a row beyond either cursor. When the head's
+  // anchor moves forward while a continuation is loaded, rebase the cursor to
+  // the fresh head anchor: the next "Show older" re-fetches the displaced
+  // range from the server (bounded by the same limit; rows already loaded
+  // merge instead of accumulating). A shrinking/removal head never rebases,
+  // and rows are never dropped — only their cursor is moved forward.
+  const headBase = unreadOnly ? (serverUnread ?? items) : items
+  const headAnchor = headBase[headBase.length - 1]?.id ?? null
+  const headAnchorRef = useRef<number | null>(null)
+  useEffect(() => {
+    const previous = headAnchorRef.current
+    headAnchorRef.current = headAnchor
+    if (previous === null || headAnchor === null || headAnchor <= previous) return
+    if (olderCursor !== null && headAnchor > olderCursor) {
+      setOlderCursor(headAnchor)
+      // The displaced range exists or may exist: keep the control until the
+      // server probe answers for the rebased anchor.
+      setOlderHasMore(true)
+    }
+  }, [headAnchor, olderCursor])
+
   const firstPage = unreadOnly
     ? (serverUnread ?? items).filter(item => !item.read_at)
     : items
@@ -257,7 +281,14 @@ function AccountNotificationsPage() {
         beforeId: anchor,
       })
       if (generation !== pageGeneration.current) return
-      setOlder(previous => [...previous, ...data.items])
+      // Merge by id: a rebased cursor re-returns rows the user already
+      // loaded, and the server's fresh copy must replace the stale one
+      // without duplicating state.
+      setOlder(previous => {
+        const merged = new Map(previous.map(row => [row.id, row]))
+        for (const row of data.items) merged.set(row.id, row)
+        return [...merged.values()]
+      })
       const next = data.items[data.items.length - 1]?.id ?? anchor
       setOlderCursor(next)
       setOlderHasMore(data.has_more)

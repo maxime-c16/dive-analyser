@@ -307,6 +307,30 @@ describe('Older notifications continuation (UX fix 2026-11)', () => {
     allIds.push(60)
   })
 
+  it('re-reaches a row displaced by a growing first page (60–11 + 10–1, new arrival 61)', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    expect(screen.getByText('New video synced #11')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    // A new arrival grows the head to 61–12: row 11 no longer belongs to
+    // either loaded page. The pagination control must come back instead of
+    // silently leaving a hole, and the next page re-reaches the displaced row.
+    allIds.push(61)
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('New video synced #61')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #11')).toBeInTheDocument()
+    // Rows already loaded merge by id — each is rendered exactly once.
+    expect(screen.getAllByText('New video synced #1')).toHaveLength(1)
+    expect(screen.getAllByText('New video synced #10')).toHaveLength(1)
+    expect(screen.getAllByText('New video synced #31')).toHaveLength(1)
+  })
+
   it('marks a row read inside the continuation without losing it', async () => {
     pagingStub()
     renderPage()

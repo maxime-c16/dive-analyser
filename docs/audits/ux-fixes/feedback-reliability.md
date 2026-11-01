@@ -152,3 +152,17 @@ renvoyée par les endpoints tentatives — `backend/app/api/v1/videos.py` entre 
 - Réponses de continuation invalidées après changement de filtre, marquage global ou démontage ; état de page isolé par compte. Déduplication des lignes déplacées par un rafraîchissement de première page. Tests de réponse différée et de chevauchement après refresh.
 - Aucun rechargement automatique lorsque la garde sessionStorage ne peut pas être persistée (évite une boucle avec stockage bloqué). Test dédié.
 - Validation complémentaire : notifications backend 17 tests ; notifications UI + chunkLoad 25 tests ; TypeScript et build production. Ces vérifications complètent les suites initiales, sans prétendre les avoir toutes rejouées après correction.
+
+## Suivi review (2026-11-01 ~23h, babysitter GLM sur 72692ccf)
+
+Registre des findings de review au head `72692ccf`, vérifiés contre le code courant.
+
+| Source | Finding | Décision | Preuve/validation |
+|---|---|---|---|
+| Copilot (494886af), thread `notification_service.py:445` | probe `has_more` sans `unread_only` | **Déjà corrigé sur 72692ccf** (`list_has_more(..., unread_only=unread_only)`, filtre appliqué lignes 455–456 ; appel API `app/api/v1/notifications.py:105`) | thread résolu par le commit fix ; suite `test_notifications.py` pagination unread |
+| Copilot (494886af), thread `Notifications.tsx:246` | continuation en vol après changement de filtre | **Déjà corrigé sur 72692ccf** (génération `pageGeneration` + cleanup + `pendingPage`) | test « ignores an old continuation response after the filter changes » |
+| OpenCode (72692ccf), REQUEST_CHANGES | refresh 60–11 → 61–12 conserve 10–1 et perd l'ID 11 (perdu par les deux curseurs) | **Confirmé — corrigé** : rebase du curseur sur l'ancre de la nouvelle tête quand elle avance (curseur seulement vers l'avant, jamais de suppression), `olderHasMore` restauré, marchandage de la continuation par id (copies fraîches remplacent les périmées, pas de rétention dupliquée) | nouveau test « re-reaches a row displaced by a growing first page (60–11 + 10–1, new arrival 61) » : bouton réapparait, ID 11 réatteignable, un seul rendu par id |
+| Copilot (494886af), thread `chunkLoad.ts:75` | imports spéculatifs (hover/warm) déclenchent le reload gardé et rechargent la page courante saine | **Confirmé — corrigé** : `loadChunkPrefetch` (1 retry en place, jamais de reload ni d'écriture de garde) pour `useNavigationIntent` (préchargement) et le warm-up `JurySession` au mount d'Évaluations ; les vraies navigations passent par `loadChunk` avec son reload gardé | +3 tests chunkLoad (aucun reload/écriture de garde, cooldown intact pour un chargement de route ultérieur) |
+| Copilot (494886af), threads résolus (426, 229, 74) | — | **Déjà corrigés/traités sur 72692ccf** | markReload null → rethrow ; hasMore continuation vide → `olderCursor !== null` ; ancre unread conservée |
+
+Validation locale de la passe : vitest notifications (20) + chunkLoad (9) sous Node 20 (le Node 26 de la machine casse l'environnement jsdom des tests, cf. globaux `localStorage` expérimentaux — uniquement local, la CI hébergée tourne sur Node 20), `typecheck`, `build` production. Gate locale indisponible sur ce poste (flock/nproc/docker-compose absents) : push avec `DIVE_CI_SKIP=1` (échappatoire documenté) et gate GitHub comme correctivité de référence.
