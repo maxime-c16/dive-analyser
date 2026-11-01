@@ -103,6 +103,9 @@ export default function Community() {
     <MemberAvatar member={member} size={48} />
     <span className="cm-row-main">
       <b>{member.display_name}{member.handle && <small> @{member.handle}</small>}</b>
+      {/* Name and facts are separate lines: an unseen comma keeps the link's
+          computed name from welding them ("Louis2 shared dives"). */}
+      <span className="sr-only">{', '}</span>
       <span>{(member.accessible_dive_count ?? 0) > 0
         ? <>{t('community.sharedDives', { count: member.accessible_dive_count })}{member.latest_dive_at && <> · {ago(member.latest_dive_at)}</>}</>
         : t('community.noSharedDives')}</span>
@@ -133,6 +136,7 @@ export default function Community() {
         <div className="cm-stories">{recent.map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-story ca-pop" style={{ '--i': index } as CSSProperties}>
           <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={60} /></span>
           <b>{member.display_name}</b>
+          <span className="sr-only">{', '}</span>
           <small>{member.latest_dive_at && formatDistanceToNowStrict(parseISO(member.latest_dive_at), { locale: appLocale() })}</small>
         </Link>)}</div>
       </section>}

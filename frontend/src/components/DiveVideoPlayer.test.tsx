@@ -118,6 +118,7 @@ it('immersive canplay never overrides an intentional pause', async () => {
     playSpy.mockRestore()
   }
 })
+
 it('forwards the immersive HUD signals up to the viewer', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
@@ -161,6 +162,92 @@ it('forwards the immersive HUD signals up to the viewer', async () => {
     playSpy.mockRestore()
   }
 })
+
+// The gesture overlay and the transport row share one paused state read
+// from the live element: whichever of play/pause/external interplay
+// happens, both aria labels must name the action available NOW, never a
+// stale "Pause video" over a paused element.
+it('both play/pause labels follow the real element state, including external changes', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="ui-labels" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    await presentFirstFrame(video)
+    // At mount the element is genuinely paused: the offered action is play.
+    expect(screen.getByRole('button', { name: 'Play video' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Resume playback' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pause video' })).not.toBeInTheDocument()
+
+    // Playback starts (own toggle or autoplay): both labels flip to pause.
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false })
+    fireEvent.play(video)
+    expect(screen.queryByRole('button', { name: 'Play video' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Resume playback' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Pause video' })).toHaveLength(2)
+
+    // Paused again — this time from an external cause (background tab, other
+    // control): the labels must name the resume action again.
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => true })
+    fireEvent.pause(video)
+    expect(screen.getByRole('button', { name: 'Play video' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Resume playback' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pause video' })).not.toBeInTheDocument()
+
+    // A paint without state change (scrub, mute flip) never contradicts it.
+    fireEvent.volumeChange(video)
+    expect(screen.getByRole('button', { name: 'Resume playback' })).toBeInTheDocument()
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
+it('switching clips rebinds the transport to the new element and its state', async () => {
+  vi.mocked(getMediaStatus).mockImplementation(async (uuid: string) => ({
+    ...ready,
+    video_uuid: uuid,
+    playback_url: `/cached-${uuid}.mp4`,
+  }))
+  const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    // The viewer keys the whole player per attempt, so a clip switch
+    // remounts everything over a fresh pooled element.
+    function PlayerHost({ uuid }: { uuid: string }) {
+      return <DiveVideoPlayer key={uuid} diveCode="103B" height="1m" videoUuid={uuid} immersive />
+    }
+    const view = render(<PlayerHost uuid="clip-swap-a" />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached-clip-swap-a.mp4'))
+    await presentFirstFrame(video)
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false })
+    fireEvent.play(video)
+    expect(screen.getAllByRole('button', { name: 'Pause video' })).toHaveLength(2)
+
+    // A sibling clip opens: the player element changes entirely. The
+    // fresh element resumes paused, so the labels must follow IT — not
+    // keep "Pause video" carried from the previous element.
+    view.rerender(<PlayerHost uuid="clip-swap-b" />)
+    const nextVideo = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    expect(nextVideo).not.toBe(video)
+    await waitFor(() => expect(nextVideo).toHaveAttribute('src', '/cached-clip-swap-b.mp4'))
+    await presentFirstFrame(nextVideo)
+    expect(screen.getByRole('button', { name: 'Play video' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Resume playback' })).toBeInTheDocument()
+
+    // Events from the retired element never drive the new transport.
+    fireEvent.play(video)
+    fireEvent.timeUpdate(video)
+    expect(screen.getByRole('button', { name: 'Resume playback' })).toBeInTheDocument()
+    // ...while the controlling (new) element still commands the labels.
+    Object.defineProperty(nextVideo, 'paused', { configurable: true, get: () => false })
+    fireEvent.play(nextVideo)
+    expect(screen.getAllByRole('button', { name: 'Pause video' })).toHaveLength(2)
+  } finally {
+    playSpy.mockRestore()
+  }
+})
+
 it('non-immersive clips never attempt autoplay', async () => {
   vi.mocked(getMediaStatus).mockResolvedValue(ready)
   const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
