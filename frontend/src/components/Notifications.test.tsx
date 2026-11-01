@@ -426,6 +426,55 @@ describe('Older notifications continuation (UX fix 2026-11)', () => {
     return { ok: true, json: async () => ({ items, unread_count: allIds.length, has_more: hasMore }) } as Response
   }
 
+  it('never fakes a continuation when switching All and Unread without an arrival', async () => {
+    // 41–60 read, 1–40 unread. The All stream holds 60–11 (has_more true at
+    // the head boundary 11); the unread stream ends at 40 and its own probe
+    // honestly reports has_more=false. A filter switch moves the anchor
+    // (11 → 40) without announcing any arrival: the switch must not rebase,
+    // and the server truth owns the continuation control.
+    const rows = Array.from({ length: 60 }, (_, index) => {
+      const id = 60 - index
+      return { id, type: 'new_video', title: `New video synced #${id}`, body: null, dive_id: id, read_at: id >= 41 ? '2026-10-05T08:00:00Z' : null, created_at: '2026-10-29T08:00:00Z' }
+    })
+    const stub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method) return { ok: true, json: async () => ({}) } as Response
+      const url = typeof input === 'string' ? input : String(input)
+      const query = new URLSearchParams(url.split('?')[1] ?? '')
+      const unreadOnly = query.get('unread_only') === 'true'
+      const anchorRaw = query.get('before_id')
+      const anchor = anchorRaw === null ? NaN : Number(anchorRaw)
+      const pool = rows.filter(row => (unreadOnly ? row.read_at === null : true)).sort((a, b) => b.id - a.id)
+      const offered = Number.isNaN(anchor) ? pool.slice(0, 50) : pool.filter(row => row.id < anchor).slice(0, 50)
+      const beyond = Number.isNaN(anchor) ? (unreadOnly ? [] as typeof rows : rows) : pool.filter(row => row.id < anchor)
+      return {
+        ok: true,
+        json: async () => ({ items: offered, unread_count: rows.filter(row => row.read_at === null).length, has_more: beyond.length > offered.length }),
+      } as Response
+    })
+    vi.stubGlobal('fetch', stub)
+    renderPage()
+    await screen.findByText('New video synced #60')
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // Establish a continuation first (the page after 11 reaches the end in
+    // All mode): consumed, the control hides.
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    // Switch All → Unread without any arrival (anchor would jump 11 → 40).
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(40\)/ }))
+    expect(await screen.findByText('New video synced #40')).toBeInTheDocument()
+    // The rebased-phantom would resurrect the control while the unread
+    // probe said the list is complete — it must stay hidden.
+    expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull()
+    // Back to All: the provider page re-owns the truth and the control
+    // returns for what the provider probe says remains.
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument(),
+    )
+  })
+
   it('marks a row read inside the continuation without losing it', async () => {
     pagingStub()
     renderPage()

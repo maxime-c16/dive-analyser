@@ -187,8 +187,7 @@ function AccountNotificationsPage() {
     if (!unreadOnly) {
       setServerUnread(null)
       return
-    }
-    let alive = true
+    }    let alive = true
     void (async () => {
       try {
         const data = await listNotifications({ unreadOnly: true, limit: 50 })
@@ -220,6 +219,11 @@ function AccountNotificationsPage() {
     setOlderCursor(null)
     setOlderHasMore(false)
     setLoadingMore(false)
+    // A filter switch moves the head anchor (the unread stream's deepest
+    // row differs from the all stream's). Record the fresh anchor as the
+    // baseline instead of letting the rebase see "the head jumped" — a
+    // switch announces no arrival, so server truth owns the control.
+    headAnchorRef.current = null
     return () => { pageGeneration.current += 1 }
   }, [unreadOnly])
 

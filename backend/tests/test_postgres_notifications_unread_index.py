@@ -125,8 +125,10 @@ def _seed(engine):
 def _plans_use_partial_index(engine, sql) -> bool:
     with engine.connect() as c:
         raw = c.exec_driver_sql(f"EXPLAIN (FORMAT JSON) {sql}").fetchall()[0][0]
-    plan_text = json.dumps(json.loads(raw))
-    return "ix_notifications_user_unread_recent" in plan_text
+    # psycopg2 already decodes the JSON column into a list of plan entries.
+    if not isinstance(raw, list):
+        raw = json.loads(raw)
+    return "ix_notifications_user_unread_recent" in json.dumps(raw)
 
 
 def test_unread_keyset_probes_ride_the_partial_index(pg):
