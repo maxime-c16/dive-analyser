@@ -331,6 +331,61 @@ describe('Older notifications continuation (UX fix 2026-11)', () => {
     expect(screen.getAllByText('New video synced #31')).toHaveLength(1)
   })
 
+  it('keeps the rebased cursor when a continuation lands after the arrival', async () => {
+    pagingStub()
+    const intact = vi.mocked(fetch).getMockImplementation()!
+    renderPage()
+    await screen.findByText('New video synced #60')
+    // The first continuation (anchored on 11 from head 60–11) stalls on the
+    // wire…
+    let release!: (response: Response) => void
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('before_id')) return new Promise<Response>(r => { release = r })
+      return intact(input, init)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    // …and notification 61 arrives first: the fresh head covers 61–12 and
+    // the cursor re-aligns to it (61 is visible, the control stays).
+    allIds.push(61)
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('New video synced #61')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // The late response brings the old pages (10–1, has_more=false): the
+    // rows merge, but the cursor and its flatter has_more must NOT overwrite
+    // the rebase — otherwise row 11 would be unreachable forever.
+    await act(async () => {
+      release({
+        ok: true,
+        json: async () => ({
+          items: Array.from({ length: 10 }, (_, index) => ({
+            id: 10 - index,
+            type: 'new_video',
+            title: `New video synced #${10 - index}`,
+            body: null,
+            dive_id: 10 - index,
+            read_at: null,
+            created_at: '2026-10-29T08:00:00Z',
+          })),
+          unread_count: 61,
+          has_more: false,
+        }),
+      } as Response)
+    })
+    expect(screen.getAllByText('New video synced #10')).toHaveLength(1)
+    expect(screen.queryByText('New video synced #11')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // The next page anchors past the rebased cursor: row 11 is reached, the
+    // continuation reaches its true end, nothing duplicates.
+    vi.mocked(fetch).mockImplementation(intact)
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #11')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    expect(screen.getAllByText('New video synced #1')).toHaveLength(1)
+  })
+
   it('marks a row read inside the continuation without losing it', async () => {
     pagingStub()
     renderPage()
