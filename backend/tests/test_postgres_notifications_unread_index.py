@@ -67,14 +67,18 @@ def pg():
         conn.commit()
 
     try:
-        # app_users (and everything it needs) comes from the ORM; the
-        # notifications tables come from the shipped migration file.
-        tables = {Base.metadata.tables["app_users"]}
+        # The shipped notifications DDL carries FKs to dives/sessions/
+        # conversations/app_users: create their real transitive closure from
+        # the ORM metadata first, then let the shipped migration create the
+        # notifications tables. (Postgres validates FK targets at CREATE
+        # TABLE; a user-only closure failed setup with a missing relations.)
+        tables = {Base.metadata.tables["notifications"], Base.metadata.tables["app_users"]}
         while True:
             expanded = tables | {fk.column.table for t in tables for fk in t.foreign_keys}
             if expanded == tables:
                 break
             tables = expanded
+        tables.discard(Base.metadata.tables["notifications"])
         Base.metadata.create_all(engine, tables=list(tables))
         for ddl_path, passes in ((NOTIFICATIONS_SQL, 2), (INDEX_SQL, 2)):
             ddl = ddl_path.read_text()

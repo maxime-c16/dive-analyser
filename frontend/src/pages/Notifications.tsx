@@ -182,10 +182,6 @@ function AccountNotificationsPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const pageGeneration = useRef(0)
   const pendingPage = useRef(false)
-  // Bumped whenever the head moves forward while a continuation boundary
-  // exists: requests launched before the rebase may no longer move the
-  // cursor (their rows still merge).
-  const rebaseSeq = useRef(0)
 
   useEffect(() => {
     if (!unreadOnly) {
@@ -244,11 +240,13 @@ function AccountNotificationsPage() {
     headAnchorRef.current = headAnchor
     if (previous === null || headAnchor === null || headAnchor <= previous) return
     // The head moved forward: align the continuation boundary to the fresh
-    // head's deepest row no matter what an in-flight continuation carries
-    // (its rows merge; only its cursor would reopen the gap). Lift the
-    // in-flight fence too: the control stays actionable while the stale
-    // response finishes underneath (the server still owns the range answer).
-    rebaseSeq.current += 1
+    // head's deepest row, no matter what continuation is on the wire. The
+    // generation bump ends the ownership of every request launched before
+    // the rebase (success/error AND finally: none of them may clear the
+    // pending fence of a newer page); the fence lifts here, the control is
+    // actionable immediately, and the displaced rows arrive with the next
+    // request (bounded by the same page limit).
+    pageGeneration.current += 1
     if (olderCursor === null || headAnchor > olderCursor) {
       setOlderCursor(headAnchor)
     }
@@ -281,7 +279,6 @@ function AccountNotificationsPage() {
     const anchor = olderCursor ?? base[base.length - 1]?.id ?? null
     if (anchor == null || pendingPage.current) return
     const generation = pageGeneration.current
-    const launchRebase = rebaseSeq.current
     pendingPage.current = true
     setLoadingMore(true)
     setActionError(false)
@@ -300,14 +297,9 @@ function AccountNotificationsPage() {
         for (const row of data.items) merged.set(row.id, row)
         return [...merged.values()]
       })
-      // The cursor and its probe answer belong to a request no rebase has
-      // invalidated since: a late continuation launched before an arrival
-      // keeps merging its rows but must not drag the rebased boundary down.
-      if (launchRebase === rebaseSeq.current) {
-        const next = data.items[data.items.length - 1]?.id ?? anchor
-        setOlderCursor(next)
-        setOlderHasMore(data.has_more)
-      }
+      const next = data.items[data.items.length - 1]?.id ?? anchor
+      setOlderCursor(next)
+      setOlderHasMore(data.has_more)
     } catch {
       if (generation === pageGeneration.current) setActionError(true)
     } finally {
