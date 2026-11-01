@@ -9,6 +9,13 @@ import { api } from "../services/api";
 import { clearLibraryCache, libraryKey, loadLibraryCache, readLibraryCache } from "../services/libraryCache";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
+import {
+  isBareLibraryUrl,
+  mergeLibraryParams,
+  readLibraryWorkspace,
+  saveLibraryWorkspace,
+} from "../hooks/libraryWorkspace";
+import { nameSearchCodes } from "../utils/diveNameSearch";
 import { divePositionCode } from "../utils/divePosition";
 import {
   MODIFIERS,
@@ -42,6 +49,14 @@ type View = "grid" | "list" | "codes" | "progress";
 function normalizedHeight(value: string) {
   return value.replace(/\s/g, "").toLowerCase();
 }
+
+/** Library period presets: relative windows, explicit in the URL as `period`. */
+const PERIODS: Array<[string, number]> = [
+  ["30d", 30 * 86400000],
+  ["90d", 90 * 86400000],
+  ["180d", 180 * 86400000],
+  ["365d", 365 * 86400000],
+];
 
 function ScoreBadge({ dive }: { dive: Dive }) {
   const { t } = useTranslation();
@@ -88,18 +103,19 @@ function mergeSessionsAndDives(sessions: SharedTrainingSession[], dives: Dive[])
 }
 
 function SessionRow({ session }: { session: SharedTrainingSession }) {
+  const { t } = useTranslation();
   return (
     <Link
       to={`/sessions/shared/${session.session_id}`}
       className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
-      aria-label={`Séance · ${session.video_count} ${session.video_count === 1 ? "vidéo" : "vidéos"}`}
+      aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}
     >
       <div className="flex aspect-video items-center justify-center overflow-hidden border border-app">
-        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">Séance</span>
+        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span>
       </div>
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-app-text">
-          {session.video_count} {session.video_count === 1 ? "vidéo" : "vidéos"} · {formatDuration(session.total_duration)}
+          {t("libraryUX.sessionVideos", { count: session.video_count })} · {formatDuration(session.total_duration)}
         </p>
         <p className="mt-1 text-xs text-app-muted">
           {format(parseISO(session.date), "d MMM yyyy", { locale: appLocale() })}
@@ -250,10 +266,24 @@ function DiveLibrary() {
     .split(",")
     .filter(Boolean);
   const view = (searchParams.get("view") || "grid") as View;
+  const period = PERIODS.some(([key]) => key === searchParams.get("period"))
+    ? (searchParams.get("period") as string)
+    : "";
+  const periodFrom = useMemo(() => {
+    const preset = PERIODS.find(([key]) => key === period);
+    if (!preset) return "";
+    // Naive UTC midnight so the naive dive_datetime comparison stays valid;
+    // the window is re-anchored per mount, never stored as an absolute date.
+    return new Date(Date.now() - preset[1]).toISOString().slice(0, 10) + "T00:00:00";
+  }, [period]);
   const clipParam = searchParams.get("clip") || "";
   const clipRef = useRef(clipParam);
   clipRef.current = clipParam;
   const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
+  // Figure-name words resolve to exact codes over the whole authorized
+  // scope (not just the loaded page); position/height/sync words already
+  // reuse the structured filters above, so only leftover words run here.
+  const nameMatch = useMemo(() => nameSearchCodes(parsed.text), [parsed.text]);
   const pageParams = {
     limit: 100, diver_scope: scope,
     height: heightFilter || parsed.height.toLowerCase(),
@@ -261,6 +291,8 @@ function DiveLibrary() {
     code_prefix: parsed.code, search_text: parsed.text, position_filter: parsed.position,
     ...(contextFilter ? { sync_filter: contextFilter === 'sync' } : parsed.sync !== null ? { sync_filter: parsed.sync } : {}),
     modifier_filter: [...new Set([...modifiers, ...parsed.modifiers])].join(','),
+    ...(periodFrom ? { date_from: periodFrom } : {}),
+    ...(nameMatch.status === "match" && nameMatch.codes.length > 0 ? { code_filter: nameMatch.codes.join(',') } : {}),
   };
   const pageParamsKey = JSON.stringify(pageParams);
   // Code cards and progress aggregate the whole filtered Library, not the loaded pages.
@@ -285,6 +317,24 @@ function DiveLibrary() {
   const pageGeneration = useRef(0);
   const loadedAccessKey = useRef(accessKey);
   const hasLoadedLibrary = useRef(Boolean(cached));
+  // Cross-rubrique workspace memory (see hooks/libraryWorkspace): restore a
+  // bare /dives mount once, never deep links with explicit filters.
+  const workspaceRestorePending = useRef<number | null>(null);
+  const workspaceConsumed = useRef(false);
+  const workspaceParamsRef = useRef<URLSearchParams | null>(null);
+  workspaceParamsRef.current = searchParams;
+  useEffect(() => {
+    workspaceConsumed.current = false;
+    return () => {
+      // Leaving the Library saves the working state for this tab + account.
+      if (workspaceParamsRef.current && user !== undefined) {
+        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0);
+      }
+      workspaceParamsRef.current = null;
+    };
+    // Re-arm only when the account binding changes; the cleanup runs on
+    // unmount and on identity re-key (Dives is keyed by libraryKey).
+  }, [accessKey]);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollAnchorRef = useRef<number | null>(null);
@@ -305,6 +355,21 @@ function DiveLibrary() {
     let active = true;
     pageGeneration.current++;
     setLoadingMore(false);
+    // A bare /dives arrival carries no Library state in its URL: one stored
+    // workspace (this tab + account) is restored instead of silently
+    // resetting filters, view and scroll depth. Explicit URLs win.
+    if (!workspaceConsumed.current) {
+      workspaceConsumed.current = true;
+      const stored = readLibraryWorkspace(user);
+      if (stored && isBareLibraryUrl(searchParams)) {
+        const merged = mergeLibraryParams(searchParams, stored);
+        if (merged.toString() !== searchParams.toString()) {
+          workspaceRestorePending.current = stored.scrollY;
+          setSearchParams(merged, { replace: true, preventScrollReset: true });
+          return;
+        }
+      }
+    }
     const snapshot = readLibraryCache(cacheKey);
     const accountChanged = loadedAccessKey.current !== accessKey;
     loadedAccessKey.current = accessKey;
@@ -350,7 +415,22 @@ function DiveLibrary() {
     return () => {
       active = false;
     };
+    // Bounded listeners by design: the identity guard comes from the Dives
+    // re-key, period/name filters recompute pageParamsKey themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey, cacheKey, pageParamsKey]);
+
+  // Restored scroll depth lands after the restored (cached or fetched) page
+  // has painted; clamped to the current content height.
+  useEffect(() => {
+    if (loading || workspaceRestorePending.current === null) return;
+    const anchor = workspaceRestorePending.current;
+    workspaceRestorePending.current = null;
+    requestAnimationFrame(() => {
+      const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo(0, Math.min(anchor, max));
+    });
+  }, [loading, dives.length]);
 
   useEffect(() => {
     if (!aggregated) return;
@@ -447,13 +527,18 @@ function DiveLibrary() {
           parsed.modifiers.some((modifier) => !diveModifiers.includes(modifier))
         )
           return false;
-        if (
-          parsed.text &&
-          !`${dive.dive_code} ${dive.raw_caption || ""} ${dive.notes || ""}`
-            .toUpperCase()
-            .includes(parsed.text)
-        )
-          return false;
+        if (parsed.text) {
+          // Same OR-composition as the API: phrase on code/caption/notes OR
+          // figure-name codes derived from the shared catalog. Captions are
+          // frequently empty, so names must count on their own.
+          const phrase = `${dive.dive_code} ${dive.raw_caption || ""} ${
+            dive.notes || ""
+          }`.toUpperCase();
+          const byName =
+            nameMatch.status === "match" &&
+            nameMatch.codes.includes(dive.dive_code.toUpperCase());
+          if (!phrase.includes(parsed.text) && !byName) return false;
+        }
         return true;
       }),
     [
@@ -466,6 +551,7 @@ function DiveLibrary() {
       performanceFilter,
       modifiers,
       parsed,
+      nameMatch,
     ],
   );
   useEffect(() => {
@@ -477,6 +563,7 @@ function DiveLibrary() {
     contextFilter,
     performanceFilter,
     modifiers.join(","),
+    period,
   ]);
 
   // The viewer is derived from the URL: `clip` holds the selected attempt id.
@@ -593,6 +680,7 @@ function DiveLibrary() {
     performanceFilter,
     ...modifiers,
     deferredQuery,
+    period,
   ].filter(Boolean).length;
   const reset = () =>
     update({
@@ -601,6 +689,7 @@ function DiveLibrary() {
       context: null,
       performance: null,
       modifiers: null,
+      period: null,
     });
 
   return (
@@ -683,8 +772,7 @@ function DiveLibrary() {
             aria-label={t("dives.filters")}
           >
             <SlidersHorizontal className="h-4 w-4" />
-            {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-accent px-1 text-[10px] font-semibold text-black">
+            {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0) > 0 && (              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-accent px-1 text-[10px] font-semibold text-black">
                 {activeFilters - (deferredQuery ? 1 : 0) + (scope !== "self" ? 1 : 0)}
               </span>
             )}
@@ -766,6 +854,19 @@ function DiveLibrary() {
             {PERFORMANCE.map((item) => (
               <option key={item} value={item}>
                 {item} · {performanceLabel(item)}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label={t("libraryUX.periodFilter")}
+            value={period}
+            onChange={(event) => update({ period: event.target.value || null })}
+            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+          >
+            <option value="">{t("libraryUX.periodAll")}</option>
+            {PERIODS.map(([key]) => (
+              <option key={key} value={key}>
+                {t(`libraryUX.period${key}`)}
               </option>
             ))}
           </select>
@@ -891,7 +992,9 @@ function DiveLibrary() {
                       onClick={() => setShown((count) => count + 48)}
                       className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
                     >
-                      {t("dives.showMoreAttempts")}
+                      {t("libraryUX.showMoreAttempts", {
+                        count: Math.min(48, filtered.length - shown),
+                      })}
                     </button>
                   </div>
                 )}
@@ -900,8 +1003,22 @@ function DiveLibrary() {
           )}
         </section>
       )}
-      {sessionsCursor && <button className="touch-target" onClick={async()=>{const d=await trainingSessions(sessionsCursor);setSharedSessions(s=>[...s,...d.items]);setSessionsCursor(d.next_cursor)}}>Plus de séances</button>}
-      {!loading && nextCursor && !aggregated && (
+      {sessionsCursor && (
+        <div className="mt-5 text-center">
+          <button
+            type="button"
+            className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
+            onClick={async () => {
+              const d = await trainingSessions(sessionsCursor);
+              setSharedSessions((s) => [...s, ...d.items]);
+              setSessionsCursor(d.next_cursor);
+            }}
+          >
+            {t("libraryUX.loadMoreSessions")}
+          </button>
+        </div>
+      )}
+      {!loading && nextCursor && !aggregated && shown >= filtered.length && (
         <div className="mt-5 text-center">
           <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">

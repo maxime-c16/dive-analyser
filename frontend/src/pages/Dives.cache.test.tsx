@@ -10,7 +10,7 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: {
   user_id: 1, role: 'owner', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }],
 } }) }));
 vi.mock('../services/api', () => ({ api: { get: vi.fn() } }));
-afterEach(() => { clearLibraryCache(); vi.useRealTimers(); });
+afterEach(() => { clearLibraryCache(); sessionStorage.clear(); vi.useRealTimers(); });
 function page() { return render(<MemoryRouter initialEntries={['/dives']}><Dives /></MemoryRouter>); }
 const attempt = { id: 1, dive_code: '103B', diver_id: 1, performance: 'G', height: '1m', dive_datetime: '2026-10-05T10:00:00', video_uuid: null, is_sync: false, position: 'B' };
 function data() {

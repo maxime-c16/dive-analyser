@@ -1788,6 +1788,24 @@ const en = {
     openAttempt: 'Open attempt',
     findReplacement: 'Find replacement',
   },
+  // Library UX fixes (scope A, dedicated block): keys introduced by the
+  // Library-state/search/paginate fixes PR.
+  libraryUX: {
+    periodFilter: 'Period',
+    periodAll: 'All periods',
+    period30d: 'Past 30 days',
+    period90d: 'Past 3 months',
+    period180d: 'Past 6 months',
+    period365d: 'Past year',
+    showMoreAttempts_one: 'Show {{count}} more attempt',
+    showMoreAttempts_other: 'Show {{count}} more attempts',
+    loadMoreSessions: 'Load more sessions',
+    sessionBadge: 'Session',
+    sessionVideos_one: '{{count}} video',
+    sessionVideos_other: '{{count}} videos',
+    sessionRowAria_one: 'Training session · {{count}} video',
+    sessionRowAria_other: 'Training session · {{count}} videos',
+  },
 } as const
 
 export default en

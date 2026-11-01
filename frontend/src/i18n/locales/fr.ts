@@ -1790,6 +1790,24 @@ const fr = {
     openAttempt: 'Ouvrir le plongeon',
     findReplacement: 'Trouver un remplaçant',
   },
+  // Library UX fixes (périmètre A, bloc dédié) : clés introduites par la PR
+  // de corrections Library (état, recherche par nom, pagination, période).
+  libraryUX: {
+    periodFilter: 'Période',
+    periodAll: 'Toutes les périodes',
+    period30d: '30 derniers jours',
+    period90d: '3 derniers mois',
+    period180d: '6 derniers mois',
+    period365d: 'An dernier',
+    showMoreAttempts_one: 'Afficher {{count}} plongeon de plus',
+    showMoreAttempts_other: 'Afficher {{count}} plongeons de plus',
+    loadMoreSessions: 'Charger plus de séances',
+    sessionBadge: 'Séance',
+    sessionVideos_one: '{{count}} vidéo',
+    sessionVideos_other: '{{count}} vidéos',
+    sessionRowAria_one: 'Séance · {{count}} vidéo',
+    sessionRowAria_other: 'Séance · {{count}} vidéos',
+  },
 } as const
 
 export default fr
