@@ -47,8 +47,8 @@ import {
   X,
 } from "lucide-react";
 const SeriesPage = lazy(() => loadChunk(() => import("./pages/Series")));
-const loadCalendar = () => loadChunk(() => import("./pages/Calendar"));
-const CalendarPage = lazy(loadCalendar);
+const loadCalendar = () => import("./pages/Calendar");
+const CalendarPage = lazy(() => loadChunk(loadCalendar));
 const loadSharedDive = () => loadChunk(() => import("./pages/SharedDive"));
 const SharedDive = lazy(loadSharedDive);
 const loadSharedSession = () => loadChunk(() => import("./pages/SharedSession"));
@@ -61,46 +61,46 @@ const loadInvite = () => loadChunk(() => import("./pages/Invite"));
 const Invite = lazy(loadInvite);
 const loadDeposits = () => loadChunk(() => import("./pages/Deposits"));
 const Deposits = lazy(loadDeposits);
-const loadDashboard = () => loadChunk(() => import("./pages/Dashboard"));
-const Dashboard = lazy(loadDashboard);
-const loadAnalytics = () => loadChunk(() => import("./pages/Analytics"));
-const Analytics = lazy(loadAnalytics);
-const loadSessions = () => loadChunk(() => import("./pages/Sessions"));
-const Sessions = lazy(loadSessions);
-const loadJourney = () => loadChunk(() => import("./pages/Journey"));
-const Journey = lazy(loadJourney);
+const loadDashboard = () => import("./pages/Dashboard");
+const Dashboard = lazy(() => loadChunk(loadDashboard));
+const loadAnalytics = () => import("./pages/Analytics");
+const Analytics = lazy(() => loadChunk(loadAnalytics));
+const loadSessions = () => import("./pages/Sessions");
+const Sessions = lazy(() => loadChunk(loadSessions));
+const loadJourney = () => import("./pages/Journey");
+const Journey = lazy(() => loadChunk(loadJourney));
 const loadDiveAnalysis = () => loadChunk(() => import("./pages/DiveAnalysis"));
 const DiveAnalysis = lazy(loadDiveAnalysis);
 const loadCodeAnalysis = () => loadChunk(() => import("./pages/CodeAnalysis"));
 const CodeAnalysis = lazy(loadCodeAnalysis);
-const loadRepresentativeMedia = () => loadChunk(() => import("./pages/RepresentativeMedia"));
-const RepresentativeMedia = lazy(loadRepresentativeMedia);
-const loadMediaRecall = () => loadChunk(() => import("./pages/MediaRecall"));
-const MediaRecall = lazy(loadMediaRecall);
+const loadRepresentativeMedia = () => import("./pages/RepresentativeMedia");
+const RepresentativeMedia = lazy(() => loadChunk(loadRepresentativeMedia));
+const loadMediaRecall = () => import("./pages/MediaRecall");
+const MediaRecall = lazy(() => loadChunk(loadMediaRecall));
 const loadP5Canary = () => loadChunk(() => import("./pages/P5Canary"));
 const P5Canary = lazy(loadP5Canary);
-const loadAdmin = () => loadChunk(() => import("./pages/Admin"));
-const Admin = lazy(loadAdmin);
+const loadAdmin = () => import("./pages/Admin");
+const Admin = lazy(() => loadChunk(loadAdmin));
 const AdminAccount = lazy(() => loadChunk(() => import("./pages/AdminAccount")));
-const loadAccount = () => loadChunk(() => import("./pages/Account"));
-const Account = lazy(loadAccount);
-const loadMessages = () => loadChunk(() => import("./pages/Messages"));
-const Messages = lazy(loadMessages);
-const loadCommunity = () => loadChunk(() => import("./pages/Community"));
-const Community = lazy(loadCommunity);
+const loadAccount = () => import("./pages/Account");
+const Account = lazy(() => loadChunk(loadAccount));
+const loadMessages = () => import("./pages/Messages");
+const Messages = lazy(() => loadChunk(loadMessages));
+const loadCommunity = () => import("./pages/Community");
+const Community = lazy(() => loadChunk(loadCommunity));
 const JudgeRoom = lazy(() => loadChunk(() => import("./pages/JudgeRoom")));
-const loadMemberProfile = () => loadChunk(() => import("./pages/MemberProfile"));
-const MemberProfile = lazy(loadMemberProfile);
-const loadEvaluations = () => loadChunk(() => import("./pages/Evaluations"));
-const Evaluations = lazy(loadEvaluations);
+const loadMemberProfile = () => import("./pages/MemberProfile");
+const MemberProfile = lazy(() => loadChunk(loadMemberProfile));
+const loadEvaluations = () => import("./pages/Evaluations");
+const Evaluations = lazy(() => loadChunk(loadEvaluations));
 // Design-review mock (fixture data, no backend): dev-only, never shipped.
 const loadEvaluationDemo = (): Promise<{ default: React.ComponentType }> =>
   (import.meta.env.DEV
     ? loadChunk(() => import("./pages/EvaluationDemo"))
     : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
 const EvaluationDemo = lazy(loadEvaluationDemo);
-const loadNotifications = () => loadChunk(() => import("./pages/Notifications"));
-const Notifications = lazy(loadNotifications);
+const loadNotifications = () => import("./pages/Notifications");
+const Notifications = lazy(() => loadChunk(loadNotifications));
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/dashboard': loadDashboard, '/analytics': loadAnalytics,

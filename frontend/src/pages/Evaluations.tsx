@@ -23,11 +23,11 @@ import WarmUp from '../components/evaluation/EvaluationWarmUp'
 import { getEvaluationOverview, type EvaluationOverview } from '../services/evaluationApi'
 import { MobileShellActions } from '../navigation/mobileShellActions'
 
-const loadJurySession = () => loadChunk(() => import('../components/evaluation/JurySession'))
-const JurySession = lazy(loadJurySession)
+const loadJurySession = () => import('../components/evaluation/JurySession')
+const JurySession = lazy(() => loadChunk(loadJurySession))
 // Mount warm-up is speculative: a chunk failure here must not reload the
-// healthy Evaluations page (the excluded guarded reload); when the judge
-// actually opens the stage, the route loader above keeps its recovery.
+// healthy Evaluations page (the guarded reload is reserved for real route
+// loads, above); the prefetch takes the raw import, not the guarded loader.
 const warmJurySession = () =>
   loadChunkPrefetch(loadJurySession).catch(() => {})
 
