@@ -1808,7 +1808,6 @@ const fr = {
     openAttempt: 'Ouvrir le plongeon',
     findReplacement: 'Trouver un remplaçant',
   },
-
 } as const
 
 export default fr

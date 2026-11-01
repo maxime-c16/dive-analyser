@@ -1806,7 +1806,6 @@ const en = {
     openAttempt: 'Open attempt',
     findReplacement: 'Find replacement',
   },
-
 } as const
 
 export default en
