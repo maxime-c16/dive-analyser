@@ -15,6 +15,12 @@ export function navPolicyFor(path: string, width: number, state: { overlays?: nu
 export function withoutClip(path: string) {
   const url = new URL(path, 'https://local.invalid')
   url.searchParams.delete('clip')
+  // A skip-link never benefits a restored tab: the fragment is cleared as
+  // soon as it is clicked (router.tsx skipToMainContent), so tab memory must
+  // not re-save or re-serve one — a surviving #main-content would replay the
+  // fragment navigation on restore and steal focus from the endpoint the
+  // restore intends (e.g. the Library card behind a clip viewer).
+  if (url.hash === '#main-content') url.hash = ''
   return url.pathname + url.search + url.hash
 }
 export type TabContext = { url: string; scroll: number }

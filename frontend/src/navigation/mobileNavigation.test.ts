@@ -7,6 +7,14 @@ it.each([
   ['/dives',390,{},'visible'], ['/messages/12',390,{},'replaced'], ['/messages/12',768,{},'visible'], ['/dives',1023,{},'visible'], ['/dives',1024,{},'hidden'], ['/share/abc',390,{},'hidden'], ['/login',390,{},'hidden'], ['/dives',390,{ overlays: 2 },'hidden'], ['/evaluations',390,{ overlays: 1 },'hidden'], ['/account',390,{ editing: true },'hidden'], ['/admin/users/1',390,{ bottomAction: true },'replaced'], ['/dives',390,{ clip: true },'hidden'],
 ] as const)('policy %s %s %j = %s', (path,width,state,result) => expect(navPolicyFor(path,width,state)).toBe(result))
 it('removes only the clip, preserving filters and encoding semantics', () => expect(withoutClip('/dives?q=103+B&clip=2&scope=all')).toBe('/dives?q=103+B&scope=all'))
+it('never stores or serves the skip-link fragment in a tab context', () => {
+  saveTabContext(1, 'dives', { url: '/dives?q=103#main-content', scroll: 420 })
+  expect(readTabContext(1, 'dives')).toEqual({ url: '/dives?q=103', scroll: 420 })
+  // Only the synthetic skip fragment is normalized; app-unknown fragments
+  // survive.
+  saveTabContext(1, 'dives', { url: '/dives#section-2', scroll: 0 })
+  expect(readTabContext(1, 'dives')).toEqual({ url: '/dives#section-2', scroll: 0 })
+})
 it('keeps tab context per account and never restores a viewer', () => {
   saveTabContext(1,'dives',{ url:'/dives?q=103&clip=4',scroll:420 })
   expect(readTabContext(1,'dives')).toEqual({ url:'/dives?q=103',scroll:420 })

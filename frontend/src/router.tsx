@@ -11,6 +11,7 @@ import {
   NavLink,
   Link,
   useLocation,
+  useNavigate,
   Navigate,
 } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -432,23 +433,31 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
  * traversal to such an URL re-runs the fragment navigation, refocusing
  * <main> over whatever focus the app restored (e.g. the Library card that
  * had opened the clip viewer). Focusing the landmark manually keeps the
- * keyboard behavior and leaves the history fragment-free.
+ * keyboard behavior and leaves the history fragment-free. The URL is
+ * replaced through React Router (same entry, location.state preserved,
+ * no extra history insert): useLocation then matches the address bar, so
+ * useTabMemory can never persist a stale fragment that would replay the
+ * focus jump when a restored mobile tab lands.
  */
-function skipToMainContent(event: React.MouseEvent<HTMLAnchorElement>) {
-  if (event.defaultPrevented || event.button !== 0 || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
-  event.preventDefault();
-  const main = document.getElementById("main-content");
-  main?.focus({ preventScroll: true });
-  main?.scrollIntoView?.();
-  // A fragment may already be in the URL (reloaded skip, pasted link):
-  // replace this history entry without it.
-  if (window.location.hash) {
-    window.history.replaceState(
-      window.history.state,
-      "",
-      window.location.pathname + window.location.search,
-    );
-  }
+function useSkipToMainContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+    event.preventDefault();
+    const main = document.getElementById("main-content");
+    main?.focus({ preventScroll: true });
+    main?.scrollIntoView?.();
+    // A fragment may already be in the URL (reloaded skip, pasted link):
+    // replace this history entry (never insert) without it.
+    if (location.hash) {
+      navigate({ pathname: location.pathname, search: location.search }, {
+        replace: true,
+        state: location.state,
+        preventScrollReset: true,
+      });
+    }
+  };
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -458,6 +467,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const policy = useMobileNavPolicy();
   const remembered = useTabMemory(user?.user_id);
   const primaryNavItems = usePrimaryNav();
+  const skipToMainContent = useSkipToMainContent();
   return (
     <div className="min-h-screen bg-app text-app-text">
       <a href="#main-content" className="skip-link" onClick={skipToMainContent}>
