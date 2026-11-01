@@ -27,15 +27,28 @@ HTML spec) en recentrant `<main tabindex=-1>` **après** les restaurations de
 l'application (microtask `overlays.register` + rAF carte du Library).
 
 **Correction (racine unique, aucun hack de restauration)** :
-`frontend/src/router.tsx` — le skip-link prend un handler onClick :
-`preventDefault`, `focus({preventScroll:true})` + `scrollIntoView()` sur
-`#main-content`, et `history.replaceState` pour nettoyer un fragment qui
-trainerait déjà dans l'URL. Aucune entrée d'historique fragmentée n'est plus
-créée ; les chemins déjà corrects (profil 12, fermeture par bouton, Back/Forward)
-ne sont pas touchés : overlays (`restore:fallback`), l'effet rAF carte de
-`Dives.tsx` restent inchangés.
+`frontend/src/router.tsx` — le skip-link devient un handler passé par le hook
+`useSkipToMainContent` (dans Layout) : `preventDefault`, focus
+`{preventScroll:true}` + `scrollIntoView()` sur `#main-content`, puis — quand
+un fragment traîne dans l'URL (rechargement de skip, lien collé) —
+`navigate({ pathname, search }, { replace: true, state: location.state,
+preventScrollReset: true })` : la même entrée d'historique est remplacée
+(aucune insertion, aucun fragment). En étage défensif,
+`navigation/mobileNavigation.ts::withoutClip` — point de passage unique des
+URLs de contexte d'onglet (les trois écritures de
+`useMobileNavigation`/useTabMemory ligne 66/79/88 et la lecture) — normalise
+aussi un `#main-content` résiduel : la mémoire ne peut ni persister ni
+re-servir un fragment « skip » (Claim/Invite et fragments non synthétiques
+inchangés). Les chemins déjà corrects (profil 12, fermeture par bouton,
+Back/Forward) ne sont pas modifiés : overlays (`restore:fallback`), l'effet
+rAF carte de `Dives.tsx` restent intacts.
 
 **Tests** (`router.test.tsx`, `Dives.urlState.test.tsx`) :
+- test d'intégration **BrowserRouter** : la page démarre sur
+  `/dives#main-content`, l'activation du skip nettoie l'ADR (`window.location
+  sans fragment`), l'état du routeur (`useLocation.hash === ''`, `location.state`
+  préservé) et la mémoire des onglets (`readTabContext` sans fragment) ; le
+  départ/retau mobile ne fait pas ressusciter le fragment ;
 - skip-link : focus sur `<main>`, URL **sans** fragment, re-skip après sortie
   de `<main>` fonctionne ;
 - fermeture du viewer « Back to Library » → focus carte d'origine (existant) ;

@@ -1,9 +1,10 @@
 import React from 'react'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Router, { CompetitionsRedirect, breadcrumbTrail } from './router'
+import { readTabContext } from './navigation/mobileNavigation'
 
 const role = vi.hoisted(() => ({ isAdmin: true, calendar: true }))
 
@@ -313,6 +314,73 @@ it('the skip link focuses the main landmark and leaves no fragment in the URL', 
 it('the main landmark exists exactly once in the shell', async () => {
   renderAt('/dives')
   expect(screen.getAllByRole('main')).toHaveLength(1)
+})
+
+/** Raw useLocation mirror: the tab memory's own save path reads this
+ * shape, so the probe makes router-state drift observable as behavior, not
+ * as a refreshed internal. */
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <p
+      data-testid="location-probe"
+      data-hash={location.hash}
+      data-state={JSON.stringify(location.state ?? null)}
+    />
+  );
+}
+
+it('an initial #main-content fragment is cleared through the router and never resurfaces on a mobile tab return', async () => {
+  const user = userEvent.setup()
+  vi.stubGlobal('innerWidth', 390)
+  // A pasted (or reloaded skip) link lands with the fragment and router
+  // state, seeded the way createBrowserHistory stores it (`usr` payload):
+  // exactly the entry the previous history.replaceState fix left stale for
+  // useLocation and the tab memory.
+  window.history.replaceState({ usr: { keep: 'me' }, key: 'probe', idx: 0 }, '', '/dives#main-content')
+  const view = render(
+    <BrowserRouter>
+      <Router />
+      <LocationProbe />
+    </BrowserRouter>,
+  )
+  try {
+    const main = screen.getByRole('main')
+    const probe = screen.getByTestId('location-probe')
+    await screen.findByRole('heading', { name: 'Library', level: 1 }, { timeout: LAZY_ROUTE_WAIT })
+    expect(probe.dataset.hash).toBe('#main-content')
+    // Activation: focus + scroll, then the URL (browser AND router) is
+    // replaced without the fragment, state preserved.
+    await user.click(screen.getByRole('link', { name: 'Skip to main content' }))
+    expect(document.activeElement).toBe(main)
+    expect(window.location.hash).toBe('')
+    expect(probe.dataset.hash).toBe('')
+    expect(probe.dataset.state).toBe(JSON.stringify({ keep: 'me' }))
+    // The tab memory keeps the cleared URL — no fragment in sight, even for
+    // the save that fired while the stale location was still mounted.
+    await waitFor(() =>
+      expect(readTabContext(1, 'dives')).toEqual({ url: '/dives', scroll: 0 }),
+    )
+    // Departure through the mobile Messages tab, then back to the Library
+    // tab: the remembered URL is fragment-free, so the return cannot re-run
+    // the fragment navigation over the restored card focus.
+    const mobileNav = screen
+      .getAllByRole('navigation', { name: 'Primary navigation' })
+      .find(nav => nav.classList.contains('mobile-tab-bar'))
+    expect(mobileNav).toBeDefined()
+    const tabBar = within(mobileNav as HTMLElement)
+    await user.click(tabBar.getByRole('link', { name: 'Messages' }))
+    await waitFor(() => expect(new URL(window.location.href).pathname).toBe('/messages'))
+    await user.click(tabBar.getByRole('link', { name: 'Library' }))
+    await waitFor(() => expect(new URL(window.location.href).pathname).toBe('/dives'))
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe').dataset.hash).toBe(''),
+    )
+    expect(window.location.hash).toBe('')
+  } finally {
+    view.unmount()
+    vi.unstubAllGlobals()
+  }
 })
 
 it('mobile menu isolates the page and restores its avatar after nested update history closes', async () => {
