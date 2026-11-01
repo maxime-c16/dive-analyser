@@ -467,3 +467,28 @@ def test_comment_survives_poisoned_pref_fetch(workspace, monkeypatch):
         f"/api/v1/dives/{dives['alice-public']}/comments"
     )
     assert follow_up.status_code == 200, follow_up.text
+
+
+def test_unread_cursor_excludes_read_rows_and_ends_at_last_unread(workspace):
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    ids = []
+    for i in range(5):
+        ids.append(notification_service.create(
+            db, user_id=users["alice"].id, type="new_video", title=f"mixed-{i}"
+        ).id)
+    client = login("alice")
+    # Oldest and middle rows are read; the final unread page must not
+    # promise another page just because an older read row still exists.
+    for row_id in (ids[0], ids[2]):
+        assert client.post(f"/api/v1/notifications/{row_id}/read").status_code == 200
+    first = _items(client, limit=1, unread_only=True)
+    assert first["items"][0]["id"] == ids[4]
+    second = _items(client, limit=1, unread_only=True, before_id=ids[4])
+    assert [r["id"] for r in second["items"]] == [ids[3]]
+    assert second["has_more"] is True
+    last = _items(client, limit=1, unread_only=True, before_id=ids[3])
+    assert [r["id"] for r in last["items"]] == [ids[1]]
+    assert last["has_more"] is False
+    assert last["unread_count"] == 3

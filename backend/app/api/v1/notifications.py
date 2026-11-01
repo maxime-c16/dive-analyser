@@ -102,7 +102,7 @@ def list_notifications(
     return {
         "items": [_payload(row, views.get(row.id)) for row in items],
         "unread_count": notification_service.count_unread(db, user.id),
-        "has_more": notification_service.list_has_more(db, user.id, items),
+        "has_more": notification_service.list_has_more(db, user.id, items, unread_only=unread_only),
     }
 
 

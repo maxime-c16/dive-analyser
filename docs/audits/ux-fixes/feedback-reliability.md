@@ -141,7 +141,14 @@ renvoyée par les endpoints tentatives — `backend/app/api/v1/videos.py` entre 
 
 ## 4. Limites
 
-- La cause du chunk (déploiement/cache) est établie par sonde et par lecture de code ; l'erreur elle-même n'a **pas été recréée volontairement sur la prod** (interdit par la mission).
+- La sonde établit la présence actuelle du chunk ; la cause historique (cache/déploiement ou réseau) reste une hypothèse ; l'erreur elle-même n'a **pas été recréée volontairement sur la prod** (interdit par la mission).
 - La pagination backend est testée sur SQLite (suite gate) ; le keyset utilise `created_at`/`id` sans index composite supplémentaire (bénéficie de `ix_notifications_user_created` + cache d'ancre, coûts bornés : 2 requêtes de page).
 - Les latences 6–20 s restent en état (les squelettes existent) : seule la cause `/community` est documentée (deferred) — le reste appartient à d'autres périmètres.
 - La donnée e2e ne montre pas de commentaires/jalons réels : l'affichage d'attribution des retours (commentaires signés) est vérifiable seulement sur un compte qui en possède (les composants reçoivent déjà `author`).
+
+## Vérification parent et compléments
+
+- Filtre `unread_only` conservé après application de l’ancre et appliqué à `has_more`, y compris avec des lignes déjà lues entre deux pages. Test de régression avec page terminale non lue suivie uniquement de lignes lues.
+- Réponses de continuation invalidées après changement de filtre, marquage global ou démontage ; état de page isolé par compte. Déduplication des lignes déplacées par un rafraîchissement de première page. Tests de réponse différée et de chevauchement après refresh.
+- Aucun rechargement automatique lorsque la garde sessionStorage ne peut pas être persistée (évite une boucle avec stockage bloqué). Test dédié.
+- Validation complémentaire : notifications backend 17 tests ; notifications UI + chunkLoad 25 tests ; TypeScript et build production. Ces vérifications complètent les suites initiales, sans prétendre les avoir toutes rejouées après correction.

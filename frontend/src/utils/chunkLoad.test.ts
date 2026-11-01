@@ -83,3 +83,10 @@ describe("loadChunk", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 });
+
+ it("does not auto-reload when the persistent reload guard cannot be written", async () => {
+   const reload = vi.spyOn(chunkRecovery, "reload").mockImplementation(() => undefined);
+   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("storage blocked"); });
+   await expect(loadChunk(() => Promise.reject(new Error("chunk missing")))).rejects.toThrow("chunk missing");
+   expect(reload).not.toHaveBeenCalled();
+ });

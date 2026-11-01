@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Bell, CalendarDays, CheckCheck, Check, Film, RefreshCw } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../components/Notifications'
 import {
   listNotifications,
@@ -153,6 +154,11 @@ function NotificationRow({
 }
 
 export default function Notifications() {
+  const { user } = useAuth()
+  return <AccountNotificationsPage key={user?.user_id ?? 'anonymous'} />
+}
+
+function AccountNotificationsPage() {
   const { t } = useTranslation()
   const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead, countsKnown, pageHasMore } = useNotifications()
   const [unreadOnly, setUnreadOnly] = useState(false)
@@ -174,6 +180,8 @@ export default function Notifications() {
   const [olderCursor, setOlderCursor] = useState<number | null>(null)
   const [olderHasMore, setOlderHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const pageGeneration = useRef(0)
+  const pendingPage = useRef(false)
 
   useEffect(() => {
     if (!unreadOnly) {
@@ -207,31 +215,39 @@ export default function Notifications() {
   // Continuation pages below are anchored to the last row already on
   // screen, so switching filters (and therefore re-anchoring) drops them.
   useEffect(() => {
+    pendingPage.current = false
     setOlder([])
     setOlderCursor(null)
     setOlderHasMore(false)
     setLoadingMore(false)
+    return () => { pageGeneration.current += 1 }
   }, [unreadOnly])
 
   const firstPage = unreadOnly
     ? (serverUnread ?? items).filter(item => !item.read_at)
     : items
-  const visible = [...firstPage, ...(unreadOnly ? older.filter(item => !item.read_at) : older)]
+  // A refresh can move a continuation row into the first page. Prefer its
+  // fresh server state and render each notification exactly once.
+  const visible = [...new Map([...older, ...firstPage].map(item => [item.id, item])).values()]
+    .filter(item => !unreadOnly || !item.read_at)
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '') || b.id - a.id)
 
   // The "more" promise comes from whichever page is currently the deepest:
   // the provider/unread first fetch when nothing else has been loaded.
   const hasMore = loadingMore
     ? true
     : !unreadOnly
-      ? older.length > 0 ? olderHasMore : pageHasMore
+      ? olderCursor !== null ? olderHasMore : pageHasMore
       : serverUnread === null
         ? false
-        : older.length > 0 ? olderHasMore : serverUnreadHasMore
+        : olderCursor !== null ? olderHasMore : serverUnreadHasMore
 
   const handleLoadMore = async () => {
     const base = unreadOnly ? (serverUnread ?? items) : items
     const anchor = olderCursor ?? base[base.length - 1]?.id ?? null
-    if (anchor == null || loadingMore) return
+    if (anchor == null || pendingPage.current) return
+    const generation = pageGeneration.current
+    pendingPage.current = true
     setLoadingMore(true)
     setActionError(false)
     try {
@@ -240,14 +256,18 @@ export default function Notifications() {
         limit: 50,
         beforeId: anchor,
       })
+      if (generation !== pageGeneration.current) return
       setOlder(previous => [...previous, ...data.items])
       const next = data.items[data.items.length - 1]?.id ?? anchor
       setOlderCursor(next)
       setOlderHasMore(data.has_more)
     } catch {
-      setActionError(true)
+      if (generation === pageGeneration.current) setActionError(true)
     } finally {
-      setLoadingMore(false)
+      if (generation === pageGeneration.current) {
+        pendingPage.current = false
+        setLoadingMore(false)
+      }
     }
   }
 
@@ -272,8 +292,15 @@ export default function Notifications() {
     setActionError(false)
     try {
       await markAllRead()
-      if (unreadOnly) setServerUnread([])
-      else setOlder(prev => prev.map(item => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })))
+      if (unreadOnly) {
+        setServerUnread([])
+        setServerUnreadHasMore(false)
+      }
+      pageGeneration.current += 1
+      pendingPage.current = false
+      setLoadingMore(false)
+      setOlderHasMore(false)
+      setOlder(prev => prev.map(item => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })))
     } catch {
       setActionError(true)
     } finally {

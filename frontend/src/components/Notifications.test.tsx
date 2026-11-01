@@ -1,6 +1,6 @@
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n/I18nProvider'
@@ -274,6 +274,37 @@ describe('Older notifications continuation (UX fix 2026-11)', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
     )
+  })
+
+  it('ignores an old continuation response after the filter changes', async () => {
+    pagingStub()
+    const original = vi.mocked(fetch).getMockImplementation()!
+    let finish!: (response: Response) => void
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input).includes('before_id')) return new Promise<Response>(resolve => { finish = resolve })
+      return original(input, init)
+    })
+    renderPage()
+    await screen.findByText('New video synced #60')
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(60\)/ }))
+    await act(async () => {
+      finish({ ok: true, json: async () => ({ items: [{ ...unreadRow, id: 1, title: 'Stale continuation' }], unread_count: 60, has_more: false }) } as Response)
+    })
+    expect(screen.queryByText('Stale continuation')).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Show older notifications' })).toBeEnabled()
+  })
+
+  it('deduplicates a continuation row moved into the first page by a refresh', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    allIds.splice(allIds.indexOf(60), 1)
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(screen.queryByText('New video synced #60')).not.toBeInTheDocument())
+    expect(screen.getAllByText('New video synced #10')).toHaveLength(1)
+    allIds.push(60)
   })
 
   it('marks a row read inside the continuation without losing it', async () => {

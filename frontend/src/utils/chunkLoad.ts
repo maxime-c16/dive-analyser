@@ -71,7 +71,7 @@ export async function loadChunk<T>(load: () => Promise<T>): Promise<T> {
       // rather than a reload loop.
       const now = Date.now();
       if (lastReloadAt() + RELOAD_COOLDOWN_MS > now) throw error;
-      markReload(now);
+      if (markReload(now) === null) throw error;
       chunkRecovery.reload();
       throw error;
     }

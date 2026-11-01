@@ -417,13 +417,13 @@ def list_for_user(
     """
     limit = max(1, min(int(limit or 50), _MAX_LIST_LIMIT))
     query = db.query(Notification).filter(Notification.user_id == user_id)
-    if unread_only:
-        query = query.filter(Notification.read_at.is_(None))
     if before_id is not None:
         anchored = _older_than_before(db, user_id, before_id)
         if anchored is None:
             return []
         query = anchored
+    if unread_only:
+        query = query.filter(Notification.read_at.is_(None))
     return (
         query.order_by(Notification.created_at.desc(), Notification.id.desc())
         .limit(limit)
@@ -432,7 +432,7 @@ def list_for_user(
 
 
 def list_has_more(
-    db: Session, user_id: int, rows: Sequence[Notification]
+    db: Session, user_id: int, rows: Sequence[Notification], unread_only: bool = False
 ) -> bool:
     """True when at least one further row exists past the returned page
     (same keyset rule as list_for_user, probed with a single indexed row)."""
@@ -451,9 +451,10 @@ def list_has_more(
                 ),
             ),
         )
-        .first()
     )
-    return probe is not None
+    if unread_only:
+        probe = probe.filter(Notification.read_at.is_(None))
+    return probe.first() is not None
 
 
 def count_unread(db: Session, user_id: int) -> int:
