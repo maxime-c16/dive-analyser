@@ -295,6 +295,38 @@ def library_codes(
     return summarize_library_query(db, query, datetime.now())
 
 
+@router.get("/library/facets")
+def library_facets(
+    request: Request, db: Session = Depends(get_db),
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    performance: str = "", code_prefix: str = "",
+    search_text: str = Query("", max_length=200), position_filter: str = "",
+    sync_filter: Optional[bool] = None, modifier_filter: str = "",
+    date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
+    code_filter: str = Query("", max_length=8192),
+):
+    """Height options for the Library filter, independent of the height itself.
+
+    The stage select used to derive its options from the loaded page, so
+    filtering by 3m hid every other height (profil 12 C1: same URL, different
+    select after a UI switch vs a cold reload). One DISTINCT query over the
+    authorized scope with every OTHER filter applied and the height filter
+    absent: the same URL always answers the same options, and switching the
+    height stays reachable — no page rows are materialized for it."""
+    query = _filtered_dive_query(
+        request, db, diver_scope=diver_scope, height=None, performance=performance,
+        exclude_lineup=True, date_from=date_from, date_to=date_to, code_prefix=code_prefix,
+        search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
+        modifier_filter=modifier_filter, code_filter=code_filter,
+    ).with_entities(Dive.height).filter(Dive.height.isnot(None))
+    heights = [row[0] for row in query.distinct().order_by(Dive.height.asc()).all()]
+    try:
+        heights.sort(key=lambda value: (int(str(value).removesuffix('mp')), str(value).removesuffix('mp')))
+    except ValueError:
+        heights.sort()
+    return {"heights": heights}
+
+
 @router.get("/library/codes/{dive_code}/community")
 def library_code_community(
     dive_code: str, request: Request, db: Session = Depends(get_db),

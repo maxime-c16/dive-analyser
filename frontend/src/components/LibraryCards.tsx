@@ -78,7 +78,7 @@ function LibraryCard({
     >
       <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
         {thumbnail ? thumbnail(attempt) : <DiveThumbnail dive={attempt} compact />}
-        <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`}>
+        <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`} title={t("dives.scoreChipTitle", { score: attemptScore(attempt).toFixed(1), letter: attempt.performance })}>
           {attemptScore(attempt).toFixed(1)}
         </span>
       </div>

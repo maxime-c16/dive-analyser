@@ -228,6 +228,63 @@ it('never stacks the two pagination controls and reports truthful remaining coun
   expect(loadMore()).toBeNull()
 }, 20000)
 
+// ---- Bounded anchored reprise of a paginated depth ----
+
+it('resumes the remembered pagination depth with a real anchor, bounded, once', async () => {
+  const page = (from: number) => Array.from({ length: 40 }, (_, i) => dive(from + i, '103B', 1))
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    return Promise.resolve({ data: {
+      items: page(config?.params?.cursor === 'c1' ? 41 : config?.params?.cursor === 'c2' ? 81 : 1),
+      next_cursor: config?.params?.cursor === 'c1' ? 'c2' : config?.params?.cursor === 'c2' ? null : 'c1',
+    } })
+  })
+  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
+  sessionStorage.setItem(key, JSON.stringify({ p: 'scope=all', y: 1200, d: { anchor: 120, pages: 3 } }))
+  renderAt('/dives')
+  // Page 1 plus the two remembered pages: nothing more was ever re-charged.
+  await waitFor(() => expect(
+    vi.mocked(api.get).mock.calls.filter(([url]) => String(url).includes('/dives/library')),
+  ).toHaveLength(3))
+  expect(document.querySelector('[data-attempt-id="120"]')).not.toBeNull()
+}, 20000)
+
+it('caps the depth reprise at six pages and stops there', async () => {
+  const page = (from: number) => Array.from({ length: 40 }, (_, i) => dive(from + i, '103B', 1))
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    // The catalog keeps saying "more exist": the WALK itself is what bounds.
+    return Promise.resolve({ data: { items: page(config?.params?.cursor ? 41 : 1), next_cursor: 'c1' } })
+  })
+  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
+  sessionStorage.setItem(key, JSON.stringify({ p: 'scope=all', y: 1200, d: { anchor: 41, pages: 9 } }))
+  renderAt('/dives')
+  // Page 1 + MIN(pages, MAX_RESUME_PAGES) − 1 continuation probes.
+  await waitFor(() => expect(
+    vi.mocked(api.get).mock.calls.filter(([url]) => String(url).includes('/dives/library')),
+  ).toHaveLength(6))
+}, 20000)
+
+it('lists every scope height in the Height select even while one is selected', async () => {
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    if (String(url).includes('/library/facets')) return Promise.resolve({ data: { heights: ['1m', '3m', '3mp', '5m'] } })
+    return Promise.resolve({ data: { items: [dive(1, '103B', 1), dive(2, '201C', 1)], next_cursor: null } })
+  })
+  renderAt('/dives?height=3m&performance=F')
+  await waitFor(() => expect(
+    vi.mocked(api.get).mock.calls.some(([url]) => String(url).includes('/library/facets')),
+  ).toBe(true))
+  // The facet is fetched WITHOUT the height dimension: same other filters,
+  // same options — switching height never needs the /All detour.
+  const facetCall = vi.mocked(api.get).mock.calls.find(([url]) => String(url).includes('/library/facets'))!
+  expect((facetCall[1] as { params?: Record<string, unknown> }).params?.height).toBeUndefined()
+  expect((facetCall[1] as { params?: Record<string, unknown> }).params?.performance).toBe('F')
+  const select = await screen.findByRole('combobox', { name: 'Height' })
+  const options = Array.from((select as HTMLSelectElement).options).map((option) => option.value)
+  expect(options).toContain('5m')
+})
+
 // ---- Open latest attempt beyond the loaded page ----
 
 it('opens the latest attempt of a code even when it is not on the loaded pages', async () => {

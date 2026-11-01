@@ -11,6 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
 import {
   isBareLibraryUrl,
+  MAX_RESUME_PAGES,
   mergeLibraryParams,
   readLibraryWorkspace,
   saveLibraryWorkspace,
@@ -60,8 +61,11 @@ const PERIODS: Array<[string, number]> = [
 
 function ScoreBadge({ dive }: { dive: Dive }) {
   const { t } = useTranslation();
+  // The surface chip is the letter; hovering (and the Details tab) give the
+  // /10 scale and where the logged score actually sits on it.
   return (
     <span
+      title={t("dives.scoreChipTitle", { score: attemptScore(dive).toFixed(1), letter: performanceLabel(dive.performance) || dive.performance })}
       className={`inline-flex border px-2 py-1 text-xs font-medium ${performanceClass[dive.performance] || performanceClass.M}`}
     >
       {performanceLabel(dive.performance) || dive.performance}
@@ -323,12 +327,22 @@ function DiveLibrary() {
   const workspaceConsumed = useRef(false);
   const workspaceParamsRef = useRef<URLSearchParams | null>(null);
   workspaceParamsRef.current = searchParams;
+  // Bounded reprise of a paginated depth: the anchor is a real row id, never
+  // a snapshot of rows (nothing unlimited is stored, the walk is capped).
+  const resumedPagesPending = useRef<{ anchor: number | null; pages: number } | null>(null);
+  const resumeDepthPending = resumedPagesPending;
+  const pagesHostedRef = useRef(1);
+  const divesMirrorRef = useRef<Dive[]>(cached?.dives ?? []);
+  useEffect(() => { divesMirrorRef.current = dives; }, [dives]);
   useEffect(() => {
     workspaceConsumed.current = false;
     return () => {
-      // Leaving the Library saves the working state for this tab + account.
+      // Leaving the Library saves the working state for this tab + account,
+      // plus the bounded reprise hint (anchor row + pages already loaded).
       if (workspaceParamsRef.current && user !== undefined) {
-        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0);
+        const anchor = divesMirrorRef.current.length ? divesMirrorRef.current[divesMirrorRef.current.length - 1].id : null;
+        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0,
+          pagesHostedRef.current > 1 ? { anchor, pages: pagesHostedRef.current } : null);
       }
       workspaceParamsRef.current = null;
     };
@@ -365,6 +379,7 @@ function DiveLibrary() {
       if (stored && isBareLibraryUrl(searchParams) && !searchParams.has("clip")) {
         const merged = mergeLibraryParams(searchParams, stored);
         workspaceRestorePending.current = stored.scrollY;
+        resumeDepthPending.current = stored.resume ?? null;
         if (merged.toString() !== searchParams.toString()) {
           setSearchParams(merged, { replace: true, preventScrollReset: true });
           return;
@@ -397,6 +412,7 @@ function DiveLibrary() {
       .then(({ dives, divers, nextCursor }) => {
         if (active) {
           hasLoadedLibrary.current = true;
+          pagesHostedRef.current = 1;
           // A direct-link clip resolved while this refresh was in flight must survive it.
           setDives(current => {
             const pinned = current.find(dive => String(dive.id) === clipRef.current && !dives.some(item => item.id === dive.id));
@@ -405,6 +421,11 @@ function DiveLibrary() {
           setDivers(divers);
           setNextCursor(nextCursor ?? null);
           setError(null);
+          // Bounded depth reprise, once per restored mount, after page 1:
+          // re-reads the remembered pages, never more, never a snapshot.
+          const depth = resumedPagesPending.current;
+          resumedPagesPending.current = null;
+          if (depth) void resumeDepth(depth, nextCursor ?? null);
         }
       })
       .catch(() => {
@@ -457,11 +478,39 @@ function DiveLibrary() {
         .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
       setNextCursor(response.data.next_cursor);
       setShown(count => count + 100);
+      pagesHostedRef.current += 1;
       setError(null);
     } catch {
       if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
     } finally {
       if (epoch === pageGeneration.current) setLoadingMore(false);
+    }
+  };
+
+  // Bounded reprise of a remembered pagination depth (discovery profil 4:
+  // the "Load more dives" depth was lost on every return). Re-reads at most
+  // MAX_RESUME_PAGES server pages — the already-loaded depth, keyed on the
+  // live cursor like the manual control — never re-charging the whole
+  // history and never storing a single row.
+  const resumeDepth = async (depth: { anchor: number | null; pages: number }, initialCursor: string | null | undefined) => {
+    const epoch = pageGeneration.current;
+    let cursor: string | null = initialCursor ?? null;
+    const target = Math.min(depth.pages, MAX_RESUME_PAGES);
+    for (let page = 1; page < target && cursor; page++) {
+      if (epoch !== pageGeneration.current) return;
+      try {
+        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor } });
+        if (epoch !== pageGeneration.current) return;
+        const items: Dive[] = response.data.items;
+        setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
+          .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
+        setShown(count => count + 100);
+        pagesHostedRef.current += 1;
+        cursor = response.data.next_cursor as string | null;
+      } catch {
+        if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
+        return;
+      }
     }
   };
 
@@ -668,12 +717,41 @@ function DiveLibrary() {
   };
 
   const visible = filtered.slice(0, shown);
+  const facetScopeParams = useMemo(() => {
+    const { height: _height, ...rest } = pageParams;
+    return rest;
+  }, [pageParams]);
+  const facetParamsKey = JSON.stringify(facetScopeParams);
+  const [heightFacets, setHeightFacets] = useState<{ key: string; heights: string[] } | null>(null);
+  useEffect(() => {
+    let active = true;
+    // C1 (profil 12): the Height select derives from the authorized scope as
+    // a whole (every other filter, never the height it filters), so the same
+    // URL answers the same options and switching the dimension needs no
+    // detour through All heights. Failures fall back to the row-derived list.
+    api.get("/api/v1/dives/library/facets", { params: facetScopeParams })
+      .then((response) => {
+        if (active && Array.isArray(response.data?.heights)) {
+          setHeightFacets({ key: facetParamsKey, heights: response.data.heights });
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [facetScopeParams, facetParamsKey, reloadKey, accessKey]);
   const heights = useMemo(
-    () =>
-      [...new Set(dives.map((dive) => dive.height))].sort(
+    () => {
+      const fromRows = [...new Set(dives.map((dive) => dive.height))].sort(
         (a, b) => Number(a) - Number(b),
-      ),
-    [dives],
+      );
+      // Full-scope heights stay in the list even while one height is active;
+      // a page slice can no longer prune its own answer (profil 12 C1).
+      const options = heightFacets && heightFacets.key === facetParamsKey
+        ? [...heightFacets.heights, ...fromRows.filter((height) => !heightFacets.heights.includes(height))]
+        : fromRows;
+      if (heightFilter && !options.includes(heightFilter)) options.push(heightFilter);
+      return options.sort((a, b) => Number(a) - Number(b));
+    },
+    [dives, heightFacets, facetParamsKey, heightFilter],
   );
   const activeFilters = [
     heightFilter,
@@ -907,6 +985,18 @@ function DiveLibrary() {
                 <dt className="font-semibold text-app-text">{modifier} · {t(`dives.modifierNames.${modifier}`)}</dt>
                 <dd className="mt-1 text-app-muted">{t(`dives.modifierDescriptions.${modifier}`)}</dd>
               </div>)}
+              <div>
+                <dt className="font-semibold text-app-text">SYNC · {t("dives.helpSyncName")}</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.helpSyncDescription")}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-app-text">DD · {t("dives.helpDdName")}</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.helpDdDescription")}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-app-text">{t("dives.ratingsItem")} (P/G/M/B/F)</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.ratingsScale")}</dd>
+              </div>
             </dl>
           </details>
           <button
