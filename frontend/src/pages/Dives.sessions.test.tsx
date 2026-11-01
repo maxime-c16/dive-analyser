@@ -11,14 +11,14 @@ vi.mocked(api.get).mockImplementation(async(url)=>({data:url==='/api/v1/shared-s
 it('keeps session cards in the normal feed without a dedicated filter, including old filter URLs',async()=>{
  window.history.replaceState(null,'','/dives?scope=all&kind=sessions')
  render(<BrowserRouter><Dives/></BrowserRouter>)
- expect(await screen.findByRole('link',{name:'Séance · 2 vidéos'})).toBeInTheDocument()
+ expect(await screen.findByRole('link',{name:'Training session · 2 videos'})).toBeInTheDocument()
  expect(await screen.findByRole('button',{name:/Open 103B attempt/})).toBeInTheDocument()
- expect(screen.queryByRole('button',{name:'Séances'})).toBeNull()
+ expect(screen.queryByRole('button',{name:'Sessions'})).toBeNull()
 })
 it('renders sessions in list view too',async()=>{
  window.history.replaceState(null,'','/dives?scope=all&view=list')
  render(<BrowserRouter><Dives/></BrowserRouter>)
- const link=await screen.findByRole('link',{name:'Séance · 2 vidéos'})
+ const link=await screen.findByRole('link',{name:'Training session · 2 videos'})
  const attempt=await screen.findByRole('button',{name:/Open 103B attempt/})
  expect(link.compareDocumentPosition(attempt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })

@@ -39,6 +39,7 @@ function renderAt(url: string) {
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/')
+  sessionStorage.clear()
   vi.mocked(getMediaStatus).mockResolvedValue({ poster_url: null, playback_url: null } as any)
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
@@ -254,7 +255,8 @@ it(
 
     const search = screen.getByRole('textbox', { name: 'Search dives' })
     await userEvent.type(search, 'smack')
-    await waitFor(() => expect(showMore()).toBeInTheDocument(), { timeout: 4000 })
+    // The remaining count is truthful: 60 smack attempts minus 48 shown.
+    await waitFor(() => expect(screen.getByRole('button', { name: /more attempts/ })).toHaveTextContent('12'), { timeout: 4000 })
   },
   20000,
 )
