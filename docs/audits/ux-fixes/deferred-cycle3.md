@@ -188,17 +188,17 @@ leurs éléments DOM. Aucun conflit détecté ni signalé au parent.
 
 ## 4. Exécutions de tests (horodatées)
 
-- Backend (venv gate, SQLite) au head final : suite entière **1889 passed / 115 skipped, 0
-  failed** (les 3 tests de facettes et les 2 tests d'annuaire y sont intégrés). Cibles au vert :
+- Backend (venv gate, SQLite) sur l'arbre backend final du diff (suite intégrale **1889 passed /
+  115 skipped, 0 failed** — facette et annuaire inclus ; les merges de master ultérieurs n'ont
+  apporté que la note de release a11y et des docs, aucun fichier backend code). Cibles au vert :
   `test_library_height_facets` 3/3, `test_member_profiles` 20/20, `test_notifications` 19/19,
   `test_clip_downloads` ne présentant que des skips d'async du tier agent (jamais du changement).
-- Frontend (Node 26, `NODE_OPTIONS=--localstorage-file` documenté) au head final : **suite complète
-  112 fichiers / 879 tests, 0 failed** ; `tsc --noEmit` propre ; build Vite production prêt
-  (84 entrées de precache). Vérifiées aussi au fil de l'eau : Notifications (+2 séance),
-  Évaluations (défaut consultation), notificationsApi, DiveVideoPlayer + clip-viewer (164),
-  CodeAnalysis + community + résumés (10), Community (8 continuations explicites),
-  `libraryWorkspace` (3 bornes), `Dives.libraryUx` (13, dont reprise/facettes), Calendar past
-  view (3).
+- Frontend (Node 26, `NODE_OPTIONS=--localstorage-file` documenté), par branche :
+  « bornes » (merge master inclus) — suite intégrale **112 fichiers / 880 tests, 0 failed**,
+  `tsc --noEmit` propre et build Vite production (84 entrées de precache) ; « consultation » sur
+  son head final — suites cibles de l'interplay master-merge au vert (ClipViewer + Notifications
+  + Évaluations + Calendar + NotificationsPage = 133 tests) avec `tsc` et build production
+  propres ; la babysitter CI gardera son propre verdict sur les deux heads.
 - Le wrapper du gate local ne tourne toujours pas sur ce poste (`nice`, `timeout`, `nproc`
   absents — limitation documentée déjà assumée par #181/#182) : les mêmes commandes ont été
   lancées à la main ; le gate GitHub reste l'autorité (le verdict est lu au HEAD, pas déduit
