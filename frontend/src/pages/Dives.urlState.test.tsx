@@ -220,6 +220,18 @@ it('closing the viewer returns focus to the originating Library card', async () 
   )
 })
 
+it('closing the viewer with Escape restores the originating card as well as the close button', async () => {
+  renderAt('/dives?scope=all')
+  const cards = await screen.findAllByRole('button', { name: /Open 103B attempt/ })
+  await userEvent.click(cards[1])
+  await screen.findByRole('dialog')
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  await waitFor(() =>
+    expect((document.activeElement as HTMLElement).getAttribute('data-attempt-id')).toBe('2'),
+  )
+})
+
 it('an attempt without linked media keeps a usable viewer state', async () => {
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/divers') return Promise.resolve({ data: divers })

@@ -49,10 +49,34 @@ describe('Community discovery', () => {
     const fetchMock = api(url => ({ items: url.includes('q=%40fanny') ? [fanny] : [], next_after: null }))
     renderPage()
     const user = userEvent.setup()
-    await user.type(screen.getByRole('searchbox'), '@fanny')
+    // The search field carries an accessible name (sr-only label), like the
+    // Library's "Search dives" — a placeholder alone would announce nothing.
+    const search = screen.getByRole('searchbox', { name: 'Search by name or @handle' })
+    await user.type(search, '@fanny')
     expect(await screen.findByRole('link', { name: /Fanny/ })).toHaveAttribute('href', '/users/2')
     expect(screen.getByRole('link', { name: 'My profile' })).toHaveAttribute('href', '/users/1')
     expect(fetchMock).toHaveBeenLastCalledWith('/api/v1/users?q=%40fanny', expect.objectContaining({ credentials: 'same-origin' }))
+  })
+
+  it('names member cards as "name, facts" instead of welded segments', async () => {
+    const recent = new Date(Date.now() - 19 * 86_400_000).toISOString()
+    api(() => ({ items: [
+      { ...fanny, user_id: 2, display_name: 'Louis', accessible_dive_count: 2, latest_dive_at: recent },
+    ], next_after: null }))
+    renderPage()
+    // Vertically stacked words are one computed name for screen readers:
+    // "Louis" and "2 shared dives" must be separated, not "Louis2 shared
+    // dives · 19 days ago".
+    const card = await screen.findByRole('link', { name: /Louis @fanny_dive\s*,\s*2 shared dives/ })
+    expect(card.getAttribute('href')).toBe('/users/2')
+    expect(card).toHaveTextContent(/19 days ago/)
+  })
+
+  it('separates the name and age on recently active story cards', async () => {
+    const recent = new Date(Date.now() - 19 * 86_400_000).toISOString()
+    api(() => ({ items: [{ ...fanny, user_id: 2, accessible_dive_count: 5, latest_dive_at: recent }], next_after: null }))
+    renderPage()
+    expect(await screen.findByRole('link', { name: /Fanny\s*,\s*\d+ days?/ })).toBeInTheDocument()
   })
 
   it('offers a working retry when initial discovery fails', async () => {

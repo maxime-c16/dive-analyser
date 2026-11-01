@@ -1,0 +1,8 @@
+{
+  "id": "a11y-community-and-viewer-navigation",
+  "date": "2026-11-02",
+  "title": "Smoother screen reader and keyboard flow around the dive player and Community",
+  "body": "Closing the dive player now reliably returns your keyboard focus to the clip card you opened it from. Member cards and the Comments tab read their numbers as separate words, and activating the skip link leaves your browsing history clean.",
+  "audience": "all",
+  "components": ["frontend"]
+}

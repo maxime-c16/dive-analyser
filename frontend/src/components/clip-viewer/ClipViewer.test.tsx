@@ -177,6 +177,13 @@ it('Previous/Next are disabled at result-set boundaries', () => {
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
+it('the Comments tab separates its label from the count for assistive tech', async () => {
+  renderClipViewer(1)
+  // "Comments0" would be read as a single mangled word — the count rides
+  // as its own text ("Comments 0"), with no mass aria-label flattening.
+  expect(await screen.findByRole('tab', { name: 'Comments 0' })).toHaveAttribute('aria-selected', 'false')
+})
+
 it('plain ArrowLeft/ArrowRight do not navigate', () => {
   const onMove = vi.fn()
   renderClipViewer(2, { onMove })
