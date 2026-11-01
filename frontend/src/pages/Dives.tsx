@@ -321,9 +321,15 @@ function DiveLibrary() {
   const pageGeneration = useRef(0);
   const loadedAccessKey = useRef(accessKey);
   const hasLoadedLibrary = useRef(Boolean(cached));
+  // Key whose rows are currently mounted (matches the fetch effect's key
+  // after a successful load or a matching snapshot; null while a different
+  // filter's rows are still on screen). Gates the workspace scroll anchor
+  // and period screening decisions.
+  const loadedKeyRef = useRef<string | null>(null);
   // Cross-rubrique workspace memory (see hooks/libraryWorkspace): restore a
   // bare /dives mount once, never deep links with explicit filters.
   const workspaceRestorePending = useRef<number | null>(null);
+  const workspaceRestoreKeyRef = useRef<string | null>(null);
   const workspaceConsumed = useRef(false);
   const workspaceParamsRef = useRef<URLSearchParams | null>(null);
   workspaceParamsRef.current = searchParams;
@@ -382,9 +388,19 @@ function DiveLibrary() {
         resumeDepthPending.current = stored.resume ?? null;
         if (merged.toString() !== searchParams.toString()) {
           setSearchParams(merged, { replace: true, preventScrollReset: true });
+          // Presentation-only restores (view, sort) leave the query keys,
+          // so the effect would otherwise never run again: re-run it once
+          // with the merged URL in place, and let it fetch from there.
+          setReloadKey(k => k + 1);
           return;
         }
       }
+    }
+    // The restored anchor may only be consumed once the RESTORED key's rows
+    // are the ones mounted — never on a stale other-key cache or on a row
+    // set from a different filter.
+    if (workspaceRestorePending.current !== null && workspaceRestoreKeyRef.current === null) {
+      workspaceRestoreKeyRef.current = cacheKey;
     }
     const snapshot = readLibraryCache(cacheKey);
     const accountChanged = loadedAccessKey.current !== accessKey;
@@ -395,6 +411,10 @@ function DiveLibrary() {
     if (snapshot || accountChanged) {
       setDives(snapshot?.dives ?? []);
       setDivers(snapshot?.divers ?? []);
+      // A matching snapshot means what is mounted belongs to this key; a
+      // missed key leaves the previously-mounted rows from another key, and
+      // the workspace scroll anchor must never consume them.
+      loadedKeyRef.current = snapshot ? cacheKey : null;
     }
     setNextCursor(snapshot?.nextCursor ?? null);
     // An empty result is still a loaded library. Keep its filter-reset action
@@ -412,6 +432,9 @@ function DiveLibrary() {
       .then(({ dives, divers, nextCursor }) => {
         if (active) {
           hasLoadedLibrary.current = true;
+          // What is (about to be) mounted belongs to this key: the workspace
+          // scroll anchor and the period screening key off this.
+          loadedKeyRef.current = cacheKey;
           pagesHostedRef.current = 1;
           // A direct-link clip resolved while this refresh was in flight must survive it.
           setDives(current => {
@@ -443,16 +466,22 @@ function DiveLibrary() {
   }, [reloadKey, cacheKey, pageParamsKey]);
 
   // Restored scroll depth lands after the restored (cached or fetched) page
-  // has painted; clamped to the current content height.
+  // has painted; clamped to the current content height. The anchor waits for
+  // the restored key's own rows: consuming it on the bare key's stale cache
+  // or another filter's rows would scroll against content about to change.
   useEffect(() => {
     if (loading || workspaceRestorePending.current === null) return;
+    if (loadedKeyRef.current !== workspaceRestoreKeyRef.current) return;
     const anchor = workspaceRestorePending.current;
     workspaceRestorePending.current = null;
+    workspaceRestoreKeyRef.current = null;
     requestAnimationFrame(() => {
       const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       window.scrollTo(0, Math.min(anchor, max));
     });
-  }, [loading, dives.length]);
+    // `dives` identity (not length): an equal-length refreshed page must
+    // still re-run this check so the anchor can be consumed on it.
+  }, [loading, dives]);
 
   useEffect(() => {
     if (!aggregated) return;
@@ -547,6 +576,11 @@ function DiveLibrary() {
         if (contextFilter === "individual" && dive.is_sync) return false;
         if (performanceFilter && dive.performance !== performanceFilter)
           return false;
+        // Same date bound as the API (`date_from`, naive strings compare
+        // lexicographically): rows mounted from a previous period's page
+        // (the deliberate keep-mounted refresh) or a pinned deep link must
+        // never stay visible or open in the viewer while a period is set.
+        if (periodFrom && dive.dive_datetime < periodFrom) return false;
         const diveModifiers = modifiersFor(dive);
         if (
           modifiers.some(
@@ -602,6 +636,7 @@ function DiveLibrary() {
       modifiers,
       parsed,
       nameMatch,
+      periodFrom,
     ],
   );
   useEffect(() => {

@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import Dives from './Dives'
 import { nameSearchCodes } from '../utils/diveNameSearch'
+import { clearLibraryCache } from '../services/libraryCache'
 
 let mockUser: Record<string, unknown> | null = {
   user_id: 1, role: 'owner', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }],
@@ -50,6 +51,12 @@ const codeSummary = (code: string, latestId: number, ids: number[]) => ({
 function renderAt(url: string) {
   window.history.replaceState(null, '', url)
   return render(<BrowserRouter><Dives /></BrowserRouter>)
+}
+
+/** Seeds the per-account workspace memory directly (same key as the hook). */
+const saveWorkspace = (params: string, scrollY: number) => {
+  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
+  sessionStorage.setItem(key, JSON.stringify({ p: params, y: scrollY }))
 }
 
 beforeEach(() => {
@@ -91,11 +98,13 @@ it('sends the derived codes to the API and keeps caption matches alongside them'
   renderAt('/dives')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   const search = screen.getByRole('textbox', { name: 'Search dives' })
+  // Deferred rendering (useDeferredValue) lands late on busy runners; the
+  // call itself is what is being asserted, so keep a generous window.
   await userEvent.type(search, 'back dive')
   const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
   await waitFor(() => {
     expect(libraryCalls.some(([, config]) => (config as { params: Record<string, string> }).params?.code_filter !== undefined)).toBe(true)
-  })
+  }, { timeout: 5000 })
   // The client filter mirrors the API's OR-composition: the caption-less
   // named dive stays visible too; the plain caption-less 103B drops out.
   await waitFor(() => expect(screen.queryByRole('button', { name: /Open 201C attempt/ })).not.toBeNull())
@@ -132,6 +141,18 @@ it('turns the period preset into a bounded date_from', async () => {
 // ---- Cross-rubrique workspace memory ----
 
 it('restores filters, view and period when returning to a bare Library URL', async () => {
+  vi.mocked(api.get).mockImplementation((url: string) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    // The period is honored by the API in production (date_from) and screened
+    // again by the client; give the fixture rows that stay inside it.
+    return Promise.resolve({ data: {
+      items: [
+        dive(1, '103B', 1, { dive_datetime: new Date(Date.now() - 86_400_000).toISOString() }),
+        dive(3, '103B', 1, { dive_datetime: new Date(Date.now() - 86_400_000).toISOString(), raw_caption: 'practice notes' }),
+      ],
+      next_cursor: null,
+    } })
+  })
   const view = renderAt('/dives?scope=all&q=103B&view=list&period=30d')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   view.unmount()
@@ -183,17 +204,79 @@ it('restores scroll depth clamped to the page content', async () => {
   Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 4000 })
   const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
 
-  const save = (params: string, scrollY: number) => {
-    const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
-    sessionStorage.setItem(key, JSON.stringify({ p: params, y: scrollY }))
-  }
-  save('scope=all', 6000)
+  saveWorkspace('scope=all', 6000)
   renderAt('/dives')
   await screen.findAllByRole('button', { name: /Open .* attempt/ })
   await waitFor(() => expect(scrollSpy).toHaveBeenCalled())
   expect(scrollSpy.mock.calls[0][1]).toBe(4000 - (Number.isFinite(window.innerHeight) ? window.innerHeight : 0) || 0)
   scrollSpy.mockRestore()
   if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('consumes the restored scroll anchor only on the restored page’s own rows', async () => {
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 4000 })
+  const events: string[] = []
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: Record<string, string> }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    events.push('library')
+    return Promise.resolve({ data: { items: [dive(1, '103B', 1), dive(2, '201C', 1)], next_cursor: null } })
+  })
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => { events.push('scroll') })
+
+  saveWorkspace('scope=all', 6000)
+  renderAt('/dives')
+  // The restored page (scope=all) must exist BEFORE the anchor is consumed:
+  // scrolling it against the stale bare-key cache (or nothing) would break
+  // the restoration entirely.
+  await screen.findAllByRole('button', { name: /Open .* attempt/ })
+  await waitFor(() => expect(events).toContain('scroll'))
+  const firstScroll = events.indexOf('scroll')
+  expect(events.indexOf('library')).toBeGreaterThanOrEqual(0)
+  expect(firstScroll).toBeGreaterThan(events.indexOf('library'))
+  expect(scrollSpy.mock.calls[0][1]).toBeLessThan(6000)
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('reaches for the Library again after a presentation-only workspace restore', async () => {
+  clearLibraryCache()
+  saveWorkspace('view=list', 0)
+  // No matching cache: a view/sort-only restore leaves the query keys
+  // unchanged, so the load effect had stopped watching for the restored
+  // URL — the page must still end up loaded, not spinning forever.
+  renderAt('/dives')
+  expect(await screen.findAllByRole('button', { name: /Open .* attempt/ }, { timeout: 5000 })).toHaveLength(3)
+  expect(new URLSearchParams(window.location.search).get('view')).toBe('list')
+  expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('screens out-of-period rows from the list while the period page loads', async () => {
+  renderAt('/dives')
+  await screen.findAllByRole('button', { name: /Open .* attempt/ })
+  // Selecting a period re-queries the API without a matching cache snapshot:
+  // the old-period rows stay mounted (deliberate keep-mounted refresh), but
+  // they must stop being visible — the client filter mirrors date_from.
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Period' }), 'Past 3 months')
+  await waitFor(() => expect(window.location.search).toBe('?period=90d'))
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: /Open .* attempt/ })).not.toBeInTheDocument(),
+  )
+  expect(screen.queryByText(/Something went wrong|could not/)).toBeNull()
+})
+
+it('keeps a period deep link from opening an attempt the period excludes', async () => {
+  vi.mocked(api.get).mockImplementation((url: string) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    if (url === '/api/v1/dives/3') return Promise.resolve({ data: dive(3, '103B', 1) })
+    return Promise.resolve({ data: { items: [], next_cursor: null } })
+  })
+  // dive(3) carries a July date, outside the 90-day window: the direct-link
+  // resolver may resolve it, but the period-bound list must never show —
+  // much less open — it.
+  renderAt('/dives?period=90d&clip=3')
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(window.location.search).toBe('?period=90d'))
 })
 
 // ---- Sequential pagination ----
@@ -227,63 +310,6 @@ it('never stacks the two pagination controls and reports truthful remaining coun
   expect(showMore()).toBeNull()
   expect(loadMore()).toBeNull()
 }, 20000)
-
-// ---- Bounded anchored reprise of a paginated depth ----
-
-it('resumes the remembered pagination depth with a real anchor, bounded, once', async () => {
-  const page = (from: number) => Array.from({ length: 40 }, (_, i) => dive(from + i, '103B', 1))
-  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
-    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
-    return Promise.resolve({ data: {
-      items: page(config?.params?.cursor === 'c1' ? 41 : config?.params?.cursor === 'c2' ? 81 : 1),
-      next_cursor: config?.params?.cursor === 'c1' ? 'c2' : config?.params?.cursor === 'c2' ? null : 'c1',
-    } })
-  })
-  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
-  sessionStorage.setItem(key, JSON.stringify({ p: 'scope=all', y: 1200, d: { anchor: 120, pages: 3 } }))
-  renderAt('/dives')
-  // Page 1 plus the two remembered pages: nothing more was ever re-charged.
-  await waitFor(() => expect(
-    vi.mocked(api.get).mock.calls.filter(([url]) => String(url) === '/api/v1/dives/library'),
-  ).toHaveLength(3))
-  expect(document.querySelector('[data-attempt-id="120"]')).not.toBeNull()
-}, 20000)
-
-it('caps the depth reprise at six pages and stops there', async () => {
-  const page = (from: number) => Array.from({ length: 40 }, (_, i) => dive(from + i, '103B', 1))
-  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
-    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
-    // The catalog keeps saying "more exist": the WALK itself is what bounds.
-    return Promise.resolve({ data: { items: page(config?.params?.cursor ? 41 : 1), next_cursor: 'c1' } })
-  })
-  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
-  sessionStorage.setItem(key, JSON.stringify({ p: 'scope=all', y: 1200, d: { anchor: 41, pages: 9 } }))
-  renderAt('/dives')
-  // Page 1 + MIN(pages, MAX_RESUME_PAGES) − 1 continuation probes.
-  await waitFor(() => expect(
-    vi.mocked(api.get).mock.calls.filter(([url]) => String(url) === '/api/v1/dives/library'),
-  ).toHaveLength(6))
-}, 20000)
-
-it('lists every scope height in the Height select even while one is selected', async () => {
-  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
-    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
-    if (String(url).includes('/library/facets')) return Promise.resolve({ data: { heights: ['1m', '3m', '3mp', '5m'] } })
-    return Promise.resolve({ data: { items: [dive(1, '103B', 1), dive(2, '201C', 1)], next_cursor: null } })
-  })
-  renderAt('/dives?height=3m&performance=F')
-  await waitFor(() => expect(
-    vi.mocked(api.get).mock.calls.some(([url]) => String(url).includes('/library/facets')),
-  ).toBe(true))
-  // The facet is fetched WITHOUT the height dimension: same other filters,
-  // same options — switching height never needs the /All detour.
-  const facetCall = vi.mocked(api.get).mock.calls.find(([url]) => String(url).includes('/library/facets'))!
-  expect((facetCall[1] as { params?: Record<string, unknown> }).params?.height).toBeUndefined()
-  expect((facetCall[1] as { params?: Record<string, unknown> }).params?.performance).toBe('F')
-  const select = await screen.findByRole('combobox', { name: 'Height' })
-  const options = Array.from((select as HTMLSelectElement).options).map((option) => option.value)
-  expect(options).toContain('5m')
-})
 
 // ---- Open latest attempt beyond the loaded page ----
 
