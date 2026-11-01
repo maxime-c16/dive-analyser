@@ -352,7 +352,11 @@ export default function Calendar() {
                   </button>
                   {showPast && <div className="cal-agenda is-past">{Array.isArray(pastData) ? agenda(past) : <div className="cal-grid-skeleton" />}</div>}
                   <div className="cal-agenda">{agenda(upcoming)}</div>
-                  {!upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
+                  {/* The empty notice states the window it is honest about
+                      (profil 11 C5): the "next three months" sentence never
+                      renders under past sessions that the screen shows. */}
+                  {!showPast && !upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
+                  {showPast && !upcoming.length && !past.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingPast}</p>}
                 </>}
             </div>
             <aside className="cal-side">
