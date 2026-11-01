@@ -1144,7 +1144,10 @@ export default function ClipViewer({
                   onClick={() => setTab(key)}
                 >
                   {label}
-                  {key === "comments" && social ? <span>{social.comment_count}</span> : null}
+                  {/* The count must not weld to the label ("Comments0"):
+                      an empty sr-only separator keeps AX reading "Comments 0"
+                      while the badge styling stays untouched. */}
+                  {key === "comments" && social ? <><span className="sr-only">{' '}</span><span>{social.comment_count}</span></> : null}
                   {pending && panelTab !== key ? <span className="sr-only">{t("clipViewer.toRate")}</span> : null}
                 </button>
               ))}

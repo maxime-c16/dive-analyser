@@ -286,6 +286,30 @@ it('a skip-to-main-content link precedes all content and targets the main landma
   expect(firstFocusable).toBe(skipLink)
 })
 
+it('the skip link focuses the main landmark and leaves no fragment in the URL', async () => {
+  const user = userEvent.setup()
+  renderAt('/dives')
+  const main = screen.getByRole('main')
+  await user.click(screen.getByRole('link', { name: 'Skip to main content' }))
+  expect(document.activeElement).toBe(main)
+  // A lingering `#main-content` fragment re-targets <main> on every later
+  // History traversal back to this URL, stealing focus from restored
+  // surfaces (viewer close returning to its Library card).
+  expect(window.location.hash).toBe('')
+
+  // Navigation helpers of modified focus (e.g. Escape closing an overlay)
+  // move on from <main>; a following skip activation still works.
+  const escapeForFocus = document.createElement('button')
+  escapeForFocus.type = 'button'
+  main.appendChild(escapeForFocus)
+  escapeForFocus.focus()
+  expect(document.activeElement).toBe(escapeForFocus)
+  await user.click(screen.getByRole('link', { name: 'Skip to main content' }))
+  expect(document.activeElement).toBe(main)
+  expect(window.location.hash).toBe('')
+  escapeForFocus.remove()
+})
+
 it('the main landmark exists exactly once in the shell', async () => {
   renderAt('/dives')
   expect(screen.getAllByRole('main')).toHaveLength(1)
