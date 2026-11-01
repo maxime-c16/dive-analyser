@@ -95,9 +95,15 @@ def pg():
 
 def _seed(engine):
     with engine.begin() as c:
+        # The real app_users contract: SQLAlchemy renders NO server default
+        # for python-side defaults, and a plain INSERT bypasses the ORM —
+        # every NOT NULL column without a DEFAULT is supplied (role, both
+        # flags, both timestamps), as the CI NotNullViolation on `role`
+        # demonstrated. If the model gains another such column, this seed
+        # must list it too (re-compile the CREATE TABLE when editing).
         c.execute(text(
-            "INSERT INTO app_users (id, email, display_name, is_admin) "
-            f"VALUES ({USER_ID}, 'probe@example.com', 'Probe', true)"
+            "INSERT INTO app_users (id, email, display_name, is_admin, role, is_active, created_at, updated_at) "
+            f"VALUES ({USER_ID}, 'probe@example.com', 'Probe', TRUE, 'owner', TRUE, NOW(), NOW())"
         ))
         # 30 unread rows inside the anchor range, plus 2000 read rows of the
         # kind the probes must not scroll through.
