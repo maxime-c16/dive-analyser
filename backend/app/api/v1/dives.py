@@ -121,7 +121,7 @@ def _filtered_dive_query(
     date_from: Optional[datetime] = None, date_to: Optional[datetime] = None,
     exclude_lineup: bool = False, exclude_personal: bool = False, code_prefix: str = "",
     search_text: str = "", position_filter: str = "", sync_filter: Optional[bool] = None,
-    modifier_filter: str = "",
+    modifier_filter: str = "", code_filter: str = "",
 ):
     """Access-scoped dive query with every Library filter applied (no order, no paging)."""
     query = db.query(Dive)
@@ -163,7 +163,7 @@ def _filtered_dive_query(
         query = query.filter(Dive.is_lineup == True)
 
     from app.services.library_query import apply_library_filters
-    return apply_library_filters(query, db, code_prefix, search_text, position_filter, sync_filter, modifier_filter)
+    return apply_library_filters(query, db, code_prefix, search_text, position_filter, sync_filter, modifier_filter, code_filter)
 
 
 @router.get("")
@@ -186,6 +186,7 @@ def list_dives(
     position_filter: str = "",
     sync_filter: Optional[bool] = None,
     modifier_filter: str = "",
+    code_filter: str = "",
     cursor: Optional[str] = None,
 ):
     """
@@ -196,7 +197,7 @@ def list_dives(
         height=height, performance=performance, date_from=date_from, date_to=date_to,
         exclude_lineup=exclude_lineup, exclude_personal=exclude_personal, code_prefix=code_prefix,
         search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
-        modifier_filter=modifier_filter,
+        modifier_filter=modifier_filter, code_filter=code_filter,
     )
     from app.services.library_query import decode_cursor
     if cursor:
@@ -253,15 +254,17 @@ def library_page(
     height: str = "", performance: str = "", code_prefix: str = "",
     search_text: str = Query("", max_length=200), position_filter: str = "",
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
+    date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
+    code_filter: str = Query("", max_length=8192),
 ):
     """A bounded, filtered Library page; cursor ties include id for stable order."""
     from app.services.library_query import encode_cursor
     rows = list_dives(request=request, db=db, session_id=None, dive_code=None,
-        height=height, performance=performance, date_from=None, date_to=None,
+        height=height, performance=performance, date_from=date_from, date_to=date_to,
         exclude_lineup=True, exclude_personal=False, diver_scope=diver_scope,
         limit=limit + 1, offset=0, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter,
-        modifier_filter=modifier_filter, cursor=cursor)
+        modifier_filter=modifier_filter, code_filter=code_filter, cursor=cursor)
     more = len(rows) > limit
     rows = rows[:limit]
     # One bounded join after list_dives has applied the existing access scope.
@@ -278,13 +281,16 @@ def library_codes(
     height: str = "", performance: str = "", code_prefix: str = "",
     search_text: str = Query("", max_length=200), position_filter: str = "",
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
+    date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
+    code_filter: str = Query("", max_length=8192),
 ):
     """Per-code summaries and recent activity over the whole filtered Library scope."""
     from app.services.code_summaries import summarize_library_query
     query = _filtered_dive_query(
         request, db, diver_scope=diver_scope, height=height, performance=performance,
-        exclude_lineup=True, code_prefix=code_prefix, search_text=search_text,
-        position_filter=position_filter, sync_filter=sync_filter, modifier_filter=modifier_filter,
+        exclude_lineup=True, date_from=date_from, date_to=date_to, code_prefix=code_prefix,
+        search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
+        modifier_filter=modifier_filter, code_filter=code_filter,
     )
     return summarize_library_query(db, query, datetime.now())
 

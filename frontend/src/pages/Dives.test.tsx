@@ -30,6 +30,7 @@ const codeSummaries = {
 }
 
 beforeEach(() => {
+  sessionStorage.clear()
   vi.mocked(getMediaStatus).mockResolvedValue({ poster_url: null, playback_url: null } as any)
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/divers') return Promise.resolve({ data: [{ id: 1, display_name: 'Maxime', is_primary_user: true }, { id: 2, display_name: 'Paul', is_primary_user: false }] })

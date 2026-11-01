@@ -10,6 +10,13 @@ import { api } from "../services/api";
 import { clearLibraryCache, libraryKey, loadLibraryCache, readLibraryCache } from "../services/libraryCache";
 import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
+import {
+  isBareLibraryUrl,
+  mergeLibraryParams,
+  readLibraryWorkspace,
+  saveLibraryWorkspace,
+} from "../hooks/libraryWorkspace";
+import { nameSearchCodes } from "../utils/diveNameSearch";
 import { divePositionCode } from "../utils/divePosition";
 import {
   MODIFIERS,
@@ -43,6 +50,14 @@ type View = "grid" | "list" | "codes" | "progress";
 function normalizedHeight(value: string) {
   return value.replace(/\s/g, "").toLowerCase();
 }
+
+/** Library period presets: relative windows, explicit in the URL as `period`. */
+const PERIODS: Array<[string, number]> = [
+  ["30d", 30 * 86400000],
+  ["90d", 90 * 86400000],
+  ["180d", 180 * 86400000],
+  ["365d", 365 * 86400000],
+];
 
 function ScoreBadge({ dive }: { dive: Dive }) {
   const { t } = useTranslation();
@@ -89,18 +104,19 @@ function mergeSessionsAndDives(sessions: SharedTrainingSession[], dives: Dive[])
 }
 
 function SessionRow({ session }: { session: SharedTrainingSession }) {
+  const { t } = useTranslation();
   return (
     <Link
       to={`/sessions/shared/${session.session_id}`}
       className="grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-app px-3 py-3 text-left hover:bg-app-panel-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-accent sm:grid-cols-[7rem_minmax(0,1fr)_7rem_8rem] sm:px-4"
-      aria-label={`Séance · ${session.video_count} ${session.video_count === 1 ? "vidéo" : "vidéos"}`}
+      aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}
     >
       <div className="flex aspect-video items-center justify-center overflow-hidden border border-app">
-        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">Séance</span>
+        <span className="rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span>
       </div>
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-app-text">
-          {session.video_count} {session.video_count === 1 ? "vidéo" : "vidéos"} · {formatDuration(session.total_duration)}
+          {t("libraryUX.sessionVideos", { count: session.video_count })} · {formatDuration(session.total_duration)}
         </p>
         <p className="mt-1 text-xs text-app-muted">
           {format(parseISO(session.date), "d MMM yyyy", { locale: appLocale() })}
@@ -251,10 +267,24 @@ function DiveLibrary() {
     .split(",")
     .filter(Boolean);
   const view = (searchParams.get("view") || "grid") as View;
+  const period = PERIODS.some(([key]) => key === searchParams.get("period"))
+    ? (searchParams.get("period") as string)
+    : "";
+  const periodFrom = useMemo(() => {
+    const preset = PERIODS.find(([key]) => key === period);
+    if (!preset) return "";
+    // Naive UTC midnight so the naive dive_datetime comparison stays valid;
+    // the window is re-anchored per mount, never stored as an absolute date.
+    return new Date(Date.now() - preset[1]).toISOString().slice(0, 10) + "T00:00:00";
+  }, [period]);
   const clipParam = searchParams.get("clip") || "";
   const clipRef = useRef(clipParam);
   clipRef.current = clipParam;
   const parsed = useMemo(() => parseSearch(deferredQuery), [deferredQuery]);
+  // Figure-name words resolve to exact codes over the whole authorized
+  // scope (not just the loaded page); position/height/sync words already
+  // reuse the structured filters above, so only leftover words run here.
+  const nameMatch = useMemo(() => nameSearchCodes(parsed.text), [parsed.text]);
   const pageParams = {
     limit: 100, diver_scope: scope,
     height: heightFilter || parsed.height.toLowerCase(),
@@ -262,6 +292,8 @@ function DiveLibrary() {
     code_prefix: parsed.code, search_text: parsed.text, position_filter: parsed.position,
     ...(contextFilter ? { sync_filter: contextFilter === 'sync' } : parsed.sync !== null ? { sync_filter: parsed.sync } : {}),
     modifier_filter: [...new Set([...modifiers, ...parsed.modifiers])].join(','),
+    ...(periodFrom ? { date_from: periodFrom } : {}),
+    ...(nameMatch.status === "match" && nameMatch.codes.length > 0 ? { code_filter: nameMatch.codes.join(',') } : {}),
   };
   const pageParamsKey = JSON.stringify(pageParams);
   // Code cards and progress aggregate the whole filtered Library, not the loaded pages.
@@ -286,6 +318,30 @@ function DiveLibrary() {
   const pageGeneration = useRef(0);
   const loadedAccessKey = useRef(accessKey);
   const hasLoadedLibrary = useRef(Boolean(cached));
+  // Key whose rows are currently mounted (matches the fetch effect's key
+  // after a successful load or a matching snapshot; null while a different
+  // filter's rows are still on screen). Gates the workspace scroll anchor
+  // and period screening decisions.
+  const loadedKeyRef = useRef<string | null>(null);
+  // Cross-rubrique workspace memory (see hooks/libraryWorkspace): restore a
+  // bare /dives mount once, never deep links with explicit filters.
+  const workspaceRestorePending = useRef<number | null>(null);
+  const workspaceRestoreKeyRef = useRef<string | null>(null);
+  const workspaceConsumed = useRef(false);
+  const workspaceParamsRef = useRef<URLSearchParams | null>(null);
+  workspaceParamsRef.current = searchParams;
+  useEffect(() => {
+    workspaceConsumed.current = false;
+    return () => {
+      // Leaving the Library saves the working state for this tab + account.
+      if (workspaceParamsRef.current && user !== undefined) {
+        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0);
+      }
+      workspaceParamsRef.current = null;
+    };
+    // Re-arm only when the account binding changes; the cleanup runs on
+    // unmount and on identity re-key (Dives is keyed by libraryKey).
+  }, [accessKey]);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollAnchorRef = useRef<number | null>(null);
@@ -306,6 +362,32 @@ function DiveLibrary() {
     let active = true;
     pageGeneration.current++;
     setLoadingMore(false);
+    // A bare /dives arrival carries no Library state in its URL: one stored
+    // workspace (this tab + account) is restored instead of silently
+    // resetting filters, view and scroll depth. Explicit URLs win.
+    if (!workspaceConsumed.current) {
+      workspaceConsumed.current = true;
+      const stored = readLibraryWorkspace(user);
+      // A clip deep link is an explicit entry: keep its semantics intact.
+      if (stored && isBareLibraryUrl(searchParams) && !searchParams.has("clip")) {
+        const merged = mergeLibraryParams(searchParams, stored);
+        workspaceRestorePending.current = stored.scrollY;
+        if (merged.toString() !== searchParams.toString()) {
+          setSearchParams(merged, { replace: true, preventScrollReset: true });
+          // Presentation-only restores (view, sort) leave the query keys,
+          // so the effect would otherwise never run again: re-run it once
+          // with the merged URL in place, and let it fetch from there.
+          setReloadKey(k => k + 1);
+          return;
+        }
+      }
+    }
+    // The restored anchor may only be consumed once the RESTORED key's rows
+    // are the ones mounted — never on a stale other-key cache or on a row
+    // set from a different filter.
+    if (workspaceRestorePending.current !== null && workspaceRestoreKeyRef.current === null) {
+      workspaceRestoreKeyRef.current = cacheKey;
+    }
     const snapshot = readLibraryCache(cacheKey);
     const accountChanged = loadedAccessKey.current !== accessKey;
     loadedAccessKey.current = accessKey;
@@ -315,6 +397,10 @@ function DiveLibrary() {
     if (snapshot || accountChanged) {
       setDives(snapshot?.dives ?? []);
       setDivers(snapshot?.divers ?? []);
+      // A matching snapshot means what is mounted belongs to this key; a
+      // missed key leaves the previously-mounted rows from another key, and
+      // the workspace scroll anchor must never consume them.
+      loadedKeyRef.current = snapshot ? cacheKey : null;
     }
     setNextCursor(snapshot?.nextCursor ?? null);
     // An empty result is still a loaded library. Keep its filter-reset action
@@ -332,6 +418,9 @@ function DiveLibrary() {
       .then(({ dives, divers, nextCursor }) => {
         if (active) {
           hasLoadedLibrary.current = true;
+          // What is (about to be) mounted belongs to this key: the workspace
+          // scroll anchor and the period screening key off this.
+          loadedKeyRef.current = cacheKey;
           // A direct-link clip resolved while this refresh was in flight must survive it.
           setDives(current => {
             const pinned = current.find(dive => String(dive.id) === clipRef.current && !dives.some(item => item.id === dive.id));
@@ -351,7 +440,28 @@ function DiveLibrary() {
     return () => {
       active = false;
     };
+    // Bounded listeners by design: the identity guard comes from the Dives
+    // re-key, period/name filters recompute pageParamsKey themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey, cacheKey, pageParamsKey]);
+
+  // Restored scroll depth lands after the restored (cached or fetched) page
+  // has painted; clamped to the current content height. The anchor waits for
+  // the restored key's own rows: consuming it on the bare key's stale cache
+  // or another filter's rows would scroll against content about to change.
+  useEffect(() => {
+    if (loading || workspaceRestorePending.current === null) return;
+    if (loadedKeyRef.current !== workspaceRestoreKeyRef.current) return;
+    const anchor = workspaceRestorePending.current;
+    workspaceRestorePending.current = null;
+    workspaceRestoreKeyRef.current = null;
+    requestAnimationFrame(() => {
+      const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo(0, Math.min(anchor, max));
+    });
+    // `dives` identity (not length): an equal-length refreshed page must
+    // still re-run this check so the anchor can be consumed on it.
+  }, [loading, dives]);
 
   useEffect(() => {
     if (!aggregated) return;
@@ -418,6 +528,11 @@ function DiveLibrary() {
         if (contextFilter === "individual" && dive.is_sync) return false;
         if (performanceFilter && dive.performance !== performanceFilter)
           return false;
+        // Same date bound as the API (`date_from`, naive strings compare
+        // lexicographically): rows mounted from a previous period's page
+        // (the deliberate keep-mounted refresh) or a pinned deep link must
+        // never stay visible or open in the viewer while a period is set.
+        if (periodFrom && dive.dive_datetime < periodFrom) return false;
         const diveModifiers = modifiersFor(dive);
         if (
           modifiers.some(
@@ -448,13 +563,18 @@ function DiveLibrary() {
           parsed.modifiers.some((modifier) => !diveModifiers.includes(modifier))
         )
           return false;
-        if (
-          parsed.text &&
-          !`${dive.dive_code} ${dive.raw_caption || ""} ${dive.notes || ""}`
-            .toUpperCase()
-            .includes(parsed.text)
-        )
-          return false;
+        if (parsed.text) {
+          // Same OR-composition as the API: phrase on code/caption/notes OR
+          // figure-name codes derived from the shared catalog. Captions are
+          // frequently empty, so names must count on their own.
+          const phrase = `${dive.dive_code} ${dive.raw_caption || ""} ${
+            dive.notes || ""
+          }`.toUpperCase();
+          const byName =
+            nameMatch.status === "match" &&
+            nameMatch.codes.includes(dive.dive_code.toUpperCase());
+          if (!phrase.includes(parsed.text) && !byName) return false;
+        }
         return true;
       }),
     [
@@ -467,6 +587,8 @@ function DiveLibrary() {
       performanceFilter,
       modifiers,
       parsed,
+      nameMatch,
+      periodFrom,
     ],
   );
   useEffect(() => {
@@ -478,6 +600,7 @@ function DiveLibrary() {
     contextFilter,
     performanceFilter,
     modifiers.join(","),
+    period,
   ]);
 
   // The viewer is derived from the URL: `clip` holds the selected attempt id.
@@ -594,6 +717,7 @@ function DiveLibrary() {
     performanceFilter,
     ...modifiers,
     deferredQuery,
+    period,
   ].filter(Boolean).length;
   const reset = () =>
     update({
@@ -602,6 +726,7 @@ function DiveLibrary() {
       context: null,
       performance: null,
       modifiers: null,
+      period: null,
     });
 
   return (
@@ -770,6 +895,19 @@ function DiveLibrary() {
               </option>
             ))}
           </select>
+          <select
+            aria-label={t("libraryUX.periodFilter")}
+            value={period}
+            onChange={(event) => update({ period: event.target.value || null })}
+            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+          >
+            <option value="">{t("libraryUX.periodAll")}</option>
+            {PERIODS.map(([key]) => (
+              <option key={key} value={key}>
+                {t(`libraryUX.period${key}`)}
+              </option>
+            ))}
+          </select>
           <div
             role="group"
             aria-label={t("dives.modifiers")}
@@ -892,7 +1030,9 @@ function DiveLibrary() {
                       onClick={() => setShown((count) => count + 48)}
                       className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
                     >
-                      {t("dives.showMoreAttempts")}
+                      {t("libraryUX.showMoreAttempts", {
+                        count: Math.min(48, filtered.length - shown),
+                      })}
                     </button>
                   </div>
                 )}
@@ -901,8 +1041,22 @@ function DiveLibrary() {
           )}
         </section>
       )}
-      {sessionsCursor && <button className="touch-target" onClick={async()=>{const d=await trainingSessions(sessionsCursor);setSharedSessions(s=>[...s,...d.items]);setSessionsCursor(d.next_cursor)}}>Plus de séances</button>}
-      {!loading && nextCursor && !aggregated && (
+      {sessionsCursor && (
+        <div className="mt-5 text-center">
+          <button
+            type="button"
+            className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text"
+            onClick={async () => {
+              const d = await trainingSessions(sessionsCursor);
+              setSharedSessions((s) => [...s, ...d.items]);
+              setSessionsCursor(d.next_cursor);
+            }}
+          >
+            {t("libraryUX.loadMoreSessions")}
+          </button>
+        </div>
+      )}
+      {!loading && nextCursor && !aggregated && shown >= filtered.length && (
         <div className="mt-5 text-center">
           <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">
