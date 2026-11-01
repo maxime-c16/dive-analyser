@@ -212,3 +212,12 @@ uniquement**, dans un bloc `libraryUX` séparé à la fin de chaque locale
   les notifications, la langue FR globale, Like/favoris) : laissés au
   propriétaire correspondant ; les aides DB/SD/HU existent (popover constaté
   par profil 6) — signaux « abréviations » classés sans action ici.
+
+## Vérification parent
+
+- Recherche par nom : intersection avant limite finale et déduplication de l’index. L’ordre « somersaults back tuck » / « back tuck somersaults » produit les mêmes codes ; aucun code dupliqué n’est envoyé à l’API.
+- Remise à zéro : mémorisation d’un workspace vide pour écraser l’ancien filtre au départ ; le scroll est restauré même si la query mémorisée est vide.
+- Bloc i18n déplacé au début des dictionnaires pour éviter le conflit avec la PR de fiabilité (bloc routeError ajouté en fin de fichier).
+- Limite inchangée : les pages précédemment chargées ne sont pas reconstruites au retour ; scroll borné au contenu présent, pas garantie de retrouver un clip situé sur une ancienne page.
+
+Validation parent après compléments : 12 tests ciblés (workspace/recherche/parcours Library) passés, TypeScript et build production passés. Suites intégrales initiales non rejouées sur ce complément ; CI GitHub requise au nouveau head.

@@ -364,8 +364,8 @@ function DiveLibrary() {
       // A clip deep link is an explicit entry: keep its semantics intact.
       if (stored && isBareLibraryUrl(searchParams) && !searchParams.has("clip")) {
         const merged = mergeLibraryParams(searchParams, stored);
+        workspaceRestorePending.current = stored.scrollY;
         if (merged.toString() !== searchParams.toString()) {
-          workspaceRestorePending.current = stored.scrollY;
           setSearchParams(merged, { replace: true, preventScrollReset: true });
           return;
         }

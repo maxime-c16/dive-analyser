@@ -86,8 +86,8 @@ function buildIndex(): Index {
   }
   const add = (token: string, code: string) => {
     const list = map.get(token);
-    if (list) list.push(code);
-    else map.set(token, [code]);
+    if (list && !list.includes(code)) list.push(code);
+    else if (!list) map.set(token, [code]);
   };
   for (const code of codes) {
     for (const language of ["fr", "en"] as const) {
@@ -120,7 +120,7 @@ export function nameSearchCodes(text: string): NameSearch {
     if (!hits) continue; // caption-search word, not a figure name
     if (running === null) {
       running = [...hits];
-      if (running.length > NAME_CODE_LIMIT) return { status: "unsupported", codes: [] };
+
     } else {
       const picks: string[] = running.filter((code) => hits.includes(code));
       running = picks;
@@ -128,6 +128,7 @@ export function nameSearchCodes(text: string): NameSearch {
     }
   }
   if (running === null) return { status: "unused", codes: [] };
+  if (running.length > NAME_CODE_LIMIT) return { status: "unsupported", codes: [] };
   return { status: "match", codes: running };
 }
 

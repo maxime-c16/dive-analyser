@@ -24,10 +24,6 @@ const STORAGE_PREFIX = "dive-library-view:v1";
 
 export type LibraryWorkspace = { params: URLSearchParams; scrollY: number };
 
-function storageKey(userKey: string | null): string | null {
-  return userKey ? `${STORAGE_PREFIX}:${userKey}` : null;
-}
-
 /** True when the URL carries none of the Library's own working state. */
 export function isBareLibraryUrl(params: URLSearchParams): boolean {
   return LIBRARY_VIEW_KEYS.every((key) => !params.has(key));
@@ -46,7 +42,6 @@ export function librarySearchParams(params: URLSearchParams): URLSearchParams {
 /** Save on leaving the Library; storage failures are non-fatal. */
 export function saveLibraryWorkspace(user: AuthUser | null, params: URLSearchParams, scrollY: number): void {
   const owned = librarySearchParams(params);
-  if ([...owned.keys()].length === 0) return;
   try {
     sessionStorage.setItem(
       `${STORAGE_PREFIX}:${libraryKey(user) ?? 'anonymous'}`,
