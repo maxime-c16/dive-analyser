@@ -68,9 +68,11 @@ describe('Community discovery', () => {
 
   it('keeps you on the board with a zero score and pages search results', async () => {
     const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
-    api(url => url.includes('after=2')
+    api(url => url.includes('q=') && url.includes('after=')
       ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex' }], next_after: null }
-      : { items: [fanny], next_after: 2 },
+      : url.includes('q=')
+        ? { items: [fanny], next_after: 2 }
+        : { items: [], next_after: null },
       { ...board, members: [member(2, 'Fanny', 12), member(1, 'Me', 0)] })
     renderPage()
     expect(await screen.findByRole('list', { name: 'Podium' })).toHaveTextContent('You')
@@ -103,7 +105,7 @@ describe('Community discovery', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
       const url = new URL(String(input), 'http://test')
       if (url.pathname.includes('/leaderboard')) return response(board)
-      if (url.searchParams.get('after')) return gate.then(() => response({ items: [{ ...fanny, user_id: 3, display_name: 'Alex' }], next_after: null }))
+      if (url.searchParams.get('q') && url.searchParams.get('after')) return gate.then(() => response({ items: [{ ...fanny, user_id: 3, display_name: 'Alex' }], next_after: null }))
       const q = url.searchParams.get('q')
       return response({ items: q ? [fanny] : [], next_after: q ? 2 : null })
     })
@@ -118,12 +120,21 @@ describe('Community discovery', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Load more members' })).toBeEnabled())
   })
 
-  it('reads every directory page before sorting it', async () => {
-    api(url => url.includes('after=2')
-      ? { items: [{ ...fanny, user_id: 3, display_name: 'Alex', handle: 'alex' }], next_after: null }
-      : { items: [fanny], next_after: 2 })
+  it('loads the directory in one bounded page and continues explicitly', async () => {
+    let splice = 0
+    api(url => url.includes('/directory')
+      ? (splice === 0
+        ? (splice = 1, { items: [{ ...fanny, accessible_dive_count: 12 }], next_after: 2, has_more: true, totals: { members: 2, divers: 2, others: 0, recent: 1 } })
+        : { items: [{ ...fanny, user_id: 3, display_name: 'Alex', handle: 'alex' }], next_after: null, has_more: false, totals: { members: 2, divers: 2, others: 0, recent: 1 } })
+      : { items: [], next_after: null })
     renderPage()
+    expect(await screen.findByRole('link', { name: /Fanny/ })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /Divers/ })).toHaveTextContent('2')
+    expect(screen.getByRole('button', { name: 'Show the remaining 1 member' })).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Show the remaining 1 member' }))
     expect(await screen.findByRole('link', { name: /Alex/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Fanny/ })).toBeInTheDocument()
+    // Every page is loaded exactly once: no sequential walk, no silent gap.
+    expect(screen.queryByRole('button', { name: /Show the remaining/ })).not.toBeInTheDocument()
   })
 })

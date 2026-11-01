@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { formatDistanceToNowStrict, parseISO } from 'date-fns'
 import { ChevronRight, Search, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { searchMembers, type MemberSummary } from '../services/communityApi'
+import { searchMembers, getMemberDirectory, type MemberSummary, type MemberTotals } from '../services/communityApi'
 import { appLocale } from '../utils/dateLocale'
 import MemberAvatar from '../components/MemberAvatar'
 import PageLoading from '../components/PageLoading'
@@ -16,25 +16,15 @@ import '../components/community/community.css'
 const RECENT_DAYS = 30
 const DAY_MS = 86_400_000
 
-/** All member pages, once: discovery needs the whole (small) directory to sort it into sections. */
-async function allMembers(signal: AbortSignal) {
-  const items: MemberSummary[] = []
-  let after: number | undefined
-  for (let page = 0; page < 20; page++) {
-    const result = await searchMembers('', after, signal)
-    items.push(...result.items)
-    if (!result.next_after) break
-    after = result.next_after
-  }
-  return items
-}
-
 export default function Community() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
   const [directory, setDirectory] = useState<MemberSummary[] | null>(null)
+  const [directoryMore, setDirectoryMore] = useState<{ after: number | null; hasMore: boolean } | null>(null)
+  const [totals, setTotals] = useState<MemberTotals | null>(null)
+  const [directoryLoadingMore, setDirectoryLoadingMore] = useState(false)
   const [results, setResults] = useState<MemberSummary[] | null>(null)
   const [searchAfter, setSearchAfter] = useState<number | null>(null)
   const [searchingMore, setSearchingMore] = useState(false)
@@ -46,9 +36,28 @@ export default function Community() {
   useEffect(() => {
     const controller = new AbortController()
     setError(false)
-    allMembers(controller.signal).then(setDirectory).catch(() => { if (!controller.signal.aborted) setError(true) })
-    return () => controller.abort()
+    // One bounded page replaces the former up-to-20-request sequential load
+    // (discovery 2026-11-01, profil 6). Continuation stays explicit.
+    getMemberDirectory(undefined, controller.signal).then(page => {
+      if (controller.signal.aborted) return
+      setDirectory(page.items)
+      setDirectoryMore({ after: page.next_after ?? null, hasMore: Boolean(page.has_more && page.next_after != null) })
+      setTotals(page.totals ?? null)
+    }).catch(() => { if (!controller.signal.aborted) setError(true) })
+    return () => { controller.abort(); setDirectoryMore(null) }
   }, [retry])
+
+  async function moreDirectory() {
+    if (!directoryMore?.after || directoryLoadingMore) return
+    setDirectoryLoadingMore(true); setError(false)
+    try {
+      const page = await getMemberDirectory(directoryMore.after)
+      if (page.items.length) setDirectory(previous => [...(previous ?? []), ...page.items])
+      setDirectoryMore({ after: page.next_after ?? null, hasMore: Boolean(page.has_more && page.next_after != null) })
+      setTotals(page.totals ?? totals)
+    } catch { setError(true) }
+    finally { setDirectoryLoadingMore(false) }
+  }
 
   useEffect(() => {
     if (!q) { setResults(null); setSearchAfter(null); return }
@@ -85,6 +94,10 @@ export default function Community() {
   const recent = divers.filter(member => now - lastAt(member) <= RECENT_DAYS * DAY_MS)
   const others = peers.filter(member => !(member.accessible_dive_count ?? 0)).sort((a, b) => a.display_name.localeCompare(b.display_name))
   const ago = (iso: string) => formatDistanceToNowStrict(parseISO(iso), { addSuffix: true, locale: appLocale() })
+  // Section banners stay the complete-directory count even while the page
+  // continues explicitly: the server total, never a silently truncated slice.
+  const diversTotal = totals?.divers ?? divers.length
+  const othersTotal = totals?.others ?? others.length
 
   const row = (member: MemberSummary, index: number) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-row ca-pop" style={{ '--i': Math.min(index, 12) } as CSSProperties}>
     <MemberAvatar member={member} size={48} />
@@ -127,18 +140,22 @@ export default function Community() {
       <Leaderboard excluded={excluded} me={me} />
 
       {divers.length > 0 && <section className="cm-section" aria-labelledby="cm-divers">
-        <h2 id="cm-divers" className="cm-h2">{t('community.divers')}<span>{divers.length}</span></h2>
+        <h2 id="cm-divers" className="cm-h2">{t('community.divers')}<span>{diversTotal}</span></h2>
         <div className="cm-list">{divers.map(row)}</div>
       </section>}
 
       {others.length > 0 && <section className="cm-section" aria-labelledby="cm-others">
-        <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}<span>{others.length}</span></h2>
+        <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}<span>{othersTotal}</span></h2>
         <div className="cm-chips">{(showAll ? others : others.slice(0, 8)).map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-chip ca-pop" style={{ '--i': index } as CSSProperties}>
           <MemberAvatar member={member} size={30} />{member.display_name}
         </Link>)}
           {others.length > 8 && !showAll && <button type="button" className="cm-chip cm-chip-more" onClick={() => setShowAll(true)}>+{others.length - 8}</button>}
         </div>
       </section>}
+
+      {directoryMore?.hasMore && <button type="button" className="ca-pill cm-more" onClick={() => void moreDirectory()} disabled={directoryLoadingMore}>
+        {directoryLoadingMore ? t('common.loading') : t('community.remaining', { count: Math.max((totals?.members ?? 0) - peers.length, 0) })}
+      </button>}
     </>}
   </div>
 }

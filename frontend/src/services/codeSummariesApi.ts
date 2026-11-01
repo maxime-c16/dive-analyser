@@ -54,10 +54,20 @@ function cached<T>(store: Map<string, Entry<T>>, key: string, load: () => Promis
   const hit = store.get(key)
   if (hit?.promise) return hit.promise
   if (hit?.value !== undefined && Date.now() - hit.at < FRESH_MS) return Promise.resolve(hit.value)
-  const promise = load().then(value => { store.set(key, { at: Date.now(), value }); return value })
+  const promise = load().then(value => { store.set(key, { at: Date.now(), value }); trim(store); return value })
     .catch(error => { store.delete(key); throw error })
   store.set(key, { at: Date.now(), value: hit?.value, promise })
   return promise
+}
+
+/** Attempts stay bounded in memory even across many code visits: the oldest
+ * entries (insertion order) drop first, current reads always hit their key. */
+function trim<T>(store: Map<string, Entry<T>>) {
+  while (store.size > MAX_CACHE_ENTRIES) {
+    const oldest = store.keys().next().value
+    if (oldest === undefined) break
+    store.delete(oldest)
+  }
 }
 
 /** Last value even when stale, so a revisit paints immediately while it refreshes. */
@@ -71,22 +81,46 @@ export function getCodeSummaries(params: LibraryCodeParams, viewer: string | nul
 }
 
 export function peekCodeAttempts(code: string, scope: string, viewer: string | null = null): Attempt[] | null {
+  return peekCodeAttemptsResult(code, scope, viewer)?.items ?? null
+}
+
+export type CodeAttemptsResult = { items: Attempt[]; capped: boolean }
+
+export function peekCodeAttemptsResult(code: string, scope: string, viewer: string | null = null): CodeAttemptsResult | null {
   return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope))?.value ?? null
 }
 
-/** Every Library attempt of one exact code (oldest first), with thumbnails, through the bounded Library pages. */
-export function getCodeAttempts(code: string, scope: string, viewer: string | null = null): Promise<Attempt[]> {
+/** Newest-attempts window for one exact code, at most this many pages of 100:
+ * bounded traversal and bounded memory, never a silently truncated analysis. */
+const MAX_ATTEMPT_PAGES = 10
+const MAX_CACHE_ENTRIES = 16
+
+/** Every Library attempt of one exact code (sorted oldest first), read
+ * through the bounded Library pages. `capped` marks an explicit newest
+ * window: the Code Analysis page says so instead of pretending the whole
+ * history was walked. */
+export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null): Promise<CodeAttemptsResult> {
   const exact = code.toUpperCase()
   return cached(codeAttempts, scopedKey(viewer, exact, scope), async () => {
     const items: Attempt[] = []
     let cursor: string | null = null
-    do {
+    let capped = false
+    for (let page = 0; page < MAX_ATTEMPT_PAGES; page++) {
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
         params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(cursor ? { cursor } : {}) },
       })
+      // The Library response is newest first, so a bounded walk keeps the
+      // newest window complete and says so, rather than mixing eras.
       items.push(...response.data.items.filter(item => item.dive_code.toUpperCase() === exact))
       cursor = response.data.next_cursor
-    } while (cursor)
-    return items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id)
+      if (!cursor) return { items: items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id), capped: false }
+    }
+    capped = true
+    return { items: items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id), capped }
   })
+}
+
+/** Backwards-compatible view of the same bounded cache. */
+export function getCodeAttempts(code: string, scope: string, viewer: string | null = null): Promise<Attempt[]> {
+  return getCodeAttemptsResult(code, scope, viewer).then(result => result.items)
 }

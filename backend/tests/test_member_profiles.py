@@ -323,3 +323,44 @@ def test_leaderboard_counts_visible_dives_streaks_and_progress(workspace):
     own = login('bob').get('/api/v1/users/leaderboard').json()
     assert next(m for m in own['members'] if m['user_id'] == users['bob'].id)['attempts'] == 8  # bob also sees his two private dives
     assert login('viewer').get('/api/v1/users/leaderboard', params={'period': 'year'}).status_code == 422
+
+
+def test_directory_answers_one_bounded_page_with_explicit_has_more(workspace):
+    _, login, _, _, _ = workspace
+    client = login('viewer')
+    assert client.get('/api/v1/users/directory', params={'limit': 501}).status_code == 422
+    first = client.get('/api/v1/users/directory', params={'limit': 2}).json()
+    second = client.get('/api/v1/users/directory', params={'limit': 500, 'after': first['next_after']}).json()
+    ids = [row['user_id'] for row in first['items'] + second['items']]
+    assert len(ids) == len(set(ids)) == 3
+    # The default page answers in one response with an explicit flag.
+    whole = client.get('/api/v1/users/directory').json()
+    assert whole['has_more'] is False and whole['next_after'] is None
+    assert len(whole['items']) == 3
+
+
+def test_directory_totals_are_complete_never_the_page_slice(workspace):
+    db, login, _, users, session_id = workspace
+    alice_diver = db.query(UserDiverAccess).filter_by(user_id=users['alice'].id).one().diver_id
+    # My own diver's dormant account: linked, never a peer, never counted.
+    twin = AppUser(email='twin@example.test', display_name='twin', role='friend')
+    db.add(twin)
+    db.flush()
+    twin_id = twin.id
+    db.add(UserDiverAccess(user_id=twin_id, diver_id=alice_diver, access_kind='OWNER'))
+    db.commit()
+    viewer = login('alice')
+    totals = viewer.get('/api/v1/users/directory').json()['totals']
+    # 3 fixture accounts (alice, bob, viewer); alice sees herself and her twin
+    # excluded, so exactly two peers — the full directory, even on page 1.
+    assert totals['members'] == 2
+    response = viewer.get('/api/v1/users/directory', params={'limit': 1}).json()
+    assert response['totals'] == totals
+    assert response['has_more'] is True
+    assert len(response['items']) == 1
+    # Continuing ends explicitly at the exact server-cursor count.
+    continue_ = viewer.get('/api/v1/users/directory', params={'limit': 500, 'after': response['next_after']}).json()
+    assert continue_['has_more'] is False
+    every_id = [row['user_id'] for row in response['items'] + continue_['items']]
+    assert len(every_id) == len(set(every_id)) == 4  # alice+bob+viewer+twin, one pass
+    assert users['alice'].id in every_id

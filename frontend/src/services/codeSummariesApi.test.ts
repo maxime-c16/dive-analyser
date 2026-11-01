@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { api } from './api'
 import {
-  clearCodeSummaryCache, getCodeAttempts, getCodeSummaries,
+  clearCodeSummaryCache, getCodeAttempts, getCodeAttemptsResult, getCodeSummaries,
   peekCodeAttempts, peekCodeSummaries,
 } from './codeSummariesApi'
 
@@ -39,4 +39,29 @@ it('scopes code summaries to the viewer too', async () => {
   expect(peekCodeSummaries(params, 'viewer-b')).toBeNull()
   await getCodeSummaries(params, 'viewer-b')
   expect(api.get).toHaveBeenCalledTimes(2)
+})
+
+it('keeps walking pages until the catalog truly ends (no silent truncation)', async () => {
+  // next_cursor stays present through the last page only when the server
+  // says more exist: the loop must trust the cursor, not a page count.
+  const attemptItem = (index: number) => ({ id: index, dive_code: '5122D', dive_datetime: `2026-01-0${(index % 9) + 1}T00:00:00Z` })
+  let pageCalls = 0
+  vi.mocked(api.get).mockImplementation(async () => {
+    pageCalls += 1
+    return { data: { items: [attemptItem(pageCalls)], next_cursor: pageCalls < 3 ? 'cursor' : null } }
+  })
+  await expect(getCodeAttempts('5122D', 'all', 'viewer-a')).resolves.toHaveLength(3)
+  expect(api.get).toHaveBeenCalledTimes(3)
+})
+
+it('stops at a bounded newest window and reports the cap instead of lying', async () => {
+  let pageCalls = 0
+  vi.mocked(api.get).mockImplementation(async () => {
+    pageCalls += 1
+    return { data: { items: [{ id: pageCalls, dive_code: '5122D', dive_datetime: '2026-01-01T00:00:00Z' }], next_cursor: 'cursor' } }
+  })
+  const result = await getCodeAttemptsResult('5122D', 'all', 'viewer-a')
+  expect(pageCalls).toBe(10) // MAX_ATTEMPT_PAGES, one probe per page.
+  expect(result.capped).toBe(true)
+  expect(result.items).toHaveLength(10)
 })

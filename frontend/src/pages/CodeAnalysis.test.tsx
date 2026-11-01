@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import CodeAnalysis from './CodeAnalysis'
-import { getCodeAttempts, getCodeSummaries } from '../services/codeSummariesApi'
+import { getCodeAttemptsResult, getCodeSummaries } from '../services/codeSummariesApi'
 
 vi.mock('../services/codeSummariesApi', () => ({
   getCodeAttempts: vi.fn(), getCodeSummaries: vi.fn(),
-  peekCodeAttempts: vi.fn(() => null), peekCodeSummaries: vi.fn(() => null), clearCodeSummaryCache: vi.fn(),
+  getCodeAttemptsResult: vi.fn(() => Promise.resolve({ items: [], capped: false })),
+  peekCodeAttemptsResult: vi.fn(() => null), peekCodeAttempts: vi.fn(() => null), peekCodeSummaries: vi.fn(() => null), clearCodeSummaryCache: vi.fn(),
 }))
 vi.mock('../components/clip-viewer/ClipViewer', () => ({
   default: ({ attempt, onAnalyse }: { attempt: { id: number }; onAnalyse: (attempt: { id: number }) => void }) =>
@@ -32,14 +33,14 @@ function renderPage(entry: string) {
 }
 
 beforeEach(() => {
-  vi.mocked(getCodeAttempts).mockResolvedValue(attempts as never)
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: attempts as never, capped: false })
   vi.mocked(getCodeSummaries).mockResolvedValue({ generated_at: day(0), codes: [], activity: {} } as never)
 })
 
 it('summarises every attempt of the code and highlights the dive it came from', async () => {
   renderPage('/dives/analysis/5122D?attempt=6')
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
-  expect(getCodeAttempts).toHaveBeenCalledWith('5122D', 'self', null)
+  expect(getCodeAttemptsResult).toHaveBeenCalledWith('5122D', 'self', null)
   expect(screen.getByText(/12 attempts · 6 sessions/)).toBeInTheDocument()
   const focus = screen.getByText(/This dive/).closest('button')!
   expect(within(focus).getByText('10.0')).toBeInTheDocument()
@@ -68,10 +69,10 @@ it('height filters narrow the whole page and keep the scroll position', async ()
 })
 
 it('keeps an ungraded dive in counts but out of every score view', async () => {
-  vi.mocked(getCodeAttempts).mockResolvedValue([
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: [
     ...attempts,
     { id: 13, dive_code: '5122D', performance: '', performance_numeric: 0, height: '1m', dive_datetime: day(1), session_id: 7, is_lineup: false, is_sync: false, platform_type: 'springboard', position: 'D', official_dd: 1.9, video_uuid: 'uuid-13' },
-  ] as never)
+  ] as never, capped: false })
   renderPage('/dives/analysis/5122D')
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
   // Counts still cover every attempt; scores only the twelve graded ones.
