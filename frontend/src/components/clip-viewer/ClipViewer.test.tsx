@@ -905,3 +905,50 @@ it('studio shows the dive in a side panel with tabs, steps and the same-day film
   await userEvent.click(within(strip).getByRole('button', { name: /Open 201C/ }))
   expect(onMove).toHaveBeenCalledWith(list[2])
 })
+
+// ---- Diver attribution (UX fix 2026-11) ----
+
+function renderAttribution(overrides: Partial<Attempt>) {
+  return render(
+    <MemoryRouter>
+      <ClipViewer
+        attempt={{ ...attempts[0], ...overrides }}
+        attempts={attempts.map(theAttempt => ({ ...theAttempt, ...overrides }))}
+        onClose={() => {}}
+        onMove={() => {}}
+        playbackRate={1}
+        onPlaybackRateChange={() => {}}
+      />
+    </MemoryRouter>,
+  )
+}
+
+it('attributes a community dive to its diver when the data carries a name', () => {
+  const restore = stubPhoneLayout()
+  try {
+    renderAttribution({ person_name: 'FANNY' })
+    const dialog = screen.getByRole('dialog')
+    // Caption title row and the Details tab carry the attribution.
+    expect(within(dialog).getAllByText('FANNY').length).toBeGreaterThanOrEqual(1)
+    // The dialog's own name (labelled by the title row) names the diver too.
+    expect(dialog).toHaveAccessibleName(/FANNY/)
+  } finally {
+    restore()
+  }
+})
+
+it('the studio panel names the diver under the dive title', () => {
+  const restore = stubPhoneLayout
+  // Studio layout (matchMedia undefined): the side panel carries the name.
+  renderAttribution({ person_name: 'FANNY' })
+  const diver = document.querySelector('.clip-panel-diver')
+  expect(diver).toHaveTextContent('FANNY')
+  void restore
+})
+
+it('own-library attempts stay unattributed: absence of a name is never inferred', () => {
+  renderAttribution({})
+  const dialog = screen.getByRole('dialog')
+  expect(within(dialog).queryByText('FANNY')).toBeNull()
+  expect(dialog).not.toHaveAccessibleName(/FANNY/)
+})

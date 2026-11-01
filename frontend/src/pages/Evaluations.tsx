@@ -7,6 +7,7 @@
  * it clears its draft and evaluation-scope media references.
  */
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { loadChunk } from '../utils/chunkLoad'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvaluationDrawSize } from '../hooks/useEvaluationDrawSize'
@@ -22,7 +23,7 @@ import WarmUp from '../components/evaluation/EvaluationWarmUp'
 import { getEvaluationOverview, type EvaluationOverview } from '../services/evaluationApi'
 import { MobileShellActions } from '../navigation/mobileShellActions'
 
-const loadJurySession = () => import('../components/evaluation/JurySession')
+const loadJurySession = () => loadChunk(() => import('../components/evaluation/JurySession'))
 const JurySession = lazy(loadJurySession)
 
 type Tab = 'judge' | 'dives' | 'history'

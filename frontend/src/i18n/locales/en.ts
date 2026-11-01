@@ -193,7 +193,7 @@ const en = {
     loadError: 'Could not load the evaluation.',
     mean: 'average · {{count}} judge(s)',
     juryAria: 'Jury scores',
-    noVotes: 'No scores yet.',
+    noVotes: 'No scores yet. The {{score}} shown is the logged performance score, not a jury score.',
     closed: 'This dive is not open to scores.',
     ownerPrivate: 'This dive is private: request an evaluation to receive scores.',
     ownerCannotRate: 'You cannot score your own dive.',
@@ -438,6 +438,8 @@ const en = {
     emptyHint: 'New videos and comments will appear here.',
     errorLoad: 'Notifications could not be loaded.',
     errorAction: 'The change could not be saved. Try again.',
+    unreadOnlyPending: 'Unread',
+    loadMore: 'Show older notifications',
     listAria: 'Notifications',
     unreadBadge: 'Unread',
     types: {
@@ -1456,6 +1458,7 @@ const en = {
   },
   attemptDetail: {
     score: 'Score',
+    diver: 'Diver',
     officialDD: 'Official DD',
     notDefined: 'Not defined',
     phases: 'Phases',
@@ -1787,6 +1790,12 @@ const en = {
     play: 'Play',
     openAttempt: 'Open attempt',
     findReplacement: 'Find replacement',
+  },
+  // ---- Added by the UX fixes (2026-11, feedback reliability) ------------
+  routeError: {
+    title: 'This page could not open.',
+    body: 'Loading the app interrupted itself. Reload to try again.',
+    reload: 'Reload',
   },
 } as const
 

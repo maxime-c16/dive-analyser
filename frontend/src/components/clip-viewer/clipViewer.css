@@ -1643,6 +1643,17 @@
   line-height: 1.35;
   color: var(--app-muted);
 }
+/* Diver attribution on other members' dives (community scope only:
+   own-library rows carry no person name and none is inferred). */
+.clip-panel-diver {
+  margin: 6px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-text);
+}
 .clip-panel-facts {
   margin: 10px 0 0;
   font-size: 12.5px;

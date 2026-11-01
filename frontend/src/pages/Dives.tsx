@@ -1,6 +1,7 @@
 import {trainingSessions, formatDuration, type SharedTrainingSession} from "../services/sessionVideosApi";
 import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom'
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { loadChunk } from "../utils/chunkLoad";
 import { useTranslation } from "react-i18next";
 import { appLocale } from "../utils/dateLocale";
 import { HelpCircle, ChevronRight, Hash, LayoutGrid, List, RefreshCw, Search, SlidersHorizontal, TrendingUp } from "lucide-react";
@@ -32,7 +33,7 @@ import { Gift } from "lucide-react";
 import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
 import PageLoading from "../components/PageLoading";
 
-const ClipViewer = lazy(() => import("../components/clip-viewer/ClipViewer"));
+const ClipViewer = lazy(() => loadChunk(() => import("../components/clip-viewer/ClipViewer")));
 
 type Dive = Attempt;
 type Diver = { id: number; display_name: string; is_primary_user: boolean };

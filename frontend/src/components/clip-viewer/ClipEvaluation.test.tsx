@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import ClipEvaluation from './ClipEvaluation'
-import type { DiveEvaluation } from '../../services/evaluationApi'
+import type { DiveEvaluation, JuryResults } from '../../services/evaluationApi'
 import type { Attempt } from '../../utils/attemptPresentation'
 
 vi.mock('../../services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn() } }))
@@ -53,11 +53,36 @@ it('owners and closed dives never get a keypad', () => {
   expect(screen.getByText('This dive is not open to scores.')).toBeInTheDocument()
 })
 
-it('a conflicting vote reloads the server state instead of failing silently', async () => {
+it('conflicting vote reloads the server state instead of failing silently', async () => {
   const onReload = vi.fn()
   vi.mocked(api.post).mockRejectedValueOnce({ response: { status: 409 } })
   render(<ClipEvaluation attempt={dive} evaluation={{ ...base, prompt: null }} error={false} onReload={onReload} onRated={() => {}} />)
   await userEvent.click(screen.getByRole('button', { name: '6 out of 10' }))
   await userEvent.click(screen.getByRole('button', { name: 'Confirm 6.0' }))
   expect(onReload).toHaveBeenCalled()
+})
+
+it('an empty jury reconciles with the displayed score: no invented community score', () => {
+  // The big badge on the panel is the logged performance score (G → 7.0);
+  // an empty jury must say so instead of implying the badge came from here.
+  const results = {
+    request_id: 1,
+    rating_count: 0,
+    mean_score: null,
+    ratings: [],
+    my_rating: null,
+  } as JuryResults
+  render(
+    <ClipEvaluation
+      attempt={{ ...dive, performance: 'G' }}
+      evaluation={{ ...base, state: 'owner', circuit: 'automatic', results }}
+      error={false}
+      onReload={() => {}}
+      onRated={() => {}}
+    />,
+  )
+  expect(screen.getByText('Scores received')).toBeInTheDocument()
+  expect(
+    screen.getByText(/No scores yet\. The 7\.0 shown is the logged performance score, not a jury score\./),
+  ).toBeInTheDocument()
 })

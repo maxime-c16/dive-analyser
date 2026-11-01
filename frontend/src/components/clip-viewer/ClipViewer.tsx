@@ -993,6 +993,9 @@ export default function ClipViewer({
               <h2 id="clip-viewer-title">
                 {attempt.dive_code}
                 <span>{attemptDate(attempt, "d MMM · HH:mm")}</span>
+                {attempt.person_name
+                  ? <span title={attempt.person_name}>{attempt.person_name}</span>
+                  : null}
               </h2>
               <button
                 ref={detailsButtonRef}
@@ -1092,6 +1095,13 @@ export default function ClipViewer({
                     <span className="clip-panel-score">{attemptScore(attempt).toFixed(1)}</span>
                   </div>
                   {diveName && <p className="clip-panel-name">{diveName}</p>}
+                  {/* Diver attribution: shown only when the data carries a
+                      name — its absence (own library) is never interpreted. */}
+                  {attempt.person_name && (
+                    <p className="clip-panel-diver" title={attempt.person_name}>
+                      {attempt.person_name}
+                    </p>
+                  )}
                   <p className="clip-panel-facts">{facts.join(" · ")}</p>
                 </div>
                 <div className="clip-panel-actions">

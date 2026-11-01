@@ -154,7 +154,7 @@ function NotificationRow({
 
 export default function Notifications() {
   const { t } = useTranslation()
-  const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead } = useNotifications()
+  const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead, countsKnown, pageHasMore } = useNotifications()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [busyAll, setBusyAll] = useState(false)
@@ -165,6 +165,15 @@ export default function Notifications() {
   // filter is on, refetch with unread_only=true instead; until the response
   // arrives (or when it fails) fall back to the in-memory filter.
   const [serverUnread, setServerUnread] = useState<AppNotification[] | null>(null)
+  const [serverUnreadHasMore, setServerUnreadHasMore] = useState(false)
+
+  // Explicit continuation beyond the first 50 rows, per current filter.
+  // Kept separate from the provider page so a 60s poll never loses rows the
+  // user already paged into view; switching filters rebuilds it.
+  const [older, setOlder] = useState<AppNotification[]>([])
+  const [olderCursor, setOlderCursor] = useState<number | null>(null)
+  const [olderHasMore, setOlderHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     if (!unreadOnly) {
@@ -175,9 +184,14 @@ export default function Notifications() {
     void (async () => {
       try {
         const data = await listNotifications({ unreadOnly: true, limit: 50 })
-        if (alive) setServerUnread(data.items)
+        if (!alive) return
+        setServerUnread(data.items)
+        setServerUnreadHasMore(data.has_more)
       } catch {
-        if (alive) setServerUnread(null)
+        if (alive) {
+          setServerUnread(null)
+          setServerUnreadHasMore(false)
+        }
       }
     })()
     return () => {
@@ -190,9 +204,52 @@ export default function Notifications() {
     // newest unread.
   }, [unreadOnly, refreshTick])
 
-  const visible = unreadOnly
+  // Continuation pages below are anchored to the last row already on
+  // screen, so switching filters (and therefore re-anchoring) drops them.
+  useEffect(() => {
+    setOlder([])
+    setOlderCursor(null)
+    setOlderHasMore(false)
+    setLoadingMore(false)
+  }, [unreadOnly])
+
+  const firstPage = unreadOnly
     ? (serverUnread ?? items).filter(item => !item.read_at)
     : items
+  const visible = [...firstPage, ...(unreadOnly ? older.filter(item => !item.read_at) : older)]
+
+  // The "more" promise comes from whichever page is currently the deepest:
+  // the provider/unread first fetch when nothing else has been loaded.
+  const hasMore = loadingMore
+    ? true
+    : !unreadOnly
+      ? older.length > 0 ? olderHasMore : pageHasMore
+      : serverUnread === null
+        ? false
+        : older.length > 0 ? olderHasMore : serverUnreadHasMore
+
+  const handleLoadMore = async () => {
+    const base = unreadOnly ? (serverUnread ?? items) : items
+    const anchor = olderCursor ?? base[base.length - 1]?.id ?? null
+    if (anchor == null || loadingMore) return
+    setLoadingMore(true)
+    setActionError(false)
+    try {
+      const data = await listNotifications({
+        unreadOnly: unreadOnly || undefined,
+        limit: 50,
+        beforeId: anchor,
+      })
+      setOlder(previous => [...previous, ...data.items])
+      const next = data.items[data.items.length - 1]?.id ?? anchor
+      setOlderCursor(next)
+      setOlderHasMore(data.has_more)
+    } catch {
+      setActionError(true)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const handleMarkRead = async (id: number) => {
     setBusyId(id)
@@ -200,6 +257,9 @@ export default function Notifications() {
     try {
       await markRead(id)
       if (unreadOnly) setServerUnread(prev => (prev ? prev.filter(item => item.id !== id) : prev))
+      // The read state also applies to rows the user paged in beyond the
+      // provider's first 50 (both filters keep their visible state).
+      setOlder(prev => prev.map(item => (item.id === id ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item)))
     } catch {
       setActionError(true)
     } finally {
@@ -213,6 +273,7 @@ export default function Notifications() {
     try {
       await markAllRead()
       if (unreadOnly) setServerUnread([])
+      else setOlder(prev => prev.map(item => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })))
     } catch {
       setActionError(true)
     } finally {
@@ -257,7 +318,9 @@ export default function Notifications() {
                 : 'border-app bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
-            {t('notifications.unreadOnly', { count: unreadCount })}
+            {countsKnown
+              ? t('notifications.unreadOnly', { count: unreadCount })
+              : t('notifications.unreadOnlyPending')}
           </button>
         </div>
         <button
@@ -300,6 +363,7 @@ export default function Notifications() {
           <p className="mt-1 text-sm text-app-muted">{t('notifications.emptyHint')}</p>
         </div>
       ) : (
+        <>
         <div className="grid gap-3" role="list" aria-label={t('notifications.listAria')}>
           {visible.map(item => (
             <div key={item.id} role="listitem">
@@ -307,6 +371,17 @@ export default function Notifications() {
             </div>
           ))}
         </div>
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => void handleLoadMore()}
+            disabled={loadingMore}
+            className="touch-target mt-4 inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-4 py-2.5 text-sm font-medium text-app-text disabled:opacity-60"
+          >
+            {loadingMore ? t('common.loading') : t('notifications.loadMore')}
+          </button>
+        )}
+        </>
       )}
     </div>
   )

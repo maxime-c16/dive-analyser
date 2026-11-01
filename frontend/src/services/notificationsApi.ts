@@ -58,6 +58,10 @@ export type AppNotification = {
 export type NotificationList = {
   items: AppNotification[]
   unread_count: number
+  /** Explicit continuation flag (keyset `before_id` pages). Missing on
+   * older servers reads as "no further page offered", never as "you have
+   * seen everything that exists". */
+  has_more: boolean
 }
 
 export type NotificationPrefs = Record<string, boolean>
@@ -75,9 +79,11 @@ async function readJson(response: Response): Promise<unknown> {
 export async function listNotifications(options?: {
   unreadOnly?: boolean
   limit?: number
+  beforeId?: number
 }): Promise<NotificationList> {
   const params = new URLSearchParams()
   if (options?.unreadOnly) params.set('unread_only', 'true')
+  if (options?.beforeId != null) params.set('before_id', String(options.beforeId))
   params.set('limit', String(options?.limit ?? 50))
   const query = params.toString()
   const data = (await readJson(
@@ -89,6 +95,7 @@ export async function listNotifications(options?: {
   return {
     items: Array.isArray(data.items) ? data.items : [],
     unread_count: typeof data.unread_count === 'number' ? data.unread_count : 0,
+    has_more: data.has_more === true,
   }
 }
 

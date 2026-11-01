@@ -1,6 +1,7 @@
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { NotificationsButton, NotificationsProvider } from './Notifications'
@@ -214,6 +215,99 @@ describe('Notifications page', () => {
     stubInbox()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('New comment on 103B')).toBeInTheDocument()
+  })
+})
+
+describe('Older notifications continuation (UX fix 2026-11)', () => {
+  // 60 rows: ids 1..60. The provider/first page shows the 50 newest (60..11)
+  // and reports one further page; continuation pages anchor on before_id.
+  const allIds = Array.from({ length: 60 }, (_, index) => index + 1)
+
+  function pagingStub() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (init?.method) return { ok: true, json: async () => ({}) } as Response
+        const query = new URLSearchParams(url.split('?')[1] ?? '')
+        const anchor = query.get('before_id')
+        // The real inbox is newest first: descending id order.
+        const beyond = (anchor === null ? allIds : allIds.filter(id => id < Number(anchor))).sort((a, b) => b - a)
+        const offered = beyond.slice(0, Number(query.get('limit') ?? '50'))
+        return {
+          ok: true,
+          json: async () => ({
+            items: offered.map(id => ({
+              id,
+              type: 'new_video',
+              title: `New video synced #${id}`,
+              body: null,
+              dive_id: id,
+              read_at: null,
+              created_at: '2026-10-29T08:00:00Z',
+            })),
+            unread_count: allIds.length,
+            has_more: beyond.length > offered.length,
+          }),
+        } as Response
+      }),
+    )
+  }
+
+  it('pages the list past the first 50 rows with an explicit anchor', async () => {
+    pagingStub()
+    renderPage()
+    expect(await screen.findByText('New video synced #60')).toBeInTheDocument()
+    expect(screen.getByText('New video synced #11')).toBeInTheDocument()
+    expect(screen.queryByText('New video synced #10')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Show older notifications' }),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #10')).toBeInTheDocument()
+    expect(screen.getByText('New video synced #1')).toBeInTheDocument()
+    const calls = vi.mocked(fetch).mock.calls.map(([input]) =>
+      typeof input === 'string' ? input : input.toString(),
+    )
+    expect(calls.filter(url => url.includes('before_id=11')).length).toBeGreaterThan(0)
+    // Continuation reached the true end: the control goes away.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+  })
+
+  it('marks a row read inside the continuation without losing it', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    const row = screen.getByText('New video synced #5')
+    fireEvent.click(within(row.closest('article') as HTMLElement).getByRole('button', { name: 'Mark as read' }))
+    await waitFor(() =>
+      expect(
+        within(row.closest('article') as HTMLElement).queryByRole('button', { name: 'Mark as read' }),
+      ).toBeNull(),
+    )
+    expect(row).toBeInTheDocument()
+  })
+
+  it('no continuations are offered when the list ends inside the first page', async () => {
+    rows = [{ ...unreadRow }, { ...readRow }]
+    stubInbox()
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull()
+  })
+
+  it('does not announce an unread count before the server has answered', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    renderPage()
+    // The pending filter shows "Unread" — never a default "Unread (0)"
+    // that contradicts the 84-style badge while nothing has arrived.
+    expect(screen.queryByRole('button', { name: /Unread \(\d+\)/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Unread' })).toBeInTheDocument()
+    expect(screen.getByText('Loading notifications…')).toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 })
 

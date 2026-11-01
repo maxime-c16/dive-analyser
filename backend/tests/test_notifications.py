@@ -85,6 +85,91 @@ def test_list_filters_limit_and_read_all(workspace):
     assert _items(login("alice"))["unread_count"] == 0
 
 
+def test_list_paginates_older_pages_with_explicit_has_more(workspace):
+    """The badge counts stay full-scope while the list pages continue."""
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    for i in range(5):
+        assert (
+            notification_service.create(
+                db, user_id=users["alice"].id, type="new_video", title=f"t{i}"
+            )
+            is not None
+        )
+
+    first_page = _items(login("alice"), limit=2)
+    ids = [item["id"] for item in first_page["items"]]
+    assert len(ids) == 2
+    assert first_page["has_more"] is True
+    assert first_page["unread_count"] == 5
+
+    second_page = _items(login("alice"), limit=2, before_id=ids[-1])
+    second_ids = [item["id"] for item in second_page["items"]]
+    assert set(second_ids).isdisjoint(ids)
+    assert second_page["has_more"] is True
+    assert max(second_ids) < min(ids)
+
+    last_page = _items(login("alice"), limit=50, before_id=second_ids[-1])
+    last_ids = [item["id"] for item in last_page["items"]]
+    assert len(last_ids) == 1
+    assert last_page["has_more"] is False
+    # Pages never overlap and continue in keyset order.
+    all_ids = ids + second_ids + last_ids
+    assert len(all_ids) == 5
+    assert all_ids == sorted(all_ids, reverse=True)
+
+
+def test_list_pagination_anchor_owned_by_someone_else_reads_as_end(workspace):
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    for user in ("alice", "bob"):
+        assert (
+            notification_service.create(
+                db, user_id=users[user].id, type="new_video", title="t"
+            )
+            is not None
+        )
+
+    bob_page = _items(login("bob"), limit=1)
+    bob_anchor = bob_page["items"][0]["id"]
+    # Alice continues with Bob's anchor id: the anchor is missing for her,
+    # so her page ends instead of revealing that Bob's row exists.
+    foreign = _items(login("alice"), limit=10, before_id=bob_anchor)
+    assert foreign["items"] == []
+    assert foreign["has_more"] is False
+    assert foreign["unread_count"] == 1
+    # Bob's own continuation from the same anchor still returns his rows.
+    own = _items(login("bob"), limit=1, before_id=bob_anchor)
+    assert {item["id"] for item in own["items"]}.isdisjoint({bob_anchor})
+    assert own["unread_count"] == 1
+
+
+def test_list_unread_only_keeps_pagination_means(workspace):
+    from app.services import notification_service
+
+    db, login, _, users, _ = workspace
+    for i in range(4):
+        assert (
+            notification_service.create(
+                db, user_id=users["alice"].id, type="new_video", title=f"t{i}"
+            )
+            is not None
+        )
+
+    unread = _items(login("alice"), limit=2, unread_only=True)
+    assert unread["has_more"] is True
+    assert unread["unread_count"] == 4
+    anchored_id = unread["items"][0]["id"]
+    assert login("alice").post(f"/api/v1/notifications/{anchored_id}/read").status_code == 200
+    # Reading a row never breaks the keyset: it stays outside the unread
+    # continuation, which contains only remaining unread rows.
+    progressed = _items(login("alice"), limit=2, unread_only=True, before_id=unread["items"][1]["id"])
+    assert all(item["read_at"] is None for item in progressed["items"])
+    assert progressed["unread_count"] == 3
+
+
 def test_disabled_pref_blocks_service_and_comment_hook(workspace):
     from app.models.notification import Notification
     from app.services import notification_service

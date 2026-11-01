@@ -34,8 +34,16 @@ describe('notificationsApi', () => {
     const { listNotifications } = await import('./notificationsApi')
     const items = [{ id: 1, type: 'milestone', title: 'PB', body: '', dive_id: null, read_at: null, created_at: null }]
     mockFetch(() => ({ items, unread_count: 1 }))
-    await expect(listNotifications()).resolves.toEqual({ items, unread_count: 1 })
+    // A missing has_more (older servers) reads as "no further page offered".
+    await expect(listNotifications()).resolves.toEqual({ items, unread_count: 1, has_more: false })
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/notifications?limit=50')
+  })
+
+  it('continues the list with a before_id anchor', async () => {
+    const { listNotifications } = await import('./notificationsApi')
+    mockFetch(() => ({ items: [], unread_count: 0, has_more: false }))
+    await listNotifications({ beforeId: 11, limit: 50 })
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/notifications?before_id=11&limit=50')
   })
 
   it('marks one notification read via POST', async () => {

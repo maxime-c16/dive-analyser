@@ -193,7 +193,7 @@ const fr = {
     loadError: 'Impossible de charger l’évaluation.',
     mean: 'moyenne · {{count}} juge(s)',
     juryAria: 'Notes du jury',
-    noVotes: 'Aucune note pour l’instant.',
+    noVotes: 'Aucune note pour l’instant. Le {{score}} affiché est la note de performance enregistrée, pas une note de jury.',
     closed: 'Ce plongeon n’est pas ouvert aux notes.',
     ownerPrivate: 'Ce plongeon est privé : demandez une évaluation pour recevoir des notes.',
     ownerCannotRate: 'Vous ne pouvez pas noter votre propre plongeon.',
@@ -438,6 +438,8 @@ const fr = {
     emptyHint: 'Les nouvelles vidéos et les commentaires apparaîtront ici.',
     errorLoad: 'Impossible de charger les notifications.',
     errorAction: 'Impossible d’enregistrer la modification. Réessayez.',
+    unreadOnlyPending: 'Non lues',
+    loadMore: 'Afficher les notifications plus anciennes',
     listAria: 'Notifications',
     unreadBadge: 'Non lue',
     types: {
@@ -1458,6 +1460,7 @@ const fr = {
   },
   attemptDetail: {
     score: 'Score',
+    diver: 'Plongeur',
     officialDD: 'Cotation officielle',
     notDefined: 'Non définie',
     phases: 'Phases',
@@ -1789,6 +1792,12 @@ const fr = {
     play: 'Lire',
     openAttempt: 'Ouvrir le plongeon',
     findReplacement: 'Trouver un remplaçant',
+  },
+  // ---- Ajouts des corrections UX (2026-11, fiabilité des retours) ------
+  routeError: {
+    title: 'Impossible d’ouvrir cette page.',
+    body: 'Le chargement de l’app s’est interrompu. Rechargez pour réessayer.',
+    reload: 'Recharger',
   },
 } as const
 

@@ -21,6 +21,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
 import { useNavigationIntent } from "./hooks/useNavigationIntent";
+import { loadChunk } from "./utils/chunkLoad";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
 
 import { useAuth } from "./contexts/AuthContext";
 import MemberAvatar from './components/MemberAvatar'
@@ -44,58 +46,60 @@ import {
   Waves,
   X,
 } from "lucide-react";
-const SeriesPage = lazy(() => import("./pages/Series"));
-const loadCalendar = () => import("./pages/Calendar");
+const SeriesPage = lazy(() => loadChunk(() => import("./pages/Series")));
+const loadCalendar = () => loadChunk(() => import("./pages/Calendar"));
 const CalendarPage = lazy(loadCalendar);
-const loadSharedDive = () => import("./pages/SharedDive");
+const loadSharedDive = () => loadChunk(() => import("./pages/SharedDive"));
 const SharedDive = lazy(loadSharedDive);
-const loadSharedSession = () => import("./pages/SharedSession");
+const loadSharedSession = () => loadChunk(() => import("./pages/SharedSession"));
 const SharedSession = lazy(loadSharedSession);
-const loadSessionVideos = () => import("./pages/SessionVideos");
+const loadSessionVideos = () => loadChunk(() => import("./pages/SessionVideos"));
 const SessionVideoPage = lazy(loadSessionVideos);
-const loadClaim = () => import("./pages/Claim");
+const loadClaim = () => loadChunk(() => import("./pages/Claim"));
 const Claim = lazy(loadClaim);
-const loadInvite = () => import("./pages/Invite");
+const loadInvite = () => loadChunk(() => import("./pages/Invite"));
 const Invite = lazy(loadInvite);
-const loadDeposits = () => import("./pages/Deposits");
+const loadDeposits = () => loadChunk(() => import("./pages/Deposits"));
 const Deposits = lazy(loadDeposits);
-const loadDashboard = () => import("./pages/Dashboard");
+const loadDashboard = () => loadChunk(() => import("./pages/Dashboard"));
 const Dashboard = lazy(loadDashboard);
-const loadAnalytics = () => import("./pages/Analytics");
+const loadAnalytics = () => loadChunk(() => import("./pages/Analytics"));
 const Analytics = lazy(loadAnalytics);
-const loadSessions = () => import("./pages/Sessions");
+const loadSessions = () => loadChunk(() => import("./pages/Sessions"));
 const Sessions = lazy(loadSessions);
-const loadJourney = () => import("./pages/Journey");
+const loadJourney = () => loadChunk(() => import("./pages/Journey"));
 const Journey = lazy(loadJourney);
-const loadDiveAnalysis = () => import("./pages/DiveAnalysis");
+const loadDiveAnalysis = () => loadChunk(() => import("./pages/DiveAnalysis"));
 const DiveAnalysis = lazy(loadDiveAnalysis);
-const loadCodeAnalysis = () => import("./pages/CodeAnalysis");
+const loadCodeAnalysis = () => loadChunk(() => import("./pages/CodeAnalysis"));
 const CodeAnalysis = lazy(loadCodeAnalysis);
-const loadRepresentativeMedia = () => import("./pages/RepresentativeMedia");
+const loadRepresentativeMedia = () => loadChunk(() => import("./pages/RepresentativeMedia"));
 const RepresentativeMedia = lazy(loadRepresentativeMedia);
-const loadMediaRecall = () => import("./pages/MediaRecall");
+const loadMediaRecall = () => loadChunk(() => import("./pages/MediaRecall"));
 const MediaRecall = lazy(loadMediaRecall);
-const loadP5Canary = () => import("./pages/P5Canary");
+const loadP5Canary = () => loadChunk(() => import("./pages/P5Canary"));
 const P5Canary = lazy(loadP5Canary);
-const loadAdmin = () => import("./pages/Admin");
+const loadAdmin = () => loadChunk(() => import("./pages/Admin"));
 const Admin = lazy(loadAdmin);
-const AdminAccount = lazy(() => import("./pages/AdminAccount"));
-const loadAccount = () => import("./pages/Account");
+const AdminAccount = lazy(() => loadChunk(() => import("./pages/AdminAccount")));
+const loadAccount = () => loadChunk(() => import("./pages/Account"));
 const Account = lazy(loadAccount);
-const loadMessages = () => import("./pages/Messages");
+const loadMessages = () => loadChunk(() => import("./pages/Messages"));
 const Messages = lazy(loadMessages);
-const loadCommunity = () => import("./pages/Community");
+const loadCommunity = () => loadChunk(() => import("./pages/Community"));
 const Community = lazy(loadCommunity);
-const JudgeRoom = lazy(() => import("./pages/JudgeRoom"));
-const loadMemberProfile = () => import("./pages/MemberProfile");
+const JudgeRoom = lazy(() => loadChunk(() => import("./pages/JudgeRoom")));
+const loadMemberProfile = () => loadChunk(() => import("./pages/MemberProfile"));
 const MemberProfile = lazy(loadMemberProfile);
-const loadEvaluations = () => import("./pages/Evaluations");
+const loadEvaluations = () => loadChunk(() => import("./pages/Evaluations"));
 const Evaluations = lazy(loadEvaluations);
 // Design-review mock (fixture data, no backend): dev-only, never shipped.
 const loadEvaluationDemo = (): Promise<{ default: React.ComponentType }> =>
-  (import.meta.env.DEV ? import("./pages/EvaluationDemo") : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
+  (import.meta.env.DEV
+    ? loadChunk(() => import("./pages/EvaluationDemo"))
+    : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
 const EvaluationDemo = lazy(loadEvaluationDemo);
-const loadNotifications = () => import("./pages/Notifications");
+const loadNotifications = () => loadChunk(() => import("./pages/Notifications"));
 const Notifications = lazy(loadNotifications);
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
@@ -581,7 +585,7 @@ function CalendarGate() {
 function RoomEntry() {
   const { checking } = useAuth();
   if (checking) return <PageLoading fullscreen />;
-  const room = <Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense>;
+  const room = <RouteErrorBoundary><Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense></RouteErrorBoundary>;
   return room;
 }
 
@@ -589,15 +593,15 @@ function Router() {
   return (
     <Routes>
       <Route path="/room/:code" element={<RoomEntry />} />
-      <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
-      <Route path="/share/session/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense>} />
+      <Route path="/share/:shareId" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense></RouteErrorBoundary>} />
+      <Route path="/share/session/:shareId" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense></RouteErrorBoundary>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
-        <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
+        <Route path="/evaluations-demo" element={<RouteErrorBoundary><Suspense fallback={null}><EvaluationDemo /></Suspense></RouteErrorBoundary>} />
       )}
-      <Route path="/claim" element={<Suspense fallback={<PageLoading fullscreen />}><Claim /></Suspense>} />
+      <Route path="/claim" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><Claim /></Suspense></RouteErrorBoundary>} />
       {/* Invitation landing: public like /claim — the friend has no account yet. */}
-      <Route path="/invite" element={<Suspense fallback={<PageLoading fullscreen />}><Invite /></Suspense>} />
+      <Route path="/invite" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><Invite /></Suspense></RouteErrorBoundary>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -622,6 +626,7 @@ function Router() {
         element={
           <AuthGuard>
             <WhatsNewProvider><NotificationsProvider><MessagesUnreadProvider><Layout>
+              <RouteErrorBoundary>
               <Suspense fallback={<PageLoading />}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
@@ -677,6 +682,7 @@ function Router() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </RouteErrorBoundary>
             </Layout></MessagesUnreadProvider></NotificationsProvider></WhatsNewProvider>
           </AuthGuard>
         }
