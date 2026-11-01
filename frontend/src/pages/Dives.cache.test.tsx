@@ -25,7 +25,10 @@ it('renders a cached Library immediately on return without any list or diver req
   page();
   expect(screen.getAllByText('103B').length).toBeGreaterThan(0);
   expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
-  expect(api.get).not.toHaveBeenCalled();
+  // No Library page nor /divers refetch — the bounded Height-facet read
+  // (profil 12 C1) is the one bounded call a cached return keeps paying.
+  const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => String(url) !== '/api/v1/dives/library/facets');
+  expect(libraryCalls).toHaveLength(0);
 });
 it('keeps saved dives visible and announces a failed background refresh', async () => {
   data();

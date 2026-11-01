@@ -1,0 +1,8 @@
+{
+  "id": "community-directory-and-bounded-history",
+  "date": "2026-11-02",
+  "title": "Community opens with one bounded request; history deep pages come back with you",
+  "body": "The community directory no longer walks up to 20 requests before showing ranks: one bounded page with the complete counts, and an explicit button loads the rest. Returning to the Library restores the pages you had already loaded around your scroll depth (anchored, capped at six). One code's analysis states honestly when it reads only the newest 1 000 attempts, the Height filter always lists every height the scope really has, and the filter help now explains DB, SD, HU, SYNC, DD and the P/G/M/B/F scale.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

@@ -17,9 +17,6 @@ it('replaces an old filtered workspace with the reset empty workspace', () => {
   expect(restored.resume).toBeNull()
 })
 
-import { MAX_RESUME_PAGES } from './libraryWorkspace'
-import { it as note } from 'vitest'
-
 it('stores only a bounded anchor+pages depth hint, never rows', () => {
   saveLibraryWorkspace(user, new URLSearchParams('q=103C'), 400, { anchor: 4211, pages: 60 })
   const stored = JSON.parse(sessionStorage.getItem(storedKey())!) as { d: unknown }

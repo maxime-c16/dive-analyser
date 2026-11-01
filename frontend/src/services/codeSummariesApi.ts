@@ -34,7 +34,7 @@ export type LibraryCodeParams = Record<string, string | number | boolean | undef
 const FRESH_MS = 60_000
 type Entry<T> = { at: number; value?: T; promise?: Promise<T> }
 let summaries = new Map<string, Entry<CodeSummaries>>()
-let codeAttempts = new Map<string, Entry<Attempt[]>>()
+let codeAttempts = new Map<string, Entry<{ items: Attempt[]; capped: boolean }>>()
 
 /** Writes invalidate every derived read (see api.ts). */
 export function clearCodeSummaryCache() {

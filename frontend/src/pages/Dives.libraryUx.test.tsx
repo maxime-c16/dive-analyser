@@ -244,7 +244,7 @@ it('resumes the remembered pagination depth with a real anchor, bounded, once', 
   renderAt('/dives')
   // Page 1 plus the two remembered pages: nothing more was ever re-charged.
   await waitFor(() => expect(
-    vi.mocked(api.get).mock.calls.filter(([url]) => String(url).includes('/dives/library')),
+    vi.mocked(api.get).mock.calls.filter(([url]) => String(url) === '/api/v1/dives/library'),
   ).toHaveLength(3))
   expect(document.querySelector('[data-attempt-id="120"]')).not.toBeNull()
 }, 20000)
@@ -261,7 +261,7 @@ it('caps the depth reprise at six pages and stops there', async () => {
   renderAt('/dives')
   // Page 1 + MIN(pages, MAX_RESUME_PAGES) − 1 continuation probes.
   await waitFor(() => expect(
-    vi.mocked(api.get).mock.calls.filter(([url]) => String(url).includes('/dives/library')),
+    vi.mocked(api.get).mock.calls.filter(([url]) => String(url) === '/api/v1/dives/library'),
   ).toHaveLength(6))
 }, 20000)
 

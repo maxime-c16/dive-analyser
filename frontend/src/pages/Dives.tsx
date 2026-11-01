@@ -723,13 +723,15 @@ function DiveLibrary() {
   }, [pageParams]);
   const facetParamsKey = JSON.stringify(facetScopeParams);
   const [heightFacets, setHeightFacets] = useState<{ key: string; heights: string[] } | null>(null);
+  const facetScopeParamsRef = useRef(facetScopeParams);
+  facetScopeParamsRef.current = facetScopeParams;
   useEffect(() => {
     let active = true;
     // C1 (profil 12): the Height select derives from the authorized scope as
     // a whole (every other filter, never the height it filters), so the same
     // URL answers the same options and switching the dimension needs no
     // detour through All heights. Failures fall back to the row-derived list.
-    api.get("/api/v1/dives/library/facets", { params: facetScopeParams })
+    api.get("/api/v1/dives/library/facets", { params: facetScopeParamsRef.current })
       .then((response) => {
         if (active && Array.isArray(response.data?.heights)) {
           setHeightFacets({ key: facetParamsKey, heights: response.data.heights });
@@ -737,7 +739,7 @@ function DiveLibrary() {
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [facetScopeParams, facetParamsKey, reloadKey, accessKey]);
+  }, [facetParamsKey, reloadKey, accessKey]);
   const heights = useMemo(
     () => {
       const fromRows = [...new Set(dives.map((dive) => dive.height))].sort(
