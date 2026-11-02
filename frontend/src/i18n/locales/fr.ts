@@ -458,7 +458,7 @@ const fr = {
     errorAction: 'Impossible d’enregistrer la modification. Réessayez.',
     unreadOnlyPending: 'Non lues',
     loadMore: 'Afficher les notifications plus anciennes',
-    sessionDate: 'Séance du {{date}}',
+    diveDate: 'Séance du {{date}}',
     listAria: 'Notifications',
     unreadBadge: 'Non lue',
     types: {
@@ -964,7 +964,7 @@ const fr = {
     next: 'Suivant',
     speed: 'Vitesse',
     playbackSpeed: 'Vitesse de lecture',
-    positionAria: 'Essai {{index}} sur {{total}}',
+    positionAria: 'Position {{index}} sur {{total}} dans la liste courante',
   },
   sessionDirection: {
     label: 'Groupes :',
@@ -1014,6 +1014,7 @@ const fr = {
     retryPrepare: 'Réessayer la préparation',
     usePreview: 'Lire un aperçu de qualité réduite',
     changeQuality: 'Changer la qualité vidéo',
+    qualityCycle: '{{current}} — cliquer pour changer de qualité',
     originalQuality: 'Originale',
     previewLabel: 'Aperçu',
     lightLabel: 'Léger',

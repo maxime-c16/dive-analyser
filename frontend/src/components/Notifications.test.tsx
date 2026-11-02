@@ -141,19 +141,31 @@ describe('Notifications page', () => {
     expect(diveLink).toHaveAttribute('href', '/dives?clip=7')
   })
 
-  it('names the real session date on new-video rows (not the arrival day)', async () => {
-    // A late sync reports the dive's own date, older than the arrival.
-    // Fixture: arrived Oct 6, session Oct 2.
-    rows = [{ ...unreadRow, type: 'new_video', title: 'New video synced', created_at: '2026-10-06T08:00:00Z', dive_date: '2026-10-02T00:00:00Z' }]
-    const first = renderPage()
-    expect(await screen.findByText('New video synced')).toBeInTheDocument()
-    expect(screen.getByText(/Session of .*2026/)).toBeInTheDocument()
-    first.unmount()
-    // Non-video rows keep their plain shape (no session date line).
+  it('states the real session date on a late-synced video row only', async () => {
+    // A sync can land days after the session (profil 5): when the server
+    // resolved the dive's real date, the row names that session day —
+    // formatted in UTC (naive date part, noon anchor) so the displayed
+    // day is the dive's own day, never the browser's local shift of the
+    // ...Z timestamp (23:30Z stays "Oct 18" even where the local day is
+    // already the 19th).
+    rows = [{ ...unreadRow, type: 'new_video', title: '102B is ready', created_at: '2026-10-29T18:40:00Z', dive_date: '2026-10-18T23:30:00Z' }]
+    renderPage()
+    expect(await screen.findByText('102B is ready')).toBeInTheDocument()
+    expect(screen.getByText('Dive of Oct 18, 2026')).toBeInTheDocument()
+  })
+
+  it('adds no session label when the video arrived on its dive day', async () => {
+    rows = [{ ...unreadRow, type: 'new_video', title: '102B is ready', created_at: '2026-10-29T18:40:00Z', dive_date: '2026-10-29T00:00:00Z' }]
+    renderPage()
+    expect(await screen.findByText('102B is ready')).toBeInTheDocument()
+    expect(screen.queryByText(/^Dive of/)).not.toBeInTheDocument()
+  })
+
+  it('keeps non-video rows plain (no session-date line)', async () => {
     rows = [{ ...unreadRow }]
     renderPage()
     await screen.findByText('New comment on 103B')
-    expect(screen.queryByText(/Session of/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Dive of/)).not.toBeInTheDocument()
   })
 
   it('filters to unread only', async () => {

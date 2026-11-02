@@ -20,3 +20,10 @@
 ## Passe 2026-11-02 ~09h30 (183 client findings)
 
 - **183 head `0ae1f47c`** — les 2 findings du verdict e1e7d7e7 traités via le stash nommé appliqué par référence (`git checkout stash@{0} -- …`, drop APRÈS le push réussi) : le type+renderer `dive_date` (« Session of / Séance du » pour les new_video datés) et les clés `clipNav.positionAria` EN/FR ; test dédié 26/26 + parity + TS. Le diff complet contre l'intention originale vérifié (les 2 commits d'origine + note + tests — aucune perte ; les fichiers hérités de l'ancienne base restent côté master).
+
+## Passe 2026-11-02 ~12h (183 round-4 : verdict COMMENT sur 68870190, run 41418068855)
+
+- **(1) Notifications — contrat original des dates restauré** : la fonction `sessionDateLabel` d'origine (70d8a283) revient — compare le JOUR NAÏF de `dive_date` vs `created_at` (same-day → PAS de ligne) et formate le jour de séance SANS conversion TZ (slice naïf, ancre midi 12:00Z, `toLocaleDateString(lang, {..., timeZone:'UTC'})`) : le `...Z` ne décale plus le jour selon la TZ du navigateur. Renderer sur la clé `diveDate` (remplace `sessionDate`). Tests : late-sync avec frontière TZ (`23:30:00Z` reste « Oct 18 »), same-day absent, non-video sans ligne.
+- **(2) Evaluations — le VRAI défaut restauré** : `?? 'dives'` (consultation d'abord, juge = onglet explicite) — le périmètre 183 original confirmé absent du master (code vérifié, le verdict avait raison). Tests originaux portés : les scenarios juge explicitent `?tab=judge` et le nouveau test « lands on the consultation tab by default and never deals a stage on arrival » (getEvaluationOverview non appelé à l'arrivée).
+- **(3) i18n/hint originaux rétablis** : `positionAria` (« Position {{index}} … liste courante »), `qualityCycle` + `qualityCycleHint` dans le `title` de la pill qualitative (DiveVideoPlayer) — absents de master (ni 181/184). Le test play/pause 87 lignes et le test « Comments count » sont DÉJÀ sur master via 184 → non dupliqués.
+- Validation : Notifications + Evaluations + parity + DiveVideoPlayer + ClipViewer = 146/146, TypeScript verts. Push head: CE commit.

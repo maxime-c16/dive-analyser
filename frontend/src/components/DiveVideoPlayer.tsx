@@ -638,6 +638,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (phase.kind === 'ready' && src === phase.originalSrc) return t('videoPlayer.originalQuality')
     return src === lightSrc ? t('videoPlayer.lightLabel') : t('videoPlayer.previewLabel')
   }
+  /** The pill cycles renditions on tap — no menu. Hover and screen readers
+   * say so instead of naming only the current rendition (discovery
+   * 2026-11-01: a "changer" button whose tooltip read "Preview"). */
+  const qualityCycleHint = (): string => t('videoPlayer.qualityCycle', { current: qualityLabel(phase.kind === 'ready' ? phase.src : '') })
   const cycleQuality = () => {
     if (phase.kind !== 'ready') return
     const options = qualityOptions(phase.src)
@@ -930,7 +934,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
         return <div className="clip-player-chip clip-quality">
           {phase.originalSrc && canRequest && (!previewSrc || previewSrc === phase.originalSrc) && <button type="button" className="clip-quality-pill" onClick={requestMedia} disabled={isRequesting}>{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}</button>}
           {options.length > 1
-            ? <button type="button" className="clip-quality-pill" aria-label={t('videoPlayer.changeQuality')} title={label} onClick={cycleQuality}>{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}<ChevronsUpDown size={14} aria-hidden="true" /></button>
+            ? <button type="button" className="clip-quality-pill" aria-label={t('videoPlayer.changeQuality')} title={qualityCycleHint()} onClick={cycleQuality}>{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}<ChevronsUpDown size={14} aria-hidden="true" /></button>
             : <span className="clip-quality-pill" role="status">{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}</span>}
         </div>
       })()}

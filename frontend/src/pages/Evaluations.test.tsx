@@ -26,16 +26,26 @@ const renderAt = (url = '/evaluations') => render(<MemoryRouter initialEntries={
 
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear() })
 
-it('opens straight into today’s first dive without a start button', async () => {
+it('opens straight into today’s first dive without a start button on the Judge tab', async () => {
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByText(/"automatic":true,"daily":true,"before":0/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /start/i })).not.toBeInTheDocument()
 })
 
+it('lands on the consultation tab by default and never deals a stage on arrival', async () => {
+  vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
+  renderAt()
+  expect(await screen.findByText('Community list')).toBeInTheDocument()
+  expect(screen.getByText('Owned')).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: 'My dives' })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.queryByText(/Session/)).not.toBeInTheDocument()
+  expect(getEvaluationOverview).not.toHaveBeenCalled()
+})
+
 it('resumes the open selection, then stays paused on the table once closed', async () => {
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({ daily: stack, resume: stack, judged_today: 1, votes: [vote] }))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByText(/"resume":7,"before":1/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Leave' }))
   expect(await screen.findByText('Paused · 2 left today')).toBeInTheDocument()
@@ -50,7 +60,7 @@ it('lays today’s cards on the table with the judge’s style, streak and next 
     { daily: { ...stack, judged: 3, remaining: 0 }, judged_today: 3, votes: [vote, { ...vote, dive_id: 6, panel_mean: null, panel_count: 0 }] },
     { requests_pending: 2, judged_total: 24, judge: { compared: 12, bias: 1.1, streak: 4 } },
   ))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByRole('heading', { name: 'Rip entry. ✓' })).toBeInTheDocument()
   expect(screen.getByText('Panel 5.5')).toBeInTheDocument()
   expect(screen.getByText('+1.0')).toBeInTheDocument()
@@ -65,7 +75,7 @@ it('lays today’s cards on the table with the judge’s style, streak and next 
 
 it('keeps the judging style hidden until enough dives are compared', async () => {
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({ daily: { ...stack, judged: 3, remaining: 0 } }, { judge: { compared: 1, bias: -2.5, streak: 0 } }))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByRole('heading', { name: 'Judging style: still warming up' })).toBeInTheDocument()
   expect(screen.getByText(/Judge 2 more dive/)).toBeInTheDocument()
   expect(screen.queryByText(/streak/)).not.toBeInTheDocument()
@@ -82,7 +92,7 @@ it('maps the previous tab links onto the three tabs', async () => {
 
 it('saves the draw size, updates the copy, and uses it for extra and new daily selections', async () => {
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({ daily: { ...stack, remaining: 0 } }))
-  const view = renderAt()
+  const view = renderAt('/evaluations?tab=judge')
   const setting = await screen.findByRole('combobox', { name: 'Dives per draw' })
   expect(setting).toHaveValue('5')
   fireEvent.change(setting, { target: { value: '8' } })
@@ -92,7 +102,7 @@ it('saves the draw size, updates the copy, and uses it for extra and new daily s
   expect(await screen.findByText(/"daily":false,"before":0,"size":8/)).toBeInTheDocument()
   view.unmount()
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByText(/"daily":true,"before":0,"size":8/)).toBeInTheDocument()
 })
 
@@ -100,6 +110,6 @@ it('falls back to five for invalid stored sizes and ignores another account’s 
   localStorage.setItem('dive:eval-draw-size:2', '12')
   localStorage.setItem('dive:eval-draw-size:1', '99')
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
-  renderAt()
+  renderAt('/evaluations?tab=judge')
   expect(await screen.findByText(/"size":5/)).toBeInTheDocument()
 })

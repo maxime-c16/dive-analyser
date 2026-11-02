@@ -458,7 +458,7 @@ const en = {
     errorAction: 'The change could not be saved. Try again.',
     unreadOnlyPending: 'Unread',
     loadMore: 'Show older notifications',
-    sessionDate: 'Session of {{date}}',
+    diveDate: 'Dive of {{date}}',
     listAria: 'Notifications',
     unreadBadge: 'Unread',
     types: {
@@ -963,7 +963,7 @@ const en = {
     next: 'Next',
     speed: 'Speed',
     playbackSpeed: 'Playback speed',
-    positionAria: 'Attempt {{index}} of {{total}}',
+    positionAria: 'Position {{index}} of {{total}} in the current list',
   },
   sessionDirection: {
     label: 'Directions:',
@@ -1013,6 +1013,7 @@ const en = {
     retryPrepare: 'Retry prepare',
     usePreview: 'Play a lower-quality preview',
     changeQuality: 'Change video quality',
+    qualityCycle: '{{current}} — tap to change quality',
     originalQuality: 'Original',
     previewLabel: 'Preview',
     lightLabel: 'Light',
