@@ -78,9 +78,9 @@ it('an evicted in-flight walk stops deepening and never reinserts its result', a
   let gateUsed = false
   let releaseA!: (value: unknown) => void
   vi.mocked(api.get).mockImplementation(async (_url, config) => {
-    const params = (config?.params ?? {}) as { code_prefix?: string; cursor?: string }
+    const params = (config?.params ?? {}) as { dive_code?: string; cursor?: string }
     const signal = (config as { signal?: AbortSignal } | undefined)?.signal
-    const code = params.code_prefix ?? '?'
+    const code = params.dive_code ?? '?'
     callsByCode.set(code, (callsByCode.get(code) ?? 0) + 1)
     if (signal) signalsByCode.set(code, signal)
     if (code === '599D' && params.cursor && !gateUsed) { gateUsed = true; return new Promise(resolve => { releaseA = resolve }) }
@@ -103,4 +103,32 @@ it('an evicted in-flight walk stops deepening and never reinserts its result', a
   // reinserted (peek non-null): both leak the bounded cap.
   expect(callsByCode.get('599D')).toBe(2)
   expect(peekCodeAttempts('599D', 'all', 'viewer-a')).toBeNull()
+})
+
+it('asks the server for the EXACT code so same-prefix siblings cannot crowd the bounded window', async () => {
+  // The 100-per-page / 10-page cap must bind THIS code's own rows: the walk
+  // filters the exact code server-side (dive_code) BEFORE the paging
+  // window — a code_prefix search could fill the window with sibling
+  // codes (201AB for 201A) and evict the exact attempts (finding
+  // b3ec9b9b).
+  const paramsSent: Array<Record<string, unknown>> = []
+  vi.mocked(api.get).mockImplementation(async (_url, config) => {
+    paramsSent.push({ ...(config?.params ?? {}) } as Record<string, unknown>)
+    return {
+      data: {
+        items: [
+          { id: 1, dive_code: '201AB', dive_datetime: '2026-01-01T00:00:00Z' },
+          { id: 2, dive_code: '201A', dive_datetime: '2026-01-02T00:00:00Z' },
+        ],
+        next_cursor: null,
+      },
+    }
+  })
+  const result = await getCodeAttemptsResult('201A', 'all', 'viewer-a')
+  // Every page asked for the exact code — never a prefix search.
+  expect(paramsSent).toHaveLength(1)
+  expect(paramsSent[0].dive_code).toBe('201A')
+  expect('code_prefix' in paramsSent[0]).toBe(false)
+  // The display only keeps this code's own rows (defense in depth).
+  expect(result.items.map(item => item.dive_code)).toEqual(['201A'])
 })

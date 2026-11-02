@@ -259,6 +259,7 @@ def library_page(
     limit: int = Query(100, ge=1, le=100), cursor: Optional[str] = None,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     height: str = "", performance: str = "", code_prefix: str = "",
+    dive_code: str = Query("", max_length=16),
     search_text: str = Query("", max_length=200), position_filter: str = "",
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
     date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
@@ -267,7 +268,8 @@ def library_page(
 ):
     """A bounded, filtered Library page; cursor ties include id for stable order."""
     from app.services.library_query import encode_cursor
-    rows = list_dives(request=request, db=db, session_id=None, dive_code=None,
+    rows = list_dives(request=request, db=db, session_id=None,
+        dive_code=dive_code or None,
         height=height, performance=performance, date_from=date_from, date_to=date_to,
         exclude_lineup=True, exclude_personal=False, diver_scope=diver_scope,
         limit=limit + 1, offset=0, code_prefix=code_prefix, search_text=search_text,

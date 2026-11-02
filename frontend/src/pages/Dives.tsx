@@ -457,19 +457,28 @@ function DiveLibrary() {
           const depth = resumedPagesPending.current;
           resumedPagesPending.current = null;
           if (depth) {
-            // The scroll anchor stays PENDING while the walk proceeds (the
-            // scroll effect skips the consumption); the anchor is released
-            // when the walk finishes — or explicitly discarded when the
-            // remembered row fell beyond the bounded replay (new arrivals
-            // pushed it deeper): the restored rows are a different range
-            // than the saved position, so the saved scroll has no meaning.
-            resumeWalkingRef.current = true;
-            void resumeDepth(depth, nextCursor ?? null).then(result => {
-              if (result.current && !result.anchorReached) {
-                workspaceRestorePending.current = null;
-                workspaceRestoreKeyRef.current = null;
-              }
-            }).finally(() => { resumeWalkingRef.current = false; setResumeWalkingTick(t => t + 1); });
+            // A fresh cache hit already CONTAINS the remembered anchor row
+            // (its rows end at the snapshot's own nextCursor): replaying
+            // pages from there would fetch beyond the remembered depth and
+            // then discard the saved scroll position. An anchor inside the
+            // loaded rows means the depth IS restored — no replay at all;
+            // an anchor among later pages keeps the bounded cold replay.
+            const anchorCached = depth.anchor !== null && dives.some(item => item.id === depth.anchor);
+            if (!anchorCached) {
+              // The scroll anchor stays PENDING while the walk proceeds (the
+              // scroll effect skips the consumption); the anchor is released
+              // when the walk finishes — or explicitly discarded when the
+              // remembered row fell beyond the bounded replay (new arrivals
+              // pushed it deeper): the restored rows are a different range
+              // than the saved position, so the saved scroll has no meaning.
+              resumeWalkingRef.current = true;
+              void resumeDepth(depth, nextCursor ?? null).then(result => {
+                if (result.current && !result.anchorReached) {
+                  workspaceRestorePending.current = null;
+                  workspaceRestoreKeyRef.current = null;
+                }
+              }).finally(() => { resumeWalkingRef.current = false; setResumeWalkingTick(t => t + 1); });
+            }
           }
         }
       })

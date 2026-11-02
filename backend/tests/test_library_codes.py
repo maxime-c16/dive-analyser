@@ -58,6 +58,23 @@ def test_codes_cover_every_page_and_skip_lineups(api_client, test_db):
     assert codes["5122D"]["latest"]["id"] == recent[0]["id"]
 
 
+def test_dive_code_exact_filters_before_the_bounded_page(api_client, test_db):
+    """The exact-code window binds the code's OWN rows: filtering the exact
+    code server-side happens BEFORE paging, so a same-prefix sibling (201AB)
+    can never crowd 201A's attempts out of its bounded newest window
+    (finding b3ec9b9b: the client walk sends dive_code, not code_prefix)."""
+    start = datetime.now() - timedelta(days=60)
+    _seed(test_db, "201AB", ["G"] * 120, start=start)
+    _seed(test_db, "201A", ["G", "P", "G"], start=start)
+    payload = api_client.get("/api/v1/dives/library", params={
+        "diver_scope": "all", "dive_code": "201A", "limit": 100,
+    }).json()
+    codes = {item["dive_code"] for item in payload["items"]}
+    assert codes == {"201A"}
+    assert len(payload["items"]) == 3
+    assert payload["next_cursor"] is None
+
+
 def test_code_filter_and_straight_jumps(api_client, test_db):
     start = datetime.now() - timedelta(days=5)
     _seed(test_db, "101B", ["G", "M"], start=start)

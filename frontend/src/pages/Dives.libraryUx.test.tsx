@@ -422,3 +422,46 @@ it('opens the latest attempt of a code even when it is not on the loaded pages',
   await userEvent.click(screen.getByRole('button', { name: /Open latest 103C attempt/ }))
   expect(await screen.findByText('Native player uuid-99')).toBeInTheDocument()
 })
+
+it('a fresh cache hit already holding the anchor restores the scroll without replaying pages', async () => {
+  // WARM cache: the snapshot's rows end at its own nextCursor and ALREADY
+  // contain the remembered anchor row. Replaying pages from that cursor
+  // would fetch BEYOND the remembered depth (pages the user never loaded)
+  // and then discard the saved scroll (finding b3ec9b9b). This test fails
+  // on the old code: the walk fetched past the anchor and dropped the
+  // scroll. The cold walk (anchor among later pages) keeps its bounded
+  // replay — covered by the two resume tests above.
+  vi.mocked(api.get).mockClear()
+  clearLibraryCache()
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const accessKey = JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])
+  // Cache key for the default (self) scope: the restored workspace carries
+  // NO filter change (its params equal the bare URL's), so the restore
+  // happens in ONE effect pass whose key matches — the library cache marks
+  // a key mismatch by clearing itself, so the seeded snapshot must use the
+  // exact key of the pass that will restore.
+  const pageParamsKey = JSON.stringify({ limit: 100, diver_scope: 'self', height: '', performance: '', code_prefix: '', search_text: '', position_filter: '', modifier_filter: '' })
+  const cacheKey = JSON.stringify([accessKey, 'paged', pageParamsKey])
+  localStorage.setItem('dive-library-v1', JSON.stringify({
+    key: cacheKey,
+    snapshot: { dives: [dive(97, '202B', 1), dive(2, '103B', 1)], divers, savedAt: Date.now(), nextCursor: 'p2-new' },
+  }))
+  // The saved anchor (id 97) lives INSIDE the cached rows; the memory says
+  // the remembered depth was 3 pages. The workspace params equal the bare
+  // URL's (no filter to merge) so the single restore pass hits the cache.
+  saveWorkspace('', 5000, { anchor: 97, pages: 3 })
+  renderAt('/dives')
+  expect(await screen.findByRole('button', { name: /Open 202B attempt/ })).toBeInTheDocument()
+  // Restored WITHOUT any replay: no /dives/library page-request at all and
+  // no cursor continuation — the cached content already covers the depth.
+  const calls = vi.mocked(api.get).mock.calls as unknown as Array<[string, { params?: Record<string, string> }]>
+  expect(calls.filter(([url]) => url === '/api/v1/dives/library')).toHaveLength(0)
+  expect(calls.filter(([, config]) => config?.params?.cursor)).toHaveLength(0)
+  // The saved scroll applies against the CACHED rows (finds its position).
+  await waitFor(() => expect(scrollSpy).toHaveBeenCalled())
+  expect(scrollSpy.mock.calls[0][1]).toBe(5000)
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})

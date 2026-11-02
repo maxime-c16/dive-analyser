@@ -142,8 +142,11 @@ export function getCodeAttemptsResult(code: string, scope: string, viewer: strin
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
         // A diver view narrows server-side BEFORE the bounded walk: the
         // selected diver's older attempts stay reachable inside the newest
-        // window instead of being cut by the cap first.
-        params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
+        // window instead of being cut by the cap first. The EXACT code also
+        // filters server-side BEFORE the paging window: same-prefix sibling
+        // codes (code_prefix) can never crowd this code's attempts out of
+        // the bounded window — permission scoping stays unchanged.
+        params: { limit: 100, diver_scope: scope, dive_code: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
         signal,
       })
       // The Library response is newest first, so a bounded walk keeps the
