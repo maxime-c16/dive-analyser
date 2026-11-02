@@ -17,6 +17,7 @@ type Row = {
   title: string
   body: string | null
   dive_id: number | null
+  dive_date?: string | null
   read_at: string | null
   created_at: string
   calendar?: Record<string, unknown>
@@ -138,6 +139,21 @@ describe('Notifications page', () => {
     expect(screen.getByText('Personal best: 103B')).toBeInTheDocument()
     const diveLink = screen.getByRole('link', { name: 'Open dive' })
     expect(diveLink).toHaveAttribute('href', '/dives?clip=7')
+  })
+
+  it('names the real session date on new-video rows (not the arrival day)', async () => {
+    // A late sync reports the dive's own date, older than the arrival.
+    // Fixture: arrived Oct 6, session Oct 2.
+    rows = [{ ...unreadRow, type: 'new_video', title: 'New video synced', created_at: '2026-10-06T08:00:00Z', dive_date: '2026-10-02T00:00:00Z' }]
+    const first = renderPage()
+    expect(await screen.findByText('New video synced')).toBeInTheDocument()
+    expect(screen.getByText(/Session of .*2026/)).toBeInTheDocument()
+    first.unmount()
+    // Non-video rows keep their plain shape (no session date line).
+    rows = [{ ...unreadRow }]
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    expect(screen.queryByText(/Session of/)).not.toBeInTheDocument()
   })
 
   it('filters to unread only', async () => {

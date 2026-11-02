@@ -458,6 +458,7 @@ const fr = {
     errorAction: 'Impossible d’enregistrer la modification. Réessayez.',
     unreadOnlyPending: 'Non lues',
     loadMore: 'Afficher les notifications plus anciennes',
+    sessionDate: 'Séance du {{date}}',
     listAria: 'Notifications',
     unreadBadge: 'Non lue',
     types: {
@@ -963,6 +964,7 @@ const fr = {
     next: 'Suivant',
     speed: 'Vitesse',
     playbackSpeed: 'Vitesse de lecture',
+    positionAria: 'Essai {{index}} sur {{total}}',
   },
   sessionDirection: {
     label: 'Groupes :',

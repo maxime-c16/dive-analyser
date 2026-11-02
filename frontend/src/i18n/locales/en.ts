@@ -458,6 +458,7 @@ const en = {
     errorAction: 'The change could not be saved. Try again.',
     unreadOnlyPending: 'Unread',
     loadMore: 'Show older notifications',
+    sessionDate: 'Session of {{date}}',
     listAria: 'Notifications',
     unreadBadge: 'Unread',
     types: {
@@ -962,6 +963,7 @@ const en = {
     next: 'Next',
     speed: 'Speed',
     playbackSpeed: 'Playback speed',
+    positionAria: 'Attempt {{index}} of {{total}}',
   },
   sessionDirection: {
     label: 'Directions:',

@@ -107,6 +107,9 @@ function NotificationRow({
         )}
       </div>
       <h2 className="mt-1 text-base font-semibold text-app-text">{title}</h2>
+      {item.type === 'new_video' && item.dive_date && !Number.isNaN(new Date(item.dive_date).getTime()) && (
+        <p className="mt-1 text-xs text-app-muted">{t('notifications.sessionDate', { date: new Date(item.dive_date).toLocaleDateString(lang) })}</p>
+      )}
       {body && <p className="mt-1 text-sm leading-6 text-app-muted">{body}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {calendarView && calendarView.url.startsWith('/calendar') && (
