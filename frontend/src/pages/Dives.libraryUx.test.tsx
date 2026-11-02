@@ -15,6 +15,12 @@ import Dives from './Dives'
 import { nameSearchCodes } from '../utils/diveNameSearch'
 import { clearLibraryCache } from '../services/libraryCache'
 
+// Cold lazy-route imports transformed by Vitest can take well over 5s on the
+// shared 2-CPU server while the gate runs next to production: every test
+// that opens a lazy route below waits with this shared budget instead of the
+// 1s default.
+const LAZY_ROUTE_WAIT = 20_000
+
 let mockUser: Record<string, unknown> | null = {
   user_id: 1, role: 'owner', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }],
 }
@@ -186,7 +192,10 @@ it('never restores over an explicit Library URL or a clip deep link', async () =
   expect(window.location.search).toBe('?scope=all')
 
   const clipEntry = renderAt('/dives?clip=2')
-  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  // The clip stage lazy-loads (see LAZY_ROUTE_WAIT): under CI load its
+  // settle can outlive the default 1 s wait — wait for the dialog with the
+  // same shared budget.
+  expect(await screen.findByRole('dialog', {}, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
   expect((clipEntry.container.querySelector('input[data-dives-search]') as HTMLInputElement).value).toBe('')
   clipEntry.unmount()
 })
