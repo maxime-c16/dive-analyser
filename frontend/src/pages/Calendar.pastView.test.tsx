@@ -2,11 +2,13 @@
  * never renders under past sessions the screen actually shows. */
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import Calendar from './Calendar'
 
-vi.mock('../calendar/api', () => ({
+vi.mock('../calendar/api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../calendar/api')>(),
   calendarApi: {
     me: vi.fn(), calendars: vi.fn(), occurrences: vi.fn(), setAbsence: vi.fn(),
   },
@@ -58,6 +60,31 @@ it('names the past window honestly when it is empty too', async () => {
   renderView('?past=1')
   expect(await screen.findByText('Nothing recorded in the past three months.')).toBeInTheDocument()
 })
+
+it('handles a failed past window: retries and no empty claim until real data', async () => {
+  const user = userEvent.setup()
+  // Only the 90-day past window fails on its first call; the retried call
+  // answers with a real (empty) array.
+  let pastFails = true
+  vi.mocked(calendarApi.occurrences).mockImplementation(async (from: string) => {
+    if (new Date(from).getTime() <= Date.now() - 30 * 86_400_000) {
+      if (pastFails) { pastFails = false; throw new Error('down') }
+      return []
+    }
+    return []
+  })
+  renderView('?past=1')
+  // The failing past request surfaces its own retryable error state (the
+  // past-view banner carries a Retry of its own).
+  expect(await screen.findByText('The calendar could not be loaded.')).toBeInTheDocument()
+  expect(screen.queryByText('Nothing recorded in the past three months.')).not.toBeInTheDocument()
+  // Retry: the next past call answers honestly with an empty array and the
+  // claim is then truthful.
+  await user.click(screen.getByRole('button', { name: 'Retry' }))
+  await waitFor(() => expect(screen.getByText('Nothing recorded in the past three months.')).toBeInTheDocument())
+  expect(screen.queryByText('The calendar could not be loaded.')).not.toBeInTheDocument()
+})
+
 
 it('keeps the upcoming notice for the default upcoming view', async () => {
   renderView('')
