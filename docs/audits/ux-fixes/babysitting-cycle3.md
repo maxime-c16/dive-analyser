@@ -106,3 +106,8 @@
 - **Diagnostic réel par la régression demandée** : le clamp s'exécutait NON PAS pendant le walk mais dans la FENÊTRE pass-1 — `workspaceRestoreKeyRef` pas encore assigné et `loadedKeyRef` null → la garde `null === null` de l'effet de restauration de scroll passait et clampait sur les rows stales du pass bare.
 - **Corrigé (les deux gardes)** : (1) l'effet de restoration de scroll EXIGE les deux clés ASSIGNÉES (plus jamais `null === null`) ; (2) le skip warm-cache lie la closure à la VERSION CHARGÉE (`loadedKeyRef.current === cacheKey` && l'ancre dans la réponse de CETTE key uniquement — jamais une closure stale d'une autre key).
 - Régression prouvée : restore bare-URL + filtres différents + cache stale du scope bare contenant l'ancre + page matching scope=all SANS l'ancre → la walk RÉELLE se lance (p2/p3 fetch), l'ancre non re-atteinte est FORFEITED — clamp JAMAIS sur la page partiel (anciennement appelé scrollTo avant le fix). Warm-cache VÉRITABLE + cold success/error/retry/cancel préservés (29/29 + TS verts). Push head: CE commit.
+
+## Passe 2026-11-02 ~17h30 (185 nettoyage : artifact root supprimé)
+
+- **Confirmation parent** (diff 185 name-only) : UN fichier parasite tracké à la racine (`indow.scrollTo(0, Math.min(anchor, max));-18,      window.scrollTo(0, Math.min(anchor, max));+8p`, ~1295 lignes dupliquées de Dives, né d'un one-liner sed cassé lors du diagnostic du round-13, introduit au commit 98a0b2a6). Vérification du diff ANTI-parasite : `git diff origin/master...HEAD --name-only` ne contient PLUS aucun fichier hors docs/frontend/backend/ci (compteur 0 après le nettoyage).
+- Supprimé le seul artefact (path quoté + `--`), commit `d17e0d93`, code inchangé (aucun test répété). Gaça push head: CE commit.
