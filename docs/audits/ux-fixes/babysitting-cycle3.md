@@ -16,3 +16,7 @@
 - **186 MERGED** (`2506a12c` — budget LAZY_ROUTE_WAIT déplacé dans la lib de la PR, APPROVE+casks sur le SHA exact).
 - **183 retargeté sur master** — HEAD `ead16b40` : reconstituée au-dessus de master courant, diff 183 conservé seul (ce D'COORD groupes de base in master ne想来 dupliqués), conflits 181/Clips résolus, retarget de la base à master via `gh pr edit --base master`. Tests : backend notifications/member_profiles 37/37, front clip+calendar 47+3 pas de rouge; CI/verdict redémarrent.
 - **185 en sortie** head `cf8b83f8` — la base master-moved + 5 corrections sont sur le SHA (en attente de gates + verdict).
+
+## Passe 2026-11-02 ~09h30 (183 client findings)
+
+- **183 head `0ae1f47c`** — les 2 findings du verdict e1e7d7e7 traités via le stash nommé appliqué par référence (`git checkout stash@{0} -- …`, drop APRÈS le push réussi) : le type+renderer `dive_date` (« Session of / Séance du » pour les new_video datés) et les clés `clipNav.positionAria` EN/FR ; test dédié 26/26 + parity + TS. Le diff complet contre l'intention originale vérifié (les 2 commits d'origine + note + tests — aucune perte ; les fichiers hérités de l'ancienne base restent côté master).
