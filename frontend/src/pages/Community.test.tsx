@@ -92,7 +92,7 @@ describe('Community discovery', () => {
   })
 
   it('a restart discards a stale continuation served into the fresh page', async () => {
-    let hold: ((value: unknown) => void) | null = null
+    let hold: ((value: Response) => void) | null = null
     let directoryCalls = 0
     let searchFails = false
     vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
