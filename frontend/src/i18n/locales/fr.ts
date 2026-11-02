@@ -1572,6 +1572,7 @@ const fr = {
     sample: '{{attempts}} plongeons · {{sessions}} séances · {{from}} → {{to}}',
     sampleCapped: '{{attempts}} plongeons affichés (sur {{total}}) · {{sessions}} séances · {{from}} → {{to}}',
     cappedAria: 'Historique plafonné aux {{total}} derniers plongeons de ce code.',
+    cappedPlain: 'Historique plafonné à la fenêtre des plongeons les plus récents pour cette vue.',
     successTitle: 'Part des plongeons notés à G (7/10) ou mieux.',
     rankTitle: 'Classement par score parmi les {{total}} plongeons de ce code ; les ex æquo partagent le rang.',
     thisDive: 'Ce plongeon',

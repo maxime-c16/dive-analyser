@@ -1570,6 +1570,7 @@ const en = {
     sample: '{{attempts}} attempts · {{sessions}} sessions · {{from}} → {{to}}',
     sampleCapped: '{{attempts}} attempts shown (of {{total}}) · {{sessions}} sessions · {{from}} → {{to}}',
     cappedAria: 'History capped at the newest {{total}} attempts for this code.',
+    cappedPlain: 'History capped to the newest attempts window for this view.',
     successTitle: 'Share of graded attempts scoring G (7/10) or better.',
     rankTitle: 'Ranked by score among the {{total}} attempts of this code; ties share a rank.',
     thisDive: 'This dive',

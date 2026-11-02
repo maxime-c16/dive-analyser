@@ -809,13 +809,20 @@ function DiveLibrary() {
     // a whole (every other filter, never the height it filters), so the same
     // URL answers the same options and switching the dimension needs no
     // detour through All heights. Failures fall back to the row-derived list.
-    api.get("/api/v1/dives/library/facets", { params: facetScopeParamsRef.current })
+    // The facet answer is EXPLICITLY bounded (limit + partial + after): the
+    // client follows the keyset for a bounded number of pages so the options
+    // stay complete instead of silently showing the first page's slice.
+    const facets: string[] = [];
+    const walk = (after: string): Promise<void> => api
+      .get('/api/v1/dives/library/facets', { params: { ...facetScopeParamsRef.current, ...(after ? { after } : {}) } })
       .then((response) => {
-        if (active && Array.isArray(response.data?.heights)) {
-          setHeightFacets({ key: facetParamsKey, heights: response.data.heights });
-        }
+        if (!active || !Array.isArray(response.data?.heights)) return;
+        facets.push(...response.data.heights);
+        setHeightFacets({ key: facetParamsKey, heights: [...new Set(facets)] });
+        if (response.data.partial && response.data.after && facets.length < 500) return walk(response.data.after);
       })
       .catch(() => undefined);
+    void walk('');
     return () => { active = false; };
   }, [facetParamsKey, reloadKey, accessKey]);
   const heights = useMemo(

@@ -107,6 +107,10 @@ export default function Community() {
   // Same totals rule for Recently active: the complete-directory window,
   // never the loaded page's slice.
   const recentTotal = totals?.recent ?? recent.length
+  // Unavailable totals (aggregate failure → null) are NOT complete counts:
+  // the banners drop the number instead of presenting page counts as the
+  // full picture, and the continuation uses a count-free label.
+  const totalsKnown = totals !== null
 
   const row = (member: MemberSummary, index: number) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-row ca-pop" style={{ '--i': Math.min(index, 12) } as CSSProperties}>
     <MemberAvatar member={member} size={48} />
@@ -140,8 +144,8 @@ export default function Community() {
         {searchAfter != null && <button type="button" onClick={() => void moreResults()} disabled={searchingMore} className="ca-pill cm-more">{searchingMore ? t('common.loading') : t('community.more')}</button>}</>
         : <p className="cm-empty">{t('community.empty')}</p>}
     </section> : directory === null ? <PageLoading /> : <>
-      {(recent.length > 0 || (totals?.recent ?? 0) > 0) && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
-        <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}<span>{recentTotal}</span></h2>
+      {(totalsKnown ? (totals!.recent > 0 || recent.length > 0) : recent.length > 0) && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
+        <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}{totalsKnown && <span>{recentTotal}</span>}</h2>
         <div className="cm-stories">{recent.map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-story ca-pop" style={{ '--i': index } as CSSProperties}>
           <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={60} /></span>
           <b>{member.display_name}</b>
@@ -156,13 +160,20 @@ export default function Community() {
           lives entirely on a later page still gets its banner (empty of
           cards until the continuation carries it in), instead of the first
           page deciding which sections exist. */}
-      {(divers.length > 0 || (totals?.divers ?? 0) > 0) && <section className="cm-section" aria-labelledby="cm-divers">
-        <h2 id="cm-divers" className="cm-h2">{t('community.divers')}<span>{diversTotal}</span></h2>
+      {/* Section banners come from the directory totals: a category that
+          lives entirely on a later page still gets its banner (empty of
+          cards until the continuation carries it in), instead of the first
+          page deciding which sections exist. When the totals are
+          UNAVAILABLE (aggregate failure → null) the banners drop their
+          count: a loaded page's slice is never presented as the full
+          picture. */}
+      {(totalsKnown ? (totals!.divers > 0 || divers.length > 0) : divers.length > 0) && <section className="cm-section" aria-labelledby="cm-divers">
+        <h2 id="cm-divers" className="cm-h2">{t('community.divers')}{totalsKnown && <span>{diversTotal}</span>}</h2>
         <div className="cm-list">{divers.map(row)}</div>
       </section>}
 
-      {(others.length > 0 || (totals?.others ?? 0) > 0) && <section className="cm-section" aria-labelledby="cm-others">
-        <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}<span>{othersTotal}</span></h2>
+      {(totalsKnown ? (totals!.others > 0 || others.length > 0) : others.length > 0) && <section className="cm-section" aria-labelledby="cm-others">
+        <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}{totalsKnown && <span>{othersTotal}</span>}</h2>
         <div className="cm-chips">{(showAll ? others : others.slice(0, 8)).map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-chip ca-pop" style={{ '--i': index } as CSSProperties}>
           <MemberAvatar member={member} size={30} />{member.display_name}
         </Link>)}
@@ -171,7 +182,10 @@ export default function Community() {
       </section>}
 
       {directoryMore?.hasMore && <button type="button" className="ca-pill cm-more" onClick={() => void moreDirectory()} disabled={directoryLoadingMore}>
-        {directoryLoadingMore ? t('common.loading') : t('community.remaining', { count: Math.max((totals?.members ?? 0) - peers.length, 0) })}
+        {directoryLoadingMore ? t('common.loading')
+          // Unavailable totals: a count-free label — "remaining 0" would be
+          // a fabricated number.
+          : totalsKnown ? t('community.remaining', { count: Math.max((totals?.members ?? 0) - peers.length, 0) }) : t('community.more')}
       </button>}
     </>}
   </div>

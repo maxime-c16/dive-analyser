@@ -78,8 +78,15 @@ function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: L
   if (hit?.promise) return hit.promise
   if (hit?.value !== undefined && Date.now() - hit.at < FRESH_MS) return Promise.resolve(hit.value)
   const liveness: Liveness = { alive: true }
-  const promise = load(liveness).then(value => { store.set(key, { at: Date.now(), value }); return value })
-    .catch(error => { store.delete(key); throw error })
+  const promise = load(liveness)
+    // An evicted/reset walk NEVER writes back: the store may belong to a
+    // newer entry (or none) — reinsertion would break the bounded cap and
+    // resurrect stale rows under rapid switches.
+    .then(value => {
+      if (liveness.alive) store.set(key, { at: Date.now(), value });
+      return value
+    })
+    .catch(error => { if (liveness.alive) store.delete(key); throw error })
   while (store.size >= MAX_CACHE_ENTRIES) trim(store, key)
   store.set(key, { at: Date.now(), value: hit?.value, promise, liveness })
   return promise

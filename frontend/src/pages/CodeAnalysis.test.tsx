@@ -48,6 +48,20 @@ it('summarises every attempt of the code and highlights the dive it came from', 
   expect(screen.getByRole('button', { name: /Best/ })).toBeInTheDocument()
 })
 
+it('a capped diver view omits the cross-population denominator', async () => {
+  // In diver view the summaries' attempt_count covers the whole scope, not
+  // the selected diver: the capped notice must NOT claim "N of 12" — it
+  // uses the count-free wording instead.
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({
+    items: attempts.slice(0, 4) as never,
+    capped: true,
+  })
+  renderPage('/dives/analysis/5122D?diver=9')
+  expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
+  expect(screen.queryByText(/\d+ attempts shown \(of /)).not.toBeInTheDocument()
+  expect(screen.getByText('History capped to the newest attempts window for this view.')).toBeInTheDocument()
+})
+
 it('opens the viewer over the page and its Analysis action returns to the chart on that dive', async () => {
   renderPage('/dives/analysis/5122D')
   await userEvent.click(await screen.findByRole('button', { name: /Latest/ }))

@@ -143,8 +143,13 @@ export default function CodeAnalysis() {
   const analytics = isAnalyticsCode(code)
   const heights = useMemo(() => [...new Set(all.map(item => item.height))], [all])
   // Full-scope total for the capped-window note (server summary, never the
-  // bounded client list itself).
-  const attemptsTotal = useMemo(() => summaries?.find(item => item.dive_code === code)?.attempt_count ?? items.length, [summaries, code, items.length])
+  // bounded client list itself). In a selected-diver view the summaries
+  // cover the WHOLE scope — the diver's own total is unavailable, so the
+  // denominator is omitted instead of claiming a cross-population count;
+  // the all-scope fallback to items.length stays for the diver-less views.
+  const attemptsTotal: number | null = useMemo(() => diverId ? null
+    : summaries?.find(item => item.dive_code === code)?.attempt_count ?? items.length,
+  [diverId, summaries, code, items.length])
   const sessions = useMemo(() => groupSessions(items), [items])
   const scoredGroups = useMemo(() => groupSessions(scored), [scored])
 
@@ -273,7 +278,7 @@ export default function CodeAnalysis() {
     </div>
 
     {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
-    {!items.length && attemptsCapped && <div className="ca-span ca-note">{t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
+    {!items.length && attemptsCapped && <div className="ca-span ca-note">{attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
     {!items.length ? <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div> : <>
       <div className="ca-main">
         {analytics && <div>
@@ -284,7 +289,7 @@ export default function CodeAnalysis() {
             <div className="ca-kpi"><dt title={t('codeAnalysis.successTitle')}>{t('codeAnalysis.success')}</dt><dd title={t('codeAnalysis.successTitle')}><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= ATHLETE_SCORE_10.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
           </dl>
           <div style={{ marginTop: 10 }}><RatingBar ratings={ratingCounts(items.map(item => item.performance))} /></div>
-          <p className="ca-sample" title={attemptsCapped ? t('codeAnalysis.cappedAria') : undefined}>{attemptsCapped
+          <p className="ca-sample" title={attemptsCapped ? (attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })) : undefined}>{attemptsCapped && attemptsTotal !== null
             ? t('codeAnalysis.sampleCapped', { attempts: items.length, total: attemptsTotal, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })
             : t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
         </div>}

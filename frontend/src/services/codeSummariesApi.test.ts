@@ -65,3 +65,34 @@ it('stops at a bounded newest window and reports the cap instead of lying', asyn
   expect(result.capped).toBe(true)
   expect(result.items).toHaveLength(10)
 })
+
+it('an evicted in-flight walk stops deepening and never reinserts its result', async () => {
+  // Walk A goes in flight (its second page is held); 16 later walks evict
+  // it (FIFO, pending included). The evicted walk must stop at the page
+  // boundary and NEVER write back — the old code walked to its cap and
+  // reinserted, both leaking the bound under rapid code switches.
+  const callsByCode = new Map<string, number>()
+  let gateUsed = false
+  let releaseA!: (value: unknown) => void
+  vi.mocked(api.get).mockImplementation(async (_url, config) => {
+    const params = (config?.params ?? {}) as { code_prefix?: string; cursor?: string }
+    const code = params.code_prefix ?? '?'
+    callsByCode.set(code, (callsByCode.get(code) ?? 0) + 1)
+    if (code === '599D' && params.cursor && !gateUsed) { gateUsed = true; return new Promise(resolve => { releaseA = resolve }) }
+    return { data: { items: [{ id: 1, dive_code: code, dive_datetime: '2026-01-01T00:00:00Z' }], next_cursor: `cursor-${code}` } }
+  })
+  const inFlight = getCodeAttemptsResult('599D', 'all', 'viewer-a')
+  // Sixteen later walks settle instantly; the 16-entry cap evicts the
+  // oldest = the pending walk A (its page-2 response is still held).
+  for (let index = 0; index < 16; index++) {
+    await getCodeAttemptsResult(`5${index}1D`, 'all', 'viewer-a')
+  }
+  expect(callsByCode.get('599D')).toBe(2)
+  // Release the held page: the walk lands it, then the liveness stops it.
+  releaseA!({ data: { items: [{ id: 2, dive_code: '599D', dive_datetime: '2026-01-02T00:00:00Z' }], next_cursor: 'cursor-599D-2' } })
+  await inFlight
+  // The old code walked to its 10-page cap here (callsByCode 10) and
+  // reinserted (peek non-null): both leak the bounded cap.
+  expect(callsByCode.get('599D')).toBe(2)
+  expect(peekCodeAttempts('599D', 'all', 'viewer-a')).toBeNull()
+})

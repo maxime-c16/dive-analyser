@@ -9,7 +9,7 @@ import Community from './Community'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
 const fanny = { user_id: 2, display_name: 'Fanny', handle: 'fanny_dive', bio: 'Training for the next meet', avatar_url: null }
 function response(data: unknown, ok = true) { return Promise.resolve({ ok, status: ok ? 200 : 500, json: async () => data } as Response) }
-function renderPage() { render(<I18nProvider><MemoryRouter><Community /></MemoryRouter></I18nProvider>) }
+function renderPage() { return render(<I18nProvider><MemoryRouter><Community /></MemoryRouter></I18nProvider>) }
 afterEach(() => { vi.restoreAllMocks() })
 const board = { period: 'week', start: '', end: '', members: [] }
 /** Routes the directory, and the leaderboard to an empty board unless given. */
@@ -35,8 +35,29 @@ describe('Community discovery', () => {
     expect(screen.queryByText('Twin')).not.toBeInTheDocument()
   })
 
-  it('ranks the most active members on a podium, you highlighted, your own diver left out', async () => {
-    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
+  it('keeps unavailable totals distinct from complete ones (no fabricated counts)', async () => {
+    // An aggregate failure serves `totals: null`: the banners drop their
+    // count (the loaded page's slice is not the full picture) and the
+    // continuation keeps a count-free label instead of "remaining 0".
+    api(() => ({ items: [
+      { ...fanny, accessible_dive_count: 32, latest_dive_at: new Date(Date.now() - 3 * 86_400_000).toISOString() },
+      { ...fanny, user_id: 3, display_name: 'Alex', accessible_dive_count: 0, latest_dive_at: null },
+    ], next_after: 50, has_more: true, totals: null }))
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Divers' })).not.toHaveTextContent(/\d/)
+    expect(screen.getByRole('heading', { name: /Other members/ })).not.toHaveTextContent(/\d/)
+    expect(screen.getByRole('button', { name: 'Load more members' })).toHaveTextContent('Load more members')
+    // ...and a serve with the totals back restores the full counts.
+    api(() => ({ items: [
+      { ...fanny, accessible_dive_count: 32, latest_dive_at: new Date(Date.now() - 3 * 86_400_000).toISOString() },
+      { ...fanny, user_id: 3, display_name: 'Alex', accessible_dive_count: 0, latest_dive_at: null },
+    ], next_after: null, has_more: false, totals: { members: 2, divers: 1, others: 1, recent: 1 } }))
+    const second = renderPage()
+    expect(await screen.findByRole('heading', { name: /Divers 1/ })).toBeInTheDocument()
+    second.unmount()
+  })
+
+  it('ranks the most active members on a podium, you highlighted, your own diver left out', async () => {    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
     api(() => ({ items: [{ ...fanny, accessible_dive_count: 3 }, { ...fanny, user_id: 4, display_name: 'Twin', linked: true }], next_after: null }),
       { ...board, members: [member(4, 'Twin', 50), member(2, 'Fanny', 12), member(1, 'Me', 8)] })
     renderPage()
